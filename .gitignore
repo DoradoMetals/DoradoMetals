@@ -1,0 +1,12 @@
+.env
+.env.local
+.env.development
+.env.production
+
+# Ignore Docker-related files
+docker-compose.override.yml
+
+# Ignore system files
+node_modules
+dist
+.DS_Store
