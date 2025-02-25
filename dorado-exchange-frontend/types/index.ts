@@ -1,3 +1,4 @@
+import { UUID } from "crypto";
 import { SVGProps } from "react";
 
 export type IconSvgProps = SVGProps<SVGSVGElement> & {
@@ -5,11 +6,13 @@ export type IconSvgProps = SVGProps<SVGSVGElement> & {
 };
 
 export interface Product{
+  id: UUID,
+  product_code: string,
   name: string,
-  image: string,
-  code: string,
+  metal_id: UUID,
+  weight: number,
+  bid_price: number,
+  ask_price: number,
   availability: boolean,
-  price: number,
-  in_cart: number,
-  in_queue: number,
+  image: string,
 }

@@ -10,7 +10,6 @@ type ProductCardProps = {
 
 export default function ProductCard({ product }: ProductCardProps) {
 
-  const [quantity, setQuantity] = useState(product.in_queue);
   return (
     <div className="flex justify-center p-4">
       <Card className="w-[400px] h-auto shadow-lg rounded-2xl">
@@ -24,7 +23,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </Chip>
         </CardHeader>
         <div className="px-4 mt-2">
-          <p className="text-sm">{product.code}</p>
+          <p className="text-sm">{product.product_code}</p>
         </div>
 
         <CardBody className="flex justify-center p-4">
@@ -46,7 +45,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 variant="light"
                 size="sm"
                 className="rounded-lg"
-                onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                // onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
               >
                 <MinusIcon className="w-5 h-5" />
               </Button>
@@ -64,7 +63,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 }}
                 hideStepper
                 variant={"underlined"}
-                value={quantity}
+                // value={quantity}
               />
             </div>
             <div className="row-start-1 col-start-3">
@@ -73,7 +72,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 variant="light"
                 size="sm"
                 className="rounded-lg"
-                onClick={() => setQuantity((prev) => prev + 1)}
+                // onClick={() => setQuantity((prev) => prev + 1)}
               >
                 <PlusIcon className="w-5 h-5" />
               </Button>
