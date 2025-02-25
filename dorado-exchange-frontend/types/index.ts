@@ -10,4 +10,6 @@ export interface Product{
   code: string,
   availability: boolean,
   price: number,
+  in_cart: number,
+  in_queue: number,
 }

@@ -18,8 +18,9 @@ import { Logo } from "@/components/icons";
 export const Navbar = () => {
   return (
     <>
-    <HeroUINavbar maxWidth="full" position="sticky" className="transition-colors duration-300">
+    <HeroUINavbar maxWidth="full" position="sticky" className="m-0 bg-content1 transition-colors duration-300">
       <NavbarContent className="flex items-center w-full px-4 lg:px-8">
+
         {/* Left Section: Brand + Links */}
         <div className="flex items-center gap-6">
           {/* Brand Logo */}

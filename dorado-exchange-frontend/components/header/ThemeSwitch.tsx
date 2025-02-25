@@ -20,7 +20,7 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
   const { theme, setTheme } = useTheme();
 
   const onChange = () => {
-    theme === "light" ? setTheme("dark") : setTheme("light");
+    theme === "dorado-light" ? setTheme("dorado-dark") : setTheme("dorado-light");
   };
 
   const {
@@ -31,7 +31,7 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
     getInputProps,
     getWrapperProps,
   } = useSwitch({
-    isSelected: theme === "light",
+    isSelected: theme === "dorado-light",
     onChange,
   });
 

@@ -12,22 +12,18 @@ export default function DefaultLayout({
     <div className="relative flex flex-col h-screen">
       {/* Navbar */}
       <Navbar />
-      <Divider />
-
-      {/* Contact Info & Spot Prices in One Row */}
-      <div className="grid grid-cols-2 items-center px-4 lg:px-8 py-2">
-        {/* Contact Section */}
-        <div className="justify-self-start px-4 lg:px-8">
-          <Contact />
+      <div className="hidden xl:grid">
+        <div className="grid xl:grid-cols-2 2xl:gridcols-1 px-4 lg:px-8 items-center py-2">
+          <div className="justify-self-start px-4 lg:px-8">
+            <Contact />
+          </div>
+          <div className="hidden md:flex justify-self-end">
+            <SpotTicker />
+          </div>
         </div>
-
-        {/* Spot Ticker Section */}
-        <div className="flex justify-self-end">
-          <SpotTicker />
-        </div>
-
       </div>
-      <Divider />
+      
+
       <main className="container mx-auto max-w-10xl px-6 flex-grow pt-8">
         {children}
       </main>

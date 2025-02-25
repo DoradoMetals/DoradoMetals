@@ -42,7 +42,7 @@ export default function SpotTicker() {
   return (
     <>
       <div className="py-2 flex justify-end">
-        <div className="flex gap-6 whitespace-nowrap animate-marquee px-6 sm:text-sm md:text-md lg:text-lg">
+        <div className="flex gap-6 whitespace-nowrap animate-marquee px-6">
           {Object.entries(prices).map(([metal, { price, change }]) => (
             <a
               key={metal}
@@ -63,7 +63,7 @@ export default function SpotTicker() {
           ))}
         </div>
       </div>
-      <Divider />
+      {/* <Divider /> */}
     </>
   );
 }

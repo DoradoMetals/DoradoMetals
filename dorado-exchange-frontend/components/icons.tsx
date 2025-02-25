@@ -34,49 +34,49 @@ export const Logo: React.FC<{ size?: number; height?: number }> = ({ size = 36, 
 );
 
 export const MoonFilledIcon = (props: React.ComponentProps<"svg">) => (
-  <MoonIcon className="w-6 h-6 text-yellow-500" {...props} />
+  <MoonIcon className="w-6 h-6" {...props} />
 );
 
 export const SunFilledIcon = (props: React.ComponentProps<"svg">) => (
-  <SunIcon className="w-6 h-6 text-yellow-500" {...props} />
+  <SunIcon className="w-6 h-6" {...props} />
 );
 
 export const HeartFilledIcon = (props: React.ComponentProps<"svg">) => (
-  <HeartIcon className="w-6 h-6 text-red-500" {...props} />
+  <HeartIcon className="w-6 h-6" {...props} />
 );
 
 export const SearchIcon = (props: React.ComponentProps<"svg">) => (
-  <MagnifyingGlassIcon className="w-6 h-6 text-gray-500" {...props} />
+  <MagnifyingGlassIcon className="w-6 h-6" {...props} />
 );
 
 export const UserIcon = (props: React.ComponentProps<"svg">) => (
-  <UserCircleIcon className="w-6 h-6 text-yellow-500" {...props} />
+  <UserCircleIcon className="w-6 h-6" {...props} />
 );
 
 export const CartIcon = (props: React.ComponentProps<"svg">) => (
-  <ShoppingCartIcon className="w-6 h-6 text-yellow-500" {...props} />
+  <ShoppingCartIcon className="w-6 h-6" {...props} />
 );
 
 export const Phone = (props: React.ComponentProps<"svg">) => (
-  <PhoneIcon className="w-6 h-6 text-yellow-500" {...props} />
+  <PhoneIcon className="w-6 h-6 " {...props} />
 );
 
 export const Envelope = (props: React.ComponentProps<"svg">) => (
-  <EnvelopeIcon className="w-6 h-6 text-yellow-500" {...props} />
+  <EnvelopeIcon className="w-6 h-6" {...props} />
 );
 
 export const SpotTickerArrowUp = (props: React.ComponentProps<"svg">) => (
-  <ChevronUpIcon className="w-6 h-6 text-green-500" {...props} />
+  <ChevronUpIcon className="w-6 h-6" {...props} />
 );
 
 export const SpotTickerArrowDown = (props: React.ComponentProps<"svg">) => (
-  <ChevronDownIcon className="w-6 h-6 text-red-500" {...props} />
+  <ChevronDownIcon className="w-6 h-6" {...props} />
 );
 
 export const MinusIcon = (props: React.ComponentProps<"svg">) => (
-  <HeroMinus className="w-5 h-5 text-gray-700" {...props} />
+  <HeroMinus className="w-5 h-5" {...props} />
 );
 
 export const PlusIcon = (props: React.ComponentProps<"svg">) => (
-  <HeroPlus className="w-5 h-5 text-gray-700" {...props} />
+  <HeroPlus className="w-5 h-5" {...props} />
 );
