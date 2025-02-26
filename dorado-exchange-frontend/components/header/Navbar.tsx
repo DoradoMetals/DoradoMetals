@@ -19,7 +19,7 @@ export const Navbar = () => {
   return (
     <>
     <HeroUINavbar maxWidth="full" position="sticky" className="m-0 bg-content1 transition-colors duration-300">
-      <NavbarContent className="flex items-center w-full px-4 lg:px-8">
+      <NavbarContent className="flex items-center w-full">
 
         {/* Left Section: Brand + Links */}
         <div className="flex items-center gap-6">

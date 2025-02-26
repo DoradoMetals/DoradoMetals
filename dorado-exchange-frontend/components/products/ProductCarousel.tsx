@@ -50,7 +50,7 @@ export default function ProductGrid() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
             {currentProducts.length > 0 ? (
-              currentProducts.map((product) => <ProductCard key={product.code} product={product} />)
+              currentProducts.map((product) => <ProductCard key={product.product_code} product={product} />)
             ) : (
               <p className="text-center col-span-full text-gray-500">No products available</p>
             )}

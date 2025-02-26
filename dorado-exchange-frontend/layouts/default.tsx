@@ -12,7 +12,8 @@ export default function DefaultLayout({
     <div className="relative flex flex-col h-screen">
       {/* Navbar */}
       <Navbar />
-      <div className="hidden xl:grid">
+
+      {/* <div className="hidden xl:grid">
         <div className="grid xl:grid-cols-2 2xl:gridcols-1 px-4 lg:px-8 items-center py-2">
           <div className="justify-self-start px-4 lg:px-8">
             <Contact />
@@ -21,10 +22,9 @@ export default function DefaultLayout({
             <SpotTicker />
           </div>
         </div>
-      </div>
-      
+      </div> */}
 
-      <main className="container mx-auto max-w-10xl px-6 flex-grow pt-8">
+      <main className="flex-grow h-full w-full overflow-hidden">
         {children}
       </main>
     </div>

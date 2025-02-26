@@ -1,5 +1,4 @@
 import * as React from "react";
-import clsx from "clsx";
 import { 
   MoonIcon, 
   SunIcon, 
@@ -58,7 +57,7 @@ export const CartIcon = (props: React.ComponentProps<"svg">) => (
 );
 
 export const Phone = (props: React.ComponentProps<"svg">) => (
-  <PhoneIcon className="w-6 h-6 " {...props} />
+  <PhoneIcon className="w-6 h-6" {...props} />
 );
 
 export const Envelope = (props: React.ComponentProps<"svg">) => (

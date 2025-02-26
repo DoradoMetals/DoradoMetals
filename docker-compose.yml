@@ -61,6 +61,7 @@ services:
     environment:
       NODE_ENV: development
       CHOKIDAR_USEPOLLING: "true"  # Enables file change detection inside Docker
+      PUBLIC_API_URL: ${PUBLIC_API_URL}
   
 volumes:
   postgres_data:
