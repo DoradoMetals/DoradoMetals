@@ -52,7 +52,7 @@ export const Navbar = () => {
         {/* Right Section: Theme Switch, Avatar, Mobile Menu Toggle */}
         <div className="flex items-center gap-4 ml-auto">
           <ThemeSwitch />
-          <Avatar className="hidden lg:flex w-10 h-10 border border-yellow-500 shadow-md" />
+          <Avatar className="hidden lg:flex w-10 h-10 shadow-md" />
           <NavbarMenuToggle className="lg:hidden" />
         </div>
       </NavbarContent>

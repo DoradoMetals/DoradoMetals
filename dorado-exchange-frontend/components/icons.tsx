@@ -14,7 +14,7 @@ import {
   PlusIcon as HeroPlus,
 } from "@heroicons/react/24/solid";
 
-export const Logo: React.FC<{ size?: number; height?: number }> = ({ size = 45, height, ...props }) => (
+export const Logo: React.FC<{ size?: number; height?: number }> = ({ size = 32, height, ...props }) => (
   <svg
     className="text-primary"
     fill="primary-color"

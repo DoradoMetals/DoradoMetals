@@ -27,7 +27,7 @@ export default function SignupForm() {
         <Input
           isClearable
           onClear={() => setEmail("")}
-          variant="bordered"
+          variant="flat"
           placeholder="Email Address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}

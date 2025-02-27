@@ -16,7 +16,7 @@ export default function ContactLinks() {
 
       <Chip className="bg-transparent border-0 text-white text-md" variant="faded">
         <div className="flex items-center gap-1">
-          <Envelope className="w-6 h-6 text-primary" />
+          <Envelope className="w-6 h-6 text-primary-500" />
           <a href="mailto:dorado-metals@outlook.com" className="text-white hover:underline block sm:hidden">
             exchange@doradometals.com
           </a>
