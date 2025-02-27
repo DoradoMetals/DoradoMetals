@@ -1,34 +1,35 @@
 import * as React from "react";
-import { 
-  MoonIcon, 
-  SunIcon, 
-  HeartIcon, 
-  MagnifyingGlassIcon, 
-  UserCircleIcon, 
+import {
+  MoonIcon,
+  SunIcon,
+  HeartIcon,
+  MagnifyingGlassIcon,
+  UserCircleIcon,
   ShoppingCartIcon,
-  PhoneIcon, 
-  EnvelopeIcon, 
-  ChevronUpIcon, 
+  PhoneIcon,
+  EnvelopeIcon,
+  ChevronUpIcon,
   ChevronDownIcon,
   MinusIcon as HeroMinus,
   PlusIcon as HeroPlus,
-} from "@heroicons/react/24/solid"; 
+} from "@heroicons/react/24/solid";
 
-export const Logo: React.FC<{ size?: number; height?: number }> = ({ size = 36, height, ...props }) => (
+export const Logo: React.FC<{ size?: number; height?: number }> = ({ size = 45, height, ...props }) => (
   <svg
-    className="text-yellow-500"
-    fill="none"
+    className="text-primary"
+    fill="primary-color"
     height={size || height}
     viewBox="0 0 32 32"
     width={size || height}
     {...props}
   >
-    <path
-      clipRule="evenodd"
-      d="M17.6482 10.1305L15.8785 7.02583L7.02979 22.5499H10.5278L17.6482 10.1305ZM19.8798 14.0457L18.11 17.1983L19.394 19.4511H16.8453L15.1056 22.5499H24.7272L19.8798 14.0457Z"
-      fill="currentColor"
-      fillRule="evenodd"
-    />
+    <g transform="translate(-103.07 -122.77)">
+      <path 
+        d="m122.96 132.24h0.45713v21.634h-0.45713zm-8.2286 0h0.45714v21.634h-0.45714zm-1.6-9.4648h11.886v3.6056h-11.886zm10.057 3.6056h1.3714v5.4084h-1.3714zm-3.2 0h1.3714v5.4084h-1.3714zm-3.2 0h1.3714v5.4084h-1.3714zm-3.2 0h1.3714v5.4084h-1.3714zm-1.3714 5.8592h2.2857v3.6056h-2.2857zm-2.2857 4.507h4.5714v3.6056h-4.5714zm-2.2857 4.507h6.8572v3.6056h-6.8572zm-2.2857 4.507h9.1429v3.6056h-9.1429zm-2.2857 4.507h11.429v3.6056h-11.429zm20.571-18.028h2.2857v3.6056h-2.2857zm0 4.507h4.5714v3.6056h-4.5714zm0 4.507h6.8571v3.6056h-6.8571zm0 4.507h9.1429v3.6056h-9.1429zm-8.9143-13.521h8.6857v0.9014h-8.6857zm0 1.8028h8.6857v0.90141h-8.6857zm0 1.8028h8.6857v0.90142h-8.6857zm0 1.8028h8.6857v0.90141h-8.6857zm0 1.8028h8.6857v0.90141h-8.6857zm0 1.8028h8.6857v0.90142h-8.6857zm0 1.8028h8.6857v0.90141h-8.6857zm0 1.8028h8.6857v0.90142h-8.6857zm0 1.8028h8.6857v0.90141h-8.6857zm0 1.8028h8.6857v0.90141h-8.6857zm0 1.8028h8.6857v0.90142h-8.6857zm0 1.8028h8.6857v0.90141h-8.6857zm0 1.8028h8.6857v0.90141h-8.6857zm8.9143-3.6056h11.429v3.6056h-11.429z" 
+        fill="#ffb400"
+        stroke-width=".10962" 
+      />
+    </g>
   </svg>
 );
 

@@ -23,7 +23,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT}/${POSTGRES_DB}
+      DATABASE_URL: ${DATABASE_URL}
     depends_on:
       - postgres
     ports:
@@ -49,6 +49,4 @@ services:
   
 volumes:
   postgres_data:
-    driver: local
-  pgadmin_data:
     driver: local
