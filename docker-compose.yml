@@ -17,7 +17,9 @@ services:
       - "${POSTGRES_PORT}:5432"
 
   backend:
-    build: ./dorado-exchange-api
+    build: 
+      context: ./dorado-exchange-api
+      dockerfile: Dockerfile.dev
     container_name: dorado-backend
     restart: always
     env_file:
@@ -32,7 +34,7 @@ services:
   frontend:
     build:
       context: ./dorado-exchange-frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: dorado-frontend
     restart: always
     depends_on:
