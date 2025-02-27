@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: process.env.NODE_ENV === "prod" ? false : true,
+  reactStrictMode: process.env.NODE_ENV === "production" ? false : true,
   compiler: {
     removeConsole: process.env.NODE_ENV === "dev" ? false : true,
   },
