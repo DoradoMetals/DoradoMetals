@@ -9,7 +9,7 @@ export default function Contact() {
         <Chip variant="faded">
           <div className="flex items-center gap-3">
             <Phone className="w-6 h-6 text-primary p-1"/>
-            <p>(123) 456 - 7890</p>
+            <p>(817) 203 - 4786</p>
           </div>
           
         </Chip>
@@ -18,25 +18,10 @@ export default function Contact() {
       <Chip variant="faded">
           <div className="flex items-center gap-3">
             <Envelope className="w-6 h-6 text-primary p-1"/>
-            <p>dorado-metals@outlook.com</p>
+            <p>exchange@doradometals.com</p>
           </div>
         </Chip>
       </div>
     </div>
-    // <div className="flex items-center space-x-4">
-    //   {/* Phone */}
-    //   <div className="flex sm:mr-auto items-center space-x-1">
-    //     <Phone />
-    //     (123) 456-7890
-    //   </div>
-
-    //   {/* Contact Us */}
-    //   <div className="flex items-center space-x-1">
-    //     <Envelope />
-    //     <a href="/contact" className="underline">
-    //       email@outlook.com
-    //     </a>
-    //   </div>
-    // </div>
   );
 }
