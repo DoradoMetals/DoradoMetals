@@ -33,7 +33,7 @@ services:
 
   frontend:
     build:
-      context: ./dorado-exchange-frontend
+      context: ./dorado-exchange-frontend-demo
       dockerfile: Dockerfile.dev
     container_name: dorado-frontend
     restart: always
@@ -42,7 +42,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./dorado-exchange-frontend:/usr/src/app
+      - ./dorado-exchange-frontend-demo:/usr/src/app
       - /usr/src/app/node_modules
     environment:
       NODE_ENV: development
