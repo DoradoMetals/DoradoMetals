@@ -78,7 +78,7 @@
     --sidebar-accent-foreground: hsl(0, 0%, 5%);
     --sidebar-border: hsl(0, 0%, 79%);
     --sidebar-ring: hsl(265, 80%, 48%);
-    --radius: 1rem;
+    --radius: .35rem;
 }
 
 .dark {
@@ -114,7 +114,7 @@
     --sidebar-accent-foreground: hsl(0, 0%, 95%);
     --sidebar-border: hsl(0, 0%, 25%);
     --sidebar-ring: hsl(265, 80%, 48%);
-    --radius: 1rem;
+    --radius: .35rem;
 }
 
 @layer base {

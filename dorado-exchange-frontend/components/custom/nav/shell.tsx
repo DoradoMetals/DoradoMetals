@@ -2,15 +2,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
-import { Logo } from '../icons/logo';
+import { Logo } from '../../icons/logo';
+import Sidebar from './sidebar';
 
 export default function Shell() {
 
   const pathname = usePathname();
-
-  useEffect(() => {
-    console.log(pathname)
-  }, [pathname])
 
   const menuItems = [
     {
@@ -30,7 +27,7 @@ export default function Shell() {
   return (
     <>
       {/* mobile */}
-      <div className='visible sm:hidden'>
+      <div className='visible sm:hidden flex-grow container h-full'>
         <div className="flex items-center bg-white dark:bg-black p-6">
           <div className="flex items-center flex-shrink-0 mr-6 gap-3">
             <Link href={'/'}>
@@ -40,11 +37,14 @@ export default function Shell() {
               <span className="font-semibold text-lg tracking-tight">Dorado Metals Exchange</span>
             </Link>
           </div>
+          <div className='ml-auto'>
+            <Sidebar />
+          </div>
         </div>
       </div>
       
       {/* desktop */}
-      <div className='hidden sm:block'>
+      <div className='hidden sm:block flex-grow h-full w-full'>
         <div className="flex items-center bg-white dark:bg-black p-6">
           <div className="flex items-center flex-shrink-0 mr-6 gap-3">
             <Link href={'/'}>
