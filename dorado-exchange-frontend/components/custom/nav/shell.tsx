@@ -27,7 +27,7 @@ export default function Shell() {
   return (
     <>
       {/* mobile */}
-      <div className='visible sm:hidden flex-grow container h-full'>
+      <div className='visible sm:hidden'>
         <div className="flex items-center bg-white dark:bg-black p-6">
           <div className="flex items-center flex-shrink-0 mr-6 gap-3">
             <Link href={'/'}>
@@ -44,7 +44,7 @@ export default function Shell() {
       </div>
       
       {/* desktop */}
-      <div className='hidden sm:block flex-grow h-full w-full'>
+      <div className='hidden sm:block'>
         <div className="flex items-center bg-white dark:bg-black p-6">
           <div className="flex items-center flex-shrink-0 mr-6 gap-3">
             <Link href={'/'}>

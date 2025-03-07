@@ -37,8 +37,8 @@ export default function Sidebar() {
         
         <div className="flex-col text-lg p-5 gap-3">
           {menuItems.map((item) => (
-            <div className="flex-col items-center pb-5">
-              <div className="flex items-center justify-center pb-2">
+            <div className="flex-col items-center pb-5" key={item.key}>
+              <div className="flex items-center justify-center pb-2" key={item.key}>
                 <Link className={item.className} key={item.key} href={item.src} onClick={() => setIsDrawerActive(false)}>
                   {item.label}
                 </Link>
