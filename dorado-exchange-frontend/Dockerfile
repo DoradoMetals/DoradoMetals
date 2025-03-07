@@ -3,10 +3,10 @@ FROM node:18-alpine
 WORKDIR /usr/src/app
 
 COPY package.json ./  
-RUN npm install
+RUN pnpm install
 
 COPY . .
 
-RUN npm run build
+RUN pnpm run build
 
 CMD ["npm", "run", "start"]

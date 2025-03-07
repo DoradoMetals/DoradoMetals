@@ -1,9 +1,9 @@
-import { Button } from "@/components/ui/button"
- 
+import SignUpForm from "@/components/custom/auth/signupform";
+
 export default function Page() {
   return (
-    <div className="flex items-center justify-center">
-      <Button>Click me</Button>
+    <div className="">
+      <SignUpForm />
     </div>
-  )
+  );
 }
