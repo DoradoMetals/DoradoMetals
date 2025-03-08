@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation"; // Import useRouter
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -10,54 +10,34 @@ import { Eye, EyeOff } from "lucide-react";
 import { authClient } from "@/lib/authClient";
 import Link from "next/link";
 import { Logo } from "@/components/icons/logo";
+import SignUpButton from "./signUpButton"; // Import SignUp Button
 
-export default function SignUpForm() {
+export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
-  const [validEmail, setValidEmail] = useState(false);
   const [password, setPassword] = useState("");
-  const [validPassword, setValidPassword] = useState(false);
-  const [name, setName] = useState("");
-  const [image, setImage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const router = useRouter(); // Initialize router
-
-  const validateEmail = (email: string) => {
-    const regex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
-    return regex.test(email);
-  };
-
-  const validatePassword = (password: string) => {
-    return password.length >= 7;
-  };
+  const router = useRouter();
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setEmail(value);
-    setValidEmail(validateEmail(value));
-    setErrorMessage(null); // Clear error message on change
+    setEmail(e.target.value);
+    setErrorMessage(null);
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setPassword(value);
-    setValidPassword(validatePassword(value));
-    setErrorMessage(null); // Clear error message on change
+    setPassword(e.target.value);
+    setErrorMessage(null);
   };
 
-  const signUpUser = async () => {
-    const { data, error } = await authClient.signUp.email(
+  const signInUser = async () => {
+    const { data, error } = await authClient.signIn.email(
       {
         email,
         password,
-        name,
-        image,
-        callbackURL: "/",
       },
       {
-        onRequest: (ctx) => {},
+        onRequest: (ctx) => { },
         onSuccess: (ctx) => {
-          console.log(data)
           router.push("/"); // Redirect to home on success
         },
         onError: (ctx) => {
@@ -77,11 +57,15 @@ export default function SignUpForm() {
       <div className="flex flex-col w-full max-w-sm px-5">
         <div className="flex items-center mb-10">
           <div className="mr-auto">
-            <Logo size={64} />
+            <Link href={"/"}>
+              <Logo size={50} />
+            </Link>
           </div>
           <p className="text-2xl ml-auto">Dorado Metals Exchange</p>
         </div>
-        <p className="text-2xl text-gray-500 font-bold mr-auto mb-10">Join</p>
+
+        <p className="text-2xl text-gray-500 font-bold mr-auto mb-10">Sign In</p>
+
         <div className="flex items-center mb-10">
           <Input
             type="email"
@@ -89,8 +73,7 @@ export default function SignUpForm() {
             value={email}
             onChange={handleEmailChange}
             placeholder="Email"
-            className={`${!validEmail && email ? "border-red-500" : ""
-              } invalid:[&:not(:placeholder-shown):not(:focus)]:border-red-500`}
+            className="invalid:[&:not(:placeholder-shown):not(:focus)]:border-red-500"
           />
         </div>
 
@@ -101,8 +84,7 @@ export default function SignUpForm() {
             value={password}
             onChange={handlePasswordChange}
             placeholder="Password"
-            className={`${!validPassword && password ? "border-red-500" : ""
-              } invalid:[&:not(:placeholder-shown):not(:focus)]:border-red-500`}
+            className="invalid:[&:not(:placeholder-shown):not(:focus)]:border-red-500"
           />
           <Button
             type="button"
@@ -123,16 +105,16 @@ export default function SignUpForm() {
           variant="default"
           type="submit"
           className="group-invalid:pointer-events-none group-invalid:opacity-30 mb-10"
-          onClick={signUpUser}
-          disabled={!validEmail || !validPassword}
+          onClick={signInUser}
+          disabled={!email || !password}
         >
-          Sign Up
+          Sign In
         </Button>
 
         <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-10">
-          Already a member?{" "}
-          <Link href="/login" className="text-primary font-medium">
-            Login
+          New here?{" "}
+          <Link href="/sign-up" className="text-primary font-medium">
+            Sign Up
           </Link>
         </p>
 
@@ -148,7 +130,7 @@ export default function SignUpForm() {
 
         <Button variant="ghost" className="w-full flex items-center gap-3 py-3">
           <FcGoogle className="text-4xl" />
-          <span>Sign Up with Google</span>
+          <span>Log In with Google</span>
         </Button>
       </div>
     </div>

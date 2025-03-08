@@ -1,6 +1,9 @@
 const { betterAuth } = require("better-auth");
 const { Pool } = require("pg"); // Import Pool from pg
+const { sendEmail } = require("./email");
+
 require("dotenv").config(); // Load env variables
+
 const auth = betterAuth({
   database: new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -30,7 +33,25 @@ const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    verifyEmail: true,
+    sendResetPassword: async ({ user, url, token }, request) => {
+      await sendEmail({
+          to: user.email,
+          subject: 'Reset your password',
+          text: `Click the link to reset your password: ${url}`
+      })
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    sendVerificationEmail: async ( { user, url, token }, request) => {
+      console.log(`Verification Token: ${token}`); // Debugging
+      console.log(`Verification URL: ${url}`);
+      await sendEmail({
+        to: user.email,
+        subject: "Verify your email address",
+        text: `Click the link to verify your email: ${process.env.FRONTEND_URL}/verify-email?token=${token}`,
+      });
+    },
   },
   trustedOrigins: [process.env.FRONTEND_URL],
 });

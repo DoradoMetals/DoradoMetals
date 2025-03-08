@@ -29,7 +29,12 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
       FRONTEND_URL: ${FRONTEND_URL}
-    depends_on:
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+      EMAIL_FROM=: ${EMAIL_FROM}
+    depends_on:: ${}
       - postgres
     ports:
       - "5000:5000"
