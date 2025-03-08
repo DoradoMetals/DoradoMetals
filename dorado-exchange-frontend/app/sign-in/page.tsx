@@ -1,9 +1,10 @@
-import SignUpForm from "@/components/custom/auth/signUpForm";
+import SignInForm from "@/components/custom/auth/signInForm";
+
 
 export default function Page() {
   return (
     <div className="">
-      <SignUpForm />
+      <SignInForm />
     </div>
   );
 }

@@ -26,7 +26,17 @@ services:
       - .env
     environment:
       DATABASE_URL: ${DATABASE_URL}
-    depends_on:
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+      EMAIL_FROM=: ${EMAIL_FROM}
+    depends_on:: ${}
       - postgres
     ports:
       - "5000:5000"
@@ -47,8 +57,10 @@ services:
     environment:
       NODE_ENV: development
       CHOKIDAR_USEPOLLING: "true"  # Enables file change detection inside Docker
-      PUBLIC_API_URL: ${PUBLIC_API_URL}
-  
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
+      NEXT_PUBLIC_AUTH_URL: ${PUBLIC_AUTH_URL}
+      NEXT_PUBLIC_FRONTEND_URL: ${PUBLIC_FRONTEND_URL}
+
 volumes:
   postgres_data:
     driver: local

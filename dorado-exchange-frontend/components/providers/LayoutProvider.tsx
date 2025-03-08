@@ -7,7 +7,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
   const pathname = usePathname();
 
   // List of auth pages that should NOT have the main layout
-  const authRoutes = ["/sign-in", "/sign-up"];
+  const authRoutes = ["/sign-in", "/sign-up", "/reset-password"];
 
   const isAuthPage = authRoutes.includes(pathname);
 

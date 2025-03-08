@@ -23,7 +23,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`bg-gray-100 ${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`bg-background ${geistSans.variable} ${geistMono.variable} antialiased`}>
         <LayoutProvider>{children}</LayoutProvider> {/* ✅ Wrap with client-side layout logic */}
       </body>
     </html>

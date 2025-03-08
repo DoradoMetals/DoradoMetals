@@ -46,13 +46,13 @@
 }
 
   :root {
-    --background: hsl(0, 0%, 90%);
+    --background: hsl(0, 0%, 100%);
     --foreground: hsl(0, 0%, 5%);
     --card: hsl(0, 0%, 85%);
     --card-foreground: hsl(0, 0%, 5%);
     --popover: hsl(0, 0%, 85%);
     --popover-foreground: hsl(0, 0%, 5%);
-    --primary: hsl(50, 76%, 51%);
+    --primary: hsl(51, 100%, 50%);
     --primary-foreground: hsl(0, 0%, 5%);
     --secondary: hsl(307, 80%, 75%);
     --secondary-foreground: hsl(0, 0%, 5%);
@@ -88,7 +88,7 @@
     --card-foreground: hsl(0, 0%, 95%);
     --popover: hsl(0, 0%, 8%);
     --popover-foreground: hsl(0, 0%, 95%);
-    --primary: hsl(50, 76%, 51%);
+    --primary: hsl(51, 100%, 50%);
     --primary-foreground: hsl(0, 0%, 100%);
     --secondary: hsl(307, 80%, 55%);
     --secondary-foreground: hsl(0, 0%, 100%);
@@ -129,4 +129,5 @@
 html, body {
   overflow-x: hidden;
   width: 100vw;
+  height: 100vh;
 }
