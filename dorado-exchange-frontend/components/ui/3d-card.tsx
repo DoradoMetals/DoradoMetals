@@ -6,7 +6,6 @@ import React, {
   useState,
   useContext,
   useRef,
-  useEffect,
 } from "react";
 
 const MouseEnterContext = createContext<
