@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation"; // Import useRouter
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -10,68 +21,52 @@ import { Eye, EyeOff } from "lucide-react";
 import { authClient } from "@/lib/authClient";
 import Link from "next/link";
 import { Logo } from "@/components/icons/logo";
+import googleButton from "./googleButton";
+import orSeparator from "./orSeparator";
+
+// ✅ Validation schema with name as OPTIONAL
+const formSchema = z.object({
+  email: z.string().email({ message: "Invalid email address" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  name: z.string().optional(),
+});
 
 export default function SignUpForm() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
-  const [validEmail, setValidEmail] = useState(false);
-  const [password, setPassword] = useState("");
-  const [validPassword, setValidPassword] = useState(false);
-  const [name, setName] = useState("");
-  const [image, setImage] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const router = useRouter(); // Initialize router
+  const [loading, setLoading] = useState(false);
 
-  const validateEmail = (email: string) => {
-    const regex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
-    return regex.test(email);
-  };
+  // ✅ Hook form with schema validation
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: { email: "", password: "", name: "" },
+  });
 
-  const validatePassword = (password: string) => {
-    return password.length >= 7;
-  };
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setEmail(value);
-    setValidEmail(validateEmail(value));
-    setErrorMessage(null); // Clear error message on change
-  };
-
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setPassword(value);
-    setValidPassword(validatePassword(value));
-    setErrorMessage(null); // Clear error message on change
-  };
-
-  const signUpUser = async () => {
-    const { data, error } = await authClient.signUp.email(
+  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+    const { error } = await authClient.signUp.email(
       {
-        email,
-        password,
-        name,
-        image,
-        callbackURL: "/verify-email", // Redirect to verification page
+        email: values.email,
+        password: values.password,
+        name: '',
+        callbackURL: "/verify-email",
       },
       {
-        onRequest: (ctx) => { },
+        onRequest: (ctx) => {
+          setLoading(true);
+        },
         onSuccess: (ctx) => {
-          // Show a message to the user
-          setErrorMessage("Check your email to verify your account.");
+          setLoading(false);
+          router.push("/");
         },
         onError: (ctx) => {
-          if (ctx.error?.message) {
-            setErrorMessage(ctx.error.message);
-            setTimeout(() => {
-              setErrorMessage("");
-            }, 3000);
-          }
+          setLoading(false)
         },
       }
     );
+    if (error) {
+      form.setError('password', { type: 'manual', message: error?.message })
+    }
   };
-
 
   return (
     <div className="h-screen grid place-items-center">
@@ -82,75 +77,98 @@ export default function SignUpForm() {
           </Link>
           <p className="text-2xl ml-auto">Dorado Metals Exchange</p>
         </div>
+
         <p className="text-2xl text-gray-500 font-bold mr-auto mb-10">Sign Up</p>
-        <div className="flex items-center mb-10">
-          <Input
-            type="email"
-            id="email"
-            value={email}
-            onChange={handleEmailChange}
-            placeholder="Email"
-            className={`${!validEmail && email ? "border-red-500" : ""
-              } invalid:[&:not(:placeholder-shown):not(:focus)]:border-red-500`}
-          />
-        </div>
 
-        <div className="flex items-center mb-10">
-          <Input
-            type={showPassword ? "text" : "password"}
-            id="password"
-            value={password}
-            onChange={handlePasswordChange}
-            placeholder="Password"
-            className={`${!validPassword && password ? "border-red-500" : ""
-              } invalid:[&:not(:placeholder-shown):not(:focus)]:border-red-500`}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowPassword(!showPassword)}
-            className="ml-[-3rem] hover:bg-transparent"
-          >
-            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-          </Button>
-        </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            {/* Name (Optional) */}
+            {/* <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name (Optional)</FormLabel>
+                  <FormControl>
+                    <Input type="text" placeholder="Name (Optional)" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            /> */}
 
-        {errorMessage && (
-          <p className="text-red-500 text-sm text-center mb-1">{errorMessage}</p>
-        )}
+            {/* Email Field */}
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  {/* <FormLabel>Email</FormLabel> */}
+                  <FormControl>
+                    <Input type="email" placeholder="Email" autoComplete="email" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <Button
-          variant="default"
-          type="submit"
-          className="group-invalid:pointer-events-none group-invalid:opacity-30 mb-10"
-          onClick={signUpUser}
-          disabled={!validEmail || !validPassword}
-        >
-          Sign Up
-        </Button>
+            {/* Password Field */}
+            <div className="mb-10">
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    {/* <FormLabel>Password</FormLabel> */}
+                    <FormControl>
+                      <div className="relative flex items-center">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Password"
+                          autoComplete="new-password"
+                          {...field}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="ml-[-3rem] hover:bg-transparent"
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-        <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-10">
+
+            {/* Submit Button - Disabled Until Valid */}
+            <Button
+              type="submit"
+              variant="default"
+              disabled={loading || !form.formState.isValid}
+              className="group-invalid:pointer-events-none group-invalid:opacity-30 w-full mb-6"
+            >
+              {loading ? "Signing Up..." : "Sign Up"}
+            </Button>
+          </form>
+        </Form>
+
+        {orSeparator()}
+
+        {googleButton('Sign Up with Google')}
+
+        {/* Sign In Link */}
+        <p className="text-sm text-gray-600 dark:text-gray-400 text-center mt-4">
           Already a member?{" "}
           <Link href="/sign-in" className="text-primary font-medium">
             Sign In
           </Link>
         </p>
-
-        <div className="flex w-full justify-center items-center mb-10">
-          <div className="flex-grow">
-            <Separator />
-          </div>
-          <span className="text-sm px-4">or</span>
-          <div className="flex-grow">
-            <Separator />
-          </div>
-        </div>
-
-        <Button variant="ghost" className="w-full flex items-center gap-3 py-3">
-          <FcGoogle className="text-4xl" />
-          <span>Sign Up with Google</span>
-        </Button>
       </div>
     </div>
   );

@@ -29,7 +29,7 @@ const auth = betterAuth({
     modelName: "exchange.verification",
   },
   advanced: {
-    generateId: false
+    generateId: false,
   },
   emailAndPassword: {
     enabled: true,
@@ -37,20 +37,25 @@ const auth = betterAuth({
       await sendEmail({
           to: user.email,
           subject: 'Reset your password',
-          text: `Click the link to reset your password: ${url}`
+          text: `Click the link to reset your password: ${process.env.FRONTEND_URL}/reset-password?token=${token}`,
       })
     },
   },
   emailVerification: {
     sendOnSignUp: true,
     sendVerificationEmail: async ( { user, url, token }, request) => {
-      console.log(`Verification Token: ${token}`); // Debugging
-      console.log(`Verification URL: ${url}`);
       await sendEmail({
         to: user.email,
         subject: "Verify your email address",
         text: `Click the link to verify your email: ${process.env.FRONTEND_URL}/verify-email?token=${token}`,
       });
+    },
+  },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      // redirectURI: process.env.FRONTEND_URL,
     },
   },
   trustedOrigins: [process.env.FRONTEND_URL],
