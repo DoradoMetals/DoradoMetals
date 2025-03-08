@@ -100,8 +100,6 @@ export const CardItem = ({
   [key: string]: number | string | React.ElementType | React.ReactNode;
 }) => {
   const ref = useRef<HTMLDivElement>(null);
-  // const [isMouseEntered, setIsMouseEntered] = useMouseEnter();
-
   const handleAnimations = (entered: boolean) => {
     if (!ref.current) return;
     ref.current.style.transform = entered
@@ -113,11 +111,9 @@ export const CardItem = ({
     <Tag
       ref={ref}
       onMouseEnter={() => {
-        // setIsMouseEntered(true);
         handleAnimations(true);
       }}
       onMouseLeave={() => {
-        // setIsMouseEntered(false);
         handleAnimations(false);
       }}
       className={cn("w-fit transition duration-200 ease-linear", className)}
@@ -128,8 +124,6 @@ export const CardItem = ({
   );
 };
 
-
-// Create a hook to use the context
 export const useMouseEnter = () => {
   const context = useContext(MouseEnterContext);
   if (context === undefined) {
