@@ -10,13 +10,10 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { FcGoogle } from "react-icons/fc";
 import { Eye, EyeOff } from "lucide-react";
 import { authClient } from "@/lib/authClient";
 import Link from "next/link";
@@ -24,7 +21,6 @@ import { Logo } from "@/components/icons/logo";
 import googleButton from "./googleButton";
 import orSeparator from "./orSeparator";
 
-// ✅ Validation schema with name as OPTIONAL
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
@@ -36,7 +32,6 @@ export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Hook form with schema validation
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: { email: "", password: "", name: "" },
@@ -51,14 +46,14 @@ export default function SignUpForm() {
         callbackURL: "/verify-email",
       },
       {
-        onRequest: (ctx) => {
+        onRequest: () => {
           setLoading(true);
         },
-        onSuccess: (ctx) => {
+        onSuccess: () => {
           setLoading(false);
           router.push("/");
         },
-        onError: (ctx) => {
+        onError: () => {
           setLoading(false)
         },
       }
@@ -82,28 +77,11 @@ export default function SignUpForm() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            {/* Name (Optional) */}
-            {/* <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name (Optional)</FormLabel>
-                  <FormControl>
-                    <Input type="text" placeholder="Name (Optional)" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            /> */}
-
-            {/* Email Field */}
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  {/* <FormLabel>Email</FormLabel> */}
                   <FormControl>
                     <Input type="email" placeholder="Email" autoComplete="email" {...field} />
                   </FormControl>
@@ -112,14 +90,12 @@ export default function SignUpForm() {
               )}
             />
 
-            {/* Password Field */}
             <div className="mb-10">
               <FormField
                 control={form.control}
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    {/* <FormLabel>Password</FormLabel> */}
                     <FormControl>
                       <div className="relative flex items-center">
                         <Input
@@ -146,7 +122,6 @@ export default function SignUpForm() {
             </div>
 
 
-            {/* Submit Button - Disabled Until Valid */}
             <Button
               type="submit"
               variant="default"
@@ -162,7 +137,6 @@ export default function SignUpForm() {
 
         {googleButton('Sign Up with Google')}
 
-        {/* Sign In Link */}
         <p className="text-sm text-gray-600 dark:text-gray-400 text-center mt-4">
           Already a member?{" "}
           <Link href="/sign-in" className="text-primary font-medium">

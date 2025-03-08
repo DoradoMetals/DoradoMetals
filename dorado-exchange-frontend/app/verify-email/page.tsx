@@ -14,19 +14,18 @@ export default function VerifyEmail() {
     const token = searchParams.get("token");
 
     if (token) {
-      console.log(token)
-      authClient.verifyEmail({ query: { token } }) // ✅ Fix applied here
+      authClient.verifyEmail({ query: { token } })
         .then(() => {
           setStatus("success");
           setTimeout(() => {
-            router.push("/"); // Redirect to home after success
+            router.push("/");
           }, 3000);
         })
         .catch(() => setStatus("error"));
     } else {
       setStatus("error");
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   return (
     <div className="h-screen flex flex-col items-center justify-center">

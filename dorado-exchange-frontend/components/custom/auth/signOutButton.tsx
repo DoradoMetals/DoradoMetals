@@ -12,7 +12,7 @@ export default function SignOutButton() {
   const handleSignOut = async () => {
     setLoading(true);
     await authClient.signOut();
-    router.push("/"); // Redirect to login page after sign-out
+    router.push("/");
   };
 
   return (

@@ -7,7 +7,7 @@ export default function SignInButton() {
   const router = useRouter();
 
   const handleLogin = () => {
-    router.push("/sign-in"); // Redirect to login page
+    router.push("/sign-in");
   };
 
   return (

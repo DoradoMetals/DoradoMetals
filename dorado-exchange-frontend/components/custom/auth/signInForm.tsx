@@ -19,13 +19,12 @@ import { Eye, EyeOff } from "lucide-react";
 import { authClient } from "@/lib/authClient";
 import Link from "next/link";
 import { Logo } from "@/components/icons/logo";
-import { ForgotPasswordDialog } from "./forgotPasswordDialog"; // ✅ Import the ForgotPasswordDialog
+import { ForgotPasswordDialog } from "./forgotPasswordDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import orSeparator from "./orSeparator";
 import googleButton from "./googleButton";
 
-// ✅ Define validation schema using Zod
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
   password: z.string(),
@@ -37,7 +36,6 @@ export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Hook form initialization with schema validation
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: { email: "", password: "", rememberMe: true },
@@ -52,14 +50,14 @@ export default function SignInForm() {
         rememberMe: values.rememberMe,
       },
       {
-        onRequest: (ctx) => {
+        onRequest: () => {
           setLoading(true);
         },
-        onSuccess: (ctx) => {
+        onSuccess: () => {
           setLoading(false);
           router.push("/");
         },
-        onError: (ctx) => {
+        onError: () => {
           setLoading(false)
         },
       }
@@ -85,13 +83,11 @@ export default function SignInForm() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Email Field */}
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  {/* <FormLabel>Email</FormLabel> */}
                   <FormControl>
                     <Input
                       type="email"
@@ -104,13 +100,11 @@ export default function SignInForm() {
               )}
             />
 
-            {/* Password Field with Forgot Password Dialog */}
             <FormField
               control={form.control}
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  {/* <FormLabel>Password</FormLabel> */}
                   <FormControl>
                     <div className="relative flex-col w-full">
                       <div className="flex items-center">
@@ -131,9 +125,7 @@ export default function SignInForm() {
                         </Button>
                       </div>
 
-                      {/* Remember Me & Forgot Password */}
                       <div className="flex justify-between items-center w-full">
-                        {/* Remember Me */}
                         <FormField
                           control={form.control}
                           name="rememberMe"
@@ -156,13 +148,10 @@ export default function SignInForm() {
                             </FormItem>
                           )}
                         />
-
-                        {/* Forgot Password Link */}
                         <div className="text-sm">
                           <ForgotPasswordDialog />
                         </div>
                       </div>
-
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -170,8 +159,6 @@ export default function SignInForm() {
               )}
             />
 
-
-            {/* Submit Button */}
             <Button
               type="submit"
               variant="default"
@@ -187,7 +174,6 @@ export default function SignInForm() {
 
         {googleButton('Sign In with Google')}
 
-        {/* Sign Up Link */}
         <p className="text-sm text-gray-600 dark:text-gray-400 text-center mt-4">
           New here?{" "}
           <Link href="/sign-up" className="text-primary font-medium">

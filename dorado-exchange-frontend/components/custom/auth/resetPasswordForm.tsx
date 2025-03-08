@@ -10,7 +10,6 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -20,7 +19,6 @@ import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/icons/logo";
 
-// ✅ Define validation schema using Zod
 const formSchema = z
   .object({
     password: z.string().min(6, { message: "Password must be at least 6 characters" }),
@@ -40,7 +38,6 @@ export default function ResetPasswordForm() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // ✅ Hook form initialization with schema validation
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: { password: "", confirmPassword: "" },
@@ -81,7 +78,6 @@ export default function ResetPasswordForm() {
   return (
     <div className="h-screen grid place-items-center">
       <div className="flex flex-col w-full max-w-sm px-5">
-        {/* Logo and Title */}
         <div className="flex items-center mb-10">
           <div className="mr-auto">
             <Link href={"/"}>
@@ -95,7 +91,6 @@ export default function ResetPasswordForm() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* New Password */}
             <FormField
               control={form.control}
               name="password"
@@ -127,7 +122,6 @@ export default function ResetPasswordForm() {
               )}
             />
 
-            {/* Confirm Password */}
             <FormField
               control={form.control}
               name="confirmPassword"
@@ -150,7 +144,6 @@ export default function ResetPasswordForm() {
               )}
             />
 
-            {/* Submit Button */}
             <Button
               type="submit"
               variant="default"
@@ -161,8 +154,6 @@ export default function ResetPasswordForm() {
             </Button>
           </form>
         </Form>
-
-        {/* Display error or success messages */}
         {message && <p className="text-sm text-center text-gray-500">{message}</p>}
       </div>
     </div>
