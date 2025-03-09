@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/authClient";
 import { Button } from "@/components/ui/button";
 
 export default function VerifyEmail() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
 
   useEffect(() => {
-    const token = searchParams.get("token");
+    let token: string | null = null;
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      token = params.get("token");
+    }
 
     if (token) {
       authClient.verifyEmail({ query: { token } })
@@ -25,7 +29,7 @@ export default function VerifyEmail() {
     } else {
       setStatus("error");
     }
-  }, [searchParams, router]);
+  }, [router]);
 
   return (
     <div className="h-screen flex flex-col items-center justify-center">
