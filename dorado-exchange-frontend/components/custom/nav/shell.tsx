@@ -73,7 +73,7 @@ export default function Shell() {
               ))}
             </div>
           </div>
-          <div className="mx-3">
+          <div className="mx-3 ml-auto">
             <ThemeSwitcher />
           </div>
           <div className="flex items-center gap-4">
