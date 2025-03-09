@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import LayoutProvider from "@/components/providers/LayoutProvider"; // ✅ Import the Client Component
+import { ThemeProvider } from "@/components/custom/theme/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,9 +23,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`bg-background ${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <LayoutProvider>{children}</LayoutProvider> {/* ✅ Wrap with client-side layout logic */}
+        <ThemeProvider attribute='class' defaultTheme="light">
+          <LayoutProvider>{children}</LayoutProvider> {/* ✅ Wrap with client-side layout logic */}
+        </ThemeProvider>
       </body>
     </html>
   );
