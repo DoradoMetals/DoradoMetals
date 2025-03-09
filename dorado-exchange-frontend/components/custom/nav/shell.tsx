@@ -6,10 +6,11 @@ import Sidebar from "./sidebar";
 import { authClient } from "@/lib/authClient";
 import SignOutButton from "../auth/signOutButton";
 import SignInButton from "../auth/signInButton";
+import { ThemeSwitcher } from "../theme/theme-switcher";
 
 export default function Shell() {
   const pathname = usePathname();
-  const { data: session } = authClient.useSession(); // ✅ Reactive session state
+  const { data: session } = authClient.useSession();
 
   const menuItems = [
     {
@@ -41,6 +42,9 @@ export default function Shell() {
               </span>
             </Link>
           </div>
+          <div className="mx-3">
+            <ThemeSwitcher />
+          </div>
           <div className="ml-auto">
             <Sidebar />
           </div>
@@ -68,6 +72,9 @@ export default function Shell() {
                 </Link>
               ))}
             </div>
+          </div>
+          <div className="mx-3 ml-auto">
+            <ThemeSwitcher />
           </div>
           <div className="flex items-center gap-4">
             {session?.user ? <SignOutButton /> : <SignInButton />}

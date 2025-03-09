@@ -2,13 +2,18 @@
 import Drawer from "@/components/edil-ozi/drawer";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { authClient } from "@/lib/authClient";
 import { Menu } from 'lucide-react';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import SignOutButton from "../auth/signOutButton";
+import SignInButton from "../auth/signInButton";
 
 export default function Sidebar() {
   const [isDrawerActive, setIsDrawerActive] = useState(false);
+  const { data: session } = authClient.useSession();
+
   const pathname = usePathname();
   const menuItems = [
     {
@@ -28,13 +33,12 @@ export default function Sidebar() {
   const drawerContent = (
     <>
       <div className="w-full flex-col">
-        
-        <div className="flex p-10 justify-center items-center bg-white">
-          <Button className="shadow-3">
-            Sign In
-          </Button>
+        <div className="flex p-10 justify-center items-center">
+          <div className="flex items-center gap-4">
+            {session?.user ? <SignOutButton /> : <SignInButton />}
+          </div>
         </div>
-        
+
         <div className="flex-col text-lg p-5 gap-3">
           {menuItems.map((item) => (
             <div className="flex-col items-center pb-5" key={item.key}>
@@ -43,7 +47,6 @@ export default function Sidebar() {
                   {item.label}
                 </Link>
               </div>
-              
               <Separator />
             </div>
           ))}
