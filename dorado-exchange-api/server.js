@@ -3,7 +3,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const productsRoutes = require("./routes/products");
 const emailRoutes = require("./routes/emails");
-const userRoutes = require("./routes/emails");
+const userRoutes = require("./routes/users");
 const { toNodeHandler } = require("better-auth/node"); // Import BetterAuth middleware
 const { auth } = require("./auth"); // Import your BetterAuth instance
 
@@ -29,6 +29,13 @@ app.use(express.json());
 app.use("/api/products", productsRoutes);
 app.use("/api/emails", emailRoutes);
 app.use("/api/users", userRoutes);
+
+
+app.use((req, res, next) => {
+  console.log(`📡 Incoming request: ${req.method} ${req.url}`);
+  next();
+});
+
 
 app.listen(PORT, () => {
   console.log(`Express server running on port ${PORT}`);

@@ -16,103 +16,191 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StateSelect } from "./stateSelect";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { apiRequest } from "@/utils/axiosInstance";
+import { Address } from "@/types";
+import { useUserStore } from "@/store/useUserStore";
+import { UUID } from "crypto";
+import { Plus, X } from "lucide-react";
 
 const addressSchema = z.object({
-  name: z.string().min(1, "Address Name is required"),
-  addressLine1: z.string().min(1, "Address Line 1 is required"),
-  addressLine2: z.string().optional(),
+  line_1: z.string().min(1, "Address Line 1 is required"),
+  line_2: z.string().optional(),
   city: z.string().min(1, "City is required"),
-  zipCode: z.string().min(1, "Zip Code is required"),
   state: z.string().min(1, "State is required"),
-  country: z.string().min(1, "Country is required"),
-  defaultAddress: z.boolean().default(false),
+  // country: z.string().min(1, "Country is required"),
+  country: z.string().optional(),
+  zip: z.string().min(1, "Zip Code is required"),
+  is_default: z.boolean().default(false),
+  name: z.string().min(1, "Address Name is required"),
 });
 
 export default function AddressManager() {
-  const [addresses, setAddresses] = useState([
-    { id: "1", label: "Home Address", data: { name: "Home Address", addressLine1: "123 Main St", addressLine2: "", city: "New York", zipCode: "10001", state: "NY", country: "United States", defaultAddress: true } },
-    { id: "2", label: "Work Address", data: { name: "Work Address", addressLine1: "456 Office Rd", addressLine2: "Suite 500", city: "Los Angeles", zipCode: "90001", state: "CA", country: "United States", defaultAddress: false } },
-  ]);
-  const [selectedAddressId, setSelectedAddressId] = useState(addresses[0].id);
-  const [creatingNew, setCreatingNew] = useState(false);
 
-  const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
+  const { user, session, userPending } = useUserStore();
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [selectedAddressID, setSelectedAddressID] = useState('')
+  const [creatingNew, setCreatingNew] = useState(false);
+  const [hideOptions, setHideOptions] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const addressForm = useForm({
     resolver: zodResolver(addressSchema),
-    defaultValues: selectedAddress
-      ? selectedAddress.data
-      : {
-          name: "",
-          addressLine1: "",
-          addressLine2: "",
-          city: "",
-          zipCode: "",
-          state: "",
-          country: "United States",
-          defaultAddress: false,
-        },
+    defaultValues: {
+      line_1: '',
+      line_2: '',
+      city: '',
+      state: '',
+      country: '',
+      zip: '',
+      is_default: false,
+      name: '',
+    },
   });
 
-  const getAddresses = async () => {
-    // const res = await axiosInstance
+  const resetForm = () => {
+    addressForm.reset({
+      line_1: "",
+      line_2: "",
+      city: "",
+      state: "",
+      country: "",
+      zip: "",
+      is_default: false,
+      name: "",
+    });
   }
 
+  const loadAddressIntoForm = (addressID: string) => {
+    const selectedAddress = addresses.find((addr) => addr.id === addressID);
+    if (selectedAddress) {
+      addressForm.reset({
+        line_1: selectedAddress.line_1,
+        line_2: selectedAddress.line_2 ?? "",
+        city: selectedAddress.city,
+        state: selectedAddress.state,
+        country: selectedAddress.country ?? "",
+        zip: selectedAddress.zip,
+        is_default: selectedAddress.is_default ?? false,
+        name: selectedAddress.name,
+      });
+      setCreatingNew(false);
+    }
+  };
 
+  const getAddresses = async (user_id: UUID) => {
+    setIsLoading(true)
+    try {
+      const data = await apiRequest<Address[]>("GET", "/users/get_addresses", undefined, { user_id: user_id });
+      setAddresses(data);
 
-  const handleAddressSubmit = (values: z.infer<typeof addressSchema>) => {
-    if (creatingNew === true) {
-      // createNewAddress(values)
-    } else {
-      // updateAddress(values)
+      if (data.length > 0) {
+        setHideOptions(false);
+      } else {
+        setHideOptions(true);
+      }
+
+    } catch (error) {
+      console.error("Error fetching addresses:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const handleAddressSubmit = async (values: z.infer<typeof addressSchema>) => {
+    console.log("Submitting Form with Values:", values);
+
+    try {
+      await apiRequest("POST", "/users/create_and_update_address", {
+        address: values,
+        user_id: user?.id,
+        address_id: selectedAddressID,
+        creating_new: creatingNew,
+      });
+
+      // Refresh address list
+      getAddresses(user?.id);
+      // Reset form
+      addressForm.reset();
+      setCreatingNew(true);
+      setSelectedAddressID("");
+    } catch (error) {
+      console.error("Error submitting address:", error);
     }
   };
 
   useEffect(() => {
-    getAddresses()
-  }, [getAddresses])
+    if (!userPending && user?.id) {
+      getAddresses(user.id);
+    }
+  }, [userPending, user?.id]);
+
+  useEffect(() => {
+    console.log(hideOptions)
+  }, [hideOptions])
 
   return (
     <div>
       <h2 className="text-sm text-gray-500 mb-10">Addresses</h2>
 
-      {/* Address Selection & Create New Button */}
-      <div className="flex justify-between items-center mb-6">
-        {/* Conditionally Render Select or Input for Address Name */}
-        {!creatingNew ? (
-          <Select onValueChange={setSelectedAddressId} value={selectedAddressId}>
+      {hideOptions ? null :
+        <div className="flex justify-between items-center mb-6">
+          <Select
+            onValueChange={(value) => {
+              setSelectedAddressID(value);
+              loadAddressIntoForm(value);
+            }}
+            value={selectedAddressID}
+          >
             <SelectTrigger className="w-2/3">
               <SelectValue placeholder="Select Address" />
             </SelectTrigger>
             <SelectContent>
               {addresses.map((address) => (
                 <SelectItem key={address.id} value={address.id}>
-                  {address.label}
+                  {address.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        ) : (
-          <Input
-            placeholder="Address Name"
-            {...addressForm.register("name")}
-            className="w-2/3 placeholder:font-light font-normal"
-          />
-        )}
 
-        {/* Create New / Cancel Button */}
-        <Button variant="ghost" onClick={() => setCreatingNew(!creatingNew)}>
-          {creatingNew ? "Cancel" : "+ Create New"}
-        </Button>
-      </div>
 
-      {/* Address Form (Always Visible) */}
+          {!creatingNew ? <Button variant="ghost" onClick={() => { resetForm(), setCreatingNew(true) }}>
+            <div className="flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Create New
+            </div>
+          </Button> : <Button variant="ghost" onClick={() => { loadAddressIntoForm(selectedAddressID), setCreatingNew(false) }}>
+            <div className="flex items-center gap-2">
+              <X className="w-5 h-5" />
+              Cancel
+            </div>
+          </Button>
+          }
+        </div>
+      }
+
       <Form {...addressForm}>
         <form onSubmit={addressForm.handleSubmit(handleAddressSubmit)} className="space-y-4">
+
           <div className="mb-8">
             <FormField
               control={addressForm.control}
-              name="addressLine1"
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="text-md text-gray-500 m-0 p-0">
+                    <FormLabel>Name</FormLabel>
+                  </div>
+                  <FormControl>
+                    <Input placeholder="Home, Business etc..." className="placeholder:font-light font-normal" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="mb-8">
+            <FormField
+              control={addressForm.control}
+              name="line_1"
               render={({ field }) => (
                 <FormItem>
                   <div className="text-md text-gray-500 m-0 p-0">
@@ -130,7 +218,7 @@ export default function AddressManager() {
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={addressForm.control}
-                name="addressLine2"
+                name="line_2"
                 render={({ field }) => (
                   <FormItem>
                     <div className="text-md text-gray-500 m-0 p-0">
@@ -163,7 +251,7 @@ export default function AddressManager() {
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={addressForm.control}
-                name="zipCode"
+                name="zip"
                 render={({ field }) => (
                   <FormItem>
                     <div className="text-md text-gray-500 m-0 p-0">
@@ -187,14 +275,15 @@ export default function AddressManager() {
           <div className="mb-8">
             <FormField
               control={addressForm.control}
-              name="defaultAddress"
+              name="is_default"
               render={({ field }) => (
                 <FormItem className="flex items-center gap-2">
-                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                  <Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} />
                   <FormLabel>Make default address</FormLabel>
                 </FormItem>
               )}
             />
+
           </div>
 
           <Button type="submit" className="w-full">Save Changes</Button>

@@ -9,9 +9,6 @@ export default function Page() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  
-  
-
   useEffect(() => {
     const getProducts = async () => {
       setLoading(true); // Ensure loading state starts before fetching

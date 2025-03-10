@@ -6,14 +6,10 @@ import { authClient } from "@/lib/authClient";
 export default function Home() {
 
   const getSession = async () => {
-    const { data, error } = await authClient.getSession()
-    console.log(data)
+    return await authClient.getSession()
+    // console.log(data)
 
   }
-
-  useEffect(() => {
-    getSession()
-  }, []);
 
   return (
     <div className="flex flex-col items-center">

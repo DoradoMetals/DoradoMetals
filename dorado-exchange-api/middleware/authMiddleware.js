@@ -2,6 +2,7 @@ const { auth } = require("../auth");
 const { fromNodeHeaders } = require("better-auth/node");
 
 const requireAuth = async (req, res, next) => {
+
   try {
     if (!req.headers) {
       return res.status(400).json({ error: "Bad Request", message: "Headers are missing" });
@@ -14,11 +15,10 @@ const requireAuth = async (req, res, next) => {
     if (!session || !session.user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+
     req.user = session.user; // Attach user data to the request
     next();
-    
   } catch (error) {
-    console.error("Authentication error:", error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };

@@ -1,9 +1,12 @@
 const express = require("express");
-const { getUserAddresses } = require("../controllers/userController");
-const authenticateUser = require("../middleware/authMiddleware");
+const { getAddresses, deleteAddress, createAndUpdateAddress } = require("../controllers/userController");
+const { requireAuth } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-router.get("/addresses", authenticateUser, getUserAddresses);
+router.get("/get_addresses", requireAuth, getAddresses);
+router.post("/create_and_update_address", requireAuth, createAndUpdateAddress);
+router.post("/delete_address", requireAuth, deleteAddress);
 
 module.exports = router;
+ 
