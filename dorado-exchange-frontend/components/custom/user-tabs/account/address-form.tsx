@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StateSelect } from "./stateSelect";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import axiosInstance from "@/utils/axiosInstance";
 
 const addressSchema = z.object({
   name: z.string().min(1, "Address Name is required"),
@@ -56,7 +55,7 @@ export default function AddressManager() {
   });
 
   const getAddresses = async () => {
-    const res = await axiosInstance
+    // const res = await axiosInstance
   }
 
 

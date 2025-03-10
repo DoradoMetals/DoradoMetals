@@ -1,19 +1,26 @@
-const { auth } = require("../auth"); // Import BetterAuth instance
+const { auth } = require("../auth");
+const { fromNodeHeaders } = require("better-auth/node");
 
-const authenticateUser = async (req, res, next) => {
+const requireAuth = async (req, res, next) => {
   try {
-    const session = await auth.getSession(req); // Extract session from request
-
-    if (!session || !session.user) {
-      return res.status(401).json({ message: "Unauthorized: No valid session" });
+    if (!req.headers) {
+      return res.status(400).json({ error: "Bad Request", message: "Headers are missing" });
     }
 
-    req.user = session.user; // Attach authenticated user to the request
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    });
+
+    if (!session || !session.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    req.user = session.user; // Attach user data to the request
     next();
+    
   } catch (error) {
-    console.error("Error in authentication middleware:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Authentication error:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-module.exports = authenticateUser;
+module.exports = { requireAuth };
