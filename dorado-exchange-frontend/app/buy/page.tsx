@@ -1,43 +1,40 @@
 "use client";
 
-import { apiRequest } from "@/utils/axiosInstance";
-import { Product } from "@/types";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useProductsByMetal } from "@/lib/queries/useProducts";
 import ProductCard from "@/components/custom/products/productcard";
+import { Button } from "@/components/ui/button";
 
 export default function Page() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedMetal, setSelectedMetal] = useState("Gold"); // Default to Gold
+  const { data: products = [], isLoading, error } = useProductsByMetal(selectedMetal);
 
-  useEffect(() => {
-    const getProducts = async () => {
-      setLoading(true); // Ensure loading state starts before fetching
-      try {
-        const data = await apiRequest<Product[]>("GET", "/products/get_products", undefined, { category: "gold" });
-        setProducts(data); // Ensure data is properly set
-      } catch (error) {
-        console.error("Error fetching products:", error);
-      } finally {
-        setLoading(false); // Ensure loading state is updated even on error
-      }
-    };
-
-    getProducts();
-  }, []);
+  const metals = ["Gold", "Silver", "Platinum", "Palladium"];
 
   return (
-    <div className="flex-col gap-3">
-      {
-        loading
-          ?
-          null
-          :
-          <>
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </>
-      }
+    <div className="flex flex-col gap-4">
+      {/* Metal Selection Buttons */}
+      <div className="flex gap-3">
+        {metals.map((metal) => (
+          <Button
+            key={metal}
+            variant={selectedMetal === metal ? "default" : "outline"}
+            onClick={() => setSelectedMetal(metal)}
+          >
+            {metal}
+          </Button>
+        ))}
+      </div>
+
+      {/* Products Display */}
+      {isLoading && <p>Loading {selectedMetal} products...</p>}
+      {error && <p>Error loading {selectedMetal} products.</p>}
+
+      <div className="grid grid-cols-1 gap-3">
+        {products.map((product) => (
+          <ProductCard key={product.id} product={product} />
+        ))}
+      </div>
     </div>
   );
 }

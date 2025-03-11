@@ -23,18 +23,3 @@ export interface User {
   updatedAt: Date,
   image?: string | null,
 }
-
-export interface Address {
-  id: string,
-  user_id: string,
-  line_1: string,
-  line_2: string,
-  city: string,
-  state: string,
-  country: string,
-  zip: string,
-  is_default: boolean,
-  created_at: Date,
-  updated_at: Date,
-  name: string,
-}

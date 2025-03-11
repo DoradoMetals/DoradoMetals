@@ -36,7 +36,6 @@ app.use((req, res, next) => {
   next();
 });
 
-
 app.listen(PORT, () => {
   console.log(`Express server running on port ${PORT}`);
 });

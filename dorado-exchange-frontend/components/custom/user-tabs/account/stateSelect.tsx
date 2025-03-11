@@ -4,15 +4,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Check, ChevronDown } from "lucide-react";
+import { states } from "@/types/address";
 
-const states = [
-  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia",
-  "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland",
-  "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire",
-  "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania",
-  "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
-  "West Virginia", "Wisconsin", "Wyoming"
-];
+const stateOptions = states;
 
 interface StateSelectProps {
   value: string;
@@ -44,7 +38,7 @@ export function StateSelect({ value, onChange }: StateSelectProps) {
           <Command className="bg-background">
             <CommandInput placeholder="Search state..." className="h-8 text-sm" />
             <CommandList className="max-h-40 overflow-y-auto bg-background">
-              {states.map((state) => (
+              {stateOptions.map((state) => (
                 <CommandItem
                   key={state}
                   onSelect={() => { onChange(state); setOpen(false); }}
