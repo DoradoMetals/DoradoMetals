@@ -48,16 +48,16 @@ export default function AddressManager() {
       {/* ✅ Show Skeletons While Loading */}
       {isLoading || userPending ? (
         <div className="space-y-4">
-          <Skeleton className="h-10 w-full" /> {/* Address Line 1 */}
+          <Skeleton className="h-9 w-full mb-8" /> {/* Address Line 1 */}
           <div className="grid grid-cols-2 gap-4">
-            <Skeleton className="h-10 w-full" /> {/* Address Line 2 */}
-            <Skeleton className="h-10 w-full" /> {/* City */}
+            <Skeleton className="h-9 w-full mb-8" /> {/* Address Line 2 */}
+            <Skeleton className="h-9 w-full mb-8" /> {/* City */}
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Skeleton className="h-10 w-full" /> {/* Zip Code */}
-            <Skeleton className="h-10 w-full" /> {/* State Dropdown */}
+            <Skeleton className="h-9 w-full mb-8" /> {/* Zip Code */}
+            <Skeleton className="h-9 w-full mb-8" /> {/* State Dropdown */}
           </div>
-          <Skeleton className="h-10 w-full" /> {/* Submit Button */}
+          <Skeleton className="h-9 w-full mb-8" /> {/* Submit Button */}
         </div>
       ) : (
       <Form {...addressForm}>
