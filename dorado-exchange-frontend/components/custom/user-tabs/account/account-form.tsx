@@ -30,35 +30,33 @@ export default function AccountForm() {
   const isIdentityVerified = true; // Set to true when identity is verified
 
   // const verifyEmail = (values: z.infer<typeof accountSchema>) => {
-  //   console.log('verify-email')
   // }
 
   // const verifyIdentity = (values: z.infer<typeof accountSchema>) => {
-  //   console.log('verify-identity')
   // }
 
   const handleAccountSubmit = (values: z.infer<typeof accountSchema>) => {
-    console.log("Updating Account Information", values);
+    // console.log("Updating Account Information", values);
   };
 
   return (
     <div>
       <h2 className="text-sm text-gray-500 mb-10">Account Information</h2>
-      <div className="flex items-center mb-6">
+      <div className="flex items-center mb-8">
 
         {
           isEmailVerified
             ?
-            <div className="flex items-center gap-2 mr-auto pl-5">
+            <div className="flex items-center gap-2 mr-auto">
               <MailCheck className="text-green-500 h-5 w-5" />
               <div className="font-light text-sm">
                 Email Verified
               </div>
             </div>
             :
-            <div className="flex items-center gap-2 mr-auto pl-2">
+            <div className="flex items-center gap-2 mr-auto">
               {/* <Button variant="ghost" className="font-light text-sm hover:bg-background hover:font-normal" onClick={() => verifyEmail()}> */}
-              <Button variant="ghost" className="font-light text-sm hover:bg-background hover:font-normal">
+              <Button variant="ghost" className="font-light text-sm hover:bg-background hover:font-normal px-0">
                 <MailX className="text-red-500 h-5 w-5" />
                 Verify Email
               </Button>
@@ -67,16 +65,16 @@ export default function AccountForm() {
         {
           isIdentityVerified
             ?
-            <div className="flex items-center gap-2 ml-auto pr-5">
+            <div className="flex items-center gap-2 ml-auto">
               <UserCheck className="text-green-500 h-5 w-5" />
               <div className="font-light text-sm">
                 Identity Verified
               </div>
             </div>
             :
-            <div className="flex items-center gap-2 ml-auto pr-2">
+            <div className="flex items-center gap-2 ml-auto">
               {/* <Button variant="ghost" className="font-light text-sm hover:bg-background hover:font-normal" onClick={() => verifyIdentity()}> */}
-              <Button variant="ghost" className="font-light text-sm hover:bg-background hover:font-normal">
+              <Button variant="ghost" className="font-light text-sm hover:bg-background hover:font-normal px-0">
                 <UserX className="text-red-500 h-5 w-5" />
                 Verify Identity
               </Button>

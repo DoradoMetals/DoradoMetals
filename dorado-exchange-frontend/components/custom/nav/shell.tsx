@@ -25,6 +25,12 @@ export default function Shell() {
       src: "/sell",
       className: pathname === "/sell" ? "text-primary" : "text-muted",
     },
+    {
+      key: 3,
+      label: "Account",
+      src: "/account",
+      className: pathname === "/account" ? "text-primary" : "text-muted",
+    }
   ];
 
   return (

@@ -45,14 +45,21 @@ export const addressSchema = z.object({
     .refine((val) => !isNaN(Number(val.replace("-", ""))), {
       message: "Zip Code must only contain numbers",
     }),
-  created_at: z.string().optional(),
-  updated_at: z.string().optional(),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .trim(),
+  is_default: z
+    .boolean()
+    .optional(),
+  created_at: z.string().datetime().optional(),
+  updated_at: z.string().datetime().optional(),
 });
 
 export type Address = z.infer<typeof addressSchema>;
-export const addressFormSchema = addressSchema.omit({
-  user_id: true,
-  created_at: true,
-  updated_at: true,
-});
-export type AddressForm = z.infer<typeof addressFormSchema>;
+// export const addressFormSchema = addressSchema.omit({
+//   user_id: true,
+//   created_at: true,
+//   updated_at: true,
+// });
+// export type AddressForm = z.infer<typeof addressFormSchema>;

@@ -42,7 +42,6 @@ export default function SignInForm() {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    console.log(authClient)
     const { error } = await authClient.signIn.email(
       {
         email: values.email,
@@ -107,7 +106,7 @@ export default function SignInForm() {
                 <FormItem>
                   <FormControl>
                     <div className="relative flex-col w-full">
-                      <div className="flex items-center">
+                      <div className="flex items-center mb-2">
                         <Input
                           type={showPassword ? "text" : "password"}
                           placeholder="Password"

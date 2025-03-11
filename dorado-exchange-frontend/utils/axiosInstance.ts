@@ -24,7 +24,6 @@ const apiRequest = async <T>(
   params?: object,
   headers?: object
 ): Promise<T> => {
-  console.log('here')
   try {
     const config: AxiosRequestConfig = {
       method,
