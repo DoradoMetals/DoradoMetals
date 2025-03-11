@@ -10,10 +10,11 @@ import { useUserStore } from "@/store/useUserStore";
 import { useAddress, useUpdateAddress } from "@/lib/queries/useAddresses";
 import { AddressForm, addressFormSchema } from "@/types/address";
 import { useEffect } from "react";
+import { Skeleton } from "@/components/ui/skeleton"; // Assuming you're using shadcn or a similar Skeleton
 
 export default function AddressManager() {
-  const { user } = useUserStore();
-  const { data: address } = useAddress(user?.id);
+  const { user, userPending } = useUserStore();
+  const { data: address, isLoading } = useAddress(user?.id);
   const updateAddressMutation = useUpdateAddress(user?.id);
 
   const addressForm = useForm<AddressForm>({
@@ -44,6 +45,21 @@ export default function AddressManager() {
     <div>
       <h2 className="text-sm text-gray-500 mb-10">Addresses</h2>
 
+      {/* ✅ Show Skeletons While Loading */}
+      {isLoading || userPending ? (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full" /> {/* Address Line 1 */}
+          <div className="grid grid-cols-2 gap-4">
+            <Skeleton className="h-10 w-full" /> {/* Address Line 2 */}
+            <Skeleton className="h-10 w-full" /> {/* City */}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Skeleton className="h-10 w-full" /> {/* Zip Code */}
+            <Skeleton className="h-10 w-full" /> {/* State Dropdown */}
+          </div>
+          <Skeleton className="h-10 w-full" /> {/* Submit Button */}
+        </div>
+      ) : (
       <Form {...addressForm}>
         <form onSubmit={addressForm.handleSubmit(handleAddressSubmit)} className="space-y-4">
 
@@ -171,6 +187,7 @@ export default function AddressManager() {
           </Button>
         </form>
       </Form>
-    </div>
+      )}
+    </div>  
   );
 }
