@@ -57,9 +57,3 @@ export const addressSchema = z.object({
 });
 
 export type Address = z.infer<typeof addressSchema>;
-// export const addressFormSchema = addressSchema.omit({
-//   user_id: true,
-//   created_at: true,
-//   updated_at: true,
-// });
-// export type AddressForm = z.infer<typeof addressFormSchema>;

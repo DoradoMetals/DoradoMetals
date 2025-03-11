@@ -25,9 +25,9 @@ export default function AddressManager() {
 
   const shouldBeDefault = () => {
     if (!data || data.length === 0) {
-      return true; // No addresses exist, new one should be default
+      return true;
     }
-    return false; // Otherwise, new address should NOT be default
+    return false;
   };
 
   const toggleDisabled = () => {
@@ -341,7 +341,7 @@ export default function AddressManager() {
               variant="destructive"
               className="w-full text-white bg-red-500 hover:bg-red-600"
               onClick={() => handleDeleteAddress()}
-              disabled={deleteDisabled() || deleteAddressMutation.isPending} // Prevent deleting default address
+              disabled={deleteDisabled() || deleteAddressMutation.isPending}
             >
               {deleteAddressMutation.isPending ? "Deleting..." : "Delete Address"}
             </Button>
