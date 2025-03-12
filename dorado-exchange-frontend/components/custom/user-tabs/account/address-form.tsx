@@ -185,27 +185,7 @@ export default function AddressForm() {
             </div>
           )}
           <form onSubmit={addressForm.handleSubmit(handleAddressSubmit)} className="space-y-4">
-            <div className="mb-8">
-              <FormField
-                control={addressForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="text-md text-gray-500 m-0 p-0">
-                      <FormLabel>Name</FormLabel>
-                    </div>
-                    <FormControl>
-                      <Input placeholder="Name" className="placeholder:font-light font-normal" {...field} />
-                    </FormControl>
-                    {addressForm.formState.errors.name && (
-                      <p className="text-red-500 text-sm">
-                        {addressForm.formState.errors.name.message}
-                      </p>
-                    )}
-                  </FormItem>
-                )}
-              />
-            </div>
+
 
             <div className="mb-8">
               <FormField
@@ -217,7 +197,7 @@ export default function AddressForm() {
                       <FormLabel>Address Line 1</FormLabel>
                     </div>
                     <FormControl>
-                      <Input placeholder="Address Line 1" className="placeholder:font-light font-normal" {...field} />
+                      <Input placeholder="123 Gold Dr." className="placeholder:font-light font-normal" {...field} />
                     </FormControl>
                     {addressForm.formState.errors.line_1 && (
                       <p className="text-red-500 text-sm">
@@ -237,10 +217,10 @@ export default function AddressForm() {
                   render={({ field }) => (
                     <FormItem>
                       <div className="text-md text-gray-500 m-0 p-0">
-                        <FormLabel>Address Line 2</FormLabel>
+                        <FormLabel>Address Line 2 (Optional)</FormLabel>
                       </div>
                       <FormControl>
-                        <Input placeholder="Address Line 2" className="placeholder:font-light font-normal" {...field} />
+                        <Input placeholder="STE 201" className="placeholder:font-light font-normal border-1" {...field} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -254,7 +234,7 @@ export default function AddressForm() {
                         <FormLabel>City</FormLabel>
                       </div>
                       <FormControl>
-                        <Input placeholder="City" className="placeholder:font-light font-normal" {...field} />
+                        <Input placeholder="Dallas" className="placeholder:font-light font-normal" {...field} />
                       </FormControl>
 
                     </FormItem>
@@ -281,7 +261,7 @@ export default function AddressForm() {
                         <FormLabel>Zip Code</FormLabel>
                       </div>
                       <FormControl>
-                        <Input placeholder="Zip Code" className="placeholder:font-light font-normal" {...field} />
+                        <Input placeholder="12345" className="placeholder:font-light font-normal" {...field} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -316,6 +296,28 @@ export default function AddressForm() {
                     <FormControl>
                       <Input readOnly placeholder="United States" className="placeholder:font-light font-normal" {...field} />
                     </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="mb-8">
+              <FormField
+                control={addressForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="text-md text-gray-500 m-0 p-0">
+                      <FormLabel>Name</FormLabel>
+                    </div>
+                    <FormControl>
+                      <Input placeholder="Business, Personal, etc..." className="placeholder:font-light font-normal" {...field} />
+                    </FormControl>
+                    {addressForm.formState.errors.name && (
+                      <p className="text-red-500 text-sm">
+                        {addressForm.formState.errors.name.message}
+                      </p>
+                    )}
                   </FormItem>
                 )}
               />

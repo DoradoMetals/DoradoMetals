@@ -53,6 +53,7 @@ export function ForgotPasswordDialog() {
                   <FormControl>
                     <Input
                       type="email"
+                      className="placeholder:font-light font-normal"
                       placeholder="Enter your email"
                       {...field}
                       disabled={forgotPasswordMutation.isPending}

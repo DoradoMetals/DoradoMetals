@@ -63,7 +63,7 @@
     --destructive: hsl(358, 93%, 64%);
     --destructive-foreground: hsl(0, 0%, 0%);
     --border: hsl(0, 0%, 79%);
-    --input: hsl(0, 0%, 87%);
+    --input: hsl(0, 0%, 80%);
     --ring: hsl(185, 48%, 90%);
     --chart-1: hsl(277, 80%, 68%);
     --chart-2: hsl(67, 80%, 68%);
@@ -99,7 +99,7 @@
     --destructive: hsl(358, 93%, 35%);
     --destructive-foreground: hsl(0, 0%, 100%);
     --border: hsl(0, 0%, 25%);
-    --input: hsl(0, 0%, 31%);
+    --input: hsl(0, 0%, 40%);
     --ring: hsl(240, 100%, 25%);
     --chart-1: hsl(277, 80%, 68%);
     --chart-2: hsl(67, 80%, 68%);

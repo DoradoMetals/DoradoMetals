@@ -131,7 +131,7 @@ export default function UserForm() {
                         <FormLabel>Email</FormLabel>
                       </div>
                       <FormControl>
-                        <Input type="email" placeholder="Email" className="placeholder:font-light font-normal" {...field} />
+                        <Input type="email" placeholder="exchange@doradometals.com" className="placeholder:font-light font-normal" {...field} />
                       </FormControl>
                       {changeEmailMutation.isSuccess && session?.user.emailVerified === true ? (
                         <p className="text-sm font-light">
@@ -153,7 +153,7 @@ export default function UserForm() {
                         <FormLabel >Name</FormLabel>
                       </div>
                       <FormControl>
-                        <Input placeholder="Name" className="placeholder:font-light font-normal" {...field} />
+                        <Input placeholder="John Doe" className="placeholder:font-light font-normal" {...field} />
                       </FormControl>
                     </FormItem>
                   )}

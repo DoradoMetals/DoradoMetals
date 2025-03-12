@@ -10,6 +10,7 @@ import {
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -80,12 +81,16 @@ export default function ResetPasswordForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
+                    <div className="text-md text-gray-500 m-0 p-0">
+                      <FormLabel>New Password</FormLabel>
+                    </div>
                     <div className="relative flex-col w-full">
                       <div className="flex items-center">
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="New Password"
+                          placeholder="Enter new password..."
                           autoComplete="new-password"
+                          className="placeholder:font-light font-normal"
                           {...field}
                         />
                         <Button
@@ -111,12 +116,16 @@ export default function ResetPasswordForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
+                    <div className="text-md text-gray-500 m-0 p-0">
+                      <FormLabel>Confirm New Password</FormLabel>
+                    </div>
                     <div className="relative flex-col w-full">
                       <div className="flex items-center">
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="Confirm New Password"
+                          placeholder="Confirm new password..."
                           autoComplete="new-password"
+                          className="placeholder:font-light font-normal"
                           {...field}
                         />
                       </div>

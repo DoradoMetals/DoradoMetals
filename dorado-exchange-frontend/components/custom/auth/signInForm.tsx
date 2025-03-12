@@ -74,11 +74,15 @@ export default function SignInForm() {
               name="email"
               render={({ field }) => (
                 <FormItem>
+                  <div className="text-md text-gray-500 m-0 p-0">
+                    <FormLabel>Email</FormLabel>
+                  </div>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="Email"
+                      placeholder="Enter email..."
                       autoComplete="email"
+                      className="placeholder:font-light font-normal"
                       {...field}
                     />
                   </FormControl>
@@ -91,13 +95,18 @@ export default function SignInForm() {
               name="password"
               render={({ field }) => (
                 <FormItem>
+                  <div className="text-md text-gray-500 m-0 p-0">
+                      <FormLabel>Password</FormLabel>
+                    </div>
                   <FormControl>
+                    
                     <div className="relative flex-col w-full">
                       <div className="flex items-center mb-2">
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="Password"
+                          placeholder="Enter password..."
                           autoComplete="current-password"
+                          className="placeholder:font-light font-normal"
                           {...field}
                         />
                         <Button

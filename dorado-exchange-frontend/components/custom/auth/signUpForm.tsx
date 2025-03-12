@@ -9,6 +9,7 @@ import {
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -71,8 +72,11 @@ export default function SignUpForm() {
               name="email"
               render={({ field }) => (
                 <FormItem>
+                  <div className="text-md text-gray-500 m-0 p-0">
+                    <FormLabel>Email</FormLabel>
+                  </div>
                   <FormControl>
-                    <Input type="email" placeholder="Email" autoComplete="email" {...field} />
+                    <Input type="email" placeholder="Enter email..." autoComplete="email" className="placeholder:font-light font-normal" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -85,12 +89,16 @@ export default function SignUpForm() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
+                    <div className="text-md text-gray-500 m-0 p-0">
+                      <FormLabel>Password</FormLabel>
+                    </div>
                     <FormControl>
                       <div className="relative flex items-center">
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="Password"
+                          placeholder="Enter password..."
                           autoComplete="new-password"
+                          className="placeholder:font-light font-normal"
                           {...field}
                         />
                         <Button
