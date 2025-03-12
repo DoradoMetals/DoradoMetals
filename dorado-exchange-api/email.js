@@ -18,8 +18,6 @@ const sendEmail = async ({ to, subject, text }) => {
     subject,
     text,
   });
-
-  console.log(`📨 Sent email to ${to} with subject: ${subject}`);
 }
 
 module.exports = {

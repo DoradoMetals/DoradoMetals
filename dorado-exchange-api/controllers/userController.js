@@ -12,7 +12,6 @@ const getAddresses = async (req, res) => {
       `SELECT * FROM exchange.addresses WHERE user_id = $1`,
       [user_id]
     );
-    console.log(rows)
     res.json(rows);
   } catch (error) {
     console.error("Error fetching addresses:", error);

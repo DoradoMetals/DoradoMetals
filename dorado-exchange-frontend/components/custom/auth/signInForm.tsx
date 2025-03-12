@@ -16,11 +16,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
-import { authClient } from "@/lib/authClient";
 import Link from "next/link";
 import { Logo } from "@/components/icons/logo";
 import { ForgotPasswordDialog } from "./forgotPasswordDialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useSignIn } from "@/lib/queries/useAuth"; // Import TanStack Mutation
 
 import orSeparator from "./orSeparator";
 import googleButton from "./googleButton";
@@ -34,36 +34,23 @@ const formSchema = z.object({
 export default function SignInForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+
+  const signInMutation = useSignIn(); // Use TanStack Mutation
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: { email: "", password: "", rememberMe: true },
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const { error } = await authClient.signIn.email(
-      {
-        email: values.email,
-        password: values.password,
-        rememberMe: values.rememberMe,
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    signInMutation.mutate(values, {
+      onSuccess: () => {
+        router.push("/");
       },
-      {
-        onRequest: () => {
-          setLoading(true);
-        },
-        onSuccess: () => {
-          setLoading(false);
-          router.push("/");
-        },
-        onError: () => {
-          setLoading(false)
-        },
-      }
-    );
-    if (error) {
-      form.setError('password', { type: 'manual', message: error?.message })
-    }
+      onError: (error) => {
+        form.setError("password", { type: "manual", message: error.message });
+      },
+    });
   };
 
   return (
@@ -161,17 +148,17 @@ export default function SignInForm() {
             <Button
               type="submit"
               variant="default"
-              disabled={loading}
+              disabled={signInMutation.isPending}
               className="group-invalid:pointer-events-none group-invalid:opacity-30 w-full mb-6"
             >
-              {loading ? "Signing In..." : "Sign In"}
+              {signInMutation.isPending ? "Signing In..." : "Sign In"}
             </Button>
           </form>
         </Form>
 
         {orSeparator()}
 
-        {googleButton('Sign In with Google')}
+        {googleButton("Sign In with Google")}
 
         <p className="text-sm text-gray-600 dark:text-gray-400 text-center mt-4">
           New here?{" "}

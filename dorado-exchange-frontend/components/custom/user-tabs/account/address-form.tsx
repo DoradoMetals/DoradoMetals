@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, X } from "lucide-react";
 
-export default function AddressManager() {
+export default function AddressForm() {
 
   const { user, userPending } = useUserStore();
   const { data, isLoading } = useAddress(user?.id);
@@ -124,7 +124,7 @@ export default function AddressManager() {
 
   return (
     <div>
-      <h2 className="text-sm text-gray-500 mb-10">Addresses</h2>
+      
 
       {isLoading || userPending ? (
         <div className="space-y-4">
@@ -141,7 +141,9 @@ export default function AddressManager() {
           <Skeleton className="h-9 w-full mb-8" />
         </div>
       ) : (
+        
         <Form {...addressForm}>
+          <h2 className="text-sm text-gray-500 mb-10">Addresses</h2>
           {data?.length === 0 ? null : (
             <div className="">
               {!creatingNew ? (

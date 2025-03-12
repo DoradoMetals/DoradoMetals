@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -8,42 +7,26 @@ import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { authClient } from "@/lib/authClient";
+import { useForgotPassword } from "@/lib/queries/useAuth"; // Import TanStack Mutation
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
 });
 
 export function ForgotPasswordDialog() {
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  
+  const forgotPasswordMutation = useForgotPassword(); // Use TanStack Mutation
+
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: { email: "" },
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-
-    const { error } = await authClient.forgetPassword(
-      { email: values.email },
-      {
-        onRequest: () => setLoading(true),
-        onSuccess: () => {
-          setMessage("We have sent a reset link to the provided email if it exists within our system.");
-          setLoading(false);
-        },
-        onError: (ctx) => {
-          form.setError("email", { type: "manual", message: ctx.error?.message || "Something went wrong." });
-          setLoading(false);
-        },
-      }
-    );
-
-    if (error) {
-      form.setError("email", { type: "manual", message: error.message });
-      setLoading(false);
-    }
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    forgotPasswordMutation.mutate(values.email, {
+      onSuccess: () => {
+        form.setValue("email", ""); // Clear input field
+      },
+    });
   };
 
   return (
@@ -72,21 +55,31 @@ export function ForgotPasswordDialog() {
                       type="email"
                       placeholder="Enter your email"
                       {...field}
-                      disabled={loading}
+                      disabled={forgotPasswordMutation.isPending}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
-            <Button type="submit" disabled={loading || !form.watch("email")} className="w-full">
-              {loading ? "Sending..." : "Send Reset Link"}
+
+            <Button type="submit" disabled={forgotPasswordMutation.isPending || !form.watch("email")} className="w-full">
+              {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Link"}
             </Button>
           </form>
         </Form>
 
-        {message && <p className="text-sm text-center text-gray-500">{message}</p>}
+        {forgotPasswordMutation.isSuccess && (
+          <p className="text-sm text-center text-gray-500">
+            We have sent a reset link to the provided email if it exists within our system.
+          </p>
+        )}
+
+        {forgotPasswordMutation.isError && (
+          <p className="text-sm text-center text-red-500">
+            {forgotPasswordMutation.error.message}
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );

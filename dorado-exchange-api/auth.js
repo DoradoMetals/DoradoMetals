@@ -1,8 +1,8 @@
 const { betterAuth } = require("better-auth");
-const { Pool } = require("pg"); // Import Pool from pg
+const { Pool } = require("pg");
 const { sendEmail } = require("./email");
 
-require("dotenv").config(); // Load env variables
+require("dotenv").config();
 
 const auth = betterAuth({
   database: new Pool({
@@ -15,8 +15,18 @@ const auth = betterAuth({
         type: "string",
         required: false,
         defaultValue: "user",
-        input: false, // don't allow user to set role
+        input: false,
       },
+    },
+    changeEmail: {
+      enabled: true,
+      sendChangeEmailVerification: async ({ user, newEmail, url, token }, request) => {
+        await sendEmail({
+          to: user.email,
+          subject: 'Approve email change',
+          text: `Click the link to reset your password: ${process.env.FRONTEND_URL}/change-email?token=${token}`,
+        })
+      }
     }
   },
   session: {
@@ -35,15 +45,18 @@ const auth = betterAuth({
     enabled: true,
     sendResetPassword: async ({ user, url, token }, request) => {
       await sendEmail({
-          to: user.email,
-          subject: 'Reset your password',
-          text: `Click the link to reset your password: ${process.env.FRONTEND_URL}/reset-password?token=${token}`,
+        to: user.email,
+        subject: 'Reset your password',
+        text: `Click the link to reset your password: ${process.env.FRONTEND_URL}/reset-password?token=${token}`,
       })
     },
   },
   emailVerification: {
-    sendOnSignUp: true,
-    sendVerificationEmail: async ( { user, url, token }, request) => {
+    sendOnSignUp: false,
+    sendVerificationEmail: async ({ user, url, token }, request) => {
+      if (request.url.includes("/change-email")) {
+        return;
+      }
       await sendEmail({
         to: user.email,
         subject: "Verify your email address",
