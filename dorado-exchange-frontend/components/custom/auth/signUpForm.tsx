@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,11 +14,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
-import { authClient } from "@/lib/authClient";
+import { useSignUp } from "@/lib/queries/useAuth"; // ✅ Import Sign Up Mutation
 import Link from "next/link";
 import { Logo } from "@/components/icons/logo";
 import googleButton from "./googleButton";
 import orSeparator from "./orSeparator";
+import { useState } from "react";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -30,37 +30,26 @@ const formSchema = z.object({
 export default function SignUpForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const signUpMutation = useSignUp(); // ✅ Use TanStack Mutation
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: { email: "", password: "", name: "" },
   });
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
-    const { error } = await authClient.signUp.email(
+  const handleSubmit = (values: z.infer<typeof formSchema>) => {
+    signUpMutation.mutate(
       {
         email: values.email,
         password: values.password,
-        name: '',
-        callbackURL: "/verify-email",
+        name: values.name || "",
       },
       {
-        onRequest: () => {
-          setLoading(true);
-        },
         onSuccess: () => {
-          setLoading(false);
           router.push("/");
-        },
-        onError: () => {
-          setLoading(false)
         },
       }
     );
-    if (error) {
-      form.setError('password', { type: 'manual', message: error?.message })
-    }
   };
 
   return (
@@ -121,14 +110,13 @@ export default function SignUpForm() {
               />
             </div>
 
-
             <Button
               type="submit"
               variant="default"
-              disabled={loading || !form.formState.isValid}
+              disabled={signUpMutation.isPending || !form.formState.isValid}
               className="group-invalid:pointer-events-none group-invalid:opacity-30 w-full mb-6"
             >
-              {loading ? "Signing Up..." : "Sign Up"}
+              {signUpMutation.isPending ? "Signing Up..." : "Sign Up"}
             </Button>
           </form>
         </Form>

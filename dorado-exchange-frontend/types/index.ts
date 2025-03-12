@@ -1,10 +1,8 @@
-import { UUID } from "crypto";
-
 export interface Product {
-  id: UUID,
-  metal_id: UUID,
-  content_id: UUID,
-  supplier_id: UUID,
+  id: string,
+  metal_id: string,
+  content_id: string,
+  supplier_id: string,
   product_name: string,
   product_description: string,
   bid: number,
@@ -14,14 +12,4 @@ export interface Product {
   updated_at: Date,
   image_front: string,
   image_back: string,
-}
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  emailVerified: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  image?: string | null;
 }

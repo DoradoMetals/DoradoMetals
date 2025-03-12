@@ -13,10 +13,6 @@ export function ThemeSwitcher() {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    console.log(theme)
-  }, [theme])
-
   if (!mounted) return null;
 
   return (

@@ -16,7 +16,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         <CardItem translateZ="100" className="w-full overflow-hidden">
           <Image
             src={product.image_front}
-            layout="responsive"
+            // layout="responsive"
             width={500}
             height={500} // Adjust height dynamically
             className="w-full h-full object-contain"

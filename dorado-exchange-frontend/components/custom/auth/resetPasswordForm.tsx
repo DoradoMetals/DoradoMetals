@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -14,10 +14,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { authClient } from "@/lib/authClient";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/icons/logo";
+import { useResetPassword } from "@/lib/queries/useAuth"; // Import the TanStack mutation
 
 const formSchema = z
   .object({
@@ -31,18 +31,11 @@ const formSchema = z
 
 export default function ResetPasswordForm() {
   const router = useRouter();
-  const [token, setToken] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token"); // Extract token directly
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    // ✅ Extract token manually from window.location instead of useSearchParams()
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      setToken(params.get("token"));
-    }
-  }, []);
+  const resetPasswordMutation = useResetPassword(); // Use TanStack Mutation
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -51,34 +44,18 @@ export default function ResetPasswordForm() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!token) {
-      setMessage("Invalid or missing token.");
-      return;
+      return form.setError("password", { type: "manual", message: "Invalid or missing token." });
     }
 
-    setLoading(true);
-    setMessage(null);
-
-    const { error } = await authClient.resetPassword(
+    resetPasswordMutation.mutate(
+      { newPassword: values.password, token },
       {
-        newPassword: values.password,
-        token,
-      },
-      {
-        onRequest: () => setLoading(true),
         onSuccess: () => {
-          setMessage("Password reset successful! Redirecting...");
-          setTimeout(() => router.push("/sign-in"), 3000);
-        },
-        onError: (ctx) => {
-          setMessage(ctx.error?.message || "Something went wrong.");
+          form.reset(); // Reset the form after successful password reset
+          router.push("/sign-in?resetSuccess=true");
         },
       }
     );
-
-    setLoading(false);
-    if (error) {
-      form.setError("password", { type: "manual", message: error.message });
-    }
   };
 
   return (
@@ -153,14 +130,20 @@ export default function ResetPasswordForm() {
             <Button
               type="submit"
               variant="default"
-              disabled={loading}
+              disabled={resetPasswordMutation.isPending}
               className="group-invalid:pointer-events-none group-invalid:opacity-30 w-full mb-6"
             >
-              {loading ? "Resetting..." : "Reset Password"}
+              {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
             </Button>
           </form>
         </Form>
-        {message && <p className="text-sm text-center text-gray-500">{message}</p>}
+
+        {resetPasswordMutation.error && (
+          <p className="text-sm text-center text-red-500">{resetPasswordMutation.error.message}</p>
+        )}
+        {resetPasswordMutation.isSuccess && (
+          <p className="text-sm text-center text-green-500">Password reset successful!</p>
+        )}
       </div>
     </div>
   );

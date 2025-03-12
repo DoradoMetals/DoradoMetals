@@ -1,41 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/authClient";
+import { useVerifyEmail } from "@/lib/queries/useAuth";
 import { Button } from "@/components/ui/button";
+import { useSearchParams } from "next/navigation";
 
-export default function VerifyEmail() {
+export default function Page() {
   const router = useRouter();
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const verifyEmailMutation = useVerifyEmail();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
 
   useEffect(() => {
-    let token: string | null = null;
-
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      token = params.get("token");
-    }
-
     if (token) {
-      authClient.verifyEmail({ query: { token } })
-        .then(() => {
-          setStatus("success");
-          setTimeout(() => {
-            router.push("/");
-          }, 3000);
-        })
-        .catch(() => setStatus("error"));
-    } else {
-      setStatus("error");
+      verifyEmailMutation.mutate(token, {
+        onSuccess: () => {
+          setTimeout(() => router.push("/"), 3000);
+        },
+      });
     }
-  }, [router]);
+  }, [token]);
 
   return (
     <div className="h-screen flex flex-col items-center justify-center">
-      {status === "loading" && <p>Verifying your email...</p>}
-      {status === "success" && <p>Email verified! Redirecting...</p>}
-      {status === "error" && (
+      {verifyEmailMutation.isPending && <p>Verifying your email...</p>}
+      {verifyEmailMutation.isSuccess && <p>Email verified! Redirecting...</p>}
+      {verifyEmailMutation.isError && (
         <div>
           <p className="text-red-500">Invalid or expired verification link.</p>
           <Button onClick={() => router.push("/")}>Go to Home</Button>
