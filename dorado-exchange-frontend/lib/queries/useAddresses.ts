@@ -5,12 +5,10 @@ import { UUID } from "crypto";
 
 export const useAddress = (user_id: UUID) => {
   return useQuery<Address[] | null>({
-    queryKey: ["address", user_id], // Singular key to reflect single address
+    queryKey: ["address", user_id],
     queryFn: async () => {
       if (!user_id) return null;
-      const data = await apiRequest<Address[]>("GET", "/users/get_addresses", undefined, { user_id });
-
-      // Ensure we return only a single object
+      const data = await apiRequest<Address[]>("GET", "/addresses/get_addresses", undefined, { user_id });
       return data || null;
     },
     enabled: !!user_id,
@@ -21,13 +19,14 @@ export const useUpdateAddress = (user_id: UUID) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (address: Address) => {
-      return await apiRequest("POST", "/users/create_and_update_address", {
+      return await apiRequest("POST", "/addresses/create_and_update_address", {
         user_id,
         address,
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["address", user_id] });
+      queryClient.invalidateQueries({ queryKey: ["address", user_id]});
+      queryClient.refetchQueries({queryKey: ["address", user_id]});
     },
   });
 };
@@ -36,13 +35,30 @@ export const useDeleteAddress = (user_id: UUID) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (address: Address) => {
-      return await apiRequest("DELETE", "/users/delete_address", {
+      return await apiRequest("DELETE", "/addresses/delete_address", {
         user_id,
         address,
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["address", user_id] });
+      queryClient.invalidateQueries({ queryKey: ["address", user_id]});
+      queryClient.refetchQueries({queryKey: ["address", user_id]});
     },
   });
 };
+
+export const useSetDefaultAddress = (user_id: UUID) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (address: Address) => {
+      return await apiRequest("POST", "/addresses/set_default_address", {
+        user_id,
+        address,
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["address", user_id]});
+      queryClient.refetchQueries({queryKey: ["address", user_id]});
+    },
+  });
+}

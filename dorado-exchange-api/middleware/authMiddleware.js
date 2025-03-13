@@ -16,7 +16,7 @@ const requireAuth = async (req, res, next) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    req.user = session.user; // Attach user data to the request
+    req.user = session.user;
     next();
   } catch (error) {
     return res.status(500).json({ error: "Internal Server Error" });

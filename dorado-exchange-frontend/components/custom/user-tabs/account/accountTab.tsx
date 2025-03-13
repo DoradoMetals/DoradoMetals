@@ -2,7 +2,7 @@
 
 import { Separator } from "@/components/ui/separator";
 import UserForm from "./user-form";
-import AddressForm from "./address-form";
+import AddressBook from "./addressBook";
 
 export default function AccountTab() {
   return (
@@ -11,7 +11,7 @@ export default function AccountTab() {
       <div className="mb-10 mt-10">
         <Separator />
       </div>
-      <AddressForm />
+      <AddressBook />
     </div>
   );
 }

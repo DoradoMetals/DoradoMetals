@@ -9,6 +9,8 @@ export const states = [
   "West Virginia", "Wisconsin", "Wyoming"
 ];
 
+const phoneRegex = /^\(\d{3}\)\s\d{3}\s-\s\d{4}$/;
+
 const blockedCities = ["Test", "Fake City", "Unknown", "N/A"];
 
 export const addressSchema = z.object({
@@ -54,6 +56,7 @@ export const addressSchema = z.object({
     .optional(),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional(),
+  phone_number: z.string().regex(phoneRegex, 'Invalid Phone Number'),
 });
 
 export type Address = z.infer<typeof addressSchema>;

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MailCheck, MailX, UserCheck2, UserX2 } from "lucide-react";
+import { MailCheck, MailWarning, MailX, UserCheck2, UserX2 } from "lucide-react";
 import { User, userSchema } from "@/types/user";
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,6 +25,7 @@ export default function UserForm() {
   const sendEmailVerificationMutation = useSendVerifyEmail();
 
   const [isIdentityVerified] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const defaultValues: User = {
     id: session?.user?.id,
@@ -39,7 +40,7 @@ export default function UserForm() {
 
   const userForm = useForm<User>({
     resolver: zodResolver(userSchema),
-    mode: 'onChange',
+    mode: 'onSubmit',
     defaultValues: session?.user || defaultValues,
   })
 
@@ -55,7 +56,12 @@ export default function UserForm() {
 
   const handleEmailVerification = () => {
     if (session?.user) {
-      sendEmailVerificationMutation.mutate(session?.user?.email);
+      sendEmailVerificationMutation.mutate(session?.user?.email, {
+        onSettled: () => {
+          setEmailSent(true)
+          setTimeout(() => setEmailSent(false), 20000);
+        }
+      });
     }
   }
 
@@ -90,6 +96,14 @@ export default function UserForm() {
                   <MailCheck className="text-green-500 h-5 w-5" />
                   <div className="font-light text-sm">
                     Email Verified
+                  </div>
+                </div>
+                :
+                emailSent ?
+                <div className="flex items-center gap-2 mr-auto">
+                  <MailWarning className="text-yellow-500 h-5 w-5" />
+                  <div className="font-light text-sm">
+                    Check email inbox for link.
                   </div>
                 </div>
                 :
