@@ -6,14 +6,13 @@ type Anchor = "left" | "right" | "top" | "bottom";
 interface Props {
   open: boolean;
   setOpen: Dispatch<React.SetStateAction<boolean>>;
-  setClose: Dispatch<React.SetStateAction<boolean>>;
   children: string | ReactNode| ReactNode[];
   anchor?: Anchor;
 }
  
 const styles = {
   left: "top-0 h-full data-[visible=false]:translate-x-[-100%] data-[visible=true]:translate-x-0",
-  right: "top-0 h-full right-0 data-[visible=false]:translate-x-[100%] data-[visible=true]:translate-x-0",
+  right: "top-15 h-full right-0 data-[visible=false]:translate-x-[100%] data-[visible=true]:translate-x-0",
   top: "top-0 w-full flex-col h-fit data-[visible=false]:translate-y-[-100%] data-[visible=true]:translate-y-0",
   bottom: "bottom-0 w-full flex-col h-fit data-[visible=false]:translate-y-[100%] data-[visible=true]:translate-y-0",
 };
@@ -46,7 +45,7 @@ const Drawer: FC<Props> = ({ open, setOpen, children, anchor = "right" }) => {
       <div
         data-visible={isVisible ? "true" : "false"}
         onClick={closeDrawer}
-        className="fixed left-0 top-0 z-[100] flex h-[100dvh] w-screen bg-zinc-900/50 transition-all duration-200 data-[visible=true]:visible data-[visible=false]:invisible data-[visible=false]:opacity-0 data-[visible=true]:opacity-100"
+        className="fixed left-0 top-0 z-[100] flex h-[90dvh] w-screen transition-all duration-200 data-[visible=true]:visible data-[visible=false]:invisible data-[visible=false]:opacity-0 data-[visible=true]:opacity-100"
       />
       <div
         data-visible={isVisible ? "true" : "false"}

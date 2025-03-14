@@ -17,11 +17,11 @@ export function ThemeSwitcher() {
 
   return (
     <Button
-      variant="outline"
-      size="icon"
+      variant="ghost"
       onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+      className="px-0 hover:bg-background"
     >
-      {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+      {theme === "light" ? <Moon className="h-8 w-8" /> : <Sun className="h-8 w-8" />}
     </Button>
   );
 }
