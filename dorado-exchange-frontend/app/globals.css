@@ -48,15 +48,15 @@
   :root {
     --background: hsl(0, 0%, 100%);
     --foreground: hsl(0, 0%, 5%);
-    --card: hsl(0, 0%, 85%);
+    --card: hsl(0, 0%, 95%);
     --card-foreground: hsl(0, 0%, 5%);
     --popover: hsl(0, 0%, 85%);
     --popover-foreground: hsl(0, 0%, 5%);
-    --primary: hsl(51, 100%, 50%);
+    --primary: hsl(42, 100%, 50%);
     --primary-foreground: hsl(0, 0%, 5%);
     --secondary: hsl(185, 73%, 51%);
     --secondary-foreground: hsl(0, 0%, 5%);
-    --muted: hsl(0, 0%, 85%);
+    --muted: hsl(0, 0%, 70%);
     --muted-foreground: hsl(0, 0%, 30%);
     --accent: hsl(185, 73%, 51%);
     --accent-foreground: hsl(0, 0%, 5%);
@@ -82,17 +82,17 @@
 }
 
 .dark {
-    --background: hsl(0, 0%, 4%);
+    --background: hsl(0, 0%, 5%);
     --foreground: hsl(0, 0%, 95%);
-    --card: hsl(0, 0%, 8%);
+    --card: hsl(0, 0%, 10%);
     --card-foreground: hsl(0, 0%, 95%);
     --popover: hsl(0, 0%, 8%);
     --popover-foreground: hsl(0, 0%, 95%);
-    --primary: hsl(51, 100%, 50%);
+    --primary: hsl(42, 100%, 50%);
     --primary-foreground: hsl(0, 0%, 100%);
     --secondary: hsl(240, 65%, 51%);
     --secondary-foreground: hsl(0, 0%, 100%);
-    --muted: hsl(0, 0%, 15%);
+    --muted: hsl(0, 0%, 45%);
     --muted-foreground: hsl(0, 0%, 70%);
     --accent: hsl(240, 65%, 51%);
     --accent-foreground: hsl(0, 0%, 95%);
@@ -133,4 +133,24 @@ body {
 
 html,body,:root {
   height: 100%;
+}
+
+svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Larger icons on bigger screens */
+@media (min-width: 1024px) {  /* Large screens (lg breakpoint) */
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (min-width: 1280px) {  /* Extra large screens (xl breakpoint) */
+  svg {
+    width: 24px;
+    height: 24px;
+  }
 }

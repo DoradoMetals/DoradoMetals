@@ -70,7 +70,7 @@ export default function Sidebar({ isDrawerActive, setIsDrawerActive }: {
         open={isDrawerActive}
         setOpen={setIsDrawerActive}
       >
-        <div className="w-screen pt-5 h-full bg-white dark:bg-zinc-900 dark:shadow-zinc-950">
+        <div className="w-screen pt-5 h-full bg-card">
           {drawerContent}
         </div>
       </Drawer>
