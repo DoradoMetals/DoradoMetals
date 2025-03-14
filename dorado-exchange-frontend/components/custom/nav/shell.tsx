@@ -66,10 +66,10 @@ export default function Shell() {
         {/* Desktop Menu */}
         <div className="hidden lg:block flex items-center gap-6 items-end">
           <div className="flex items-center gap-3">
-            <Button className="px-0" variant="ghost">
+            <Button className="px-0 hover:bg-background" variant="ghost">
               <User className="w-5 h-5" />
             </Button>
-            <Button className="px-0" variant="ghost">
+            <Button className="px-0 hover:bg-background" variant="ghost">
               <ShoppingCart className="w-5 h-5" />
             </Button>
             <ThemeSwitcher />
