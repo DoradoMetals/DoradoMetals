@@ -6,12 +6,14 @@ import { authClient } from "@/lib/authClient";
 import { Menu } from 'lucide-react';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { Dispatch, useState } from "react";
 import SignOutButton from "../auth/signOutButton";
 import SignInButton from "../auth/signInButton";
 
-export default function Sidebar() {
-  const [isDrawerActive, setIsDrawerActive] = useState(false);
+export default function Sidebar({ isDrawerActive, setIsDrawerActive }: { 
+  isDrawerActive: boolean; 
+  setIsDrawerActive: Dispatch<React.SetStateAction<boolean>>; 
+}) {
   const { data: session } = authClient.useSession();
 
   const pathname = usePathname();
@@ -27,6 +29,12 @@ export default function Sidebar() {
       label: 'Sell to Us',
       src: '/sell',
       className: pathname === '/sell' ? "text-primary" : "text-muted",
+    },
+    {
+      key: 3,
+      label: "Account",
+      src: "/account",
+      className: pathname === "/account" ? "text-primary" : "text-muted",
     }
   ];
 
@@ -57,16 +65,12 @@ export default function Sidebar() {
   );
 
   return (
-    <div className="z-10">
-      <Button variant="ghost" onClick={() => setIsDrawerActive(true)}>
-        <Menu />
-      </Button>
+    <div className="">
       <Drawer
         open={isDrawerActive}
         setOpen={setIsDrawerActive}
-        setClose={setIsDrawerActive}
       >
-        <div className="h-full bg-white shadow-md shadow-zinc-400 dark:bg-zinc-900 dark:shadow-zinc-950">
+        <div className="w-screen pt-5 h-full bg-white dark:bg-zinc-900 dark:shadow-zinc-950">
           {drawerContent}
         </div>
       </Drawer>

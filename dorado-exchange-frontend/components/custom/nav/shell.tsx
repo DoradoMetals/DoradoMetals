@@ -7,10 +7,14 @@ import { authClient } from "@/lib/authClient";
 import SignOutButton from "../auth/signOutButton";
 import SignInButton from "../auth/signInButton";
 import { ThemeSwitcher } from "../theme/theme-switcher";
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Shell() {
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
+  const [isDrawerActive, setIsDrawerActive] = useState(false);
 
   const menuItems = [
     {
@@ -36,57 +40,41 @@ export default function Shell() {
   return (
     <>
       {/* Mobile Navbar */}
-      <div className="visible sm:hidden">
-        <div className="flex items-center bg-white dark:bg-black p-6">
-          <div className="flex items-center flex-shrink-0 mr-6 gap-3">
-            <Link href={"/"}>
-              <Logo />
-            </Link>
-            <Link href={"/"}>
-              <span className="font-semibold text-lg tracking-tight">
-                Dorado Metals Exchange
-              </span>
-            </Link>
-          </div>
-          <div className="mx-3">
-            <ThemeSwitcher />
-          </div>
-          <div className="ml-auto">
-            <Sidebar />
-          </div>
-        </div>
-      </div>
 
-      {/* Desktop Navbar */}
-      <div className="hidden sm:block">
-        <div className="flex items-center bg-white dark:bg-black p-6">
-          <div className="flex items-center flex-shrink-0 mr-6 gap-3">
-            <Link href={"/"}>
-              <Logo />
-            </Link>
-            <Link href={"/"}>
-              <span className="font-semibold text-lg tracking-tight">
-                Dorado Metals Exchange
-              </span>
-            </Link>
+      <div className="flex items-center justify-between bg-background w-full p-6">
+        <div className="flex items-center gap-3">
+          <Link href={"/"}>
+            <Logo />
+          </Link>
+          <Link href={"/"}>
+            <span className="font-semibold text-lg tracking-tight">
+              Dorado Metals Exchange
+            </span>
+          </Link>
+        </div>
+
+        {/* Mobile Sidebar */}
+        <div className="sm:hidden ml-auto mx-0 px-0">
+          <Button variant="ghost" onClick={() => setIsDrawerActive(true)}>
+            {!isDrawerActive ? <Menu className="w-5 h-5" /> : <X className="w-5 h-5" />}
+          </Button>
+          <Sidebar isDrawerActive={isDrawerActive} setIsDrawerActive={setIsDrawerActive} />
+        </div>
+
+        {/* Desktop Menu */}
+        <div className="hidden sm:flex items-center gap-6">
+          <div className="flex gap-3 text-sm">
+            {menuItems.map((item) => (
+              <Link className={item.className} key={item.key} href={item.src}>
+                <p>{item.label}</p>
+              </Link>
+            ))}
           </div>
-          <div className="w-full block w-auto">
-            <div className="text-sm flex gap-3 items-center">
-              {menuItems.map((item) => (
-                <Link className={item.className} key={item.key} href={item.src}>
-                  <p>{item.label}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-          <div className="mx-3 ml-auto">
-            <ThemeSwitcher />
-          </div>
-          <div className="flex items-center gap-4">
-            {session?.user ? <SignOutButton /> : <SignInButton />}
-          </div>
+          <ThemeSwitcher />
+          <div>{session?.user ? <SignOutButton /> : <SignInButton />}</div>
         </div>
       </div>
     </>
   );
 }
+
