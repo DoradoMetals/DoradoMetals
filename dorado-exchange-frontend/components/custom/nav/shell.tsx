@@ -4,12 +4,10 @@ import { usePathname } from "next/navigation";
 import { Logo } from "../../icons/logo";
 import Sidebar from "./sidebar";
 import { authClient } from "@/lib/authClient";
-import SignOutButton from "../auth/signOutButton";
-import SignInButton from "../auth/signInButton";
-import { ThemeSwitcher } from "../theme/theme-switcher";
 import { useState } from "react";
 import { Menu, ShoppingCart, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ProfileMenu from "./profileMenu";
 
 export default function Shell() {
   const pathname = usePathname();
@@ -71,14 +69,13 @@ export default function Shell() {
           {/* Desktop Menu */}
           <div className="hidden lg:block flex items-center items-end">
             <div className="flex items-center gap-5">
-              <Button className="px-0 hover:bg-background" variant="ghost">
+              {/* <Button className="px-0 hover:bg-background" variant="ghost">
                 <User className="text-muted-foreground" />
-              </Button>
+              </Button> */}
+              <ProfileMenu />
               <Button className="px-0 hover:bg-background" variant="ghost">
                 <ShoppingCart className="text-muted-foreground" />
               </Button>
-              <ThemeSwitcher />
-              <div>{session?.user ? <SignOutButton /> : <SignInButton />}</div>
             </div>
           </div>
 
