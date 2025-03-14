@@ -55,7 +55,7 @@ export default function Sidebar({ isDrawerActive, setIsDrawerActive }: {
                   {item.label}
                 </Link>
               </div>
-              <Separator />
+              {/* <Separator /> */}
             </div>
           ))}
         </div>
