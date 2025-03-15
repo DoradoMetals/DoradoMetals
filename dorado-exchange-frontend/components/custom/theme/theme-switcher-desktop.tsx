@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sun, Moon } from 'lucide-react'
 
-export function ThemeSwitcher() {
+export function ThemeSwitcherDesktop() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
@@ -17,16 +17,14 @@ export function ThemeSwitcher() {
 
   return (
     <Button
-      variant="outline"
+      variant="ghost"
+      effect="expandIcon"
+      iconPlacement="right"
       onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-      className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
+      icon={theme === 'light' ? Moon : Sun}
+      className="px-3 h-8 py-1 text-md text-primary bg-background hover:bg-background hover:text-primary"
     >
-      {theme === 'light' ? (
-        <Moon size={24} className="text-primary" />
-      ) : (
-        <Sun size={24} className="text-primary" />
-      )}
-      <span className="text-primary text-sm">{theme === 'light' ? 'Dark' : 'Light'}</span>
+      {theme === 'light' ? <div>Dark Theme</div> : <div>Light Theme</div>}
     </Button>
   )
 }

@@ -9,7 +9,7 @@ import AccountTab from "./account/accountTab"
 export function UserTabs() {
   return (
     <Tabs defaultValue="account" className="w-full px-3 sm:max-w-lg mt-3">
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid w-full grid-cols-2 bg-card">
         <TabsTrigger className="cursor-pointer" value="account">Account</TabsTrigger>
         <TabsTrigger className="cursor-pointer" value="security">Security</TabsTrigger>
         {/* <TabsTrigger className="cursor-pointer" value="orders">Orders</TabsTrigger>

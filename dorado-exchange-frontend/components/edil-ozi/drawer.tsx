@@ -12,7 +12,7 @@ interface Props {
  
 const styles = {
   left: "top-0 h-full data-[visible=false]:translate-x-[-100%] data-[visible=true]:translate-x-0",
-  right: "top-15 h-full right-0 data-[visible=false]:translate-x-[100%] data-[visible=true]:translate-x-0",
+  right: "top-20 h-full right-0 data-[visible=false]:translate-x-[100%] data-[visible=true]:translate-x-0",
   top: "top-0 w-full flex-col h-fit data-[visible=false]:translate-y-[-100%] data-[visible=true]:translate-y-0",
   bottom: "bottom-0 w-full flex-col h-fit data-[visible=false]:translate-y-[100%] data-[visible=true]:translate-y-0",
 };
