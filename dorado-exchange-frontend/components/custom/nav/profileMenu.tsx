@@ -33,7 +33,7 @@ export default function ProfileMenu() {
                     effect="expandIcon"
                     iconPlacement="right"
                     onClick={
-                      () => {router.push('/')}
+                      () => {router.push('/account')}
                     }
                     icon={UserPen}
                     className="px-3 h-8 py-1 text-md text-primary hover:bg-background hover:text-primary"
