@@ -22,11 +22,11 @@ export function ThemeSwitcher() {
       className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
     >
       {theme === 'light' ? (
-        <Moon size={24} className="text-primary" />
+        <Moon size={20} strokeWidth={1}/>
       ) : (
-        <Sun size={24} className="text-primary" />
+        <Sun size={20} strokeWidth={1}/>
       )}
-      <span className="text-primary text-sm">{theme === 'light' ? 'Dark' : 'Light'}</span>
+      <span className="text-sm font-light">{theme === 'light' ? 'Dark' : 'Light'}</span>
     </Button>
   )
 }

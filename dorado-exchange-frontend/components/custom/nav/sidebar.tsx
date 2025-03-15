@@ -18,7 +18,7 @@ export default function Sidebar({
   setIsDrawerActive: Dispatch<React.SetStateAction<boolean>>
 }) {
   const data = useUserStore()
-  console.log(data.user)
+  // console.log(data.user)
   const router = useRouter()
   const signOutMutation = useSignOut() // ✅ Use TanStack Mutation
 
@@ -28,13 +28,13 @@ export default function Sidebar({
       key: 1,
       label: 'Buy from Us',
       src: '/buy',
-      className: pathname === '/buy' ? 'text-primary' : 'text-muted',
+      className: pathname === '/buy' ? 'text-primary' : '',
     },
     {
       key: 2,
       label: 'Sell to Us',
       src: '/sell',
-      className: pathname === '/sell' ? 'text-primary' : 'text-muted',
+      className: pathname === '/sell' ? 'text-primary' : '',
     },
   ]
 
@@ -56,8 +56,8 @@ export default function Sidebar({
               }}
               className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
             >
-              <User size={24} className="text-primary" />
-              <div className="text-primary text-sm">Account</div>
+              <User size={20} strokeWidth={1}/>
+              <div className="text-sm font-light">Account</div>
             </Button>
           </div>
 
@@ -71,8 +71,8 @@ export default function Sidebar({
                 }}
                 className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
               >
-                <LogIn size={24} className="text-primary" />
-                <div className="text-primary text-sm">Sign Out</div>
+                <LogIn size={20} strokeWidth={1}/>
+                <div className="text-sm font-light">Sign Out</div>
               </Button>
             </div>
           ) : (
@@ -84,14 +84,14 @@ export default function Sidebar({
                 }}
                 className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
               >
-                <LogIn size={24} className="text-primary" />
-                <div className="text-primary text-sm">Sign In</div>
+                <LogIn size={20} strokeWidth={1}/>
+                <div className="text-sm font-light">Sign In</div>
               </Button>
             </div>
           )}
         </div>
 
-        <div className="flex w-full justify-center items-center pb-10 px-25">
+        <div className="flex w-full justify-center items-center pb-10 px-20">
           <div className="flex-grow">
             <Separator />
           </div>
@@ -100,7 +100,7 @@ export default function Sidebar({
         <div className="flex-col text-lg p-5 gap-3">
           {menuItems.map((item) => (
             <div className="flex-col items-center pb-5" key={item.key}>
-              <div className="flex items-center justify-center pb-2 text-2xl" key={item.key}>
+              <div className="flex items-center font-light justify-center pb-2 text-xl" key={item.key}>
                 <Link
                   className={item.className}
                   key={item.key}
