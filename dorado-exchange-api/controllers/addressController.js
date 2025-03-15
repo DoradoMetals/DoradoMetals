@@ -85,8 +85,6 @@ const setDefaultAddress = async (req, res) => {
   const user_id = req.body.user_id;
   const address = req.body.address;
 
-  console.log(address, user_id)
-
   try {
     const query = 
     `

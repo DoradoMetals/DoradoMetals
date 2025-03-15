@@ -6,6 +6,7 @@ interface UserState {
   session: any;
   userPending: boolean;
   fetchSession: () => void;
+  setUser: (userData: any) => void;  // ✅ Add this
 }
 
 export const useUserStore = create<UserState>((set) => ({
@@ -14,8 +15,11 @@ export const useUserStore = create<UserState>((set) => ({
   userPending: true,
 
   fetchSession: async () => {
+    console.log("Fetching session...");
     try {
-      const {data, error} = await authClient.getSession();
+      const { data, error } = await authClient.getSession();
+      console.log("Fetched session data:", data);
+
       set({
         user: data?.user || null,
         session: data?.session || null,
@@ -25,5 +29,10 @@ export const useUserStore = create<UserState>((set) => ({
       console.error("Session fetch error:", error);
       set({ userPending: false });
     }
+  },
+
+  setUser: (userData) => {
+    console.log("Setting user in Zustand:", userData);  // ✅ Debugging
+    set({ user: userData, userPending: false });
   },
 }));

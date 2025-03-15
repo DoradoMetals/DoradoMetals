@@ -1,17 +1,21 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function SignInButton() {
   const router = useRouter();
 
-  const handleLogin = () => {
-    router.push("/sign-in");
-  };
-
   return (
-    <Button variant="default" onClick={handleLogin}>
+    <Button
+      variant="default"
+      effect="expandIcon"
+      iconPlacement="right"
+      onClick={() => {router.push("/sign-in")}}
+      icon={LogIn}
+      className="px-3 py-1 h-8 hover:bg-primary border-primary"
+    >
       Sign In
     </Button>
   );

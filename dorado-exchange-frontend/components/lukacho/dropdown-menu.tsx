@@ -56,7 +56,7 @@ export const TriggerWrapper: React.FC<{ children: React.ReactNode }> = ({ childr
       onClick={() => setAnimationDirection(1)}
       className={cn(
         "flex rounded-md transition-all",
-        currentTab === 1 ? "bg-background" : ""
+        currentTab === 1 ? "" : ""
       )}
     >
       {children}

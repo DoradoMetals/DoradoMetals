@@ -31,6 +31,10 @@ const auth = betterAuth({
   },
   session: {
     modelName: "exchange.session",
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60
+    },
   },
   account: {
     modelName: "exchange.account",
