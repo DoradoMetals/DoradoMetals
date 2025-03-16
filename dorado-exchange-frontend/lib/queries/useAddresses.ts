@@ -4,14 +4,12 @@ import { Address } from "@/types/address";
 import { UUID } from "crypto";
 
 export const useAddress = (user_id: UUID) => {
-  return useQuery<Address[] | null>({
-    queryKey: ["address", user_id],
+  return useQuery<Address[]>({
+    queryKey: ["address"],
     queryFn: async () => {
-      if (!user_id) return null;
       const data = await apiRequest<Address[]>("GET", "/addresses/get_addresses", undefined, { user_id });
-      return data || null;
+      return data;
     },
-    enabled: !!user_id,
   });
 };
 
@@ -25,7 +23,7 @@ export const useUpdateAddress = (user_id: UUID) => {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["address", user_id], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["address"], refetchType: "active" });
     },
   });
 };
@@ -40,7 +38,7 @@ export const useDeleteAddress = (user_id: UUID) => {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["address", user_id], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["address"], refetchType: "active" });
     },
   });
 };
@@ -55,7 +53,7 @@ export const useSetDefaultAddress = (user_id: UUID) => {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["address", user_id], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["address"], refetchType: "active" });
     },
   });
 }

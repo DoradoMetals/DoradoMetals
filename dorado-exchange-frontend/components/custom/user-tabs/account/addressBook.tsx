@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/store/useUserStore";
 import { useAddress } from "@/lib/queries/useAddresses";
 import { Address } from "@/types/address";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus } from "lucide-react";
 import AddressCard from "./addressCard";
@@ -41,6 +41,11 @@ export default function AddressBook() {
     updated_at: new Date().toISOString(),
     phone_number: "",
   };
+
+  useEffect(() => {
+    console.log('zustand: ', user)
+    console.log('better auth: ', session?.user)
+  }, [session, user])
 
   return (
     <div className="flex flex-col">

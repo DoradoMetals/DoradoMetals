@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authClient } from "@/lib/authClient";
+import { useRouter } from "next/navigation";
 
 export const useSession = () => {
   return useQuery({
@@ -69,6 +70,22 @@ export const useSignIn = () => {
   });
 };
 
+export const useSignOut = () => {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => authClient.signOut(),
+    onSuccess: () => {
+      queryClient.removeQueries();
+      queryClient.cancelQueries();
+      queryClient.clear();
+      router.push("/");
+      console.log('sign out: ', queryClient)
+    },
+  });
+};
+
 export const useGoogleSignIn = () => {
   const queryClient = useQueryClient();
 
@@ -80,17 +97,6 @@ export const useGoogleSignIn = () => {
       }),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["session"] });
-    },
-  });
-};
-
-export const useSignOut = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => authClient.signOut(),
-    onSuccess: () => {
-      queryClient.clear();
     },
   });
 };

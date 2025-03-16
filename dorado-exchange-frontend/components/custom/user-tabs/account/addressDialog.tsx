@@ -11,7 +11,6 @@ export default function AddressModal({ address, open, setOpen, title }: {
   setOpen: (open: boolean) => void; 
   title: string
 }) {
-  console.log(address)
   return (
     <Dialog modal={false} open={open} onOpenChange={setOpen}>
       <DialogContent>
