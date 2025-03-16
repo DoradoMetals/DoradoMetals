@@ -41,11 +41,6 @@ export default function AddressBook() {
     phone_number: "",
   };
 
-  // useEffect(() => {
-  //   console.log('zustand: ', user)
-  //   console.log('better auth: ', session?.user)
-  // }, [session, user])
-
   return (
     <div className="flex flex-col">
       {isLoading ?

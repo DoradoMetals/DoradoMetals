@@ -9,7 +9,6 @@ import { StateSelect } from './stateSelect'
 
 import { Address, addressSchema } from '@/types/address'
 import { useUpdateAddress } from '@/lib/queries/useAddresses'
-import { useEffect } from 'react'
 import { Asterisk } from 'lucide-react'
 
 export default function AddressForm({
@@ -36,21 +35,12 @@ export default function AddressForm({
   })
 
   const formatPhoneNumber = (value: string) => {
-    // Remove all non-numeric characters
     const digits = value.replace(/\D/g, '')
 
-    // Format as (XXX) XXX - XXXX
     if (digits.length <= 3) return `(${digits}`
     if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} - ${digits.slice(6, 10)}`
   }
-
-  // useEffect(() => {
-  //   console.log(address.user_id)
-  //   if (Object.keys(addressForm.formState.errors).length > 0) {
-  //     console.log('Form validation errors:', addressForm.formState.errors)
-  //   }
-  // }, [addressForm.formState.errors])
 
   return (
     <div>
