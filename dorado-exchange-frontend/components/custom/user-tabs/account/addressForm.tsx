@@ -9,7 +9,6 @@ import { StateSelect } from './stateSelect'
 
 import { Address, addressSchema } from '@/types/address'
 import { useUpdateAddress } from '@/lib/queries/useAddresses'
-import { useUserStore } from '@/store/useUserStore'
 import { useEffect } from 'react'
 import { Asterisk } from 'lucide-react'
 
@@ -20,8 +19,7 @@ export default function AddressForm({
   address: Address
   setOpen: (open: boolean) => void
 }) {
-  const { user } = useUserStore()
-  const updateAddressMutation = useUpdateAddress(user?.id)
+  const updateAddressMutation = useUpdateAddress()
 
   const handleAddressSubmit = (values: Address) => {
     updateAddressMutation.mutate(values, {
@@ -47,12 +45,12 @@ export default function AddressForm({
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} - ${digits.slice(6, 10)}`
   }
 
-  useEffect(() => {
-    console.log(address.user_id)
-    if (Object.keys(addressForm.formState.errors).length > 0) {
-      console.log('Form validation errors:', addressForm.formState.errors)
-    }
-  }, [addressForm.formState.errors])
+  // useEffect(() => {
+  //   console.log(address.user_id)
+  //   if (Object.keys(addressForm.formState.errors).length > 0) {
+  //     console.log('Form validation errors:', addressForm.formState.errors)
+  //   }
+  // }, [addressForm.formState.errors])
 
   return (
     <div>

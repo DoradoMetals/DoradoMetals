@@ -9,9 +9,8 @@ import { useUserStore } from '@/store/useUserStore'
 import { Badge } from '@/components/ui/badge' // New badge component
 
 export default function AddressCard({ address }: { address: Address }) {
-  const { user } = useUserStore()
-  const deleteAddressMutation = useDeleteAddress(user?.id)
-  const setDefaultAddressMutation = useSetDefaultAddress(user?.id)
+  const deleteAddressMutation = useDeleteAddress();
+  const setDefaultAddressMutation = useSetDefaultAddress();
   const [open, setOpen] = useState(false)
 
   return (

@@ -32,6 +32,7 @@ export default function ProfileMenu() {
                     variant="ghost"
                     effect="expandIcon"
                     iconPlacement="right"
+                    iconSize={20}
                     onClick={
                       () => {router.push('/account')}
                     }
