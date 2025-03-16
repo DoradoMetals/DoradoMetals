@@ -1,54 +1,58 @@
-"use client";
+'use client'
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { StateSelect } from "./stateSelect";
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { StateSelect } from './stateSelect'
 
-import { Address, addressSchema } from "@/types/address";
-import { useUpdateAddress } from "@/lib/queries/useAddresses";
-import { useUserStore } from "@/store/useUserStore";
-import { useEffect } from "react";
-import { Asterisk } from "lucide-react";
+import { Address, addressSchema } from '@/types/address'
+import { useUpdateAddress } from '@/lib/queries/useAddresses'
+import { useUserStore } from '@/store/useUserStore'
+import { useEffect } from 'react'
+import { Asterisk } from 'lucide-react'
 
-export default function AddressForm({ address, setOpen }:
-  {
-    address: Address;
-    setOpen: (open: boolean) => void;
-  }) {
-
-  const { user } = useUserStore();
-  const updateAddressMutation = useUpdateAddress(user?.id);
+export default function AddressForm({
+  address,
+  setOpen,
+}: {
+  address: Address
+  setOpen: (open: boolean) => void
+}) {
+  const { user } = useUserStore()
+  const updateAddressMutation = useUpdateAddress(user?.id)
 
   const handleAddressSubmit = (values: Address) => {
     updateAddressMutation.mutate(values, {
       onSettled: () => {
-        setOpen(false);
-      }
+        setOpen(false)
+      },
     })
-  };
+  }
 
   const addressForm = useForm<Address>({
     resolver: zodResolver(addressSchema),
     mode: 'onSubmit',
     defaultValues: address,
-  });
+  })
 
   const formatPhoneNumber = (value: string) => {
-    const digits = value.replace(/\D/g, ""); // Remove all non-numeric characters
+    // Remove all non-numeric characters
+    const digits = value.replace(/\D/g, '')
 
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} - ${digits.slice(6, 10)}`;
-  };
+    // Format as (XXX) XXX - XXXX
+    if (digits.length <= 3) return `(${digits}`
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} - ${digits.slice(6, 10)}`
+  }
 
-  // useEffect(() => {
-  //   if (Object.keys(addressForm.formState.errors).length > 0) {
-  //     console.log("Form validation errors:", addressForm.formState.errors);
-  //   }
-  // }, [addressForm.formState.errors]);
+  useEffect(() => {
+    console.log(address.user_id)
+    if (Object.keys(addressForm.formState.errors).length > 0) {
+      console.log('Form validation errors:', addressForm.formState.errors)
+    }
+  }, [addressForm.formState.errors])
 
   return (
     <div>
@@ -60,18 +64,20 @@ export default function AddressForm({ address, setOpen }:
               name="name"
               render={({ field }) => (
                 <FormItem>
-
                   <FormLabel>
                     <div className="flex items-center">
-                      <div className="mr-auto text-md text-gray-500 m-0 p-0">
-                        Name
-                      </div>
-                      <Asterisk className="ml-auto w-3 h-3 text-red-500" />
+                      <div className="mr-auto text-md text-gray-500 m-0 p-0">Name</div>
+                      <Asterisk size={14} className="ml-auto text-red-500" />
                     </div>
                   </FormLabel>
 
                   <FormControl>
-                    <Input placeholder="Business, Personal, etc..." className="placeholder:font-light font-normal" {...field} />
+                    <Input
+                      placeholder="Business, Personal, etc..."
+                      autoComplete="name"
+                      className="placeholder:font-light font-normal"
+                      {...field}
+                    />
                   </FormControl>
                   {addressForm.formState.errors.name && (
                     <p className="text-red-500 text-sm">
@@ -93,16 +99,27 @@ export default function AddressForm({ address, setOpen }:
                     <FormLabel>Phone Number</FormLabel>
                   </div>
                   <FormControl>
-                    <Input
-                      placeholder="(123) 456 - 7890"
-                      className="placeholder:font-light font-normal"
-                      maxLength={16}
-                      {...field} // Keep existing props
-                      onChange={(e) => {
-                        const formatted = formatPhoneNumber(e.target.value);
-                        field.onChange(formatted);
-                      }}
-                    />
+                    <div className="flex items-center">
+                      <Input
+                        placeholder="(123) 456 - 7890"
+                        autoComplete="tel"
+                        className="placeholder:font-light font-normal"
+                        maxLength={16}
+                        {...field}
+                        onChange={(e) => {
+                          let value = e.target.value.replace(/[^0-9]/g, '') // Remove non-numeric chars
+
+                          // Ensure country code "+1" is always present
+                          if (!value.startsWith('1')) {
+                            value = '1' + value
+                          }
+
+                          // Format the number
+                          const formatted = `+1 ${formatPhoneNumber(value.slice(1))}`
+                          field.onChange(formatted)
+                        }}
+                      />
+                    </div>
                   </FormControl>
                   {addressForm.formState.errors.phone_number && (
                     <p className="text-red-500 text-sm">
@@ -123,15 +140,18 @@ export default function AddressForm({ address, setOpen }:
                   <div className="text-md text-gray-500 m-0 p-0">
                     <FormLabel>
                       <div className="flex items-center">
-                        <div className="mr-auto text-md text-gray-500 m-0 p-0">
-                          Address Line 1
-                        </div>
-                        <Asterisk className="ml-auto w-3 h-3 text-red-500" />
+                        <div className="mr-auto text-md text-gray-500 m-0 p-0">Address Line 1</div>
+                        <Asterisk size={14} className="ml-auto text-red-500" />
                       </div>
                     </FormLabel>
                   </div>
                   <FormControl>
-                    <Input placeholder="123 Gold Dr." className="placeholder:font-light font-normal" {...field} />
+                    <Input
+                      placeholder="123 Gold Dr."
+                      autoComplete="address-line1"
+                      className="placeholder:font-light font-normal"
+                      {...field}
+                    />
                   </FormControl>
                   {addressForm.formState.errors.line_1 && (
                     <p className="text-red-500 text-sm">
@@ -154,7 +174,12 @@ export default function AddressForm({ address, setOpen }:
                       <FormLabel>Address Line 2</FormLabel>
                     </div>
                     <FormControl>
-                      <Input placeholder="STE 201" className="placeholder:font-light font-normal" {...field} />
+                      <Input
+                        placeholder="STE 201"
+                        autoComplete="address-line2"
+                        className="placeholder:font-light font-normal"
+                        {...field}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -167,17 +192,19 @@ export default function AddressForm({ address, setOpen }:
                     <div className="text-md text-gray-500 m-0 p-0">
                       <FormLabel>
                         <div className="flex items-center">
-                          <div className="mr-auto text-md text-gray-500 m-0 p-0">
-                            City
-                          </div>
-                          <Asterisk className="ml-auto w-3 h-3 text-red-500" />
+                          <div className="mr-auto text-md text-gray-500 m-0 p-0">City</div>
+                          <Asterisk size={14} className="ml-auto text-red-500" />
                         </div>
                       </FormLabel>
                     </div>
                     <FormControl>
-                      <Input placeholder="Dallas" className="placeholder:font-light font-normal" {...field} />
+                      <Input
+                        placeholder="Dallas"
+                        autoComplete="address-level2"
+                        className="placeholder:font-light font-normal"
+                        {...field}
+                      />
                     </FormControl>
-
                   </FormItem>
                 )}
               />
@@ -201,15 +228,18 @@ export default function AddressForm({ address, setOpen }:
                     <div className="text-md text-gray-500 m-0 p-0">
                       <FormLabel>
                         <div className="flex items-center">
-                          <div className="mr-auto text-md text-gray-500 m-0 p-0">
-                            Zip Code
-                          </div>
-                          <Asterisk className="ml-auto w-3 h-3 text-red-500" />
+                          <div className="mr-auto text-md text-gray-500 m-0 p-0">Zip Code</div>
+                          <Asterisk size={14} className="ml-auto text-red-500" />
                         </div>
                       </FormLabel>
                     </div>
                     <FormControl>
-                      <Input placeholder="12345" className="placeholder:font-light font-normal" {...field} />
+                      <Input
+                        placeholder="12345"
+                        autoComplete="postal-code"
+                        className="placeholder:font-light font-normal"
+                        {...field}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -226,9 +256,7 @@ export default function AddressForm({ address, setOpen }:
               />
             </div>
             {addressForm.formState.errors.zip && (
-              <p className="text-red-500 text-sm">
-                {addressForm.formState.errors.zip.message}
-              </p>
+              <p className="text-red-500 text-sm">{addressForm.formState.errors.zip.message}</p>
             )}
           </div>
 
@@ -241,25 +269,29 @@ export default function AddressForm({ address, setOpen }:
                   <div className="text-md text-gray-500 m-0 p-0">
                     <FormLabel>
                       <div className="flex items-center">
-                        <div className="mr-auto text-md text-gray-500 m-0 p-0">
-                          Country
-                        </div>
-                        <Asterisk className="ml-auto w-3 h-3 text-red-500" />
+                        <div className="mr-auto text-md text-gray-500 m-0 p-0">Country</div>
+                        <Asterisk size={14} className="ml-auto text-red-500" />
                       </div>
                     </FormLabel>
                   </div>
                   <FormControl>
-                    <Input readOnly placeholder="United States" className="placeholder:font-light font-normal" {...field} />
+                    <Input
+                      readOnly
+                      placeholder="United States"
+                      autoComplete="country"
+                      className="placeholder:font-light font-normal"
+                      {...field}
+                    />
                   </FormControl>
                 </FormItem>
               )}
             />
           </div>
           <Button type="submit" className="w-full mb-8" disabled={updateAddressMutation.isPending}>
-            {updateAddressMutation.isPending ? "Saving..." : "Save Changes"}
+            {updateAddressMutation.isPending ? 'Saving...' : 'Save Changes'}
           </Button>
         </form>
       </Form>
     </div>
-  );
+  )
 }

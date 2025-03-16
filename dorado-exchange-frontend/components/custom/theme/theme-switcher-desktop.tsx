@@ -22,7 +22,7 @@ export function ThemeSwitcherDesktop() {
       iconPlacement="right"
       onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
       icon={theme === 'light' ? Moon : Sun}
-      className="px-3 h-8 py-1 text-md text-primary bg-background hover:bg-background hover:text-primary"
+      className="px-3 h-8 py-1 text-md font-light bg-background hover:bg-background hover:text-primary"
     >
       {theme === 'light' ? <div>Dark Theme</div> : <div>Light Theme</div>}
     </Button>

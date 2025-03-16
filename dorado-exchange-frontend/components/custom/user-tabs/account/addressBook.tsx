@@ -9,10 +9,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus } from "lucide-react";
 import AddressCard from "./addressCard";
 import AddressDialog from "./addressDialog";
+import { authClient } from "@/lib/authClient";
 
 export default function AddressBook() {
 
   const { user, userPending } = useUserStore();
+  const {data: session} = authClient.useSession();
   const { data: addresses, isLoading } = useAddress(user?.id);
 
   const [open, setOpen] = useState(false);
@@ -26,7 +28,7 @@ export default function AddressBook() {
 
   const defaultValues: Address = {
     id: crypto.randomUUID(),
-    user_id: user?.id,
+    user_id: session?.user?.id ?? '',
     line_1: "",
     line_2: "",
     city: "",
@@ -61,8 +63,8 @@ export default function AddressBook() {
           <div className="flex items-center mb-10">
             <h2 className="text-sm text-gray-500">Addresses</h2>
             <Button className="ml-auto p-0 py-0 px-0 hover:bg-background" variant="ghost" onClick={() => setOpen(true)}>
-              <div className="flex items-center gap-2">
-                <Plus className="w-5 h-5" />
+              <div className="flex items-center gap-1 font-light">
+                <Plus size={16} strokeWidth={1}/>
                 Create New
               </div>
             </Button>
@@ -72,7 +74,7 @@ export default function AddressBook() {
               noAddresses()
                 ?
                 <div className="flex flex-col items-center">
-                  <div className="flex justify-center">
+                  <div className="flex justify-center font-light">
                     You don't have any saved Addresses.
                   </div>
                   <Button className="p-0 py-0 px-0 hover:bg-background" variant="ghost" onClick={() => setOpen(true)}>

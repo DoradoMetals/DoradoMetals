@@ -17,7 +17,7 @@ export default function SignOutButton() {
       onClick={() => signOutMutation.mutate(undefined, { onSuccess: () => router.push("/") })}
       disabled={signOutMutation.isPending}
       icon={LogOut}
-      className="px-3 h-8 py-1 text-md hover:bg-primary text-primary border-primary"
+      className="px-3 h-8 py-1 text-md hover:bg-primary font-light border-primary"
     >
       {signOutMutation.isPending ? "Signing Out..." : "Sign Out"}
     </Button>

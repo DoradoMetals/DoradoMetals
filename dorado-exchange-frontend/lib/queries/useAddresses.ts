@@ -25,8 +25,7 @@ export const useUpdateAddress = (user_id: UUID) => {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["address", user_id]});
-      queryClient.refetchQueries({queryKey: ["address", user_id]});
+      queryClient.invalidateQueries({ queryKey: ["address", user_id], refetchType: "active" });
     },
   });
 };
@@ -41,8 +40,7 @@ export const useDeleteAddress = (user_id: UUID) => {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["address", user_id]});
-      queryClient.refetchQueries({queryKey: ["address", user_id]});
+      queryClient.invalidateQueries({ queryKey: ["address", user_id], refetchType: "active" });
     },
   });
 };
@@ -57,8 +55,7 @@ export const useSetDefaultAddress = (user_id: UUID) => {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["address", user_id]});
-      queryClient.refetchQueries({queryKey: ["address", user_id]});
+      queryClient.invalidateQueries({ queryKey: ["address", user_id], refetchType: "active" });
     },
   });
 }

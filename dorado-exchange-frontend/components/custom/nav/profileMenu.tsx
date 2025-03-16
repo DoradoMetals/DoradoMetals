@@ -36,7 +36,7 @@ export default function ProfileMenu() {
                       () => {router.push('/account')}
                     }
                     icon={UserPen}
-                    className="px-3 h-8 py-1 text-md text-primary hover:bg-background hover:text-primary"
+                    className="px-3 h-8 py-1 text-md font-light hover:bg-background hover:text-primary"
                   >
                     Go to Account
                   </Button>

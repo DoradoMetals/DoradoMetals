@@ -1,15 +1,7 @@
 import * as z from "zod";
+import { states } from "./states";
 
-export const states = [
-  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia",
-  "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland",
-  "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire",
-  "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania",
-  "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
-  "West Virginia", "Wisconsin", "Wyoming"
-];
-
-const phoneRegex = /^\(\d{3}\)\s\d{3}\s-\s\d{4}$/;
+const phoneRegex = /^\+1\s\(\d{3}\)\s\d{3}\s-\s\d{4}$/;
 
 const blockedCities = ["Test", "Fake City", "Unknown", "N/A"];
 
@@ -56,7 +48,10 @@ export const addressSchema = z.object({
     .optional(),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional(),
-  phone_number: z.string().regex(phoneRegex, 'Invalid Phone Number'),
+  phone_number: z
+  .string()
+  .regex(phoneRegex, 'Phone number must be in the format: +1 (XXX) XXX - XXXX'),
+
 });
 
 export type Address = z.infer<typeof addressSchema>;

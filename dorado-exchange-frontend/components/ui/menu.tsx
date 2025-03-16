@@ -16,12 +16,12 @@ const lineVariants: Variants = {
   normal: {
     rotate: 0,
     y: 0,
-    opacity: 1, // Explicitly define opacity in normal state
+    opacity: 1,
   },
   animate: (custom: number) => ({
     rotate: custom === 1 ? 45 : custom === 3 ? -45 : 0,
     y: custom === 1 ? 6 : custom === 3 ? -6 : 0,
-    opacity: custom ? (custom === 2 ? 0 : 1) : 1,
+    opacity: custom === 2 ? 0 : 1,
     transition: {
       type: 'spring',
       stiffness: 260,
@@ -36,7 +36,6 @@ const MenuIcon = forwardRef<HTMLDivElement, MenuIconProps>(
 
     // Call animation immediately when prop changes
     useEffect(() => {
-      console.log(controls)
       controls.start(isOpen ? 'animate' : 'normal');
     }, [isOpen]);
 
