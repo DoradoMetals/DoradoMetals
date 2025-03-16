@@ -1,24 +1,29 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/utils/axiosInstance";
 import { Address } from "@/types/address";
-import { UUID } from "crypto";
+import { useUserStore } from "@/store/useUserStore";
 
-export const useAddress = (user_id: UUID) => {
+export const useAddress = () => {
+  const { user } = useUserStore();
   return useQuery<Address[]>({
     queryKey: ["address"],
     queryFn: async () => {
-      const data = await apiRequest<Address[]>("GET", "/addresses/get_addresses", undefined, { user_id });
-      return data;
+      if (!user?.id) return [];
+      return await apiRequest<Address[]>("GET", "/addresses/get_addresses", undefined, { user_id: user.id });
     },
+    enabled: !!user?.id,
   });
 };
 
-export const useUpdateAddress = (user_id: UUID) => {
+export const useUpdateAddress = () => {
+  const { user } = useUserStore();
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (address: Address) => {
+      if (!user?.id) throw new Error("User is not authenticated");
       return await apiRequest("POST", "/addresses/create_and_update_address", {
-        user_id,
+        user_id: user.id,
         address,
       });
     },
@@ -28,12 +33,15 @@ export const useUpdateAddress = (user_id: UUID) => {
   });
 };
 
-export const useDeleteAddress = (user_id: UUID) => {
+export const useDeleteAddress = () => {
+  const { user } = useUserStore();
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (address: Address) => {
+      if (!user?.id) throw new Error("User is not authenticated");
       return await apiRequest("DELETE", "/addresses/delete_address", {
-        user_id,
+        user_id: user.id,
         address,
       });
     },
@@ -43,12 +51,15 @@ export const useDeleteAddress = (user_id: UUID) => {
   });
 };
 
-export const useSetDefaultAddress = (user_id: UUID) => {
+export const useSetDefaultAddress = () => {
+  const { user } = useUserStore();
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (address: Address) => {
+      if (!user?.id) throw new Error("User is not authenticated");
       return await apiRequest("POST", "/addresses/set_default_address", {
-        user_id,
+        user_id: user.id,
         address,
       });
     },
@@ -56,4 +67,4 @@ export const useSetDefaultAddress = (user_id: UUID) => {
       queryClient.invalidateQueries({ queryKey: ["address"], refetchType: "active" });
     },
   });
-}
+};

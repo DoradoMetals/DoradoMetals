@@ -13,9 +13,8 @@ import { authClient } from "@/lib/authClient";
 
 export default function AddressBook() {
 
-  const { user, userPending } = useUserStore();
   const {data: session} = authClient.useSession();
-  const { data: addresses, isLoading } = useAddress(user?.id);
+  const { data: addresses, isLoading } = useAddress();
 
   const [open, setOpen] = useState(false);
 
@@ -42,14 +41,14 @@ export default function AddressBook() {
     phone_number: "",
   };
 
-  useEffect(() => {
-    console.log('zustand: ', user)
-    console.log('better auth: ', session?.user)
-  }, [session, user])
+  // useEffect(() => {
+  //   console.log('zustand: ', user)
+  //   console.log('better auth: ', session?.user)
+  // }, [session, user])
 
   return (
     <div className="flex flex-col">
-      {isLoading || userPending ?
+      {isLoading ?
         <div className="space-y-4">
           <Skeleton className="h-9 w-full mb-8" />
           <Skeleton className="h-9 w-full mb-8" />

@@ -5,21 +5,19 @@ interface UserState {
   user: any;
   session: any;
   userPending: boolean;
-  fetchSession: () => void;
-  setUser: (userData: any) => void;  // ✅ Add this
+  fetchSession: () => Promise<void>;
+  setUser: (user: any, session: any) => void;
+  clearSession: () => void; // ✅ Add function to clear session
 }
 
-export const useUserStore = create<UserState>((set) => ({
+export const useUserStore = create<UserState>()((set) => ({
   user: null,
   session: null,
   userPending: true,
 
   fetchSession: async () => {
-    console.log("Fetching session...");
     try {
-      const { data, error } = await authClient.getSession();
-      console.log("Fetched session data:", data);
-
+      const { data } = await authClient.getSession();
       set({
         user: data?.user || null,
         session: data?.session || null,
@@ -31,8 +29,11 @@ export const useUserStore = create<UserState>((set) => ({
     }
   },
 
-  setUser: (userData) => {
-    console.log("Setting user in Zustand:", userData);  // ✅ Debugging
-    set({ user: userData, userPending: false });
+  setUser: (user, session) => {
+    set({ user, session });
+  },
+
+  clearSession: () => {
+    set({ user: null, session: null, userPending: false });
   },
 }));
