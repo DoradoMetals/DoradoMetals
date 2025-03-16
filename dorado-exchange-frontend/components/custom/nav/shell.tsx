@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import ProfileMenu from './profileMenu'
 import SignInButton from '../auth/signInButton'
 import { useUserStore } from '@/store/useUserStore'
-import { useRouter } from 'next/navigation'
 import { MenuIcon } from '@/components/ui/menu'
 
 export default function Shell() {

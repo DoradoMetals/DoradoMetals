@@ -9,24 +9,8 @@ export default function Page() {
   const [selectedMetal, setSelectedMetal] = useState("Gold"); // Default to Gold
   const { data: products = [], isLoading, error } = useProductsByMetal(selectedMetal);
 
-  const metals = ["Gold", "Silver", "Platinum", "Palladium"];
-
   return (
     <div className="flex flex-col gap-4">
-      {/* Metal Selection Buttons */}
-      <div className="flex gap-3">
-        {metals.map((metal) => (
-          <Button
-            key={metal}
-            variant={selectedMetal === metal ? "default" : "outline"}
-            onClick={() => setSelectedMetal(metal)}
-          >
-            {metal}
-          </Button>
-        ))}
-      </div>
-
-      {/* Products Display */}
       {isLoading && <p>Loading {selectedMetal} products...</p>}
       {error && <p>Error loading {selectedMetal} products.</p>}
 

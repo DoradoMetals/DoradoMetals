@@ -15,13 +15,13 @@ export default function AddressCard({ address }: { address: Address }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="shadow-md p-5 bg-background border border-card">
+    <div className="shadow-md p-5 bg-background border border-card rounded-lg">
       <div className="flex items-center mb-4">
         <h3 className="text-lg font-semibold">{address.name}</h3>
-        {address.phone_number && <p className="text-sm ml-auto">{address.phone_number}</p>}
+        {address.phone_number && <p className="text-xs text-muted ml-auto">{address.phone_number}</p>}
       </div>
 
-      <div className="text-sm leading-relaxed mb-4">
+      <div className="text-sm text-muted leading-relaxed">
         <p>
           {address.line_1} {address.line_2 && `, ${address.line_2}`}
         </p>
@@ -40,22 +40,23 @@ export default function AddressCard({ address }: { address: Address }) {
             Set Default
           </Button>
         ) : (
-          <Badge className="bg-primary text-xs px-2 py-1">Default</Badge>
+          // <Badge className="bg-background text-xs px-2 py-1">Default</Badge>
+          null
         )}
 
         <div className="flex items-center gap-6 ml-auto">
           <Button
-            variant="link"
-            effect="hoverUnderline"
-            className="m-0 p-0 underline"
+            variant="default"
+            size="sm"
+            className="text-primary bg-card hover:bg-card"
             onClick={() => setOpen(true)}
           >
             Edit
           </Button>
           <Button
-            variant="link"
-            effect="hoverUnderline"
-            className="m-0 p-0 underline"
+            variant="default"
+            size="sm"
+
             onClick={() => deleteAddressMutation.mutate(address)}
           >
             Remove
