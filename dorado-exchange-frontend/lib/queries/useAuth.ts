@@ -7,7 +7,7 @@ export const useSession = () => {
   return useQuery({
     queryKey: ['session'],
     queryFn: async () => {
-      const { data, error } = await authClient.getSession()
+      const { data, error } = authClient.useSession()
       if (error) throw new Error(error.message)
       return data
     },
@@ -23,7 +23,7 @@ export const useUpdateUser = () => {
       authClient.updateUser(userData),
     onSettled: () => {
       fetchSession()
-      queryClient.invalidateQueries({ queryKey: ['session'] }) // Refresh session
+      queryClient.invalidateQueries({ queryKey: ['session'] })
     },
   })
 }
@@ -57,7 +57,7 @@ export const useSignUp = () => {
       }),
     onSettled: () => {
       fetchSession()
-      queryClient.invalidateQueries({ queryKey: ['session'] }) // Refresh session
+      queryClient.invalidateQueries({ queryKey: ['session'] })
     },
   })
 }
@@ -93,8 +93,8 @@ export const useSignOut = () => {
       clearSession();
     },
     onSuccess: async () => {
-      await fetchSession();
       router.replace('/');
+      await fetchSession();
     },
   });
 };

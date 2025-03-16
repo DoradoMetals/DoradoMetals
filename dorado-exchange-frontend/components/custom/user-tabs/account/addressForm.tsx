@@ -32,14 +32,19 @@ export default function AddressForm({
     resolver: zodResolver(addressSchema),
     mode: 'onSubmit',
     defaultValues: address,
+    values: address,
   })
 
   const formatPhoneNumber = (value: string) => {
+    if (!value) return ''
+
     const digits = value.replace(/\D/g, '')
 
-    if (digits.length <= 3) return `(${digits}`
-    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} - ${digits.slice(6, 10)}`
+    const cleanDigits = digits.startsWith('1') ? digits.slice(1) : digits
+
+    if (cleanDigits.length <= 3) return `(${cleanDigits}`
+    if (cleanDigits.length <= 6) return `(${cleanDigits.slice(0, 3)}) ${cleanDigits.slice(3)}`
+    return `(${cleanDigits.slice(0, 3)}) ${cleanDigits.slice(3, 6)} - ${cleanDigits.slice(6, 10)}`
   }
 
   return (
@@ -92,19 +97,19 @@ export default function AddressForm({
                         placeholder="(123) 456 - 7890"
                         autoComplete="tel"
                         className="placeholder:font-light font-normal"
-                        maxLength={16}
+                        maxLength={17}
                         {...field}
+                        value={formatPhoneNumber(field.value)}
                         onChange={(e) => {
-                          let value = e.target.value.replace(/[^0-9]/g, '') // Remove non-numeric chars
+                          let digits = e.target.value.replace(/\D/g, '')
 
-                          // Ensure country code "+1" is always present
-                          if (!value.startsWith('1')) {
-                            value = '1' + value
+                          if (!digits.startsWith('1')) {
+                            digits = '1' + digits
                           }
 
-                          // Format the number
-                          const formatted = `+1 ${formatPhoneNumber(value.slice(1))}`
-                          field.onChange(formatted)
+                          digits = digits.slice(0, 11)
+
+                          field.onChange(`+${digits}`)
                         }}
                       />
                     </div>

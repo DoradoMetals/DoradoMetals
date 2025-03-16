@@ -13,13 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MailCheck, MailWarning, MailX, UserCheck2, UserX2 } from "lucide-react";
 import { User, userSchema } from "@/types/user";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSession, useUpdateUser, useChangeEmail, useSendVerifyEmail } from "@/lib/queries/useAuth";
+import { useUpdateUser, useChangeEmail, useSendVerifyEmail } from "@/lib/queries/useAuth";
+import { useUserStore } from "@/store/useUserStore";
 
 export default function UserForm() {
-
-  const { data: session, isPending } = useSession();
+  const { user, userPending } = useUserStore();
   const updateUserMutation = useUpdateUser();
   const changeEmailMutation = useChangeEmail();
   const sendEmailVerificationMutation = useSendVerifyEmail();
@@ -28,7 +28,7 @@ export default function UserForm() {
   const [emailSent, setEmailSent] = useState(false);
 
   const defaultValues: User = {
-    id: session?.user?.id,
+    id: user?.id ?? '',
     email: '',
     name: '',
     createdAt: new Date(),
@@ -41,22 +41,23 @@ export default function UserForm() {
   const userForm = useForm<User>({
     resolver: zodResolver(userSchema),
     mode: 'onSubmit',
-    defaultValues: session?.user || defaultValues,
+    defaultValues: user || defaultValues,
+    values: user,
   })
 
   const handleUserSubmit = async (values: User) => {
-    if (session?.user.email !== values.email) {
+    if (user.email !== values.email) {
       changeEmailMutation.mutate(values.email);
     }
 
-    if (session?.user?.name !== values.name) {
+    if (user.name !== values.name) {
       updateUserMutation.mutate({ name: values.name });
     }
   };
 
   const handleEmailVerification = () => {
-    if (session?.user) {
-      sendEmailVerificationMutation.mutate(session?.user?.email, {
+    if (user) {
+      sendEmailVerificationMutation.mutate(user?.email, {
         onSettled: () => {
           setEmailSent(true)
           setTimeout(() => setEmailSent(false), 20000);
@@ -65,15 +66,9 @@ export default function UserForm() {
     }
   }
 
-  useEffect(() => {
-    if (session?.user) {
-      userForm.reset(session?.user)
-    }
-  }, [session?.user])
-
   return (
     <div>
-      {isPending ? (
+      {userPending ? (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Skeleton className="h-9 w-full mb-8" />
@@ -90,7 +85,7 @@ export default function UserForm() {
           <div className="flex items-center mb-8">
 
             {
-              session?.user?.emailVerified
+              user?.emailVerified
                 ?
                 <div className="flex items-center gap-2 mr-auto">
                   <MailCheck className="text-green-500 h-5 w-5" />
@@ -147,7 +142,7 @@ export default function UserForm() {
                       <FormControl>
                         <Input type="email" placeholder="exchange@doradometals.com" className="placeholder:font-light font-normal" {...field} />
                       </FormControl>
-                      {changeEmailMutation.isSuccess && session?.user.emailVerified === true ? (
+                      {changeEmailMutation.isSuccess && user.emailVerified === true ? (
                         <p className="text-sm font-light">
                           An email has been sent to confirm the change. Please follow that link before making further changes.
                         </p>

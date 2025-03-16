@@ -7,7 +7,7 @@ interface UserState {
   userPending: boolean;
   fetchSession: () => Promise<void>;
   setUser: (user: any, session: any) => void;
-  clearSession: () => void; // ✅ Add function to clear session
+  clearSession: () => void;
 }
 
 export const useUserStore = create<UserState>()((set) => ({
@@ -24,7 +24,6 @@ export const useUserStore = create<UserState>()((set) => ({
         userPending: false,
       });
     } catch (error) {
-      console.error("Session fetch error:", error);
       set({ userPending: false });
     }
   },

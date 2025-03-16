@@ -1,8 +1,7 @@
 'use client';
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode } from "react";
 import { useAuthorization } from "@/utils/useAuthorization";
-import { useRouter } from "next/navigation";
-import { useUserStore } from "@/store/useUserStore";
+import { redirect, useRouter } from "next/navigation";
 
 interface ProtectedPageProps {
   children: ReactNode;
@@ -11,21 +10,8 @@ interface ProtectedPageProps {
 
 export default function ProtectedPage({ children, requiredRoles }: ProtectedPageProps) {
   const router = useRouter();
-  const session = useUserStore((state) => state.session); // Get current session state
-  const isAuthorized = useAuthorization(requiredRoles);
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    if (!session) {
-      router.push("/sign-in"); // Redirect if there's no session
-    } else if (!isAuthorized) {
-      router.push("/"); // Redirect if not authorized
-    } else {
-      setChecking(false);
-    }
-  }, [session, isAuthorized, router]);
-
-  if (checking) return null; // Prevent page from rendering while checking
-
+  if (!useAuthorization(requiredRoles)) {
+    redirect("/sign-in");
+  }
   return children;
 }

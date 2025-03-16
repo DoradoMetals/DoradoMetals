@@ -4,16 +4,15 @@ import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/store/useUserStore";
 import { useAddress } from "@/lib/queries/useAddresses";
 import { Address } from "@/types/address";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus } from "lucide-react";
 import AddressCard from "./addressCard";
 import AddressDialog from "./addressDialog";
-import { authClient } from "@/lib/authClient";
 
 export default function AddressBook() {
 
-  const {data: session} = authClient.useSession();
+  const { user } = useUserStore();
   const { data: addresses, isLoading } = useAddress();
 
   const [open, setOpen] = useState(false);
@@ -27,7 +26,7 @@ export default function AddressBook() {
 
   const defaultValues: Address = {
     id: crypto.randomUUID(),
-    user_id: session?.user?.id ?? '',
+    user_id: user?.id ?? '',
     line_1: "",
     line_2: "",
     city: "",

@@ -6,7 +6,7 @@ import { useUserStore } from "@/store/useUserStore";
 export const useAddress = () => {
   const { user } = useUserStore();
   return useQuery<Address[]>({
-    queryKey: ["address"],
+    queryKey: ["address", user],
     queryFn: async () => {
       if (!user?.id) return [];
       return await apiRequest<Address[]>("GET", "/addresses/get_addresses", undefined, { user_id: user.id });
@@ -28,7 +28,7 @@ export const useUpdateAddress = () => {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["address"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["address", user], refetchType: "active" });
     },
   });
 };
@@ -46,7 +46,7 @@ export const useDeleteAddress = () => {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["address"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["address", user], refetchType: "active" });
     },
   });
 };
@@ -64,7 +64,7 @@ export const useSetDefaultAddress = () => {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["address"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["address", user], refetchType: "active" });
     },
   });
 };

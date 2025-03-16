@@ -1,7 +1,7 @@
 import * as z from "zod";
 import { states } from "./states";
 
-const phoneRegex = /^\+1\s\(\d{3}\)\s\d{3}\s-\s\d{4}$/;
+const phoneRegex = /^\+?1?\d{10}$/;
 
 const blockedCities = ["Test", "Fake City", "Unknown", "N/A"];
 
