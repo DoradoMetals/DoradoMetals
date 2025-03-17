@@ -23,7 +23,6 @@ export const useCart = () => {
 
   const syncCartMutation = useMutation({
     mutationFn: async (localCart: Product[]) => {
-      console.log('syncing backend')
       return await apiRequest("POST", "/cart/sync_cart", { user_id: user.id, cart: localCart });
     },
     onSuccess: () => {
@@ -38,20 +37,17 @@ export const useCart = () => {
       const localCart = getLocalCart();
 
       if (localCart.length === 0 && user?.id) {
-        console.log('pulling cart from api')
         const cart = await apiRequest<Product[]>('GET', '/cart/get_cart', undefined, {user_id: user.id})
         saveLocalCart(cart)
         return cart
       }
 
       if (localCart.length > 0 && user?.id && localStorage.getItem('cartSynced') !== 'true') {
-        console.log('syncing localstorage and server')
         localStorage.setItem('cartSynced', 'true');
         syncCartMutation.mutate(localCart);
         return localCart;
       }
 
-      console.log('pulling cart from local storage')
       return localCart;
     },
     enabled: true,

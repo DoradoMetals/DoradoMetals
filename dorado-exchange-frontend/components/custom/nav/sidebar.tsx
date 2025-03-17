@@ -18,7 +18,6 @@ export default function Sidebar({
   setIsDrawerActive: Dispatch<React.SetStateAction<boolean>>
 }) {
   const data = useUserStore()
-  // console.log(data.user)
   const router = useRouter()
   const signOutMutation = useSignOut() // ✅ Use TanStack Mutation
 

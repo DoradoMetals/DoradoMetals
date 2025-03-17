@@ -1,19 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useProductsByMetal } from "@/lib/queries/useProducts";
 import ProductCard from "@/components/custom/products/productcard";
-import { Button } from "@/components/ui/button";
-import { useCart } from "@/lib/queries/useCart";
+
 
 export default function Page() {
   const [selectedMetal, setSelectedMetal] = useState("Gold"); // Default to Gold
   const { data: products = [], isLoading, error } = useProductsByMetal(selectedMetal);
-  const {data} = useCart();
-  
-  // useEffect(() => {
-  //   console.log(data)
-  // }, [data])
 
   return (
     <div className="flex flex-col gap-4">
