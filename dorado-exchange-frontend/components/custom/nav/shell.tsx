@@ -9,12 +9,15 @@ import { Button } from '@/components/ui/button'
 import ProfileMenu from './profileMenu'
 import SignInButton from '../auth/signInButton'
 import { useUserStore } from '@/store/useUserStore'
-import { MenuIcon } from '@/components/ui/menu'
+import { MenuIcon } from '@/components/icons/navIcon'
+import Cart from './cart'
+import { CartIcon } from '@/components/icons/cartIcon'
 
 export default function Shell() {
   const pathname = usePathname()
   const data = useUserStore()
-  const [isDrawerActive, setIsDrawerActive] = useState(false)
+  const [isDrawerActive, setIsDrawerActive] = useState(false);
+  const [isCartActive, setIsCartActive] = useState(false);
 
   const menuItems = [
     {
@@ -65,8 +68,8 @@ export default function Shell() {
 
           <div className="hidden lg:block flex items-center items-end">
             <div className="flex items-center gap-5">
-              <Button className="px-0 hover:bg-background" variant="ghost">
-                <ShoppingCart className="text-muted-foreground" />
+              <Button className="px-0 hover:bg-background" variant="ghost" onClick={() => {setIsCartActive(true)}}>
+                <CartIcon size={20} isOpen={isCartActive} className="text-muted-foreground" />
               </Button>
               {data.user ? <ProfileMenu /> : <SignInButton />}
             </div>
@@ -74,8 +77,8 @@ export default function Shell() {
 
           {/* Mobile Sidebar and Menu*/}
           <div className="lg:hidden ml-auto mx-0 px-0 flex items-end gap-3">
-            <Button className="px-0 hover:bg-background" variant="ghost">
-              <ShoppingCart size={20} className="text-muted-foreground" />
+            <Button className="px-0 hover:bg-background" variant="ghost" onClick={() => {setIsCartActive(true)}}>
+              <CartIcon size={20} isOpen={isCartActive} className='text-muted-foreground'/>
             </Button>
 
             <Button
@@ -86,6 +89,7 @@ export default function Shell() {
               <MenuIcon size={20} isOpen={isDrawerActive} className="text-muted-foreground" />
             </Button>
             <Sidebar isDrawerActive={isDrawerActive} setIsDrawerActive={setIsDrawerActive} />
+            <Cart isCartActive={isCartActive} setIsCartActive={setIsCartActive} />
           </div>
         </div>
       </nav>

@@ -1,5 +1,5 @@
 'use client'
-import Drawer from '@/components/edil-ozi/drawer'
+import Drawer from '@/components/drawers/navDrawer'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { LogIn, User } from 'lucide-react'
