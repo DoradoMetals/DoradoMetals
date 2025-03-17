@@ -12,7 +12,7 @@ export default function Cart({
 
   const cartContent = (
     <>
-      <div className="w-full bg-card flex-col">
+      <div className="w-full flex-col">
         <div className='text-xl'>
           Cart
         </div>

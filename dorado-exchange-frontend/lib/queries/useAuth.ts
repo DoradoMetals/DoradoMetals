@@ -83,6 +83,8 @@ export const useSignIn = () => {
 }
 
 export const useSignOut = () => {
+  const queryClient = useQueryClient()
+
   const clearSession = useUserStore((state) => state.clearSession);
   const fetchSession = useUserStore((state) => state.fetchSession);
   const router = useRouter();
@@ -90,10 +92,14 @@ export const useSignOut = () => {
   return useMutation({
     mutationFn: () => authClient.signOut(),
     onMutate: () => {
+
       clearSession();
     },
     onSuccess: async () => {
       router.replace('/');
+      localStorage.removeItem('dorado_cart');
+      localStorage.removeItem('cartSynced');
+      queryClient.resetQueries();
       await fetchSession();
     },
   });
