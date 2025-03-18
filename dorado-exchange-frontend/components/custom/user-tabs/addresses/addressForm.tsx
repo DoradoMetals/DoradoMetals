@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { StateSelect } from './stateSelect'
+import { StateSelect } from '../account/stateSelect'
 
 import { Address, addressSchema } from '@/types/address'
 import { useUpdateAddress } from '@/lib/queries/useAddresses'
@@ -59,16 +59,15 @@ export default function AddressForm({
                 <FormItem>
                   <FormLabel>
                     <div className="flex items-center">
-                      <div className="mr-auto text-md text-gray-500 m-0 p-0">Name</div>
-                      <Asterisk size={14} className="ml-auto text-red-500" />
+                      <div className="mr-auto text-md text-neutral-600 m-0 p-0">Name</div>
+                      <Asterisk size={14} className="ml-auto text-destructive" />
                     </div>
                   </FormLabel>
 
                   <FormControl>
                     <Input
-                      placeholder="Business, Personal, etc..."
                       autoComplete="name"
-                      className="placeholder:font-light font-normal"
+                      className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
                       {...field}
                     />
                   </FormControl>
@@ -88,15 +87,14 @@ export default function AddressForm({
               name="phone_number"
               render={({ field }) => (
                 <FormItem>
-                  <div className="text-md text-gray-500 m-0 p-0">
+                  <div className="text-md text-neutral-600 m-0 p-0">
                     <FormLabel>Phone Number</FormLabel>
                   </div>
                   <FormControl>
                     <div className="flex items-center">
                       <Input
-                        placeholder="(123) 456 - 7890"
                         autoComplete="tel"
-                        className="placeholder:font-light font-normal"
+                        className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
                         maxLength={17}
                         {...field}
                         value={formatPhoneNumber(field.value)}
@@ -130,19 +128,18 @@ export default function AddressForm({
               name="line_1"
               render={({ field }) => (
                 <FormItem>
-                  <div className="text-md text-gray-500 m-0 p-0">
+                  <div className="text-md m-0 p-0">
                     <FormLabel>
                       <div className="flex items-center">
-                        <div className="mr-auto text-md text-gray-500 m-0 p-0">Address Line 1</div>
-                        <Asterisk size={14} className="ml-auto text-red-500" />
+                        <div className="mr-auto text-md text-neutral-600 m-0 p-0">Address Line 1</div>
+                        <Asterisk size={14} className="ml-auto text-destructive" />
                       </div>
                     </FormLabel>
                   </div>
                   <FormControl>
                     <Input
-                      placeholder="123 Gold Dr."
                       autoComplete="address-line1"
-                      className="placeholder:font-light font-normal"
+                      className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
                       {...field}
                     />
                   </FormControl>
@@ -163,14 +160,13 @@ export default function AddressForm({
                 name="line_2"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="text-md text-gray-500 m-0 p-0">
+                    <div className="text-md text-neutral-600 m-0 p-0">
                       <FormLabel>Address Line 2</FormLabel>
                     </div>
                     <FormControl>
                       <Input
-                        placeholder="STE 201"
                         autoComplete="address-line2"
-                        className="placeholder:font-light font-normal"
+                        className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
                         {...field}
                       />
                     </FormControl>
@@ -182,19 +178,18 @@ export default function AddressForm({
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="text-md text-gray-500 m-0 p-0">
+                    <div className="text-md m-0 p-0">
                       <FormLabel>
                         <div className="flex items-center">
-                          <div className="mr-auto text-md text-gray-500 m-0 p-0">City</div>
-                          <Asterisk size={14} className="ml-auto text-red-500" />
+                          <div className="mr-auto text-md text-neutral-600 m-0 p-0">City</div>
+                          <Asterisk size={14} className="ml-auto text-destructive" />
                         </div>
                       </FormLabel>
                     </div>
                     <FormControl>
                       <Input
-                        placeholder="Dallas"
                         autoComplete="address-level2"
-                        className="placeholder:font-light font-normal"
+                        className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
                         {...field}
                       />
                     </FormControl>
@@ -218,19 +213,18 @@ export default function AddressForm({
                 name="zip"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="text-md text-gray-500 m-0 p-0">
+                    <div className="text-md m-0 p-0">
                       <FormLabel>
                         <div className="flex items-center">
-                          <div className="mr-auto text-md text-gray-500 m-0 p-0">Zip Code</div>
-                          <Asterisk size={14} className="ml-auto text-red-500" />
+                          <div className="mr-auto text-md text-neutral-600 m-0 p-0">Zip Code</div>
+                          <Asterisk size={14} className="ml-auto text-destructive" />
                         </div>
                       </FormLabel>
                     </div>
                     <FormControl>
                       <Input
-                        placeholder="12345"
                         autoComplete="postal-code"
-                        className="placeholder:font-light font-normal"
+                        className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
                         {...field}
                       />
                     </FormControl>
@@ -259,20 +253,19 @@ export default function AddressForm({
               name="country"
               render={({ field }) => (
                 <FormItem>
-                  <div className="text-md text-gray-500 m-0 p-0">
+                  <div className="text-md m-0 p-0">
                     <FormLabel>
                       <div className="flex items-center">
-                        <div className="mr-auto text-md text-gray-500 m-0 p-0">Country</div>
-                        <Asterisk size={14} className="ml-auto text-red-500" />
+                        <div className="mr-auto text-md text-neutral-600 m-0 p-0">Country</div>
+                        <Asterisk size={14} className="ml-auto text-destructive" />
                       </div>
                     </FormLabel>
                   </div>
                   <FormControl>
                     <Input
                       readOnly
-                      placeholder="United States"
                       autoComplete="country"
-                      className="placeholder:font-light font-normal"
+                      className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
                       {...field}
                     />
                   </FormControl>
@@ -280,7 +273,7 @@ export default function AddressForm({
               )}
             />
           </div>
-          <Button type="submit" className="w-full mb-8" disabled={updateAddressMutation.isPending}>
+          <Button type="submit" className="w-full mb-8 shadow-lg" disabled={updateAddressMutation.isPending}>
             {updateAddressMutation.isPending ? 'Saving...' : 'Save Changes'}
           </Button>
         </form>

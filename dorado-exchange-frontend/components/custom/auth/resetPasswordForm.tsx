@@ -53,7 +53,7 @@ export default function ResetPasswordForm() {
       {
         onSuccess: () => {
           form.reset(); // Reset the form after successful password reset
-          router.push("/sign-in?resetSuccess=true");
+          router.push('/authentication?tab=sign-in?resetSuccess=true')
         },
       }
     );

@@ -1,6 +1,0 @@
-export function SecurityTab() {
-  return (
-    <>
-    </>
-  )
-}

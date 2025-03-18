@@ -12,9 +12,9 @@ export default function SignUpButton() {
       variant="default"
       effect="expandIcon"
       iconPlacement="right"
-      onClick={() => {router.push("/sign-up")}}
+      onClick={() => {router.push('/authentication?tab=sign-up')}}
       icon={UserPlus}
-      className="px-3 py-1 text-md hover:bg-primary border-primary"
+      className="px-6 py-1 text-md hover:bg-primary border-primary"
     >
       Sign Up
     </Button>
