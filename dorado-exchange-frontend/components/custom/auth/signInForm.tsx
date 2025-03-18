@@ -54,19 +54,12 @@ export default function SignInForm() {
   };
 
   return (
-    <div className="h-screen grid place-items-center">
+    <div className="grid place-items-center mt-6">
       <div className="flex flex-col w-full max-w-sm px-5">
-        <div className="flex items-center mb-10">
-          <div className="mr-auto">
-            <Link href={"/"}>
-              <Logo size={50} />
-            </Link>
-          </div>
-          <p className="text-2xl ml-auto">Dorado Metals Exchange</p>
-        </div>
 
-        <p className="text-2xl text-gray-500 font-bold mr-auto mb-10">Sign In</p>
-
+        <h2 className="flex items-center text-xl text-neutral-800 justify-center mb-6 text-primary" >
+          Welcome Back!
+        </h2>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -74,15 +67,14 @@ export default function SignInForm() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <div className="text-md text-gray-500 m-0 p-0">
+                  <div className="text-md text-neutral-600 m-0 p-0">
                     <FormLabel>Email</FormLabel>
                   </div>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="Enter email..."
                       autoComplete="email"
-                      className="placeholder:font-light font-normal"
+                      className="bg-card placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
                       {...field}
                     />
                   </FormControl>
@@ -95,7 +87,7 @@ export default function SignInForm() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <div className="text-md text-gray-500 m-0 p-0">
+                  <div className="text-md text-neutral-600 m-0 p-0">
                       <FormLabel>Password</FormLabel>
                     </div>
                   <FormControl>
@@ -104,9 +96,8 @@ export default function SignInForm() {
                       <div className="flex items-center mb-2">
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="Enter password..."
                           autoComplete="current-password"
-                          className="placeholder:font-light font-normal"
+                          className="bg-card placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
                           {...field}
                         />
                         <Button
@@ -131,12 +122,12 @@ export default function SignInForm() {
                                   checked={field.value}
                                   onCheckedChange={field.onChange}
                                   id="remember-me"
-                                  className="cursor-pointer"
-                                />
+                                  className="cursor-pointer bg-card border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+                                  />
                               </FormControl>
                               <FormLabel
                                 htmlFor="remember-me"
-                                className="text-xs cursor-pointer text-gray-500 m-0 p-0"
+                                className="text-xs cursor-pointer text-neutral-600 m-0 p-0"
                               >
                                 Remember Me
                               </FormLabel>
@@ -168,13 +159,6 @@ export default function SignInForm() {
         {orSeparator()}
 
         {googleButton("Sign In with Google")}
-
-        <p className="text-sm text-gray-600 dark:text-gray-400 text-center mt-4">
-          New here?{" "}
-          <Link href="/sign-up" className="text-primary font-medium">
-            Sign Up
-          </Link>
-        </p>
       </div>
     </div>
   );

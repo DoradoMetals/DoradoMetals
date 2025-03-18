@@ -23,7 +23,7 @@ export default function ProfileMenu() {
           </TriggerWrapper>
         ) : null}
 
-        <Tabs className="bg-background p-2 w-40">
+        <Tabs className="bg-background shadow-lg p-2 w-40">
           <Tab>
             <div className="flex flex-col gap-2">
               {user ? (
@@ -44,7 +44,7 @@ export default function ProfileMenu() {
 
                   <ThemeSwitcherDesktop />
 
-                  <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+                  <div className="border-t border-neutral-700 my-2" />
 
                   <SignOutButton />
                 </>

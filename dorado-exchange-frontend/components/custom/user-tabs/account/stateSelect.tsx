@@ -18,7 +18,8 @@ export function StateSelect({ value, onChange }: StateSelectProps) {
 
   // Function to validate & convert state abbreviations
   const handleStateChange = (inputValue: string) => {
-    const normalizedState = stateMap[inputValue.toUpperCase() as keyof typeof stateMap] || inputValue
+    const normalizedState =
+      stateMap[inputValue.toUpperCase() as keyof typeof stateMap] || inputValue
     onChange(normalizedState)
   }
 
@@ -41,12 +42,11 @@ export function StateSelect({ value, onChange }: StateSelectProps) {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
-            variant="outline"
-            className={`w-full justify-between px-3 py-2 text-sm h-9 hover:bg-background
-              ${!value ? 'font-light' : 'font-normal'}`}
+            variant="default"
+            className="w-full font-normal flex px-3 py-2 text-sm h-9 bg-background hover:bg-background border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
           >
-            {value ? value : 'Select a state'}
-            <ChevronDown className="ml-2 h-4 w-4 opacity-70" />
+            {value}
+            <ChevronDown className="ml-auto h-4 w-4 opacity-70" />
           </Button>
         </PopoverTrigger>
         <PopoverContent
