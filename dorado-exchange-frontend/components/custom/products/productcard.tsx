@@ -49,9 +49,10 @@ export default function ProductCard({ product }: ProductCardProps) {
           </CardItem>
           <CardItem>
             <div className="flex items-center">
-              <Button variant="ghost" onClick={() => addToCartMutation.mutate()}>
-                <Plus size={20} />
+            <Button variant="ghost" className="hover:bg-card" onClick={() => removeFromCartMutation.mutate()}>
+                <Minus size={20} />
               </Button>
+             
               <div className="">
                 <NumberFlow
                   value={productQuantity}
@@ -62,8 +63,8 @@ export default function ProductCard({ product }: ProductCardProps) {
                   trend={0}
                 />
               </div>
-              <Button variant="ghost" onClick={() => removeFromCartMutation.mutate()}>
-                <Minus size={20} />
+              <Button variant="ghost" className="hover:bg-card" onClick={() => addToCartMutation.mutate()}>
+                <Plus size={20} />
               </Button>
             </div>
           </CardItem>
