@@ -2,7 +2,14 @@
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,6 +28,7 @@ import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useUpdateUser, useChangeEmail, useSendVerifyEmail } from '@/lib/queries/useAuth'
 import { useUserStore } from '@/store/useUserStore'
+import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 
 export default function UserForm() {
   const { user, userPending } = useUserStore()
@@ -135,23 +143,25 @@ export default function UserForm() {
                   control={userForm.control}
                   name="email"
                   render={({ field }) => (
-                    <FormItem>
-                      <div className="text-md text-neutral-600 m-0 p-0">
-                        <FormLabel>Email</FormLabel>
+                    <FormItem className="w-full">
+                      <div className="relative w-full">
+                        <FormControl>
+                          <FloatingLabelInput
+                            label="Email"
+                            type="email"
+                            autoComplete="email"
+                            size="xs"
+                            className="bg-card placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+                            {...field}
+                          />
+                        </FormControl>
+                        {changeEmailMutation.isSuccess && user.emailVerified === true ? (
+                          <p className="text-sm font-light">
+                            An email has been sent to confirm the change. Please follow that link
+                            before making further changes.
+                          </p>
+                        ) : null}
                       </div>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          className="bg-card placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
-                          {...field}
-                        />
-                      </FormControl>
-                      {changeEmailMutation.isSuccess && user.emailVerified === true ? (
-                        <p className="text-sm font-light">
-                          An email has been sent to confirm the change. Please follow that link
-                          before making further changes.
-                        </p>
-                      ) : null}
                     </FormItem>
                   )}
                 />
@@ -162,16 +172,20 @@ export default function UserForm() {
                   control={userForm.control}
                   name="name"
                   render={({ field }) => (
-                    <FormItem>
-                      <div className="text-md text-neutral-600 m-0 p-0">
-                        <FormLabel>Name</FormLabel>
+                    <FormItem className="w-full">
+                      <div className="relative w-full">
+                        <FormControl>
+                          <FloatingLabelInput
+                            label="Name"
+                            type="name"
+                            autoComplete="name"
+                            size="xs"
+                            className="bg-card placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+                            {...field}
+                          />
+                        </FormControl>
                       </div>
-                      <FormControl>
-                        <Input
-                          className="bg-card placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
-                          {...field}
-                        />
-                      </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />

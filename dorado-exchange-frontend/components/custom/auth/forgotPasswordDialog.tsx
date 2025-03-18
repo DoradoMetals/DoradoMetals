@@ -6,8 +6,9 @@ import * as z from "zod";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
 import { useForgotPassword } from "@/lib/queries/useAuth"; // Import TanStack Mutation
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -48,17 +49,20 @@ export function ForgotPasswordDialog() {
               control={form.control}
               name="email"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      className="placeholder:font-light font-normal"
-                      placeholder="Enter your email"
-                      {...field}
-                      disabled={forgotPasswordMutation.isPending}
-                    />
-                  </FormControl>
+                <FormItem className="w-full">
+                  <div className="relative w-full">
+                    <FormControl>
+                      <FloatingLabelInput
+                        label="Email"
+                        type="email"
+                        autoComplete="email"
+                        disabled={forgotPasswordMutation.isPending}
+                        size="xs"
+                        className="bg-card placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+                        {...field}
+                      />
+                    </FormControl>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

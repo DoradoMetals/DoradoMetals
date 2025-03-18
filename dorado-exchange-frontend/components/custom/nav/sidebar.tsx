@@ -79,7 +79,7 @@ export default function Sidebar({
               <Button
                 variant="outline"
                 onClick={() => {
-                  router.push('/sign-in'), setIsDrawerActive(false)
+                  router.push('/authentication?tab=sign-in'), setIsDrawerActive(false)
                 }}
                 className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
               >

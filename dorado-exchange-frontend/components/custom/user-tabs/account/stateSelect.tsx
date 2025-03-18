@@ -3,8 +3,9 @@ import { FormItem, FormLabel } from '@/components/ui/form'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandInput, CommandList, CommandItem } from '@/components/ui/command'
 import { Button } from '@/components/ui/button'
-import { Check, ChevronDown } from 'lucide-react'
+import { Asterisk, Check, ChevronDown } from 'lucide-react'
 import { states, stateMap } from '@/types/states' // Import mapping of abbreviations to full names
+import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 
 const stateOptions = states
 
@@ -24,35 +25,31 @@ export function StateSelect({ value, onChange }: StateSelectProps) {
   }
 
   return (
-    <FormItem className="w-full">
-      <div className="text-md text-gray-500 m-0 p-0">
-        <FormLabel>State</FormLabel>
-      </div>
-
-      {/* Hidden input for Google Autofill */}
-      <input
-        type="text"
-        autoComplete="address-level1"
-        value={value}
-        onChange={(e) => handleStateChange(e.target.value)} // Convert abbreviations instantly
-        className="absolute w-0 h-0 opacity-0 pointer-events-none"
-        tabIndex={-1}
-      />
-
+    <FormItem>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="default"
-            className="w-full font-normal flex px-3 py-2 text-sm h-9 bg-background hover:bg-background border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
-          >
-            {value}
-            <ChevronDown className="ml-auto h-4 w-4 opacity-70" />
-          </Button>
+          <div className="relative w-full">
+            <FloatingLabelInput
+              label="State"
+              type="text"
+              autoComplete="address-level1"
+              size="xs"
+              onChange={(e) => handleStateChange(e.target.value)}
+              className="cursor-pointer bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+              value={value}
+            />
+            <ChevronDown size={16} className="cursor-pointer ml-auto absolute right-9 top-1/2 -translate-y-1/2 opacity-70" />
+            <Asterisk
+              size={20}
+              className="ml-auto text-destructive absolute right-3 top-1/2 -translate-y-1/2 "
+            />
+          </div>
         </PopoverTrigger>
         <PopoverContent
           align="start"
           side="bottom"
           className="w-[var(--radix-popover-trigger-width)] p-0 bg-background !important"
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <Command className="bg-background">
             <CommandInput placeholder="Search state..." className="h-8 text-sm" />

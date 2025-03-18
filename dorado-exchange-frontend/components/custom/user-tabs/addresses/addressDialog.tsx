@@ -15,7 +15,7 @@ export default function AddressModal({ address, open, setOpen, title }: {
     <Dialog modal={false} open={open} onOpenChange={setOpen}>
       <DialogContent className="bg-card">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="mb-4">{title}</DialogTitle>
         </DialogHeader>
         <AddressForm address={address} setOpen={setOpen} />
       </DialogContent>

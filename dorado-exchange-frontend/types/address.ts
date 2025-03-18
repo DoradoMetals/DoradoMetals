@@ -26,7 +26,7 @@ export const addressSchema = z.object({
     }),
   state: z
     .enum(states as [string, ...string[]], {
-      errorMap: () => ({ message: "Invalid US state abbreviation" }),
+      errorMap: () => ({ message: "Invalid US state." }),
     }),
   country: z.literal("United States", {
     errorMap: () => ({ message: "Country must be United States" }),
