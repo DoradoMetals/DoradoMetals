@@ -2,7 +2,7 @@ import { Separator } from "@/components/ui/separator";
 
 export default function orSeparator() {
   return (
-    <div className="flex w-full justify-center items-center mb-6">
+    <div className="flex w-full justify-center items-center mb-8">
       <div className="flex-grow">
         <Separator />
       </div>

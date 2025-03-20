@@ -13,7 +13,7 @@ export default function AddressModal({ address, open, setOpen, title }: {
 }) {
   return (
     <Dialog modal={false} open={open} onOpenChange={setOpen}>
-      <DialogContent className="bg-card">
+      <DialogContent className="bg-background">
         <DialogHeader>
           <DialogTitle className="mb-4">{title}</DialogTitle>
         </DialogHeader>

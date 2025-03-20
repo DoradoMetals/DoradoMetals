@@ -2,27 +2,9 @@
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
-import {
-  ArrowRight,
-  ArrowUpRight,
-  MailCheck,
-  MailWarning,
-  MailX,
-  SquareArrowOutUpRight,
-  SquareArrowUpRight,
-  UserCheck2,
-  UserX2,
-} from 'lucide-react'
+import { MailCheck, MailWarning, MailX, UserCheck2, UserX2 } from 'lucide-react'
 import { User, userSchema } from '@/types/user'
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -92,7 +74,7 @@ export default function UserForm() {
         </div>
       ) : (
         <div>
-          <h2 className="text-sm text-neutral-600 mb-10">Account Information</h2>
+          <h2 className="secondary-text mb-10">Account Information</h2>
           <div className="flex items-center mb-8">
             {user?.emailVerified ? (
               <div className="flex items-center gap-2 mr-auto">
@@ -136,6 +118,7 @@ export default function UserForm() {
               </div>
             )}
           </div>
+
           <Form {...userForm}>
             <form onSubmit={userForm.handleSubmit(handleUserSubmit)} className="space-y-4">
               <div className="mb-8">
@@ -150,8 +133,8 @@ export default function UserForm() {
                             label="Email"
                             type="email"
                             autoComplete="email"
-                            size="xs"
-                            className="bg-card placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+                            size="sm"
+                            className="input-floating-label-form"
                             {...field}
                           />
                         </FormControl>
@@ -174,25 +157,25 @@ export default function UserForm() {
                   render={({ field }) => (
                     <FormItem className="w-full">
                       <div className="relative w-full">
-                        <FormControl>
-                          <FloatingLabelInput
-                            label="Name"
-                            type="name"
-                            autoComplete="name"
-                            size="xs"
-                            className="bg-card placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
-                            {...field}
-                          />
-                        </FormControl>
+                        <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
                       </div>
-                      <FormMessage />
+                      <FormControl>
+                        <FloatingLabelInput
+                          label="Name"
+                          type="name"
+                          autoComplete="name"
+                          size="sm"
+                          className="input-floating-label-form"
+                          {...field}
+                        />
+                      </FormControl>
                     </FormItem>
                   )}
                 />
               </div>
               <Button
                 type="submit"
-                className="w-full mb-8 shadow-lg"
+                className="form-submit-button"
                 disabled={updateUserMutation.isPending || changeEmailMutation.isPending}
               >
                 {updateUserMutation.isPending || changeEmailMutation.isPending

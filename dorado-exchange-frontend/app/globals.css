@@ -31,7 +31,6 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-
   --color-primary-100: var(--primary-100);
   --color-primary-200: var(--primary-200);
   --color-primary-300: var(--primary-300);
@@ -94,8 +93,8 @@
   --neutral-800: hsl(0, 0%, 20%);
   --neutral-900: hsl(0, 0%, 10%);
 
-  --background: hsl(0, 0%, 95%);
-  --card: hsl(0, 0%, 100%);
+  --card: hsl(0, 0%, 95%);
+  --background: hsl(0, 0%, 100%);
   --popover: hsl(0, 0%, 85%);
   --border: hsl(0, 0%, 80%);
   --input: hsl(0, 0%, 75%);
@@ -106,8 +105,8 @@
   --accent: hsl(220, 100%, 50%);
   --ring: hsl(220, 100%, 50%);
   --destructive: hsl(358, 93%, 64%);
- 
-  --foreground: hsl(0, 0%, 5%); 
+
+  --foreground: hsl(0, 0%, 5%);
   --card-foreground: hsl(0, 0%, 5%);
   --popover-foreground: hsl(0, 0%, 5%);
   --primary-foreground: hsl(0, 0%, 5%);
@@ -115,7 +114,7 @@
   --muted-foreground: hsl(0, 0%, 30%);
   --accent-foreground: hsl(0, 0%, 5%);
   --destructive-foreground: hsl(0, 0%, 0%);
-  
+
   --radius: 0.35rem;
 }
 
@@ -149,10 +148,10 @@
   --neutral-700: hsl(0, 0%, 70%);
   --neutral-800: hsl(0, 0%, 80%);
   --neutral-900: hsl(0, 0%, 90%);
-  
-  --background: hsl(0, 0%, 10%);
+
   --card: hsl(0, 0%, 15%);
-  --popover: hsl(0, 0%, 20%);
+  --background: hsl(0, 0%, 20%);
+  --popover: hsl(0, 0%, 25%);
   --border: hsl(0, 0%, 30%);
   --input: hsl(0, 0%, 35%);
   --muted: hsl(0, 0%, 40%);
@@ -161,7 +160,7 @@
   --secondary: hsl(185, 100%, 50%);
   --accent: hsl(185, 100%, 50%);
   --ring: hsl(185, 100%, 50%);
-  --destructive: hsl(358, 93%, 35%);
+  --destructive: hsl(360, 100%, 50%);
 
   --foreground: hsl(0, 0%, 95%);
   --card-foreground: hsl(0, 0%, 95%);
@@ -184,15 +183,12 @@
   }
 }
 
-body {
+html, body {
   margin: 0;
   padding: 0;
-}
-
-html,
-body,
-:root {
+  width: 100%;
   height: 100%;
+  overflow-x: hidden;
 }
 
 svg {
@@ -213,19 +209,62 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-    transition: background-color 5000s ease-in-out 0s;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
-/* @media (min-width: 1024px) { 
-  svg {
-    width: 20px;
-    height: 20px;
-  }
+.input-floating-label-form {
+  @apply 
+    border-none
+    bg-card 
+    shadow-[inset_0_-2px_0px_hsla(0,0%,99%,1),inset_0_2px_2px_hsla(0,0%,0%,0.2)]
+    dark:shadow-[inset_0_-2px_0px_hsla(0,0%,100%,0.1),inset_0_2px_2px_hsla(0,0%,0%,0.3)]
 }
 
-@media (min-width: 1280px) { 
-  svg {
-    width: 24px;
-    height: 24px;
-  }
-} */
+.checkbox-form {
+  @apply 
+    border-none
+    text-primary 
+    cursor-pointer
+    data-[state=checked]:text-primary
+    data-[state=checked]:bg-card
+    bg-card 
+    shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
+    dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)]
+}
+
+.title-text {
+  @apply 
+    text-lg
+    text-neutral-800
+}
+
+.primary-text {
+  @apply 
+    text-base
+    text-neutral-700
+}
+
+.secondary-text {
+  @apply 
+    text-sm
+    text-neutral-600
+}
+
+.tertiary-text {
+  @apply 
+    text-xs
+    text-neutral-500
+}
+
+.error-text {
+  @apply
+    text-xs
+    text-destructive
+}
+
+.form-submit-button {
+  @apply
+    w-full 
+    mb-8 
+    shadow-lg
+}

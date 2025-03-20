@@ -11,7 +11,7 @@ export default function ProfileTrigger() {
     <div className="flex items-center">
       {user ? (
         <Avatar>
-          <AvatarFallback className='bg-background text-muted-foreground'>
+          <AvatarFallback className='bg-card text-muted-foreground'>
             <User2 />
           </AvatarFallback>
         </Avatar>

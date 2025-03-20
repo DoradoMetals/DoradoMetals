@@ -2,8 +2,7 @@
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import { StateSelect } from '../account/stateSelect'
 
@@ -59,26 +58,18 @@ export default function AddressForm({
               render={({ field }) => (
                 <FormItem className="w-full">
                   <div className="relative w-full">
-                    <FormControl>
-                      <FloatingLabelInput
-                        label="Name"
-                        type="name"
-                        autoComplete="name"
-                        size="xs"
-                        className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <Asterisk
-                      size={20}
-                      className="ml-auto text-destructive absolute right-3 top-1/2 -translate-y-1/2 "
-                    />
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
                   </div>
-                  {addressForm.formState.errors.name && (
-                    <p className="text-red-500 text-sm">
-                      {addressForm.formState.errors.name.message}
-                    </p>
-                  )}
+                  <FormControl>
+                    <FloatingLabelInput
+                      label="Name"
+                      type="name"
+                      autoComplete="name"
+                      size="sm"
+                      className="input-floating-label-form"
+                      {...field}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />
@@ -91,13 +82,15 @@ export default function AddressForm({
               render={({ field }) => (
                 <FormItem className="w-full">
                   <div className="relative w-full">
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                  </div>
                     <FormControl>
                       <FloatingLabelInput
                         label="Phone Number"
                         type="text"
                         autoComplete="tel"
-                        size="xs"
-                        className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+                        size="sm"
+                        className="input-floating-label-form"
                         maxLength={17}
                         {...field}
                         value={formatPhoneNumber(field.value)}
@@ -112,19 +105,9 @@ export default function AddressForm({
 
                           field.onChange(`+${digits}`)
                         }}
-                        
                       />
                     </FormControl>
-                    <Asterisk
-                      size={20}
-                      className="ml-auto text-destructive absolute right-3 top-1/2 -translate-y-1/2 "
-                    />
-                  </div>
-                  {addressForm.formState.errors.name && (
-                    <p className="text-red-500 text-sm">
-                      {addressForm.formState.errors.name.message}
-                    </p>
-                  )}
+      
                 </FormItem>
               )}
             />
@@ -137,26 +120,19 @@ export default function AddressForm({
               render={({ field }) => (
                 <FormItem className="w-full">
                   <div className="relative w-full">
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                  </div>
                     <FormControl>
                       <FloatingLabelInput
                         label="Address Line 1"
                         type="text"
                         autoComplete="address-line1"
-                        size="xs"
-                        className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+                        size="sm"
+                        className="input-floating-label-form"
                         {...field}
                       />
                     </FormControl>
-                    <Asterisk
-                      size={20}
-                      className="ml-auto text-destructive absolute right-3 top-1/2 -translate-y-1/2 "
-                    />
-                  </div>
-                  {addressForm.formState.errors.line_1 && (
-                    <p className="text-red-500 text-sm">
-                      {addressForm.formState.errors.line_1.message}
-                    </p>
-                  )}
+                    
                 </FormItem>
               )}
             />
@@ -170,22 +146,19 @@ export default function AddressForm({
                 render={({ field }) => (
                   <FormItem className="w-full">
                     <div className="relative w-full">
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                  </div>
                       <FormControl>
                         <FloatingLabelInput
                           label="Address Line 2"
                           type="text"
                           autoComplete="address-line2"
-                          size="xs"
-                          className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+                          size="sm"
+                          className="input-floating-label-form"
                           {...field}
                         />
                       </FormControl>
-                    </div>
-                    {addressForm.formState.errors.line_2 && (
-                      <p className="text-red-500 text-sm">
-                        {addressForm.formState.errors.line_2.message}
-                      </p>
-                    )}
+                    
                   </FormItem>
                 )}
               />
@@ -195,26 +168,19 @@ export default function AddressForm({
                 render={({ field }) => (
                   <FormItem className="w-full">
                     <div className="relative w-full">
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                  </div>
                       <FormControl>
                         <FloatingLabelInput
                           label="City"
                           type="text"
                           autoComplete="address-level2"
-                          size="xs"
-                          className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+                          size="sm"
+                          className="input-floating-label-form"
                           {...field}
                         />
                       </FormControl>
-                      <Asterisk
-                        size={20}
-                        className="ml-auto text-destructive absolute right-3 top-1/2 -translate-y-1/2 "
-                      />
-                    </div>
-                    {addressForm.formState.errors.city && (
-                      <p className="text-red-500 text-sm">
-                        {addressForm.formState.errors.city.message}
-                      </p>
-                    )}
+                      
                   </FormItem>
                 )}
               />
@@ -229,26 +195,19 @@ export default function AddressForm({
                 render={({ field }) => (
                   <FormItem className="w-full">
                     <div className="relative w-full">
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                  </div>
                       <FormControl>
                         <FloatingLabelInput
                           label="Zip"
                           type="text"
                           autoComplete="postal-code"
-                          size="xs"
-                          className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+                          size="sm"
+                          className="input-floating-label-form"
                           {...field}
                         />
                       </FormControl>
-                      <Asterisk
-                        size={20}
-                        className="ml-auto text-destructive absolute right-3 top-1/2 -translate-y-1/2 "
-                      />
-                    </div>
-                    {addressForm.formState.errors.zip && (
-                      <p className="text-red-500 text-sm">
-                        {addressForm.formState.errors.zip.message}
-                      </p>
-                    )}
+                      
                   </FormItem>
                 )}
               />
@@ -258,12 +217,11 @@ export default function AddressForm({
                 name="state"
                 render={({ field }) => (
                   <FormItem>
+                    <div className="relative w-full">
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                  </div>
                     <StateSelect value={field.value} onChange={field.onChange} />
-                    {addressForm.formState.errors.state && (
-                      <p className="text-red-500 text-sm">
-                        {addressForm.formState.errors.state.message}
-                      </p>
-                    )}
+                    
                   </FormItem>
                 )}
               />
@@ -277,34 +235,27 @@ export default function AddressForm({
               render={({ field }) => (
                 <FormItem className="w-full">
                   <div className="relative w-full">
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                  </div>
                     <FormControl>
                       <FloatingLabelInput
                         label="Country"
                         type="text"
                         autoComplete="country"
-                        size="xs"
+                        size="sm"
                         readOnly
-                        className="bg-background placeholder:font-light font-normal border-none shadow-[inset_0_1px_1px_hsla(0,0%,0%,0.15),inset_0_-1px_1px_hsla(0,0%,0%,0.2)] dark:shadow-[inset_0_1px_1px_hsla(0,0%,100%,0.15),inset_0_-1px_1px_hsla(0,0%,100%,0.2)]"
+                        className="input-floating-label-form"
                         {...field}
                       />
                     </FormControl>
-                    <Asterisk
-                      size={20}
-                      className="ml-auto text-destructive absolute right-3 top-1/2 -translate-y-1/2 "
-                    />
-                  </div>
-                  {addressForm.formState.errors.country && (
-                    <p className="text-red-500 text-sm">
-                      {addressForm.formState.errors.country.message}
-                    </p>
-                  )}
+
                 </FormItem>
               )}
             />
           </div>
           <Button
             type="submit"
-            className="w-full mb-8 shadow-lg"
+            className="form-submit-button"
             disabled={updateAddressMutation.isPending}
           >
             {updateAddressMutation.isPending ? 'Saving...' : 'Save Changes'}

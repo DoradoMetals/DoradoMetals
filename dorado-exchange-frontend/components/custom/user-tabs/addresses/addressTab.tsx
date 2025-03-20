@@ -58,7 +58,7 @@ export default function AddressTab() {
       ) : (
         <>
           <div className="flex items-center mb-10">
-            <h2 className="text-sm text-neutral-500">Addresses</h2>
+            <h2 className="secondary-text">Addresses</h2>
             {!noAddresses() ? (
               <Button
                 variant="link"

@@ -6,7 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 // ----------------------------------------------------------------------
 
 const floatingLabelVariant = cva(
-	"cursor-text text-muted-foreground absolute z-10 duration-300 peer-placeholder-shown:start-3 font-medium leading-4 text-xs peer-focus:text-xs start-3 peer-focus:start-3 -top-2 peer-focus:-top-2",
+	"cursor-text text-neutral-700 absolute z-10 duration-300 peer-placeholder-shown:start-3 font-medium leading-4 text-xs peer-focus:text-xs start-3 peer-focus:start-3 -top-4 peer-focus:-top-4",
 	{
 		variants: {
 			size: {

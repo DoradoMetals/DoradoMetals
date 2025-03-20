@@ -14,20 +14,20 @@ export default function AddressCard({ address }: { address: Address }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="shadow-md p-5 bg-card rounded-lg">
+    <div className="shadow-md p-5 bg-card rounded-lg border-r-3 border-secondary">
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
-          <BookUser size={16} className="text-neutral-600"/>
+          <BookUser size={16} className="text-neutral-600" />
           <div className="text-lg text-neutral-900">{address.name}</div>
           <div className="ml-auto">
-            {!address.is_default ? null : (
-              <Star size={20} className="text-primary" />
-            )}
+            {!address.is_default ? null : <Star size={20} className="text-primary" />}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Phone size={16} className="text-neutral-600"/>
-          <div className="text-neutral-900 text-sm font-light">{formatPhoneNumber(address.phone_number)}</div>
+          <Phone size={16} className="text-neutral-600" />
+          <div className="text-neutral-900 text-sm font-light">
+            {formatPhoneNumber(address.phone_number)}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <MapPin size={16} className="text-neutral-600" />
@@ -68,8 +68,7 @@ export default function AddressCard({ address }: { address: Address }) {
             >
               Set Default
             </Button>
-          ) :
-          null}
+          ) : null}
         </div>
       </div>
       <AddressModal address={address} open={open} setOpen={setOpen} title="Edit" />

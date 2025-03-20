@@ -4,7 +4,6 @@ import { usePathname } from 'next/navigation'
 import { Logo } from '../../icons/logo'
 import Sidebar from './sidebar'
 import { useState } from 'react'
-import {  ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ProfileMenu from './profileMenu'
 import SignInButton from '../auth/signInButton'
@@ -16,8 +15,8 @@ import { CartIcon } from '@/components/icons/cartIcon'
 export default function Shell() {
   const pathname = usePathname()
   const data = useUserStore()
-  const [isDrawerActive, setIsDrawerActive] = useState(false);
-  const [isCartActive, setIsCartActive] = useState(false);
+  const [isDrawerActive, setIsDrawerActive] = useState(false)
+  const [isCartActive, setIsCartActive] = useState(false)
 
   const menuItems = [
     {
@@ -37,7 +36,7 @@ export default function Shell() {
   return (
     <>
       {/* Navbar */}
-      <nav className="sticky top-0 z-50 bg-card mb-3 shadow-md">
+      <nav className="sticky top-0 z-50 bg-card mb-3 shadow-md border-t-5 border-primary">
         <div className="flex items-center justify-between w-full py-5 p-3 sm:px-20 bg-card">
           <div className="flex items-center gap-3">
             {/* Logo */}
@@ -68,8 +67,18 @@ export default function Shell() {
 
           <div className="hidden lg:block flex items-center items-end">
             <div className="flex items-center gap-5">
-              <Button className="px-0 hover:bg-card" variant="ghost" onClick={() => {setIsCartActive(true)}}>
-                <CartIcon size={20} isOpen={isCartActive} className="text-muted-foreground hover:bg-card" />
+              <Button
+                className="px-0 hover:bg-card"
+                variant="ghost"
+                onClick={() => {
+                  setIsCartActive(true)
+                }}
+              >
+                <CartIcon
+                  size={20}
+                  isOpen={isCartActive}
+                  className="text-muted-foreground hover:bg-card"
+                />
               </Button>
               {data.user ? <ProfileMenu /> : <SignInButton />}
             </div>
@@ -77,8 +86,18 @@ export default function Shell() {
 
           {/* Mobile Sidebar and Menu*/}
           <div className="lg:hidden ml-auto mx-0 px-0 flex items-end gap-3">
-            <Button className="px-0 hover:bg-card" variant="ghost" onClick={() => {setIsCartActive(true)}}>
-              <CartIcon size={20} isOpen={isCartActive} className='hover:bg-card text-muted-foreground'/>
+            <Button
+              className="px-0 hover:bg-card"
+              variant="ghost"
+              onClick={() => {
+                setIsCartActive(true)
+              }}
+            >
+              <CartIcon
+                size={20}
+                isOpen={isCartActive}
+                className="hover:bg-card text-muted-foreground"
+              />
             </Button>
 
             <Button

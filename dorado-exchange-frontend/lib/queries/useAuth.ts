@@ -48,13 +48,20 @@ export const useSignUp = () => {
   const fetchSession = useUserStore((state) => state.fetchSession)
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (userData: { email: string; password: string; name?: string }) =>
-      authClient.signUp.email({
-        email: userData.email,
-        password: userData.password,
-        name: userData.name || '',
-        callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/verify-email`,
-      }),
+    mutationFn: async (userData: { email: string; password: string; name: string }) =>
+      authClient.signUp.email(
+        {
+          email: userData.email,
+          password: userData.password,
+          name: userData.name,
+          callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/verify-email`,
+        },
+        {
+          onError(ctx) {
+            throw ctx.error
+          },
+        }
+      ),
     onSettled: () => {
       fetchSession()
       queryClient.invalidateQueries({ queryKey: ['session'] })
@@ -74,7 +81,15 @@ export const useSignIn = () => {
       email: string
       password: string
       rememberMe: boolean
-    }) => authClient.signIn.email({ email, password, rememberMe }),
+    }) =>
+      authClient.signIn.email(
+        { email, password, rememberMe },
+        {
+          onError(ctx) {
+            throw ctx.error
+          },
+        }
+      ),
     onSettled: () => {
       fetchSession()
       queryClient.invalidateQueries({ queryKey: ['session'] })
@@ -85,26 +100,24 @@ export const useSignIn = () => {
 export const useSignOut = () => {
   const queryClient = useQueryClient()
 
-  const clearSession = useUserStore((state) => state.clearSession);
-  const fetchSession = useUserStore((state) => state.fetchSession);
-  const router = useRouter();
+  const clearSession = useUserStore((state) => state.clearSession)
+  const fetchSession = useUserStore((state) => state.fetchSession)
+  const router = useRouter()
 
   return useMutation({
     mutationFn: () => authClient.signOut(),
     onMutate: () => {
-
-      clearSession();
+      clearSession()
     },
     onSuccess: async () => {
-      router.replace('/');
-      localStorage.removeItem('dorado_cart');
-      localStorage.removeItem('cartSynced');
-      queryClient.resetQueries();
-      await fetchSession();
+      router.replace('/')
+      localStorage.removeItem('dorado_cart')
+      localStorage.removeItem('cartSynced')
+      queryClient.resetQueries()
+      await fetchSession()
     },
-  });
-};
-
+  })
+}
 
 export const useGoogleSignIn = () => {
   const fetchSession = useUserStore((state) => state.fetchSession)
@@ -155,6 +168,9 @@ export const useVerifyEmail = () => {
     onSettled: () => {
       fetchSession()
       queryClient.invalidateQueries({ queryKey: ['session'] })
+    },
+    onSuccess: () => {
+      fetchSession()
     },
   })
 }
