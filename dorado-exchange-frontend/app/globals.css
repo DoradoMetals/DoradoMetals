@@ -232,6 +232,11 @@ input:-webkit-autofill:active {
     dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)]
 }
 
+.header-text {
+  @apply
+    text-xl
+    text-neutral-900
+}
 .title-text {
   @apply 
     text-lg

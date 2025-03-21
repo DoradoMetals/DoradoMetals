@@ -10,11 +10,11 @@ export default function Page() {
   const { data: products = [], isLoading, error } = useProductsByMetal(selectedMetal);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex justify-center gap-4">
       {isLoading && <p>Loading {selectedMetal} products...</p>}
       {error && <p>Error loading {selectedMetal} products.</p>}
 
-      <div className="grid grid-cols-1 gap-3">
+      <div className="flex-col">
         {products.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}
