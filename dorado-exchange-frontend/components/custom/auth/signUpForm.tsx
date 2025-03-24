@@ -149,7 +149,7 @@ export default function SignUpForm() {
                         className="checkbox-form"
                       />
                     </FormControl>
-                    <FormLabel htmlFor="terms-checkbox" className="cursor-pointer pb-1">
+                    <FormLabel htmlFor="terms-checkbox" className="cursor-pointer">
                       <div className="flex items-center tertiary-text gap-1">
                         Accept our
                         <Link className="text-secondary" href={'/terms-and-conditions'}>

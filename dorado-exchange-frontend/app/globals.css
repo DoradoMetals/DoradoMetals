@@ -5,6 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-highest: var(--highest);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -93,8 +94,9 @@
   --neutral-800: hsl(0, 0%, 20%);
   --neutral-900: hsl(0, 0%, 10%);
 
-  --card: hsl(0, 0%, 95%);
-  --background: hsl(0, 0%, 100%);
+  --highest: hsl(0, 0%, 100%);
+  --card: hsl(0, 0%, 90%);
+  --background: hsl(0, 0%, 95%);
   --popover: hsl(0, 0%, 85%);
   --border: hsl(0, 0%, 80%);
   --input: hsl(0, 0%, 75%);
@@ -149,6 +151,7 @@
   --neutral-800: hsl(0, 0%, 80%);
   --neutral-900: hsl(0, 0%, 90%);
 
+  --highest: hsl(0, 0%, 10%);
   --card: hsl(0, 0%, 15%);
   --background: hsl(0, 0%, 20%);
   --popover: hsl(0, 0%, 25%);

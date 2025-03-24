@@ -180,7 +180,7 @@ function CarouselIndicator({ className, classNameButton }: CarouselIndicatorProp
             onClick={() => setIndex(i)}
             className={cn(
               'h-2 w-2 rounded-full transition-opacity duration-300',
-              index === i ? 'bg-secondary' : 'bg-neutral-700 opacity-30',
+              index === i ? 'bg-neutral-700' : 'bg-neutral-700 opacity-30',
               classNameButton
             )}
           />
