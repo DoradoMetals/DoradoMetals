@@ -14,24 +14,25 @@ export const Logo: React.FC<{ size?: number; height?: number }> = ({
   />
 )
 
-export const GoldIcon: React.FC<{ size?: number; height?: number }> = ({
-  size = 50,
-  height,
-  ...props
-}) => (
+export const GoldIcon: React.FC<{
+  size?: number
+  height?: number
+  className?: string
+}> = ({ size = 50, height, className = '', ...props }) => (
   <svg
     width={size}
     height={height ?? size}
     version="1.1"
     viewBox="0 0 16.5 16.5"
-    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    fill="currentColor"
+    stroke="currentColor"
   >
     <g transform="translate(-63.73 -15.767)">
       <path
         d="m65.98 16.017h11.967c1.108 0 2 0.892 2 2v11.967c0 1.108-0.892 2-2 2h-11.967c-1.108 0-2-0.892-2-2v-11.967c0-1.108 0.892-2 2-2z"
-        fill-opacity="0"
-        stroke="#000000"
-        stroke-width=".5"
+        fillOpacity="0"
+        strokeWidth=".5"
       />
       <path
         transform="matrix(.52688 0 0 .48156 32.92 1.57)"
@@ -49,23 +50,24 @@ export const GoldIcon: React.FC<{ size?: number; height?: number }> = ({
   </svg>
 )
 
-export const SilverIcon: React.FC<{ size?: number; height?: number }> = ({
-  size = 50,
-  height,
-  ...props
-}) => (
+export const SilverIcon: React.FC<{
+  size?: number
+  height?: number
+  className?: string
+}> = ({ size = 50, height, className = '', ...props }) => (
   <svg
     width={size}
     height={height ?? size}
     version="1.1"
     viewBox="0 0 16.5 16.5"
-    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    fill="currentColor"
+    stroke="currentColor"
   >
     <g transform="translate(-63.73 -15.767)">
       <path
         d="m65.98 16.017h11.967c1.108 0 2 0.892 2 2v11.967c0 1.108-0.892 2-2 2h-11.967c-1.108 0-2-0.892-2-2v-11.967c0-1.108 0.892-2 2-2z"
         fillOpacity="0"
-        stroke="#000000"
         strokeWidth=".5"
       />
       <path
@@ -84,23 +86,24 @@ export const SilverIcon: React.FC<{ size?: number; height?: number }> = ({
   </svg>
 )
 
-export const PlatinumIcon: React.FC<{ size?: number; height?: number }> = ({
-  size = 50,
-  height,
-  ...props
-}) => (
+export const PlatinumIcon: React.FC<{
+  size?: number
+  height?: number
+  className?: string
+}> = ({ size = 50, height, className = '', ...props }) => (
   <svg
     width={size}
     height={height ?? size}
     version="1.1"
     viewBox="0 0 16.5 16.5"
-    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    fill="currentColor"
+    stroke="currentColor"
   >
     <g transform="translate(-63.73 -15.767)">
       <path
         d="m65.98 16.017h11.967c1.108 0 2 0.892 2 2v11.967c0 1.108-0.892 2-2 2h-11.967c-1.108 0-2-0.892-2-2v-11.967c0-1.108 0.892-2 2-2z"
         fillOpacity="0"
-        stroke="#000000"
         strokeWidth=".5"
       />
       <path
@@ -119,23 +122,24 @@ export const PlatinumIcon: React.FC<{ size?: number; height?: number }> = ({
   </svg>
 )
 
-export const PalladiumIcon: React.FC<{ size?: number; height?: number }> = ({
-  size = 50,
-  height,
-  ...props
-}) => (
+export const PalladiumIcon: React.FC<{
+  size?: number
+  height?: number
+  className?: string
+}> = ({ size = 50, height, className = 'text-neutral-700', ...props }) => (
   <svg
     width={size}
     height={height ?? size}
     version="1.1"
     viewBox="0 0 16.5 16.5"
-    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    fill="currentColor"
+    stroke="currentColor"
   >
     <g transform="translate(-63.73 -15.767)">
       <path
         d="m65.98 16.017h11.967c1.108 0 2 0.892 2 2v11.967c0 1.108-0.892 2-2 2h-11.967c-1.108 0-2-0.892-2-2v-11.967c0-1.108 0.892-2 2-2z"
         fillOpacity="0"
-        stroke="#000000"
         strokeWidth=".5"
       />
       <path
