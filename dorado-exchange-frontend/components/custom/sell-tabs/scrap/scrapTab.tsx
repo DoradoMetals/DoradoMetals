@@ -15,7 +15,7 @@ import NumberFlow from '@number-flow/react'
 import getScrapPrice from '@/utils/getScrapPrice'
 
 const { useStepper, utils } = defineStepper(
-  { id: 'name', title: 'Name', description: 'Enter Item name (necklace, ring, bracelet, grain, etc...' },
+  // { id: 'name', title: 'Name', description: 'Enter Item name (necklace, ring, bracelet, grain, etc...' },
   { id: 'metalSelect', title: 'Metal Selection', description: 'Select item metal.' },
   { id: 'weightSelect', title: 'Weight Selection', description: 'Enter item weight.' },
   { id: 'puritySelect', title: 'Purity Selection', description: 'Select item purity.' },
