@@ -45,6 +45,7 @@ export default function ScrapFormStepper() {
 
     if (submitAction === 'add') {
       form.reset({
+        name: '',
         metal_id: '80f18a95-7ed4-4a87-93c7-74d9355da8fe',
         gross: '',
         gross_unit: 'g',
