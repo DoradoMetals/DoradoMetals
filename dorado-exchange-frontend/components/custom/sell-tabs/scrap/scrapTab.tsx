@@ -51,7 +51,7 @@ export default function ScrapFormStepper() {
         gross_unit: 'g',
         purity: undefined,
       })
-      stepper.goTo('name')
+      stepper.goTo('metalSelect')
     } else if (submitAction === 'checkout') {
       console.log('Redirect to checkout stepper or page')
     }
@@ -77,7 +77,7 @@ export default function ScrapFormStepper() {
           </div>
 
           {stepper.switch({
-            name: () => <NameStep />,
+            // name: () => <NameStep />,
             metalSelect: () => <MetalSelectionStep />,
             weightSelect: () => <WeightStep />,
             puritySelect: () => <PurityStep />,
@@ -134,32 +134,32 @@ export default function ScrapFormStepper() {
   )
 }
 
-function NameStep() {
-  const form = useFormContext<Scrap>()
+// function NameStep() {
+//   const form = useFormContext<Scrap>()
 
-  return (
-    <div className="flex-col gap-4">
-      <FormField
-        control={form.control}
-        name="name"
-        render={({ field }) => (
-          <FormItem className="w-full">
-            <div className="relative w-full rounded-lg">
-              <FloatingLabelInput
-                label="Enter Name"
-                type="text"
-                size="sm"
-                className="w-full input-floating-label-form no-spinner"
-                {...field}
-              />
-            </div>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-    </div>
-  )
-}
+//   return (
+//     <div className="flex-col gap-4">
+//       <FormField
+//         control={form.control}
+//         name="name"
+//         render={({ field }) => (
+//           <FormItem className="w-full">
+//             <div className="relative w-full rounded-lg">
+//               <FloatingLabelInput
+//                 label="Enter Name"
+//                 type="text"
+//                 size="sm"
+//                 className="w-full input-floating-label-form no-spinner"
+//                 {...field}
+//               />
+//             </div>
+//             <FormMessage />
+//           </FormItem>
+//         )}
+//       />
+//     </div>
+//   )
+// }
 
 function MetalSelectionStep() {
   const form = useFormContext<Scrap>()
@@ -379,7 +379,7 @@ function ReviewStep() {
   const { getValues } = useFormContext<Scrap>()
   const values = getValues()
 
-  const name = values.name
+  // const name = values.name
   const metal = metalOptions.find((m) => m.id === values.metal_id)
   const unit = values.gross_unit
   const gross = values.gross
@@ -401,7 +401,7 @@ function ReviewStep() {
         for your{' '}
         <span className="primary-text font-semibold">{displayPurity}</span> pure{' '}
         <span className="primary-text font-semibold">
-          {gross} <span className='secondary-text'>{unit}</span> {metal?.label} {name}
+          {gross} <span className='secondary-text'>{unit}</span> {metal?.label}
         </span>
         .
       </p>
