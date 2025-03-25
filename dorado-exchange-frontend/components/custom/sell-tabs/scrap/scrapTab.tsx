@@ -1,129 +1,416 @@
-import { GoldIcon, PalladiumIcon, PlatinumIcon, SilverIcon } from '@/components/icons/logo'
+'use client'
+
+import { useForm, FormProvider, useFormContext, useFormState } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { scrapSchema, type Scrap } from '@/types/scrap'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { FloatingLabelInput } from '@/components/ui/floating-label-input'
+import { Form, FormField, FormItem, FormControl, FormMessage } from '@/components/ui/form'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Textarea } from '@/components/ui/textarea'
-import { defineStepper } from '@stepperize/react'
-import { Coins, Diamond, Dumbbell, Gem, Scale, ScaleIcon } from 'lucide-react'
-import { useId, useState } from 'react'
+import { Slider } from '@/components/ui/slider'
+import { metalOptions, purityOptions, weightOptions } from '@/types/scrap'
+import { useState } from 'react'
+import { defineStepper, Stepper } from '@stepperize/react'
+import NumberFlow from '@number-flow/react'
+import getScrapPrice from '@/utils/getScrapPrice'
 
 const { useStepper, utils } = defineStepper(
-  {
-    id: 'metalSelect',
-    title: 'Metal Selection',
-    description: 'Select item metal.',
-  },
-  {
-    id: 'weightSelect',
-    title: 'Weight Selection',
-    description: 'Enter item weight.',
-  },
-  { id: 'complete', title: 'Complete', description: 'Checkout complete' }
+  { id: 'name', title: 'Name', description: 'Enter Item name (necklace, ring, bracelet, grain, etc...' },
+  { id: 'metalSelect', title: 'Metal Selection', description: 'Select item metal.' },
+  { id: 'weightSelect', title: 'Weight Selection', description: 'Enter item weight.' },
+  { id: 'puritySelect', title: 'Purity Selection', description: 'Select item purity.' },
+  { id: 'review', title: 'Review', description: 'Review inputted item.' }
 )
 
-const metalOptions = [
-  {
-    label: 'Gold',
-    logo: <GoldIcon size={36} className="text-secondary" />,
-    blurb: 'Jewelry, nuggets, raw gold, casting grain, dental',
-    id: '80f18a95-7ed4-4a87-93c7-74d9355da8fe',
-  },
-  {
-    label: 'Silver',
-    logo: <SilverIcon size={36} className="text-secondary" />,
-    blurb: 'Jewelry, flatware, tea sets, wire, sheets',
-    id: '4e194eef-836f-4e9b-97f3-dda36a232dfb',
-  },
-  {
-    label: 'Platinum',
-    logo: <PlatinumIcon size={36} className="text-secondary" />,
-    blurb: 'Jewelry stamped PLAT, PT 950, PT 900',
-    id: '03ce1689-b24f-4a15-b91c-3a1a6cbead7f',
-  },
-  {
-    label: 'Palladium',
-    logo: <PalladiumIcon size={36} className="text-secondary" />,
-    blurb: 'Jewelry stamped PALLADIUM, PD, PD 950, PD 900',
-    id: '5ec4c718-2a8e-486c-9046-6c5b6e04a506',
-  },
-]
+export default function ScrapFormStepper() {
+  const [submitAction, setSubmitAction] = useState<'add' | 'checkout' | null>(null)
 
-const weightOptions = [
-  {
-    label: 'Grams',
-    logo: <Scale size={20} className="text-secondary" />,
-    unit: 'g',
-    id: '1',
-  },
-  {
-    label: 'Troy Oz.',
-    logo: <Coins size={20} className="text-secondary" />,
-    unit: 't oz',
-    id: '2',
-  },
-  {
-    label: 'DWT',
-    logo: <Gem size={20} className="text-secondary" />,
-    unit: 'dwt',
-    id: '3',
-  },
-  {
-    label: 'Pounds',
-    logo: <Dumbbell size={20} className="text-secondary" />,
-    unit: 'lb',
-    id: '4',
-  },
-]
+  const form = useForm<Scrap>({
+    resolver: zodResolver(scrapSchema),
+    mode: 'onChange',
+    defaultValues: {
+      name: '',
+      metal_id: '80f18a95-7ed4-4a87-93c7-74d9355da8fe',
+      gross: '',
+      gross_unit: 'g',
+      purity: undefined,
+    },
+  })
 
-export default function StepperDemo() {
   const stepper = useStepper()
-
   const currentIndex = utils.getIndex(stepper.current.id)
 
+  const handleSubmit = (values: Scrap) => {
+    console.log('Submitted Scrap:', values)
+
+    if (submitAction === 'add') {
+      form.reset({
+        metal_id: '80f18a95-7ed4-4a87-93c7-74d9355da8fe',
+        gross: '',
+        gross_unit: 'g',
+        purity: undefined,
+      })
+      stepper.goTo('name')
+    } else if (submitAction === 'checkout') {
+      console.log('Redirect to checkout stepper or page')
+    }
+
+    setSubmitAction(null)
+  }
+
+  const { errors } = useFormState({ control: form.control })
+
   return (
-    <div className="space-y-6 p-3 rounded-lg w-full mt-6">
-      <div className="flex items-center gap-4 mb-8">
-        <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
-        <div className="flex flex-col">
-          <h2 className="flex-1 header-text">{stepper.current.title}</h2>
-          <p className="secondary-text">{stepper.current.description}</p>
-        </div>
-      </div>
-      {stepper.switch({
-        metalSelect: () => <MetalSelectionComponent />,
-        weightSelect: () => <WeightComponent />,
-        complete: () => <CompleteComponent />,
-      })}
-      <div className="space-y-4 mt-8">
-        {!stepper.isLast ? (
-          <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={stepper.prev} disabled={stepper.isFirst}>
-              Back
-            </Button>
-            <Button onClick={stepper.next}>{stepper.isLast ? 'Complete' : 'Next'}</Button>
+    <FormProvider {...form}>
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(handleSubmit)}
+          className="space-y-6 p-3 rounded-lg w-full mt-6"
+        >
+          <div className="flex items-center gap-4 mb-8">
+            <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
+            <div className="flex flex-col">
+              <h2 className="flex-1 header-text">{stepper.current.title}</h2>
+              <p className="secondary-text">{stepper.current.description}</p>
+            </div>
           </div>
-        ) : (
-          <Button onClick={stepper.reset}>Reset</Button>
+
+          {stepper.switch({
+            name: () => <NameStep />,
+            metalSelect: () => <MetalSelectionStep />,
+            weightSelect: () => <WeightStep />,
+            puritySelect: () => <PurityStep />,
+            review: () => <ReviewStep />,
+          })}
+          {stepper.current.id === 'review' ? (
+            <div className="flex items-end gap-4">
+              <div className="mr-auto">
+                <Button type="button" variant="outline" onClick={stepper.prev}>
+                  Back
+                </Button>
+              </div>
+              <div className="flex flex-col items-center ml-auto gap-2">
+                <Button
+                  className="w-full"
+                  type="submit"
+                  variant="outline"
+                  onClick={() => setSubmitAction('add')}
+                >
+                  Add Another
+                </Button>
+
+                <Button
+                  className="w-full"
+                  type="submit"
+                  onClick={() => setSubmitAction('checkout')}
+                >
+                  Go to Checkout
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={stepper.prev}
+                disabled={stepper.isFirst}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                onClick={stepper.next}
+                disabled={stepper.current.id === 'weightSelect' && !!errors.gross}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </form>
+      </Form>
+    </FormProvider>
+  )
+}
+
+function NameStep() {
+  const form = useFormContext<Scrap>()
+
+  return (
+    <div className="flex-col gap-4">
+      <FormField
+        control={form.control}
+        name="name"
+        render={({ field }) => (
+          <FormItem className="w-full">
+            <div className="relative w-full rounded-lg">
+              <FloatingLabelInput
+                label="Enter Name"
+                type="text"
+                size="sm"
+                className="w-full input-floating-label-form no-spinner"
+                {...field}
+              />
+            </div>
+            <FormMessage />
+          </FormItem>
         )}
-      </div>
+      />
     </div>
   )
 }
 
-interface StepIndicatorProps {
-  currentStep: number
-  totalSteps: number
-  size?: number
-  strokeWidth?: number
+function MetalSelectionStep() {
+  const form = useFormContext<Scrap>()
+  return (
+    <FormField
+      control={form.control}
+      name="metal_id"
+      render={({ field }) => (
+        <FormItem>
+          <RadioGroup
+            defaultValue="0"
+            value={field.value}
+            onValueChange={field.onChange}
+            className="gap-3 w-full items-stretch flex flex-col"
+          >
+            {metalOptions.map((metal) => (
+              <label
+                key={metal.id}
+                className="flex w-full items-stretch justify-between gap-4 rounded-lg p-4 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-lg has-[[data-state=checked]]:border-secondary transition-colors"
+              >
+                <div className="flex gap-4 w-full items-center">
+                  <div className="flex items-center">{metal.logo}</div>
+                  <div className="flex flex-col gap-1">
+                    <div className="title-text">{metal.label}</div>
+                    <p className="text-xs text-muted-foreground leading-snug">{metal.blurb}</p>
+                  </div>
+                </div>
+                <RadioGroupItem
+                  value={metal.id}
+                  id={metal.id}
+                  className="sr-only after:absolute after:inset-0"
+                />
+              </label>
+            ))}
+          </RadioGroup>
+        </FormItem>
+      )}
+    />
+  )
 }
 
-const StepIndicator = ({
-  currentStep,
-  totalSteps,
-  size = 80,
-  strokeWidth = 6,
-}: StepIndicatorProps) => {
+
+
+
+function WeightStep() {
+  const form = useFormContext<Scrap>()
+  const unit = form.watch('gross_unit') || 'g'
+
+  return (
+    <div className="flex-col gap-4">
+      <FormField
+        control={form.control}
+        name="gross_unit"
+        render={({ field }) => (
+          <FormItem className="mb-8">
+            <RadioGroup
+              defaultValue="0"
+              value={field.value}
+              onValueChange={field.onChange}
+              className="gap-3 w-full flex"
+            >
+              {weightOptions.map((weight) => (
+                <label
+                  key={weight.id}
+                  className="peer flex flex-col items-center w-full gap-3 rounded-lg p-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:shadow-lg has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-secondary transition-colors"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    {weight.logo}
+                    <div className="secondary-text">{weight.label}</div>
+                  </div>
+
+                  <RadioGroupItem
+                    value={weight.unit}
+                    id={weight.id}
+                    aria-describedby={weight.id}
+                    className="sr-only after:absolute after:inset-0"
+                  />
+                </label>
+              ))}
+            </RadioGroup>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="gross"
+        render={({ field }) => (
+          <FormItem className="w-full">
+            <div className="relative w-full rounded-lg">
+              <FloatingLabelInput
+                label="Enter Weight"
+                type="text"
+                size="sm"
+                className="w-full input-floating-label-form no-spinner"
+                {...field}
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 hover:bg-transparent">
+                {unit}
+              </div>
+            </div>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
+  )
+}
+
+function PurityStep() {
+  const form = useFormContext<Scrap>()
+  const metalId = form.watch('metal_id')
+
+  const metalKey = metalOptions
+    .find((m) => m.id === metalId)
+    ?.label.toLowerCase() as keyof typeof purityOptions
+
+  const options = purityOptions[metalKey] || []
+
+  const [purityValue, setPurityValue] = useState(options[0]?.value || 0.5)
+  const [customPurity, setCustomPurity] = useState(0)
+  const [selectedLabel, setSelectedLabel] = useState(options[0]?.label || '')
+
+  const isRoughlyEqual = (a: number, b: number) => Math.abs(a - b) < 0.001
+
+  const handleRadioChange = (label: string) => {
+    const match = options.find((opt) => opt.label === label)
+    if (match) {
+      setSelectedLabel(label)
+      setPurityValue(match.value)
+      form.setValue('purity', match.value)
+    }
+  }
+
+  const handleSliderChange = (val: number) => {
+    const match = options.find((opt) => isRoughlyEqual(opt.value, val))
+
+    if (!match) {
+      setCustomPurity(val)
+      setSelectedLabel('Custom')
+    } else {
+      setSelectedLabel(match.label)
+    }
+
+    setPurityValue(val)
+    form.setValue('purity', val)
+  }
+
+  const sliderValue = selectedLabel === 'Custom' ? customPurity : purityValue
+
+  return (
+    <FormField
+      control={form.control}
+      name="purity"
+      render={() => (
+        <FormItem>
+          <RadioGroup
+            value={selectedLabel}
+            onValueChange={handleRadioChange}
+            className="grid grid-cols-3 gap-3"
+          >
+            {options.map((option) => (
+              <label
+                key={option.label}
+                className="flex items-center justify-center rounded-md border border-input px-4 py-2 text-sm font-medium cursor-pointer has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-secondary has-[[data-state=checked]]:shadow-lg transition-colors"
+              >
+                <RadioGroupItem
+                  value={option.label}
+                  id={option.label}
+                  className="sr-only after:absolute after:inset-0"
+                />
+                {option.label}
+              </label>
+            ))}
+          </RadioGroup>
+
+          <div className="relative mt-12 mb-16 w-full">
+            <Slider
+              value={[sliderValue]}
+              onValueChange={([val]) => handleSliderChange(val)}
+              min={0}
+              max={1}
+              step={0.01}
+            />
+
+            <div
+              className="absolute top-6 text-sm text-muted-foreground"
+              style={{
+                left: `${sliderValue * 100}%`,
+                transform: 'translateX(-50%)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <NumberFlow
+                willChange
+                value={Math.round(sliderValue * 100)}
+                isolate
+                opacityTiming={{ duration: 250, easing: 'ease-out' }}
+                transformTiming={{
+                  easing: `linear(0, 0.0033 0.8%, 0.0263 2.39%, 0.0896 4.77%, 0.4676 15.12%, 0.5688, 0.6553, 0.7274, 0.7862, 0.8336 31.04%, 0.8793, 0.9132 38.99%, 0.9421 43.77%, 0.9642 49.34%, 0.9796 55.71%, 0.9893 62.87%, 0.9952 71.62%, 0.9983 82.76%, 0.9996 99.47%)`,
+                  duration: 500,
+                }}
+                spinTiming={{ duration: 150, easing: 'ease-out' }}
+                trend={0}
+              />
+              %
+            </div>
+          </div>
+        </FormItem>
+      )}
+    />
+  )
+}
+
+function ReviewStep() {
+  const { getValues } = useFormContext<Scrap>()
+  const values = getValues()
+
+  const name = values.name
+  const metal = metalOptions.find((m) => m.id === values.metal_id)
+  const unit = values.gross_unit
+  const gross = values.gross
+  const rawPurity = values.purity ?? 0
+  const displayPurity = `${Math.round(rawPurity * 100)}%`
+
+  const estimatedValue = getScrapPrice(
+    metal?.id ?? '',
+    unit ?? '',
+    gross ?? '',
+    rawPurity
+  )
+
+  return (
+    <div className="space-y-6">
+      <p className="secondary-text leading-relaxed">
+        We estimate we can offer you around{' '}
+        <span className="text-primary text-lg">{estimatedValue}</span>{' '}
+        for your{' '}
+        <span className="primary-text font-semibold">{displayPurity}</span> pure{' '}
+        <span className="primary-text font-semibold">
+          {gross} <span className='secondary-text'>{unit}</span> {metal?.label} {name}
+        </span>
+        .
+      </p>
+    </div>
+  )
+}
+
+function StepIndicator({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {
+  const size = 80
+  const strokeWidth = 6
   const radius = (size - strokeWidth) / 2
   const circumference = radius * 2 * Math.PI
   const fillPercentage = (currentStep / totalSteps) * 100
@@ -132,7 +419,6 @@ const StepIndicator = ({
   return (
     <div className="relative inline-flex items-center justify-center">
       <svg width={size} height={size}>
-        <title>Step Indicator</title>
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -162,109 +448,4 @@ const StepIndicator = ({
       </div>
     </div>
   )
-}
-
-const MetalSelectionComponent = () => {
-  return (
-    <RadioGroup className="gap-3 w-full items-stretch flex flex-col" defaultValue="0">
-      {metalOptions.map((metal, index) => (
-        <label
-          key={metal.id}
-          className="flex w-full items-stretch justify-between gap-4 rounded-lg p-4 cursor-pointer
-                     border
-                     border-text-neutral-200
-                     has-[[data-state=checked]]:bg-card
-                     has-[[data-state=checked]]:border-secondary
-                     transition-colors
-                     "
-        >
-          <div className="flex gap-4 w-full items-center">
-            <div className="flex items-center">{metal.logo}</div>
-            <div className="flex flex-col gap-1">
-              <div className="title-text">{metal.label}</div>
-              <p id={metal.id} className="text-xs text-neutral-600 leading-snug">
-                {metal.blurb}
-              </p>
-            </div>
-          </div>
-
-          <RadioGroupItem
-            value={String(index)}
-            id={metal.id}
-            aria-describedby={metal.id}
-            className="sr-only after:absolute after:inset-0"
-            // className="h-4 w-4 mt-1
-            //            rounded-full
-            //            border-none
-            //            data-[state=checked]:bg-primary
-            //            transition-colors
-            //            bg-card
-            //            shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
-            //            dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)]
-            //            "
-          />
-        </label>
-      ))}
-    </RadioGroup>
-  )
-}
-
-const WeightComponent = () => {
-  const [unit, setUnit] = useState('g')
-  return (
-    <div className="flex-col gap-4">
-      <RadioGroup className="gap-3 w-full flex mb-8" defaultValue="0" onValueChange={(val) => setUnit(weightOptions[Number(val)].unit)}>
-        {weightOptions.map((weight, index) => (
-          <label
-            key={weight.id}
-            className="peer flex flex-col items-center w-full gap-3 rounded-lg p-3 cursor-pointer
-                      border border-text-neutral-200
-                      has-[[data-state=checked]]:bg-card
-                      has-[[data-state=checked]]:border-secondary
-                      transition-colors
-                      "
-          >
-            <div className="flex flex-col items-center gap-2">
-              {weight.logo}
-              <div className="secondary-text">{weight.label}</div>
-            </div>
-
-            <RadioGroupItem
-              value={String(index)}
-              id={weight.id}
-              aria-describedby={weight.id}
-              className="sr-only after:absolute after:inset-0"
-            />
-
-            {/* Input: shown only when selected */}
-            <div className="hidden peer-checked:flex w-full mt-2 rounded-lg shadow-sm shadow-black/5">
-              <Input
-                id={`input-${weight.id}`}
-                className="-me-px z-10 rounded-e-none shadow-none"
-                placeholder="Amount"
-                type="text"
-              />
-              <span className="inline-flex items-center rounded-e-lg border border-input bg-background px-3 text-sm text-muted-foreground">
-                {weight.label}
-              </span>
-            </div>
-          </label>
-        ))}
-      </RadioGroup>
-      <div className="flex rounded-lg shadow-sm shadow-black/5">
-        <Input
-          className="-me-px z-10 rounded-e-none shadow-none"
-          placeholder="google"
-          type="text"
-        />
-        <span className="inline-flex items-center rounded-e-lg border border-input bg-background px-3 text-sm text-muted-foreground">
-          {unit}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-const CompleteComponent = () => {
-  return <h3 className="text-lg py-4 font-medium">Stepper complete 🔥</h3>
 }

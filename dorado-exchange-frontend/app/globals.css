@@ -199,6 +199,21 @@ svg {
   height: auto !important;
 }
 
+
+/* default browser overrides */
+
+/* For Chrome, Safari, Edge, Opera */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* For Firefox */
+.no-spinner[type='number'] {
+  -moz-appearance: textfield;
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -275,4 +290,8 @@ input:-webkit-autofill:active {
     w-full 
     mb-8 
     shadow-lg
+}
+
+.animate-slider {
+  transition: left 0.3s ease-in-out;
 }

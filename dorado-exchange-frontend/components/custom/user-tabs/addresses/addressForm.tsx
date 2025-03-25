@@ -8,7 +8,6 @@ import { StateSelect } from '../account/stateSelect'
 
 import { Address, addressSchema } from '@/types/address'
 import { useUpdateAddress } from '@/lib/queries/useAddresses'
-import { Asterisk } from 'lucide-react'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 
 export default function AddressForm({
