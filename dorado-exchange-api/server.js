@@ -8,6 +8,7 @@ const cartRoutes = require("./routes/carts");
 const spotRoutes = require("./routes/spots");
 const { toNodeHandler } = require("better-auth/node"); // Import BetterAuth middleware
 const { auth } = require("./auth"); // Import your BetterAuth instance
+const { setupScheduler } = require("./services/scheduler");
 
 dotenv.config(); // Load environment variables
  
@@ -34,6 +35,7 @@ app.use("/api/addresses", addressRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/spots", spotRoutes);
 
+setupScheduler(); // <--- 🔥 Starts your cron job
 
 app.use((req, res, next) => {
   console.log(`📡 Incoming request: ${req.method} ${req.url}`);

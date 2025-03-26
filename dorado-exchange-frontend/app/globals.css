@@ -15,6 +15,7 @@
   --color-border: var(--border);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -107,6 +108,7 @@
   --accent: hsl(220, 100%, 50%);
   --ring: hsl(220, 100%, 50%);
   --destructive: hsl(358, 93%, 64%);
+  --success: hsl(129, 76%, 35%);
 
   --foreground: hsl(0, 0%, 5%);
   --card-foreground: hsl(0, 0%, 5%);
@@ -164,6 +166,7 @@
   --accent: hsl(185, 100%, 50%);
   --ring: hsl(185, 100%, 50%);
   --destructive: hsl(360, 100%, 50%);
+  --success: hsl(130, 100%, 50%);
 
   --foreground: hsl(0, 0%, 95%);
   --card-foreground: hsl(0, 0%, 95%);

@@ -7,6 +7,8 @@ export type SpotPrice = {
   type: string
   ask_spot: number
   bid_spot: number
+  percent_change: number,
+  dollar_change: number,
 }
 
 export const useSpotPrices = () => {
@@ -14,6 +16,7 @@ export const useSpotPrices = () => {
     queryKey: ["spot_prices"],
     queryFn: async () => {
       return await apiRequest<SpotPrice[]>("GET", "/spots/spot_prices")
-    }
+    },
+    refetchInterval: 10000,
   })
 }

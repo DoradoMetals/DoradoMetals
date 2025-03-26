@@ -11,6 +11,7 @@ import { useUserStore } from '@/store/useUserStore'
 import { MenuIcon } from '@/components/icons/navIcon'
 import Cart from './cart'
 import { CartIcon } from '@/components/icons/cartIcon'
+import Spots from './spots'
 
 export default function Shell() {
   const pathname = usePathname()
@@ -36,37 +37,57 @@ export default function Shell() {
   return (
     <>
       {/* Navbar */}
-      <nav className="sticky top-0 z-50 bg-card mb-3 shadow-md border-t-5 border-primary">
-        <div className="flex items-center justify-between w-full py-5 p-3 sm:px-20 bg-card">
-          <div className="flex items-center gap-3">
-            {/* Logo */}
-            <Link className="px-0" href={'/'}>
-              <Logo />
-            </Link>
-
-            {/* Title */}
-            <div className="flex items-center">
-              <Link href={'/'}>
-                <span className="text-lg font-light tracking-wide lg:tracking-widest">
-                  Dorado Metals Exchange
-                </span>
+      <div className='sticky top-0 z-50 mb-3 shadow-sm'>
+        <nav className="bg-card">
+          <div className="flex items-center justify-between w-full py-5 p-3 sm:px-20">
+            <div className="flex items-center gap-3">
+              {/* Logo */}
+              <Link className="px-0" href={'/'}>
+                <Logo />
               </Link>
 
-              {/* Desktop Navbar Links */}
-              <div className="hidden lg:flex gap-3 text-sm items-center text-md font-semibold tracking-widest pl-20 gap-10">
-                {menuItems.map((item) => (
-                  <Link className={item.className} key={item.key} href={item.src}>
-                    <p>{item.label}</p>
-                  </Link>
-                ))}
+              {/* Title */}
+              <div className="flex items-center">
+                <Link href={'/'}>
+                  <span className="text-lg font-light tracking-wide lg:tracking-widest">
+                    Dorado Metals Exchange
+                  </span>
+                </Link>
+
+                {/* Desktop Navbar Links */}
+                <div className="hidden lg:flex gap-3 text-sm items-center text-md font-semibold tracking-widest pl-20 gap-10">
+                  {menuItems.map((item) => (
+                    <Link className={item.className} key={item.key} href={item.src}>
+                      <p>{item.label}</p>
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Desktop Menu */}
+            {/* Desktop Menu */}
 
-          <div className="hidden lg:block flex items-center items-end">
-            <div className="flex items-center gap-5">
+            <div className="hidden lg:block flex items-center items-end">
+              <div className="flex items-center gap-5">
+                <Button
+                  className="px-0 hover:bg-card"
+                  variant="ghost"
+                  onClick={() => {
+                    setIsCartActive(true)
+                  }}
+                >
+                  <CartIcon
+                    size={20}
+                    isOpen={isCartActive}
+                    className="text-muted-foreground hover:bg-card"
+                  />
+                </Button>
+                {data.user ? <ProfileMenu /> : <SignInButton />}
+              </div>
+            </div>
+
+            {/* Mobile Sidebar and Menu*/}
+            <div className="lg:hidden ml-auto mx-0 px-0 flex items-end gap-3">
               <Button
                 className="px-0 hover:bg-card"
                 variant="ghost"
@@ -77,41 +98,24 @@ export default function Shell() {
                 <CartIcon
                   size={20}
                   isOpen={isCartActive}
-                  className="text-muted-foreground hover:bg-card"
+                  className="hover:bg-card text-muted-foreground"
                 />
               </Button>
-              {data.user ? <ProfileMenu /> : <SignInButton />}
+
+              <Button
+                className="px-0 hover:bg-card"
+                variant="ghost"
+                onClick={() => setIsDrawerActive(true)}
+              >
+                <MenuIcon size={20} isOpen={isDrawerActive} className="text-muted-foreground" />
+              </Button>
+              <Sidebar isDrawerActive={isDrawerActive} setIsDrawerActive={setIsDrawerActive} />
+              <Cart isCartActive={isCartActive} setIsCartActive={setIsCartActive} />
             </div>
           </div>
-
-          {/* Mobile Sidebar and Menu*/}
-          <div className="lg:hidden ml-auto mx-0 px-0 flex items-end gap-3">
-            <Button
-              className="px-0 hover:bg-card"
-              variant="ghost"
-              onClick={() => {
-                setIsCartActive(true)
-              }}
-            >
-              <CartIcon
-                size={20}
-                isOpen={isCartActive}
-                className="hover:bg-card text-muted-foreground"
-              />
-            </Button>
-
-            <Button
-              className="px-0 hover:bg-card"
-              variant="ghost"
-              onClick={() => setIsDrawerActive(true)}
-            >
-              <MenuIcon size={20} isOpen={isDrawerActive} className="text-muted-foreground" />
-            </Button>
-            <Sidebar isDrawerActive={isDrawerActive} setIsDrawerActive={setIsDrawerActive} />
-            <Cart isCartActive={isCartActive} setIsCartActive={setIsCartActive} />
-          </div>
-        </div>
-      </nav>
+        </nav>
+        <Spots />
+      </div>
     </>
   )
 }
