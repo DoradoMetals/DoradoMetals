@@ -294,7 +294,3 @@ input:-webkit-autofill:active {
     mb-8 
     shadow-lg
 }
-
-.animate-slider {
-  transition: left 0.3s ease-in-out;
-}

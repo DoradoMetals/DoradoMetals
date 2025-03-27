@@ -4,7 +4,7 @@ const { updateSpotPrices } = require("../controllers/spotController");
 function setupScheduler() {
   updateSpotPrices();
 
-  cron.schedule("*/10 * * * * *", async () => {
+  cron.schedule(process.env.SPOT_UPDATE_SCHEDULE, async () => {
     await updateSpotPrices();
   });
 }
