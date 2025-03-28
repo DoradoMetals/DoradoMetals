@@ -70,12 +70,12 @@ export const useCart = () => {
   })
 }
 
-export const useAddToCart = (product: Product) => {
+export const useAddToCart = () => {
   const { user } = useUserStore()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (product: Product) => {
       if (user?.id) {
         return await apiRequest('POST', '/cart/add_to_cart', {
           user_id: user.id,
@@ -83,7 +83,7 @@ export const useAddToCart = (product: Product) => {
         })
       }
     },
-    onMutate: async () => {
+    onMutate: async (product: Product) => {
       await queryClient.cancelQueries({ queryKey: ['cart', user?.id ?? 'guest'] });
       const previousCart = getLocalCart();
     
@@ -111,12 +111,12 @@ export const useAddToCart = (product: Product) => {
   })
 }
 
-export const useRemoveFromCart = (product: Product) => {
+export const useRemoveFromCart = () => {
   const { user } = useUserStore()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (product: Product) => {
       if (user?.id) {
         return await apiRequest('POST', '/cart/remove_from_cart', {
           user_id: user.id,
@@ -124,7 +124,7 @@ export const useRemoveFromCart = (product: Product) => {
         })
       }
     },
-    onMutate: async () => {
+    onMutate: async (product: Product) => {
       await queryClient.cancelQueries({ queryKey: ['cart', user?.id ?? 'guest'] });
       const previousCart = getLocalCart();
       const updatedCart = [...previousCart];
@@ -150,6 +150,41 @@ export const useRemoveFromCart = (product: Product) => {
       if (context?.previousCart) {
         queryClient.setQueryData(["cart", user?.id ?? "guest"], context.previousCart);
         saveLocalCart(context.previousCart);
+      }
+    },
+  })
+}
+
+export const useRemoveItemFromCart = () => {
+  const { user } = useUserStore()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (product: Product) => {
+      if (user?.id) {
+        return await apiRequest('POST', '/cart/remove_item_from_cart', {
+          user_id: user.id,
+          product_id: product.id,
+        })
+      }
+    },
+    onMutate: async (product: Product) => {
+      await queryClient.cancelQueries({ queryKey: ['cart', user?.id ?? 'guest'] })
+      const previousCart = getLocalCart()
+
+      const updatedCart = previousCart.filter(item => item.id !== product.id)
+      saveLocalCart(updatedCart)
+
+      queryClient.setQueryData(['cart', user?.id ?? 'guest'], updatedCart)
+      return { previousCart }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart', user?.id ?? 'guest'], refetchType: 'active' })
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousCart) {
+        queryClient.setQueryData(['cart', user?.id ?? 'guest'], context.previousCart)
+        saveLocalCart(context.previousCart)
       }
     },
   })

@@ -193,6 +193,26 @@ const removeFromCart = async (req, res) => {
   }
 };
 
+const removeItemFromCart = async (req, res) => {
+  const { user_id, product_id } = req.body;
+
+  try {
+    const query = `
+      DELETE FROM exchange.cart_items
+      WHERE cart_id = (SELECT id FROM exchange.carts WHERE user_id = $1)
+      AND product_id = $2;
+    `;
+    const values = [user_id, product_id];
+
+    await pool.query(query, values);
+    res.status(200).json({ message: 'Item fully removed from cart' });
+  } catch (error) {
+    console.error("Error fully removing item from cart:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+
 const clearCart = async (req, res) => {
   const user_id = req.body.user_id;
   const address = req.body.address;
@@ -218,5 +238,6 @@ module.exports = {
   checkAmountInCart,
   addToCart,
   removeFromCart,
+  removeItemFromCart,
   clearCart,
 };

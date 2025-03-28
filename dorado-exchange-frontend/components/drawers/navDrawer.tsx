@@ -12,12 +12,12 @@ interface Props {
 }
 
 const styles = {
-  left: "top-29 h-full",
-  right: "top-29 h-full",
+  left: "top-28 h-full",
+  right: "top-28 h-full",
 };
 
 const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right' }) => {
-  if (typeof document === 'undefined') return null; // Prevent SSR errors
+  if (typeof document === 'undefined') return null;
 
   return createPortal(
     <AnimatePresence>

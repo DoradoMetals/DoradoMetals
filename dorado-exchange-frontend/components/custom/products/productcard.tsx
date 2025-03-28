@@ -20,8 +20,8 @@ type ProductCardProps = {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const addToCartMutation = useAddToCart(product)
-  const removeFromCartMutation = useRemoveFromCart(product)
+  const addToCartMutation = useAddToCart()
+  const removeFromCartMutation = useRemoveFromCart()
   const { data: cart = [] } = useCart()
   const cartItem = cart.find((item) => item.id === product.id)
   const quantity = cartItem?.quantity ?? 0
@@ -105,37 +105,46 @@ export default function ProductCard({ product }: ProductCardProps) {
               ))}
             </RadioGroup>
           </div>
-          {/* <Button variant="default" className="w-full mb-8 shadow-lg">
-            Add to Cart
-          </Button> */}
-          <div className="flex items-center">
-          <Button
-  variant="ghost"
-  className="hover:bg-card"
-  disabled={removeFromCartMutation.isPending}
-  onClick={() => removeFromCartMutation.mutate()}
->
-  <Minus size={20} />
-</Button>
-
-            <div className="">
-              <NumberFlow
-                value={quantity}
-                transformTiming={{ duration: 750, easing: 'ease-in' }}
-                spinTiming={{ duration: 150, easing: 'ease-out' }}
-                opacityTiming={{ duration: 350, easing: 'ease-out' }}
-                className="title-text text-center font-semibold"
-                trend={0}
-              />
-            </div>
+          {quantity === 0 ? (
             <Button
-              variant="ghost"
-              className="hover:bg-card"
-              onClick={() => addToCartMutation.mutate()}
+              variant="default"
+              className="w-full mb-8 shadow-lg"
+              disabled={addToCartMutation.isPending}
+              onClick={() => addToCartMutation.mutate(product)}
             >
-              <Plus size={20} />
+              Add to Cart
             </Button>
-          </div>
+          ) : (
+            <div className="flex items-center justify-center mb-8">
+              <Button
+                variant="ghost"
+                className="hover:bg-card"
+                disabled={removeFromCartMutation.isPending}
+                onClick={() => removeFromCartMutation.mutate(product)}
+              >
+                <Minus size={20} />
+              </Button>
+
+              <div className="">
+                <NumberFlow
+                  value={quantity}
+                  transformTiming={{ duration: 750, easing: 'ease-in' }}
+                  spinTiming={{ duration: 150, easing: 'ease-out' }}
+                  opacityTiming={{ duration: 350, easing: 'ease-out' }}
+                  className="title-text text-center font-semibold"
+                  trend={0}
+                />
+              </div>
+              <Button
+                variant="ghost"
+                className="hover:bg-card"
+                disabled={addToCartMutation.isPending}
+                onClick={() => addToCartMutation.mutate(product)}
+              >
+                <Plus size={20} />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
