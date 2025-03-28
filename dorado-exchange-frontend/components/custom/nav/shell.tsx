@@ -38,7 +38,8 @@ export default function Shell() {
     <>
       {/* Navbar */}
       <div className='sticky top-0 z-50 mb-3 shadow-lg'>
-        <nav className="bg-highest">
+      <Spots />
+        <nav className="bg-card">
           <div className="flex items-center justify-between w-full py-5 p-3 sm:px-20">
             <div className="flex items-center gap-3">
               {/* Logo */}
@@ -114,7 +115,7 @@ export default function Shell() {
             </div>
           </div>
         </nav>
-        <Spots />
+        
       </div>
     </>
   )

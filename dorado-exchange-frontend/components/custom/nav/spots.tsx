@@ -16,10 +16,10 @@ const metalIcons: Record<string, ReactNode> = {
   // Platinum: <PlatinumIcon className="text-secondary" size={32} />,
   // Palladium: <PalladiumIcon className="text-secondary" size={32} />,
 
-  Gold: <GoldIcon className="text-primary" size={32} />,
-  Silver: <SilverIcon className="text-primary" size={32} />,
-  Platinum: <PlatinumIcon className="text-primary" size={32} />,
-  Palladium: <PalladiumIcon className="text-primary" size={32} />,
+  Gold: <GoldIcon className="text-primary" size={24} />,
+  Silver: <SilverIcon className="text-primary" size={24} />,
+  Platinum: <PlatinumIcon className="text-primary" size={24} />,
+  Palladium: <PalladiumIcon className="text-primary" size={24} />,
 }
 
 export default function Spots() {
@@ -30,7 +30,7 @@ export default function Spots() {
   return (
     <>
       {spots && (
-        <div className="w-screen bg-card py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap">
+        <div className="w-screen bg-highest py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap border-b-2 border-primary">
           <div className="hidden md:flex items-center sm:px-20 ">
             <div className="flex items-center gap-10 ml-auto justify-start">
               {spots.map((spot) => {
@@ -38,11 +38,11 @@ export default function Spots() {
                 const ChevronIcon = trendUp ? ChevronUp : ChevronDown
 
                 return (
-                  <div key={spot.id} className="flex items-center gap-2">
+                  <div key={spot.id} className="flex items-center gap-2 font-mono">
                     {/* {metalIcons[spot.type] ?? (
-                      
+                      <span className="text-secondary text-sm">{spot.type}:</span>
                     )} */}
-                    <span className="text-primary text-sm">{spot.type}:</span>
+                    <span className="text-secondary text-sm">{spot.type}:</span>
 
                     <div className="flex items-center gap-2">
                       <NumberFlowGroup>
@@ -65,7 +65,7 @@ export default function Spots() {
                         </div>
 
                         <div className="flex items-center gap-0.5 text-xs text-neutral-600">
-                        <ChevronIcon size={14} className="text-secondary" fill="currentColor" />
+                        <ChevronIcon size={14} className="text-primary" fill="currentColor" />
                           <NumberFlow
                             value={spot.dollar_change}
                             format={{
