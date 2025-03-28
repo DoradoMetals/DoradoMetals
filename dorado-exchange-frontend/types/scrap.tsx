@@ -49,7 +49,7 @@ export const metalOptions: MetalOption[] = [
   {
     label: 'Gold',
     logo: <GoldIcon size={36} className="text-secondary" />,
-    blurb: 'Jewelry, nuggets, raw gold, casting grain, dental',
+    blurb: 'Jewelry, nuggets, raw gold, casting grain',
     id: '80f18a95-7ed4-4a87-93c7-74d9355da8fe',
   },
   {
@@ -67,7 +67,7 @@ export const metalOptions: MetalOption[] = [
   {
     label: 'Palladium',
     logo: <PalladiumIcon size={36} className="text-secondary" />,
-    blurb: 'Jewelry stamped PALLADIUM, PD, PD 950, PD 900',
+    blurb: 'Jewelry stamped PD, PD 950, PD 900',
     id: '5ec4c718-2a8e-486c-9046-6c5b6e04a506',
   },
 ]

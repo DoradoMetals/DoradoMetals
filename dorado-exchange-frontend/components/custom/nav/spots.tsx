@@ -30,7 +30,7 @@ export default function Spots() {
   return (
     <>
       {spots && (
-        <div className="w-screen bg-highest py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap border-b-2 border-primary">
+        <div className="w-screen bg-highest py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap border-b-1 border-primary">
           <div className="hidden md:flex items-center sm:px-20 ">
             <div className="flex items-center gap-10 ml-auto justify-start">
               {spots.map((spot) => {
@@ -42,7 +42,7 @@ export default function Spots() {
                     {/* {metalIcons[spot.type] ?? (
                       <span className="text-secondary text-sm">{spot.type}:</span>
                     )} */}
-                    <span className="text-secondary text-sm">{spot.type}:</span>
+                    <span className="text-primary text-sm">{spot.type}:</span>
 
                     <div className="flex items-center gap-2">
                       <NumberFlowGroup>
@@ -65,7 +65,7 @@ export default function Spots() {
                         </div>
 
                         <div className="flex items-center gap-0.5 text-xs text-neutral-600">
-                        <ChevronIcon size={14} className="text-primary" fill="currentColor" />
+                        <ChevronIcon size={14} className="text-secondary" fill="currentColor" />
                           <NumberFlow
                             value={spot.dollar_change}
                             format={{

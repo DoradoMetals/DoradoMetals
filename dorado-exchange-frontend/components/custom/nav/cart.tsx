@@ -23,7 +23,7 @@ export default function Cart({
   return (
     <div className="">
       <CartDrawer open={isCartActive} setOpen={setIsCartActive}>
-        <div className="w-screen h-full bg-background">{cartContent}</div>
+        <div className="w-screen h-full bg-card border-t-1 border-primary">{cartContent}</div>
       </CartDrawer>
     </div>
   )

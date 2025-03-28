@@ -55,8 +55,8 @@ export default function Sidebar({
               }}
               className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
             >
-              <User size={20} strokeWidth={1}/>
-              <div className="text-sm font-light">Account</div>
+              <User size={20}/>
+              <div className="secondary-text">Account</div>
             </Button>
           </div>
 
@@ -119,7 +119,7 @@ export default function Sidebar({
   return (
     <div className="">
       <Drawer open={isDrawerActive} setOpen={setIsDrawerActive}>
-        <div className="w-screen h-full bg-background">{drawerContent}</div>
+        <div className="w-screen h-full bg-card border-t-1 border-primary">{drawerContent}</div>
       </Drawer>
     </div>
   )

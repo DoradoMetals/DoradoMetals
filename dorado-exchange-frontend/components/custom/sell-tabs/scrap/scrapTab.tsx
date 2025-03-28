@@ -66,9 +66,9 @@ export default function ScrapFormStepper() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(handleSubmit)}
-          className="space-y-6 p-3 rounded-lg w-full mt-6"
+          className="space-y-6 p-3 rounded-lg w-full mt-4"
         >
-          <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center gap-4 mb-6">
             <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
             <div className="flex flex-col">
               <h2 className="flex-1 header-text">{stepper.current.title}</h2>
@@ -178,13 +178,13 @@ function MetalSelectionStep() {
             {metalOptions.map((metal) => (
               <label
                 key={metal.id}
-                className="flex w-full items-stretch justify-between gap-4 rounded-lg p-4 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-lg has-[[data-state=checked]]:border-secondary transition-colors"
+                className="flex w-full items-stretch justify-between gap-4 rounded-lg p-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-lg has-[[data-state=checked]]:border-secondary transition-colors"
               >
                 <div className="flex gap-4 w-full items-center">
                   <div className="flex items-center">{metal.logo}</div>
                   <div className="flex flex-col gap-1">
                     <div className="title-text">{metal.label}</div>
-                    <p className="text-xs text-muted-foreground leading-snug">{metal.blurb}</p>
+                    <p className="tertiary-text leading-snug">{metal.blurb}</p>
                   </div>
                 </div>
                 <RadioGroupItem
@@ -224,7 +224,7 @@ function WeightStep() {
               {weightOptions.map((weight) => (
                 <label
                   key={weight.id}
-                  className="peer flex flex-col items-center w-full gap-3 rounded-lg p-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:shadow-lg has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-secondary transition-colors"
+                  className="peer flex flex-col items-center w-full gap-3 rounded-lg py-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:shadow-lg has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-secondary transition-colors"
                 >
                   <div className="flex flex-col items-center gap-2">
                     {weight.logo}

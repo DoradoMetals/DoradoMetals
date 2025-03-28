@@ -16,7 +16,7 @@ export function SellTabs() {
   }
 
   return (
-    <Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="flex w-full px-10 max-w-lg mt-10 lg:mt-15">
+    <Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="flex w-full px-5 max-w-lg lg:mt-15">
       <TabsList className="justify-center h-auto w-full gap-2 rounded-none border-b border-border bg-transparent px-0 py-1 text-foreground">
         <TabsTrigger value="bullion" className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-accent ">
           Bullion

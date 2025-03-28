@@ -37,8 +37,8 @@ export default function Shell() {
   return (
     <>
       {/* Navbar */}
-      <div className='sticky top-0 z-50 mb-3 shadow-lg'>
-      <Spots />
+      <div className="sticky top-0 z-50 mb-5 shadow-lg">
+        <Spots />
         <nav className="bg-card">
           <div className="flex items-center justify-between w-full py-5 p-3 sm:px-20">
             <div className="flex items-center gap-3">
@@ -88,7 +88,7 @@ export default function Shell() {
             </div>
 
             {/* Mobile Sidebar and Menu*/}
-            <div className="lg:hidden ml-auto mx-0 px-0 flex items-end gap-3">
+            <div className="lg:hidden flex gap-3 ml-auto">
               <Button
                 className="px-0 hover:bg-card"
                 variant="ghost"
@@ -110,12 +110,11 @@ export default function Shell() {
               >
                 <MenuIcon size={20} isOpen={isDrawerActive} className="text-muted-foreground" />
               </Button>
-              <Sidebar isDrawerActive={isDrawerActive} setIsDrawerActive={setIsDrawerActive} />
-              <Cart isCartActive={isCartActive} setIsCartActive={setIsCartActive} />
             </div>
           </div>
+          <Sidebar isDrawerActive={isDrawerActive} setIsDrawerActive={setIsDrawerActive} />
+          <Cart isCartActive={isCartActive} setIsCartActive={setIsCartActive} />
         </nav>
-        
       </div>
     </>
   )
