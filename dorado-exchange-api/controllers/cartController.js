@@ -4,9 +4,8 @@ const getCart = async (req, res) => {
   const { user_id } = req.query;
 
   try {
-    const query = 
-    `
-      SELECT ci.id AS cart_item_id, ci.product_id, ci.scrap_id, p.* 
+    const query = `
+      SELECT ci.id AS cart_item_id, ci.product_id, ci.scrap_id, ci.quantity, p.*
       FROM exchange.cart_items ci
       LEFT JOIN exchange.products p ON ci.product_id = p.id
       WHERE ci.cart_id = (SELECT id FROM exchange.carts WHERE user_id = $1);
@@ -49,7 +48,12 @@ const syncCart = async (req, res) => {
         const cartId =
           cartResult.rows.length > 0
             ? cartResult.rows[0].id
-            : (await client.query(`SELECT id FROM exchange.carts WHERE user_id = $1`, [user_id])).rows[0].id;
+            : (
+                await client.query(
+                  `SELECT id FROM exchange.carts WHERE user_id = $1`,
+                  [user_id]
+                )
+              ).rows[0].id;
 
         // 🔹 Insert all new cart items in one batch query
         const values = cart
@@ -66,7 +70,6 @@ const syncCart = async (req, res) => {
 
       await client.query("COMMIT"); // ✅ Commit transaction
       res.status(200).json({ message: "Cart synced successfully" });
-
     } catch (error) {
       await client.query("ROLLBACK"); // ❌ Rollback on error
       console.error("Error syncing cart:", error);
@@ -90,7 +93,7 @@ const checkAmountInCart = async (req, res) => {
       WHERE cart_id = (SELECT id FROM exchange.carts WHERE user_id = $1)
       AND (product_id = $2 OR scrap_id = $3);
     `;
-    
+
     const values = [user_id, product_id, scrap_id];
     const { rows } = await pool.query(query, values);
 
@@ -103,32 +106,47 @@ const checkAmountInCart = async (req, res) => {
 
 const addToCart = async (req, res) => {
   const user_id = req.body.user_id;
-  const product_id = req.body.product.id || null;
-  const scrap_id = req.body.scrap_id || null;
+  const product_id = req.body.product.id;
 
+  const client = await pool.connect();
   try {
-    const query = `
-      WITH user_cart AS (
-        INSERT INTO exchange.carts (id, user_id)
-        VALUES (gen_random_uuid(), $1)
-        ON CONFLICT (user_id) DO NOTHING
-        RETURNING id
-      ), existing_cart AS (
-        SELECT id FROM exchange.carts WHERE user_id = $1
-      )
-      INSERT INTO exchange.cart_items (id, cart_id, product_id, scrap_id)
-      VALUES (gen_random_uuid(), COALESCE((SELECT id FROM user_cart), (SELECT id FROM existing_cart)), $2, $3);
-    `;
-    
-    const values = [user_id, product_id, scrap_id];
-    await pool.query(query, values);
-    
-    res.status(200).json({ message: "Item added to cart" });
+    await client.query('BEGIN');
+
+    // Step 1: Create cart if it doesn't exist
+    await client.query(`
+      INSERT INTO exchange.carts (id, user_id)
+      VALUES (gen_random_uuid(), $1)
+      ON CONFLICT (user_id) DO NOTHING;
+    `, [user_id]);
+
+    // Step 2: Now safely SELECT the cart ID
+    const { rows } = await client.query(
+      `SELECT id FROM exchange.carts WHERE user_id = $1 LIMIT 1;`,
+      [user_id]
+    );
+    const cart_id = rows[0]?.id;
+    if (!cart_id) throw new Error("Cart not found or created");
+
+    // Step 3: Insert or update the cart item
+    await client.query(`
+      INSERT INTO exchange.cart_items (id, cart_id, product_id, quantity)
+      VALUES (gen_random_uuid(), $1, $2, 1)
+      ON CONFLICT (cart_id, product_id)
+      DO UPDATE SET quantity = COALESCE(exchange.cart_items.quantity, 0) + 1;
+    `, [cart_id, product_id]);
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Item added to cart' });
   } catch (error) {
-    console.error("Error adding to cart:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    await client.query('ROLLBACK');
+    console.error('Error adding to cart:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  } finally {
+    client.release();
   }
 };
+
+
 
 const removeFromCart = async (req, res) => {
   const user_id = req.body.user_id;
@@ -136,20 +154,38 @@ const removeFromCart = async (req, res) => {
   const scrap_id = req.body.scrap_id || null;
 
   try {
-    const query = `
-      DELETE FROM exchange.cart_items
-      WHERE id = (
-        SELECT id FROM exchange.cart_items
-        WHERE cart_id = (SELECT id FROM exchange.carts WHERE user_id = $1)
-        AND (product_id = $2 OR scrap_id = $3)
-        ORDER BY id ASC
-        LIMIT 1
-      );
+    // Step 1: Find the item and its quantity
+    const selectQuery = `
+      SELECT id, quantity
+      FROM exchange.cart_items
+      WHERE cart_id = (SELECT id FROM exchange.carts WHERE user_id = $1)
+      AND product_id = $2
+      LIMIT 1;
     `;
-    
-    const values = [user_id, product_id, scrap_id];
-    await pool.query(query, values);
-    
+    const { rows } = await pool.query(selectQuery, [user_id, product_id]);
+    const item = rows[0];
+
+    if (!item) {
+      return res.status(404).json({ error: "Item not found in cart" });
+    }
+
+    if (item.quantity > 1) {
+      // Step 2a: Decrement quantity
+      const updateQuery = `
+        UPDATE exchange.cart_items
+        SET quantity = quantity - 1
+        WHERE id = $1;
+      `;
+      await pool.query(updateQuery, [item.id]);
+    } else {
+      // Step 2b: Remove the item entirely
+      const deleteQuery = `
+        DELETE FROM exchange.cart_items
+        WHERE id = $1;
+      `;
+      await pool.query(deleteQuery, [item.id]);
+    }
+
     res.status(200).json({ message: "Item removed from cart" });
   } catch (error) {
     console.error("Error removing from cart:", error);
@@ -157,14 +193,12 @@ const removeFromCart = async (req, res) => {
   }
 };
 
-
 const clearCart = async (req, res) => {
   const user_id = req.body.user_id;
   const address = req.body.address;
 
   try {
-    const query = 
-    `
+    const query = `
       DELETE FROM exchange.cart_items
       WHERE cart_id = (SELECT id FROM exchange.carts WHERE user_id = $1);
     `;

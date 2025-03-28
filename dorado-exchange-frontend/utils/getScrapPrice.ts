@@ -9,10 +9,6 @@ export default function getScrapPrice(
 ): string {
   const { data: spotPrices, isLoading, isError } = useSpotPrices()
 
-  console.log('unit: ', unit)
-  console.log('gross: ', gross)
-  console.log('purity: ', purity)
-
   if (isLoading || isError || !spotPrices) return "..."
 
   const metal = spotPrices.find((m) => m.id === metalId)

@@ -12,4 +12,5 @@ export interface Product {
   updated_at: Date,
   image_front: string,
   image_back: string,
+  quantity?: number,
 }

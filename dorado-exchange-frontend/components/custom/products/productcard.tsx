@@ -2,7 +2,6 @@
 
 import Image from 'next/image'
 import { Product } from '@/types'
-import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card'
 import { Button } from '@/components/ui/button'
 import { useAddToCart, useCart, useRemoveFromCart } from '@/lib/queries/useCart'
 import { Minus, Plus } from 'lucide-react'
@@ -15,7 +14,6 @@ import {
   CarouselItem,
 } from '@/components/ui/carousel'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import Link from 'next/link'
 
 type ProductCardProps = {
   product: Product
@@ -25,8 +23,8 @@ export default function ProductCard({ product }: ProductCardProps) {
   const addToCartMutation = useAddToCart(product)
   const removeFromCartMutation = useRemoveFromCart(product)
   const { data: cart = [] } = useCart()
-
-  const productQuantity = cart.filter((item) => item.id === product.id).length
+  const cartItem = cart.find((item) => item.id === product.id)
+  const quantity = cartItem?.quantity ?? 0
 
   const items = [
     { value: '1/10', label: '.10 oz', disabled: false },
@@ -34,59 +32,6 @@ export default function ProductCard({ product }: ProductCardProps) {
     { value: '1/2', label: '.5 oz', disabled: false },
     { value: '1', label: '1 oz', disabled: false },
   ]
-
-  // return (
-  //   <CardContainer className="p-3">
-  //     <CardBody className="flex-col bg-card relative focus-within:shadow-2xl focus-within:shadow-primary/[0.2] hover:shadow-2xl hover:shadow-primary/[0.2] transition-all duration-300 w-full sm:w-[30rem] h-auto rounded-lg p-6">
-  //       <CardItem className="header-text">{product.product_name}</CardItem>
-
-  //       <div className="flex justify-center rounded-lg p-2 transition-all duration-300">
-  //         <CardItem translateZ="100" className="w-full overflow-hidden">
-  //           <Image
-  //             src={product.image_front}
-  //             width={100}
-  //             height={100}
-  //             className="w-full h-full object-contain focus:outline-none"
-  //             alt="thumbnail"
-  //             tabIndex={0}
-  //           />
-  //         </CardItem>
-  //       </div>
-
-  //       <div className="flex items-center justify-center w-full">
-  //         <CardItem className="">
-  //           <div className="flex items-center">
-  //             <Button
-  //               variant="ghost"
-  //               className="hover:bg-card"
-  //               onClick={() => removeFromCartMutation.mutate()}
-  //             >
-  //               <Minus size={20} />
-  //             </Button>
-
-  //             <div className="">
-  //               <NumberFlow
-  //                 value={productQuantity}
-  //                 transformTiming={{ duration: 750, easing: 'ease-in' }}
-  //                 spinTiming={{ duration: 150, easing: 'ease-out' }}
-  //                 opacityTiming={{ duration: 350, easing: 'ease-out' }}
-  //                 className="title-text text-center font-semibold"
-  //                 trend={0}
-  //               />
-  //             </div>
-  //             <Button
-  //               variant="ghost"
-  //               className="hover:bg-card"
-  //               onClick={() => addToCartMutation.mutate()}
-  //             >
-  //               <Plus size={20} />
-  //             </Button>
-  //           </div>
-  //         </CardItem>
-  //       </div>
-  //     </CardBody>
-  //   </CardContainer>
-  // )
 
   return (
     <div className="bg-card h-auto w-auto sm:w-[22rem] max-w-[22rem] mx-5 my-5 rounded-lg border-b-3 border-primary shadow-xl relative focus-within:shadow-2xl focus-within:shadow-primary/[0.2] hover:shadow-2xl hover:shadow-primary/[0.2] transition-all duration-300 w-full">
@@ -160,10 +105,37 @@ export default function ProductCard({ product }: ProductCardProps) {
               ))}
             </RadioGroup>
           </div>
-          <Button variant="default" className="w-full mb-8 shadow-lg">
+          {/* <Button variant="default" className="w-full mb-8 shadow-lg">
             Add to Cart
-          </Button>
-          
+          </Button> */}
+          <div className="flex items-center">
+          <Button
+  variant="ghost"
+  className="hover:bg-card"
+  disabled={removeFromCartMutation.isPending}
+  onClick={() => removeFromCartMutation.mutate()}
+>
+  <Minus size={20} />
+</Button>
+
+            <div className="">
+              <NumberFlow
+                value={quantity}
+                transformTiming={{ duration: 750, easing: 'ease-in' }}
+                spinTiming={{ duration: 150, easing: 'ease-out' }}
+                opacityTiming={{ duration: 350, easing: 'ease-out' }}
+                className="title-text text-center font-semibold"
+                trend={0}
+              />
+            </div>
+            <Button
+              variant="ghost"
+              className="hover:bg-card"
+              onClick={() => addToCartMutation.mutate()}
+            >
+              <Plus size={20} />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
