@@ -11,8 +11,8 @@ export default function Spots() {
   return (
     <>
       {spots && (
-        <div className="w-screen bg-highest py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap border-b-1 border-primary">
-          <div className="hidden md:flex items-center sm:px-20">
+        <div className="w-screen bg-highest py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap border-b-1 border-text-neutral-700">
+          <div className="hidden md:flex items-center sm:px-25">
             <div className="flex items-center gap-10 ml-auto justify-start">
               {spots.map((spot) => {
                 const trendUp = spot.dollar_change >= 0

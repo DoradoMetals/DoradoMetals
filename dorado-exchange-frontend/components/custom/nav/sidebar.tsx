@@ -119,7 +119,7 @@ export default function Sidebar({
   return (
     <div className="">
       <Drawer open={isDrawerActive} setOpen={setIsDrawerActive}>
-        <div className="w-screen h-full bg-card border-t-1 border-primary">{drawerContent}</div>
+        <div className="w-screen h-full bg-card border-t-1 border-text-neutral-700">{drawerContent}</div>
       </Drawer>
     </div>
   )

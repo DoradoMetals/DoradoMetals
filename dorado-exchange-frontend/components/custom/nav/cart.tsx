@@ -127,17 +127,15 @@ export default function Cart({
   return (
     <div className="">
       <CartDrawer open={isCartActive} setOpen={setIsCartActive}>
-        <div className="w-full flex justify-start px-5 pt-5">
+        <div className="w-full h-full bg-card border-t-1 border-text-neutral-700 lg:border-none flex flex-col">
           <Button
             variant="ghost"
             size="icon"
-            className="hover:bg-card"
+            className="hidden sm:flex hover:bg-card"
             onClick={() => setIsCartActive(false)}
           >
             <X size={24} className="text-neutral-900" />
           </Button>
-        </div>
-        <div className="w-full h-full bg-card border-t-1 border-primary lg:border-none flex flex-col">
           <div className="flex-1 overflow-y-auto px-5 pb-50">
             {cart?.length === 0 ? emptyCart : cartContent}
           </div>
