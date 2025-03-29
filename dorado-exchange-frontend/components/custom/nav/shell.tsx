@@ -70,7 +70,6 @@ export default function Shell() {
             </div>
 
             {/* Desktop Menu */}
-
             <div className="hidden lg:block flex items-center items-end">
               <div className="flex items-center gap-5">
               <Button
@@ -97,7 +96,7 @@ export default function Shell() {
             </div>
 
             {/* Mobile Sidebar and Menu*/}
-            <div className="lg:hidden flex gap-3 ml-auto">
+            <div className="lg:hidden flex items-end ml-auto">
               <Button
                 className="px-0 hover:bg-card relative"
                 variant="ghost"

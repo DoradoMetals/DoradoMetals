@@ -7,11 +7,11 @@ import {
   useRemoveFromCart,
   useRemoveItemFromCart,
 } from '@/lib/queries/useCart'
-import { removeItem } from '@motionone/utils'
 import NumberFlow from '@number-flow/react'
-import { Minus, Plus, X } from 'lucide-react'
+import { Minus, Plus, ShoppingCart, X } from 'lucide-react'
 import Image from 'next/image'
-import { Dispatch, useEffect } from 'react'
+import Link from 'next/link'
+import { Dispatch } from 'react'
 
 export default function Cart({
   isCartActive,
@@ -25,6 +25,31 @@ export default function Cart({
   const removeFromCartMutation = useRemoveFromCart()
   const removeItemFromCartMutation = useRemoveItemFromCart()
 
+  const emptyCart = (
+    <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 py-10">
+      <div className="relative mb-5">
+        <ShoppingCart size={80} className="text-neutral-800" strokeWidth={1.5} />
+        <div className="absolute -top-6 right-3.5 border border-dashed border-secondary text-xl text-secondary rounded-full w-10 h-10 flex items-center  justify-center ">
+          0
+        </div>
+      </div>
+
+      <div className="flex-col items-center gap-1 mb-5">
+        <h2 className="title-text tracking-wide">Your cart is empty!</h2>
+        <p className="tertiary-text">Add items to get started.</p>
+      </div>
+      <Link href="/buy" passHref>
+        <Button
+          variant="outline"
+          className="bg-card hover:bg-highest border-1"
+          onClick={() => setIsCartActive(false)}
+        >
+          Start Shopping
+        </Button>
+      </Link>
+    </div>
+  )
+
   const cartContent = (
     <>
       <div className="w-full p-5 flex-col">
@@ -35,7 +60,6 @@ export default function Cart({
               key={item.id}
               className="flex items-center justify-between w-full gap-4 py-4 border-b border-border"
             >
-              {/* Thumbnail */}
               <div className="flex-shrink-0">
                 <Image
                   src={item.image_front}
@@ -46,7 +70,6 @@ export default function Cart({
                 />
               </div>
 
-              {/* Product info and quantity controls */}
               <div className="flex flex-col flex-grow min-w-0">
                 <div className="flex justify-between items-start w-full mt-2">
                   <div className="flex flex-col">
@@ -64,7 +87,6 @@ export default function Cart({
                 </div>
 
                 <div className="flex justify-between items-center mt-3">
-                  {/* Quantity Controls */}
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
@@ -74,7 +96,6 @@ export default function Cart({
                     >
                       <Minus size={16} />
                     </Button>
-
                     <NumberFlow
                       value={item.quantity ?? 0}
                       transformTiming={{ duration: 750, easing: 'ease-in' }}
@@ -83,7 +104,6 @@ export default function Cart({
                       className="primary-text"
                       trend={0}
                     />
-
                     <Button
                       variant="ghost"
                       size="sm"
@@ -94,7 +114,6 @@ export default function Cart({
                     </Button>
                   </div>
 
-                  {/* Price */}
                   <div className="primary-text">$3,456.35</div>
                 </div>
               </div>
@@ -108,8 +127,20 @@ export default function Cart({
   return (
     <div className="">
       <CartDrawer open={isCartActive} setOpen={setIsCartActive}>
+        <div className="w-full flex justify-start px-5 pt-5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hover:bg-card"
+            onClick={() => setIsCartActive(false)}
+          >
+            <X size={24} className="text-neutral-900" />
+          </Button>
+        </div>
         <div className="w-full h-full bg-card border-t-1 border-primary lg:border-none flex flex-col">
-          <div className="flex-1 overflow-y-auto px-5 pb-50">{cartContent}</div>
+          <div className="flex-1 overflow-y-auto px-5 pb-50">
+            {cart?.length === 0 ? emptyCart : cartContent}
+          </div>
         </div>
       </CartDrawer>
     </div>
