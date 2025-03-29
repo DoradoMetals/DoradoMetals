@@ -41,7 +41,6 @@ export default function ScrapFormStepper() {
   const currentIndex = utils.getIndex(stepper.current.id)
 
   const handleSubmit = (values: Scrap) => {
-    console.log('Submitted Scrap:', values)
 
     if (submitAction === 'add') {
       form.reset({

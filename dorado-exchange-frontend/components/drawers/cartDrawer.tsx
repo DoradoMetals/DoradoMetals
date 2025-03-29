@@ -12,8 +12,8 @@ interface Props {
 }
 
 const styles = {
-  left: "h-full top-29 lg:top-0",
-  right: "h-full top-29 lg:top-0",
+  left: "h-full top-28 lg:top-0",
+  right: "h-full top-28 lg:top-0",
 };
 
 const CartDrawer: FC<Props> = ({ open, setOpen, children, anchor = "right" }) => {
@@ -39,7 +39,7 @@ const CartDrawer: FC<Props> = ({ open, setOpen, children, anchor = "right" }) =>
             animate={{ x: "0%" }} // Moves into place
             exit={{ x: "100%" }} // Slides back out
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className={`fixed right-0 top-29 lg:top-0 z-[70] h-full w-full sm:w-2/3 md:w-1/2 lg:w-1/3 xl:w-1/4 lg:bg-background lg:shadow-lg`}
+            className={`fixed right-0 top-28 lg:top-0 z-[70] h-full w-full lg:w-1/3 xl:w-1/4 lg:bg-card lg:shadow-lg`}
           >
             {children}
           </motion.div>

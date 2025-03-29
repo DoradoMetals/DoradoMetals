@@ -55,8 +55,8 @@ export default function Sidebar({
               }}
               className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
             >
-              <User size={20}/>
-              <div className="secondary-text">Account</div>
+              <User size={20} strokeWidth={1}/>
+              <div className="text-sm font-light">Account</div>
             </Button>
           </div>
 

@@ -3,13 +3,27 @@ import { apiRequest } from '@/utils/axiosInstance'
 import { Product } from '@/types'
 import { useUserStore } from '@/store/useUserStore'
 
-// Local Storage Helpers
 const CART_STORAGE_KEY = 'dorado_cart'
 
+const mergeCart = (cart: Product[]): Product[] => {
+  const merged = new Map<string, Product>();
+  for (const item of cart) {
+    const key = item.id;
+    if (merged.has(key)) {
+      merged.get(key)!.quantity = (merged.get(key)!.quantity || 1) + (item.quantity || 1);
+    } else {
+      merged.set(key, { ...item, quantity: item.quantity || 1 });
+    }
+  }
+  return Array.from(merged.values());
+};
+
 const getLocalCart = (): Product[] => {
-  if (typeof window === 'undefined') return []
-  return JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]')
-}
+  if (typeof window === 'undefined') return [];
+  const cart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]');
+  return mergeCart(cart);
+};
+
 
 const saveLocalCart = (cart: Product[]) => {
   if (typeof window !== 'undefined') {
@@ -48,18 +62,20 @@ export const useCart = () => {
         return localCart;
       }
 
+      console.log(localCart)
+
       return localCart;
     },
     enabled: true,
   })
 }
 
-export const useAddToCart = (product: Product) => {
+export const useAddToCart = () => {
   const { user } = useUserStore()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (product: Product) => {
       if (user?.id) {
         return await apiRequest('POST', '/cart/add_to_cart', {
           user_id: user.id,
@@ -67,13 +83,21 @@ export const useAddToCart = (product: Product) => {
         })
       }
     },
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['cart', user?.id ?? 'guest'] })
+    onMutate: async (product: Product) => {
+      await queryClient.cancelQueries({ queryKey: ['cart', user?.id ?? 'guest'] });
       const previousCart = getLocalCart();
-      const updatedCart = [...previousCart || [], product]
+    
+      const updatedCart = [...previousCart];
+      const existing = updatedCart.find(item => item.id === product.id);
+      if (existing) {
+        existing.quantity = (existing.quantity || 1) + 1;
+      } else {
+        updatedCart.push({ ...product, quantity: 1 });
+      }
+    
       saveLocalCart(updatedCart);
-      queryClient.setQueryData(['cart', user?.id ?? 'guest'], updatedCart)
-      return { previousCart }
+      queryClient.setQueryData(['cart', user?.id ?? 'guest'], updatedCart);
+      return { previousCart };
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['cart', user?.id ?? 'guest'], refetchType: 'active' })
@@ -81,18 +105,18 @@ export const useAddToCart = (product: Product) => {
     onError: (_error, _variables, context) => {
       if (context?.previousCart) {
         queryClient.setQueryData(["cart", user?.id ?? "guest"], context.previousCart);
-        saveLocalCart(context.previousCart); // Restore localStorage if error occurs
+        saveLocalCart(context.previousCart);
       }
     },
   })
 }
 
-export const useRemoveFromCart = (product: Product) => {
+export const useRemoveFromCart = () => {
   const { user } = useUserStore()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (product: Product) => {
       if (user?.id) {
         return await apiRequest('POST', '/cart/remove_from_cart', {
           user_id: user.id,
@@ -100,16 +124,57 @@ export const useRemoveFromCart = (product: Product) => {
         })
       }
     },
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['cart', user?.id ?? 'guest'] })
+    onMutate: async (product: Product) => {
+      await queryClient.cancelQueries({ queryKey: ['cart', user?.id ?? 'guest'] });
       const previousCart = getLocalCart();
-      const productToRemove = previousCart.findIndex((item) => item.id === product.id)
       const updatedCart = [...previousCart];
-
-      if (productToRemove !== -1) {
-        updatedCart.splice(productToRemove, 1)
-        saveLocalCart(updatedCart)
+      const existingIndex = updatedCart.findIndex(item => item.id === product.id);
+    
+      if (existingIndex !== -1) {
+        const item = updatedCart[existingIndex];
+        if ((item.quantity || 1) > 1) {
+          updatedCart[existingIndex] = { ...item, quantity: (item.quantity || 1) - 1 };
+        } else {
+          updatedCart.splice(existingIndex, 1);
+        }
+        saveLocalCart(updatedCart);
       }
+    
+      queryClient.setQueryData(['cart', user?.id ?? 'guest'], updatedCart);
+      return { previousCart };
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart', user?.id ?? 'guest'], refetchType: 'active' })
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousCart) {
+        queryClient.setQueryData(["cart", user?.id ?? "guest"], context.previousCart);
+        saveLocalCart(context.previousCart);
+      }
+    },
+  })
+}
+
+export const useRemoveItemFromCart = () => {
+  const { user } = useUserStore()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (product: Product) => {
+      if (user?.id) {
+        return await apiRequest('POST', '/cart/remove_item_from_cart', {
+          user_id: user.id,
+          product_id: product.id,
+        })
+      }
+    },
+    onMutate: async (product: Product) => {
+      await queryClient.cancelQueries({ queryKey: ['cart', user?.id ?? 'guest'] })
+      const previousCart = getLocalCart()
+
+      const updatedCart = previousCart.filter(item => item.id !== product.id)
+      saveLocalCart(updatedCart)
+
       queryClient.setQueryData(['cart', user?.id ?? 'guest'], updatedCart)
       return { previousCart }
     },
@@ -118,8 +183,8 @@ export const useRemoveFromCart = (product: Product) => {
     },
     onError: (_error, _variables, context) => {
       if (context?.previousCart) {
-        queryClient.setQueryData(["cart", user?.id ?? "guest"], context.previousCart);
-        saveLocalCart(context.previousCart); // Restore localStorage if rollback needed
+        queryClient.setQueryData(['cart', user?.id ?? 'guest'], context.previousCart)
+        saveLocalCart(context.previousCart)
       }
     },
   })
@@ -141,54 +206,3 @@ export const useClearCart = () => {
     },
   })
 }
-
-
-// export const useCart = () => {
-//   const { user } = useUserStore()
-//   const queryClient = useQueryClient()
-
-//   return useQuery<Product[]>({
-//     queryKey: ['cart', user?.id], // Separate carts for guests & users
-//     queryFn: async () => {
-//       const localCart = getLocalCart()
-
-//       if (!user?.id) {
-//         return localCart // ✅ Non-signed-in users rely entirely on localStorage
-//       }
-
-//       // 🔹 Fetch server cart for signed-in users
-//       const serverCart = await apiRequest<Product[]>('GET', '/cart/get_cart', undefined, {
-//         user_id: user.id,
-//       })
-
-//       // 🔹 Merge localCart with serverCart (avoid duplicates)
-//       const mergedCart = [...serverCart]
-//       localCart.forEach((localItem) => {
-//         if (!mergedCart.some((serverItem) => serverItem.id === localItem.id)) {
-//           mergedCart.push(localItem)
-//         }
-//       })
-
-//       // 🔹 Sync local items to backend (only send missing items)
-//       const itemsToSync = localCart.filter(
-//         (localItem) => !serverCart.some((serverItem) => serverItem.id === localItem.id)
-//       )
-//       if (itemsToSync.length > 0) {
-//         await Promise.all(
-//           itemsToSync.map((product) =>
-//             apiRequest('POST', '/cart/add_to_cart', { user_id: user.id, product })
-//           )
-//         )
-//       }
-
-//       saveLocalCart(mergedCart) // ✅ Update localStorage with merged cart
-//       queryClient.setQueryData(['cart', user?.id ?? 'guest'], mergedCart) // ✅ Sync cache
-
-//       return mergedCart
-//     },
-//     initialData: getLocalCart(), // ✅ Local storage is the first source of truth
-//     enabled: true, // Always enabled
-//     staleTime: 5000, // Data stays fresh for 5s
-//     refetchInterval: 5000, // Auto-refresh every 5s
-//   })
-// }
