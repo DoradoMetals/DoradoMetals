@@ -14,7 +14,6 @@ import { CartIcon } from '@/components/icons/cartIcon'
 import Spots from './spots'
 import { useCart } from '@/lib/queries/useCart'
 
-
 export default function Shell() {
   const pathname = usePathname()
   const data = useUserStore()
@@ -75,23 +74,23 @@ export default function Shell() {
             <div className="hidden lg:block flex items-center items-end">
               <div className="flex items-center gap-5">
               <Button
-  className="px-0 hover:bg-card relative"
-  variant="ghost"
-  onClick={() => {
-    setIsCartActive(true)
-  }}
->
-  <CartIcon
-    size={20}
-    isOpen={isCartActive}
-    className="text-muted-foreground hover:bg-card"
-  />
-  {totalItems > 0 && (
-    <span className="absolute -top-1 -right-1 bg-destructive text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">
-      {totalItems}
-    </span>
-  )}
-</Button>
+                className="px-0 hover:bg-card relative"
+                variant="ghost"
+                onClick={() => {
+                  setIsCartActive(true)
+                }}
+              >
+                <CartIcon
+                  size={20}
+                  isOpen={isCartActive}
+                  className="text-muted-foreground hover:bg-card"
+                />
+                {totalItems > 0 && (
+                  <span className="absolute -top-0 -right-1 bg-secondary text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">
+                    {totalItems}
+                  </span>
+                )}
+              </Button>
 
                 {data.user ? <ProfileMenu /> : <SignInButton />}
               </div>
@@ -99,25 +98,24 @@ export default function Shell() {
 
             {/* Mobile Sidebar and Menu*/}
             <div className="lg:hidden flex gap-3 ml-auto">
-            <Button
-  className="px-0 hover:bg-card relative"
-  variant="ghost"
-  onClick={() => {
-    setIsCartActive(true)
-  }}
->
-  <CartIcon
-    size={20}
-    isOpen={isCartActive}
-    className="text-muted-foreground hover:bg-card"
-  />
-  {totalItems > 0 && (
-    <span className="absolute -top-1 -right-1 bg-destructive text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">
-      {totalItems}
-    </span>
-  )}
-</Button>
-
+              <Button
+                className="px-0 hover:bg-card relative"
+                variant="ghost"
+                onClick={() => {
+                  setIsCartActive(true)
+                }}
+              >
+                <CartIcon
+                  size={20}
+                  isOpen={isCartActive}
+                  className="text-muted-foreground hover:bg-card"
+                />
+                {totalItems > 0 && (
+                  <span className="absolute -top-0 -right-1 bg-secondary text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">
+                    {totalItems}
+                  </span>
+                )}
+              </Button>
 
               <Button
                 className="px-0 hover:bg-card"
