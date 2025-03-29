@@ -29,7 +29,7 @@ export default function Cart({
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 py-10">
       <div className="relative mb-5">
         <ShoppingCart size={80} className="text-neutral-800" strokeWidth={1.5} />
-        <div className="absolute -top-6 right-3.5 border border-dashed border-secondary text-xl text-secondary rounded-full w-10 h-10 flex items-center  justify-center ">
+        <div className="absolute -top-6 right-3.5 border border-secondary text-xl text-secondary rounded-full w-10 h-10 flex items-center  justify-center ">
           0
         </div>
       </div>
