@@ -12,6 +12,7 @@ import { Minus, Plus, ShoppingCart, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Dispatch } from 'react'
+import ProductPrice from '../products/productPrice'
 
 export default function Cart({
   isCartActive,
@@ -74,7 +75,7 @@ export default function Cart({
                 <div className="flex justify-between items-start w-full mt-2">
                   <div className="flex flex-col">
                     <div className="primary-text">{item.product_name}</div>
-                    <div className="secondary-text">{item.product_type}</div>
+                    <div className="tertiary-text">{item.mint_name}</div>
                   </div>
                   <Button
                     variant="ghost"
@@ -114,7 +115,7 @@ export default function Cart({
                     </Button>
                   </div>
 
-                  <div className="primary-text">$3,456.35</div>
+                  <ProductPrice product={item} />
                 </div>
               </div>
             </div>

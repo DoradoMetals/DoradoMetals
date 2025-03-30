@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/carousel'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useEffect, useState } from 'react'
+import ProductPrice from './productPrice'
 
 type ProductCardProps = {
   product: Product
@@ -37,9 +38,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         : product.product_name,
   }
 
-  const cartItem = cart.find(
-    (item) => item.product_name === updatedProduct.product_name
-  )
+  const cartItem = cart.find((item) => item.product_name === updatedProduct.product_name)
   const quantity = cartItem?.quantity ?? 0
 
   return (
@@ -83,7 +82,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               <div className="primary-text">{updatedProduct.product_name}</div>
               <div className="tertiary-text">{product.mint_name}</div>
             </div>
-            <div className="primary-text ml-auto">$3,324.21 {/* price placeholder */}</div>
+            <ProductPrice product={product} />
           </div>
           {weightOptions && (
             <div className="flex items-center gap-2 justify-center w-full mb-6">

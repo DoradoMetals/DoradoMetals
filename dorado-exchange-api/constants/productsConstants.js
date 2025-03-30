@@ -1,7 +1,7 @@
 const PRODUCT_FIELDS = `
-  metal_id,
   product_name,
   product_description,
+  content,
   bid_premium,
   ask_premium,
   product_type,

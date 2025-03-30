@@ -1,7 +1,7 @@
 export interface Product {
-  metal_id: string,
   product_name: string,
   product_description: string,
+  content: number,
   bid_premium: number,
   ask_premium: number,
   product_type: string,
@@ -9,6 +9,8 @@ export interface Product {
   image_back: string,
   quantity?: number,
   mint_name: string,
+  price: number,
+  metal_type: string,
 }
 
 export const ozOptions: Record<string, { value: string; label: string; disabled: boolean }[]> = {
