@@ -1,24 +1,24 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import { useProductsByMetal } from "@/lib/queries/useProducts";
-import ProductCard from "@/components/custom/products/productcard";
-
+import { useFilteredProducts } from '@/lib/queries/useProducts'
+import ProductCard from '@/components/custom/products/productcard'
+import { useProductFilterStore } from '@/store/productFilterStore'
 
 export default function Page() {
-  const [selectedMetal, setSelectedMetal] = useState("Gold"); // Default to Gold
-  const { data: products = [], isLoading, error } = useProductsByMetal(selectedMetal);
+  const { metal_type, mint_type, product_type } = useProductFilterStore()
+  const { data: products = [], isLoading } = useFilteredProducts({
+    metal_type,
+    mint_type,
+    product_type,
+  })
 
   return (
     <div className="flex justify-center gap-4">
-      {isLoading && <p>Loading {selectedMetal} products...</p>}
-      {error && <p>Error loading {selectedMetal} products.</p>}
-
       <div className="flex-col">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+        {products.map((product, index) => (
+          <ProductCard key={index} product={product} />
         ))}
       </div>
     </div>
-  );
+  )
 }

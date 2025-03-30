@@ -19,7 +19,7 @@ export default function Sidebar({
 }) {
   const data = useUserStore()
   const router = useRouter()
-  const signOutMutation = useSignOut() // ✅ Use TanStack Mutation
+  const signOutMutation = useSignOut()
 
   const pathname = usePathname()
   const menuItems = [

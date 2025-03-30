@@ -8,7 +8,7 @@ const CART_STORAGE_KEY = 'dorado_cart'
 const mergeCart = (cart: Product[]): Product[] => {
   const merged = new Map<string, Product>();
   for (const item of cart) {
-    const key = item.id;
+    const key = item.product_name;
     if (merged.has(key)) {
       merged.get(key)!.quantity = (merged.get(key)!.quantity || 1) + (item.quantity || 1);
     } else {
@@ -62,8 +62,6 @@ export const useCart = () => {
         return localCart;
       }
 
-      console.log(localCart)
-
       return localCart;
     },
     enabled: true,
@@ -88,7 +86,7 @@ export const useAddToCart = () => {
       const previousCart = getLocalCart();
     
       const updatedCart = [...previousCart];
-      const existing = updatedCart.find(item => item.id === product.id);
+      const existing = updatedCart.find(item => item.product_name === product.product_name);
       if (existing) {
         existing.quantity = (existing.quantity || 1) + 1;
       } else {
@@ -117,6 +115,7 @@ export const useRemoveFromCart = () => {
 
   return useMutation({
     mutationFn: async (product: Product) => {
+
       if (user?.id) {
         return await apiRequest('POST', '/cart/remove_from_cart', {
           user_id: user.id,
@@ -128,7 +127,7 @@ export const useRemoveFromCart = () => {
       await queryClient.cancelQueries({ queryKey: ['cart', user?.id ?? 'guest'] });
       const previousCart = getLocalCart();
       const updatedCart = [...previousCart];
-      const existingIndex = updatedCart.findIndex(item => item.id === product.id);
+      const existingIndex = updatedCart.findIndex(item => item.product_name === product.product_name);
     
       if (existingIndex !== -1) {
         const item = updatedCart[existingIndex];
@@ -161,10 +160,12 @@ export const useRemoveItemFromCart = () => {
 
   return useMutation({
     mutationFn: async (product: Product) => {
+      console.log('remove item from cart: ', product)
+
       if (user?.id) {
         return await apiRequest('POST', '/cart/remove_item_from_cart', {
           user_id: user.id,
-          product_id: product.id,
+          product_name: product.product_name,
         })
       }
     },
@@ -172,7 +173,7 @@ export const useRemoveItemFromCart = () => {
       await queryClient.cancelQueries({ queryKey: ['cart', user?.id ?? 'guest'] })
       const previousCart = getLocalCart()
 
-      const updatedCart = previousCart.filter(item => item.id !== product.id)
+      const updatedCart = previousCart.filter(item => item.product_name !== product.product_name)
       saveLocalCart(updatedCart)
 
       queryClient.setQueryData(['cart', user?.id ?? 'guest'], updatedCart)
