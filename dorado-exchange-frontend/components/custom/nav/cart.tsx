@@ -128,7 +128,7 @@ export default function Cart({
   return (
     <div className="">
       <CartDrawer open={isCartActive} setOpen={setIsCartActive}>
-        <div className="w-full h-full bg-card border-t-1 border-text-neutral-700 lg:border-none flex flex-col py-3">
+        <div className="w-full h-full bg-card border-t-1 border-neutral-200 lg:border-none flex flex-col py-3">
           <Button
             variant="ghost"
             size="icon"

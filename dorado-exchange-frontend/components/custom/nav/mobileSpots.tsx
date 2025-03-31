@@ -41,7 +41,7 @@ export default function MobileSpotTicker() {
               <span className="text-neutral-700">{spot.type}:</span>
 
               <NumberFlowGroup>
-                <div className="text-primary flex items-center gap-0.5">
+                <div className="text-neutral-900 flex items-center gap-0.5">
                   <NumberFlow
                     value={spot.bid_spot}
                     format={{

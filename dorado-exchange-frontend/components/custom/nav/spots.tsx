@@ -11,7 +11,7 @@ export default function Spots() {
   return (
     <>
       {spots && (
-        <div className="w-screen bg-highest py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap border-b-1 border-text-neutral-700">
+        <div className="w-screen bg-highest py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap border-b-1 border-neutral-200">
           <div className="hidden md:flex items-center sm:px-25">
             <div className="flex items-center gap-10 ml-auto justify-start">
               {spots.map((spot) => {
@@ -24,7 +24,7 @@ export default function Spots() {
 
                     <div className="flex items-center gap-2">
                       <NumberFlowGroup>
-                        <div className="text-sm flex text-primary items-center gap-0.5">
+                        <div className="text-sm flex text-neutral-900 items-center gap-0.5">
                           <NumberFlow
                             value={spot.bid_spot}
                             format={{
