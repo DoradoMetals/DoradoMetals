@@ -15,32 +15,42 @@ interface ProductGroup {
 
 export const useFilteredProducts = (filters: ProductFilters) => {
   return useQuery<ProductGroup[]>({
-    queryKey: ["products", filters],
+    queryKey: ['products', JSON.stringify(filters)],
     queryFn: async () => {
-      const products = await apiRequest<Product[]>("GET", "/products/get_products", undefined, filters);
+      const products = await apiRequest<Product[]>(
+        'GET',
+        '/products/get_products',
+        undefined,
+        filters
+      )
+      console.log(filters, products)
 
-      const groups: Record<string, Product[]> = {};
-      const singles: ProductGroup[] = [];
+      const groups: Record<string, Product[]> = {}
+      const singles: ProductGroup[] = []
 
       for (const product of products) {
         if (product.variant_group) {
-          if (!groups[product.variant_group]) groups[product.variant_group] = [];
-          groups[product.variant_group].push(product);
+          if (!groups[product.variant_group]) groups[product.variant_group] = []
+          groups[product.variant_group].push(product)
         } else {
-          singles.push({ default: product, variants: [] });
+          singles.push({ default: product, variants: [] })
         }
       }
 
-      const grouped: ProductGroup[] = Object.values(groups).map((variants) => {
-        const defaultVariant = variants.find((v) => v.product_name.includes("1 oz")) || variants[0];
-        return { default: defaultVariant, variants };
-      });
+      const grouped: ProductGroup[] = Object.values(groups).flatMap((variants) => {
+        if (variants.length === 1) {
+          return [{ default: variants[0], variants: [] }]
+        }
 
-      return [...singles, ...grouped];
+        const defaultVariant = variants[variants.length - 1]
+        return [{ default: defaultVariant, variants }]
+      })
+
+      return [...singles, ...grouped]
     },
-    enabled: !!filters,
-  });
-};
+    staleTime: 0,
+  })
+}
 
 interface FiltersResponse {
   metals: string[];

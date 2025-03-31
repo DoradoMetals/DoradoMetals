@@ -16,7 +16,7 @@ export default function ProductPrice({ product }: ProductPriceProps) {
   const quantity = product.quantity || 1
 
   return (
-    <div className="primary-text ml-auto">
+    <div className="title-text ml-auto">
       <NumberFlow
         value={price * quantity}
         format={{

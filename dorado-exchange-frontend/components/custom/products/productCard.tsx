@@ -34,7 +34,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const weightOptions = ozOptions[product.variant_group]
 
   return (
-    <div className="bg-card h-auto w-auto sm:w-[22rem] max-w-[22rem] mx-5 my-5 rounded-lg border-b-3 border-primary shadow-xl relative">
+    <div className="bg-card h-auto w-auto sm:w-[22rem] max-w-[22rem] group relative rounded-lg border-t-2 border-primary shadow-xl focus-within:shadow-2xl focus-within:shadow-primary/[0.1] hover:shadow-2xl hover:shadow-primary/[0.1] transition-all duration-300 w-full">
       <div className="flex-col items-center">
         <Carousel className="mb-6">
           <CarouselContent>
@@ -118,7 +118,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
           {quantity === 0 ? (
             <Button
               variant="default"
-              className="w-full mb-8 shadow-lg"
+              className="bg-card border-1 border-text-neutral-800 group-hover:border-none group-hover:bg-primary group-hover:shadow-lg w-full mb-8"
               disabled={addToCartMutation.isPending}
               onClick={() => addToCartMutation.mutate(selectedProduct)}
             >

@@ -56,9 +56,9 @@ export default function Cart({
       <div className="w-full p-5 flex-col">
         <div className="title-text mb-2">Cart {`(${cart?.length})`}</div>
         <div className="flex-col gap-10">
-          {cart?.map((item, index) => (
+          {cart?.map((item) => (
             <div
-              key={index}
+              key={item.product_name}
               className="flex items-center justify-between w-full gap-4 py-4 border-b border-border"
             >
               <div className="flex-shrink-0">
