@@ -14,24 +14,24 @@ export default function AddressCard({ address }: { address: Address }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="shadow-md p-5 bg-card rounded-lg border-t-2 border-secondary">
+    <div className="shadow-md p-5 bg-card rounded-lg border-t-2 border-primary">
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <BookUser size={16} className="text-neutral-600" />
-          <div className="text-lg text-neutral-900">{address.name}</div>
+          <div className="title-text">{address.name}</div>
           <div className="ml-auto">
-            {!address.is_default ? null : <Star size={20} className="text-primary" />}
+            {!address.is_default ? null : <Star size={20} className="text-secondary" />}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Phone size={16} className="text-neutral-600" />
-          <div className="text-neutral-900 text-sm font-light">
+          <div className="secondary-text">
             {formatPhoneNumber(address.phone_number)}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <MapPin size={16} className="text-neutral-600" />
-          <div className="text-sm text-neutral-900 font-light">
+          <div className="secondary-text">
             <p>
               {address.line_1} {address.line_2 && `, ${address.line_2}`}
               {`${address.city}, ${address.state}, ${address.zip}`}

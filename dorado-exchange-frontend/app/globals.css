@@ -5,6 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+
+  --breakpoint-xs: 19rem;
+
   --color-highest: var(--highest);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -261,13 +264,13 @@ input:-webkit-autofill:active {
 .title-text {
   @apply 
     text-lg
-    text-neutral-800
+    text-neutral-900
 }
 
 .primary-text {
   @apply 
     text-base
-    text-neutral-700
+    text-neutral-800
 }
 
 .secondary-text {

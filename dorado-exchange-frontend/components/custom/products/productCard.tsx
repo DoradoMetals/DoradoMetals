@@ -37,7 +37,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const weightOptions = ozOptions[product.variant_group]
 
   return (
-    <div className="bg-card h-auto w-auto sm:w-[22rem] max-w-[22rem] group relative rounded-lg border-t-2 border-primary shadow-sm focus-within:shadow-2xl focus-within:shadow-primary/[0.1] hover:shadow-2xl hover:shadow-primary/[0.1] transition-all duration-300 w-full">
+    <div className="bg-card h-auto w-full sm:w-[22rem] sm:max-w-[22rem] group relative rounded-lg border-t-2 border-primary shadow-sm focus-within:shadow-2xl focus-within:shadow-primary/[0.1] hover:shadow-2xl hover:shadow-primary/[0.1] transition-all duration-300 w-full">
       <div className="flex ml-auto m-0 p-0">
         <div className="ml-auto">
           {variants.length > 0 && weightOptions && (
@@ -64,7 +64,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                     <FloatingButtonItem key={option.name}>
                       <label
                         htmlFor={option.value}
-                        className="h-8 w-14 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:text-secondary has-[[data-state=checked]]:border-secondary"
+                        className="h-8 w-8 xs:w-12 sm:w-14 md:w-16 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:text-secondary has-[[data-state=checked]]:border-secondary"
                       >
                         <RadioGroupItem
                           id={option.value}
@@ -112,13 +112,19 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
           <CarouselIndicator />
         </Carousel>
 
-        <div className="px-5">
-          <div className="flex items-start mb-6">
-            <div className="flex-col justify mr-auto">
-              <div className="primary-text">{selectedProduct.product_name}</div>
-              <div className="tertiary-text">{selectedProduct.mint_name}</div>
-            </div>
-            <ProductPrice product={selectedProduct} />
+        <div className="px-5 mb-6">
+            <div className="flex-col mb-6">
+              <div className="flex items-center">
+                <div className="text-neutral-700 text-sm lg:text-base">
+                  {selectedProduct.product_name}
+                </div>
+                <div className='text-neutral-800 text-base lg:text-lg ml-auto'>
+                  <ProductPrice product={selectedProduct} />
+
+                </div>
+              </div>
+              <div className="text-neutral-500 text-xs lg:text-sm mr-auto">{selectedProduct.mint_name}</div>
+
           </div>
 
           {quantity === 0 ? (
