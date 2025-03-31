@@ -37,7 +37,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const weightOptions = ozOptions[product.variant_group]
 
   return (
-    <div className="bg-card h-auto w-auto sm:w-[22rem] max-w-[22rem] group relative rounded-lg border-t-2 border-primary shadow-xl focus-within:shadow-2xl focus-within:shadow-primary/[0.1] hover:shadow-2xl hover:shadow-primary/[0.1] transition-all duration-300 w-full">
+    <div className="bg-card h-auto w-auto sm:w-[22rem] max-w-[22rem] group relative rounded-lg border-t-2 border-primary shadow-sm focus-within:shadow-2xl focus-within:shadow-primary/[0.1] hover:shadow-2xl hover:shadow-primary/[0.1] transition-all duration-300 w-full">
       <div className="flex ml-auto m-0 p-0">
         <div className="ml-auto">
           {variants.length > 0 && weightOptions && (
