@@ -64,7 +64,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                     <FloatingButtonItem key={option.name}>
                       <label
                         htmlFor={option.value}
-                        className="h-8 w-16 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:text-secondary has-[[data-state=checked]]:border-secondary"
+                        className="h-8 w-14 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:text-secondary has-[[data-state=checked]]:border-secondary"
                       >
                         <RadioGroupItem
                           id={option.value}

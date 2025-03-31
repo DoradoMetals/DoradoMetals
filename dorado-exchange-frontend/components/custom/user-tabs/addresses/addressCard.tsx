@@ -14,7 +14,7 @@ export default function AddressCard({ address }: { address: Address }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="shadow-md p-5 bg-card rounded-lg border-r-3 border-secondary">
+    <div className="shadow-md p-5 bg-card rounded-lg border-t-2 border-secondary">
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <BookUser size={16} className="text-neutral-600" />
