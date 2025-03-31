@@ -114,8 +114,9 @@ export default function Cart({
                       <Plus size={16} />
                     </Button>
                   </div>
-
-                  <ProductPrice product={item} />
+                  <div className="text-neutral-800 text-base">
+                    <ProductPrice product={item} />
+                  </div>
                 </div>
               </div>
             </div>
