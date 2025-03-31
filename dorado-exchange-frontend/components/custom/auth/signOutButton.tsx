@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { useSignOut } from "@/lib/queries/useAuth";
 import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 export default function SignOutButton() {
   const signOutMutation = useSignOut();

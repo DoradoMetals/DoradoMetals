@@ -1,18 +1,14 @@
 'use client'
+
 import CartDrawer from '@/components/drawers/cartDrawer'
 import { Button } from '@/components/ui/button'
-import {
-  useAddToCart,
-  useCart,
-  useRemoveFromCart,
-  useRemoveItemFromCart,
-} from '@/lib/queries/useCart'
-import NumberFlow from '@number-flow/react'
 import { Minus, Plus, ShoppingCart, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Dispatch } from 'react'
+import NumberFlow from '@number-flow/react'
 import ProductPrice from '../products/productPrice'
+import { cartStore } from '@/store/cartStore'
 
 export default function Cart({
   isCartActive,
@@ -21,16 +17,16 @@ export default function Cart({
   isCartActive: boolean
   setIsCartActive: Dispatch<React.SetStateAction<boolean>>
 }) {
-  const { data: cart, isLoading } = useCart()
-  const addToCartMutation = useAddToCart()
-  const removeFromCartMutation = useRemoveFromCart()
-  const removeItemFromCartMutation = useRemoveItemFromCart()
+  const items = cartStore(state => state.items)
+  const addItem = cartStore(state => state.addItem)
+  const removeOne = cartStore(state => state.removeOne)
+  const removeAll = cartStore(state => state.removeAll)
 
   const emptyCart = (
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 py-10">
       <div className="relative mb-5">
         <ShoppingCart size={80} className="text-neutral-800" strokeWidth={1.5} />
-        <div className="absolute -top-6 right-3.5 border border-secondary text-xl text-secondary rounded-full w-10 h-10 flex items-center  justify-center ">
+        <div className="absolute -top-6 right-3.5 border border-secondary text-xl text-secondary rounded-full w-10 h-10 flex items-center justify-center">
           0
         </div>
       </div>
@@ -52,82 +48,80 @@ export default function Cart({
   )
 
   const cartContent = (
-    <>
-      <div className="w-full p-5 flex-col">
-        <div className="title-text mb-2">Cart {`(${cart?.length})`}</div>
-        <div className="flex-col gap-10">
-          {cart?.map((item) => (
-            <div
-              key={item.product_name}
-              className="flex items-center justify-between w-full gap-4 py-4 border-b border-border"
-            >
-              <div className="flex-shrink-0">
-                <Image
-                  src={item.image_front}
-                  width={80}
-                  height={80}
-                  className="pointer-events-none cursor-auto object-contain focus:outline-none drop-shadow-lg"
-                  alt={item.product_name}
-                />
+    <div className="w-full p-5 flex-col">
+      <div className="title-text mb-2">Cart ({items.length})</div>
+      <div className="flex-col gap-10">
+        {items.map((item) => (
+          <div
+            key={item.product_name}
+            className="flex items-center justify-between w-full gap-4 py-4 border-b border-border"
+          >
+            <div className="flex-shrink-0">
+              <Image
+                src={item.image_front}
+                width={80}
+                height={80}
+                className="pointer-events-none cursor-auto object-contain focus:outline-none drop-shadow-lg"
+                alt={item.product_name}
+              />
+            </div>
+
+            <div className="flex flex-col flex-grow min-w-0">
+              <div className="flex justify-between items-start w-full mt-2">
+                <div className="flex flex-col">
+                  <div className="primary-text">{item.product_name}</div>
+                  <div className="tertiary-text">{item.mint_name}</div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hover:bg-card p-1"
+                  onClick={() => removeAll(item)}
+                >
+                  <X size={16} />
+                </Button>
               </div>
 
-              <div className="flex flex-col flex-grow min-w-0">
-                <div className="flex justify-between items-start w-full mt-2">
-                  <div className="flex flex-col">
-                    <div className="primary-text">{item.product_name}</div>
-                    <div className="tertiary-text">{item.mint_name}</div>
-                  </div>
+              <div className="flex justify-between items-center mt-3">
+                <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
                     size="sm"
                     className="hover:bg-card p-1"
-                    onClick={() => removeItemFromCartMutation.mutate(item)}
+                    onClick={() => removeOne(item)}
                   >
-                    <X size={16} />
+                    <Minus size={16} />
+                  </Button>
+                  <NumberFlow
+                    value={item.quantity ?? 0}
+                    transformTiming={{ duration: 750, easing: 'ease-in' }}
+                    spinTiming={{ duration: 150, easing: 'ease-out' }}
+                    opacityTiming={{ duration: 350, easing: 'ease-out' }}
+                    className="primary-text"
+                    trend={0}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="hover:bg-card p-1"
+                    onClick={() => addItem(item)}
+                  >
+                    <Plus size={16} />
                   </Button>
                 </div>
-
-                <div className="flex justify-between items-center mt-3">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hover:bg-card p-1"
-                      onClick={() => removeFromCartMutation.mutate(item)}
-                    >
-                      <Minus size={16} />
-                    </Button>
-                    <NumberFlow
-                      value={item.quantity ?? 0}
-                      transformTiming={{ duration: 750, easing: 'ease-in' }}
-                      spinTiming={{ duration: 150, easing: 'ease-out' }}
-                      opacityTiming={{ duration: 350, easing: 'ease-out' }}
-                      className="primary-text"
-                      trend={0}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hover:bg-card p-1"
-                      onClick={() => addToCartMutation.mutate(item)}
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </div>
-                  <div className="text-neutral-800 text-base">
-                    <ProductPrice product={item} />
-                  </div>
+                <div className="text-neutral-800 text-base">
+                  <ProductPrice product={item} />
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
-    </>
+    </div>
   )
 
   return (
-    <div className="">
+    <div>
       <CartDrawer open={isCartActive} setOpen={setIsCartActive}>
         <div className="w-full h-full bg-card border-t-1 border-neutral-200 lg:border-none flex flex-col py-3">
           <Button
@@ -139,7 +133,7 @@ export default function Cart({
             <X size={24} className="text-neutral-900" />
           </Button>
           <div className="flex-1 overflow-y-auto px-5 pb-50">
-            {cart?.length === 0 ? emptyCart : cartContent}
+            {items.length === 0 ? emptyCart : cartContent}
           </div>
         </div>
       </CartDrawer>

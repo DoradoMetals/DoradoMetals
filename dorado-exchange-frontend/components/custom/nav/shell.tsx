@@ -12,15 +12,19 @@ import { MenuIcon } from '@/components/icons/navIcon'
 import Cart from './cart'
 import { CartIcon } from '@/components/icons/cartIcon'
 import Spots from './spots'
-import { useCart } from '@/lib/queries/useCart'
+import { cartStore } from '@/store/cartStore'
+import { useCartAutoSync, useHydrateCartFromBackend } from '@/lib/queries/useCart'
 
 export default function Shell() {
   const pathname = usePathname()
   const data = useUserStore()
   const [isDrawerActive, setIsDrawerActive] = useState(false)
   const [isCartActive, setIsCartActive] = useState(false)
-  const { data: cart } = useCart()
-  const totalItems = cart?.reduce((sum, item) => sum + (item.quantity ?? 1), 0) ?? 0
+  const totalItems = cartStore(state =>
+    state.items.reduce((sum, item) => sum + (item.quantity ?? 1), 0)
+  )
+  useCartAutoSync()
+  useHydrateCartFromBackend()
 
   const menuItems = [
     {

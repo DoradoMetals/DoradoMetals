@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authClient } from '@/lib/authClient'
 import { useRouter } from 'next/navigation'
 import { useUserStore } from '@/store/useUserStore'
+import { useHydrateCartFromBackend, useSyncCartToBackend } from './useCart'
+import { cartStore } from '@/store/cartStore'
 
 export const useSession = () => {
   return useQuery({
@@ -104,21 +106,30 @@ export const useSignOut = () => {
   const fetchSession = useUserStore((state) => state.fetchSession)
   const router = useRouter()
 
+  const syncCart = useSyncCartToBackend()
+
   return useMutation({
-    mutationFn: () => authClient.signOut(),
-    onMutate: () => {
-      clearSession()
+    mutationFn: async () => {
+      try {
+        await syncCart.mutateAsync()
+      } catch (err) {
+        console.warn('Cart sync failed, continuing logout:', err)
+      }
+
+      await authClient.signOut()
     },
     onSuccess: async () => {
-      router.replace('/')
+      clearSession()
+      cartStore.getState().clearCart()
       localStorage.removeItem('dorado_cart')
       localStorage.removeItem('cartSynced')
+
+      router.replace('/')
       queryClient.resetQueries()
       await fetchSession()
     },
   })
 }
-
 export const useGoogleSignIn = () => {
   const fetchSession = useUserStore((state) => state.fetchSession)
   const queryClient = useQueryClient()

@@ -2,7 +2,7 @@
 import Drawer from '@/components/drawers/navDrawer'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { LogIn, User } from 'lucide-react'
+import { LogIn, LogOut, User } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Dispatch } from 'react'
@@ -63,16 +63,21 @@ export default function Sidebar({
           {data.user ? (
             <div className="flex flex-col items-center">
               <Button
-                variant="outline"
-                onClick={() => {
-                  signOutMutation.mutate(undefined, { onSuccess: () => router.push('/') }),
-                    setIsDrawerActive(false)
-                }}
-                className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
-              >
-                <LogIn size={20} strokeWidth={1}/>
-                <div className="text-sm font-light">Sign Out</div>
-              </Button>
+  variant="outline"
+  onClick={async () => {
+    try {
+      await signOutMutation.mutateAsync()
+      setIsDrawerActive(false) // Only close the drawer after mutation completes
+    } catch (err) {
+      console.error('Sign out failed:', err)
+    }
+  }}
+  disabled={signOutMutation.isPending}
+  className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
+>
+  <LogOut size={20} strokeWidth={1} />
+  <div className="text-sm font-light">Sign Out</div>
+</Button>
             </div>
           ) : (
             <div className="flex flex-col items-center">
