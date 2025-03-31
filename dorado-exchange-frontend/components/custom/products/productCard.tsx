@@ -39,23 +39,23 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
         <Carousel className="mb-6">
           <CarouselContent>
             <CarouselItem className="p-4">
-              <div className="flex aspect-square items-center justify-center">
+              <div className="flex aspect-square items-center justify-center m-0 p-0">
                 <Image
                   src={product.image_front}
                   width={500}
                   height={500}
-                  className="w-full h-full object-contain"
+                  className="pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
                   alt="thumbnail"
                 />
               </div>
             </CarouselItem>
             <CarouselItem className="p-4">
-              <div className="flex aspect-square items-center justify-center">
+              <div className="flex aspect-square items-center justify-center m-0 p-0">
                 <Image
                   src={product.image_back}
                   width={500}
                   height={500}
-                  className="w-full h-full object-contain"
+                  className="pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
                   alt="thumbnail"
                 />
               </div>

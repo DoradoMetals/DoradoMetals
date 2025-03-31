@@ -1,7 +1,7 @@
 'use client'
 
 import { useFilteredProducts } from '@/lib/queries/useProducts'
-import ProductCard from '@/components/custom/products/productcard'
+import ProductCard from '@/components/custom/products/productCard'
 import { useProductFilterStore } from '@/store/productFilterStore'
 
 export default function BuyPage() {
