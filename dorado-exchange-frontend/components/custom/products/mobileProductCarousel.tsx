@@ -84,8 +84,8 @@ export default function AvatarCarousel() {
             }`}
           >
             <span
-              className={`text-xs font-bold tracking-widest uppercase transition-colors ${
-                isActive(category.name) ? 'text-primary' : 'text-neutral-700 hover:text-primary/80'
+              className={`text-xs font-semibold tracking-widest uppercase transition-colors ${
+                isActive(category.name) ? 'text-secondary' : 'text-neutral-400 hover:text-secondary'
               }`}
             >
               {category.name}
@@ -104,7 +104,7 @@ export default function AvatarCarousel() {
             >
               <div
                 className={`w-18 h-18 rounded-full bg-background flex items-center justify-center border ${
-                  isActive(category.name) ? 'border-primary shadow-md' : 'border-neutral-300'
+                  isActive(category.name) ? 'border-secondary shadow-md' : 'border-neutral-300'
                 }`}
               >
                 <img src={category.img} alt={category.name} className="w-16 h-16 object-contain" />

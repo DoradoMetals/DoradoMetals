@@ -54,7 +54,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                   triggerContent={
                     <Button
                       variant="ghost"
-                      className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs text-white border border-white hover:bg-muted"
+                      className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs text-neutral-700 border border-neutral-700 bg-card hover:bg-card"
                     >
                       <Scale size={16} />
                     </Button>

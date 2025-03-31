@@ -27,13 +27,13 @@ export default function Shell() {
       key: 1,
       label: 'BUY',
       src: '/buy',
-      className: pathname === '/buy' ? 'text-primary' : 'text-muted',
+      className: pathname === '/buy' ? 'text-primary' : 'text-neutral-400',
     },
     {
       key: 2,
       label: 'SELL',
       src: '/sell',
-      className: pathname === '/sell' ? 'text-primary' : 'text-muted',
+      className: pathname === '/sell' ? 'text-primary' : 'text-neutral-400',
     },
   ]
 
@@ -59,7 +59,7 @@ export default function Shell() {
                 </Link>
 
                 {/* Desktop Navbar Links */}
-                <div className="hidden lg:flex gap-3 text-sm items-center text-md font-semibold tracking-widest pl-20 gap-10">
+                <div className="hidden lg:flex gap-3 text-sm items-center font-semibold tracking-widest pl-20 gap-10">
                   {menuItems.map((item) => (
                     <Link className={item.className} key={item.key} href={item.src}>
                       <p>{item.label}</p>
