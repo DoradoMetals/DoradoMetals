@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
-import { Product } from '@/types'
+import { Product } from '@/types/product'
 import { useUserStore } from '@/store/useUserStore'
 
 const CART_STORAGE_KEY = 'dorado_cart'

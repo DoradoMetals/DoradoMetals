@@ -1,5 +1,5 @@
 import { SpotPrice } from '@/lib/queries/useSpotPrices'
-import { Product } from '@/types'
+import { Product } from '@/types/product'
 
 export default function getProductPrice(
   product: Product,

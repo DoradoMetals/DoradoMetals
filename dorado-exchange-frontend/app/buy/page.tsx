@@ -4,9 +4,9 @@ import { useFilteredProducts } from '@/lib/queries/useProducts'
 import ProductCard from '@/components/custom/products/productcard'
 import { useProductFilterStore } from '@/store/productFilterStore'
 
-export default function Page() {
+export default function BuyPage() {
   const { metal_type, mint_type, product_type } = useProductFilterStore()
-  const { data: products = [], isLoading } = useFilteredProducts({
+  const { data: groupedProducts = [], isLoading } = useFilteredProducts({
     metal_type,
     mint_type,
     product_type,
@@ -15,8 +15,8 @@ export default function Page() {
   return (
     <div className="flex justify-center gap-4">
       <div className="flex-col">
-        {products.map((product, index) => (
-          <ProductCard key={index} product={product} />
+        {groupedProducts.map(({ default: product, variants }, index) => (
+          <ProductCard key={index} product={product} variants={variants} />
         ))}
       </div>
     </div>

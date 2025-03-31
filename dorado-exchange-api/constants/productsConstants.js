@@ -6,7 +6,8 @@ const PRODUCT_FIELDS = `
   ask_premium,
   product_type,
   image_front,
-  image_back
+  image_back,
+  variant_group
 `;
 
 module.exports = { PRODUCT_FIELDS };

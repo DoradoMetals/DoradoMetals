@@ -2,22 +2,23 @@
 
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getProductPrice from '@/utils/getProductPrice'
-import { Product } from '@/types'
+import { Product } from '@/types/product'
 import NumberFlow from '@number-flow/react'
 
 type ProductPriceProps = {
-  product: Product
+  product: Product,
 }
 
 export default function ProductPrice({ product }: ProductPriceProps) {
   const { data: spotPrices = [] } = useSpotPrices()
   const spot = spotPrices.find((s) => s.type === product.metal_type)
   const price = getProductPrice(product, spot)
+  const quantity = product.quantity || 1
 
   return (
     <div className="primary-text ml-auto">
       <NumberFlow
-        value={price}
+        value={price * quantity}
         format={{
           style: 'currency',
           currency: 'USD',

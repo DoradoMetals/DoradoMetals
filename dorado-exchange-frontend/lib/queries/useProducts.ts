@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/utils/axiosInstance";
-import { Product } from "@/types";
+import { Product } from "@/types/product";
 
 interface ProductFilters {
   metal_type?: string;
@@ -8,11 +8,35 @@ interface ProductFilters {
   product_type?: string;
 }
 
+interface ProductGroup {
+  default: Product;
+  variants: Product[];
+}
+
 export const useFilteredProducts = (filters: ProductFilters) => {
-  return useQuery({
+  return useQuery<ProductGroup[]>({
     queryKey: ["products", filters],
     queryFn: async () => {
-      return apiRequest<Product[]>("GET", "/products/get_products", undefined, filters);
+      const products = await apiRequest<Product[]>("GET", "/products/get_products", undefined, filters);
+
+      const groups: Record<string, Product[]> = {};
+      const singles: ProductGroup[] = [];
+
+      for (const product of products) {
+        if (product.variant_group) {
+          if (!groups[product.variant_group]) groups[product.variant_group] = [];
+          groups[product.variant_group].push(product);
+        } else {
+          singles.push({ default: product, variants: [] });
+        }
+      }
+
+      const grouped: ProductGroup[] = Object.values(groups).map((variants) => {
+        const defaultVariant = variants.find((v) => v.product_name.includes("1 oz")) || variants[0];
+        return { default: defaultVariant, variants };
+      });
+
+      return [...singles, ...grouped];
     },
     enabled: !!filters,
   });

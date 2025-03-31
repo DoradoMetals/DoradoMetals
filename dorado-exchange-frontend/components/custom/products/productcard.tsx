@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { ozOptions, Product } from '@/types'
+import { ozOptions, Product } from '@/types/product'
 import { Button } from '@/components/ui/button'
 import { useAddToCart, useCart, useRemoveFromCart } from '@/lib/queries/useCart'
 import { Minus, Plus } from 'lucide-react'
@@ -14,86 +14,80 @@ import {
   CarouselItem,
 } from '@/components/ui/carousel'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import ProductPrice from './productPrice'
 
 type ProductCardProps = {
   product: Product
+  variants: Product[]
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, variants }: ProductCardProps) {
+  const [selectedProduct, setSelectedProduct] = useState<Product>(product)
   const addToCartMutation = useAddToCart()
   const removeFromCartMutation = useRemoveFromCart()
   const { data: cart = [] } = useCart()
 
-  const [selectedWeight, setSelectedWeight] = useState<string | null>('1')
-  const isOunceBased = product.product_name in ozOptions
-  const weightOptions = ozOptions[product.product_name]
-
-  const updatedProduct: Product = {
-    ...product,
-    product_name:
-      isOunceBased && selectedWeight
-        ? `${product.product_name.split(' (')[0]} (${selectedWeight} oz)`
-        : product.product_name,
-  }
-
-  const cartItem = cart.find((item) => item.product_name === updatedProduct.product_name)
+  const cartItem = cart.find((item) => item.product_name === selectedProduct.product_name)
   const quantity = cartItem?.quantity ?? 0
 
+  const weightOptions = ozOptions[product.variant_group]
+
   return (
-    <div className="bg-card h-auto w-auto sm:w-[22rem] max-w-[22rem] mx-5 my-5 rounded-lg border-b-3 border-primary shadow-xl relative focus-within:shadow-2xl focus-within:shadow-primary/[0.2] hover:shadow-2xl hover:shadow-primary/[0.2] transition-all duration-300 w-full">
-      <div className="flex-col items-center  ">
-        <div>
-          <Carousel className="mb-6">
-            <CarouselContent>
-              <CarouselItem className="p-4">
-                <div className="flex aspect-square items-center justify-center m-0 p-0">
-                  <Image
-                    src={product.image_front}
-                    width={500}
-                    height={500}
-                    className="pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
-                    alt="thumbnail"
-                    tabIndex={0}
-                  />
-                </div>
-              </CarouselItem>
-              <CarouselItem className="p-4">
-                <div className="flex aspect-square items-center justify-center m-0 p-0">
-                  <Image
-                    src={product.image_back}
-                    width={500}
-                    height={500}
-                    className="pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
-                    alt="thumbnail"
-                    tabIndex={0}
-                  />
-                </div>
-              </CarouselItem>
-            </CarouselContent>
-            <CarouselNavigation alwaysShow />
-            <CarouselIndicator />
-          </Carousel>
-        </div>
+    <div className="bg-card h-auto w-auto sm:w-[22rem] max-w-[22rem] mx-5 my-5 rounded-lg border-b-3 border-primary shadow-xl relative">
+      <div className="flex-col items-center">
+        <Carousel className="mb-6">
+          <CarouselContent>
+            <CarouselItem className="p-4">
+              <div className="flex aspect-square items-center justify-center">
+                <Image
+                  src={product.image_front}
+                  width={500}
+                  height={500}
+                  className="w-full h-full object-contain"
+                  alt="thumbnail"
+                />
+              </div>
+            </CarouselItem>
+            <CarouselItem className="p-4">
+              <div className="flex aspect-square items-center justify-center">
+                <Image
+                  src={product.image_back}
+                  width={500}
+                  height={500}
+                  className="w-full h-full object-contain"
+                  alt="thumbnail"
+                />
+              </div>
+            </CarouselItem>
+          </CarouselContent>
+          <CarouselNavigation alwaysShow />
+          <CarouselIndicator />
+        </Carousel>
+
         <div className="px-5">
           <div className="flex items-start mb-6">
             <div className="flex-col justify mr-auto">
-              <div className="primary-text">{updatedProduct.product_name}</div>
-              <div className="tertiary-text">{product.mint_name}</div>
+              <div className="primary-text">{selectedProduct.product_name}</div>
+              <div className="tertiary-text">{selectedProduct.mint_name}</div>
             </div>
-            <ProductPrice product={product} />
+            <ProductPrice product={selectedProduct} />
           </div>
-          {weightOptions && (
+
+          {variants.length > 0 && weightOptions && (
             <div className="flex items-center gap-2 justify-center w-full mb-6">
               <RadioGroup
                 className="flex items-center justify-between w-full"
-                value={selectedWeight || ''}
-                onValueChange={(val) => setSelectedWeight(val)}
+                value={selectedProduct.product_name}
+                onValueChange={(val) => {
+                  console.log(variants)
+                  const variant = variants.find((v) => v.product_name === val)
+                  if (variant) setSelectedProduct(variant)
+                }}
               >
-                {weightOptions.map((item) => (
+                {weightOptions.map((option) => (
                   <label
-                    key={item.value}
+                    key={option.value}
                     className=" 
                                 peer h-12 w-18
                                 relative flex flex-col
@@ -109,23 +103,24 @@ export default function ProductCard({ product }: ProductCardProps) {
                              "
                   >
                     <RadioGroupItem
-                      id={item.value}
-                      value={item.value}
+                      id={option.value}
+                      value={option.name}
                       className="sr-only after:absolute after:inset-0"
-                      disabled={item.disabled}
+                      disabled={option.disabled}
                     />
-                    <p className="leading-none">{item.label}</p>
+                    <p className="leading-none">{option.label}</p>
                   </label>
                 ))}
               </RadioGroup>
             </div>
           )}
+
           {quantity === 0 ? (
             <Button
               variant="default"
               className="w-full mb-8 shadow-lg"
               disabled={addToCartMutation.isPending}
-              onClick={() => addToCartMutation.mutate(updatedProduct)}
+              onClick={() => addToCartMutation.mutate(selectedProduct)}
             >
               Add to Cart
             </Button>
@@ -135,26 +130,16 @@ export default function ProductCard({ product }: ProductCardProps) {
                 variant="ghost"
                 className="hover:bg-card"
                 disabled={removeFromCartMutation.isPending}
-                onClick={() => removeFromCartMutation.mutate(updatedProduct)}
+                onClick={() => removeFromCartMutation.mutate(selectedProduct)}
               >
                 <Minus size={20} />
               </Button>
-
-              <div className="">
-                <NumberFlow
-                  value={quantity}
-                  transformTiming={{ duration: 750, easing: 'ease-in' }}
-                  spinTiming={{ duration: 150, easing: 'ease-out' }}
-                  opacityTiming={{ duration: 350, easing: 'ease-out' }}
-                  className="title-text text-center font-semibold"
-                  trend={0}
-                />
-              </div>
+              <NumberFlow value={quantity} className="title-text font-semibold" trend={0} />
               <Button
                 variant="ghost"
                 className="hover:bg-card"
                 disabled={addToCartMutation.isPending}
-                onClick={() => addToCartMutation.mutate(updatedProduct)}
+                onClick={() => addToCartMutation.mutate(selectedProduct)}
               >
                 <Plus size={20} />
               </Button>
