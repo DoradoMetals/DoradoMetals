@@ -73,8 +73,8 @@ export default function AvatarCarousel() {
   }
 
   return (
-    <div className="my-12">
-      <div className="hidden lg:flex w-full justify-center">
+    <div className="mb-6">
+      <div className="my-9 hidden lg:flex w-full justify-center">
         {categories.map((category, index) => (
           <div
             key={category.name}
@@ -94,7 +94,7 @@ export default function AvatarCarousel() {
         ))}
       </div>
 
-      <div className="lg:hidden relative w-full flex justify-center">
+      <div className="lg:hidden relative w-full flex justify-center ">
         <motion.div className="flex gap-4 overflow-x-auto scroll-smooth no-scrollbar px-3">
           {categories.map((category) => (
             <div

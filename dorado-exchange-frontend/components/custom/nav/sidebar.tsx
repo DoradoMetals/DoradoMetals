@@ -55,7 +55,7 @@ export default function Sidebar({
               }}
               className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
             >
-              <User size={20} strokeWidth={1}/>
+              <User size={20} strokeWidth={1} />
               <div className="text-sm font-light">Account</div>
             </Button>
           </div>
@@ -63,21 +63,21 @@ export default function Sidebar({
           {data.user ? (
             <div className="flex flex-col items-center">
               <Button
-  variant="outline"
-  onClick={async () => {
-    try {
-      await signOutMutation.mutateAsync()
-      setIsDrawerActive(false) // Only close the drawer after mutation completes
-    } catch (err) {
-      console.error('Sign out failed:', err)
-    }
-  }}
-  disabled={signOutMutation.isPending}
-  className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
->
-  <LogOut size={20} strokeWidth={1} />
-  <div className="text-sm font-light">Sign Out</div>
-</Button>
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await signOutMutation.mutateAsync()
+                    setIsDrawerActive(false)
+                  } catch (err) {
+                    console.error('Sign out failed:', err)
+                  }
+                }}
+                disabled={signOutMutation.isPending}
+                className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
+              >
+                <LogOut size={20} strokeWidth={1} />
+                <div className="text-sm font-light">Sign Out</div>
+              </Button>
             </div>
           ) : (
             <div className="flex flex-col items-center">
@@ -88,7 +88,7 @@ export default function Sidebar({
                 }}
                 className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
               >
-                <LogIn size={20} strokeWidth={1}/>
+                <LogIn size={20} strokeWidth={1} />
                 <div className="text-sm font-light">Sign In</div>
               </Button>
             </div>
@@ -104,7 +104,10 @@ export default function Sidebar({
         <div className="flex-col text-lg p-5 gap-3">
           {menuItems.map((item) => (
             <div className="flex-col items-center pb-5" key={item.key}>
-              <div className="flex items-center font-light justify-center pb-2 text-xl" key={item.key}>
+              <div
+                className="flex items-center font-light justify-center pb-2 text-xl"
+                key={item.key}
+              >
                 <Link
                   className={item.className}
                   key={item.key}
