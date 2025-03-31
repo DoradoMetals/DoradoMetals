@@ -49,7 +49,6 @@ export const useCart = () => {
     queryFn: async () => {
 
       const localCart = getLocalCart();
-
       if (localCart.length === 0 && user?.id) {
         const cart = await apiRequest<Product[]>('GET', '/cart/get_cart', undefined, {user_id: user.id})
         saveLocalCart(cart)
@@ -160,7 +159,6 @@ export const useRemoveItemFromCart = () => {
 
   return useMutation({
     mutationFn: async (product: Product) => {
-      console.log('remove item from cart: ', product)
 
       if (user?.id) {
         return await apiRequest('POST', '/cart/remove_item_from_cart', {

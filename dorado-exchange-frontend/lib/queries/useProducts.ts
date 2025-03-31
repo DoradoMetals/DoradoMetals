@@ -23,8 +23,6 @@ export const useFilteredProducts = (filters: ProductFilters) => {
         undefined,
         filters
       )
-      console.log(filters, products)
-
       const groups: Record<string, Product[]> = {}
       const singles: ProductGroup[] = []
 
