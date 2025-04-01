@@ -146,7 +146,9 @@ export default function Cart({
     <div className="w-full p-5 bg-card">
       <div className="flex justify-between items-center mb-4">
         <div className="text-lg text-neutral-800">Total</div>
-        <PriceNumberFlow value={total} />
+        <div className="text-lg text-neutral-800">
+          <PriceNumberFlow value={total} />
+        </div>
       </div>
       <Button
         className="w-full"
