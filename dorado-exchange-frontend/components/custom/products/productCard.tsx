@@ -135,13 +135,13 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
           {quantity === 0 ? (
             <Button
               variant="default"
-              className="bg-card border-1 border-text-neutral-800 hover:border-none hover:bg-primary hover:shadow-lg w-full mb-8"
+              className="bg-card border-1 border-text-neutral-800 hover:border-none hover:bg-primary hover:shadow-lg w-full"
               onClick={() => addItem(selectedProduct)}
             >
               Add to Cart
             </Button>
           ) : (
-            <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center justify-center">
               <Button
                 variant="ghost"
                 className="hover:bg-card"
