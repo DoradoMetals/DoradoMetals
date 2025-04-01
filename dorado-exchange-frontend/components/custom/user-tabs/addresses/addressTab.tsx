@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { useUserStore } from '@/store/useUserStore'
+import { useUserStore } from '@/store/userStore'
 import { useAddress } from '@/lib/queries/useAddresses'
 import { Address } from '@/types/address'
 import { useState } from 'react'

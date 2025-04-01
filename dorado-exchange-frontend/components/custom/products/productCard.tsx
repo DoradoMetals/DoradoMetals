@@ -16,8 +16,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { FloatingButton, FloatingButtonItem } from '@/components/ui/floating-button'
 
 import { useState } from 'react'
-import ProductPrice from './productPrice'
 import { cartStore } from '@/store/cartStore'
+import PriceNumberFlow from './PriceNumberFlow'
+import getProductPrice from '@/utils/getProductPrice'
+import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 
 type ProductCardProps = {
   product: Product
@@ -27,12 +29,16 @@ type ProductCardProps = {
 export default function ProductCard({ product, variants }: ProductCardProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product>(product)
 
-  const items = cartStore(state => state.items)
-  const addItem = cartStore(state => state.addItem)
-  const removeOne = cartStore(state => state.removeOne)
+  const items = cartStore((state) => state.items)
+  const addItem = cartStore((state) => state.addItem)
+  const removeOne = cartStore((state) => state.removeOne)
 
   const cartItem = items.find((item) => item.product_name === selectedProduct.product_name)
   const quantity = cartItem?.quantity ?? 0
+  const { data: spotPrices = [] } = useSpotPrices()
+
+  const spot = spotPrices.find((s) => s.type === product.metal_type)
+  const price = getProductPrice(product, spot)
 
   const weightOptions = ozOptions[product.variant_group]
 
@@ -118,7 +124,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                 {selectedProduct.product_name}
               </div>
               <div className="text-neutral-800 text-base lg:text-lg ml-auto">
-                <ProductPrice product={selectedProduct} />
+                <PriceNumberFlow value={price} />
               </div>
             </div>
             <div className="text-neutral-500 text-xs lg:text-sm mr-auto">

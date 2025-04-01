@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
-import { useUserStore } from '@/store/useUserStore'
+import { useUserStore } from '@/store/userStore'
 import { Product } from '@/types/product'
 import { cartStore } from '@/store/cartStore'
 import { useEffect } from 'react'

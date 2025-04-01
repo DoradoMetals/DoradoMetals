@@ -8,7 +8,7 @@ interface CartState {
   removeOne: (product: Product) => void
   removeAll: (product: Product) => void
   clearCart: () => void
-  setItems: (items: Product[]) => void // ✅ NEW
+  setItems: (items: Product[]) => void
 }
 
 const mergeCart = (cart: Product[]): Product[] => {
@@ -67,7 +67,7 @@ export const cartStore = create<CartState>()(
       },
 
       setItems: (items: Product[]) => {
-        set({ items: mergeCart(items) }) // ✅ Hydration-safe merge
+        set({ items: mergeCart(items) })
       },
     }),
     {

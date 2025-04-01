@@ -8,7 +8,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Dispatch } from 'react'
 import { ThemeSwitcher } from '../theme/theme-switcher'
 import { useSignOut } from '@/lib/queries/useAuth'
-import { useUserStore } from '@/store/useUserStore'
+import { useUserStore } from '@/store/userStore'
 
 export default function Sidebar({
   isDrawerActive,

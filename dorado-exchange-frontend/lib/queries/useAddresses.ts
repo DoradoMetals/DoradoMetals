@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/utils/axiosInstance";
 import { Address } from "@/types/address";
-import { useUserStore } from "@/store/useUserStore";
+import { useUserStore } from "@/store/userStore";
 
 export const useAddress = () => {
   const { user } = useUserStore();

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authClient } from '@/lib/authClient'
 import { useRouter } from 'next/navigation'
-import { useUserStore } from '@/store/useUserStore'
+import { useUserStore } from '@/store/userStore'
 import { useHydrateCartFromBackend, useSyncCartToBackend } from './useCart'
 import { cartStore } from '@/store/cartStore'
 

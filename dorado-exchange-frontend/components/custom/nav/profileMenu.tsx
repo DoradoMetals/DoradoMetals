@@ -1,7 +1,7 @@
 import React from 'react'
 import { Dropdown, Tabs, Tab, TriggerWrapper } from '@/components/lukacho/dropdown-menu'
 import SignOutButton from '../auth/signOutButton'
-import { useUserStore } from '@/store/useUserStore'
+import { useUserStore } from '@/store/userStore'
 import ProfileTrigger from './profileTrigger'
 import { useRouter } from 'next/navigation'
 import { UserPen } from 'lucide-react'

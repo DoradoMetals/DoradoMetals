@@ -2,7 +2,7 @@ import React from 'react'
 import { authClient } from '@/lib/authClient'
 import { User2 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { useUserStore } from '@/store/useUserStore'
+import { useUserStore } from '@/store/userStore'
 
 export default function ProfileTrigger() {
   const { user } = useUserStore()

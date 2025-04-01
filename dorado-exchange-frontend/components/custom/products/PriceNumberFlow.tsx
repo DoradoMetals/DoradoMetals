@@ -1,23 +1,10 @@
 'use client'
 
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import getProductPrice from '@/utils/getProductPrice'
-import { Product } from '@/types/product'
 import NumberFlow from '@number-flow/react'
-
-type ProductPriceProps = {
-  product: Product
-}
-
-export default function ProductPrice({ product }: ProductPriceProps) {
-  const { data: spotPrices = [] } = useSpotPrices()
-  const spot = spotPrices.find((s) => s.type === product.metal_type)
-  const price = getProductPrice(product, spot)
-  const quantity = product.quantity || 1
-
+export default function PriceNumberFlow({value} : {value: number}) {
   return (
     <NumberFlow
-      value={price * quantity}
+      value={value}
       format={{
         style: 'currency',
         currency: 'USD',

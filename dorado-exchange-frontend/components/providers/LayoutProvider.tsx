@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Shell from "@/components/custom/nav/shell";
-import { useUserStore } from "@/store/useUserStore";
+import { useUserStore } from "@/store/userStore";
 import { useEffect } from "react";
 import MobileProductCarousel from "../custom/products/mobileProductCarousel";
 

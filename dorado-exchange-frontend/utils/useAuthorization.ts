@@ -1,6 +1,6 @@
 'use client';
 
-import { useUserStore } from "@/store/useUserStore";
+import { useUserStore } from "@/store/userStore";
 
 export function useAuthorization(requiredRoles: string[]) {
   const {user} = useUserStore()

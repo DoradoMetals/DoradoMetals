@@ -9,7 +9,7 @@ import { User, userSchema } from '@/types/user'
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useUpdateUser, useChangeEmail, useSendVerifyEmail } from '@/lib/queries/useAuth'
-import { useUserStore } from '@/store/useUserStore'
+import { useUserStore } from '@/store/userStore'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 
 export default function UserForm() {
