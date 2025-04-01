@@ -52,7 +52,6 @@ export default function ScrapFormStepper() {
       })
       stepper.goTo('metalSelect')
     } else if (submitAction === 'checkout') {
-      console.log('Redirect to checkout stepper or page')
     }
 
     setSubmitAction(null)

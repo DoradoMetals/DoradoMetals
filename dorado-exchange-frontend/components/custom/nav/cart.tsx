@@ -34,8 +34,6 @@ export default function Cart({
     return acc + price * quantity
   }, 0)
 
-  console.log(items.length)
-
   const emptyCart = (
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 py-10">
       <div className="relative mb-5">

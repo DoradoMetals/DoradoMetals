@@ -89,7 +89,6 @@ const updateSpotPrices = async () => {
         palladium?.percentChange,
       ]
     );
-    console.log("✅ Spot prices updated successfully");
   } catch (err) {
     console.error("❌ Error updating spot prices:", err.message);
   }
