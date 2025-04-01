@@ -38,7 +38,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const { data: spotPrices = [] } = useSpotPrices()
 
   const spot = spotPrices.find((s) => s.type === product.metal_type)
-  const price = getProductPrice(product, spot)
+  const price = getProductPrice(selectedProduct, spot)
 
   const weightOptions = ozOptions[product.variant_group]
 
