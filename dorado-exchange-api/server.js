@@ -5,6 +5,8 @@ const productRoutes = require("./routes/products");
 const emailRoutes = require("./routes/emails");
 const addressRoutes = require("./routes/addresses");
 const cartRoutes = require("./routes/carts");
+const sellCartRoutes = require("./routes/sell-carts");
+
 const spotRoutes = require("./routes/spots");
 const { toNodeHandler } = require("better-auth/node"); // Import BetterAuth middleware
 const { auth } = require("./auth"); // Import your BetterAuth instance
@@ -33,6 +35,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/emails", emailRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/cart", cartRoutes);
+app.use("/api/sell_cart", sellCartRoutes);
 app.use("/api/spots", spotRoutes);
 
 setupScheduler(); // <--- 🔥 Starts your cron job

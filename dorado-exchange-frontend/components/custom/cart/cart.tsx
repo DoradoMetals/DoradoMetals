@@ -1,26 +1,19 @@
 'use client'
 
-import CartDrawer from '@/components/drawers/cartDrawer'
 import { Button } from '@/components/ui/button'
-import { Minus, Plus, ShoppingCart, X } from 'lucide-react'
+import { Minus, Plus, ShoppingCart, Trash, Trash2, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Dispatch } from 'react'
 import NumberFlow from '@number-flow/react'
-import ProductPrice from '../products/PriceNumberFlow'
 import { cartStore } from '@/store/cartStore'
 
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getProductPrice from '@/utils/getProductPrice'
 import PriceNumberFlow from '../products/PriceNumberFlow'
+import { useRouter } from 'next/navigation'
 
-export default function Cart({
-  isCartActive,
-  setIsCartActive,
-}: {
-  isCartActive: boolean
-  setIsCartActive: Dispatch<React.SetStateAction<boolean>>
-}) {
+export default function Cart() {
+  const router = useRouter()
   const items = cartStore((state) => state.items)
   const addItem = cartStore((state) => state.addItem)
   const removeOne = cartStore((state) => state.removeOne)
@@ -35,7 +28,7 @@ export default function Cart({
   }, 0)
 
   const emptyCart = (
-    <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 py-10">
+    <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
       <div className="relative mb-5">
         <ShoppingCart size={80} className="text-neutral-800" strokeWidth={1.5} />
         <div className="absolute -top-6 right-3.5 border border-secondary text-xl text-secondary rounded-full w-10 h-10 flex items-center justify-center">
@@ -51,7 +44,9 @@ export default function Cart({
         <Button
           variant="outline"
           className="bg-card hover:bg-highest border-1"
-          onClick={() => setIsCartActive(false)}
+          onClick={() => {
+            router.push('/buy')
+          }}
         >
           Start Shopping
         </Button>
@@ -60,8 +55,7 @@ export default function Cart({
   )
 
   const cartContent = (
-    <div className="w-full p-5 flex-col">
-      <div className="title-text mb-2">Cart ({items.length})</div>
+    <div className="w-full flex-col mt-5">
       <div className="flex-col gap-10">
         {items.map((item, index) => {
           const spot = spotPrices.find((s) => s.type === item.metal_type)
@@ -94,10 +88,10 @@ export default function Cart({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="hover:bg-card p-1"
+                    className="hover:bg-card p-0 pb-2"
                     onClick={() => removeAll(item)}
                   >
-                    <X size={16} />
+                    <Trash2 size={16} className='text-neutral-500' />
                   </Button>
                 </div>
 
@@ -150,9 +144,6 @@ export default function Cart({
       </div>
       <Button
         className="w-full"
-        onClick={() => {
-          setIsCartActive(false)
-        }}
       >
         Checkout
       </Button>
@@ -160,27 +151,12 @@ export default function Cart({
   )
 
   return (
-    <div>
-      <CartDrawer open={isCartActive} setOpen={setIsCartActive}>
-        <div className="w-full h-full bg-card border-t-1 border-neutral-200 lg:border-none flex flex-col">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden sm:flex hover:bg-card p-3"
-            onClick={() => setIsCartActive(false)}
-          >
-            <X size={24} className="text-neutral-900" />
-          </Button>
+    <>
+      <div className="flex-1 overflow-y-auto px-5 pb-50">
+        {items.length === 0 ? emptyCart : cartContent}
+      </div>
 
-          <div className="flex-1 overflow-y-auto px-5 pb-20">
-            {items.length === 0 ? emptyCart : cartContent}
-          </div>
-
-          {items.length > 0 && (
-            <div className="sticky bottom-0 w-full bg-card z-10">{cartFooter}</div>
-          )}
-        </div>
-      </CartDrawer>
-    </div>
+      {items.length > 0 && <div className="sticky bottom-0 w-full bg-card z-10">{cartFooter}</div>}
+    </>
   )
 }

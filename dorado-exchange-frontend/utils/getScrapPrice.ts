@@ -1,22 +1,7 @@
-import { useSpotPrices } from "@/lib/queries/useSpotPrices"
-import { convertTroyOz } from "@/utils/convertTroyOz"
+import { SpotPrice } from '@/lib/queries/useSpotPrices'
+import { Scrap } from '@/types/scrap'
 
-export default function getScrapPrice(
-  metalId: string,
-  unit: string,
-  gross: string,
-  purity: number
-): string {
-  const { data: spotPrices, isLoading, isError } = useSpotPrices()
-
-  if (isLoading || isError || !spotPrices) return "..."
-
-  const metal = spotPrices.find((m) => m.id === metalId)
-  if (!metal) return "Unknown Metal"
-
-  const weightInOz = convertTroyOz(gross, unit)
-  const estimatedValue = metal.ask_spot * weightInOz * purity
-  const rounded = Math.round(estimatedValue * 100) / 100
-
-  return `$${rounded.toFixed(2)}`
+export default function getScrapPrice(scrap: Scrap, spot?: SpotPrice): number {
+  if (!spot || !scrap.content) return 0
+  return scrap.content * spot.bid_spot
 }

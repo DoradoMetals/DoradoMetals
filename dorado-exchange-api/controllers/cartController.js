@@ -10,7 +10,7 @@ const getCart = async (req, res) => {
 
   try {
     const query = `
-      SELECT ci.id AS cart_item_id, ci.product_id, ci.scrap_id, ci.quantity, p.${PRODUCT_FIELDS}
+      SELECT ci.id AS cart_item_id, ci.product_id, ci.quantity, p.${PRODUCT_FIELDS}
       FROM exchange.cart_items ci
       LEFT JOIN exchange.products p ON ci.product_id = p.id
       WHERE ci.cart_id = (

@@ -1,4 +1,5 @@
 'use client'
+
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Logo } from '../../icons/logo'
@@ -9,20 +10,24 @@ import ProfileMenu from './profileMenu'
 import SignInButton from '../auth/signInButton'
 import { useUserStore } from '@/store/userStore'
 import { MenuIcon } from '@/components/icons/navIcon'
-import Cart from './cart'
 import { CartIcon } from '@/components/icons/cartIcon'
-import Spots from './spots'
 import { cartStore } from '@/store/cartStore'
 import { useCartAutoSync, useHydrateCartFromBackend } from '@/lib/queries/useCart'
+import { CartTabs } from '../cart/cartTabs'
+import Spots from '../spots/spots'
+import { useHydrateSellCartFromBackend, useSellCartAutoSync } from '@/lib/queries/useSellCart'
 
 export default function Shell() {
   const pathname = usePathname()
   const data = useUserStore()
   const [isDrawerActive, setIsDrawerActive] = useState(false)
   const [isCartActive, setIsCartActive] = useState(false)
-  const totalItems = cartStore(state =>
+  const totalItems = cartStore((state) =>
     state.items.reduce((sum, item) => sum + (item.quantity ?? 1), 0)
   )
+
+  useSellCartAutoSync()
+  useHydrateSellCartFromBackend()
   useCartAutoSync()
   useHydrateCartFromBackend()
 
@@ -76,24 +81,24 @@ export default function Shell() {
             {/* Desktop Menu */}
             <div className="hidden lg:block flex items-center items-end">
               <div className="flex items-center gap-5">
-              <Button
-                className="px-0 hover:bg-card relative"
-                variant="ghost"
-                onClick={() => {
-                  setIsCartActive(true)
-                }}
-              >
-                <CartIcon
-                  size={20}
-                  isOpen={isCartActive}
-                  className="text-muted-foreground hover:bg-card"
-                />
-                {totalItems > 0 && (
-                  <span className="absolute -top-0 -right-1 bg-secondary text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">
-                    {totalItems}
-                  </span>
-                )}
-              </Button>
+                <Button
+                  className="px-0 hover:bg-card relative"
+                  variant="ghost"
+                  onClick={() => {
+                    setIsCartActive(true)
+                  }}
+                >
+                  <CartIcon
+                    size={20}
+                    isOpen={isCartActive}
+                    className="text-muted-foreground hover:bg-card"
+                  />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-0 -right-1 bg-secondary text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">
+                      {totalItems}
+                    </span>
+                  )}
+                </Button>
 
                 {data.user ? <ProfileMenu /> : <SignInButton />}
               </div>
@@ -130,7 +135,7 @@ export default function Shell() {
             </div>
           </div>
           <Sidebar isDrawerActive={isDrawerActive} setIsDrawerActive={setIsDrawerActive} />
-          <Cart isCartActive={isCartActive} setIsCartActive={setIsCartActive} />
+          <CartTabs isCartActive={isCartActive} setIsCartActive={setIsCartActive} />
         </nav>
       </div>
     </>

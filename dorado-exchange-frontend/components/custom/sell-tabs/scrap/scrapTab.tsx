@@ -12,7 +12,11 @@ import { metalOptions, purityOptions, weightOptions } from '@/types/scrap'
 import { useState } from 'react'
 import { defineStepper, Stepper } from '@stepperize/react'
 import NumberFlow from '@number-flow/react'
+import { sellCartStore } from '@/store/sellCartStore'
+import { useRouter } from 'next/navigation'
+import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getScrapPrice from '@/utils/getScrapPrice'
+import { convertTroyOz } from '@/utils/convertTroyOz'
 
 const { useStepper, utils } = defineStepper(
   // { id: 'name', title: 'Name', description: 'Enter Item name (necklace, ring, bracelet, grain, etc...' },
@@ -30,7 +34,7 @@ export default function ScrapFormStepper() {
     mode: 'onChange',
     defaultValues: {
       name: '',
-      metal_id: '80f18a95-7ed4-4a87-93c7-74d9355da8fe',
+      metal: 'Gold',
       gross: '',
       gross_unit: 'g',
       purity: undefined,
@@ -40,18 +44,45 @@ export default function ScrapFormStepper() {
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
 
+  const addItem = sellCartStore.getState().addItem
+  const { data: spotPrices = [] } = useSpotPrices()
+
+  const router = useRouter()
+
   const handleSubmit = (values: Scrap) => {
+    const spot = spotPrices.find((s) => s.id === values.metal)
+    const content = convertTroyOz(values.gross ?? '0', values.gross_unit ?? 'g') * (values.purity ?? 0)
+
+    const price = getScrapPrice(
+      {
+        ...values,
+        content,
+      },
+      spot
+    )
+
+    const item = {
+      type: 'scrap' as const,
+      data: {
+        ...values,
+        content,
+        price,
+      },
+    }
+
+    addItem(item)
 
     if (submitAction === 'add') {
       form.reset({
         name: '',
-        metal_id: '80f18a95-7ed4-4a87-93c7-74d9355da8fe',
+        metal: 'Gold',
         gross: '',
         gross_unit: 'g',
         purity: undefined,
       })
       stepper.goTo('metalSelect')
     } else if (submitAction === 'checkout') {
+      router.push('/sell/checkout')
     }
 
     setSubmitAction(null)
@@ -75,7 +106,6 @@ export default function ScrapFormStepper() {
           </div>
 
           {stepper.switch({
-            // name: () => <NameStep />,
             metalSelect: () => <MetalSelectionStep />,
             weightSelect: () => <WeightStep />,
             puritySelect: () => <PurityStep />,
@@ -164,19 +194,27 @@ function MetalSelectionStep() {
   return (
     <FormField
       control={form.control}
-      name="metal_id"
+      name="metal"
       render={({ field }) => (
         <FormItem>
           <RadioGroup
             defaultValue="0"
             value={field.value}
-            onValueChange={field.onChange}
+            onValueChange={(val) => {
+              field.onChange(val)
+
+              const defaultPurity = purityOptions[val as keyof typeof purityOptions]?.[0]?.value
+
+              if (defaultPurity !== undefined) {
+                form.setValue('purity', defaultPurity)
+              }
+            }}
             className="gap-3 w-full items-stretch flex flex-col"
           >
             {metalOptions.map((metal) => (
               <label
-                key={metal.id}
-                className="flex w-full items-stretch justify-between gap-4 rounded-lg p-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-lg has-[[data-state=checked]]:border-secondary transition-colors"
+                key={metal.label}
+                className="flex w-full items-stretch justify-between gap-4 rounded-lg p-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-xl has-[[data-state=checked]]:border-neutral-400 transition-colors"
               >
                 <div className="flex gap-4 w-full items-center">
                   <div className="flex items-center">{metal.logo}</div>
@@ -186,8 +224,8 @@ function MetalSelectionStep() {
                   </div>
                 </div>
                 <RadioGroupItem
-                  value={metal.id}
-                  id={metal.id}
+                  value={metal.label}
+                  id={metal.label}
                   className="sr-only after:absolute after:inset-0"
                 />
               </label>
@@ -198,9 +236,6 @@ function MetalSelectionStep() {
     />
   )
 }
-
-
-
 
 function WeightStep() {
   const form = useFormContext<Scrap>()
@@ -222,7 +257,7 @@ function WeightStep() {
               {weightOptions.map((weight) => (
                 <label
                   key={weight.id}
-                  className="peer flex flex-col items-center w-full gap-3 rounded-lg py-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:shadow-lg has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-secondary transition-colors"
+                  className="peer flex flex-col items-center w-full gap-3 rounded-lg py-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-xl has-[[data-state=checked]]:border-neutral-400 transition-colors"
                 >
                   <div className="flex flex-col items-center gap-2">
                     {weight.logo}
@@ -270,44 +305,27 @@ function WeightStep() {
 
 function PurityStep() {
   const form = useFormContext<Scrap>()
-  const metalId = form.watch('metal_id')
+  const purity = form.watch('purity') ?? 0.5
+  const metal = form.watch('metal')
 
-  const metalKey = metalOptions
-    .find((m) => m.id === metalId)
-    ?.label.toLowerCase() as keyof typeof purityOptions
-
+  const metalKey = metalOptions.find((m) => m.label === metal)?.label as keyof typeof purityOptions
   const options = purityOptions[metalKey] || []
 
-  const [purityValue, setPurityValue] = useState(options[0]?.value || 0.5)
-  const [customPurity, setCustomPurity] = useState(0)
-  const [selectedLabel, setSelectedLabel] = useState(options[0]?.label || '')
-
   const isRoughlyEqual = (a: number, b: number) => Math.abs(a - b) < 0.001
+
+  const matchedOption = options.find((opt) => isRoughlyEqual(opt.value, purity))
+  const selectedLabel = matchedOption?.label ?? 'Custom'
 
   const handleRadioChange = (label: string) => {
     const match = options.find((opt) => opt.label === label)
     if (match) {
-      setSelectedLabel(label)
-      setPurityValue(match.value)
       form.setValue('purity', match.value)
     }
   }
 
   const handleSliderChange = (val: number) => {
-    const match = options.find((opt) => isRoughlyEqual(opt.value, val))
-
-    if (!match) {
-      setCustomPurity(val)
-      setSelectedLabel('Custom')
-    } else {
-      setSelectedLabel(match.label)
-    }
-
-    setPurityValue(val)
     form.setValue('purity', val)
   }
-
-  const sliderValue = selectedLabel === 'Custom' ? customPurity : purityValue
 
   return (
     <FormField
@@ -337,7 +355,7 @@ function PurityStep() {
 
           <div className="relative mt-12 mb-16 w-full">
             <Slider
-              value={[sliderValue]}
+              value={[purity]}
               onValueChange={([val]) => handleSliderChange(val)}
               min={0}
               max={1}
@@ -347,14 +365,14 @@ function PurityStep() {
             <div
               className="absolute top-6 text-sm text-muted-foreground"
               style={{
-                left: `${sliderValue * 100}%`,
+                left: `${purity * 100}%`,
                 transform: 'translateX(-50%)',
                 whiteSpace: 'nowrap',
               }}
             >
               <NumberFlow
                 willChange
-                value={Math.round(sliderValue * 100)}
+                value={Math.round(purity * 100)}
                 isolate
                 opacityTiming={{ duration: 250, easing: 'ease-out' }}
                 transformTiming={{
@@ -374,32 +392,30 @@ function PurityStep() {
 }
 
 function ReviewStep() {
-  const { getValues } = useFormContext<Scrap>()
-  const values = getValues()
+  const form = useFormContext<Scrap>()
+  const metal = form.watch('metal')
+  const unit = form.watch('gross_unit') || 'g'
+  const gross = form.watch('gross') || ''
+  const purity = form.watch('purity') ?? 0
 
-  // const name = values.name
-  const metal = metalOptions.find((m) => m.id === values.metal_id)
-  const unit = values.gross_unit
-  const gross = values.gross
-  const rawPurity = values.purity ?? 0
-  const displayPurity = `${Math.round(rawPurity * 100)}%`
+  const { data: spotPrices = [] } = useSpotPrices()
 
-  const estimatedValue = getScrapPrice(
-    metal?.id ?? '',
-    unit ?? '',
-    gross ?? '',
-    rawPurity
-  )
+  const spot = spotPrices.find((s) => s.type === metal)
+  const content = parseFloat(gross) * purity
+  console.log('gross: ', gross)
+  console.log('purity: ', purity)
+  const price = spot ? content * spot.bid_spot : 0
+
+  const displayPurity = `${Math.round(purity * 100)}%`
 
   return (
     <div className="space-y-6">
       <p className="secondary-text leading-relaxed">
         We estimate we can offer you around{' '}
-        <span className="text-primary text-lg">{estimatedValue}</span>{' '}
-        for your{' '}
+        <span className="text-primary text-lg">${price.toFixed(2)}</span> for your{' '}
         <span className="primary-text font-semibold">{displayPurity}</span> pure{' '}
         <span className="primary-text font-semibold">
-          {gross} <span className='secondary-text'>{unit}</span> {metal?.label}
+          {gross} <span className="secondary-text">{unit}</span> {metal}
         </span>
         .
       </p>

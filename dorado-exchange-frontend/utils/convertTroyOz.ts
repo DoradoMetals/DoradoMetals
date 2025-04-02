@@ -1,12 +1,5 @@
-/**
- * Converts a weight into troy ounces from supported units.
- *
- * @param value - The numeric weight (as string or number)
- * @param unit - The unit of the weight ('g', 'oz', 'dwt', or 'lb')
- * @returns weight in troy ounces (number)
- */
-export function convertTroyOz(value: string | number, unit: string): number {
-  const num = typeof value === 'string' ? parseFloat(value) : value;
+export function convertTroyOz(value: string, unit: string): number {
+  const num = parseFloat(value);
 
   if (isNaN(num)) return 0;
 
@@ -20,7 +13,6 @@ export function convertTroyOz(value: string | number, unit: string): number {
     case 'lb':
       return num * (453.592 / 31.1035); // convert pounds to grams, then grams to troy oz
     default:
-      console.warn(`Unsupported unit: ${unit}`);
       return 0;
   }
 }

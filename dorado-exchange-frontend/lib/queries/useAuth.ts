@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useUserStore } from '@/store/userStore'
 import { useHydrateCartFromBackend, useSyncCartToBackend } from './useCart'
 import { cartStore } from '@/store/cartStore'
+import { useSyncSellCartToBackend } from './useSellCart'
 
 export const useSession = () => {
   return useQuery({
@@ -107,11 +108,18 @@ export const useSignOut = () => {
   const router = useRouter()
 
   const syncCart = useSyncCartToBackend()
+  const syncSellCart = useSyncSellCartToBackend()
 
   return useMutation({
     mutationFn: async () => {
       try {
         await syncCart.mutateAsync()
+      } catch (err) {
+        console.warn('Cart sync failed, continuing logout:', err)
+      }
+
+      try {
+        await syncSellCart.mutateAsync()
       } catch (err) {
         console.warn('Cart sync failed, continuing logout:', err)
       }
@@ -122,6 +130,7 @@ export const useSignOut = () => {
       clearSession()
       cartStore.getState().clearCart()
       localStorage.removeItem('dorado_cart')
+      localStorage.removeItem('dorado_sell_cart')
       localStorage.removeItem('cartSynced')
 
       router.replace('/')
