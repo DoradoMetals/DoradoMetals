@@ -10,13 +10,13 @@ export const scrapSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
   gross: z
-  .string()
+  .coerce.number()
   .optional()
   .refine(
     (val) =>
       val === undefined ||
-      val === '' ||
-      /^(?!-)(\d+\.?\d*|\.\d+)?$/.test(val),
+      val === 0 ||
+      /^(?!-)(\d+\.?\d*|\.\d+)?$/.test(val.toString()),
     { message: 'Must be a valid weight' }
   ),
   gross_unit: z.string().optional(),
@@ -103,7 +103,6 @@ export const purityOptions: Record<string, PurityOption[]> = {
 export function getPurityLabel(scrap: Scrap) {
   const purity = scrap.purity
   const metal = scrap.metal
-
   if (purity == null || !metal) return null
 
   const options = purityOptions[metal]

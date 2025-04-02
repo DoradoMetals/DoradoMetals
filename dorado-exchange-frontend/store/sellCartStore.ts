@@ -4,7 +4,6 @@ import { SellCartItem } from '@/types/sellCart'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-
 interface SellCartState {
   items: SellCartItem[]
   addItem: (item: SellCartItem) => void
@@ -43,6 +42,16 @@ function normalizeScrapNames(items: SellCartItem[]): SellCartItem[] {
   ]
 }
 
+function scrapMatches(a: Scrap, b: Scrap): boolean {
+  return (
+    a.gross === b.gross &&
+    a.purity === b.purity &&
+    a.gross_unit === b.gross_unit &&
+    a.metal === b.metal &&
+    a.name === b.name
+  )
+}
+
 export const sellCartStore = create<SellCartState>()(
   persist(
     (set, get) => ({
@@ -50,33 +59,38 @@ export const sellCartStore = create<SellCartState>()(
 
       addItem: (item) => {
         let items = [...get().items]
+
         const match = (a: SellCartItem, b: SellCartItem) => {
           if (a.type !== b.type) return false
-          if (a.type === 'product') return a.data.product_name === (b.data as Product).product_name
-          if (a.type === 'scrap') return JSON.stringify(a.data) === JSON.stringify(b.data)
+          if (a.type === 'product')
+            return a.data.product_name === (b.data as Product).product_name
+          if (a.type === 'scrap')
+            return scrapMatches(a.data as Scrap, b.data as Scrap)
           return false
         }
-      
+
         const existing = items.find((i) => match(i, item))
         if (existing) {
           existing.data.quantity = (existing.data.quantity || 1) + 1
         } else {
           items.push(addWithQuantity(item))
         }
-      
+
         set({ items: normalizeScrapNames(items) })
       },
 
       removeOne: (item) => {
         let items = [...get().items]
+
         const index = items.findIndex((i) => {
           if (i.type !== item.type) return false
           if (i.type === 'product')
             return i.data.product_name === (item.data as Product).product_name
-          if (i.type === 'scrap') return JSON.stringify(i.data) === JSON.stringify(item.data)
+          if (i.type === 'scrap')
+            return scrapMatches(i.data as Scrap, item.data as Scrap)
           return false
         })
-      
+
         if (index !== -1) {
           const found = items[index]
           const currentQty = found.data.quantity || 1
@@ -94,7 +108,8 @@ export const sellCartStore = create<SellCartState>()(
           if (i.type !== item.type) return true
           if (i.type === 'product')
             return i.data.product_name !== (item.data as Product).product_name
-          if (i.type === 'scrap') return JSON.stringify(i.data) !== JSON.stringify(item.data)
+          if (i.type === 'scrap')
+            return !scrapMatches(i.data as Scrap, item.data as Scrap)
           return true
         })
         set({ items: normalizeScrapNames(filtered) })

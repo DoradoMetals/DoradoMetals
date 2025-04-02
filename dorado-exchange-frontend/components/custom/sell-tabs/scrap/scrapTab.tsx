@@ -35,9 +35,9 @@ export default function ScrapFormStepper() {
     defaultValues: {
       name: '',
       metal: 'Gold',
-      gross: '',
+      gross: 0,
       gross_unit: 'g',
-      purity: undefined,
+      purity: .5,
     },
   })
 
@@ -51,7 +51,7 @@ export default function ScrapFormStepper() {
 
   const handleSubmit = (values: Scrap) => {
     const spot = spotPrices.find((s) => s.id === values.metal)
-    const content = convertTroyOz(values.gross ?? '0', values.gross_unit ?? 'g') * (values.purity ?? 0)
+    const content = convertTroyOz(values.gross ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
 
     const price = getScrapPrice(
       {
@@ -76,7 +76,7 @@ export default function ScrapFormStepper() {
       form.reset({
         name: '',
         metal: 'Gold',
-        gross: '',
+        gross: 0,
         gross_unit: 'g',
         purity: undefined,
       })
@@ -395,15 +395,13 @@ function ReviewStep() {
   const form = useFormContext<Scrap>()
   const metal = form.watch('metal')
   const unit = form.watch('gross_unit') || 'g'
-  const gross = form.watch('gross') || ''
+  const gross = form.watch('gross') ?? 0
   const purity = form.watch('purity') ?? 0
 
   const { data: spotPrices = [] } = useSpotPrices()
 
   const spot = spotPrices.find((s) => s.type === metal)
-  const content = parseFloat(gross) * purity
-  console.log('gross: ', gross)
-  console.log('purity: ', purity)
+  const content = gross * purity
   const price = spot ? content * spot.bid_spot : 0
 
   const displayPurity = `${Math.round(purity * 100)}%`

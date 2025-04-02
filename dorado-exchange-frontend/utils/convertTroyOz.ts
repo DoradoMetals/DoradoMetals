@@ -1,5 +1,4 @@
-export function convertTroyOz(value: string, unit: string): number {
-  const num = parseFloat(value);
+export function convertTroyOz(num: number, unit: string): number {
 
   if (isNaN(num)) return 0;
 

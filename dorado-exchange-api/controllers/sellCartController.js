@@ -1,5 +1,8 @@
 const pool = require("../db");
-const { PRODUCT_FIELDS, PRODUCT_FIELDS_WITH_ALIAS } = require("../constants/productsConstants");
+const {
+  PRODUCT_FIELDS,
+  PRODUCT_FIELDS_WITH_ALIAS,
+} = require("../constants/productsConstants");
 
 const getSellCart = async (req, res) => {
   const { user_id } = req.query;
@@ -9,21 +12,62 @@ const getSellCart = async (req, res) => {
   }
 
   try {
-    const query = `
-  SELECT sci.id AS cart_item_id, sci.product_id, sci.scrap_id, sci.quantity,
-         ${PRODUCT_FIELDS_WITH_ALIAS},
-        s.gross, s.purity, s.content, metal.type AS metal
-  FROM exchange.sell_cart_items sci
-  LEFT JOIN exchange.products p ON sci.product_id = p.id
-  LEFT JOIN exchange.scrap s ON sci.scrap_id = s.id
-  JOIN exchange.metals metal ON metal.id = s.metal_id
-  WHERE sci.cart_id = (
-    SELECT id FROM exchange.sell_carts WHERE user_id = $1
-  );
-`;
+    // Get cart ID
+    const cartResult = await pool.query(
+      `SELECT id FROM exchange.sell_carts WHERE user_id = $1`,
+      [user_id]
+    );
 
-    const { rows } = await pool.query(query, [user_id]);
-    res.status(200).json(rows);
+    if (cartResult.rows.length === 0) {
+      return res.status(200).json([]); // No cart, return empty array
+    }
+
+    const cartId = cartResult.rows[0].id;
+
+    // Fetch scrap items
+    const scrapQuery = `
+      SELECT sci.id AS cart_item_id, sci.scrap_id, sci.quantity,
+             s.*, metal.type AS metal
+      FROM exchange.sell_cart_items sci
+      LEFT JOIN exchange.scrap s ON sci.scrap_id = s.id
+      LEFT JOIN exchange.metals metal ON metal.id = s.metal_id
+      WHERE sci.cart_id = $1 AND sci.scrap_id IS NOT NULL
+    `;
+    const scrapResult = await pool.query(scrapQuery, [cartId]);
+
+    const scrapItems = scrapResult.rows.map((row) => ({
+      type: 'scrap',
+      data: {
+        ...row,
+        gross: Number(row.gross),
+        purity: Number(row.purity),
+        content: Number(row.content),
+        quantity: row.quantity,
+      },
+    }))
+
+    // Fetch product items
+    const productQuery = `
+      SELECT sci.id AS cart_item_id, sci.product_id, sci.quantity,
+             ${PRODUCT_FIELDS_WITH_ALIAS}, metal.type AS metal_type
+      FROM exchange.sell_cart_items sci
+      LEFT JOIN exchange.products p ON sci.product_id = p.id
+      LEFT JOIN exchange.metals metal ON metal.id = p.metal_id
+      WHERE sci.cart_id = $1 AND sci.product_id IS NOT NULL
+    `;
+    const productResult = await pool.query(productQuery, [cartId]);
+
+    const productItems = productResult.rows.map((row) => ({
+      type: "product",
+      data: {
+        ...row,
+        quantity: row.quantity,
+      },
+    }));
+
+    const combined = [...scrapItems, ...productItems];
+
+    res.status(200).json(combined);
   } catch (error) {
     console.error("Error fetching sell cart:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -94,25 +138,39 @@ const syncSellCart = async (req, res) => {
       // Handle scrap
       if (item.type === "scrap") {
         let scrapId = item.scrap_id;
-
-        // If no scrap_id provided, insert a new scrap row
         if (!scrapId) {
-          const scrapInsert = await client.query(
-            `
-            INSERT INTO exchange.scrap (metal_id, gem_id, gross, purity, content)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id
-            `,
-            [
-              item.metal_id,
-              item.gem_id || null,
-              item.gross || null,
-              item.purity || null,
-              item.content || null,
-            ]
-          );
+          try {
+            const scrapInsert = await client.query(
+              `
+              INSERT INTO exchange.scrap (
+                metal_id,
+                gem_id,
+                gross,
+                purity,
+                content,
+                gross_unit
+              )
+              VALUES (
+                (SELECT id FROM exchange.metals WHERE LOWER(type) = LOWER($1)),
+                $2, $3, $4, $5, $6
+              )
+              RETURNING id
+              `,
+              [
+                item.data.metal,
+                item.data.gem_id,
+                item.data.gross,
+                item.data.purity,
+                item.data.content,
+                item.data.gross_unit
+              ]
+            );
 
-          scrapId = scrapInsert.rows[0].id;
+            scrapId = scrapInsert.rows[0].id;
+          } catch (err) {
+            console.error("Scrap insert failed:", err);
+            continue; // skip to next item
+          }
         }
 
         await client.query(
