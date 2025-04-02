@@ -9,6 +9,7 @@ interface CartState {
   removeAll: (product: Product) => void
   clearCart: () => void
   setItems: (items: Product[]) => void
+  mergeCartItems: (backendItems: Product[]) => void
 }
 
 const mergeCart = (cart: Product[]): Product[] => {
@@ -69,6 +70,27 @@ export const cartStore = create<CartState>()(
       setItems: (items: Product[]) => {
         set({ items: mergeCart(items) })
       },
+
+      mergeCartItems: (backendItems: Product[]) => {
+        const localItems = get().items
+        const merged = new Map<string, Product>()
+      
+        // First, add backend items (these are the source of truth)
+        for (const item of backendItems) {
+          const key = item.product_name
+          merged.set(key, { ...item, quantity: item.quantity || 1 })
+        }
+      
+        // Then add local items only if not already present
+        for (const item of localItems) {
+          const key = item.product_name
+          if (!merged.has(key)) {
+            merged.set(key, { ...item, quantity: item.quantity || 1 })
+          }
+        }
+      
+        set({ items: Array.from(merged.values()) })
+      }
     }),
     {
       name: 'dorado_cart',

@@ -7,7 +7,8 @@ import { useEffect } from 'react'
 
 export const useHydrateCartFromBackend = () => {
   const { user } = useUserStore()
-  const setItems = cartStore((state) => state.setItems)
+  
+  const mergeCartItems = cartStore((state) => state.mergeCartItems)
 
   const query = useQuery<Product[], Error>({
     queryKey: ['cart', user?.id],
@@ -19,9 +20,9 @@ export const useHydrateCartFromBackend = () => {
 
   useEffect(() => {
     if (query.data) {
-      setItems(query.data)
+      mergeCartItems(query.data)
     }
-  }, [query.data, setItems])
+  }, [query.data, mergeCartItems])
 
   return query
 }

@@ -48,8 +48,7 @@ function scrapMatches(a: Scrap, b: Scrap): boolean {
     a.gross === b.gross &&
     a.purity === b.purity &&
     a.gross_unit === b.gross_unit &&
-    a.metal === b.metal &&
-    a.name === b.name
+    a.metal === b.metal
   )
 }
 
@@ -133,15 +132,11 @@ export const sellCartStore = create<SellCartState>()(
         // Merge backend items first
         backendItems.forEach((backendItem) => {
           if (backendItem.type === 'product') {
-            const localMatch = localItems.find((i) => isProductMatch(i, backendItem))
-            const combinedQuantity =
-              (backendItem.data.quantity || 1) + (localMatch?.data.quantity || 0)
-      
             mergedItems.push({
               type: 'product',
               data: {
                 ...(backendItem.data as Product),
-                quantity: combinedQuantity,
+                quantity: backendItem.data.quantity || 1,
               },
             })
           } else {
