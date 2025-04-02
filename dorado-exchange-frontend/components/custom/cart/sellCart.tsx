@@ -34,7 +34,8 @@ export default function SellCart() {
     }
 
     if (item.type === 'scrap') {
-      const price = item.data.price ?? 0
+      const spot = spotPrices.find((s) => s.type === item.data.metal)
+      const price = getScrapPrice(item.data.content ?? 0, spot)
       return acc + price
     }
 
@@ -76,7 +77,9 @@ export default function SellCart() {
     return (
       <div
         key={index}
-        className="flex items-center justify-between w-full gap-4 py-4 border-b border-neutral-300"
+        className={`flex items-center justify-between w-full gap-4 py-4 ${
+          index !== items.length - 1 ? 'border-b border-neutral-300' : 'border-none'
+        }`}
       >
         <div className="flex-shrink-0">
           <Image
@@ -104,7 +107,7 @@ export default function SellCart() {
             </Button>
           </div>
 
-          <div className="flex justify-between items-center mt-3">
+          <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -135,12 +138,14 @@ export default function SellCart() {
 
   const renderScrapItem = (item: Scrap, index: number) => {
     const spot = spotPrices.find((s) => s.type === item.metal)
-    const price = getScrapPrice(item, spot)
+    const price = getScrapPrice(item.content ?? 0, spot)
 
     return (
       <div
         key={index}
-        className="flex justify-between items-center w-full gap-4 py-4 border-b border-neutral-300"
+        className={`flex items-center justify-between w-full gap-4 py-4 ${
+          index !== items.length - 1 ? 'border-b border-neutral-300' : 'border-none'
+        }`}
       >
         <div className="flex flex-col flex-grow">
           <div className="flex justify-between items-start w-full mt-2">
@@ -158,10 +163,10 @@ export default function SellCart() {
             </Button>
           </div>
 
-          <div className="flex items-end mt-3">
+          <div className="flex items-end">
             <div className="flex flex-col mr-auto gap-1">
-              {getGrossLabel(item)}
-              {getPurityLabel(item)}
+              {getGrossLabel(item.gross, item.gross_unit)}
+              {getPurityLabel(item.purity, item.metal)}
             </div>
 
             <div className="ml-auto text-neutral-800 text-base">
@@ -187,12 +192,12 @@ export default function SellCart() {
   const cartFooter = (
     <div className="w-full p-5 bg-card">
       <div className="flex justify-between items-center mb-4">
-        <div className="text-lg text-neutral-800">Total</div>
+        <div className="text-lg text-neutral-800">Price Estimate</div>
         <div className="text-lg text-neutral-800">
           <PriceNumberFlow value={total} />
         </div>
       </div>
-      <Button className="w-full">Checkout</Button>
+      <Button className="w-full">Generate Label</Button>
     </div>
   )
 

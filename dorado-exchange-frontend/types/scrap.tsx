@@ -5,13 +5,12 @@ import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/components/
 
 export const scrapSchema = z.object({
   id: z.string().uuid().optional(),
-  metal: z.string().optional(),
+  metal: z.string(),
   gem_id: z.string().uuid().optional(),
   name: z.string().optional(),
   description: z.string().optional(),
   gross: z
-  .coerce.number()
-  .optional()
+  .coerce.number().positive()
   .refine(
     (val) =>
       val === undefined ||
@@ -19,11 +18,13 @@ export const scrapSchema = z.object({
       /^(?!-)(\d+\.?\d*|\.\d+)?$/.test(val.toString()),
     { message: 'Must be a valid weight' }
   ),
-  gross_unit: z.string().optional(),
-  purity: z.number().optional(),
+  gross_unit: z.string(),
+  purity: z.number(),
   content: z.number().optional(),
   price: z.number().optional(),
 })
+
+export type ScrapInput = z.input<typeof scrapSchema>
 
 export type Scrap = z.infer<typeof scrapSchema>
 
@@ -100,29 +101,18 @@ export const purityOptions: Record<string, PurityOption[]> = {
 }
 
 
-export function getPurityLabel(scrap: Scrap) {
-  const purity = scrap.purity
-  const metal = scrap.metal
+export function getPurityLabel(purity: number, metal: string) {
   if (purity == null || !metal) return null
 
   const options = purityOptions[metal]
   const percent = `${(purity * 100).toFixed(1)}%`
-
-  if (!options) {
-    return (
-      <div className='flex items-center gap-1'>
-        <span className="text-sm text-neutral-800">{percent}</span>{' '}
-        <span className="tertiary-text">pure</span>
-      </div>
-    )
-  }
 
   const match = options.find((opt) => Math.abs(opt.value - purity) < 0.001)
 
   return match ? (
     <div className='flex items-center gap-1'>
       <span className="text-sm text-neutral-800">{match.label}</span>{' '}
-      <span className="tertiary-text">({percent} pure)</span>
+      <span className="tertiary-text">({percent})</span>
     </div>
   ) : (
     <div className='flex items-center gap-1'>
@@ -132,23 +122,18 @@ export function getPurityLabel(scrap: Scrap) {
   )
 }
 
-export function getGrossLabel(scrap: Scrap) {
-  const gross = scrap.gross
-  const unit = scrap.gross_unit
-
+export function getGrossLabel(gross: number, unit: string) {
   if (!gross || !unit) return null
-
-  const match = weightOptions.find((opt) => opt.unit === unit)
-  const label = match?.label ?? unit
 
   return (
     <>
       <div className='flex items-center gap-1'>
-        <span className='text-sm text-neutral-800'>{gross}</span> <span className="tertiary-text">{label}</span>
+        <span className='text-sm text-neutral-800'>{gross}</span> <span className="tertiary-text">{unit}</span>
       </div>
     </>
   )
 }
+
 export const weightOptions: WeightOption[] = [
   {
     label: 'Grams',
@@ -177,23 +162,27 @@ export const weightOptions: WeightOption[] = [
 ]
 
 export function assignScrapItemNames(scrapItems: Scrap[]): Scrap[] {
+  const metalOrder = ['Gold', 'Silver', 'Platinum', 'Palladium']
+
+  const validScrapItems = scrapItems.filter((item) => item.metal)
+
+  validScrapItems.sort((a, b) => {
+    const indexA = metalOrder.indexOf(a.metal!)
+    const indexB = metalOrder.indexOf(b.metal!)
+    return indexA - indexB
+  })
+
   const grouped: Record<string, Scrap[]> = {}
 
-  scrapItems.forEach((item) => {
-    const metal = item.metal
-    if (!metal) return
-
-    if (!grouped[metal]) {
-      grouped[metal] = []
-    }
+  validScrapItems.forEach((item) => {
+    const metal = item.metal!
+    if (!grouped[metal]) grouped[metal] = []
     grouped[metal].push(item)
   })
 
-  return scrapItems.map((item) => {
-    const metal = item.metal
-    if (!metal) return item
-
-    const group = grouped[metal] || []
+  return validScrapItems.map((item) => {
+    const metal = item.metal!
+    const group = grouped[metal]
     const index = group.indexOf(item)
 
     return {

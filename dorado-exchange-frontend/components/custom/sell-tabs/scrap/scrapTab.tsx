@@ -2,14 +2,14 @@
 
 import { useForm, FormProvider, useFormContext, useFormState } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { scrapSchema, type Scrap } from '@/types/scrap'
+import { getGrossLabel, getPurityLabel, ScrapInput, scrapSchema, type Scrap } from '@/types/scrap'
 import { Button } from '@/components/ui/button'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import { Form, FormField, FormItem, FormControl, FormMessage } from '@/components/ui/form'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Slider } from '@/components/ui/slider'
 import { metalOptions, purityOptions, weightOptions } from '@/types/scrap'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { defineStepper, Stepper } from '@stepperize/react'
 import NumberFlow from '@number-flow/react'
 import { sellCartStore } from '@/store/sellCartStore'
@@ -17,6 +17,9 @@ import { useRouter } from 'next/navigation'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getScrapPrice from '@/utils/getScrapPrice'
 import { convertTroyOz } from '@/utils/convertTroyOz'
+import { Anvil, CheckCircle, Percent, Scale } from 'lucide-react'
+import PriceNumberFlow from '../../products/PriceNumberFlow'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const { useStepper, utils } = defineStepper(
   // { id: 'name', title: 'Name', description: 'Enter Item name (necklace, ring, bracelet, grain, etc...' },
@@ -29,7 +32,7 @@ const { useStepper, utils } = defineStepper(
 export default function ScrapFormStepper() {
   const [submitAction, setSubmitAction] = useState<'add' | 'checkout' | null>(null)
 
-  const form = useForm<Scrap>({
+  const form = useForm<ScrapInput>({
     resolver: zodResolver(scrapSchema),
     mode: 'onChange',
     defaultValues: {
@@ -37,7 +40,7 @@ export default function ScrapFormStepper() {
       metal: 'Gold',
       gross: 0,
       gross_unit: 'g',
-      purity: .5,
+      purity: purityOptions['Gold'][0].value,
     },
   })
 
@@ -47,19 +50,26 @@ export default function ScrapFormStepper() {
   const addItem = sellCartStore.getState().addItem
   const { data: spotPrices = [] } = useSpotPrices()
 
+  const [submitted, setSubmitted] = useState(false)
+  const [showBanner, setShowBanner] = useState(false)
+
+  useEffect(() => {
+    if (showBanner) {
+      const timeout = setTimeout(() => {
+        setShowBanner(false)
+      }, 5000)
+
+      return () => clearTimeout(timeout)
+    }
+  }, [showBanner])
+
   const router = useRouter()
 
   const handleSubmit = (values: Scrap) => {
     const spot = spotPrices.find((s) => s.id === values.metal)
-    const content = convertTroyOz(values.gross ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
-
-    const price = getScrapPrice(
-      {
-        ...values,
-        content,
-      },
-      spot
-    )
+    const content =
+      convertTroyOz(values.gross ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
+    const price = getScrapPrice(content, spot)
 
     const item = {
       type: 'scrap' as const,
@@ -72,23 +82,30 @@ export default function ScrapFormStepper() {
 
     addItem(item)
 
-    if (submitAction === 'add') {
-      form.reset({
-        name: '',
-        metal: 'Gold',
-        gross: 0,
-        gross_unit: 'g',
-        purity: undefined,
-      })
-      stepper.goTo('metalSelect')
-    } else if (submitAction === 'checkout') {
+    if (submitAction === 'checkout') {
       router.push('/sell/checkout')
+    } else {
+      setSubmitted(true)
+      setShowBanner(true)
     }
-
     setSubmitAction(null)
   }
 
+  const handleAddAnother = () => {
+    form.reset({
+      name: '',
+      metal: 'Gold',
+      gross: 0,
+      gross_unit: 'g',
+      purity: undefined,
+    })
+    setSubmitted(false)
+    stepper.goTo('metalSelect')
+  }
+
   const { errors } = useFormState({ control: form.control })
+  const gross = form.watch('gross')
+  const purity = form.watch('purity')
 
   return (
     <FormProvider {...form}>
@@ -109,31 +126,29 @@ export default function ScrapFormStepper() {
             metalSelect: () => <MetalSelectionStep />,
             weightSelect: () => <WeightStep />,
             puritySelect: () => <PurityStep />,
-            review: () => <ReviewStep />,
+            review: () => <ReviewStep showBanner={showBanner} />,
           })}
           {stepper.current.id === 'review' ? (
             <div className="flex items-end gap-4">
               <div className="mr-auto">
-                <Button type="button" variant="outline" onClick={stepper.prev}>
-                  Back
-                </Button>
+                {submitted ? (
+                  <Button type="button" variant="outline" onClick={handleAddAnother}>
+                    Add Another
+                  </Button>
+                ) : (
+                  <Button type="button" variant="outline" onClick={stepper.prev}>
+                    Back
+                  </Button>
+                )}
               </div>
-              <div className="flex flex-col items-center ml-auto gap-2">
-                <Button
-                  className="w-full"
-                  type="submit"
-                  variant="outline"
-                  onClick={() => setSubmitAction('add')}
-                >
-                  Add Another
-                </Button>
 
+              <div className="ml-auto">
                 <Button
                   className="w-full"
                   type="submit"
-                  onClick={() => setSubmitAction('checkout')}
+                  onClick={() => setSubmitAction(submitted ? 'checkout' : 'add')}
                 >
-                  Go to Checkout
+                  {submitted ? 'Go to Checkout' : 'Submit Item'}
                 </Button>
               </div>
             </div>
@@ -150,7 +165,10 @@ export default function ScrapFormStepper() {
               <Button
                 type="button"
                 onClick={stepper.next}
-                disabled={stepper.current.id === 'weightSelect' && !!errors.gross}
+                disabled={
+                  stepper.current.id === 'weightSelect' &&
+                  (!gross || !!errors.gross || gross === 0 || purity === 0)
+                }
               >
                 Next
               </Button>
@@ -177,7 +195,6 @@ function MetalSelectionStep() {
               field.onChange(val)
 
               const defaultPurity = purityOptions[val as keyof typeof purityOptions]?.[0]?.value
-
               if (defaultPurity !== undefined) {
                 form.setValue('purity', defaultPurity)
               }
@@ -262,7 +279,11 @@ function WeightStep() {
                 type="text"
                 size="sm"
                 className="w-full input-floating-label-form no-spinner"
-                {...field}
+                value={field.value === 0 ? '' : field.value}
+                onChange={(e) => {
+                  const val = e.target.value
+                  field.onChange(val === '' ? 0 : val)
+                }}
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 hover:bg-transparent">
                 {unit}
@@ -278,7 +299,8 @@ function WeightStep() {
 
 function PurityStep() {
   const form = useFormContext<Scrap>()
-  const purity = form.watch('purity') ?? 0.5
+
+  const purity = form.watch('purity') ?? purityOptions[form.watch('metal')]?.[0]?.value
   const metal = form.watch('metal')
 
   const metalKey = metalOptions.find((m) => m.label === metal)?.label as keyof typeof purityOptions
@@ -364,7 +386,7 @@ function PurityStep() {
   )
 }
 
-function ReviewStep() {
+function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const form = useFormContext<Scrap>()
   const metal = form.watch('metal')
   const unit = form.watch('gross_unit') || 'g'
@@ -374,23 +396,62 @@ function ReviewStep() {
   const { data: spotPrices = [] } = useSpotPrices()
 
   const spot = spotPrices.find((s) => s.type === metal)
-  const content = gross * purity
-  const price = spot ? content * spot.bid_spot : 0
+  const content = convertTroyOz(gross, unit) * purity
 
-  const displayPurity = `${Math.round(purity * 100)}%`
+  const price = getScrapPrice(content, spot)
 
   return (
-    <div className="space-y-6">
-      <p className="secondary-text leading-relaxed">
-        We estimate we can offer you around{' '}
-        <span className="text-primary text-lg">${price.toFixed(2)}</span> for your{' '}
-        <span className="primary-text font-semibold">{displayPurity}</span> pure{' '}
-        <span className="primary-text font-semibold">
-          {gross} <span className="secondary-text">{unit}</span> {metal}
-        </span>
-        .
-      </p>
-    </div>
+    <AnimatePresence mode="wait">
+      <div className="space-y-6">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Anvil className="text-secondary" size={20} />
+              <span className="text-base text-neutral-600">Metal:</span>
+            </div>
+            <span className="text-sm text-neutral-800">{metal}</span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Scale className="text-secondary" size={20} />
+              <span className="text-base text-neutral-600">Gross:</span>
+            </div>
+            {getGrossLabel(gross, unit)}
+          </div>
+
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-2">
+              <Percent className="text-secondary" size={20} />
+              <span className="text-base text-neutral-600">Purity:</span>
+            </div>
+            {getPurityLabel(purity, metal)}
+          </div>
+        </div>
+
+        <hr />
+
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Price Estimate:</span>
+          <span className="text-neutral-800 text-lg">
+            <PriceNumberFlow value={price} />
+          </span>
+        </div>
+
+        {showBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.5 }}
+            className="flex items-center gap-2 rounded-xl text-green-800 text-sm px-4 py-2 border border-green-800 mb-4"
+          >
+            <CheckCircle className="w-4 h-4" />
+            Item submitted!
+          </motion.div>
+        )}
+      </div>
+    </AnimatePresence>
   )
 }
 

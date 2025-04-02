@@ -1,7 +1,6 @@
 import { SpotPrice } from '@/lib/queries/useSpotPrices'
-import { Scrap } from '@/types/scrap'
 
-export default function getScrapPrice(scrap: Scrap, spot?: SpotPrice): number {
-  if (!spot || !scrap.content) return 0
-  return scrap.content * spot.bid_spot
+export default function getScrapPrice(content: number, spot?: SpotPrice): number {
+  if (!spot || !content) return 0
+  return content * spot.bid_spot
 }
