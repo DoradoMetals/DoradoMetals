@@ -40,13 +40,13 @@ export function CartTabs({
             <TabsList className="w-full gap-2 rounded-none border-b border-border bg-transparent py-1 mt-10">
               <TabsTrigger
                 value="buy"
-                className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-accent "
+                className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-secondary"
               >
                 Buy {`(${items.length})`}
               </TabsTrigger>
               <TabsTrigger
                 value="sell"
-                className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-accent"
+                className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
               >
                 Sell {`(${sellItems.length})`}
               </TabsTrigger>
@@ -54,10 +54,10 @@ export function CartTabs({
             </div>
             
             <TabsContent value="buy">
-              <Cart />
+              <Cart setIsCartActive={setIsCartActive} />
             </TabsContent>
             <TabsContent value="sell">
-              <SellCart />
+              <SellCart setIsCartActive={setIsCartActive} />
             </TabsContent>
           </Tabs>
         </div>

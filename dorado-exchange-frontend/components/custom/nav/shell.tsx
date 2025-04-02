@@ -16,20 +16,26 @@ import { useCartAutoSync, useHydrateCartFromBackend } from '@/lib/queries/useCar
 import { CartTabs } from '../cart/cartTabs'
 import Spots from '../spots/spots'
 import { useHydrateSellCartFromBackend, useSellCartAutoSync } from '@/lib/queries/useSellCart'
+import { sellCartStore } from '@/store/sellCartStore'
 
 export default function Shell() {
   const pathname = usePathname()
   const data = useUserStore()
   const [isDrawerActive, setIsDrawerActive] = useState(false)
   const [isCartActive, setIsCartActive] = useState(false)
-  const totalItems = cartStore((state) =>
-    state.items.reduce((sum, item) => sum + (item.quantity ?? 1), 0)
-  )
+  const items = cartStore((state) => state.items.length)
+  const sellItems = sellCartStore((state) => state.items.length)
 
   useSellCartAutoSync()
   useHydrateSellCartFromBackend()
   useCartAutoSync()
   useHydrateCartFromBackend()
+
+  function getBadgePosition(type: 'buy' | 'sell', buyCount: number) {
+    if (type === 'buy') return '-top-0 -right-0'
+    if (type === 'sell') return buyCount > 0 ? 'top-0 -right-4' : '-top-0 -right-0'
+    return ''
+  }
 
   const menuItems = [
     {
@@ -80,7 +86,7 @@ export default function Shell() {
 
             {/* Desktop Menu */}
             <div className="hidden lg:block flex items-center items-end">
-              <div className="flex items-center gap-5">
+              <div className="flex items-center gap-8">
                 <Button
                   className="px-0 hover:bg-card relative"
                   variant="ghost"
@@ -89,13 +95,28 @@ export default function Shell() {
                   }}
                 >
                   <CartIcon
-                    size={20}
+                    size={24}
                     isOpen={isCartActive}
                     className="text-muted-foreground hover:bg-card"
                   />
-                  {totalItems > 0 && (
-                    <span className="absolute -top-0 -right-1 bg-secondary text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">
-                      {totalItems}
+                  {items > 0 && (
+                    <span
+                      className={`absolute ${getBadgePosition(
+                        'buy',
+                        items
+                      )} w-4 h-4 bg-secondary text-white text-[12px] py-0.5 rounded-full leading-none`}
+                    >
+                      {items}
+                    </span>
+                  )}
+                  {sellItems > 0 && (
+                    <span
+                      className={`absolute ${getBadgePosition(
+                        'sell',
+                        items
+                      )} w-4 h-4 bg-primary text-white text-[12px] py-0.5 rounded-full leading-none`}
+                    >
+                      {sellItems}
                     </span>
                   )}
                 </Button>
@@ -105,7 +126,7 @@ export default function Shell() {
             </div>
 
             {/* Mobile Sidebar and Menu*/}
-            <div className="lg:hidden flex items-end ml-auto">
+            <div className="lg:hidden flex items-end ml-auto gap-3">
               <Button
                 className="px-0 hover:bg-card relative"
                 variant="ghost"
@@ -116,11 +137,26 @@ export default function Shell() {
                 <CartIcon
                   size={20}
                   isOpen={isCartActive}
-                  className="text-muted-foreground hover:bg-card"
+                  className="text-neutral-700 hover:bg-card"
                 />
-                {totalItems > 0 && (
-                  <span className="absolute -top-0 -right-1 bg-secondary text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">
-                    {totalItems}
+                {items > 0 && (
+                  <span
+                    className={`absolute ${getBadgePosition(
+                      'buy',
+                      items
+                    )} w-4 h-4 bg-secondary text-white text-[12px] py-0.5 rounded-full leading-none`}
+                  >
+                    {items}
+                  </span>
+                )}
+                {sellItems > 0 && (
+                  <span
+                    className={`absolute ${getBadgePosition(
+                      'sell',
+                      items
+                    )} w-4 h-4 bg-primary text-white text-[12px] py-0.5 rounded-full leading-none`}
+                  >
+                    {sellItems}
                   </span>
                 )}
               </Button>
@@ -130,7 +166,7 @@ export default function Shell() {
                 variant="ghost"
                 onClick={() => setIsDrawerActive(true)}
               >
-                <MenuIcon size={20} isOpen={isDrawerActive} className="text-muted-foreground" />
+                <MenuIcon size={24} isOpen={isDrawerActive} className="text-neutral-700" />
               </Button>
             </div>
           </div>

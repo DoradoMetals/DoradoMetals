@@ -13,8 +13,13 @@ import { useRouter } from 'next/navigation'
 import getScrapPrice from '@/utils/getScrapPrice'
 import { getGrossLabel, getPurityLabel, Scrap } from '@/types/scrap'
 import { Product } from '@/types/product'
+import { Dispatch } from 'react'
 
-export default function SellCart() {
+export default function SellCart({
+  setIsCartActive,
+}: {
+  setIsCartActive: Dispatch<React.SetStateAction<boolean>>
+}) {
   const router = useRouter()
   const items = sellCartStore((state) => state.items)
   const addItem = sellCartStore((state) => state.addItem)
@@ -46,21 +51,22 @@ export default function SellCart() {
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
       <div className="relative mb-5">
         <ShoppingCart size={80} className="text-neutral-800" strokeWidth={1.5} />
-        <div className="absolute -top-6 right-3.5 border border-secondary text-xl text-secondary rounded-full w-10 h-10 flex items-center justify-center">
+        <div className="absolute -top-6 right-3.5 border border-primary text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
           0
         </div>
       </div>
 
       <div className="flex-col items-center gap-1 mb-5">
-        <h2 className="title-text tracking-wide">Your cart is empty!</h2>
-        <p className="tertiary-text">Add items to get started.</p>
+        <h2 className="title-text tracking-wide">Your sell cart is empty!</h2>
+        <p className="tertiary-text">Add items to get a price estimate.</p>
       </div>
       <Link href="/sell" passHref>
         <Button
           variant="outline"
-          className="bg-card hover:bg-highest border-1"
+          className="bg-card hover:bg-highest border-1 border-primary text-primary"
           onClick={() => {
             router.push('/sell')
+            setIsCartActive(false)
           }}
         >
           Start Selling
@@ -197,7 +203,9 @@ export default function SellCart() {
           <PriceNumberFlow value={total} />
         </div>
       </div>
-      <Button className="w-full">Generate Label</Button>
+      <Button className="w-full bg-primary lg:bg-card lg:border-primary lg:border-1 lg:text-primary hover:bg-primary hover:text-neutral-900 hover:shadow-lg">
+        Generate Label
+      </Button>
     </div>
   )
 

@@ -11,8 +11,14 @@ import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getProductPrice from '@/utils/getProductPrice'
 import PriceNumberFlow from '../products/PriceNumberFlow'
 import { useRouter } from 'next/navigation'
+import { Dispatch } from 'react'
 
-export default function Cart() {
+export default function Cart({
+
+  setIsCartActive,
+}: {
+  setIsCartActive: Dispatch<React.SetStateAction<boolean>>
+}) {
   const router = useRouter()
   const items = cartStore((state) => state.items)
   const addItem = cartStore((state) => state.addItem)
@@ -43,9 +49,10 @@ export default function Cart() {
       <Link href="/buy" passHref>
         <Button
           variant="outline"
-          className="bg-card hover:bg-highest border-1"
+          className="bg-card hover:bg-highest border-1 border-secondary text-secondary"
           onClick={() => {
             router.push('/buy')
+            setIsCartActive(false);
           }}
         >
           Start Shopping
@@ -143,7 +150,7 @@ export default function Cart() {
         </div>
       </div>
       <Button
-        className="w-full"
+        className="w-full bg-secondary lg:bg-card lg:border-secondary lg:border-1 lg:text-secondary hover:bg-secondary hover:text-neutral-900 hover:shadow-lg"
       >
         Checkout
       </Button>

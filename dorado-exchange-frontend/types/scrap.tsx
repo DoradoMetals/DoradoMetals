@@ -9,15 +9,13 @@ export const scrapSchema = z.object({
   gem_id: z.string().uuid().optional(),
   name: z.string().optional(),
   description: z.string().optional(),
-  gross: z
-  .coerce.number().positive()
-  .refine(
-    (val) =>
-      val === undefined ||
-      val === 0 ||
-      /^(?!-)(\d+\.?\d*|\.\d+)?$/.test(val.toString()),
-    { message: 'Must be a valid weight' }
-  ),
+  gross: z.coerce
+    .number()
+    .positive()
+    .refine(
+      (val) => val === undefined || val === 0 || /^(?!-)(\d+\.?\d*|\.\d+)?$/.test(val.toString()),
+      { message: 'Must be a valid weight' }
+    ),
   gross_unit: z.string(),
   purity: z.number(),
   content: z.number().optional(),
@@ -71,35 +69,34 @@ export const metalOptions: MetalOption[] = [
 
 export const purityOptions: Record<string, PurityOption[]> = {
   Gold: [
-    { label: '10 Karat', value: 0.420 },
-    { label: '12 Karat', value: 0.500 },
-    { label: '14 Karat', value: 0.580 },
-    { label: '18 Karat', value: 0.750 },
-    { label: '22 Karat', value: 0.920 },
-    { label: '24 Karat', value: 1.000 },
-    { label: 'Custom', value: 0.000 },
+    { label: '10 Karat', value: 0.42 },
+    { label: '12 Karat', value: 0.5 },
+    { label: '14 Karat', value: 0.58 },
+    { label: '18 Karat', value: 0.75 },
+    { label: '22 Karat', value: 0.92 },
+    { label: '24 Karat', value: 1.0 },
+    { label: 'Custom', value: 0.0 },
   ],
   Silver: [
-    { label: '800', value: 0.800 },
-    { label: 'Coin', value: 0.900 },
+    { label: '800', value: 0.8 },
+    { label: 'Coin', value: 0.9 },
     { label: 'Sterling', value: 0.925 },
     { label: 'Fine', value: 0.999 },
-    { label: 'Custom', value: 0.000 },
+    { label: 'Custom', value: 0.0 },
   ],
   Platinum: [
-    { label: '900', value: 0.900 },
-    { label: '950', value: 0.950 },
+    { label: '900', value: 0.9 },
+    { label: '950', value: 0.95 },
     { label: 'Fine', value: 0.999 },
-    { label: 'Custom', value: 0.000 },
+    { label: 'Custom', value: 0.0 },
   ],
   Palladium: [
-    { label: '900', value: 0.900 },
-    { label: '950', value: 0.950 },
+    { label: '900', value: 0.9 },
+    { label: '950', value: 0.95 },
     { label: 'Fine', value: 0.999 },
-    { label: 'Custom', value: 0.000 },
+    { label: 'Custom', value: 0.0 },
   ],
 }
-
 
 export function getPurityLabel(purity: number, metal: string) {
   if (purity == null || !metal) return null
@@ -110,14 +107,14 @@ export function getPurityLabel(purity: number, metal: string) {
   const match = options.find((opt) => Math.abs(opt.value - purity) < 0.001)
 
   return match ? (
-    <div className='flex items-center gap-1'>
+    <div className="flex items-center gap-1">
       <span className="text-sm text-neutral-800">{match.label}</span>{' '}
-      <span className="tertiary-text">({percent})</span>
+      <span className="text-xs text-neutral-700">({percent})</span>
     </div>
   ) : (
-    <div className='flex items-center gap-1'>
+    <div className="flex items-center gap-1">
       <span className="text-sm text-neutral-800">{percent}</span>{' '}
-      <span className="tertiary-text">pure</span>
+      <span className="text-xs text-neutral-700">pure</span>
     </div>
   )
 }
@@ -127,8 +124,9 @@ export function getGrossLabel(gross: number, unit: string) {
 
   return (
     <>
-      <div className='flex items-center gap-1'>
-        <span className='text-sm text-neutral-800'>{gross}</span> <span className="tertiary-text">{unit}</span>
+      <div className="flex items-center gap-1">
+        <span className="text-sm text-neutral-800">{gross}</span>{' '}
+        <span className="text-xs text-neutral-700">{unit}</span>
       </div>
     </>
   )
