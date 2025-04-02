@@ -162,33 +162,6 @@ export default function ScrapFormStepper() {
   )
 }
 
-// function NameStep() {
-//   const form = useFormContext<Scrap>()
-
-//   return (
-//     <div className="flex-col gap-4">
-//       <FormField
-//         control={form.control}
-//         name="name"
-//         render={({ field }) => (
-//           <FormItem className="w-full">
-//             <div className="relative w-full rounded-lg">
-//               <FloatingLabelInput
-//                 label="Enter Name"
-//                 type="text"
-//                 size="sm"
-//                 className="w-full input-floating-label-form no-spinner"
-//                 {...field}
-//               />
-//             </div>
-//             <FormMessage />
-//           </FormItem>
-//         )}
-//       />
-//     </div>
-//   )
-// }
-
 function MetalSelectionStep() {
   const form = useFormContext<Scrap>()
   return (

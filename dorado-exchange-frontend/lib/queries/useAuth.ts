@@ -5,6 +5,7 @@ import { useUserStore } from '@/store/userStore'
 import { useHydrateCartFromBackend, useSyncCartToBackend } from './useCart'
 import { cartStore } from '@/store/cartStore'
 import { useSyncSellCartToBackend } from './useSellCart'
+import { sellCartStore } from '@/store/sellCartStore'
 
 export const useSession = () => {
   return useQuery({
@@ -129,6 +130,7 @@ export const useSignOut = () => {
     onSuccess: async () => {
       clearSession()
       cartStore.getState().clearCart()
+      sellCartStore.getState().clearCart()
       localStorage.removeItem('dorado_cart')
       localStorage.removeItem('dorado_sell_cart')
       localStorage.removeItem('cartSynced')

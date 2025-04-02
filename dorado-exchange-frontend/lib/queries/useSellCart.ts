@@ -7,7 +7,7 @@ import { SellCartItem } from '@/types/sellCart'
 
 export const useHydrateSellCartFromBackend = () => {
   const { user } = useUserStore()
-  const setItems = sellCartStore((state) => state.setItems)
+  const mergeSellCart = sellCartStore((state) => state.mergeSellCart)
 
   const query = useQuery<SellCartItem[], Error>({
     queryKey: ['sell-cart', user?.id],
@@ -21,9 +21,9 @@ export const useHydrateSellCartFromBackend = () => {
 
   useEffect(() => {
     if (query.data) {
-      setItems(query.data)
+      mergeSellCart(query.data)
     }
-  }, [query.data, setItems])
+  }, [query.data, mergeSellCart])
 
   return query
 }

@@ -11,6 +11,7 @@ interface SellCartState {
   removeAll: (item: SellCartItem) => void
   clearCart: () => void
   setItems: (items: SellCartItem[]) => void
+  mergeSellCart: (backendItems: SellCartItem[]) => void // ← Add this
 }
 
 function addWithQuantity(item: SellCartItem) {
@@ -62,10 +63,8 @@ export const sellCartStore = create<SellCartState>()(
 
         const match = (a: SellCartItem, b: SellCartItem) => {
           if (a.type !== b.type) return false
-          if (a.type === 'product')
-            return a.data.product_name === (b.data as Product).product_name
-          if (a.type === 'scrap')
-            return scrapMatches(a.data as Scrap, b.data as Scrap)
+          if (a.type === 'product') return a.data.product_name === (b.data as Product).product_name
+          if (a.type === 'scrap') return scrapMatches(a.data as Scrap, b.data as Scrap)
           return false
         }
 
@@ -86,8 +85,7 @@ export const sellCartStore = create<SellCartState>()(
           if (i.type !== item.type) return false
           if (i.type === 'product')
             return i.data.product_name === (item.data as Product).product_name
-          if (i.type === 'scrap')
-            return scrapMatches(i.data as Scrap, item.data as Scrap)
+          if (i.type === 'scrap') return scrapMatches(i.data as Scrap, item.data as Scrap)
           return false
         })
 
@@ -108,8 +106,7 @@ export const sellCartStore = create<SellCartState>()(
           if (i.type !== item.type) return true
           if (i.type === 'product')
             return i.data.product_name !== (item.data as Product).product_name
-          if (i.type === 'scrap')
-            return !scrapMatches(i.data as Scrap, item.data as Scrap)
+          if (i.type === 'scrap') return !scrapMatches(i.data as Scrap, item.data as Scrap)
           return true
         })
         set({ items: normalizeScrapNames(filtered) })
@@ -118,6 +115,79 @@ export const sellCartStore = create<SellCartState>()(
       clearCart: () => set({ items: [] }),
 
       setItems: (items: SellCartItem[]) => set({ items }),
+
+      mergeSellCart: (backendItems: SellCartItem[]) => {
+        const localItems = get().items
+        const mergedItems: SellCartItem[] = []
+      
+        const isProductMatch = (a: SellCartItem, b: SellCartItem) =>
+          a.type === 'product' &&
+          b.type === 'product' &&
+          (a.data as Product).product_name === (b.data as Product).product_name
+      
+        const isScrapMatch = (a: SellCartItem, b: SellCartItem) =>
+          a.type === 'scrap' &&
+          b.type === 'scrap' &&
+          scrapMatches(a.data as Scrap, b.data as Scrap)
+      
+        // Merge backend items first
+        backendItems.forEach((backendItem) => {
+          if (backendItem.type === 'product') {
+            const localMatch = localItems.find((i) => isProductMatch(i, backendItem))
+            const combinedQuantity =
+              (backendItem.data.quantity || 1) + (localMatch?.data.quantity || 0)
+      
+            mergedItems.push({
+              type: 'product',
+              data: {
+                ...(backendItem.data as Product),
+                quantity: combinedQuantity,
+              },
+            })
+          } else {
+            // Only add scrap from backend if it doesn't already exist locally
+            const alreadyInLocal = localItems.some((i) => isScrapMatch(i, backendItem))
+            if (!alreadyInLocal) {
+              mergedItems.push({
+                type: 'scrap',
+                data: {
+                  ...(backendItem.data as Scrap),
+                  quantity: 1,
+                },
+              })
+            }
+          }
+        })
+      
+        // Add local items not already merged
+        localItems.forEach((localItem) => {
+          const alreadyMerged = mergedItems.find((merged) => {
+            return isProductMatch(merged, localItem) || isScrapMatch(merged, localItem)
+          })
+      
+          if (!alreadyMerged) {
+            if (localItem.type === 'product') {
+              mergedItems.push({
+                type: 'product',
+                data: {
+                  ...(localItem.data as Product),
+                  quantity: localItem.data.quantity || 1,
+                },
+              })
+            } else {
+              mergedItems.push({
+                type: 'scrap',
+                data: {
+                  ...(localItem.data as Scrap),
+                  quantity: 1,
+                },
+              })
+            }
+          }
+        })
+      
+        set({ items: normalizeScrapNames(mergedItems) })
+      }
     }),
     {
       name: 'dorado_sell_cart',

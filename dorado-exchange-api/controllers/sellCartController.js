@@ -36,7 +36,7 @@ const getSellCart = async (req, res) => {
     const scrapResult = await pool.query(scrapQuery, [cartId]);
 
     const scrapItems = scrapResult.rows.map((row) => ({
-      type: 'scrap',
+      type: "scrap",
       data: {
         ...row,
         gross: Number(row.gross),
@@ -44,7 +44,7 @@ const getSellCart = async (req, res) => {
         content: Number(row.content),
         quantity: row.quantity,
       },
-    }))
+    }));
 
     // Fetch product items
     const productQuery = `
@@ -138,17 +138,39 @@ const syncSellCart = async (req, res) => {
       // Handle scrap
       if (item.type === "scrap") {
         let scrapId = item.scrap_id;
+
         if (!scrapId) {
-          try {
+          // Try to find existing matching scrap
+          const existingScrap = await client.query(
+            `
+            SELECT id FROM exchange.scrap
+            WHERE
+              metal_id = (SELECT id FROM exchange.metals WHERE LOWER(type) = LOWER($1))
+              AND (gem_id IS NOT DISTINCT FROM $2)
+              AND gross = $3
+              AND purity = $4
+              AND content = $5
+              AND gross_unit = $6
+            LIMIT 1
+            `,
+            [
+              item.data.metal,
+              item.data.gem_id,
+              item.data.gross,
+              item.data.purity,
+              item.data.content,
+              item.data.gross_unit,
+            ]
+          );
+
+          if (existingScrap.rows.length > 0) {
+            scrapId = existingScrap.rows[0].id;
+          } else {
+            // Insert new scrap entry if not found
             const scrapInsert = await client.query(
               `
               INSERT INTO exchange.scrap (
-                metal_id,
-                gem_id,
-                gross,
-                purity,
-                content,
-                gross_unit
+                metal_id, gem_id, gross, purity, content, gross_unit
               )
               VALUES (
                 (SELECT id FROM exchange.metals WHERE LOWER(type) = LOWER($1)),
@@ -162,14 +184,11 @@ const syncSellCart = async (req, res) => {
                 item.data.gross,
                 item.data.purity,
                 item.data.content,
-                item.data.gross_unit
+                item.data.gross_unit,
               ]
             );
 
             scrapId = scrapInsert.rows[0].id;
-          } catch (err) {
-            console.error("Scrap insert failed:", err);
-            continue; // skip to next item
           }
         }
 
@@ -180,6 +199,18 @@ const syncSellCart = async (req, res) => {
         );
       }
     }
+
+    // Cleanup orphaned scrap entries
+    await client.query(
+      `
+      DELETE FROM exchange.scrap
+      WHERE id NOT IN (
+        SELECT scrap_id FROM exchange.sell_cart_items WHERE scrap_id IS NOT NULL
+        UNION
+        SELECT scrap_id FROM exchange.order_items WHERE scrap_id IS NOT NULL
+      )
+    `
+    );
 
     await client.query("COMMIT");
     res.status(200).json({ message: "Sell cart synced successfully" });
