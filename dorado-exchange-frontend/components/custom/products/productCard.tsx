@@ -49,7 +49,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
         <Carousel className="">
           <CarouselContent>
             <CarouselItem className="pb-4">
-              <div className="flex relative aspect-square items-center justify-center overflow-y-hidden">
+              <div className="flex relative aspect-square items-center justify-center">
                 <ProductShadow
                   productType={selectedProduct.product_type}
                   offset={selectedProduct.shadow_offset}
@@ -58,13 +58,13 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                   src={selectedProduct.image_front}
                   width={500}
                   height={500}
-                  className="relative z-10 pointer-events-none cursor-auto w-full h-auto object-contain focus:outline-none drop-shadow-lg"
+                  className="relative z-10 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
                   alt="thumbnail"
                 />
               </div>
             </CarouselItem>
             <CarouselItem className="pb-4">
-              <div className="flex relative aspect-square items-center justify-center overflow-y-hidden">
+              <div className="flex relative aspect-square items-center justify-center">
                 <ProductShadow
                   productType={selectedProduct.product_type}
                   offset={selectedProduct.shadow_offset}
@@ -73,7 +73,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                   src={selectedProduct.image_back}
                   width={500}
                   height={500}
-                  className="relative z-10 pointer-events-none cursor-auto w-full h-auto object-contain focus:outline-none drop-shadow-lg"
+                  className="relative z-10 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
                   alt="thumbnail"
                 />
               </div>
