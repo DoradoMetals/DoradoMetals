@@ -43,7 +43,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const weightOptions = ozOptions[product.variant_group]
 
   return (
-    <div className="bg-card h-auto w-full sm:w-[22rem] max-w-[22rem] group relative flex-col items-center rounded-lg border-t-2 border-secondary shadow-lg focus-within:shadow-2xl focus-within:shadow-secondary/[0.2] hover:shadow-2xl hover:shadow-secondary/[0.2] transition-all duration-300">
+    <div className="bg-card h-auto w-full sm:w-[22rem] max-w-[22rem] group relative flex-col items-center rounded-xl border-t-1 border-secondary shadow-lg focus-within:shadow-2xl focus-within:shadow-secondary/[0.1] hover:shadow-2xl hover:shadow-secondary/[0.1] transition-all duration-300">
       <div className="flex ml-auto m-0 p-0">
         <div className="ml-auto">
           {variants.length > 0 && weightOptions && (
@@ -59,7 +59,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                   triggerContent={
                     <Button
                       variant="ghost"
-                      className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs text-neutral-700 border border-neutral-700 bg-card hover:bg-card"
+                      className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs text-secondary border border-secondary bg-card hover:bg-card"
                     >
                       <Scale size={16} />
                     </Button>
@@ -87,7 +87,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
           )}
         </div>
       </div>
-      <Carousel className="py-2 bg-highest">
+      <Carousel className="py-2 bg-gradient-to-b from-highest via-highest via-50% to-background to-85%">
         <CarouselContent>
           <CarouselItem className="p-4">
             <div className="flex aspect-square items-center justify-center">
