@@ -93,7 +93,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
             <CarouselItem className="p-4">
               <div className="flex aspect-square items-center justify-center">
                 <Image
-                  src={product.image_front}
+                  src={selectedProduct.image_front}
                   width={500}
                   height={500}
                   className="pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
@@ -104,7 +104,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
             <CarouselItem className="p-4">
               <div className="flex aspect-square items-center justify-center">
                 <Image
-                  src={product.image_back}
+                  src={selectedProduct.image_back}
                   width={500}
                   height={500}
                   className="pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"

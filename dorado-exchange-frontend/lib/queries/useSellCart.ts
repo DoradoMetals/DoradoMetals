@@ -35,8 +35,8 @@ export const useSyncSellCartToBackend = () => {
     mutationFn: async () => {
       const items = sellCartStore.getState().items
 
-      if (!user?.id || items.length === 0) {
-        throw new Error('Missing user or cart is empty')
+      if (!user?.id) {
+        throw new Error('Missing user')
       }
 
       return await apiRequest('POST', '/sell_cart/sync_sell_cart', {
