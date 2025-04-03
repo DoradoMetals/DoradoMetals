@@ -115,7 +115,7 @@ function CarouselNavigation({ className, classNameButton, alwaysShow }: Carousel
   return (
     <div
       className={cn(
-        'hidden sm:flex absolute left-[2.5%] top-1/2 w-[95%] -translate-y-1/2 justify-between px-2',
+        'hidden sm:flex absolute left-[1.5%] top-1/2 w-[97%] -translate-y-1/2 justify-between px-2',
         className
       )}
     >

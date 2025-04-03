@@ -29,16 +29,17 @@ export const ProductShadow: React.FC<ProductShadowProps> = ({ productType, offse
   if (productType === 'Bar') {
     return (
       <div
-        className={`absolute z-10 ${offsetClass} left-1/2 -translate-x-1/2 w-36 h-[0.25rem] bg-black/70 blur-sm rounded`}
+      className={`absolute z-10 ${offsetClass} left-1/2 -translate-x-1/2 w-40 h-2 bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0.25)_20%,_transparent_80%)]`}
       />
     )
   }
 
   if (productType === 'Collectible') {
     return (
-      <div
-      className={`absolute z-10 ${offsetClass} left-1/2 -translate-x-1/2 w-28 h-2 bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0.25)_20%,_transparent_80%)]`}
-      />
+      <></>
+      // <div
+      // className={`absolute z-10 ${offsetClass} left-1/2 -translate-x-1/2 w-28 h-2 bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0.25)_20%,_transparent_80%)]`}
+      // />
     )
   }
 
