@@ -9,7 +9,6 @@ interface ProtectedPageProps {
 }
 
 export default function ProtectedPage({ children, requiredRoles }: ProtectedPageProps) {
-  const router = useRouter();
   if (!useAuthorization(requiredRoles)) {
     redirect("/sign-in");
   }
