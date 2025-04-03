@@ -54,7 +54,7 @@ export const useCartAutoSync = () => {
     if (!user?.id) return
     const interval = setInterval(() => {
       syncCartMutation.mutate()
-    }, 60000)
+    }, 15000)
 
     return () => clearInterval(interval)
   }, [user?.id])
