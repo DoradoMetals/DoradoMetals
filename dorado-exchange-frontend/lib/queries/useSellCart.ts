@@ -3,30 +3,6 @@ import { apiRequest } from '@/utils/axiosInstance'
 import { useUserStore } from '@/store/userStore'
 import { sellCartStore } from '@/store/sellCartStore'
 import { useEffect } from 'react'
-import { SellCartItem } from '@/types/sellCart'
-
-export const useHydrateSellCartFromBackend = () => {
-  const { user } = useUserStore()
-  const mergeSellCart = sellCartStore((state) => state.mergeSellCart)
-
-  const query = useQuery<SellCartItem[], Error>({
-    queryKey: ['sell-cart', user?.id],
-    queryFn: async () => {
-      return await apiRequest<SellCartItem[]>('GET', '/sell_cart/get_sell_cart', undefined, {
-        user_id: user.id,
-      })
-    },
-    enabled: !!user?.id,
-  })
-
-  useEffect(() => {
-    if (query.data) {
-      mergeSellCart(query.data)
-    }
-  }, [query.data, mergeSellCart])
-
-  return query
-}
 
 export const useSyncSellCartToBackend = () => {
   const { user } = useUserStore()

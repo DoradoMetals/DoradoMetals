@@ -12,10 +12,10 @@ import { useUserStore } from '@/store/userStore'
 import { MenuIcon } from '@/components/icons/navIcon'
 import { CartIcon } from '@/components/icons/cartIcon'
 import { cartStore } from '@/store/cartStore'
-import { useCartAutoSync, useHydrateCartFromBackend } from '@/lib/queries/useCart'
+import { useCartAutoSync } from '@/lib/queries/useCart'
 import { CartTabs } from '../cart/cartTabs'
 import Spots from '../spots/spots'
-import { useHydrateSellCartFromBackend, useSellCartAutoSync } from '@/lib/queries/useSellCart'
+import { useSellCartAutoSync } from '@/lib/queries/useSellCart'
 import { sellCartStore } from '@/store/sellCartStore'
 
 export default function Shell() {
@@ -27,9 +27,7 @@ export default function Shell() {
   const sellItems = sellCartStore((state) => state.items.length)
 
   useSellCartAutoSync()
-  useHydrateSellCartFromBackend()
   useCartAutoSync()
-  useHydrateCartFromBackend()
 
   function getBadgePosition(type: 'buy' | 'sell', buyCount: number) {
     if (type === 'buy') return '-top-0 -right-0'

@@ -2,10 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authClient } from '@/lib/authClient'
 import { useRouter } from 'next/navigation'
 import { useUserStore } from '@/store/userStore'
-import { useHydrateCartFromBackend, useSyncCartToBackend } from './useCart'
+import { useSyncCartToBackend } from './useCart'
 import { cartStore } from '@/store/cartStore'
 import { useSyncSellCartToBackend } from './useSellCart'
 import { sellCartStore } from '@/store/sellCartStore'
+import { Product } from '@/types/product'
+import { apiRequest } from '@/utils/axiosInstance'
+import { SellCartItem } from '@/types/sellCart'
 
 export const useSession = () => {
   return useQuery({
@@ -76,6 +79,9 @@ export const useSignUp = () => {
 export const useSignIn = () => {
   const fetchSession = useUserStore((state) => state.fetchSession)
   const queryClient = useQueryClient()
+  const mergeCartItems = cartStore((state) => state.mergeCartItems)
+  const mergeSellCart = sellCartStore((state) => state.mergeSellCart)
+
   return useMutation({
     mutationFn: async ({
       email,
@@ -94,8 +100,35 @@ export const useSignIn = () => {
           },
         }
       ),
-    onSettled: () => {
-      fetchSession()
+    onSettled: async () => {
+      await fetchSession()
+
+      const session = useUserStore.getState().user
+      if (session?.id) {
+        try {
+          const backendCart = await apiRequest<Product[]>('GET', '/cart/get_cart', undefined, {
+            user_id: session.id,
+          })
+          mergeCartItems(backendCart)
+        } catch (err) {
+          console.error('Cart hydration failed:', err)
+        }
+
+        try {
+          const backendCart = await apiRequest<SellCartItem[]>(
+            'GET',
+            '/sell_cart/get_sell_cart',
+            undefined,
+            {
+              user_id: session.id,
+            }
+          )
+          mergeSellCart(backendCart)
+        } catch (err) {
+          console.error('Sell cart hydration failed:', err)
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ['session'] })
     },
   })
@@ -103,7 +136,6 @@ export const useSignIn = () => {
 
 export const useSignOut = () => {
   const queryClient = useQueryClient()
-
   const clearSession = useUserStore((state) => state.clearSession)
   const fetchSession = useUserStore((state) => state.fetchSession)
   const router = useRouter()
@@ -144,16 +176,46 @@ export const useSignOut = () => {
 export const useGoogleSignIn = () => {
   const fetchSession = useUserStore((state) => state.fetchSession)
   const queryClient = useQueryClient()
+  const mergeCartItems = cartStore((state) => state.mergeCartItems)
+  const mergeSellCart = sellCartStore((state) => state.mergeSellCart)
+
   return useMutation({
     mutationFn: async () =>
       authClient.signIn.social({
         provider: 'google',
         callbackURL: process.env.NEXT_PUBLIC_FRONTEND_URL,
       }),
-    onSettled: () => {
-      fetchSession()
-      queryClient.invalidateQueries({ queryKey: ['session'] })
-    },
+      onSettled: async () => {
+        await fetchSession()
+  
+        const session = useUserStore.getState().user
+        if (session?.id) {
+          try {
+            const backendCart = await apiRequest<Product[]>('GET', '/cart/get_cart', undefined, {
+              user_id: session.id,
+            })
+            mergeCartItems(backendCart)
+          } catch (err) {
+            console.error('Cart hydration failed:', err)
+          }
+  
+          try {
+            const backendCart = await apiRequest<SellCartItem[]>(
+              'GET',
+              '/sell_cart/get_sell_cart',
+              undefined,
+              {
+                user_id: session.id,
+              }
+            )
+            mergeSellCart(backendCart)
+          } catch (err) {
+            console.error('Sell cart hydration failed:', err)
+          }
+        }
+  
+        queryClient.invalidateQueries({ queryKey: ['session'] })
+      },
   })
 }
 

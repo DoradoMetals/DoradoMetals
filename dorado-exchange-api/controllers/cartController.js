@@ -27,7 +27,6 @@ const getCart = async (req, res) => {
 
 const syncCart = async (req, res) => {
   const { user_id, cart } = req.body;
-  console.log('here 1')
   if (!user_id || !Array.isArray(cart)) {
     return res.status(400).json({ error: "Invalid payload" });
   }
@@ -59,7 +58,6 @@ const syncCart = async (req, res) => {
           ).rows[0].id;
 
     // Clear existing cart items
-    console.log('here')
     await client.query(
       `DELETE FROM exchange.cart_items WHERE cart_id = $1`,
       [cartId]
