@@ -38,16 +38,16 @@ export function ForgotPasswordDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="link" className="secondary-text p-0 pb-1">
+        <Button variant="link" className="text-xs text-neutral-600 p-0">
           Forgot Password?
         </Button>
       </DialogTrigger>
-      <DialogContent className="space-y-4">
-        <DialogTitle>Reset Password</DialogTitle>
-        <DialogDescription>Enter your email, and we will send you a reset link.</DialogDescription>
+      <DialogContent className="">
+        <DialogTitle className='text-neutral-800 text-lg'>Reset Password</DialogTitle>
+        <DialogDescription className='mb-6'>Enter your email, and we will send you a reset link.</DialogDescription>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
               name="email"
@@ -82,13 +82,13 @@ export function ForgotPasswordDialog() {
         </Form>
 
         {forgotPasswordMutation.isSuccess && (
-          <p className="text-center secondary-text">
+          <p className="text-center text-sm text-neutral-700">
             We have sent a reset link to the provided email if it exists within our system.
           </p>
         )}
 
         {forgotPasswordMutation.isError && (
-          <p className="text-sm text-center text-destructive">
+          <p className="text-center text-sm text-destructive">
             {forgotPasswordMutation.error.message}
           </p>
         )}

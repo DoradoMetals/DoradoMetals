@@ -7,7 +7,7 @@ import { UserTabs } from '@/components/custom/user-tabs/user-tabs'
 export default function Page() {
   return (
     // <ProtectedPage requiredRoles={protectedRoutes.account.roles}>
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-4">
         <UserTabs />
       </div>
     // </ProtectedPage>

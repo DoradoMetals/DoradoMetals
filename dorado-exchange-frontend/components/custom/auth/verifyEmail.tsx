@@ -28,7 +28,7 @@ export default function VerifyEmail() {
       {verifyEmailMutation.isSuccess && <p>Email verified! Redirecting...</p>}
       {verifyEmailMutation.isError && (
         <div>
-          <p className="text-red-500">Invalid or expired verification link.</p>
+          <p className="text-destructive">Invalid or expired verification link.</p>
           <Button onClick={() => router.push("/")}>Go to Home</Button>
         </div>
       )}

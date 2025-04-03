@@ -204,7 +204,7 @@ function MetalSelectionStep() {
             {metalOptions.map((metal) => (
               <label
                 key={metal.label}
-                className="flex w-full items-stretch justify-between gap-4 rounded-lg p-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-xl has-[[data-state=checked]]:border-neutral-400 transition-colors"
+                className="flex w-full items-stretch justify-between gap-4 rounded-lg p-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-xl has-[[data-state=checked]]:border-primary transition-colors"
               >
                 <div className="flex gap-4 w-full items-center">
                   <div className="flex items-center">{metal.logo}</div>
@@ -247,7 +247,7 @@ function WeightStep() {
               {weightOptions.map((weight) => (
                 <label
                   key={weight.id}
-                  className="peer flex flex-col items-center w-full gap-3 rounded-lg py-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-xl has-[[data-state=checked]]:border-neutral-400 transition-colors"
+                  className="peer flex flex-col items-center w-full gap-3 rounded-lg py-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-xl has-[[data-state=checked]]:border-primary transition-colors"
                 >
                   <div className="flex flex-col items-center gap-2">
                     {weight.logo}
@@ -336,7 +336,7 @@ function PurityStep() {
             {options.map((option) => (
               <label
                 key={option.label}
-                className="flex items-center justify-center rounded-md border border-input px-4 py-2 text-sm font-medium cursor-pointer has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-secondary has-[[data-state=checked]]:shadow-lg transition-colors"
+                className="flex items-center justify-center rounded-md border border-input px-4 py-2 text-sm font-medium cursor-pointer has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:shadow-lg transition-colors"
               >
                 <RadioGroupItem
                   value={option.label}
@@ -406,7 +406,7 @@ function ReviewStep({ showBanner }: { showBanner: boolean }) {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Anvil className="text-secondary" size={20} />
+              <Anvil className="text-primary" size={20} />
               <span className="text-base text-neutral-600">Metal:</span>
             </div>
             <span className="text-sm text-neutral-800">{metal}</span>
@@ -414,7 +414,7 @@ function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Scale className="text-secondary" size={20} />
+              <Scale className="text-primary" size={20} />
               <span className="text-base text-neutral-600">Gross:</span>
             </div>
             {getGrossLabel(gross, unit)}
@@ -422,7 +422,7 @@ function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
-              <Percent className="text-secondary" size={20} />
+              <Percent className="text-primary" size={20} />
               <span className="text-base text-neutral-600">Purity:</span>
             </div>
             {getPurityLabel(purity, metal)}

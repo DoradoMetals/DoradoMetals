@@ -47,22 +47,22 @@ export type WeightOption = {
 export const metalOptions: MetalOption[] = [
   {
     label: 'Gold',
-    logo: <GoldIcon size={36} className="text-secondary" />,
+    logo: <GoldIcon size={36} className="text-primary" />,
     blurb: 'Jewelry, nuggets, raw gold, casting grain',
   },
   {
     label: 'Silver',
-    logo: <SilverIcon size={36} className="text-secondary" />,
+    logo: <SilverIcon size={36} className="text-primary" />,
     blurb: 'Jewelry, flatware, tea sets, wire, sheets',
   },
   {
     label: 'Platinum',
-    logo: <PlatinumIcon size={36} className="text-secondary" />,
+    logo: <PlatinumIcon size={36} className="text-primary" />,
     blurb: 'Jewelry stamped PLAT, PT 950, PT 900',
   },
   {
     label: 'Palladium',
-    logo: <PalladiumIcon size={36} className="text-secondary" />,
+    logo: <PalladiumIcon size={36} className="text-primary" />,
     blurb: 'Jewelry stamped PD, PD 950, PD 900',
   },
 ]
@@ -135,25 +135,25 @@ export function getGrossLabel(gross: number, unit: string) {
 export const weightOptions: WeightOption[] = [
   {
     label: 'Grams',
-    logo: <Scale size={20} className="text-secondary" />,
+    logo: <Scale size={20} className="text-primary" />,
     unit: 'g',
     id: '1',
   },
   {
     label: 'Troy Oz.',
-    logo: <CircleDollarSign size={20} className="text-secondary" />,
+    logo: <CircleDollarSign size={20} className="text-primary" />,
     unit: 't oz',
     id: '2',
   },
   {
     label: 'DWT',
-    logo: <Gem size={20} className="text-secondary" />,
+    logo: <Gem size={20} className="text-primary" />,
     unit: 'dwt',
     id: '3',
   },
   {
     label: 'Pounds',
-    logo: <Weight size={20} className="text-secondary" />,
+    logo: <Weight size={20} className="text-primary" />,
     unit: 'lb',
     id: '4',
   },

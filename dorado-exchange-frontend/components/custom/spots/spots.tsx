@@ -10,8 +10,9 @@ export default function Spots() {
 
   return (
     <>
-      {spots && (
+
         <div className="w-screen bg-highest py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap border-b-1 border-neutral-200">
+        {spots && (
           <div className="hidden md:flex items-center sm:px-25">
             <div className="flex items-center gap-10 ml-auto justify-start">
               {spots.map((spot) => {
@@ -43,7 +44,7 @@ export default function Spots() {
                         </div>
 
                         <div className="flex items-center gap-0.5 text-xs text-neutral-600">
-                          <ChevronIcon size={14} className="text-secondary" fill="currentColor" />
+                          <ChevronIcon size={14} className="text-primary" fill="currentColor" />
                           <NumberFlow
                             value={spot.dollar_change}
                             format={{
@@ -68,9 +69,11 @@ export default function Spots() {
             </div>
           </div>
 
-          {spots && <MobileSpotTicker />}
+          
+          )}
+        {spots && <MobileSpotTicker />}
         </div>
-      )}
+
     </>
   )
 }

@@ -15,7 +15,7 @@ export default function SignInButton() {
       onClick={() => {router.push('/authentication?tab=sign-in')}}
       icon={LogIn}
       iconSize={20}
-      className="px-3 py-1 h-8 hover:bg-primary border-primary"
+      className="px-4 py-2 h-8 hover:bg-primary border-primary"
     >
       Sign In
     </Button>

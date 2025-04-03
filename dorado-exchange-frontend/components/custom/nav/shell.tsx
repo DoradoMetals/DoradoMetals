@@ -53,26 +53,26 @@ export default function Shell() {
   return (
     <>
       {/* Navbar */}
-      <div className="sticky top-0 z-50 mb-5 shadow-lg">
+      <div className="sticky top-0 z-50 mb-6 shadow-lg">
         <Spots />
         <nav className="bg-card">
-          <div className="flex items-center justify-between w-full py-5 p-3 sm:px-20">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between w-full p-4 sm:px-32">
+            <div className="flex items-center gap-4">
               {/* Logo */}
               <Link className="px-0" href={'/'}>
                 <Logo />
               </Link>
 
               {/* Title */}
-              <div className="flex items-center">
+              <div className="flex items-end">
                 <Link href={'/'}>
-                  <span className="text-lg font-light tracking-wide lg:tracking-widest">
+                  <span className="text-base sm:text-lg xl:text-xl text-neutral-900 sm:font-semibold sm:tracking-wide lg:tracking-widest">
                     Dorado Metals Exchange
                   </span>
                 </Link>
 
                 {/* Desktop Navbar Links */}
-                <div className="hidden lg:flex gap-3 text-sm items-center font-semibold tracking-widest pl-20 gap-10">
+                <div className="hidden lg:flex text-base items-center font-semibold tracking-wide pl-32 gap-8">
                   {menuItems.map((item) => (
                     <Link className={item.className} key={item.key} href={item.src}>
                       <p>{item.label}</p>
@@ -95,7 +95,7 @@ export default function Shell() {
                   <CartIcon
                     size={24}
                     isOpen={isCartActive}
-                    className="text-muted-foreground hover:bg-card"
+                    className="text-neutral-700 hover:bg-card"
                   />
                   {items > 0 && (
                     <span
@@ -124,7 +124,7 @@ export default function Shell() {
             </div>
 
             {/* Mobile Sidebar and Menu*/}
-            <div className="lg:hidden flex items-end ml-auto gap-3">
+            <div className="lg:hidden flex items-end ml-auto gap-4">
               <Button
                 className="px-0 hover:bg-card relative"
                 variant="ghost"

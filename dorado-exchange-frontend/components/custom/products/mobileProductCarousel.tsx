@@ -104,7 +104,7 @@ export default function AvatarCarousel() {
             >
               <div
                 className={`w-18 h-18 rounded-full bg-background flex items-center justify-center border ${
-                  isActive(category.name) ? 'border-primary border-2 shadow-md' : 'border-neutral-300'
+                  isActive(category.name) ? 'border-secondary border-2 shadow-md' : 'border-neutral-300'
                 }`}
               >
                 <img src={category.img} alt={category.name} className="w-16 h-16 object-contain" />

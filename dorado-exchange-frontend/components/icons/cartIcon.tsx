@@ -45,7 +45,7 @@ const CartIcon = forwardRef<HTMLDivElement, CartIconProps>(
         {...props}
       >
         <motion.div animate={controls} variants={iconVariants}>
-          <ShoppingCart className="text-muted-foreground" size={size} />
+          <ShoppingCart size={size} />
         </motion.div>
       </div>
     );

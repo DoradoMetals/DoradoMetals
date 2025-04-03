@@ -21,9 +21,9 @@ export default function ProfileMenu() {
           </TriggerWrapper>
         ) : null}
 
-        <Tabs className="bg-background shadow-lg p-2 w-40">
+        <Tabs className="bg-background shadow-lg p-2">
           <Tab>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-4">
               {user ? (
                 <>
                   <Button
@@ -35,14 +35,14 @@ export default function ProfileMenu() {
                       router.push('/account')
                     }}
                     icon={UserPen}
-                    className="px-3 h-8 py-1 text-md font-light hover:bg-background hover:text-primary"
+                    className="px-4 h-8 py-2 text-md font-light hover:bg-background hover:text-primary"
                   >
                     Go to Account
                   </Button>
 
                   <ThemeSwitcherDesktop />
 
-                  <div className="border-t border-neutral-700 my-2" />
+                  <div className="border-t border-neutral-300 my-2" />
 
                   <SignOutButton />
                 </>

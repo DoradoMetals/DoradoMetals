@@ -13,16 +13,15 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
-import { Eye, EyeOff } from 'lucide-react'
 import { ForgotPasswordDialog } from './forgotPasswordDialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useSignIn } from '@/lib/queries/useAuth'
 
 import orSeparator from './orSeparator'
-import googleButton from './googleButton'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import { SignIn, signInSchema } from '@/types/auth'
 import ShowPasswordButton from './showPasswordButton'
+import GoogleButton from './googleButton'
 
 export default function SignInForm() {
   const router = useRouter()
@@ -43,37 +42,31 @@ export default function SignInForm() {
   }
 
   return (
-    <div className="grid place-items-center mt-6">
+    <div className="grid place-items-center">
       <div className="flex flex-col w-full">
-        <div className="flex items-center justify-center mb-10">
-          <h2 className="title-text">Welcome Back!</h2>
-        </div>
-
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="mb-10">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="relative w-full">
-                      <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
-                    </div>
-                    <FormControl>
-                      <FloatingLabelInput
-                        label="Email"
-                        type="email"
-                        autoComplete="email"
-                        size="sm"
-                        className="input-floating-label-form"
-                        {...field}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="relative w-full">
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                  </div>
+                  <FormControl>
+                    <FloatingLabelInput
+                      label="Email"
+                      type="email"
+                      autoComplete="email"
+                      size="sm"
+                      className="input-floating-label-form"
+                      {...field}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <div className="mb-2">
               <FormField
@@ -106,12 +99,12 @@ export default function SignInForm() {
               />
             </div>
 
-            <div className="flex justify-between items-center w-full mt-2">
+            <div className="flex justify-between items-center w-full">
               <FormField
                 control={form.control}
                 name="rememberMe"
                 render={({ field }) => (
-                  <FormItem className="flex items-center gap-1">
+                  <FormItem className="flex items-end gap-2">
                     <FormControl>
                       <Checkbox
                         checked={field.value}
@@ -120,7 +113,10 @@ export default function SignInForm() {
                         className="checkbox-form"
                       />
                     </FormControl>
-                    <FormLabel htmlFor="remember-me" className="secondary-text cursor-pointer pb-1">
+                    <FormLabel
+                      htmlFor="remember-me"
+                      className="text-neutral-600 text-xs cursor-pointer"
+                    >
                       Remember Me
                     </FormLabel>
                   </FormItem>
@@ -146,7 +142,7 @@ export default function SignInForm() {
 
         {orSeparator()}
 
-        {googleButton('Sign In with Google')}
+        <GoogleButton buttonLabel={'Sign In with Google'} />
       </div>
     </div>
   )

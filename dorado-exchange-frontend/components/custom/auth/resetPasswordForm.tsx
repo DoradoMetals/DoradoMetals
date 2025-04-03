@@ -4,10 +4,8 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
-import { Eye, EyeOff } from 'lucide-react'
 import { useResetPassword } from '@/lib/queries/useAuth'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import { ResetPassword, resetPasswordSchema } from '@/types/auth'
@@ -44,13 +42,13 @@ export default function ResetPasswordForm() {
   }
 
   return (
-    <div className="h-screen mt-10 lg:mt-30 flex justify-center">
-      <div className="flex flex-col w-full max-w-sm px-5">
-        <p className="text-2xl text-neutral-600 font-bold mr-auto mb-10">Reset Password</p>
+    <div className="h-screen mt-12 lg:mt-32 flex justify-center">
+      <div className="flex flex-col w-full max-w-sm px-4">
+        <p className="text-lg text-neutral-600 font-bold mr-auto mb-10">Reset Password</p>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="mb-10">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <div className="space-y-10">
               <FormField
                 control={form.control}
                 name="password"
@@ -58,7 +56,6 @@ export default function ResetPasswordForm() {
                   <FormItem>
                     <div className="relative w-full">
                       <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
-
                       <FormControl>
                         <FloatingLabelInput
                           label="New Password"
@@ -77,9 +74,7 @@ export default function ResetPasswordForm() {
                   </FormItem>
                 )}
               />
-            </div>
 
-            <div className="mb-10">
               <FormField
                 control={form.control}
                 name="confirmPassword"

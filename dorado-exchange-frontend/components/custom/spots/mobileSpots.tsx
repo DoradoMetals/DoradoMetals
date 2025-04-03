@@ -60,7 +60,7 @@ export default function MobileSpotTicker() {
                 </div>
 
                 <div className="flex items-center gap-0.5 text-neutral-600">
-                  <ChevronIcon size={14} className="text-secondary" fill="currentColor" />
+                  <ChevronIcon size={14} className="text-primary" fill="currentColor" />
                   <NumberFlow
                     value={spot.dollar_change}
                     format={{
