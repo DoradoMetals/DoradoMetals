@@ -12,6 +12,7 @@ export interface Product {
   price: number,
   metal_type: string,
   variant_group: string,
+  shadow_offset: number,
 }
 
 export const ozOptions: Record<string, { value: string; label: string; disabled: boolean, name: string }[]> = {

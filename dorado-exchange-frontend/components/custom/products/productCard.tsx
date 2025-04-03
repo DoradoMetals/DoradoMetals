@@ -20,6 +20,7 @@ import { cartStore } from '@/store/cartStore'
 import PriceNumberFlow from './PriceNumberFlow'
 import getProductPrice from '@/utils/getProductPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
+import { ProductShadow } from './productShadow'
 
 type ProductCardProps = {
   product: Product
@@ -42,73 +43,89 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
   const weightOptions = ozOptions[product.variant_group]
 
+  const bottomVariants: Record<number, string> = {
+    0: 'bottom-6',
+    1: 'bottom-5',
+    2: 'bottom-4',
+    3: 'bottom-3',
+    4: 'bottom-2',
+    5: 'bottom-1',
+    6: 'bottom-0',
+  }
+
   return (
-    <div className="bg-card h-auto w-full sm:w-[22rem] max-w-[22rem] group relative flex-col items-center rounded-xl border-t-1 border-secondary shadow-lg focus-within:shadow-2xl focus-within:shadow-secondary/[0.1] hover:shadow-2xl hover:shadow-secondary/[0.1] transition-all duration-300">
-      <div className="flex ml-auto m-0 p-0">
-        <div className="ml-auto">
-          {variants.length > 0 && weightOptions && (
-            <div className="absolute top-.5 right-1 z-30">
-              <RadioGroup
-                value={selectedProduct.product_name}
-                onValueChange={(val) => {
-                  const variant = variants.find((v) => v.product_name === val)
-                  if (variant) setSelectedProduct(variant)
-                }}
-              >
-                <FloatingButton
-                  triggerContent={
-                    <Button
-                      variant="ghost"
-                      className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs text-secondary border border-secondary bg-card hover:bg-card"
-                    >
-                      <Scale size={16} />
-                    </Button>
-                  }
+    <div className="bg-card h-auto w-full sm:w-[22rem] max-w-[22rem] group relative flex-col items-center rounded-lg border-t-2 border-secondary shadow-lg focus-within:shadow-2xl focus-within:shadow-secondary/[0.1] hover:shadow-2xl hover:shadow-secondary/[0.1] transition-all duration-300">
+      {variants.length > 0 && weightOptions && (
+        <div className="absolute top-.5 right-1 z-30">
+          <RadioGroup
+            value={selectedProduct.product_name}
+            onValueChange={(val) => {
+              const variant = variants.find((v) => v.product_name === val)
+              if (variant) setSelectedProduct(variant)
+            }}
+          >
+            <FloatingButton
+              triggerContent={
+                <Button
+                  variant="ghost"
+                  className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs bg-secondary text-neutral-900"
                 >
-                  {weightOptions.map((option) => (
-                    <FloatingButtonItem key={option.name}>
-                      <label
-                        htmlFor={option.value}
-                        className="h-8 w-10 xs:w-12 sm:w-16 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:text-secondary has-[[data-state=checked]]:border-secondary"
-                      >
-                        <RadioGroupItem
-                          id={option.value}
-                          value={option.name}
-                          className="sr-only"
-                          disabled={option.disabled}
-                        />
-                        {option.value}
-                      </label>
-                    </FloatingButtonItem>
-                  ))}
-                </FloatingButton>
-              </RadioGroup>
-            </div>
-          )}
+                  <Scale size={16} />
+                </Button>
+              }
+            >
+              {weightOptions.map((option) => (
+                <FloatingButtonItem key={option.name}>
+                  <label
+                    htmlFor={option.value}
+                    className="h-8 w-10 xs:w-12 sm:w-16 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:border-secondary text-neutral-900"
+                  >
+                    <RadioGroupItem
+                      id={option.value}
+                      value={option.name}
+                      className="sr-only"
+                      disabled={option.disabled}
+                    />
+                    {option.value}
+                  </label>
+                </FloatingButtonItem>
+              ))}
+            </FloatingButton>
+          </RadioGroup>
         </div>
-      </div>
-      <Carousel className="py-2 bg-gradient-to-b from-highest via-highest via-50% to-background to-85%">
+      )}
+      <Carousel className="rounded-t-lg overflow-hidden py-2 bg-gradient-to-b from-highest via-card via-65% to-neutral-200 to-75%">
         <CarouselContent>
           <CarouselItem className="p-4">
-            <div className="flex aspect-square items-center justify-center">
+            <div className="flex relative aspect-square items-center justify-center">
+             <ProductShadow
+                productType={selectedProduct.product_type}
+                offset={selectedProduct.shadow_offset}
+              />
               <Image
                 src={selectedProduct.image_front}
                 width={500}
                 height={500}
-                className="pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
+                className="relative z-10 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
                 alt="thumbnail"
               />
+              <div className="absolute inset-0 rounded-full bg-card/30 blur-xl z-0" />
             </div>
           </CarouselItem>
           <CarouselItem className="p-4">
-            <div className="flex aspect-square items-center justify-center">
+            <div className="flex relative aspect-square items-center justify-center">
+              <ProductShadow
+                productType={selectedProduct.product_type}
+                offset={selectedProduct.shadow_offset}
+              />
               <Image
                 src={selectedProduct.image_back}
                 width={500}
                 height={500}
-                className="pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
+                className="relative z-10 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
                 alt="thumbnail"
               />
+              <div className="absolute inset-0 rounded-full bg-card/30 blur-xl z-0" />
             </div>
           </CarouselItem>
         </CarouselContent>

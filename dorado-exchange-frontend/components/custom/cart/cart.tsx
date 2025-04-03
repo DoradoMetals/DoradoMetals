@@ -150,7 +150,7 @@ export default function Cart({
         </div>
       </div>
       <Button
-        className="w-full bg-secondary lg:bg-card lg:border-secondary lg:border-1 lg:text-secondary hover:bg-secondary hover:text-neutral-900 hover:shadow-lg"
+        className="w-full bg-secondary text-neutral-900 hover:bg-secondary hover:shadow-lg"
       >
         Checkout
       </Button>
