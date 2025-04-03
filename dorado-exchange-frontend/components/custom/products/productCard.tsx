@@ -131,7 +131,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
         <div className="pt-6 space-y-8">
           <div className="flex-col px-6">
             <div className="flex items-center">
-              <div className="text-neutral-700 text-base lg:text-lg">
+              <div className="text-neutral-700 text-sm lg:text-base">
                 {selectedProduct.product_name}
               </div>
               <div className="text-neutral-800 text-base lg:text-lg ml-auto">

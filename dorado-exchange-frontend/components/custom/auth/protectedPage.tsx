@@ -10,7 +10,7 @@ interface ProtectedPageProps {
 
 export default function ProtectedPage({ children, requiredRoles }: ProtectedPageProps) {
   if (!useAuthorization(requiredRoles)) {
-    redirect("/sign-in");
+    redirect("/authentication");
   }
   return children;
 }

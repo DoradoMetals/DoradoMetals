@@ -165,9 +165,19 @@
   --muted: hsl(0, 0%, 40%);
 
   --primary: hsl(42, 100%, 50%);
-  --secondary: hsl(220, 6%, 55%);
-  --accent: hsl(220, 6%, 55%);
-  --ring: hsl(220, 6%, 55%);
+
+  --secondary: hsl(90, 40%, 35%);
+  --accent: hsl(90, 40%, 35%);
+  --ring: hsl(90, 40%, 35%);
+
+  /*
+  options:
+  hsl(90, 30%, 35%);     - olive green
+  hsl(280, 30%, 40%);    - plum/violet
+  hsl(220, 25%, 35%);    - desatured navy
+  hsl(220, 6%, 55%);     - silver  
+  */
+
   --destructive: hsl(360, 100%, 50%);
   --success: hsl(130, 100%, 50%);
 

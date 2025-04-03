@@ -48,8 +48,7 @@ export default function Cart({
       </div>
       <Link href="/buy" passHref>
         <Button
-          variant="outline"
-          className="bg-card hover:bg-highest border-1 border-secondary text-secondary"
+          variant="secondary"
           onClick={() => {
             router.push('/buy')
             setIsCartActive(false);

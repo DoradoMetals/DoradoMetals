@@ -1,5 +1,3 @@
-import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Cart from './cart'
 import { Dispatch } from 'react'

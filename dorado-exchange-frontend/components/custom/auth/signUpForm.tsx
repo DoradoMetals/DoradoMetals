@@ -143,13 +143,13 @@ export default function SignUpForm() {
                         <div className="flex items-end text-xs text-neutral-600 gap-1">
                           Accept our
                           <Link
-                            className="text-secondary tracking-wide"
+                            className="text-primary tracking-wide"
                             href={'/terms-and-conditions'}
                           >
                             Terms and Condtions
                           </Link>
                           and
-                          <Link className="text-secondary tracking-wide" href={'/privacy-policy'}>
+                          <Link className="text-primary tracking-wide" href={'/privacy-policy'}>
                             Privacy Policy.
                           </Link>
                         </div>
