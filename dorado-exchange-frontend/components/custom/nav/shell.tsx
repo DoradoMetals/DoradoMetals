@@ -16,11 +16,11 @@ import { CartTabs } from '../cart/cartTabs'
 import Spots from '../spots/spots'
 import { useSellCartAutoSync } from '@/lib/queries/useSellCart'
 import { sellCartStore } from '@/store/sellCartStore'
-import { useGetSession } from '@/lib/queries/useAuth'
+import { useUser } from '@/lib/authClient'
 
 export default function Shell() {
   const pathname = usePathname()
-  const { user } = useGetSession()
+  const { user } = useUser()
   const [isDrawerActive, setIsDrawerActive] = useState(false)
   const [isCartActive, setIsCartActive] = useState(false)
   const items = cartStore((state) => state.items.length)
@@ -63,7 +63,7 @@ export default function Shell() {
       <div className="sticky top-0 z-50 mb-6 shadow-lg">
         <Spots />
         <nav className="bg-card">
-          <div className="flex items-center justify-between w-full p-4 sm:px-32">
+          <div className="flex items-center justify-between w-full p-4 sm:px-10 md:px-20">
             <div className="flex items-center gap-4">
               {/* Logo */}
               <Link className="px-0" href={'/'}>

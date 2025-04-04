@@ -36,6 +36,8 @@ export const useGetSession = () => {
       return data;
     },
     staleTime: 1000 * 60 * 5,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   return {
@@ -99,6 +101,7 @@ export const useSignUp = () => {
 
 export const useSignIn = () => {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const mergeCartItems = cartStore((state) => state.mergeCartItems);
   const mergeSellCart = sellCartStore((state) => state.mergeSellCart);
 
@@ -148,6 +151,9 @@ export const useSignIn = () => {
       }
       queryClient.invalidateQueries({ queryKey: ['session'] });
     },
+    onSuccess: async () => {
+      router.replace('/');
+    }
   });
 };
 
@@ -159,6 +165,7 @@ export const useSignOut = () => {
 
   return useMutation({
     mutationFn: async () => {
+
       try {
         await syncCart.mutateAsync();
       } catch (err) {
@@ -179,8 +186,9 @@ export const useSignOut = () => {
       localStorage.removeItem('dorado_cart');
       localStorage.removeItem('dorado_sell_cart');
       localStorage.removeItem('cartSynced');
+      queryClient.removeQueries()
       router.replace('/');
-      queryClient.resetQueries();
+
     },
   });
 };

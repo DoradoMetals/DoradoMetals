@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -24,7 +23,6 @@ import ShowPasswordButton from './showPasswordButton'
 import GoogleButton from './googleButton'
 
 export default function SignInForm() {
-  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const { mutate: signInMutation, error, isPending } = useSignIn()
 
@@ -34,11 +32,7 @@ export default function SignInForm() {
   })
 
   const onSubmit = (values: SignIn) => {
-    signInMutation(values, {
-      onSuccess: () => {
-        router.push('/')
-      },
-    })
+    signInMutation(values)
   }
 
   return (

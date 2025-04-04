@@ -7,7 +7,8 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Dispatch } from 'react'
 import { ThemeSwitcher } from '../theme/theme-switcher'
-import { useGetSession, useSignOut } from '@/lib/queries/useAuth'
+import { useSignOut } from '@/lib/queries/useAuth'
+import { useUser } from '@/lib/authClient'
 
 export default function Sidebar({
   isDrawerActive,
@@ -16,7 +17,7 @@ export default function Sidebar({
   isDrawerActive: boolean
   setIsDrawerActive: Dispatch<React.SetStateAction<boolean>>
 }) {
-  const {user} = useGetSession();
+  const {user} = useUser();
   const router = useRouter()
   const signOutMutation = useSignOut()
 
@@ -37,7 +38,7 @@ export default function Sidebar({
     },
     {
       key: 3,
-      label: 'ADMIN',
+      label: 'Admin PoS',
       src: '/admin',
       className: pathname === '/admin' ? 'text-primary' : '',
       hidden: user?.role !== 'admin',

@@ -3,9 +3,10 @@ import { apiRequest } from '@/utils/axiosInstance'
 import { sellCartStore } from '@/store/sellCartStore'
 import { useEffect } from 'react'
 import { useGetSession } from './useAuth'
+import { useUser } from '../authClient'
 
 export const useSyncSellCartToBackend = () => {
-  const { user } = useGetSession()
+   const { user } = useUser();
 
   return useMutation({
     mutationFn: async () => {
@@ -24,7 +25,7 @@ export const useSyncSellCartToBackend = () => {
 }
 
 export const useSellCartAutoSync = () => {
-  const { user } = useGetSession()
+  const { user } = useUser();
   const syncMutation = useSyncSellCartToBackend()
 
   useEffect(() => {

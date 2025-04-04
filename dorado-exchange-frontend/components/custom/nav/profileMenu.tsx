@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation'
 import { UserPen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeSwitcherDesktop } from '../theme/theme-switcher-desktop'
-import { useGetSession } from '@/lib/queries/useAuth'
+import { useUser } from '@/lib/authClient'
 
 export default function ProfileMenu() {
-  const { user } = useGetSession()
+  const { user } = useUser()
   const router = useRouter()
 
   return (

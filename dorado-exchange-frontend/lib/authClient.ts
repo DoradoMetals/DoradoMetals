@@ -38,6 +38,7 @@ export const useUser = () => {
   const { data, error, isPending } = useSession();
   return {
     user: data?.user,
+    session: data?.session,
     error,
     isPending,
   };
