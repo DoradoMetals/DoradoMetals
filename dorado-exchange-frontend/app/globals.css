@@ -107,9 +107,9 @@
   --muted: hsl(0, 0%, 70%);
 
   --primary: hsl(42, 100%, 50%);
-  --secondary: hsl(220, 100%, 50%);
-  --accent: hsl(220, 100%, 50%);
-  --ring: hsl(220, 100%, 50%);
+  --secondary: hsl(90, 40%, 35%);
+  --accent: hsl(90, 40%, 35%);
+  --ring: hsl(90, 40%, 35%);
   --destructive: hsl(358, 93%, 64%);
   --success: hsl(129, 76%, 35%);
 

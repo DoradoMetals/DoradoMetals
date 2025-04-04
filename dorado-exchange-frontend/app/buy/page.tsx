@@ -14,7 +14,7 @@ export default function BuyPage() {
 
   return (
     <div className="flex justify-center">
-      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-2 justify-items-center mb-6 px-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-4 justify-items-center mb-6 px-4">
         {groupedProducts.map(({ default: product, variants }) => (
           <ProductCard key={product.product_name} product={product} variants={variants} />
         ))}

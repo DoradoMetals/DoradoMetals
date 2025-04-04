@@ -28,7 +28,7 @@ export default function Page() {
             <Link href="/buy" passHref>
               <Button
                 variant="secondary"
-                className="w-full px-10"
+                className="w-full px-15"
                 onClick={() => {
                   router.push('/authentication')
                 }}
