@@ -1,17 +1,15 @@
 import React from 'react'
-import { authClient } from '@/lib/authClient'
 import { User2 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { useUserStore } from '@/store/userStore'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 export default function ProfileTrigger() {
-  const { user } = useUserStore()
-
+  const { user } = useGetSession();
   return (
     <div className="flex items-center">
       {user ? (
         <Avatar>
-          <AvatarFallback className='bg-card text-muted-foreground'>
+          <AvatarFallback className="bg-card text-muted-foreground">
             <User2 />
           </AvatarFallback>
         </Avatar>

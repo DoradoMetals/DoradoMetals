@@ -2,22 +2,24 @@
 
 import { usePathname } from 'next/navigation'
 import Shell from '@/components/custom/nav/shell'
-import { useUserStore } from '@/store/userStore'
-import { useEffect } from 'react'
 import MobileProductCarousel from '../custom/products/mobileProductCarousel'
+import { useGetSession } from '@/lib/queries/useAuth'
+import ShellSkeleton from '../skeletons/ShellSkeleton'
 
 export default function LayoutProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-
   const mobileProductCarouselRoutes = ['/', '/buy']
-
-  const fetchSession = useUserStore((state) => state.fetchSession)
-
-  useEffect(() => {
-    fetchSession()
-  }, [])
-
   const showMobileCarousel = mobileProductCarouselRoutes.includes(pathname)
+
+  const {user, isPending} = useGetSession();
+
+  if (!user && isPending) {
+    return (
+      <>
+        <ShellSkeleton />
+      </>
+    )
+  }
 
   return (
     <>

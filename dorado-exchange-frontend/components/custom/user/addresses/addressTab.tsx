@@ -1,7 +1,6 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { useUserStore } from '@/store/userStore'
 import { useAddress } from '@/lib/queries/useAddresses'
 import { Address } from '@/types/address'
 import { useState } from 'react'
@@ -9,9 +8,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Plus } from 'lucide-react'
 import AddressCard from './addressCard'
 import AddressModal from './addressDialog'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 export default function AddressTab() {
-  const { user } = useUserStore()
+  const { user } = useGetSession();
   const { data: addresses, isLoading } = useAddress()
 
   const [open, setOpen] = useState(false)

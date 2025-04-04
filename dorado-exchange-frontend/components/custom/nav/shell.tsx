@@ -8,7 +8,6 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import ProfileMenu from './profileMenu'
 import SignInButton from '../auth/signInButton'
-import { useUserStore } from '@/store/userStore'
 import { MenuIcon } from '@/components/icons/navIcon'
 import { CartIcon } from '@/components/icons/cartIcon'
 import { cartStore } from '@/store/cartStore'
@@ -17,10 +16,11 @@ import { CartTabs } from '../cart/cartTabs'
 import Spots from '../spots/spots'
 import { useSellCartAutoSync } from '@/lib/queries/useSellCart'
 import { sellCartStore } from '@/store/sellCartStore'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 export default function Shell() {
   const pathname = usePathname()
-  const data = useUserStore()
+  const { user } = useGetSession()
   const [isDrawerActive, setIsDrawerActive] = useState(false)
   const [isCartActive, setIsCartActive] = useState(false)
   const items = cartStore((state) => state.items.length)
@@ -48,6 +48,13 @@ export default function Shell() {
       src: '/sell',
       className: pathname === '/sell' ? 'text-primary' : 'text-neutral-400',
     },
+    {
+      key: 3,
+      label: 'ADMIN',
+      src: '/admin',
+      className: pathname === '/admin' ? 'text-primary' : 'text-neutral-400',
+      hidden: user?.role !== 'admin',
+    },
   ]
 
   return (
@@ -73,11 +80,13 @@ export default function Shell() {
 
                 {/* Desktop Navbar Links */}
                 <div className="hidden lg:flex text-base items-center font-semibold tracking-wide pl-32 gap-8">
-                  {menuItems.map((item) => (
-                    <Link className={item.className} key={item.key} href={item.src}>
-                      <p>{item.label}</p>
-                    </Link>
-                  ))}
+                  {menuItems
+                    .filter((item) => !item.hidden)
+                    .map((item) => (
+                      <Link className={item.className} key={item.key} href={item.src}>
+                        <p>{item.label}</p>
+                      </Link>
+                    ))}
                 </div>
               </div>
             </div>
@@ -119,7 +128,7 @@ export default function Shell() {
                   )}
                 </Button>
 
-                {data.user ? <ProfileMenu /> : <SignInButton />}
+                {user ? <ProfileMenu /> : <SignInButton />}
               </div>
             </div>
 

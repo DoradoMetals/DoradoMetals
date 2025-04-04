@@ -1,7 +1,6 @@
-'use client';
-import { ReactNode } from "react";
-import { useAuthorization } from "@/utils/useAuthorization";
-import { redirect, useRouter } from "next/navigation";
+import { ReactNode } from 'react';
+import { useUser } from '@/lib/authClient';
+import { useRouter } from 'next/navigation';
 
 interface ProtectedPageProps {
   children: ReactNode;
@@ -9,8 +8,18 @@ interface ProtectedPageProps {
 }
 
 export default function ProtectedPage({ children, requiredRoles }: ProtectedPageProps) {
-  if (!useAuthorization(requiredRoles)) {
-    redirect("/authentication");
+  const { user, isPending } = useUser();
+  const router = useRouter();
+
+  const role = user?.role;
+  const authorized = requiredRoles.includes(role ?? '');
+
+  if (isPending) return <p>Loading...</p>;
+
+  if (!authorized) {
+    router.replace('/authentication');
+    return null;
   }
-  return children;
+
+  return <>{children}</>;
 }

@@ -1,15 +1,15 @@
 import React from 'react'
 import { Dropdown, Tabs, Tab, TriggerWrapper } from '@/components/lukacho/dropdown-menu'
 import SignOutButton from '../auth/signOutButton'
-import { useUserStore } from '@/store/userStore'
 import ProfileTrigger from './profileTrigger'
 import { useRouter } from 'next/navigation'
 import { UserPen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeSwitcherDesktop } from '../theme/theme-switcher-desktop'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 export default function ProfileMenu() {
-  const { user } = useUserStore()
+  const { user } = useGetSession()
   const router = useRouter()
 
   return (

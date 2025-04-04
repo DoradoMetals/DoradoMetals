@@ -7,8 +7,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Dispatch } from 'react'
 import { ThemeSwitcher } from '../theme/theme-switcher'
-import { useSignOut } from '@/lib/queries/useAuth'
-import { useUserStore } from '@/store/userStore'
+import { useGetSession, useSignOut } from '@/lib/queries/useAuth'
 
 export default function Sidebar({
   isDrawerActive,
@@ -17,7 +16,7 @@ export default function Sidebar({
   isDrawerActive: boolean
   setIsDrawerActive: Dispatch<React.SetStateAction<boolean>>
 }) {
-  const data = useUserStore()
+  const {user} = useGetSession();
   const router = useRouter()
   const signOutMutation = useSignOut()
 
@@ -34,6 +33,14 @@ export default function Sidebar({
       label: 'Sell to Us',
       src: '/sell',
       className: pathname === '/sell' ? 'text-primary' : '',
+
+    },
+    {
+      key: 3,
+      label: 'ADMIN',
+      src: '/admin',
+      className: pathname === '/admin' ? 'text-primary' : '',
+      hidden: user?.role !== 'admin',
     },
   ]
 
@@ -60,7 +67,7 @@ export default function Sidebar({
             </Button>
           </div>
 
-          {data.user ? (
+          {user ? (
             <div className="flex flex-col items-center">
               <Button
                 variant="outline"
@@ -102,7 +109,9 @@ export default function Sidebar({
         </div>
 
         <div className="flex-col text-lg p-5 gap-3">
-          {menuItems.map((item) => (
+          {menuItems
+            .filter((item) => !item.hidden)
+            .map((item) => (
             <div className="flex-col items-center pb-5" key={item.key}>
               <div
                 className="flex items-center font-light justify-center pb-2 text-xl"

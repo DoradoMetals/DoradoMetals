@@ -8,12 +8,16 @@ import { MailCheck, MailWarning, MailX, UserCheck2, UserX2 } from 'lucide-react'
 import { User, userSchema } from '@/types/user'
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useUpdateUser, useChangeEmail, useSendVerifyEmail } from '@/lib/queries/useAuth'
-import { useUserStore } from '@/store/userStore'
+import {
+  useUpdateUser,
+  useChangeEmail,
+  useSendVerifyEmail,
+  useGetSession,
+} from '@/lib/queries/useAuth'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 
 export default function UserForm() {
-  const { user, userPending } = useUserStore()
+  const { user, isPending } = useGetSession()
   const updateUserMutation = useUpdateUser()
   const changeEmailMutation = useChangeEmail()
   const sendEmailVerificationMutation = useSendVerifyEmail()
@@ -40,11 +44,11 @@ export default function UserForm() {
   })
 
   const handleUserSubmit = async (values: User) => {
-    if (user.email !== values.email) {
+    if (user?.email !== values.email) {
       changeEmailMutation.mutate(values.email)
     }
 
-    if (user.name !== values.name) {
+    if (user?.name !== values.name) {
       updateUserMutation.mutate({ name: values.name })
     }
   }
@@ -62,7 +66,7 @@ export default function UserForm() {
 
   return (
     <div>
-      {userPending ? (
+      {isPending ? (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Skeleton className="h-9 w-full mb-8" />
@@ -138,7 +142,7 @@ export default function UserForm() {
                             {...field}
                           />
                         </FormControl>
-                        {changeEmailMutation.isSuccess && user.emailVerified === true ? (
+                        {changeEmailMutation.isSuccess && user?.emailVerified === true ? (
                           <p className="text-sm font-light">
                             An email has been sent to confirm the change. Please follow that link
                             before making further changes.

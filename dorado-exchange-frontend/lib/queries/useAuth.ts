@@ -1,86 +1,106 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { authClient } from '@/lib/authClient'
-import { useRouter } from 'next/navigation'
-import { useUserStore } from '@/store/userStore'
-import { useSyncCartToBackend } from './useCart'
-import { cartStore } from '@/store/cartStore'
-import { useSyncSellCartToBackend } from './useSellCart'
-import { sellCartStore } from '@/store/sellCartStore'
-import { Product } from '@/types/product'
-import { apiRequest } from '@/utils/axiosInstance'
-import { SellCartItem } from '@/types/sellCart'
+'use client';
 
-export const useSession = () => {
-  return useQuery({
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
+import { cartStore } from '@/store/cartStore';
+import { sellCartStore } from '@/store/sellCartStore';
+import { useSyncCartToBackend } from './useCart';
+import { useSyncSellCartToBackend } from './useSellCart';
+import { apiRequest } from '@/utils/axiosInstance';
+import { Product } from '@/types/product';
+import { SellCartItem } from '@/types/sellCart';
+import {
+  changeEmail,
+  forgetPassword,
+  getSession,
+  resetPassword,
+  sendVerificationEmail,
+  signIn,
+  signOut,
+  signUp,
+  updateUser,
+  verifyEmail,
+} from '../authClient';
+
+export const useGetSession = () => {
+  const {
+    data: session,
+    error,
+    isPending,
+    refetch,
+  } = useQuery({
     queryKey: ['session'],
     queryFn: async () => {
-      const { data, error } = authClient.useSession()
-      if (error) throw new Error(error.message)
-      return data
+      const { data, error } = await getSession();
+      if (error) throw new Error(error.message);
+      return data;
     },
     staleTime: 1000 * 60 * 5,
-  })
-}
+  });
+
+  return {
+    user: session?.user,
+    session,
+    error,
+    isPending,
+    refetch,
+  };
+};
 
 export const useUpdateUser = () => {
-  const fetchSession = useUserStore((state) => state.fetchSession)
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (userData: { name?: string; image?: string }) =>
-      authClient.updateUser(userData),
+      updateUser(userData),
     onSettled: () => {
-      fetchSession()
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'] });
     },
-  })
-}
+  });
+};
 
 export const useChangeEmail = () => {
-  const fetchSession = useUserStore((state) => state.fetchSession)
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (newEmail: string) =>
-      authClient.changeEmail({
+      changeEmail({
         newEmail,
         callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/change-email`,
       }),
     onSettled: () => {
-      fetchSession()
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'] });
     },
-  })
-}
+  });
+};
 
 export const useSignUp = () => {
-  const fetchSession = useUserStore((state) => state.fetchSession)
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (userData: { email: string; password: string; name: string }) =>
-      authClient.signUp.email(
+      signUp.email(
         {
           email: userData.email,
           password: userData.password,
           name: userData.name,
           callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/verify-email`,
+          role: 'user',
         },
         {
           onError(ctx) {
-            throw ctx.error
+            throw ctx.error;
           },
         }
       ),
     onSettled: () => {
-      fetchSession()
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'] });
     },
-  })
-}
+  });
+};
 
 export const useSignIn = () => {
-  const fetchSession = useUserStore((state) => state.fetchSession)
-  const queryClient = useQueryClient()
-  const mergeCartItems = cartStore((state) => state.mergeCartItems)
-  const mergeSellCart = sellCartStore((state) => state.mergeSellCart)
+  const queryClient = useQueryClient();
+  const mergeCartItems = cartStore((state) => state.mergeCartItems);
+  const mergeSellCart = sellCartStore((state) => state.mergeSellCart);
 
   return useMutation({
     mutationFn: async ({
@@ -88,30 +108,28 @@ export const useSignIn = () => {
       password,
       rememberMe,
     }: {
-      email: string
-      password: string
-      rememberMe: boolean
+      email: string;
+      password: string;
+      rememberMe: boolean;
     }) =>
-      authClient.signIn.email(
+      signIn.email(
         { email, password, rememberMe },
         {
           onError(ctx) {
-            throw ctx.error
+            throw ctx.error;
           },
         }
       ),
     onSettled: async () => {
-      await fetchSession()
-
-      const session = useUserStore.getState().user
-      if (session?.id) {
+      const session = (await getSession()).data;
+      if (session?.user?.id) {
         try {
           const backendCart = await apiRequest<Product[]>('GET', '/cart/get_cart', undefined, {
-            user_id: session.id,
-          })
-          mergeCartItems(backendCart)
+            user_id: session.user.id,
+          });
+          mergeCartItems(backendCart);
         } catch (err) {
-          console.error('Cart hydration failed:', err)
+          console.error('Cart hydration failed:', err);
         }
 
         try {
@@ -120,153 +138,132 @@ export const useSignIn = () => {
             '/sell_cart/get_sell_cart',
             undefined,
             {
-              user_id: session.id,
+              user_id: session.user.id,
             }
-          )
-          mergeSellCart(backendCart)
+          );
+          mergeSellCart(backendCart);
         } catch (err) {
-          console.error('Sell cart hydration failed:', err)
+          console.error('Sell cart hydration failed:', err);
         }
       }
-
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'] });
     },
-  })
-}
+  });
+};
 
 export const useSignOut = () => {
-  const queryClient = useQueryClient()
-  const clearSession = useUserStore((state) => state.clearSession)
-  const fetchSession = useUserStore((state) => state.fetchSession)
-  const router = useRouter()
-
-  const syncCart = useSyncCartToBackend()
-  const syncSellCart = useSyncSellCartToBackend()
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  const syncCart = useSyncCartToBackend();
+  const syncSellCart = useSyncSellCartToBackend();
 
   return useMutation({
     mutationFn: async () => {
       try {
-        await syncCart.mutateAsync()
+        await syncCart.mutateAsync();
       } catch (err) {
-        console.warn('Cart sync failed, continuing logout:', err)
+        console.warn('Cart sync failed, continuing logout:', err);
       }
 
       try {
-        await syncSellCart.mutateAsync()
+        await syncSellCart.mutateAsync();
       } catch (err) {
-        console.warn('Cart sync failed, continuing logout:', err)
+        console.warn('Sell cart sync failed, continuing logout:', err);
       }
 
-      await authClient.signOut()
+      await signOut();
     },
     onSuccess: async () => {
-      clearSession()
-      cartStore.getState().clearCart()
-      sellCartStore.getState().clearCart()
-      localStorage.removeItem('dorado_cart')
-      localStorage.removeItem('dorado_sell_cart')
-      localStorage.removeItem('cartSynced')
-
-      router.replace('/')
-      queryClient.resetQueries()
-      await fetchSession()
+      cartStore.getState().clearCart();
+      sellCartStore.getState().clearCart();
+      localStorage.removeItem('dorado_cart');
+      localStorage.removeItem('dorado_sell_cart');
+      localStorage.removeItem('cartSynced');
+      router.replace('/');
+      queryClient.resetQueries();
     },
-  })
-}
+  });
+};
+
 export const useGoogleSignIn = () => {
-  const fetchSession = useUserStore((state) => state.fetchSession)
-  const queryClient = useQueryClient()
-  const mergeCartItems = cartStore((state) => state.mergeCartItems)
-  const mergeSellCart = sellCartStore((state) => state.mergeSellCart)
+  const queryClient = useQueryClient();
+  const mergeCartItems = cartStore((state) => state.mergeCartItems);
+  const mergeSellCart = sellCartStore((state) => state.mergeSellCart);
 
   return useMutation({
     mutationFn: async () =>
-      authClient.signIn.social({
+      signIn.social({
         provider: 'google',
         callbackURL: process.env.NEXT_PUBLIC_FRONTEND_URL,
       }),
-      onSettled: async () => {
-        await fetchSession()
-  
-        const session = useUserStore.getState().user
-        if (session?.id) {
-          try {
-            const backendCart = await apiRequest<Product[]>('GET', '/cart/get_cart', undefined, {
-              user_id: session.id,
-            })
-            mergeCartItems(backendCart)
-          } catch (err) {
-            console.error('Cart hydration failed:', err)
-          }
-  
-          try {
-            const backendCart = await apiRequest<SellCartItem[]>(
-              'GET',
-              '/sell_cart/get_sell_cart',
-              undefined,
-              {
-                user_id: session.id,
-              }
-            )
-            mergeSellCart(backendCart)
-          } catch (err) {
-            console.error('Sell cart hydration failed:', err)
-          }
+    onSettled: async () => {
+      const session = (await getSession()).data;
+      if (session?.user?.id) {
+        try {
+          const backendCart = await apiRequest<Product[]>('GET', '/cart/get_cart', undefined, {
+            user_id: session.user.id,
+          });
+          mergeCartItems(backendCart);
+        } catch (err) {
+          console.error('Cart hydration failed:', err);
         }
-  
-        queryClient.invalidateQueries({ queryKey: ['session'] })
-      },
-  })
-}
+
+        try {
+          const backendCart = await apiRequest<SellCartItem[]>(
+            'GET',
+            '/sell_cart/get_sell_cart',
+            undefined,
+            {
+              user_id: session.user.id,
+            }
+          );
+          mergeSellCart(backendCart);
+        } catch (err) {
+          console.error('Sell cart hydration failed:', err);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['session'] });
+    },
+  });
+};
 
 export const useForgotPassword = () => {
-  const fetchSession = useUserStore((state) => state.fetchSession)
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (email: string) => authClient.forgetPassword({ email }),
+    mutationFn: async (email: string) => forgetPassword({ email }),
     onSettled: () => {
-      fetchSession()
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'] });
     },
-  })
-}
+  });
+};
 
 export const useResetPassword = () => {
-  const fetchSession = useUserStore((state) => state.fetchSession)
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ newPassword, token }: { newPassword: string; token: string }) =>
-      authClient.resetPassword({ newPassword, token }),
+      resetPassword({ newPassword, token }),
     onSettled: () => {
-      fetchSession()
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'] });
     },
-  })
-}
+  });
+};
 
 export const useVerifyEmail = () => {
-  const fetchSession = useUserStore((state) => state.fetchSession)
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (token: string) => authClient.verifyEmail({ query: { token } }),
+    mutationFn: async (token: string) => verifyEmail({ query: { token } }),
     onSettled: () => {
-      fetchSession()
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'] });
     },
-    onSuccess: () => {
-      fetchSession()
-    },
-  })
-}
+  });
+};
 
 export const useSendVerifyEmail = () => {
-  const fetchSession = useUserStore((state) => state.fetchSession)
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (email: string) => authClient.sendVerificationEmail({ email }),
+    mutationFn: async (email: string) => sendVerificationEmail({ email }),
     onSettled: () => {
-      fetchSession()
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'] });
     },
-  })
-}
+  });
+};

@@ -1,6 +1,6 @@
 'use client'
 
-import { SellTabs } from '@/components/custom/sell-tabs/sellTabs'
+import { SellTabs } from '@/components/custom/sell/sellTabs'
 import { Suspense } from 'react'
 
 export default function Page() {
