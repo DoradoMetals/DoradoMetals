@@ -1,16 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/utils/axiosInstance";
-import { Product } from "@/types/product";
+import { useQuery } from '@tanstack/react-query'
+import { apiRequest } from '@/utils/axiosInstance'
+import { Product } from '@/types/product'
 
 interface ProductFilters {
-  metal_type?: string;
-  mint_type?: string;
-  product_type?: string;
+  metal_type?: string
+  mint_type?: string
+  product_type?: string
 }
 
 interface ProductGroup {
-  default: Product;
-  variants: Product[];
+  default: Product
+  variants: Product[]
 }
 
 export const useFilteredProducts = (filters: ProductFilters) => {
@@ -27,7 +27,7 @@ export const useFilteredProducts = (filters: ProductFilters) => {
       const singles: ProductGroup[] = []
 
       for (const product of products) {
-        if (product.variant_group) {
+        if (product.variant_group !== '') {
           if (!groups[product.variant_group]) groups[product.variant_group] = []
           groups[product.variant_group].push(product)
         } else {
@@ -51,16 +51,16 @@ export const useFilteredProducts = (filters: ProductFilters) => {
 }
 
 interface FiltersResponse {
-  metals: string[];
-  types: string[];
-  mints: string[];
+  metals: string[]
+  types: string[]
+  mints: string[]
 }
 
 export const useProductFilters = () => {
   return useQuery<FiltersResponse>({
-    queryKey: ["filters"],
+    queryKey: ['filters'],
     queryFn: async () => {
-      return apiRequest<FiltersResponse>("GET", "/products/get_product_filters");
+      return apiRequest<FiltersResponse>('GET', '/products/get_product_filters')
     },
-  });
-};
+  })
+}

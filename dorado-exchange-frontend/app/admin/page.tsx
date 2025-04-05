@@ -8,7 +8,7 @@ import { Suspense } from 'react'
 export default function Page() {
   return (
     <ProtectedPage requiredRoles={protectedRoutes.admin.roles}>
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center px-5">
         <Suspense fallback={<p>Loading...</p>}>
           <AdminTabs />
         </Suspense>

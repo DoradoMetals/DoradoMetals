@@ -1,0 +1,46 @@
+const ADMIN_PRODUCT_FIELDS = `
+  id,
+  product_name,
+  product_description,
+  bid_premium,
+  ask_premium,
+  product_type,
+  created_at,
+  updated_at,
+  image_front,
+  image_back,
+  display,
+  content,
+  gross,
+  purity,
+  variant_group,
+  shadow_offset,
+  stock,
+  created_by,
+  updated_by
+`;
+
+const ADMIN_PRODUCT_FIELDS_WITH_ALIAS = `
+  p.id,
+  p.product_name,
+  p.product_description,
+  p.bid_premium,
+  p.ask_premium,
+  p.product_type,
+  p.created_at,
+  p.updated_at,
+  p.image_front,
+  p.image_back,
+  p.display,
+  p.content,
+  p.gross,
+  p.purity,
+  p.variant_group,
+  p.shadow_offset,
+  p.stock,
+  p.created_by,
+  p.updated_by
+`;
+
+module.exports = { ADMIN_PRODUCT_FIELDS, ADMIN_PRODUCT_FIELDS_WITH_ALIAS };
+

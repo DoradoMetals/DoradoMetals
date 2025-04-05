@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useProductFilterStore } from '@/store/productFilterStore'
+import Image from 'next/image'
 
 const categories = [
   { name: 'Gold', img: '/product_images/elemetal_products/gold/American Eagle/BACK.png' },
@@ -104,10 +105,18 @@ export default function AvatarCarousel() {
             >
               <div
                 className={`w-18 h-18 rounded-full bg-background flex items-center justify-center border ${
-                  isActive(category.name) ? 'border-secondary border-2 shadow-md' : 'border-neutral-300'
+                  isActive(category.name)
+                    ? 'border-secondary border-2 shadow-md'
+                    : 'border-neutral-300'
                 }`}
               >
-                <img src={category.img} alt={category.name} className="w-16 h-16 object-contain" />
+                <Image
+                  width={500}
+                  height={500}
+                  src={category.img}
+                  alt={category.name}
+                  className="w-16 h-16 object-contain"
+                />
               </div>
               <span className="tertiary-text mt-1 text-center w-full whitespace-nowrap overflow-hidden">
                 {category.name}

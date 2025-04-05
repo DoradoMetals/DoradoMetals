@@ -10,7 +10,6 @@ export const useAddress = () => {
     queryKey: ['address', user],
     queryFn: async () => {
       if (!user?.id) return []
-      console.log('address get fires')
       return await apiRequest<Address[]>('GET', '/addresses/get_addresses', undefined, {
         user_id: user.id,
       })
@@ -21,7 +20,6 @@ export const useAddress = () => {
 
 export const useUpdateAddress = () => {
   const { user } = useGetSession()
-  console.log(user)
 
   const queryClient = useQueryClient()
 

@@ -1,7 +1,6 @@
 const pool = require("../db");
 const { PRODUCT_FIELDS } = require('../constants/productsConstants');
 
-
 const getFilteredProducts = async (req, res) => {
   const { metal_type, mint_type, product_type } = req.query;
 
@@ -42,7 +41,6 @@ const getFilteredProducts = async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 };
-
 
 const getProductFilters = async (req, res) => {
   try {
