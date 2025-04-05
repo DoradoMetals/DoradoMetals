@@ -1,30 +1,28 @@
 import { z } from 'zod'
 
 export interface AdminProduct {
-  id: string                           //done
-  metal: string                        //done
-  supplier: string                     //done
-  product_name: string                 //done
-  product_description: string          //done
-  bid_premium: number                  //done
-  ask_premium: number                  //done
-  product_type: string                 //done
-  created_at: Date                     //done
-  updated_at: Date                     //done
-  image_front: string                  //done
-  image_back: string                   //done
+  id?: string
+  metal: string
+  supplier: string
+  product_name: string
+  product_description: string
+  bid_premium: number
+  ask_premium: number
+  product_type: string
+  created_at: Date
+  updated_at: Date
+  image_front: string
+  image_back: string
   display: boolean
-  content: number                      //done
-  gross: number                        //done
-  purity: number                       //done
-  mint: string                         //done
+  content: number
+  gross: number
+  purity: number
+  mint: string 
   variant_group: string
   shadow_offset: number
-  stock: number                        //done
+  stock: number
   created_by: string
   updated_by: string
-
-  price: number
 }
 
 export interface AdminMetal {
@@ -102,10 +100,6 @@ export const productFormSchema = z.object({
     .min(-100, 'Shadow offset is too low')
     .max(100, 'Shadow offset is too high'),
   stock: z.coerce.number().int('Stock must be an integer').min(0, 'Stock must be 0 or more'),
-  price: z.coerce
-    .number()
-    .min(0, 'Price must be at least $0.00')
-    .max(1000000, 'Price seems too high'),
 })
 
 export type ProductFormSchema = z.infer<typeof productFormSchema>

@@ -28,7 +28,6 @@ export default function ProductForm({ form, creatingNew }: Props) {
   const { data: mints } = useAdminMints()
   const { data: types } = useAdminTypes()
 
-  console.log(types)
   return (
     <>
       <Tabs defaultValue="general" className="w-full h-full space-y-6">
