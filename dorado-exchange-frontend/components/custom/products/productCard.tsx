@@ -159,9 +159,9 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
-                    align="start"
+                    align="end"
                     side="top"
-                    className="p-2 bg-background border-border border-1 shadow-lg"
+                    className="p-2 bg-background border-border border-1 shadow-lg w-[14rem]"
                     onOpenAutoFocus={(e) => e.preventDefault()}
                   >
                     <div className="flex flex-col gap-2">
