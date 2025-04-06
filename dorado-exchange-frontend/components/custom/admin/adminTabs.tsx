@@ -1,11 +1,11 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import ProductsTab from './productsPoS/productsTab'
+import ProductsTableEditable from './productsPoS/productTable'
 
 export function AdminTabs() {
   return (
-    <Tabs defaultValue="products" className="flex w-full max-w-lg lg:mt-10">
+    <Tabs defaultValue="products" className="flex w-full lg:w-[65rem] lg:max-w-[65rem] lg:mt-10 mb-8">
       <TabsList className="grid w-full grid-cols-3 bg-card">
         <TabsTrigger className="cursor-pointer" value="products">
           Products
@@ -18,7 +18,7 @@ export function AdminTabs() {
         </TabsTrigger>
       </TabsList>
       <TabsContent value="products">
-        <ProductsTab />
+        <ProductsTableEditable />
       </TabsContent>
       <TabsContent value="transactions"></TabsContent>
       <TabsContent value="shippables"></TabsContent>

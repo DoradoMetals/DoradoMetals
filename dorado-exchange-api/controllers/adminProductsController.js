@@ -1,14 +1,18 @@
-const { ADMIN_PRODUCT_FIELDS_WITH_ALIAS } = require("../constants/adminConstants");
+const {
+  ADMIN_PRODUCT_FIELDS_WITH_ALIAS,
+} = require("../constants/adminConstants");
 const pool = require("../db");
 
 const getAllProducts = async (req, res) => {
   try {
-    const query = `
+    const query = 
+    `
       SELECT ${ADMIN_PRODUCT_FIELDS_WITH_ALIAS}, metal.type AS metal, supplier.name AS supplier, mint.name AS mint
       FROM exchange.products p
       JOIN exchange.metals metal ON metal.id = p.metal_id
       JOIN exchange.suppliers supplier ON supplier.id = p.supplier_id
       JOIN exchange.mints mint ON mint.id = p.mint_id
+      ORDER BY product_name ASC
     `;
     const result = await pool.query(query);
     res.status(200).json(result.rows);
@@ -64,29 +68,14 @@ const getAllTypes = async (req, res) => {
 
 const saveProduct = async (req, res) => {
   const product = req.body.product;
-  const user_id = req.body.user_id;
+  const user = req.body.user;
 
   try {
-    const query = 
-    `
-      INSERT INTO exchange.products (
-        metal_id, supplier_id, product_name, product_description, bid_premium,
-        ask_premium, product_type, display, content, gross, purity,
-        mint_id, variant_group, shadow_offset, stock,
-        created_by, updated_by
-      )
-      VALUES (
-        (SELECT id FROM exchange.metals WHERE type = $1),
-        (SELECT id FROM exchange.suppliers WHERE name = $2),
-        $3, $4, $5, $6, $7, $8, $9, $10,
-        $11,
-        (SELECT id FROM exchange.mints WHERE name = $12),
-        $13, $14, $15,
-        $16, $16
-      )
-      ON CONFLICT (product_name) DO UPDATE SET
+    const query = `
+      UPDATE exchange.products SET
         metal_id = (SELECT id FROM exchange.metals WHERE type = $1),
         supplier_id = (SELECT id FROM exchange.suppliers WHERE name = $2),
+        product_name = $3,
         product_description = $4,
         bid_premium = $5,
         ask_premium = $6,
@@ -99,9 +88,10 @@ const saveProduct = async (req, res) => {
         variant_group = $13,
         shadow_offset = $14,
         stock = $15,
-        updated_by = $16;
+        updated_by = $16,
+        updated_at = NOW()
+      WHERE id = $17
     `;
-
 
     const values = [
       product.metal,
@@ -119,23 +109,59 @@ const saveProduct = async (req, res) => {
       product.variant_group,
       product.shadow_offset,
       product.stock,
-      user_id,
+      user.name,
+      product.id, // used in WHERE clause
     ];
 
     await pool.query(query, values);
-    res.status(200).json("Created or updated product.");
+    res.status(200).json("Product updated.");
   } catch (error) {
-    console.error("Error creating/updating product:", error);
+    console.error("Error updating product:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+const createProduct = async (req, res) => {
+  const { created_by } = req.body;
+
+  try {
+    // Step 1: Insert new product and get its ID
+    const insertQuery = `
+      INSERT INTO exchange.products (created_by, updated_by)
+      VALUES ($1, $1)
+      RETURNING id
+    `;
+    const insertResult = await pool.query(insertQuery, [created_by]);
+    const newProductId = insertResult.rows[0].id;
+
+    // Step 2: Query full product details with joins
+    const selectQuery = `
+      SELECT 
+        ${ADMIN_PRODUCT_FIELDS_WITH_ALIAS}, 
+        metal.type AS metal, 
+        supplier.name AS supplier, 
+        mint.name AS mint
+      FROM exchange.products p
+      JOIN exchange.metals metal ON metal.id = p.metal_id
+      JOIN exchange.suppliers supplier ON supplier.id = p.supplier_id
+      JOIN exchange.mints mint ON mint.id = p.mint_id
+      WHERE p.id = $1
+    `;
+    const fullResult = await pool.query(selectQuery, [newProductId]);
+
+    res.status(201).json(fullResult.rows[0]);
+  } catch (error) {
+    console.error("Error creating product:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
 const deleteProduct = async (req, res) => {
-  const { product_id } = req.body;
+  const product = req.body.product;
 
   try {
     const query = `DELETE FROM exchange.products WHERE id = $1`;
-    await pool.query(query, [product_id]);
+    await pool.query(query, [product.id]);
     res.status(200).json("Deleted product.");
   } catch (error) {
     console.error("Error deleting product:", error);
@@ -150,5 +176,6 @@ module.exports = {
   getAllMints,
   getAllTypes,
   saveProduct,
+  createProduct,
   deleteProduct,
 };

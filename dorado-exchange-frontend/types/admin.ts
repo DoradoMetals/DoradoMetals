@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export interface AdminProduct {
-  id?: string
+  id: string
   metal: string
   supplier: string
   product_name: string
