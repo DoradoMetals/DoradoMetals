@@ -21,6 +21,7 @@ import PriceNumberFlow from './PriceNumberFlow'
 import getProductPrice from '@/utils/getProductPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { ProductShadow } from './productShadow'
+import getProductBidPrice from '@/utils/getProductBidPrice'
 
 type ProductCardProps = {
   product: Product
@@ -40,7 +41,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
   const spot = spotPrices.find((s) => s.type === product.metal_type)
   const price = getProductPrice(selectedProduct, spot)
-
+  const buybackPrice = getProductBidPrice(selectedProduct, spot)
   const weightOptions = ozOptions[product.variant_group]
 
   return (
@@ -130,16 +131,24 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
       <div className="h-4/5 bg-card rounded-lg rounded-b-xl -mt-4 flex flex-col justify-end">
         <div className="pt-6 space-y-8">
           <div className="flex-col px-6">
-            <div className="flex items-center">
-              <div className="text-neutral-700 text-sm lg:text-base">
-                {selectedProduct.product_name}
+            <div className="flex items-start">
+              <div className="flex flex-col mr-auto">
+                <div className="text-neutral-700 text-sm lg:text-base">
+                  {selectedProduct.product_name}
+                </div>
+                <div className="text-neutral-500 text-xs lg:text-sm mr-auto">
+                  {selectedProduct.mint_name}
+                </div>
               </div>
-              <div className="text-neutral-800 text-base lg:text-lg ml-auto">
-                <PriceNumberFlow value={price} />
+
+              <div className="flex flex-col ml-auto">
+                <div className="text-neutral-800 text-base lg:text-lg ml-auto">
+                  <PriceNumberFlow value={price} />
+                </div>
+                <div className="text-neutral-800 text-base lg:text-lg ml-auto">
+                  <PriceNumberFlow value={buybackPrice} />
+                </div>
               </div>
-            </div>
-            <div className="text-neutral-500 text-xs lg:text-sm mr-auto">
-              {selectedProduct.mint_name}
             </div>
           </div>
           <div className="bg-secondary w-full rounded-b-lg py-2">

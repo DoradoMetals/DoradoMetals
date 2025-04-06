@@ -1,27 +1,66 @@
 'use client'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ProductsTableEditable from './productsPoS/productTable'
+import { VerticalTabs, VerticalTabsContent, VerticalTabsList, VerticalTabsTrigger } from '@/components/ui/vertical-tabs'
 
 export function AdminTabs() {
   return (
-    <Tabs defaultValue="products" className="flex w-full lg:w-[65rem] lg:max-w-[65rem] lg:mt-10 mb-8">
-      <TabsList className="grid w-full grid-cols-3 bg-card">
-        <TabsTrigger className="cursor-pointer" value="products">
-          Products
-        </TabsTrigger>
-        <TabsTrigger className="cursor-pointer" value="transactions">
-          Transactions
-        </TabsTrigger>
-        <TabsTrigger className="cursor-pointer" value="shippables">
-          Shippables
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="products">
-        <ProductsTableEditable />
-      </TabsContent>
-      <TabsContent value="transactions"></TabsContent>
-      <TabsContent value="shippables"></TabsContent>
-    </Tabs>
+
+      <VerticalTabs orientation="vertical" defaultValue="products" className="flex justify-start gap-2">
+        <VerticalTabsList className="flex flex-col bg-transparent gap-2 items-start text-neutral-700 justify-start">
+        <h3 className="text-neutral-500 text-base tracking-widest">Inventory</h3>
+        <VerticalTabsTrigger
+            className="p-0 pl-2 text-neutral-700 cursor-pointer w-full justify-start data-[state=active]:text-primary data-[state=active]:shadow-none"
+            value="inventory-overview"
+          >
+            Inventory Overview
+          </VerticalTabsTrigger>
+          <VerticalTabsTrigger
+            className="p-0 pl-2 text-neutral-700 cursor-pointer w-full justify-start data-[state=active]:text-primary data-[state=active]:shadow-none"
+            value="products"
+          >
+            Bullion
+          </VerticalTabsTrigger>
+          <VerticalTabsTrigger
+            className="p-0 pl-2 text-neutral-700 cursor-pointer w-full justify-start data-[state=active]:text-primary data-[state=active]:shadow-none"
+            value="scrap"
+          >
+            Scrap
+          </VerticalTabsTrigger>
+          <h3 className="text-neutral-500 text-base tracking-widest">Orders</h3>
+          <VerticalTabsTrigger
+            className="p-0 pl-2 text-neutral-700 cursor-pointer w-full justify-start data-[state=active]:text-primary data-[state=active]:shadow-none"
+            value="orders-overview"
+          >
+            Orders Overview
+          </VerticalTabsTrigger>
+          <VerticalTabsTrigger
+            className="p-0 pl-2 text-neutral-700 cursor-pointer w-full justify-start data-[state=active]:text-primary data-[state=active]:shadow-none"
+            value="purchase-orders"
+          >
+            Purchase Orders
+          </VerticalTabsTrigger>
+          <VerticalTabsTrigger
+            className="p-0 pl-2 text-neutral-700 cursor-pointer w-full justify-start data-[state=active]:text-primary data-[state=active]:shadow-none"
+            value="sales-orders"
+          >
+            Sales Orders
+          </VerticalTabsTrigger>
+          <h3 className="text-neutral-500 text-base tracking-widest">Users</h3>
+          <VerticalTabsTrigger
+            className="p-0 pl-2 text-neutral-700 cursor-pointer w-full justify-start data-[state=active]:text-primary data-[state=active]:shadow-none"
+            value="sales-orders"
+          >
+            Manage Users
+          </VerticalTabsTrigger>
+
+
+        </VerticalTabsList>
+        <VerticalTabsContent value="products"><ProductsTableEditable /></VerticalTabsContent>
+        <VerticalTabsContent value="scrap"></VerticalTabsContent>
+        <VerticalTabsContent value="overview"></VerticalTabsContent>
+        <VerticalTabsContent value="purchase-orders"></VerticalTabsContent>
+        <VerticalTabsContent value="sales-orders"></VerticalTabsContent>
+      </VerticalTabs>
   )
 }

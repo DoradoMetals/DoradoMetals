@@ -1,10 +1,10 @@
 import { SpotPrice } from '@/lib/queries/useSpotPrices'
 import { Product } from '@/types/product'
 
-export default function getProductPrice(
+export default function getProductBidPrice(
   product: Product,
   spot?: SpotPrice
 ): number {
   if (!spot) return 0
-  return product.content * spot.ask_spot + (product.ask_premium * product.content * spot.ask_spot)
+  return product.content * spot.bid_spot + (product.bid_premium * product.content * spot.bid_spot)
 }

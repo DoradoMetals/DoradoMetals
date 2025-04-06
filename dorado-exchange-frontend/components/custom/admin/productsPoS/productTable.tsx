@@ -69,17 +69,17 @@ export default function ProductsTableEditable() {
 
   const alwaysVisibleColumns = ['name', 'delete']
 
-  const generalColumns = ['description', 'metal', 'supplier', 'mint', 'type', 'stock']
+  const generalColumns = ['description', 'supplier', 'bid', 'ask', 'display']
 
   const detailsColumns = [
     'content',
     'gross',
     'purity',
-    'bid',
-    'ask',
+    'metal',
+    'mint',
     'shadow_offset',
+    'type',
     'variant_group',
-    'display',
   ]
 
   const getColumnVisibilityForTab = (tab: 'general' | 'details') => {
@@ -255,20 +255,20 @@ export default function ProductsTableEditable() {
         </Select>
       ),
     },
-    {
-      id: 'stock',
-      header: 'Stock',
-      accessorKey: 'stock',
-      cell: ({ row }) => (
-        <Input
-          type="number"
-          pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right w-12"
-          defaultValue={row.original.stock}
-          onBlur={(e) => handleUpdate(row.original.id, { stock: Number(e.target.value) })}
-        />
-      ),
-    },
+    // {
+    //   id: 'stock',
+    //   header: 'Stock',
+    //   accessorKey: 'stock',
+    //   cell: ({ row }) => (
+    //     <Input
+    //       type="number"
+    //       pattern="[0-9]*"
+    //       className="input-floating-label-form no-spinner text-right w-12"
+    //       defaultValue={row.original.stock}
+    //       onBlur={(e) => handleUpdate(row.original.id, { stock: Number(e.target.value) })}
+    //     />
+    //   ),
+    // },
 
     {
       id: 'content',
