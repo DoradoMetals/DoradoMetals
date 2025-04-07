@@ -48,7 +48,6 @@ export const useSaveProduct = () => {
   })
 }
 
-
 export const useCreateProduct = () => {
   const queryClient = useQueryClient()
   const { user } = useGetSession()
@@ -86,7 +85,6 @@ export const useCreateProduct = () => {
     },
   })
 }
-
 
 export const useDeleteProduct = () => {
   const queryClient = useQueryClient()

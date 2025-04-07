@@ -461,7 +461,7 @@ export default function ProductsTableEditable() {
   }
 
   return (
-    <div className="space-y-2 w-full mt-2">
+    <div className="space-y-2 w-full">
       <Button
         variant="secondary"
         className="flex items-center gap-1 text-neutral-900"

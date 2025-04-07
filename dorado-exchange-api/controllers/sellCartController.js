@@ -207,7 +207,7 @@ const syncSellCart = async (req, res) => {
       WHERE id NOT IN (
         SELECT scrap_id FROM exchange.sell_cart_items WHERE scrap_id IS NOT NULL
         UNION
-        SELECT scrap_id FROM exchange.order_items WHERE scrap_id IS NOT NULL
+        SELECT scrap_id FROM exchange.purchase_order_items WHERE scrap_id IS NOT NULL
       )
     `
     );

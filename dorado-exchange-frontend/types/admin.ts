@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { string, z } from 'zod'
 
 export interface AdminProduct {
   id: string
@@ -103,3 +103,32 @@ export const productFormSchema = z.object({
 })
 
 export type ProductFormSchema = z.infer<typeof productFormSchema>
+
+export interface AdminScrap {
+  order_item_id: string,
+  order_id: string,
+  order_number: number,
+  order_status: string,
+  created_at: Date,
+  updated_at: Date,
+  updated_by: string,
+  user_id: string,
+  username: string,
+  scrap_id: string,
+  gross: number,
+  purity: number,
+  content: number,
+  gross_unit: string,
+  metal: string
+}
+
+export interface AdminUser {
+  id: string,
+  email: string,
+  name: string,
+  created_at: string,
+  updated_at: string,
+  email_verified: string,
+  image: string,
+  role: string,
+}

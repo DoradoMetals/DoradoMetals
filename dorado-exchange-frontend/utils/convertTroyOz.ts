@@ -1,7 +1,6 @@
 export function convertTroyOz(num: number, unit: string): number {
 
   if (isNaN(num)) return 0;
-
   switch (unit.toLowerCase()) {
     case 't oz': // already troy ounce
       return num;
