@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { useGetSession } from '../useAuth'
-import { AdminProduct, ProductFormSchema } from '@/types/admin'
+import { AdminProduct } from '@/types/admin'
 
 export const useAdminProducts = () => {
   const { user } = useGetSession()
