@@ -1,7 +1,9 @@
 export function useFormatSalesOrderNumber() {
   const formatSalesOrderNumber = (orderNumber: number | null | undefined): string => {
     if (!orderNumber) return '—';
-    return `SO - ${orderNumber}`;
+
+    const padded = orderNumber.toString().padStart(6, '0'); // <- add leading zeroes to 6 digits
+    return `PO - ${padded}`;
   };
 
   return { formatSalesOrderNumber };

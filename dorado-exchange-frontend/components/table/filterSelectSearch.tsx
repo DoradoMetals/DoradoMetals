@@ -45,7 +45,7 @@ export function TableSearchSelect<TData>({
           variant="ghost"
           className={cn('p-0 hover:bg-transparent', selected && 'text-primary hover:text-primary')}
         >
-          <Filter size={16} />
+          <Filter size={14} />
         </Button>
       </PopoverTrigger>
       <PopoverContent

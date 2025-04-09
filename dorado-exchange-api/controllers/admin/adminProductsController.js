@@ -1,7 +1,7 @@
 const {
   ADMIN_PRODUCT_FIELDS_WITH_ALIAS,
-} = require("../constants/adminConstants");
-const pool = require("../db");
+} = require("../../constants/adminConstants");
+const pool = require("../../db");
 
 const getAllProducts = async (req, res) => {
   try {

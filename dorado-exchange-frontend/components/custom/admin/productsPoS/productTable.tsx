@@ -461,17 +461,31 @@ export default function ProductsTableEditable() {
   }
 
   return (
-    <div className="space-y-2 w-full">
-      <Button
-        variant="secondary"
-        className="flex items-center gap-1 text-neutral-900"
-        size="sm"
-        onClick={() => createProduct.mutate()}
-        disabled={products.some((p) => p.product_name.trim() === '')}
-      >
-        <Plus size={16} />
-        Create New
-      </Button>
+    <div className="space-y-4 w-full">
+      <div className="w-full flex items-center justify-between">
+        <Button
+          variant="secondary"
+          className="flex items-center gap-1 text-neutral-900"
+          size="sm"
+          onClick={() => createProduct.mutate()}
+          disabled={products.some((p) => p.product_name.trim() === '')}
+        >
+          <Plus size={16} />
+          Create New
+        </Button>
+        <Button
+          variant="outline"
+          className="ml-auto text-sm text-primary border-primary hover:bg-primary hover:text-neutral-900 hover:border-primary"
+          onClick={() => {
+            const newTab = activeTab === 'general' ? 'details' : 'general'
+            setActiveTab(newTab)
+            setColumnVisibility(getColumnVisibilityForTab(newTab))
+          }}
+        >
+          {activeTab === 'general' ? 'Show Details' : 'Show General'}
+        </Button>
+      </div>
+
       <div className="flex flex-col sm:flex-row justify-between items-center">
         <DebouncedInput
           type="text"
@@ -479,30 +493,6 @@ export default function ProductsTableEditable() {
           value={String(table.getColumn('name')?.getFilterValue() ?? '')}
           onChange={(value) => table.getColumn('name')?.setFilterValue(value)}
         />
-        <Tabs
-          defaultValue="general"
-          className="w-full mb-2 pb-2"
-          onValueChange={(val) => {
-            const tab = val as typeof activeTab
-            setActiveTab(tab)
-            setColumnVisibility(getColumnVisibilityForTab(tab))
-          }}
-        >
-          <TabsList className="flex ml-auto w-full sm:w-3/4 gap-2 rounded-none border-b border-border bg-transparent py-1">
-            <TabsTrigger
-              value="general"
-              className="flex-1 cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-            >
-              General
-            </TabsTrigger>
-            <TabsTrigger
-              value="details"
-              className="flex-1 cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-            >
-              Details
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
       </div>
 
       <Table className="w-full">

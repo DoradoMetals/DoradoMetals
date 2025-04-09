@@ -7,7 +7,6 @@ export const useAdminUser = (
   user_id: string,
   options?: { enabled?: boolean }
 ) => {
-  console.log(user_id)
   const { user } = useGetSession()
   return useQuery<AdminUser>({
     queryKey: ['adminUser'],
