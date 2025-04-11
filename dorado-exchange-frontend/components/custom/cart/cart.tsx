@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Minus, Plus, ShoppingCart, Trash, Trash2, X } from 'lucide-react'
+import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import NumberFlow from '@number-flow/react'
@@ -14,7 +14,6 @@ import { useRouter } from 'next/navigation'
 import { Dispatch } from 'react'
 
 export default function Cart({
-
   setIsCartActive,
 }: {
   setIsCartActive: Dispatch<React.SetStateAction<boolean>>
@@ -51,7 +50,7 @@ export default function Cart({
           variant="secondary"
           onClick={() => {
             router.push('/buy')
-            setIsCartActive(false);
+            setIsCartActive(false)
           }}
         >
           Start Shopping
@@ -97,7 +96,7 @@ export default function Cart({
                     className="hover:bg-card p-0 pb-2"
                     onClick={() => removeAll(item)}
                   >
-                    <Trash2 size={16} className='text-neutral-500' />
+                    <Trash2 size={16} className="text-neutral-500" />
                   </Button>
                 </div>
 
@@ -150,6 +149,7 @@ export default function Cart({
       </div>
       <Button
         className="w-full bg-secondary text-neutral-900 hover:bg-secondary hover:shadow-lg"
+        onClick={() => router.push('/checkout')}
       >
         Checkout
       </Button>

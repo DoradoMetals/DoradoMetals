@@ -95,14 +95,10 @@ export default function AddressForm({
                         value={formatPhoneNumber(field.value)}
                         onChange={(e) => {
                           let digits = e.target.value.replace(/\D/g, '')
-
-                          if (!digits.startsWith('1')) {
-                            digits = '1' + digits
+                          if (digits.length === 11 && digits.startsWith('1')) {
+                            digits = digits.slice(1)
                           }
-
-                          digits = digits.slice(0, 11)
-
-                          field.onChange(`+${digits}`)
+                          field.onChange(digits.slice(0, 10))
                         }}
                       />
                     </FormControl>

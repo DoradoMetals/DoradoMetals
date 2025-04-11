@@ -37,6 +37,9 @@ export default function AddressTab() {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     phone_number: '',
+    country_code: 'US',
+    is_valid: false,
+    is_residential: false,
   }
 
   return (

@@ -5,7 +5,7 @@ import { Separator } from '@/components/ui/separator'
 import { LogIn, LogOut, User } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Dispatch } from 'react'
+import { Dispatch, useEffect } from 'react'
 import { ThemeSwitcher } from '../theme/theme-switcher'
 import { useSignOut } from '@/lib/queries/useAuth'
 import { useUser } from '@/lib/authClient'
@@ -17,11 +17,16 @@ export default function Sidebar({
   isDrawerActive: boolean
   setIsDrawerActive: Dispatch<React.SetStateAction<boolean>>
 }) {
-  const {user} = useUser();
+  const { user } = useUser()
   const router = useRouter()
   const signOutMutation = useSignOut()
 
   const pathname = usePathname()
+
+  useEffect(() => {
+    setIsDrawerActive(false)
+  }, [pathname])
+  
   const menuItems = [
     {
       key: 1,
@@ -34,7 +39,6 @@ export default function Sidebar({
       label: 'Sell to Us',
       src: '/sell',
       className: pathname === '/sell' ? 'text-primary' : '',
-
     },
     {
       key: 3,
@@ -113,22 +117,22 @@ export default function Sidebar({
           {menuItems
             .filter((item) => !item.hidden)
             .map((item) => (
-            <div className="flex-col items-center pb-5" key={item.key}>
-              <div
-                className="flex items-center font-light justify-center pb-2 text-xl"
-                key={item.key}
-              >
-                <Link
-                  className={item.className}
+              <div className="flex-col items-center pb-5" key={item.key}>
+                <div
+                  className="flex items-center font-light justify-center pb-2 text-xl"
                   key={item.key}
-                  href={item.src}
-                  onClick={() => setIsDrawerActive(false)}
                 >
-                  {item.label}
-                </Link>
+                  <Link
+                    className={item.className}
+                    key={item.key}
+                    href={item.src}
+                    onClick={() => setIsDrawerActive(false)}
+                  >
+                    {item.label}
+                  </Link>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
     </>

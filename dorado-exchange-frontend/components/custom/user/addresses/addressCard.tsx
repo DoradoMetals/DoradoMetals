@@ -7,11 +7,42 @@ import { useDeleteAddress, useSetDefaultAddress } from '@/lib/queries/useAddress
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
 import { BookUser, MapPin, Phone, Star } from 'lucide-react'
 import AddressModal from './addressDialog'
+import { useFedExLabel } from '@/lib/queries/shipping/useFedex'
+import { formatFedexLabelAddress } from '@/types/shipping'
 
 export default function AddressCard({ address }: { address: Address }) {
   const deleteAddressMutation = useDeleteAddress()
   const setDefaultAddressMutation = useSetDefaultAddress()
   const [open, setOpen] = useState(false)
+
+  const fedexLabelMutation = useFedExLabel()
+
+  const handleGenerateLabel = () => {
+    fedexLabelMutation.mutate(
+      {
+        order_id: '139841bb-ce78-45c3-8c17-04cf5d0d6c49',
+        customerName: address.name,
+        customerPhone: address.phone_number,
+        customerAddress: formatFedexLabelAddress(address),
+        shippingType: 'Inbound',
+        pickupType: 'DROPOFF_AT_FEDEX_LOCATION',
+        serviceType: 'FEDEX_GROUND',
+        packageDetails: {
+          sequenceNumber: 1,
+          weight: { units: 'LB', value: 2 },
+          dimensions: { length: 10, width: 6, height: 4, units: 'IN' },
+        },
+      },
+      {
+        onSuccess: (data) => {
+          console.log('Label generated:', data)
+        },
+        onError: (err) => {
+          console.error('Label error:', err)
+        },
+      }
+    )
+  }
 
   return (
     <div className="shadow-md p-5 bg-card rounded-lg border-t-2 border-primary">
@@ -25,9 +56,7 @@ export default function AddressCard({ address }: { address: Address }) {
         </div>
         <div className="flex items-center gap-2">
           <Phone size={16} className="text-neutral-600" />
-          <div className="secondary-text">
-            {formatPhoneNumber(address.phone_number)}
-          </div>
+          <div className="secondary-text">{formatPhoneNumber(address.phone_number)}</div>
         </div>
         <div className="flex items-center gap-2">
           <MapPin size={16} className="text-neutral-600" />
@@ -40,6 +69,15 @@ export default function AddressCard({ address }: { address: Address }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="link"
+            effect="hoverUnderline"
+            size="sm"
+            className="text-primary"
+            onClick={() => handleGenerateLabel()}
+          >
+            Label
+          </Button>
           <Button
             variant="link"
             effect="hoverUnderline"

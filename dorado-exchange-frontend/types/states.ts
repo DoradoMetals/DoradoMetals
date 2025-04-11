@@ -52,3 +52,7 @@ export const stateMap: Record<string, string> = {
 }
 
 export const states = Object.values(stateMap) // Extract full state names
+
+export const reverseStateMap = Object.fromEntries(
+  Object.entries(stateMap).map(([abbr, full]) => [full, abbr])
+) as Record<string, string>;
