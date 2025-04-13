@@ -20,7 +20,7 @@ export default function AddressCard({ address }: { address: Address }) {
   const handleGenerateLabel = () => {
     fedexLabelMutation.mutate(
       {
-        order_id: '139841bb-ce78-45c3-8c17-04cf5d0d6c49',
+        order_id: '1dcc2738-c4d3-4843-b00b-72225568fa90',
         customerName: address.name,
         customerPhone: address.phone_number,
         customerAddress: formatFedexLabelAddress(address),
