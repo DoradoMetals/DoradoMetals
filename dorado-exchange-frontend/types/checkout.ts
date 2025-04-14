@@ -14,6 +14,7 @@ import { Package } from "./packaging";
 // }
 
 const packageSchema = z.object({
+  label: z.string(),
   weight: z.object({
     units: z.literal('LB'),
     value: z.number().min(0.1),
@@ -28,6 +29,7 @@ const packageSchema = z.object({
 
 export const purchaseOrderCheckoutSchema = z.object({
   address: addressSchema,
+  insuranceToggle: z.boolean(),
   package: packageSchema,
   pickup_type: z.enum(['FEDEX_PICKUP', 'DROPOFF_AT_FEDEX_LOCATION']),
   pickup_time: z.date(),

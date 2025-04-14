@@ -1,23 +1,23 @@
 'use client'
 
-import { useShipments } from '@/lib/queries/shipping/useShipments'
-import Image from 'next/image'
+// import { useShipments } from '@/lib/queries/shipping/useShipments'
+// import Image from 'next/image'
 
 export default function Home() {
-  const order_id = '1dcc2738-c4d3-4843-b00b-72225568fa90'
-  const { data: shipments, isLoading } = useShipments(order_id)
-  function base64ToBlob(base64: string, mime = 'application/pdf') {
-    const binary = atob(base64)
-    const len = binary.length
-    const bytes = new Uint8Array(len)
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binary.charCodeAt(i)
-    }
-    return new Blob([bytes], { type: mime })
-  }
+  // const order_id = '1dcc2738-c4d3-4843-b00b-72225568fa90'
+  // const { data: shipments, isLoading } = useShipments(order_id)
+  // function base64ToBlob(base64: string, mime = 'application/pdf') {
+  //   const binary = atob(base64)
+  //   const len = binary.length
+  //   const bytes = new Uint8Array(len)
+  //   for (let i = 0; i < len; i++) {
+  //     bytes[i] = binary.charCodeAt(i)
+  //   }
+  //   return new Blob([bytes], { type: mime })
+  // }
   return (
     <div className="flex flex-col items-center gap-4">
-      {shipments?.map((shipment) => {
+      {/* {shipments?.map((shipment) => {
         if (!shipment.shipping_label) return null
 
         const blob = base64ToBlob(shipment.shipping_label)
@@ -46,7 +46,7 @@ export default function Home() {
             />
           </div>
         )
-      })}
+      })} */}
     </div>
   )
 }
