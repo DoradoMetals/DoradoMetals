@@ -39,45 +39,41 @@ const createAndUpdateAddress = async (req, res) => {
       is_default = EXCLUDED.is_default,
       phone_number = EXCLUDED.phone_number,
       country_code = EXCLUDED.country_code,
-      is_residential = EXCLUDED.is_residential;
+      is_residential = EXCLUDED.is_residential
+    RETURNING *;  -- ✅ Return the updated row
   `;
 
-    const values = [
-      address.id,
-      user_id,
-      address.line_1,
-      address.line_2,
-      address.city,
-      address.state,
-      address.country,
-      address.zip,
-      address.name,
-      address.is_default,
-      address.phone_number,
-      address.country_code,
-      false,
-    ];
+  const values = [
+    address.id,
+    user_id,
+    address.line_1,
+    address.line_2,
+    address.city,
+    address.state,
+    address.country,
+    address.zip,
+    address.name,
+    address.is_default,
+    address.phone_number,
+    address.country_code,
+    false,
+  ];
 
-    await pool.query(query, values);
+  const result = await pool.query(query, values);
 
-    // Validate address using the reusable FedEx function
-    const { is_valid, is_residential } = await validateAddress(address);
+  // Validate address using the reusable FedEx function
+  const { is_valid, is_residential } = await validateAddress(address);
 
-    await pool.query(
-      `UPDATE exchange.addresses SET is_valid = $1, is_residential = $2 WHERE id = $3`,
-      [is_valid, is_residential, address.id]
-    );
+  const finalUpdate = await pool.query(
+    `UPDATE exchange.addresses SET is_valid = $1, is_residential = $2 WHERE id = $3 RETURNING *`,
+    [is_valid, is_residential, address.id]
+  );
 
-    res.status(200).json({
-      message: "Address created or updated.",
-      is_valid,
-      is_residential,
-    });
+  const updatedAddress = finalUpdate.rows[0];
+
+  res.status(200).json(updatedAddress);
   } catch (error) {
-    console.error(
-      "Error creating/updating address:",
-      error?.response?.data || error
-    );
+    console.error("Error creating/updating address:", error?.response?.data || error);
 
     const paramList = error?.response?.data?.errors?.[0]?.parameterList;
     if (paramList) {

@@ -2,19 +2,15 @@
 
 import { Button } from '@/components/ui/button'
 import { defineStepper } from '@stepperize/react'
-import { useForm, FormProvider, useFormContext, useFormState } from 'react-hook-form'
-import { Form, FormField, FormItem, FormControl, FormMessage } from '@/components/ui/form'
-
 import ShippingStep from './shippingStep/shippingStep'
 import { useAddress } from '@/lib/queries/useAddresses'
 import { useGetSession } from '@/lib/queries/useAuth'
-import { PurchaseOrderCheckout, purchaseOrderCheckoutSchema } from '@/types/checkout'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { Address } from '@/types/address'
 import { packageOptions } from '@/types/packaging'
-import { useEffect, useState } from 'react'
-import AddressModal from '../user/addresses/addressDialog'
 import { serviceOptions } from '@/types/service'
+import { useEffect, useRef } from 'react'
+import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+
 const { useStepper, utils } = defineStepper(
   {
     id: 'shipping',
@@ -33,7 +29,9 @@ const { useStepper, utils } = defineStepper(
 export default function CheckoutStepper() {
   const { user } = useGetSession()
   const { data: addresses = [], isLoading } = useAddress()
-  const [open, setOpen] = useState(false)
+  const { setData } = usePurchaseOrderCheckoutStore()
+  const hasInitialized = useRef(false)
+
 
   const emptyAddress: Address = {
     id: crypto.randomUUID(),
@@ -57,48 +55,23 @@ export default function CheckoutStepper() {
   const defaultAddress: Address =
     addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress
 
-  const [selectedAddress, setSelectedAddress] = useState(defaultAddress)
-  const insured = true // or some logic
-  const defaultPackage = insured
-    ? packageOptions['FedEx Medium']
-    : packageOptions['Medium']
-  
-  const form = useForm<PurchaseOrderCheckout>({
-    resolver: zodResolver(purchaseOrderCheckoutSchema),
-    mode: 'onSubmit',
-    defaultValues: {
-      address: defaultAddress,
-      insuranceToggle: insured,
-      package: defaultPackage,
-      pickup_type: 'DROPOFF_AT_FEDEX_LOCATION',
-      pickup_time: new Date(),
-      service: serviceOptions['FEDEX_GROUND'],
-      payment: '',
-      confirmation: false,
-    },
-  })
-
   useEffect(() => {
-    if (!addresses.length) return
-  
-    const updatedSelected = addresses.find((a) => a.id === selectedAddress.id)
-  
-    if (updatedSelected) {
-      setSelectedAddress(updatedSelected)
-      form.reset({
-        ...form.getValues(),
-        address: updatedSelected,
+    if (!hasInitialized.current && addresses.length > 0) {
+      setData({
+        address: defaultAddress,
+        insured: true,
+        package: packageOptions['FedEx Medium'],
+        pickup_type: 'DROPOFF_AT_FEDEX_LOCATION',
+        pickup_time: new Date(),
+        service: {
+          ...serviceOptions['FEDEX_GROUND'],
+          netCharge: 0,
+          currency: 'USD',
+        },
+        payment: '',
+        confirmation: false,
       })
-    }
-    else {
-      const fallback = addresses.find((a) => a.is_default) ?? addresses[0]
-      if (fallback) {
-        setSelectedAddress(fallback)
-        form.reset({
-          ...form.getValues(),
-          address: fallback,
-        })
-      }
+      hasInitialized.current = true
     }
   }, [addresses])
 
@@ -106,59 +79,44 @@ export default function CheckoutStepper() {
   const currentIndex = utils.getIndex(stepper.current.id)
 
   return (
-    <div className='p-5'>
-      <AddressModal
-        address={selectedAddress}
-        open={open}
-        setOpen={setOpen}
-        title="Create New Address"
-      />
-      <FormProvider {...form}>
-        <Form {...form}>
-          <form className="space-y-4">
-            <div className="flex w-full lg:mt-15">
-              <div className="flex flex-col">
-                <div className="flex items-center gap-4 mb-6">
-                  <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
-                  <div className="flex flex-col">
-                    <h2 className="header-text">{stepper.current.title}</h2>
-                    <p className="secondary-text">{stepper.current.description}</p>
-                  </div>
-                </div>
-
-                {stepper.switch({
-                  shipping: () => (
-                    <ShippingStep
-                      addresses={addresses}
-                      emptyAddress={emptyAddress}
-                      setOpen={setOpen}
-                      selectedAddress={selectedAddress}
-                      setSelectedAddress={setSelectedAddress}
-                    />
-                  ),
-                  payment: () => <PaymentStep />,
-                  review: () => <ReviewStep />,
-                  complete: () => <CompleteStep />,
-                })}
-
-                <div className="flex justify-end gap-4 mt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={stepper.prev}
-                    disabled={stepper.isFirst}
-                  >
-                    Back
-                  </Button>
-                  <Button type="button" onClick={stepper.next}>
-                    Next
-                  </Button>
-                </div>
-              </div>
+    <div className="p-5">
+      <div className="flex w-full">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-4 mb-6">
+            <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
+            <div className="flex flex-col">
+              <h2 className="header-text">{stepper.current.title}</h2>
+              <p className="secondary-text">{stepper.current.description}</p>
             </div>
-          </form>
-        </Form>
-      </FormProvider>
+          </div>
+
+          {stepper.switch({
+            shipping: () => (
+              <ShippingStep
+                addresses={addresses}
+                emptyAddress={emptyAddress}
+              />
+            ),
+            payment: () => <PaymentStep />,
+            review: () => <ReviewStep />,
+            complete: () => <CompleteStep />,
+          })}
+
+          <div className="flex justify-end gap-4 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={stepper.prev}
+              disabled={stepper.isFirst}
+            >
+              Back
+            </Button>
+            <Button type="button" onClick={stepper.next}>
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

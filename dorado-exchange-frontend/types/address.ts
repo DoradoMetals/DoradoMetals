@@ -1,8 +1,6 @@
 import * as z from 'zod'
 import { reverseStateMap, stateMap, states } from './states'
 
-const phoneRegex = /^\+?1?\d{10}$/
-
 const blockedCities = ['Test', 'Fake City', 'Unknown', 'N/A']
 
 export const addressSchema = z.object({
@@ -24,11 +22,11 @@ export const addressSchema = z.object({
       message: 'Invalid city name',
     }),
   state: z
-    .string()
-    .transform((val) => reverseStateMap[val] || val.toUpperCase()) // normalize
-    .refine((val) => val in stateMap, {
-      message: 'Invalid US state.',
-    }),
+  .string()
+  .transform((val) => reverseStateMap[val] || val.toUpperCase())
+  .refine((val) => val in stateMap, {
+    message: 'Invalid US state.',
+  }),
   country: z.literal('United States', {
     errorMap: () => ({ message: 'Country must be United States' }),
   }),

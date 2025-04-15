@@ -103,7 +103,6 @@ export default function ProductsTableEditable() {
 
   const handleUpdate = (id: string, updatedFields: Partial<AdminProduct>) => {
     const product = table.getRowModel().rows.find((r) => r.original.id === id)?.original
-    console.log('table product:', product)
     if (!product) return
     const updated = { ...product, ...updatedFields }
     saveProduct.mutate(updated)

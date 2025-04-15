@@ -7,7 +7,7 @@ export interface ShippingService {
   netCharge: number
   currency: string
   deliveryDay?: string
-  transitTime?: Date
+  transitTime?: Date,
   icon?: LucideIcon
 }
 
@@ -21,25 +21,41 @@ export const serviceSchema = z.object({
   icon: z.any().optional(),
 })
 
-export const serviceOptions: Record<string, Omit<ShippingService, 'netCharge' | 'currency'>> = {
+export const serviceOptions: Record<string, ShippingService> = {
   FEDEX_GROUND: {
     serviceType: 'FEDEX_GROUND',
     serviceDescription: 'FedEx Ground',
+    netCharge: 0,
+    currency: 'USD',
+    deliveryDay: '',
+    transitTime: new Date(),
     icon: Truck,
   },
   FEDEX_2_DAY: {
     serviceType: 'FEDEX_2_DAY',
     serviceDescription: 'FedEx 2 Day',
+    netCharge: 0,
+    currency: 'USD',
+    deliveryDay: '',
+    transitTime: new Date(),
     icon: Clock,
   },
   FEDEX_EXPRESS_SAVER: {
     serviceType: 'FEDEX_EXPRESS_SAVER',
     serviceDescription: 'Express Saver',
+    netCharge: 0,
+    currency: 'USD',
+    deliveryDay: '',
+    transitTime: new Date(),
     icon: PackageCheck,
   },
   PRIORITY_OVERNIGHT: {
     serviceType: 'PRIORITY_OVERNIGHT',
     serviceDescription: 'Priority Overnight',
+    netCharge: 0,
+    currency: 'USD',
+    deliveryDay: '',
+    transitTime: new Date(),
     icon: Rocket,
   },
 }

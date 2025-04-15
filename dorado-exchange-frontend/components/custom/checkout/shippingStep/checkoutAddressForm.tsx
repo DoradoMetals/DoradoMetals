@@ -4,25 +4,29 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
-import { StateSelect } from '../account/stateSelect'
 
 import { Address, addressSchema } from '@/types/address'
 import { useUpdateAddress } from '@/lib/queries/useAddresses'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
+import { StateSelect } from '../../user/account/stateSelect'
 
-export default function AddressForm({
+export default function CheckoutAddressForm({
   address,
   setOpen,
+  onSuccess,
 }: {
   address: Address
   setOpen: (open: boolean) => void
+  onSuccess?: (address: Address) => void
 }) {
   const updateAddressMutation = useUpdateAddress()
 
   const handleAddressSubmit = (values: Address) => {
 
     updateAddressMutation.mutate(values, {
-      onSettled: () => {
+      onSuccess: (updatedAddressFromServer) => {
+        // console.log('from server: ', updatedAddressFromServer)
+        onSuccess?.(updatedAddressFromServer)
         setOpen(false)
       },
     })

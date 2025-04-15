@@ -8,7 +8,7 @@ import { serviceSchema } from './service';
 export const purchaseOrderCheckoutSchema = z.object({
   address: addressSchema,
   package: packageSchema,
-  insuranceToggle: z.boolean(),
+  insured: z.boolean(),
   pickup_type: z.enum(['FEDEX_PICKUP', 'DROPOFF_AT_FEDEX_LOCATION']),
   pickup_time: z.date(),
   service: serviceSchema, // e.g. FEDEX_GROUND, FEDEX_OVERNIGHT

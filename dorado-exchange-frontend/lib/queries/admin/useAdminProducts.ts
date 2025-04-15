@@ -40,7 +40,6 @@ export const useSaveProduct = () => {
     },
 
     onError: (_err, _newProduct, context) => {
-      console.log('error saving product')
       if (context?.previousProducts) {
         queryClient.setQueryData(['adminProducts'], context.previousProducts)
       }
@@ -69,8 +68,6 @@ export const useCreateProduct = () => {
     },
 
     onSuccess: (newProduct) => {
-      console.log('new product: ', newProduct)
-
       queryClient.setQueryData<AdminProduct[]>(['adminProducts'], (old): AdminProduct[] => [
         newProduct,
         ...(old ?? []),
@@ -78,7 +75,6 @@ export const useCreateProduct = () => {
     },
 
     onError: (_err, _vars, context) => {
-      console.log('Error creating product')
       if (context?.previousProducts) {
         queryClient.setQueryData(['adminProducts'], context.previousProducts)
       }
@@ -109,7 +105,6 @@ export const useDeleteProduct = () => {
     },
 
     onError: (_err, _deletedProduct, context) => {
-      console.log('error deleting product')
       if (context?.previousProducts) {
         queryClient.setQueryData(['adminProducts'], context.previousProducts)
       }

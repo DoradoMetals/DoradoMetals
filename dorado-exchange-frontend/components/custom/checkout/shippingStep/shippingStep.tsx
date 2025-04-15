@@ -4,61 +4,60 @@ import { Address } from '@/types/address'
 import { AddressSelector } from './addressSelector'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
-import { Dispatch } from 'react'
+import { useState } from 'react'
 import { PackageSelector } from './packageSelector'
 import { FedexRateInput, formatFedexRatesAddress } from '@/types/shipping'
-import { useFormContext, useWatch } from 'react-hook-form'
-import { PurchaseOrderCheckout } from '@/types/checkout'
 import { useFedExRates } from '@/lib/queries/shipping/useFedex'
 import { ServiceSelector } from './serviceSelector'
+import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+import AddressModal from '../../user/addresses/addressDialog'
+import CheckoutAddressModal from './checkoutAddressDialog'
 
 interface ShippingStepProps {
   addresses: Address[]
   emptyAddress: Address
-  setOpen: Dispatch<React.SetStateAction<boolean>>
-  selectedAddress: Address
-  setSelectedAddress: Dispatch<React.SetStateAction<Address>>
 }
 
-export default function ShippingStep({
-  addresses,
-  emptyAddress,
-  setOpen,
-  selectedAddress,
-  setSelectedAddress,
-}: ShippingStepProps) {
-  const form = useFormContext<PurchaseOrderCheckout>()
+export default function ShippingStep({ addresses, emptyAddress }: ShippingStepProps) {
+  const [open, setOpen] = useState(false)
+  const [title, setTitle] = useState('Create New')
+  const [draftAddress, setDraftAddress] = useState<Address>(emptyAddress)
 
   const isEmpty = addresses.length === 0
 
-  const selectedPackage = useWatch({ control: form.control, name: 'package' })
-  const pickupType = useWatch({ control: form.control, name: 'pickup_type' })
+  const address = usePurchaseOrderCheckoutStore((state) => state.data.address)
+  const pkg = usePurchaseOrderCheckoutStore((state) => state.data.package)
+  const pickup_type = usePurchaseOrderCheckoutStore((state) => state.data.pickup_type)
+  const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
 
-  const watchedAddress = useWatch({ control: form.control, name: 'address' })
+  let fedexRatesInput: FedexRateInput | null = null
 
-  const isValid =
-    watchedAddress &&
-    watchedAddress.city &&
-    watchedAddress.zip &&
-    selectedPackage?.dimensions &&
-    selectedPackage?.weight?.value
-
-  const fedexRatesInput: FedexRateInput | null = isValid
-    ? {
-        shippingType: 'Inbound',
-        customerAddress: formatFedexRatesAddress(watchedAddress),
-        pickupType: pickupType || 'DROPOFF_AT_FEDEX_LOCATION',
-        packageDetails: {
-          weight: selectedPackage.weight,
-          dimensions: selectedPackage.dimensions,
-        },
-      }
-    : null
+  if (address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined) {
+    fedexRatesInput = {
+      shippingType: 'Inbound',
+      customerAddress: formatFedexRatesAddress(address),
+      pickupType: pickup_type || 'DROPOFF_AT_FEDEX_LOCATION',
+      packageDetails: {
+        weight: pkg.weight,
+        dimensions: pkg.dimensions,
+      },
+    }
+  }
 
   const { data: rates = [], isLoading } = useFedExRates(fedexRatesInput)
 
   return (
     <div className="space-y-10">
+      <CheckoutAddressModal
+        address={draftAddress}
+        open={open}
+        setOpen={setOpen}
+        title={title}
+        onSuccess={(savedAddress: Address) => {
+          // console.log('shipping step: ', savedAddress)
+          setData({ address: savedAddress })
+        }}
+      />
       {isEmpty ? (
         <div className="flex flex-col items-center gap-4">
           <div className="text-center text-lg text-neutral-800">
@@ -73,7 +72,8 @@ export default function ShippingStep({
             icon={Plus}
             iconSize={16}
             onClick={() => {
-              setSelectedAddress(emptyAddress)
+              setTitle('Create New')
+              setDraftAddress(emptyAddress)
               setOpen(true)
             }}
             className="border-primary text-primary hover:text-neutral-900 hover:bg-primary"
@@ -91,6 +91,8 @@ export default function ShippingStep({
                 variant="ghost"
                 className="text-neutral-700 hover:text-primary hover:bg-background px-0 py-0 h-auto min-h-0 font-normal"
                 onClick={() => {
+                  setTitle('Edit Address')
+                  setDraftAddress(address ?? emptyAddress)
                   setOpen(true)
                 }}
               >
@@ -101,7 +103,8 @@ export default function ShippingStep({
                 variant="ghost"
                 className="text-neutral-700 hover:text-primary hover:bg-background px-0 py-0 h-auto min-h-0 font-normal"
                 onClick={() => {
-                  setSelectedAddress(emptyAddress)
+                  setTitle('Create New')
+                  setDraftAddress(emptyAddress)
                   setOpen(true)
                 }}
               >
@@ -109,11 +112,7 @@ export default function ShippingStep({
               </Button>
             </div>
 
-            <AddressSelector
-              addresses={addresses}
-              selectedAddress={selectedAddress}
-              setSelectedAddress={setSelectedAddress}
-            />
+            <AddressSelector addresses={addresses} />
           </div>
         </div>
       )}

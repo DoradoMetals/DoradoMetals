@@ -20,13 +20,12 @@ export const useAddress = () => {
 
 export const useUpdateAddress = () => {
   const { user } = useGetSession()
-
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (address: Address) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest('POST', '/addresses/create_and_update_address', {
+      return await apiRequest<Address>('POST', '/addresses/create_and_update_address', {
         user_id: user.id,
         address,
       })
