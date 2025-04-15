@@ -40,7 +40,7 @@ export function AddressSelector({
       name="address"
       render={({ field }) => (
         <FormItem>
-          <div className="rounded-lg border border-border overflow-hidden bg-card">
+          <div className="rounded-lg border border-primary overflow-hidden bg-background">
             <button
               type="button"
               onClick={() => setExpanded((prev) => !prev)}
@@ -48,7 +48,9 @@ export function AddressSelector({
             >
               <div className="flex flex-col">
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-base sm:text-lg text-neutral-800">{selectedAddress.name}</span>
+                  <span className="text-base sm:text-lg text-neutral-800">
+                    {selectedAddress.name}
+                  </span>
                   <span className="text-xs sm:text-sm text-neutral-500 whitespace-nowrap">
                     {formatPhoneNumber(selectedAddress.phone_number)}
                   </span>
@@ -84,39 +86,42 @@ export function AddressSelector({
                     onValueChange={handleSelect}
                     className="flex flex-col gap-2 px-4 py-3"
                   >
-                    {addresses.map((address, index) => (
-                      <motion.label
-                        key={address.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 10 }}
-                        transition={{ duration: 0.2, delay: index * 0.05 }}
-                        htmlFor={address.id}
-                        className="relative peer flex w-full items-start justify-between gap-4 bg-background rounded-lg p-3 cursor-pointer border border-border transition-colors has-[[data-state=checked]]:shadow-xl has-[[data-state=checked]]:border-primary"
-                      >
-                        <div className="flex flex-col">
-                          <div className="flex items-center justify-between w-full">
-                            <span className="text-base sm:text-lg text-neutral-800">{address.name}</span>
-                            <span className="text-xs sm:text-sm text-neutral-500 whitespace-nowrap">
-                              {formatPhoneNumber(address.phone_number)}
-                            </span>
+                    {addresses
+                      .filter((address) => address.id !== selectedAddress.id)
+                      .map((address, index) => (
+                        <motion.label
+                          key={address.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          transition={{ duration: 0.2, delay: index * 0.05 }}
+                          htmlFor={address.id}
+                          className="relative peer flex w-full items-start justify-between gap-4 bg-background rounded-lg p-3 cursor-pointer border border-border transition-colors has-[[data-state=checked]]:shadow-xl has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-card"
+                        >
+                          <div className="flex flex-col">
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-base sm:text-lg text-neutral-800">
+                                {address.name}
+                              </span>
+                              <span className="text-xs sm:text-sm text-neutral-500 whitespace-nowrap">
+                                {formatPhoneNumber(address.phone_number)}
+                              </span>
+                            </div>
+
+                            <div className="mt-1 text-xs sm:text-sm text-neutral-600 leading-tight">
+                              {address.line_1} {address.line_2} {address.city}, {address.state}{' '}
+                              {address.zip}
+                            </div>
                           </div>
 
-                          <div className="mt-1 text-xs sm:text-sm text-neutral-600 leading-tight">
-                            {address.line_1} {address.line_2} {address.city}
-                            , {address.state} {address.zip}
+                          <div className="absolute top-1 right-2">
+                            <RadioGroupItem
+                              value={address?.id || ''}
+                              id={address.id}
+                              className="sr-only"                            />
                           </div>
-                        </div>
-
-                        <div className="absolute top-1 right-2">
-                          <RadioGroupItem
-                            value={address?.id || ''}
-                            id={address.id}
-                            className="rounded-full border-2 border-muted-foreground checked:bg-primary checked:border-primary focus:ring-2 focus:ring-primary"
-                          />
-                        </div>
-                      </motion.label>
-                    ))}
+                        </motion.label>
+                      ))}
                   </RadioGroup>
                 </motion.div>
               )}

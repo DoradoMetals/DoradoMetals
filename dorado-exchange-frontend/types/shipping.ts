@@ -71,11 +71,11 @@ export type FedexRateInput = {
 };
 
 export type FedexRate = {
-  serviceType: string | null;
-  packagingType: string | null;
-  netCharge: number | null;
+  serviceType: string;
+  packagingType: string;
+  netCharge: number;
   currency: string;
-  deliveryDay: string | null;
-  transitTime: string | null;
-  serviceDescription: string | null;
+  deliveryDay: string;
+  transitTime: Date;
+  serviceDescription: string;
 };

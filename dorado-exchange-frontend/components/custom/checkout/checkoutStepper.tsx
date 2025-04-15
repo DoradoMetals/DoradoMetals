@@ -11,9 +11,10 @@ import { useGetSession } from '@/lib/queries/useAuth'
 import { PurchaseOrderCheckout, purchaseOrderCheckoutSchema } from '@/types/checkout'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Address } from '@/types/address'
-import { insuredPackageOptions } from '@/types/packaging'
+import { packageOptions } from '@/types/packaging'
 import { useEffect, useState } from 'react'
 import AddressModal from '../user/addresses/addressDialog'
+import { serviceOptions } from '@/types/service'
 const { useStepper, utils } = defineStepper(
   {
     id: 'shipping',
@@ -57,16 +58,21 @@ export default function CheckoutStepper() {
     addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress
 
   const [selectedAddress, setSelectedAddress] = useState(defaultAddress)
-
+  const insured = true // or some logic
+  const defaultPackage = insured
+    ? packageOptions['FedEx Medium']
+    : packageOptions['Medium']
+  
   const form = useForm<PurchaseOrderCheckout>({
     resolver: zodResolver(purchaseOrderCheckoutSchema),
+    mode: 'onSubmit',
     defaultValues: {
       address: defaultAddress,
-      insuranceToggle: true,
-      package: insuredPackageOptions['FedEx Small (Double Boxed)'],
+      insuranceToggle: insured,
+      package: defaultPackage,
       pickup_type: 'DROPOFF_AT_FEDEX_LOCATION',
       pickup_time: new Date(),
-      shipping_service: '',
+      service: serviceOptions['FEDEX_GROUND'],
       payment: '',
       confirmation: false,
     },

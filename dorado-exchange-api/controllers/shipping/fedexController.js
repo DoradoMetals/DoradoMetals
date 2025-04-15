@@ -78,8 +78,8 @@ const validateAddress = async (address) => {
 };
 
 const getFedexRates = async (req, res) => {
-  const { shippingType, customerAddress, packageDetails, pickupType } = req.body;
-
+  const { shippingType, customerAddress, packageDetails, pickupType } =
+    req.body;
   const shipper = shippingType === "Inbound" ? customerAddress : DORADO_ADDRESS;
   const recipient =
     shippingType === "Inbound" ? DORADO_ADDRESS : customerAddress;
@@ -89,13 +89,23 @@ const getFedexRates = async (req, res) => {
 
     const rateRequestPayload = {
       accountNumber: { value: process.env.FEDEX_ACCOUNT_NUMBER },
+      rateRequestControlParameters: {
+        returnTransitTimes: true,
+      },
       requestedShipment: {
+        shipDateStamp: new Date().toISOString().split("T")[0], // YYYY-MM-DD
         shipper: { address: shipper },
         recipient: { address: recipient },
         pickupType: pickupType,
         packagingType: "YOUR_PACKAGING",
+        preferredCurrency: "USD", // optional but helpful
         rateRequestType: ["PREFERRED", "LIST"],
-        requestedPackageLineItems: [packageDetails],
+        requestedPackageLineItems: [
+          {
+            ...packageDetails,
+            groupPackageCount: "1",
+          },
+        ],
         shippingChargesPayment: {
           paymentType: "SENDER",
           payor: {
@@ -123,19 +133,18 @@ const getFedexRates = async (req, res) => {
       const detail = rate.ratedShipmentDetails?.find(
         (d) => d.rateType === "ACCOUNT"
       );
-
       return {
         serviceType: rate.serviceType || null,
         packagingType: rate.packagingType || null,
         netCharge: detail?.totalNetCharge ?? null,
         currency: detail?.currency || "USD",
-        deliveryDay: rate.commitDay || rate.deliveryDayOfWeek || null,
-        transitTime: rate.transitTime || null,
-        serviceDescription:
-          rate.serviceDescription?.description || rate.serviceName || null,
+        deliveryDay: rate.commit?.dateDetail?.dayOfWeek || null,
+        transitTime: rate.commit?.dateDetail?.dayFormat || null,
+        serviceDescription: rate.serviceDescription?.description || rate.serviceName || null,
       };
     });
-    res.json({ rates: parsedRates });
+    console.log(parsedRates)
+    res.json(parsedRates);
   } catch (error) {
     const fedexError = error?.response?.data;
     console.error("FedEx rate request failed:", fedexError);
@@ -246,16 +255,14 @@ const createFedexLabel = async (req, res) => {
 
     let insertQuery;
     if (shippingType === "Inbound") {
-      insertQuery = 
-      `
+      insertQuery = `
         INSERT INTO exchange.inbound_shipments (
           order_id, tracking_number, carrier, shipping_status, created_at, shipping_label
         )
         VALUES ($1, $2, $3, 'label_created', NOW(), $4)
       `;
     } else {
-      insertQuery = 
-      `
+      insertQuery = `
         INSERT INTO exchange.outbound_shipments (
           order_id, tracking_number, carrier, shipping_status, created_at, shipping_label
         )
@@ -271,7 +278,7 @@ const createFedexLabel = async (req, res) => {
     ]);
 
     res.json({
-      message: 'Label created!'
+      message: "Label created!",
     });
   } catch (error) {
     console.error(
@@ -282,10 +289,132 @@ const createFedexLabel = async (req, res) => {
   }
 };
 
+const scheduleFedexPickup = async (req, res) => {
+  // const {
+  //   order_id,
+  //   customerName,
+  //   customerPhone,
+  //   customerAddress,
+  //   pickupType,
+  //   pickupDateTime,
+  //   readyDateTime,
+  //   packageLocation = "FRONT",
+  //   packageCount = 1,
+  //   weight = { units: "LB", value: 1 },
+  // } = req.body;
 
+  const {
+    order_id,
+    customerName = "Jacob Johnson",
+    customerPhone = "5551234567",
+    customerAddress = {
+      line_1: "123 Elm Street",
+      line_2: "Apt 4B",
+      city: "Dallas",
+      state: "TX",
+      zip: "75229",
+      country_code: "US",
+    },
+  } = req.body;
+
+  const pickupType = "ON_CALL";
+  const pickupDateTime = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour from now
+  const readyDateTime = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min from now
+  const packageLocation = "FRONT";
+  const packageCount = 1;
+  const weight = { units: "LB", value: 2 };
+
+  const pickupAddress = {
+    streetLines: [customerAddress.line_1, customerAddress.line_2].filter(
+      Boolean
+    ),
+    city: customerAddress.city,
+    stateOrProvinceCode: customerAddress.state,
+    postalCode: customerAddress.zip,
+    countryCode: customerAddress.country_code,
+  };
+
+  const contactInfo = {
+    personName: customerName,
+    phoneNumber: customerPhone,
+  };
+
+  try {
+    const token = await getFedExAccessToken();
+
+    const pickupPayload = {
+      associatedAccountNumber: {
+        value: process.env.FEDEX_ACCOUNT_NUMBER,
+      },
+      originDetail: {
+        pickupLocation: {
+          contact: {
+            personName: customerName,
+            phoneNumber: customerPhone,
+          },
+          address: pickupAddress,
+          deliveryInstructions: "Leave at front door",
+        },
+        readyDateTimestamp: readyDateTime || new Date().toISOString(), // fallback to now
+        customerCloseTime: "17:00:00", // REQUIRED — fallback default business hours
+        pickupDateType: "FUTURE_DAY",
+        packageLocation,
+      },
+      customerContact: contactInfo,
+      pickupType, // e.g., "ON_CALL"
+      totalWeight: weight,
+      packageCount,
+      carrierCode: "FDXE", // FDXG (FedEx Ground) or FDXE (Express)
+    };
+
+    const response = await axios.post(
+      process.env.FEDEX_PICKUP_URL,
+      pickupPayload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const confirmationNumber = response.data?.output?.pickupConfirmationNumber;
+
+    // Store pickup request (optional)
+    const insertQuery = `
+      INSERT INTO exchange.carrier_pickups (
+        order_id,
+        carrier,
+        pickup_confirmation_number,
+        scheduled_time,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, NOW())
+    `;
+
+    await pool.query(insertQuery, [
+      order_id,
+      "FedEx",
+      confirmationNumber,
+      pickupDateTime,
+    ]);
+
+    res.json({
+      message: "FedEx pickup scheduled.",
+      confirmationNumber,
+    });
+  } catch (error) {
+    console.error(
+      "FedEx pickup scheduling failed:",
+      JSON.stringify(error?.response?.data, null, 2) || error
+    );
+    res.status(500).json({ error: "FedEx pickup scheduling failed." });
+  }
+};
 
 module.exports = {
   validateAddress,
   getFedexRates,
   createFedexLabel,
+  scheduleFedexPickup,
 };

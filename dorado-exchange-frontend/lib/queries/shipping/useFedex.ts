@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import type {
   FedexLabelInput,
@@ -7,10 +7,14 @@ import type {
   FedexRateInput,
 } from '@/types/shipping'
 
-export const useFedExRates = () => {
-  return useMutation({
-    mutationFn: (input: FedexRateInput) =>
-      apiRequest<FedexRate[]>('POST', '/shipping/get_fedex_rates', input),
+export const useFedExRates = (input: FedexRateInput | null) => {
+  return useQuery({
+    queryKey: ['fedexRates', input],
+    queryFn: () =>
+      apiRequest<FedexRate[]>('POST', '/shipping/get_fedex_rates', input!),
+    enabled: !!input, // only runs when input is provided
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false,
   })
 }
 // const fedexRatesMutation = useFedExRates()
