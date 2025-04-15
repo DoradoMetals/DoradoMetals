@@ -4,7 +4,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Switch } from '@/components/ui/switch'
 import { packageOptions } from '@/types/packaging'
 import { cn } from '@/lib/utils'
-import { ShieldCheck } from 'lucide-react'
+import { BadgePlus, ShieldCheck } from 'lucide-react'
 import { useMemo } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 
@@ -38,8 +38,9 @@ export function PackageSelector() {
     <div className="space-y-2">
       <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Package Selection</h2>
 
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <span className="text-base text-neutral-600">Want your shipment insured?</span>
+      <div className="flex items-center justify-end gap-2 mb-4">
+        <span className="text-sm text-neutral-600">Add insurance?</span>
+
         <Switch
           checked={insured}
           onCheckedChange={handleInsuranceToggle}

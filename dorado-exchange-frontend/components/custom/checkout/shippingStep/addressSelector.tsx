@@ -2,19 +2,30 @@
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Edit } from 'lucide-react'
 import { Address } from '@/types/address'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
 
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+import { Button } from '@/components/ui/button'
 
 interface AddressSelectorProps {
   addresses: Address[]
+  emptyAddress: Address
+  setTitle: (title: string) => void
+  setDraftAddress: (addr: Address) => void
+  setOpen: (open: boolean) => void
 }
 
-export function AddressSelector({ addresses }: AddressSelectorProps) {
-  const address = usePurchaseOrderCheckoutStore(state => state.data.address)
+export function AddressSelector({
+  addresses,
+  emptyAddress,
+  setTitle,
+  setDraftAddress,
+  setOpen,
+}: AddressSelectorProps) {
+  const address = usePurchaseOrderCheckoutStore((state) => state.data.address)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
 
   const [expanded, setExpanded] = useState(false)
@@ -37,28 +48,47 @@ export function AddressSelector({ addresses }: AddressSelectorProps) {
         disabled={addresses.length <= 1}
         className="relative w-full text-left p-3 bg-card flex items-start gap-4 transition-colors rounded-none cursor-pointer"
       >
-        <div className="flex flex-col">
-          <div className="flex items-center justify-between w-full">
-            <span className="text-base sm:text-lg text-neutral-800">{address?.name}</span>
-            <span className="text-xs text-neutral-500 whitespace-nowrap">
-              {formatPhoneNumber(address?.phone_number ?? '')}
-            </span>
-          </div>
+        <div className="flex items-center w-full justify-between gap-3">
+          <div className='flex items-center gap-3'>
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-neutral-700 hover:text-primary hover:bg-background px-0 py-0 h-auto min-h-0 font-normal"
+            onClick={(e) => {
+              e.stopPropagation()
+              setTitle('Edit Address')
+              setDraftAddress(address ?? emptyAddress)
+              setOpen(true)
+            }}
+          >
+            <Edit size={20} className="text-primary" />
+          </Button>
+          <div className="flex flex-col">
+            <div className="flex items-center justify-between w-full">
+              <span className="text-base sm:text-lg text-neutral-800">{address?.name}</span>
+              <span className="text-sm text-neutral-500 whitespace-nowrap">
+                {formatPhoneNumber(address?.phone_number ?? '')}
+              </span>
+            </div>
 
-          <div className="mt-1 text-sm text-neutral-600 leading-tight">
-            {address?.line_1} {address?.line_2} {address?.city}, {address?.state} {address?.zip}
+            <div className="mt-1 text-xs text-neutral-700 leading-tight">
+              {address?.line_1} {address?.line_2} {address?.city}, {address?.state} {address?.zip}
+            </div>
           </div>
-        </div>
-
-        {addresses.length > 1 && (
+          </div>
+          
+          {addresses.length > 1 && (
           <motion.div
             animate={{ rotate: expanded ? 180 : 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute top-6 right-4 text-neutral-800"
+            className="text-neutral-800"
           >
             <ChevronDown className="h-4 w-4" />
           </motion.div>
         )}
+        </div>
+
+
       </button>
 
       <AnimatePresence initial={false}>

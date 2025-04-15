@@ -3,7 +3,7 @@
 import { Address } from '@/types/address'
 import { AddressSelector } from './addressSelector'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Edit, MapPinned, MapPinPlus, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { PackageSelector } from './packageSelector'
 import { FedexRateInput, formatFedexRatesAddress } from '@/types/shipping'
@@ -83,36 +83,32 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
         </div>
       ) : (
         <div className="space-y-2">
-          <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Address Selection</h2>
+          <div className="flex items-center justify-between w-full mb-8">
+            <h2 className="text-xs text-neutral-600 tracking-widest">Address Selection</h2>
+            <Button
+              type="button"
+              variant="outline"
+              className="ml-auto h-auto min-h-0 font-normal text-primary border-primary hover:text-neutral-900 hover:bg-primary"
+              onClick={() => {
+                setTitle('Create New')
+                setDraftAddress(emptyAddress)
+                setOpen(true)
+              }}
+            >
+              <div className="flex text-xs items-center gap-1">
+                New Address
+                <MapPinned size={16} className="" />
+              </div>
+            </Button>
+          </div>
           <div className="flex flex-col gap-1">
-            <div className="flex w-full justify-between">
-              <Button
-                type="button"
-                variant="ghost"
-                className="text-neutral-700 hover:text-primary hover:bg-background px-0 py-0 h-auto min-h-0 font-normal"
-                onClick={() => {
-                  setTitle('Edit Address')
-                  setDraftAddress(address ?? emptyAddress)
-                  setOpen(true)
-                }}
-              >
-                Edit
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="text-neutral-700 hover:text-primary hover:bg-background px-0 py-0 h-auto min-h-0 font-normal"
-                onClick={() => {
-                  setTitle('Create New')
-                  setDraftAddress(emptyAddress)
-                  setOpen(true)
-                }}
-              >
-                <div className="flex items-center gap-1">Create New</div>
-              </Button>
-            </div>
-
-            <AddressSelector addresses={addresses} />
+            <AddressSelector
+              addresses={addresses}
+              setTitle={setTitle}
+              setDraftAddress={setDraftAddress}
+              emptyAddress={emptyAddress}
+              setOpen={setOpen}
+            />
           </div>
         </div>
       )}

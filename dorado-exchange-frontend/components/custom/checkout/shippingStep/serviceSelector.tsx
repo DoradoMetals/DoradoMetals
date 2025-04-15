@@ -62,7 +62,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
               </div>
 
               <div className="flex items-center gap-2 text-sm font-medium text-neutral-900">
-                {option.icon && <option.icon size={16} />}
+                {option.icon && <option.icon size={20} className='text-primary' />}
                 {option.serviceDescription}
               </div>
 

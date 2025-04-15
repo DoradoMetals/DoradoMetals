@@ -32,6 +32,7 @@ export default function CheckoutStepper() {
   const { setData } = usePurchaseOrderCheckoutStore()
   const hasInitialized = useRef(false)
 
+
   const emptyAddress: Address = {
     id: crypto.randomUUID(),
     user_id: user?.id ?? '',
@@ -78,25 +79,24 @@ export default function CheckoutStepper() {
   const currentIndex = utils.getIndex(stepper.current.id)
 
   return (
-    <div className="p-5 flex justify-center items-center">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
-        {/* Step Indicator block (left side) */}
-        <div className='col-span-2 items-start'>
-          <div className="col-span-2 flex items-center gap-4">
-            <div className="mt-1">
-              <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
-            </div>
-            <div className="flex flex-col justify-center">
+    <div className="p-5">
+      <div className="flex w-full">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-4 mb-6">
+            <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
+            <div className="flex flex-col">
               <h2 className="header-text">{stepper.current.title}</h2>
               <p className="secondary-text">{stepper.current.description}</p>
             </div>
           </div>
-        </div>
 
-        {/* Step content area with max width */}
-        <div className="flex flex-col col-span-1 lg:col-span-2 w-full max-w-lg mx-auto">
           {stepper.switch({
-            shipping: () => <ShippingStep addresses={addresses} emptyAddress={emptyAddress} />,
+            shipping: () => (
+              <ShippingStep
+                addresses={addresses}
+                emptyAddress={emptyAddress}
+              />
+            ),
             payment: () => <PaymentStep />,
             review: () => <ReviewStep />,
             complete: () => <CompleteStep />,
