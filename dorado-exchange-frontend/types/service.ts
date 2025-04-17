@@ -1,14 +1,15 @@
-import { LucideIcon, Clock, Rocket, Truck, PackageCheck } from 'lucide-react'
+import { LucideIcon, Rocket, PackageCheck, Train } from 'lucide-react'
 import { z } from 'zod'
 
 export interface ShippingService {
   serviceType: string
   serviceDescription?: string
-  netCharge: number
-  currency: string
+  netCharge?: number
+  currency?: string
   deliveryDay?: string
   transitTime?: Date,
   icon?: LucideIcon
+  code: string,
 }
 
 export const serviceSchema = z.object({
@@ -19,6 +20,7 @@ export const serviceSchema = z.object({
   deliveryDay: z.string().optional(),
   transitTime: z.date().optional(),
   icon: z.any().optional(),
+  code: z.string(),
 })
 
 export const serviceOptions: Record<string, ShippingService> = {
@@ -29,17 +31,9 @@ export const serviceOptions: Record<string, ShippingService> = {
     currency: 'USD',
     deliveryDay: '',
     transitTime: new Date(),
-    icon: Truck,
+    icon: Train,
+    code: 'FDXG',
   },
-  // FEDEX_2_DAY: {
-  //   serviceType: 'FEDEX_2_DAY',
-  //   serviceDescription: 'FedEx 2 Day',
-  //   netCharge: 0,
-  //   currency: 'USD',
-  //   deliveryDay: '',
-  //   transitTime: new Date(),
-  //   icon: Clock,
-  // },
   FEDEX_EXPRESS_SAVER: {
     serviceType: 'FEDEX_EXPRESS_SAVER',
     serviceDescription: 'Express Saver',
@@ -48,6 +42,7 @@ export const serviceOptions: Record<string, ShippingService> = {
     deliveryDay: '',
     transitTime: new Date(),
     icon: PackageCheck,
+    code: 'FDXE',
   },
   PRIORITY_OVERNIGHT: {
     serviceType: 'PRIORITY_OVERNIGHT',
@@ -57,5 +52,6 @@ export const serviceOptions: Record<string, ShippingService> = {
     deliveryDay: '',
     transitTime: new Date(),
     icon: Rocket,
+    code: 'FDXE',
   },
 }

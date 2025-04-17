@@ -41,55 +41,60 @@ export function AddressSelector({
   }
 
   return (
-    <div className="rounded-lg border border-primary overflow-hidden bg-background">
-      <button
-        type="button"
-        onClick={() => setExpanded((prev) => !prev)}
-        disabled={addresses.length <= 1}
+    <div className="rounded-lg border border-primary overflow-hidden bg-card">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => addresses.length > 1 && setExpanded((prev) => !prev)}
+        onKeyDown={(e) => {
+          if (addresses.length > 1 && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault()
+            setExpanded((prev) => !prev)
+          }
+        }}
+        aria-disabled={addresses.length <= 1}
         className="relative w-full text-left p-3 bg-card flex items-start gap-4 transition-colors rounded-none cursor-pointer"
       >
         <div className="flex items-center w-full justify-between gap-3">
-          <div className='flex items-center gap-3'>
-          <Button
-            type="button"
-            variant="ghost"
-            className="text-neutral-700 hover:text-primary hover:bg-background px-0 py-0 h-auto min-h-0 font-normal"
-            onClick={(e) => {
-              e.stopPropagation()
-              setTitle('Edit Address')
-              setDraftAddress(address ?? emptyAddress)
-              setOpen(true)
-            }}
-          >
-            <Edit size={20} className="text-primary" />
-          </Button>
-          <div className="flex flex-col">
-            <div className="flex items-center justify-between w-full">
-              <span className="text-base sm:text-lg text-neutral-800">{address?.name}</span>
-              <span className="text-sm text-neutral-500 whitespace-nowrap">
-                {formatPhoneNumber(address?.phone_number ?? '')}
-              </span>
-            </div>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-neutral-700 hover:text-primary hover:bg-background px-0 py-0 h-auto min-h-0 font-normal"
+              onClick={(e) => {
+                e.stopPropagation()
+                setTitle('Edit Address')
+                setDraftAddress(address ?? emptyAddress)
+                setOpen(true)
+              }}
+            >
+              <Edit size={20} className="text-primary" />
+            </Button>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between w-full gap-1">
+                <span className="text-base sm:text-lg text-neutral-800 font-medium">{address?.name}</span>
+                <span className="text-sm text-neutral-500 whitespace-nowrap">
+                  {formatPhoneNumber(address?.phone_number ?? '')}
+                </span>
+              </div>
 
-            <div className="mt-1 text-xs text-neutral-700 leading-tight">
-              {address?.line_1} {address?.line_2} {address?.city}, {address?.state} {address?.zip}
+              <div className="mt-1 text-xs sm:text-sm text-neutral-700 leading-tight">
+                {address?.line_1} {address?.line_2} {address?.city}, {address?.state} {address?.zip}
+              </div>
             </div>
           </div>
-          </div>
-          
+
           {addresses.length > 1 && (
-          <motion.div
-            animate={{ rotate: expanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-            className="text-neutral-800"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </motion.div>
-        )}
+            <motion.div
+              animate={{ rotate: expanded ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+              className="text-neutral-800"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </motion.div>
+          )}
         </div>
-
-
-      </button>
+      </div>
 
       <AnimatePresence initial={false}>
         {expanded && (

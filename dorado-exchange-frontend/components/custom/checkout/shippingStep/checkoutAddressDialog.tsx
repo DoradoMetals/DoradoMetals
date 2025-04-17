@@ -29,8 +29,8 @@ export default function CheckoutAddressModal({
     <Dialog modal={false} open={open} onOpenChange={setOpen}>
       <DialogContent className="bg-background">
         <DialogHeader>
-          <DialogTitle className="mb-4">{title}</DialogTitle>
-          <DialogDescription>Please fill out the address details below.</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className='mb-4'>Please fill out the address details below.</DialogDescription>
         </DialogHeader>
         <CheckoutAddressForm address={address} setOpen={setOpen} onSuccess={onSuccess} />
       </DialogContent>

@@ -1,4 +1,4 @@
-import { LucideIcon, Box, Package2, Settings, Boxes, Package, FileBox, Mail, MailOpen, Container, Folder, Inbox } from 'lucide-react'
+import { LucideIcon, Package2, Package, Inbox } from 'lucide-react'
 import { z } from 'zod'
 
 export interface Package {

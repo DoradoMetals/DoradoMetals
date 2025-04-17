@@ -32,7 +32,6 @@ export default function CheckoutStepper() {
   const { setData } = usePurchaseOrderCheckoutStore()
   const hasInitialized = useRef(false)
 
-
   const emptyAddress: Address = {
     id: crypto.randomUUID(),
     user_id: user?.id ?? '',
@@ -60,14 +59,6 @@ export default function CheckoutStepper() {
       setData({
         address: defaultAddress,
         insured: true,
-        package: packageOptions['FedEx Medium'],
-        pickup_type: 'DROPOFF_AT_FEDEX_LOCATION',
-        pickup_time: new Date(),
-        service: {
-          ...serviceOptions['FEDEX_GROUND'],
-          netCharge: 0,
-          currency: 'USD',
-        },
         payment: '',
         confirmation: false,
       })
@@ -79,9 +70,8 @@ export default function CheckoutStepper() {
   const currentIndex = utils.getIndex(stepper.current.id)
 
   return (
-    <div className="p-5">
-      <div className="flex w-full">
-        <div className="flex flex-col">
+      <div className="flex w-full max-w-md justify-center p-5">
+        <div className="flex flex-col w-full">
           <div className="flex items-center gap-4 mb-6">
             <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
             <div className="flex flex-col">
@@ -117,7 +107,6 @@ export default function CheckoutStepper() {
           </div>
         </div>
       </div>
-    </div>
   )
 }
 

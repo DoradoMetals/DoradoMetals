@@ -25,7 +25,6 @@ export default function CheckoutAddressForm({
 
     updateAddressMutation.mutate(values, {
       onSuccess: (updatedAddressFromServer) => {
-        // console.log('from server: ', updatedAddressFromServer)
         onSuccess?.(updatedAddressFromServer)
         setOpen(false)
       },

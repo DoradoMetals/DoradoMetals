@@ -18,13 +18,7 @@ export function PackageSelector() {
   }, [insured])
 
   const handleInsuranceToggle = (checked: boolean) => {
-    const defaultLabel = checked ? 'FedEx Medium' : 'Medium'
-    const fallback = Object.values(packageOptions).find((p) => p.label === defaultLabel)
-
-    setData({
-      insured: checked,
-      ...(fallback && { package: fallback }),
-    })
+    setData({ insured: checked })
   }
 
   const handleChange = (label: string) => {
@@ -66,7 +60,7 @@ export function PackageSelector() {
 
             <div className="flex flex-col items-center gap-2">
               {pkg.icon && <pkg.icon className="w-5 h-5 text-primary" />}
-              <div className="text-xs text-neutral-800">{pkg.label}</div>
+              <div className="text-xs sm:text-sm text-neutral-800 font-medium">{pkg.label}</div>
             </div>
 
             <RadioGroupItem id={pkg.label} value={pkg.label} className="sr-only" />

@@ -7,6 +7,7 @@ import { FedexRate } from '@/types/shipping'
 import { serviceOptions } from '@/types/service'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+import { differenceInHours, differenceInDays } from 'date-fns'
 
 interface ServiceSelectorProps {
   rates: FedexRate[]
@@ -16,6 +17,7 @@ interface ServiceSelectorProps {
 export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoading }) => {
   const selected = usePurchaseOrderCheckoutStore((state) => state.data.service)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+  const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
 
   const rateMap = new Map(rates.map((r) => [r.serviceType, r]))
 
@@ -23,16 +25,21 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
     const option = serviceOptions[serviceType]
     const rate = rateMap.get(serviceType)
 
-    if (!option || !rate || rate.netCharge == null || rate.currency == null) return
-
     setData({
       service: {
         ...option,
         serviceType,
-        netCharge: rate.netCharge,
-        currency: rate.currency,
-        transitTime: rate.transitTime ?? new Date(),
-        deliveryDay: rate.deliveryDay ?? '',
+        netCharge: rate?.netCharge || 0,
+        currency: rate?.currency || 'USD',
+        transitTime: rate?.transitTime ?? new Date(),
+        deliveryDay: rate?.deliveryDay ?? '',
+      },
+      pickup: {
+        ...pickup,
+        label: pickup?.label ?? '',
+        selectedDate: undefined,
+        time: undefined,
+        date: undefined,
       },
     })
   }
@@ -58,29 +65,34 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
               )}
             >
               <div className="absolute top-2 right-2">
-                {isSelected && <CheckCircle size={16} className="text-primary" />}
+                <CheckCircle
+                  size={16}
+                  className={cn(
+                    'transition-opacity duration-200',
+                    isSelected ? 'text-primary opacity-100' : 'opacity-0'
+                  )}
+                />
               </div>
 
-              <div className="flex items-center gap-2 text-sm font-medium text-neutral-900">
-                {option.icon && <option.icon size={20} className='text-primary' />}
+              <div className="flex items-center gap-2 text-sm font-medium text-neutral-800">
+                {option.icon && <option.icon size={20} className="text-primary" />}
                 {option.serviceDescription}
               </div>
 
               <div className="flex items-center w-full justify-between">
                 <div className="text-sm text-neutral-600">
                   {rate?.transitTime
-                    ? `Arrives ${new Date(rate.transitTime).toLocaleDateString(undefined, {
-                        weekday: 'short',
-                      })} by ${new Date(rate.transitTime).toLocaleTimeString(undefined, {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}`
+                    ? formatTimeDiff(rate.transitTime)
                     : rate?.deliveryDay
                     ? `Arrives ${rate.deliveryDay}`
                     : 'Estimated delivery'}
                 </div>
                 <div className="text-base text-neutral-800">
-                  <PriceNumberFlow value={rate?.netCharge ?? 0} />
+                  {rate?.netCharge != null ? (
+                    <PriceNumberFlow value={rate.netCharge} />
+                  ) : (
+                    <span className="text-neutral-500 select-none">&nbsp;</span> // reserve space
+                  )}
                 </div>
               </div>
 
@@ -91,4 +103,20 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
       </RadioGroup>
     </div>
   )
+}
+
+function formatTimeDiff(deliveryTime: string | Date): string {
+  const now = new Date()
+  const target = new Date(deliveryTime)
+
+  if (isNaN(target.getTime()) || target <= now) return 'Arriving soon'
+
+  const totalHours = differenceInHours(target, now)
+  const days = differenceInDays(target, now)
+  const hours = totalHours - days * 24
+
+  const dayPart = days > 0 ? `${days} day${days > 1 ? 's' : ''}` : ''
+  const hourPart = hours > 0 ? `${hours} hour${hours > 1 ? 's' : ''}` : ''
+
+  return [dayPart, hourPart].filter(Boolean).join(' and ')
 }

@@ -16,11 +16,26 @@ let fedexAccessToken = null;
 
 const getFedExAccessToken = async () => {
   const response = await axios.post(
-    process.env.FEDEX_OAUTH_URL,
+    process.env.FEDEX_API_URL + "/oauth/token",
     new URLSearchParams({
       grant_type: "client_credentials",
       client_id: process.env.FEDEX_CLIENT_ID,
       client_secret: process.env.FEDEX_CLIENT_SECRET,
+    }),
+    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+  );
+
+  fedexAccessToken = response.data.access_token;
+  return fedexAccessToken;
+};
+
+const getSandboxFedExAccessToken = async () => {
+  const response = await axios.post(
+    process.env.FEDEX_SANDBOX_API_URL + "/oauth/token",
+    new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: process.env.FEDEX_SANDBOX_CLIENT_ID,
+      client_secret: process.env.FEDEX_SANDBOX_CLIENT_SECRET,
     }),
     { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
   );
@@ -50,7 +65,7 @@ const validateAddress = async (address) => {
   };
 
   const response = await axios.post(
-    process.env.FEDEX_ADDRESS_VALIDATION_URL,
+    process.env.FEDEX_API_URL + "/address/v1/addresses/resolve",
     fedexPayload,
     {
       headers: {
@@ -118,7 +133,7 @@ const getFedexRates = async (req, res) => {
     };
 
     const rateResponse = await axios.post(
-      process.env.FEDEX_RATES_URL,
+      process.env.FEDEX_API_URL + "/rate/v1/comprehensiverates/quotes",
       rateRequestPayload,
       {
         headers: {
@@ -140,10 +155,10 @@ const getFedexRates = async (req, res) => {
         currency: detail?.currency || "USD",
         deliveryDay: rate.commit?.dateDetail?.dayOfWeek || null,
         transitTime: rate.commit?.dateDetail?.dayFormat || null,
-        serviceDescription: rate.serviceDescription?.description || rate.serviceName || null,
+        serviceDescription:
+          rate.serviceDescription?.description || rate.serviceName || null,
       };
     });
-    console.log(parsedRates)
     res.json(parsedRates);
   } catch (error) {
     const fedexError = error?.response?.data;
@@ -170,7 +185,6 @@ const createFedexLabel = async (req, res) => {
     serviceType,
   } = req.body;
 
-  // console.log(req.body)
   const shipper = {
     contact: {
       personName:
@@ -233,7 +247,7 @@ const createFedexLabel = async (req, res) => {
     };
 
     const response = await axios.post(
-      process.env.FEDEX_API_URL,
+      process.env.FEDEX_API_URL + "/ship/v1/shipments",
       shipmentPayload,
       {
         headers: {
@@ -289,86 +303,29 @@ const createFedexLabel = async (req, res) => {
   }
 };
 
-const scheduleFedexPickup = async (req, res) => {
-  // const {
-  //   order_id,
-  //   customerName,
-  //   customerPhone,
-  //   customerAddress,
-  //   pickupType,
-  //   pickupDateTime,
-  //   readyDateTime,
-  //   packageLocation = "FRONT",
-  //   packageCount = 1,
-  //   weight = { units: "LB", value: 1 },
-  // } = req.body;
-
-  const {
-    order_id,
-    customerName = "Jacob Johnson",
-    customerPhone = "5551234567",
-    customerAddress = {
-      line_1: "123 Elm Street",
-      line_2: "Apt 4B",
-      city: "Dallas",
-      state: "TX",
-      zip: "75229",
-      country_code: "US",
-    },
-  } = req.body;
-
-  const pickupType = "ON_CALL";
-  const pickupDateTime = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour from now
-  const readyDateTime = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min from now
-  const packageLocation = "FRONT";
-  const packageCount = 1;
-  const weight = { units: "LB", value: 2 };
-
-  const pickupAddress = {
-    streetLines: [customerAddress.line_1, customerAddress.line_2].filter(
-      Boolean
-    ),
-    city: customerAddress.city,
-    stateOrProvinceCode: customerAddress.state,
-    postalCode: customerAddress.zip,
-    countryCode: customerAddress.country_code,
-  };
-
-  const contactInfo = {
-    personName: customerName,
-    phoneNumber: customerPhone,
-  };
+const checkFedexPickupAvailability = async (req, res) => {
+  const { customerAddress, code } = req.body;
 
   try {
     const token = await getFedExAccessToken();
 
+    // Calculate 2 hours from now, in HH:mm:ss
+    const now = new Date();
+    const readyDate = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    const packageReadyTime = readyDate.toTimeString().split(" ")[0]; // "HH:mm:ss"
+
     const pickupPayload = {
-      associatedAccountNumber: {
-        value: process.env.FEDEX_ACCOUNT_NUMBER,
-      },
-      originDetail: {
-        pickupLocation: {
-          contact: {
-            personName: customerName,
-            phoneNumber: customerPhone,
-          },
-          address: pickupAddress,
-          deliveryInstructions: "Leave at front door",
-        },
-        readyDateTimestamp: readyDateTime || new Date().toISOString(), // fallback to now
-        customerCloseTime: "17:00:00", // REQUIRED — fallback default business hours
-        pickupDateType: "FUTURE_DAY",
-        packageLocation,
-      },
-      customerContact: contactInfo,
-      pickupType, // e.g., "ON_CALL"
-      totalWeight: weight,
-      packageCount,
-      carrierCode: "FDXE", // FDXG (FedEx Ground) or FDXE (Express)
+      pickupAddress: customerAddress,
+      pickupRequestType: ["FUTURE_DAY"],
+      carriers: [code],
+      countryRelationship: "DOMESTIC",
+      numberOfBusinessDays: 3,
+      associatedAccountNumber: process.env.FEDEX_ACCOUNT_NUMBER,
+      packageReadyTime: packageReadyTime,
     };
 
     const response = await axios.post(
-      process.env.FEDEX_PICKUP_URL,
+      process.env.FEDEX_API_URL + "/pickup/v1/pickups/availabilities",
       pickupPayload,
       {
         headers: {
@@ -378,14 +335,94 @@ const scheduleFedexPickup = async (req, res) => {
       }
     );
 
-    const confirmationNumber = response.data?.output?.pickupConfirmationNumber;
+    const times = response.data?.output?.options || [];
 
-    // Store pickup request (optional)
+    const formatted = times
+      .map((option) => {
+        const filteredTimes = option.readyTimeOptions.filter((t) => {
+          const fullSlot = new Date(`${option.pickupDate}T${t}`);
+          return fullSlot.getTime() >= readyDate.getTime();
+        });
+
+        return {
+          pickupDate: option.pickupDate,
+          times: filteredTimes,
+        };
+      })
+      .filter((entry) => entry.times.length > 0);
+
+    res.json(formatted);
+  } catch (error) {
+    console.error(
+      "FedEx pickup availability check failed:",
+      error?.response?.data || error
+    );
+    res
+      .status(500)
+      .json({ error: "Failed to check FedEx pickup availability." });
+  }
+};
+
+const scheduleFedexPickup = async (req, res) => {
+  const {
+    order_id,
+    customerName,
+    customerPhone,
+    customerAddress,
+    pickupDate,
+    pickupTime,
+    code,
+    trackingNumber,
+    // suppliesRequested,
+  } = req.body;
+
+  try {
+    const token = await getSandboxFedExAccessToken();
+
+    const pickupPayload = {
+      associatedAccountNumber: {
+        value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER,
+      },
+      originDetail: {
+        pickupLocation: {
+          contact: {
+            personName: customerName,
+            phoneNumber: customerPhone,
+          },
+          address: customerAddress,
+        },
+        // suppliesRequested: suppliesRequested,
+        readyDateTimestamp: new Date(
+          `${pickupDate}T${pickupTime}Z`
+        ).toISOString(),
+        customerCloseTime: new Date(
+          new Date(`${pickupDate}T${pickupTime}Z`).getTime() + 60 * 60 * 1000
+        )
+          .toISOString()
+          .split("T")[1]
+          .slice(0, 8),
+      },
+      trackingNumber: trackingNumber,
+      carrierCode: code,
+    };
+
+    const response = await axios.post(
+      process.env.FEDEX_SANDBOX_API_URL + "/pickup/v1/pickups",
+      pickupPayload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const confirmationNumber = response.data?.output?.pickupConfirmationCode;
     const insertQuery = `
       INSERT INTO exchange.carrier_pickups (
         order_id,
         carrier,
-        pickup_confirmation_number,
+        confirmation_number,
         scheduled_time,
         created_at
       )
@@ -412,9 +449,145 @@ const scheduleFedexPickup = async (req, res) => {
   }
 };
 
+const cancelFedexPickup = async (req, res) => {
+  const { confirmationNumber, pickupDate, code } = req.body;
+
+  try {
+    const token = await getFedExAccessToken();
+
+    const cancelPayload = {
+      associatedAccountNumber: {
+        value: process.env.FEDEX_ACCOUNT_NUMBER,
+      },
+      pickupConfirmationCode: confirmationNumber,
+      scheduledDate: pickupDate,
+      carrierCode: code,
+    };
+
+    const response = await axios.post(
+      process.env.FEDEX_API_URL + "/pickup/v1/pickups/cancel",
+      cancelPayload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    res.json({
+      message: "Pickup successfully canceled.",
+      fedexResponse: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "FedEx pickup cancellation failed:",
+      JSON.stringify(error?.response?.data, null, 2) || error
+    );
+    res.status(500).json({ error: "FedEx pickup cancellation failed." });
+  }
+};
+
+const getFedexLocations = async (req, res) => {
+  const { customerAddress, radiusMiles = 25, maxResults = 10 } = req.body;
+
+  try {
+    const token = await getFedExAccessToken();
+
+    const payload = {
+      locationsSummaryRequestControlParameters: {
+        distance: {
+          units: "MI",
+          value: radiusMiles,
+        },
+        maxResults,
+      },
+      constraints: {
+        locationContentOptions: ["LOCATION_DROPOFF_TIMES"],
+        excludeUnavailableLocations: true,
+      },
+      locationSearchCriterion: "ADDRESS",
+      location: {
+        address: customerAddress,
+      },
+      multipleMatchesAction: "RETURN_ALL",
+      sort: {
+        criteria: "DISTANCE",
+        order: "ASCENDING",
+      },
+      locationTypes: [
+        "FEDEX_AUTHORIZED_SHIP_CENTER",
+        "FEDEX_OFFICE",
+        "FEDEX_ONSITE",
+      ],
+    };
+
+    const response = await axios.post(
+      process.env.FEDEX_API_URL + "/location/v1/locations",
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const rawLocations = response.data?.output?.locationDetailList ?? [];
+
+    const locations = rawLocations.map((loc) => ({
+      locationId: loc.locationId,
+      locationType: loc.locationType,
+      distance: {
+        value: loc.distance?.value ?? null,
+        units: loc.distance?.units ?? "MI",
+      },
+      address: {
+        streetLines: loc.contactAndAddress?.address?.streetLines ?? [],
+        city: loc.contactAndAddress?.address?.city ?? "",
+        stateOrProvinceCode:
+          loc.contactAndAddress?.address?.stateOrProvinceCode ?? "",
+        postalCode: loc.contactAndAddress?.address?.postalCode ?? "",
+        countryCode: loc.contactAndAddress?.address?.countryCode ?? "",
+      },
+      contact: {
+        companyName: loc.contactAndAddress?.contact?.companyName ?? "",
+        phoneNumber: loc.contactAndAddress?.contact?.phoneNumber ?? "",
+      },
+      operatingHours: Array.isArray(loc.storeHours)
+        ? loc.storeHours.reduce((acc, block) => {
+            const day = block.dayOfWeek?.toUpperCase?.();
+            const hours = block.operationalHours;
+
+            if (!day) return acc;
+
+            if (hours?.begins && hours?.ends) {
+              acc[day] = `${hours.begins} - ${hours.ends}`;
+            } else {
+              acc[day] = "Closed";
+            }
+
+            return acc;
+          }, {})
+        : undefined,
+    }));
+    console.log(locations);
+    res.json(locations);
+  } catch (error) {
+    console.error(
+      "FedEx location search failed:",
+      JSON.stringify(error?.response?.data, null, 2) || error
+    );
+    res.status(500).json({ error: "FedEx location search failed." });
+  }
+};
+
 module.exports = {
   validateAddress,
   getFedexRates,
   createFedexLabel,
+  checkFedexPickupAvailability,
   scheduleFedexPickup,
+  cancelFedexPickup,
+  getFedexLocations,
 };

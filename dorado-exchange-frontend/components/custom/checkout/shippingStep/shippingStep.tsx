@@ -3,15 +3,22 @@
 import { Address } from '@/types/address'
 import { AddressSelector } from './addressSelector'
 import { Button } from '@/components/ui/button'
-import { Edit, MapPinned, MapPinPlus, Plus } from 'lucide-react'
+import { MapPinned, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { PackageSelector } from './packageSelector'
-import { FedexRateInput, formatFedexRatesAddress } from '@/types/shipping'
-import { useFedExRates } from '@/lib/queries/shipping/useFedex'
+import {
+  FedexRateInput,
+  formatFedexRatesAddress,
+  FedexPickupTimesInput,
+  formatFedexPickupAddress,
+} from '@/types/shipping'
+import { useFedExPickup, useFedExPickupTimes, useFedExRates } from '@/lib/queries/shipping/useFedex'
 import { ServiceSelector } from './serviceSelector'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import AddressModal from '../../user/addresses/addressDialog'
 import CheckoutAddressModal from './checkoutAddressDialog'
+import { PickupSelector } from './pickupSelector'
+import PickupScheduler from './pickupScheduler'
+import { FedexLocationsList } from './FedexLocations'
 
 interface ShippingStepProps {
   addresses: Address[]
@@ -27,34 +34,42 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
 
   const address = usePurchaseOrderCheckoutStore((state) => state.data.address)
   const pkg = usePurchaseOrderCheckoutStore((state) => state.data.package)
-  const pickup_type = usePurchaseOrderCheckoutStore((state) => state.data.pickup_type)
+  const service = usePurchaseOrderCheckoutStore((state) => state.data.service)
+  const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
 
   let fedexRatesInput: FedexRateInput | null = null
-
   if (address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined) {
     fedexRatesInput = {
       shippingType: 'Inbound',
       customerAddress: formatFedexRatesAddress(address),
-      pickupType: pickup_type || 'DROPOFF_AT_FEDEX_LOCATION',
+      pickupType: pickup?.label || 'DROPOFF_AT_FEDEX_LOCATION',
       packageDetails: {
         weight: pkg.weight,
         dimensions: pkg.dimensions,
       },
     }
   }
-
   const { data: rates = [], isLoading } = useFedExRates(fedexRatesInput)
 
+  let fedexPickupTimesInput: FedexPickupTimesInput | null = null
+  if (address?.is_valid && service) {
+    fedexPickupTimesInput = {
+      customerAddress: formatFedexPickupAddress(address),
+      code: service.code,
+    }
+  }
+
+  const { data: times = [] } = useFedExPickupTimes(fedexPickupTimesInput)
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 w-full">
       <CheckoutAddressModal
         address={draftAddress}
         open={open}
         setOpen={setOpen}
         title={title}
         onSuccess={(savedAddress: Address) => {
-          // console.log('shipping step: ', savedAddress)
           setData({ address: savedAddress })
         }}
       />
@@ -83,24 +98,22 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="flex items-center justify-between w-full mb-8">
-            <h2 className="text-xs text-neutral-600 tracking-widest">Address Selection</h2>
-            <Button
-              type="button"
-              variant="outline"
-              className="ml-auto h-auto min-h-0 font-normal text-primary border-primary hover:text-neutral-900 hover:bg-primary"
-              onClick={() => {
-                setTitle('Create New')
-                setDraftAddress(emptyAddress)
-                setOpen(true)
-              }}
-            >
-              <div className="flex text-xs items-center gap-1">
-                New Address
-                <MapPinned size={16} className="" />
-              </div>
-            </Button>
-          </div>
+          <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Address Selection</h2>
+          <Button
+            type="button"
+            variant="outline"
+            className="flex ml-auto h-auto min-h-0 font-normal text-primary border-none hover:bg-background p-0"
+            onClick={() => {
+              setTitle('Create New')
+              setDraftAddress(emptyAddress)
+              setOpen(true)
+            }}
+          >
+            <div className="flex text-xs items-center gap-1">
+              Add New Address
+              <MapPinned size={16} className="" />
+            </div>
+          </Button>
           <div className="flex flex-col gap-1">
             <AddressSelector
               addresses={addresses}
@@ -112,12 +125,36 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
           </div>
         </div>
       )}
-      <div>
-        <PackageSelector />
-      </div>
-      <div>
-        <ServiceSelector rates={rates} isLoading={isLoading} />
-      </div>
+      {address?.is_valid && (
+        <div>
+          <PackageSelector />
+        </div>
+      )}
+
+      {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
+        <div>
+          <ServiceSelector rates={rates} isLoading={isLoading} />
+        </div>
+      )}
+
+      {address?.is_valid && pkg && service && (
+        <div>
+          <PickupSelector />
+        </div>
+      )}
+     {address?.is_valid &&
+  pkg &&
+  service &&
+  pickup?.label &&
+  (pickup.label === 'DROPOFF_AT_FEDEX_LOCATION' || pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE') && (
+    <div>
+      {pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE' ? (
+        <PickupScheduler times={times} />
+      ) : (
+        <FedexLocationsList />
+      )}
+    </div>
+  )}
     </div>
   )
 }
