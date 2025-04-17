@@ -1,153 +1,294 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useLoadScript, GoogleMap, Marker } from '@react-google-maps/api'
+import { useEffect, useMemo, useState } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useFedExLocations } from '@/lib/queries/shipping/useFedex'
-import { formatFedexPickupAddress, FedexLocations } from '@/types/shipping'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { cn } from '@/lib/utils'
+import { formatFedexPickupAddress, FedexLocation } from '@/types/shipping'
+import { Button } from '@/components/ui/button'
+import formatPhoneNumber from '@/utils/formatPhoneNumber'
 
-export const FedexLocationsList = () => {
+const containerStyle = {
+  width: '100%',
+  height: '200px',
+}
+
+export const FedexLocationsMap = () => {
   const address = usePurchaseOrderCheckoutStore((state) => state.data.address)
-  const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
-
-  const radiusOptions = [10, 25, 50]
-  const [radiusMiles, setRadiusMiles] = useState(25)
-  const [maxResults] = useState(50)
-
   const input = address
     ? {
         customerAddress: formatFedexPickupAddress(address),
-        radiusMiles,
-        maxResults,
+        radiusMiles: 50,
+        maxResults: 50,
       }
     : null
 
-  const { data, isLoading, isError } = useFedExLocations(input)
+  const { data } = useFedExLocations(input)
+  const [selected, setSelected] = useState<FedexLocation | null>(null)
 
-  if (!input) return null
+  const center = useMemo(() => {
+    return {
+      lat: data?.matchedAddressGeoCoord?.latitude ?? 32.7767,
+      lng: data?.matchedAddressGeoCoord?.longitude ?? -96.797,
+    }
+  }, [data?.matchedAddressGeoCoord])
+
+  const [icons, setIcons] = useState<{
+    defaultIcon: google.maps.Symbol | undefined
+    selectedIcon: google.maps.Symbol | undefined
+  }>({
+    defaultIcon: undefined,
+    selectedIcon: undefined,
+  })
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.google) {
+      const getCssVar = (name: string) =>
+        getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+
+      setIcons({
+        defaultIcon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: getCssVar('--secondary'),
+          fillOpacity: 1,
+          strokeWeight: 1,
+          strokeColor: '#fff',
+        },
+        selectedIcon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 10,
+          fillColor: getCssVar('--primary'),
+          fillOpacity: 1,
+          strokeWeight: 1,
+          strokeColor: '#fff',
+        },
+      })
+    }
+  }, [])
 
   return (
-    <div>
-      {pickup?.label === 'DROPOFF_AT_FEDEX_LOCATION' && (
-        <div className="flex flex-col gap-2 bg-card rounded-lg border-1 border-border">
-          <div className="flex flex-col align-start">
-            <div className="text-base p-3 font-semibold text-neutral-800">FedEx Dropoff Locations</div>
+    <div className="rounded-lg overflow-hidden border border-border">
+      <div className="bg-card w-full p-4">
+        <h2 className="text-lg text-neutral-800">Dropoff Store Locator</h2>
+      </div>
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={center}
+        zoom={12}
+        options={{
+          gestureHandling: 'greedy',
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          clickableIcons: false,
+          styles: nightModeMapStyle,
+        }}
+      >
+        {data?.locations.map((loc) => (
+          <Marker
+            key={loc.locationId}
+            position={{
+              lat: loc.geoPositionalCoordinates.latitude,
+              lng: loc.geoPositionalCoordinates.longitude,
+            }}
+            onClick={() => setSelected(loc)}
+            icon={selected?.locationId === loc.locationId ? icons.selectedIcon : icons.defaultIcon}
+          />
+        ))}
+      </GoogleMap>
 
-            <div className="flex justify-start items-center border-b border-border h-8 px-3">
-              <RadioGroup
-                value={String(radiusMiles)}
-                onValueChange={(val) => setRadiusMiles(Number(val))}
-                className="flex items-center justify-start"
-              >
-                {radiusOptions.map((miles, index) => (
-                  <div
-                    key={miles}
-                    className={cn(
-                      'flex items-center'
-                      // index !== radiusOptions.length - 1 && 'border-r border-border'
-                    )}
-                  >
-                    <label
-                      htmlFor={`radius-${miles}`}
-                      className="cursor-pointer text-xs font-medium text-neutral-500 
-              has-[[data-state=checked]]:text-neutral-700 
-              has-[[data-state=checked]]:font-semibold"
-                    >
-                      <RadioGroupItem
-                        value={String(miles)}
-                        id={`radius-${miles}`}
-                        className="sr-only"
-                      />
-                      {miles} mi
-                    </label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-          </div>
+      {selected &&
+        (() => {
+          const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
+          const todayHours = selected.operatingHours?.[today]
+          const street = selected.address.streetLines.join(' ')
+          const cityState = `${selected.address.city}, ${selected.address.stateOrProvinceCode}`
+          const zip = selected.address.postalCode
 
-          <ScrollArea className="h-64 border-border sm:border-s">
-            {data?.map((location: FedexLocations) => {
-              const today = new Date()
-                .toLocaleDateString('en-US', {
-                  weekday: 'long',
-                })
-                .toUpperCase()
+          const { isOpen, openUntil, nextOpenTime } = getOpenStatus(todayHours)
 
-              const todayHours = location.operatingHours?.[today] || 'Closed'
-              const isOpen = todayHours !== 'Closed'
+          return (
+            <div className="rounded-lg bg-card text-card-foreground p-3 border-t border-border flex flex-col">
+              <div className="flex justify-between items-center">
+                <h3 className="text-base font-semibold">
+                  {selected.contact?.companyName || 'FedEx Location'}
+                </h3>
+                <span className="text-sm text-neutral-800 whitespace-nowrap">
+                  {selected.distance.value?.toFixed(2)} {selected.distance.units?.toLowerCase()}
+                </span>
+              </div>
 
-              const formattedPhone = formatPhone(location.contact?.phoneNumber)
-              const street = location.address.streetLines.join(' ')
-              const cityStateZip = `${location.address.city}, ${location.address.stateOrProvinceCode} ${location.address.postalCode}`
+              <div className="flex items-center w-full justify-between">
+                <span className="text-neutral-600 text-sm">
+                  {formatPhoneNumber(selected.contact.phoneNumber)}
+                </span>
+                <div className="text-sm text-neutral-600">{cityState}</div>
+              </div>
 
-              return (
-                <div
-                  key={location.locationId}
-                  className="space-y-1 px-2 py-3 border-b-1 border-border"
-                >
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-base font-semibold">
-                      {location.contact?.companyName || 'FedEx Location'}
-                    </h3>
-                    <span className="text-xs text-neutral-500 whitespace-nowrap">
-                      ({location.distance.value?.toFixed(3)}{' '}
-                      {location.distance.units?.toLowerCase()})
-                    </span>
-                  </div>
-
-                  <div
-                    className={cn(
-                      'flex items-end gap-2 text-sm text-neutral-700 justify-between',
-                      !formattedPhone && 'mb-4'
-                    )}
-                  >
-                    <span>{formatHours(todayHours)}</span>
-                    <span
-                      className={cn(
-                        'text-xs font-medium px-2 py-0.5 rounded-full',
-                        isOpen ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-600'
-                      )}
-                    >
-                      {isOpen ? 'Open' : 'Closed'}
-                    </span>
-                  </div>
-
-                  {formattedPhone && (
-                    <div className="text-xs text-neutral-500 mb-4">{formattedPhone}</div>
+              <div className="flex justify-between items-center text-sm">
+                <span>
+                  {isOpen ? (
+                    <div className="flex items-center">
+                      <span className="text-green-500">
+                        Open<span className="text-neutral-700"> until {openUntil}</span>
+                      </span>
+                    </div>
+                  ) : nextOpenTime ? (
+                    <div className="flex items-end">
+                      <span className="text-red-500">
+                        Closed<span className="text-neutral-700"> until {nextOpenTime}</span>
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-red-500">Closed</span>
                   )}
-                  <div className="text-sm text-neutral-600">
-                    {street}, {cityStateZip}
-                  </div>
-                </div>
-              )
-            })}
-          </ScrollArea>
-        </div>
-      )}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => openInMaps(selected)}
+                  className="text-primary font-medium ml-auto p-0"
+                >
+                  Open in Maps
+                </Button>
+              </div>
+            </div>
+          )
+        })()}
     </div>
   )
 }
 
-function formatHours(raw: string) {
-  if (!raw.includes(':')) return raw
-  const [start, end] = raw.split(' - ')
-  return `${formatTime(start)} - ${formatTime(end)}`
+function openInMaps(selected: FedexLocation) {
+  const { address } = selected
+  const addressStr = `${address.streetLines.join(' ')}, ${address.city}, ${
+    address.stateOrProvinceCode
+  } ${address.postalCode}`
+  const encoded = encodeURIComponent(addressStr)
+
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+  const isAndroid = /Android/.test(navigator.userAgent)
+
+  const url = isIOS
+    ? `http://maps.apple.com/?q=${encoded}`
+    : `https://www.google.com/maps/search/?api=1&query=${encoded}`
+
+  window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 function formatTime(t: string) {
-  return new Date(`1970-01-01T${t}Z`).toLocaleTimeString(undefined, {
+  return new Date(`1970-01-01T${t}`).toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
   })
 }
 
-function formatPhone(raw?: string) {
-  if (!raw) return ''
-  const digits = raw.replace(/\D/g, '')
-  return digits.length === 10 ? digits.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2 - $3') : raw
+function getOpenStatus(hours?: string) {
+  console.log(hours)
+
+  if (!hours || hours === 'Closed') return { isOpen: false, openUntil: null, nextOpenTime: null }
+
+  const [start, end] = hours.split(' - ')
+  const now = new Date()
+  const startDate = new Date(now)
+  const endDate = new Date(now)
+
+  const [startHour, startMin] = start.split(':').map(Number)
+  const [endHour, endMin] = end.split(':').map(Number)
+
+  startDate.setHours(startHour, startMin, 0)
+  endDate.setHours(endHour, endMin, 0)
+  const isOpen = now >= startDate && now <= endDate
+  return {
+    isOpen,
+    openUntil: formatTime(end),
+    nextOpenTime: formatTime(start),
+  }
 }
+
+function getCssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
+export const nightModeMapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+  {
+    featureType: 'administrative.locality',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#d59563' }],
+  },
+  {
+    featureType: 'poi',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#d59563' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'geometry',
+    stylers: [{ color: '#263c3f' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#6b9a76' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#38414e' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#212a37' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#9ca5b3' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry',
+    stylers: [{ color: '#746855' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#1f2835' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#f3d19c' }],
+  },
+  {
+    featureType: 'transit',
+    elementType: 'geometry',
+    stylers: [{ color: '#2f3948' }],
+  },
+  {
+    featureType: 'transit.station',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#d59563' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#17263c' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#515c6d' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#17263c' }],
+  },
+]

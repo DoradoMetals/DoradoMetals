@@ -2,8 +2,8 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import {
   FedexCancelPickupInput,
-  FedexLocations,
   FedexLocationsInput,
+  FedexLocationsReturn,
   FedexPickup,
   FedexPickupInput,
   FedexPickupTimes,
@@ -116,7 +116,7 @@ export const useFedExLocations = (input: FedexLocationsInput | null) => {
   return useQuery({
     queryKey: ['fedexLocations', input],
     queryFn: () =>
-      apiRequest<FedexLocations[]>('POST', 'shipping/get_fedex_locations', input!),
+      apiRequest<FedexLocationsReturn>('POST', 'shipping/get_fedex_locations', input!),
     enabled: !!input,
     staleTime: 5 * 60 * 1000,
     retry: false,

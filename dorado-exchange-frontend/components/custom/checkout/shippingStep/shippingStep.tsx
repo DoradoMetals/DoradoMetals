@@ -18,7 +18,7 @@ import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStor
 import CheckoutAddressModal from './checkoutAddressDialog'
 import { PickupSelector } from './pickupSelector'
 import PickupScheduler from './pickupScheduler'
-import { FedexLocationsList } from './FedexLocations'
+import { FedexLocationsMap } from './FedexLocations'
 
 interface ShippingStepProps {
   addresses: Address[]
@@ -115,13 +115,20 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
             </div>
           </Button>
           <div className="flex flex-col gap-1">
-            <AddressSelector
-              addresses={addresses}
-              setTitle={setTitle}
-              setDraftAddress={setDraftAddress}
-              emptyAddress={emptyAddress}
-              setOpen={setOpen}
-            />
+            <div className="flex flex-col gap-1">
+              <AddressSelector
+                addresses={addresses}
+                setTitle={setTitle}
+                setDraftAddress={setDraftAddress}
+                emptyAddress={emptyAddress}
+                setOpen={setOpen}
+              />
+              {address && !address.is_valid && (
+                <div className="text-sm text-destructive rounded-md">
+                  Please provide a valid address to continue checkout.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -142,19 +149,20 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
           <PickupSelector />
         </div>
       )}
-     {address?.is_valid &&
-  pkg &&
-  service &&
-  pickup?.label &&
-  (pickup.label === 'DROPOFF_AT_FEDEX_LOCATION' || pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE') && (
-    <div>
-      {pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE' ? (
-        <PickupScheduler times={times} />
-      ) : (
-        <FedexLocationsList />
-      )}
-    </div>
-  )}
+      {address?.is_valid &&
+        pkg &&
+        service &&
+        pickup?.label &&
+        (pickup.label === 'DROPOFF_AT_FEDEX_LOCATION' ||
+          pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE') && (
+          <div>
+            {pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE' ? (
+              <PickupScheduler times={times} />
+            ) : (
+              <FedexLocationsMap />
+            )}
+          </div>
+        )}
     </div>
   )
 }

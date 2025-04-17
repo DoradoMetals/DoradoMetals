@@ -503,7 +503,6 @@ const getFedexLocations = async (req, res) => {
       locationTypes: [
         "FEDEX_AUTHORIZED_SHIP_CENTER",
         "FEDEX_OFFICE",
-        "FEDEX_ONSITE",
       ],
     };
 
@@ -555,9 +554,13 @@ const getFedexLocations = async (req, res) => {
             return acc;
           }, {})
         : undefined,
-    }));
-    console.log(locations);
-    res.json(locations);
+        geoPositionalCoordinates: loc.geoPositionalCoordinates ?? null,
+      }))
+      
+      res.json({
+        matchedAddressGeoCoord: response.data?.output?.matchedAddressGeoCoord,
+        locations: locations,
+      })
   } catch (error) {
     console.error(
       "FedEx location search failed:",

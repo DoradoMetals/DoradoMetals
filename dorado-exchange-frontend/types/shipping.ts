@@ -159,7 +159,7 @@ export type FedexLocationsInput = {
   maxResults: number,
 }
 
-export type FedexLocations = {
+export type FedexLocation = {
   locationId: string
   locationType: string
   distance: {
@@ -179,5 +179,19 @@ export type FedexLocations = {
   }
   operatingHours?: Record<string, string>
   latestExpressDropOffTime?: string
+  geoPositionalCoordinates: {
+    latitude: number
+    longitude: number
+  }
 }
+
+export type FedexLocationsReturn = {
+  matchedAddressGeoCoord: {
+    latitude: number
+    longitude: number
+  }
+  locations: FedexLocation[]
+}
+
+
 
