@@ -29,21 +29,6 @@ const getFedExAccessToken = async () => {
   return fedexAccessToken;
 };
 
-const getSandboxFedExAccessToken = async () => {
-  const response = await axios.post(
-    process.env.FEDEX_SANDBOX_API_URL + "/oauth/token",
-    new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: process.env.FEDEX_SANDBOX_CLIENT_ID,
-      client_secret: process.env.FEDEX_SANDBOX_CLIENT_SECRET,
-    }),
-    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-  );
-
-  fedexAccessToken = response.data.access_token;
-  return fedexAccessToken;
-};
-
 const validateAddress = async (address) => {
   const token = await getFedExAccessToken();
 
@@ -377,11 +362,11 @@ const scheduleFedexPickup = async (req, res) => {
   } = req.body;
 
   try {
-    const token = await getSandboxFedExAccessToken();
+    const token = await getFedExAccessToken();
 
     const pickupPayload = {
       associatedAccountNumber: {
-        value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER,
+        value: process.env.FEDEX_ACCOUNT_NUMBER,
       },
       originDetail: {
         pickupLocation: {
@@ -407,7 +392,7 @@ const scheduleFedexPickup = async (req, res) => {
     };
 
     const response = await axios.post(
-      process.env.FEDEX_SANDBOX_API_URL + "/pickup/v1/pickups",
+      process.env.FEDEX_API_URL + "/pickup/v1/pickups",
       pickupPayload,
       {
         headers: {
