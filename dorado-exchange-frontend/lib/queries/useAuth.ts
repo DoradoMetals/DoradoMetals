@@ -186,6 +186,7 @@ export const useSignOut = () => {
       localStorage.removeItem('dorado_cart');
       localStorage.removeItem('dorado_sell_cart');
       localStorage.removeItem('cartSynced');
+      localStorage.removeItem('purchase-order-checkout')
       queryClient.removeQueries()
       router.replace('/');
 

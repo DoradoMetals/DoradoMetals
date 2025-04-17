@@ -40,7 +40,6 @@ export const useSaveScrap = () => {
     },
 
     onError: (_err, _newScrap, context) => {
-      console.log('error saving scrap')
       if (context?.previousScrap) {
         queryClient.setQueryData(['adminProducts'], context.previousScrap)
       }
@@ -71,7 +70,6 @@ export const useDeleteScrap = () => {
     },
 
     onError: (_err, _deletedProduct, context) => {
-      console.log('error deleting product')
       if (context?.previousProducts) {
         queryClient.setQueryData(['adminProducts'], context.previousProducts)
       }

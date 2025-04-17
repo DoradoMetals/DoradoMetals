@@ -6,14 +6,13 @@ import { Address } from '@/types/address'
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus } from 'lucide-react'
-import AddressCard from './addressCard'
 import AddressModal from './addressDialog'
 import { useGetSession } from '@/lib/queries/useAuth'
+import { AddressCarousel } from './addressCarousel'
 
 export default function AddressTab() {
-  const { user } = useGetSession();
-  const { data: addresses, isLoading } = useAddress()
-
+  const { user } = useGetSession()
+  const { data: addresses = [], isLoading } = useAddress()
   const [open, setOpen] = useState(false)
 
   const noAddresses = () => {
@@ -37,7 +36,14 @@ export default function AddressTab() {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     phone_number: '',
+    country_code: 'US',
+    is_valid: false,
+    is_residential: false,
   }
+
+  const [selectedAddress, setSelectedAddress] = useState<Address>(() =>
+    addresses?.[0] ?? defaultValues
+  )
 
   return (
     <div className="flex flex-col">
@@ -57,14 +63,17 @@ export default function AddressTab() {
         </div>
       ) : (
         <>
-          <div className="flex items-center mb-10">
+          <div className="flex items-center mb-4">
             <h2 className="secondary-text">Addresses</h2>
             {!noAddresses() ? (
               <Button
                 variant="link"
                 effect="hoverUnderline"
-                className="ml-auto text-primary"
-                onClick={() => setOpen(true)}
+                className="ml-auto text-neutral-700 hover:text-primary"
+                onClick={() => {
+                  setSelectedAddress(defaultValues)
+                  setOpen(true)
+                }}
               >
                 <div className="flex items-center gap-1">
                   <Plus size={16} />
@@ -87,20 +96,26 @@ export default function AddressTab() {
                   iconPlacement="right"
                   icon={Plus}
                   iconSize={16}
-                  onClick={() => setOpen(true)}
+                  onClick={() => {
+                    setSelectedAddress(defaultValues)
+                    setOpen(true)
+                  }}
                 >
                   <div className="flex items-center gap-2">Add Address</div>
                 </Button>
               </div>
             ) : null}
             <div className="flex flex-col gap-3 justify-center">
-              {addresses?.map((address, key) => (
-                <AddressCard address={address} key={key} />
-              ))}
+              <AddressCarousel
+                setOpen={setOpen}
+                addresses={addresses}
+                selectedAddress={selectedAddress}
+                setSelectedAddress={setSelectedAddress}
+              />
             </div>
 
             <AddressModal
-              address={defaultValues}
+              address={selectedAddress}
               open={open}
               setOpen={setOpen}
               title="Create New Address"

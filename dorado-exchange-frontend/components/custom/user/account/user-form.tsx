@@ -78,7 +78,7 @@ export default function UserForm() {
         </div>
       ) : (
         <div>
-          <h2 className="secondary-text mb-10">Account Information</h2>
+          <h2 className="secondary-text mb-4">Account Information</h2>
           <div className="flex items-center mb-8">
             {user?.emailVerified ? (
               <div className="flex items-center gap-2 mr-auto">

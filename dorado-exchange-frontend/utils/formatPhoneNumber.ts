@@ -7,5 +7,5 @@ export default function formatPhoneNumber(value: string) {
 
   if (cleanDigits.length <= 3) return `(${cleanDigits}`
   if (cleanDigits.length <= 6) return `(${cleanDigits.slice(0, 3)}) ${cleanDigits.slice(3)}`
-  return `(${cleanDigits.slice(0, 3)}) ${cleanDigits.slice(3, 6)} - ${cleanDigits.slice(6, 10)}`
+  return `(${cleanDigits.slice(0, 3)}) ${cleanDigits.slice(3, 6)}-${cleanDigits.slice(6, 10)}`
 }

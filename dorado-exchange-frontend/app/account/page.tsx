@@ -10,7 +10,7 @@ export default function Page() {
   const { user } = useGetSession();
   const router = useRouter()
   return (
-    <div className="flex flex-col  h-full items-center gap-4">
+    <div className="flex flex-col h-full items-center gap-4">
       {user ? (
         <UserTabs />
       ) : (

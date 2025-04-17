@@ -2,7 +2,6 @@ const pool = require("../../db");
 
 const getUser = async (req, res) => {
   const { user_id } = req.query;
-  console.log(user_id)
   try {
     const query = 
     `
@@ -12,7 +11,6 @@ const getUser = async (req, res) => {
     `;
     const values = [user_id]
     const result = await pool.query(query, values);
-    console.log(result.rows)
     res.status(200).json(result.rows);
   } catch (error) {
     console.error("Error fetching user:", error);

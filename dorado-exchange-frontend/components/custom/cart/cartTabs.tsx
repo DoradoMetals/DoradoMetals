@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Cart from './cart'
-import { Dispatch } from 'react'
+import { Dispatch, useEffect } from 'react'
 import CartDrawer from '@/components/drawers/cartDrawer'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
@@ -8,6 +8,7 @@ import { cartStore } from '@/store/cartStore'
 import SellCart from './sellCart'
 import { useCartTabStore } from '@/store/cartTabsStore'
 import { sellCartStore } from '@/store/sellCartStore'
+import { usePathname } from 'next/navigation'
 
 export function CartTabs({
   isCartActive,
@@ -21,6 +22,12 @@ export function CartTabs({
   const items = cartStore((state) => state.items)
   const sellItems = sellCartStore((state) => state.items)
 
+  const pathname = usePathname()
+
+  useEffect(() => {
+    setIsCartActive(false)
+  }, [pathname])
+
   return (
     <div>
       <CartDrawer open={isCartActive} setOpen={setIsCartActive}>
@@ -33,24 +40,28 @@ export function CartTabs({
           >
             <X size={24} className="text-neutral-900" />
           </Button>
-          <Tabs defaultValue={tab} onValueChange={(val) => setTab(val as 'buy' | 'sell')} className="w-full h-full">
-            <div className='mx-5'>
-            <TabsList className="w-full gap-2 rounded-none border-b border-border bg-transparent py-1 mt-10">
-              <TabsTrigger
-                value="buy"
-                className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-secondary"
-              >
-                Buy {`(${items.length})`}
-              </TabsTrigger>
-              <TabsTrigger
-                value="sell"
-                className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-              >
-                Sell {`(${sellItems.length})`}
-              </TabsTrigger>
-            </TabsList>
+          <Tabs
+            defaultValue={tab}
+            onValueChange={(val) => setTab(val as 'buy' | 'sell')}
+            className="w-full h-full"
+          >
+            <div className="mx-5">
+              <TabsList className="w-full gap-2 rounded-none border-b border-border bg-transparent py-1 mt-10">
+                <TabsTrigger
+                  value="buy"
+                  className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-secondary"
+                >
+                  Buy {`(${items.length})`}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="sell"
+                  className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
+                >
+                  Sell {`(${sellItems.length})`}
+                </TabsTrigger>
+              </TabsList>
             </div>
-            
+
             <TabsContent value="buy">
               <Cart setIsCartActive={setIsCartActive} />
             </TabsContent>
