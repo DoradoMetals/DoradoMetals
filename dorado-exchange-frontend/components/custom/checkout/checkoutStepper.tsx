@@ -6,8 +6,6 @@ import ShippingStep from './shippingStep/shippingStep'
 import { useAddress } from '@/lib/queries/useAddresses'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { Address } from '@/types/address'
-import { packageOptions } from '@/types/packaging'
-import { serviceOptions } from '@/types/service'
 import { useEffect, useRef } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 
@@ -79,10 +77,10 @@ const isShippingStepComplete =
   const currentIndex = utils.getIndex(stepper.current.id)
 
   return (
-    <div className="flex w-full max-w-md sm:max-w-4xl justify-center p-5">
-      <div className="flex flex-col w-full sm:grid sm:grid-cols-4 sm:gap-8">
+    <div className="flex w-full max-w-md lg:max-w-4xl justify-center p-5">
+      <div className="flex flex-col w-full lg:grid lg:grid-cols-4 lg:gap-8">
         {/* Step title + indicator */}
-        <div className="flex items-start sm:col-span-2">
+        <div className="flex items-start lg:col-span-2 mb-4">
           <div className="flex items-center gap-3">
             <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
             <div className="flex flex-col">
@@ -93,7 +91,7 @@ const isShippingStepComplete =
         </div>
 
         {/* Dynamic step content */}
-        <div className="sm:col-span-2">
+        <div className="lg:col-span-2">
           {stepper.switch({
             shipping: () => <ShippingStep addresses={addresses} emptyAddress={emptyAddress} />,
             payment: () => <PaymentStep />,
@@ -103,7 +101,7 @@ const isShippingStepComplete =
         </div>
 
         {/* Nav buttons: full row */}
-        <div className="flex justify-end gap-4 mt-4 sm:col-span-4">
+        <div className="flex justify-end gap-4 mt-4 lg:col-span-4">
           {/* Show Back unless on the shipping step */}
           {stepper.current.id !== 'shipping' && (
             <Button
