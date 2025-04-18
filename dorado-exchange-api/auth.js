@@ -43,7 +43,9 @@ const auth = betterAuth({
     modelName: "exchange.verification",
   },
   advanced: {
-    generateId: false,
+    database: {
+      generateId: false,
+    },
   },
   emailAndPassword: {
     enabled: true,
