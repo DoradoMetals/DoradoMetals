@@ -99,8 +99,8 @@
   --neutral-900: hsl(0, 0%, 10%);
 
   --highest: hsl(0, 0%, 100%);
-  --card: hsl(0, 0%, 90%);
-  --background: hsl(0, 0%, 95%);
+  --card: hsl(0, 0%, 95%);
+  --background: hsl(0, 0%, 85%);
   --popover: hsl(0, 0%, 85%);
   --border: hsl(0, 0%, 80%);
   --input: hsl(0, 0%, 75%);

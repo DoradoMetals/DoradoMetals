@@ -15,7 +15,7 @@ const { useStepper, utils } = defineStepper(
   {
     id: 'shipping',
     title: 'Shipping',
-    description: 'Choose how you want your items to be shipped',
+    description: 'How will you ship us your items?',
   },
   { id: 'payment', title: 'Payment', description: 'Select how you want to pay.' },
   { id: 'review', title: 'Review Order', description: 'Review and confirm your order.' },
@@ -31,6 +31,15 @@ export default function CheckoutStepper() {
   const { data: addresses = [], isLoading } = useAddress()
   const { setData } = usePurchaseOrderCheckoutStore()
   const hasInitialized = useRef(false)
+
+  const { address, package: pkg, service, pickup } = usePurchaseOrderCheckoutStore(state => state.data)
+
+const isShippingStepComplete =
+  !!address?.is_valid &&
+  !!pkg &&
+  !!service &&
+  !!pickup?.label &&
+  (pickup.label !== 'CONTACT_FEDEX_TO_SCHEDULE' || (!!pickup.date && !!pickup.time))
 
   const emptyAddress: Address = {
     id: crypto.randomUUID(),
@@ -70,29 +79,33 @@ export default function CheckoutStepper() {
   const currentIndex = utils.getIndex(stepper.current.id)
 
   return (
-      <div className="flex w-full max-w-md justify-center p-5">
-        <div className="flex flex-col w-full">
-          <div className="flex items-center gap-4 mb-6">
+    <div className="flex w-full max-w-md sm:max-w-4xl justify-center p-5">
+      <div className="flex flex-col w-full sm:grid sm:grid-cols-4 sm:gap-8">
+        {/* Step title + indicator */}
+        <div className="flex items-start sm:col-span-2">
+          <div className="flex items-center gap-3">
             <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
             <div className="flex flex-col">
               <h2 className="header-text">{stepper.current.title}</h2>
               <p className="secondary-text">{stepper.current.description}</p>
             </div>
           </div>
+        </div>
 
+        {/* Dynamic step content */}
+        <div className="sm:col-span-2">
           {stepper.switch({
-            shipping: () => (
-              <ShippingStep
-                addresses={addresses}
-                emptyAddress={emptyAddress}
-              />
-            ),
+            shipping: () => <ShippingStep addresses={addresses} emptyAddress={emptyAddress} />,
             payment: () => <PaymentStep />,
             review: () => <ReviewStep />,
             complete: () => <CompleteStep />,
           })}
+        </div>
 
-          <div className="flex justify-end gap-4 mt-4">
+        {/* Nav buttons: full row */}
+        <div className="flex justify-end gap-4 mt-4 sm:col-span-4">
+          {/* Show Back unless on the shipping step */}
+          {stepper.current.id !== 'shipping' && (
             <Button
               type="button"
               variant="outline"
@@ -101,12 +114,25 @@ export default function CheckoutStepper() {
             >
               Back
             </Button>
+          )}
+
+          {/* On shipping step, show 'Go to Payment' if inputs are valid */}
+          {stepper.current.id === 'shipping' ? (
+            <Button
+              type="button"
+              onClick={stepper.next}
+              disabled={!isShippingStepComplete} // <- Replace this with your real logic
+            >
+              Go to Payment
+            </Button>
+          ) : (
             <Button type="button" onClick={stepper.next}>
               Next
             </Button>
-          </div>
+          )}
         </div>
       </div>
+    </div>
   )
 }
 

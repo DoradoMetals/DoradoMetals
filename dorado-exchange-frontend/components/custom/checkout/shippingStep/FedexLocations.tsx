@@ -1,6 +1,6 @@
 'use client'
 
-import { useLoadScript, GoogleMap, Marker } from '@react-google-maps/api'
+import { GoogleMap, Marker } from '@react-google-maps/api'
 import { useEffect, useMemo, useState } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { useFedExLocations } from '@/lib/queries/shipping/useFedex'
@@ -10,7 +10,7 @@ import formatPhoneNumber from '@/utils/formatPhoneNumber'
 
 const containerStyle = {
   width: '100%',
-  height: '200px',
+  height: '225px',
 }
 
 export const FedexLocationsMap = () => {
@@ -24,7 +24,11 @@ export const FedexLocationsMap = () => {
     : null
 
   const { data } = useFedExLocations(input)
-  const [selected, setSelected] = useState<FedexLocation | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selected = useMemo(() => {
+    if (!data?.locations?.length) return null
+    return data.locations.find((loc) => loc.locationId === selectedId) ?? data.locations[0]
+  }, [data?.locations, selectedId])
 
   const center = useMemo(() => {
     return {
@@ -85,6 +89,25 @@ export const FedexLocationsMap = () => {
           styles: nightModeMapStyle,
         }}
       >
+        {data?.matchedAddressGeoCoord && (
+          <>
+            <Marker
+              position={{
+                lat: data.matchedAddressGeoCoord.latitude,
+                lng: data.matchedAddressGeoCoord.longitude,
+              }}
+              icon={{
+                path: window.google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+                scale: 5,
+                fillColor: '#EA4335',
+                fillOpacity: 1,
+                strokeWeight: 2,
+                strokeColor: '#ffffff',
+              }}
+              title="Your location"
+            />
+          </>
+        )}
         {data?.locations.map((loc) => (
           <Marker
             key={loc.locationId}
@@ -92,13 +115,14 @@ export const FedexLocationsMap = () => {
               lat: loc.geoPositionalCoordinates.latitude,
               lng: loc.geoPositionalCoordinates.longitude,
             }}
-            onClick={() => setSelected(loc)}
+            onClick={() => setSelectedId(loc.locationId)}
             icon={selected?.locationId === loc.locationId ? icons.selectedIcon : icons.defaultIcon}
           />
         ))}
       </GoogleMap>
 
-      {selected &&
+      {data?.locations?.length ? (
+        selected &&
         (() => {
           const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
           const todayHours = selected.operatingHours?.[today]
@@ -119,15 +143,8 @@ export const FedexLocationsMap = () => {
                 </span>
               </div>
 
-              <div className="flex items-center w-full justify-between">
-                <span className="text-neutral-600 text-sm">
-                  {formatPhoneNumber(selected.contact.phoneNumber)}
-                </span>
-                <div className="text-sm text-neutral-600">{cityState}</div>
-              </div>
-
-              <div className="flex justify-between items-center text-sm">
-                <span>
+              <div className="flex items-center w-full justify-between mt-1">
+                <span className="text-sm">
                   {isOpen ? (
                     <div className="flex items-center">
                       <span className="text-green-500">
@@ -144,38 +161,95 @@ export const FedexLocationsMap = () => {
                     <span className="text-red-500">Closed</span>
                   )}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openInMaps(selected)}
-                  className="text-primary font-medium ml-auto p-0"
+                <div className="text-sm text-neutral-600">{cityState}</div>
+              </div>
+
+              <div className="flex justify-between items-center text-sm mt-4">
+                <span className="text-neutral-600 text-sm">
+                  <a
+                    href={`tel:${selected.contact.phoneNumber}`}
+                    className="text-neutral-700 underline underline-offset-3 text-sm"
+                  >
+                    {formatPhoneNumber(selected.contact.phoneNumber)}
+                  </a>
+                </span>
+
+                <a
+                  href={
+                    /iPhone|iPad|iPod/.test(navigator.userAgent)
+                      ? `http://maps.apple.com/?q=${encodeURIComponent(
+                          [
+                            selected.contact.companyName,
+                            ...selected.address.streetLines,
+                            selected.address.city,
+                            selected.address.stateOrProvinceCode,
+                            selected.address.postalCode,
+                            selected.address.countryCode === 'US'
+                              ? 'United States'
+                              : selected.address.countryCode,
+                          ]
+                            .filter(Boolean)
+                            .join(', ')
+                            .replace(/\s+/g, ' ')
+                        )}`
+                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                          [
+                            selected.contact.companyName,
+                            ...selected.address.streetLines,
+                            selected.address.city,
+                            selected.address.stateOrProvinceCode,
+                            selected.address.postalCode,
+                            selected.address.countryCode === 'US'
+                              ? 'United States'
+                              : selected.address.countryCode,
+                          ]
+                            .filter(Boolean)
+                            .join(', ')
+                            .replace(/\s+/g, ' ')
+                        )}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary font-normal ml-auto p-0 text-sm"
                 >
                   Open in Maps
-                </Button>
+                </a>
               </div>
             </div>
           )
-        })()}
+        })()
+      ) : (
+        <div className="rounded-lg bg-card text-card-foreground p-4 border-t border-border text-sm text-center text-muted-foreground">
+          No nearby FedEx locations found.
+        </div>
+      )}
     </div>
   )
 }
 
-function openInMaps(selected: FedexLocation) {
-  const { address } = selected
-  const addressStr = `${address.streetLines.join(' ')}, ${address.city}, ${
-    address.stateOrProvinceCode
-  } ${address.postalCode}`
-  const encoded = encodeURIComponent(addressStr)
+// function openInMaps(selected: FedexLocation) {
+//   const { address } = selected
+//   const fullAddress = [
+//     selected.contact.companyName,
+//     ...address.streetLines,
+//     address.city,
+//     address.stateOrProvinceCode,
+//     address.postalCode,
+//     address.countryCode === 'US' ? 'United States' : address.countryCode,
+//   ]
+//     .filter(Boolean)
+//     .join(', ')
+//     .replace(/\s+/g, ' ') // collapse multiple spaces
 
-  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-  const isAndroid = /Android/.test(navigator.userAgent)
+//   const encoded = encodeURIComponent(fullAddress)
 
-  const url = isIOS
-    ? `http://maps.apple.com/?q=${encoded}`
-    : `https://www.google.com/maps/search/?api=1&query=${encoded}`
+//   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+//   const url = isIOS
+//     ? `http://maps.apple.com/?q=${encoded}`
+//     : `https://www.google.com/maps/search/?api=1&query=${encoded}`
 
-  window.open(url, '_blank', 'noopener,noreferrer')
-}
+//   window.open(url, '_blank', 'noopener,noreferrer')
+// }
 
 function formatTime(t: string) {
   return new Date(`1970-01-01T${t}`).toLocaleTimeString(undefined, {
@@ -208,14 +282,11 @@ function getOpenStatus(hours?: string) {
   }
 }
 
-function getCssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-}
-
 export const nightModeMapStyle = [
   { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
   { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
   { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+
   {
     featureType: 'administrative.locality',
     elementType: 'labels.text.fill',
@@ -223,8 +294,31 @@ export const nightModeMapStyle = [
   },
   {
     featureType: 'poi',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#d59563' }],
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'poi.business',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'poi.attraction',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'poi.place_of_worship',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'poi.medical',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'poi.school',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'poi.sports_complex',
+    stylers: [{ visibility: 'off' }],
   },
   {
     featureType: 'poi.park',

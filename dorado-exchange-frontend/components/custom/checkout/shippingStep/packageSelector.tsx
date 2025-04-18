@@ -18,7 +18,7 @@ export function PackageSelector() {
   }, [insured])
 
   const handleInsuranceToggle = (checked: boolean) => {
-    setData({ insured: checked })
+    setData({ insured: checked})
   }
 
   const handleChange = (label: string) => {

@@ -102,7 +102,7 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
           <Button
             type="button"
             variant="outline"
-            className="flex ml-auto h-auto min-h-0 font-normal text-primary border-none hover:bg-background p-0"
+            className="flex ml-auto h-auto min-h-0 font-normal text-neutral-700 border-none hover:bg-background p-0"
             onClick={() => {
               setTitle('Create New')
               setDraftAddress(emptyAddress)
@@ -111,7 +111,7 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
           >
             <div className="flex text-xs items-center gap-1">
               Add New Address
-              <MapPinned size={16} className="" />
+              <Plus size={16} className="" />
             </div>
           </Button>
           <div className="flex flex-col gap-1">
