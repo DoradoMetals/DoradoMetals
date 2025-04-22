@@ -166,9 +166,9 @@
 
   --primary: hsl(42, 100%, 50%);
 
-  --secondary: hsl(220, 25%, 35%);
-  --accent: hsl(220, 25%, 35%);
-  --ring: hsl(220, 25%, 35%);
+  --secondary: hsl(90, 30%, 35%);
+  --accent: hsl(90, 30%, 35%);
+  --ring: hsl(90, 30%, 35%);
 
   /*
   options:

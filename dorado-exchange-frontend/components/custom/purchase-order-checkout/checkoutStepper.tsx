@@ -7,9 +7,11 @@ import PayoutStep from './payoutStep/payoutStep'
 import { useAddress } from '@/lib/queries/useAddresses'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { Address } from '@/types/address'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { useUser } from '@/lib/authClient'
+import SellCart from '../cart/sellCart'
+import PurchaseOrderItems from './purchaseOrderItems'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -87,13 +89,26 @@ export default function CheckoutStepper() {
   return (
     <div className="flex w-full max-w-md lg:max-w-4xl justify-center p-5">
       <div className="flex flex-col w-full lg:grid lg:grid-cols-4 lg:gap-8">
-        {/* Step title + indicator */}
         <div className="flex items-start lg:col-span-2 mb-4">
-          <div className="flex items-center gap-3">
-            <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
-            <div className="flex flex-col">
-              <h2 className="header-text">{stepper.current.title}</h2>
-              <p className="secondary-text">{stepper.current.description}</p>
+          <div className="hidden lg:flex lg:flex-col lg:sticky lg:top-40">
+            <div className="flex items-center gap-3">
+              <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
+              <div className="flex flex-col">
+                <h2 className="header-text">{stepper.current.title}</h2>
+                <p className="secondary-text">{stepper.current.description}</p>
+              </div>
+            </div>
+            {/* <div className='mt-10'>
+              <PurchaseOrderItems />
+            </div> */}
+          </div>
+          <div className="flex lg:hidden">
+            <div className="flex items-center gap-3">
+              <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
+              <div className="flex flex-col">
+                <h2 className="header-text">{stepper.current.title}</h2>
+                <p className="secondary-text">{stepper.current.description}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -102,40 +117,43 @@ export default function CheckoutStepper() {
         <div className="lg:col-span-2">
           {stepper.switch({
             shipping: () => <ShippingStep addresses={addresses} emptyAddress={emptyAddress} />,
-            payout: () => <PayoutStep user={user}/>,
+            payout: () => <PayoutStep user={user} />,
             review: () => <ReviewStep />,
             complete: () => <CompleteStep />,
           })}
           <div className="flex justify-between gap-4 mt-4">
-          {stepper.current.id !== 'shipping' && (
-            <Button
+            {stepper.current.id !== 'shipping' && (
+              <Button
               type="button"
               variant="outline"
               onClick={stepper.prev}
               disabled={stepper.isFirst}
             >
-              Back
+              {stepper.current.id === 'payout'
+                ? 'Back to Shipping'
+                : stepper.current.id === 'review'
+                ? 'Back to Payment'
+                : 'Back'}
             </Button>
-          )}
+            )}
 
-          <Button
-            type="button"
-            onClick={stepper.next}
-            disabled={
-              (stepper.current.id === 'shipping' && !isShippingStepComplete) ||
-              (stepper.current.id === 'payout' && !payoutValid)
-            }
-          >
-            {stepper.current.id === 'shipping'
-              ? 'Go to Payment'
-              : stepper.current.id === 'payout'
-              ? 'Review Order'
-              : 'Next'}
-          </Button>
+            <Button
+              type="button"
+              className="ml-auto"
+              onClick={stepper.next}
+              disabled={
+                (stepper.current.id === 'shipping' && !isShippingStepComplete) ||
+                (stepper.current.id === 'payout' && !payoutValid)
+              }
+            >
+              {stepper.current.id === 'shipping'
+                ? 'Go to Payment'
+                : stepper.current.id === 'payout'
+                ? 'Review Order'
+                : 'Next'}
+            </Button>
+          </div>
         </div>
-        </div>
-
-        
       </div>
     </div>
   )

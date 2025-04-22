@@ -149,7 +149,6 @@ export default function Cart({
       </div>
       <Button
         className="w-full bg-secondary text-neutral-900 hover:bg-secondary hover:shadow-lg"
-        onClick={() => router.push('/checkout')}
       >
         Checkout
       </Button>
