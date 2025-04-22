@@ -3,6 +3,7 @@ import { addressSchema } from "./address";
 import { packageSchema } from "./packaging";
 import { serviceSchema } from './service';
 import { pickupSchema } from './pickup';
+import { payoutSchema } from './payout';
 
 export const purchaseOrderCheckoutSchema = z.object({
   address: addressSchema,
@@ -10,7 +11,8 @@ export const purchaseOrderCheckoutSchema = z.object({
   insured: z.boolean(),
   pickup: pickupSchema,
   service: serviceSchema,
-  payment: z.string().min(1),
+  payoutValid: z.boolean(),
+  payout: payoutSchema,
   confirmation: z.boolean(),
 })
 

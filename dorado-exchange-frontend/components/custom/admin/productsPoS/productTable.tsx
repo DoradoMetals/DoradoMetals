@@ -291,7 +291,7 @@ export default function ProductsTableEditable() {
         <Input
           type="number"
           pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right  w-20"
+          className="input-floating-label-form no-spinner text-right w-20"
           defaultValue={row.original.gross}
           onBlur={(e) => handleUpdate(row.original.id, { gross: Number(e.target.value) })}
         />

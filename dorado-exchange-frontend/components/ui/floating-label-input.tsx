@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { type FloatingInputProps, FloatingInput } from "./floating-input";
 import { FloatingLabel } from "./floating-label";
 
-type FloatingLabelInputProps = FloatingInputProps & {
+export type FloatingLabelInputProps = FloatingInputProps & {
 	containerProps?: React.HTMLAttributes<HTMLDivElement>;
 	label?: string;
 	error?: boolean;

@@ -3,11 +3,13 @@
 import { Button } from '@/components/ui/button'
 import { defineStepper } from '@stepperize/react'
 import ShippingStep from './shippingStep/shippingStep'
+import PayoutStep from './payoutStep/payoutStep'
 import { useAddress } from '@/lib/queries/useAddresses'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { Address } from '@/types/address'
 import { useEffect, useRef } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+import { useUser } from '@/lib/authClient'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -15,7 +17,7 @@ const { useStepper, utils } = defineStepper(
     title: 'Shipping',
     description: 'How will you ship us your items?',
   },
-  { id: 'payment', title: 'Payment', description: 'Select how you want to pay.' },
+  { id: 'payout', title: 'Payout', description: 'Select how you want to be payed.' },
   { id: 'review', title: 'Review Order', description: 'Review and confirm your order.' },
   {
     id: 'complete',
@@ -25,19 +27,26 @@ const { useStepper, utils } = defineStepper(
 )
 
 export default function CheckoutStepper() {
-  const { user } = useGetSession()
+  const { user } = useUser()
   const { data: addresses = [], isLoading } = useAddress()
   const { setData } = usePurchaseOrderCheckoutStore()
   const hasInitialized = useRef(false)
 
-  const { address, package: pkg, service, pickup } = usePurchaseOrderCheckoutStore(state => state.data)
+  const {
+    address,
+    package: pkg,
+    service,
+    pickup,
+    payout,
+    payoutValid,
+  } = usePurchaseOrderCheckoutStore((state) => state.data)
 
-const isShippingStepComplete =
-  !!address?.is_valid &&
-  !!pkg &&
-  !!service &&
-  !!pickup?.label &&
-  (pickup.label !== 'CONTACT_FEDEX_TO_SCHEDULE' || (!!pickup.date && !!pickup.time))
+  const isShippingStepComplete =
+    !!address?.is_valid &&
+    !!pkg &&
+    !!service &&
+    !!pickup?.label &&
+    (pickup.label !== 'CONTACT_FEDEX_TO_SCHEDULE' || (!!pickup.date && !!pickup.time))
 
   const emptyAddress: Address = {
     id: crypto.randomUUID(),
@@ -66,7 +75,6 @@ const isShippingStepComplete =
       setData({
         address: defaultAddress,
         insured: true,
-        payment: '',
         confirmation: false,
       })
       hasInitialized.current = true
@@ -94,14 +102,14 @@ const isShippingStepComplete =
         <div className="lg:col-span-2">
           {stepper.switch({
             shipping: () => <ShippingStep addresses={addresses} emptyAddress={emptyAddress} />,
-            payment: () => <PaymentStep />,
+            payout: () => <PayoutStep user={user}/>,
             review: () => <ReviewStep />,
             complete: () => <CompleteStep />,
           })}
         </div>
 
         {/* Nav buttons: full row */}
-        <div className="flex justify-end gap-4 mt-4 lg:col-span-4">
+        <div className="flex justify-between gap-4 mt-4 lg:col-span-4">
           {/* Show Back unless on the shipping step */}
           {stepper.current.id !== 'shipping' && (
             <Button
@@ -115,27 +123,24 @@ const isShippingStepComplete =
           )}
 
           {/* On shipping step, show 'Go to Payment' if inputs are valid */}
-          {stepper.current.id === 'shipping' ? (
-            <Button
-              type="button"
-              onClick={stepper.next}
-              disabled={!isShippingStepComplete} // <- Replace this with your real logic
-            >
-              Go to Payment
-            </Button>
-          ) : (
-            <Button type="button" onClick={stepper.next}>
-              Next
-            </Button>
-          )}
+          <Button
+            type="button"
+            onClick={stepper.next}
+            disabled={
+              (stepper.current.id === 'shipping' && !isShippingStepComplete) ||
+              (stepper.current.id === 'payout' && !payoutValid)
+            }
+          >
+            {stepper.current.id === 'shipping'
+              ? 'Go to Payment'
+              : stepper.current.id === 'payout'
+              ? 'Review Order'
+              : 'Next'}
+          </Button>
         </div>
       </div>
     </div>
   )
-}
-
-function PaymentStep() {
-  return <div>Payment</div>
 }
 
 function ReviewStep() {
