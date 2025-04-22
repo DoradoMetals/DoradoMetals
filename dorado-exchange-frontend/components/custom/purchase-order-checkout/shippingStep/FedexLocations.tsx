@@ -260,8 +260,6 @@ function formatTime(t: string) {
 }
 
 function getOpenStatus(hours?: string) {
-  console.log(hours)
-
   if (!hours || hours === 'Closed') return { isOpen: false, openUntil: null, nextOpenTime: null }
 
   const [start, end] = hours.split(' - ')

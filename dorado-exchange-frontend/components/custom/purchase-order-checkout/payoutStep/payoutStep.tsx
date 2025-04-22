@@ -12,6 +12,7 @@ import {
   AchPayout,
   WirePayout,
   EcheckPayout,
+  PayoutMethodType,
 } from '@/types/payout'
 
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
@@ -19,7 +20,6 @@ import ACHForm from './achForm'
 import WireForm from './wireForm'
 import EcheckForm from './echeckForm'
 import { cn } from '@/lib/utils'
-import { getDefaultValues } from './getDefaults'
 import { useEffect } from 'react'
 import { User } from '@/types/user'
 
@@ -27,16 +27,19 @@ export default function PayoutStep({ user }: { user?: User }) {
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
 
   const selected = usePurchaseOrderCheckoutStore((state) => state.data.payout?.method)
+  const storeData = usePurchaseOrderCheckoutStore((state) => state.data.payout)
+
 
   const achForm = useForm<AchPayout>({
     resolver: zodResolver(achSchema),
     mode: 'onChange',
     defaultValues: {
-      account_holder_name: user?.name ?? '',
-      bank_name: '',
-      routing_number: '',
-      account_number: '',
-      account_type: 'checking',
+      account_holder_name:
+        storeData?.method === 'ACH' ? storeData.account_holder_name : user?.name ?? '',
+      bank_name: storeData?.method === 'ACH' ? storeData.bank_name : '',
+      routing_number: storeData?.method === 'ACH' ? storeData.routing_number : '',
+      account_number: storeData?.method === 'ACH' ? storeData.account_number : '',
+      account_type: storeData?.method === 'ACH' ? storeData.account_type : 'checking',
     },
   })
   
@@ -44,21 +47,22 @@ export default function PayoutStep({ user }: { user?: User }) {
     resolver: zodResolver(wireSchema),
     mode: 'onChange',
     defaultValues: {
-      account_holder_name: user?.name ?? '',
-      bank_name: '',
-      routing_number: '',
-      account_number: '',
+      account_holder_name:
+        storeData?.method === 'WIRE' ? storeData.account_holder_name : user?.name ?? '',
+      bank_name: storeData?.method === 'WIRE' ? storeData.bank_name : '',
+      routing_number: storeData?.method === 'WIRE' ? storeData.routing_number : '',
+      account_number: storeData?.method === 'WIRE' ? storeData.account_number : '',
     },
   })
-  
+
   const echeckForm = useForm<EcheckPayout>({
     resolver: zodResolver(echeckSchema),
     mode: 'onChange',
-    defaultValues: {
-      payout_name: user?.name ?? '',
-      payout_email: user?.email ?? '',
-    },
     shouldUnregister: false,
+    defaultValues: {
+      payout_name: storeData?.method === 'ECHECK' ? storeData.payout_name : user?.name ?? '',
+      payout_email: storeData?.method === 'ECHECK' ? storeData.payout_email : user?.email ?? '',
+    },
   })
   
 
@@ -88,6 +92,31 @@ export default function PayoutStep({ user }: { user?: User }) {
     }
   }, [selected])
 
+  const handleFormSwitch = (method: PayoutMethodType) => {
+    if (method === 'ACH') {
+      setData({
+        payout: {
+          method: method,
+          ...achForm.getValues()
+        }
+      })
+    } else if (method === 'WIRE') {
+      setData({
+        payout: {
+          method: method,
+          ...wireForm.getValues()
+        }
+      })
+    } else {
+      setData({
+        payout: {
+          method: method,
+          ...echeckForm.getValues()
+        }
+      })
+    }
+  }
+
   return (
     <div className="rounded-lg border border-border">
       {payoutOptions.map((option, index) => {
@@ -99,7 +128,8 @@ export default function PayoutStep({ user }: { user?: User }) {
               type="button"
               onClick={() => {
                 const next = selected === option.method ? null : option.method
-                if (next) setData({ payout: getDefaultValues(next) })
+                console.log(next)
+                if (next) handleFormSwitch(next)
               }}
               className={cn(
                 'w-full p-4 text-left flex items-center justify-between cursor-pointer',
@@ -107,7 +137,7 @@ export default function PayoutStep({ user }: { user?: User }) {
               )}
             >
               <div className="flex items-center gap-3">
-                <option.icon size={18} className="text-primary" />
+                <option.icon size={24} className="text-primary" />
                 <div className="flex flex-col">
                   <span className="font-medium">{option.label}</span>
                   <span className="text-sm text-muted-foreground">{option.description}</span>

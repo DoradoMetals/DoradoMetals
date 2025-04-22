@@ -106,11 +106,7 @@ export default function CheckoutStepper() {
             review: () => <ReviewStep />,
             complete: () => <CompleteStep />,
           })}
-        </div>
-
-        {/* Nav buttons: full row */}
-        <div className="flex justify-between gap-4 mt-4 lg:col-span-4">
-          {/* Show Back unless on the shipping step */}
+          <div className="flex justify-between gap-4 mt-4">
           {stepper.current.id !== 'shipping' && (
             <Button
               type="button"
@@ -122,7 +118,6 @@ export default function CheckoutStepper() {
             </Button>
           )}
 
-          {/* On shipping step, show 'Go to Payment' if inputs are valid */}
           <Button
             type="button"
             onClick={stepper.next}
@@ -138,6 +133,9 @@ export default function CheckoutStepper() {
               : 'Next'}
           </Button>
         </div>
+        </div>
+
+        
       </div>
     </div>
   )

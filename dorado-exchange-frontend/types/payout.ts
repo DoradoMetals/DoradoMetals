@@ -1,6 +1,6 @@
 // --- payout.ts ---
 import { z } from 'zod'
-import { Banknote, Landmark, FileText, CreditCard, PiggyBank } from 'lucide-react'
+import { Landmark, CreditCard, PiggyBank, Mail, GlobeLock } from 'lucide-react'
 
 export const echeckSchema = z.object({
   payout_name: z.string().min(1, 'Addressed to name required'),
@@ -57,19 +57,19 @@ export const payoutOptions: PayoutMethod[] = [
     method: 'ACH',
     label: 'ACH Transfer',
     description: 'Direct deposit to a U.S. bank account',
-    icon: Banknote,
+    icon: Landmark,
   },
   {
     method: 'WIRE',
     label: 'Wire Transfer',
     description: 'Domestic wire transfer to your bank',
-    icon: Landmark,
+    icon: GlobeLock,
   },
   {
     method: 'ECHECK',
     label: 'Deluxe eCheck',
     description: 'Digital check sent to your email',
-    icon: FileText,
+    icon: Mail,
   },
 ]
 

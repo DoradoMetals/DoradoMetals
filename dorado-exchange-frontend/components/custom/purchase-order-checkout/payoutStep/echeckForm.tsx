@@ -16,6 +16,11 @@ export default function EcheckForm({
 }) {
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
 
+  const syncToStore = () => {
+    const values = form.getValues()
+    setData({ payout: { method: 'ECHECK', ...values } })
+  }
+
   return (
     <AnimatePresence initial={false}>
       {visible && (
@@ -27,23 +32,32 @@ export default function EcheckForm({
           className="overflow-hidden"
         >
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit((data) => setData({ payout: { method: 'ECHECK', ...data } }))}
-              className="space-y-6 p-4 mb-2"
-            >
+            <form className="space-y-6 p-4 mb-2">
               <ValidatedField
                 control={form.control}
                 name="payout_name"
                 label="Addressed To"
                 className="input-floating-label-form"
-                inputProps={{ autoComplete: 'off' }}
+                inputProps={{
+                  autoComplete: 'off',
+                  onChange: (e) => {
+                    form.setValue('payout_name', e.target.value, { shouldValidate: true })
+                    syncToStore()
+                  },
+                }}
               />
               <ValidatedField
                 control={form.control}
                 name="payout_email"
                 label="Email Delivery"
                 className="input-floating-label-form"
-                inputProps={{ autoComplete: 'off' }}
+                inputProps={{
+                  autoComplete: 'off',
+                  onChange: (e) => {
+                    form.setValue('payout_email', e.target.value, { shouldValidate: true })
+                    syncToStore()
+                  },
+                }}
               />
             </form>
           </Form>

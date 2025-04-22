@@ -5,6 +5,8 @@ import { FloatingLabelInput, FloatingLabelInputProps } from '@/components/ui/flo
 import { ValidCheckIcon } from '@/components/ui/valid-check-icon'
 import { Control, FieldPath, FieldValues } from 'react-hook-form'
 
+
+
 type ValidatedFieldProps<T extends FieldValues> = {
   control: Control<T>
   name: FieldPath<T>
@@ -35,30 +37,39 @@ export function ValidatedField<T extends FieldValues>({
     <FormField
       control={control}
       name={name}
-      render={({ field, fieldState }) => (
-        <FormItem>
-          <div className="relative w-full">
-            {fieldState.isTouched && fieldState.error && (
-              <FormMessage className={messageClassName} />
-            )}
+      render={({ field, fieldState }) => {
+        // 👇 Merge onChange manually
+        const mergedOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+          inputProps.onChange?.(e) // your custom logic
+          field.onChange(e) // RHF tracking
+        }
 
-            <FormControl>
-              <div className="relative">
-                <FloatingLabelInput
-                  {...inputProps}
-                  {...field}
-                  type={type}
-                  label={label}
-                  className={`${className} ${rightAligned ? 'text-right' : ''}`}
-                  size={size}
-                  pattern={type === 'number' ? '[0-9]*' : undefined}
-                />
-                {showIcon && <ValidCheckIcon isValid={!fieldState.invalid} />}
-              </div>
-            </FormControl>
-          </div>
-        </FormItem>
-      )}
+        return (
+          <FormItem>
+            <div className="relative w-full">
+              {fieldState.isTouched && fieldState.error && (
+                <FormMessage className={messageClassName} />
+              )}
+
+              <FormControl>
+                <div className="relative">
+                  <FloatingLabelInput
+                    {...field}
+                    {...inputProps}
+                    onChange={mergedOnChange}
+                    type={type}
+                    label={label}
+                    className={`${className} ${rightAligned ? 'text-right' : ''}`}
+                    size={size}
+                    pattern={type === 'number' ? '[0-9]*' : undefined}
+                  />
+                  {showIcon && <ValidCheckIcon isValid={!fieldState.invalid} />}
+                </div>
+              </FormControl>
+            </div>
+          </FormItem>
+        )
+      }}
     />
   )
 }

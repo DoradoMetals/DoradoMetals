@@ -1,4 +1,4 @@
-import CheckoutStepper from '@/components/custom/checkout/checkoutStepper'
+import CheckoutStepper from '@/components/custom/purchase-order-checkout/checkoutStepper'
 
 export default function Page() {
   return (
