@@ -7,6 +7,7 @@ import { FedexPickupTimes } from '@/types/shipping'
 import { format, parseISO } from 'date-fns'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { cn } from '@/lib/utils'
+import { formatPickupDate, formatPickupTime } from '@/utils/dateFormatting'
 
 type PickupSchedulerProps = {
   times: FedexPickupTimes[]
@@ -67,10 +68,7 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
               {/* Sticky Date Header (outside scroll) */}
               <div className="h-9 bg-card border-b border-border flex items-center justify-center px-5">
                 <p className="block sm:hidden text-sm text-neutral-700 text-center">
-                  {format(parseISO(selectedDateStr), 'EEEE, MMMM do')}
-                </p>
-                <p className="hidden sm:block text-sm text-neutral-700 text-center">
-                  {format(parseISO(selectedDateStr), 'EEE, MMMM do')}
+                  {formatPickupDate(selectedDateStr)}
                 </p>
               </div>
 
@@ -96,7 +94,7 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
                         })
                       }
                     >
-                      {format(new Date(`1970-01-01T${slot}`), 'h:mm a')}
+                      {formatPickupTime(slot)}
                     </Button>
                   ))}
 

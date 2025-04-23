@@ -8,6 +8,7 @@ import { serviceOptions } from '@/types/service'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { differenceInHours, differenceInDays } from 'date-fns'
+import { formatTimeDiff } from '@/utils/dateFormatting'
 
 interface ServiceSelectorProps {
   rates: FedexRate[]
@@ -37,6 +38,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
       pickup: {
         ...pickup,
         label: pickup?.label ?? '',
+        name: pickup?.name ?? '',
         selectedDate: undefined,
         time: undefined,
         date: undefined,
@@ -103,20 +105,4 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
       </RadioGroup>
     </div>
   )
-}
-
-function formatTimeDiff(deliveryTime: string | Date): string {
-  const now = new Date()
-  const target = new Date(deliveryTime)
-
-  if (isNaN(target.getTime()) || target <= now) return 'Arriving soon'
-
-  const totalHours = differenceInHours(target, now)
-  const days = differenceInDays(target, now)
-  const hours = totalHours - days * 24
-
-  const dayPart = days > 0 ? `${days} day${days > 1 ? 's' : ''}` : ''
-  const hourPart = hours > 0 ? `${hours} hour${hours > 1 ? 's' : ''}` : ''
-
-  return [dayPart, hourPart].filter(Boolean).join(' and ')
 }

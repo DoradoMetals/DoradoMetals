@@ -101,3 +101,12 @@ export const packageOptions: Record<string, Package> = {
     insured: false,
   },
 }
+
+type Dimensions = { height?: number; width?: number; length?: number }
+
+export function calculateVolume({ height, width, length }: Dimensions): number | null {
+  if (height && width && length) {
+    return height * width * length
+  }
+  return null
+}

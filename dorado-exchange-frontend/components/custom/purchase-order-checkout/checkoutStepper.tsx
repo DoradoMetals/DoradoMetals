@@ -5,13 +5,12 @@ import { defineStepper } from '@stepperize/react'
 import ShippingStep from './shippingStep/shippingStep'
 import PayoutStep from './payoutStep/payoutStep'
 import { useAddress } from '@/lib/queries/useAddresses'
-import { useGetSession } from '@/lib/queries/useAuth'
 import { Address } from '@/types/address'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { useUser } from '@/lib/authClient'
-import SellCart from '../cart/sellCart'
-import PurchaseOrderItems from './purchaseOrderItems'
+// import PurchaseOrderItems from './purchaseOrderItems'
+import ReviewStep from './reviewStep/reviewStep'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -113,7 +112,6 @@ export default function CheckoutStepper() {
           </div>
         </div>
 
-        {/* Dynamic step content */}
         <div className="lg:col-span-2">
           {stepper.switch({
             shipping: () => <ShippingStep addresses={addresses} emptyAddress={emptyAddress} />,
@@ -124,43 +122,42 @@ export default function CheckoutStepper() {
           <div className="flex justify-between gap-4 mt-4">
             {stepper.current.id !== 'shipping' && (
               <Button
-              type="button"
-              variant="outline"
-              onClick={stepper.prev}
-              disabled={stepper.isFirst}
-            >
-              {stepper.current.id === 'payout'
-                ? 'Back to Shipping'
-                : stepper.current.id === 'review'
-                ? 'Back to Payment'
-                : 'Back'}
-            </Button>
+                type="button"
+                variant="outline"
+                onClick={stepper.prev}
+                disabled={stepper.isFirst}
+                className='hover:bg-card'
+              >
+                {stepper.current.id === 'payout'
+                  ? 'Back to Shipping'
+                  : stepper.current.id === 'review'
+                  ? 'Back to Payment'
+                  : 'Back'}
+              </Button>
             )}
 
-            <Button
-              type="button"
-              className="ml-auto"
-              onClick={stepper.next}
-              disabled={
-                (stepper.current.id === 'shipping' && !isShippingStepComplete) ||
-                (stepper.current.id === 'payout' && !payoutValid)
-              }
-            >
-              {stepper.current.id === 'shipping'
-                ? 'Go to Payment'
-                : stepper.current.id === 'payout'
-                ? 'Review Order'
-                : 'Next'}
-            </Button>
+            {stepper.current.id !== 'review' && (
+              <Button
+                type="button"
+                className="ml-auto"
+                onClick={stepper.next}
+                disabled={
+                  (stepper.current.id === 'shipping' && !isShippingStepComplete) ||
+                  (stepper.current.id === 'payout' && !payoutValid)
+                }
+              >
+                {stepper.current.id === 'shipping'
+                  ? 'Go to Payment'
+                  : stepper.current.id === 'payout'
+                  ? 'Review Order'
+                  : 'Next'}
+              </Button>
+            )}
           </div>
         </div>
       </div>
     </div>
   )
-}
-
-function ReviewStep() {
-  return <div>Review</div>
 }
 
 function CompleteStep() {

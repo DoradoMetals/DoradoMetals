@@ -16,6 +16,9 @@ export const achSchema = z.object({
     .regex(/^\d{9}$/, 'Must be a 9 digit number'),
   account_number: z.string().min(1, 'Account number is required').regex(/^\d+$/, 'Must be a number'),
   account_type: z.enum(['checking', 'savings']),
+  confirmation: z
+  .boolean()
+  .refine((val) => val === true, { message: 'You must confirm your bank information.' }),
 })
 
 export const wireSchema = z.object({
@@ -26,6 +29,9 @@ export const wireSchema = z.object({
     .min(1, 'Routing number is required')
     .regex(/^\d{9}$/, 'Must be a 9 digit number'),
   account_number: z.string().min(1, 'Account number is required').regex(/^\d+$/, 'Must be a number'),
+  confirmation: z
+  .boolean()
+  .refine((val) => val === true, { message: 'You must confirm your bank information.' }),
 })
 
 export type EcheckPayout = z.infer<typeof echeckSchema>

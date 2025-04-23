@@ -12,6 +12,7 @@ export type PickupType = {
 
 export const pickupSchema = z.object({
   label: z.string(),
+  name: z.string(),
   icon: z.any(),
   selectedDate: z.string().optional(),
   date: z.string().optional(),

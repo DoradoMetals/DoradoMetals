@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { Form } from '@/components/ui/form'
+import { Form, FormControl, FormLabel, FormMessage } from '@/components/ui/form'
 import { AchPayout } from '@/types/payout'
 import { UseFormReturn } from 'react-hook-form'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
@@ -10,6 +10,7 @@ import { FormField, FormItem } from '@/components/ui/form'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { accountTypeOptions } from '@/types/payout'
 import { cn } from '@/lib/utils'
+import { Checkbox } from '@/components/ui/checkbox'
 
 export default function ACHForm({
   form,
@@ -34,10 +35,13 @@ export default function ACHForm({
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          className="overflow-hidden"
+          className="overflow-y-hidden will-change-transform"
         >
           <Form {...form}>
-            <form className="space-y-6 p-4 mb-2">
+            <form className="p-4">
+              <div className='space-y-6'>
+
+              
               <ValidatedField
                 control={form.control}
                 name="account_holder_name"
@@ -78,7 +82,11 @@ export default function ACHForm({
                               {option.label}
                             </div>
                           </div>
-                          <RadioGroupItem id={option.value} value={option.value} className="sr-only" />
+                          <RadioGroupItem
+                            id={option.value}
+                            value={option.value}
+                            className="sr-only"
+                          />
                         </label>
                       ))}
                     </RadioGroup>
@@ -127,6 +135,35 @@ export default function ACHForm({
                   }}
                 />
               </div>
+              
+              </div>
+              <FormField
+                control={form.control}
+                name="confirmation"
+                render={({ field }) => (
+                  <FormItem className="flex-col items-start gap-1 mt-4">
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(val) => {
+                            field.onChange(val)
+                            syncToStore()
+                          }}
+                          id={`confirmation-${form.getValues().account_holder_name ?? ''}`}
+                          className="checkbox-form"
+                        />
+                      </FormControl>
+                      <label
+                        htmlFor={`confirmation-${form.getValues().account_holder_name ?? ''}`}
+                        className="cursor-pointer text-sm text-neutral-700 font-normal"
+                      >
+                        I have entered the correct bank information.
+                      </label>
+                    </div>
+                  </FormItem>
+                )}
+              />
             </form>
           </Form>
         </motion.div>

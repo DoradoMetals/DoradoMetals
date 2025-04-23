@@ -4,9 +4,9 @@ import { GoogleMap, Marker } from '@react-google-maps/api'
 import { useEffect, useMemo, useState } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { useFedExLocations } from '@/lib/queries/shipping/useFedex'
-import { formatFedexPickupAddress, FedexLocation } from '@/types/shipping'
-import { Button } from '@/components/ui/button'
+import { formatFedexPickupAddress } from '@/types/shipping'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import { formatPickupTime } from '@/utils/dateFormatting'
 
 const containerStyle = {
   width: '100%',
@@ -227,38 +227,6 @@ export const FedexLocationsMap = () => {
   )
 }
 
-// function openInMaps(selected: FedexLocation) {
-//   const { address } = selected
-//   const fullAddress = [
-//     selected.contact.companyName,
-//     ...address.streetLines,
-//     address.city,
-//     address.stateOrProvinceCode,
-//     address.postalCode,
-//     address.countryCode === 'US' ? 'United States' : address.countryCode,
-//   ]
-//     .filter(Boolean)
-//     .join(', ')
-//     .replace(/\s+/g, ' ') // collapse multiple spaces
-
-//   const encoded = encodeURIComponent(fullAddress)
-
-//   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-//   const url = isIOS
-//     ? `http://maps.apple.com/?q=${encoded}`
-//     : `https://www.google.com/maps/search/?api=1&query=${encoded}`
-
-//   window.open(url, '_blank', 'noopener,noreferrer')
-// }
-
-function formatTime(t: string) {
-  return new Date(`1970-01-01T${t}`).toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })
-}
-
 function getOpenStatus(hours?: string) {
   if (!hours || hours === 'Closed') return { isOpen: false, openUntil: null, nextOpenTime: null }
 
@@ -275,8 +243,8 @@ function getOpenStatus(hours?: string) {
   const isOpen = now >= startDate && now <= endDate
   return {
     isOpen,
-    openUntil: formatTime(end),
-    nextOpenTime: formatTime(start),
+    openUntil: formatPickupTime(end),
+    nextOpenTime: formatPickupTime(start),
   }
 }
 
