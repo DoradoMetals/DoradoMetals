@@ -24,30 +24,30 @@ export default function ReviewStep() {
           <span className="text-base text-neutral-900 font-medium">{data.address?.name}</span>
         </div>
 
-        <div className="flex flex-col gap-3 text-sm">
+        <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between w-full">
-            <span className="text-neutral-700">Phone:</span>
+            <span className="text-neutral-700  text-sm">Phone:</span>
             <span className="text-neutral-800">
               {formatPhoneNumber(data.address?.phone_number ?? '')}
             </span>
           </div>
           <div className="flex items-center justify-between w-full">
-            <span className="text-neutral-700">Street:</span>
+            <span className="text-neutral-700 text-sm">Street:</span>
             <span className="text-neutral-800">
               {data.address?.line_1}
               {data.address?.line_2 ? ` ${data.address.line_2}` : ''}
             </span>
           </div>
           <div className="flex items-center justify-between w-full">
-            <span className="text-neutral-700">City:</span>
+            <span className="text-neutral-700 text-sm">City:</span>
             <span className="text-neutral-800">{data.address?.city}</span>
           </div>
           <div className="flex items-center justify-between w-full">
-            <span className="text-neutral-700">State:</span>
+            <span className="text-neutral-700 text-sm">State:</span>
             <span className="text-neutral-800">{data.address?.state}</span>
           </div>
           <div className="flex items-center justify-between w-full">
-            <span className="text-neutral-700">ZIP Code:</span>
+            <span className="text-neutral-700 text-sm">ZIP Code:</span>
             <span className="text-neutral-800">{data.address?.zip}</span>
           </div>
         </div>
@@ -87,7 +87,7 @@ export default function ReviewStep() {
               </div>
             ) : (
               <div>
-                <Button variant="ghost" className="text-primary p-0">
+                <Button variant="ghost" className="text-primary h-0 p-0">
                   Find Store
                 </Button>
               </div>
