@@ -15,7 +15,7 @@ export const achSchema = z.object({
     .min(1, 'Routing number is required')
     .regex(/^\d{9}$/, 'Must be a 9 digit number'),
   account_number: z.string().min(1, 'Account number is required').regex(/^\d+$/, 'Must be a number'),
-  account_type: z.enum(['checking', 'savings']),
+  account_type: z.enum(['Checking', 'Savings']),
   confirmation: z
   .boolean()
   .refine((val) => val === true, { message: 'You must confirm your bank information.' }),
@@ -81,13 +81,13 @@ export const payoutOptions: PayoutMethod[] = [
 
 export const accountTypeOptions = [
   {
-    value: 'checking',
+    value: 'Checking',
     label: 'Checking Account',
     description: 'Standard checking account for everyday use',
     icon: CreditCard,
   },
   {
-    value: 'savings',
+    value: 'Savings',
     label: 'Savings Account',
     description: 'Interest-bearing savings account',
     icon: PiggyBank,

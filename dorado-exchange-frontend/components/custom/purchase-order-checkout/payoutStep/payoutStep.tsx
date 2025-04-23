@@ -39,7 +39,7 @@ export default function PayoutStep({ user }: { user?: User }) {
       bank_name: storeData?.method === 'ACH' ? storeData.bank_name : '',
       routing_number: storeData?.method === 'ACH' ? storeData.routing_number : '',
       account_number: storeData?.method === 'ACH' ? storeData.account_number : '',
-      account_type: storeData?.method === 'ACH' ? storeData.account_type : 'checking',
+      account_type: storeData?.method === 'ACH' ? storeData.account_type : 'Checking',
       confirmation: storeData?.method === 'ACH' ? storeData.confirmation : false,
     },
   })
