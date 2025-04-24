@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { PurchaseOrderCheckout } from '@/types/checkout'
+import { PurchaseOrderCheckout } from '@/types/purchase-order'
 
 type PartialCheckout = Partial<PurchaseOrderCheckout>
 

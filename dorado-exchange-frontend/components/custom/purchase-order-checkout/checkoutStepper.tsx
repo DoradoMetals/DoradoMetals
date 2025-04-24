@@ -9,8 +9,9 @@ import { Address } from '@/types/address'
 import { useEffect, useRef } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { useUser } from '@/lib/authClient'
-// import PurchaseOrderItems from './purchaseOrderItems'
 import ReviewStep from './reviewStep/reviewStep'
+import { sellCartStore } from '@/store/sellCartStore'
+import { useRouter } from 'next/navigation'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -19,15 +20,11 @@ const { useStepper, utils } = defineStepper(
     description: 'How will you ship us your items?',
   },
   { id: 'payout', title: 'Payout', description: 'Select how you want to be payed.' },
-  { id: 'review', title: 'Review Order', description: 'Review and confirm your order.' },
-  {
-    id: 'complete',
-    title: 'Order Complete!',
-    description: 'Your order is complete. Please download your invoice.',
-  }
+  { id: 'review', title: 'Review Order', description: 'Review and confirm your order.' }
 )
 
 export default function CheckoutStepper() {
+  const router = useRouter();
   const { user } = useUser()
   const { data: addresses = [], isLoading } = useAddress()
   const { setData } = usePurchaseOrderCheckoutStore()
@@ -38,7 +35,6 @@ export default function CheckoutStepper() {
     package: pkg,
     service,
     pickup,
-    payout,
     payoutValid,
   } = usePurchaseOrderCheckoutStore((state) => state.data)
 
@@ -85,6 +81,22 @@ export default function CheckoutStepper() {
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
 
+  const cartItems = sellCartStore((state) => state.items)
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center w-full p-10 text-center">
+        <h2 className="text-xl font-semibold text-neutral-800">Your cart is empty</h2>
+        <p className="text-sm text-muted-foreground mt-2">
+          You need to add items before checking out.
+        </p>
+        <Button className="mt-6" onClick={() => router.push('sell')}>
+          Add Items to Sell
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="flex w-full max-w-md lg:max-w-4xl justify-center p-5">
       <div className="flex flex-col w-full lg:grid lg:grid-cols-4 lg:gap-8">
@@ -97,9 +109,6 @@ export default function CheckoutStepper() {
                 <p className="secondary-text">{stepper.current.description}</p>
               </div>
             </div>
-            {/* <div className='mt-10'>
-              <PurchaseOrderItems />
-            </div> */}
           </div>
           <div className="flex lg:hidden">
             <div className="flex items-center gap-3">
@@ -117,7 +126,6 @@ export default function CheckoutStepper() {
             shipping: () => <ShippingStep addresses={addresses} emptyAddress={emptyAddress} />,
             payout: () => <PayoutStep user={user} />,
             review: () => <ReviewStep />,
-            complete: () => <CompleteStep />,
           })}
           <div className="flex justify-between gap-4 mt-4">
             {stepper.current.id !== 'shipping' && (
@@ -126,7 +134,7 @@ export default function CheckoutStepper() {
                 variant="outline"
                 onClick={stepper.prev}
                 disabled={stepper.isFirst}
-                className='hover:bg-card'
+                className="hover:bg-card"
               >
                 {stepper.current.id === 'payout'
                   ? 'Back to Shipping'
@@ -158,10 +166,6 @@ export default function CheckoutStepper() {
       </div>
     </div>
   )
-}
-
-function CompleteStep() {
-  return <div>Complete</div>
 }
 
 function StepIndicator({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {

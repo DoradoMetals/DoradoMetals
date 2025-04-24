@@ -2,13 +2,18 @@
 
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
-import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { Button } from '@/components/ui/button'
 import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/utils/dateFormatting'
 import ItemTables from './itemTable'
+import { useCreatePurchaseOrder } from '@/lib/queries/usePurchaseOrder'
+import { purchaseOrderCheckoutSchema } from '@/types/purchase-order'
+import { sellCartStore } from '@/store/sellCartStore'
+import { useRouter } from 'next/navigation'
 
 export default function ReviewStep() {
   const data = usePurchaseOrderCheckoutStore((state) => state.data)
+  const createPurchaseOrder = useCreatePurchaseOrder()
+  const router = useRouter();
 
   return (
     <div className="flex flex-col gap-4 w-full text-sm text-neutral-800">
@@ -32,11 +37,10 @@ export default function ReviewStep() {
         <div className="flex justify-between items-center">
           <div className="text-xl text-neutral-800">
             {data.service?.serviceDescription ?? 'Shipping Service'}
-
           </div>
           <div className="text-sm font-normal text-neutral-600">
-              {formatTimeDiff(data.service?.transitTime ?? new Date())}
-            </div>
+            {formatTimeDiff(data.service?.transitTime ?? new Date())}
+          </div>
           {/* <div className="text-base text-neutral-600">
             <PriceNumberFlow value={data.service?.netCharge ?? 0} />
           </div> */}
@@ -81,7 +85,8 @@ export default function ReviewStep() {
           <div className="text-base text-neutral-600">
             {data.payout?.method === 'ACH' || data.payout?.method === 'WIRE' ? (
               <div className="text-neutral-600 mb-3">
-                {data.payout.bank_name} {data.payout?.method === 'ACH' ? data.payout.account_type : ''}
+                {data.payout.bank_name}{' '}
+                {data.payout?.method === 'ACH' ? data.payout.account_type : ''}
               </div>
             ) : null}
           </div>
@@ -107,10 +112,10 @@ export default function ReviewStep() {
         )}
 
         {data.payout?.method === 'ECHECK' && (
-          <div className='flex flex-col gap-1 mt-3 text-sm'>
+          <div className="flex flex-col gap-1 mt-3 text-sm">
             <div className="flex justify-between">
               <span className="text-neutral-600">Name:</span>
-              <span className="text-neutral-800">{data.payout.payout_name}</span>
+              <span className="text-neutral-800">{data.payout.account_holder_name}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-neutral-600">Email:</span>
@@ -122,7 +127,33 @@ export default function ReviewStep() {
 
       <ItemTables />
 
-      <Button className="w-full shadow-lg mt-2">Confirm and Place Order</Button>
+      <Button
+        className="w-full shadow-lg mt-2"
+        disabled={createPurchaseOrder.isPending}
+        onClick={() => {
+          const liveCartItems = sellCartStore.getState().items
+
+          const checkoutPayload = {
+            ...data,
+            items: liveCartItems,
+          }
+
+          try {
+            const validated = purchaseOrderCheckoutSchema.parse(checkoutPayload)
+            createPurchaseOrder.mutate(validated, {
+              onSuccess: () => {
+                router.push("/order_placed")
+                sellCartStore.getState().clearCart()
+                usePurchaseOrderCheckoutStore.getState().clear()
+              },
+            })
+          } catch (err) {
+            console.error('Invalid purchase order data', err)
+          }
+        }}
+      >
+        {createPurchaseOrder.isPending ? 'Placing Order...' : 'Confirm and Place Order'}
+      </Button>
     </div>
   )
 }

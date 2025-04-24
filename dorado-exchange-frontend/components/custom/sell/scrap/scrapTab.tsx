@@ -30,12 +30,11 @@ const { useStepper, utils } = defineStepper(
 )
 
 export default function ScrapFormStepper() {
-  const [submitAction, setSubmitAction] = useState<'add' | 'checkout' | null>(null)
-
   const form = useForm<ScrapInput>({
     resolver: zodResolver(scrapSchema),
     mode: 'onChange',
     defaultValues: {
+      id: crypto.randomUUID(),
       name: '',
       metal: 'Gold',
       gross: 0,
@@ -70,7 +69,7 @@ export default function ScrapFormStepper() {
     const content =
       convertTroyOz(values.gross ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
     const price = getScrapPrice(content, spot)
-
+    console.log(values)
     const item = {
       type: 'scrap' as const,
       data: {
@@ -82,17 +81,13 @@ export default function ScrapFormStepper() {
 
     addItem(item)
 
-    if (submitAction === 'checkout') {
-      router.push('/sell/checkout')
-    } else {
-      setSubmitted(true)
-      setShowBanner(true)
-    }
-    setSubmitAction(null)
+    setSubmitted(true)
+    setShowBanner(true)
   }
 
   const handleAddAnother = () => {
     form.reset({
+      id: crypto.randomUUID(),
       name: '',
       metal: 'Gold',
       gross: 0,
@@ -143,13 +138,19 @@ export default function ScrapFormStepper() {
               </div>
 
               <div className="ml-auto">
-                <Button
-                  className="w-full"
-                  type="submit"
-                  onClick={() => setSubmitAction(submitted ? 'checkout' : 'add')}
-                >
-                  {submitted ? 'Go to Checkout' : 'Submit Item'}
-                </Button>
+                {submitted ? (
+                  <Button
+                    className="w-full"
+                    type="button"
+                    onClick={() => router.push('/checkout')}
+                  >
+                    Go to Checkout
+                  </Button>
+                ) : (
+                  <Button className="w-full" type="submit">
+                    Submit Item
+                  </Button>
+                )}
               </div>
             </div>
           ) : (

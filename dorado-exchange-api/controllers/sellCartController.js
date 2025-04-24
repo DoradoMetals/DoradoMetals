@@ -38,6 +38,7 @@ const getSellCart = async (req, res) => {
     const scrapItems = scrapResult.rows.map((row) => ({
       type: "scrap",
       data: {
+        id: row.scrap_id,
         ...row,
         gross: Number(row.gross),
         purity: Number(row.purity),
@@ -45,6 +46,8 @@ const getSellCart = async (req, res) => {
         quantity: row.quantity,
       },
     }));
+
+    console.log(scrapItems)
 
     // Fetch product items
     const productQuery = `
@@ -137,23 +140,30 @@ const syncSellCart = async (req, res) => {
 
       // Handle scrap
       if (item.type === "scrap") {
-        let scrapId = item.scrap_id;
-
-        if (!scrapId) {
-          // Try to find existing matching scrap
-          const existingScrap = await client.query(
+        let scrapId = item.data.id || null
+      
+        const existingScrap = await client.query(
+          `
+          SELECT id FROM exchange.scrap
+          WHERE id = $1
+          `,
+          [scrapId]
+        )
+      
+        if (existingScrap.rows.length === 0) {
+          await client.query(
             `
-            SELECT id FROM exchange.scrap
-            WHERE
-              metal_id = (SELECT id FROM exchange.metals WHERE LOWER(type) = LOWER($1))
-              AND (gem_id IS NOT DISTINCT FROM $2)
-              AND gross = $3
-              AND purity = $4
-              AND content = $5
-              AND gross_unit = $6
-            LIMIT 1
+            INSERT INTO exchange.scrap (
+              id, metal_id, gem_id, gross, purity, content, gross_unit
+            )
+            VALUES (
+              $1,
+              (SELECT id FROM exchange.metals WHERE LOWER(type) = LOWER($2)),
+              $3, $4, $5, $6, $7
+            )
             `,
             [
+              scrapId,
               item.data.metal,
               item.data.gem_id,
               item.data.gross,
@@ -161,42 +171,14 @@ const syncSellCart = async (req, res) => {
               item.data.content,
               item.data.gross_unit,
             ]
-          );
-
-          if (existingScrap.rows.length > 0) {
-            scrapId = existingScrap.rows[0].id;
-          } else {
-            // Insert new scrap entry if not found
-            const scrapInsert = await client.query(
-              `
-              INSERT INTO exchange.scrap (
-                metal_id, gem_id, gross, purity, content, gross_unit
-              )
-              VALUES (
-                (SELECT id FROM exchange.metals WHERE LOWER(type) = LOWER($1)),
-                $2, $3, $4, $5, $6
-              )
-              RETURNING id
-              `,
-              [
-                item.data.metal,
-                item.data.gem_id,
-                item.data.gross,
-                item.data.purity,
-                item.data.content,
-                item.data.gross_unit,
-              ]
-            );
-
-            scrapId = scrapInsert.rows[0].id;
-          }
+          )
         }
-
+      
         await client.query(
           `INSERT INTO exchange.sell_cart_items (cart_id, scrap_id, quantity)
            VALUES ($1, $2, $3)`,
           [cartId, scrapId, quantity]
-        );
+        )
       }
     }
 

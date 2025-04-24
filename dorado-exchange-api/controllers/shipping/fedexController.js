@@ -14,6 +14,17 @@ const DORADO_ADDRESS = {
 
 let fedexAccessToken = null;
 
+const formatAddressForFedEx = (address) => {
+  return {
+    streetLines: [address.line_1, address.line_2].filter(Boolean),
+    city: address.city,
+    stateOrProvinceCode: address.state,
+    postalCode: address.zip,
+    countryCode: address.country_code,
+    residential: address.is_residential ?? true,
+  };
+};
+
 const getFedExAccessToken = async () => {
   const response = await axios.post(
     process.env.FEDEX_API_URL + "/oauth/token",
@@ -21,6 +32,21 @@ const getFedExAccessToken = async () => {
       grant_type: "client_credentials",
       client_id: process.env.FEDEX_CLIENT_ID,
       client_secret: process.env.FEDEX_CLIENT_SECRET,
+    }),
+    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+  );
+
+  fedexAccessToken = response.data.access_token;
+  return fedexAccessToken;
+};
+
+const getSandboxFedExAccessToken = async () => {
+  const response = await axios.post(
+    process.env.FEDEX_SANDBOX_API_URL + "/oauth/token",
+    new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: process.env.FEDEX_SANDBOX_CLIENT_ID,
+      client_secret: process.env.FEDEX_SANDBOX_CLIENT_SECRET,
     }),
     { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
   );
@@ -158,62 +184,64 @@ const getFedexRates = async (req, res) => {
   }
 };
 
-const createFedexLabel = async (req, res) => {
-  const {
-    order_id,
-    customerName,
-    customerPhone,
-    customerAddress,
-    shippingType,
-    packageDetails,
-    pickupType,
-    serviceType,
-  } = req.body;
+const createFedexLabel = async (
+  customerName,
+  customerPhone,
+  customerAddress,
+  shippingType,
+  packageDetails,
+  pickupType,
+  serviceType
+) => {
+  try {
+    const token = await getSandboxFedExAccessToken();
 
-  const shipper = {
-    contact: {
-      personName:
-        shippingType === "Inbound"
-          ? customerName
-          : process.env.FEDEX_DORADO_NAME,
-      phoneNumber:
-        shippingType === "Inbound"
-          ? customerPhone
-          : process.env.FEDEX_DORADO_PHONE_NUMBER,
-    },
-    address: shippingType === "Inbound" ? customerAddress : DORADO_ADDRESS,
-  };
-
-  const recipients = [
-    {
+    const shipper = {
       contact: {
         personName:
           shippingType === "Inbound"
-            ? process.env.FEDEX_DORADO_NAME
-            : customerName,
+            ? customerName
+            : process.env.FEDEX_DORADO_NAME,
         phoneNumber:
           shippingType === "Inbound"
-            ? process.env.FEDEX_DORADO_PHONE_NUMBER
-            : customerPhone,
+            ? customerPhone
+            : process.env.FEDEX_DORADO_PHONE_NUMBER,
       },
-      address: shippingType === "Inbound" ? DORADO_ADDRESS : customerAddress,
-    },
-  ];
+      address: shippingType === "Inbound" ? customerAddress : DORADO_ADDRESS,
+    };
 
-  try {
-    const token = await getFedExAccessToken();
+    const recipients = [
+      {
+        contact: {
+          personName:
+            shippingType === "Inbound"
+              ? process.env.FEDEX_DORADO_NAME
+              : customerName,
+          phoneNumber:
+            shippingType === "Inbound"
+              ? process.env.FEDEX_DORADO_PHONE_NUMBER
+              : customerPhone,
+        },
+        address: shippingType === "Inbound" ? DORADO_ADDRESS : customerAddress,
+      },
+    ];
+
+    // console.log('customer address: ', customerAddress)
+    // console.log('dorado address: ', DORADO_ADDRESS)
+    // console.log('shipper: ', shipper)
+    // console.log('recipients: ', recipients)
 
     const shipmentPayload = {
       accountNumber: {
-        value: process.env.FEDEX_ACCOUNT_NUMBER,
+        value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER,
       },
       labelResponseOptions: "LABEL",
       requestedShipment: {
-        shipper: shipper,
-        recipients: recipients,
+        shipper,
+        recipients,
         packagingType: "YOUR_PACKAGING",
-        serviceType: serviceType,
-        pickupType: pickupType,
+        serviceType,
+        pickupType,
         groupPackageCount: 1,
         requestedPackageLineItems: [packageDetails],
         labelSpecification: {
@@ -224,7 +252,7 @@ const createFedexLabel = async (req, res) => {
           paymentType: "SENDER",
           payor: {
             responsibleParty: {
-              accountNumber: { value: process.env.FEDEX_ACCOUNT_NUMBER },
+              accountNumber: { value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER },
             },
           },
         },
@@ -232,7 +260,7 @@ const createFedexLabel = async (req, res) => {
     };
 
     const response = await axios.post(
-      process.env.FEDEX_API_URL + "/ship/v1/shipments",
+      `${process.env.FEDEX_SANDBOX_API_URL}/ship/v1/shipments`,
       shipmentPayload,
       {
         headers: {
@@ -248,43 +276,20 @@ const createFedexLabel = async (req, res) => {
     const piece = shipment.pieceResponses?.[0];
     const doc = piece?.packageDocuments?.[0];
 
-    const tracking_number = shipment.masterTrackingNumber;
-    const encodedLabel = doc?.encodedLabel;
-    const labelFile = Buffer.from(encodedLabel, "base64");
-
-    let insertQuery;
-    if (shippingType === "Inbound") {
-      insertQuery = `
-        INSERT INTO exchange.inbound_shipments (
-          order_id, tracking_number, carrier, shipping_status, created_at, shipping_label
-        )
-        VALUES ($1, $2, $3, 'label_created', NOW(), $4)
-      `;
-    } else {
-      insertQuery = `
-        INSERT INTO exchange.outbound_shipments (
-          order_id, tracking_number, carrier, shipping_status, created_at, shipping_label
-        )
-        VALUES ($1, $2, $3, 'label_created', NOW(), $4)
-      `;
-    }
-
-    await pool.query(insertQuery, [
-      order_id,
-      tracking_number,
-      "FedEx",
-      labelFile,
-    ]);
-
-    res.json({
-      message: "Label created!",
-    });
+    return {
+      tracking_number: shipment.masterTrackingNumber,
+      labelFile: doc?.encodedLabel,
+    };
   } catch (error) {
-    console.error(
-      "FedEx label creation failed:",
-      JSON.stringify(error?.response?.data, null, 2) || error
-    );
-    res.status(500).json({ error: "FedEx label creation failed." });
+    const response = error?.response?.data;
+    console.error("FedEx label generation failed:", JSON.stringify(response, null, 2));
+  
+    const paramList = response?.errors?.[0]?.parameterList;
+    if (paramList) {
+      console.log("Parameter validation errors:", JSON.stringify(paramList, null, 2));
+    }
+  
+    throw new Error("FedEx label generation failed");
   }
 };
 
@@ -348,25 +353,31 @@ const checkFedexPickupAvailability = async (req, res) => {
   }
 };
 
-const scheduleFedexPickup = async (req, res) => {
-  const {
-    order_id,
-    customerName,
-    customerPhone,
-    customerAddress,
-    pickupDate,
-    pickupTime,
-    code,
-    trackingNumber,
-    // suppliesRequested,
-  } = req.body;
-
+const scheduleFedexPickup = async (
+  customerName,
+  customerPhone,
+  customerAddress,
+  pickupDate,
+  pickupTime,
+  code,
+  trackingNumber
+) => {
   try {
-    const token = await getFedExAccessToken();
+    const token = await getSandboxFedExAccessToken();
+
+    const readyTimestamp = new Date(
+      `${pickupDate}T${pickupTime}Z`
+    ).toISOString();
+    const closeTime = new Date(
+      new Date(`${pickupDate}T${pickupTime}Z`).getTime() + 60 * 60 * 1000
+    )
+      .toISOString()
+      .split("T")[1]
+      .slice(0, 8);
 
     const pickupPayload = {
       associatedAccountNumber: {
-        value: process.env.FEDEX_ACCOUNT_NUMBER,
+        value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER,
       },
       originDetail: {
         pickupLocation: {
@@ -376,23 +387,15 @@ const scheduleFedexPickup = async (req, res) => {
           },
           address: customerAddress,
         },
-        // suppliesRequested: suppliesRequested,
-        readyDateTimestamp: new Date(
-          `${pickupDate}T${pickupTime}Z`
-        ).toISOString(),
-        customerCloseTime: new Date(
-          new Date(`${pickupDate}T${pickupTime}Z`).getTime() + 60 * 60 * 1000
-        )
-          .toISOString()
-          .split("T")[1]
-          .slice(0, 8),
+        readyDateTimestamp: readyTimestamp,
+        customerCloseTime: closeTime,
       },
-      trackingNumber: trackingNumber,
+      trackingNumber,
       carrierCode: code,
     };
 
     const response = await axios.post(
-      process.env.FEDEX_API_URL + "/pickup/v1/pickups",
+      `${process.env.FEDEX_SANDBOX_API_URL}/pickup/v1/pickups`,
       pickupPayload,
       {
         headers: {
@@ -403,34 +406,24 @@ const scheduleFedexPickup = async (req, res) => {
     );
 
     const confirmationNumber = response.data?.output?.pickupConfirmationCode;
-    const insertQuery = `
-      INSERT INTO exchange.carrier_pickups (
-        order_id,
-        carrier,
-        confirmation_number,
-        scheduled_time,
-        created_at
-      )
-      VALUES ($1, $2, $3, $4, NOW())
-    `;
 
-    await pool.query(insertQuery, [
-      order_id,
-      "FedEx",
-      confirmationNumber,
-      pickupDateTime,
-    ]);
-
-    res.json({
-      message: "FedEx pickup scheduled.",
-      confirmationNumber,
-    });
+    return { confirmationNumber };
   } catch (error) {
-    console.error(
-      "FedEx pickup scheduling failed:",
-      JSON.stringify(error?.response?.data, null, 2) || error
-    );
-    res.status(500).json({ error: "FedEx pickup scheduling failed." });
+    const responseData = error?.response?.data;
+    console.error("FedEx pickup scheduling failed:", {
+      status: error?.response?.status,
+      message: error?.message,
+      data: responseData,
+    });
+  
+    const errors = responseData?.errors;
+    if (Array.isArray(errors)) {
+      errors.forEach((err, i) => {
+        console.error(`Error ${i + 1}:`, JSON.stringify(err, null, 2));
+      });
+    }
+  
+    throw new Error("FedEx pickup scheduling failed");
   }
 };
 
@@ -500,10 +493,7 @@ const getFedexLocations = async (req, res) => {
         criteria: "DISTANCE",
         order: "ASCENDING",
       },
-      locationTypes: [
-        "FEDEX_AUTHORIZED_SHIP_CENTER",
-        "FEDEX_OFFICE",
-      ],
+      locationTypes: ["FEDEX_AUTHORIZED_SHIP_CENTER", "FEDEX_OFFICE"],
     };
 
     const response = await axios.post(
@@ -554,13 +544,13 @@ const getFedexLocations = async (req, res) => {
             return acc;
           }, {})
         : undefined,
-        geoPositionalCoordinates: loc.geoPositionalCoordinates ?? null,
-      }))
-      
-      res.json({
-        matchedAddressGeoCoord: response.data?.output?.matchedAddressGeoCoord,
-        locations: locations,
-      })
+      geoPositionalCoordinates: loc.geoPositionalCoordinates ?? null,
+    }));
+
+    res.json({
+      matchedAddressGeoCoord: response.data?.output?.matchedAddressGeoCoord,
+      locations: locations,
+    });
   } catch (error) {
     console.error(
       "FedEx location search failed:",
@@ -571,6 +561,7 @@ const getFedexLocations = async (req, res) => {
 };
 
 module.exports = {
+  formatAddressForFedEx,
   validateAddress,
   getFedexRates,
   createFedexLabel,

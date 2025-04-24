@@ -4,7 +4,7 @@ import { Scale, CircleDollarSign, Gem, Weight } from 'lucide-react'
 import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/components/icons/logo'
 
 export const scrapSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: z.string().uuid(),
   metal: z.string(),
   gem_id: z.string().uuid().optional(),
   name: z.string().optional(),
