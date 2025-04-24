@@ -14,7 +14,6 @@ type PickupSchedulerProps = {
 }
 
 export default function PickupScheduler({ times }: PickupSchedulerProps) {
-  console.log('rendered')
   const todayStr = new Date().toISOString().split('T')[0]
 
   const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)

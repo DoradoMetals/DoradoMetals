@@ -8,22 +8,23 @@ const cartRoutes = require("./routes/carts");
 const sellCartRoutes = require("./routes/sell-carts");
 const adminRoutes = require("./routes/admin");
 const shippingRoutes = require("./routes/shipping")
+const purchaseOrderRoutes = require("./routes/purchase-orders");
 
 const spotRoutes = require("./routes/spots");
-const { toNodeHandler } = require("better-auth/node"); // Import BetterAuth middleware
-const { auth } = require("./auth"); // Import your BetterAuth instance
+const { toNodeHandler } = require("better-auth/node");
+const { auth } = require("./auth");
 const { setupScheduler } = require("./services/scheduler");
 
-dotenv.config(); // Load environment variables
+dotenv.config();
  
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL, // Replace with your frontend's origin
-    methods: ["GET", "POST", "PUT", "DELETE"], // Specify allowed HTTP methods
-    credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+    origin: process.env.FRONTEND_URL,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
   })
 );
 
@@ -41,8 +42,9 @@ app.use("/api/sell_cart", sellCartRoutes);
 app.use("/api/spots", spotRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/shipping", shippingRoutes);
+app.use("/api/purchase_orders", purchaseOrderRoutes);
 
-setupScheduler(); // <--- 🔥 Starts your cron job
+setupScheduler();
 
 app.use((req, res, next) => {
   next();

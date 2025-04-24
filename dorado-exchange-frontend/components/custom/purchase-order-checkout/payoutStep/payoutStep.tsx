@@ -62,7 +62,7 @@ export default function PayoutStep({ user }: { user?: User }) {
     mode: 'onChange',
     shouldUnregister: false,
     defaultValues: {
-      payout_name: storeData?.method === 'ECHECK' ? storeData.payout_name : user?.name ?? '',
+      account_holder_name: storeData?.method === 'ECHECK' ? storeData.account_holder_name : user?.name ?? '',
       payout_email: storeData?.method === 'ECHECK' ? storeData.payout_email : user?.email ?? '',
     },
   })

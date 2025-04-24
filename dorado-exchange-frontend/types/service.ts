@@ -18,7 +18,10 @@ export const serviceSchema = z.object({
   netCharge: z.coerce.number().nonnegative({ message: 'Price is required' }),
   currency: z.string().min(1),
   deliveryDay: z.string().optional(),
-  transitTime: z.date().optional(),
+  transitTime: z.preprocess(
+    (val) => (typeof val === 'string' ? new Date(val) : val),
+    z.date()
+  ),
   icon: z.any().optional(),
   code: z.string(),
 })

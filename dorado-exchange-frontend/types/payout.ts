@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { Landmark, CreditCard, PiggyBank, Mail, GlobeLock } from 'lucide-react'
 
 export const echeckSchema = z.object({
-  payout_name: z.string().min(1, 'Addressed to name required'),
+  account_holder_name: z.string().min(1, 'Addressed to name required'),
   payout_email: z.string().email('Valid email required'),
 })
 

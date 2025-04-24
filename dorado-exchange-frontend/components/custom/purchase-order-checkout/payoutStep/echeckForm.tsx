@@ -35,13 +35,13 @@ export default function EcheckForm({
             <form className="space-y-6 p-4 mb-2">
               <ValidatedField
                 control={form.control}
-                name="payout_name"
+                name="account_holder_name"
                 label="Addressed To"
                 className="input-floating-label-form"
                 inputProps={{
                   autoComplete: 'off',
                   onChange: (e) => {
-                    form.setValue('payout_name', e.target.value, { shouldValidate: true })
+                    form.setValue('account_holder_name', e.target.value, { shouldValidate: true })
                     syncToStore()
                   },
                 }}

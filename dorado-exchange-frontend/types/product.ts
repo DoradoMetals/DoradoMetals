@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 export interface Product {
   product_name: string,
   product_description: string,
@@ -14,6 +16,23 @@ export interface Product {
   variant_group: string,
   shadow_offset: number,
 }
+
+export const productSchema = z.object({
+  product_name: z.string(),
+  product_description: z.string(),
+  content: z.number(),
+  bid_premium: z.number(),
+  ask_premium: z.number(),
+  product_type: z.string(),
+  image_front: z.string(),
+  image_back: z.string(),
+  mint_name: z.string(),
+  price: z.number(),
+  metal_type: z.string(),
+  variant_group: z.string(),
+  shadow_offset: z.number(),
+  quantity: z.number().optional(),
+})
 
 export const ozOptions: Record<string, { value: string; label: string; disabled: boolean, name: string }[]> = {
   'Gold American Eagle': [
