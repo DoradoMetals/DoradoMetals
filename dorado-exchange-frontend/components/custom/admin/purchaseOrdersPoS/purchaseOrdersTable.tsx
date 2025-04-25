@@ -37,7 +37,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import PurchaseOrderDrawer from './PurchaseOrderDrawer/purchaseOrderDrawer'
+import PurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
 
 const statusColorMap: Record<string, string> = {
   Transit: 'bg-fuchsia-200 text-fuchsia-700',

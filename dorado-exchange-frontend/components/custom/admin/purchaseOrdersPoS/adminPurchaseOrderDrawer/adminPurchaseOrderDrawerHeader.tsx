@@ -1,11 +1,11 @@
 import { Button } from '@/components/ui/button'
-import { statusConfig, PurchaseOrderDrawerHeaderProps } from '@/types/admin'
+import { statusConfig, AdminPurchaseOrderDrawerHeaderProps } from '@/types/admin'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
 
 export default function PurchaseOrderDrawerHeader({
   order,
   username,
-}: PurchaseOrderDrawerHeaderProps) {
+}: AdminPurchaseOrderDrawerHeaderProps) {
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
 
   const status = statusConfig[order.order_status]

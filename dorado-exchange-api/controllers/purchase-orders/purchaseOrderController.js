@@ -1,63 +1,68 @@
 const { default: axios } = require("axios");
 const pool = require("../../db");
-const { createFedexLabel, scheduleFedexPickup, formatAddressForFedEx } = require("../shipping/fedexController");
+const {
+  createFedexLabel,
+  scheduleFedexPickup,
+  formatAddressForFedEx,
+} = require("../shipping/fedexController");
 
 const getPurchaseOrders = async (req, res) => {
   const { user_id } = req.query;
 
   try {
-    const query = `
-SELECT 
-  po.*,
-  json_agg(DISTINCT jsonb_build_object(
-    'id', poi.id,
-    'purchase_order_id', poi.purchase_order_id,
-    'price', poi.price,
-    'quantity', poi.quantity,
-    'item_type', CASE 
-      WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
-      WHEN poi.product_id IS NOT NULL THEN 'product'
-      ELSE 'unknown'
-    END,
-    'scrap', jsonb_build_object(
-      'id', s.id,
-      'gross', s.gross,
-      'purity', s.purity,
-      'content', s.content,
-      'gross_unit', s.gross_unit,
-      'metal', ms.type
-    ),
-    'product', jsonb_build_object(
-      'id', p.id,
-      'product_name', p.product_name,
-      'content', p.content,
-      'product_type', p.product_type,
-      'image_front', p.image_front,
-      'image_back', p.image_back,
-      'bid_premium', p.bid_premium,
-      'ask_premium', p.ask_premium,
-      'variant_group', p.variant_group,
-      'shadow_offset', p.shadow_offset,
-      'metal_type', mp.type
-    )
-  )) AS order_items,
-  to_jsonb(addr) AS address,
-  to_jsonb(ship) AS shipment,
-  to_jsonb(cp) AS carrier_pickup,
-  to_jsonb(pay) AS payout
-FROM exchange.purchase_orders po
-LEFT JOIN exchange.purchase_order_items poi ON poi.purchase_order_id = po.id
-LEFT JOIN exchange.scrap s ON poi.scrap_id = s.id
-LEFT JOIN exchange.products p ON poi.product_id = p.id
-LEFT JOIN exchange.metals ms ON s.metal_id = ms.id
-LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
-LEFT JOIN exchange.addresses addr ON addr.id = po.address_id
-LEFT JOIN exchange.inbound_shipments ship ON ship.order_id = po.id
-LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = po.id
-LEFT JOIN exchange.payouts pay ON pay.order_id = po.id
-WHERE po.user_id = $1
-GROUP BY po.id, addr.id, ship.id, cp.id, pay.id
-ORDER BY po.created_at ASC;
+    const query = 
+    `
+      SELECT 
+        po.*,
+        json_agg(DISTINCT jsonb_build_object(
+          'id', poi.id,
+          'purchase_order_id', poi.purchase_order_id,
+          'price', poi.price,
+          'quantity', poi.quantity,
+          'item_type', CASE 
+            WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
+            WHEN poi.product_id IS NOT NULL THEN 'product'
+            ELSE 'unknown'
+          END,
+          'scrap', jsonb_build_object(
+            'id', s.id,
+            'gross', s.gross,
+            'purity', s.purity,
+            'content', s.content,
+            'gross_unit', s.gross_unit,
+            'metal', ms.type
+          ),
+          'product', jsonb_build_object(
+            'id', p.id,
+            'product_name', p.product_name,
+            'content', p.content,
+            'product_type', p.product_type,
+            'image_front', p.image_front,
+            'image_back', p.image_back,
+            'bid_premium', p.bid_premium,
+            'ask_premium', p.ask_premium,
+            'variant_group', p.variant_group,
+            'shadow_offset', p.shadow_offset,
+            'metal_type', mp.type
+          )
+        )) AS order_items,
+        to_jsonb(addr) AS address,
+        to_jsonb(ship) AS shipment,
+        to_jsonb(cp) AS carrier_pickup,
+        to_jsonb(pay) AS payout
+      FROM exchange.purchase_orders po
+      LEFT JOIN exchange.purchase_order_items poi ON poi.purchase_order_id = po.id
+      LEFT JOIN exchange.scrap s ON poi.scrap_id = s.id
+      LEFT JOIN exchange.products p ON poi.product_id = p.id
+      LEFT JOIN exchange.metals ms ON s.metal_id = ms.id
+      LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
+      LEFT JOIN exchange.addresses addr ON addr.id = po.address_id
+      LEFT JOIN exchange.inbound_shipments ship ON ship.order_id = po.id
+      LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = po.id
+      LEFT JOIN exchange.payouts pay ON pay.order_id = po.id
+      WHERE po.user_id = $1
+      GROUP BY po.id, addr.id, ship.id, cp.id, pay.id
+      ORDER BY po.created_at DESC;
     `;
 
     const values = [user_id];
@@ -68,7 +73,6 @@ ORDER BY po.created_at ASC;
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
 
 const createPurchaseOrder = async (req, res) => {
   const { purchase_order, user_id } = req.body;
@@ -167,22 +171,22 @@ const createPurchaseOrder = async (req, res) => {
     console.error("Label generation or insert failed:", labelError);
   }
 
-    // Step 4: Schedule pickup (and insert confirmation record)
-    if (purchase_order.pickup?.name === "Carrier Pickup") {
-      try {
-        const { confirmationNumber } = await scheduleFedexPickup(
-          purchase_order.address.name,
-          purchase_order.address.phone_number,
-          formatAddressForFedEx(purchase_order.address),
-          purchase_order.pickup.date,
-          purchase_order.pickup.time,
-          purchase_order.service.code,
-          trackingNumber
-        );
-  
-        if (confirmationNumber) {
-          await pool.query(
-            `
+  // Step 4: Schedule pickup (and insert confirmation record)
+  if (purchase_order.pickup?.name === "Carrier Pickup") {
+    try {
+      const { confirmationNumber } = await scheduleFedexPickup(
+        purchase_order.address.name,
+        purchase_order.address.phone_number,
+        formatAddressForFedEx(purchase_order.address),
+        purchase_order.pickup.date,
+        purchase_order.pickup.time,
+        purchase_order.service.code,
+        trackingNumber
+      );
+
+      if (confirmationNumber) {
+        await pool.query(
+          `
             INSERT INTO exchange.carrier_pickups (
               user_id,
               order_id,
@@ -193,20 +197,22 @@ const createPurchaseOrder = async (req, res) => {
             )
             VALUES ($1, $2, $3, $4, $5, $6)
           `,
-            [
-              user_id,
-              purchase_order_id,
-              "FedEx",
-              new Date(`${purchase_order.pickup.date}T${purchase_order.pickup.time}Z`).toISOString(),
-              'scheduled',
-              confirmationNumber,
-            ]
-          );
-        }
-      } catch (pickupError) {
-        console.error("Pickup scheduling failed:", pickupError);
+          [
+            user_id,
+            purchase_order_id,
+            "FedEx",
+            new Date(
+              `${purchase_order.pickup.date}T${purchase_order.pickup.time}Z`
+            ).toISOString(),
+            "scheduled",
+            confirmationNumber,
+          ]
+        );
       }
+    } catch (pickupError) {
+      console.error("Pickup scheduling failed:", pickupError);
     }
+  }
 
   // Step 5: Create payout record
   try {
@@ -226,7 +232,7 @@ const createPurchaseOrder = async (req, res) => {
         purchase_order.payout.account_type || null,
         purchase_order.payout.routing_number || null,
         purchase_order.payout.account_number || null,
-        purchase_order.payout.payout_email || null
+        purchase_order.payout.payout_email || null,
       ]
     );
   } catch (payoutError) {
