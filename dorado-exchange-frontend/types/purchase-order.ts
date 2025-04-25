@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { Scrap } from './scrap';
 import { Product } from './product';
+import { Dispatch } from 'react';
+import { User } from './user';
 
 export interface PurchaseOrderItem {
   item_type: string,
@@ -63,48 +65,96 @@ export const statusConfig: Record<
   {
     text_color: string;
     background_color: string;
-    icon: React.ElementType; // still a component, not JSX
+    icon: React.ElementType;
+    value_label: string;
   }
 > = {
   'In Transit': {
     background_color: 'bg-cyan-300',
     text_color: 'text-cyan-300',
     icon: Truck,
+    value_label: 'Estimate',
   },
   Unsettled: {
     background_color: 'bg-fuchsia-400',
     text_color: 'text-fuchsia-400',
     icon: PackageOpen,
+    value_label: 'Estimate',
   },
   Filled: {
     background_color: 'bg-yellow-400',
     text_color: 'text-yellow-400',
     icon: FlaskConical,
+    value_label: 'Offer',
   },
   Accepted: {
     background_color: 'bg-orange-500',
     text_color: 'text-orange-500',
     icon: CheckCheck,
+    value_label: 'Payout',
   },
   Rejected: {
     background_color: 'bg-rose-400',
     text_color: 'text-rose-400',
     icon: X,
+    value_label: 'Offer',
   },
   Settled: {
     background_color: 'bg-sky-600',
     text_color: 'text-sky-600',
     icon: CreditCard,
+    value_label: 'Payout',
   },
   Cancelled: {
     background_color: 'bg-red-600',
     text_color: 'text-red-600',
     icon: Ban,
+    value_label: '',
   },
   Completed: {
     background_color: 'bg-green-500',
     text_color: 'text-green-500',
     icon: ShieldCheck,
+    value_label: 'Payout',
   },
-};
+}
+
+export interface PurchaseOrderDrawerProps {
+  order: PurchaseOrder
+  user: User
+  isOrderActive: boolean
+  setIsOrderActive: Dispatch<React.SetStateAction<boolean>>
+}
+
+export interface PurchaseOrderDrawerHeaderProps {
+  order: PurchaseOrder
+  username: string
+}
+
+export interface PurchaseOrderDrawerContentProps {
+  order: PurchaseOrder
+}
+
+export interface PurchaseOrderDrawerFooterProps {
+  order: PurchaseOrder
+}
+
+function getValueLabel(status: string): string {
+  switch (status) {
+    case 'In Transit':
+    case 'Unsettled':
+      return 'Estimate'
+    case 'Filled':
+    case 'Rejected':
+      return 'Offer'
+    case 'Accepted':
+    case 'Settled':
+    case 'Completed':
+      return 'Payout'
+    case 'Cancelled':
+    default:
+      return 'N/A'
+  }
+}
+
 

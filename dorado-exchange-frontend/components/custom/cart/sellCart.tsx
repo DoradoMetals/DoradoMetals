@@ -7,13 +7,13 @@ import Link from 'next/link'
 import NumberFlow from '@number-flow/react'
 import { sellCartStore } from '@/store/sellCartStore'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import getProductPrice from '@/utils/getProductPrice'
 import PriceNumberFlow from '../products/PriceNumberFlow'
 import { useRouter } from 'next/navigation'
 import getScrapPrice from '@/utils/getScrapPrice'
 import { getGrossLabel, getPurityLabel, Scrap } from '@/types/scrap'
 import { Product } from '@/types/product'
 import { Dispatch } from 'react'
+import getProductBidPrice from '@/utils/getProductBidPrice'
 
 export default function SellCart({
   setIsCartActive,
@@ -33,7 +33,7 @@ export default function SellCart({
   const total = items.reduce((acc, item) => {
     if (item.type === 'product') {
       const spot = spotPrices.find((s) => s.type === item.data.metal_type)
-      const price = getProductPrice(item.data, spot)
+      const price = getProductBidPrice(item.data, spot)
       const quantity = item.data.quantity ?? 1
       return acc + price * quantity
     }
@@ -77,7 +77,7 @@ export default function SellCart({
 
   const renderProductItem = (item: Product, index: number) => {
     const spot = spotPrices.find((s) => s.type === item.metal_type)
-    const price = getProductPrice(item, spot)
+    const price = getProductBidPrice(item, spot)
     const quantity = item.quantity ?? 1
 
     return (

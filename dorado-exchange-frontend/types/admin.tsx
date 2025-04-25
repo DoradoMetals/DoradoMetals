@@ -160,18 +160,18 @@ export const statusConfig: Record<
   },
 };
 
-export interface PurchaseOrderDrawerProps {
+export interface AdminPurchaseOrderDrawerProps {
   order: AdminPurchaseOrder
   user_id: string 
   isOrderActive: boolean
   setIsOrderActive: Dispatch<React.SetStateAction<boolean>>
 }
 
-export interface PurchaseOrderDrawerHeaderProps {
+export interface AdminPurchaseOrderDrawerHeaderProps {
   order: AdminPurchaseOrder
   username: string
 }
 
-export interface PurchaseOrderDrawerContentProps {
+export interface AdminPurchaseOrderDrawerContentProps {
   order: AdminPurchaseOrder
 }

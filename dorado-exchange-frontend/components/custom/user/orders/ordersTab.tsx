@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Dispatch, useEffect, useState } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { DollarSign, Package } from 'lucide-react'
@@ -9,13 +9,17 @@ import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
 import { usePurchaseOrders } from '@/lib/queries/usePurchaseOrder'
 import { cn } from '@/lib/utils'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import getProductPrice from '@/utils/getProductPrice'
 import getScrapPrice from '@/utils/getScrapPrice'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { formatFullDate } from '@/utils/dateFormatting'
+import { useUser } from '@/lib/authClient'
+import PurchaseOrderDrawer from './purchaseOrderDrawer/purchaseOrderDrawer'
+import { User } from '@/types/user'
+import { useGetSession } from '@/lib/queries/useAuth'
+import getProductBidPrice from '@/utils/getProductBidPrice'
 
 export function OrdersTabs() {
-  const { data: purchaseOrders = [], isLoading } = usePurchaseOrders()
+  const { user } = useGetSession()
 
   return (
     <div>
@@ -42,7 +46,11 @@ export function OrdersTabs() {
           </TabsContent>
 
           <TabsContent value="sold">
-            <PurchaseOrdersContent orders={purchaseOrders} isLoading={isLoading} />
+            {user ? (
+              <PurchaseOrdersContent user={user} />
+            ) : (
+              <div>Please sign in to see orders.</div>
+            )}
           </TabsContent>
         </div>
       </Tabs>
@@ -50,13 +58,11 @@ export function OrdersTabs() {
   )
 }
 
-function PurchaseOrdersContent({
-  orders,
-  isLoading,
-}: {
-  orders: PurchaseOrder[]
-  isLoading: boolean
-}) {
+function PurchaseOrdersContent({ user }: { user: User }) {
+  const { data: orders = [], isLoading } = usePurchaseOrders()
+
+  const [isPurchaseOrderActive, setIsPurchaseOrderActive] = useState(false)
+  const [activePurchaseOrder, setActivePurchaseOrder] = useState<PurchaseOrder | null>(null)
   const { data: spotPrices = [] } = useSpotPrices()
 
   if (isLoading) {
@@ -86,7 +92,7 @@ function PurchaseOrdersContent({
           order.order_items?.reduce((acc, item) => {
             if (item.product && item.item_type === 'product') {
               const spot = spotPrices.find((s) => s.type === item.product?.metal_type)
-              const price = getProductPrice(item.product, spot)
+              const price = getProductBidPrice(item.product, spot)
               const quantity = item?.product?.quantity ?? item.quantity ?? 1
               return acc + price * quantity
             }
@@ -105,15 +111,17 @@ function PurchaseOrdersContent({
             className="border-b py-4 flex flex-col gap-4 text-sm text-neutral-800"
           >
             <div className="flex justify-between items-center">
-              <span className="text-neutral-800 text-base">
-                {formatFullDate(order.created_at)}
-              </span>
+              <span className="text-neutral-800 text-base">{formatFullDate(order.created_at)}</span>
               <Button
                 variant="link"
                 className={cn(
                   'p-0 h-auto text-sm font-normal',
                   statusConfig[order.purchase_order_status]?.text_color
                 )}
+                onClick={() => {
+                  setActivePurchaseOrder(order)
+                  setIsPurchaseOrderActive(true)
+                }}
               >
                 View Order
               </Button>
@@ -136,6 +144,14 @@ function PurchaseOrdersContent({
           </div>
         )
       })}
+      {activePurchaseOrder && (
+        <PurchaseOrderDrawer
+          order={activePurchaseOrder}
+          user={user}
+          isOrderActive={isPurchaseOrderActive}
+          setIsOrderActive={setIsPurchaseOrderActive}
+        />
+      )}
     </div>
   )
 }

@@ -14,9 +14,9 @@ import { sellCartStore } from '@/store/sellCartStore'
 import { cn } from '@/lib/utils'
 import { SellCartItem } from '@/types/sellCart'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
-import getProductPrice from '@/utils/getProductPrice'
 import getScrapPrice from '@/utils/getScrapPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
+import getProductBidPrice from '@/utils/getProductBidPrice'
 
 export default function ReviewItemTables() {
   const { data: spotPrices = [] } = useSpotPrices()
@@ -28,7 +28,7 @@ export default function ReviewItemTables() {
   const total = items.reduce((acc, item) => {
     if (item.type === 'product') {
       const spot = spotPrices.find((s) => s.type === item.data.metal_type)
-      const price = getProductPrice(item.data, spot)
+      const price = getProductBidPrice(item.data, spot)
       const quantity = item.data.quantity ?? 1
       return acc + price * quantity
     }
@@ -52,7 +52,7 @@ export default function ReviewItemTables() {
   const bullionTotal = useMemo(() => {
     return bullionItems.reduce((acc, item) => {
       const spot = spotPrices.find((s) => s.type === item.data.metal_type)
-      return acc + getProductPrice(item.data, spot) * (item.data.quantity ?? 1)
+      return acc + getProductBidPrice(item.data, spot) * (item.data.quantity ?? 1)
     }, 0)
   }, [bullionItems, spotPrices])
 
