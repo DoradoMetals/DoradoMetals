@@ -2,22 +2,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { Address } from '@/types/address'
 import { useGetSession } from './useAuth'
-import { PurchaseOrderCheckout } from '@/types/purchase-order'
+import { PurchaseOrder, PurchaseOrderCheckout } from '@/types/purchase-order'
 
-// export const usePurchaseOrders = () => {
-//   const { user } = useGetSession()
+export const usePurchaseOrders = () => {
+  const { user } = useGetSession()
 
-//   return useQuery<Address[]>({
-//     queryKey: ['purchase_orders', user],
-//     queryFn: async () => {
-//       if (!user?.id) return []
-//       return await apiRequest<Address[]>('GET', '/addresses/get_addresses', undefined, {
-//         user_id: user.id,
-//       })
-//     },
-//     enabled: !!user,
-//   })
-// }
+  return useQuery<PurchaseOrder[]>({
+    queryKey: ['purchase_orders', user],
+    queryFn: async () => {
+      if (!user?.id) return []
+      return await apiRequest<PurchaseOrder[]>('GET', '/purchase_orders/get_purchase_orders', undefined, {
+        user_id: user.id,
+      })
+    },
+    enabled: !!user,
+  })
+}
 
 export const useCreatePurchaseOrder = () => {
   const { user } = useGetSession()

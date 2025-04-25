@@ -7,6 +7,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import AccountTab from "./account/accountTab"
+import { OrdersTabs } from "./orders/ordersTab";
 
 
 export function UserTabs() {
@@ -26,7 +27,7 @@ export function UserTabs() {
 
       </TabsContent>
       <TabsContent value="orders">
-
+        <OrdersTabs />
       </TabsContent>
       <TabsContent value="support">
 

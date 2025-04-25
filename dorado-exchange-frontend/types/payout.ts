@@ -2,6 +2,20 @@
 import { z } from 'zod'
 import { Landmark, CreditCard, PiggyBank, Mail, GlobeLock } from 'lucide-react'
 
+export interface Payout {
+  id: string,
+  user_id: string,
+  order_id: string,
+  method: string,
+  account_holder_name: string,
+  bank_name?: string,
+  account_type?: string,
+  routing_number?: string,
+  account_number?: string,
+  created_at: Date,
+  email_to?: string,
+}
+
 export const echeckSchema = z.object({
   account_holder_name: z.string().min(1, 'Addressed to name required'),
   payout_email: z.string().email('Valid email required'),
@@ -44,7 +58,7 @@ export const payoutSchema = z.union([
   z.object({ method: z.literal('ECHECK') }).and(echeckSchema),
 ])
 
-export type Payout =
+export type PayoutInput =
   | ({ method: 'ACH' } & AchPayout)
   | ({ method: 'WIRE' } & WirePayout)
   | ({ method: 'ECHECK' } & EcheckPayout)

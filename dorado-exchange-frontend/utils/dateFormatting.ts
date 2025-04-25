@@ -32,3 +32,10 @@ export function formatTimeDiff(deliveryTime: string | Date): string {
 
   return [dayPart, hourPart].filter(Boolean).join(' and ')
 }
+
+export function formatFullDate(date?: string | Date): string {
+  if (!date) return 'N/A'
+  const parsedDate = typeof date === 'string' ? new Date(date) : date
+  if (!isValid(parsedDate)) return 'N/A'
+  return format(parsedDate, 'MMMM do, yyyy')
+}
