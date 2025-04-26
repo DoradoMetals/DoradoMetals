@@ -51,7 +51,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
   return (
     <div className="flex flex-col w-full gap-2">
       {buttons.map((button, index) => {
-        const isTransparentStyle = buttons.length > 1
+        const isTransparentStyle = index === 1
 
         return (
           <Button
