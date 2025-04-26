@@ -61,7 +61,7 @@ function PurchaseOrdersContent({ user }: { user: User }) {
   const { data: orders = [], isLoading } = usePurchaseOrders()
 
   const [isPurchaseOrderActive, setIsPurchaseOrderActive] = useState(false)
-  const [activePurchaseOrder, setActivePurchaseOrder] = useState<PurchaseOrder | null>(null)
+  const [activePurchaseOrder, setActivePurchaseOrder] = useState<string | null>(null)
   const { data: spotPrices = [] } = useSpotPrices()
 
   if (isLoading) {
@@ -118,7 +118,7 @@ function PurchaseOrdersContent({ user }: { user: User }) {
                   statusConfig[order.purchase_order_status]?.text_color
                 )}
                 onClick={() => {
-                  setActivePurchaseOrder(order)
+                  setActivePurchaseOrder(order.id)
                   setIsPurchaseOrderActive(true)
                 }}
               >
@@ -145,7 +145,7 @@ function PurchaseOrdersContent({ user }: { user: User }) {
       })}
       {activePurchaseOrder && (
         <PurchaseOrderDrawer
-          order={activePurchaseOrder}
+          order_id={activePurchaseOrder}
           user={user}
           user_id={user?.id ?? ''}
           isOrderActive={isPurchaseOrderActive}

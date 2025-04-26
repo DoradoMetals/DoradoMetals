@@ -21,7 +21,7 @@ export default function AdminPurchaseOrderDrawer({
   const order = purchaseOrders.find((po) => po.id === order_id)
 
   if (!order) {
-    return null // or loading spinner if you want
+    return null
   }
 
   return (

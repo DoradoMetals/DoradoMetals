@@ -143,8 +143,7 @@ export const statusConfig: Record<
 
 export interface PurchaseOrderDrawerProps {
   user_id?: string
-  order?: PurchaseOrder
-  order_id?: string,
+  order_id: string,
   user?: User
   isOrderActive: boolean
   setIsOrderActive: Dispatch<React.SetStateAction<boolean>>
