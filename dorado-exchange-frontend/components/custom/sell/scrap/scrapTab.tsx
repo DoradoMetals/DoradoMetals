@@ -69,7 +69,6 @@ export default function ScrapFormStepper() {
     const content =
       convertTroyOz(values.gross ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
     const price = getScrapPrice(content, spot)
-    console.log(values)
     const item = {
       type: 'scrap' as const,
       data: {

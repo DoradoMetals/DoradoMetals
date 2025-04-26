@@ -1,4 +1,3 @@
-import { AdminPurchaseOrderDrawerContentProps } from '@/types/admin'
 import AdminInTransitPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminInTransit'
 import AdminUnsettledPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminUnsettled'
 import AdminFilledPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminFilled'
@@ -7,9 +6,10 @@ import AdminRejectedPurchaseOrder from './adminPurchaseOrderDrawerContents/Admin
 import AdminSettledPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminSettled'
 import AdminCancelledPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminCancelled'
 import AdminCompletedPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminCompleted'
+import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 
-export default function AdminPurchaseOrderDrawerContent({ order }: AdminPurchaseOrderDrawerContentProps) {
-  switch (order.order_status) {
+export default function AdminPurchaseOrderDrawerContent({ order }: PurchaseOrderDrawerContentProps) {
+  switch (order.purchase_order_status) {
     case 'In Transit':
       return <AdminInTransitPurchaseOrder order={order} />
     case 'Unsettled':

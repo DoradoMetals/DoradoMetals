@@ -299,10 +299,9 @@ const checkFedexPickupAvailability = async (req, res) => {
   try {
     const token = await getFedExAccessToken();
 
-    // Calculate 2 hours from now, in HH:mm:ss
     const now = new Date();
     const readyDate = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-    const packageReadyTime = readyDate.toTimeString().split(" ")[0]; // "HH:mm:ss"
+    const packageReadyTime = readyDate.toTimeString().split(" ")[0];
 
     const pickupPayload = {
       pickupAddress: customerAddress,

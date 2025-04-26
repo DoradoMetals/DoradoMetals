@@ -13,10 +13,11 @@ import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getProductBidPrice from '@/utils/getProductBidPrice'
 import { assignScrapItemNames } from '@/types/scrap'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
 
-export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
-  const valueLabel = statusConfig[order.purchase_order_status]?.value_label
-  const statusColor = statusConfig[order.purchase_order_status]?.text_color
+export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
+  const valueLabel = statusConfig[order.purchase_order_status]?.value_label ?? ''
+  const statusColor = statusConfig[order.purchase_order_status]?.text_color ?? ''
 
   const { data: spotPrices = [] } = useSpotPrices()
 
@@ -168,12 +169,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
           </div>
         </div>
       </Accordion>
-      <div className="flex w-full justify-between items-center mt-3">
-        <div className="text-sm text-neutral-700">Questions? Give us a call.</div>
-        <a href={`tel:+${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`} className={cn('text-sm hover:underline', statusColor)}>
-          {formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}
-        </a>
-      </div>
+      <PurchaseOrderActionButtons order={order} />
     </div>
   )
 }

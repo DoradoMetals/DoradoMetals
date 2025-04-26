@@ -25,7 +25,6 @@ export const useCreatePurchaseOrder = () => {
 
   return useMutation({
     mutationFn: async (purchase_order: PurchaseOrderCheckout) => {
-      console.log(purchase_order)
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<PurchaseOrderCheckout>('POST', '/purchase_orders/create_purchase_order', {
         user_id: user.id,

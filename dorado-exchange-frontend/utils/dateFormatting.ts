@@ -12,9 +12,23 @@ export function formatPickupDate(date?: string): string {
   return format(parseISO(date), 'EEEE, MMMM do')
 }
 
+export function formatPickupDateTime(date?: string | Date): string {
+  if (!date) return 'N/A'
+  const parsed = typeof date === 'string' ? parseISO(date) : date
+  if (!isValid(parsed)) return 'N/A'
+  return `${format(parsed, 'h:mmaaa')} on ${format(parsed, 'MMMM do')}`
+}
+
 export function formatPickupDateShort(date?: string): string {
   if (!date) return 'N/A'
   return format(parseISO(date), 'MMMM do') // ex: April 23rd
+}
+
+export function formatDateWithTimeInParens(date?: string | Date): string {
+  if (!date) return 'N/A'
+  const parsed = typeof date === 'string' ? parseISO(date) : date
+  if (!isValid(parsed)) return 'N/A'
+  return `${format(parsed, 'MMMM do')} (${format(parsed, 'h:mm a')})`
 }
 
 export function formatTimeDiff(deliveryTime: string | Date): string {

@@ -1,12 +1,12 @@
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
-import { statusConfig } from '@/types/admin'
+import { statusConfig } from '@/types/purchase-order'
 import { Fragment } from 'react'
 
 export default function PurchaseOrderCards() {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
 
   const statusCounts = purchaseOrders.reduce<Record<string, number>>((acc, order) => {
-    const status = order.order_status
+    const status = order.purchase_order_status
     acc[status] = (acc[status] || 0) + 1
     return acc
   }, {})
@@ -23,7 +23,7 @@ export default function PurchaseOrderCards() {
   ]
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
       {orderedStatuses.map((status) => {
         const config = statusConfig[status]
         if (!config) return <Fragment key={status} />
@@ -34,7 +34,7 @@ export default function PurchaseOrderCards() {
         return (
           <div
             key={status}
-            className="hidden sm:flex items-center justify-between rounded-lg p-4  bg-card shadow-lg"
+            className="hidden sm:flex items-center justify-between rounded-lg p-4 bg-card shadow-lg mt-4"
           >
             <div className="flex w-full items-center gap-2 justify-between">
               <Icon size={42} className={config.text_color} />

@@ -39,29 +39,34 @@ export function AdminTabs() {
             </Tabs>
           </TabsContent>
 
-          <TabsContent value="orders">
-            <Tabs defaultValue="purchase-orders" className="mt-3">
-              <TabsList className="justify-center h-auto w-full gap-2 rounded-none border-b border-border bg-transparent px-0 py-1 text-foreground">
-                <TabsTrigger
-                  value="purchase-orders"
-                  className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-                >
-                  Purchase Orders
-                </TabsTrigger>
-                <TabsTrigger
-                  value="sales-orders"
-                  className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-                >
-                  Sales Orders
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="purchase-orders">
-                <div className="space-y-4">
-                  <PurchaseOrderCards />
-                  <PurchaseOrdersTable />
-                </div>
-              </TabsContent>
-              <TabsContent value="sales-orders"></TabsContent>
+          <TabsContent value="orders" className='max-w-4xl'>
+            <Tabs
+              defaultValue="purchase-orders"
+              className="mt-3 flex justify-center items-center"
+            >
+              <div className="flex flex-col w-full justify-center gap-3">
+                <TabsList className="justify-center h-auto w-full gap-2 rounded-none border-b border-border bg-transparent px-0 py-1 text-foreground">
+                  <TabsTrigger
+                    value="purchase-orders"
+                    className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
+                  >
+                    Purchase Orders
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="sales-orders"
+                    className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
+                  >
+                    Sales Orders
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="purchase-orders">
+                  <div className="space-y-4 justify-center">
+                    <PurchaseOrderCards />
+                    <PurchaseOrdersTable />
+                  </div>
+                </TabsContent>
+                <TabsContent value="sales-orders"></TabsContent>
+              </div>
             </Tabs>
           </TabsContent>
 

@@ -7,7 +7,7 @@ const addressRoutes = require("./routes/addresses");
 const cartRoutes = require("./routes/carts");
 const sellCartRoutes = require("./routes/sell-carts");
 const adminRoutes = require("./routes/admin");
-const shippingRoutes = require("./routes/shipping")
+const shippingRoutes = require("./routes/shipping");
 const purchaseOrderRoutes = require("./routes/purchase-orders");
 
 const spotRoutes = require("./routes/spots");
@@ -16,7 +16,7 @@ const { auth } = require("./auth");
 const { setupScheduler } = require("./services/scheduler");
 
 dotenv.config();
- 
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -50,5 +50,4 @@ app.use((req, res, next) => {
   next();
 });
 
-app.listen(PORT, () => {
-});
+app.listen(PORT, () => {});

@@ -21,13 +21,11 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, Notebook } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { TableFilterSelect } from '../../../table/filterSelect'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
 import { TableSearchSelect } from '@/components/table/filterSelectSearch'
 import { UserDetailsDialog } from '../usersPoS/usersModal'
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
-import { AdminPurchaseOrder, statusConfig } from '@/types/admin'
 import {
   Dialog,
   DialogContent,
@@ -38,26 +36,21 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import PurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
-
-const statusColorMap: Record<string, string> = {
-  Transit: 'bg-fuchsia-200 text-fuchsia-700',
-  Unsettled: 'bg-rose-200 text-rose-700',
-  Filled: 'bg-yellow-200 text-yellow-700',
-  Confirmed: 'bg-cyan-200 text-cyan-700',
-  Settled: 'bg-orange-200 text-orange-700',
-  Completed: 'bg-emerald-200 text-emerald-700',
-}
+import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
+import { useUser } from '@/lib/authClient'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 export default function PurchaseOrdersTable() {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
+  const { user } = useGetSession();
 
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 8 })
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [activeOrder, setActiveOrder] = useState<AdminPurchaseOrder | null>(null)
+  const [activeOrder, setActiveOrder] = useState<string | null>(null)
   const [activeUser, setActiveUser] = useState<string | null>(null)
   const [isOrderActive, setIsOrderActive] = useState(false)
 
-  const columns: ColumnDef<AdminPurchaseOrder>[] = [
+  const columns: ColumnDef<PurchaseOrder>[] = [
     {
       id: 'order_number',
       header: function Header({ column }) {
@@ -86,8 +79,8 @@ export default function PurchaseOrdersTable() {
       filterFn: 'includesString',
       cell: ({ row }) => {
         const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
-        const config = statusConfig[row.original.order_status]
-        if (!config) return <Fragment key={row.original.order_status} />
+        const config = statusConfig[row.original.purchase_order_status]
+        if (!config) return <Fragment key={row.original.purchase_order_status} />
 
         return (
           <div className="flex justify-center">
@@ -97,7 +90,7 @@ export default function PurchaseOrdersTable() {
               className={`flex items-center justify-center bg-transparent hover:bg-transparent ${config.text_color}`}
               onClick={() => {
                 setIsOrderActive(true)
-                setActiveOrder(row.original)
+                setActiveOrder(row.original.id)
                 setActiveUser(row.original.user_id)
               }}
             >
@@ -109,7 +102,7 @@ export default function PurchaseOrdersTable() {
     },
 
     {
-      id: 'username',
+      id: 'user.user_name',
       header: function Header({ column }) {
         const anchorRef = useRef<HTMLDivElement>(null)
 
@@ -119,7 +112,7 @@ export default function PurchaseOrdersTable() {
         }, [column])
 
         return (
-          <div ref={anchorRef} className="flex items-center justify-center sm:justify-end gap-1 h-full">
+          <div ref={anchorRef} className="flex items-center justify-center gap-1 h-full">
             <span className="text-xs text-neutral-600">User</span>
             <TableSearchSelect
               column={column}
@@ -130,22 +123,22 @@ export default function PurchaseOrdersTable() {
           </div>
         )
       },
-      accessorKey: 'username',
+      accessorKey: 'user.user_name',
       enableColumnFilter: true,
       enableHiding: false,
       filterFn: 'includesString',
       cell: ({ row }) => {
         const [userDialogOpen, setUserDialogOpen] = useState(false)
-        const config = statusConfig[row.original.order_status]
-        if (!config) return <Fragment key={row.original.order_status} />
+        const config = statusConfig[row.original.purchase_order_status]
+        if (!config) return <Fragment key={row.original.purchase_order_status} />
 
         return (
-          <div className="flex justify-center sm:justify-end">
+          <div className="flex justify-center">
             <UserDetailsDialog
               open={userDialogOpen}
               setOpen={setUserDialogOpen}
               user_id={row.original.user_id}
-              username={row.original.username}
+              username={row.original.user.user_name}
               color={config.text_color}
             />
           </div>
@@ -175,7 +168,7 @@ export default function PurchaseOrdersTable() {
       },
     },
     {
-      id: 'order_status',
+      id: 'purchase_order_status',
       header: function Header({ column }) {
         const anchorRef = useRef<HTMLDivElement>(null)
         const uniqueStatuses = React.useMemo(() => {
@@ -190,13 +183,13 @@ export default function PurchaseOrdersTable() {
           </div>
         )
       },
-      accessorKey: 'order_status',
+      accessorKey: 'purchase_order_status',
       enableColumnFilter: true,
       enableHiding: false,
       filterFn: 'includesString',
       cell: ({ row }) => {
-        const config = statusConfig[row.original.order_status]
-        if (!config) return <Fragment key={row.original.order_status} />
+        const config = statusConfig[row.original.purchase_order_status]
+        if (!config) return <Fragment key={row.original.purchase_order_status} />
         const Icon = config.icon
         return (
           <div className="flex justify-center">
@@ -239,8 +232,8 @@ export default function PurchaseOrdersTable() {
       cell: ({ row }) => {
         const [open, setOpen] = React.useState(false)
         const [value, setValue] = React.useState(row.original.notes)
-        const config = statusConfig[row.original.order_status]
-        if (!config) return <Fragment key={row.original.order_status} />
+        const config = statusConfig[row.original.purchase_order_status]
+        if (!config) return <Fragment key={row.original.purchase_order_status} />
 
         return (
           <div className='hidden sm:flex'>
@@ -358,7 +351,7 @@ export default function PurchaseOrdersTable() {
       </div>
       {activeOrder && (
         <PurchaseOrderDrawer
-          order={activeOrder}
+          order_id={activeOrder}
           user_id={activeUser ?? ''}
           isOrderActive={isOrderActive}
           setIsOrderActive={setIsOrderActive}

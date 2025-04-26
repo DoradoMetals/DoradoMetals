@@ -79,22 +79,22 @@ export const packageOptions: Record<string, Package> = {
     icon: Package,
     insured: true,
   },
-  'Small': {
-    label: 'Small',
+  'Small Box': {
+    label: 'Small Box',
     weight: { units: 'LB', value: 2 },
     dimensions: { length: 10.5, width: 8, height: 1.5, units: 'IN' },
     icon: Inbox,
     insured: false,
   },
-  'Medium': {
-    label: 'Medium',
+  'Medium Box': {
+    label: 'Medium Box',
     weight: { units: 'LB', value: 5 },
     dimensions: { length: 12, width: 10, height: 4, units: 'IN' },
     icon: Package2,
     insured: false,
   },
-  'Large': {
-    label: 'Large',
+  'Large Box': {
+    label: 'Large Box',
     weight: { units: 'LB', value: 10 },
     dimensions: { length: 18, width: 14, height: 6, units: 'IN' },
     icon: Package,

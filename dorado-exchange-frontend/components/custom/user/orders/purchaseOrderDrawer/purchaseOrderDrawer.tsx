@@ -15,11 +15,13 @@ export default function PurchaseOrderDrawer({
 
   return (
     <OrderDrawer open={isOrderActive} setOpen={setIsOrderActive}>
-      <div className="flex flex-col h-full space-y-4 p-5">
-        <PurchaseOrderDrawerHeader order={order} username={user?.name ?? ''} />
+      
+      <div className="flex flex-col h-full space-y-4 p-5 flex-1 overflow-y-scroll scrollbar-gutter-stable pb-30 lg:pb-5">
+        
+        <PurchaseOrderDrawerHeader order={order} username={user?.name ?? ''} setIsOrderActive={setIsOrderActive} />
         <PurchaseOrderDrawerContent order={order} />
 
-        <div className="lg:mt-auto">
+       <div className="mt-auto">
           <PurchaseOrderDrawerFooter order={order} />
         </div>
       </div>

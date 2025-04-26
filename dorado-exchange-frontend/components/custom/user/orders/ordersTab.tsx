@@ -1,9 +1,9 @@
 'use client'
 
-import { Dispatch, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { DollarSign, Package } from 'lucide-react'
+import { DollarSign } from 'lucide-react'
 
 import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
 import { usePurchaseOrders } from '@/lib/queries/usePurchaseOrder'
@@ -12,7 +12,6 @@ import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getScrapPrice from '@/utils/getScrapPrice'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { formatFullDate } from '@/utils/dateFormatting'
-import { useUser } from '@/lib/authClient'
 import PurchaseOrderDrawer from './purchaseOrderDrawer/purchaseOrderDrawer'
 import { User } from '@/types/user'
 import { useGetSession } from '@/lib/queries/useAuth'
@@ -148,6 +147,7 @@ function PurchaseOrdersContent({ user }: { user: User }) {
         <PurchaseOrderDrawer
           order={activePurchaseOrder}
           user={user}
+          user_id={user?.id ?? ''}
           isOrderActive={isPurchaseOrderActive}
           setIsOrderActive={setIsPurchaseOrderActive}
         />

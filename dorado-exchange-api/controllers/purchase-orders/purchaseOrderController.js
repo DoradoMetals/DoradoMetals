@@ -10,8 +10,7 @@ const getPurchaseOrders = async (req, res) => {
   const { user_id } = req.query;
 
   try {
-    const query = 
-    `
+    const query = `
       SELECT 
         po.*,
         json_agg(DISTINCT jsonb_build_object(
@@ -47,7 +46,21 @@ const getPurchaseOrders = async (req, res) => {
           )
         )) AS order_items,
         to_jsonb(addr) AS address,
-        to_jsonb(ship) AS shipment,
+        jsonb_build_object(
+          'id', ship.id,
+          'order_id', ship.order_id,
+          'tracking_number', ship.tracking_number,
+          'carrier', ship.carrier,
+          'shipping_status', ship.shipping_status,
+          'estimated_delivery', ship.estimated_delivery,
+          'shipped_at', ship.shipped_at,
+          'delivered_at', ship.delivered_at,
+          'created_at', ship.created_at,
+          'label_type', ship.label_type,
+          'pickup_type', ship.pickup_type,
+          'package', ship.package,
+          'shipping_label', encode(ship.shipping_label, 'base64')
+        ) AS shipment,
         to_jsonb(cp) AS carrier_pickup,
         to_jsonb(pay) AS payout
       FROM exchange.purchase_orders po
@@ -141,29 +154,36 @@ const createPurchaseOrder = async (req, res) => {
     labelFileBase64 = labelData.labelFile;
 
     if (trackingNumber && labelFileBase64) {
+      let shipping_status = ''
       const labelBuffer = Buffer.from(labelFileBase64, "base64");
-
+      if (purchase_order.pickup.name === 'Carrier Pickup') {
+        shipping_status = 'Waiting for Pickup'
+      } {
+        'Waiting for Dropoff'
+      }
       await pool.query(
-        `
-      INSERT INTO exchange.inbound_shipments (
-        order_id,
-        tracking_number,
-        carrier,
-        shipping_status,
-        created_at,
-        shipping_label,
-        label_type,
-        pickup_type
-      )
-      VALUES ($1, $2, $3, 'label_created', NOW(), $4, $5, $6)
-    `,
+      `
+        INSERT INTO exchange.inbound_shipments (
+          order_id,
+          tracking_number,
+          carrier,
+          shipping_status,
+          shipping_label,
+          label_type,
+          pickup_type,
+          package
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `,
         [
           purchase_order_id,
           trackingNumber,
           "FedEx",
+          shipping_status,
           labelBuffer,
           "Generated",
           purchase_order.pickup?.name || "Unknown",
+          purchase_order.package.label
         ]
       );
     }

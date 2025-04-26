@@ -69,9 +69,9 @@ export function TableSearchSelect<TData>({
               <span>All</span>
               {!selected && <Check className="ml-auto h-4 w-4 opacity-100" />}
             </CommandItem>
-            {options.map((option) => (
+            {options.map((option, index) => (
               <CommandItem
-                key={option}
+                key={index}
                 onSelect={() => {
                   column.setFilterValue(option)
                   setOpen(false)

@@ -1,6 +1,6 @@
-import { AdminPurchaseOrderDrawerContentProps } from "@/types/admin";
+import { PurchaseOrderDrawerContentProps } from "@/types/purchase-order";
 
-export default function AdminCancelledPurchaseOrder({order} : AdminPurchaseOrderDrawerContentProps) {
+export default function AdminCancelledPurchaseOrder({order} : PurchaseOrderDrawerContentProps) {
   return (
     <>
       Cancelled

@@ -37,7 +37,7 @@ const OrderDrawer: FC<Props> = ({ open, setOpen, children, anchor = 'right' }) =
             animate={{ x: '0%' }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className={`fixed right-0 top-26 sm:top-0 z-[70] h-full w-full sm:w-1/4 bg-card sm:shadow-lg`}
+            className={`fixed right-0 top-26 sm:top-0 z-[70] h-full w-full sm:w-1/2 md:w-1/2 lg:w-1/3 xl:w-1/4 bg-card sm:shadow-lg border-t-1 border-border`}
           >
             {children}
           </motion.div>

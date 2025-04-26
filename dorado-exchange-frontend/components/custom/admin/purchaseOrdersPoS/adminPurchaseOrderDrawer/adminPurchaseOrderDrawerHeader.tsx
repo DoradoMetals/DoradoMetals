@@ -1,15 +1,16 @@
 import { Button } from '@/components/ui/button'
-import { statusConfig, AdminPurchaseOrderDrawerHeaderProps } from '@/types/admin'
+import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
+import { CheckCheck } from 'lucide-react'
 
 export default function PurchaseOrderDrawerHeader({
   order,
   username,
-}: AdminPurchaseOrderDrawerHeaderProps) {
+}: PurchaseOrderDrawerHeaderProps) {
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
 
-  const status = statusConfig[order.order_status]
-  const Icon = status?.icon
+  const status = statusConfig[order.purchase_order_status] ?? ''
+  const Icon = status?.icon ?? CheckCheck
 
   return (
     <div className="flex flex-col w-full gap-6 border-b-1 border-border">
@@ -26,7 +27,7 @@ export default function PurchaseOrderDrawerHeader({
               <Icon size={24} />
             </div>
           )}
-          <span className="text-2xl text-neutral-800">{order.order_status}</span>
+          <span className="text-2xl text-neutral-800">{order.purchase_order_status}</span>
         </div>
         <div className="flex ml-auto">
           <Button

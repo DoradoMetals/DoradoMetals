@@ -193,5 +193,19 @@ export type FedexLocationsReturn = {
   locations: FedexLocation[]
 }
 
+export type FedexScanEventItem = {
+  status: string,
+  location: string,
+  scan_time: Date,
+}
+
+export type ShipmentTracking = {
+  id: string,
+  tracking_number: string,
+  shipping_status: string,
+  estimated_delivery: Date,
+  delivered_at: Date,
+  scan_events: FedexScanEventItem[]
+}
 
 

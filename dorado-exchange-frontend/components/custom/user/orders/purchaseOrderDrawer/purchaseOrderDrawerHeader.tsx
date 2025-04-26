@@ -2,10 +2,12 @@ import { Button } from '@/components/ui/button'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
 import { formatFullDate } from '@/utils/dateFormatting'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
+import { X } from 'lucide-react'
 
 export default function PurchaseOrderDrawerHeader({
   order,
   username,
+  setIsOrderActive
 }: PurchaseOrderDrawerHeaderProps) {
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
 
@@ -13,7 +15,9 @@ export default function PurchaseOrderDrawerHeader({
   const Icon = status?.icon
 
   return (
-    <div className="flex flex-col w-full gap-6 border-b-1 border-border">
+    <div className="flex flex-col w-full border-b-1 border-border">
+
+
       <div className="flex w-full justify-between items-center">
         <div className="text-base text-neutral-800">{formatFullDate(order.created_at)}</div>
 
@@ -35,14 +39,14 @@ export default function PurchaseOrderDrawerHeader({
               variant="link"
               className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
             >
-              View Packing List
+              Packing List
             </Button>
           ) : (
             <Button
               variant="link"
               className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
             >
-              View Invoice
+              Invoice
             </Button>
           )}
         </div>

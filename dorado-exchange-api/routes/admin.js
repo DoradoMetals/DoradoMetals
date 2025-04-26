@@ -2,7 +2,7 @@ const express = require("express");
 const { getAllProducts, getAllMetals, getAllSuppliers, getAllMints, getAllTypes, saveProduct, deleteProduct, createProduct } = require("../controllers/admin/adminProductsController");
 const { getAllScrap } = require("../controllers/admin/adminScrapController");
 const { getUser } = require("../controllers/admin/adminUserController");
-const { getAllPurchaseOrders } = require("../controllers/admin/adminPurchaseOrdersController");
+const { getAllPurchaseOrders, changePurchaseOrderStatus } = require("../controllers/admin/adminPurchaseOrdersController");
 
 const router = express.Router();
 
@@ -23,6 +23,7 @@ router.get("/get_scrap", getAllScrap);
 router.get("/get_user", getUser);
 
 //purchase orders
-router.get("/get_purchase_orders", getAllPurchaseOrders);
+router.get("/get_admin_purchase_orders", getAllPurchaseOrders);
+router.post("/change_purchase_order_status", changePurchaseOrderStatus);
 
 module.exports = router;

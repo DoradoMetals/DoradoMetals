@@ -130,7 +130,6 @@ export default function PayoutStep({ user }: { user?: User }) {
               type="button"
               onClick={() => {
                 const next = selected === option.method ? null : option.method
-                console.log(next)
                 if (next) handleFormSwitch(next)
               }}
               className={cn(

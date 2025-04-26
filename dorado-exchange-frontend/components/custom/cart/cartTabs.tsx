@@ -31,7 +31,7 @@ export function CartTabs({
   return (
     <div>
       <CartDrawer open={isCartActive} setOpen={setIsCartActive}>
-        <div className="h-full bg-card border-t-1 border-neutral-200 lg:border-none flex flex-col p-2">
+        <div className="h-full bg-card border-t-1 border-border lg:border-none flex flex-col p-2">
           <Button
             variant="ghost"
             size="icon"
