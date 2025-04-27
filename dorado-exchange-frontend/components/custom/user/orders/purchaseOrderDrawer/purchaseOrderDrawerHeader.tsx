@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { downloadPackingList } from '@/lib/queries/usePDF'
+import { useDownloadPackingList } from '@/lib/queries/usePDF'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
 import { formatFullDate } from '@/utils/dateFormatting'
@@ -9,22 +9,23 @@ import { X } from 'lucide-react'
 export default function PurchaseOrderDrawerHeader({
   order,
   username,
-  setIsOrderActive
+  setIsOrderActive,
 }: PurchaseOrderDrawerHeaderProps) {
+  const downloadPackingList = useDownloadPackingList()
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const { data: spotPrices = [] } = useSpotPrices()
-  
+
   const status = statusConfig[order.purchase_order_status]
   const Icon = status?.icon
 
   return (
-    <div className="flex flex-col w-full border-b-1 border-border">
-
-
+    <div className="flex flex-col w-full border-b-1 gap-3 border-border">
       <div className="flex w-full justify-between items-center">
         <div className="text-base text-neutral-800">{formatFullDate(order.created_at)}</div>
 
-        <div className="text-sm text-neutral-700">{formatPurchaseOrderNumber(order.order_number)}</div>
+        <div className="text-sm text-neutral-700">
+          {formatPurchaseOrderNumber(order.order_number)}
+        </div>
       </div>
       <div className="flex w-full justify-between items-center">
         <div className="flex items-center gap-2">
@@ -41,9 +42,10 @@ export default function PurchaseOrderDrawerHeader({
             <Button
               variant="link"
               className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
-              onClick={() => downloadPackingList(order, spotPrices)} // 👈 Add this
+              onClick={() => downloadPackingList.mutate({ purchaseOrder: order, spotPrices })}
+              disabled={downloadPackingList.isPending}
             >
-              Packing List
+              {downloadPackingList.isPending ? 'Loading...' : 'Download Packing List'}
             </Button>
           ) : (
             <Button

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { downloadPackingList } from '@/lib/queries/usePDF'
+import { useDownloadPackingList } from '@/lib/queries/usePDF'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
@@ -9,6 +9,7 @@ export default function PurchaseOrderDrawerHeader({
   order,
   username,
 }: PurchaseOrderDrawerHeaderProps) {
+    const downloadPackingList = useDownloadPackingList()
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const { data: spotPrices = [] } = useSpotPrices()
   
@@ -39,9 +40,10 @@ export default function PurchaseOrderDrawerHeader({
             <Button
               variant="link"
               className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
-              onClick={() => downloadPackingList(order, spotPrices)}
+              onClick={() => downloadPackingList.mutate({ purchaseOrder: order, spotPrices })}
+              disabled={downloadPackingList.isPending}
             >
-              Packing List
+              {downloadPackingList.isPending ? 'Loading...' : ' Download Packing List'}
             </Button>
           ) : (
             <Button
