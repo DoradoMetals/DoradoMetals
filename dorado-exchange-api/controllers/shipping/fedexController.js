@@ -226,11 +226,6 @@ const createFedexLabel = async (
       },
     ];
 
-    // console.log('customer address: ', customerAddress)
-    // console.log('dorado address: ', DORADO_ADDRESS)
-    // console.log('shipper: ', shipper)
-    // console.log('recipients: ', recipients)
-
     const shipmentPayload = {
       accountNumber: {
         value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER,
@@ -252,7 +247,9 @@ const createFedexLabel = async (
           paymentType: "SENDER",
           payor: {
             responsibleParty: {
-              accountNumber: { value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER },
+              accountNumber: {
+                value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER,
+              },
             },
           },
         },
@@ -282,14 +279,75 @@ const createFedexLabel = async (
     };
   } catch (error) {
     const response = error?.response?.data;
-    console.error("FedEx label generation failed:", JSON.stringify(response, null, 2));
-  
+    console.error(
+      "FedEx label generation failed:",
+      JSON.stringify(response, null, 2)
+    );
+
     const paramList = response?.errors?.[0]?.parameterList;
     if (paramList) {
-      console.log("Parameter validation errors:", JSON.stringify(paramList, null, 2));
+      console.log(
+        "Parameter validation errors:",
+        JSON.stringify(paramList, null, 2)
+      );
     }
-  
+
     throw new Error("FedEx label generation failed");
+  }
+};
+
+const cancelLabel = async (req, res) => {
+  const { tracking_number, shipment_id } = req.body
+  console.log(req.body)
+
+  try {
+    const token = await getSandboxFedExAccessToken();
+    const cancelPayload = {
+      accountNumber: {
+        value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER,
+      },
+      trackingNumber: tracking_number,
+    };
+
+    const response = await axios.put(
+      `${process.env.FEDEX_SANDBOX_API_URL}/ship/v1/shipments/cancel`,
+      cancelPayload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (response.data.output.cancelledShipment === true) {
+      await pool.query(
+        `
+        UPDATE exchange.inbound_shipments
+        SET shipping_label = $1
+        WHERE id = $2
+      `,
+        [null, shipment_id]
+      );
+    }
+
+    res.json({ message: "Label cancelled." });
+  } catch (error) {
+    const response = error?.response?.data;
+    console.error(
+      "FedEx label cancellation failed:",
+      JSON.stringify(response, null, 2)
+    );
+
+    const paramList = response?.errors?.[0]?.parameterList;
+    if (paramList) {
+      console.log(
+        "Parameter validation errors:",
+        JSON.stringify(paramList, null, 2)
+      );
+    }
+
+    throw new Error("FedEx label cancellation failed");
   }
 };
 
@@ -414,14 +472,14 @@ const scheduleFedexPickup = async (
       message: error?.message,
       data: responseData,
     });
-  
+
     const errors = responseData?.errors;
     if (Array.isArray(errors)) {
       errors.forEach((err, i) => {
         console.error(`Error ${i + 1}:`, JSON.stringify(err, null, 2));
       });
     }
-  
+
     throw new Error("FedEx pickup scheduling failed");
   }
 };
@@ -564,6 +622,7 @@ module.exports = {
   validateAddress,
   getFedexRates,
   createFedexLabel,
+  cancelLabel,
   checkFedexPickupAvailability,
   scheduleFedexPickup,
   cancelFedexPickup,

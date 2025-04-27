@@ -1,4 +1,6 @@
 import { Button } from '@/components/ui/button'
+import { downloadPackingList } from '@/lib/queries/usePDF'
+import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
 import { formatFullDate } from '@/utils/dateFormatting'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
@@ -10,7 +12,8 @@ export default function PurchaseOrderDrawerHeader({
   setIsOrderActive
 }: PurchaseOrderDrawerHeaderProps) {
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
-
+  const { data: spotPrices = [] } = useSpotPrices()
+  
   const status = statusConfig[order.purchase_order_status]
   const Icon = status?.icon
 
@@ -38,6 +41,7 @@ export default function PurchaseOrderDrawerHeader({
             <Button
               variant="link"
               className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
+              onClick={() => downloadPackingList(order, spotPrices)} // 👈 Add this
             >
               Packing List
             </Button>

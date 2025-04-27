@@ -1,4 +1,6 @@
 import { Button } from '@/components/ui/button'
+import { downloadPackingList } from '@/lib/queries/usePDF'
+import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
 import { CheckCheck } from 'lucide-react'
@@ -8,6 +10,8 @@ export default function PurchaseOrderDrawerHeader({
   username,
 }: PurchaseOrderDrawerHeaderProps) {
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
+  const { data: spotPrices = [] } = useSpotPrices()
+  
 
   const status = statusConfig[order.purchase_order_status] ?? ''
   const Icon = status?.icon ?? CheckCheck
@@ -30,12 +34,23 @@ export default function PurchaseOrderDrawerHeader({
           <span className="text-2xl text-neutral-800">{order.purchase_order_status}</span>
         </div>
         <div className="flex ml-auto">
-          <Button
-            variant="link"
-            className={`text-xs bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
-          >
-            View Purchase Order PDF
-          </Button>
+          {order.purchase_order_status === 'In Transit' ||
+          order.purchase_order_status === 'Unsettled' ? (
+            <Button
+              variant="link"
+              className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
+              onClick={() => downloadPackingList(order, spotPrices)}
+            >
+              Packing List
+            </Button>
+          ) : (
+            <Button
+              variant="link"
+              className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
+            >
+              Invoice
+            </Button>
+          )}
         </div>
       </div>
     </div>

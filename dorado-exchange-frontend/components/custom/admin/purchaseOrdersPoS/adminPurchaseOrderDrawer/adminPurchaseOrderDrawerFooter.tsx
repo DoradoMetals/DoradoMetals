@@ -95,7 +95,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
         <Table className="font-normal text-neutral-700 overflow-hidden">
           <TableBody>
             {scrapItems.map((item, i) => (
-              <TableRow key={i} className='hover:bg-transparent'>
+              <TableRow key={i} className="hover:bg-transparent">
                 <TableCell>{item.name}</TableCell>
                 <TableCell>
                   {item.gross} {item.gross_unit}
@@ -127,7 +127,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
         <Table className="font-normal text-neutral-700 overflow-hidden">
           <TableBody>
             {bullionItems.map((item, i) => (
-              <TableRow key={i} className='hover:bg-transparent'>
+              <TableRow key={i} className="hover:bg-transparent">
                 <TableCell>{item.product?.metal_type}</TableCell>
                 <TableCell>{item.product?.product_name}</TableCell>
                 <TableCell>{item.quantity}</TableCell>
@@ -170,6 +170,15 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
         </div>
       </Accordion>
       <PurchaseOrderActionButtons order={order} />
+      <div className="flex w-full justify-between items-center mt-3">
+        <div className="text-sm text-neutral-700">Call Customer:</div>
+        <a
+          href={`tel:+${order.address.phone_number}`}
+          className={cn('text-sm hover:underline', statusColor)}
+        >
+          {formatPhoneNumber(order.address.phone_number ?? '')}
+        </a>
+      </div>
     </div>
   )
 }

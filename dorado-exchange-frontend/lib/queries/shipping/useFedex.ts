@@ -67,3 +67,11 @@ export const useFedExLocations = (input: FedexLocationsInput | null) => {
     retry: false,
   })
 }
+
+export const useCancelFedExLabel = () => {
+  return useMutation({
+
+    mutationFn: (payload: { tracking_number: string; shipment_id: string }) =>
+      apiRequest('POST', '/shipping/cancel_fedex_label', payload),
+  });
+};

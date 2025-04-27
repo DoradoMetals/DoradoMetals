@@ -4,6 +4,7 @@ const {
   validateAddress,
   getFedexRates,
   createFedexLabel,
+  cancelLabel,
   scheduleFedexPickup,
   checkFedexPickupAvailability,
   cancelFedexPickup,
@@ -14,6 +15,7 @@ const {
   getInboundShipment,
   getInboundShipmentTracking,
 } = require("../controllers/shipping/shipmentController");
+
 const { requireAuth } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -22,6 +24,7 @@ const router = express.Router();
 router.get("/validate_address", requireAuth, validateAddress);
 router.post("/get_fedex_rates", requireAuth, getFedexRates);
 router.post("/create_fedex_label", requireAuth, createFedexLabel);
+router.post("/cancel_fedex_label", requireAuth, cancelLabel);
 router.post("/check_fedex_pickup_times", requireAuth, checkFedexPickupAvailability);
 router.post("/schedule_fedex_pickup", requireAuth, scheduleFedexPickup);
 router.post("/cancel_fedex_pickup", requireAuth, cancelFedexPickup);
