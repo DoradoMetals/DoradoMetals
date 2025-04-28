@@ -1,3 +1,5 @@
+'use client'
+
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -37,25 +39,25 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import PurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
 import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
-import { useUser } from '@/lib/authClient'
 import { useGetSession } from '@/lib/queries/useAuth'
+import { useDrawerStore } from '@/store/drawerStore'
 
 export default function PurchaseOrdersTable() {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
-  const { user } = useGetSession();
+  const { user } = useGetSession()
+
+  const { openDrawer } = useDrawerStore()
 
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 8 })
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [activeOrder, setActiveOrder] = useState<string | null>(null)
   const [activeUser, setActiveUser] = useState<string | null>(null)
-  const [isOrderActive, setIsOrderActive] = useState(false)
 
   const columns: ColumnDef<PurchaseOrder>[] = [
     {
       id: 'order_number',
       header: function Header({ column }) {
         const anchorRef = useRef<HTMLDivElement>(null)
-
         const uniqueOrderNumbers = React.useMemo(() => {
           const values = column.getFacetedUniqueValues?.()
           return values ? Array.from(values.keys()).sort() : []
@@ -68,7 +70,7 @@ export default function PurchaseOrdersTable() {
               column={column}
               options={uniqueOrderNumbers}
               anchorRef={anchorRef}
-              placeholder="Search users…"
+              placeholder="Search orders…"
             />
           </div>
         )
@@ -89,9 +91,9 @@ export default function PurchaseOrdersTable() {
               size="icon"
               className={`flex items-center justify-center bg-transparent hover:bg-transparent ${config.text_color}`}
               onClick={() => {
-                setIsOrderActive(true)
                 setActiveOrder(row.original.id)
                 setActiveUser(row.original.user_id)
+                openDrawer('purchaseOrder')
               }}
             >
               <p>{formatPurchaseOrderNumber(row.original.order_number)}</p>
@@ -236,9 +238,9 @@ export default function PurchaseOrdersTable() {
         if (!config) return <Fragment key={row.original.purchase_order_status} />
 
         return (
-          <div className='hidden sm:flex'>
+          <div className="hidden sm:flex">
             <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild className="">
+              <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="hover:bg-background px-0">
                   <Notebook size={20} className={`${config.text_color}`} />
                 </Button>
@@ -250,7 +252,7 @@ export default function PurchaseOrdersTable() {
                 <Textarea
                   className="input-floating-label-form"
                   value={value ?? ''}
-                  disabled={true}
+                  disabled
                 />
                 <DialogFooter>
                   <Button variant="ghost" onClick={() => setOpen(false)}>
@@ -267,7 +269,7 @@ export default function PurchaseOrdersTable() {
 
   const table = useReactTable({
     data: purchaseOrders,
-    columns: columns,
+    columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -349,12 +351,12 @@ export default function PurchaseOrdersTable() {
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Attach the Drawer */}
       {activeOrder && (
         <PurchaseOrderDrawer
           order_id={activeOrder}
           user_id={activeUser ?? ''}
-          isOrderActive={isOrderActive}
-          setIsOrderActive={setIsOrderActive}
         />
       )}
     </div>

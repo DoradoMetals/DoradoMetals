@@ -6,23 +6,21 @@ import Image from 'next/image'
 import Link from 'next/link'
 import NumberFlow from '@number-flow/react'
 import { cartStore } from '@/store/cartStore'
-
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getProductPrice from '@/utils/getProductPrice'
 import PriceNumberFlow from '../products/PriceNumberFlow'
 import { useRouter } from 'next/navigation'
-import { Dispatch } from 'react'
+import { useDrawerStore } from '@/store/drawerStore'
 
-export default function Cart({
-  setIsCartActive,
-}: {
-  setIsCartActive: Dispatch<React.SetStateAction<boolean>>
-}) {
+export default function Cart() {
   const router = useRouter()
+  const { closeDrawer } = useDrawerStore()
+
   const items = cartStore((state) => state.items)
   const addItem = cartStore((state) => state.addItem)
   const removeOne = cartStore((state) => state.removeOne)
   const removeAll = cartStore((state) => state.removeAll)
+
   const { data: spotPrices = [] } = useSpotPrices()
 
   const total = items.reduce((acc, item) => {
@@ -45,17 +43,16 @@ export default function Cart({
         <h2 className="title-text tracking-wide">Your cart is empty!</h2>
         <p className="tertiary-text">Add items to get started.</p>
       </div>
-      <Link href="/buy" passHref>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            router.push('/buy')
-            setIsCartActive(false)
-          }}
-        >
-          Start Shopping
-        </Button>
-      </Link>
+
+      <Button
+        variant="secondary"
+        onClick={() => {
+          router.push('/buy')
+          closeDrawer()
+        }}
+      >
+        Start Shopping
+      </Button>
     </div>
   )
 

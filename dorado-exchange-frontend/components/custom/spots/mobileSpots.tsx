@@ -7,6 +7,7 @@ import { ChevronUp, ChevronDown } from 'lucide-react'
 import { NumberFlowGroup } from '@number-flow/react'
 import NumberFlow from '@number-flow/react'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
+import PriceNumberFlow from '../products/PriceNumberFlow'
 
 export default function MobileSpotTicker() {
   const { data: spots } = useSpotPrices()
@@ -31,51 +32,22 @@ export default function MobileSpotTicker() {
 
   return (
     <div className="overflow-hidden w-full md:hidden">
-      <motion.div ref={containerRef} className="flex gap-8 w-max px-4" style={{ x }}>
+      <motion.div ref={containerRef} className="flex items-end gap-8 w-max px-4" style={{ x }}>
         {[...spots, ...spots, ...spots].map((spot, i) => {
           const trendUp = spot.dollar_change >= 0
           const ChevronIcon = trendUp ? ChevronUp : ChevronDown
 
           return (
-            <div key={`${spot.id}-${i}`} className="flex items-center gap-2 text-xs font-mono">
-              <span className="text-neutral-700">{spot.type}:</span>
-
+            <div key={`${spot.id}-${i}`} className="flex items-center gap-2 text-xs">
+              <span className="text-sm text-neutral-700">{spot.type}:</span>
               <NumberFlowGroup>
-                <div className="text-neutral-900 flex items-center gap-0.5">
-                  <NumberFlow
-                    value={spot.bid_spot}
-                    format={{
-                      style: 'currency',
-                      currency: 'USD',
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    }}
-                    opacityTiming={{ duration: 250, easing: 'ease-out' }}
-                    transformTiming={{
-                      easing: `linear(0, 0.0033 0.8%, 0.0263 2.39%, 0.0896 4.77%, 0.4676 15.12%, 0.5688, 0.6553, 0.7274, 0.7862, 0.8336 31.04%, 0.8793, 0.9132 38.99%, 0.9421 43.77%, 0.9642 49.34%, 0.9796 55.71%, 0.9893 62.87%, 0.9952 71.62%, 0.9983 82.76%, 0.9996 99.47%)`,
-                      duration: 500,
-                    }}
-                    spinTiming={{ duration: 150, easing: 'ease-out' }}
-                  />
+                <div className="text-neutral-800 flex items-end">
+                  <PriceNumberFlow value={spot.bid_spot} />
                 </div>
 
                 <div className="flex items-center gap-0.5 text-neutral-600">
-                  <ChevronIcon size={14} className="text-primary" fill="currentColor" />
-                  <NumberFlow
-                    value={spot.dollar_change}
-                    format={{
-                      style: 'currency',
-                      currency: 'USD',
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    }}
-                    opacityTiming={{ duration: 250, easing: 'ease-out' }}
-                    transformTiming={{
-                      easing: `linear(0, 0.0033 0.8%, 0.0263 2.39%, 0.0896 4.77%, 0.4676 15.12%, 0.5688, 0.6553, 0.7274, 0.7862, 0.8336 31.04%, 0.8793, 0.9132 38.99%, 0.9421 43.77%, 0.9642 49.34%, 0.9796 55.71%, 0.9893 62.87%, 0.9952 71.62%, 0.9983 82.76%, 0.9996 99.47%)`,
-                      duration: 500,
-                    }}
-                    spinTiming={{ duration: 150, easing: 'ease-out' }}
-                  />
+                  <ChevronIcon size={14} className="text-primary" />
+                  <PriceNumberFlow value={spot.dollar_change} />
                 </div>
               </NumberFlowGroup>
             </div>

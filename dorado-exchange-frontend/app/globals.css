@@ -99,17 +99,17 @@
   --neutral-900: hsl(0, 0%, 10%);
 
   --highest: hsl(0, 0%, 100%);
-  --card: hsl(0, 0%, 95%);
-  --background: hsl(0, 0%, 85%);
+  --card: hsl(0, 0%, 99%);
+  --background: hsl(0, 0%, 96%);
   --popover: hsl(0, 0%, 85%);
   --border: hsl(0, 0%, 80%);
   --input: hsl(0, 0%, 75%);
   --muted: hsl(0, 0%, 70%);
 
   --primary: hsl(42, 100%, 50%);
-  --secondary: hsl(90, 40%, 35%);
-  --accent: hsl(90, 40%, 35%);
-  --ring: hsl(90, 40%, 35%);
+  --secondary: hsl(339, 47%, 47%);
+  --accent: hsl(339, 47%, 47%);
+  --ring: hsl(339, 47%, 47%);
   --destructive: hsl(358, 93%, 64%);
   --success: hsl(129, 76%, 35%);
 
@@ -166,16 +166,23 @@
 
   --primary: hsl(42, 100%, 50%);
 
-  --secondary: hsl(90, 30%, 35%);
-  --accent: hsl(90, 30%, 35%);
-  --ring: hsl(90, 30%, 35%);
+  --secondary: hsl(220, 25%, 35%); 
+  --accent: hsl(220, 25%, 35%);
+  --ring: hsl(220, 25%, 35%); 
+
+  
 
   /*
   options:
-  hsl(90, 30%, 35%);     - olive green
-  hsl(280, 30%, 40%);    - plum/violet
-  hsl(220, 25%, 35%);    - desatured navy
-  hsl(220, 6%, 55%);     - silver  
+  hsl(90, 30%, 35%);     - Olive Green
+  hsl(280, 30%, 40%);    - Plum
+  hsl(220, 25%, 35%);    - Desatured Navy
+  hsl(220, 6%, 55%);     - Silver
+  hsl(349, 79%, 37%);    - Angry Red
+  hsl(348, 100, 83);     - Cherry Blossom
+  hsl(339, 47%, 47%);    - Rasberry Red
+  hsl(350, 34%, 43%);    - Copper Rust
+  hsl(347, 100%, 28%);   - Burgundy
   */
 
   --destructive: hsl(360, 100%, 50%);

@@ -92,8 +92,8 @@ const generatePackingList = async (req, res) => {
       return `
         <tr>
           <td>${scrap.name || "Scrap Item"}</td>
-          <td>${scrap.purity != null ? (scrap.purity * 100).toFixed(1) + "%" : "-"}</td>
           <td>${scrap.gross || "-"} ${scrap.gross_unit || ""}</td>
+          <td>${scrap.purity != null ? (scrap.purity * 100).toFixed(1) + "%" : "-"}</td>
           <td>${scrap.content.toFixed(3)}</td>
           <td class="text-right">
             ${price ? price.toLocaleString("en-US", { style: "currency", currency: "USD" }) : "-"}
@@ -447,8 +447,8 @@ const generatePackingList = async (req, res) => {
                 <thead>
                   <tr>
                     <th>Scrap Line Items</th>
-                    <th>Purity</th>
                     <th>Gross</th>
+                    <th>Purity</th>
                     <th>Content</th>
                     <th class="text-right">Price Estimate</th>
                   </tr>

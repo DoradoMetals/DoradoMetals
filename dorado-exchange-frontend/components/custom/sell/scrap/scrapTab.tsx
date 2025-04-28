@@ -20,13 +20,12 @@ import { convertTroyOz } from '@/utils/convertTroyOz'
 import { Anvil, CheckCircle, Percent, Scale } from 'lucide-react'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
+import { Separator } from '@/components/ui/separator'
 
 const { useStepper, utils } = defineStepper(
-  // { id: 'name', title: 'Name', description: 'Enter Item name (necklace, ring, bracelet, grain, etc...' },
-  { id: 'metalSelect', title: 'Metal Selection', description: 'Select item metal.' },
-  { id: 'weightSelect', title: 'Weight Selection', description: 'Enter item weight.' },
-  { id: 'puritySelect', title: 'Purity Selection', description: 'Select item purity.' },
-  { id: 'review', title: 'Review', description: 'Review inputted item.' }
+  { id: 'itemForm', title: 'Item Details', description: 'Enter your item information.' },
+  { id: 'review', title: 'Review', description: 'Review and submit your item.' }
 )
 
 export default function ScrapFormStepper() {
@@ -69,6 +68,7 @@ export default function ScrapFormStepper() {
     const content =
       convertTroyOz(values.gross ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
     const price = getScrapPrice(content, spot)
+
     const item = {
       type: 'scrap' as const,
       data: {
@@ -82,6 +82,9 @@ export default function ScrapFormStepper() {
 
     setSubmitted(true)
     setShowBanner(true)
+
+    // 👉 move to Review step
+    stepper.goTo('review')
   }
 
   const handleAddAnother = () => {
@@ -91,10 +94,10 @@ export default function ScrapFormStepper() {
       metal: 'Gold',
       gross: 0,
       gross_unit: 'g',
-      purity: undefined,
+      purity: purityOptions['Gold'][0].value,
     })
     setSubmitted(false)
-    stepper.goTo('metalSelect')
+    stepper.goTo('itemForm')
   }
 
   const { errors } = useFormState({ control: form.control })
@@ -108,92 +111,64 @@ export default function ScrapFormStepper() {
           onSubmit={form.handleSubmit(handleSubmit)}
           className="space-y-6 p-3 rounded-lg w-full mt-4"
         >
-          <div className="flex items-center gap-4 mb-6">
-            <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
-            <div className="flex flex-col">
-              <h2 className="flex-1 header-text">{stepper.current.title}</h2>
-              <p className="secondary-text">{stepper.current.description}</p>
-            </div>
-          </div>
-
+          {/* Step Content */}
           {stepper.switch({
-            metalSelect: () => <MetalSelectionStep />,
-            weightSelect: () => <WeightStep />,
-            puritySelect: () => <PurityStep />,
+            itemForm: () => <ItemFormStep />,
             review: () => <ReviewStep showBanner={showBanner} />,
           })}
-          {stepper.current.id === 'review' ? (
-            <div className="flex items-end gap-4">
-              <div className="mr-auto">
-                {submitted ? (
-                  <Button type="button" variant="outline" onClick={handleAddAnother}>
-                    Add Another
-                  </Button>
-                ) : (
-                  <Button type="button" variant="outline" onClick={stepper.prev}>
-                    Back
-                  </Button>
-                )}
-              </div>
 
-              <div className="ml-auto">
-                {submitted ? (
-                  <Button
-                    className="w-full"
-                    type="button"
-                    onClick={() => router.push('/checkout')}
-                  >
-                    Go to Checkout
-                  </Button>
-                ) : (
-                  <Button className="w-full" type="submit">
-                    Submit Item
-                  </Button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex justify-end gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={stepper.prev}
-                disabled={stepper.isFirst}
-              >
-                Back
+          {/* Footer Buttons */}
+          <div className="flex justify-end gap-4">
+            {stepper.current.id === 'itemForm' && (
+              <Button type="submit" className="form-submit-button">
+                Add Item
               </Button>
-              <Button
-                type="button"
-                onClick={stepper.next}
-                disabled={
-                  stepper.current.id === 'weightSelect' &&
-                  (!gross || !!errors.gross || gross === 0 || purity === 0)
-                }
-              >
-                Next
-              </Button>
-            </div>
-          )}
+            )}
+
+            {stepper.current.id === 'review' && (
+              <>
+                <Button type="button" variant="outline" onClick={handleAddAnother}>
+                  Add Another
+                </Button>
+                <Button type="button" className="ml-auto" onClick={() => router.push('/checkout')}>
+                  Go to Checkout
+                </Button>
+              </>
+            )}
+          </div>
         </form>
       </Form>
     </FormProvider>
   )
 }
 
+function ItemFormStep() {
+  return (
+    <div className="flex flex-col gap-8">
+      <MetalSelectionStep />
+      <Separator className="border-border" />
+      <WeightStep />
+      <Separator className="border-border" />
+      <PurityStep />
+    </div>
+  )
+}
+
 function MetalSelectionStep() {
   const form = useFormContext<Scrap>()
+
   return (
     <FormField
       control={form.control}
       name="metal"
       render={({ field }) => (
         <FormItem>
+          <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Select Metal</h2>
+
           <RadioGroup
-            defaultValue="0"
             value={field.value}
             onValueChange={(val) => {
               field.onChange(val)
-
               const defaultPurity = purityOptions[val as keyof typeof purityOptions]?.[0]?.value
               if (defaultPurity !== undefined) {
                 form.setValue('purity', defaultPurity)
@@ -201,25 +176,38 @@ function MetalSelectionStep() {
             }}
             className="gap-3 w-full items-stretch flex flex-col"
           >
-            {metalOptions.map((metal) => (
-              <label
-                key={metal.label}
-                className="flex w-full items-stretch justify-between gap-4 rounded-lg p-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-xl has-[[data-state=checked]]:border-primary transition-colors"
-              >
-                <div className="flex gap-4 w-full items-center">
-                  <div className="flex items-center">{metal.logo}</div>
-                  <div className="flex flex-col gap-1">
-                    <div className="title-text">{metal.label}</div>
-                    <p className="tertiary-text leading-snug">{metal.blurb}</p>
+            {metalOptions.map((metal) => {
+              const isSelected = field.value === metal.label
+
+              return (
+                <label
+                  key={metal.label}
+                  className="relative flex w-full items-stretch justify-between gap-4 rounded-lg p-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-sm has-[[data-state=checked]]:border-primary transition-colors"
+                >
+                  <div className="absolute top-1 right-1">
+                    <CheckCircle
+                      size={16}
+                      className={cn(
+                        'transition-opacity duration-200',
+                        isSelected ? 'text-primary opacity-100' : 'opacity-0'
+                      )}
+                    />
                   </div>
-                </div>
-                <RadioGroupItem
-                  value={metal.label}
-                  id={metal.label}
-                  className="sr-only after:absolute after:inset-0"
-                />
-              </label>
-            ))}
+                  <div className="flex gap-4 w-full items-center">
+                    <div className="flex items-center">{metal.logo}</div>
+                    <div className="flex flex-col gap-1">
+                      <div className="title-text">{metal.label}</div>
+                      <p className="tertiary-text leading-snug">{metal.blurb}</p>
+                    </div>
+                  </div>
+                  <RadioGroupItem
+                    value={metal.label}
+                    id={metal.label}
+                    className="sr-only after:absolute after:inset-0"
+                  />
+                </label>
+              )
+            })}
           </RadioGroup>
         </FormItem>
       )}
@@ -232,42 +220,58 @@ function WeightStep() {
   const unit = form.watch('gross_unit') || 'g'
 
   return (
-    <div className="flex-col gap-4">
+    <div className="flex-col">
+      <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Enter Weight</h2>
+
       <FormField
         control={form.control}
         name="gross_unit"
         render={({ field }) => (
-          <FormItem className="mb-8">
+          <FormItem className="mb-6">
             <RadioGroup
-              defaultValue="0"
               value={field.value}
               onValueChange={field.onChange}
               className="gap-3 w-full flex"
             >
-              {weightOptions.map((weight) => (
-                <label
-                  key={weight.id}
-                  className="peer flex flex-col items-center w-full gap-3 rounded-lg py-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-xl has-[[data-state=checked]]:border-primary transition-colors"
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    {weight.logo}
-                    <div className="secondary-text">{weight.label}</div>
-                  </div>
+              {weightOptions.map((weight) => {
+                const isSelected = field.value === weight.unit
 
-                  <RadioGroupItem
-                    value={weight.unit}
-                    id={weight.id}
-                    aria-describedby={weight.id}
-                    className="sr-only after:absolute after:inset-0"
-                  />
-                </label>
-              ))}
+                return (
+                  <label
+                    key={weight.id}
+                    className="relative peer flex flex-col items-center w-full gap-3 rounded-lg py-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-sm has-[[data-state=checked]]:border-primary transition-colors"
+                  >
+                    <div className="absolute top-1 right-1">
+                      <CheckCircle
+                        size={16}
+                        className={cn(
+                          'transition-opacity duration-200',
+                          isSelected ? 'text-primary opacity-100' : 'opacity-0'
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex flex-col items-center gap-2">
+                      {weight.logo}
+                      <div className="secondary-text">{weight.label}</div>
+                    </div>
+
+                    <RadioGroupItem
+                      value={weight.unit}
+                      id={weight.id}
+                      aria-describedby={weight.id}
+                      className="sr-only after:absolute after:inset-0"
+                    />
+                  </label>
+                )
+              })}
             </RadioGroup>
             <FormMessage />
           </FormItem>
         )}
       />
 
+      {/* Your input field */}
       <FormField
         control={form.control}
         name="gross"
@@ -328,46 +332,63 @@ function PurityStep() {
       name="purity"
       render={() => (
         <FormItem>
+          <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Enter Purity</h2>
+
           <RadioGroup
             value={selectedLabel}
             onValueChange={handleRadioChange}
             className="grid grid-cols-3 gap-3"
           >
-            {options.map((option) => (
-              <label
-                key={option.label}
-                className="flex items-center justify-center rounded-md border border-input px-4 py-2 text-sm font-medium cursor-pointer has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:shadow-lg transition-colors"
-              >
-                <RadioGroupItem
-                  value={option.label}
-                  id={option.label}
-                  className="sr-only after:absolute after:inset-0"
-                />
-                {option.label}
-              </label>
-            ))}
+            {options.map((option) => {
+              const isSelected = selectedLabel === option.label
+
+              return (
+                <label
+                  key={option.label}
+                  className="relative flex items-center justify-center rounded-md border border-input px-4 py-2 text-sm font-medium cursor-pointer has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:shadow-sm transition-colors"
+                >
+                  <div className="absolute top-1 right-1">
+                    <CheckCircle
+                      size={16}
+                      className={cn(
+                        'transition-opacity duration-200',
+                        isSelected ? 'text-primary opacity-100' : 'opacity-0'
+                      )}
+                    />
+                  </div>
+
+                  {option.label}
+
+                  <RadioGroupItem
+                    value={option.label}
+                    id={option.label}
+                    className="sr-only after:absolute after:inset-0"
+                  />
+                </label>
+              )
+            })}
           </RadioGroup>
 
-          <div className="relative mt-12 mb-16 w-full">
+          {/* Slider */}
+          <div className="relative mt-6 mb-12 w-full">
             <Slider
               value={[purity]}
               onValueChange={([val]) => handleSliderChange(val)}
               min={0}
               max={1}
-              step={0.01}
+              step={0.001}
             />
-
             <div
-              className="absolute top-6 text-sm text-muted-foreground"
+              className="absolute top-4 text-sm text-neutral-700"
               style={{
-                left: `${purity * 100}%`,
+                left: `${(purity * 100) + 1}%`,
                 transform: 'translateX(-50%)',
                 whiteSpace: 'nowrap',
               }}
             >
               <NumberFlow
                 willChange
-                value={Math.round(purity * 100)}
+                value={Number((purity * 100).toFixed(1))}
                 isolate
                 opacityTiming={{ duration: 250, easing: 'ease-out' }}
                 transformTiming={{
@@ -452,47 +473,5 @@ function ReviewStep({ showBanner }: { showBanner: boolean }) {
         )}
       </div>
     </AnimatePresence>
-  )
-}
-
-function StepIndicator({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {
-  const size = 80
-  const strokeWidth = 6
-  const radius = (size - strokeWidth) / 2
-  const circumference = radius * 2 * Math.PI
-  const fillPercentage = (currentStep / totalSteps) * 100
-  const dashOffset = circumference - (circumference * fillPercentage) / 100
-
-  return (
-    <div className="relative inline-flex items-center justify-center">
-      <svg width={size} height={size}>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          className="text-neutral-500"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-          className="text-primary transition-all duration-300 ease-in-out"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-medium" aria-live="polite">
-          {currentStep} of {totalSteps}
-        </span>
-      </div>
-    </div>
   )
 }

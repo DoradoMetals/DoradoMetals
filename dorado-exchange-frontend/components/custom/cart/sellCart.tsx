@@ -14,13 +14,12 @@ import { getGrossLabel, getPurityLabel, Scrap } from '@/types/scrap'
 import { Product } from '@/types/product'
 import { Dispatch } from 'react'
 import getProductBidPrice from '@/utils/getProductBidPrice'
+import { useDrawerStore } from '@/store/drawerStore'
 
-export default function SellCart({
-  setIsCartActive,
-}: {
-  setIsCartActive: Dispatch<React.SetStateAction<boolean>>
-}) {
+export default function SellCart() {
   const router = useRouter()
+  const { closeDrawer } = useDrawerStore()
+
   const items = sellCartStore((state) => state.items)
   const addItem = sellCartStore((state) => state.addItem)
   const removeOne = sellCartStore((state) => state.removeOne)
@@ -63,10 +62,9 @@ export default function SellCart({
       <Link href="/sell" passHref>
         <Button
           variant="default"
-          // className="bg-card hover:bg-highest border-1 border-primary text-primary"
           onClick={() => {
             router.push('/sell')
-            setIsCartActive(false)
+            closeDrawer()
           }}
         >
           Start Selling

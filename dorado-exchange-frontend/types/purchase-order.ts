@@ -145,8 +145,6 @@ export interface PurchaseOrderDrawerProps {
   user_id?: string
   order_id: string,
   user?: User
-  isOrderActive: boolean
-  setIsOrderActive: Dispatch<React.SetStateAction<boolean>>
 }
 
 export interface PurchaseOrderDrawerHeaderProps {

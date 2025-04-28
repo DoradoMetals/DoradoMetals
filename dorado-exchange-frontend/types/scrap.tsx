@@ -69,32 +69,32 @@ export const metalOptions: MetalOption[] = [
 
 export const purityOptions: Record<string, PurityOption[]> = {
   Gold: [
-    { label: '10 Karat', value: 0.42 },
-    { label: '12 Karat', value: 0.5 },
-    { label: '14 Karat', value: 0.58 },
-    { label: '18 Karat', value: 0.75 },
-    { label: '22 Karat', value: 0.92 },
+    { label: '10 Karat', value: 0.40 },
+    { label: '12 Karat', value: 0.48 },
+    { label: '14 Karat', value: 0.56 },
+    { label: '18 Karat', value: 0.73 },
+    { label: '22 Karat', value: 0.90 },
     { label: '24 Karat', value: 1.0 },
-    { label: 'Custom', value: 0.0 },
+    { label: 'Custom', value: 0.50 },
   ],
   Silver: [
     { label: '800', value: 0.8 },
     { label: 'Coin', value: 0.9 },
     { label: 'Sterling', value: 0.925 },
     { label: 'Fine', value: 0.999 },
-    { label: 'Custom', value: 0.0 },
+    { label: 'Custom', value: 0.50 },
   ],
   Platinum: [
-    { label: '900', value: 0.9 },
+    { label: '900', value: 0.90 },
     { label: '950', value: 0.95 },
     { label: 'Fine', value: 0.999 },
-    { label: 'Custom', value: 0.0 },
+    { label: 'Custom', value: 0.50 },
   ],
   Palladium: [
     { label: '900', value: 0.9 },
     { label: '950', value: 0.95 },
     { label: 'Fine', value: 0.999 },
-    { label: 'Custom', value: 0.0 },
+    { label: 'Custom', value: 0.50 },
   ],
 }
 

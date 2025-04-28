@@ -16,6 +16,7 @@ import PurchaseOrderDrawer from './purchaseOrderDrawer/purchaseOrderDrawer'
 import { User } from '@/types/user'
 import { useGetSession } from '@/lib/queries/useAuth'
 import getProductBidPrice from '@/utils/getProductBidPrice'
+import { useDrawerStore } from '@/store/drawerStore'
 
 export function OrdersTabs() {
   const { user } = useGetSession()
@@ -59,8 +60,8 @@ export function OrdersTabs() {
 
 function PurchaseOrdersContent({ user }: { user: User }) {
   const { data: orders = [], isLoading } = usePurchaseOrders()
+  const { openDrawer } = useDrawerStore()
 
-  const [isPurchaseOrderActive, setIsPurchaseOrderActive] = useState(false)
   const [activePurchaseOrder, setActivePurchaseOrder] = useState<string | null>(null)
   const { data: spotPrices = [] } = useSpotPrices()
 
@@ -100,7 +101,6 @@ function PurchaseOrdersContent({ user }: { user: User }) {
               const price = getScrapPrice(item.scrap?.content ?? 0, spot)
               return acc + price
             }
-
             return acc
           }, 0) ?? 0
 
@@ -119,7 +119,7 @@ function PurchaseOrdersContent({ user }: { user: User }) {
                 )}
                 onClick={() => {
                   setActivePurchaseOrder(order.id)
-                  setIsPurchaseOrderActive(true)
+                  openDrawer('purchaseOrder')
                 }}
               >
                 View Order
@@ -143,13 +143,11 @@ function PurchaseOrdersContent({ user }: { user: User }) {
           </div>
         )
       })}
+
       {activePurchaseOrder && (
         <PurchaseOrderDrawer
           order_id={activePurchaseOrder}
           user={user}
-          user_id={user?.id ?? ''}
-          isOrderActive={isPurchaseOrderActive}
-          setIsOrderActive={setIsPurchaseOrderActive}
         />
       )}
     </div>
