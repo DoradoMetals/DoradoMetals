@@ -6,10 +6,10 @@ import { useUser } from '@/lib/authClient'
 export default function ProfileTrigger() {
   const { user } = useUser();
   return (
-    <div className="flex items-center">
+    <div className="flex items-center hover:cursor-pointer">
       {user ? (
         <Avatar>
-          <AvatarFallback className="bg-card text-muted-foreground">
+          <AvatarFallback className="text-neutral-900 bg-transparent">
             <User2 />
           </AvatarFallback>
         </Avatar>

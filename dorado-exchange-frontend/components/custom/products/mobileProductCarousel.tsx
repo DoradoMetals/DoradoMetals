@@ -104,10 +104,10 @@ export default function AvatarCarousel() {
               className="flex flex-col items-center w-20 cursor-pointer"
             >
               <div
-                className={`w-18 h-18 rounded-full bg-background flex items-center justify-center border ${
+                className={`bg-card w-18 h-18 rounded-full flex items-center justify-center border ${
                   isActive(category.name)
                     ? 'border-secondary border-2 shadow-md'
-                    : 'border-neutral-300'
+                    : 'border-border'
                 }`}
               >
                 <Image

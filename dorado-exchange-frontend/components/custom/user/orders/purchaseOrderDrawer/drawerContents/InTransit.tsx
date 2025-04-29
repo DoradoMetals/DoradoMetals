@@ -74,13 +74,14 @@ function ShipmentTrackingSection({
   const scan_events = trackingInfo.scan_events ?? []
 
   const getMatch = (status: string) =>
-    scan_events.find((e) => e.status.toLowerCase() === status.toLowerCase())
-
+    scan_events.find((e) => e.status?.toLowerCase() === status.toLowerCase())
+  
   const pickedUp = getMatch('Picked Up')
   const outForDelivery = getMatch('Out for Delivery')
   const delivered = getMatch('Delivered')
-
-  const inTransits = scan_events.filter((e) => e.status.toLowerCase() === 'in transit')
+  
+  const inTransits = scan_events.filter((e) => e.status?.toLowerCase() === 'in transit')
+  
 
   const steps = [
     {

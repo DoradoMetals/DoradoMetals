@@ -49,7 +49,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
   return (
     <div className="space-y-6 h-auto w-full sm:w-[22rem] max-w-[22rem] group relative flex-col items-center mx-4">
-      <div className="h-1/5 rounded-lg bg-background">
+      <div className="h-1/5 rounded-lg">
         <Carousel className="">
           <CarouselContent>
             <CarouselItem className="pb-4">
@@ -96,7 +96,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                   triggerContent={
                     <Button
                       variant="ghost"
-                      className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs bg-secondary text-neutral-900"
+                      className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs bg-secondary text-white hover:bg-secondary hover:text-white hover:shadow-sm"
                     >
                       <Scale size={16} />
                     </Button>
@@ -106,7 +106,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                     <FloatingButtonItem key={option.name}>
                       <label
                         htmlFor={option.value}
-                        className="h-8 w-10 xs:w-14 sm:w-16 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:border-secondary text-neutral-900"
+                        className="h-8 w-10 xs:w-14 sm:w-16 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:border-secondary has-[[data-state=checked]]:text-white text-neutral-900"
                       >
                         <RadioGroupItem
                           id={option.value}
@@ -211,22 +211,22 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
             </div>
           </div>
 
-          <div className="bg-secondary w-full rounded-b-lg py-2">
+          <div className="bg-secondary w-full rounded-b-lg py-2 text-white">
             {quantity === 0 ? (
               <Button
                 variant="ghost"
-                className="bg-secondary w-full hover:bg-secondary"
+                className="bg-secondary w-full hover:bg-secondary text-white"
                 onClick={() => addItem(selectedProduct)}
               >
                 Add to Cart
               </Button>
             ) : (
               <div className="flex items-center justify-center">
-                <Button variant="ghost" className="" onClick={() => removeOne(selectedProduct)}>
+                <Button variant="ghost" className="text-white" onClick={() => removeOne(selectedProduct)}>
                   <Minus size={20} />
                 </Button>
-                <NumberFlow value={quantity} className="title-text font-semibold" trend={0} />
-                <Button variant="ghost" className="" onClick={() => addItem(selectedProduct)}>
+                <NumberFlow value={quantity} className="text-white text-lg font-semibold" trend={0} />
+                <Button variant="ghost" className="text-white" onClick={() => addItem(selectedProduct)}>
                   <Plus size={20} />
                 </Button>
               </div>

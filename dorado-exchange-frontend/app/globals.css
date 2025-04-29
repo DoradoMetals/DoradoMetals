@@ -99,17 +99,20 @@
   --neutral-900: hsl(0, 0%, 10%);
 
   --highest: hsl(0, 0%, 100%);
-  --card: hsl(0, 0%, 99%);
-  --background: hsl(0, 0%, 96%);
+  --card: hsl(0, 0%, 95%);
+  --background: hsl(0, 0%, 90%);
   --popover: hsl(0, 0%, 85%);
   --border: hsl(0, 0%, 80%);
   --input: hsl(0, 0%, 75%);
   --muted: hsl(0, 0%, 70%);
 
   --primary: hsl(42, 100%, 50%);
-  --secondary: hsl(339, 47%, 47%);
-  --accent: hsl(339, 47%, 47%);
-  --ring: hsl(339, 47%, 47%);
+
+
+  --secondary: hsl(212, 100%, 27%); 
+  --accent: hsl(212, 100%, 27%); 
+  --ring: hsl(212, 100%, 27%); 
+
   --destructive: hsl(358, 93%, 64%);
   --success: hsl(129, 76%, 35%);
 
@@ -154,23 +157,42 @@
   --neutral-600: hsl(0, 0%, 60%);
   --neutral-700: hsl(0, 0%, 70%);
   --neutral-800: hsl(0, 0%, 80%);
-  --neutral-900: hsl(0, 0%, 90%);
-
-  --highest: hsl(0, 0%, 10%);
+  --neutral-900: hsl(0, 0%, 90%); 
+    --highest: hsl(0, 0%, 10%);
   --card: hsl(0, 0%, 15%);
   --background: hsl(0, 0%, 20%);
   --popover: hsl(0, 0%, 25%);
   --border: hsl(0, 0%, 30%);
   --input: hsl(0, 0%, 35%);
   --muted: hsl(0, 0%, 40%);
+ 
+
+    /* Slate */
+  /* --neutral-100: hsl(215, 25%, 15%);
+  --neutral-200: hsl(215, 20%, 22%);
+  --neutral-300: hsl(215, 18%, 30%);
+  --neutral-400: hsl(215, 16%, 38%);
+  --neutral-500: hsl(215, 14%, 47%);
+  --neutral-600: hsl(215, 12%, 57%);
+  --neutral-700: hsl(215, 10%, 68%);
+  --neutral-800: hsl(215, 8%, 79%);
+  --neutral-900: hsl(215, 6%, 90%);
+  --highest: hsl(215, 25%, 15%);
+  --card: hsl(215, 20%, 22%);
+  --background: hsl(215, 18%, 30%);
+  --popover: hsl(215, 16%, 38%);
+  --border: hsl(215, 14%, 47%);
+  --input: hsl(215, 12%, 57%);
+  --muted: hsl(215, 10%, 68%); */
+
+
 
   --primary: hsl(42, 100%, 50%);
 
-  --secondary: hsl(220, 25%, 35%); 
+  --secondary: hsl(220, 25%, 35%);
   --accent: hsl(220, 25%, 35%);
-  --ring: hsl(220, 25%, 35%); 
+  --ring: hsl(220, 25%, 35%);
 
-  
 
   /*
   options:
@@ -205,7 +227,8 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-gradient-to-b from-card to-background text-foreground;
+
   }
 }
 
@@ -322,6 +345,42 @@ input:-webkit-autofill:active {
     mb-8 
     shadow-lg
 }
+
+.radio-group-buttons {
+  @apply 
+    relative 
+    flex 
+    items-center 
+    bg-background
+    justify-center
+    rounded-md
+    px-4
+    py-2
+    text-sm
+    font-medium
+    cursor-pointer
+    transition-colors
+    border
+    border-transparent
+    has-[[data-state=checked]]:bg-card
+    has-[[data-state=checked]]:border-primary
+    /* has-[[data-state=checked]]:shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
+    has-[[data-state=checked]]:dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)] */
+    has-[[data-state=checked]]:shadow-none
+    has-[[data-state=checked]]:dark:shadow-none
+    shadow-[inset_0px_1px_0px_hsla(0,0%,99%,1),0px_1px_3px_hsla(0,0%,0%,.2)]
+    dark:shadow-[inset_0px_1px_0px_hsla(0,0%,100%,.1),0px_1px_3px_hsla(0,0%,0%,.2)];
+}
+
+.separator-inset {
+  @apply 
+    h-[2px]
+    w-full
+    bg-card
+    shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
+    dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)]
+}
+
 
 /* Tailwind Tables */
 

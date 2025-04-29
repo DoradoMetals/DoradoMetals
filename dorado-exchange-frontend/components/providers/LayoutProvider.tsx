@@ -11,7 +11,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
   const mobileProductCarouselRoutes = ['/', '/buy']
   const showMobileCarousel = mobileProductCarouselRoutes.includes(pathname)
 
-  const {user, isPending} = useGetSession();
+  const { user, isPending } = useGetSession()
 
   if (!user && isPending) {
     return (
@@ -23,10 +23,12 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
 
   return (
     <>
-      <div>
+      <div className="">
         <Shell />
+        <div className="pt-[10px] lg:pt-[1px]">
         {showMobileCarousel && <MobileProductCarousel />}
-        {children}
+          {children}
+        </div>
       </div>
     </>
   )

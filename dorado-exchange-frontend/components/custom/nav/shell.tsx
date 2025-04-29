@@ -9,7 +9,7 @@ import { useCartAutoSync } from '@/lib/queries/useCart'
 import { useSellCartAutoSync } from '@/lib/queries/useSellCart'
 import { useUser } from '@/lib/authClient'
 
-import { Logo } from '../../icons/logo'
+import { DesktopLogo, Logo } from '../../icons/logo'
 import { Button } from '@/components/ui/button'
 import { MenuIcon } from '@/components/icons/navIcon'
 import { CartIcon } from '@/components/icons/cartIcon'
@@ -45,41 +45,40 @@ export default function Shell() {
       key: 1,
       label: 'BUY',
       src: '/buy',
-      className: pathname === '/buy' ? 'text-primary' : 'text-neutral-400',
+      className: pathname === '/buy' ? 'text-primary' : 'text-neutral-500',
     },
     {
       key: 2,
       label: 'SELL',
       src: '/sell',
-      className: pathname === '/sell' ? 'text-primary' : 'text-neutral-400',
+      className: pathname === '/sell' ? 'text-primary' : 'text-neutral-500',
     },
     {
       key: 3,
       label: 'ADMIN',
       src: '/admin',
-      className: pathname === '/admin' ? 'text-primary' : 'text-neutral-400',
+      className: pathname === '/admin' ? 'text-primary' : 'text-neutral-500',
       hidden: user?.role !== 'admin',
     },
   ]
 
   return (
-    <div className="sticky top-0 z-50 mb-6 shadow-sm">
+    <div className="sticky top-0 z-50 bg-card">
       <Spots />
-      <nav className="bg-card">
-        <div className="flex items-center justify-between w-full p-4 sm:px-10 md:px-20">
-          <div className="flex items-center gap-4">
+
+      <nav>
+        <div className="hidden lg:flex p-4 pt-1 px-20">
+          <div className="flex items-center gap-2 -mt-8">
             <Link href="/" className="px-0">
-              <Logo />
+              <DesktopLogo />
             </Link>
 
             <div className="flex items-end">
               <Link href="/">
-                <span className="text-base sm:text-lg xl:text-xl text-neutral-900 sm:font-semibold sm:tracking-wide lg:tracking-widest">
-                  Dorado Metals Exchange
-                </span>
+                <span className="text-xl text-neutral-900 font-medium tracking-widest">Dorado Metals Exchange</span>
               </Link>
 
-              <div className="hidden lg:flex text-base items-center font-semibold tracking-wide pl-32 gap-8">
+              <div className="flex text-base items-center font-semibold tracking-wide pl-32 gap-8">
                 {menuItems
                   .filter((item) => !item.hidden)
                   .map((item) => (
@@ -90,35 +89,26 @@ export default function Shell() {
               </div>
             </div>
           </div>
-
-          <div className="hidden lg:flex items-center gap-8">
-            <Button
-              className="px-0 hover:bg-card relative"
-              variant="ghost"
-              onClick={() => openDrawer('cart')}
-            >
-              <CartIcon
-                size={24}
-                isOpen={activeDrawer === 'cart'}
-                className="text-neutral-700 hover:bg-card"
-              />
+          <div className="hidden lg:flex items-center gap-8 ml-auto">
+            <Button className="px-0 relative" variant="ghost" onClick={() => openDrawer('cart')}>
+              <CartIcon size={24} isOpen={activeDrawer === 'cart'} className="text-neutral-900" />
               {(items > 0 || sellItems > 0) && (
                 <div className="absolute -top-1 -right-1 flex overflow-hidden rounded-full">
                   {items > 0 && sellItems > 0 ? (
                     <>
-                      <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 border-t border-b border-l border-r rounded-l-full border-secondary text-secondary bg-card">
+                      <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 rounded-l-full">
                         {items}
                       </div>
-                      <div className="flex items-center bg-primary text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 border-t border-b border-l border-r rounded-r-full border-primary text-primary bg-card">
+                      <div className="flex items-center bg-primary-500 text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 rounded-r-full">
                         {sellItems}
                       </div>
                     </>
                   ) : items > 0 ? (
-                    <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[8px] py-[3px] flex-1 border-t border-b border-l border-r rounded-full border-secondary text-secondary bg-card">
+                    <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[8px] py-[3px] flex-1  rounded-full">
                       {items}
                     </div>
                   ) : (
-                    <div className="flex items-center bg-primary text-white justify-center text-[10px] px-[8px] py-[3px] flex-1 border-t border-b border-l border-r rounded-full border-primary text-primary bg-card">
+                    <div className="flex items-center bg-primary-500 text-white justify-center text-[10px] px-[8px] py-[3px] flex-1  rounded-full">
                       {sellItems}
                     </div>
                   )}
@@ -128,7 +118,20 @@ export default function Shell() {
 
             {user ? <ProfileMenu /> : <SignInButton />}
           </div>
+        </div>
 
+        <div className="flex lg:hidden p-4 pt-1 px-5">
+          <div className="flex items-center gap-2">
+            <Link href="/" className="px-0">
+              <Logo />
+            </Link>
+
+            <div className="flex items-end">
+              <Link href="/">
+                <span className="text-lg text-neutral-900 tracking-wide">Dorado Metals Exchange</span>
+              </Link>
+            </div>
+          </div>
           <div className="lg:hidden flex items-center ml-auto gap-1">
             <Button
               className="px-0 hover:bg-card relative"
@@ -141,29 +144,29 @@ export default function Shell() {
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
                 className="relative flex items-center justify-center"
               >
-                <CartIcon size={20} isOpen={false} className="text-neutral-700 hover:bg-card" />
+                <CartIcon size={20} isOpen={false} className="text-neutral-900 hover:bg-card" />
                 {(items > 0 || sellItems > 0) && (
-                  <div className="absolute -top-1 -right-1 flex overflow-hidden rounded-full">
-                    {items > 0 && sellItems > 0 ? (
-                      <>
-                        <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 border-t border-b border-l border-r rounded-l-full border-secondary text-secondary bg-card">
-                          {items}
-                        </div>
-                        <div className="flex items-center bg-primary text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 border-t border-b border-l border-r rounded-r-full border-primary text-primary bg-card">
-                          {sellItems}
-                        </div>
-                      </>
-                    ) : items > 0 ? (
-                      <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[8px] py-[3px] flex-1 border-t border-b border-l border-r rounded-full border-secondary text-secondary bg-card">
+                <div className="absolute -top-1 -right-1 flex overflow-hidden rounded-full">
+                  {items > 0 && sellItems > 0 ? (
+                    <>
+                      <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 rounded-l-full">
                         {items}
                       </div>
-                    ) : (
-                      <div className="flex items-center bg-primary text-white justify-center text-[10px] px-[8px] py-[3px] flex-1 border-t border-b border-l border-r rounded-full border-primary text-primary bg-card">
+                      <div className="flex items-center bg-primary-500 text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 rounded-r-full">
                         {sellItems}
                       </div>
-                    )}
-                  </div>
-                )}
+                    </>
+                  ) : items > 0 ? (
+                    <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[8px] py-[3px] flex-1  rounded-full">
+                      {items}
+                    </div>
+                  ) : (
+                    <div className="flex items-center bg-primary-500 text-white justify-center text-[10px] px-[8px] py-[3px] flex-1  rounded-full">
+                      {sellItems}
+                    </div>
+                  )}
+                </div>
+              )}
               </motion.div>
             </Button>
 
@@ -178,7 +181,7 @@ export default function Shell() {
                 }
               }}
             >
-              <MenuIcon size={24} isOpen={isAnyDrawerOpen} className="text-neutral-700 mt-1" />
+              <MenuIcon size={24} isOpen={isAnyDrawerOpen} className="text-neutral-900 mt-1" />
             </Button>
           </div>
         </div>

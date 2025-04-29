@@ -100,10 +100,6 @@ export default function ScrapFormStepper() {
     stepper.goTo('itemForm')
   }
 
-  const { errors } = useFormState({ control: form.control })
-  const gross = form.watch('gross')
-  const purity = form.watch('purity')
-
   return (
     <FormProvider {...form}>
       <Form {...form}>
@@ -146,9 +142,9 @@ function ItemFormStep() {
   return (
     <div className="flex flex-col gap-8">
       <MetalSelectionStep />
-      <Separator className="border-border" />
+      <div className='separator-inset'/>
       <WeightStep />
-      <Separator className="border-border" />
+      <div className='separator-inset'/>
       <PurityStep />
     </div>
   )
@@ -180,9 +176,12 @@ function MetalSelectionStep() {
               const isSelected = field.value === metal.label
 
               return (
-                <label
+                <motion.label
                   key={metal.label}
-                  className="relative flex w-full items-stretch justify-between gap-4 rounded-lg p-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-sm has-[[data-state=checked]]:border-primary transition-colors"
+                  initial={false}
+                  animate={isSelected ? { scale: 0.99, y: 2 } : { scale: 1, y: 0 }}
+                  transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
+                  className="radio-group-buttons w-full"
                 >
                   <div className="absolute top-1 right-1">
                     <CheckCircle
@@ -205,7 +204,7 @@ function MetalSelectionStep() {
                     id={metal.label}
                     className="sr-only after:absolute after:inset-0"
                   />
-                </label>
+                </motion.label>
               )
             })}
           </RadioGroup>
@@ -237,10 +236,14 @@ function WeightStep() {
                 const isSelected = field.value === weight.unit
 
                 return (
-                  <label
+                  <motion.label
                     key={weight.id}
-                    className="relative peer flex flex-col items-center w-full gap-3 rounded-lg py-3 cursor-pointer border border-text-neutral-200 has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-sm has-[[data-state=checked]]:border-primary transition-colors"
+                    initial={false}
+                    animate={isSelected ? { scale: 0.99, y: 2 } : { scale: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
+                    className="radio-group-buttons w-full"
                   >
+                    {' '}
                     <div className="absolute top-1 right-1">
                       <CheckCircle
                         size={16}
@@ -250,19 +253,17 @@ function WeightStep() {
                         )}
                       />
                     </div>
-
                     <div className="flex flex-col items-center gap-2">
                       {weight.logo}
                       <div className="secondary-text">{weight.label}</div>
                     </div>
-
                     <RadioGroupItem
                       value={weight.unit}
                       id={weight.id}
                       aria-describedby={weight.id}
                       className="sr-only after:absolute after:inset-0"
                     />
-                  </label>
+                  </motion.label>
                 )
               })}
             </RadioGroup>
@@ -343,11 +344,14 @@ function PurityStep() {
               const isSelected = selectedLabel === option.label
 
               return (
-                <label
+                <motion.label
                   key={option.label}
-                  className="relative flex items-center justify-center rounded-md border border-input px-4 py-2 text-sm font-medium cursor-pointer has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:shadow-sm transition-colors"
+                  initial={false}
+                  animate={isSelected ? { scale: 0.99, y: 2 } : { scale: 1, y: 0 }}
+                  transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
+                  className="radio-group-buttons w-full"
                 >
-                  <div className="absolute top-1 right-1">
+                  <div className="absolute top-2.5 right-2">
                     <CheckCircle
                       size={16}
                       className={cn(
@@ -364,12 +368,11 @@ function PurityStep() {
                     id={option.label}
                     className="sr-only after:absolute after:inset-0"
                   />
-                </label>
+                </motion.label>
               )
             })}
           </RadioGroup>
 
-          {/* Slider */}
           <div className="relative mt-6 mb-12 w-full">
             <Slider
               value={[purity]}
@@ -381,7 +384,7 @@ function PurityStep() {
             <div
               className="absolute top-4 text-sm text-neutral-700"
               style={{
-                left: `${(purity * 100) + 1}%`,
+                left: `${purity * 100 + 1}%`,
                 transform: 'translateX(-50%)',
                 whiteSpace: 'nowrap',
               }}

@@ -39,13 +39,13 @@ export default function MobileSpotTicker() {
 
           return (
             <div key={`${spot.id}-${i}`} className="flex items-center gap-2 text-xs">
-              <span className="text-sm text-neutral-700">{spot.type}:</span>
+              <span className="text-sm text-neutral-900 ">{spot.type}:</span>
               <NumberFlowGroup>
-                <div className="text-neutral-800 flex items-end">
+                <div className="text-primary font-medium flex items-end">
                   <PriceNumberFlow value={spot.bid_spot} />
                 </div>
 
-                <div className="flex items-center gap-0.5 text-neutral-600">
+                <div className="flex items-center gap-0.5 text-neutral-900 ">
                   <ChevronIcon size={14} className="text-primary" />
                   <PriceNumberFlow value={spot.dollar_change} />
                 </div>

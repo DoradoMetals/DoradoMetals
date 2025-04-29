@@ -14,6 +14,21 @@ export const Logo: React.FC<{ size?: number; height?: number }> = ({
   />
 )
 
+export const DesktopLogo: React.FC<{ size?: number; height?: number }> = ({
+  size = 50,
+  height,
+  ...props
+}) => (
+  <Image
+    src="/dorado-logo.png" // Ensure this file exists in the `public` folder
+    width={size}
+    height={height || size}
+    alt="Dorado Metals Exchange Logo"
+    {...props}
+  />
+)
+
+
 export const GoldIcon: React.FC<{
   size?: number
   height?: number

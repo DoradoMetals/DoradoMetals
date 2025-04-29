@@ -11,7 +11,7 @@ export default function Spots() {
 
   return (
     <>
-      <div className="w-screen bg-highest py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap border-b-1 border-neutral-200">
+      <div className="w-screen py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap">
         {spots && (
           <div className="hidden md:flex items-end sm:px-25">
             <div className="flex items-end gap-10 ml-auto">
@@ -21,14 +21,14 @@ export default function Spots() {
 
                 return (
                   <div key={spot.id} className="flex items-center gap-2">
-                    <span className="text-neutral-700 text-sm">{spot.type}:</span>
+                    <span className="text-neutral-900 text-sm">{spot.type}:</span>
 
                     <NumberFlowGroup>
-                      <div className="text-sm flex text-neutral-800 items-center">
+                      <div className="text-sm flex text-primary font-medium items-center">
                         <PriceNumberFlow value={spot.bid_spot} />
                       </div>
 
-                      <div className="flex items-center text-xs text-neutral-600">
+                      <div className="flex items-center text-xs text-neutral-900 ">
                         <ChevronIcon size={14} className="text-primary" />
                         <PriceNumberFlow value={spot.dollar_change} />
                       </div>
