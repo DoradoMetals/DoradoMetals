@@ -142,9 +142,9 @@ function ItemFormStep() {
   return (
     <div className="flex flex-col gap-8">
       <MetalSelectionStep />
-      <div className='separator-inset'/>
+      <div className="separator-inset" />
       <WeightStep />
-      <div className='separator-inset'/>
+      <div className="separator-inset" />
       <PurityStep />
     </div>
   )

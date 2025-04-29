@@ -1,9 +1,11 @@
 'use client'
 
+import { cn } from '@/lib/utils'
 import NumberFlow from '@number-flow/react'
-export default function PriceNumberFlow({value} : {value: number}) {
+export default function PriceNumberFlow({value, className} : {value: number, className?: string}) {
   return (
     <NumberFlow
+      className={cn(``, className ?? '')}
       value={value}
       format={{
         style: 'currency',

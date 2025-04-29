@@ -38,14 +38,14 @@ export default function MobileSpotTicker() {
           const ChevronIcon = trendUp ? ChevronUp : ChevronDown
 
           return (
-            <div key={`${spot.id}-${i}`} className="flex items-center gap-2 text-xs">
-              <span className="text-sm text-neutral-900 ">{spot.type}:</span>
+            <div key={`${spot.id}-${i}`} className="flex items-center gap-2">
+              <span className="text-neutral-900 text-sm pb-[1px]">{spot.type}:</span>
               <NumberFlowGroup>
-                <div className="text-primary font-medium flex items-end">
-                  <PriceNumberFlow value={spot.bid_spot} />
+                <div className="text-sm flex items-center">
+                  <PriceNumberFlow value={spot.bid_spot} className="text-sm" />
                 </div>
 
-                <div className="flex items-center gap-0.5 text-neutral-900 ">
+                <div className="flex items-center text-xs gap-[0.5px] text-neutral-700 pt-[.5px]">
                   <ChevronIcon size={14} className="text-primary" />
                   <PriceNumberFlow value={spot.dollar_change} />
                 </div>

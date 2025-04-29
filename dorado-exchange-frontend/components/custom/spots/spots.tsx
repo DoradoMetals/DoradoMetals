@@ -24,11 +24,11 @@ export default function Spots() {
                     <span className="text-neutral-900 text-sm">{spot.type}:</span>
 
                     <NumberFlowGroup>
-                      <div className="text-sm flex text-primary font-medium items-center">
+                      <div className="text-sm flex font-medium items-center">
                         <PriceNumberFlow value={spot.bid_spot} />
                       </div>
 
-                      <div className="flex items-center text-xs text-neutral-900 ">
+                      <div className="flex items-center text-xs text-neutral-700">
                         <ChevronIcon size={14} className="text-primary" />
                         <PriceNumberFlow value={spot.dollar_change} />
                       </div>
