@@ -20,6 +20,7 @@ import Spots from '../spots/spots'
 import Sidebar from './sidebar'
 
 import { motion } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
 export default function Shell() {
   const pathname = usePathname()
@@ -28,8 +29,8 @@ export default function Shell() {
   const { activeDrawer, openDrawer, closeDrawer } = useDrawerStore()
   const isAnyDrawerOpen = !!activeDrawer
 
-  const items = cartStore((state) => state.items.length)
-  const sellItems = sellCartStore((state) => state.items.length)
+  const items =
+    cartStore((state) => state.items.length) + sellCartStore((state) => state.items.length)
 
   useSellCartAutoSync()
   useCartAutoSync()
@@ -63,19 +64,21 @@ export default function Shell() {
   ]
 
   return (
-    <div className="sticky top-0 z-50 bg-card">
+    <div className="z-50 bg-card raised-off-page">
       <Spots />
 
       <nav>
         <div className="hidden lg:flex p-4 pt-1 px-20">
-          <div className="flex items-center gap-2 -mt-8">
+          <div className="flex items-center gap-2 -mt-4">
             <Link href="/" className="px-0">
               <DesktopLogo />
             </Link>
 
             <div className="flex items-end">
               <Link href="/">
-                <span className="text-xl text-neutral-900 font-medium tracking-widest">Dorado Metals Exchange</span>
+                <span className="text-lg text-neutral-900 font-medium tracking-widest">
+                  Dorado Metals Exchange
+                </span>
               </Link>
 
               <div className="flex text-base items-center font-semibold tracking-wide pl-32 gap-8">
@@ -89,29 +92,14 @@ export default function Shell() {
               </div>
             </div>
           </div>
-          <div className="hidden lg:flex items-center gap-8 ml-auto">
+          <div className="hidden lg:flex items-center gap-2 ml-auto">
             <Button className="px-0 relative" variant="ghost" onClick={() => openDrawer('cart')}>
               <CartIcon size={24} isOpen={activeDrawer === 'cart'} className="text-neutral-900" />
-              {(items > 0 || sellItems > 0) && (
-                <div className="absolute -top-1 -right-1 flex overflow-hidden rounded-full">
-                  {items > 0 && sellItems > 0 ? (
-                    <>
-                      <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 rounded-l-full">
-                        {items}
-                      </div>
-                      <div className="flex items-center bg-primary-500 text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 rounded-r-full">
-                        {sellItems}
-                      </div>
-                    </>
-                  ) : items > 0 ? (
-                    <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[8px] py-[3px] flex-1  rounded-full">
-                      {items}
-                    </div>
-                  ) : (
-                    <div className="flex items-center bg-primary-500 text-white justify-center text-[10px] px-[8px] py-[3px] flex-1  rounded-full">
-                      {sellItems}
-                    </div>
-                  )}
+              {items > 0 && (
+                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full bg-primary ">
+                  <div className="flex flex-1 items-center text-white justify-center text-[10px]">
+                    {items}
+                  </div>
                 </div>
               )}
             </Button>
@@ -128,7 +116,9 @@ export default function Shell() {
 
             <div className="flex items-end">
               <Link href="/">
-                <span className="text-lg text-neutral-900 tracking-wide">Dorado Metals Exchange</span>
+                <span className="text-lg text-neutral-900 tracking-wide">
+                  Dorado Metals Exchange
+                </span>
               </Link>
             </div>
           </div>
@@ -145,33 +135,11 @@ export default function Shell() {
                 className="relative flex items-center justify-center"
               >
                 <CartIcon size={20} isOpen={false} className="text-neutral-900 hover:bg-card" />
-                {(items > 0 || sellItems > 0) && (
-                <div className="absolute -top-1 -right-1 flex overflow-hidden rounded-full">
-                  {items > 0 && sellItems > 0 ? (
-                    <>
-                      <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 rounded-l-full">
-                        {items}
-                      </div>
-                      <div className="flex items-center bg-primary-500 text-white justify-center text-[10px] px-[3px] py-[3px] flex-1 rounded-r-full">
-                        {sellItems}
-                      </div>
-                    </>
-                  ) : items > 0 ? (
-                    <div className="flex items-center bg-secondary text-white justify-center text-[10px] px-[8px] py-[3px] flex-1  rounded-full">
-                      {items}
-                    </div>
-                  ) : (
-                    <div className="flex items-center bg-primary-500 text-white justify-center text-[10px] px-[8px] py-[3px] flex-1  rounded-full">
-                      {sellItems}
-                    </div>
-                  )}
-                </div>
-              )}
               </motion.div>
             </Button>
 
             <Button
-              className="px-0 hover:bg-card"
+              className="p-0 hover:bg-card"
               variant="ghost"
               onClick={() => {
                 if (isAnyDrawerOpen) {
@@ -181,7 +149,7 @@ export default function Shell() {
                 }
               }}
             >
-              <MenuIcon size={24} isOpen={isAnyDrawerOpen} className="text-neutral-900 mt-1" />
+              <MenuIcon size={24} isOpen={isAnyDrawerOpen} className="p-0 text-neutral-900 mt-1" />
             </Button>
           </div>
         </div>

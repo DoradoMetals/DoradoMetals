@@ -202,7 +202,7 @@ export default function SellCart() {
         </div>
       </div>
       <Button
-        className="w-full bg-primary lg:bg-card lg:border-primary lg:border-1 lg:text-primary hover:bg-primary hover:text-neutral-900 hover:shadow-lg"
+        className="w-full bg-primary text-white hover:bg-primary"
         onClick={() => router.push('/checkout')}
       >
         Sell Your Items

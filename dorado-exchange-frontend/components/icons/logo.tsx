@@ -15,7 +15,7 @@ export const Logo: React.FC<{ size?: number; height?: number }> = ({
 )
 
 export const DesktopLogo: React.FC<{ size?: number; height?: number }> = ({
-  size = 50,
+  size = 42,
   height,
   ...props
 }) => (

@@ -78,15 +78,15 @@
   --primary-800: hsl(21, 100%, 20%);
   --primary-900: hsl(14, 100%, 10%);
 
-  --secondary-100: hsl(230, 100%, 90%);
-  --secondary-200: hsl(230, 100%, 80%);
-  --secondary-300: hsl(230, 100%, 70%);
-  --secondary-400: hsl(230, 100%, 60%);
-  --secondary-500: hsl(230, 100%, 50%);
-  --secondary-600: hsl(230, 100%, 40%);
-  --secondary-700: hsl(230, 100%, 30%);
-  --secondary-800: hsl(230, 100%, 20%);
-  --secondary-900: hsl(230, 100%, 10%);
+  --secondary-100: hsl(200, 95%, 50%);
+  --secondary-200: hsl(200, 95%, 45%);
+  --secondary-300: hsl(200, 95%, 40%);
+  --secondary-400: hsl(200, 95%, 35%);
+  --secondary-500: hsl(200, 95%, 30%); 
+  --secondary-600: hsl(200, 95%, 25%);
+  --secondary-700: hsl(200, 95%, 20%);
+  --secondary-800: hsl(200, 95%, 15%);
+  --secondary-900: hsl(200, 95%, 10%);
 
   --neutral-100: hsl(0, 0%, 90%);
   --neutral-200: hsl(0, 0%, 80%);
@@ -99,7 +99,7 @@
   --neutral-900: hsl(0, 0%, 10%);
 
   --highest: hsl(0, 0%, 100%);
-  --card: hsl(0, 0%, 95%);
+  --card: hsl(0, 0%, 97%);
   --background: hsl(0, 0%, 90%);
   --popover: hsl(0, 0%, 85%);
   --border: hsl(0, 0%, 80%);
@@ -109,9 +109,9 @@
   --primary: hsl(42, 100%, 50%);
 
 
-  --secondary: hsl(212, 100%, 27%); 
-  --accent: hsl(212, 100%, 27%); 
-  --ring: hsl(212, 100%, 27%); 
+  --secondary: hsl(200, 95%, 30%); 
+  --accent: hsl(200, 95%, 30%);  
+  --ring: hsl(200, 95%, 30%); 
 
   --destructive: hsl(358, 93%, 64%);
   --success: hsl(129, 76%, 35%);
@@ -139,15 +139,15 @@
   --primary-800: hsl(21, 100%, 20%);
   --primary-900: hsl(14, 100%, 10%);
 
-  --secondary-100: hsl(185, 100%, 95%);
-  --secondary-200: hsl(185, 100%, 85%);
-  --secondary-300: hsl(185, 100%, 75%);
-  --secondary-400: hsl(185, 100%, 65%);
-  --secondary-500: hsl(185, 100%, 50%);
-  --secondary-600: hsl(185, 100%, 40%);
-  --secondary-700: hsl(185, 100%, 30%);
-  --secondary-800: hsl(185, 100%, 20%);
-  --secondary-900: hsl(185, 100%, 10%);
+  --secondary-100: hsl(200, 95%, 50%);
+  --secondary-200: hsl(200, 95%, 45%);
+  --secondary-300: hsl(200, 95%, 40%);
+  --secondary-400: hsl(200, 95%, 35%);
+  --secondary-500: hsl(200, 95%, 30%); 
+  --secondary-600: hsl(200, 95%, 25%);
+  --secondary-700: hsl(200, 95%, 20%);
+  --secondary-800: hsl(200, 95%, 15%);
+  --secondary-900: hsl(200, 95%, 10%);
 
   --neutral-100: hsl(0, 0%, 10%);
   --neutral-200: hsl(0, 0%, 20%);
@@ -188,10 +188,10 @@
 
 
   --primary: hsl(42, 100%, 50%);
-
-  --secondary: hsl(220, 25%, 35%);
-  --accent: hsl(220, 25%, 35%);
-  --ring: hsl(220, 25%, 35%);
+  
+  --secondary: hsl(200, 95%, 30%); 
+  --accent: hsl(200, 95%, 30%);  
+  --ring: hsl(200, 95%, 30%); 
 
 
   /*
@@ -199,9 +199,10 @@
   hsl(90, 30%, 35%);     - Olive Green
   hsl(280, 30%, 40%);    - Plum
   hsl(220, 25%, 35%);    - Desatured Navy
+  hsl(192, 70%, 43%);    - Blue Green
   hsl(220, 6%, 55%);     - Silver
   hsl(349, 79%, 37%);    - Angry Red
-  hsl(348, 100, 83);     - Cherry Blossom
+  hsl(348, 100%, 83%);   - Cherry Blossom
   hsl(339, 47%, 47%);    - Rasberry Red
   hsl(350, 34%, 43%);    - Copper Rust
   hsl(347, 100%, 28%);   - Burgundy
@@ -227,7 +228,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-gradient-to-b from-card to-background text-foreground;
+    @apply bg-background text-foreground;
 
   }
 }
@@ -245,6 +246,22 @@ svg {
   height: auto !important;
 }
 
+
+@theme inline {
+  --animate-aurora: aurora 60s linear infinite;
+  @keyframes aurora {
+    from {
+      background-position:
+        50% 50%,
+        50% 50%;
+    }
+    to {
+      background-position:
+        350% 50%,
+        350% 50%;
+    }
+  }
+}
 
 /* default browser overrides */
 
@@ -267,6 +284,36 @@ svg {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  scrollbar-arrow-color: var(--background) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* Chrome, Safari */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: hsl(0, 0%, 60%);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: red
 }
 
 .gm-style-cc { 
@@ -351,7 +398,7 @@ input:-webkit-autofill:active {
     relative 
     flex 
     items-center 
-    bg-background
+    bg-card
     justify-center
     rounded-md
     px-4
@@ -362,8 +409,8 @@ input:-webkit-autofill:active {
     transition-colors
     border
     border-transparent
-    has-[[data-state=checked]]:bg-card
-    has-[[data-state=checked]]:border-primary
+    /* has-[[data-state=checked]]:bg-card */
+    /* has-[[data-state=checked]]:border-primary */
     /* has-[[data-state=checked]]:shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
     has-[[data-state=checked]]:dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)] */
     has-[[data-state=checked]]:shadow-none
@@ -372,14 +419,30 @@ input:-webkit-autofill:active {
     dark:shadow-[inset_0px_1px_0px_hsla(0,0%,100%,.1),0px_1px_3px_hsla(0,0%,0%,.2)];
 }
 
+.raised-off-page {
+  @apply
+  shadow-[inset_0px_1px_0px_hsla(0,0%,99%,1),0px_1px_3px_hsla(0,0%,0%,.2)]
+  dark:shadow-[inset_0px_1px_0px_hsla(0,0%,100%,.1),0px_1px_3px_hsla(0,0%,0%,.2)];
+}
+
 .separator-inset {
   @apply 
-    h-[2px]
+    h-[3px]
+    rounded-full
     w-full
     bg-card
     shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
     dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)]
 }
+
+.section-label {
+  @apply
+    text-neutral-600
+    text-xs
+    tracking-widest
+    uppercase
+}
+
 
 number-flow-react::part(left),
 number-flow-react::part(right),

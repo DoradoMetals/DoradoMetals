@@ -64,7 +64,7 @@ export default function PrivacyPolicy() {
             <li>Access & Update: Update your account information anytime.</li>
             <li>Delete Account: Request account deletion (data removed as required by law).</li>
           </ul>
-          <p className="secondary-text">To exercise these rights, contact us at <Link className="text-secondary text-sm" href="mailto:support@dorado-metals.com">support@doradometals.com</Link>.</p>
+          <p className="secondary-text">To exercise these rights, contact us at <Link className="text-secondary text-sm" href="mailto:support@doradometals.com">support@doradometals.com</Link>.</p>
 
           <h2 className="title-text font-semibold mt-6">7. Third-Party Services</h2>
           <p className="secondary-text">We integrate third-party services such as Google OAuth for authentication.</p>

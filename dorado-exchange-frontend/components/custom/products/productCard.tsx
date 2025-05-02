@@ -215,7 +215,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
             {quantity === 0 ? (
               <Button
                 variant="ghost"
-                className="bg-secondary w-full hover:bg-secondary text-white"
+                className="bg-secondary w-full hover:bg-secondary text-white hover:text-white"
                 onClick={() => addItem(selectedProduct)}
               >
                 Add to Cart

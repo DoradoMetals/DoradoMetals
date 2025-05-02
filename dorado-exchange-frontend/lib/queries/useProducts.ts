@@ -13,6 +13,17 @@ interface ProductGroup {
   variants: Product[]
 }
 
+export const useAllProducts = () => {
+  return useQuery<Product[]>({
+    queryKey: ['all_products'],
+    queryFn: async () => {
+      console.log('here')
+      return await apiRequest<Product[]>('GET', '/products/get_all_products', undefined, {})
+    },
+    staleTime: Infinity,
+  })
+}
+
 export const useFilteredProducts = (filters: ProductFilters) => {
   return useQuery<ProductGroup[]>({
     queryKey: ['products', JSON.stringify(filters)],

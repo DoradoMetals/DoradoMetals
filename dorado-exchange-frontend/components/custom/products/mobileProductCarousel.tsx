@@ -95,7 +95,7 @@ export default function AvatarCarousel() {
         ))}
       </div>
 
-      <div className="lg:hidden relative w-full flex justify-center">
+      <div className="lg:hidden relative w-full flex justify-center mt-2">
         <motion.div className="flex gap-4 overflow-x-auto scroll-smooth no-scrollbar px-3">
           {categories.map((category) => (
             <div

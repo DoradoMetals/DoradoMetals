@@ -5,10 +5,11 @@ import Shell from '@/components/custom/nav/shell'
 import MobileProductCarousel from '../custom/products/mobileProductCarousel'
 import { useGetSession } from '@/lib/queries/useAuth'
 import ShellSkeleton from '../skeletons/ShellSkeleton'
+import Footer from '../custom/nav/footer'
 
 export default function LayoutProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const mobileProductCarouselRoutes = ['/', '/buy']
+  const mobileProductCarouselRoutes = ['/buy']
   const showMobileCarousel = mobileProductCarouselRoutes.includes(pathname)
 
   const { user, isPending } = useGetSession()
@@ -23,11 +24,14 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
 
   return (
     <>
-      <div className="">
+      <div className="flex flex-col min-h-screen">
         <Shell />
-        <div className="pt-[10px] lg:pt-[1px]">
-        {showMobileCarousel && <MobileProductCarousel />}
+        <div className="lg:pt-[1px]">
+          {showMobileCarousel && <MobileProductCarousel />}
           {children}
+        </div>
+        <div className='mt-auto'>
+          <Footer />
         </div>
       </div>
     </>

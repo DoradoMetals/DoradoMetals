@@ -16,7 +16,7 @@ export default function SignOutButton() {
       disabled={signOutMutation.isPending}
       icon={LogOut}
       iconSize={20}
-      className="px-4 h-8 py-2 text-md hover:bg-primary font-light border-primary"
+      className="px-4 h-8 py-2 text-md bg-card hover:bg-card font-light text-neutral-800 hover:text-primary"
     >
       {signOutMutation.isPending ? "Signing Out..." : "Sign Out"}
     </Button>

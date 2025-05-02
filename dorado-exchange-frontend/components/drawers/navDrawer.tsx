@@ -12,8 +12,8 @@ interface Props {
 }
 
 const styles = {
-  left: "top-26 h-full",
-  right: "top-26 h-full",
+  left: "top-24 h-full",
+  right: "top-24 h-full",
 };
 
 const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right' }) => {

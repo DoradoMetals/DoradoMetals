@@ -145,7 +145,7 @@ export default function Cart() {
         </div>
       </div>
       <Button
-        className="w-full bg-secondary text-neutral-900 hover:bg-secondary hover:shadow-lg"
+        className="raised-off-page w-full bg-secondary text-white hover:text-white hover:bg-secondary"
       >
         Checkout
       </Button>
