@@ -4,12 +4,14 @@ import { ReactNode, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useOnClickOutside } from 'usehooks-ts';
 
+
 type FloatingButtonProps = {
   className?: string;
   children: ReactNode;
   triggerContent: ReactNode;
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
 };
-
 type FloatingButtonItemProps = {
   children: ReactNode;
 };
@@ -19,28 +21,30 @@ const list = {
     opacity: 1,
     transition: {
       staggerChildren: 0.1,
-      staggerDirection: 1
+      staggerDirection: 1,
     }
   },
   hidden: {
     opacity: 0,
     transition: {
       when: 'afterChildren',
-      staggerChildren: 0.1
+      staggerChildren: 0.1,
+      staggerDirection: -1,
     }
   }
 };
 
 const item = {
   visible: { opacity: 1, x: 0 },
-  hidden: { opacity: 0, x: -10 }
+  hidden: { opacity: 0, x: 10 }
 }
 
 
 
-function FloatingButton({ className, children, triggerContent }: FloatingButtonProps) {
+function FloatingButton({ className, children, triggerContent, isOpen, setIsOpen }: FloatingButtonProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [isOpen, setIsOpen] = useState(false);
+
+
 
   useOnClickOutside(ref as React.RefObject<HTMLElement>, () => setIsOpen(false));
 
@@ -55,7 +59,7 @@ function FloatingButton({ className, children, triggerContent }: FloatingButtonP
       <AnimatePresence>
         {isOpen && (
           <motion.ul
-          className="flex flex-row items-center absolute right-full top-3 gap-2 z-50"
+          className="flex flex-row items-center absolute left-full top-3 gap-2 z-50"
           initial="hidden"
           animate="visible"
           exit="hidden"

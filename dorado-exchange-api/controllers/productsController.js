@@ -21,6 +21,27 @@ const getAllProducts = async (req, res) => {
   }
 };
 
+const getHomepageProducts = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT product.${PRODUCT_FIELDS}, mint.name AS mint_name, metal.type AS metal_type
+      FROM exchange.products product
+      JOIN exchange.metals metal ON metal.id = product.metal_id
+      JOIN exchange.mints mint ON mint.id = product.mint_id
+      WHERE product.display = true
+      AND product.homepage_display = true
+    `,
+      []
+    );
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 const getFilteredProducts = async (req, res) => {
   const { metal_type, mint_type, product_type } = req.query;
 
@@ -103,6 +124,7 @@ const getProductFilters = async (req, res) => {
 
 module.exports = {
   getAllProducts,
+  getHomepageProducts,
   getFilteredProducts,
   getProductFilters,
 };

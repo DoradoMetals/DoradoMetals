@@ -24,7 +24,7 @@ export default function Page() {
           </div>
           <Button
             variant="secondary"
-            className="w-full px-15"
+            className="w-full px-15 max-w-xl"
             onClick={() => {
               router.push('/authentication')
             }}

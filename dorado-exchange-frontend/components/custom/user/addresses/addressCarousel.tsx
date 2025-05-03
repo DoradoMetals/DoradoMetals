@@ -1,24 +1,24 @@
 'use client'
 
 import { Swiper, SwiperSlide } from 'swiper/react'
-import { Pagination, EffectCoverflow } from 'swiper/modules'
-import 'swiper/css/bundle'
-import { Dispatch } from 'react'
+import { Navigation, Pagination } from 'swiper/modules'
+import { Dispatch, useState } from 'react'
 import { Address } from '@/types/address'
-
-import 'swiper/css'
-import 'swiper/css/effect-coverflow'
-import 'swiper/css/pagination'
-import 'swiper/css/navigation'
-import { Building, House } from 'lucide-react'
+import { Building, ChevronsLeft, ChevronsRight, House } from 'lucide-react'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
 import { Button } from '@/components/ui/button'
 import { useDeleteAddress, useSetDefaultAddress } from '@/lib/queries/useAddresses'
+import { cn } from '@/lib/utils'
+
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/pagination'
+
 
 interface AddressCarouselProps {
   addresses: Address[]
   setOpen: Dispatch<React.SetStateAction<boolean>>
-  selectedAddress: Address,
+  selectedAddress: Address
   setSelectedAddress: Dispatch<React.SetStateAction<Address>>
 }
 
@@ -28,10 +28,12 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
   selectedAddress,
   setSelectedAddress,
 }) => {
+  const [isBeginning, setIsBeginning] = useState(true)
+  const [isEnd, setIsEnd] = useState(false)
   const deleteAddressMutation = useDeleteAddress()
   const setDefaultAddressMutation = useSetDefaultAddress()
   return (
-    <div className="w-full max-w-lg mx-auto">
+    <div className="w-full mx-auto">
       <style>
         {`
     .swiper-slide-shadow-left,
@@ -44,26 +46,29 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
         loop={false}
         grabCursor={true}
         centeredSlides={true}
-        slidesPerView={1.2}
-        effect={'coverflow'}
-        coverflowEffect={{
-          rotate: 0,
-          stretch: 0,
-          depth: 100,
-          modifier: 1.2,
+        slidesPerView={1}
+        navigation={{
+          nextEl: '.address-swiper-next',
+          prevEl: '.address-swiper-prev',
+        }}
+        onReachBeginning={() => setIsBeginning(true)}
+        onReachEnd={() => setIsEnd(true)}
+        onFromEdge={() => {
+          setIsBeginning(false)
+          setIsEnd(false)
         }}
         pagination={{ clickable: true }}
-        modules={[EffectCoverflow, Pagination]}
+        modules={[Navigation, Pagination]}
         className="
         [&_.swiper-pagination]:!static [&_.swiper-pagination]:mt-2
         [&_.swiper-pagination-bullet]:!bg-neutral-700
         [&_.swiper-pagination-bullet]:!opacity-30
         [&_.swiper-pagination-bullet-active]:!opacity-100
       "
-      onSlideChange={(swiper) => {
-        const addr = addresses[swiper.realIndex]
-        if (addr) setSelectedAddress(addr)
-      }}
+        onSlideChange={(swiper) => {
+          const addr = addresses[swiper.realIndex]
+          if (addr) setSelectedAddress(addr)
+        }}
       >
         {addresses.map((address, index) => (
           <SwiperSlide key={address.id} className="rounded-xl w-full">
@@ -130,6 +135,34 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
             </div>
           </SwiperSlide>
         ))}
+
+        <div className="hidden lg:block absolute -bottom-8 -translate-y-1/2 address-swiper-prev z-20">
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn(
+              isBeginning
+                ? `text-neutral-400 pointer-events-none hover:text-neutral-400`
+                : 'text-neutral-900'
+            )}
+          >
+            <ChevronsLeft size={32} />
+          </Button>
+        </div>
+
+        <div className="hidden lg:block absolute -bottom-8 right-0 -translate-y-1/2 address-swiper-next z-20">
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn(
+              isEnd
+                ? `text-neutral-400 pointer-events-none hover:text-neutral-400`
+                : 'text-neutral-900'
+            )}
+          >
+            <ChevronsRight size={32} />
+          </Button>
+        </div>
       </Swiper>
     </div>
   )

@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useProductFilterStore } from '@/store/productFilterStore'
 import Image from 'next/image'
+import { cn } from '@/lib/utils'
 
 const categories = [
   { name: 'Gold', img: '/product_images/elemetal_products/gold/American Eagle/BACK.png' },
@@ -63,6 +64,8 @@ export default function AvatarCarousel() {
   }
 
   const isActive = (category: string) => {
+    if (pathname === '/') return false
+  
     return (
       metal_type === category ||
       (product_type === 'Coin' && category === 'Coins') ||
@@ -75,17 +78,17 @@ export default function AvatarCarousel() {
 
   return (
     <div className="">
-      <div className="my-9 hidden lg:flex w-full justify-center">
+      <div className={cn("hidden lg:flex w-full justify-center", pathname === '/' ? 'mt-1' : 'my-9')}>
         {categories.map((category, index) => (
           <div
             key={category.name}
             onClick={() => handleClick(category.name)}
-            className={`flex cursor-pointer items-center px-10 ${
+            className={`flex cursor-pointer items-center px-9 ${
               index !== 0 ? 'border-l border-neutral-300' : ''
             }`}
           >
             <span
-              className={`text-xs font-semibold tracking-widest uppercase transition-colors ${
+              className={`text-base font-semibold tracking-widest uppercase transition-colors ${
                 isActive(category.name) ? 'text-secondary' : 'text-neutral-400 hover:text-secondary'
               }`}
             >

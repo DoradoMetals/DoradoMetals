@@ -261,6 +261,7 @@ function CarouselContent({ children, className, transition }: CarouselContentPro
         translateX: `-${index * (100 / visibleItemsCount)}%`,
       }}
       onDragEnd={disableDrag ? undefined : onDragEnd}
+      
       transition={
         transition || {
           damping: 18,

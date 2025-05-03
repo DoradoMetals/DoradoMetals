@@ -122,7 +122,7 @@ export default function Shell() {
               </Link>
             </div>
           </div>
-          <div className="lg:hidden flex items-center ml-auto gap-1">
+          <div className="lg:hidden flex items-center ml-auto gap-2">
             <Button
               className="px-0 hover:bg-card relative"
               variant="ghost"
@@ -135,6 +135,13 @@ export default function Shell() {
                 className="relative flex items-center justify-center"
               >
                 <CartIcon size={20} isOpen={false} className="text-neutral-900 hover:bg-card" />
+                {items > 0 && (
+                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full bg-primary ">
+                  <div className="flex flex-1 items-center text-white justify-center text-[10px]">
+                    {items}
+                  </div>
+                </div>
+              )}
               </motion.div>
             </Button>
 
