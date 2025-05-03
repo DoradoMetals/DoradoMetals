@@ -19,13 +19,14 @@ export default function Home() {
     <div className="">
       <div className="flex flex-col w-full">
         {/* desktop */}
-        <div className="hidden lg:flex flex-col">
-          <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="hidden relative lg:flex flex-col">
+          <div className="relative flex min-h-[50vh] items-center justify-center">
+            <div className=" absolute inset-0 bg-primary/25 dark:bg-transparent z-10 pointer-events-none" />
             <div className="w-full max-w-[80vw]">
-              <div className="flex items-center justify-between w-full">
+              <div className="relative flex items-center justify-between w-full">
                 <div className="w-full flex flex-col h-full gap-5">
-                  <div className="text-6xl text-neutral-900">Metals Trading, Refined.</div>
-                  <div className="text-xl text-neutral-700 max-w-xl">
+                  <div className="text-6xl text-neutral-900 z-20">Metals Trading, Refined.</div>
+                  <div className="text-xl text-neutral-700 max-w-xl z-20">
                     Trading metals shouldn't be complicated. Built to be smarter, simpler, and
                     fairer, we make it easy to get real prices, fast decisions, and full
                     transparency without compromise.
@@ -42,7 +43,7 @@ export default function Home() {
                     </Button>
                   )}
                 </div>
-                <div className="h-full w-full">
+                <div className="relative h-full w-full">
                   <Image
                     src="/homepage_images/falling-bars.png"
                     height={2000}
@@ -64,7 +65,7 @@ export default function Home() {
                   </div>
                   <div className="-my-30">
                     <Button
-                      className="primary-gradient hover:primary-gradient shine-on-hover raised-off-page text-white text-lg p-8"
+                      className="primary-gradient hover:primary-gradient shine-on-hover raised-off-page text-white text-lg p-8 z-30"
                       onClick={() => router.push('/sell')}
                     >
                       Get an Estimate
