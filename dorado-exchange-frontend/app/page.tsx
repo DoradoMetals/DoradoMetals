@@ -33,7 +33,7 @@ export default function Home() {
                   {!user && (
                     <Button
                       variant={'default'}
-                      className="mt-10 max-w-lg bg-card border border-primary text-primary hover:bg-primary hover:text-white text-lg font-normal"
+                      className="mt-10 max-w-lg hover:text-white text-lg font-normal raised-off-page primary-gradient hover:primary-gradient shine-on-hover"
                       onClick={() => {
                         router.push('/account')
                       }}
@@ -57,14 +57,14 @@ export default function Home() {
           </div>
           <div className="flex flex-col gap-10">
             <div className="flex flex-col w-full justify-center items-center bg-card gap-10 pb-10">
-              <div className="flex justify-center items-center w-full bg-linear-to-l from-primary-600 to-primary-500">
+              <div className="flex justify-center items-center w-full primary-gradient">
                 <div className="flex w-full items-center justify-between p-2 max-w-[80vw]">
                   <div className="text-2xl text-white">
                     Selling your metal online has never been easier.
                   </div>
                   <div className="-my-30">
                     <Button
-                      className="bg-primary hover:bg-primary shadow-sm text-white text-lg p-8"
+                      className="primary-gradient hover:primary-gradient shine-on-hover raised-off-page text-white text-lg p-8"
                       onClick={() => router.push('/sell')}
                     >
                       Get an Estimate
@@ -118,14 +118,14 @@ export default function Home() {
               </div>
             </div>
             <div className="flex flex-col w-full justify-center items-center bg-card pb-10">
-              <div className="flex justify-center items-center w-full bg-linear-to-l from-secondary-700 to-secondary-500">
+              <div className="flex justify-center items-center w-full secondary-gradient">
                 <div className="flex w-full items-center justify-between p-2 max-w-[80vw]">
                   <div className="text-sm lg:text-2xl text-white">
                     Buy precious metals with confidence.
                   </div>
                   <div className="-my-30">
                     <Button
-                      className="bg-secondary hover:bg-secondary shadow-sm text-white text-lg p-8"
+                      className="secondary-gradient hover:secondary-gradient shine-on-hover raised-off-page text-white text-lg p-8"
                       onClick={() => router.push('/buy')}
                     >
                       See All Products
@@ -218,7 +218,7 @@ export default function Home() {
                     <div className="flex items-center justify-center w-full">
                       <Button
                         variant={'default'}
-                        className="w-full mt-10 bg-card text-white bg-primary text-lg font-normal max-w-xs shadow-lg"
+                        className="w-full mt-10 text-white text-lg font-normal max-w-xs raised-off-page primary-gradient hover:primary-gradient shine-on-hover"
                         onClick={() => {
                           router.push('/authentication')
                         }}
@@ -232,7 +232,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex flex-col lg:hidden">
-            <div className="flex w-full justify-center bg-linear-to-r from-primary-600 to-primary-500">
+            <div className="flex w-full justify-center primary-gradient">
               <div className="text-base text-white p-2">
                 Selling your metal online has never been easier.
               </div>
@@ -281,7 +281,7 @@ export default function Home() {
                 </div>
               </div>
               <Button
-                className="bg-primary w-full hover:bg-primary shadow-sm text-white text-base p-5"
+                className="raised-off-page primary-gradient hover:primary-gradient shine-on-hover w-full shadow-sm text-white text-base p-5"
                 onClick={() => router.push('/sell')}
               >
                 Get an Estimate

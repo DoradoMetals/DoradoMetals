@@ -18,7 +18,7 @@ export default function ReviewStep() {
   return (
     <div className="flex flex-col gap-4 w-full text-sm text-neutral-800">
       {/* Address */}
-      <div className="rounded-xl border border-border bg-card px-4 py-3">
+      <div className="rounded-xl border border-border bg-card px-4 py-3 raised-off-page">
         <div className="flex w-full items-center justify-between">
           <div className="text-xl text-neutral-800">{data.address?.name}</div>
           <div className="text-base text-neutral-600">
@@ -33,7 +33,7 @@ export default function ReviewStep() {
       </div>
 
       {/* Shipment */}
-      <div className="rounded-xl border border-border bg-card px-4 py-3">
+      <div className="rounded-xl border border-border bg-card px-4 py-3 raised-off-page">
         <div className="flex justify-between items-center">
           <div className="text-xl text-neutral-800">
             {data.service?.serviceDescription ?? 'Shipping Service'}
@@ -71,7 +71,7 @@ export default function ReviewStep() {
       </div>
 
       {/* Payment */}
-      <div className="rounded-xl border border-border bg-card px-4 py-3">
+      <div className="rounded-xl border border-border bg-card px-4 py-3 raised-off-page">
         <div className="flex justify-between">
           <div className="text-xl font-medium">
             {
@@ -128,7 +128,7 @@ export default function ReviewStep() {
       <ItemTables />
 
       <Button
-        className="w-full shadow-lg mt-2"
+        className="ml-auto raised-off-page primary-gradient shine-on-hover text-white w-full mt-2"
         disabled={createPurchaseOrder.isPending}
         onClick={() => {
           const liveCartItems = sellCartStore.getState().items

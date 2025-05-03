@@ -41,7 +41,7 @@ export function AddressSelector({
   }
 
   return (
-    <div className="rounded-lg border border-primary overflow-hidden bg-card">
+    <div className="rounded-lg border border-primary overflow-hidden bg-card raised-off-page">
       <div
         role="button"
         tabIndex={0}

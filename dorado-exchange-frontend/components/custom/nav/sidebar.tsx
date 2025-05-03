@@ -30,19 +30,19 @@ export default function Sidebar() {
       key: 1,
       label: 'Buy from Us',
       src: '/buy',
-      className: pathname === '/buy' ? 'text-primary' : '',
+      className: pathname === '/buy' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
     },
     {
       key: 2,
       label: 'Sell to Us',
       src: '/sell',
-      className: pathname === '/sell' ? 'text-primary' : '',
+      className: pathname === '/sell' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
     },
     {
       key: 3,
-      label: 'Admin PoS',
+      label: 'Admin',
       src: '/admin',
-      className: pathname === '/admin' ? 'text-primary' : '',
+      className: pathname === '/admin' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
       hidden: user?.role !== 'admin',
     },
   ]
@@ -62,10 +62,10 @@ export default function Sidebar() {
               router.push('/account')
               closeDrawer()
             }}
-            className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
+            className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1 border-primary bg-card raised-off-page"
           >
-            <User size={20} strokeWidth={1} />
-            <div className="text-sm font-light">Account</div>
+            <User size={20} className='text-primary' />
+            <div className="text-sm text-primary-gradient">Account</div>
           </Button>
         </div>
 
@@ -82,10 +82,10 @@ export default function Sidebar() {
                 }
               }}
               disabled={signOutMutation.isPending}
-              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
+              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1 border-primary bg-card raised-off-page"
             >
-              <LogOut size={20} strokeWidth={1} />
-              <div className="text-sm font-light">Sign Out</div>
+              <LogOut size={20} className='text-primary' />
+              <div className="text-sm text-primary-gradient">Sign Out</div>
             </Button>
           </div>
         ) : (
@@ -96,10 +96,10 @@ export default function Sidebar() {
                 router.push('/authentication?tab=sign-in')
                 closeDrawer()
               }}
-              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
+              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1 border-primary bg-card raised-off-page"
             >
-              <LogIn size={20} strokeWidth={1} />
-              <div className="text-sm font-light">Sign In</div>
+              <LogIn size={20} className='text-primary' />
+              <div className="text-sm text-primary-gradient">Sign In</div>
             </Button>
           </div>
         )}
@@ -107,9 +107,7 @@ export default function Sidebar() {
 
       {/* Separator */}
       <div className="flex w-full justify-center items-center pb-10 px-20">
-        <div className="flex-grow">
-          <Separator />
-        </div>
+        <div className="flex-grow primary-gradient h-[1px]" />
       </div>
 
       {/* Menu items */}
@@ -118,7 +116,7 @@ export default function Sidebar() {
           .filter((item) => !item.hidden)
           .map((item) => (
             <div className="flex-col items-center pb-5" key={item.key}>
-              <div className="flex items-center font-light justify-center pb-2 text-xl">
+              <div className="flex items-center justify-center pb-2 text-xl">
                 <Link
                   href={item.src}
                   className={item.className}

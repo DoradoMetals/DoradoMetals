@@ -35,36 +35,30 @@ export default function Shell() {
   useSellCartAutoSync()
   useCartAutoSync()
 
-  function getBadgePosition(type: 'buy' | 'sell', buyCount: number) {
-    if (type === 'buy') return '-top-0 -right-0'
-    if (type === 'sell') return buyCount > 0 ? 'top-0 -right-4' : '-top-0 -right-0'
-    return ''
-  }
-
   const menuItems = [
     {
       key: 1,
       label: 'BUY',
       src: '/buy',
-      className: pathname === '/buy' ? 'text-primary' : 'text-neutral-500',
+      className: pathname === '/buy' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
     },
     {
       key: 2,
       label: 'SELL',
       src: '/sell',
-      className: pathname === '/sell' ? 'text-primary' : 'text-neutral-500',
+      className: pathname === '/sell' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
     },
     {
       key: 3,
       label: 'ADMIN',
       src: '/admin',
-      className: pathname === '/admin' ? 'text-primary' : 'text-neutral-500',
+      className: pathname === '/admin' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
       hidden: user?.role !== 'admin',
     },
   ]
 
   return (
-    <div className="z-50 bg-card raised-off-page">
+    <div className="z-50 sticky top-0 bg-card raised-off-page">
       <Spots />
 
       <nav>

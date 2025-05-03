@@ -278,7 +278,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
         </div>
       </div>
 
-      <div className="h-4/5 bg-card rounded-lg rounded-b-xl -mt-10 flex flex-col justify-end border-2 border-secondary">
+      <div className="h-4/5 bg-card rounded-lg rounded-b-xl -mt-14 lg:-mt-10 flex flex-col justify-end border-2 border-secondary">
         <div className="space-y-4">
           <div className="px-6">
             <div className="flex items-start">
@@ -297,11 +297,11 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
             </div>
           </div>
 
-          <div className="bg-secondary w-full rounded-b-lg py-2 text-white">
+          <div className={cn("secondary-gradient w-full rounded-b-lg py-2 text-white", quantity === 0 ? 'shine-on-hover' : '')}>
             {quantity === 0 ? (
               <Button
                 variant="ghost"
-                className="bg-secondary w-full hover:bg-secondary text-white hover:text-white"
+                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
                 onClick={() => addItem(selectedProduct)}
               >
                 Add to Cart
@@ -310,7 +310,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
               <div className="flex items-center justify-center">
                 <Button
                   variant="ghost"
-                  className="text-white"
+                  className="text-white hover:text-white"
                   onClick={() => removeOne(selectedProduct)}
                 >
                   <Minus size={20} />
@@ -322,7 +322,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                 />
                 <Button
                   variant="ghost"
-                  className="text-white"
+                  className="text-white hover:text-white"
                   onClick={() => addItem(selectedProduct)}
                 >
                   <Plus size={20} />

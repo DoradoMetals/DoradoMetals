@@ -25,7 +25,7 @@ export default function Spots() {
 
                     <NumberFlowGroup>
                       <div className="text-sm flex font-medium items-center">
-                        <PriceNumberFlow value={spot.bid_spot} />
+                        <PriceNumberFlow className="" value={spot.bid_spot} />
                       </div>
 
                       <div className="flex items-center text-xs text-neutral-700">

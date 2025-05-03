@@ -63,7 +63,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
               key={serviceType}
               htmlFor={serviceType}
               className={cn(
-                'relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg border border-border bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:shadow-md'
+                'raised-off-page relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg border border-border bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:shadow-md'
               )}
             >
               <div className="absolute top-2 right-2">

@@ -65,6 +65,7 @@ export default function SellCart() {
             router.push('/sell')
             closeDrawer()
           }}
+          className="raised-off-page primary-gradient text-white hover:text-white shine-on-hover px-12"
         >
           Start Selling
         </Button>
@@ -146,7 +147,7 @@ export default function SellCart() {
     return (
       <div
         key={index}
-        className={`flex items-center justify-between w-full gap-4 py-4 ${
+        className={`flex items-center justify-between w-full pl-5 gap-4 py-4 ${
           index !== items.length - 1 ? 'border-b border-neutral-300' : 'border-none'
         }`}
       >
@@ -182,7 +183,7 @@ export default function SellCart() {
   }
 
   const cartContent = (
-    <div className="w-full p-5 flex-col space-y-10">
+    <div className="w-full flex-col">
       {productItems.length > 0 && (
         <div>{productItems.map((item, i) => renderProductItem(item.data as Product, i))}</div>
       )}
@@ -201,7 +202,7 @@ export default function SellCart() {
         </div>
       </div>
       <Button
-        className="w-full bg-primary text-white hover:bg-primary"
+        className="raised-off-page primary-gradient shine-on-hover w-full text-white"
         onClick={() => router.push('/checkout')}
       >
         Sell Your Items

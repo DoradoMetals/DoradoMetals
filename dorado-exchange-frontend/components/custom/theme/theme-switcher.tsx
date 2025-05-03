@@ -11,14 +11,14 @@ export function ThemeSwitcher() {
     <Button
       variant="outline"
       onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-      className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
+      className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1 border-primary bg-card raised-off-page"
     >
       {theme === 'light' ? (
-        <Moon size={20} strokeWidth={1}/>
+        <Moon size={20} className='text-primary'/>
       ) : (
-        <Sun size={20} strokeWidth={1}/>
+        <Sun size={20} className='text-primary'/>
       )}
-      <span className="text-sm font-light">{theme === 'light' ? 'Dark' : 'Light'}</span>
+      <span className="text-sm text-primary-gradient">{theme === 'light' ? 'Dark' : 'Light'}</span>
     </Button>
   )
 }

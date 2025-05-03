@@ -7,7 +7,7 @@ import { FedexPickupTimes } from '@/types/shipping'
 import { format, parseISO } from 'date-fns'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { cn } from '@/lib/utils'
-import { formatPickupDate, formatPickupTime } from '@/utils/dateFormatting'
+import { formatPickupDate, formatPickupDateShort, formatPickupTime } from '@/utils/dateFormatting'
 
 type PickupSchedulerProps = {
   times: FedexPickupTimes[]
@@ -29,7 +29,7 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
   return (
     <div>
       {pickup?.label === 'CONTACT_FEDEX_TO_SCHEDULE' && (
-        <div className="rounded-lg border border-border bg-card">
+        <div className="rounded-lg border border-border bg-card raised-off-page">
           <div className="flex max-sm:flex-col">
             {/* Calendar */}
             <div className="flex items-center justify-center">
@@ -68,6 +68,9 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
               <div className="h-9 bg-card border-b border-border flex items-center justify-center px-5">
                 <p className="block sm:hidden text-sm text-neutral-700 text-center">
                   {formatPickupDate(selectedDateStr)}
+                </p>
+                <p className="hidden sm:block text-sm text-neutral-700 text-center">
+                  {formatPickupDateShort(selectedDateStr)}
                 </p>
               </div>
 

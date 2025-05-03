@@ -34,7 +34,7 @@ export function PickupSelector() {
             key={pickup.label}
             htmlFor={pickup.label}
             className={cn(
-              'relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg border border-border bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:shadow-md'
+              'raised-off-page relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg border border-border bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:shadow-md'
             )}
           >
             {pickup.icon && <pickup.icon className="w-5 h-5 text-primary" />}

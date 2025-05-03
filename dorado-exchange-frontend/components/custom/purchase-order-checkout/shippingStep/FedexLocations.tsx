@@ -72,7 +72,7 @@ export const FedexLocationsMap = () => {
   }, [])
 
   return (
-    <div className="rounded-lg overflow-hidden border border-border">
+    <div className="rounded-lg overflow-hidden border border-border raised-off-page">
       <div className="bg-card w-full p-4">
         <h2 className="text-lg text-neutral-800">Dropoff Store Locator</h2>
       </div>

@@ -24,7 +24,7 @@ const { useStepper, utils } = defineStepper(
 )
 
 export default function CheckoutStepper() {
-  const router = useRouter();
+  const router = useRouter()
   const { user } = useUser()
   const { data: addresses = [], isLoading } = useAddress()
   const { setData } = usePurchaseOrderCheckoutStore()
@@ -134,7 +134,7 @@ export default function CheckoutStepper() {
                 variant="outline"
                 onClick={stepper.prev}
                 disabled={stepper.isFirst}
-                className="hover:bg-card"
+                className="bg-card hover:bg-card raised-off-page"
               >
                 {stepper.current.id === 'payout'
                   ? 'Back to Shipping'
@@ -147,7 +147,7 @@ export default function CheckoutStepper() {
             {stepper.current.id !== 'review' && (
               <Button
                 type="button"
-                className="ml-auto"
+                className="ml-auto raised-off-page primary-gradient shine-on-hover text-white"
                 onClick={stepper.next}
                 disabled={
                   (stepper.current.id === 'shipping' && !isShippingStepComplete) ||
@@ -186,18 +186,27 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
           fill="none"
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-neutral-500"
+          className="text-neutral-300"
         />
+        <defs>
+          <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#AE8625" />
+            <stop offset="25%" stopColor="#F5D67D" />
+            <stop offset="50%" stopColor="#D2AC47" />
+            <stop offset="75%" stopColor="#EDC967" />
+            <stop offset="100%" stopColor="#AE8625" />
+          </linearGradient>
+        </defs>
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="currentColor"
+          stroke="url(#goldGradient)"
           strokeWidth={strokeWidth}
+          className="transition-all duration-300 ease-in-out"
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
-          className="text-primary transition-all duration-300 ease-in-out"
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </svg>

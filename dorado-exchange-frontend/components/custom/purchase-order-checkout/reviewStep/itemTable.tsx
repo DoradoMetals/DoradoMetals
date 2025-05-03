@@ -59,7 +59,7 @@ export default function ReviewItemTables() {
   const [open, setOpen] = useState({ scrap: true, bullion: true })
 
   return (
-    <div className="rounded-lg border border-border overflow-hidden bg-card">
+    <div className="rounded-lg border border-border overflow-hidden bg-card raised-off-page">
       <div className="flex items-center justify-between p-4 border-b border-border">
         <h2 className="text-xl text-neutral-800">Estimated Payout</h2>
         <span className="text-lg font-normal text-neutral-900">
