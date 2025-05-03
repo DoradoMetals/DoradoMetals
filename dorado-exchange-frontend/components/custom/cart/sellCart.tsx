@@ -12,7 +12,6 @@ import { useRouter } from 'next/navigation'
 import getScrapPrice from '@/utils/getScrapPrice'
 import { getGrossLabel, getPurityLabel, Scrap } from '@/types/scrap'
 import { Product } from '@/types/product'
-import { Dispatch } from 'react'
 import getProductBidPrice from '@/utils/getProductBidPrice'
 import { useDrawerStore } from '@/store/drawerStore'
 
@@ -126,7 +125,7 @@ export default function SellCart() {
                 variant="ghost"
                 size="sm"
                 className="hover:bg-card p-1"
-                onClick={() => addItem({ type: 'product', data: item })}
+                onClick={() => addItem({ type: 'product', data: {...item, quantity: 1} })}
               >
                 <Plus size={16} />
               </Button>

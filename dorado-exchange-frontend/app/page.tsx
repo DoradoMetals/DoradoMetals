@@ -13,7 +13,6 @@ import { useUser } from '@/lib/authClient'
 
 export default function Home() {
   const router = useRouter()
-  const { data: products = [], isLoading } = useHomepageProducts()
   const { user } = useUser()
 
   return (

@@ -20,7 +20,7 @@ export function SellTabs() {
     <Tabs
       defaultValue={currentTab}
       onValueChange={handleTabChange}
-      className="flex w-full px-5 max-w-2xl lg:mt-8"
+      className="flex w-full px-5 max-w-2xl mt-4 lg:mt-8"
     >
       <TabsList className="justify-center h-auto w-full gap-2 rounded-none bg-transparent px-0 text-foreground mb-0 pb-0">
         <TabsTrigger

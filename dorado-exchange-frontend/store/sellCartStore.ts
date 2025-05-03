@@ -14,16 +14,16 @@ interface SellCartState {
   mergeSellCart: (backendItems: SellCartItem[]) => void // ← Add this
 }
 
-function addWithQuantity(item: SellCartItem) {
+function addWithQuantity(item: SellCartItem): SellCartItem {
   if (item.type === 'product') {
     return {
       type: 'product' as const,
-      data: { ...(item.data as Product), quantity: 1 },
+      data: { ...(item.data as Product), quantity: (item.data.quantity ?? 1) },
     }
   } else {
     return {
       type: 'scrap' as const,
-      data: { ...(item.data as Scrap), quantity: 1 },
+      data: { ...(item.data as Scrap), quantity: (item.data.quantity ?? 1) },
     }
   }
 }
@@ -69,7 +69,7 @@ export const sellCartStore = create<SellCartState>()(
 
         const existing = items.find((i) => match(i, item))
         if (existing) {
-          existing.data.quantity = (existing.data.quantity || 1) + 1
+          existing.data.quantity = (existing.data.quantity ?? 0) + (item.data.quantity ?? 1)
         } else {
           items.push(addWithQuantity(item))
         }

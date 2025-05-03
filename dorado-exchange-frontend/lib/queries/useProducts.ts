@@ -8,21 +8,49 @@ interface ProductFilters {
   product_type?: string
 }
 
-interface ProductGroup {
+export interface ProductGroup {
   default: Product
   variants: Product[]
 }
 
 export const useAllProducts = () => {
-  return useQuery<Product[]>({
+  return useQuery<ProductGroup[]>({
     queryKey: ['all_products'],
     queryFn: async () => {
-      console.log('here')
-      return await apiRequest<Product[]>('GET', '/products/get_all_products', undefined, {})
+      const products = await apiRequest<Product[]>(
+        'GET',
+        '/products/get_all_products',
+        undefined,
+        {}
+      )
+
+      const groups: Record<string, Product[]> = {}
+      const singles: ProductGroup[] = []
+
+      for (const product of products) {
+        if (product.variant_group !== '') {
+          if (!groups[product.variant_group]) groups[product.variant_group] = []
+          groups[product.variant_group].push(product)
+        } else {
+          singles.push({ default: product, variants: [] })
+        }
+      }
+
+      const grouped: ProductGroup[] = Object.values(groups).flatMap((variants) => {
+        if (variants.length === 1) {
+          return [{ default: variants[0], variants: [] }]
+        }
+
+        const defaultVariant = variants[variants.length - 1]
+        return [{ default: defaultVariant, variants }]
+      })
+
+      return [...singles, ...grouped]
     },
     staleTime: Infinity,
   })
 }
+
 
 export const useHomepageProducts = () => {
   return useQuery<ProductGroup[]>({

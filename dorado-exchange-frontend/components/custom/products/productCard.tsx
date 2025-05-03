@@ -86,7 +86,6 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
           >
             <SwiperSlide>
               <div className="flex relative aspect-square pb-4">
-
                 <Image
                   src={selectedProduct.image_front}
                   width={500}
@@ -94,7 +93,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                   className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
                   alt="thumbnail front"
                 />
-                                <ProductShadow
+                <ProductShadow
                   productType={selectedProduct.product_type}
                   offset={selectedProduct.shadow_offset}
                 />

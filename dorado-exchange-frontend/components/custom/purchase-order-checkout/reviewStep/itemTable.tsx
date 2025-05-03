@@ -209,10 +209,15 @@ const bullionColumns: ColumnDef<Extract<SellCartItem, { type: 'product' }>>[] = 
   },
   {
     header: 'Est. Value',
-    cell: ({ row }) => (
-      <span className="font-normal text-right block w-full">
-        <PriceNumberFlow value={row.original.data.price ?? 0} />
-      </span>
-    ),
+    cell: ({ row }) => {
+      const { data: spotPrices = [] } = useSpotPrices()
+      const spot = spotPrices.find((s) => s.type === row.original.data.metal_type)
+
+      return (
+        <span className="font-normal text-right block w-full">
+          <PriceNumberFlow value={getProductBidPrice(row.original.data, spot) * (row.original.data.quantity ?? 1)} />
+        </span>
+      )
+    },
   },
 ]
