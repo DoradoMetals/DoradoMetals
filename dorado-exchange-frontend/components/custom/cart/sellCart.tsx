@@ -49,7 +49,7 @@ export default function SellCart() {
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
       <div className="relative mb-5">
         <ShoppingCart size={80} className="text-neutral-800" strokeWidth={1.5} />
-        <div className="absolute -top-6 right-3.5 border border-primary text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
+        <div className="absolute -top-6 right-3.5 border border-primary text-xl text-primary-gradient rounded-full w-10 h-10 flex items-center justify-center">
           0
         </div>
       </div>
@@ -65,7 +65,7 @@ export default function SellCart() {
             router.push('/sell')
             closeDrawer()
           }}
-          className="raised-off-page primary-gradient text-white hover:text-white shine-on-hover px-12"
+          className="raised-off-page liquid-gold text-white hover:text-white shine-on-hover px-12"
         >
           Start Selling
         </Button>

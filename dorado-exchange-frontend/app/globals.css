@@ -99,7 +99,7 @@
 
   --highest: hsl(0, 0%, 100%);
   --card: hsl(0, 0%, 97%);
-  --background: hsl(0, 0%, 90%);
+  --background: hsl(0, 0%, 92%);
   --popover: hsl(0, 0%, 85%);
   --border: hsl(0, 0%, 80%);
   --input: hsl(0, 0%, 75%);
@@ -107,7 +107,7 @@
 
   --primary: hsl(42, 65%, 41%);
 
-  --secondary: hsl(220, 50%, 36%);
+  --secondary: hsl(0, 0%, 0%);
   --accent: hsl(220, 50%, 36%);
   --ring: hsl(220, 50%, 36%);
 
@@ -184,7 +184,7 @@
 
   --primary: hsl(42, 65%, 41%);
 
-  --secondary: hsl(220, 50%, 36%);
+  --secondary: hsl(0, 0%, 0%);
   --accent: hsl(220, 50%, 36%);
   --ring: hsl(220, 50%, 36%);
 
@@ -388,8 +388,6 @@ input:-webkit-autofill:active {
     font-medium
     cursor-pointer
     transition-colors
-    border
-    border-transparent
     /* has-[[data-state=checked]]:bg-card */
     /* has-[[data-state=checked]]:border-primary */
     /* has-[[data-state=checked]]:shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
@@ -415,8 +413,7 @@ input:-webkit-autofill:active {
 }
 
 .recessed-into-page {
-  @apply
-    shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
+  @apply shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
     dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)];
 }
 
@@ -483,12 +480,13 @@ number-flow-react::part(symbol) {
   .tab-indicator-secondary[data-state='active']::after {
     background: linear-gradient(
       to left,
-      #22366b 0%,
-      #2e4c8a 20%,
-      #4663a3 40%,
-      #5a78b3 60%,
-      #3a5692 80%,
-      #22366b 100%
+      #0a0a0a 0%,
+      #121212 20%,
+      #222222 40%,
+      #444444 50%,
+      #222222 60%,
+      #121212 80%,
+      #0a0a0a 100%
     );
     @apply shadow-none;
   }
@@ -503,6 +501,60 @@ number-flow-react::part(symbol) {
     #edc967 75%,
     #ae8625 100%
   );
+}
+
+.liquid-gold {
+  position: relative;
+  background: linear-gradient(
+    to left,
+    #ae8625 0%,
+    #f5d67d 25%,
+    #d2ac47 50%,
+    #edc967 75%,
+    #ae8625 100%
+  );
+  background-size: 200% 200%;
+  animation: backgroundShift 20s ease-in-out infinite;
+}
+
+.liquid-gold::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
+  background-size: 200% 200%;
+  animation: shineMove 10s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes backgroundShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes shineMove {
+  0% {
+    background-position: 10% 20%;
+  }
+  25% {
+    background-position: 60% 40%;
+  }
+  50% {
+    background-position: 30% 80%;
+  }
+  75% {
+    background-position: 80% 60%;
+  }
+  100% {
+    background-position: 10% 20%;
+  }
 }
 
 .primary-gradient {
@@ -542,27 +594,35 @@ number-flow-react::part(symbol) {
   -webkit-text-fill-color: transparent;
 }
 
+.primary-icon-gradient {
+  background: linear-gradient(to left, #ae8625, #f5d67d, #d2ac47, #edc967, #ae8625);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 .secondary-gradient {
   background: linear-gradient(
     to left,
-    #22366b 0%,
-    #2e4c8a 20%,
-    #4663a3 40%,
-    #5a78b3 60%,
-    #3a5692 80%,
-    #22366b 100%
+    #0a0a0a 0%,
+    #121212 20%,
+    #222222 40%,
+    #444444 50%,
+    #222222 60%,
+    #121212 80%,
+    #0a0a0a 100%
   );
 }
 
 .text-secondary-gradient {
   background: linear-gradient(
     to left,
-    #22366b 0%,
-    #2e4c8a 20%,
-    #4663a3 40%,
-    #5a78b3 60%,
-    #3a5692 80%,
-    #22366b 100%
+    #0a0a0a 0%,
+    #121212 20%,
+    #222222 40%,
+    #444444 50%,
+    #222222 60%,
+    #121212 80%,
+    #0a0a0a 100%
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -571,12 +631,13 @@ number-flow-react::part(symbol) {
 .hover-text-secondary-gradient:hover {
   background: linear-gradient(
     to left,
-    #22366b 0%,
-    #2e4c8a 20%,
-    #4663a3 40%,
-    #5a78b3 60%,
-    #3a5692 80%,
-    #22366b 100%
+    #0a0a0a 0%,
+    #121212 20%,
+    #222222 40%,
+    #444444 50%,
+    #222222 60%,
+    #121212 80%,
+    #0a0a0a 100%
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

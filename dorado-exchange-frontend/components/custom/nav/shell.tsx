@@ -58,7 +58,7 @@ export default function Shell() {
   ]
 
   return (
-    <div className="z-50 sticky top-0 bg-card raised-off-page">
+    <div className="z-60 sticky top-0 bg-card raised-off-page">
       <Spots />
 
       <nav>
@@ -90,7 +90,7 @@ export default function Shell() {
             <Button className="px-0 relative" variant="ghost" onClick={() => openDrawer('cart')}>
               <CartIcon size={24} isOpen={activeDrawer === 'cart'} className="text-neutral-900" />
               {items > 0 && (
-                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full bg-primary ">
+                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full primary-gradient ">
                   <div className="flex flex-1 items-center text-white justify-center text-[10px]">
                     {items}
                   </div>
@@ -130,7 +130,7 @@ export default function Shell() {
               >
                 <CartIcon size={20} isOpen={false} className="text-neutral-900 hover:bg-card" />
                 {items > 0 && (
-                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full bg-primary ">
+                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full primary-gradient ">
                   <div className="flex flex-1 items-center text-white justify-center text-[10px]">
                     {items}
                   </div>

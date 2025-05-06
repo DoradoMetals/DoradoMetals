@@ -11,6 +11,7 @@ import { ThemeSwitcher } from '../theme/theme-switcher'
 import { useSignOut } from '@/lib/queries/useAuth'
 import { useUser } from '@/lib/authClient'
 import { useDrawerStore } from '@/store/drawerStore'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function Sidebar() {
   const { user } = useUser()
@@ -62,10 +63,10 @@ export default function Sidebar() {
               router.push('/account')
               closeDrawer()
             }}
-            className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1 border-primary bg-card raised-off-page"
+            className="w-16 h-16 flex flex-col items-center justify-center rounded-lg liquid-gold raised-off-page"
           >
-            <User size={20} className='text-primary' />
-            <div className="text-sm text-primary-gradient">Account</div>
+            <User size={20} className='text-white' />
+            <div className="text-sm text-white">Account</div>
           </Button>
         </div>
 
@@ -82,10 +83,10 @@ export default function Sidebar() {
                 }
               }}
               disabled={signOutMutation.isPending}
-              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1 border-primary bg-card raised-off-page"
+              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg liquid-gold raised-off-page"
             >
-              <LogOut size={20} className='text-primary' />
-              <div className="text-sm text-primary-gradient">Sign Out</div>
+              <LogOut size={20} className='text-white' />
+              <div className="text-sm text-white">Sign Out</div>
             </Button>
           </div>
         ) : (
@@ -96,10 +97,10 @@ export default function Sidebar() {
                 router.push('/authentication?tab=sign-in')
                 closeDrawer()
               }}
-              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1 border-primary bg-card raised-off-page"
+              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg liquid-gold raised-off-page"
             >
-              <LogIn size={20} className='text-primary' />
-              <div className="text-sm text-primary-gradient">Sign In</div>
+              <LogIn size={20} className='text-white' />
+              <div className="text-sm white">Sign In</div>
             </Button>
           </div>
         )}

@@ -5,6 +5,7 @@ import LayoutProvider from '@/components/providers/LayoutProvider' // ✅ Import
 import { ThemeProvider } from '@/components/custom/theme/theme-provider'
 import QueryProvider from '@/components/providers/QueryProvider'
 import GoogleMapsProvider from '@/components/providers/GoogleMapsProvider'
+import GlobalGradients from '@/components/ui/gold-gradients'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ThemeProvider attribute="class" defaultTheme="light">
           <QueryProvider>
             <GoogleMapsProvider>
+              <GlobalGradients />
               <LayoutProvider>{children}</LayoutProvider>
             </GoogleMapsProvider>
           </QueryProvider>

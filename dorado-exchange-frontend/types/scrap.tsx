@@ -1,7 +1,8 @@
 import * as z from 'zod'
 import { ReactNode } from 'react'
-import { Scale, CircleDollarSign, Gem, Weight } from 'lucide-react'
-import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/components/icons/logo'
+import { Scale, CircleDollarSign, Gem, Weight, Droplet, Dot, Gauge, GaugeIcon, LucideIcon, CircleDollarSignIcon } from 'lucide-react'
+import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon, ScaleIcon } from '@/components/icons/logo'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export const scrapSchema = z.object({
   id: z.string().uuid(),
@@ -39,7 +40,7 @@ export type MetalOption = {
 
 export type WeightOption = {
   label: string
-  logo: ReactNode
+  icon: LucideIcon,
   unit: string
   id: string
 }
@@ -47,22 +48,22 @@ export type WeightOption = {
 export const metalOptions: MetalOption[] = [
   {
     label: 'Gold',
-    logo: <GoldIcon size={36} className="text-primary" />,
+    logo: <GoldIcon size={36} stroke={getPrimaryIconStroke()} />,
     blurb: 'Jewelry, nuggets, raw gold, casting grain',
   },
   {
     label: 'Silver',
-    logo: <SilverIcon size={36} className="text-primary" />,
+    logo: <SilverIcon size={36} stroke={getPrimaryIconStroke()} />,
     blurb: 'Jewelry, flatware, tea sets, wire, sheets',
   },
   {
     label: 'Platinum',
-    logo: <PlatinumIcon size={36} className="text-primary" />,
+    logo: <PlatinumIcon size={36} stroke={getPrimaryIconStroke()} />,
     blurb: 'Jewelry stamped PLAT, PT 950, PT 900',
   },
   {
     label: 'Palladium',
-    logo: <PalladiumIcon size={36} className="text-primary" />,
+    logo: <PalladiumIcon size={36} stroke={getPrimaryIconStroke()} />,
     blurb: 'Jewelry stamped PD, PD 950, PD 900',
   },
 ]
@@ -135,25 +136,25 @@ export function getGrossLabel(gross: number, unit: string) {
 export const weightOptions: WeightOption[] = [
   {
     label: 'Grams',
-    logo: <Scale size={20} className="text-primary" />,
+    icon: Gauge,
     unit: 'g',
     id: '1',
   },
   {
     label: 'Troy Oz.',
-    logo: <CircleDollarSign size={20} className="text-primary" />,
+    icon: CircleDollarSignIcon,
     unit: 't oz',
     id: '2',
   },
   {
     label: 'DWT',
-    logo: <Gem size={20} className="text-primary" />,
+    icon: Gem,
     unit: 'dwt',
     id: '3',
   },
   {
     label: 'Pounds',
-    logo: <Weight size={20} className="text-primary" />,
+    icon: Weight,
     unit: 'lb',
     id: '4',
   },

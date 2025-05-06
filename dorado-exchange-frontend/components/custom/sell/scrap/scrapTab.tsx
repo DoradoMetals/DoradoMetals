@@ -160,7 +160,7 @@ function ItemFormStep() {
         </div>
       </div>
       <div className="lg:flex lg:justify-between lg:w-3/5 lg:ml-auto">
-        <Button type="submit" className="primary-gradient raised-off-page w-full shine-on-hover">
+        <Button type="submit" className="liquid-gold raised-off-page w-full shine-on-hover">
           Add Item
         </Button>
       </div>

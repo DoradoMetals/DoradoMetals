@@ -5,6 +5,7 @@ import NumberFlow, { NumberFlowGroup } from '@number-flow/react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import MobileSpotTicker from './mobileSpots'
 import PriceNumberFlow from '../products/PriceNumberFlow'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function Spots() {
   const { data: spots } = useSpotPrices()
@@ -25,11 +26,11 @@ export default function Spots() {
 
                     <NumberFlowGroup>
                       <div className="text-sm flex font-medium items-center">
-                        <PriceNumberFlow className="" value={spot.bid_spot} />
+                        <PriceNumberFlow value={spot.bid_spot} />
                       </div>
 
                       <div className="flex items-center text-xs text-neutral-700">
-                        <ChevronIcon size={14} className="text-primary" />
+                        <ChevronIcon size={14} stroke={getPrimaryIconStroke()} />
                         <PriceNumberFlow value={spot.dollar_change} />
                       </div>
                     </NumberFlowGroup>

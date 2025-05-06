@@ -34,7 +34,7 @@ export default function PurchaseOrderCards() {
         return (
           <div
             key={status}
-            className="hidden sm:flex items-center justify-between rounded-lg p-4 bg-card shadow-lg mt-4"
+            className="hidden sm:flex items-center justify-between rounded-lg p-4 bg-card raised-off-page mt-4"
           >
             <div className="flex w-full items-center gap-2 justify-between">
               <Icon size={42} className={config.text_color} />

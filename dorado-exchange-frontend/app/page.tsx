@@ -58,14 +58,14 @@ export default function Home() {
           </div>
           <div className="flex flex-col gap-10">
             <div className="flex flex-col w-full justify-center items-center bg-card gap-10 pb-10">
-              <div className="flex justify-center items-center w-full primary-gradient">
+              <div className="flex justify-center items-center w-full liquid-gold">
                 <div className="flex w-full items-center justify-between p-2 max-w-[80vw]">
                   <div className="text-2xl text-white">
                     Selling your metal online has never been easier.
                   </div>
                   <div className="-my-30">
                     <Button
-                      className="primary-gradient hover:primary-gradient shine-on-hover raised-off-page text-white text-lg p-8 z-30"
+                      className="liquid-gold shine-on-hover raised-off-page text-white text-lg p-8 z-30"
                       onClick={() => router.push('/sell')}
                     >
                       Get an Estimate
@@ -233,7 +233,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex flex-col lg:hidden">
-            <div className="flex w-full justify-center primary-gradient">
+            <div className="flex w-full justify-center liquid-gold">
               <div className="text-base text-white p-2">
                 Selling your metal online has never been easier.
               </div>
@@ -282,7 +282,7 @@ export default function Home() {
                 </div>
               </div>
               <Button
-                className="raised-off-page primary-gradient hover:primary-gradient shine-on-hover w-full shadow-sm text-white text-base p-5"
+                className="raised-off-page liquid-gold shine-on-hover w-full shadow-sm text-white text-base p-5"
                 onClick={() => router.push('/sell')}
               >
                 Get an Estimate
@@ -290,7 +290,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex flex-col lg:hidden">
-            <div className="flex w-full justify-center bg-linear-to-r from-secondary-700 to-secondary-500">
+            <div className="flex w-full justify-center secondary-gradient">
               <div className="text-base text-white p-2">Buy precious metals with confidence.</div>
             </div>
             <div className="flex flex-col bg-linear-to-r from-highest to-card gap-6 px-4 py-8">
@@ -334,7 +334,7 @@ export default function Home() {
               <MobileProductCarousel />
               <div className="flex items-center justify-center">
                 <div className="flex flex-col w-full lg:max-w-[80vw] gap-2 px-2">
-                  <div className="text-xl text-neutral-800 font-medium -mb-10">Featured</div>
+                  <div className="text-xl text-neutral-800 font-medium -mb-6">Featured</div>
                   <FeaturedProducts />
                 </div>
               </div>

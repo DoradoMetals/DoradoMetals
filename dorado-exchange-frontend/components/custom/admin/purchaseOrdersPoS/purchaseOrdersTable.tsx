@@ -238,7 +238,7 @@ export default function PurchaseOrdersTable() {
         if (!config) return <Fragment key={row.original.purchase_order_status} />
 
         return (
-          <div className="hidden sm:flex">
+          <div className="hidden sm:flex justify-center">
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="hover:bg-background px-0">
@@ -300,7 +300,7 @@ export default function PurchaseOrdersTable() {
   })
 
   return (
-    <div className="space-y-2 w-full">
+    <div className="w-full raised-off-page">
       <Table className="w-full">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -319,14 +319,14 @@ export default function PurchaseOrdersTable() {
             </TableRow>
           ))}
         </TableHeader>
-        <TableBody>
+        <TableBody className='bg-card'>
           {table.getRowModel().rows.map((row) => (
             <MemoizedRow key={row.id} row={row} />
           ))}
         </TableBody>
       </Table>
 
-      <div className="flex justify-center items-center gap-4">
+      <div className="flex justify-center items-center gap-4 bg-card">
         <Button
           variant="ghost"
           size="icon"
@@ -337,7 +337,7 @@ export default function PurchaseOrdersTable() {
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm bg-card">
           Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
         </span>
 

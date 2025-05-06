@@ -46,7 +46,7 @@ export function TableFilterSelect<TData>({
         side="bottom"
         align="center"
         sideOffset={4}
-        className="p-0 bg-background z-50 w-32"
+        className="p-0 bg-card z-50 w-32"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <Command>
@@ -56,10 +56,10 @@ export function TableFilterSelect<TData>({
                 column.setFilterValue(undefined)
                 setOpen(false)
               }}
-              className="cursor-pointer"
+              className="cursor-pointer bg-card"
             >
               <span>All</span>
-              {!selected && <Check className="ml-auto h-4 w-4 opacity-100" />}
+              {!selected && <Check className="ml-auto opacity-100" size={16} />}
             </CommandItem>
             {options.map((option) => (
               <CommandItem
@@ -68,12 +68,13 @@ export function TableFilterSelect<TData>({
                   column.setFilterValue(option)
                   setOpen(false)
                 }}
-                className="cursor-pointer"
+                className="cursor-pointer bg-card"
               >
                 {option}
                 <Check
+                  size={16}
                   className={cn(
-                    'ml-auto h-4 w-4',
+                    'ml-auto text-neutral-700',
                     selected === option ? 'opacity-100' : 'opacity-0'
                   )}
                 />
