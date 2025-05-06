@@ -4,7 +4,7 @@ const axios = require("axios");
 const getSpotPrices = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, type, ask_spot, bid_spot, percent_change, dollar_change
+      `SELECT id, type, ask_spot, bid_spot, percent_change, dollar_change, scrap_percentage
        FROM exchange.metals
        ORDER BY
          CASE type
@@ -22,6 +22,28 @@ const getSpotPrices = async (req, res) => {
   }
 };
 
+const updateScrapPercentages = async (req, res) => {
+  const { id, scrap_percentage } = req.body;
+  try {
+    const query = `
+      UPDATE exchange.metals
+      SET scrap_percentage = $1
+      WHERE id = $2
+      RETURNING *;
+    `;
+
+    const values = [
+      scrap_percentage,
+      id,
+    ]
+
+    const result = await pool.query(query, values);
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    console.error("Error updating spot price", error);
+    res.status(500).json({ error: "Failed to update spot price." });
+  }
+};
 
 const updateSpotPrices = async () => {
   try {
@@ -96,5 +118,6 @@ const updateSpotPrices = async () => {
 
 module.exports = {
   getSpotPrices,
+  updateScrapPercentages,
   updateSpotPrices,
 };

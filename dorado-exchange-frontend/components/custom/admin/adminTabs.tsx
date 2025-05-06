@@ -4,6 +4,7 @@ import ProductsTableEditable from './productsPoS/productTable'
 import PurchaseOrdersTable from './purchaseOrdersPoS/purchaseOrdersTable'
 import PurchaseOrderCards from './purchaseOrdersPoS/purchaseOrderCards'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import ScrapCards from './scrapPoS/ScrapCards'
 
 export function AdminTabs() {
   return (
@@ -38,8 +39,8 @@ export function AdminTabs() {
               <TabsContent value="products" className="mt-4">
                 <ProductsTableEditable />
               </TabsContent>
-              <TabsContent value="scrap" className="mt-4">
-     
+              <TabsContent value="scrap" className="space-y-4 justify-center">
+                <ScrapCards />
               </TabsContent>
             </Tabs>
           </TabsContent>

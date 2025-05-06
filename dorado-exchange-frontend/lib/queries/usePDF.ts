@@ -1,8 +1,8 @@
 import { apiRequest, pdfRequest } from "@/utils/axiosInstance";
 import { PurchaseOrder } from "@/types/purchase-order";
 import { useFormatPurchaseOrderNumber } from "@/utils/formatPurchaseOrderNumber";
-import { SpotPrice } from "./useSpotPrices";
 import { useMutation } from "@tanstack/react-query";
+import { SpotPrice } from "@/types/metal";
 
 const downloadPackingListRequest = async ({
   purchaseOrder,

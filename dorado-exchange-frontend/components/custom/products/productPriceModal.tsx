@@ -1,12 +1,12 @@
 "use client";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { SpotPrice } from "@/lib/queries/useSpotPrices";
+import { SpotPrice } from "@/types/metal";
 import { Product } from "@/types/product";
 
 export default function ProductPriceModal({ product, open, setOpen, title }: { 
   product: Product;
-  spot: SpotPrice
+  spot: SpotPrice;
   open: boolean; 
   setOpen: (open: boolean) => void; 
   title: string

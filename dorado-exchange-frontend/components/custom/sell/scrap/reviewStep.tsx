@@ -28,7 +28,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Anvil className="text-primary" size={20} />
+              <Anvil className="text-neutral-600" size={20} />
               <span className="text-base text-neutral-600">Metal:</span>
             </div>
             <span className="text-sm text-neutral-800">{metal}</span>
@@ -36,7 +36,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Scale className="text-primary" size={20} />
+              <Scale className="text-neutral-600" size={20} />
               <span className="text-base text-neutral-600">Gross:</span>
             </div>
             {getGrossLabel(gross, unit)}
@@ -44,7 +44,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
-              <Percent className="text-primary" size={20} />
+              <Percent className="text-neutral-600" size={20} />
               <span className="text-base text-neutral-600">Purity:</span>
             </div>
             {getPurityLabel(purity, metal)}
