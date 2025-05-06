@@ -111,73 +111,73 @@ const updateFedexShipmentTracking = async (
     const trackingOutput = response.data.output.completeTrackResults[0].trackResults[0];
     const trackingInfo = parseTracking(trackingOutput);
 
-    // if (inbound_shipment) {
-    //   await pool.query(
-    //     `DELETE FROM exchange.shipment_tracking_events WHERE inbound_shipment_id = $1`,
-    //     [inbound_shipment]
-    //   );
-    // } else if (outbound_shipment) {
-    //   await pool.query(
-    //     `DELETE FROM exchange.shipment_tracking_events WHERE outbound_shipment_id = $1`,
-    //     [outbound_shipment]
-    //   );
-    // }
+    if (inbound_shipment) {
+      await pool.query(
+        `DELETE FROM exchange.shipment_tracking_events WHERE inbound_shipment_id = $1`,
+        [inbound_shipment]
+      );
+    } else if (outbound_shipment) {
+      await pool.query(
+        `DELETE FROM exchange.shipment_tracking_events WHERE outbound_shipment_id = $1`,
+        [outbound_shipment]
+      );
+    }
 
-    // for (const event of trackingInfo.scanEvents) {
-    //   await pool.query(
-    //     `
-    //       INSERT INTO exchange.shipment_tracking_events (
-    //         inbound_shipment_id,
-    //         outbound_shipment_id,
-    //         status,
-    //         location,
-    //         scan_time
-    //       )
-    //       VALUES ($1, $2, $3, $4, $5)
-    //     `,
-    //     [
-    //       inbound_shipment,
-    //       outbound_shipment,
-    //       event.status,
-    //       event.location,
-    //       event.date,
-    //     ]
-    //   );
-    // }
+    for (const event of trackingInfo.scanEvents) {
+      await pool.query(
+        `
+          INSERT INTO exchange.shipment_tracking_events (
+            inbound_shipment_id,
+            outbound_shipment_id,
+            status,
+            location,
+            scan_time
+          )
+          VALUES ($1, $2, $3, $4, $5)
+        `,
+        [
+          inbound_shipment,
+          outbound_shipment,
+          event.status,
+          event.location,
+          event.date,
+        ]
+      );
+    }
 
-    // if (inbound_shipment) {
-    //   await pool.query(
-    //     `
-    //       UPDATE exchange.inbound_shipments
-    //       SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
-    //       WHERE id = $4
-    //     `,
-    //     [
-    //       trackingInfo.latestStatus,
-    //       trackingInfo.estimatedDeliveryTime === "TBD"
-    //         ? null
-    //         : trackingInfo.estimatedDeliveryTime,
-    //       trackingInfo.deliveredAt,
-    //       inbound_shipment,
-    //     ]
-    //   );
-    // } else if (outbound_shipment) {
-    //   await pool.query(
-    //     `
-    //       UPDATE exchange.outbound_shipments
-    //       SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
-    //       WHERE id = $4
-    //     `,
-    //     [
-    //       trackingInfo.latestStatus,
-    //       trackingInfo.estimatedDeliveryTime === "TBD"
-    //         ? null
-    //         : trackingInfo.estimatedDeliveryTime,
-    //       trackingInfo.deliveredAt,
-    //       outbound_shipment,
-    //     ]
-    //   );
-    // }
+    if (inbound_shipment) {
+      await pool.query(
+        `
+          UPDATE exchange.inbound_shipments
+          SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
+          WHERE id = $4
+        `,
+        [
+          trackingInfo.latestStatus,
+          trackingInfo.estimatedDeliveryTime === "TBD"
+            ? null
+            : trackingInfo.estimatedDeliveryTime,
+          trackingInfo.deliveredAt,
+          inbound_shipment,
+        ]
+      );
+    } else if (outbound_shipment) {
+      await pool.query(
+        `
+          UPDATE exchange.outbound_shipments
+          SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
+          WHERE id = $4
+        `,
+        [
+          trackingInfo.latestStatus,
+          trackingInfo.estimatedDeliveryTime === "TBD"
+            ? null
+            : trackingInfo.estimatedDeliveryTime,
+          trackingInfo.deliveredAt,
+          outbound_shipment,
+        ]
+      );
+    }
   } catch (error) {
     console.error("FedEx tracking failed:", error?.response?.data || error);
     throw new Error("FedEx shipment tracker failed");

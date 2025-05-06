@@ -50,6 +50,8 @@ export default function Cart() {
           router.push('/buy')
           closeDrawer()
         }}
+        className="raised-off-page secondary-gradient text-white hover:text-white shine-on-hover px-10"
+
       >
         Start Shopping
       </Button>
@@ -57,7 +59,7 @@ export default function Cart() {
   )
 
   const cartContent = (
-    <div className="w-full flex-col mt-5">
+    <div className="w-full flex-col">
       <div className="flex-col gap-10">
         {items.map((item, index) => {
           const spot = spotPrices.find((s) => s.type === item.metal_type)
@@ -145,7 +147,7 @@ export default function Cart() {
         </div>
       </div>
       <Button
-        className="raised-off-page w-full bg-secondary text-white hover:text-white hover:bg-secondary"
+        className="raised-off-page w-full secondary-gradient text-white hover:text-white shine-on-hover"
       >
         Checkout
       </Button>

@@ -19,17 +19,17 @@ export default function FeaturedProducts() {
   const [isEnd, setIsEnd] = useState(false)
 
   return (
-    <div className="w-full h-full mb-4 lg:mb-0 justify-center items-center">
+    <div className="w-full mb-4 lg:mb-0 justify-center items-center">
       <Swiper
         modules={[Navigation, Pagination]}
         navigation={{
           nextEl: '.featured-swiper-next',
           prevEl: '.featured-swiper-prev',
         }}
-        pagination={{clickable: true}}
+        pagination={{ clickable: true }}
         slidesPerView={1}
         slidesPerGroup={1}
-        autoHeight
+        spaceBetween={10}
         breakpoints={{
           718: { slidesPerView: 2, slidesPerGroup: 2 },
           1375: { slidesPerView: 3, slidesPerGroup: 3 },
@@ -42,15 +42,15 @@ export default function FeaturedProducts() {
           setIsBeginning(false)
           setIsEnd(false)
         }}
-        className="w-full z-10 featured-swiper justify-center items-center
-        [&.featured-swiper_.swiper-pagination]:!static [&.featured-swiper_.swiper-pagination]:mt-2
+        className="w-full z-10 featured-swiper justify-center items-center flex justify-center items-center
+        [&.featured-swiper_.swiper-pagination]:!static [&.featured-swiper_.swiper-pagination]:lg:mt-2
         [&.featured-swiper_.swiper-pagination-bullet]:!bg-neutral-700
         [&.featured-swiper_.swiper-pagination-bullet]:!opacity-30
         [&.featured-swiper_.swiper-pagination-bullet-active]:!opacity-100
       "
       >
         {products.map(({ default: product, variants }) => (
-          <SwiperSlide className="flex justify-center px-2 lg:px-0">
+          <SwiperSlide>
             <ProductCard product={product} variants={variants} />
           </SwiperSlide>
         ))}

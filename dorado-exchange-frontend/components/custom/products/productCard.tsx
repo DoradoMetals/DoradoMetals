@@ -5,13 +5,6 @@ import { ozOptions, Product } from '@/types/product'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
-import {
-  Carousel,
-  CarouselContent,
-  CarouselNavigation,
-  CarouselIndicator,
-  CarouselItem,
-} from '@/components/ui/carousel'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { FloatingButton, FloatingButtonItem } from '@/components/ui/floating-button'
 
@@ -59,7 +52,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const weightOptions = ozOptions[product.variant_group]
 
   return (
-    <div className="space-y-4 h-[34rem] w-full sm:w-[22rem] max-w-[22rem] group relative flex-col items-center mx-auto z-50">
+    <div className="space-y-4 h-[34rem] max-h-[34rem] -mt-4 w-full sm:w-[22rem] max-w-[22rem] group relative flex-col items-center mx-auto z-50">
       <div className="h-1/5 rounded-lg">
         <div className="relative w-full">
           <Swiper
@@ -278,7 +271,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
         </div>
       </div>
 
-      <div className="h-4/5 bg-card rounded-lg rounded-b-xl -mt-10 flex flex-col justify-end border-2 border-secondary">
+      <div className="h-4/5 bg-card rounded-lg rounded-b-xl -mt-14 lg:-mt-10 flex flex-col justify-end border-2 border-secondary raised-off-page">
         <div className="space-y-4">
           <div className="px-6">
             <div className="flex items-start">
@@ -297,11 +290,11 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
             </div>
           </div>
 
-          <div className="bg-secondary w-full rounded-b-lg py-2 text-white">
+          <div className={cn("secondary-gradient w-full rounded-b-lg py-2 text-white", quantity === 0 ? 'shine-on-hover' : '')}>
             {quantity === 0 ? (
               <Button
                 variant="ghost"
-                className="bg-secondary w-full hover:bg-secondary text-white hover:text-white"
+                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
                 onClick={() => addItem(selectedProduct)}
               >
                 Add to Cart
@@ -310,7 +303,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
               <div className="flex items-center justify-center">
                 <Button
                   variant="ghost"
-                  className="text-white"
+                  className="text-white hover:text-white"
                   onClick={() => removeOne(selectedProduct)}
                 >
                   <Minus size={20} />
@@ -322,7 +315,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                 />
                 <Button
                   variant="ghost"
-                  className="text-white"
+                  className="text-white hover:text-white"
                   onClick={() => addItem(selectedProduct)}
                 >
                   <Plus size={20} />

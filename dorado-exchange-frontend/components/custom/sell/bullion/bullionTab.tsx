@@ -161,7 +161,7 @@ export default function BullionTab() {
         ))}
       </Swiper>
 
-      <div className="hidden lg:block absolute top-3/4 -left-12 -translate-y-1/2 bullion-swiper-prev z-20">
+      <div className="hidden lg:block absolute top-26 -left-12 -translate-y-1/2 bullion-swiper-prev z-20">
         <Button
           size="icon"
           variant="ghost"
@@ -175,7 +175,7 @@ export default function BullionTab() {
         </Button>
       </div>
 
-      <div className="hidden lg:block absolute top-3/4 -right-10 -translate-y-1/2 bullion-swiper-next z-20">
+      <div className="hidden lg:block absolute top-26 -right-12 -translate-y-1/2 bullion-swiper-next z-20">
         <Button
           size="icon"
           variant="ghost"
@@ -287,7 +287,7 @@ export default function BullionTab() {
               <Plus size={20} />
             </Button>
           </div>
-          <Button className="raised-off-page w-full bg-primary" onClick={() => {handleAddBullion(selected.product)}}>Add Item</Button>
+          <Button className="w-full raised-off-page primary-gradient hover:primary-gradient shine-on-hover" onClick={() => {handleAddBullion(selected.product)}}>Add Item</Button>
         </div>
       )}
     </div>

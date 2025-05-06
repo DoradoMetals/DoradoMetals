@@ -3,6 +3,7 @@
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Sun, Moon } from 'lucide-react'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export function ThemeSwitcher() {
   const { theme, setTheme } = useTheme()
@@ -11,14 +12,14 @@ export function ThemeSwitcher() {
     <Button
       variant="outline"
       onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-      className="w-16 h-16 flex flex-col items-center justify-center rounded-lg border-1"
+      className="w-16 h-16 flex flex-col items-center justify-center rounded-lg liquid-gold raised-off-page"
     >
       {theme === 'light' ? (
-        <Moon size={20} strokeWidth={1}/>
+        <Moon size={20} className='text-white'/>
       ) : (
-        <Sun size={20} strokeWidth={1}/>
+        <Sun size={20} className='text-white' />
       )}
-      <span className="text-sm font-light">{theme === 'light' ? 'Dark' : 'Light'}</span>
+      <span className="text-sm text-white">{theme === 'light' ? 'Dark' : 'Light'}</span>
     </Button>
   )
 }

@@ -33,15 +33,16 @@ export const GoldIcon: React.FC<{
   size?: number
   height?: number
   className?: string
-}> = ({ size = 50, height, className = '', ...props }) => (
+  stroke?: string
+}> = ({ size = 50, height, className = '', stroke = 'currentColor', ...props }) => (
   <svg
     width={size}
     height={height ?? size}
     version="1.1"
     viewBox="0 0 16.5 16.5"
     className={className}
-    fill="currentColor"
-    stroke="currentColor"
+    fill={stroke}
+    stroke={stroke}
   >
     <g transform="translate(-63.73 -15.767)">
       <path
@@ -69,15 +70,16 @@ export const SilverIcon: React.FC<{
   size?: number
   height?: number
   className?: string
-}> = ({ size = 50, height, className = '', ...props }) => (
+  stroke?: string
+}> = ({ size = 50, height, className = '', stroke = 'currentColor', ...props }) => (
   <svg
     width={size}
     height={height ?? size}
     version="1.1"
     viewBox="0 0 16.5 16.5"
     className={className}
-    fill="currentColor"
-    stroke="currentColor"
+    fill={stroke}
+    stroke={stroke}
   >
     <g transform="translate(-63.73 -15.767)">
       <path
@@ -105,15 +107,16 @@ export const PlatinumIcon: React.FC<{
   size?: number
   height?: number
   className?: string
-}> = ({ size = 50, height, className = '', ...props }) => (
+  stroke?: string
+}> = ({ size = 50, height, className = '', stroke = 'currentColor', ...props }) => (
   <svg
     width={size}
     height={height ?? size}
     version="1.1"
     viewBox="0 0 16.5 16.5"
     className={className}
-    fill="currentColor"
-    stroke="currentColor"
+    fill={stroke}
+    stroke={stroke}
   >
     <g transform="translate(-63.73 -15.767)">
       <path
@@ -141,15 +144,16 @@ export const PalladiumIcon: React.FC<{
   size?: number
   height?: number
   className?: string
-}> = ({ size = 50, height, className = 'text-neutral-700', ...props }) => (
+  stroke?: string
+}> = ({ size = 50, height, className = '', stroke = 'currentColor', ...props }) => (
   <svg
     width={size}
     height={height ?? size}
     version="1.1"
     viewBox="0 0 16.5 16.5"
     className={className}
-    fill="currentColor"
-    stroke="currentColor"
+    fill={stroke}
+    stroke={stroke}
   >
     <g transform="translate(-63.73 -15.767)">
       <path
@@ -224,5 +228,30 @@ export const XIcon: React.FC<{
     stroke="currentColor"
   >
     <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" />{' '}
+  </svg>
+)
+
+
+export const ScaleIcon: React.FC<{
+  size?: number
+  height?: number
+  className?: string
+  stroke?: string,
+}> = ({ size = 50, height, className = '', stroke, ...props }) => (
+  <svg
+    width={size}
+    height={height ?? size}
+    viewBox="0 0 24 24"
+    className={className}
+    stroke={stroke}
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path d="M7 21h10" />
+    <path d="M12 3v18" />
+    <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+    <path d="M5 8l3 8H3l2-8z" />
+    <path d="M19 8l3 8h-5l2-8z" />
   </svg>
 )

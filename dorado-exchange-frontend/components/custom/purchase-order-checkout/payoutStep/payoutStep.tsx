@@ -120,7 +120,7 @@ export default function PayoutStep({ user }: { user?: User }) {
   }
 
   return (
-    <div className="rounded-lg border border-border">
+    <div className="rounded-lg border border-border raised-off-page">
       {payoutOptions.map((option, index) => {
         const isSelected = selected === option.method
 

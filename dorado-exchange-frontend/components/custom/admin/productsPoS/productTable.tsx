@@ -52,6 +52,7 @@ import { AdminProduct } from '@/types/admin'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ChevronLeft, ChevronRight, Edit, Plus, Trash2, X } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function ProductsTableEditable() {
   const { data: products = [] } = useAdminProducts()
@@ -111,7 +112,13 @@ export default function ProductsTableEditable() {
   const columns: ColumnDef<AdminProduct>[] = [
     {
       id: 'name',
-      header: 'Name',
+      header: function Header({ column }) {
+        return (
+          <div className="flex items-center justify-center gap-1 h-full">
+            <span className="text-xs text-neutral-600">Name</span>
+          </div>
+        )
+      },
       accessorKey: 'product_name',
       enableColumnFilter: true,
       enableHiding: false,
@@ -119,7 +126,7 @@ export default function ProductsTableEditable() {
       cell: ({ row }) => (
         <Input
           type="text"
-          className="input-floating-label-form w-55"
+          className="input-floating-label-form"
           defaultValue={row.original.product_name}
           onBlur={(e) => handleUpdate(row.original.id, { product_name: e.target.value })}
         />
@@ -143,7 +150,7 @@ export default function ProductsTableEditable() {
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild className="w-5">
               <Button variant="ghost" size="sm" className="hover:bg-background px-0">
-                <Edit size={20} className="text-primary" />
+                <Edit size={20} stroke={getPrimaryIconStroke()} />
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -193,21 +200,23 @@ export default function ProductsTableEditable() {
       header: 'Supplier',
       accessorKey: 'supplier',
       cell: ({ row }) => (
-        <Select
-          defaultValue={row.original.supplier}
-          onValueChange={(value) => handleUpdate(row.original.id, { supplier: value })}
-        >
-          <SelectTrigger className="w-32 bg-card shadow-lg border-none h-8 w-30">
-            <SelectValue placeholder="Supplier" />
-          </SelectTrigger>
-          <SelectContent>
-            {suppliers?.map((supplier, index) => (
-              <SelectItem key={index} value={supplier.name}>
-                {supplier.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex justify-center items-center raised-off-page mx-5 bg-card">
+          <Select
+            defaultValue={row.original.supplier}
+            onValueChange={(value) => handleUpdate(row.original.id, { supplier: value })}
+          >
+            <SelectTrigger className="border-none h-8 bg-card">
+              <SelectValue placeholder="Supplier" />
+            </SelectTrigger>
+            <SelectContent className='bg-card'>
+              {suppliers?.map((supplier, index) => (
+                <SelectItem key={index} value={supplier.name} className='bg-card'>
+                  {supplier.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       ),
     },
     {
@@ -463,8 +472,8 @@ export default function ProductsTableEditable() {
     <div className="space-y-4 w-full">
       <div className="w-full flex items-center justify-between">
         <Button
-          variant="secondary"
-          className="flex items-center gap-1 text-neutral-900"
+          variant="outline"
+          className="flex items-center gap-1 text-white liquid-gold hover:text-white raised-off-page"
           size="sm"
           onClick={() => createProduct.mutate()}
           disabled={products.some((p) => p.product_name.trim() === '')}
@@ -472,16 +481,19 @@ export default function ProductsTableEditable() {
           <Plus size={16} />
           Create New
         </Button>
+
         <Button
           variant="outline"
-          className="ml-auto text-sm text-primary border-primary hover:bg-primary hover:text-neutral-900 hover:border-primary"
+          className="ml-auto text-sm raised-off-page bg-card hover:bg-card"
           onClick={() => {
             const newTab = activeTab === 'general' ? 'details' : 'general'
             setActiveTab(newTab)
             setColumnVisibility(getColumnVisibilityForTab(newTab))
           }}
         >
-          {activeTab === 'general' ? 'Show Details' : 'Show General'}
+          <span className="text-primary-gradient">
+            {activeTab === 'general' ? 'Show Details' : 'Show General'}
+          </span>
         </Button>
       </div>
 

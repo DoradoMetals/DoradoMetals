@@ -8,64 +8,64 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 export function AdminTabs() {
   return (
     <>
-      <div className="flex w-full px-3">
+      <div className="flex w-full p-4 mt-4 lg:mt-10">
         <Tabs defaultValue="inventory" className="flex w-full items-center justify-center">
-          <TabsList className="justify-center grid grid-cols-3 w-full sm:w-[50rem] bg-card">
-            <TabsTrigger value="inventory">Inventory</TabsTrigger>
-            <TabsTrigger value="orders">Orders</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsList className="justify-center grid grid-cols-3 w-full max-w-4xl bg-transparent px-0">
+            <TabsTrigger className="tab-indicator-secondary" value="inventory">
+              Inventory
+            </TabsTrigger>
+            <TabsTrigger className="tab-indicator-secondary" value="orders">
+              Orders
+            </TabsTrigger>
+            <TabsTrigger className="tab-indicator-secondary" value="users">
+              Users
+            </TabsTrigger>
           </TabsList>
+          <div className="separator-inset -mt-[11px] max-w-4xl" />
 
-          <TabsContent value="inventory">
-            <Tabs defaultValue="products" className="mt-3 space-y-4">
-              <TabsList className="justify-center h-auto w-full gap-2 rounded-none border-b border-border bg-transparent px-0 py-1 text-foreground">
-                <TabsTrigger
-                  value="products"
-                  className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-                >
+          <TabsContent value="inventory" className="max-w-4xl">
+            <Tabs defaultValue="products" className="mt-3">
+              <TabsList className="justify-center h-auto w-full gap-2 bg-transparent px-0">
+                <TabsTrigger value="products" className="tab-indicator-primary">
                   Products
                 </TabsTrigger>
-                <TabsTrigger
-                  value="scrap"
-                  className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-                >
+                <TabsTrigger value="scrap" className="tab-indicator-primary">
                   Scrap
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="products">
+              <div className="separator-inset -mt-[11px] max-w-4xl" />
+
+              <TabsContent value="products" className="mt-4">
                 <ProductsTableEditable />
               </TabsContent>
-              <TabsContent value="scrap"></TabsContent>
+              <TabsContent value="scrap" className="mt-4">
+     
+              </TabsContent>
             </Tabs>
           </TabsContent>
 
-          <TabsContent value="orders" className='max-w-4xl'>
-            <Tabs
-              defaultValue="purchase-orders"
-              className="mt-3 flex justify-center items-center"
-            >
+          <TabsContent value="orders" className="max-w-4xl">
+            <Tabs defaultValue="purchase-orders" className="mt-3 flex justify-center items-center">
               <div className="flex flex-col w-full justify-center gap-3">
-                <TabsList className="justify-center h-auto w-full gap-2 rounded-none border-b border-border bg-transparent px-0 py-1 text-foreground">
-                  <TabsTrigger
-                    value="purchase-orders"
-                    className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-                  >
+                <TabsList className="justify-center h-auto w-full gap-2 rounded-none bg-transparent px-0 text-foreground">
+                  <TabsTrigger value="purchase-orders" className="tab-indicator-primary">
                     Purchase Orders
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="sales-orders"
-                    className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-                  >
+                  <TabsTrigger value="sales-orders" className="tab-indicator-primary">
                     Sales Orders
                   </TabsTrigger>
                 </TabsList>
+                <div className="separator-inset -mt-[15px] max-w-4xl" />
+
                 <TabsContent value="purchase-orders">
                   <div className="space-y-4 justify-center">
                     <PurchaseOrderCards />
                     <PurchaseOrdersTable />
                   </div>
                 </TabsContent>
-                <TabsContent value="sales-orders"></TabsContent>
+                <TabsContent value="sales-orders">
+                  <div>Under Construction</div>
+                </TabsContent>
               </div>
             </Tabs>
           </TabsContent>

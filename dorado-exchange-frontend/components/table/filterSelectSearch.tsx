@@ -43,7 +43,7 @@ export function TableSearchSelect<TData>({
         <Button
           size="sm"
           variant="ghost"
-          className={cn('p-0 hover:bg-transparent', selected && 'text-primary hover:text-primary')}
+          className={cn('p-0 hover:bg-transparent', selected && 'text-primary-gradient')}
         >
           <Filter size={14} />
         </Button>
@@ -52,19 +52,19 @@ export function TableSearchSelect<TData>({
         side="bottom"
         align="center"
         sideOffset={4}
-        className="p-0 bg-background z-50 w-48"
+        className="p-0 bg-card z-50 w-48"
         onOpenAutoFocus={(e) => e.preventDefault()}
         style={{ width }}
       >
-        <Command>
-          <CommandInput placeholder={placeholder} className="border-b" />
-          <CommandList className="max-h-52 overflow-y-auto">
+        <Command className='bg-card border-1 border-border'>
+          <CommandInput placeholder={placeholder} className="border-b bg-card" />
+          <CommandList className="max-h-52 overflow-y-auto bg-card">
             <CommandItem
               onSelect={() => {
                 column.setFilterValue(undefined)
                 setOpen(false)
               }}
-              className="cursor-pointer"
+              className="cursor-pointer bg-card hover:bg-card"
             >
               <span>All</span>
               {!selected && <Check className="ml-auto h-4 w-4 opacity-100" />}
@@ -76,7 +76,7 @@ export function TableSearchSelect<TData>({
                   column.setFilterValue(option)
                   setOpen(false)
                 }}
-                className="cursor-pointer"
+                className="cursor-pointer bg-card hover:text-white"
               >
                 {option}
                 <Check

@@ -6,6 +6,7 @@ import { useFormContext } from "react-hook-form"
 import { motion } from 'framer-motion'
 import { cn } from "@/lib/utils"
 import { FloatingLabelInput } from "@/components/ui/floating-label-input"
+import getPrimaryIconStroke from "@/utils/getPrimaryIconStroke"
 
 export default function WeightStep() {
   const form = useFormContext<Scrap>()
@@ -36,19 +37,20 @@ export default function WeightStep() {
                     transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
                     className="radio-group-buttons w-full"
                   >
-                    {' '}
                     <div className="absolute top-1 right-1">
                       <CheckCircle
-                        size={16}
+                        size={12}
+                        stroke={getPrimaryIconStroke()}
                         className={cn(
                           'transition-opacity duration-200',
-                          isSelected ? 'text-primary opacity-100' : 'opacity-0'
+                          isSelected ? 'opacity-100' : 'opacity-0'
                         )}
                       />
                     </div>
                     <div className="flex flex-col items-center gap-2">
-                      {weight.logo}
-                      <div className="secondary-text">{weight.label}</div>
+                      <weight.icon size={20} stroke={getPrimaryIconStroke()}/>
+
+                      <div className="text-sm text-neutral-900">{weight.label}</div>
                     </div>
                     <RadioGroupItem
                       value={weight.unit}

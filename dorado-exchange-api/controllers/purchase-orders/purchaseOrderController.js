@@ -158,7 +158,7 @@ const createPurchaseOrder = async (req, res) => {
       const labelBuffer = Buffer.from(labelFileBase64, "base64");
       if (purchase_order.pickup.name === 'Carrier Pickup') {
         shipping_status = 'Waiting for Pickup'
-      } {
+      } else {
         'Waiting for Dropoff'
       }
       await pool.query(

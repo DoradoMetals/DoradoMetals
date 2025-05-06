@@ -8,6 +8,7 @@ import { NumberFlowGroup } from '@number-flow/react'
 import NumberFlow from '@number-flow/react'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import PriceNumberFlow from '../products/PriceNumberFlow'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function MobileSpotTicker() {
   const { data: spots } = useSpotPrices()
@@ -46,7 +47,7 @@ export default function MobileSpotTicker() {
                 </div>
 
                 <div className="flex items-center text-xs gap-[0.5px] text-neutral-700 pt-[.5px]">
-                  <ChevronIcon size={14} className="text-primary" />
+                  <ChevronIcon size={14} stroke={getPrimaryIconStroke()} />
                   <PriceNumberFlow value={spot.dollar_change} />
                 </div>
               </NumberFlowGroup>

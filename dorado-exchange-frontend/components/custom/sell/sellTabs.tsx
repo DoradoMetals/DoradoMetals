@@ -23,16 +23,10 @@ export function SellTabs() {
       className="flex w-full px-5 max-w-2xl mt-4 lg:mt-8"
     >
       <TabsList className="justify-center h-auto w-full gap-2 rounded-none bg-transparent px-0 text-foreground mb-0 pb-0">
-        <TabsTrigger
-          value="bullion"
-          className="cursor-pointer rounded-full text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-[3px] data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-        >
+        <TabsTrigger value="bullion" className="tab-indicator-primary">
           Bullion
         </TabsTrigger>
-        <TabsTrigger
-          value="scrap"
-          className="cursor-pointer data-[state=active]:rounded-full text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-[3px] data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
-        >
+        <TabsTrigger value="scrap" className="tab-indicator-primary">
           Scrap
         </TabsTrigger>
       </TabsList>
