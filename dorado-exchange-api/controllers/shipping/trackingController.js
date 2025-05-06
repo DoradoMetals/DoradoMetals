@@ -145,39 +145,39 @@ const updateFedexShipmentTracking = async (
       );
     }
 
-    if (inbound_shipment) {
-      await pool.query(
-        `
-          UPDATE exchange.inbound_shipments
-          SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
-          WHERE id = $4
-        `,
-        [
-          trackingInfo.latestStatus,
-          trackingInfo.estimatedDeliveryTime === "TBD"
-            ? null
-            : trackingInfo.estimatedDeliveryTime,
-          trackingInfo.deliveredAt,
-          inbound_shipment,
-        ]
-      );
-    } else if (outbound_shipment) {
-      await pool.query(
-        `
-          UPDATE exchange.outbound_shipments
-          SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
-          WHERE id = $4
-        `,
-        [
-          trackingInfo.latestStatus,
-          trackingInfo.estimatedDeliveryTime === "TBD"
-            ? null
-            : trackingInfo.estimatedDeliveryTime,
-          trackingInfo.deliveredAt,
-          outbound_shipment,
-        ]
-      );
-    }
+    // if (inbound_shipment) {
+    //   await pool.query(
+    //     `
+    //       UPDATE exchange.inbound_shipments
+    //       SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
+    //       WHERE id = $4
+    //     `,
+    //     [
+    //       trackingInfo.latestStatus,
+    //       trackingInfo.estimatedDeliveryTime === "TBD"
+    //         ? null
+    //         : trackingInfo.estimatedDeliveryTime,
+    //       trackingInfo.deliveredAt,
+    //       inbound_shipment,
+    //     ]
+    //   );
+    // } else if (outbound_shipment) {
+    //   await pool.query(
+    //     `
+    //       UPDATE exchange.outbound_shipments
+    //       SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
+    //       WHERE id = $4
+    //     `,
+    //     [
+    //       trackingInfo.latestStatus,
+    //       trackingInfo.estimatedDeliveryTime === "TBD"
+    //         ? null
+    //         : trackingInfo.estimatedDeliveryTime,
+    //       trackingInfo.deliveredAt,
+    //       outbound_shipment,
+    //     ]
+    //   );
+    // }
   } catch (error) {
     console.error("FedEx tracking failed:", error?.response?.data || error);
     throw new Error("FedEx shipment tracker failed");
