@@ -132,14 +132,16 @@ export default function ReviewStep() {
         disabled={createPurchaseOrder.isPending}
         onClick={() => {
           const liveCartItems = sellCartStore.getState().items
-
+          console.log(liveCartItems)
           const checkoutPayload = {
             ...data,
             items: liveCartItems,
           }
 
           try {
+
             const validated = purchaseOrderCheckoutSchema.parse(checkoutPayload)
+       
             createPurchaseOrder.mutate(validated, {
               onSuccess: () => {
                 router.push("/order_placed")

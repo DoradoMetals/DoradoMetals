@@ -15,6 +15,8 @@ const spotRoutes = require("./routes/spots");
 const { toNodeHandler } = require("better-auth/node");
 const { auth } = require("./auth");
 const { setupScheduler } = require("./services/scheduler");
+const pg = require('pg');
+const types = pg.types;
 
 dotenv.config();
 
@@ -28,6 +30,7 @@ app.use(
     credentials: true,
   })
 );
+types.setTypeParser(types.builtins.NUMERIC, value => parseFloat(value))
 
 //Mount BetterAuth authentication routes
 app.all("/api/auth/*", toNodeHandler(auth));

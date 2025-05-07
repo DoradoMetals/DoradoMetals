@@ -91,11 +91,12 @@ const createPurchaseOrder = async (req, res) => {
   const { purchase_order, user_id } = req.body;
   const client = await pool.connect();
   let purchase_order_id;
-
+  console.log('order items: ', purchase_order.items)
   try {
     await client.query("BEGIN");
 
     // Step 1: Insert purchase order
+
     const insertOrderQuery = `
       INSERT INTO exchange.purchase_orders (user_id, address_id, purchase_order_status)
       VALUES ($1, $2, $3)
@@ -107,8 +108,8 @@ const createPurchaseOrder = async (req, res) => {
 
     // Step 2: Insert items
     const insertItemQuery = `
-      INSERT INTO exchange.purchase_order_items (purchase_order_id, scrap_id, product_id)
-      VALUES ($1, $2, $3)
+      INSERT INTO exchange.purchase_order_items (purchase_order_id, scrap_id, product_id, quantity)
+      VALUES ($1, $2, $3, $4)
     `;
     for (const item of purchase_order.items) {
       const { type, data } = item;
@@ -119,6 +120,7 @@ const createPurchaseOrder = async (req, res) => {
         purchase_order_id,
         scrap_id,
         product_id,
+        data.quantity,
       ]);
     }
 

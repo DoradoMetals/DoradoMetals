@@ -1,5 +1,18 @@
 const puppeteer = require("puppeteer");
 
+function formatPhoneNumber(value) {
+  if (!value) return ''
+
+  const digits = value.replace(/\D/g, '')
+
+  const cleanDigits = digits.startsWith('1') ? digits.slice(1) : digits
+
+  if (cleanDigits.length <= 3) return `(${cleanDigits}`
+  if (cleanDigits.length <= 6) return `(${cleanDigits.slice(0, 3)}) ${cleanDigits.slice(3)}`
+  return `(${cleanDigits.slice(0, 3)}) ${cleanDigits.slice(3, 6)}-${cleanDigits.slice(6, 10)}`
+}
+
+
 function getScrapPrice(content, spot) {
   if (!spot || !content) return 0;
   return content * spot.bid_spot;
@@ -7,7 +20,10 @@ function getScrapPrice(content, spot) {
 
 function getProductBidPrice(product, spot) {
   if (!spot || !product) return 0;
-  return product.content * spot.bid_spot + (product.bid_premium * product.content * spot.bid_spot);
+  return (
+    product.content * spot.bid_spot +
+    product.bid_premium * product.content * spot.bid_spot
+  );
 }
 
 function assignScrapItemNames(scrapItems) {
@@ -47,6 +63,8 @@ function assignScrapItemNames(scrapItems) {
 const generatePackingList = async (req, res) => {
   const { purchaseOrder, spotPrices = [] } = req.body;
 
+  console.log("order_items: ", purchaseOrder.order_items);
+
   try {
     const browser = await puppeteer.launch({
       headless: true,
@@ -55,75 +73,97 @@ const generatePackingList = async (req, res) => {
     const page = await browser.newPage();
 
     const total = purchaseOrder.order_items.reduce((acc, item) => {
-      if (item.item_type === 'bullion') {
+      if (item.item_type === "product") {
         const product = item.product;
         const spot = spotPrices.find((s) => s.type === product?.metal_type);
-    
-        const price = item.price ?? (product && spot
-          ? product.content * spot.bid_spot + (product.bid_premium * product.content * spot.bid_spot)
-          : 0);
-    
+
+        const price =
+          item.price ??
+          (product && spot
+            ? product.content * spot.bid_spot +
+              product.bid_premium * product.content * spot.bid_spot
+            : 0);
+
         const quantity = item.quantity ?? 1;
         return acc + price * quantity;
       }
-    
-      if (item.item_type === 'scrap') {
+
+      if (item.item_type === "scrap") {
         const scrap = item.scrap;
         const spot = spotPrices.find((s) => s.type === scrap?.metal);
-    
-        const price = item.price ?? (scrap && spot
-          ? scrap.content * spot.bid_spot
-          : 0);
-    
+
+        const price =
+          item.price ?? (scrap && spot ? scrap.content * spot.bid_spot : 0);
+
         return acc + price;
       }
-    
+
       return acc;
     }, 0);
 
-    const rawScrapItems = purchaseOrder.order_items.filter((item) => item.item_type === "scrap" && item.scrap);
+    const rawScrapItems = purchaseOrder.order_items.filter(
+      (item) => item.item_type === "scrap" && item.scrap
+    );
     const scrapItemsWithNames = assignScrapItemNames(rawScrapItems);
     const scrapItems = scrapItemsWithNames
-    .map((item) => {
-      const scrap = item.scrap || {};
-      const spot = spotPrices.find((s) => s.type === scrap.metal);
-      const price = item.price != null ? item.price : getScrapPrice(scrap.content, spot);
+      .map((item) => {
+        const scrap = item.scrap || {};
+        const spot = spotPrices.find((s) => s.type === scrap.metal);
+        const price =
+          item.price != null ? item.price : getScrapPrice(scrap.content, spot);
 
-      return `
+        return `
         <tr>
           <td>${scrap.name || "Scrap Item"}</td>
           <td>${scrap.gross || "-"} ${scrap.gross_unit || ""}</td>
-          <td>${scrap.purity != null ? (scrap.purity * 100).toFixed(1) + "%" : "-"}</td>
+          <td>${
+            scrap.purity != null ? (scrap.purity * 100).toFixed(1) + "%" : "-"
+          }</td>
           <td>${scrap.content.toFixed(3)}</td>
-          <td class="text-right">
-            ${price ? price.toLocaleString("en-US", { style: "currency", currency: "USD" }) : "-"}
+          <td>
+            ${
+              price
+                ? price.toLocaleString("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  })
+                : "-"
+            }
           </td>
         </tr>
       `;
-    })
-    .join("");
+      })
+      .join("");
 
     const bullionItems = purchaseOrder.order_items
-    .filter((item) => item.item_type === "bullion" && item.product)
-    .map((item) => {
-      const product = item.product || {};
-      const spot = spotPrices.find((s) => s.type === product.metal_type);
-      const unitPrice = item.price != null ? item.price : getProductBidPrice(product, spot);
-      const totalPrice = unitPrice * quantity;
-  
-      return `
+      .filter((item) => item.item_type === "product" && item.product)
+      .map((item) => {
+        const product = item.product || {};
+        const spot = spotPrices.find((s) => s.type === product.metal_type);
+        const unitPrice =
+          item.price != null ? item.price : getProductBidPrice(product, spot);
+        const totalPrice = unitPrice * item.quantity;
+
+        return `
         <tr>
           <td>${product.product_name || "Bullion Product"}</td>
           <td>${product.metal_type || "-"}</td>
-          <td>${product.quantity}</td>
+          <td>${item.quantity}</td>
           <td>${product.content || "-"}</td>
-          <td class="text-right">
-            ${totalPrice ? totalPrice.toLocaleString("en-US", { style: "currency", currency: "USD" }) : "-"}
+          <td>
+            ${
+              totalPrice
+                ? totalPrice.toLocaleString("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  })
+                : "-"
+            }
           </td>
         </tr>
       `;
-    })
-    .join("");
+      })
+      .join("");
 
     const htmlContent = `
       <html>
@@ -140,7 +180,6 @@ const generatePackingList = async (req, res) => {
             .header {
               display: flex;
               flex-direction: column;
-              border-bottom: 2px solid #ffb300;
               padding-bottom: 10px;
               margin-bottom: 20px;
             }
@@ -182,14 +221,16 @@ const generatePackingList = async (req, res) => {
               margin-bottom: 20px;
             }
             .shipping-box {
-              border-left: 1px solid #ffb300;
+              border-left-width: 1px;
+              border-left-style: solid;
+              border-image: linear-gradient(to bottom, #ae8625, #f5d67d, #d2ac47, #edc967, #ae8625) 1;
               border-radius: 0;
               width: 30%;
               font-size: 12px;
               margin: 0;
             }
             .shipping-box h3 {
-              background: #ffb300;
+              background: linear-gradient(to left, #ae8625 0%, #f5d67d 25%, #d2ac47 50%, #edc967 75%, #ae8625 100%);
               margin: 0;
               padding: 5px;
               font-size: 12px;
@@ -203,6 +244,7 @@ const generatePackingList = async (req, res) => {
             .shipping-box p {
               font-size: 12px;
               margin: 0; /* No default margin on paragraphs */
+              margin-top: 8px;
               line-height: 1.4;
             }
             .shipping-box div {
@@ -213,12 +255,14 @@ const generatePackingList = async (req, res) => {
               flex-direction: column;
               width: 40%;
               padding: 0;
-              border-left: 1px solid #ffb300;
+              border-left-width: 1px;
+              border-left-style: solid;
+              border-image: linear-gradient(to bottom, #ae8625, #f5d67d, #d2ac47, #edc967, #ae8625) 1;
               font-size: 12px;
             }
 
             .details h3 {
-              background: #ffb300;
+              background: linear-gradient(to left, #ae8625 0%, #f5d67d 25%, #d2ac47 50%, #edc967 75%, #ae8625 100%);
               margin: 0;
               padding: 5px;
               font-size: 12px;
@@ -247,7 +291,7 @@ const generatePackingList = async (req, res) => {
               margin-bottom: 20px;
             }
             .section-header {
-              background: #ffb300;
+              background: linear-gradient(to left, #ae8625 0%, #f5d67d 25%, #d2ac47 50%, #edc967 75%, #ae8625 100%);
               padding: 8px;
               font-weight: bold;
               font-size: 14px;
@@ -260,13 +304,17 @@ const generatePackingList = async (req, res) => {
             }
 
             th, td {
-              border: 1px solid #ffb300;
               padding: 8px;
               text-align: center;
             }
             th {
-              background: #ffb300;
+              border: none;
+              background: linear-gradient(to left, #ae8625 0%, #f5d67d 25%, #d2ac47 50%, #edc967 75%, #ae8625 100%);
               color: #333;
+            }
+            td {
+              border: none;
+
             }
             .text-right {
               text-align: right;
@@ -277,7 +325,7 @@ const generatePackingList = async (req, res) => {
             }
 
             table tr:nth-child(even) {
-              background-color: rgba(240, 173, 0, 0.15); /* amber with 15% opacity */
+              background-color: rgba(174, 134, 37, 0.15);
             }
 
             .order-info th,
@@ -290,13 +338,13 @@ const generatePackingList = async (req, res) => {
               table-layout: fixed;
             }
 
-            .table-container th:nth-child(1),
+            .table-container th:nth-child(1) {
+              width: 35%;
+            },
             .table-container th:nth-child(2),
             .table-container th:nth-child(3),
             .table-container th:nth-child(4),
-            .table-container th:nth-child(5) {
-              width: 20%;
-            }
+            .table-container th:nth-child(5);
           </style>
 
         </head>
@@ -304,12 +352,12 @@ const generatePackingList = async (req, res) => {
           <div class="page">
             <div class="header">
               <div class="header-content">
-                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAYAAAA5ZDbSAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAABexJREFUeJztnV2IVGUYx3/P7JZUQhpBZpkFYhJGHyZhlBG1krvLgmIsmPdWF2lEe9Ne9HEpSAjpXTd9CelNzqy5QQhCdpeQXZQmu2loH5CWEH3sPF044xnXmZ0Zz5n3nPfh+cGBYc877//Z+fM+c973Oe8ZUVUKR1meRvgs7zC6QtjAoJbzDmM2/XkH0JQSJbSgsbVCKeUdQjMKGZSTHW6wcdxg47jBxnGDjeMGG8cNNo4bbBw32DhusHHcYOMUc723yhSwA+Ep4JFZZ4+hfN70fXm27+Nk0/fkTDENHtYTwBgV2cnVH+hRhnWs6fuK1r4AeIo2jhtsHDfYOG6wcdxg47jBxnGDjeMGG8cNNo4bbBw32DhusHHcYOO4wcZxg43jBhvHDTaOG2ycYt6yU0c4i3J81l9/iqZ9AZBC7vB3MqM4I7gsowjLW55XfkeYAJ4PF1TTOPYiPAPc2rKN8AOD+lG4oFpTHINhCzDc8qwwhfI9wlvhQmrKMZRtCPe2bHHptttCGOwXWcYp0ghuTwnl0iXDH8DFwOo3ATcH1kxNXAbXUd5kWHcG1azIS8C7QTUzwFO0cdxg48SZooWtVOTZwKp3BtbLhLgMriIIAMtrh9MGT9HGiWsE16dJytcI3wVWX8bVW0cLT1wGJ3zAUC7TpOgM9hRtHDfYOMUpF34i1wN9Lc/Pp4qyFmUS+K92hKQPuA5lhD4muTjn4JjhOf0nVGBzUZzv4E4+kLLUp0n95Bn7ev07N+0u8RRtnDApuiwrEF5O2ctvCEdQJlH2I3yRSWydIqxFGUUZQXgIWJSyvz0M6jfZBNeaMGmuxBKUF1P2MgUcqb3+kiHdnbK/7qgIwCgAyuY5C/6dUOUg0HODPUUbpzgXWd0gLOGArA6q2cdSCjLh6Ia4DE6KDdspsT2odoTmgqdo87jBxokrRSfVpB2UeD+otjIKvB5UMwPiMjjhXIg55BVU5ImgehnhKdo4cY5g4UnKElr1MYJLpicug5Np0gjCSM7RRIGnaOOEGcFV/kU4n7KXCw1bV/4CQpfs5gE3ACBcgJT/jxCkXhzG4GE9DCxM3c+EDACgjOe6dWVIHw2qnQJP0cZxg42TTcG/IrsQlqTvaA6UXxD21e7JOo4E/p0i5R7ggVrBfx3S460sys8M6Qtpu8nqO3gAZUVGfbVimir7a9OklSgre6zXGmUAUhb82zOVRSeeoo0T10JHMk36FuFUUG3lbuD+oJoZEJfBdZT3ctq64jv8nWLhBhsnzhQtvE1FQhff5wXWy4S4DE6qSTfWDqcNnqKNE9cIrk+ThAMkuxzCoKwBNgTVzIC4DK5T5XBO1aToDPYUbZxsRrByEun5vf/Jg7dL3MZBua/HerNJdhNeKnRUe6x3JotOirPDvxPKsg7hUK4xKCMM64FcY+gCT9HGcYON0/47uCIbgbHeh9IG4Swldte2ruyij4+D6s+wEeE1ACZkb626lDfvMKR752rQyUXWIiD/m8yU6YYbz6dZr18F1a/Iw5dfV3kw9Q7/LBBub9fEU7Rx4lzoENYwIVsDqz4eWC8T4jI4KTZsQtmUczRR4CnaOHGN4OSerBl6v5J0tfpcj1osKHEZXEcZ819d6QxP0cZxg40TZ4oWNl+x8BBGc3mMz8qKy+BkmrSqdoQjQnPBU7R5OhnBZ9DAj+5tzrmGadIJlNOB9e+4vP4sHEUL8Mvfwo9tm0RV8J+Qgdrzol/NbZrkBX+nSLjBxhEtcwqJ4GpaOY3wRm2H/3mEPwPrzwcW1nb4v4KwLKj+NdIP3IVGscZabZgmLUBZkFskymLo8SMrMsJTtHGKn5obSbauTFLlaFBtYTUwGFQzA+IyuE6VQzlNk6Iz2FO0ceIcwbCQCVkaVFG4Jcb16LgMrl9FC+Mo43mHEwOeoo3jBhsnrhSdVJP2UGJfUG1lBGVbUM0MiMvgOspJ1mvYEmZFev0szp7gKdo4/QgfRrIW/WvD61VUZEtg/cYfw/wUWBxY/5qIq+DvO/y7xlO0cdxg4/wPqIZxsCwFSDkAAAAASUVORK5CYII=" alt="Dorado Logo" style="width: 60px; height: auto; margin-right: 10px;" />
+                <img src="data:image/png;base64,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" alt="Dorado Logo" style="width: 60px; height: auto; margin-right: 10px;" />
                 <div class="logo">
                   <div class="company-name">Dorado Metals Exchange</div>
                   <div class="contact-info">
                     <span>support@doradometals.com</span>
-                    <span>(817) 203-4786</span>
+                    <span>${formatPhoneNumber(process.env.FEDEX_DORADO_PHONE_NUMBER)}</span>
                   </div>
                 </div>
               </div>
@@ -325,11 +373,14 @@ const generatePackingList = async (req, res) => {
                   <h4>${purchaseOrder.address.name}</h4>
                   <p>
                     ${purchaseOrder.address.line_1} ${
-                    purchaseOrder.address.line_2
-                  }<br/>
-                                  ${purchaseOrder.address.city}, ${
-                    purchaseOrder.address.state
-                  } ${purchaseOrder.address.zip}
+                      purchaseOrder.address.line_2
+                    }<br/>
+                      ${purchaseOrder.address.city}, ${
+                      purchaseOrder.address.state
+                    } ${purchaseOrder.address.zip}
+                  </p>
+                  <p>
+                    ${formatPhoneNumber(purchaseOrder.address.phone_number)}
                   </p>
                 </div>
               </div>
@@ -340,11 +391,14 @@ const generatePackingList = async (req, res) => {
                   <h4>${process.env.FEDEX_DORADO_NAME}</h4>
                   <p>
                     ${process.env.FEDEX_RETURN_ADDRESS_LINE_1} ${
-                    process.env.FEDEX_RETURN_ADDRESS_LINE_2
-                  }<br/>
-                                  ${process.env.FEDEX_RETURN_CITY}, ${
-                    process.env.FEDEX_RETURN_STATE
-                  } ${process.env.FEDEX_RETURN_ZIP}
+                      process.env.FEDEX_RETURN_ADDRESS_LINE_2
+                    }<br/>
+                       ${process.env.FEDEX_RETURN_CITY}, ${
+                      process.env.FEDEX_RETURN_STATE
+                    } ${process.env.FEDEX_RETURN_ZIP}
+                  </p>
+                  <p>
+                    ${formatPhoneNumber(process.env.FEDEX_DORADO_PHONE_NUMBER)}
                   </p>
                 </div>
               </div>
@@ -401,15 +455,22 @@ const generatePackingList = async (req, res) => {
                   <tr>
                     <th>Order Placed</th>
                     <th>Order Number</th>
-                    <th class="text-right">Price Estimate</th>
+                    <th>Total Estimate</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>${new Date(purchaseOrder.created_at).toLocaleDateString()}</td>
-                    <td>PO-${purchaseOrder.order_number.toString().padStart(6, "0")}</td>
-                    <td class="text-right">
-                      ${total.toLocaleString("en-US", { style: "currency", currency: "USD" })} 
+                    <td>${new Date(
+                      purchaseOrder.created_at
+                    ).toLocaleDateString()}</td>
+                    <td>PO-${purchaseOrder.order_number
+                      .toString()
+                      .padStart(6, "0")}</td>
+                    <td>
+                      ${total.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      })} 
                     </td>
                   </tr>
                 </tbody>
@@ -425,9 +486,9 @@ const generatePackingList = async (req, res) => {
                   <tr>
                     <th>Bullion Products</th>
                     <th>Metal</th>
-                    <th>Content</th>
                     <th>Quantity</th>
-                    <th class="text-right">Price Estimate</th>
+                    <th>Content</th>
+                    <th>Bullion Estimate</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -450,7 +511,7 @@ const generatePackingList = async (req, res) => {
                     <th>Gross</th>
                     <th>Purity</th>
                     <th>Content</th>
-                    <th class="text-right">Price Estimate</th>
+                    <th>Scrap Estimate</th>
                   </tr>
                 </thead>
                 <tbody>

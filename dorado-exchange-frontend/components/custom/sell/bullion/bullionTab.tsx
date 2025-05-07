@@ -38,6 +38,8 @@ export default function BullionTab() {
   const min = 1
   const max = 100
 
+  console.log(selected)
+
   const quantityOffset = (() => {
     if (quantity < 25) return 0.25
     if (quantity < 50) return 0.15

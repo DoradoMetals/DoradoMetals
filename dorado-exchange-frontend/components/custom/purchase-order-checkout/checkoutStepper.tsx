@@ -90,7 +90,7 @@ export default function CheckoutStepper() {
         <p className="text-sm text-muted-foreground mt-2">
           You need to add items before checking out.
         </p>
-        <Button className="mt-6" onClick={() => router.push('sell')}>
+        <Button variant="default" className="mt-6 liquid-gold raised-off-screen shine-on-hover px-5 py-4" onClick={() => router.push('sell')}>
           Add Items to Sell
         </Button>
       </div>

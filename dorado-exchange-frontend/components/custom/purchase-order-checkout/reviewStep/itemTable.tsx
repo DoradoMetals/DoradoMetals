@@ -200,12 +200,12 @@ const scrapColumns: ColumnDef<Extract<SellCartItem, { type: 'scrap' }>>[] = [
 
 const bullionColumns: ColumnDef<Extract<SellCartItem, { type: 'product' }>>[] = [
   {
-    header: 'Name',
-    cell: ({ row }) => row.original.data.product_name,
-  },
-  {
     header: 'Qty',
     cell: ({ row }) => row.original.data.quantity ?? 1,
+  },
+  {
+    header: 'Name',
+    cell: ({ row }) => row.original.data.product_name,
   },
   {
     header: 'Est. Value',

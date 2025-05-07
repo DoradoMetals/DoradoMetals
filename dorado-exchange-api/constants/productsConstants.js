@@ -1,4 +1,5 @@
 const PRODUCT_FIELDS = `
+  id,
   product_name,
   product_description,
   content,
@@ -12,6 +13,7 @@ const PRODUCT_FIELDS = `
 `;
 
 const PRODUCT_FIELDS_WITH_ALIAS = `
+  p.id,
   p.product_name,
   p.product_description,
   p.content,

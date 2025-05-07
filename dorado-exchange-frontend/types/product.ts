@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export interface Product {
+  id: string,
   product_name: string,
   product_description: string,
   content: number,
@@ -18,6 +19,7 @@ export interface Product {
 }
 
 export const productSchema = z.object({
+  id: z.string(),
   product_name: z.string(),
   product_description: z.string(),
   content: z.number(),
@@ -27,7 +29,7 @@ export const productSchema = z.object({
   image_front: z.string(),
   image_back: z.string(),
   mint_name: z.string(),
-  price: z.number(),
+  price: z.number().optional(),
   metal_type: z.string(),
   variant_group: z.string(),
   shadow_offset: z.number(),

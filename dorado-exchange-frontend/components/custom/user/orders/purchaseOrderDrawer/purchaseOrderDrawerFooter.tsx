@@ -25,9 +25,12 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
     bullion: false,
     total: false,
   })
+
   const rawScrapItems = order.order_items.filter((item) => item.item_type === 'scrap' && item.scrap)
   const scrapItems = assignScrapItemNames(rawScrapItems.map((item) => item.scrap!))
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
+  console.log(bullionItems)
+
 
   const total = order.order_items.reduce((acc, item) => {
     if (item.item_type === 'product') {
@@ -127,9 +130,8 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
           <TableBody>
             {bullionItems.map((item, i) => (
               <TableRow key={i} className='hover:bg-transparent'>
-                <TableCell>{item.product?.metal_type}</TableCell>
-                <TableCell>{item.product?.product_name}</TableCell>
                 <TableCell>{item.quantity}</TableCell>
+                <TableCell>{item.product?.product_name}</TableCell>
                 <TableCell className="text-right p-0">
                   <PriceNumberFlow
                     value={
@@ -162,10 +164,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
           <div className="text-right">
             <PriceNumberFlow value={bullionTotal} />
           </div>
-          <div className="font-medium">Total:</div>
-          <div className="font-medium text-right">
-            <PriceNumberFlow value={total} />
-          </div>
+          
         </div>
       </Accordion>
       <div className="flex w-full justify-between items-center mt-3">

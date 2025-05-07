@@ -128,9 +128,8 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
           <TableBody>
             {bullionItems.map((item, i) => (
               <TableRow key={i} className="hover:bg-transparent">
-                <TableCell>{item.product?.metal_type}</TableCell>
-                <TableCell>{item.product?.product_name}</TableCell>
                 <TableCell>{item.quantity}</TableCell>
+                <TableCell>{item.product?.product_name}</TableCell>
                 <TableCell className="text-right p-0">
                   <PriceNumberFlow
                     value={
