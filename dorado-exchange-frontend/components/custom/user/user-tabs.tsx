@@ -7,20 +7,22 @@ import { OrdersTabs } from './orders/ordersTab'
 export function UserTabs() {
   return (
     <Tabs defaultValue="account" className="w-full sm:max-w-2xl mt-3">
-      <TabsList className="grid w-full grid-cols-4 bg-card">
-        <TabsTrigger className="cursor-pointer" value="account">
+      <TabsList className="grid w-full grid-cols-4 bg-transparent">
+        <TabsTrigger className="tab-indicator-secondary" value="account">
           Account
         </TabsTrigger>
-        <TabsTrigger className="cursor-pointer" value="security">
+        <TabsTrigger className="tab-indicator-secondary" value="security">
           Security
         </TabsTrigger>
-        <TabsTrigger className="cursor-pointer" value="orders">
+        <TabsTrigger className="tab-indicator-secondary" value="orders">
           Orders
         </TabsTrigger>
-        <TabsTrigger className="cursor-pointer" value="support">
+        <TabsTrigger className="tab-indicator-secondary" value="support">
           Support
         </TabsTrigger>
       </TabsList>
+      <div className="separator-inset -mt-[11px]" />
+
       <TabsContent value="account">
         <AccountTab />
       </TabsContent>

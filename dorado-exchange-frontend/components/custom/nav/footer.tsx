@@ -29,20 +29,20 @@ export default function Footer() {
           <div className="flex flex-col gap-2">
             <h4 className="text-xl font-medium mb-3">Socials</h4>
             <Link href="/" className="text-neutral-200 dark:text-neutral-700">
-              Twitter
+              X
             </Link>
             <Link href="/" className="text-neutral-200 dark:text-neutral-700">
               Facebook
             </Link>
-            <Link href="/" className="text-neutral-200 dark:text-neutral-700">
+            <Link target="_blank" href="https://www.instagram.com/doradometals/?utm_source=qr#" className="text-neutral-200 dark:text-neutral-700">
               Instagram
             </Link>
           </div>
 
           <div className="flex flex-col gap-2">
             <h4 className="text-xl font-medium mb-3">Links</h4>
-            <Link href="/" className="text-neutral-200 dark:text-neutral-700">
-              Ebay Listings
+            <Link target="_blank" href="https://www.ebay.com/sch/i.html?item=146566125667&rt=nc&_trksid=p4429486.m3561.l161211&_ssn=doradometals" className="text-neutral-200 dark:text-neutral-700">
+              eBay Listings
             </Link>
           </div>
 
@@ -95,8 +95,8 @@ export default function Footer() {
             </Link>
           </div>
           <div className="flex w-full items-center justify-between">
-            <Link href="/" className="text-xs text-neutral-200 dark:text-neutral-700">
-              Ebay Listings
+            <Link target="_blank" href="https://www.ebay.com/sch/i.html?item=146566125667&rt=nc&_trksid=p4429486.m3561.l161211&_ssn=doradometals" className="text-xs text-neutral-200 dark:text-neutral-700">
+              eBay Listings
             </Link>
             <Link href="/" className="text-xs text-neutral-200 dark:text-neutral-700">
               About Us
@@ -121,7 +121,10 @@ export default function Footer() {
           <div className="text-xs text-neutral-200 dark:text-neutral-700 text-left">© Dorado Metals Exchange LLC</div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" className="p-0">
-              <InstagramIcon size={20} className="text-neutral-200 dark:text-neutral-700" />
+              <Link target="_blank" href="https://www.instagram.com/doradometals/?utm_source=qr#">
+                <InstagramIcon size={20} className="text-neutral-200 dark:text-neutral-700" />
+
+              </Link>
             </Button>
             <Button variant="ghost" className="p-0">
               <FacebookIcon size={20} className="text-neutral-200 dark:text-neutral-700" />

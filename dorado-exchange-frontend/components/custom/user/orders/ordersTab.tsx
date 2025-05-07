@@ -25,20 +25,22 @@ export function OrdersTabs() {
     <div>
       <Tabs defaultValue="sold" className="flex h-full w-full items-center justify-center mt-5">
         <div className="w-full max-w-sm">
-          <TabsList className="justify-center h-auto w-full gap-2 rounded-none border-b border-border bg-transparent px-0 py-1 text-foreground">
+          <TabsList className="justify-center w-full gap-2 rounded-none bg-transparent">
             <TabsTrigger
               value="bought"
-              className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
+              className="tab-indicator-primary"
             >
               Bought
             </TabsTrigger>
             <TabsTrigger
               value="sold"
-              className="cursor-pointer text-neutral-700 after:text-neutral-700 relative after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-0.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:bg-primary"
+              className="tab-indicator-primary"
             >
               Sold
             </TabsTrigger>
           </TabsList>
+          <div className="separator-inset -mt-[3px]" />
+
         </div>
         <div className="w-full max-w-sm">
           <TabsContent value="bought">
@@ -86,7 +88,7 @@ function PurchaseOrdersContent({ user }: { user: User }) {
   }
 
   return (
-    <div className="rounded-xl p-4">
+    <div className="rounded-xl p-4 bg-card mt-5 raised-off-page">
       {orders.map((order) => {
         const total =
           order.order_items?.reduce((acc, item) => {

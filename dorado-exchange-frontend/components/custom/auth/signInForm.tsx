@@ -127,7 +127,7 @@ export default function SignInForm() {
               type="submit"
               variant="default"
               disabled={isPending}
-              className="form-submit-button"
+              className="form-submit-button liquid-gold raised-off-page shine-on-hover text-white"
             >
               {isPending ? 'Signing In...' : 'Sign In'}
             </Button>

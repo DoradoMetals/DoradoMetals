@@ -4,7 +4,7 @@ import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation, Pagination } from 'swiper/modules'
 import { Dispatch, useState } from 'react'
 import { Address } from '@/types/address'
-import { Building, ChevronsLeft, ChevronsRight, House } from 'lucide-react'
+import { Building, Building2, ChevronsLeft, ChevronsRight, House } from 'lucide-react'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
 import { Button } from '@/components/ui/button'
 import { useDeleteAddress, useSetDefaultAddress } from '@/lib/queries/useAddresses'
@@ -57,6 +57,7 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
           setIsBeginning(false)
           setIsEnd(false)
         }}
+        spaceBetween={14}
         pagination={{ clickable: true }}
         modules={[Navigation, Pagination]}
         className="
@@ -73,15 +74,13 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
         {addresses.map((address, index) => (
           <SwiperSlide key={address.id} className="rounded-xl w-full">
             <div
-              className={`flex w-full bg-card shadow-lg p-4 border transition-all duration-300 rounded-xl ${
-                selectedAddress?.id === address.id ? 'border-secondary' : 'border-border'
-              }`}
+              className="flex w-full bg-card p-4 transition-all duration-300 rounded-xl raised-off-page"
             >
               <div className="flex flex-col w-full">
                 <div className="flex items-start justify-between w-full">
                   <div className="text-xl text-neutral-900">{address.name}</div>
                   <div className="text-secondary">
-                    {address.is_residential ? <House size={24} /> : <Building size={24} />}
+                    {address.is_residential ? <House size={24} className='text-neutral-600' /> : <Building2 size={24} className='text-neutral-600' />}
                   </div>
                 </div>
 
@@ -100,9 +99,9 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
                 <div className="flex items-center gap-4 mt-4 justify-between">
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="secondary"
+                      variant="default"
                       size="sm"
-                      className="px-4 min-w-[80px]"
+                      className="px-4 min-w-[80px] liquid-gold raised-off-page shine-on-hover text-white"
                       onClick={() => {
                         setSelectedAddress(address)
                         setOpen(true)
@@ -111,9 +110,9 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
                       Edit
                     </Button>
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
-                      className="text-secondary border-secondary bg-card hover:bg-secondary hover:shadow-lg hover:text-neutral-900 px-4 min-w-[80px]"
+                      className="bg-card raised-off-page px-4 min-w-[80px] text-primary-gradient"
                       onClick={() => deleteAddressMutation.mutate(address)}
                     >
                       Remove
@@ -124,7 +123,7 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
                     <Button
                       variant="link"
                       size="sm"
-                      className="text-secondary p-0 h-auto"
+                      className="text-primary-gradient p-0 h-auto"
                       onClick={() => setDefaultAddressMutation.mutate(address)}
                     >
                       Set Default

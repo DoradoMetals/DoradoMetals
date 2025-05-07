@@ -154,13 +154,9 @@ const createPurchaseOrder = async (req, res) => {
     labelFileBase64 = labelData.labelFile;
 
     if (trackingNumber && labelFileBase64) {
-      let shipping_status = ''
       const labelBuffer = Buffer.from(labelFileBase64, "base64");
-      if (purchase_order.pickup.name === 'Carrier Pickup') {
-        shipping_status = 'Waiting for Pickup'
-      } else {
-        'Waiting for Dropoff'
-      }
+      const shipping_status = purchase_order.pickup.name === 'Carrier Pickup' ? 'Waiting for Pickup' : 'Waiting for Dropoff'
+
       await pool.query(
       `
         INSERT INTO exchange.inbound_shipments (

@@ -3,13 +3,14 @@
 import FeaturedProducts from '@/components/custom/nav/featuredProducts'
 import { Button } from '@/components/ui/button'
 import { useHomepageProducts } from '@/lib/queries/useProducts'
-import { Calculator, Eye, MousePointerClick, Send, ShieldCheck, Zap } from 'lucide-react'
+import { Calculator, Eye, MousePointerClick, Send, ShieldCheck, Timer, Zap } from 'lucide-react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 import MobileProductCarousel from '../components/custom/products/mobileProductCarousel'
 import { useUser } from '@/lib/authClient'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function Home() {
   const router = useRouter()
@@ -77,7 +78,7 @@ export default function Home() {
                 <div className="flex w-full max-w-[80vw] items-center justify-between p-2">
                   <div className="flex flex-col items-start gap-2">
                     <div className="flex items-center gap-3">
-                      <Calculator size={24} className="text-primary" />
+                      <Timer size={24} stroke={getPrimaryIconStroke()} />
                       <div className="text-xl text-neutral-800 font-medium">Instant estimates</div>
                     </div>
                     <div className="text-base text-neutral-600 max-w-md">
@@ -89,7 +90,7 @@ export default function Home() {
                   <div className="flex flex-col items-center">
                     <div className="flex flex-col items-start gap-2">
                       <div className="flex items-center gap-3 w-full">
-                        <Send size={24} className="text-primary" />
+                        <Send size={24} stroke={getPrimaryIconStroke()} />
                         <div className="text-xl text-neutral-800 font-medium">
                           Effortless shipping
                         </div>
@@ -104,7 +105,7 @@ export default function Home() {
                   <div className="flex flex-col items-end">
                     <div className="flex flex-col items-start gap-2">
                       <div className="flex items-center gap-3">
-                        <Zap size={24} className="text-primary" />
+                        <Zap size={24} stroke={getPrimaryIconStroke()} />
                         <div className="text-xl text-neutral-800 font-medium">
                           Lightning-fast payouts
                         </div>
@@ -224,7 +225,7 @@ export default function Home() {
                           router.push('/authentication')
                         }}
                       >
-                        Get Started'
+                        Get Started
                       </Button>
                     </div>
                   )}
@@ -242,7 +243,7 @@ export default function Home() {
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
-                    <Calculator size={24} className="text-primary" />
+                    <Timer size={24} stroke={getPrimaryIconStroke()} />
                     <div className="text-2xl text-neutral-800 font-medium">Instant estimates</div>
                   </div>
                   <div className="text-sm text-neutral-600 max-w-xs">
@@ -255,13 +256,13 @@ export default function Home() {
                 <div className="flex flex-col items-center">
                   <div className="flex flex-col items-start gap-1">
                     <div className="flex items-center gap-1">
-                      <Send size={24} className="text-primary" />
+                      <Send size={24} stroke={getPrimaryIconStroke()} />
                       <div className="text-2xl text-neutral-800 font-medium">
                         Effortless shipping
                       </div>
                     </div>
                     <div className="text-sm text-neutral-600 max-w-xs">
-                      From repaid labels to fully insured shipments,sending in your metals is easy
+                      From prepaid labels to fully insured shipments,sending in your metals is easy
                       and risk-free. Just pack, ship, and relax - we'll handle the rest.
                     </div>
                   </div>
@@ -270,7 +271,7 @@ export default function Home() {
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
-                    <Zap size={24} className="text-primary" />
+                    <Zap size={24} stroke={getPrimaryIconStroke()} />
                     <div className="text-2xl text-neutral-800 font-medium">
                       Lightning-fast payouts
                     </div>

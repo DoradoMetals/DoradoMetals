@@ -9,6 +9,7 @@ import { Plus } from 'lucide-react'
 import AddressModal from './addressDialog'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { AddressCarousel } from './addressCarousel'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function AddressTab() {
   const { user } = useGetSession()
@@ -41,8 +42,8 @@ export default function AddressTab() {
     is_residential: false,
   }
 
-  const [selectedAddress, setSelectedAddress] = useState<Address>(() =>
-    addresses?.[0] ?? defaultValues
+  const [selectedAddress, setSelectedAddress] = useState<Address>(
+    () => addresses?.[0] ?? defaultValues
   )
 
   return (
@@ -67,18 +68,14 @@ export default function AddressTab() {
             <h2 className="secondary-text">Addresses</h2>
             {!noAddresses() ? (
               <Button
-                variant="link"
-                effect="hoverUnderline"
-                className="ml-auto text-neutral-700 hover:text-primary"
+                variant="ghost"
+                className="ml-auto text-primary-gradient"
                 onClick={() => {
                   setSelectedAddress(defaultValues)
                   setOpen(true)
                 }}
               >
-                <div className="flex items-center gap-1">
-                  <Plus size={16} />
-                  Create New
-                </div>
+                + Create New
               </Button>
             ) : null}
           </div>
@@ -89,7 +86,7 @@ export default function AddressTab() {
                   Save a new address to your account.
                 </div>
                 <Button
-                  className=""
+                  className="w-1/2 liquid-gold raised-off-page shine-on-hover text-white"
                   effect="expandIcon"
                   variant="default"
                   size="sm"

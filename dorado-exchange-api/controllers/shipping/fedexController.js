@@ -446,6 +446,7 @@ const scheduleFedexPickup = async (
         },
         readyDateTimestamp: readyTimestamp,
         customerCloseTime: closeTime,
+        packageLocation: 'FRONT',
       },
       trackingNumber,
       carrierCode: code,
@@ -467,11 +468,12 @@ const scheduleFedexPickup = async (
     return { confirmationNumber };
   } catch (error) {
     const responseData = error?.response?.data;
-    console.error("FedEx pickup scheduling failed:", {
+    console.error("FedEx pickup scheduling failed FULL ERROR:", JSON.stringify({
       status: error?.response?.status,
-      message: error?.message,
-      data: responseData,
-    });
+      statusText: error?.response?.statusText,
+      headers: error?.response?.headers,
+      data: error?.response?.data,
+    }, null, 2));
 
     const errors = responseData?.errors;
     if (Array.isArray(errors)) {

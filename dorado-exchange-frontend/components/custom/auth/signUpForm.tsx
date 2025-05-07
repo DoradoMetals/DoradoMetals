@@ -143,13 +143,13 @@ export default function SignUpForm() {
                         <div className="flex items-end text-xs text-neutral-600 gap-1">
                           Accept our
                           <Link
-                            className="text-primary tracking-wide"
+                            className="text-primary-gradient tracking-wide"
                             href={'/terms-and-conditions'}
                           >
                             Terms and Condtions
                           </Link>
                           and
-                          <Link className="text-primary tracking-wide" href={'/privacy-policy'}>
+                          <Link className="text-primary-gradient tracking-wide" href={'/privacy-policy'}>
                             Privacy Policy.
                           </Link>
                         </div>
@@ -169,7 +169,7 @@ export default function SignUpForm() {
               type="submit"
               variant="default"
               disabled={isPending}
-              className="form-submit-button"
+              className="form-submit-button liquid-gold raised-off-page shine-on-hover text-white"
             >
               {isPending ? 'Signing Up...' : 'Sign Up'}
             </Button>

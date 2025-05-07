@@ -100,7 +100,7 @@ export default function Sidebar() {
               className="w-16 h-16 flex flex-col items-center justify-center rounded-lg liquid-gold raised-off-page"
             >
               <LogIn size={20} className='text-white' />
-              <div className="text-sm white">Sign In</div>
+              <div className="text-sm text-white">Sign In</div>
             </Button>
           </div>
         )}

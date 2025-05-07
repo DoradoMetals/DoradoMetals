@@ -10,7 +10,7 @@ export default function GoogleButton({buttonLabel} : {buttonLabel: string}) {
   return (
     <Button
       variant="ghost"
-      className="w-full hover:bg-background"
+      className="w-full bg-card raised-off-page shine-on-hover hover:bg-card"
       onClick={() => googleSignInMutation.mutate()}
       disabled={googleSignInMutation.isPending}
     >

@@ -179,7 +179,7 @@ export default function UserForm() {
               </div>
               <Button
                 type="submit"
-                className="form-submit-button"
+                className="form-submit-button liquid-gold raised-off-page shine-on-hover text-white"
                 disabled={updateUserMutation.isPending || changeEmailMutation.isPending}
               >
                 {updateUserMutation.isPending || changeEmailMutation.isPending

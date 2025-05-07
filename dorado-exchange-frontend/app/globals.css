@@ -379,7 +379,7 @@ input:-webkit-autofill:active {
   @apply relative 
     flex 
     items-center 
-    bg-card
+    bg-background
     justify-center
     rounded-md
     px-3
@@ -388,7 +388,7 @@ input:-webkit-autofill:active {
     font-medium
     cursor-pointer
     transition-colors
-    /* has-[[data-state=checked]]:bg-card */
+    has-[[data-state=checked]]:bg-card
     /* has-[[data-state=checked]]:border-primary */
     /* has-[[data-state=checked]]:shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
     has-[[data-state=checked]]:dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)] */
@@ -586,12 +586,31 @@ number-flow-react::part(symbol) {
     to left,
     #ae8625 0%,
     #f5d67d 25%,
-    #d2ac47 50%,
+    #d2ac47 50%, 
     #edc967 75%,
     #ae8625 100%
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+@layer components {
+  .peer-focus-gradient {
+    @apply relative;
+  }
+
+  .peer:focus ~ .peer-focus-gradient {
+    background: linear-gradient(
+      to left,
+      #ae8625 0%,
+      #f5d67d 25%,
+      #d2ac47 50%,
+      #edc967 75%,
+      #ae8625 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }
 
 .primary-icon-gradient {
