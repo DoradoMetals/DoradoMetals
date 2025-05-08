@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { useShipmentTracking } from '@/lib/queries/shipping/useShipments'
 import { cn } from '@/lib/utils'
-import { packageOptions } from '@/types/packaging'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import { formatDateWithTimeInParens } from '@/utils/dateFormatting'
 import { addDays } from 'date-fns'
@@ -168,7 +167,6 @@ export function PreTransit({
   )
     return null
 
-  const selectedPackage = packageOptions[order.shipment.package]
   const { downloadBase64 } = useDownloadBase64()
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const cancelLabel = useCancelFedExLabel();

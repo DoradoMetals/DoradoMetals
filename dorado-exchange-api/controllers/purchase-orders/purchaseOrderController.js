@@ -96,7 +96,6 @@ const createPurchaseOrder = async (req, res) => {
     await client.query("BEGIN");
 
     // Step 1: Insert purchase order
-
     const insertOrderQuery = `
       INSERT INTO exchange.purchase_orders (user_id, address_id, purchase_order_status)
       VALUES ($1, $2, $3)

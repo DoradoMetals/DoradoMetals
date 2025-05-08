@@ -73,7 +73,7 @@ export default function ACHForm({
                           key={option.value}
                           htmlFor={option.value}
                           className={cn(
-                            'relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg border border-border bg-background p-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:shadow-md'
+                            'radio-group-buttons raised-off-page justify-center grow-1'
                           )}
                         >
                           <div className="flex flex-col items-center gap-2">

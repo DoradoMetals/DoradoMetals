@@ -247,7 +247,7 @@ export default function CheckoutAddressForm({
           </div>
           <Button
             type="submit"
-            className="form-submit-button"
+            className="form-submit-button liquid-gold raised-off-page shine-on-hover"
             disabled={updateAddressMutation.isPending}
           >
             {updateAddressMutation.isPending ? 'Saving...' : 'Save Changes'}

@@ -58,7 +58,7 @@ export default function Shell() {
   ]
 
   return (
-    <div className="z-60 sticky top-0 bg-card raised-off-page">
+    <div className={cn("z-60 sticky top-0 bg-card", isAnyDrawerOpen ? 'shadow-none border-b border-border' : 'raised-off-page')}>
       <Spots />
 
       <nav>

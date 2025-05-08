@@ -23,7 +23,6 @@ export function PickupSelector() {
 
   return (
     <div className="space-y-2">
-      <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Carrier Pickup or Dropoff</h2>
       <RadioGroup
         value={selectedPickup?.label}
         onValueChange={handleChange}

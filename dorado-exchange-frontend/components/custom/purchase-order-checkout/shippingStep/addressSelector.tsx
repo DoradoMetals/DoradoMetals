@@ -9,6 +9,7 @@ import formatPhoneNumber from '@/utils/formatPhoneNumber'
 
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { Button } from '@/components/ui/button'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 interface AddressSelectorProps {
   addresses: Address[]
@@ -41,7 +42,7 @@ export function AddressSelector({
   }
 
   return (
-    <div className="rounded-lg border border-primary overflow-hidden bg-card raised-off-page">
+    <div className="rounded-lg overflow-hidden bg-card raised-off-page">
       <div
         role="button"
         tabIndex={0}
@@ -68,7 +69,7 @@ export function AddressSelector({
                 setOpen(true)
               }}
             >
-              <Edit size={20} className="text-primary" />
+              <Edit size={20} stroke={getPrimaryIconStroke()} />
             </Button>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between w-full gap-1">
@@ -121,7 +122,7 @@ export function AddressSelector({
                     exit={{ opacity: 0, y: 10 }}
                     transition={{ duration: 0.2, delay: index * 0.05 }}
                     htmlFor={address.id}
-                    className="relative peer flex w-full items-start justify-between gap-4 bg-background rounded-lg p-3 cursor-pointer border border-border transition-colors has-[[data-state=checked]]:shadow-xl has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-card"
+                    className="relative peer flex w-full items-start justify-between gap-4 bg-background rounded-lg p-3 cursor-pointer border border-border transition-colors has-[[data-state=checked]]:border-secondary has-[[data-state=checked]]:bg-card raised-off-page"
                   >
                     <div className="flex flex-col">
                       <div className="flex items-center justify-between w-full">

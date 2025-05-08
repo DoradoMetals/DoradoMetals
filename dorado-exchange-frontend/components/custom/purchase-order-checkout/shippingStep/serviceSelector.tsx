@@ -48,7 +48,6 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
 
   return (
     <div className="space-y-2">
-      <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Shipping Service</h2>
       <RadioGroup
         value={selected?.serviceType ?? ''}
         onValueChange={handleSelect}

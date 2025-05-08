@@ -15,7 +15,7 @@ function formatPhoneNumber(value) {
 
 function getScrapPrice(content, spot) {
   if (!spot || !content) return 0;
-  return content * spot.bid_spot;
+  return content * spot.bid_spot * (spot.scrap_percentage / 100)
 }
 
 function getProductBidPrice(product, spot) {
@@ -63,8 +63,6 @@ function assignScrapItemNames(scrapItems) {
 const generatePackingList = async (req, res) => {
   const { purchaseOrder, spotPrices = [] } = req.body;
 
-  console.log("order_items: ", purchaseOrder.order_items);
-
   try {
     const browser = await puppeteer.launch({
       headless: true,
@@ -76,28 +74,22 @@ const generatePackingList = async (req, res) => {
       if (item.item_type === "product") {
         const product = item.product;
         const spot = spotPrices.find((s) => s.type === product?.metal_type);
-
-        const price =
-          item.price ??
-          (product && spot
-            ? product.content * spot.bid_spot +
-              product.bid_premium * product.content * spot.bid_spot
-            : 0);
-
+    
+        const price = item.price ?? getProductBidPrice(product, spot);
         const quantity = item.quantity ?? 1;
+    
         return acc + price * quantity;
       }
-
+    
       if (item.item_type === "scrap") {
         const scrap = item.scrap;
         const spot = spotPrices.find((s) => s.type === scrap?.metal);
-
-        const price =
-          item.price ?? (scrap && spot ? scrap.content * spot.bid_spot : 0);
-
+    
+        const price = item.price ?? getScrapPrice(scrap.content, spot);
+    
         return acc + price;
       }
-
+    
       return acc;
     }, 0);
 

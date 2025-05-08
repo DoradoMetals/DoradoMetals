@@ -27,16 +27,16 @@ export const serviceSchema = z.object({
 })
 
 export const serviceOptions: Record<string, ShippingService> = {
-  FEDEX_GROUND: {
-    serviceType: 'FEDEX_GROUND',
-    serviceDescription: 'FedEx Ground',
-    netCharge: 0,
-    currency: 'USD',
-    deliveryDay: '',
-    transitTime: new Date(),
-    icon: Train,
-    code: 'FDXG',
-  },
+  // FEDEX_GROUND: {
+  //   serviceType: 'FEDEX_GROUND',
+  //   serviceDescription: 'FedEx Ground',
+  //   netCharge: 0,
+  //   currency: 'USD',
+  //   deliveryDay: '',
+  //   transitTime: new Date(),
+  //   icon: Train,
+  //   code: 'FDXG',
+  // },
   FEDEX_EXPRESS_SAVER: {
     serviceType: 'FEDEX_EXPRESS_SAVER',
     serviceDescription: 'Express Saver',

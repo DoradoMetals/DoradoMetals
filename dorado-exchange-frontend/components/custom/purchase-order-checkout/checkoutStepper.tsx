@@ -71,7 +71,6 @@ export default function CheckoutStepper() {
     if (!hasInitialized.current && addresses.length > 0) {
       setData({
         address: defaultAddress,
-        insured: true,
         confirmation: false,
       })
       hasInitialized.current = true
@@ -121,7 +120,7 @@ export default function CheckoutStepper() {
           </div>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 lg:mt-12">
           {stepper.switch({
             shipping: () => <ShippingStep addresses={addresses} emptyAddress={emptyAddress} />,
             payout: () => <PayoutStep user={user} />,

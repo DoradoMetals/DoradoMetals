@@ -174,7 +174,8 @@ export function DropoffInstructionsSection({
   )
     return null
 
-  const selectedPackage = packageOptions[order.shipment.package]
+    const selectedPackage = packageOptions.find(p => p.label === order.shipment.package)
+
   const { downloadBase64 } = useDownloadBase64()
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
 
@@ -189,8 +190,8 @@ export function DropoffInstructionsSection({
       icon: <PackageOpen size={18} className={cn(color)} />,
       title: 'Pack Your Items',
       description: `Pack up your items in a ${
-        selectedPackage.label
-      } (${`${selectedPackage.dimensions.length} × ${selectedPackage.dimensions.width} × ${selectedPackage.dimensions.height}`} in). We recommend double
+        selectedPackage?.label
+      } (${`${selectedPackage?.dimensions.length} × ${selectedPackage?.dimensions.width} × ${selectedPackage?.dimensions.height}`} in). We recommend double
       boxing using generic packaging to prevent theft or
       damage while your shipment is in-transit. `,
     },

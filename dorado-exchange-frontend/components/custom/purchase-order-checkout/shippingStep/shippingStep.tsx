@@ -98,7 +98,6 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
         </div>
       ) : (
         <div className="space-y-2">
-          <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Address Selection</h2>
           <Button
             type="button"
             variant="outline"
