@@ -88,13 +88,13 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
                     ? `Arrives ${rate.deliveryDay}`
                     : 'Estimated delivery'}
                 </div>
-                <div className="text-base text-neutral-800">
+                {/* <div className="text-base text-neutral-800">
                   {rate?.netCharge != null ? (
                     <PriceNumberFlow value={rate.netCharge} />
                   ) : (
                     <span className="text-neutral-500 select-none">&nbsp;</span> // reserve space
                   )}
-                </div>
+                </div> */}
               </div>
 
               <RadioGroupItem id={serviceType} value={serviceType} className="sr-only" />

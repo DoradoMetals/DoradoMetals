@@ -6,5 +6,5 @@ export default function getProductBidPrice(
   spot?: SpotPrice
 ): number {
   if (!spot || !product) return 0
-  return product.content * spot.bid_spot + (product.bid_premium * product.content * spot.bid_spot)
+  return product.content * (spot.bid_spot * product.bid_premium);
 }

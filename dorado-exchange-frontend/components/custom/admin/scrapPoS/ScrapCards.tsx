@@ -24,7 +24,7 @@ export default function ScrapCards() {
 
   const getPerWeightPrice = (spot: SpotPrice, weight: WeightOption) => {
     if (!spot || !spot.scrap_percentage) return 0
-    const scrapPricePerTroyOz = spot.bid_spot * (spot.scrap_percentage / 100)
+    const scrapPricePerTroyOz = spot.bid_spot * spot.scrap_percentage;
     return scrapPricePerTroyOz * convertTroyOz(1, weight.unit)
   }
 
