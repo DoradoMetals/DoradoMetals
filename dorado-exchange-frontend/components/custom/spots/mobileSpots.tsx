@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, useAnimationFrame, useMotionValue, useTransform } from 'framer-motion'
 import { wrap } from '@motionone/utils'
-import { ChevronUp, ChevronDown } from 'lucide-react'
+import { CaretUp, CaretDown } from '@phosphor-icons/react'
 import { NumberFlowGroup } from '@number-flow/react'
-import NumberFlow from '@number-flow/react'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import PriceNumberFlow from '../products/PriceNumberFlow'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
@@ -36,7 +35,7 @@ export default function MobileSpotTicker() {
       <motion.div ref={containerRef} className="flex items-end gap-8 w-max px-4" style={{ x }}>
         {[...spots, ...spots, ...spots].map((spot, i) => {
           const trendUp = spot.dollar_change >= 0
-          const ChevronIcon = trendUp ? ChevronUp : ChevronDown
+          const CaretIcon = trendUp ? CaretUp : CaretDown
 
           return (
             <div key={`${spot.id}-${i}`} className="flex items-center gap-2">
@@ -47,7 +46,7 @@ export default function MobileSpotTicker() {
                 </div>
 
                 <div className="flex items-center text-xs gap-[0.5px] text-neutral-700 pt-[.5px]">
-                  <ChevronIcon size={14} stroke={getPrimaryIconStroke()} />
+                  <CaretIcon size={14} color={getPrimaryIconStroke()} />
                   <PriceNumberFlow value={spot.dollar_change} />
                 </div>
               </NumberFlowGroup>

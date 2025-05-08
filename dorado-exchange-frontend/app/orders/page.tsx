@@ -1,6 +1,6 @@
 'use client'
 
-import AccountTab from '@/components/custom/user/account/accountTab'
+import { OrdersTabs } from '@/components/custom/user/orders/ordersTab'
 import { UserTabs } from '@/components/custom/user/user-tabs'
 import { Button } from '@/components/ui/button'
 import { useGetSession } from '@/lib/queries/useAuth'
@@ -13,7 +13,10 @@ export default function Page() {
   return (
     <div className="flex flex-col h-full items-center gap-4">
       {user ? (
-        <AccountTab />
+        <div className='w-full sm:max-w-4xl mt-3 lg:mt-10'>
+          <OrdersTabs />
+         </div> 
+        
       ) : (
         <div className="w-full h-full flex flex-1 flex-col items-center justify-center text-center my-24 max-w-xs">
           <div className="mb-8">
@@ -21,7 +24,7 @@ export default function Page() {
           </div>
           <div className="flex-col items-center gap-1 mb-8">
             <h2 className="text-2xl text-neutral-900 tracking-wide">You're not signed in!</h2>
-            <p className="text-sm text-neutral-600">Please sign in to view your account.</p>
+            <p className="text-sm text-neutral-600">Please sign in to view your orders.</p>
           </div>
           <Button
             variant="default"

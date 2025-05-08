@@ -2,7 +2,7 @@
 
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import NumberFlow, { NumberFlowGroup } from '@number-flow/react'
-import { ChevronUp, ChevronDown } from 'lucide-react'
+import { CaretUp, CaretDown } from '@phosphor-icons/react'
 import MobileSpotTicker from './mobileSpots'
 import PriceNumberFlow from '../products/PriceNumberFlow'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
@@ -18,7 +18,7 @@ export default function Spots() {
             <div className="flex items-end gap-10 ml-auto">
               {spots.map((spot) => {
                 const trendUp = spot.dollar_change >= 0
-                const ChevronIcon = trendUp ? ChevronUp : ChevronDown
+                const CaretIcon = trendUp ? CaretUp : CaretDown
 
                 return (
                   <div key={spot.id} className="flex items-center gap-2">
@@ -30,7 +30,7 @@ export default function Spots() {
                       </div>
 
                       <div className="flex items-center text-xs text-neutral-700">
-                        <ChevronIcon size={14} stroke={getPrimaryIconStroke()} />
+                        <CaretIcon size={14} color={getPrimaryIconStroke()} />
                         <PriceNumberFlow value={spot.dollar_change} />
                       </div>
                     </NumberFlowGroup>

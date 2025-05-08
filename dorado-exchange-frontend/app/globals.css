@@ -594,6 +594,19 @@ number-flow-react::part(symbol) {
   -webkit-text-fill-color: transparent;
 }
 
+.group[data-selected] .day-button {
+  background: linear-gradient(
+    to left,
+    #ae8625 0%,
+    #f5d67d 25%,
+    #d2ac47 50%,
+    #edc967 75%,
+    #ae8625 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 @layer components {
   .peer-focus-gradient {
     @apply relative;

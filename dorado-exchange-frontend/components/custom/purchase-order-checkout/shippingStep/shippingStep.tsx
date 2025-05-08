@@ -63,7 +63,7 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
   const { data: times = [] } = useFedExPickupTimes(fedexPickupTimesInput)
 
   return (
-    <div className="space-y-10 w-full">
+    <div className="space-y-6 w-full">
       <CheckoutAddressModal
         address={draftAddress}
         open={open}
@@ -131,22 +131,27 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
           </div>
         </div>
       )}
+      <div className="separator-inset" />
+
       {address?.is_valid && (
-        <div>
+        <>
           <PackageSelector />
-        </div>
+          <div className="separator-inset" />
+        </>
       )}
 
       {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
-        <div>
+        <>
           <ServiceSelector rates={rates} isLoading={isLoading} />
-        </div>
+          <div className="separator-inset" />
+        </>
       )}
 
       {address?.is_valid && pkg && service && (
-        <div>
+        <>
           <PickupSelector />
-        </div>
+          <div className="separator-inset" />
+        </>
       )}
       {address?.is_valid &&
         pkg &&
@@ -156,7 +161,11 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
           pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE') && (
           <div>
             {pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE' ? (
-              <PickupScheduler times={times} />
+              times.length > 0 ? (
+                <PickupScheduler times={times} />
+              ) : (
+                <div className="text-sm text-muted-foreground py-4">No pickup times available.</div>
+              )
             ) : (
               <FedexLocationsMap />
             )}

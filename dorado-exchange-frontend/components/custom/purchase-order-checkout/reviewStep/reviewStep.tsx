@@ -132,7 +132,6 @@ export default function ReviewStep() {
         disabled={createPurchaseOrder.isPending}
         onClick={() => {
           const liveCartItems = sellCartStore.getState().items
-          console.log(liveCartItems)
           const checkoutPayload = {
             ...data,
             items: liveCartItems,

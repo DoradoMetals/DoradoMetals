@@ -29,8 +29,6 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
   const rawScrapItems = order.order_items.filter((item) => item.item_type === 'scrap' && item.scrap)
   const scrapItems = assignScrapItemNames(rawScrapItems.map((item) => item.scrap!))
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
-  console.log(bullionItems)
-
 
   const total = order.order_items.reduce((acc, item) => {
     if (item.item_type === 'product') {

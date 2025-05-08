@@ -15,14 +15,13 @@ function formatPhoneNumber(value) {
 
 function getScrapPrice(content, spot) {
   if (!spot || !content) return 0;
-  return content * spot.bid_spot * (spot.scrap_percentage / 100)
+  return content * (spot.bid_spot * spot.scrap_percentage)
 }
 
 function getProductBidPrice(product, spot) {
   if (!spot || !product) return 0;
   return (
-    product.content * spot.bid_spot +
-    product.bid_premium * product.content * spot.bid_spot
+     product.content * (spot.bid_spot * product.bid_premium)
   );
 }
 

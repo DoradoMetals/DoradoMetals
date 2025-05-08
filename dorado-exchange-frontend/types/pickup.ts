@@ -1,11 +1,11 @@
 import { z } from 'zod'
-import { Truck, Store, LucideIcon } from 'lucide-react'
+import { Truck, Storefront, IconProps } from '@phosphor-icons/react'
 import { format } from 'date-fns'
 
 export type PickupType = {
   label: string,
   name: string
-  icon: LucideIcon
+  icon: React.ComponentType<IconProps>
   date: string,
   time: string,
 }
@@ -23,7 +23,7 @@ export const pickupOptions: Record<string, PickupType> = {
   DROPOFF_AT_FEDEX_LOCATION: {
     label: 'DROPOFF_AT_FEDEX_LOCATION',
     name: 'Store Dropoff',
-    icon: Store,
+    icon: Storefront,
     date: format(new Date(), 'yyyy-MM-dd'),
     time: ''
   },

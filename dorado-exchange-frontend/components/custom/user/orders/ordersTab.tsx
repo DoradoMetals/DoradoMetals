@@ -24,25 +24,18 @@ export function OrdersTabs() {
   return (
     <div>
       <Tabs defaultValue="sold" className="flex h-full w-full items-center justify-center mt-5">
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-lg">
           <TabsList className="justify-center w-full gap-2 rounded-none bg-transparent">
-            <TabsTrigger
-              value="bought"
-              className="tab-indicator-primary"
-            >
+            <TabsTrigger value="bought" className="tab-indicator-primary">
               Bought
             </TabsTrigger>
-            <TabsTrigger
-              value="sold"
-              className="tab-indicator-primary"
-            >
+            <TabsTrigger value="sold" className="tab-indicator-primary">
               Sold
             </TabsTrigger>
           </TabsList>
           <div className="separator-inset -mt-[3px]" />
-
         </div>
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-lg">
           <TabsContent value="bought">
             <div>No Orders yet</div>
           </TabsContent>
@@ -146,12 +139,7 @@ function PurchaseOrdersContent({ user }: { user: User }) {
         )
       })}
 
-      {activePurchaseOrder && (
-        <PurchaseOrderDrawer
-          order_id={activePurchaseOrder}
-          user={user}
-        />
-      )}
+      {activePurchaseOrder && <PurchaseOrderDrawer order_id={activePurchaseOrder} user={user} />}
     </div>
   )
 }

@@ -9,6 +9,7 @@ import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { differenceInHours, differenceInDays } from 'date-fns'
 import { formatTimeDiff } from '@/utils/dateFormatting'
+import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
 
 interface ServiceSelectorProps {
   rates: FedexRate[]
@@ -62,21 +63,11 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
               key={serviceType}
               htmlFor={serviceType}
               className={cn(
-                'raised-off-page relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg border border-border bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:shadow-md'
+                'raised-off-page relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md'
               )}
             >
-              <div className="absolute top-2 right-2">
-                <CheckCircle
-                  size={16}
-                  className={cn(
-                    'transition-opacity duration-200',
-                    isSelected ? 'text-primary opacity-100' : 'opacity-0'
-                  )}
-                />
-              </div>
-
               <div className="flex items-center gap-2 text-sm font-medium text-neutral-800">
-                {option.icon && <option.icon size={20} className="text-primary" />}
+                {option.icon && <option.icon size={24} stroke={getCustomPrimaryIconStroke()} color={getPrimaryIconStroke()} />}
                 {option.serviceDescription}
               </div>
 
@@ -86,7 +77,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
                     ? formatTimeDiff(rate.transitTime)
                     : rate?.deliveryDay
                     ? `Arrives ${rate.deliveryDay}`
-                    : 'Estimated delivery'}
+                    : 'Getting estimated delivery...'}
                 </div>
                 {/* <div className="text-base text-neutral-800">
                   {rate?.netCharge != null ? (

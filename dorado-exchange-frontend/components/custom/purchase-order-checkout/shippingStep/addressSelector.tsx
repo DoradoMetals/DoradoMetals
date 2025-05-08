@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, Edit } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { Address } from '@/types/address'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
@@ -10,6 +10,7 @@ import formatPhoneNumber from '@/utils/formatPhoneNumber'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { Button } from '@/components/ui/button'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { NotePencil } from '@phosphor-icons/react'
 
 interface AddressSelectorProps {
   addresses: Address[]
@@ -69,7 +70,7 @@ export function AddressSelector({
                 setOpen(true)
               }}
             >
-              <Edit size={20} stroke={getPrimaryIconStroke()} />
+              <NotePencil size={20} color={getPrimaryIconStroke()} />
             </Button>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between w-full gap-1">

@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { Form, FormControl, FormLabel, FormMessage } from '@/components/ui/form'
+import { Form, FormControl } from '@/components/ui/form'
 import { AchPayout } from '@/types/payout'
 import { UseFormReturn } from 'react-hook-form'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { accountTypeOptions } from '@/types/payout'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function ACHForm({
   form,
@@ -77,7 +78,7 @@ export default function ACHForm({
                           )}
                         >
                           <div className="flex flex-col items-center gap-2">
-                            {option.icon && <option.icon className="w-5 h-5 text-primary" />}
+                            {option.icon && <option.icon size={24} color={getPrimaryIconStroke()} />}
                             <div className="text-xs sm:text-sm text-neutral-800 font-medium">
                               {option.label}
                             </div>

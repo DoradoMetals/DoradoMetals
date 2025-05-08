@@ -298,8 +298,6 @@ const createFedexLabel = async (
 
 const cancelLabel = async (req, res) => {
   const { tracking_number, shipment_id } = req.body
-  console.log(req.body)
-
   try {
     const token = await getSandboxFedExAccessToken();
     const cancelPayload = {

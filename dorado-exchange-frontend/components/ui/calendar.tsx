@@ -42,15 +42,12 @@ function Calendar({
 
       hover:text-foreground
       hover:bg-transparent
-      hover:text-primary
+      hover-text-primary-gradient
 
       group-[[data-selected]:not(.range-middle)]:[transition-property:color,background-color,border-radius,box-shadow] 
       group-[[data-selected]:not(.range-middle)]:duration-150 
       
       group-data-[selected]:bg-transparent 
-      group-data-[selected]:text-primary 
-      group-data-[selected]:border-1
-      group-data-[selected]:border-primary 
       group-data-[selected]:group-[.range-middle]:bg-accent 
       group-data-[selected]:group-[.range-middle]:text-foreground 
       
@@ -60,11 +57,12 @@ function Calendar({
       group-data-[disabled]:line-through 
 
       group-data-[outside]:text-foreground/30 
-      group-data-[outside]:group-data-[selected]:text-primary 
+      group-data-[outside]:group-data-[selected]:text-neutral-400 
 
       group-[.range-start:not(.range-end)]:rounded-e-none 
       group-[.range-end:not(.range-start)]:rounded-s-none 
       group-[.range-middle]:rounded-none 
+      day-button
 `,
 
     day: 'group size-9 px-0 text-sm',

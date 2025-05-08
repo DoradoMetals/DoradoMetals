@@ -3,7 +3,7 @@
 import Drawer from '@/components/drawers/navDrawer'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { LogIn, LogOut, User } from 'lucide-react'
+import { SignIn, SignOut, User, List } from "@phosphor-icons/react"
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -63,10 +63,24 @@ export default function Sidebar() {
               router.push('/account')
               closeDrawer()
             }}
-            className="w-16 h-16 flex flex-col items-center justify-center rounded-lg liquid-gold raised-off-page"
+            className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-highest raised-off-page"
           >
-            <User size={20} className='text-white' />
-            <div className="text-sm text-white">Account</div>
+            <User size={20} color={getPrimaryIconStroke()} />
+            <div className="text-sm text-primary-gradient">Account</div>
+          </Button>
+        </div>
+
+        <div className="flex flex-col items-center">
+          <Button
+            variant="outline"
+            onClick={() => {
+              router.push('/orders')
+              closeDrawer()
+            }}
+            className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-highest raised-off-page"
+          >
+            <List size={20} color={getPrimaryIconStroke()} />
+            <div className="text-sm text-primary-gradient">Orders</div>
           </Button>
         </div>
 
@@ -83,10 +97,10 @@ export default function Sidebar() {
                 }
               }}
               disabled={signOutMutation.isPending}
-              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg liquid-gold raised-off-page"
+              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-highest raised-off-page"
             >
-              <LogOut size={20} className='text-white' />
-              <div className="text-sm text-white">Sign Out</div>
+              <SignOut size={20} color={getPrimaryIconStroke()} />
+              <div className="text-sm text-primary-gradient">Sign Out</div>
             </Button>
           </div>
         ) : (
@@ -97,17 +111,17 @@ export default function Sidebar() {
                 router.push('/authentication?tab=sign-in')
                 closeDrawer()
               }}
-              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg liquid-gold raised-off-page"
+              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-highest raised-off-page"
             >
-              <LogIn size={20} className='text-white' />
-              <div className="text-sm text-white">Sign In</div>
+              <SignIn size={20} color={getPrimaryIconStroke()} />
+              <div className="text-sm text-primary-gradient">Sign In</div>
             </Button>
           </div>
         )}
       </div>
 
       {/* Separator */}
-      <div className="flex w-full justify-center items-center pb-10 px-20">
+      <div className="flex w-full justify-center items-center pb-6 px-8">
         <div className="flex-grow primary-gradient h-[1px]" />
       </div>
 

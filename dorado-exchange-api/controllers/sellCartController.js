@@ -47,8 +47,6 @@ const getSellCart = async (req, res) => {
       },
     }));
 
-    console.log(scrapItems)
-
     // Fetch product items
     const productQuery = `
       SELECT sci.id AS cart_item_id, sci.product_id, sci.quantity,

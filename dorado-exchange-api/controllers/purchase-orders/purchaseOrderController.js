@@ -91,7 +91,6 @@ const createPurchaseOrder = async (req, res) => {
   const { purchase_order, user_id } = req.body;
   const client = await pool.connect();
   let purchase_order_id;
-  console.log('order items: ', purchase_order.items)
   try {
     await client.query("BEGIN");
 

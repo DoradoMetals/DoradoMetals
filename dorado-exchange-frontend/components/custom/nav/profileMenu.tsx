@@ -3,7 +3,7 @@ import { Dropdown, Tabs, Tab, TriggerWrapper } from '@/components/lukacho/dropdo
 import SignOutButton from '../auth/signOutButton'
 import ProfileTrigger from './profileTrigger'
 import { useRouter } from 'next/navigation'
-import { UserPen } from 'lucide-react'
+import { List, UserPen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeSwitcherDesktop } from '../theme/theme-switcher-desktop'
 import { useUser } from '@/lib/authClient'
@@ -38,6 +38,20 @@ export default function ProfileMenu() {
                     className="px-4 h-8 py-2 text-md font-light hover:bg-card hover:text-primary"
                   >
                     Account
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    effect="expandIcon"
+                    iconPlacement="right"
+                    iconSize={20}
+                    onClick={() => {
+                      router.push('/orders')
+                    }}
+                    icon={List}
+                    className="px-4 h-8 py-2 text-md font-light hover:bg-card hover:text-primary"
+                  >
+                    Orders
                   </Button>
 
                   <ThemeSwitcherDesktop />

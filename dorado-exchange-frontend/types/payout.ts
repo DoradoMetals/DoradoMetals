@@ -1,6 +1,6 @@
 // --- payout.ts ---
 import { z } from 'zod'
-import { Landmark, CreditCard, PiggyBank, Mail, GlobeLock } from 'lucide-react'
+import { Bank, PiggyBank, CreditCard, Globe, Envelope } from '@phosphor-icons/react'
 
 export interface Payout {
   id: string,
@@ -77,19 +77,19 @@ export const payoutOptions: PayoutMethod[] = [
     method: 'ACH',
     label: 'ACH Transfer',
     description: 'Direct deposit to a U.S. bank account',
-    icon: Landmark,
+    icon: Bank,
   },
   {
     method: 'WIRE',
     label: 'Wire Transfer',
     description: 'Domestic wire transfer to your bank',
-    icon: GlobeLock,
+    icon: Globe,
   },
   {
     method: 'ECHECK',
     label: 'Deluxe eCheck',
     description: 'Digital check sent to your email',
-    icon: Mail,
+    icon: Envelope,
   },
 ]
 

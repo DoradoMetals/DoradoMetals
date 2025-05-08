@@ -48,7 +48,7 @@ export default function WeightStep() {
                       />
                     </div>
                     <div className="flex flex-col items-center gap-2">
-                      <weight.icon size={20} stroke={getPrimaryIconStroke()}/>
+                      <weight.icon size={20} color={getPrimaryIconStroke()}/>
 
                       <div className="text-sm text-neutral-900">{weight.label}</div>
                     </div>

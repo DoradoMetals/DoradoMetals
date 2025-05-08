@@ -22,6 +22,7 @@ import EcheckForm from './echeckForm'
 import { cn } from '@/lib/utils'
 import { useEffect } from 'react'
 import { User } from '@/types/user'
+import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
 
 export default function PayoutStep({ user }: { user?: User }) {
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
@@ -138,7 +139,7 @@ export default function PayoutStep({ user }: { user?: User }) {
               )}
             >
               <div className="flex items-center gap-3">
-                <option.icon size={24} className="text-primary" />
+                <option.icon size={24} color={getPrimaryIconStroke()} />
                 <div className="flex flex-col">
                   <span className="font-medium">{option.label}</span>
                   <span className="text-sm text-muted-foreground">{option.description}</span>

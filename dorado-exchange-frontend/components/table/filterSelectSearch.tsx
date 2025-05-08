@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Filter, Check } from 'lucide-react'
-import { useRef, useState, useLayoutEffect } from 'react'
+import { useState, useLayoutEffect } from 'react'
 import { Column } from '@tanstack/react-table'
 
 type TableSearchSelectProps<TData> = {

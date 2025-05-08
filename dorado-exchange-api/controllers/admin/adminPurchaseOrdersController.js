@@ -85,7 +85,6 @@ const getAllPurchaseOrders = async (req, res) => {
 
 const changePurchaseOrderStatus = async (req, res) => {
   const { order_status, order_id, user_name } = req.body;
-  console.log(req.body)
 
   try {
     const query = `

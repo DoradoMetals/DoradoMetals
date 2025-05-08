@@ -2,12 +2,9 @@
 
 import FeaturedProducts from '@/components/custom/nav/featuredProducts'
 import { Button } from '@/components/ui/button'
-import { useHomepageProducts } from '@/lib/queries/useProducts'
-import { Calculator, Eye, MousePointerClick, Send, ShieldCheck, Timer, Zap } from 'lucide-react'
+import { Calculator, Eye, Handshake, Lightning, PaperPlaneTilt, ShieldCheck } from '@phosphor-icons/react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
-
 import MobileProductCarousel from '../components/custom/products/mobileProductCarousel'
 import { useUser } from '@/lib/authClient'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
@@ -35,7 +32,7 @@ export default function Home() {
                   {!user && (
                     <Button
                       variant={'default'}
-                      className="mt-10 max-w-lg hover:text-white text-lg font-normal raised-off-page primary-gradient hover:primary-gradient shine-on-hover"
+                      className="mt-10 max-w-lg text-white hover:text-white text-lg font-normal raised-off-page liquid-gold shine-on-hover"
                       onClick={() => {
                         router.push('/account')
                       }}
@@ -78,7 +75,7 @@ export default function Home() {
                 <div className="flex w-full max-w-[80vw] items-center justify-between p-2">
                   <div className="flex flex-col items-start gap-2">
                     <div className="flex items-center gap-3">
-                      <Timer size={24} stroke={getPrimaryIconStroke()} />
+                      <Calculator size={24} color={getPrimaryIconStroke()} />
                       <div className="text-xl text-neutral-800 font-medium">Instant estimates</div>
                     </div>
                     <div className="text-base text-neutral-600 max-w-md">
@@ -90,7 +87,7 @@ export default function Home() {
                   <div className="flex flex-col items-center">
                     <div className="flex flex-col items-start gap-2">
                       <div className="flex items-center gap-3 w-full">
-                        <Send size={24} stroke={getPrimaryIconStroke()} />
+                        <PaperPlaneTilt size={24} color={getPrimaryIconStroke()} />
                         <div className="text-xl text-neutral-800 font-medium">
                           Effortless shipping
                         </div>
@@ -105,7 +102,7 @@ export default function Home() {
                   <div className="flex flex-col items-end">
                     <div className="flex flex-col items-start gap-2">
                       <div className="flex items-center gap-3">
-                        <Zap size={24} stroke={getPrimaryIconStroke()} />
+                        <Lightning size={24} color={getPrimaryIconStroke()} />
                         <div className="text-xl text-neutral-800 font-medium">
                           Lightning-fast payouts
                         </div>
@@ -167,7 +164,7 @@ export default function Home() {
                   <div className="flex flex-col items-end">
                     <div className="flex flex-col items-start gap-2">
                       <div className="flex items-center gap-3">
-                        <MousePointerClick size={24} className="text-secondary" />
+                        <Handshake size={24} className="text-secondary" />
                         <div className="text-xl text-neutral-800 font-medium">
                           Seamless checkout experience
                         </div>
@@ -220,7 +217,7 @@ export default function Home() {
                     <div className="flex items-center justify-center w-full">
                       <Button
                         variant={'default'}
-                        className="w-full mt-10 text-white text-lg font-normal max-w-xs raised-off-page primary-gradient hover:primary-gradient shine-on-hover"
+                        className="w-full mt-10 text-white text-lg font-normal max-w-xs raised-off-page liquid-gold shine-on-hover"
                         onClick={() => {
                           router.push('/authentication')
                         }}
@@ -243,7 +240,7 @@ export default function Home() {
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
-                    <Timer size={24} stroke={getPrimaryIconStroke()} />
+                    <Calculator size={24} color={getPrimaryIconStroke()} />
                     <div className="text-2xl text-neutral-800 font-medium">Instant estimates</div>
                   </div>
                   <div className="text-sm text-neutral-600 max-w-xs">
@@ -256,7 +253,7 @@ export default function Home() {
                 <div className="flex flex-col items-center">
                   <div className="flex flex-col items-start gap-1">
                     <div className="flex items-center gap-1">
-                      <Send size={24} stroke={getPrimaryIconStroke()} />
+                      <PaperPlaneTilt size={24} color={getPrimaryIconStroke()} />
                       <div className="text-2xl text-neutral-800 font-medium">
                         Effortless shipping
                       </div>
@@ -271,7 +268,7 @@ export default function Home() {
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
-                    <Zap size={24} stroke={getPrimaryIconStroke()} />
+                    <Lightning size={24} color={getPrimaryIconStroke()} />
                     <div className="text-2xl text-neutral-800 font-medium">
                       Lightning-fast payouts
                     </div>
@@ -322,7 +319,7 @@ export default function Home() {
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
-                    <MousePointerClick size={24} className="text-secondary" />
+                    <Handshake size={24} className="text-secondary" />
                     <div className="text-2xl text-neutral-800 font-medium">Seamless checkout</div>
                   </div>
                   <div className="text-sm text-neutral-600 max-w-xs">

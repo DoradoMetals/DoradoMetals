@@ -4,6 +4,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { pickupOptions } from '@/types/pickup'
 import { cn } from '@/lib/utils'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export function PickupSelector() {
   const selectedPickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
@@ -33,10 +34,10 @@ export function PickupSelector() {
             key={pickup.label}
             htmlFor={pickup.label}
             className={cn(
-              'raised-off-page relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg border border-border bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:shadow-md'
+              'raised-off-page relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card '
             )}
           >
-            {pickup.icon && <pickup.icon className="w-5 h-5 text-primary" />}
+            {pickup.icon && <pickup.icon size={24} color={getPrimaryIconStroke()} />}
             <div className="text-xs sm:text-sm text-neutral-800 font-medium">{pickup.name}</div>
             <RadioGroupItem id={pickup.label} value={pickup.label} className="sr-only" />
           </label>

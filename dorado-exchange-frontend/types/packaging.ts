@@ -1,4 +1,5 @@
-import { LucideIcon, Package2, Package, Inbox } from 'lucide-react'
+import { LucideIcon, Package2, Inbox } from 'lucide-react'
+import { Package } from '@phosphor-icons/react'
 import { z } from 'zod'
 
 export interface Package {
@@ -55,7 +56,6 @@ export const packageSchema = z.object({
   icon: z.any().optional(),
 })
 
-
 export interface PackageOption {
   label: string
   weight: {
@@ -90,7 +90,26 @@ export const packageOptions: PackageOption[] = [
     dimensions: { length: 18, width: 14, height: 6, units: 'IN' },
     icon: Package,
   },
+  {
+    label: 'FedEx Small',
+    weight: { units: 'LB', value: 2 },
+    dimensions: { length: 10.88, width: 8.38, height: 1.63, units: 'IN' },
+    icon: Inbox,
+  },
+  {
+    label: 'FedEx Medium',
+    weight: { units: 'LB', value: 5 },
+    dimensions: { length: 13.25, width: 11.5, height: 2.38, units: 'IN' },
+    icon: Package2,
+  },
+  {
+    label: 'FedEx Large',
+    weight: { units: 'LB', value: 10 },
+    dimensions: { length: 17.88, width: 12.38, height: 3, units: 'IN' },
+    icon: Package,
+  },
 ]
+
 type Dimensions = { height?: number; width?: number; length?: number }
 
 export function calculateVolume({ height, width, length }: Dimensions): number | null {

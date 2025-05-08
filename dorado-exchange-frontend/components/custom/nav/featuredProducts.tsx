@@ -17,7 +17,6 @@ export default function FeaturedProducts() {
   const { data: products = [] } = useHomepageProducts()
   const [isBeginning, setIsBeginning] = useState(true)
   const [isEnd, setIsEnd] = useState(false)
-  console.log(products)
   return (
     <div className="w-full mb-4 lg:mb-0 justify-center items-center">
       <Swiper

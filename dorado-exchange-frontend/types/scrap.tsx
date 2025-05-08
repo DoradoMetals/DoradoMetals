@@ -1,8 +1,8 @@
 import * as z from 'zod'
 import { ReactNode } from 'react'
-import { Scale, CircleDollarSign, Gem, Weight, Droplet, Dot, Gauge, GaugeIcon, LucideIcon, CircleDollarSignIcon } from 'lucide-react'
-import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon, ScaleIcon } from '@/components/icons/logo'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { Scales, SketchLogo, Barbell, IconProps, Coins } from '@phosphor-icons/react'
+import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/components/icons/logo'
+import { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
 
 export const scrapSchema = z.object({
   id: z.string().uuid(),
@@ -40,7 +40,7 @@ export type MetalOption = {
 
 export type WeightOption = {
   label: string
-  icon: LucideIcon,
+  icon: React.ComponentType<IconProps>
   unit: string
   id: string
 }
@@ -48,54 +48,54 @@ export type WeightOption = {
 export const metalOptions: MetalOption[] = [
   {
     label: 'Gold',
-    logo: <GoldIcon size={36} stroke={getPrimaryIconStroke()} />,
+    logo: <GoldIcon size={36} stroke={getCustomPrimaryIconStroke()} />,
     blurb: 'Jewelry, nuggets, raw gold, casting grain',
   },
   {
     label: 'Silver',
-    logo: <SilverIcon size={36} stroke={getPrimaryIconStroke()} />,
+    logo: <SilverIcon size={36} stroke={getCustomPrimaryIconStroke()} />,
     blurb: 'Jewelry, flatware, tea sets, wire, sheets',
   },
   {
     label: 'Platinum',
-    logo: <PlatinumIcon size={36} stroke={getPrimaryIconStroke()} />,
+    logo: <PlatinumIcon size={36} stroke={getCustomPrimaryIconStroke()} />,
     blurb: 'Jewelry stamped PLAT, PT 950, PT 900',
   },
   {
     label: 'Palladium',
-    logo: <PalladiumIcon size={36} stroke={getPrimaryIconStroke()} />,
+    logo: <PalladiumIcon size={36} stroke={getCustomPrimaryIconStroke()} />,
     blurb: 'Jewelry stamped PD, PD 950, PD 900',
   },
 ]
 
 export const purityOptions: Record<string, PurityOption[]> = {
   Gold: [
-    { label: '10 Karat', value: 0.40 },
+    { label: '10 Karat', value: 0.4 },
     { label: '12 Karat', value: 0.48 },
     { label: '14 Karat', value: 0.56 },
     { label: '18 Karat', value: 0.73 },
-    { label: '22 Karat', value: 0.90 },
+    { label: '22 Karat', value: 0.9 },
     { label: '24 Karat', value: 1.0 },
-    { label: 'Custom', value: 0.50 },
+    { label: 'Custom', value: 0.5 },
   ],
   Silver: [
     { label: '800', value: 0.8 },
     { label: 'Coin', value: 0.9 },
     { label: 'Sterling', value: 0.925 },
     { label: 'Fine', value: 0.999 },
-    { label: 'Custom', value: 0.50 },
+    { label: 'Custom', value: 0.5 },
   ],
   Platinum: [
-    { label: '900', value: 0.90 },
+    { label: '900', value: 0.9 },
     { label: '950', value: 0.95 },
     { label: 'Fine', value: 0.999 },
-    { label: 'Custom', value: 0.50 },
+    { label: 'Custom', value: 0.5 },
   ],
   Palladium: [
     { label: '900', value: 0.9 },
     { label: '950', value: 0.95 },
     { label: 'Fine', value: 0.999 },
-    { label: 'Custom', value: 0.50 },
+    { label: 'Custom', value: 0.5 },
   ],
 }
 
@@ -136,25 +136,25 @@ export function getGrossLabel(gross: number, unit: string) {
 export const weightOptions: WeightOption[] = [
   {
     label: 'Grams',
-    icon: Gauge,
+    icon: Scales,
     unit: 'g',
     id: '1',
   },
   {
     label: 'Troy Oz.',
-    icon: CircleDollarSignIcon,
+    icon: Coins,
     unit: 't oz',
     id: '2',
   },
   {
     label: 'DWT',
-    icon: Gem,
+    icon: SketchLogo,
     unit: 'dwt',
     id: '3',
   },
   {
     label: 'Pounds',
-    icon: Weight,
+    icon: Barbell,
     unit: 'lb',
     id: '4',
   },
