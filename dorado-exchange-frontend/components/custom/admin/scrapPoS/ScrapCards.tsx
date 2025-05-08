@@ -1,13 +1,6 @@
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { metalOptions, WeightOption, weightOptions } from '@/types/scrap'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { useState } from 'react'
 import WeightSelect from './weightSelect'
 import { SpotPrice } from '@/types/metal'
@@ -22,9 +15,11 @@ export default function ScrapCards() {
   const { data: spotPrices = [] } = useSpotPrices()
   const editScrapPercentage = useEditScrapPercentages()
 
+  const [weights, setWeights] = useState<Record<string, WeightOption>>({})
+  const [editingStates, setEditingStates] = useState<Record<string, boolean>>({})
+
   const getPerWeightPrice = (spot: SpotPrice, weight: WeightOption) => {
-    if (!spot || !spot.scrap_percentage) return 0
-    const scrapPricePerTroyOz = spot.bid_spot * spot.scrap_percentage;
+    const scrapPricePerTroyOz = spot.bid_spot * spot.scrap_percentage
     return scrapPricePerTroyOz * convertTroyOz(1, weight.unit)
   }
 
@@ -32,12 +27,26 @@ export default function ScrapCards() {
     editScrapPercentage.mutate({ id: id, scrap_percentage: scrap_percentage })
   }
 
+  const toggleEditing = (id: string) => {
+    setEditingStates(prev => ({
+      ...prev,
+      [id]: !prev[id],
+    }))
+  }
+
+  const setWeight = (id: string, weight: WeightOption) => {
+    setWeights(prev => ({
+      ...prev,
+      [id]: weight,
+    }))
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full">
       {spotPrices.map((spot) => {
         const icon = metalOptions.find((option) => spot.type === option.label)?.logo
-        const [currentWeight, setCurrentWeight] = useState<WeightOption>(weightOptions[0])
-        const [editing, setEditing] = useState<boolean>(false)
+        const currentWeight = weights[spot.id] ?? weightOptions[0]
+        const editing = editingStates[spot.id] ?? false
 
         return (
           <div
@@ -60,7 +69,7 @@ export default function ScrapCards() {
                     <div className="text-base text-neutral-700">Price per</div>
                     <WeightSelect
                       value={currentWeight}
-                      onChange={(value) => setCurrentWeight(value)}
+                      onChange={(value) => setWeight(spot.id, value)}
                     />
                   </div>
                   <div className="text-lg text-neutral-800">
@@ -69,7 +78,7 @@ export default function ScrapCards() {
                 </div>
                 <div className="flex items-center justify-between w-full">
                   <div className="text-base text-neutral-700">Percentage:</div>
-                  {editing === true ? (
+                  {editing ? (
                     <div className='flex items-center gap-1'>
                       <Input
                         type="number"
@@ -78,14 +87,14 @@ export default function ScrapCards() {
                         defaultValue={spot.scrap_percentage}
                         onBlur={(e) => handleUpdate(spot.id, Number(e.target.value))}
                       />
-                      <Button variant="ghost" className="p-0" onClick={() => setEditing(!editing)}>
+                      <Button variant="ghost" className="p-0" onClick={() => toggleEditing(spot.id)}>
                         <Check size={16} className='text-success' />
                       </Button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1">
                       <div className="text-lg text-neutral-800">{spot.scrap_percentage}</div>
-                      <Button variant="ghost" className="p-0" onClick={() => setEditing(!editing)}>
+                      <Button variant="ghost" className="p-0" onClick={() => toggleEditing(spot.id)}>
                         <Edit2 size={16} stroke={getPrimaryIconStroke()} />
                       </Button>
                     </div>

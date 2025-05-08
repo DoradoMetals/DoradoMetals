@@ -1,10 +1,11 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+'use client'
+
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandItem, CommandList } from '@/components/ui/command'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { Check, Scale } from 'lucide-react'
+import { useState } from 'react'
 import { WeightOption, weightOptions } from '@/types/scrap'
 
 export default function WeightSelect({
@@ -14,26 +15,43 @@ export default function WeightSelect({
   value: WeightOption
   onChange: (value: WeightOption) => void
 }) {
+  const [open, setOpen] = useState(false)
+
   return (
-    <Select
-      defaultValue={value.unit}
-      onValueChange={(unit) => {
-        const selected = weightOptions.find((w) => w.unit === unit)
-        if (selected) onChange(selected)
-      }}
-    >
-      <SelectTrigger className="w-14 bg-card border-none h-6 raised-off-page px-1 py-1">
-        <SelectValue placeholder="Weight" />
-      </SelectTrigger>
-      <SelectContent className='bg-card w-18'>
-        {weightOptions.map((option) => (
-          <SelectItem key={option.id} value={option.unit}>
-            <div className="flex items-center gap-2">
-              <span>{option.unit}</span>
-            </div>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-10 h-5 p-0 bg-card border-none raised-off-page text-xs mt-1"
+        >
+          {value.unit}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="center"
+        sideOffset={4}
+        className="p-0 bg-card w-12 z-50"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <Command>
+          <CommandList className="max-h-52 overflow-y-auto">
+            {weightOptions.map((option) => (
+              <CommandItem
+                key={option.id}
+                onSelect={() => {
+                  onChange(option)
+                  setOpen(false)
+                }}
+                className="flex items-center justify-center cursor-pointer bg-card"
+              >
+                <span>{option.unit}</span>
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   )
 }
