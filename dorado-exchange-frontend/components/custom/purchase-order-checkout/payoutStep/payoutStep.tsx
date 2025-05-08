@@ -23,13 +23,14 @@ import { cn } from '@/lib/utils'
 import { useEffect } from 'react'
 import { User } from '@/types/user'
 import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
+import PriceNumberFlow from '../../products/PriceNumberFlow'
+import { Asterisk, Circle, Dot, DotOutline, Minus } from '@phosphor-icons/react'
 
 export default function PayoutStep({ user }: { user?: User }) {
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
 
   const selected = usePurchaseOrderCheckoutStore((state) => state.data.payout?.method)
   const storeData = usePurchaseOrderCheckoutStore((state) => state.data.payout)
-
 
   const achForm = useForm<AchPayout>({
     resolver: zodResolver(achSchema),
@@ -44,7 +45,7 @@ export default function PayoutStep({ user }: { user?: User }) {
       confirmation: storeData?.method === 'ACH' ? storeData.confirmation : false,
     },
   })
-  
+
   const wireForm = useForm<WirePayout>({
     resolver: zodResolver(wireSchema),
     mode: 'onChange',
@@ -63,11 +64,11 @@ export default function PayoutStep({ user }: { user?: User }) {
     mode: 'onChange',
     shouldUnregister: false,
     defaultValues: {
-      account_holder_name: storeData?.method === 'ECHECK' ? storeData.account_holder_name : user?.name ?? '',
+      account_holder_name:
+        storeData?.method === 'ECHECK' ? storeData.account_holder_name : user?.name ?? '',
       payout_email: storeData?.method === 'ECHECK' ? storeData.payout_email : user?.email ?? '',
     },
   })
-  
 
   useEffect(() => {
     if (selected === 'ACH') {
@@ -100,22 +101,22 @@ export default function PayoutStep({ user }: { user?: User }) {
       setData({
         payout: {
           method: method,
-          ...achForm.getValues()
-        }
+          ...achForm.getValues(),
+        },
       })
     } else if (method === 'WIRE') {
       setData({
         payout: {
           method: method,
-          ...wireForm.getValues()
-        }
+          ...wireForm.getValues(),
+        },
       })
     } else {
       setData({
         payout: {
           method: method,
-          ...echeckForm.getValues()
-        }
+          ...echeckForm.getValues(),
+        },
       })
     }
   }
@@ -134,20 +135,34 @@ export default function PayoutStep({ user }: { user?: User }) {
                 if (next) handleFormSwitch(next)
               }}
               className={cn(
-                'w-full p-4 text-left flex items-center justify-between cursor-pointer',
+                'w-full p-4 text-left flex items-center cursor-pointer',
                 selected === option.method && 'bg-transparent'
               )}
             >
-              <div className="flex items-center gap-3">
-                <option.icon size={24} color={getPrimaryIconStroke()} />
-                <div className="flex flex-col">
-                  <span className="font-medium">{option.label}</span>
-                  <span className="text-sm text-muted-foreground">{option.description}</span>
+              <div className="flex items-center gap-2 w-full justify-between">
+                <div className="flex flex-col w-full">
+                  <div className="flex items-center gap-1">
+                    <option.icon size={24} color={getPrimaryIconStroke()} />
+                    <span className="font-medium">{option.label}</span>
+                    <div className="text-neutral-700 text-xs flex items-center gap-2 pt-1 pl-4">
+                      <span>{option.time_delay}</span>
+                      <Circle size={6} weight="fill" className="text-neutral-300" />
+                      <span>
+                        {option.cost === 0.0 ? 'Free' : <PriceNumberFlow value={option.cost} />}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-end w-full justify-between mt-2">
+                    <span className="text-sm text-neutral-600">{option.description}</span>
+                  </div>
                 </div>
+                <ChevronDown
+                  className={
+                    isSelected ? 'rotate-180 transition-transform' : 'transition-transform'
+                  }
+                />
               </div>
-              <ChevronDown
-                className={isSelected ? 'rotate-180 transition-transform' : 'transition-transform'}
-              />
             </button>
 
             <div

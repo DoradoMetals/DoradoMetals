@@ -14,6 +14,8 @@ export interface Payout {
   account_number?: string,
   created_at: Date,
   email_to?: string,
+  cost: number,
+  time_delay: string,
 }
 
 export const echeckSchema = z.object({
@@ -70,6 +72,8 @@ export interface PayoutMethod {
   label: string
   description?: string
   icon: any
+  cost: number,
+  time_delay: string
 }
 
 export const payoutOptions: PayoutMethod[] = [
@@ -78,18 +82,24 @@ export const payoutOptions: PayoutMethod[] = [
     label: 'ACH Transfer',
     description: 'Direct deposit to a U.S. bank account',
     icon: Bank,
+    cost: 0.00,
+    time_delay: '1-3 days',
   },
   {
     method: 'WIRE',
     label: 'Wire Transfer',
     description: 'Domestic wire transfer to your bank',
     icon: Globe,
+    cost: 20.00,
+    time_delay: '1-24 hours',
   },
   {
     method: 'ECHECK',
     label: 'Deluxe eCheck',
     description: 'Digital check sent to your email',
     icon: Envelope,
+    cost: 0.00,
+    time_delay: 'Instant',
   },
 ]
 
