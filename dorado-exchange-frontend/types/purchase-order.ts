@@ -53,6 +53,7 @@ export interface PurchaseOrder {
 export const purchaseOrderCheckoutSchema = z.object({
   address: addressSchema,
   package: packageSchema,
+  fedexPackageToggle: z.boolean(),
   pickup: pickupSchema,
   service: serviceSchema,
   payoutValid: z.boolean(),

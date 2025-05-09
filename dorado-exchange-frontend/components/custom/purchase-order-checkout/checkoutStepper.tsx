@@ -12,6 +12,8 @@ import { useUser } from '@/lib/authClient'
 import ReviewStep from './reviewStep/reviewStep'
 import { sellCartStore } from '@/store/sellCartStore'
 import { useRouter } from 'next/navigation'
+import { FedexRateInput, formatFedexRatesAddress } from '@/types/shipping'
+import { useFedExRates } from '@/lib/queries/shipping/useFedex'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -72,6 +74,7 @@ export default function CheckoutStepper() {
       setData({
         address: defaultAddress,
         confirmation: false,
+        fedexPackageToggle: true,
       })
       hasInitialized.current = true
     }
@@ -82,6 +85,37 @@ export default function CheckoutStepper() {
 
   const cartItems = sellCartStore((state) => state.items)
 
+  let fedexRatesInput: FedexRateInput | null = null
+  if (address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined) {
+    fedexRatesInput = {
+      shippingType: 'Inbound',
+      customerAddress: formatFedexRatesAddress(address),
+      pickupType: pickup?.label || 'DROPOFF_AT_FEDEX_LOCATION',
+      packageDetails: {
+        weight: pkg.weight,
+        dimensions: pkg.dimensions,
+      },
+    }
+  }
+  const { data: rates = [], isLoading: ratesLoading } = useFedExRates(fedexRatesInput)
+
+  useEffect(() => {
+    const currentServiceType = service?.serviceType
+    const freshRate = rates.find((r) => r.serviceType === currentServiceType)
+
+    if (currentServiceType && freshRate && freshRate.netCharge !== service?.netCharge) {
+      setData({
+        service: {
+          ...service,
+          netCharge: freshRate.netCharge,
+          currency: freshRate.currency,
+          transitTime: freshRate.transitTime ?? new Date(),
+          deliveryDay: freshRate.deliveryDay ?? '',
+        },
+      })
+    }
+  }, [rates, service?.serviceType])
+
   if (cartItems.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center w-full p-10 text-center">
@@ -89,7 +123,11 @@ export default function CheckoutStepper() {
         <p className="text-sm text-muted-foreground mt-2">
           You need to add items before checking out.
         </p>
-        <Button variant="default" className="mt-6 liquid-gold raised-off-screen shine-on-hover px-5 py-4" onClick={() => router.push('sell')}>
+        <Button
+          variant="default"
+          className="mt-6 liquid-gold raised-off-screen shine-on-hover px-5 py-4"
+          onClick={() => router.push('sell')}
+        >
           Add Items to Sell
         </Button>
       </div>
@@ -122,7 +160,14 @@ export default function CheckoutStepper() {
 
         <div className="lg:col-span-2 lg:mt-12">
           {stepper.switch({
-            shipping: () => <ShippingStep addresses={addresses} emptyAddress={emptyAddress} />,
+            shipping: () => (
+              <ShippingStep
+                addresses={addresses}
+                emptyAddress={emptyAddress}
+                rates={rates}
+                isLoading={ratesLoading}
+              />
+            ),
             payout: () => <PayoutStep user={user} />,
             review: () => <ReviewStep />,
           })}

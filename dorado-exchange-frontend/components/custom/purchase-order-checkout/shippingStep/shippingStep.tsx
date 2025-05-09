@@ -4,13 +4,14 @@ import { Address } from '@/types/address'
 import { AddressSelector } from './addressSelector'
 import { Button } from '@/components/ui/button'
 import { MapPinned, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PackageSelector } from './packageSelector'
 import {
   FedexRateInput,
   formatFedexRatesAddress,
   FedexPickupTimesInput,
   formatFedexPickupAddress,
+  FedexRate,
 } from '@/types/shipping'
 import { useFedExPickup, useFedExPickupTimes, useFedExRates } from '@/lib/queries/shipping/useFedex'
 import { ServiceSelector } from './serviceSelector'
@@ -23,9 +24,11 @@ import { FedexLocationsMap } from './FedexLocations'
 interface ShippingStepProps {
   addresses: Address[]
   emptyAddress: Address
+  rates: FedexRate[]
+  isLoading: boolean
 }
 
-export default function ShippingStep({ addresses, emptyAddress }: ShippingStepProps) {
+export default function ShippingStep({ addresses, emptyAddress, rates, isLoading }: ShippingStepProps) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('Create New')
   const [draftAddress, setDraftAddress] = useState<Address>(emptyAddress)
@@ -38,19 +41,7 @@ export default function ShippingStep({ addresses, emptyAddress }: ShippingStepPr
   const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
 
-  let fedexRatesInput: FedexRateInput | null = null
-  if (address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined) {
-    fedexRatesInput = {
-      shippingType: 'Inbound',
-      customerAddress: formatFedexRatesAddress(address),
-      pickupType: pickup?.label || 'DROPOFF_AT_FEDEX_LOCATION',
-      packageDetails: {
-        weight: pkg.weight,
-        dimensions: pkg.dimensions,
-      },
-    }
-  }
-  const { data: rates = [], isLoading } = useFedExRates(fedexRatesInput)
+
 
   let fedexPickupTimesInput: FedexPickupTimesInput | null = null
   if (address?.is_valid && service) {

@@ -8,6 +8,7 @@ import { parseISO } from 'date-fns'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { cn } from '@/lib/utils'
 import { formatPickupDate, formatPickupDateShort, formatPickupTime } from '@/utils/dateFormatting'
+import { useEffect } from 'react'
 
 type PickupSchedulerProps = {
   times: FedexPickupTimes[]
@@ -21,24 +22,28 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
 
   const nextAvailable = times.find((t) => t.times.length > 0)
 
-  const hasValidPickupDate = pickup?.date && times.some(t => t.pickupDate === pickup.date)
-  
-  const selectedDateStr = hasValidPickupDate ? pickup?.date : nextAvailable?.pickupDate ?? times[0].pickupDate
-  
+  const hasValidPickupDate = pickup?.date && times.some((t) => t.pickupDate === pickup.date)
+
+  const selectedDateStr = hasValidPickupDate
+    ? pickup?.date
+    : nextAvailable?.pickupDate ?? times[0].pickupDate
+
   const selectedDay = times.find((t) => t.pickupDate === selectedDateStr)
   const availableSlots = selectedDay?.times ?? []
   const latestAvailableDate = times.length ? times[times.length - 1].pickupDate : today
-  
-  if (!pickup?.date && selectedDateStr) {
-    setData({
-      pickup: {
-        name: pickup?.name ?? '',
-        label: pickup?.label ?? '',
-        date: selectedDateStr,
-        time: undefined,
-      },
-    })
-  }
+
+  useEffect(() => {
+    if (!pickup?.date && selectedDateStr) {
+      setData({
+        pickup: {
+          name: pickup?.name ?? '',
+          label: pickup?.label ?? '',
+          date: selectedDateStr,
+          time: undefined,
+        },
+      })
+    }
+  }, [pickup?.date, selectedDateStr])
 
   return (
     <div>

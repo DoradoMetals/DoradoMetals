@@ -12,6 +12,8 @@ export interface Shipment {
   label_type: string,
   pickup_type: string,
   package: string,
+  shipping_service: string,
+  shipping_charge: number,
 }
 
 export interface CarrierPickup {

@@ -59,7 +59,9 @@ const getPurchaseOrders = async (req, res) => {
           'label_type', ship.label_type,
           'pickup_type', ship.pickup_type,
           'package', ship.package,
-          'shipping_label', encode(ship.shipping_label, 'base64')
+          'shipping_label', encode(ship.shipping_label, 'base64'),
+          'shipping_charge', ship.net_charge,
+          'shipping_service', ship.service_type
         ) AS shipment,
         to_jsonb(cp) AS carrier_pickup,
         to_jsonb(pay) AS payout
@@ -167,9 +169,11 @@ const createPurchaseOrder = async (req, res) => {
           shipping_label,
           label_type,
           pickup_type,
-          package
+          package,
+          service_type,
+          net_charge
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       `,
         [
           purchase_order_id,
@@ -179,7 +183,9 @@ const createPurchaseOrder = async (req, res) => {
           labelBuffer,
           "Generated",
           purchase_order.pickup?.name || "Unknown",
-          purchase_order.package.label
+          purchase_order.package.label,
+          purchase_order.service.serviceDescription,
+          purchase_order.service.netCharge
         ]
       );
     }

@@ -259,26 +259,6 @@ export function DropoffInstructionsSection({
         <div className="flex mr-auto text-xs lg:text-sm text-neutral-600">
           Please call us if you need to make shipping changes.
         </div>
-        <Button
-          variant="outline"
-          className={cn(
-            'border transition-colors bg-transparent hover:text-white w-full',
-            border,
-            hoverBg,
-            color
-          )}
-          disabled={!order.shipment.shipping_label}
-          onClick={() => {
-            if (!order.shipment.shipping_label) return
-            downloadBase64(
-              order.shipment.shipping_label,
-              `order-${formatPurchaseOrderNumber(order.order_number)}.png`,
-              'image/png'
-            )
-          }}
-        >
-          Download Label
-        </Button>
       </div>
     </div>
   )

@@ -31,6 +31,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
       service: {
         ...option,
         serviceType,
+        serviceDescription: option.serviceDescription ?? '',
         netCharge: rate?.netCharge || 0,
         currency: rate?.currency || 'USD',
         transitTime: rate?.transitTime ?? new Date(),
@@ -57,14 +58,17 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
         {Object.entries(serviceOptions).map(([serviceType, option]) => {
           const rate = rateMap.get(serviceType)
           const isSelected = selected?.serviceType === serviceType
+          const isDisabled = rate?.netCharge == null
 
           return (
             <label
               key={serviceType}
               htmlFor={serviceType}
               className={cn(
-                'raised-off-page relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md'
+                'raised-off-page relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md',
+                isDisabled && 'opacity-50 pointer-events-none'
               )}
+
             >
               <div className="flex items-center gap-2 text-sm font-medium text-neutral-800">
                 {option.icon && <option.icon size={24} stroke={getCustomPrimaryIconStroke()} color={getPrimaryIconStroke()} />}

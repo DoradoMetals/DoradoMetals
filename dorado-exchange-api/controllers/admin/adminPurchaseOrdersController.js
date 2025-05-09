@@ -51,7 +51,9 @@ const getAllPurchaseOrders = async (req, res) => {
           'label_type', ship.label_type,
           'pickup_type', ship.pickup_type,
           'package', ship.package,
-          'shipping_label', encode(ship.shipping_label, 'base64')
+          'shipping_label', encode(ship.shipping_label, 'base64'),
+          'shipping_charge', ship.net_charge,
+          'shipping_service', ship.service_type
         ) AS shipment,
         to_jsonb(cp) AS carrier_pickup,
         to_jsonb(pay) AS payout,

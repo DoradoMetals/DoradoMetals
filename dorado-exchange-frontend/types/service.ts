@@ -14,7 +14,7 @@ export interface ShippingService {
 
 export const serviceSchema = z.object({
   serviceType: z.string(),
-  serviceDescription: z.string().optional(),
+  serviceDescription: z.string(),
   netCharge: z.coerce.number().nonnegative({ message: 'Price is required' }),
   currency: z.string().min(1),
   deliveryDay: z.string().optional(),

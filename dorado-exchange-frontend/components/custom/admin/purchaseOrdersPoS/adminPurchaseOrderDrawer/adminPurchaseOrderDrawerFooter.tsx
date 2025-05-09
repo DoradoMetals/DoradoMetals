@@ -14,6 +14,7 @@ import getProductBidPrice from '@/utils/getProductBidPrice'
 import { assignScrapItemNames } from '@/types/scrap'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
+import { payoutOptions } from '@/types/payout'
 
 export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
   const valueLabel = statusConfig[order.purchase_order_status]?.value_label ?? ''
@@ -24,38 +25,45 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
   const [open, setOpen] = useState({
     scrap: false,
     bullion: false,
+    shipment: false,
+    payout: false,
     total: false,
   })
   const rawScrapItems = order.order_items.filter((item) => item.item_type === 'scrap' && item.scrap)
   const scrapItems = assignScrapItemNames(rawScrapItems.map((item) => item.scrap!))
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
+  const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
+  const payoutFee = payoutMethod?.cost ?? 0
 
-  const total = order.order_items.reduce((acc, item) => {
-    if (item.item_type === 'product') {
-      const price =
-        item.price ??
-        getProductBidPrice(
-          item.product,
-          spotPrices.find((s) => s.type === item?.product?.metal_type)
-        )
+  const total = useMemo(() => {
+    const baseTotal = order.order_items.reduce((acc, item) => {
+      if (item.item_type === 'product') {
+        const price =
+          item.price ??
+          getProductBidPrice(
+            item.product,
+            spotPrices.find((s) => s.type === item?.product?.metal_type)
+          )
+        const quantity = item.quantity ?? 1
+        return acc + price * quantity
+      }
 
-      const quantity = item.quantity ?? 1
-      return acc + price * quantity
-    }
+      if (item.item_type === 'scrap') {
+        const price =
+          item.price ??
+          getScrapPrice(
+            item?.scrap?.content ?? 0,
+            spotPrices.find((s) => s.type === item?.scrap?.metal)
+          )
+        return acc + price
+      }
 
-    if (item.item_type === 'scrap') {
-      const price =
-        item.price ??
-        getScrapPrice(
-          item?.scrap?.content ?? 0,
-          spotPrices.find((s) => s.type === item?.scrap?.metal)
-        )
+      return acc
+    }, 0)
 
-      return acc + price
-    }
-
-    return acc
-  }, 0)
+    const shipping = order.shipment?.shipping_charge ?? 0
+    return baseTotal - shipping - payoutFee
+  }, [order.order_items, spotPrices, order.shipment?.shipping_charge, payoutFee])
 
   const scrapTotal = useMemo(() => {
     return scrapItems.reduce((acc, item) => {
@@ -86,66 +94,111 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
 
   return (
     <div className="flex flex-col w-full gap-2">
-      <Accordion
-        label={`Scrap ${valueLabel}`}
-        open={open.scrap}
-        toggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
-        total={scrapTotal}
-      >
-        <Table className="font-normal text-neutral-700 overflow-hidden">
-          <TableBody>
-            {scrapItems.map((item, i) => (
-              <TableRow key={i} className="hover:bg-transparent">
-                <TableCell>{item.name}</TableCell>
-                <TableCell>
-                  {item.gross} {item.gross_unit}
-                </TableCell>
-                <TableCell>{((item.purity ?? 0) * 100).toFixed(1)}%</TableCell>
-                <TableCell className="text-right p-0">
-                  <PriceNumberFlow
-                    value={
-                      item.price ??
-                      getScrapPrice(
-                        item.content ?? 0,
-                        spotPrices.find((s) => s.type === item?.metal)
-                      )
-                    }
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Accordion>
+      {scrapItems.length > 0 && (
+        <Accordion
+          label={`Scrap ${valueLabel}`}
+          open={open.scrap}
+          toggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
+          total={scrapTotal}
+        >
+          <Table className="font-normal text-neutral-700 overflow-hidden">
+            <TableBody>
+              {scrapItems.map((item, i) => (
+                <TableRow key={i} className="hover:bg-transparent">
+                  <TableCell>{item.name}</TableCell>
+                  <TableCell>
+                    {item.gross} {item.gross_unit}
+                  </TableCell>
+                  <TableCell>{((item.purity ?? 0) * 100).toFixed(1)}%</TableCell>
+                  <TableCell className="text-right p-0">
+                    <PriceNumberFlow
+                      value={
+                        item.price ??
+                        getScrapPrice(
+                          item.content ?? 0,
+                          spotPrices.find((s) => s.type === item?.metal)
+                        )
+                      }
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Accordion>
+      )}
 
-      <Accordion
-        label={`Bullion ${valueLabel}`}
-        open={open.bullion}
-        toggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
-        total={bullionTotal}
-      >
-        <Table className="font-normal text-neutral-700 overflow-hidden">
-          <TableBody>
-            {bullionItems.map((item, i) => (
-              <TableRow key={i} className="hover:bg-transparent">
-                <TableCell>{item.quantity}</TableCell>
-                <TableCell>{item.product?.product_name}</TableCell>
+      {bullionItems.length > 0 && (
+        <Accordion
+          label={`Bullion ${valueLabel}`}
+          open={open.bullion}
+          toggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
+          total={bullionTotal}
+        >
+          <Table className="font-normal text-neutral-700 overflow-hidden">
+            <TableBody>
+              {bullionItems.map((item, i) => (
+                <TableRow key={i} className="hover:bg-transparent">
+                  <TableCell>{item.quantity}</TableCell>
+                  <TableCell>{item.product?.product_name}</TableCell>
+                  <TableCell className="text-right p-0">
+                    <PriceNumberFlow
+                      value={
+                        item.quantity *
+                        (item.price ??
+                          getProductBidPrice(
+                            item.product,
+                            spotPrices.find((s) => s.type === item?.product?.metal_type)
+                          ))
+                      }
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Accordion>
+      )}
+
+      {order.shipment && (
+        <Accordion
+          label="Shipping Cost"
+          open={open.shipment ?? false}
+          toggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
+          total={order.shipment.shipping_charge ?? 0}
+        >
+          <Table className="font-normal text-neutral-700 overflow-hidden">
+            <TableBody>
+              <TableRow className="hover:bg-transparent">
+                <TableCell>{order.shipment.shipping_service}</TableCell>
                 <TableCell className="text-right p-0">
-                  <PriceNumberFlow
-                    value={
-                      item.price ??
-                      getProductBidPrice(
-                        item.product,
-                        spotPrices.find((s) => s.type === item?.product?.metal_type)
-                      )
-                    }
-                  />
+                  -<PriceNumberFlow value={order.shipment.shipping_charge} />
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Accordion>
+            </TableBody>
+          </Table>
+        </Accordion>
+      )}
+
+      {payoutFee > 0 && (
+        <Accordion
+          label="Payout Fee"
+          open={open.payout ?? false}
+          toggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
+          total={payoutFee}
+        >
+          <Table className="font-normal text-neutral-700 overflow-hidden">
+            <TableBody>
+              <TableRow className="hover:bg-transparent">
+                <TableCell>{payoutMethod?.label ?? 'Unknown Method'}</TableCell>
+                <TableCell className="text-right p-0">
+                  -<PriceNumberFlow value={payoutFee} />
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </Accordion>
+      )}
 
       <Accordion
         label={`Total ${valueLabel}`}
@@ -154,20 +207,49 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
         total={total}
       >
         <div className="grid grid-cols-2 gap-2 text-sm text-neutral-700">
-          <div>Scrap:</div>
-          <div className="text-right">
-            <PriceNumberFlow value={scrapTotal} />
-          </div>
-          <div>Bullion:</div>
-          <div className="text-right">
-            <PriceNumberFlow value={bullionTotal} />
-          </div>
+          {scrapItems.length > 0 && (
+            <>
+              <div>Scrap:</div>
+              <div className="text-right">
+                <PriceNumberFlow value={scrapTotal} />
+              </div>
+            </>
+          )}
+
+          {bullionItems.length > 0 && (
+            <>
+              <div>Bullion:</div>
+              <div className="text-right">
+                <PriceNumberFlow value={bullionTotal} />
+              </div>
+            </>
+          )}
+
+          {order.shipment?.shipping_charge > 0 && (
+            <>
+              <div>Shipping:</div>
+              <div className="text-right">
+                -<PriceNumberFlow value={order.shipment.shipping_charge} />
+              </div>
+            </>
+          )}
+
+          {payoutFee > 0 && (
+            <>
+              <div>Payout Fee:</div>
+              <div className="text-right">
+                -<PriceNumberFlow value={payoutFee} />
+              </div>
+            </>
+          )}
+
           <div className="font-medium">Total:</div>
           <div className="font-medium text-right">
             <PriceNumberFlow value={total} />
           </div>
         </div>
       </Accordion>
+
       <PurchaseOrderActionButtons order={order} />
       <div className="flex w-full justify-between items-center mt-3">
         <div className="text-sm text-neutral-700">Call Customer:</div>
@@ -203,10 +285,15 @@ function Accordion({
         className="w-full p-2 flex justify-between items-center text-sm font-normal cursor-pointer"
       >
         {label}
-        <div className="flex items-center gap-2">
-          <div className="text-base">
+        <div className="flex items-center gap-2 text-base">
+          {label === 'Shipping Cost' || label === 'Payout Fee' ? (
+            <div className="flex items-center gap-0">
+              -<PriceNumberFlow value={total} />
+            </div>
+          ) : (
             <PriceNumberFlow value={total} />
-          </div>
+          )}
+          <div className="text-base"></div>
           <ChevronDown
             className={cn('h-4 w-4 transition-transform text-neutral-600', open && 'rotate-180')}
             size={20}

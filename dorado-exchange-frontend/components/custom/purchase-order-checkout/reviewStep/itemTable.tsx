@@ -1,11 +1,6 @@
 'use client'
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
@@ -17,30 +12,40 @@ import PriceNumberFlow from '../../products/PriceNumberFlow'
 import getScrapPrice from '@/utils/getScrapPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getProductBidPrice from '@/utils/getProductBidPrice'
+import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+import { payoutOptions } from '@/types/payout'
 
 export default function ReviewItemTables() {
   const { data: spotPrices = [] } = useSpotPrices()
+
+  const shippingCost = usePurchaseOrderCheckoutStore((state) => state.data.service?.netCharge)
+  const payout = usePurchaseOrderCheckoutStore((state) => state.data.payout)
+  const paymentCost = payoutOptions.find((p) => p.method === payout?.method)?.cost ?? 0
 
   const items = sellCartStore((state) => state.items)
   const bullionItems = items.filter((item) => item.type === 'product')
   const scrapItems = items.filter((item) => item.type === 'scrap')
 
-  const total = items.reduce((acc, item) => {
-    if (item.type === 'product') {
-      const spot = spotPrices.find((s) => s.type === item.data.metal_type)
-      const price = getProductBidPrice(item.data, spot)
-      const quantity = item.data.quantity ?? 1
-      return acc + price * quantity
-    }
+  const total = useMemo(() => {
+    const baseTotal = items.reduce((acc, item) => {
+      if (item.type === 'product') {
+        const spot = spotPrices.find((s) => s.type === item.data.metal_type)
+        const price = getProductBidPrice(item.data, spot)
+        const quantity = item.data.quantity ?? 1
+        return acc + price * quantity
+      }
 
-    if (item.type === 'scrap') {
-      const spot = spotPrices.find((s) => s.type === item.data.metal)
-      const price = getScrapPrice(item.data.content ?? 0, spot)
-      return acc + price
-    }
+      if (item.type === 'scrap') {
+        const spot = spotPrices.find((s) => s.type === item.data.metal)
+        const price = getScrapPrice(item.data.content ?? 0, spot)
+        return acc + price
+      }
 
-    return acc
-  }, 0)
+      return acc
+    }, 0)
+
+    return baseTotal - (shippingCost ?? 0 + paymentCost ?? 0)
+  }, [items, spotPrices, shippingCost, paymentCost])
 
   const scrapTotal = useMemo(() => {
     return scrapItems.reduce((acc, item) => {
@@ -56,7 +61,24 @@ export default function ReviewItemTables() {
     }, 0)
   }, [bullionItems, spotPrices])
 
-  const [open, setOpen] = useState({ scrap: true, bullion: true })
+  const shippingRow = useMemo(() => {
+    const label =
+      usePurchaseOrderCheckoutStore.getState().data.service?.serviceDescription ?? 'Unknown Service'
+    return [{ label, cost: shippingCost ?? 0 }]
+  }, [shippingCost])
+
+  const payoutRow = useMemo(() => {
+    const method = payoutOptions.find((p) => p.method === payout?.method)
+    if (!method) return []
+    return [{ label: method.label, cost: method.cost }]
+  }, [payout])
+
+  const [open, setOpen] = useState({
+    scrap: false,
+    bullion: false,
+    shipping: false,
+    payout: false,
+  })
 
   return (
     <div className="rounded-lg border border-border overflow-hidden bg-card raised-off-page">
@@ -86,6 +108,27 @@ export default function ReviewItemTables() {
           toggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
           rows={bullionItems}
           columns={bullionColumns}
+        />
+      )}
+      {shippingRow.length > 0 && (
+        <ItemAccordion
+          label="Shipping"
+          total={shippingCost ?? 0}
+          open={open.shipping}
+          toggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
+          rows={shippingRow}
+          columns={costSummaryColumns}
+        />
+      )}
+
+      {payoutRow.length > 0 && payoutRow[0].cost > 0 && (
+        <ItemAccordion
+          label="Payout Method Fee"
+          total={payoutRow[0].cost}
+          open={open.payout}
+          toggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
+          rows={payoutRow}
+          columns={costSummaryColumns}
         />
       )}
     </div>
@@ -131,7 +174,13 @@ function ItemAccordion<T>({
           <span className="text-sm font-normal">{label}</span>
         </div>
         <span className="text-base text-neutral-800 font-normal">
-          <PriceNumberFlow value={total} />
+          {label === 'Shipping' || label === 'Payout Method Fee' ? (
+            <>
+              -<PriceNumberFlow value={total} />
+            </>
+          ) : (
+            <PriceNumberFlow value={total} />
+          )}
         </span>
       </button>
 
@@ -215,7 +264,29 @@ const bullionColumns: ColumnDef<Extract<SellCartItem, { type: 'product' }>>[] = 
 
       return (
         <span className="font-normal text-right block w-full">
-          <PriceNumberFlow value={getProductBidPrice(row.original.data, spot) * (row.original.data.quantity ?? 1)} />
+          <PriceNumberFlow
+            value={getProductBidPrice(row.original.data, spot) * (row.original.data.quantity ?? 1)}
+          />
+        </span>
+      )
+    },
+  },
+]
+
+const costSummaryColumns: ColumnDef<{ label: string; cost: number }>[] = [
+  {
+    header: 'Type',
+    accessorKey: 'label',
+    cell: (info) => info.getValue(),
+  },
+  {
+    header: 'Cost',
+    accessorKey: 'cost',
+    cell: ({ getValue }) => {
+      const value = getValue<number>()
+      return (
+        <span className="font-normal text-right block w-full">
+          -<PriceNumberFlow value={value} />
         </span>
       )
     },
