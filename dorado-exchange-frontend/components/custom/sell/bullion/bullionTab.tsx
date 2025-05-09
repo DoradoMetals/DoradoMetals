@@ -43,13 +43,13 @@ export default function BullionTab() {
   }
 
   return (
-    <div className="relative flex flex-col gap-4 mt-8 mb-8">
+    <div className="relative flex flex-col gap-4 mt-8 mb-8 w-full">
       <RadioGroup
         value={selectedMetal}
         onValueChange={(val) => {
           setSelectedMetal(val)
         }}
-        className="grid grid-cols-2 xs:grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-3"
+        className="grid grid-cols-4 gap-2"
       >
         {metalOptions.map((label) => {
           const isSelected = selectedMetal === label
@@ -67,7 +67,7 @@ export default function BullionTab() {
                 }
               }}
               className={cn(
-                'radio-group-buttons',
+                'radio-group-buttons w-full',
                 isSelected ? 'liquid-gold text-white' : 'text-neutral-700 !bg-card'
               )}
             >

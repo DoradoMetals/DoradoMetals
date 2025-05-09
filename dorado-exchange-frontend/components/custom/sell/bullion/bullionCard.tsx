@@ -66,7 +66,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                 {selectedProduct.product_name}
               </div>
               <div className="flex items-center gap-1 text-xs text-neutral-600">
-                <div className="text-sm sm:text-base text-neutral-800">
+                <div className="text-sm sm:text-base text-neutral-600">
                   <PriceNumberFlow value={Math.abs(overOrUnder)} />
                 </div>
                 <div className="text-sm sm:text-base text-neutral-600">
@@ -239,7 +239,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
             className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
             onClick={() => addItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })}
           >
-            Add to Cart
+            Add to Sell Cart
           </Button>
         ) : (
           <div className="flex items-center justify-center">
