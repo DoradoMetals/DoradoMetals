@@ -83,7 +83,7 @@ export const payoutOptions: PayoutMethod[] = [
     description: 'Direct deposit to a U.S. bank account',
     icon: Bank,
     cost: 0.00,
-    time_delay: '1-3 days',
+    time_delay: '1-24 hours',
   },
   {
     method: 'WIRE',
@@ -91,7 +91,7 @@ export const payoutOptions: PayoutMethod[] = [
     description: 'Domestic wire transfer to your bank',
     icon: Globe,
     cost: 20.00,
-    time_delay: '1-24 hours',
+    time_delay: '1-5 hours',
   },
   {
     method: 'ECHECK',

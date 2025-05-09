@@ -73,7 +73,7 @@ export default function ReviewStep() {
       {/* Payment */}
       <div className="rounded-xl border border-border bg-card px-4 py-3 raised-off-page">
         <div className="flex justify-between">
-          <div className="text-xl font-medium">
+          <div className="text-xl text-neutral-800">
             {
               {
                 ACH: 'ACH',

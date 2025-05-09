@@ -503,29 +503,60 @@ number-flow-react::part(symbol) {
   );
 }
 
-.liquid-gold {
-  position: relative;
-  background: linear-gradient(
-    to left,
-    #ae8625 0%,
-    #f5d67d 25%,
-    #d2ac47 50%,
-    #edc967 75%,
-    #ae8625 100%
-  );
-  background-size: 200% 200%;
-  animation: backgroundShift 20s ease-in-out infinite;
+/* @layer components {
+  .primary-floating-button {
+    @apply 
+    h-5.5 sm:h-7 md:h-[8.5] 
+    w-8 xs:w-12 sm:w-14 
+    rounded-lg 
+    flex items-center justify-center 
+    text-xs 
+    cursor-pointer 
+    border 
+    has-[[data-state=checked]]:text-white 
+    text-neutral-900;
+  }
+
+  .primary-floating-button[data-state='checked'] {
+    background: linear-gradient(
+      to left,
+      #ae8625 0%,
+      #f5d67d 25%,
+      #d2ac47 50%,
+      #edc967 75%,
+      #ae8625 100%
+    );
+  }
+} */
+
+
+
+@layer components {
+  .liquid-gold {
+    position: relative;
+    background: linear-gradient(
+      to left,
+      #ae8625 0%,
+      #f5d67d 25%,
+      #d2ac47 50%,
+      #edc967 75%,
+      #ae8625 100%
+    );
+    background-size: 200% 200%;
+    animation: backgroundShift 20s ease-in-out infinite;
+  }
+  .liquid-gold::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
+    background-size: 200% 200%;
+    animation: shineMove 10s ease-in-out infinite;
+    pointer-events: none;
+  }
 }
 
-.liquid-gold::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
-  background-size: 200% 200%;
-  animation: shineMove 10s ease-in-out infinite;
-  pointer-events: none;
-}
+
 
 @keyframes backgroundShift {
   0% {
@@ -586,7 +617,7 @@ number-flow-react::part(symbol) {
     to left,
     #ae8625 0%,
     #f5d67d 25%,
-    #d2ac47 50%, 
+    #d2ac47 50%,
     #edc967 75%,
     #ae8625 100%
   );

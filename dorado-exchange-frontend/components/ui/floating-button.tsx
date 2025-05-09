@@ -78,3 +78,80 @@ function FloatingButtonItem({ children }: FloatingButtonItemProps) {
 }
 
 export { FloatingButton, FloatingButtonItem };
+
+
+
+type BullionFloatingButtonProps = {
+  className?: string;
+  children: ReactNode;
+  triggerContent: ReactNode;
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+};
+type BullionFloatingButtonItemProps = {
+  children: ReactNode;
+};
+
+const bullionList = {
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      staggerDirection: 1,
+    }
+  },
+  hidden: {
+    opacity: 0,
+    transition: {
+      when: 'afterChildren',
+      staggerChildren: 0.1,
+      staggerDirection: -1,
+    }
+  }
+};
+
+const bullionItem = {
+  visible: { opacity: 1, y: 0 },
+  hidden: { opacity: 0, y: 10 }
+}
+
+
+
+function BullionFloatingButton({ className, children, triggerContent, isOpen, setIsOpen }: BullionFloatingButtonProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+
+
+  useOnClickOutside(ref as React.RefObject<HTMLElement>, () => setIsOpen(false));
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <div className="mt-1 mr-2 ml-2" ref={ref} onClick={() => setIsOpen(!isOpen)}>
+        <motion.div  animate={isOpen ? 'visible' : 'hidden'}>
+          {triggerContent}
+        </motion.div>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.ul
+          className="flex flex-col-reverse items-center absolute left-1/2 -translate-x-1/2 bottom-full z-50 gap-1"
+          initial="hidden"
+          animate="visible"
+          exit="hidden"
+          variants={bullionList}
+        >
+          {children}
+        </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function BullionFloatingButtonItem({ children }: BullionFloatingButtonItemProps) {
+  return <motion.li variants={bullionItem}>{children}</motion.li>;
+}
+
+export { BullionFloatingButton, BullionFloatingButtonItem };
+

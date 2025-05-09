@@ -25,6 +25,7 @@ import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { cn } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
+import getProductAskOverUnderSpot from '@/utils/getProductAskOverUnderSpot'
 
 type ProductCardProps = {
   product: Product
@@ -50,6 +51,9 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const price = getProductPrice(selectedProduct, spot)
   const buybackPrice = getProductBidPrice(selectedProduct, spot)
   const weightOptions = ozOptions[product.variant_group]
+
+  const overOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
+  const isOver = overOrUnder >= 0
 
   return (
     <div className="space-y-4 h-[34rem] max-h-[34rem] -mt-4 w-full sm:w-[22rem] max-w-[22rem] group relative flex-col items-center mx-auto z-50">
@@ -231,26 +235,28 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
                             <div className="flex w-full items-start">
                               <X size={16} className="text-neutral-700 px-0" />
-
                               <div className="flex w-full items-start justify-between pl-4">
                                 <div className="text-xs text-neutral-600">Content (oz)</div>
-                                <div className="text-sm">{product.content}</div>
+                                <div className="text-sm">{selectedProduct.content}</div>
                               </div>
                             </div>
 
                             <div className="flex w-full items-start">
-                              <Plus size={16} className="text-neutral-700 px-0" />
+                              {overOrUnder >= 0 ? (
+                                <Plus size={16} className="text-neutral-700 px-0" />
+                              ) : (
+                                <Minus size={16} className="text-neutral-700 px-0" />
+                              )}
 
                               <div className="flex w-full items-start justify-between pl-4">
                                 <div className="text-xs text-neutral-600">Premium</div>
                                 <div className="text-sm">
-                                  <PriceNumberFlow
-                                    value={product.ask_premium * product.content * spot?.ask_spot!}
-                                  />
+                                  <PriceNumberFlow value={Math.abs(overOrUnder)} />
                                 </div>
                               </div>
                             </div>
                           </div>
+
                           <div className="flex w-full items-start">
                             <Equal size={16} className="text-neutral-700 px-0" />
                             <div className="flex w-full items-start justify-between pl-4">
@@ -290,7 +296,12 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
             </div>
           </div>
 
-          <div className={cn("secondary-gradient w-full rounded-b-lg py-2 text-white", quantity === 0 ? 'shine-on-hover' : '')}>
+          <div
+            className={cn(
+              'secondary-gradient w-full rounded-b-lg py-2 text-white',
+              quantity === 0 ? 'shine-on-hover' : ''
+            )}
+          >
             {quantity === 0 ? (
               <Button
                 variant="ghost"
