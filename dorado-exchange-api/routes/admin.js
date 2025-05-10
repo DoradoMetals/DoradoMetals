@@ -1,5 +1,5 @@
 const express = require("express");
-const { getAllProducts, getAllMetals, getAllSuppliers, getAllMints, getAllTypes, saveProduct, deleteProduct, createProduct } = require("../controllers/admin/adminProductsController");
+const { getAllProducts, getAllMetals, getAllSuppliers, getAllMints, getAllTypes, saveProduct, deleteProduct, createProduct, getInventory } = require("../controllers/admin/adminProductsController");
 const { getAllScrap } = require("../controllers/admin/adminScrapController");
 const { getUser } = require("../controllers/admin/adminUserController");
 const { getAllPurchaseOrders, changePurchaseOrderStatus } = require("../controllers/admin/adminPurchaseOrdersController");
@@ -15,6 +15,7 @@ router.get("/get_product_types", getAllTypes);
 router.post("/save_product", saveProduct);
 router.post("/create_product", createProduct);
 router.post("/delete_product", deleteProduct);
+router.get("/get_inventory", getInventory);
 
 //scrap
 router.get("/get_scrap", getAllScrap);

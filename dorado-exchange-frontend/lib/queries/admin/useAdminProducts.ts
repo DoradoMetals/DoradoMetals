@@ -1,14 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { useGetSession } from '../useAuth'
-import { AdminProduct } from '@/types/admin'
+import { AdminProduct, AdminProductsInventory } from '@/types/admin'
 
 export const useAdminProducts = () => {
   const { user } = useGetSession()
   return useQuery<AdminProduct[]>({
     queryKey: ['adminProducts'],
     queryFn: async () => {
-      return await apiRequest<AdminProduct[]>('GET', '/admin/get_products', undefined, {user_id: user?.id})
+      return await apiRequest<AdminProduct[]>('GET', '/admin/get_products', undefined, {
+        user_id: user?.id,
+      })
     },
     staleTime: 0,
     enabled: !!user,
@@ -53,7 +55,7 @@ export const useCreateProduct = () => {
 
   return useMutation({
     mutationFn: async (): Promise<AdminProduct> => {
-      if (!user?.name) throw new Error("User name is required to create product.")
+      if (!user?.name) throw new Error('User name is required to create product.')
       return await apiRequest<AdminProduct>('POST', '/admin/create_product', {
         created_by: user.name,
       })
@@ -109,5 +111,19 @@ export const useDeleteProduct = () => {
         queryClient.setQueryData(['adminProducts'], context.previousProducts)
       }
     },
+  })
+}
+
+export const useGetInventory = () => {
+  const { user } = useGetSession()
+  return useQuery<AdminProductsInventory>({
+    queryKey: ['productInventory'],
+    queryFn: async () => {
+      return await apiRequest<AdminProductsInventory>('GET', '/admin/get_inventory', undefined, {
+        user_id: user?.id,
+      })
+    },
+    staleTime: 0,
+    enabled: !!user,
   })
 }

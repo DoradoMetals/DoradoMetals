@@ -9,8 +9,8 @@ const customInputVariant = cva(
 	{
 		variants: {
 			size: {
-				xs: "h-10 text-sm",
-				sm: "h-12 text-sm",
+				xs: "h-10 text-base",
+				sm: "h-12 text-base",
 				md: "h-14 text-base py-4",
 				lg: "h-16 text-lg",
 			},

@@ -50,11 +50,13 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { AdminProduct } from '@/types/admin'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ChevronLeft, ChevronRight, Edit, Plus, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Edit, Trash2, X } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { cn } from '@/lib/utils'
+import { NotePencil, Plus } from '@phosphor-icons/react'
 
-export default function ProductsTableEditable() {
+export default function ProductsTableEditable({ selectedMetal }: { selectedMetal: string }) {
   const { data: products = [] } = useAdminProducts()
   const { data: metals } = useAdminMetals()
   const { data: suppliers } = useAdminSuppliers()
@@ -64,33 +66,52 @@ export default function ProductsTableEditable() {
   const deleteProduct = useDeleteProduct()
   const createProduct = useCreateProduct()
 
-  const [activeTab, setActiveTab] = useState<'general' | 'details'>('general')
+  const filteredProducts = selectedMetal
+    ? products.filter((p) => p.metal === selectedMetal)
+    : products
+
+  const [activeTab, setActiveTab] = useState<'general' | 'details' | 'display'>('general')
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 8 })
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
 
-  const alwaysVisibleColumns = ['name', 'delete']
+  const alwaysVisibleColumns = ['name']
 
-  const generalColumns = ['description', 'supplier', 'bid', 'ask', 'display']
+  const generalColumns = ['bid', 'ask', 'quantity']
 
   const detailsColumns = [
+    'description',
     'content',
     'gross',
     'purity',
     'metal',
     'mint',
-    'shadow_offset',
+    'supplier',
     'type',
+    'delete',
+  ]
+
+  const displayColumns = [
+    'display',
+    'homepage_display',
+    'filter_category',
+    'shadow_offset',
     'variant_group',
   ]
 
-  const getColumnVisibilityForTab = (tab: 'general' | 'details') => {
+  const getColumnVisibilityForTab = (tab: 'general' | 'details' | 'display') => {
     const visibleColumns = new Set([
       ...alwaysVisibleColumns,
       ...(tab === 'general' ? generalColumns : []),
       ...(tab === 'details' ? detailsColumns : []),
+      ...(tab === 'display' ? displayColumns : []),
     ])
 
-    const allColumns = [...alwaysVisibleColumns, ...generalColumns, ...detailsColumns]
+    const allColumns = [
+      ...alwaysVisibleColumns,
+      ...generalColumns,
+      ...detailsColumns,
+      ...displayColumns,
+    ]
 
     const visibility: Record<string, boolean> = {}
     for (const col of allColumns) {
@@ -126,13 +147,12 @@ export default function ProductsTableEditable() {
       cell: ({ row }) => (
         <Input
           type="text"
-          className="input-floating-label-form"
+          className="input-floating-label-form min-w-40 sm:min-w-70"
           defaultValue={row.original.product_name}
           onBlur={(e) => handleUpdate(row.original.id, { product_name: e.target.value })}
         />
       ),
     },
-
     {
       id: 'description',
       header: 'Desc.',
@@ -150,7 +170,7 @@ export default function ProductsTableEditable() {
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild className="w-5">
               <Button variant="ghost" size="sm" className="hover:bg-background px-0">
-                <Edit size={20} stroke={getPrimaryIconStroke()} />
+                <NotePencil size={20} color={getPrimaryIconStroke()} />
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -166,7 +186,12 @@ export default function ProductsTableEditable() {
                 <Button variant="ghost" onClick={() => setOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleSave}>Save</Button>
+                <Button
+                  onClick={handleSave}
+                  className="raised-off-page liquid-gold shine-on-hover text-white hover:text-white"
+                >
+                  Save
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -182,7 +207,7 @@ export default function ProductsTableEditable() {
           defaultValue={row.original.metal}
           onValueChange={(value) => handleUpdate(row.original.id, { metal: value })}
         >
-          <SelectTrigger className="w-32 bg-card shadow-lg border-none h-8 w-30">
+          <SelectTrigger className="bg-card raised-off-page border-none h-9 w-30">
             <SelectValue placeholder="Metal" />
           </SelectTrigger>
           <SelectContent>
@@ -200,23 +225,21 @@ export default function ProductsTableEditable() {
       header: 'Supplier',
       accessorKey: 'supplier',
       cell: ({ row }) => (
-        <div className="flex justify-center items-center raised-off-page mx-5 bg-card">
-          <Select
-            defaultValue={row.original.supplier}
-            onValueChange={(value) => handleUpdate(row.original.id, { supplier: value })}
-          >
-            <SelectTrigger className="border-none h-8 bg-card">
-              <SelectValue placeholder="Supplier" />
-            </SelectTrigger>
-            <SelectContent className='bg-card'>
-              {suppliers?.map((supplier, index) => (
-                <SelectItem key={index} value={supplier.name} className='bg-card'>
-                  {supplier.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select
+          defaultValue={row.original.supplier}
+          onValueChange={(value) => handleUpdate(row.original.id, { supplier: value })}
+        >
+          <SelectTrigger className="bg-card raised-off-page border-none h-9 w-30">
+            <SelectValue placeholder="Supplier" />
+          </SelectTrigger>
+          <SelectContent className="bg-card">
+            {suppliers?.map((supplier, index) => (
+              <SelectItem key={index} value={supplier.name}>
+                {supplier.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ),
     },
     {
@@ -228,7 +251,7 @@ export default function ProductsTableEditable() {
           defaultValue={row.original.mint}
           onValueChange={(value) => handleUpdate(row.original.id, { mint: value })}
         >
-          <SelectTrigger className="w-32 bg-card shadow-lg border-none h-8 w-46">
+          <SelectTrigger className="bg-card raised-off-page border-none h-9 w-46">
             <SelectValue placeholder="Mint" />
           </SelectTrigger>
           <SelectContent>
@@ -250,7 +273,7 @@ export default function ProductsTableEditable() {
           defaultValue={row.original.product_type}
           onValueChange={(value) => handleUpdate(row.original.id, { product_type: value })}
         >
-          <SelectTrigger className="w- bg-card shadow-lg border-none h-8 w-30">
+          <SelectTrigger className="bg-card raised-off-page border-none h-9 w-30">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
@@ -263,21 +286,6 @@ export default function ProductsTableEditable() {
         </Select>
       ),
     },
-    // {
-    //   id: 'stock',
-    //   header: 'Stock',
-    //   accessorKey: 'stock',
-    //   cell: ({ row }) => (
-    //     <Input
-    //       type="number"
-    //       pattern="[0-9]*"
-    //       className="input-floating-label-form no-spinner text-right w-12"
-    //       defaultValue={row.original.stock}
-    //       onBlur={(e) => handleUpdate(row.original.id, { stock: Number(e.target.value) })}
-    //     />
-    //   ),
-    // },
-
     {
       id: 'content',
       header: 'Content',
@@ -286,7 +294,7 @@ export default function ProductsTableEditable() {
         <Input
           type="number"
           pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right w-20"
+          className="input-floating-label-form no-spinner text-right min-w-20"
           defaultValue={row.original.content}
           onBlur={(e) => handleUpdate(row.original.id, { content: Number(e.target.value) })}
         />
@@ -300,7 +308,7 @@ export default function ProductsTableEditable() {
         <Input
           type="number"
           pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right w-20"
+          className="input-floating-label-form no-spinner text-right min-w-20"
           defaultValue={row.original.gross}
           onBlur={(e) => handleUpdate(row.original.id, { gross: Number(e.target.value) })}
         />
@@ -314,7 +322,7 @@ export default function ProductsTableEditable() {
         <Input
           type="number"
           pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right w-20"
+          className="input-floating-label-form no-spinner text-right min-w-20"
           defaultValue={row.original.purity}
           onBlur={(e) => handleUpdate(row.original.id, { purity: Number(e.target.value) })}
         />
@@ -328,7 +336,7 @@ export default function ProductsTableEditable() {
         <Input
           type="number"
           pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right w-14"
+          className="input-floating-label-form no-spinner text-right min-w-14"
           defaultValue={row.original.bid_premium}
           onBlur={(e) => handleUpdate(row.original.id, { bid_premium: Number(e.target.value) })}
         />
@@ -342,36 +350,23 @@ export default function ProductsTableEditable() {
         <Input
           type="number"
           pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right w-14"
+          className="input-floating-label-form no-spinner text-right min-w-14"
           defaultValue={row.original.ask_premium}
           onBlur={(e) => handleUpdate(row.original.id, { ask_premium: Number(e.target.value) })}
         />
       ),
     },
     {
-      id: 'shadow_offset',
-      header: 'Offset',
-      accessorKey: 'shadow_offset',
+      id: 'quantity',
+      header: 'Quantity',
+      accessorKey: 'quantity',
       cell: ({ row }) => (
         <Input
           type="number"
           pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right w-8"
-          defaultValue={row.original.shadow_offset}
-          onBlur={(e) => handleUpdate(row.original.id, { shadow_offset: Number(e.target.value) })}
-        />
-      ),
-    },
-    {
-      id: 'variant_group',
-      header: 'Variant Group',
-      accessorKey: 'variant_group',
-      cell: ({ row }) => (
-        <Input
-          type="text"
-          className="input-floating-label-form w-40"
-          defaultValue={row.original.variant_group}
-          onBlur={(e) => handleUpdate(row.original.id, { variant_group: e.target.value })}
+          className="input-floating-label-form no-spinner text-right min-w-14"
+          defaultValue={row.original.quantity}
+          onBlur={(e) => handleUpdate(row.original.id, { stock: Number(e.target.value) })}
         />
       ),
     },
@@ -383,6 +378,59 @@ export default function ProductsTableEditable() {
         <Switch
           checked={row.original.display}
           onCheckedChange={(checked) => handleUpdate(row.original.id, { display: checked })}
+        />
+      ),
+    },
+    {
+      id: 'variant_group',
+      header: 'Variant Group',
+      accessorKey: 'variant_group',
+      cell: ({ row }) => (
+        <Input
+          type="text"
+          className="input-floating-label-form min-w-48"
+          defaultValue={row.original.variant_group}
+          onBlur={(e) => handleUpdate(row.original.id, { variant_group: e.target.value })}
+        />
+      ),
+    },
+    {
+      id: 'homepage_display',
+      header: 'Featured?',
+      accessorKey: 'homepage_display',
+      cell: ({ row }) => (
+        <Switch
+          checked={row.original.homepage_display}
+          onCheckedChange={(checked) =>
+            handleUpdate(row.original.id, { homepage_display: checked })
+          }
+        />
+      ),
+    },
+    {
+      id: 'filter_category',
+      header: 'Filter Category',
+      accessorKey: 'filter_category',
+      cell: ({ row }) => (
+        <Input
+          type="text"
+          className="input-floating-label-form min-w-36"
+          defaultValue={row.original.filter_category}
+          onBlur={(e) => handleUpdate(row.original.id, { filter_category: e.target.value })}
+        />
+      ),
+    },
+    {
+      id: 'shadow_offset',
+      header: 'Offset',
+      accessorKey: 'shadow_offset',
+      cell: ({ row }) => (
+        <Input
+          type="number"
+          pattern="[0-9]*"
+          className="input-floating-label-form no-spinner text-right min-w-14"
+          defaultValue={row.original.shadow_offset}
+          onBlur={(e) => handleUpdate(row.original.id, { shadow_offset: Number(e.target.value) })}
         />
       ),
     },
@@ -432,7 +480,7 @@ export default function ProductsTableEditable() {
   ]
 
   const table = useReactTable({
-    data: products,
+    data: filteredProducts,
     columns: columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -470,31 +518,42 @@ export default function ProductsTableEditable() {
 
   return (
     <div className="space-y-4 w-full">
-      <div className="w-full flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <Button
-          variant="outline"
-          className="flex items-center gap-1 text-white liquid-gold hover:text-white raised-off-page"
+          variant="ghost"
+          className="flex items-center gap-1 mr-auto text-primary-gradient p-0"
           size="sm"
           onClick={() => createProduct.mutate()}
           disabled={products.some((p) => p.product_name.trim() === '')}
         >
-          <Plus size={16} />
+          <Plus size={16} color={getPrimaryIconStroke()} />
           Create New
         </Button>
 
-        <Button
-          variant="outline"
-          className="ml-auto text-sm raised-off-page bg-card hover:bg-card"
-          onClick={() => {
-            const newTab = activeTab === 'general' ? 'details' : 'general'
-            setActiveTab(newTab)
-            setColumnVisibility(getColumnVisibilityForTab(newTab))
-          }}
-        >
-          <span className="text-primary-gradient">
-            {activeTab === 'general' ? 'Show Details' : 'Show General'}
-          </span>
-        </Button>
+        <div className="flex flex-1 sm:flex-0 gap-2 w-full sm:ml-auto">
+          {(['general', 'details', 'display'] as const).map((tab) => (
+            <Button
+              key={tab}
+              variant="outline"
+              className={cn(
+                'text-sm raised-off-page w-full sm:w-auto', // full width below sm
+                activeTab === tab ? 'liquid-gold' : 'bg-card hover:bg-card border-none'
+              )}
+              onClick={() => {
+                setActiveTab(tab)
+                setColumnVisibility(getColumnVisibilityForTab(tab))
+              }}
+            >
+              <div
+                className={cn(
+                  activeTab === tab ? 'text-white hover:text-white' : 'text-primary-gradient'
+                )}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </div>
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-center">

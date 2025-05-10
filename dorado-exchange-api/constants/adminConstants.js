@@ -17,7 +17,10 @@ const ADMIN_PRODUCT_FIELDS = `
   shadow_offset,
   stock,
   created_by,
-  updated_by
+  updated_by,
+  homepage_display,
+  filter_category,
+  quantity
 `;
 
 const ADMIN_PRODUCT_FIELDS_WITH_ALIAS = `
@@ -39,7 +42,10 @@ const ADMIN_PRODUCT_FIELDS_WITH_ALIAS = `
   p.shadow_offset,
   p.stock,
   p.created_by,
-  p.updated_by
+  p.updated_by,
+  p.homepage_display,
+  p.filter_category,
+  p.quantity
 `;
 
 module.exports = { ADMIN_PRODUCT_FIELDS, ADMIN_PRODUCT_FIELDS_WITH_ALIAS };

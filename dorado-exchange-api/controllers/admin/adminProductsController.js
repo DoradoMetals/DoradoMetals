@@ -169,6 +169,84 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+const getInventory = async (req, res) => {
+  try {
+    const query = `
+      SELECT
+        p.id,
+        p.product_name,
+        p.bid_premium,
+        p.ask_premium,
+        p.product_type,
+        p.content,
+        p.quantity,
+        m.type AS metal
+      FROM exchange.products p
+      JOIN exchange.metals m ON m.id = p.metal_id
+      WHERE p.quantity > 0
+    `;
+
+    const result = await pool.query(query);
+    const rows = result.rows;
+
+    const metalTypes = ['Gold', 'Silver', 'Platinum', 'Palladium'];
+    const inventory = {};
+
+    // Initialize all 4 metal categories
+    for (const metal of metalTypes) {
+      inventory[metal] = {
+        total_content: 0,
+        coins: 0,
+        bars: 0,
+        other: 0,
+        inventory_list: []
+      };
+    }
+
+    for (const product of rows) {
+      const {
+        id,
+        product_name,
+        bid_premium,
+        ask_premium,
+        product_type,
+        content,
+        quantity,
+        metal
+      } = product;
+
+      if (!inventory[metal]) continue; // skip unrecognized metals
+
+      const group = inventory[metal];
+
+      group.total_content += (content || 0) * (quantity || 0);
+
+      if (product_type === 'Coin') {
+        group.coins += quantity;
+      } else if (product_type === 'Bar') {
+        group.bars += quantity;
+      } else {
+        group.other += quantity;
+      }
+
+      group.inventory_list.push({
+        id,
+        product_name,
+        bid_premium,
+        ask_premium,
+        product_type,
+        content,
+        quantity
+      });
+    }
+    console.log(inventory)
+    res.status(200).json(inventory);
+  } catch (error) {
+    console.error("Error fetching inventory:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   getAllProducts,
   getAllMetals,
@@ -178,4 +256,5 @@ module.exports = {
   saveProduct,
   createProduct,
   deleteProduct,
+  getInventory,
 };

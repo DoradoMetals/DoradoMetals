@@ -1,16 +1,3 @@
-import { string, z } from 'zod'
-import {
-  Truck,
-  PackageOpen,
-  FlaskConical,
-  CheckCheck,
-  X,
-  CreditCard,
-  Ban,
-  ShieldCheck,
-} from 'lucide-react';
-import { Dispatch } from 'react';
-
 export interface AdminProduct {
   id: string
   metal: string
@@ -34,6 +21,9 @@ export interface AdminProduct {
   stock: number
   created_by: string
   updated_by: string
+  homepage_display: boolean
+  filter_category: string
+  quantity: number
 }
 
 export interface AdminMetal {
@@ -43,6 +33,7 @@ export interface AdminMetal {
   bid_spot: string,
   percent_change: string,
   dollar_change: string,
+  scrap_percentage: number,
 }
 
 export interface AdminSuppliers {
@@ -98,3 +89,27 @@ export interface AdminUser {
   role: string,
 }
 
+export interface InventoryProduct {
+  id: string;
+  product_name: string;
+  bid_premium: number;
+  ask_premium: number;
+  product_type: 'Coin' | 'Bar' | string;
+  content: number;
+  quantity: number;
+}
+
+export interface InventoryGroup {
+  total_content: number;
+  coins: number;
+  bars: number;
+  other: number;
+  inventory_list: InventoryProduct[];
+}
+
+export interface AdminProductsInventory {
+  Gold: InventoryGroup;
+  Silver: InventoryGroup;
+  Platinum: InventoryGroup;
+  Palladium: InventoryGroup;
+}
