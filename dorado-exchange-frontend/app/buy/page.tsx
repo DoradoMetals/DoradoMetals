@@ -5,10 +5,10 @@ import ProductCard from '@/components/custom/products/productCard'
 import { useProductFilterStore } from '@/store/productFilterStore'
 
 export default function BuyPage() {
-  const { metal_type, mint_type, product_type } = useProductFilterStore()
+  const { metal_type, filter_category, product_type } = useProductFilterStore()
   const { data: groupedProducts = [], isLoading } = useFilteredProducts({
     metal_type,
-    mint_type,
+    filter_category,
     product_type,
   })
 

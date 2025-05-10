@@ -7,33 +7,29 @@ import Image from 'next/image'
 import { cn } from '@/lib/utils'
 
 const categories = [
-  { name: 'Gold', img: '/product_images/elemetal_products/gold/American Eagle/BACK.png' },
-  { name: 'Silver', img: '/product_images/elemetal_products/silver/1oz Unity/FRONT.png' },
-  { name: 'Platinum', img: '/product_images/elemetal_products/platinum/American Eagle/BACK.png' },
+  { name: 'Gold', img: '/product_images/elemetal_products/gold/American Buffalo/FRONT.png' },
+  { name: 'Silver', img: '/product_images/elemetal_products/silver/Western Warrior/FRONT.png' },
+  { name: 'Platinum', img: '/product_images/elemetal_products/platinum/1oz Platinum Bar/FRONT.png' },
   {
     name: 'Palladium',
     img: '/product_images/elemetal_products/palladium/1oz Palladium Bar/FRONT.png',
   },
-  { name: 'Coins', img: '/product_images/elemetal_products/gold/Canadian Maple/FRONT.png' },
-  { name: 'Bars', img: '/product_images/elemetal_products/silver/1oz Unity/FRONT.png' },
+  { name: 'Eagles', img: '/product_images/elemetal_products/gold/American Eagle/BACK.png' },
+  { name: 'Maples', img: '/product_images/elemetal_products/silver/Canadian Maple/FRONT.png' },
   {
     name: 'Collectibles',
     img: '/product_images/elemetal_products/silver/1oz .45 ACP Silver Bullet/FRONT.png',
   },
   {
-    name: 'Private Mint',
-    img: '/product_images/elemetal_products/silver/Elemetal Round/FRONT.png',
-  },
-  {
-    name: 'Sovereign Mint',
-    img: '/product_images/elemetal_products/gold/American Buffalo/FRONT.png',
+    name: 'President',
+    img: '/product_images/elemetal_products/silver/47th President Round/FRONT.png',
   },
 ]
 
 export default function AvatarCarousel() {
   const router = useRouter()
   const pathname = usePathname()
-  const { metal_type, mint_type, product_type, setFilters } = useProductFilterStore()
+  const { metal_type, filter_category, product_type, setFilters } = useProductFilterStore()
 
   const handleClick = (category: string) => {
     switch (category) {
@@ -41,22 +37,19 @@ export default function AvatarCarousel() {
       case 'Silver':
       case 'Platinum':
       case 'Palladium':
-        setFilters({ metal_type: category, product_type: undefined, mint_type: undefined })
+        setFilters({ metal_type: category, product_type: undefined, filter_category: undefined })
         break
-      case 'Coins':
-        setFilters({ product_type: 'Coin', metal_type: undefined, mint_type: undefined })
+      case 'Eagles':
+        setFilters({ filter_category: 'American Eagle', metal_type: undefined, product_type: undefined })
         break
-      case 'Bars':
-        setFilters({ product_type: 'Bar', metal_type: undefined, mint_type: undefined })
+      case 'Maples':
+        setFilters({ filter_category: 'Canadian Maple', metal_type: undefined, product_type: undefined })
         break
       case 'Collectibles':
-        setFilters({ product_type: 'Collectible', metal_type: undefined, mint_type: undefined })
+        setFilters({ product_type: 'Collectible', metal_type: undefined, filter_category: undefined })
         break
-      case 'Private Mint':
-        setFilters({ mint_type: 'Private', metal_type: undefined, product_type: undefined })
-        break
-      case 'Sovereign Mint':
-        setFilters({ mint_type: 'Sovereign', metal_type: undefined, product_type: undefined })
+      case 'President':
+        setFilters({ filter_category: 'President', metal_type: undefined, product_type: undefined })
         break
     }
 
@@ -68,11 +61,10 @@ export default function AvatarCarousel() {
   
     return (
       metal_type === category ||
-      (product_type === 'Coin' && category === 'Coins') ||
-      (product_type === 'Bar' && category === 'Bars') ||
       (product_type === 'Collectible' && category === 'Collectibles') ||
-      (mint_type === 'Private' && category === 'Private Mint') ||
-      (mint_type === 'Sovereign' && category === 'Sovereign Mint')
+      (filter_category === 'American Eagle' && category === 'Eagles') ||
+      (filter_category === 'Canadian Maple' && category === 'Maples') ||
+      (filter_category === 'President' && category === 'President')
     )
   }
 
@@ -99,7 +91,7 @@ export default function AvatarCarousel() {
       </div>
 
       <div className="lg:hidden relative w-full flex justify-center mt-2">
-        <motion.div className="flex gap-4 overflow-x-auto scroll-smooth no-scrollbar px-3">
+        <motion.div className="flex gap-4 overflow-x-auto scroll-smooth no-scrollbar px-4">
           {categories.map((category) => (
             <div
               key={category.name}
@@ -121,7 +113,7 @@ export default function AvatarCarousel() {
                   className="w-16 h-16 object-contain"
                 />
               </div>
-              <span className="tertiary-text mt-1 text-center w-full whitespace-nowrap overflow-hidden">
+              <span className="text-xs mt-1 text-center w-full whitespace-nowrap overflow-hidden">
                 {category.name}
               </span>
             </div>

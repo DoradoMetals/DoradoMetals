@@ -4,7 +4,7 @@ import { Product } from '@/types/product'
 
 interface ProductFilters {
   metal_type?: string
-  mint_type?: string
+  filter_category?: string
   product_type?: string
 }
 
@@ -122,20 +122,5 @@ export const useFilteredProducts = (filters: ProductFilters) => {
       return [...singles, ...grouped]
     },
     staleTime: 0,
-  })
-}
-
-interface FiltersResponse {
-  metals: string[]
-  types: string[]
-  mints: string[]
-}
-
-export const useProductFilters = () => {
-  return useQuery<FiltersResponse>({
-    queryKey: ['filters'],
-    queryFn: async () => {
-      return apiRequest<FiltersResponse>('GET', '/products/get_product_filters')
-    },
   })
 }
