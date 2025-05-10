@@ -50,11 +50,13 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { AdminProduct } from '@/types/admin'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ChevronLeft, ChevronRight, Edit, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Edit, Settings, Trash2, X } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { cn } from '@/lib/utils'
 import { NotePencil, Plus } from '@phosphor-icons/react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Checkbox } from '@/components/ui/checkbox'
 
 export default function ProductsTableEditable({ selectedMetal }: { selectedMetal: string }) {
   const { data: products = [] } = useAdminProducts()
@@ -518,10 +520,10 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
 
   return (
     <div className="space-y-4 w-full">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="flex flex-col">
         <Button
           variant="ghost"
-          className="flex items-center gap-1 mr-auto text-primary-gradient p-0"
+          className="flex items-center gap-1 text-primary-gradient p-0 mr-auto"
           size="sm"
           onClick={() => createProduct.mutate()}
           disabled={products.some((p) => p.product_name.trim() === '')}
@@ -530,39 +532,92 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           Create New
         </Button>
 
-        <div className="flex flex-1 sm:flex-0 gap-2 w-full sm:ml-auto">
-          {(['general', 'details', 'display'] as const).map((tab) => (
-            <Button
-              key={tab}
-              variant="outline"
-              className={cn(
-                'text-sm raised-off-page w-full sm:w-auto', // full width below sm
-                activeTab === tab ? 'liquid-gold' : 'bg-card hover:bg-card border-none'
-              )}
-              onClick={() => {
-                setActiveTab(tab)
-                setColumnVisibility(getColumnVisibilityForTab(tab))
-              }}
-            >
-              <div
-                className={cn(
-                  activeTab === tab ? 'text-white hover:text-white' : 'text-primary-gradient'
-                )}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </div>
-            </Button>
-          ))}
-        </div>
-      </div>
+        <div className="gap-2 flex flex-col sm:flex-row sm:items-start sm:justify-between w-full gap-5">
+          <div className="flex w-full gap-2">
+            <div className="w-full">
+              <DebouncedInput
+                type="text"
+                placeholder="Search by product name..."
+                value={String(table.getColumn('name')?.getFilterValue() ?? '')}
+                onChange={(value) => table.getColumn('name')?.setFilterValue(value)}
+              />
+            </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-center">
-        <DebouncedInput
-          type="text"
-          placeholder="Search by product name..."
-          value={String(table.getColumn('name')?.getFilterValue() ?? '')}
-          onChange={(value) => table.getColumn('name')?.setFilterValue(value)}
-        />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="raised-off-page bg-card text-neutral-800 hover:bg-card"
+                >
+                  <Settings size={16} className="text-neutral-800" />
+                  <div className="hidden sm:block ml-1">Columns</div>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-40 p-2 space-y-2 bg-background"
+                align="end"
+                side="bottom"
+              >
+                {table
+                  .getAllLeafColumns()
+                  .filter((col) => {
+                    const visibleKeys = new Set([
+                      ...alwaysVisibleColumns,
+                      ...(activeTab === 'general' ? generalColumns : []),
+                      ...(activeTab === 'details' ? detailsColumns : []),
+                      ...(activeTab === 'display' ? displayColumns : []),
+                    ])
+                    return visibleKeys.has(col.id) && col.getCanHide()
+                  })
+                  .map((column) => (
+                    <div key={column.id} className="flex items-center gap-2 w-full">
+                      <Checkbox
+                        id={`col-${column.id}`}
+                        checked={column.getIsVisible()}
+                        onCheckedChange={() => column.toggleVisibility()}
+                        className="checkbox-form"
+                      />
+                      <label
+                        htmlFor={`col-${column.id}`}
+                        className="text-sm cursor-pointer text-left"
+                      >
+                        {typeof column.columnDef.header === 'function'
+                          ? column.id
+                          : column.columnDef.header}
+                      </label>
+                    </div>
+                  ))}
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="flex w-full sm:w-auto gap-1">
+            {(['general', 'details', 'display'] as const).map((tab) => (
+              <Button
+                key={tab}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'text-sm raised-off-page w-full sm:w-auto',
+                  activeTab === tab ? 'liquid-gold' : 'bg-card hover:bg-card border-none'
+                )}
+                onClick={() => {
+                  setActiveTab(tab)
+                  setColumnVisibility(getColumnVisibilityForTab(tab))
+                }}
+              >
+                <div
+                  className={cn(
+                    activeTab === tab ? 'text-white hover:text-white' : 'text-primary-gradient'
+                  )}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </div>
+              </Button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <Table className="w-full">
