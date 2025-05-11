@@ -2,7 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const productRoutes = require("./routes/products");
-const emailRoutes = require("./routes/emails");
 const addressRoutes = require("./routes/addresses");
 const cartRoutes = require("./routes/carts");
 const sellCartRoutes = require("./routes/sell-carts");
@@ -15,7 +14,7 @@ const spotRoutes = require("./routes/spots");
 const { toNodeHandler } = require("better-auth/node");
 const { auth } = require("./auth");
 const { setupScheduler } = require("./services/scheduler");
-const pg = require('pg');
+const pg = require("pg");
 const types = pg.types;
 
 dotenv.config();
@@ -30,7 +29,7 @@ app.use(
     credentials: true,
   })
 );
-types.setTypeParser(types.builtins.NUMERIC, value => parseFloat(value))
+types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
 
 //Mount BetterAuth authentication routes
 app.all("/api/auth/*", toNodeHandler(auth));
@@ -39,7 +38,6 @@ app.use(express.json());
 
 // Use the products and email routes
 app.use("/api/products", productRoutes);
-app.use("/api/emails", emailRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/sell_cart", sellCartRoutes);
