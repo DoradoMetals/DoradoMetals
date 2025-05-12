@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
-import { MailCheck, MailWarning, MailX, UserCheck2, UserX2 } from 'lucide-react'
+import { MailCheck, MailWarning, MailX, Router, UserCheck2, UserX2 } from 'lucide-react'
 import { User, userSchema } from '@/types/user'
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -15,14 +15,14 @@ import {
   useGetSession,
 } from '@/lib/queries/useAuth'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
-import { useUser } from '@/lib/authClient'
+import { useRouter } from 'next/navigation'
 
 export default function UserForm() {
-  const { user, isPending } = useUser()
+  const { user, isPending } = useGetSession()
   const updateUserMutation = useUpdateUser()
   const changeEmailMutation = useChangeEmail()
   const sendEmailVerificationMutation = useSendVerifyEmail()
-
+  const router = useRouter()
   const [isIdentityVerified] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
 
@@ -157,7 +157,7 @@ export default function UserForm() {
                 />
               </div>
 
-              <div className="mb-8">
+              <div className="mb-4">
                 <FormField
                   control={userForm.control}
                   name="name"
@@ -179,6 +179,15 @@ export default function UserForm() {
                     </FormItem>
                   )}
                 />
+                <div className="mt-2">
+                  <Button
+                    variant="ghost"
+                    className="text-primary-gradient hover-text-primary-gradient p-0"
+                    onClick={() => router.push('/reset-password')}
+                  >
+                    Reset Password
+                  </Button>
+                </div>
               </div>
               <Button
                 type="submit"
