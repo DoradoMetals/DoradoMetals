@@ -732,7 +732,7 @@ const total =
                   </div>
                   <div class="detail-row">
                     <span class="detail-label">Service:</span>
-                    <span class="detail-value">FedEx Ground</span>
+                    <span class="detail-value">${purchaseOrder.shipment.shipping_service}</span>
                   </div>
                   <div class="detail-row">
                     <span class="detail-label">Package Size:</span>
