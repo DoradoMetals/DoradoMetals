@@ -40,21 +40,6 @@ const getFedExAccessToken = async () => {
   return fedexAccessToken;
 };
 
-const getSandboxFedExAccessToken = async () => {
-  const response = await axios.post(
-    process.env.FEDEX_SANDBOX_API_URL + "/oauth/token",
-    new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: process.env.FEDEX_SANDBOX_CLIENT_ID,
-      client_secret: process.env.FEDEX_SANDBOX_CLIENT_SECRET,
-    }),
-    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-  );
-
-  fedexAccessToken = response.data.access_token;
-  return fedexAccessToken;
-};
-
 const validateAddress = async (address) => {
   const token = await getFedExAccessToken();
 
@@ -194,7 +179,7 @@ const createFedexLabel = async (
   serviceType
 ) => {
   try {
-    const token = await getSandboxFedExAccessToken();
+    const token = await getFedExAccessToken();
 
     const shipper = {
       contact: {
@@ -228,7 +213,7 @@ const createFedexLabel = async (
 
     const shipmentPayload = {
       accountNumber: {
-        value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER,
+        value: process.env.FEDEX_ACCOUNT_NUMBER,
       },
       labelResponseOptions: "LABEL",
       requestedShipment: {
@@ -248,7 +233,7 @@ const createFedexLabel = async (
           payor: {
             responsibleParty: {
               accountNumber: {
-                value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER,
+                value: process.env.FEDEX_ACCOUNT_NUMBER,
               },
             },
           },
@@ -257,7 +242,7 @@ const createFedexLabel = async (
     };
 
     const response = await axios.post(
-      `${process.env.FEDEX_SANDBOX_API_URL}/ship/v1/shipments`,
+      `${process.env.FEDEX_API_URL}/ship/v1/shipments`,
       shipmentPayload,
       {
         headers: {
@@ -299,16 +284,16 @@ const createFedexLabel = async (
 const cancelLabel = async (req, res) => {
   const { tracking_number, shipment_id } = req.body
   try {
-    const token = await getSandboxFedExAccessToken();
+    const token = await getFedExAccessToken();
     const cancelPayload = {
       accountNumber: {
-        value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER,
+        value: process.env.FEDEX_ACCOUNT_NUMBER,
       },
       trackingNumber: tracking_number,
     };
 
     const response = await axios.put(
-      `${process.env.FEDEX_SANDBOX_API_URL}/ship/v1/shipments/cancel`,
+      `${process.env.FEDEX_API_URL}/ship/v1/shipments/cancel`,
       cancelPayload,
       {
         headers: {
@@ -418,7 +403,7 @@ const scheduleFedexPickup = async (
   trackingNumber
 ) => {
   try {
-    const token = await getSandboxFedExAccessToken();
+    const token = await getFedExAccessToken();
 
     const readyTimestamp = new Date(
       `${pickupDate}T${pickupTime}Z`
@@ -432,7 +417,7 @@ const scheduleFedexPickup = async (
 
     const pickupPayload = {
       associatedAccountNumber: {
-        value: process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER,
+        value: process.env.FEDEX_ACCOUNT_NUMBER,
       },
       originDetail: {
         pickupLocation: {
@@ -451,7 +436,7 @@ const scheduleFedexPickup = async (
     };
 
     const response = await axios.post(
-      `${process.env.FEDEX_SANDBOX_API_URL}/pickup/v1/pickups`,
+      `${process.env.FEDEX_API_URL}/pickup/v1/pickups`,
       pickupPayload,
       {
         headers: {

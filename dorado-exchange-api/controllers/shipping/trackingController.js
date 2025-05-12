@@ -18,21 +18,6 @@ const getFedExAccessToken = async () => {
   return fedexAccessToken;
 };
 
-const getSandboxFedExAccessToken = async () => {
-  const response = await axios.post(
-    process.env.FEDEX_SANDBOX_API_URL + "/oauth/token",
-    new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: process.env.FEDEX_TRACKING_SANDBOX_CLIENT_ID,
-      client_secret: process.env.FEDEX_TRACKING_SANDBOX_CLIENT_SECRET,
-    }),
-    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-  );
-
-  fedexAccessToken = response.data.access_token;
-  return fedexAccessToken;
-};
-
 const parseTracking = (trackingOutput) => {
   const estimatedDeliveryTime =
     trackingOutput.estimatedDeliveryTimeWindow?.window.ends || "TBD";
@@ -84,7 +69,7 @@ const updateFedexShipmentTracking = async (
   outbound_shipment
 ) => {
   try {
-    const token = await getSandboxFedExAccessToken();
+    const token = await getFedExAccessToken();
     const trackingPayload = {
       includeDetailedScans: true,
       masterTrackingNumberInfo: {
@@ -98,7 +83,7 @@ const updateFedexShipmentTracking = async (
     };
 
     const response = await axios.post(
-      process.env.FEDEX_SANDBOX_API_URL + "/track/v1/associatedshipments",
+      process.env.FEDEX_API_URL + "/track/v1/associatedshipments",
       trackingPayload,
       {
         headers: {
@@ -145,39 +130,39 @@ const updateFedexShipmentTracking = async (
       );
     }
 
-    // if (inbound_shipment) {
-    //   await pool.query(
-    //     `
-    //       UPDATE exchange.inbound_shipments
-    //       SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
-    //       WHERE id = $4
-    //     `,
-    //     [
-    //       trackingInfo.latestStatus,
-    //       trackingInfo.estimatedDeliveryTime === "TBD"
-    //         ? null
-    //         : trackingInfo.estimatedDeliveryTime,
-    //       trackingInfo.deliveredAt,
-    //       inbound_shipment,
-    //     ]
-    //   );
-    // } else if (outbound_shipment) {
-    //   await pool.query(
-    //     `
-    //       UPDATE exchange.outbound_shipments
-    //       SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
-    //       WHERE id = $4
-    //     `,
-    //     [
-    //       trackingInfo.latestStatus,
-    //       trackingInfo.estimatedDeliveryTime === "TBD"
-    //         ? null
-    //         : trackingInfo.estimatedDeliveryTime,
-    //       trackingInfo.deliveredAt,
-    //       outbound_shipment,
-    //     ]
-    //   );
-    // }
+    if (inbound_shipment) {
+      await pool.query(
+        `
+          UPDATE exchange.inbound_shipments
+          SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
+          WHERE id = $4
+        `,
+        [
+          trackingInfo.latestStatus,
+          trackingInfo.estimatedDeliveryTime === "TBD"
+            ? null
+            : trackingInfo.estimatedDeliveryTime,
+          trackingInfo.deliveredAt,
+          inbound_shipment,
+        ]
+      );
+    } else if (outbound_shipment) {
+      await pool.query(
+        `
+          UPDATE exchange.outbound_shipments
+          SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
+          WHERE id = $4
+        `,
+        [
+          trackingInfo.latestStatus,
+          trackingInfo.estimatedDeliveryTime === "TBD"
+            ? null
+            : trackingInfo.estimatedDeliveryTime,
+          trackingInfo.deliveredAt,
+          outbound_shipment,
+        ]
+      );
+    }
   } catch (error) {
     console.error("FedEx tracking failed:", error?.response?.data || error);
     throw new Error("FedEx shipment tracker failed");

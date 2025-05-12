@@ -1,6 +1,5 @@
-const nodemailer = require("nodemailer") ;
+const nodemailer = require("nodemailer");
 
-// Create a transport (replace these settings with your actual SMTP provider)
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: parseInt(process.env.EMAIL_PORT || "587"),
@@ -11,15 +10,16 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendEmail = async ({ to, subject, text }) => {
+const sendEmail = async ({ to, subject, text, html }) => {
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
     to,
     subject,
     text,
+    html,
   });
-}
+};
 
 module.exports = {
   sendEmail,
-}
+};

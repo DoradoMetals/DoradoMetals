@@ -15,9 +15,10 @@ import {
   useGetSession,
 } from '@/lib/queries/useAuth'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
+import { useUser } from '@/lib/authClient'
 
 export default function UserForm() {
-  const { user, isPending } = useGetSession()
+  const { user, isPending } = useUser()
   const updateUserMutation = useUpdateUser()
   const changeEmailMutation = useChangeEmail()
   const sendEmailVerificationMutation = useSendVerifyEmail()
@@ -63,6 +64,8 @@ export default function UserForm() {
       })
     }
   }
+
+  console.log(user)
 
   return (
     <div>

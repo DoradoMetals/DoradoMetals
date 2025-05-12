@@ -1,6 +1,12 @@
 const { betterAuth } = require("better-auth");
 const { Pool } = require("pg");
-const { sendEmail } = require("./email");
+const { sendEmail } = require("./emails/sendEmail");
+const {
+  renderAccountCreatedEmail,
+  renderVerifyEmail,
+  renderChangeEmail,
+  renderResetPasswordEmail,
+} = require("./emails/renderEmail");
 
 require("dotenv").config();
 
@@ -20,20 +26,24 @@ const auth = betterAuth({
     },
     changeEmail: {
       enabled: true,
-      sendChangeEmailVerification: async ({ user, newEmail, url, token }, request) => {
+      sendChangeEmailVerification: async (
+        { user, newEmail, url, token },
+        request
+      ) => {
+        const emailUrl = `${process.env.FRONTEND_URL}/change-email?token=${token}`;
         await sendEmail({
           to: user.email,
-          subject: 'Approve email change',
-          text: `Click the link to reset your password: ${process.env.FRONTEND_URL}/change-email?token=${token}`,
-        })
-      }
-    }
+          subject: "Approve Email Change",
+          html: renderChangeEmail({ firstName: user.name, url: emailUrl }),
+        });
+      },
+    },
   },
   session: {
     modelName: "exchange.session",
     cookieCache: {
       enabled: true,
-      maxAge: 5 * 60
+      maxAge: 5 * 60,
     },
   },
   account: {
@@ -50,23 +60,30 @@ const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url, token }, request) => {
+      const emailUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
       await sendEmail({
         to: user.email,
-        subject: 'Reset your password',
-        text: `Click the link to reset your password: ${process.env.FRONTEND_URL}/reset-password?token=${token}`,
-      })
+        subject: "Reset Your Password",
+        html: renderResetPasswordEmail({ firstName: user.name, url: emailUrl }),
+      });
     },
   },
   emailVerification: {
-    sendOnSignUp: false,
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url, token }, request) => {
-      if (request.url.includes("/change-email")) {
-        return;
-      }
+      const isSignUp = request?.url?.includes("/sign-up");
+      const emailUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+
       await sendEmail({
         to: user.email,
-        subject: "Verify your email address",
-        text: `Click the link to verify your email: ${process.env.FRONTEND_URL}/verify-email?token=${token}`,
+        subject: isSignUp
+          ? "Welcome to Dorado Metals Exchange"
+          : "Verify Your Email Address",
+        text: `Click the link to verify your email: ${emailUrl}`,
+        html: isSignUp
+          ? renderAccountCreatedEmail({ firstName: user.name, url: emailUrl })
+          : renderVerifyEmail({ firstName: user.name, url: emailUrl }),
       });
     },
   },
