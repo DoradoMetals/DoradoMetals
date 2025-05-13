@@ -11,11 +11,6 @@ interface Props {
   anchor?: Anchor
 }
 
-const styles = {
-  left: 'h-full top-24 sm:top-0',
-  right: 'h-screen top-24 sm:top-0',
-}
-
 const CartDrawer: FC<Props> = ({ open, setOpen, children, anchor = 'right' }) => {
   if (typeof document === 'undefined') return null
 
@@ -37,7 +32,7 @@ const CartDrawer: FC<Props> = ({ open, setOpen, children, anchor = 'right' }) =>
             animate={{ x: '0%' }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className={`fixed right-0 top-24 sm:top-0 z-[70] h-full w-full sm:w-1/2 lg:w-1/3 xl:w-1/4 bg-card sm:shadow-lg`}
+            className="drawer-layout"
           >
             {children}
           </motion.div>

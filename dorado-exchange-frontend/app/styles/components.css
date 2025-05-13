@@ -1,0 +1,109 @@
+.input-floating-label-form {
+  @apply border-none
+    bg-card 
+    shadow-[inset_0_-2px_0px_hsla(0,0%,99%,1),inset_0_2px_2px_hsla(0,0%,0%,0.2)]
+    dark:shadow-[inset_0_-2px_0px_hsla(0,0%,100%,0.1),inset_0_2px_2px_hsla(0,0%,0%,0.3)];
+}
+
+.checkbox-form {
+  @apply border-none
+    text-primary 
+    cursor-pointer
+    data-[state=checked]:text-primary
+    data-[state=checked]:bg-card
+    bg-card 
+    shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
+    dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)];
+}
+
+.header-text {
+  @apply text-xl
+    text-neutral-900;
+}
+.title-text {
+  @apply text-lg
+    text-neutral-900;
+}
+
+.primary-text {
+  @apply text-base
+    text-neutral-800;
+}
+
+.secondary-text {
+  @apply text-sm
+    text-neutral-600;
+}
+
+.tertiary-text {
+  @apply text-xs
+    text-neutral-500;
+}
+
+.error-text {
+  @apply text-xs
+    text-destructive;
+}
+
+.form-submit-button {
+  @apply w-full 
+    mb-8 
+    shadow-lg;
+}
+
+.radio-group-buttons {
+  @apply relative 
+    flex 
+    items-center 
+    bg-background
+    justify-center
+    rounded-md
+    px-3
+    py-2
+    text-sm
+    font-medium
+    cursor-pointer
+    transition-colors
+    has-[[data-state=checked]]:bg-card
+    /* has-[[data-state=checked]]:border-primary */
+    /* has-[[data-state=checked]]:shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
+    has-[[data-state=checked]]:dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)] */
+    has-[[data-state=checked]]:shadow-none
+    has-[[data-state=checked]]:dark:shadow-none
+    shadow-[inset_0px_1px_0px_hsla(0,0%,99%,1),0px_1px_3px_hsla(0,0%,0%,.2)]
+    dark:shadow-[inset_0px_1px_0px_hsla(0,0%,100%,.1),0px_1px_3px_hsla(0,0%,0%,.2)];
+}
+
+.raised-off-page {
+  @apply shadow-[inset_0px_1px_0px_hsla(0,0%,99%,1),0px_1px_3px_hsla(0,0%,0%,.2)]
+  dark:shadow-[inset_0px_1px_0px_hsla(0,0%,100%,.1),0px_1px_3px_hsla(0,0%,0%,.2)];
+}
+
+.separator-inset {
+  @apply h-[3px]
+    rounded-full
+    w-full
+    bg-card
+    shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
+    dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)];
+}
+
+.recessed-into-page {
+  @apply shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
+    dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)];
+}
+
+.section-label {
+  @apply text-neutral-600
+    text-xs
+    tracking-widest
+    uppercase;
+}
+
+number-flow-react::part(left),
+number-flow-react::part(right),
+number-flow-react::part(left)::after,
+number-flow-react::part(right)::after,
+number-flow-react::part(symbol) {
+  padding: calc(var(--number-flow-mask-height, 0.25em) / 2) 0;
+}

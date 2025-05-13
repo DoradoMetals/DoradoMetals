@@ -11,11 +11,6 @@ interface Props {
   anchor?: Anchor
 }
 
-const styles = {
-  left: "top-24 h-full",
-  right: "top-24 h-full",
-};
-
 const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right' }) => {
   if (typeof document === 'undefined') return null;
 
@@ -39,7 +34,7 @@ const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right' }) => {
             animate={{ x: 0 }}
             exit={{ x: anchor === 'right' ? '100%' : '-100%' }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className={`fixed z-50 w-full ${styles[anchor]}`}
+            className="drawer-layout"
           >
             {children}
           </motion.div>
