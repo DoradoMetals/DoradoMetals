@@ -86,7 +86,8 @@ export default function AddressForm({
                   <FormControl>
                     <FloatingLabelInput
                       label="Phone Number"
-                      type="text"
+                      type="number"
+                      pattern="[0-9]*"
                       autoComplete="tel"
                       size="sm"
                       className="input-floating-label-form"
@@ -192,7 +193,6 @@ export default function AddressForm({
                       <FloatingLabelInput
                         label="Zip"
                         type="number"
-                        inputMode='decimal'
                         pattern="[0-9]*"
                         autoComplete="postal-code"
                         size="sm"

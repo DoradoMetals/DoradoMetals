@@ -296,6 +296,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
         <Input
           type="number"
           pattern="[0-9]*"
+          inputMode='decimal'
           className="input-floating-label-form no-spinner text-right min-w-20"
           defaultValue={row.original.content}
           onBlur={(e) => handleUpdate(row.original.id, { content: Number(e.target.value) })}
@@ -310,6 +311,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
         <Input
           type="number"
           pattern="[0-9]*"
+          inputMode="decimal"
           className="input-floating-label-form no-spinner text-right min-w-20"
           defaultValue={row.original.gross}
           onBlur={(e) => handleUpdate(row.original.id, { gross: Number(e.target.value) })}
@@ -324,6 +326,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
         <Input
           type="number"
           pattern="[0-9]*"
+          inputMode='decimal'
           className="input-floating-label-form no-spinner text-right min-w-20"
           defaultValue={row.original.purity}
           onBlur={(e) => handleUpdate(row.original.id, { purity: Number(e.target.value) })}
@@ -338,6 +341,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
         <Input
           type="number"
           pattern="[0-9]*"
+          inputMode='decimal'
           className="input-floating-label-form no-spinner text-right min-w-14"
           defaultValue={row.original.bid_premium}
           onBlur={(e) => handleUpdate(row.original.id, { bid_premium: Number(e.target.value) })}
@@ -352,6 +356,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
         <Input
           type="number"
           pattern="[0-9]*"
+          inputMode='decimal'
           className="input-floating-label-form no-spinner text-right min-w-14"
           defaultValue={row.original.ask_premium}
           onBlur={(e) => handleUpdate(row.original.id, { ask_premium: Number(e.target.value) })}

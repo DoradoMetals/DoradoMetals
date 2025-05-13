@@ -83,6 +83,7 @@ export default function ScrapCards() {
                       <Input
                         type="number"
                         pattern="[0-9]*"
+                        inputMode='decimal'
                         className="input-floating-label-form no-spinner text-left w-14 text-lg md:text-lg h-6"
                         defaultValue={spot.scrap_percentage}
                         onBlur={(e) => handleUpdate(spot.id, Number(e.target.value))}

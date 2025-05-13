@@ -1,12 +1,12 @@
-import { FormField, FormItem, FormMessage } from "@/components/ui/form"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Scrap, weightOptions } from "@/types/scrap"
-import { CheckCircle } from "lucide-react"
-import { useFormContext } from "react-hook-form"
+import { FormField, FormItem, FormMessage } from '@/components/ui/form'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Scrap, weightOptions } from '@/types/scrap'
+import { CheckCircle } from 'lucide-react'
+import { useFormContext } from 'react-hook-form'
 import { motion } from 'framer-motion'
-import { cn } from "@/lib/utils"
-import { FloatingLabelInput } from "@/components/ui/floating-label-input"
-import getPrimaryIconStroke from "@/utils/getPrimaryIconStroke"
+import { cn } from '@/lib/utils'
+import { FloatingLabelInput } from '@/components/ui/floating-label-input'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function WeightStep() {
   const form = useFormContext<Scrap>()
@@ -48,7 +48,7 @@ export default function WeightStep() {
                       />
                     </div>
                     <div className="flex flex-col items-center gap-2">
-                      <weight.icon size={20} color={getPrimaryIconStroke()}/>
+                      <weight.icon size={20} color={getPrimaryIconStroke()} />
 
                       <div className="text-sm text-neutral-900">{weight.label}</div>
                     </div>
@@ -76,7 +76,9 @@ export default function WeightStep() {
             <div className="relative w-full rounded-lg">
               <FloatingLabelInput
                 label="Enter Weight"
-                type="text"
+                type="number"
+                inputMode="decimal"
+                pattern="[0-9]*"
                 size="sm"
                 className="w-full input-floating-label-form no-spinner"
                 value={field.value === 0 ? '' : field.value}
