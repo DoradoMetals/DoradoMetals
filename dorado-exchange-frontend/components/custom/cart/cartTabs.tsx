@@ -3,7 +3,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Cart from './cart'
 import SellCart from './sellCart'
-import CartDrawer from '@/components/drawers/cartDrawer'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
 import { cartStore } from '@/store/cartStore'
@@ -12,6 +11,7 @@ import { useCartTabStore } from '@/store/cartTabsStore'
 import { useDrawerStore } from '@/store/drawerStore'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
+import Drawer from '@/components/ui/drawer'
 
 export function CartTabs() {
   const { tab, setTab } = useCartTabStore()
@@ -30,7 +30,7 @@ export function CartTabs() {
 
   return (
     <div>
-      <CartDrawer open={isCartOpen} setOpen={closeDrawer}>
+      <Drawer open={isCartOpen} setOpen={closeDrawer}>
         <div className="h-full bg-card border-t-1 border-border lg:border-none flex flex-col p-2">
           <Button
             variant="ghost"
@@ -63,7 +63,7 @@ export function CartTabs() {
             </TabsContent>
           </Tabs>
         </div>
-      </CartDrawer>
+      </Drawer>
     </div>
   )
 }

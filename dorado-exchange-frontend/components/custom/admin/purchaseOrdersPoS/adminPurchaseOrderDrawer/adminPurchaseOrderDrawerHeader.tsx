@@ -28,14 +28,14 @@ export default function PurchaseOrderDrawerHeader({
         </div>
         <div className="text-sm text-neutral-800">{username}</div>
       </div>
-      <div className="flex w-full justify-between items-start">
+      <div className="flex w-full justify-between items-center">
         <div className="flex items-center gap-2">
           {status && Icon && (
             <div className={`${status.text_color}`}>
               <Icon size={24} />
             </div>
           )}
-          <span className="text-2xl text-neutral-800">{order.purchase_order_status}</span>
+          <span className="text-xl text-neutral-800">{order.purchase_order_status}</span>
         </div>
         <div className="flex ml-auto">
           {order.purchase_order_status === 'In Transit' ||

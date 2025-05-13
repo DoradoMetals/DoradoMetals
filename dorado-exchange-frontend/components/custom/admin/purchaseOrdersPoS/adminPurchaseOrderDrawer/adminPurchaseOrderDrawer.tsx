@@ -1,6 +1,5 @@
 'use client'
 
-import OrderDrawer from '@/components/drawers/orderDrawer'
 import AdminPurchaseOrderDrawerHeader from './adminPurchaseOrderDrawerHeader'
 import AdminPurchaseOrderDrawerContent from './adminPurchaseOrderDrawerContent'
 import AdminPurchaseOrderDrawerFooter from './adminPurchaseOrderDrawerFooter'
@@ -9,6 +8,7 @@ import { useAdminUser } from '@/lib/queries/admin/useAdminUser'
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { PurchaseOrderDrawerProps } from '@/types/purchase-order'
 import { useDrawerStore } from '@/store/drawerStore'
+import Drawer from '@/components/ui/drawer'
 
 export default function AdminPurchaseOrderDrawer({
   order_id,
@@ -30,7 +30,7 @@ export default function AdminPurchaseOrderDrawer({
   }
 
   return (
-    <OrderDrawer open={isDrawerOpen} setOpen={closeDrawer}>
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
       <div className="flex flex-col h-full space-y-4 p-5 flex-1 overflow-y-scroll scrollbar-gutter-stable pb-30 lg:pb-5">
         <AdminPurchaseOrderDrawerHeader
           setIsOrderActive={closeDrawer} // Close when header says to
@@ -44,6 +44,6 @@ export default function AdminPurchaseOrderDrawer({
           <AdminPurchaseOrderDrawerFooter order={order} />
         </div>
       </div>
-    </OrderDrawer>
+    </Drawer>
   )
 }

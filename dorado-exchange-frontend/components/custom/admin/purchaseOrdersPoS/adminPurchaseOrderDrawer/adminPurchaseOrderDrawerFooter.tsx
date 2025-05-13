@@ -253,12 +253,17 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
       <PurchaseOrderActionButtons order={order} />
       <div className="flex w-full justify-between items-center mt-3">
         <div className="text-sm text-neutral-700">Call Customer:</div>
+
+        {order?.address?.phone_number ?
         <a
           href={`tel:+${order.address.phone_number}`}
           className={cn('text-sm hover:underline', statusColor)}
         >
           {formatPhoneNumber(order.address.phone_number ?? '')}
         </a>
+         : 
+         <div className='text-sm'>No Phone Number </div>
+         }
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import Drawer from '@/components/drawers/navDrawer'
+import Drawer from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { SignIn, SignOut, User, List } from "@phosphor-icons/react"
