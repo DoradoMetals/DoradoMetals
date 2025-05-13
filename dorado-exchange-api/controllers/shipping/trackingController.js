@@ -46,8 +46,9 @@ const parseTracking = (trackingOutput) => {
       };
     });
 
+  const derivedCode = trackingOutput.latestStatusDetail?.derivedCode;
   const latestStatus =
-    statusMap[trackingOutput.latestStatusDetail?.derivedCode] || null;
+    derivedCode && statusMap[derivedCode] ? statusMap[derivedCode] : null;
 
   const deliveredAt =
     trackingOutput.dateAndTimes?.find((dt) => dt.type === "ACTUAL_DELIVERY")
@@ -93,7 +94,8 @@ const updateFedexShipmentTracking = async (
       }
     );
 
-    const trackingOutput = response.data.output.completeTrackResults[0].trackResults[0];
+    const trackingOutput =
+      response.data.output.completeTrackResults[0].trackResults[0];
     const trackingInfo = parseTracking(trackingOutput);
 
     if (inbound_shipment) {
@@ -130,45 +132,46 @@ const updateFedexShipmentTracking = async (
       );
     }
 
-    if (inbound_shipment) {
-      await pool.query(
-        `
-          UPDATE exchange.inbound_shipments
-          SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
-          WHERE id = $4
-        `,
-        [
-          trackingInfo.latestStatus,
-          trackingInfo.estimatedDeliveryTime === "TBD"
-            ? null
-            : trackingInfo.estimatedDeliveryTime,
-          trackingInfo.deliveredAt,
-          inbound_shipment,
-        ]
-      );
-    } else if (outbound_shipment) {
-      await pool.query(
-        `
-          UPDATE exchange.outbound_shipments
-          SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
-          WHERE id = $4
-        `,
-        [
-          trackingInfo.latestStatus,
-          trackingInfo.estimatedDeliveryTime === "TBD"
-            ? null
-            : trackingInfo.estimatedDeliveryTime,
-          trackingInfo.deliveredAt,
-          outbound_shipment,
-        ]
-      );
+    if (trackingInfo.latestStatus) {
+      if (inbound_shipment) {
+        await pool.query(
+          `
+        UPDATE exchange.inbound_shipments
+        SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
+        WHERE id = $4
+      `,
+          [
+            trackingInfo.latestStatus,
+            trackingInfo.estimatedDeliveryTime === "TBD"
+              ? null
+              : trackingInfo.estimatedDeliveryTime,
+            trackingInfo.deliveredAt,
+            inbound_shipment,
+          ]
+        );
+      } else if (outbound_shipment) {
+        await pool.query(
+          `
+        UPDATE exchange.outbound_shipments
+        SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
+        WHERE id = $4
+      `,
+          [
+            trackingInfo.latestStatus,
+            trackingInfo.estimatedDeliveryTime === "TBD"
+              ? null
+              : trackingInfo.estimatedDeliveryTime,
+            trackingInfo.deliveredAt,
+            outbound_shipment,
+          ]
+        );
+      }
     }
   } catch (error) {
     console.error("FedEx tracking failed:", error?.response?.data || error);
     throw new Error("FedEx shipment tracker failed");
   }
 };
-
 
 module.exports = {
   updateFedexShipmentTracking,

@@ -17,6 +17,7 @@ import { User } from '@/types/user'
 import { useGetSession } from '@/lib/queries/useAuth'
 import getProductBidPrice from '@/utils/getProductBidPrice'
 import { useDrawerStore } from '@/store/drawerStore'
+import PurchaseOrderCard from './purchaseOrderCard'
 
 export function OrdersTabs() {
   const { user } = useGetSession()
@@ -55,10 +56,7 @@ export function OrdersTabs() {
 
 function PurchaseOrdersContent({ user }: { user: User }) {
   const { data: orders = [], isLoading } = usePurchaseOrders()
-  const { openDrawer } = useDrawerStore()
-
   const [activePurchaseOrder, setActivePurchaseOrder] = useState<string | null>(null)
-  const { data: spotPrices = [] } = useSpotPrices()
 
   if (isLoading) {
     return (
@@ -81,60 +79,11 @@ function PurchaseOrdersContent({ user }: { user: User }) {
   }
 
   return (
-    <div className="rounded-xl p-4 bg-card mt-5 raised-off-page">
+    <div className="p-4 mt-5">
       {orders.map((order) => {
-        const total =
-          order.order_items?.reduce((acc, item) => {
-            if (item.product && item.item_type === 'product') {
-              const spot = spotPrices.find((s) => s.type === item.product?.metal_type)
-              const price = getProductBidPrice(item.product, spot)
-              const quantity = item?.product?.quantity ?? item.quantity ?? 1
-              return acc + price * quantity
-            }
-            if (item.scrap && item.item_type === 'scrap') {
-              const spot = spotPrices.find((s) => s.type === item.scrap?.metal)
-              const price = getScrapPrice(item.scrap?.content ?? 0, spot)
-              return acc + price
-            }
-            return acc
-          }, 0) ?? 0
-
         return (
-          <div
-            key={order.id}
-            className="border-b py-4 flex flex-col gap-4 text-sm text-neutral-800"
-          >
-            <div className="flex justify-between items-center">
-              <span className="text-neutral-800 text-base">{formatFullDate(order.created_at)}</span>
-              <Button
-                variant="link"
-                className={cn(
-                  'p-0 h-auto text-sm font-normal',
-                  statusConfig[order.purchase_order_status]?.text_color
-                )}
-                onClick={() => {
-                  setActivePurchaseOrder(order.id)
-                  openDrawer('purchaseOrder')
-                }}
-              >
-                View Order
-              </Button>
-            </div>
-            <div className="flex justify-between items-center">
-              <div
-                className={cn(
-                  'flex items-center gap-2',
-                  statusConfig[order.purchase_order_status]?.text_color
-                )}
-              >
-                {(() => {
-                  const StatusIcon = statusConfig[order.purchase_order_status]?.icon
-                  return StatusIcon ? <StatusIcon size={20} /> : null
-                })()}
-                <span>{order.purchase_order_status}</span>
-              </div>
-              <PriceNumberFlow value={total} />
-            </div>
+          <div key={order.id} className="py-2 flex flex-col gap-2 text-sm text-neutral-800">
+            <PurchaseOrderCard order={order} setActivePurchaseOrder={setActivePurchaseOrder} />
           </div>
         )
       })}
