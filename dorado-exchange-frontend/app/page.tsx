@@ -16,6 +16,14 @@ export default function Home() {
   return (
     <div className="">
       <div className="flex flex-col w-full">
+        <button
+  type="button"
+  onClick={() => {
+    throw new Error("Sentry Test Error");
+  }}
+>
+  Break the world
+</button>;
         {/* desktop */}
         <div className="hidden relative lg:flex flex-col">
           <div className="relative flex min-h-[50vh] items-center justify-center">
