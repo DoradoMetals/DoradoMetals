@@ -86,7 +86,8 @@ export default function AddressForm({
                   <FormControl>
                     <FloatingLabelInput
                       label="Phone Number"
-                      type="number"
+                      type="text"
+                      inputMode='tel'
                       pattern="[0-9]*"
                       autoComplete="tel"
                       size="sm"
