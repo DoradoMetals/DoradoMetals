@@ -15,6 +15,7 @@ import {
   CreditCard,
   Ban,
   ShieldCheck,
+  Hourglass,
 } from 'lucide-react'
 import { Scrap } from './scrap'
 import { Product } from './product'
@@ -64,6 +65,17 @@ export const purchaseOrderCheckoutSchema = z.object({
 
 export type PurchaseOrderCheckout = z.infer<typeof purchaseOrderCheckoutSchema>
 
+export const PurchaseOrderStatuses = [
+  'In Transit',
+  'Unsettled',
+  'Filled',
+  'Accepted',
+  'Rejected',
+  'Settled',
+  'Cancelled',
+  'Completed',
+]
+
 export const statusConfig: Record<
   string,
   {
@@ -96,7 +108,7 @@ export const statusConfig: Record<
     hover_background_color: 'hover:bg-yellow-400',
     text_color: 'text-yellow-400',
     border_color: 'border-yellow-400',
-    icon: FlaskConical,
+    icon: Hourglass,
     value_label: 'Offer',
   },
   Accepted: {
