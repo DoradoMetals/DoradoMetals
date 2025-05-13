@@ -20,7 +20,6 @@ export default function AddressForm({
   const updateAddressMutation = useUpdateAddress()
 
   const handleAddressSubmit = (values: Address) => {
-
     updateAddressMutation.mutate(values, {
       onSettled: () => {
         setOpen(false)
@@ -192,7 +191,9 @@ export default function AddressForm({
                     <FormControl>
                       <FloatingLabelInput
                         label="Zip"
-                        type="text"
+                        type="number"
+                        inputMode='decimal'
+                        pattern="[0-9]*"
                         autoComplete="postal-code"
                         size="sm"
                         className="input-floating-label-form"
