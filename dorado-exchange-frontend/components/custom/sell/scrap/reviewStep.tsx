@@ -66,7 +66,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.5 }}
-            className="flex items-center gap-2 rounded-xl text-green-800 text-sm px-4 py-2 border border-green-800 mb-4"
+            className="flex items-center gap-2 rounded-xl text-green-800 text-sm px-4 py-2 border border-green-800 mb-4 will-change-transform"
           >
             <CheckCircle className="w-4 h-4" />
             Item submitted!

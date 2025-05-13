@@ -126,7 +126,7 @@ export default function Shell() {
                 initial={{ opacity: 1 }}
                 animate={{ opacity: isAnyDrawerOpen ? 0 : 1 }}
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
-                className="relative flex items-center justify-center"
+                className="relative flex items-center justify-center will-change-transform"
               >
                 <CartIcon size={20} isOpen={false} className="text-neutral-900 hover:bg-card" />
                 {items > 0 && (

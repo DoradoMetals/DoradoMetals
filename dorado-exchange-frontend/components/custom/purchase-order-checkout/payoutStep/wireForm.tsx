@@ -37,7 +37,7 @@ export default function WireForm({
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          className="overflow-hidden"
+          className="overflow-hidden will-change-transform"
         >
           <Form {...form}>
             <form className="p-4">

@@ -91,7 +91,7 @@ export default function AvatarCarousel() {
       </div>
 
       <div className="lg:hidden relative w-full flex justify-center mt-2">
-        <motion.div className="flex gap-4 overflow-x-auto scroll-smooth no-scrollbar px-4">
+        <motion.div className="flex gap-4 overflow-x-auto scroll-smooth no-scrollbar px-4 will-change-transform">
           {categories.map((category) => (
             <div
               key={category.name}

@@ -105,8 +105,8 @@ export function AddressSelector({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 3, ease: 'easeInOut' }}
-            className="overflow-hidden"
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="overflow-hidden will-change-transform"
           >
             <RadioGroup
               value={address?.id ?? ''}

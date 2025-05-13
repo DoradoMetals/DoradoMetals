@@ -76,7 +76,7 @@ export const Tabs: React.FC<{ children: React.ReactNode; className?: string }> =
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
       className={cn(
-        "absolute left-1/2 top-[calc(100%_+_6px)] shadow-md rounded-lg p-2 transform -translate-x-1/2",
+        "absolute left-1/2 top-[calc(100%_+_6px)] shadow-md rounded-lg p-2 transform -translate-x-1/2 will-change-transform",
         className
       )}
     >
@@ -87,6 +87,7 @@ export const Tabs: React.FC<{ children: React.ReactNode; className?: string }> =
               initial={{ opacity: 0, x: direction === "ltr" ? 100 : direction === "rtl" ? -100 : 0 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.2 }}
+              className="will-change-transform"
             >
               {e}
             </motion.div>

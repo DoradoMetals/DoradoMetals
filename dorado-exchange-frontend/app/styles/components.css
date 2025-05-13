@@ -65,6 +65,7 @@
     cursor-pointer
     transition-colors
     has-[[data-state=checked]]:bg-card
+    will-change-transform
     /* has-[[data-state=checked]]:border-primary */
     /* has-[[data-state=checked]]:shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
     has-[[data-state=checked]]:dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)] */

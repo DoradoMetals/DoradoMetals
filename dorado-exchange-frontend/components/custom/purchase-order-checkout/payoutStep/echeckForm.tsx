@@ -29,7 +29,7 @@ export default function EcheckForm({
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          className="overflow-hidden"
+          className="overflow-hidden will-change-transform"
         >
           <Form {...form}>
             <form className="space-y-6 p-4 mb-2">

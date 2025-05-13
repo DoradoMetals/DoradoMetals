@@ -89,7 +89,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
           <AnimatePresence>
             {!variantsOpen && (
               <motion.div
-                className="pr-2 md:pr-3"
+                className="pr-2 md:pr-3 will-change-transform"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}

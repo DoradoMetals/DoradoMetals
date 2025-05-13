@@ -44,7 +44,7 @@ const CartIcon = forwardRef<HTMLDivElement, CartIconProps>(
         )}
         {...props}
       >
-        <motion.div animate={controls} variants={iconVariants}>
+        <motion.div animate={controls} variants={iconVariants} className='will-change-transform'>
           <ShoppingCart size={size} />
         </motion.div>
       </div>

@@ -67,6 +67,7 @@ const MenuIcon = forwardRef<HTMLDivElement, MenuIconProps>(
             variants={lineVariants}
             animate={controls}
             custom={1}
+            className="will-change-transform"
           />
           <motion.line
             x1="4"
@@ -77,6 +78,7 @@ const MenuIcon = forwardRef<HTMLDivElement, MenuIconProps>(
             variants={lineVariants}
             animate={controls}
             custom={2}
+            className="will-change-transform"
           />
           <motion.line
             x1="4"
@@ -87,6 +89,7 @@ const MenuIcon = forwardRef<HTMLDivElement, MenuIconProps>(
             variants={lineVariants}
             animate={controls}
             custom={3}
+            className="will-change-transform"
           />
         </svg>
       </div>

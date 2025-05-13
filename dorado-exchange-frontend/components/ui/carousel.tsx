@@ -289,7 +289,7 @@ export type CarouselItemProps = {
 
 function CarouselItem({ children, className }: CarouselItemProps) {
   return (
-    <motion.div className={cn('w-full min-w-0 shrink-0 grow-0 overflow-hidden', className)}>
+    <motion.div className={cn('w-full min-w-0 shrink-0 grow-0 overflow-hidden will-change-transform', className)}>
       {children}
     </motion.div>
   )

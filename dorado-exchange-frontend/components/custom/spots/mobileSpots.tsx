@@ -32,7 +32,7 @@ export default function MobileSpotTicker() {
 
   return (
     <div className="overflow-hidden w-full md:hidden">
-      <motion.div ref={containerRef} className="flex items-end gap-8 w-max px-4" style={{ x }}>
+      <motion.div ref={containerRef} className="flex items-end gap-8 w-max px-4 will-change-transform" style={{ x }}>
         {[...spots, ...spots, ...spots].map((spot, i) => {
           const trendUp = spot.dollar_change >= 0
           const CaretIcon = trendUp ? CaretUp : CaretDown

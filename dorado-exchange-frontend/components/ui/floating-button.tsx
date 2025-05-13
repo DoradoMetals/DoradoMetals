@@ -59,7 +59,7 @@ function FloatingButton({ className, children, triggerContent, isOpen, setIsOpen
       <AnimatePresence>
         {isOpen && (
           <motion.ul
-          className="flex flex-row items-center absolute left-full top-3 gap-2 z-50"
+          className="flex flex-row items-center absolute left-full top-3 gap-2 z-50 will-change-transform"
           initial="hidden"
           animate="visible"
           exit="hidden"
@@ -135,7 +135,7 @@ function BullionFloatingButton({ className, children, triggerContent, isOpen, se
       <AnimatePresence>
         {isOpen && (
           <motion.ul
-          className="flex flex-col-reverse items-center absolute left-1/2 -translate-x-1/2 bottom-full z-50 gap-1"
+          className="flex flex-col-reverse items-center absolute left-1/2 -translate-x-1/2 bottom-full z-50 gap-1 will-change-transform"
           initial="hidden"
           animate="visible"
           exit="hidden"
@@ -150,7 +150,7 @@ function BullionFloatingButton({ className, children, triggerContent, isOpen, se
 }
 
 function BullionFloatingButtonItem({ children }: BullionFloatingButtonItemProps) {
-  return <motion.li variants={bullionItem}>{children}</motion.li>;
+  return <motion.li className="will-change-transform" variants={bullionItem}>{children}</motion.li>;
 }
 
 export { BullionFloatingButton, BullionFloatingButtonItem };
