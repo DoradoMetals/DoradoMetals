@@ -35,23 +35,23 @@ export default function PurchaseOrderDrawerHeader({
               <Icon size={24} />
             </div>
           )}
-          <span className="text-xl text-neutral-800">{order.purchase_order_status}</span>
+          <span className="text-lg text-neutral-800">{order.purchase_order_status}</span>
         </div>
         <div className="flex ml-auto">
           {order.purchase_order_status === 'In Transit' ||
           order.purchase_order_status === 'Unsettled' ? (
             <Button
               variant="link"
-              className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
+              className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
               onClick={() => downloadPackingList.mutate({ purchaseOrder: order, spotPrices, packageDetails, payoutDetails })}
               disabled={downloadPackingList.isPending}
             >
-              {downloadPackingList.isPending ? 'Loading...' : ' Download Label + Packing List'}
+              {downloadPackingList.isPending ? 'Loading...' : ' Download Packing List'}
             </Button>
           ) : (
             <Button
               variant="link"
-              className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
+              className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
             >
               Invoice
             </Button>

@@ -239,7 +239,6 @@ const getInventory = async (req, res) => {
         quantity
       });
     }
-    console.log(inventory)
     res.status(200).json(inventory);
   } catch (error) {
     console.error("Error fetching inventory:", error);

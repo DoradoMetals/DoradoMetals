@@ -16,6 +16,7 @@ import {
   Ban,
   ShieldCheck,
   Hourglass,
+  Handshake,
 } from 'lucide-react'
 import { Scrap } from './scrap'
 import { Product } from './product'
@@ -30,6 +31,15 @@ export interface PurchaseOrderItem {
   product?: Product
   quantity: number
   price: number
+}
+
+export interface PurchaseOrderMetal {
+  id: string
+  purchase_order_id: string
+  type: string
+  spot: number
+  scrap_percentage: number
+  created_at: Date
 }
 
 export interface PurchaseOrder {
@@ -116,7 +126,7 @@ export const statusConfig: Record<
     hover_background_color: 'hover:bg-orange-500',
     text_color: 'text-orange-500',
     border_color: 'border-orange-500',
-    icon: CheckCheck,
+    icon: Handshake,
     value_label: 'Payout',
   },
   Rejected: {

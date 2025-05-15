@@ -89,6 +89,40 @@ const getPurchaseOrders = async (req, res) => {
   }
 };
 
+const getPurchaseOrderMetals = async (req, res) => {
+  const { purchase_order_id } = req.body;
+
+  if (!purchase_order_id) {
+    return res.status(400).json({ error: "Missing purchase_order_id" });
+  }
+
+  try {
+    const query = `
+      SELECT 
+        id,
+        purchase_order_id,
+        type,
+        ask_spot,
+        bid_spot,
+        percent_change,
+        dollar_change,
+        scrap_percentage,
+        created_at,
+        updated_at
+      FROM exchange.order_metals
+      WHERE purchase_order_id = $1
+      ORDER BY type ASC;
+    `;
+
+    const values = [purchase_order_id];
+    const result = await pool.query(query, values);
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Error fetching purchase order metals:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 const createPurchaseOrder = async (req, res) => {
   const { purchase_order, user_id } = req.body;
   const client = await pool.connect();
@@ -157,10 +191,13 @@ const createPurchaseOrder = async (req, res) => {
 
     if (trackingNumber && labelFileBase64) {
       const labelBuffer = Buffer.from(labelFileBase64, "base64");
-      const shipping_status = purchase_order.pickup.name === 'Carrier Pickup' ? 'Waiting for Pickup' : 'Waiting for Dropoff'
+      const shipping_status =
+        purchase_order.pickup.name === "Carrier Pickup"
+          ? "Waiting for Pickup"
+          : "Waiting for Dropoff";
 
       await pool.query(
-      `
+        `
         INSERT INTO exchange.inbound_shipments (
           order_id,
           tracking_number,
@@ -185,7 +222,7 @@ const createPurchaseOrder = async (req, res) => {
           purchase_order.pickup?.name || "Unknown",
           purchase_order.package.label,
           purchase_order.service.serviceDescription,
-          purchase_order.service.netCharge
+          purchase_order.service.netCharge,
         ]
       );
     }
@@ -261,10 +298,29 @@ const createPurchaseOrder = async (req, res) => {
     console.error("Payout creation failed:", payoutError);
   }
 
+  try {
+    const metals = ["Gold", "Silver", "Platinum", "Palladium"];
+
+    for (const metal of metals) {
+      await pool.query(
+      `
+        INSERT INTO exchange.order_metals (
+          purchase_order_id, type
+        )
+        VALUES ($1, $2)
+      `,
+        [purchase_order_id, metal]
+      );
+    }
+  } catch (metalError) {
+    console.error("Inserting empty order metals failed:", metalError);
+  }
+
   return res.status(200).json({ success: true, purchase_order_id });
 };
 
 module.exports = {
   getPurchaseOrders,
+  getPurchaseOrderMetals,
   createPurchaseOrder,
 };

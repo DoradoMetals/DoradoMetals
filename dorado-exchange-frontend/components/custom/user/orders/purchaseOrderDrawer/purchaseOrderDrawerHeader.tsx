@@ -45,7 +45,7 @@ export default function PurchaseOrderDrawerHeader({
           order.purchase_order_status === 'Unsettled' ? (
             <Button
               variant="link"
-              className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
+              className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
               onClick={() => downloadPackingList.mutate({ purchaseOrder: order, spotPrices, packageDetails, payoutDetails })}
               disabled={downloadPackingList.isPending}
             >
@@ -54,7 +54,7 @@ export default function PurchaseOrderDrawerHeader({
           ) : (
             <Button
               variant="link"
-              className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
+              className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
             >
               Invoice
             </Button>

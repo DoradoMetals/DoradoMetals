@@ -42,7 +42,11 @@ import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { useDrawerStore } from '@/store/drawerStore'
 
-export default function PurchaseOrdersTable() {
+export default function PurchaseOrdersTable({
+  selectedStatus,
+}: {
+  selectedStatus: string | null
+}) {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
   const { user } = useGetSession()
 
@@ -52,6 +56,11 @@ export default function PurchaseOrdersTable() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [activeOrder, setActiveOrder] = useState<string | null>(null)
   const [activeUser, setActiveUser] = useState<string | null>(null)
+
+
+  const filteredPurchaseOrders = selectedStatus
+  ? purchaseOrders.filter((po) => po.purchase_order_status === selectedStatus)
+  : purchaseOrders
 
   const columns: ColumnDef<PurchaseOrder>[] = [
     {
@@ -268,7 +277,7 @@ export default function PurchaseOrdersTable() {
   ]
 
   const table = useReactTable({
-    data: purchaseOrders,
+    data: filteredPurchaseOrders,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),

@@ -15,12 +15,17 @@ import { assignScrapItemNames } from '@/types/scrap'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
 import { payoutOptions } from '@/types/payout'
+import getPurchaseOrderBullionTotal from '@/utils/purchaseOrderBullionTotal'
+import getPurchaseOrderScrapTotal from '@/utils/purchaseOrderScrapTotal'
+import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
+import { useAdminPurchaseOrderMetals } from '@/lib/queries/admin/useAdminPurchaseOrders'
 
 export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
   const valueLabel = statusConfig[order.purchase_order_status]?.value_label ?? ''
   const statusColor = statusConfig[order.purchase_order_status]?.text_color ?? ''
 
   const { data: spotPrices = [] } = useSpotPrices()
+  const { data: orderSpotPrices = [] } = useAdminPurchaseOrderMetals(order.id)
 
   const [open, setOpen] = useState({
     scrap: false,
@@ -36,61 +41,16 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
   const payoutFee = payoutMethod?.cost ?? 0
 
   const total = useMemo(() => {
-    const baseTotal = order.order_items.reduce((acc, item) => {
-      if (item.item_type === 'product') {
-        const price =
-          item.price ??
-          getProductBidPrice(
-            item.product,
-            spotPrices.find((s) => s.type === item?.product?.metal_type)
-          )
-        const quantity = item.quantity ?? 1
-        return acc + price * quantity
-      }
-
-      if (item.item_type === 'scrap') {
-        const price =
-          item.price ??
-          getScrapPrice(
-            item?.scrap?.content ?? 0,
-            spotPrices.find((s) => s.type === item?.scrap?.metal)
-          )
-        return acc + price
-      }
-
-      return acc
-    }, 0)
-
-    const shipping = order.shipment?.shipping_charge ?? 0
-    return baseTotal - shipping - payoutFee
-  }, [order.order_items, spotPrices, order.shipment?.shipping_charge, payoutFee])
+    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices,  payoutFee)
+  }, [order, spotPrices, orderSpotPrices, payoutFee])
 
   const scrapTotal = useMemo(() => {
-    return scrapItems.reduce((acc, item) => {
-      const price =
-        item.price ??
-        getScrapPrice(
-          item?.content ?? 0,
-          spotPrices.find((s) => s.type === item.metal)
-        )
-
-      return acc + price
-    }, 0)
-  }, [scrapItems, spotPrices])
+    return getPurchaseOrderScrapTotal(scrapItems, spotPrices, orderSpotPrices)
+  }, [scrapItems, spotPrices, orderSpotPrices])
 
   const bullionTotal = useMemo(() => {
-    return bullionItems.reduce((acc, item) => {
-      const price =
-        item.price ??
-        getProductBidPrice(
-          item.product,
-          spotPrices.find((s) => s.type === item?.product?.metal_type)
-        )
-
-      const quantity = item.quantity ?? 1
-      return acc + price * quantity
-    }, 0)
-  }, [bullionItems, spotPrices])
+    return getPurchaseOrderBullionTotal(bullionItems, spotPrices, orderSpotPrices)
+  }, [bullionItems, spotPrices, orderSpotPrices])
 
   return (
     <div className="flex flex-col w-full gap-2">
@@ -254,16 +214,16 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
       <div className="flex w-full justify-between items-center mt-3">
         <div className="text-sm text-neutral-700">Call Customer:</div>
 
-        {order?.address?.phone_number ?
-        <a
-          href={`tel:+${order.address.phone_number}`}
-          className={cn('text-sm hover:underline', statusColor)}
-        >
-          {formatPhoneNumber(order.address.phone_number ?? '')}
-        </a>
-         : 
-         <div className='text-sm'>No Phone Number </div>
-         }
+        {order?.address?.phone_number ? (
+          <a
+            href={`tel:+${order.address.phone_number}`}
+            className={cn('text-sm hover:underline', statusColor)}
+          >
+            {formatPhoneNumber(order.address.phone_number ?? '')}
+          </a>
+        ) : (
+          <div className="text-sm">No Phone Number </div>
+        )}
       </div>
     </div>
   )

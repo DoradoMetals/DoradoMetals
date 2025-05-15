@@ -32,10 +32,7 @@ const updateScrapPercentages = async (req, res) => {
       RETURNING *;
     `;
 
-    const values = [
-      scrap_percentage,
-      id,
-    ]
+    const values = [scrap_percentage, id];
 
     const result = await pool.query(query, values);
     res.status(200).json(result.rows[0]);
@@ -68,7 +65,12 @@ const updateSpotPrices = async () => {
         continue;
       }
 
-      metals[name] = { ask, bid, percentChange, dollarChange };
+      metals[name] = {
+        ask: Number(ask.toFixed(2)),
+        bid: Number(bid.toFixed(2)),
+        percentChange: Number(percentChange?.toFixed(2) ?? 0),
+        dollarChange: Number(dollarChange?.toFixed(2) ?? 0),
+      };
     }
 
     const gold = metals["Gold"];

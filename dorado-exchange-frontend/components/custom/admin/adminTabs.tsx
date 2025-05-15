@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ScrapCards from './scrapPoS/ScrapCards'
 import ProductCards from './productsPoS/productCards'
 import ProductsInventory from './productsPoS/productsInventory'
+import AdminPurchaseOrders from './purchaseOrdersPoS/AdminPurchaseOrders'
 
 export function AdminTabs() {
   return (
@@ -61,10 +62,7 @@ export function AdminTabs() {
                 <div className="separator-inset -mt-[15px] max-w-4xl" />
 
                 <TabsContent value="purchase-orders">
-                  <div className="space-y-4 justify-center">
-                    <PurchaseOrderCards />
-                    <PurchaseOrdersTable />
-                  </div>
+                  <AdminPurchaseOrders />
                 </TabsContent>
                 <TabsContent value="sales-orders">
                   <div>Under Construction</div>
