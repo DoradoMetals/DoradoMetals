@@ -10,6 +10,7 @@ const getAllPurchaseOrders = async (req, res) => {
           'purchase_order_id', poi.purchase_order_id,
           'price', poi.price,
           'quantity', poi.quantity,
+          'confirmed', poi.confirmed,
           'item_type', CASE 
             WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
             WHEN poi.product_id IS NOT NULL THEN 'product'
@@ -218,7 +219,6 @@ const updateOrderSpot = async (req, res) => {
 
 const lockOrderSpots = async (req, res) => {
   const { spots, purchase_order_id } = req.body;
-  console.log(purchase_order_id)
   try {
     const updates = await Promise.all(
       spots.map(async (spot) => {
@@ -262,6 +262,174 @@ const resetOrderSpots = async (req, res) => {
   }
 };
 
+const updateOrderScrapItem = async (req, res) => {
+  const { item } = req.body;
+
+  try {
+    const query = `
+      UPDATE exchange.scrap
+      SET content = $1, purity = $2
+      WHERE id = $3
+      RETURNING *;
+    `;
+
+    const values = [item.scrap.content, item.scrap.purity, item.scrap.id];
+    const result = await pool.query(query, values);
+    res.status(200).json({ result: result.rows });
+  } catch (error) {
+    console.error("Error updating scrap item:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+const deleteOrderScrapItem = async (req, res) => {
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'No purchase_order_item IDs provided' });
+  }
+
+  try {
+    const deletedItems = [];
+
+    for (const id of ids) {
+      // 1. Get scrap_id
+      const selectQuery = `
+        SELECT scrap_id FROM exchange.purchase_order_items
+        WHERE id = $1
+      `;
+      const selectResult = await pool.query(selectQuery, [id]);
+      const scrap_id = selectResult.rows[0]?.scrap_id;
+
+      // 2. Delete the purchase_order_item
+      const deletePOIQuery = `
+        DELETE FROM exchange.purchase_order_items
+        WHERE id = $1
+        RETURNING *;
+      `;
+      const poiResult = await pool.query(deletePOIQuery, [id]);
+
+      // 3. Delete the scrap row (only if one was found)
+      if (scrap_id) {
+        await pool.query(
+          `DELETE FROM exchange.scrap WHERE id = $1`,
+          [scrap_id]
+        );
+      }
+
+      if (poiResult.rows.length > 0) {
+        deletedItems.push(poiResult.rows[0]);
+      }
+    }
+
+    res.status(200).json({ result: deletedItems });
+  } catch (error) {
+    console.error('Error deleting scrap items:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+const saveOrderScrapItems = async (req, res) => {
+  const { ids, purchase_order_id } = req.body
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'No item IDs provided' })
+  }
+
+  try {
+    const updates = await Promise.all(
+      ids.map(async (id) => {
+        const query = `
+          UPDATE exchange.purchase_order_items
+          SET confirmed = true
+          WHERE id = $1 AND purchase_order_id = $2
+          RETURNING *;
+        `
+        const values = [id, purchase_order_id]
+        const result = await pool.query(query, values)
+        return result.rows[0]
+      })
+    )
+
+    res.status(200).json({ result: updates })
+  } catch (error) {
+    console.error('Error saving order items:', error)
+    res.status(500).json({ error: 'Internal Server Error' })
+  }
+}
+
+const resetOrderScrapItem = async (req, res) => {
+  const { id, purchase_order_id } = req.body;
+
+  if (!id || !purchase_order_id) {
+    return res.status(400).json({ error: 'Missing id or purchase_order_id' });
+  }
+
+  try {
+    const query = `
+      UPDATE exchange.purchase_order_items
+      SET confirmed = false
+      WHERE id = $1 AND purchase_order_id = $2
+      RETURNING *;
+    `;
+
+    const result = await pool.query(query, [id, purchase_order_id]);
+    res.status(200).json({ result: result.rows[0] });
+  } catch (error) {
+    console.error('Error resetting scrap item confirmation:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+const addNewOrderScrapItem = async (req, res) => {
+  const { item, purchase_order_id } = req.body;
+
+  try {
+    const metalQuery = `
+      SELECT id FROM exchange.metals
+      WHERE type = $1
+      LIMIT 1
+    `;
+    const metalResult = await pool.query(metalQuery, [item.metal]);
+    if (metalResult.rowCount === 0) {
+      return res.status(400).json({ error: "Invalid metal type" });
+    }
+    const metal_id = metalResult.rows[0].id;
+
+    const scrapQuery = `
+      INSERT INTO exchange.scrap (
+        metal_id, gross, purity, content, gross_unit
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id
+    `;
+    const scrapValues = [
+      metal_id,
+      item.gross ?? 1,
+      item.purity ?? 1,
+      item.content ?? (item.gross ?? 1) * (item.purity ?? 1),
+      item.gross_unit ?? "t oz",
+    ];
+    const scrapResult = await pool.query(scrapQuery, scrapValues);
+    const scrap_id = scrapResult.rows[0].id;
+
+    const poiQuery = `
+      INSERT INTO exchange.purchase_order_items (
+        purchase_order_id, scrap_id, quantity, confirmed
+      )
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `;
+    const poiValues = [purchase_order_id, scrap_id, 1, false];
+    const poiResult = await pool.query(poiQuery, poiValues);
+
+    res.status(200).json({ item: poiResult.rows[0] });
+  } catch (error) {
+    console.error("Error adding scrap item:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   getAllPurchaseOrders,
   getAdminPurchaseOrderMetals,
@@ -271,4 +439,9 @@ module.exports = {
   updateOrderSpot,
   lockOrderSpots,
   resetOrderSpots,
+  updateOrderScrapItem,
+  deleteOrderScrapItem,
+  saveOrderScrapItems,
+  resetOrderScrapItem,
+  addNewOrderScrapItem,
 };

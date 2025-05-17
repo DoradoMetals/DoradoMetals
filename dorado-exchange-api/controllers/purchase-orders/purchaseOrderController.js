@@ -18,6 +18,7 @@ const getPurchaseOrders = async (req, res) => {
           'purchase_order_id', poi.purchase_order_id,
           'price', poi.price,
           'quantity', poi.quantity,
+          'confirmed', poi.confirmed,
           'item_type', CASE 
             WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
             WHEN poi.product_id IS NOT NULL THEN 'product'

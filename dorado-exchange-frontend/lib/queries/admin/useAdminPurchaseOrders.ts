@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { useGetSession } from '../useAuth'
 import { ShipmentTracking } from '@/types/shipping'
-import { PurchaseOrder } from '@/types/purchase-order'
+import { PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
 import { SpotPrice } from '@/types/metal'
 
 export const useAdminPurchaseOrders = () => {
@@ -22,22 +22,6 @@ export const useAdminPurchaseOrders = () => {
       )
     },
     enabled: !!user,
-  })
-}
-
-export const useAdminPurchaseOrderMetals = (purchase_order_id: string) => {
-  const { user } = useGetSession()
-
-  return useQuery<SpotPrice[]>({
-    queryKey: ['admin_purchase_orders_metals', user?.id, purchase_order_id],
-    queryFn: async () => {
-      if (!user?.id) return []
-      return await apiRequest<SpotPrice[]>('POST', '/admin/get_admin_purchase_order_metals', {
-        user_id: user.id,
-        purchase_order_id: purchase_order_id,
-      })
-    },
-    enabled: !!user && !!purchase_order_id,
   })
 }
 
@@ -107,7 +91,7 @@ export const useUpdateOrderScrapPercentage = () => {
       })
     },
     onMutate: async ({ spot, scrap_percentage }) => {
-      const queryKey = ['admin_purchase_orders_metals', user?.id, spot.purchase_order_id]
+      const queryKey = ['purchase_orders_metals', spot.purchase_order_id]
       await queryClient.cancelQueries({ queryKey })
       const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(queryKey)
       queryClient.setQueryData<SpotPrice[]>(queryKey, (old = []) =>
@@ -146,21 +130,16 @@ export const useResetOrderScrapPercentage = () => {
       })
     },
     onMutate: async ({ spot }) => {
-      const queryKey = ['admin_purchase_orders_metals', user?.id, spot.purchase_order_id]
-      console.log('⏳ onMutate called for', spot)
+      const queryKey = ['purchase_orders_metals', spot.purchase_order_id]
 
       await queryClient.cancelQueries({ queryKey })
 
       const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(queryKey)
       const globalSpotPrices = queryClient.getQueryData<SpotPrice[]>(['spot_prices'])
 
-      console.log('🌎 Global spot prices:', globalSpotPrices)
-
       const globalScrapPercentage = globalSpotPrices?.find(
         (s) => s.type === spot.type
       )?.scrap_percentage
-
-      console.log(`🔁 Resetting ${spot.type} to`, globalScrapPercentage)
 
       queryClient.setQueryData<SpotPrice[]>(queryKey, (old = []) =>
         old.map((s) =>
@@ -202,7 +181,7 @@ export const useUpdateOrderSpotPrice = () => {
       })
     },
     onMutate: async ({ spot, updated_spot }) => {
-      const queryKey = ['admin_purchase_orders_metals', user?.id, spot.purchase_order_id]
+      const queryKey = ['purchase_orders_metals', spot.purchase_order_id]
       await queryClient.cancelQueries({ queryKey })
       const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(queryKey)
 
@@ -233,7 +212,13 @@ export const useLockOrderSpotPrices = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ spots, purchase_order_id }: { spots: SpotPrice[], purchase_order_id: string }) => {
+    mutationFn: async ({
+      spots,
+      purchase_order_id,
+    }: {
+      spots: SpotPrice[]
+      purchase_order_id: string
+    }) => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<SpotPrice[]>('POST', '/admin/lock_purchase_order_spots', {
         user_id: user.id,
@@ -242,7 +227,7 @@ export const useLockOrderSpotPrices = () => {
       })
     },
     onMutate: async ({ spots, purchase_order_id }) => {
-      const queryKey = ['admin_purchase_orders_metals', user?.id, purchase_order_id]
+      const queryKey = ['purchase_orders_metals', purchase_order_id]
 
       await queryClient.cancelQueries({ queryKey })
       const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(queryKey)
@@ -285,7 +270,7 @@ export const useResetOrderSpotPrices = () => {
       })
     },
     onMutate: async ({ purchase_order_id }) => {
-      const queryKey = ['admin_purchase_orders_metals', user?.id, purchase_order_id]
+      const queryKey = ['purchase_orders_metals', purchase_order_id]
       await queryClient.cancelQueries({ queryKey })
       const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(queryKey)
 
@@ -303,6 +288,296 @@ export const useResetOrderSpotPrices = () => {
         queryClient.setQueryData(context.queryKey, context.previousSpotPrices)
       }
     },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
+    },
+  })
+}
+
+export const useUpdateOrderScrapItem = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (item: PurchaseOrderItem) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      return await apiRequest('POST', '/admin/update_order_scrap_item', { item })
+    },
+    onMutate: async (item) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== item.purchase_order_id
+            ? order
+            : {
+                ...order,
+                order_items: order.order_items.map((oi) =>
+                  oi.id === item.id
+                    ? {
+                        ...oi,
+                        scrap: {
+                          ...oi.scrap!,
+                          content: item.scrap!.content,
+                          purity: item.scrap!.purity,
+                        },
+                      }
+                    : oi
+                ),
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useDeleteOrderScrapItems = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      ids,
+      purchase_order_id,
+    }: {
+      ids: string[]
+      purchase_order_id: string
+    }) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      return await apiRequest('POST', '/admin/delete_order_scrap_items', { ids })
+    },
+
+    onMutate: async ({ ids, purchase_order_id }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order_id
+            ? order
+            : {
+                ...order,
+                order_items: order.order_items.filter((oi) => !ids.includes(oi.id)),
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useSaveOrderScrapItems = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      ids,
+      purchase_order_id,
+    }: {
+      ids: string[]
+      purchase_order_id: string
+    }) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      return await apiRequest('POST', '/admin/save_order_scrap_items', {
+        ids,
+        purchase_order_id,
+      })
+    },
+    onMutate: async ({ ids, purchase_order_id }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order_id
+            ? order
+            : {
+                ...order,
+                order_items: order.order_items.map((oi) =>
+                  ids.includes(oi.id)
+                    ? {
+                        ...oi,
+                        confirmed: true,
+                      }
+                    : oi
+                ),
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useResetOrderScrapItem = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, purchase_order_id }: { id: string; purchase_order_id: string }) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      return await apiRequest('POST', '/admin/reset_order_scrap_item', {
+        id,
+        purchase_order_id,
+      })
+    },
+    onMutate: async ({ id, purchase_order_id }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order_id
+            ? order
+            : {
+                ...order,
+                order_items: order.order_items.map((oi) =>
+                  oi.id === id ? { ...oi, confirmed: false } : oi
+                ),
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
+    },
+  })
+}
+
+export const useAddNewOrderScrapItem = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      item,
+      purchase_order_id,
+    }: {
+      item: {
+        metal: string
+        gross?: number
+        purity?: number
+        content?: number
+        gross_unit?: string
+      }
+      purchase_order_id: string
+    }) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      return await apiRequest('POST', '/admin/add_new_order_scrap_item', {
+        item,
+        purchase_order_id,
+      })
+    },
+
+    onMutate: async ({ item, purchase_order_id }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      const optimisticId = `temp-${Date.now()}`
+      const optimisticScrapId = `temp-scrap-${Date.now()}`
+
+      const optimisticOrderItem: PurchaseOrderItem = {
+        id: optimisticId,
+        purchase_order_id,
+        item_type: 'scrap',
+        scrap: {
+          id: optimisticScrapId,
+          metal: item.metal,
+          gross: item.gross ?? 1,
+          purity: item.purity ?? 1,
+          content: item.content ?? (item.gross ?? 1) * (item.purity ?? 1),
+          gross_unit: item.gross_unit ?? 't oz',
+          name: `${item.metal} Item`,
+        },
+        quantity: 1,
+        confirmed: false,
+      }
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order_id
+            ? order
+            : {
+                ...order,
+                order_items: [optimisticOrderItem, ...order.order_items],
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
     onSettled: (_data, _err, _vars, context) => {
       if (context?.queryKey) {
         queryClient.invalidateQueries({

@@ -1,25 +1,29 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { PurchaseOrderDrawerFooterProps, statusConfig } from '@/types/purchase-order'
+import { assignScrapItemNames, PurchaseOrderDrawerFooterProps, statusConfig } from '@/types/purchase-order'
 import { cn } from '@/lib/utils'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
-import getScrapPrice from '@/utils/getScrapPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import getProductBidPrice from '@/utils/getProductBidPrice'
-import { assignScrapItemNames } from '@/types/scrap'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
 import { payoutOptions } from '@/types/payout'
+import getPurchaseOrderBullionPrice from '@/utils/getPurchaseOrderBullionPrice'
+import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrder'
+import getPurchaseOrderScrapPrice from '@/utils/getPurchaseOrderScrapPrice'
+import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
+import getPurchaseOrderScrapTotal from '@/utils/purchaseOrderScrapTotal'
+import getPurchaseOrderBullionTotal from '@/utils/purchaseOrderBullionTotal'
 
 export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
   const valueLabel = statusConfig[order.purchase_order_status]?.value_label ?? ''
   const statusColor = statusConfig[order.purchase_order_status]?.text_color ?? ''
 
   const { data: spotPrices = [] } = useSpotPrices()
+  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
 
   const [open, setOpen] = useState({
     scrap: false,
@@ -29,67 +33,22 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
     total: false,
   })
   const rawScrapItems = order.order_items.filter((item) => item.item_type === 'scrap' && item.scrap)
-  const scrapItems = assignScrapItemNames(rawScrapItems.map((item) => item.scrap!))
+  const scrapItems = assignScrapItemNames(rawScrapItems)
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
   const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
   const payoutFee = payoutMethod?.cost ?? 0
 
   const total = useMemo(() => {
-    const baseTotal = order.order_items.reduce((acc, item) => {
-      if (item.item_type === 'product') {
-        const price =
-          item.price ??
-          getProductBidPrice(
-            item.product,
-            spotPrices.find((s) => s.type === item?.product?.metal_type)
-          )
-        const quantity = item.quantity ?? 1
-        return acc + price * quantity
-      }
-
-      if (item.item_type === 'scrap') {
-        const price =
-          item.price ??
-          getScrapPrice(
-            item?.scrap?.content ?? 0,
-            spotPrices.find((s) => s.type === item?.scrap?.metal)
-          )
-        return acc + price
-      }
-
-      return acc
-    }, 0)
-
-    const shipping = order.shipment?.shipping_charge ?? 0
-    return baseTotal - shipping - payoutFee
-  }, [order.order_items, spotPrices, order.shipment?.shipping_charge, payoutFee])
+    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
+  }, [order, spotPrices, orderSpotPrices, payoutFee])
 
   const scrapTotal = useMemo(() => {
-    return scrapItems.reduce((acc, item) => {
-      const price =
-        item.price ??
-        getScrapPrice(
-          item?.content ?? 0,
-          spotPrices.find((s) => s.type === item.metal)
-        )
-
-      return acc + price
-    }, 0)
-  }, [scrapItems, spotPrices])
+    return getPurchaseOrderScrapTotal(scrapItems, spotPrices, orderSpotPrices)
+  }, [scrapItems, spotPrices, orderSpotPrices])
 
   const bullionTotal = useMemo(() => {
-    return bullionItems.reduce((acc, item) => {
-      const price =
-        item.price ??
-        getProductBidPrice(
-          item.product,
-          spotPrices.find((s) => s.type === item?.product?.metal_type)
-        )
-
-      const quantity = item.quantity ?? 1
-      return acc + price * quantity
-    }, 0)
-  }, [bullionItems, spotPrices])
+    return getPurchaseOrderBullionTotal(bullionItems, spotPrices, orderSpotPrices)
+  }, [bullionItems, spotPrices, orderSpotPrices])
 
   return (
     <div className="flex flex-col w-full gap-2">
@@ -104,19 +63,15 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
             <TableBody>
               {scrapItems.map((item, i) => (
                 <TableRow key={i} className="hover:bg-transparent">
-                  <TableCell>{item.name}</TableCell>
+                  <TableCell>{item.scrap?.name}</TableCell>
                   <TableCell>
-                    {item.gross} {item.gross_unit}
+                    {item.scrap?.gross} {item.scrap?.gross_unit}
                   </TableCell>
-                  <TableCell>{((item.purity ?? 0) * 100).toFixed(1)}%</TableCell>
+                  <TableCell>{((item.scrap?.purity ?? 0) * 100).toFixed(1)}%</TableCell>
                   <TableCell className="text-right p-0">
                     <PriceNumberFlow
                       value={
-                        item.price ??
-                        getScrapPrice(
-                          item.content ?? 0,
-                          spotPrices.find((s) => s.type === item?.metal)
-                        )
+                        item.price ?? getPurchaseOrderScrapPrice(item.scrap!, spotPrices, orderSpotPrices)
                       }
                     />
                   </TableCell>
@@ -145,10 +100,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
                       value={
                         item.quantity *
                         (item.price ??
-                          getProductBidPrice(
-                            item.product,
-                            spotPrices.find((s) => s.type === item?.product?.metal_type)
-                          ))
+                          getPurchaseOrderBullionPrice(item.product!, spotPrices, orderSpotPrices))
                       }
                     />
                   </TableCell>
@@ -276,7 +228,7 @@ function Accordion({
   total: number
 }) {
   return (
-    <div className="border border-border rounded-md">
+    <div className="rounded-md bg-card raised-off-page">
       <button
         type="button"
         onClick={toggle}

@@ -12,6 +12,9 @@ import getProductBidPrice from '@/utils/getProductBidPrice'
 import getScrapPrice from '@/utils/getScrapPrice'
 import { ChevronRight } from 'lucide-react'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
+import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrder'
+import { useMemo } from 'react'
+import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 
 export default function PurchaseOrderCard({
   order,
@@ -24,6 +27,7 @@ export default function PurchaseOrderCard({
   const downloadPackingList = useDownloadPackingList()
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const { data: spotPrices = [] } = useSpotPrices()
+  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
 
   const status = statusConfig[order.purchase_order_status]
   const Icon = status?.icon
@@ -31,22 +35,11 @@ export default function PurchaseOrderCard({
     packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
   const payoutDetails =
     payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
+  const payoutFee = payoutDetails?.cost ?? 0
 
-  const total =
-    order.order_items?.reduce((acc, item) => {
-      if (item.product && item.item_type === 'product') {
-        const spot = spotPrices.find((s) => s.type === item.product?.metal_type)
-        const price = getProductBidPrice(item.product, spot)
-        const quantity = item?.product?.quantity ?? item.quantity ?? 1
-        return acc + price * quantity
-      }
-      if (item.scrap && item.item_type === 'scrap') {
-        const spot = spotPrices.find((s) => s.type === item.scrap?.metal)
-        const price = getScrapPrice(item.scrap?.content ?? 0, spot)
-        return acc + price
-      }
-      return acc
-    }, 0) ?? 0
+  const total = useMemo(() => {
+    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
+  }, [order, spotPrices, orderSpotPrices, payoutFee])
 
   return (
     <div className="flex flex-col w-full bg-card raised-off-page h-auto rounded-lg p-4">
@@ -122,7 +115,7 @@ export default function PurchaseOrderCard({
               }}
             >
               View Order
-              <ChevronRight size={16} className='pb-[2px]' />
+              <ChevronRight size={16} className="pb-[2px]" />
             </Button>
           </div>
         </div>

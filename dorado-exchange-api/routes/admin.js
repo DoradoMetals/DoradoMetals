@@ -1,8 +1,32 @@
 const express = require("express");
-const { getAllProducts, getAllMetals, getAllSuppliers, getAllMints, getAllTypes, saveProduct, deleteProduct, createProduct, getInventory } = require("../controllers/admin/adminProductsController");
+const {
+  getAllProducts,
+  getAllMetals,
+  getAllSuppliers,
+  getAllMints,
+  getAllTypes,
+  saveProduct,
+  deleteProduct,
+  createProduct,
+  getInventory,
+} = require("../controllers/admin/adminProductsController");
 const { getAllScrap } = require("../controllers/admin/adminScrapController");
 const { getUser } = require("../controllers/admin/adminUserController");
-const { getAllPurchaseOrders, getAdminPurchaseOrderMetals, changePurchaseOrderStatus, updateOrderScrapPercentage, resetOrderScrapPercentage, updateOrderSpot, lockOrderSpots, resetOrderSpots } = require("../controllers/admin/adminPurchaseOrdersController");
+const {
+  getAllPurchaseOrders,
+  getAdminPurchaseOrderMetals,
+  changePurchaseOrderStatus,
+  updateOrderScrapPercentage,
+  resetOrderScrapPercentage,
+  updateOrderSpot,
+  lockOrderSpots,
+  resetOrderSpots,
+  updateOrderScrapItem,
+  deleteOrderScrapItem,
+  saveOrderScrapItems,
+  resetOrderScrapItem,
+  addNewOrderScrapItem,
+} = require("../controllers/admin/adminPurchaseOrdersController");
 
 const router = express.Router();
 
@@ -32,5 +56,10 @@ router.post("/reset_purchase_order_scrap_percentage", resetOrderScrapPercentage)
 router.post("/update_purchase_order_spot", updateOrderSpot);
 router.post("/lock_purchase_order_spots", lockOrderSpots);
 router.post("/reset_purchase_order_spots", resetOrderSpots);
+router.post("/update_order_scrap_item", updateOrderScrapItem);
+router.post("/delete_order_scrap_items", deleteOrderScrapItem);
+router.post("/save_order_scrap_items", saveOrderScrapItems);
+router.post("/reset_order_scrap_item", resetOrderScrapItem);
+router.post("/add_new_order_scrap_item", addNewOrderScrapItem);
 
 module.exports = router;

@@ -58,7 +58,7 @@ export default function Shell() {
   ]
 
   return (
-    <div className={cn("z-60 sticky top-0 bg-card", isAnyDrawerOpen ? 'shadow-none border-b border-border' : 'raised-off-page')}>
+    <div className={cn("z-60 sticky top-0 bg-card", isAnyDrawerOpen ? 'shadow-none sm:opacity-50' : 'raised-off-page')}>
       <Spots />
 
       <nav>
@@ -102,7 +102,7 @@ export default function Shell() {
           </div>
         </div>
 
-        <div className="flex lg:hidden p-4 pt-1 px-5">
+        <div className="flex lg:hidden py-4 pt-1 px-3">
           <div className="flex items-center gap-2">
             <Link href="/" className="px-0">
               <Logo />
@@ -110,7 +110,7 @@ export default function Shell() {
 
             <div className="flex items-end">
               <Link href="/">
-                <span className="text-lg text-neutral-900 tracking-wide">
+                <span className="text-base text-neutral-900">
                   Dorado Metals Exchange
                 </span>
               </Link>

@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   Hourglass,
   Handshake,
+  IconNode,
+  LucideIcon,
 } from 'lucide-react'
 import { Scrap } from './scrap'
 import { Product } from './product'
@@ -30,7 +32,8 @@ export interface PurchaseOrderItem {
   scrap?: Scrap
   product?: Product
   quantity: number
-  price: number
+  price?: number
+  confirmed: boolean
 }
 
 export interface PurchaseOrderMetal {
@@ -86,17 +89,18 @@ export const PurchaseOrderStatuses = [
   'Completed',
 ]
 
-export const statusConfig: Record<
-  string,
-  {
-    text_color: string
-    background_color: string
-    hover_background_color: string
-    border_color: string
-    icon: React.ElementType
-    value_label: string
-  }
-> = {
+export type StatusConfigEntry = {
+  text_color: string
+  background_color: string
+  hover_background_color: string
+  border_color: string
+  icon: LucideIcon
+  value_label: string
+}
+
+export type StatusConfig = Record<string, StatusConfigEntry>
+
+export const statusConfig: StatusConfig = {
   'In Transit': {
     background_color: 'bg-cyan-300',
     hover_background_color: 'hover:bg-cyan-300',
@@ -187,20 +191,39 @@ export interface PurchaseOrderActionButtonsProps {
   order: PurchaseOrder
 }
 
-function getValueLabel(status: string): string {
-  switch (status) {
-    case 'In Transit':
-    case 'Unsettled':
-      return 'Estimate'
-    case 'Filled':
-    case 'Rejected':
-      return 'Offer'
-    case 'Accepted':
-    case 'Settled':
-    case 'Complete':
-      return 'Payout'
-    case 'Cancelled':
-    default:
-      return 'N/A'
-  }
+export function assignScrapItemNames(scrapItems: PurchaseOrderItem[]): PurchaseOrderItem[] {
+  const metalOrder = ['Gold', 'Silver', 'Platinum', 'Palladium']
+
+  // Only consider items that contain a scrap object with a valid metal
+  const validScrapItems = scrapItems.filter((item) => item.scrap?.metal)
+
+  // Sort by metal order
+  validScrapItems.sort((a, b) => {
+    const indexA = metalOrder.indexOf(a.scrap!.metal!)
+    const indexB = metalOrder.indexOf(b.scrap!.metal!)
+    return indexA - indexB
+  })
+
+  // Group by metal
+  const grouped: Record<string, PurchaseOrderItem[]> = {}
+  validScrapItems.forEach((item) => {
+    const metal = item.scrap!.metal!
+    if (!grouped[metal]) grouped[metal] = []
+    grouped[metal].push(item)
+  })
+
+  // Assign names
+  return validScrapItems.map((item) => {
+    const metal = item.scrap!.metal!
+    const group = grouped[metal]
+    const index = group.indexOf(item)
+
+    return {
+      ...item,
+      scrap: {
+        ...item.scrap!,
+        name: `${metal} Item ${index + 1}`,
+      },
+    }
+  })
 }

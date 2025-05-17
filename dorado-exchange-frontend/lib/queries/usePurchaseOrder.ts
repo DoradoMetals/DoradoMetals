@@ -3,6 +3,7 @@ import { apiRequest } from '@/utils/axiosInstance'
 import { Address } from '@/types/address'
 import { useGetSession } from './useAuth'
 import { PurchaseOrder, PurchaseOrderCheckout } from '@/types/purchase-order'
+import { SpotPrice } from '@/types/metal'
 
 export const usePurchaseOrders = () => {
   const { user } = useGetSession()
@@ -34,5 +35,22 @@ export const useCreatePurchaseOrder = () => {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase_orders', user], refetchType: 'active' })
     },
+  })
+}
+
+export const usePurchaseOrderMetals = (purchase_order_id: string) => {
+  const { user } = useGetSession()
+
+  return useQuery<SpotPrice[]>({
+    queryKey: ['purchase_orders_metals', purchase_order_id],
+    queryFn: async () => {
+      if (!user?.id) return []
+      return await apiRequest<SpotPrice[]>('POST', '/purchase_orders/get_purchase_order_metals', {
+        user_id: user.id,
+        purchase_order_id: purchase_order_id,
+      })
+    },
+    enabled: !!user && !!purchase_order_id,
+    refetchInterval: 60000,
   })
 }
