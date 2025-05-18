@@ -70,7 +70,7 @@ export default function WeightStep() {
       {/* Your input field */}
       <FormField
         control={form.control}
-        name="gross"
+        name="pre_melt"
         render={({ field }) => (
           <FormItem className="w-full">
             <div className="relative w-full rounded-lg">

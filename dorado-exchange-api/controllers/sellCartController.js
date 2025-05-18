@@ -40,7 +40,7 @@ const getSellCart = async (req, res) => {
       data: {
         id: row.scrap_id,
         ...row,
-        gross: Number(row.gross),
+        pre_melt: Number(row.pre_melt),
         purity: Number(row.purity),
         content: Number(row.content),
         quantity: row.quantity,
@@ -152,7 +152,7 @@ const syncSellCart = async (req, res) => {
           await client.query(
             `
             INSERT INTO exchange.scrap (
-              id, metal_id, gem_id, gross, purity, content, gross_unit
+              id, metal_id, gem_id, pre_melt, purity, content, gross_unit
             )
             VALUES (
               $1,
@@ -164,7 +164,7 @@ const syncSellCart = async (req, res) => {
               scrapId,
               item.data.metal,
               item.data.gem_id,
-              item.data.gross,
+              item.data.pre_melt,
               item.data.purity,
               item.data.content,
               item.data.gross_unit,

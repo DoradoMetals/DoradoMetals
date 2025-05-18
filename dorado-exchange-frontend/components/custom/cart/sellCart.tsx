@@ -171,7 +171,7 @@ export default function SellCart() {
 
           <div className="flex items-end">
             <div className="flex flex-col mr-auto gap-1">
-              {getGrossLabel(item.gross, item.gross_unit)}
+              {getGrossLabel(item.pre_melt, item.gross_unit)}
               {getPurityLabel(item.purity, item.metal)}
             </div>
 

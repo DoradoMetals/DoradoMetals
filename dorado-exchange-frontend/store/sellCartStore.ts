@@ -45,7 +45,7 @@ function normalizeScrapNames(items: SellCartItem[]): SellCartItem[] {
 
 function scrapMatches(a: Scrap, b: Scrap): boolean {
   return (
-    a.gross === b.gross &&
+    a.pre_melt === b.pre_melt &&
     a.purity === b.purity &&
     a.gross_unit === b.gross_unit &&
     a.metal === b.metal

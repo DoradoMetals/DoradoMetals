@@ -10,7 +10,7 @@ export const scrapSchema = z.object({
   gem_id: z.string().uuid().optional(),
   name: z.string().optional(),
   description: z.string().optional(),
-  gross: z.coerce
+  pre_melt: z.coerce
     .number()
     .positive()
     .refine(

@@ -12,13 +12,13 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const form = useFormContext<Scrap>()
   const metal = form.watch('metal')
   const unit = form.watch('gross_unit') || 'g'
-  const gross = form.watch('gross') ?? 0
+  const pre_melt = form.watch('pre_melt') ?? 0
   const purity = form.watch('purity') ?? 0
 
   const { data: spotPrices = [] } = useSpotPrices()
 
   const spot = spotPrices.find((s) => s.type === metal)
-  const content = convertTroyOz(gross, unit) * purity
+  const content = convertTroyOz(pre_melt, unit) * purity
 
   const price = getScrapPrice(content, spot)
 
@@ -37,9 +37,9 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Scale className="text-neutral-600" size={20} />
-              <span className="text-base text-neutral-600">Gross:</span>
+              <span className="text-base text-neutral-600">Pre Melt:</span>
             </div>
-            {getGrossLabel(gross, unit)}
+            {getGrossLabel(pre_melt, unit)}
           </div>
 
           <div className="flex items-start justify-between">

@@ -224,7 +224,7 @@ const scrapColumns: ColumnDef<Extract<SellCartItem, { type: 'scrap' }>>[] = [
     header: 'Weight',
     cell: ({ row }) => (
       <div>
-        {row.original.data.gross} {row.original.data.gross_unit}
+        {row.original.data.pre_melt} {row.original.data.gross_unit}
       </div>
     ),
   },

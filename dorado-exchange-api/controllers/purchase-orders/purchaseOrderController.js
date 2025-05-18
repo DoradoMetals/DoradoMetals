@@ -26,7 +26,7 @@ const getPurchaseOrders = async (req, res) => {
           END,
           'scrap', jsonb_build_object(
             'id', s.id,
-            'gross', s.gross,
+            'pre_melt', s.pre_melt,
             'purity', s.purity,
             'content', s.content,
             'gross_unit', s.gross_unit,

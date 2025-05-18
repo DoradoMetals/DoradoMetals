@@ -263,7 +263,7 @@ function ScrapTable({
     addNewItem.mutate({
       item: {
         metal,
-        gross: 1,
+        pre_melt: 1,
         purity: 1,
         content: 1,
         gross_unit: 't oz',

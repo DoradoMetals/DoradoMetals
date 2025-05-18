@@ -354,7 +354,7 @@ const total =
         return `
         <tr>
           <td>${scrap.name || "Scrap Item"}</td>
-          <td>${scrap.gross || "-"} ${scrap.gross_unit || ""}</td>
+          <td>${scrap.pre_melt || "-"} ${scrap.gross_unit || ""}</td>
           <td>${
             scrap.purity != null ? (scrap.purity * 100).toFixed(1) + "%" : "-"
           }</td>
@@ -845,7 +845,7 @@ const total =
                 <thead>
                   <tr>
                     <th>Scrap Line Items</th>
-                    <th>Gross</th>
+                    <th>Pre-Melt</th>
                     <th>Purity</th>
                     <th>Content</th>
                     <th>Scrap Estimate</th>

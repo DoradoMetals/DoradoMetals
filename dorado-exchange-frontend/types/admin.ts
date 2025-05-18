@@ -71,7 +71,7 @@ export interface AdminScrap {
   user_id: string,
   username: string,
   scrap_id: string,
-  gross: number,
+  pre_melt: number,
   purity: number,
   content: number,
   gross_unit: string,

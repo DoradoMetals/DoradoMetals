@@ -518,7 +518,7 @@ export const useAddNewOrderScrapItem = () => {
     }: {
       item: {
         metal: string
-        gross?: number
+        pre_melt?: number
         purity?: number
         content?: number
         gross_unit?: string
@@ -548,9 +548,9 @@ export const useAddNewOrderScrapItem = () => {
         scrap: {
           id: optimisticScrapId,
           metal: item.metal,
-          gross: item.gross ?? 1,
+          pre_melt: item.pre_melt ?? 1,
           purity: item.purity ?? 1,
-          content: item.content ?? (item.gross ?? 1) * (item.purity ?? 1),
+          content: item.content ?? (item.pre_melt ?? 1) * (item.purity ?? 1),
           gross_unit: item.gross_unit ?? 't oz',
           name: `${item.metal} Item`,
         },

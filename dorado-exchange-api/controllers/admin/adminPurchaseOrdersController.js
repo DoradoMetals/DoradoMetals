@@ -18,7 +18,7 @@ const getAllPurchaseOrders = async (req, res) => {
           END,
           'scrap', jsonb_build_object(
             'id', s.id,
-            'gross', s.gross,
+            'pre_melt', s.pre_melt,
             'purity', s.purity,
             'content', s.content,
             'gross_unit', s.gross_unit,
@@ -398,16 +398,16 @@ const addNewOrderScrapItem = async (req, res) => {
 
     const scrapQuery = `
       INSERT INTO exchange.scrap (
-        metal_id, gross, purity, content, gross_unit
+        metal_id, pre_melt, purity, content, gross_unit
       )
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id
     `;
     const scrapValues = [
       metal_id,
-      item.gross ?? 1,
+      item.pre_melt ?? 1,
       item.purity ?? 1,
-      item.content ?? (item.gross ?? 1) * (item.purity ?? 1),
+      item.content ?? (item.pre_melt ?? 1) * (item.purity ?? 1),
       item.gross_unit ?? "t oz",
     ];
     const scrapResult = await pool.query(scrapQuery, scrapValues);

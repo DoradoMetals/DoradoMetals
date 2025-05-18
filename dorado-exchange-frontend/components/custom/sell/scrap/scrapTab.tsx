@@ -30,7 +30,7 @@ export default function ScrapForm() {
       id: crypto.randomUUID(),
       name: '',
       metal: 'Gold',
-      gross: 0,
+      pre_melt: 0,
       gross_unit: 'g',
       purity: purityOptions['Gold'][0].value,
     },
@@ -60,7 +60,7 @@ export default function ScrapForm() {
   const handleSubmit = (values: Scrap) => {
     const spot = spotPrices.find((s) => s.id === values.metal)
     const content =
-      convertTroyOz(values.gross ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
+      convertTroyOz(values.pre_melt ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
     const price = getScrapPrice(content, spot)
 
     const item = {
@@ -85,7 +85,7 @@ export default function ScrapForm() {
       id: crypto.randomUUID(),
       name: '',
       metal: 'Gold',
-      gross: 0,
+      pre_melt: 0,
       gross_unit: 'g',
       purity: purityOptions['Gold'][0].value,
     })

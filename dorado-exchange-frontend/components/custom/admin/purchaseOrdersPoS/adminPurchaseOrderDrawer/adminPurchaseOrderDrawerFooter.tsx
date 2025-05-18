@@ -68,7 +68,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                 <TableRow key={i} className="hover:bg-transparent">
                   <TableCell>{item.scrap?.name}</TableCell>
                   <TableCell>
-                    {item.scrap?.gross} {item.scrap?.gross_unit}
+                    {item.scrap?.pre_melt} {item.scrap?.gross_unit}
                   </TableCell>
                   <TableCell>{((item.scrap?.purity ?? 0) * 100).toFixed(1)}%</TableCell>
                   <TableCell className="text-right p-0">
