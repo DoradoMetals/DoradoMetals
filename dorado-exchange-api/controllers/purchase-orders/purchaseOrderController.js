@@ -27,6 +27,7 @@ const getPurchaseOrders = async (req, res) => {
           'scrap', jsonb_build_object(
             'id', s.id,
             'pre_melt', s.pre_melt,
+            'post_melt', s.post_melt,
             'purity', s.purity,
             'content', s.content,
             'gross_unit', s.gross_unit,
@@ -304,7 +305,7 @@ const createPurchaseOrder = async (req, res) => {
 
     for (const metal of metals) {
       await pool.query(
-      `
+        `
         INSERT INTO exchange.order_metals (
           purchase_order_id, type
         )

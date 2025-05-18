@@ -326,7 +326,8 @@ export const useUpdateOrderScrapItem = () => {
                         ...oi,
                         scrap: {
                           ...oi.scrap!,
-                          content: item.scrap!.content,
+                          pre_melt: item.scrap!.pre_melt,
+                          post_melt: item.scrap!.post_melt,
                           purity: item.scrap!.purity,
                         },
                       }

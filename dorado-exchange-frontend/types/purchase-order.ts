@@ -9,20 +9,16 @@ import { CarrierPickup, Shipment } from './shipments'
 import {
   Truck,
   PackageOpen,
-  FlaskConical,
-  CheckCheck,
   X,
   CreditCard,
   Ban,
   ShieldCheck,
   Hourglass,
   Handshake,
-  IconNode,
   LucideIcon,
 } from 'lucide-react'
 import { Scrap } from './scrap'
 import { Product } from './product'
-import React, { Dispatch } from 'react'
 import { User } from './user'
 
 export interface PurchaseOrderItem {

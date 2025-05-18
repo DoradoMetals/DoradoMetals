@@ -1,5 +1,21 @@
 const pool = require("../../db");
 
+function convertTroyOz(num, unit) {
+  if (isNaN(num)) return 0;
+  switch (unit.toLowerCase()) {
+    case "t oz":
+      return num;
+    case "g":
+      return num / 31.1035;
+    case "dwt":
+      return num / 20;
+    case "lb":
+      return num * (453.592 / 31.1035);
+    default:
+      return 0;
+  }
+}
+
 const getAllPurchaseOrders = async (req, res) => {
   try {
     const query = `
@@ -19,6 +35,7 @@ const getAllPurchaseOrders = async (req, res) => {
           'scrap', jsonb_build_object(
             'id', s.id,
             'pre_melt', s.pre_melt,
+            'post_melt', s.post_melt,
             'purity', s.purity,
             'content', s.content,
             'gross_unit', s.gross_unit,
@@ -265,15 +282,32 @@ const resetOrderSpots = async (req, res) => {
 const updateOrderScrapItem = async (req, res) => {
   const { item } = req.body;
 
+  let content = item.scrap.content;
+  if (item.scrap.post_melt) {
+    content =
+      convertTroyOz(item.scrap.post_melt, item.scrap.gross_unit) *
+      item.scrap.purity;
+  } else {
+    content =
+      convertTroyOz(item.scrap.pre_melt, item.scrap.gross_unit) *
+      item.scrap.purity;
+  }
+
   try {
     const query = `
       UPDATE exchange.scrap
-      SET content = $1, purity = $2
-      WHERE id = $3
+      SET content = $1, purity = $2, pre_melt = $3, post_melt = $4
+      WHERE id = $5
       RETURNING *;
     `;
 
-    const values = [item.scrap.content, item.scrap.purity, item.scrap.id];
+    const values = [
+      content,
+      item.scrap.purity,
+      item.scrap.pre_melt,
+      item.scrap.post_melt,
+      item.scrap.id,
+    ];
     const result = await pool.query(query, values);
     res.status(200).json({ result: result.rows });
   } catch (error) {
@@ -286,7 +320,9 @@ const deleteOrderScrapItem = async (req, res) => {
   const { ids } = req.body;
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ error: 'No purchase_order_item IDs provided' });
+    return res
+      .status(400)
+      .json({ error: "No purchase_order_item IDs provided" });
   }
 
   try {
@@ -311,10 +347,9 @@ const deleteOrderScrapItem = async (req, res) => {
 
       // 3. Delete the scrap row (only if one was found)
       if (scrap_id) {
-        await pool.query(
-          `DELETE FROM exchange.scrap WHERE id = $1`,
-          [scrap_id]
-        );
+        await pool.query(`DELETE FROM exchange.scrap WHERE id = $1`, [
+          scrap_id,
+        ]);
       }
 
       if (poiResult.rows.length > 0) {
@@ -324,16 +359,16 @@ const deleteOrderScrapItem = async (req, res) => {
 
     res.status(200).json({ result: deletedItems });
   } catch (error) {
-    console.error('Error deleting scrap items:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    console.error("Error deleting scrap items:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
 const saveOrderScrapItems = async (req, res) => {
-  const { ids, purchase_order_id } = req.body
+  const { ids, purchase_order_id } = req.body;
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ error: 'No item IDs provided' })
+    return res.status(400).json({ error: "No item IDs provided" });
   }
 
   try {
@@ -344,25 +379,25 @@ const saveOrderScrapItems = async (req, res) => {
           SET confirmed = true
           WHERE id = $1 AND purchase_order_id = $2
           RETURNING *;
-        `
-        const values = [id, purchase_order_id]
-        const result = await pool.query(query, values)
-        return result.rows[0]
+        `;
+        const values = [id, purchase_order_id];
+        const result = await pool.query(query, values);
+        return result.rows[0];
       })
-    )
+    );
 
-    res.status(200).json({ result: updates })
+    res.status(200).json({ result: updates });
   } catch (error) {
-    console.error('Error saving order items:', error)
-    res.status(500).json({ error: 'Internal Server Error' })
+    console.error("Error saving order items:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
-}
+};
 
 const resetOrderScrapItem = async (req, res) => {
   const { id, purchase_order_id } = req.body;
 
   if (!id || !purchase_order_id) {
-    return res.status(400).json({ error: 'Missing id or purchase_order_id' });
+    return res.status(400).json({ error: "Missing id or purchase_order_id" });
   }
 
   try {
@@ -376,8 +411,8 @@ const resetOrderScrapItem = async (req, res) => {
     const result = await pool.query(query, [id, purchase_order_id]);
     res.status(200).json({ result: result.rows[0] });
   } catch (error) {
-    console.error('Error resetting scrap item confirmation:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    console.error("Error resetting scrap item confirmation:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 

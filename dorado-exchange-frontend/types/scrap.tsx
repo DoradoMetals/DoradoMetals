@@ -17,6 +17,14 @@ export const scrapSchema = z.object({
       (val) => val === undefined || val === 0 || /^(?!-)(\d+\.?\d*|\.\d+)?$/.test(val.toString()),
       { message: 'Must be a valid weight' }
     ),
+  post_melt: z.coerce
+    .number()
+    .positive()
+    .refine(
+      (val) => val === undefined || val === 0 || /^(?!-)(\d+\.?\d*|\.\d+)?$/.test(val.toString()),
+      { message: 'Must be a valid weight' }
+    )
+    .optional(),
   gross_unit: z.string(),
   purity: z.number(),
   content: z.number().optional(),

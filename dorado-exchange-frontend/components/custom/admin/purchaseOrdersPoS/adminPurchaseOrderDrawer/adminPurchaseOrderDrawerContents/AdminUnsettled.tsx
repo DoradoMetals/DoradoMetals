@@ -163,11 +163,8 @@ export default function AdminUnsettledPurchaseOrder({ order }: PurchaseOrderDraw
 
           {scrapItems && (
             <div className="flex flex-col w-full gap-3">
-              <div className="flex w-full justify-between items-center mb-2">
+              <div className="flex w-full justify-start items-center mb-2">
                 <div className="text-xs tracking-widest text-neutral-600">Scrap</div>
-                <div className="text-base text-neutral-800">
-                  <PriceNumberFlow value={scrapTotal} />
-                </div>
               </div>
 
               <div className="flex flex-col">
@@ -279,9 +276,9 @@ function ScrapTable({
           <TableRow className="hover:bg-transparent">
             <TableHead></TableHead>
             <TableHead className="text-center">Line Item</TableHead>
-            <TableHead className="text-center">Content</TableHead>
+            <TableHead className="text-center">Pre Melt</TableHead>
+            <TableHead className="text-center">Post Melt</TableHead>
             <TableHead className="text-center">Assay</TableHead>
-            <TableHead className="text-center">Price</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -323,32 +320,73 @@ function ScrapTable({
               <TableCell className="text-center">{item.scrap?.name}</TableCell>
               <TableCell className="text-center">
                 {editMode && selectedIds.includes(item.id) ? (
-                  <div className="flex justify-center">
+                  <div className="relative flex justify-center">
                     <Input
                       type="number"
                       pattern="[0-9]*"
                       inputMode="decimal"
-                      className={cn(
-                        'input-floating-label-form no-spinner text-center text-base h-6 w-20'
-                      )}
-                      defaultValue={item.scrap?.content}
+                      className={cn('input-floating-label-form no-spinner text-left text-base h-6')}
+                      defaultValue={item.scrap?.pre_melt}
                       onBlur={(e) => {
-                        const content = parseFloat(e.target.value)
-                        if (!isNaN(content)) {
+                        const pre_melt = parseFloat(e.target.value)
+                        if (!isNaN(pre_melt)) {
                           const updatedItem = {
                             ...item,
                             scrap: {
                               ...item.scrap!,
-                              content,
+                              pre_melt,
                             },
                           }
                           handleUpdateItem(updatedItem)
                         }
                       }}
                     />
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 hover:bg-transparent">
+                      {item.scrap?.gross_unit}
+                    </div>
                   </div>
                 ) : (
-                  <>{item.scrap?.content}</>
+                  <div className="flex items-center gap-1 justify-center">
+                    <div>{item.scrap?.pre_melt}</div>
+                    <div>{item.scrap?.gross_unit}</div>
+                  </div>
+                )}
+              </TableCell>
+              <TableCell className="text-center">
+                {editMode && selectedIds.includes(item.id) ? (
+                  <div className="relative flex justify-center">
+                    <Input
+                      type="number"
+                      pattern="[0-9]*"
+                      inputMode="decimal"
+                      className={cn('input-floating-label-form no-spinner text-left text-base h-6')}
+                      defaultValue={item.scrap?.post_melt}
+                      onBlur={(e) => {
+                        const post_melt = parseFloat(e.target.value)
+                        if (!isNaN(post_melt)) {
+                          const updatedItem = {
+                            ...item,
+                            scrap: {
+                              ...item.scrap!,
+                              post_melt,
+                            },
+                          }
+                          handleUpdateItem(updatedItem)
+                        }
+                      }}
+                    />
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 hover:bg-transparent">
+                      {item.scrap?.gross_unit}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 justify-center">
+                    <div>{item.scrap?.post_melt}</div>
+                    <div>{item.scrap?.post_melt && (
+                      item.scrap?.gross_unit
+                    )
+                    }</div>
+                  </div>
                 )}
               </TableCell>
               <TableCell className="text-center">
@@ -359,7 +397,7 @@ function ScrapTable({
                       pattern="[0-9]*"
                       inputMode="decimal"
                       className={cn(
-                        'input-floating-label-form no-spinner text-center text-base h-6 w-20'
+                        'input-floating-label-form no-spinner text-center text-base h-6'
                       )}
                       defaultValue={item.scrap?.purity}
                       onBlur={(e) => {
@@ -380,14 +418,6 @@ function ScrapTable({
                 ) : (
                   <>{((item.scrap?.purity ?? 0) * 100).toFixed(1)}%</>
                 )}
-              </TableCell>
-              <TableCell className="text-center p-0">
-                <PriceNumberFlow
-                  value={
-                    item.price ??
-                    getPurchaseOrderScrapPrice(item.scrap!, spotPrices, orderSpotPrices)
-                  }
-                />
               </TableCell>
             </TableRow>
           ))}
@@ -477,7 +507,7 @@ function ScrapTable({
                     className={cn(
                       'group h-9 px-3 flex items-center gap-2 transition-colors duration-150 cursor-pointer',
                       config.text_color,
-                      config.hover_background_color,
+                      config.hover_background_color
                     )}
                   >
                     <span

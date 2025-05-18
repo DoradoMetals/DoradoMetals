@@ -1,12 +1,23 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { assignScrapItemNames, PurchaseOrderDrawerFooterProps, statusConfig } from '@/types/purchase-order'
+import {
+  assignScrapItemNames,
+  PurchaseOrderDrawerFooterProps,
+  statusConfig,
+} from '@/types/purchase-order'
 import { cn } from '@/lib/utils'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import getScrapPrice from '@/utils/getScrapPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
@@ -63,18 +74,33 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
           total={scrapTotal}
         >
           <Table className="font-normal text-neutral-700 overflow-hidden">
+            <TableHeader className="text-xs text-neutral-700 hover:bg-transparent">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="text-left">Line Item</TableHead>
+                <TableHead className="text-center">Content</TableHead>
+                <TableHead className="text-center">Payable</TableHead>
+                <TableHead className="text-right">Estimate</TableHead>
+              </TableRow>
+            </TableHeader>
             <TableBody>
               {scrapItems.map((item, i) => (
                 <TableRow key={i} className="hover:bg-transparent">
-                  <TableCell>{item.scrap?.name}</TableCell>
-                  <TableCell>
-                    {item.scrap?.pre_melt} {item.scrap?.gross_unit}
+                  <TableCell className='text-left'>{item.scrap?.name}</TableCell>
+                  <TableCell className='text-center'>{item.scrap?.content?.toFixed(2)} toz</TableCell>
+                  <TableCell className='text-center'>
+                    {(
+                      (item.scrap?.content ?? 0) *
+                      (orderSpotPrices?.find((s) => s.type === item.scrap?.metal)
+                        ?.scrap_percentage ??
+                        spotPrices.find((s) => s.type === item.scrap?.metal)?.scrap_percentage ??
+                        1)
+                    ).toFixed(2)} toz
                   </TableCell>
-                  <TableCell>{((item.scrap?.purity ?? 0) * 100).toFixed(1)}%</TableCell>
-                  <TableCell className="text-right p-0">
+                  <TableCell className="text-right">
                     <PriceNumberFlow
                       value={
-                        item.price ?? getPurchaseOrderScrapPrice(item.scrap!, spotPrices, orderSpotPrices)
+                        item.price ??
+                        getPurchaseOrderScrapPrice(item.scrap!, spotPrices, orderSpotPrices)
                       }
                     />
                   </TableCell>
