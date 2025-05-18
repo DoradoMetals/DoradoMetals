@@ -13,6 +13,16 @@ export interface ProductGroup {
   variants: Product[]
 }
 
+export const useProducts = () => {
+  return useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: async () => {
+      return await apiRequest<Product[]>('GET', '/products/get_all_products', undefined, {})
+    },
+    staleTime: 0,
+  })
+}
+
 export const useAllProducts = () => {
   return useQuery<ProductGroup[]>({
     queryKey: ['all_products'],
@@ -51,7 +61,6 @@ export const useAllProducts = () => {
   })
 }
 
-
 export const useHomepageProducts = () => {
   return useQuery<ProductGroup[]>({
     queryKey: ['homepage_products'],
@@ -59,7 +68,7 @@ export const useHomepageProducts = () => {
       const products = await apiRequest<Product[]>(
         'GET',
         '/products/get_homepage_products',
-        undefined,
+        undefined
       )
       const groups: Record<string, Product[]> = {}
       const singles: ProductGroup[] = []

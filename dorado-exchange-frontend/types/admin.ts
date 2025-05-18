@@ -34,6 +34,7 @@ export interface AdminMetal {
   percent_change: string,
   dollar_change: string,
   scrap_percentage: number,
+  bullion_percentage: number,
 }
 
 export interface AdminSuppliers {

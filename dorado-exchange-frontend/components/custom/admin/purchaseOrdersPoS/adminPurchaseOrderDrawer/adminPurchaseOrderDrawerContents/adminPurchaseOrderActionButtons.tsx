@@ -59,7 +59,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
             onClick={() => handleAction(button.action, button.status)}
             variant={button.label === 'Adjust Price' ? 'outline' : 'default'}
             className={cn(
-              'w-full transition-colors raised-off-page',
+              'w-full transition-colors raised-off-page text-white',
               isTransparentStyle
                 ? cn(
                     'bg-transparent border',

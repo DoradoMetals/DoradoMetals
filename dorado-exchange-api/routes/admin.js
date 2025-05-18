@@ -23,9 +23,12 @@ const {
   resetOrderSpots,
   updateOrderScrapItem,
   deleteOrderScrapItem,
-  saveOrderScrapItems,
-  resetOrderScrapItem,
+  saveOrderItems,
+  resetOrderItem,
   addNewOrderScrapItem,
+  updateOrderBullionItem,
+  deleteOrderBullionItem,
+  addNewOrderBullionItem,
 } = require("../controllers/admin/adminPurchaseOrdersController");
 
 const router = express.Router();
@@ -56,10 +59,13 @@ router.post("/reset_purchase_order_scrap_percentage", resetOrderScrapPercentage)
 router.post("/update_purchase_order_spot", updateOrderSpot);
 router.post("/lock_purchase_order_spots", lockOrderSpots);
 router.post("/reset_purchase_order_spots", resetOrderSpots);
+router.post("/save_order_items", saveOrderItems);
+router.post("/reset_order_item", resetOrderItem);
 router.post("/update_order_scrap_item", updateOrderScrapItem);
 router.post("/delete_order_scrap_items", deleteOrderScrapItem);
-router.post("/save_order_scrap_items", saveOrderScrapItems);
-router.post("/reset_order_scrap_item", resetOrderScrapItem);
 router.post("/add_new_order_scrap_item", addNewOrderScrapItem);
+router.post("/update_order_bullion_item", updateOrderBullionItem);
+router.post("/delete_order_bullion_items", deleteOrderBullionItem);
+router.post("/add_new_order_bullion_item", addNewOrderBullionItem);
 
 module.exports = router;

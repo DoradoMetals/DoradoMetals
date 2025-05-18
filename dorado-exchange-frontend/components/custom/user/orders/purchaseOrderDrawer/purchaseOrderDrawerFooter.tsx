@@ -129,7 +129,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
                       value={
                         item.quantity *
                         (item.price ??
-                          getPurchaseOrderBullionPrice(item.product!, spotPrices, orderSpotPrices))
+                          getPurchaseOrderBullionPrice(item.product!, spotPrices, orderSpotPrices, item.bullion_premium ?? null))
                       }
                     />
                   </TableCell>

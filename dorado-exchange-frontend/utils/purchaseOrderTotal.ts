@@ -16,7 +16,9 @@ export default function getPurchaseOrderTotal(
       const bid_spot = orderSpot?.bid_spot ?? globalSpot?.bid_spot ?? 0
 
       const price =
-        item.price ?? (item?.product?.content ?? 0) * (bid_spot * (item?.product?.bid_premium ?? 0))
+        item.price ??
+        (item?.product?.content ?? 0) *
+          (bid_spot * (item.bullion_premium ?? item?.product?.bid_premium ?? 0))
 
       const quantity = item.quantity ?? 1
       return acc + price * quantity

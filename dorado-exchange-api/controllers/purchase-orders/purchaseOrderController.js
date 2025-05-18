@@ -19,6 +19,7 @@ const getPurchaseOrders = async (req, res) => {
           'price', poi.price,
           'quantity', poi.quantity,
           'confirmed', poi.confirmed,
+          'bullion_premium', poi.bullion_premium,
           'item_type', CASE 
             WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
             WHEN poi.product_id IS NOT NULL THEN 'product'
@@ -144,19 +145,21 @@ const createPurchaseOrder = async (req, res) => {
 
     // Step 2: Insert items
     const insertItemQuery = `
-      INSERT INTO exchange.purchase_order_items (purchase_order_id, scrap_id, product_id, quantity)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO exchange.purchase_order_items (purchase_order_id, scrap_id, product_id, quantity, bid_premium)
+      VALUES ($1, $2, $3, $4, $5)
     `;
     for (const item of purchase_order.items) {
       const { type, data } = item;
       const scrap_id = type === "scrap" ? data.id : null;
       const product_id = type === "product" ? data.id : null;
+      const bid_premium = type === "product" ? data.bid_premium : null;
 
       await client.query(insertItemQuery, [
         purchase_order_id,
         scrap_id,
         product_id,
         data.quantity,
+        bid_premium,
       ]);
     }
 

@@ -4,6 +4,7 @@ import { useGetSession } from '../useAuth'
 import { ShipmentTracking } from '@/types/shipping'
 import { PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
 import { SpotPrice } from '@/types/metal'
+import { Product } from '@/types/product'
 
 export const useAdminPurchaseOrders = () => {
   const { user } = useGetSession()
@@ -299,6 +300,114 @@ export const useResetOrderSpotPrices = () => {
   })
 }
 
+
+export const useSaveOrderItems = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      ids,
+      purchase_order_id,
+    }: {
+      ids: string[]
+      purchase_order_id: string
+    }) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      return await apiRequest('POST', '/admin/save_order_items', {
+        ids,
+        purchase_order_id,
+      })
+    },
+    onMutate: async ({ ids, purchase_order_id }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order_id
+            ? order
+            : {
+                ...order,
+                order_items: order.order_items.map((oi) =>
+                  ids.includes(oi.id)
+                    ? {
+                        ...oi,
+                        confirmed: true,
+                      }
+                    : oi
+                ),
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useResetOrderItem = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, purchase_order_id }: { id: string; purchase_order_id: string }) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      return await apiRequest('POST', '/admin/reset_order_item', {
+        id,
+        purchase_order_id,
+      })
+    },
+    onMutate: async ({ id, purchase_order_id }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order_id
+            ? order
+            : {
+                ...order,
+                order_items: order.order_items.map((oi) =>
+                  oi.id === id ? { ...oi, confirmed: false } : oi
+                ),
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
+    },
+  })
+}
+
+
 export const useUpdateOrderScrapItem = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
@@ -402,112 +511,6 @@ export const useDeleteOrderScrapItems = () => {
   })
 }
 
-export const useSaveOrderScrapItems = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({
-      ids,
-      purchase_order_id,
-    }: {
-      ids: string[]
-      purchase_order_id: string
-    }) => {
-      if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/save_order_scrap_items', {
-        ids,
-        purchase_order_id,
-      })
-    },
-    onMutate: async ({ ids, purchase_order_id }) => {
-      const queryKey = ['admin_purchase_orders', user]
-      await queryClient.cancelQueries({ queryKey })
-
-      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
-
-      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
-        old.map((order) =>
-          order.id !== purchase_order_id
-            ? order
-            : {
-                ...order,
-                order_items: order.order_items.map((oi) =>
-                  ids.includes(oi.id)
-                    ? {
-                        ...oi,
-                        confirmed: true,
-                      }
-                    : oi
-                ),
-              }
-        )
-      )
-
-      return { previousOrders, queryKey }
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previousOrders && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousOrders)
-      }
-    },
-    onSettled: (_data, _err, _vars, context) => {
-      if (context?.queryKey) {
-        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
-      }
-    },
-  })
-}
-
-export const useResetOrderScrapItem = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({ id, purchase_order_id }: { id: string; purchase_order_id: string }) => {
-      if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/reset_order_scrap_item', {
-        id,
-        purchase_order_id,
-      })
-    },
-    onMutate: async ({ id, purchase_order_id }) => {
-      const queryKey = ['admin_purchase_orders', user]
-      await queryClient.cancelQueries({ queryKey })
-
-      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
-
-      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
-        old.map((order) =>
-          order.id !== purchase_order_id
-            ? order
-            : {
-                ...order,
-                order_items: order.order_items.map((oi) =>
-                  oi.id === id ? { ...oi, confirmed: false } : oi
-                ),
-              }
-        )
-      )
-
-      return { previousOrders, queryKey }
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previousOrders && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousOrders)
-      }
-    },
-    onSettled: (_data, _err, _vars, context) => {
-      if (context?.queryKey) {
-        queryClient.invalidateQueries({
-          queryKey: context.queryKey,
-          refetchType: 'active',
-        })
-      }
-    },
-  })
-}
-
 export const useAddNewOrderScrapItem = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
@@ -555,6 +558,176 @@ export const useAddNewOrderScrapItem = () => {
           gross_unit: item.gross_unit ?? 't oz',
           name: `${item.metal} Item`,
         },
+        quantity: 1,
+        confirmed: false,
+      }
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order_id
+            ? order
+            : {
+                ...order,
+                order_items: [optimisticOrderItem, ...order.order_items],
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
+    },
+  })
+}
+
+export const useUpdateOrderBullionItem = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (item: PurchaseOrderItem) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      return await apiRequest('POST', '/admin/update_order_bullion_item', { item })
+    },
+    onMutate: async (item) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== item.purchase_order_id
+            ? order
+            : {
+                ...order,
+                order_items: order.order_items.map((oi) =>
+                  oi.id === item.id
+                    ? {
+                        ...oi,
+                        quantity: item.quantity,
+                        bullion_premium: item.bullion_premium,
+                        product: {
+                          ...oi.product!,
+                        },
+                      }
+                    : oi
+                ),
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useDeleteOrderBullionItems = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      ids,
+      purchase_order_id,
+    }: {
+      ids: string[]
+      purchase_order_id: string
+    }) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      return await apiRequest('POST', '/admin/delete_order_bullion_items', { ids })
+    },
+
+    onMutate: async ({ ids, purchase_order_id }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order_id
+            ? order
+            : {
+                ...order,
+                order_items: order.order_items.filter((oi) => !ids.includes(oi.id)),
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useAddNewOrderBullionItem = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      item,
+      purchase_order_id,
+    }: {
+      item: Product
+      purchase_order_id: string
+    }) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      return await apiRequest('POST', '/admin/add_new_order_bullion_item', {
+        item,
+        purchase_order_id,
+      })
+    },
+
+    onMutate: async ({ item, purchase_order_id }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      const optimisticId = `temp-${Date.now()}`
+      const optimisticScrapId = `temp-product-${Date.now()}`
+
+      const optimisticOrderItem: PurchaseOrderItem = {
+        id: optimisticId,
+        purchase_order_id,
+        item_type: 'product',
+        product: item,
         quantity: 1,
         confirmed: false,
       }

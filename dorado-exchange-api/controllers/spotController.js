@@ -4,7 +4,7 @@ const axios = require("axios");
 const getSpotPrices = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, type, ask_spot, bid_spot, percent_change, dollar_change, scrap_percentage
+      `SELECT id, type, ask_spot, bid_spot, percent_change, dollar_change, scrap_percentage, bullion_percentage
        FROM exchange.metals
        ORDER BY
          CASE type

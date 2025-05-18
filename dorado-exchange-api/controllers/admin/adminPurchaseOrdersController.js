@@ -27,6 +27,7 @@ const getAllPurchaseOrders = async (req, res) => {
           'price', poi.price,
           'quantity', poi.quantity,
           'confirmed', poi.confirmed,
+          'bullion_premium', poi.bullion_premium,
           'item_type', CASE 
             WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
             WHEN poi.product_id IS NOT NULL THEN 'product'
@@ -279,6 +280,58 @@ const resetOrderSpots = async (req, res) => {
   }
 };
 
+const saveOrderItems = async (req, res) => {
+  const { ids, purchase_order_id } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: "No item IDs provided" });
+  }
+
+  try {
+    const updates = await Promise.all(
+      ids.map(async (id) => {
+        const query = `
+          UPDATE exchange.purchase_order_items
+          SET confirmed = true
+          WHERE id = $1 AND purchase_order_id = $2
+          RETURNING *;
+        `;
+        const values = [id, purchase_order_id];
+        const result = await pool.query(query, values);
+        return result.rows[0];
+      })
+    );
+
+    res.status(200).json({ result: updates });
+  } catch (error) {
+    console.error("Error saving order items:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+const resetOrderItem = async (req, res) => {
+  const { id, purchase_order_id } = req.body;
+
+  if (!id || !purchase_order_id) {
+    return res.status(400).json({ error: "Missing id or purchase_order_id" });
+  }
+
+  try {
+    const query = `
+      UPDATE exchange.purchase_order_items
+      SET confirmed = false
+      WHERE id = $1 AND purchase_order_id = $2
+      RETURNING *;
+    `;
+
+    const result = await pool.query(query, [id, purchase_order_id]);
+    res.status(200).json({ result: result.rows[0] });
+  } catch (error) {
+    console.error("Error resetting item confirmation:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 const updateOrderScrapItem = async (req, res) => {
   const { item } = req.body;
 
@@ -364,58 +417,6 @@ const deleteOrderScrapItem = async (req, res) => {
   }
 };
 
-const saveOrderScrapItems = async (req, res) => {
-  const { ids, purchase_order_id } = req.body;
-
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ error: "No item IDs provided" });
-  }
-
-  try {
-    const updates = await Promise.all(
-      ids.map(async (id) => {
-        const query = `
-          UPDATE exchange.purchase_order_items
-          SET confirmed = true
-          WHERE id = $1 AND purchase_order_id = $2
-          RETURNING *;
-        `;
-        const values = [id, purchase_order_id];
-        const result = await pool.query(query, values);
-        return result.rows[0];
-      })
-    );
-
-    res.status(200).json({ result: updates });
-  } catch (error) {
-    console.error("Error saving order items:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-const resetOrderScrapItem = async (req, res) => {
-  const { id, purchase_order_id } = req.body;
-
-  if (!id || !purchase_order_id) {
-    return res.status(400).json({ error: "Missing id or purchase_order_id" });
-  }
-
-  try {
-    const query = `
-      UPDATE exchange.purchase_order_items
-      SET confirmed = false
-      WHERE id = $1 AND purchase_order_id = $2
-      RETURNING *;
-    `;
-
-    const result = await pool.query(query, [id, purchase_order_id]);
-    res.status(200).json({ result: result.rows[0] });
-  } catch (error) {
-    console.error("Error resetting scrap item confirmation:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
 const addNewOrderScrapItem = async (req, res) => {
   const { item, purchase_order_id } = req.body;
 
@@ -465,6 +466,79 @@ const addNewOrderScrapItem = async (req, res) => {
   }
 };
 
+const updateOrderBullionItem = async (req, res) => {
+  const { item } = req.body;
+
+  try {
+    const query = `
+      UPDATE exchange.purchase_order_items
+      SET quantity = $1, bullion_premium = $2
+      WHERE id = $3
+      RETURNING *;
+    `;
+
+    const values = [item.quantity, item.bullion_premium, item.id];
+    const result = await pool.query(query, values);
+    res.status(200).json({ result: result.rows });
+  } catch (error) {
+    console.error("Error updating bullion item:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+const deleteOrderBullionItem = async (req, res) => {
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "No purchase_order_item IDs provided" });
+  }
+
+  try {
+    const deletedItems = [];
+
+    for (const id of ids) {
+      const query = `
+        DELETE FROM exchange.purchase_order_items
+        WHERE id = $1
+        RETURNING *;
+      `;
+      const result = await pool.query(query, [id]);
+
+      if (result.rows.length > 0) {
+        deletedItems.push(result.rows[0]);
+      }
+    }
+
+    res.status(200).json({ result: deletedItems });
+  } catch (error) {
+    console.error("Error deleting bullion items:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+const addNewOrderBullionItem = async (req, res) => {
+  const { item, purchase_order_id } = req.body;
+
+  try {
+    const query = `
+      INSERT INTO exchange.purchase_order_items (
+        purchase_order_id, product_id, quantity, confirmed
+      )
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `;
+    const values = [purchase_order_id, item.id, 1, false];
+    const result = await pool.query(query, values);
+
+    res.status(200).json({ item: result.rows[0] });
+  } catch (error) {
+    console.error("Error adding product item:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   getAllPurchaseOrders,
   getAdminPurchaseOrderMetals,
@@ -474,9 +548,12 @@ module.exports = {
   updateOrderSpot,
   lockOrderSpots,
   resetOrderSpots,
+  saveOrderItems,
+  resetOrderItem,
   updateOrderScrapItem,
   deleteOrderScrapItem,
-  saveOrderScrapItems,
-  resetOrderScrapItem,
   addNewOrderScrapItem,
+  updateOrderBullionItem,
+  deleteOrderBullionItem,
+  addNewOrderBullionItem,
 };

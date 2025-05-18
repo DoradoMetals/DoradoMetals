@@ -30,6 +30,7 @@ export interface PurchaseOrderItem {
   quantity: number
   price?: number
   confirmed: boolean
+  bullion_premium?: number
 }
 
 export interface PurchaseOrderMetal {

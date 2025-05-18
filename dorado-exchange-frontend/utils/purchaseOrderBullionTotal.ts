@@ -10,9 +10,15 @@ export default function getPurchaseOrderBullionTotal(
   return bullionItems.reduce((acc, item) => {
     const orderSpot = orderSpotPrices?.find((s) => s.type === item.product?.metal_type)
     const globalSpot = spotPrices?.find((s) => s.type === item.product?.metal_type)
+
     const bid_spot = orderSpot?.bid_spot ?? globalSpot?.bid_spot ?? 0
-    
-    const price = item.price ?? ((item?.product?.content ?? 0) * ((bid_spot) * (item?.product?.bid_premium ?? 0)))
+    const price = item.price ?? ((item?.product?.content ?? 0) * ((bid_spot) * (item.bullion_premium ?? item?.product?.bid_premium ?? 0)))
+
+    console.log('Item: ', item.product?.product_name)
+    console.log('Order Item Premium: ', item.bullion_premium)
+    console.log('Product Global Premium: ', item.product?.bid_premium)
+    console.log('Bid Spot: ', bid_spot)
+    console.log('Price: ', price)
 
     const quantity = item.quantity ?? 1
     return acc + price * quantity
