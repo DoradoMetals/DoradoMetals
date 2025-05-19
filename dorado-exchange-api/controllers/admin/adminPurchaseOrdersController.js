@@ -139,31 +139,62 @@ const getAdminPurchaseOrderMetals = async (req, res) => {
 };
 
 const changePurchaseOrderStatus = async (req, res) => {
-  const { order_status, order_id, user_name } = req.body;
-
-  try {
-    const query = `
+  const { order_status, order, action, user_name } = req.body;
+  if (action === "move_to_offer_sent") {
+    const now = new Date();
+    const sentAt = new Date(now.getTime())
+    const expiresAt = order.spots_locked
+      ? new Date(now.getTime() + 24 * 60 * 60 * 1000)
+      : new Date(now.getTime() + 72 * 60 * 60 * 1000);
+    try {
+      const query = `
       UPDATE exchange.purchase_orders
-      SET 
-        purchase_order_status = $1, 
-        updated_at = NOW(), 
+      SET
+        offer_status = $1,
+        offer_sent_at = $2,
+        offer_expires_at = $3,
+        updated_at = NOW(),
+        updated_by = $4,
+        purchase_order_status = $5
+      WHERE id = $6
+      RETURNING *
+      `;
+      const values = ["Sent", sentAt, expiresAt, user_name, order_status, order.id];
+
+      const { rows } = await pool.query(query, values);
+      if (rows.length === 0) {
+        return res.status(404).json({ error: "Purchase Order not found" });
+      }
+      res.status(200).json(rows[0]);
+    } catch (error) {
+      console.error("Error updating Purchase Order status:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  } else {
+    try {
+      const query = `
+      UPDATE exchange.purchase_orders
+      SET
+        purchase_order_status = $1,
+        updated_at = NOW(),
         updated_by = $2
       WHERE id = $3
       RETURNING *
     `;
 
-    const values = [order_status, user_name, order_id];
+      const values = [order_status, user_name, order.id];
 
-    const { rows } = await pool.query(query, values);
+      const { rows } = await pool.query(query, values);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Purchase Order not found" });
+      if (rows.length === 0) {
+        return res.status(404).json({ error: "Purchase Order not found" });
+      }
+
+      res.status(200).json(rows[0]);
+    } catch (error) {
+      console.error("Error updating Purchase Order status:", error);
+      res.status(500).json({ error: "Internal Server Error" });
     }
-
-    res.status(200).json(rows[0]);
-  } catch (error) {
-    console.error("Error updating Purchase Order status:", error);
-    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -173,7 +204,7 @@ const updateOrderScrapPercentage = async (req, res) => {
   try {
     const query = `
       UPDATE exchange.order_metals
-      SET scrap_percentage = $1 
+      SET scrap_percentage = $1
       WHERE purchase_order_id = $2
       AND type = $3
       RETURNING *
@@ -238,6 +269,12 @@ const updateOrderSpot = async (req, res) => {
 const lockOrderSpots = async (req, res) => {
   const { spots, purchase_order_id } = req.body;
   try {
+    await pool.query(
+      `UPDATE exchange.purchase_orders
+      SET spots_locked = true
+      WHERE id = $1`,
+      [purchase_order_id]
+    );
     const updates = await Promise.all(
       spots.map(async (spot) => {
         const query = `
@@ -264,6 +301,12 @@ const resetOrderSpots = async (req, res) => {
   const { purchase_order_id } = req.body;
 
   try {
+    await pool.query(
+      `UPDATE exchange.purchase_orders
+      SET spots_locked = false
+      WHERE id = $1`,
+      [purchase_order_id]
+    );
     const query = `
       UPDATE exchange.order_metals
       SET bid_spot = NULL

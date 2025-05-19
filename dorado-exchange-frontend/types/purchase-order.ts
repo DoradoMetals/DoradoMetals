@@ -60,6 +60,10 @@ export interface PurchaseOrder {
     user_name: string
     user_email: string
   }
+  offer_sent_at?: Date
+  offer_expires_at?: Date
+  offer_status: string
+  spots_locked: boolean
 }
 
 export const purchaseOrderCheckoutSchema = z.object({
@@ -93,6 +97,7 @@ export type StatusConfigEntry = {
   background_color: string
   hover_background_color: string
   border_color: string
+  stroke_color: string
   icon: LucideIcon
   value_label: string
 }
@@ -105,14 +110,16 @@ export const statusConfig: StatusConfig = {
     hover_background_color: 'hover:bg-cyan-300',
     text_color: 'text-cyan-300',
     border_color: 'border-cyan-300',
+    stroke_color: 'stroke-cyan-300',
     icon: Truck,
     value_label: 'Estimate',
   },
-  'Received': {
+  Received: {
     background_color: 'bg-fuchsia-400',
     hover_background_color: 'hover:bg-fuchsia-400',
     text_color: 'text-fuchsia-400',
     border_color: 'border-fuchsia-400',
+    stroke_color: 'stroke-fuchsia-400',
     icon: PackageOpen,
     value_label: 'Estimate',
   },
@@ -121,6 +128,7 @@ export const statusConfig: StatusConfig = {
     hover_background_color: 'hover:bg-yellow-400',
     text_color: 'text-yellow-400',
     border_color: 'border-yellow-400',
+    stroke_color: 'stroke-yellow-400',
     icon: Hourglass,
     value_label: 'Offer',
   },
@@ -129,6 +137,7 @@ export const statusConfig: StatusConfig = {
     hover_background_color: 'hover:bg-orange-500',
     text_color: 'text-orange-500',
     border_color: 'border-orange-500',
+    stroke_color: 'stroke-orange-500',
     icon: Handshake,
     value_label: 'Payout',
   },
@@ -137,6 +146,7 @@ export const statusConfig: StatusConfig = {
     hover_background_color: 'hover:bg-rose-400',
     text_color: 'text-rose-400',
     border_color: 'border-rose-400',
+    stroke_color: 'stroke-rose-400',
     icon: X,
     value_label: 'Offer',
   },
@@ -145,6 +155,7 @@ export const statusConfig: StatusConfig = {
     hover_background_color: 'hover:bg-sky-600',
     text_color: 'text-sky-600',
     border_color: 'border-sky-600',
+    stroke_color: 'stroke-sky-600',
     icon: CreditCard,
     value_label: 'Payout',
   },
@@ -153,6 +164,7 @@ export const statusConfig: StatusConfig = {
     hover_background_color: 'hover:bg-red-600',
     text_color: 'text-red-600',
     border_color: 'border-red-600',
+    stroke_color: 'stroke-red-600',
     icon: Ban,
     value_label: '',
   },
@@ -161,6 +173,7 @@ export const statusConfig: StatusConfig = {
     hover_background_color: 'hover:bg-green-500',
     text_color: 'text-green-500',
     border_color: 'border-green-500',
+    stroke_color: 'stroke-green-500',
     icon: ShieldCheck,
     value_label: 'Payout',
   },
@@ -168,7 +181,7 @@ export const statusConfig: StatusConfig = {
 
 export interface PurchaseOrderDrawerProps {
   user_id?: string
-  order_id: string,
+  order_id: string
   user?: User
 }
 

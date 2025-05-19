@@ -31,12 +31,21 @@ export const useMovePurchaseOrderStatus = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ order_status, order_id }: { order_status: string; order_id: string }) => {
+    mutationFn: async ({
+      order_status,
+      order,
+      action,
+    }: {
+      order_status: string
+      order: PurchaseOrder
+      action: string
+    }) => {
       if (!user?.id || user?.role !== 'admin') throw new Error('User is not an admin.')
-
+      console.log('spot locked: ', order.spots_locked)
       await apiRequest('POST', '/admin/change_purchase_order_status', {
         order_status,
-        order_id,
+        order,
+        action,
         user_name: user?.name,
       })
     },
@@ -240,7 +249,14 @@ export const useLockOrderSpotPrices = () => {
         })
       )
 
-      return { previousSpotPrices, queryKey }
+      const orderQueryKey = ['purchase_order', purchase_order_id]
+      const prevOrder = queryClient.getQueryData<PurchaseOrder>(orderQueryKey)
+
+      queryClient.setQueryData<PurchaseOrder>(orderQueryKey, (old) =>
+        old ? { ...old, spots_locked: true } : old
+      )
+
+      return { previousSpotPrices, prevOrder, queryKey, orderQueryKey }
     },
     onError: (_err, _vars, context) => {
       if (context?.previousSpotPrices && context.queryKey) {
@@ -251,6 +267,12 @@ export const useLockOrderSpotPrices = () => {
       if (context?.queryKey) {
         queryClient.invalidateQueries({
           queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
+      if (context?.orderQueryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.orderQueryKey,
           refetchType: 'active',
         })
       }
@@ -282,7 +304,14 @@ export const useResetOrderSpotPrices = () => {
         }))
       )
 
-      return { previousSpotPrices, queryKey }
+      const orderQueryKey = ['purchase_order', purchase_order_id]
+      const prevOrder = queryClient.getQueryData<PurchaseOrder>(orderQueryKey)
+
+      queryClient.setQueryData<PurchaseOrder>(orderQueryKey, (old) =>
+        old ? { ...old, spots_locked: false } : old
+      )
+
+      return { previousSpotPrices, prevOrder, queryKey, orderQueryKey }
     },
     onError: (_err, _vars, context) => {
       if (context?.previousSpotPrices && context.queryKey) {
@@ -296,10 +325,15 @@ export const useResetOrderSpotPrices = () => {
           refetchType: 'active',
         })
       }
+      if (context?.orderQueryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.orderQueryKey,
+          refetchType: 'active',
+        })
+      }
     },
   })
 }
-
 
 export const useSaveOrderItems = () => {
   const { user } = useGetSession()
@@ -406,7 +440,6 @@ export const useResetOrderItem = () => {
     },
   })
 }
-
 
 export const useUpdateOrderScrapItem = () => {
   const { user } = useGetSession()

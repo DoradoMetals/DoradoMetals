@@ -218,6 +218,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
               <BullionTable bullionItems={bullionItems} config={config} order_id={order.id} />
             </div>
           )}
+          <div className="separator-inset" />
         </div>
       </div>
     </>
