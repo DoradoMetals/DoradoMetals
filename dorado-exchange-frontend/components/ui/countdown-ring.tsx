@@ -1,7 +1,6 @@
 'use client'
 
-import { cn } from '@/lib/utils'
-import NumberFlow, { NumberFlowGroup } from '@number-flow/react'
+import NumberFlow from '@number-flow/react'
 import { useEffect, useState } from 'react'
 
 interface CountdownRingProps {
@@ -15,7 +14,6 @@ export default function CountdownRing({ sentAt, expiresAt, fillColor }: Countdow
   const expires = new Date(expiresAt).getTime()
   const [now, setNow] = useState(Date.now())
 
-  // Recalculate current time every 100ms (drift-proof)
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(Date.now())
@@ -23,8 +21,7 @@ export default function CountdownRing({ sentAt, expiresAt, fillColor }: Countdow
     return () => clearInterval(interval)
   }, [])
 
-  // Derived values
-  const durationSeconds = Math.max(1, Math.floor((expires - sent) / 1000)) // prevent div by 0
+  const durationSeconds = Math.max(1, Math.floor((expires - sent) / 1000))
   const totalSecondsLeft = Math.max(0, Math.floor((expires - now) / 1000))
   const percent = totalSecondsLeft / durationSeconds
 
@@ -39,7 +36,10 @@ export default function CountdownRing({ sentAt, expiresAt, fillColor }: Countdow
   return (
     <div className="flex flex-col items-center space-y-4">
       <div className="relative w-80 h-80">
-        <svg className="w-full h-full transform -rotate-y-180 -rotate-z-90 drop-shadow-lg" viewBox="0 0 140 140">
+        <svg
+          className="w-full h-full transform -rotate-y-180 -rotate-z-90 drop-shadow-lg"
+          viewBox="0 0 140 140"
+        >
           <circle
             cx="70"
             cy="70"

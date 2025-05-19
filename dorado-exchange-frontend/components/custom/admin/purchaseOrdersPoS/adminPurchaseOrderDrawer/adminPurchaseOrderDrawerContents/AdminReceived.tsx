@@ -15,7 +15,7 @@ import {
   useUpdateOrderScrapPercentage,
   useUpdateOrderSpotPrice,
 } from '@/lib/queries/admin/useAdminPurchaseOrders'
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrder'
+import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { cn } from '@/lib/utils'
 import { SpotPrice } from '@/types/metal'

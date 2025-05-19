@@ -30,7 +30,7 @@ import getPurchaseOrderScrapTotal from '@/utils/purchaseOrderScrapTotal'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 import getPurchaseOrderBullionPrice from '@/utils/getPurchaseOrderBullionPrice'
 import getPurchaseOrderScrapPrice from '@/utils/getPurchaseOrderScrapPrice'
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrder'
+import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 
 export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
   const valueLabel = statusConfig[order.purchase_order_status]?.value_label ?? ''

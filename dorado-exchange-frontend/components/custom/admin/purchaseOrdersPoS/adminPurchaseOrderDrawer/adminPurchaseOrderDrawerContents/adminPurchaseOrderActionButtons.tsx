@@ -1,10 +1,6 @@
 import { Button } from '@/components/ui/button'
-import {
-  PurchaseOrder,
-  PurchaseOrderActionButtonsProps,
-  statusConfig,
-} from '@/types/purchase-order'
-import { cn } from '@/lib/utils' // assuming you're using your cn() utility
+import { PurchaseOrderActionButtonsProps, statusConfig } from '@/types/purchase-order'
+import { cn } from '@/lib/utils'
 import { useMovePurchaseOrderStatus } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { useMemo } from 'react'
 

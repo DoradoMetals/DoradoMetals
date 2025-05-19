@@ -10,7 +10,7 @@ import { formatFullDate } from '@/utils/dateFormatting'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
 import { ChevronRight } from 'lucide-react'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrder'
+import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { useMemo } from 'react'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 

@@ -100,6 +100,7 @@ export type StatusConfigEntry = {
   stroke_color: string
   icon: LucideIcon
   value_label: string
+  gradient: string
 }
 
 export type StatusConfig = Record<string, StatusConfigEntry>
@@ -113,6 +114,7 @@ export const statusConfig: StatusConfig = {
     stroke_color: 'stroke-cyan-300',
     icon: Truck,
     value_label: 'Estimate',
+    gradient: 'bg-gradient-to-l from-cyan-200 via-cyan-300 to-cyan-400',
   },
   Received: {
     background_color: 'bg-fuchsia-400',
@@ -122,6 +124,7 @@ export const statusConfig: StatusConfig = {
     stroke_color: 'stroke-fuchsia-400',
     icon: PackageOpen,
     value_label: 'Estimate',
+    gradient: 'bg-gradient-to-l from-fuchsia-300 via-fuchsia-400 to-fuchsia-500',
   },
   'Offer Sent': {
     background_color: 'bg-yellow-400',
@@ -131,6 +134,7 @@ export const statusConfig: StatusConfig = {
     stroke_color: 'stroke-yellow-400',
     icon: Hourglass,
     value_label: 'Offer',
+    gradient: 'bg-gradient-to-l from-yellow-300 via-yellow-400 to-yellow-500',
   },
   Accepted: {
     background_color: 'bg-orange-500',
@@ -140,6 +144,7 @@ export const statusConfig: StatusConfig = {
     stroke_color: 'stroke-orange-500',
     icon: Handshake,
     value_label: 'Payout',
+    gradient: 'bg-gradient-to-l from-orange-400 via-orange-500 to-orange-600',
   },
   Rejected: {
     background_color: 'bg-rose-400',
@@ -149,6 +154,7 @@ export const statusConfig: StatusConfig = {
     stroke_color: 'stroke-rose-400',
     icon: X,
     value_label: 'Offer',
+    gradient: 'bg-gradient-to-l from-rose-300 via-rose-400 to-rose-500',
   },
   Paid: {
     background_color: 'bg-sky-600',
@@ -158,6 +164,7 @@ export const statusConfig: StatusConfig = {
     stroke_color: 'stroke-sky-600',
     icon: CreditCard,
     value_label: 'Payout',
+    gradient: 'bg-gradient-to-l from-sky-500 via-sky-600 to-sky-700',
   },
   Cancelled: {
     background_color: 'bg-red-600',
@@ -167,6 +174,7 @@ export const statusConfig: StatusConfig = {
     stroke_color: 'stroke-red-600',
     icon: Ban,
     value_label: '',
+    gradient: 'bg-gradient-to-l from-red-500 via-red-600 to-red-700',
   },
   Completed: {
     background_color: 'bg-green-500',
@@ -176,6 +184,7 @@ export const statusConfig: StatusConfig = {
     stroke_color: 'stroke-green-500',
     icon: ShieldCheck,
     value_label: 'Payout',
+    gradient: 'bg-gradient-to-l from-green-400 via-green-500 to-green-600',
   },
 }
 
