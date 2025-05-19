@@ -46,7 +46,7 @@ import { Command, CommandInput, CommandItem, CommandList } from '@/components/ui
 import { useProducts } from '@/lib/queries/useProducts'
 import { Product } from '@/types/product'
 
-export default function AdminUnsettledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
+export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
   const updateScrapPercentage = useUpdateOrderScrapPercentage()

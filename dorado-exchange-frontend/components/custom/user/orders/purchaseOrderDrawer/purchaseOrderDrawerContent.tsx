@@ -1,10 +1,10 @@
 import { PurchaseOrderDrawerContentProps } from "@/types/purchase-order";
 import InTransitPurchaseOrder from './drawerContents/InTransit'
-import UnsettledPurchaseOrder from './drawerContents/Unsettled'
-import FilledPurchaseOrder from './drawerContents/Filled'
+import ReceivedPurchaseOrder from './drawerContents/Received'
+import OfferSentPurchaseOrder from './drawerContents/OfferSent'
 import AcceptedPurchaseOrder from './drawerContents/Accepted'
 import RejectedPurchaseOrder from './drawerContents/Rejected'
-import SettledPurchaseOrder from './drawerContents/Settled'
+import PaidPurchaseOrder from './drawerContents/Paid'
 import CancelledPurchaseOrder from './drawerContents/Cancelled'
 import CompletedPurchaseOrder from './drawerContents/Completed'
 
@@ -12,16 +12,16 @@ export default function PurchaseOrderDrawerContent({ order }: PurchaseOrderDrawe
   switch (order.purchase_order_status) {
     case 'In Transit':
       return <InTransitPurchaseOrder order={order} />
-    case 'Unsettled':
-      return <UnsettledPurchaseOrder order={order} />
-    case 'Filled':
-      return <FilledPurchaseOrder order={order} />
+    case 'Received':
+      return <ReceivedPurchaseOrder order={order} />
+    case 'Offer Sent':
+      return <OfferSentPurchaseOrder order={order} />
     case 'Accepted':
       return <AcceptedPurchaseOrder order={order} />
     case 'Rejected':
       return <RejectedPurchaseOrder order={order} />
-    case 'Settled':
-      return <SettledPurchaseOrder order={order} />
+    case 'Paid':
+      return <PaidPurchaseOrder order={order} />
     case 'Cancelled':
       return <CancelledPurchaseOrder order={order} />
     case 'Completed':

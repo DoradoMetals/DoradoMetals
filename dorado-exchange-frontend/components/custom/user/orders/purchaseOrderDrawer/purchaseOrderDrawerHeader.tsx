@@ -42,7 +42,7 @@ export default function PurchaseOrderDrawerHeader({
         </div>
         <div className="flex ml-auto">
           {order.purchase_order_status === 'In Transit' ||
-          order.purchase_order_status === 'Unsettled' ? (
+          order.purchase_order_status === 'Received' ? (
             <Button
               variant="link"
               className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}

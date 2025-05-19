@@ -79,11 +79,11 @@ export type PurchaseOrderCheckout = z.infer<typeof purchaseOrderCheckoutSchema>
 
 export const PurchaseOrderStatuses = [
   'In Transit',
-  'Unsettled',
-  'Filled',
+  'Received',
+  'Offer Sent',
   'Accepted',
   'Rejected',
-  'Settled',
+  'Paid',
   'Cancelled',
   'Completed',
 ]
@@ -108,7 +108,7 @@ export const statusConfig: StatusConfig = {
     icon: Truck,
     value_label: 'Estimate',
   },
-  Unsettled: {
+  'Received': {
     background_color: 'bg-fuchsia-400',
     hover_background_color: 'hover:bg-fuchsia-400',
     text_color: 'text-fuchsia-400',
@@ -116,7 +116,7 @@ export const statusConfig: StatusConfig = {
     icon: PackageOpen,
     value_label: 'Estimate',
   },
-  Filled: {
+  'Offer Sent': {
     background_color: 'bg-yellow-400',
     hover_background_color: 'hover:bg-yellow-400',
     text_color: 'text-yellow-400',
@@ -140,7 +140,7 @@ export const statusConfig: StatusConfig = {
     icon: X,
     value_label: 'Offer',
   },
-  Settled: {
+  Paid: {
     background_color: 'bg-sky-600',
     hover_background_color: 'hover:bg-sky-600',
     text_color: 'text-sky-600',

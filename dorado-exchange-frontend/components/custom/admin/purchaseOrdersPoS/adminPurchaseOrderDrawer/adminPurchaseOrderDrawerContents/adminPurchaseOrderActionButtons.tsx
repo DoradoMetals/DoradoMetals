@@ -19,27 +19,27 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
   const getButtonActions = () => {
     switch (order.purchase_order_status) {
       case 'In Transit':
-        return [{ label: 'Move to Unsettled', action: 'move_to_unsettled', status: 'Unsettled' }]
-      case 'Unsettled':
-        return [{ label: 'Move to Filled', action: 'move_to_filled', status: 'Filled' }]
-      case 'Filled':
+        return [{ label: 'Move to Received', action: 'move_to_received', status: 'Received' }]
+      case 'Received':
+        return [{ label: 'Move to Offer Sent', action: 'move_to_offer_sent', status: 'Offer Sent' }]
+      case 'Offer Sent':
         return [
-          { label: 'Move to Accepted', action: 'move_to_filled', status: 'Accepted' },
+          { label: 'Move to Accepted', action: 'move_to_accepted', status: 'Accepted' },
           { label: 'Move to Rejected', action: 'move_to_rejected', status: 'Rejected' },
         ]
       case 'Accepted':
-        return [{ label: 'Move to Settled', action: 'move_to_settled', status: 'Settled' }]
+        return [{ label: 'Move to Paid', action: 'move_to_paid', status: 'Paid' }]
       case 'Rejected':
         return [
           { label: 'Adjust Price', action: 'adjust_price', status: 'N/A' },
           { label: 'Move to Cancelled', action: 'move_to_cancelled', status: 'Cancelled' },
         ]
-      case 'Settled':
+      case 'Paid':
         return [{ label: 'Move to Completed', action: 'move_to_completed', status: 'Completed' }]
       case 'Cancelled':
         return [{ label: 'Reopen Order', action: 'reopen_order', status: 'N/A' }]
       case 'Completed':
-        return [{ label: 'Move to Settled', action: 'move_to_settled', status: 'Settled' }]
+        return [{ label: 'Move to Paid', action: 'move_to_paid', status: 'paid' }]
       default:
         return []
     }

@@ -1,9 +1,9 @@
 import { PurchaseOrderDrawerContentProps } from "@/types/purchase-order";
 
-export default function FilledPurchaseOrder({order} : PurchaseOrderDrawerContentProps) {
+export default function AdminPaidPurchaseOrder({order} : PurchaseOrderDrawerContentProps) {
   return (
     <>
-      Filled
+      Paid
     </>
   )
 }
