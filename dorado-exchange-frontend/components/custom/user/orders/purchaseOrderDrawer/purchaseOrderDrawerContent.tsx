@@ -1,4 +1,4 @@
-import { PurchaseOrderDrawerContentProps } from "@/types/purchase-order";
+import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 import InTransitPurchaseOrder from './drawerContents/InTransit'
 import ReceivedPurchaseOrder from './drawerContents/Received'
 import OfferSentPurchaseOrder from './drawerContents/OfferSent'
@@ -28,9 +28,7 @@ export default function PurchaseOrderDrawerContent({ order }: PurchaseOrderDrawe
       return <CompletedPurchaseOrder order={order} />
     default:
       return (
-        <div className="p-4 text-sm text-neutral-800">
-          No content available for this status.
-        </div>
+        <div className="p-4 text-sm text-neutral-800">No content available for this status.</div>
       )
   }
 }

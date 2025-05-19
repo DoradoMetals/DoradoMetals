@@ -39,6 +39,8 @@ export default function PurchaseOrderCard({
     return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
   }, [order, spotPrices, orderSpotPrices, payoutFee])
 
+
+
   return (
     <div className="flex flex-col w-full bg-card raised-off-page h-auto rounded-lg p-4">
       <div className="border-b border-border mb-3">

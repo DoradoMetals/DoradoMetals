@@ -7,13 +7,16 @@ import { PurchaseOrderDrawerProps } from '@/types/purchase-order'
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/components/ui/drawer'
+import { useMemo } from 'react'
+import { usePurchaseOrders } from '@/lib/queries/usePurchaseOrders'
 
 export default function PurchaseOrderDrawer({ order_id, user }: PurchaseOrderDrawerProps) {
-  const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
+  const { data: orders = [] } = usePurchaseOrders()
+  const order = useMemo(() => orders.find((o) => o.id === order_id), [orders, order_id])
+
   const { activeDrawer, closeDrawer } = useDrawerStore()
 
   const isDrawerOpen = activeDrawer === 'purchaseOrder'
-  const order = purchaseOrders.find((po) => po.id === order_id)
 
   if (!order) {
     return null
@@ -21,7 +24,7 @@ export default function PurchaseOrderDrawer({ order_id, user }: PurchaseOrderDra
 
   return (
     <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
-      <div className="flex flex-col h-full space-y-4 p-5 flex-1 overflow-y-scroll scrollbar-gutter-stable pb-30 lg:pb-5">
+      <div className="flex flex-col flex-1 h-full space-y-4 p-5 overflow-y-scroll sm:overflow-y-auto pb-30 sm:pb-5">
         <PurchaseOrderDrawerHeader
           order={order}
           username={user?.name ?? ''}

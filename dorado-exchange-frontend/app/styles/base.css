@@ -21,13 +21,11 @@ svg {
   height: auto !important;
 }
 
-
-
 html body[data-scroll-locked] {
 	overflow-y: scroll !important;
 	margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
 }
-
 
 /* For Chrome, Safari, Edge, Opera */
 .no-spinner::-webkit-outer-spin-button,

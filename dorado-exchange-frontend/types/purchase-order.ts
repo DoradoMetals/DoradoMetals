@@ -64,6 +64,8 @@ export interface PurchaseOrder {
   offer_expires_at?: Date
   offer_status: string
   spots_locked: boolean
+  offer_notes?: string
+  total_price?: number
 }
 
 export const purchaseOrderCheckoutSchema = z.object({
@@ -197,7 +199,7 @@ export interface PurchaseOrderDrawerProps {
 export interface PurchaseOrderDrawerHeaderProps {
   order: PurchaseOrder
   username: string
-  setIsOrderActive: (open: boolean) => void // <-- add this
+  setIsOrderActive: (open: boolean) => void
 }
 
 export interface PurchaseOrderDrawerContentProps {
@@ -215,17 +217,14 @@ export interface PurchaseOrderActionButtonsProps {
 export function assignScrapItemNames(scrapItems: PurchaseOrderItem[]): PurchaseOrderItem[] {
   const metalOrder = ['Gold', 'Silver', 'Platinum', 'Palladium']
 
-  // Only consider items that contain a scrap object with a valid metal
   const validScrapItems = scrapItems.filter((item) => item.scrap?.metal)
 
-  // Sort by metal order
   validScrapItems.sort((a, b) => {
     const indexA = metalOrder.indexOf(a.scrap!.metal!)
     const indexB = metalOrder.indexOf(b.scrap!.metal!)
     return indexA - indexB
   })
 
-  // Group by metal
   const grouped: Record<string, PurchaseOrderItem[]> = {}
   validScrapItems.forEach((item) => {
     const metal = item.scrap!.metal!
@@ -233,7 +232,6 @@ export function assignScrapItemNames(scrapItems: PurchaseOrderItem[]): PurchaseO
     grouped[metal].push(item)
   })
 
-  // Assign names
   return validScrapItems.map((item) => {
     const metal = item.scrap!.metal!
     const group = grouped[metal]

@@ -6,6 +6,54 @@ const {
   formatAddressForFedEx,
 } = require("../shipping/fedexController");
 
+function calculateTotalPrice(order, spots) {
+  const baseTotal = order.order_items.reduce((acc, item) => {
+    if (item.item_type === "product") {
+      const spot = spots?.find((s) => s.type === item.product?.metal_type);
+
+      const price =
+        (item?.product?.content ?? 0) *
+        (spot.bid_spot *
+          (item.bullion_premium ?? item?.product?.bid_premium ?? 0));
+
+      const quantity = item.quantity ?? 1;
+      return acc + price * quantity;
+    }
+
+    if (item.item_type === "scrap") {
+      const spot = spots?.find((s) => s.type === item.scrap?.metal);
+
+      const price =
+        (item?.scrap?.content ?? 0) * (spot.bid_spot * spot.scrap_percentage);
+      return acc + price;
+    }
+
+    return acc;
+  }, 0);
+
+  const shipping = order.shipment?.shipping_charge ?? 0;
+
+  let payoutFee = 0;
+  if (order.payout.method === "WIRE") {
+    payoutFee = 20;
+  }
+
+  return baseTotal - shipping - payoutFee;
+}
+
+function calculateItemPrice(item, spots) {
+  if (item.item_type === "product") {
+    const spot = spots?.find((s) => s.type === item.product?.metal_type);
+    return (
+      (item?.product.content ?? 0) *
+      (spot.bid_spot * (item.bullion_premium ?? item?.product.bid_premium ?? 0))
+    );
+  } else if (item.item_type === "scrap") {
+    const spot = spots?.find((s) => s.type === item.scrap?.metal);
+    return (item?.scrap.content ?? 0) * (spot.bid_spot * spot.scrap_percentage);
+  }
+}
+
 const getPurchaseOrders = async (req, res) => {
   const { user_id } = req.query;
 
@@ -126,6 +174,98 @@ const getPurchaseOrderMetals = async (req, res) => {
   }
 };
 
+const acceptOffer = async (req, res) => {
+  const { order, order_spots, spot_prices } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    let updatedSpots = order_spots;
+
+    // 1. Lock and update order spot prices if not already locked
+    if (!order.spots_locked) {
+      const updates = await Promise.all(
+        spot_prices.map(async (spot) => {
+          const query = `
+            UPDATE exchange.order_metals
+            SET bid_spot = $1
+            WHERE purchase_order_id = $2 AND type = $3
+            RETURNING *;
+          `;
+          const values = [spot.bid_spot, order.id, spot.type];
+          const result = await client.query(query, values);
+          return result.rows[0];
+        })
+      );
+      updatedSpots = updates;
+    }
+
+    // 2. Lock and insert prices for all order items
+    await Promise.all(
+      order.order_items.map(async (item) => {
+        const price = calculateItemPrice(item, updatedSpots); // pass updated spots here
+        const query = `
+          UPDATE exchange.purchase_order_items
+          SET price = $1
+          WHERE id = $2 AND purchase_order_id = $3
+        `;
+        const values = [price, item.id, order.id];
+        await client.query(query, values);
+      })
+    );
+
+    // 3. Lock and insert total order price
+    const total_price = calculateTotalPrice(order, updatedSpots); // pass updated spots here
+    const updateOrderQuery = `
+      UPDATE exchange.purchase_orders
+      SET 
+        offer_status = $1,
+        purchase_order_status = $2,
+        total_price = $3,
+        spots_locked = true
+      WHERE id = $4
+    `;
+    const updateOrderValues = ["Accepted", "Accepted", total_price, order.id];
+    await client.query(updateOrderQuery, updateOrderValues);
+
+    await client.query("COMMIT");
+
+    const finalQuery = `SELECT * FROM exchange.purchase_orders WHERE id = $1`;
+    const { rows } = await client.query(finalQuery, [order.id]);
+
+    res.status(200).json(rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error accepting offer:", error);
+    res.status(500).json({ error: "Failed to accept offer." });
+  } finally {
+    client.release();
+  }
+};
+
+const rejectOffer = async (req, res) => {
+  const { order, offer_notes } = req.body;
+
+  try {
+    const query = `
+      UPDATE exchange.purchase_orders
+      SET
+        purchase_order_status = $1,
+        offer_status = $2,
+        offer_notes = $3
+      WHERE id = $4
+    `;
+    const values = ["Rejected", "Rejected", offer_notes, order.id];
+    const { rows } = await pool.query(query, values);
+
+    res.status(200).json(rows[0]);
+  } catch (error) {
+    console.error("Error accepting offer:", error);
+    res.status(500).json({ error: "Failed to accept offer." });
+  }
+};
+
 const createPurchaseOrder = async (req, res) => {
   const { purchase_order, user_id } = req.body;
   const client = await pool.connect();
@@ -232,7 +372,7 @@ const createPurchaseOrder = async (req, res) => {
           purchase_order.service.serviceDescription,
           purchase_order.service.netCharge,
           purchase_order.insurance.insured,
-          purchase_order.insurance.declaredValue.amount
+          purchase_order.insurance.declaredValue.amount,
         ]
       );
     }
@@ -333,4 +473,6 @@ module.exports = {
   getPurchaseOrders,
   getPurchaseOrderMetals,
   createPurchaseOrder,
+  acceptOffer,
+  rejectOffer,
 };

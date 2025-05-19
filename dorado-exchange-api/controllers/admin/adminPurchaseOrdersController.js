@@ -142,10 +142,10 @@ const changePurchaseOrderStatus = async (req, res) => {
   const { order_status, order, action, user_name } = req.body;
   if (action === "move_to_offer_sent") {
     const now = new Date();
-    const sentAt = new Date(now.getTime())
+    const sentAt = new Date(now.getTime());
     const expiresAt = order.spots_locked
       ? new Date(now.getTime() + 24 * 60 * 60 * 1000)
-      : new Date(now.getTime() + 72 * 60 * 60 * 1000);
+      : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     try {
       const query = `
       UPDATE exchange.purchase_orders
@@ -159,7 +159,14 @@ const changePurchaseOrderStatus = async (req, res) => {
       WHERE id = $6
       RETURNING *
       `;
-      const values = ["Sent", sentAt, expiresAt, user_name, order_status, order.id];
+      const values = [
+        "Sent",
+        sentAt,
+        expiresAt,
+        user_name,
+        order_status,
+        order.id,
+      ];
 
       const { rows } = await pool.query(query, values);
       if (rows.length === 0) {

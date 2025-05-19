@@ -6,9 +6,9 @@ import AdminPurchaseOrderDrawerFooter from './adminPurchaseOrderDrawerFooter'
 
 import { useAdminUser } from '@/lib/queries/admin/useAdminUser'
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
-import { PurchaseOrderDrawerProps } from '@/types/purchase-order'
 import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/components/ui/drawer'
+import { useMemo } from 'react'
 
 export default function AdminPurchaseOrderDrawer({
   order_id,
@@ -21,9 +21,9 @@ export default function AdminPurchaseOrderDrawer({
   const isDrawerOpen = activeDrawer === 'purchaseOrder'
 
   const { data: orderUser } = useAdminUser(user_id!, { enabled: isDrawerOpen })
-  const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
+  const { data: orders = [] } = useAdminPurchaseOrders()
 
-  const order = purchaseOrders.find((po) => po.id === order_id)
+  const order = useMemo(() => orders.find((o) => o.id === order_id), [orders, order_id])
 
   if (!order) {
     return null
@@ -31,9 +31,9 @@ export default function AdminPurchaseOrderDrawer({
 
   return (
     <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
-      <div className="flex flex-col h-full space-y-4 p-5 flex-1 overflow-y-scroll scrollbar-gutter-stable pb-30 lg:pb-5">
+      <div className="flex flex-col flex-1 h-full space-y-4 p-5 overflow-y-scroll sm:overflow-y-auto pb-30 sm:pb-5">
         <AdminPurchaseOrderDrawerHeader
-          setIsOrderActive={closeDrawer} // Close when header says to
+          setIsOrderActive={closeDrawer}
           order={order}
           username={orderUser?.name ?? ''}
         />
