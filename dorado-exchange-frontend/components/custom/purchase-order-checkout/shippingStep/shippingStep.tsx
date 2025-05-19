@@ -3,23 +3,22 @@
 import { Address } from '@/types/address'
 import { AddressSelector } from './addressSelector'
 import { Button } from '@/components/ui/button'
-import { MapPinned, Plus } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Plus } from 'lucide-react'
+import { useState } from 'react'
 import { PackageSelector } from './packageSelector'
 import {
-  FedexRateInput,
-  formatFedexRatesAddress,
   FedexPickupTimesInput,
   formatFedexPickupAddress,
   FedexRate,
 } from '@/types/shipping'
-import { useFedExPickup, useFedExPickupTimes, useFedExRates } from '@/lib/queries/shipping/useFedex'
+import { useFedExPickupTimes } from '@/lib/queries/shipping/useFedex'
 import { ServiceSelector } from './serviceSelector'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import CheckoutAddressModal from './checkoutAddressDialog'
 import { PickupSelector } from './pickupSelector'
 import PickupScheduler from './pickupScheduler'
 import { FedexLocationsMap } from './FedexLocations'
+import { InsuranceSelector } from './insuranceSelector'
 
 interface ShippingStepProps {
   addresses: Address[]
@@ -28,7 +27,12 @@ interface ShippingStepProps {
   isLoading: boolean
 }
 
-export default function ShippingStep({ addresses, emptyAddress, rates, isLoading }: ShippingStepProps) {
+export default function ShippingStep({
+  addresses,
+  emptyAddress,
+  rates,
+  isLoading,
+}: ShippingStepProps) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('Create New')
   const [draftAddress, setDraftAddress] = useState<Address>(emptyAddress)
@@ -40,8 +44,6 @@ export default function ShippingStep({ addresses, emptyAddress, rates, isLoading
   const service = usePurchaseOrderCheckoutStore((state) => state.data.service)
   const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
-
-
 
   let fedexPickupTimesInput: FedexPickupTimesInput | null = null
   if (address?.is_valid && service) {
@@ -126,6 +128,9 @@ export default function ShippingStep({ addresses, emptyAddress, rates, isLoading
 
       {address?.is_valid && (
         <>
+          <InsuranceSelector />
+          <div className="separator-inset" />
+
           <PackageSelector />
           <div className="separator-inset" />
         </>

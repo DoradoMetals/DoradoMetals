@@ -6,7 +6,7 @@ import ShippingStep from './shippingStep/shippingStep'
 import PayoutStep from './payoutStep/payoutStep'
 import { useAddress } from '@/lib/queries/useAddresses'
 import { Address } from '@/types/address'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { useUser } from '@/lib/authClient'
 import ReviewStep from './reviewStep/reviewStep'
@@ -14,6 +14,9 @@ import { sellCartStore } from '@/store/sellCartStore'
 import { useRouter } from 'next/navigation'
 import { FedexRateInput, formatFedexRatesAddress } from '@/types/shipping'
 import { useFedExRates } from '@/lib/queries/shipping/useFedex'
+import getProductBidPrice from '@/utils/getProductBidPrice'
+import { useSpotPrices } from '@/lib/queries/useSpotPrices'
+import getScrapPrice from '@/utils/getScrapPrice'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -29,16 +32,53 @@ export default function CheckoutStepper() {
   const router = useRouter()
   const { user } = useUser()
   const { data: addresses = [], isLoading } = useAddress()
-  const { setData } = usePurchaseOrderCheckoutStore()
-  const hasInitialized = useRef(false)
 
+  const { setData } = usePurchaseOrderCheckoutStore()
   const {
     address,
+    insurance,
     package: pkg,
     service,
     pickup,
     payoutValid,
   } = usePurchaseOrderCheckoutStore((state) => state.data)
+  const hasInitialized = useRef(false)
+
+  const { data: spotPrices = [] } = useSpotPrices()
+
+  const items = sellCartStore((state) => state.items)
+
+  const declaredValue = useMemo(() => {
+    const baseTotal = items.reduce((acc, item) => {
+      if (item.type === 'product') {
+        const spot = spotPrices.find((s) => s.type === item.data.metal_type)
+        const price = getProductBidPrice(item.data, spot)
+        const quantity = item.data.quantity ?? 1
+        return acc + price * quantity
+      }
+      if (item.type === 'scrap') {
+        const spot = spotPrices.find((s) => s.type === item.data.metal)
+        const price = getScrapPrice(item.data.content ?? 0, spot)
+        return acc + price
+      }
+      return acc
+    }, 0)
+    return Math.min(baseTotal, 50000)
+  }, [items, spotPrices])
+
+  useEffect(() => {
+    if (insurance?.insured) {
+      setData({
+        insurance: {
+          insured: true,
+          declaredValue: {
+            amount: declaredValue,
+            currency: 'USD',
+          },
+        },
+      })
+    }
+  }, [insurance?.insured, declaredValue])
 
   const isShippingStepComplete =
     !!address?.is_valid &&
@@ -86,6 +126,7 @@ export default function CheckoutStepper() {
   const cartItems = sellCartStore((state) => state.items)
 
   let fedexRatesInput: FedexRateInput | null = null
+
   if (address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined) {
     fedexRatesInput = {
       shippingType: 'Inbound',
@@ -95,8 +136,14 @@ export default function CheckoutStepper() {
         weight: pkg.weight,
         dimensions: pkg.dimensions,
       },
+      ...(insurance?.insured && insurance?.declaredValue
+        ? { declaredValue: insurance.declaredValue }
+        : {}),
     }
   }
+
+  console.log(fedexRatesInput)
+
   const { data: rates = [], isLoading: ratesLoading } = useFedExRates(fedexRatesInput)
 
   useEffect(() => {

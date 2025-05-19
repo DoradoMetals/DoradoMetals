@@ -89,7 +89,7 @@ const validateAddress = async (address) => {
 };
 
 const getFedexRates = async (req, res) => {
-  const { shippingType, customerAddress, packageDetails, pickupType } =
+  const { shippingType, customerAddress, packageDetails, pickupType, declaredValue } =
     req.body;
   const shipper = shippingType === "Inbound" ? customerAddress : DORADO_ADDRESS;
   const recipient =
@@ -115,6 +115,7 @@ const getFedexRates = async (req, res) => {
           {
             ...packageDetails,
             groupPackageCount: "1",
+            declaredValue: declaredValue,
           },
         ],
         shippingChargesPayment: {
@@ -176,7 +177,8 @@ const createFedexLabel = async (
   shippingType,
   packageDetails,
   pickupType,
-  serviceType
+  serviceType,
+  declaredValue,
 ) => {
   try {
     const token = await getFedExAccessToken();
@@ -223,6 +225,7 @@ const createFedexLabel = async (
         serviceType,
         pickupType,
         groupPackageCount: 1,
+        totalDeclaredValue: declaredValue,
         requestedPackageLineItems: [packageDetails],
         labelSpecification: {
           imageType: "PNG",

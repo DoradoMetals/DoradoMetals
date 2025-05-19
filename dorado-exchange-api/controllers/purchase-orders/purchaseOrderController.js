@@ -145,7 +145,7 @@ const createPurchaseOrder = async (req, res) => {
 
     // Step 2: Insert items
     const insertItemQuery = `
-      INSERT INTO exchange.purchase_order_items (purchase_order_id, scrap_id, product_id, quantity, bid_premium)
+      INSERT INTO exchange.purchase_order_items (purchase_order_id, scrap_id, product_id, quantity, bullion_premium)
       VALUES ($1, $2, $3, $4, $5)
     `;
     for (const item of purchase_order.items) {
@@ -188,7 +188,8 @@ const createPurchaseOrder = async (req, res) => {
         insured: purchase_order.insured,
       },
       purchase_order.pickup?.label || "DROPOFF_AT_FEDEX_LOCATION",
-      purchase_order.service?.serviceType || "FEDEX_GROUND"
+      purchase_order.service?.serviceType || "FEDEX_GROUND",
+      purchase_order.insurance.declaredValue
     );
 
     trackingNumber = labelData.tracking_number;
@@ -213,9 +214,11 @@ const createPurchaseOrder = async (req, res) => {
           pickup_type,
           package,
           service_type,
-          net_charge
+          net_charge,
+          insured,
+          declared_value
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `,
         [
           purchase_order_id,
@@ -228,6 +231,8 @@ const createPurchaseOrder = async (req, res) => {
           purchase_order.package.label,
           purchase_order.service.serviceDescription,
           purchase_order.service.netCharge,
+          purchase_order.insurance.insured,
+          purchase_order.insurance.declaredValue.amount
         ]
       );
     }

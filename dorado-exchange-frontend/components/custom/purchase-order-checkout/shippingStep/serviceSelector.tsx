@@ -2,12 +2,10 @@
 
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
-import { CheckCircle } from 'lucide-react'
 import { FedexRate } from '@/types/shipping'
 import { serviceOptions } from '@/types/service'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import { differenceInHours, differenceInDays } from 'date-fns'
 import { formatTimeDiff } from '@/utils/dateFormatting'
 import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
 
@@ -57,7 +55,6 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
       >
         {Object.entries(serviceOptions).map(([serviceType, option]) => {
           const rate = rateMap.get(serviceType)
-          const isSelected = selected?.serviceType === serviceType
           const isDisabled = rate?.netCharge == null
 
           return (

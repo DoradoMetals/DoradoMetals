@@ -20,6 +20,7 @@ import {
 import { Scrap } from './scrap'
 import { Product } from './product'
 import { User } from './user'
+import { insuranceSchema } from './insurance'
 
 export interface PurchaseOrderItem {
   item_type: string
@@ -71,6 +72,7 @@ export const purchaseOrderCheckoutSchema = z.object({
   payout: payoutSchema,
   confirmation: z.boolean(),
   items: z.array(sellCartItemSchema).min(1, 'At least one item is required'),
+  insurance: insuranceSchema,
 })
 
 export type PurchaseOrderCheckout = z.infer<typeof purchaseOrderCheckoutSchema>
