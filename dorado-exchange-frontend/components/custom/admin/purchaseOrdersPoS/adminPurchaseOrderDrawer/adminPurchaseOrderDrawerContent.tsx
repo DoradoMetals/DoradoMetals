@@ -3,7 +3,7 @@ import AdminReceivedPurchaseOrder from './adminPurchaseOrderDrawerContents/Admin
 import AdminOfferSentPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminOfferSent'
 import AdminAcceptedPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminAccepted'
 import AdminRejectedPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminRejected'
-import AdminPaidPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminPaid'
+import AdminPaymentProcessingPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminPaymentProcessing'
 import AdminCancelledPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminCancelled'
 import AdminCompletedPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminCompleted'
 import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
@@ -20,8 +20,8 @@ export default function AdminPurchaseOrderDrawerContent({ order }: PurchaseOrder
       return <AdminAcceptedPurchaseOrder order={order} />
     case 'Rejected':
       return <AdminRejectedPurchaseOrder order={order} />
-    case 'Paid':
-      return <AdminPaidPurchaseOrder order={order} />
+    case 'Payment Processing':
+      return <AdminPaymentProcessingPurchaseOrder order={order} />
     case 'Cancelled':
       return <AdminCancelledPurchaseOrder order={order} />
     case 'Completed':

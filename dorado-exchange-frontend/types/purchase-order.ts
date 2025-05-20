@@ -89,7 +89,7 @@ export const PurchaseOrderStatuses = [
   'Offer Sent',
   'Accepted',
   'Rejected',
-  'Paid',
+  'Payment Processing',
   'Cancelled',
   'Completed',
 ]
@@ -158,7 +158,7 @@ export const statusConfig: StatusConfig = {
     value_label: 'Offer',
     gradient: 'bg-gradient-to-l from-rose-300 via-rose-400 to-rose-500',
   },
-  Paid: {
+  'Payment Processing': {
     background_color: 'bg-sky-600',
     hover_background_color: 'hover:bg-sky-600',
     text_color: 'text-sky-600',

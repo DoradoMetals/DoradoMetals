@@ -90,7 +90,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
         ]
       case 'Accepted':
         return [
-          { label: 'Move to Paid', action: 'move_to_paid', status: 'Paid', disabled: false },
+          { label: 'Move to Payment Processing', action: 'move_to_payment_processing', status: 'Payment Processing', disabled: false },
           {
             label: 'Back to Offer Sent',
             action: 'move_to_offer_sent',
@@ -119,7 +119,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
             disabled: !allItemsConfirmed,
           },
         ]
-      case 'Paid':
+      case 'Payment Processing':
         return [
           {
             label: 'Move to Completed',
@@ -138,7 +138,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
           },
         ]
       case 'Completed':
-        return [{ label: 'Move to Paid', action: 'move_to_paid', status: 'paid', disabled: false }]
+        return [{ label: 'Move to Payment Processing', action: 'move_to_payment_processing', status: 'Payment Processing', disabled: false }]
       default:
         return []
     }

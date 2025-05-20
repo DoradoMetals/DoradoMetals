@@ -17,6 +17,7 @@ export default function AdminOfferSentPurchaseOrder({ order }: PurchaseOrderDraw
   const total = useMemo(() => {
     return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
   }, [order, spotPrices, orderSpotPrices, payoutFee])
+  
   return (
     <>
       <div className="flex flex-col h-full w-full gap-5 ">

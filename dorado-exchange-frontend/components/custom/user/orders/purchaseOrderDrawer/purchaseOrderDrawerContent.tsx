@@ -4,7 +4,7 @@ import ReceivedPurchaseOrder from './drawerContents/Received'
 import OfferSentPurchaseOrder from './drawerContents/OfferSent'
 import AcceptedPurchaseOrder from './drawerContents/Accepted'
 import RejectedPurchaseOrder from './drawerContents/Rejected'
-import PaidPurchaseOrder from './drawerContents/Paid'
+import PaymentProcessingPurchaseOrder from './drawerContents/PaymentProcessing'
 import CancelledPurchaseOrder from './drawerContents/Cancelled'
 import CompletedPurchaseOrder from './drawerContents/Completed'
 
@@ -20,8 +20,8 @@ export default function PurchaseOrderDrawerContent({ order }: PurchaseOrderDrawe
       return <AcceptedPurchaseOrder order={order} />
     case 'Rejected':
       return <RejectedPurchaseOrder order={order} />
-    case 'Paid':
-      return <PaidPurchaseOrder order={order} />
+    case 'Payment Processing':
+      return <PaymentProcessingPurchaseOrder order={order} />
     case 'Cancelled':
       return <CancelledPurchaseOrder order={order} />
     case 'Completed':
