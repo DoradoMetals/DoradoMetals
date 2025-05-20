@@ -40,7 +40,7 @@ export default function PurchaseOrderCards({
               <Icon size={42} className={config.text_color} />
               <div className="flex flex-col ml-auto items-end">
                 <div className="text-2xl text-neutral-900">{count}</div>
-                <h2 className="text-base text-neutral-600">{status}</h2>
+                <h2 className="text-sm text-neutral-600">{status}</h2>
               </div>
             </div>
           </Button>

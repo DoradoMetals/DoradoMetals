@@ -665,7 +665,11 @@ async function expireStaleOffers() {
           [order.id]
         );
       } else {
-        await autoAcceptOrder(order);
+        try {
+          await autoAcceptOrder(order);
+        } catch (err) {
+          console.error("[CRON] autoAcceptOrder failed:", err);
+        }
       }
     }
   } catch (err) {

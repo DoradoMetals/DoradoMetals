@@ -10,7 +10,8 @@ export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawe
       <h2 className="text-2xl text-neutral-800 mb-2">Customer Accepted!</h2>
 
       <p className="text-sm text-neutral-700 mb-6 lg:px-14 text-center">
-        Customer has an accepted an offer total of {order.total_price}. Once you are ready, please move the order Payment Processing.
+        Customer has an accepted an offer total of ${order.total_price?.toFixed(2)}. Once you are
+        ready, please move the order to Payment Processing.
       </p>
     </div>
   )

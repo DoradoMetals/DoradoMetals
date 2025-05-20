@@ -1,14 +1,13 @@
 const { Pool } = require("pg");
 
-// Load environment variables
 require("dotenv").config();
 
-// Create a connection pool
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Use Railway DB URL
-  ssl: {
-    rejectUnauthorized: false, // Required for some cloud-based Postgres providers
-  },
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 50,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
 module.exports = pool;
