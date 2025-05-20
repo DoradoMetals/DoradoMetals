@@ -24,7 +24,7 @@ export const usePurchaseOrders = () => {
       )
     },
     enabled: !!user,
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   })
 }
 

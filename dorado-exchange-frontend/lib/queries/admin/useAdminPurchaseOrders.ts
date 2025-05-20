@@ -23,6 +23,7 @@ export const useAdminPurchaseOrders = () => {
       )
     },
     enabled: !!user,
+    refetchInterval: 10000,
   })
 }
 

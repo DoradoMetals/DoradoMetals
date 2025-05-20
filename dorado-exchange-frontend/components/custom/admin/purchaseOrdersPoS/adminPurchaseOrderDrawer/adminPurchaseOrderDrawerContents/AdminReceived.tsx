@@ -19,7 +19,6 @@ import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { cn } from '@/lib/utils'
 import { SpotPrice } from '@/types/metal'
-import { payoutOptions } from '@/types/payout'
 import {
   assignScrapItemNames,
   PurchaseOrderDrawerContentProps,
@@ -27,11 +26,8 @@ import {
   statusConfig,
   StatusConfigEntry,
 } from '@/types/purchase-order'
-import getPurchaseOrderBullionTotal from '@/utils/purchaseOrderBullionTotal'
-import getPurchaseOrderScrapTotal from '@/utils/purchaseOrderScrapTotal'
-import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 import { Lock, Plus, RotateCcw, Unlock } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import {
   Table,
   TableBody,
@@ -58,20 +54,6 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   const rawScrapItems = order.order_items.filter((item) => item.item_type === 'scrap' && item.scrap)
   const scrapItems = assignScrapItemNames(rawScrapItems)
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
-  const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
-  const payoutFee = payoutMethod?.cost ?? 0
-
-  const total = useMemo(() => {
-    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
-  }, [order, spotPrices, orderSpotPrices, payoutFee])
-
-  const scrapTotal = useMemo(() => {
-    return getPurchaseOrderScrapTotal(scrapItems, spotPrices, orderSpotPrices)
-  }, [scrapItems, spotPrices, orderSpotPrices])
-
-  const bullionTotal = useMemo(() => {
-    return getPurchaseOrderBullionTotal(bullionItems, spotPrices, orderSpotPrices)
-  }, [bullionItems, spotPrices, orderSpotPrices])
 
   const handleUpdateScrapPercentage = (spot: SpotPrice, scrap_percentage: number) => {
     updateScrapPercentage.mutate({ spot, scrap_percentage })
@@ -94,10 +76,6 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
     resetSpots.mutate({ purchase_order_id })
   }
 
-  const spotsLocked = useMemo(() => {
-    return orderSpotPrices.every((s) => typeof s.bid_spot === 'number')
-  }, [orderSpotPrices])
-
   const config = statusConfig[order.purchase_order_status]
   return (
     <>
@@ -113,18 +91,20 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                   'p-0 font-normal text-sm h-4 hover:bg-transparent'
                 )}
                 onClick={() =>
-                  spotsLocked ? handleResetSpots(order.id) : handleLockSpots(spotPrices, order.id)
+                  order.spots_locked
+                    ? handleResetSpots(order.id)
+                    : handleLockSpots(spotPrices, order.id)
                 }
                 disabled={lockSpots.isPending || resetSpots.isPending}
               >
-                {spotsLocked ? (
+                {order.spots_locked ? (
                   <div className="flex gap-1 items-center">
-                    Unlock Spots
+                    {resetSpots.isPending ? 'Unlocking...' : 'Unlock Spots'}
                     <Unlock size={16} />
                   </div>
                 ) : (
                   <div className="flex gap-1 items-center">
-                    Lock Spots
+                    {lockSpots.isPending ? 'Locking...' : 'Lock Spots'}
                     <Lock size={16} />
                   </div>
                 )}
@@ -143,10 +123,10 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                       type="number"
                       pattern="[0-9]*"
                       inputMode="decimal"
-                      readOnly={!spotsLocked}
+                      readOnly={!order.spots_locked}
                       className={cn(
                         'input-floating-label-form no-spinner text-center w-full text-base h-8',
-                        !spotsLocked && 'cursor-not-allowed'
+                        !order.spots_locked && 'cursor-not-allowed'
                       )}
                       value={
                         spot.bid_spot ??
