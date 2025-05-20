@@ -5,6 +5,9 @@ import { ShipmentTracking } from '@/types/shipping'
 import { PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
 import { SpotPrice } from '@/types/metal'
 import { Product } from '@/types/product'
+import { payoutOptions } from '@/types/payout'
+import getPurchaseOrderItemPrice from '@/utils/getPurchaseOrderItemPrice'
+import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 
 export const useAdminPurchaseOrders = () => {
   const { user } = useGetSession()
@@ -42,7 +45,6 @@ export const useMovePurchaseOrderStatus = () => {
       action: string
     }) => {
       if (!user?.id || user?.role !== 'admin') throw new Error('User is not an admin.')
-      console.log('spot locked: ', order.spots_locked)
       await apiRequest('POST', '/admin/change_purchase_order_status', {
         order_status,
         order,
@@ -250,18 +252,28 @@ export const useLockOrderSpotPrices = () => {
         })
       )
 
-      const orderQueryKey = ['purchase_order', purchase_order_id]
-      const prevOrder = queryClient.getQueryData<PurchaseOrder>(orderQueryKey)
+      const orderQueryKey = ['admin_purchase_orders', user]
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
 
-      queryClient.setQueryData<PurchaseOrder>(orderQueryKey, (old) =>
-        old ? { ...old, spots_locked: true } : old
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order_id
+            ? order
+            : {
+                ...order,
+                spots_locked: true,
+              }
+        )
       )
 
-      return { previousSpotPrices, prevOrder, queryKey, orderQueryKey }
+      return { previousSpotPrices, previousOrders, queryKey, orderQueryKey }
     },
     onError: (_err, _vars, context) => {
       if (context?.previousSpotPrices && context.queryKey) {
         queryClient.setQueryData(context.queryKey, context.previousSpotPrices)
+      }
+      if (context?.previousOrders && context.orderQueryKey) {
+        queryClient.setQueryData(context.orderQueryKey, context.previousOrders)
       }
     },
     onSettled: (_data, _err, _vars, context) => {
@@ -305,18 +317,28 @@ export const useResetOrderSpotPrices = () => {
         }))
       )
 
-      const orderQueryKey = ['purchase_order', purchase_order_id]
-      const prevOrder = queryClient.getQueryData<PurchaseOrder>(orderQueryKey)
+      const orderQueryKey = ['admin_purchase_orders', user]
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
 
-      queryClient.setQueryData<PurchaseOrder>(orderQueryKey, (old) =>
-        old ? { ...old, spots_locked: false } : old
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order_id
+            ? order
+            : {
+                ...order,
+                spots_locked: false,
+              }
+        )
       )
 
-      return { previousSpotPrices, prevOrder, queryKey, orderQueryKey }
+      return { previousSpotPrices, previousOrders, queryKey, orderQueryKey }
     },
     onError: (_err, _vars, context) => {
       if (context?.previousSpotPrices && context.queryKey) {
         queryClient.setQueryData(context.queryKey, context.previousSpotPrices)
+      }
+      if (context?.previousOrders && context.orderQueryKey) {
+        queryClient.setQueryData(context.orderQueryKey, context.previousOrders)
       }
     },
     onSettled: (_data, _err, _vars, context) => {
@@ -792,6 +814,135 @@ export const useAddNewOrderBullionItem = () => {
           queryKey: context.queryKey,
           refetchType: 'active',
         })
+      }
+    },
+  })
+}
+
+export const useAcceptOffer = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      purchase_order,
+      order_spots,
+      spot_prices,
+    }: {
+      purchase_order: PurchaseOrder
+      order_spots: SpotPrice[]
+      spot_prices: SpotPrice[]
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<PurchaseOrder>('POST', '/admin/accept_offer', {
+        user_id: user.id,
+        order: purchase_order,
+        order_spots,
+        spot_prices,
+      })
+    },
+
+    onMutate: async ({ purchase_order, order_spots, spot_prices }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      const payoutMethod = payoutOptions.find((p) => p.method === purchase_order.payout?.method)
+      const payoutFee = payoutMethod?.cost ?? 0
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order.id
+            ? order
+            : {
+                ...order,
+                offer_status: 'Accepted',
+                purchase_order_status: 'Accepted',
+                spots_locked: true,
+                order_items: purchase_order.order_items.map((item) => ({
+                  ...item,
+                  price: getPurchaseOrderItemPrice(item, spot_prices),
+                })),
+                total_price: getPurchaseOrderTotal(
+                  purchase_order,
+                  spot_prices,
+                  order_spots,
+                  payoutFee
+                ),
+              }
+        )
+      )
+      const updatedOrders = queryClient.getQueryData(queryKey)
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useRejectOffer = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      purchase_order,
+      offer_notes,
+    }: {
+      purchase_order: PurchaseOrder
+      offer_notes: string
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<PurchaseOrder>('POST', '/admin/reject_offer', {
+        user_id: user.id,
+        order: purchase_order,
+        offer_notes,
+      })
+    },
+
+    onMutate: async ({ purchase_order, offer_notes }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order.id
+            ? order
+            : {
+                ...order,
+                offer_status: 'Rejected',
+                purchase_order_status: 'Rejected',
+                offer_notes,
+              }
+        )
+      )
+
+      const updated = queryClient.getQueryData(queryKey)
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
       }
     },
   })

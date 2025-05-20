@@ -7,7 +7,7 @@ import { addDays } from 'date-fns'
 import { ShipmentTracking } from '@/types/shipping'
 import { useDownloadBase64 } from '@/utils/useDownloadLabel'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
-import { useCancelFedExLabel } from '@/lib/queries/shipping/useFedex'
+import { useCancelFedExLabel, useCancelFedExPickup } from '@/lib/queries/shipping/useFedex'
 
 export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const shipment_start = new Date(order.shipment.created_at).toISOString().slice(0, 10)
@@ -169,11 +169,35 @@ export function PreTransit({
 
   const { downloadBase64 } = useDownloadBase64()
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
-  const cancelLabel = useCancelFedExLabel();
+  const cancelLabel = useCancelFedExLabel()
+  const cancelPickup = useCancelFedExPickup()
 
   return (
     <div className="flex flex-col w-full gap-5">
-      <h3 className="text-base text-neutral-800">Package Not Yet Scanned</h3>
+      <div className="flex w-full justify-between items-center">
+        <h3 className="text-base text-neutral-800">Package Not Yet Scanned</h3>
+        {order.carrier_pickup?.confirmation_number && order.carrier_pickup?.pickup_requested_at && (
+          <Button
+            variant="link"
+            className={cn('bg-transparent hover:bg-transparent', color)}
+            onClick={() => {
+              cancelPickup.mutate({
+                id: order.carrier_pickup?.id!,
+                confirmationCode: order.carrier_pickup?.confirmation_number!,
+                pickupDate: order.carrier_pickup?.pickup_requested_at!,
+                location: order.carrier_pickup?.location!,
+              })
+            }}
+          >
+            Cancel Pickup
+          </Button>
+        )}
+      </div>
+      <div className="flex w-full justify-between items-center">
+        <div className="">Tracking Number:</div>
+        <div>{order.shipment.tracking_number}</div>
+      </div>
+      <div className=""></div>
 
       <div className="flex flex-col gap-2">
         <Button
@@ -200,7 +224,12 @@ export function PreTransit({
           variant="outline"
           className="text-destructive bg-transparent border border-destructive hover:text-white hover:bg-destructive"
           disabled={!order.shipment.shipping_label}
-          onClick={() => cancelLabel.mutate({tracking_number: order.shipment.tracking_number, shipment_id: order.shipment.id})}
+          onClick={() =>
+            cancelLabel.mutate({
+              tracking_number: order.shipment.tracking_number,
+              shipment_id: order.shipment.id,
+            })
+          }
         >
           Cancel Label
         </Button>

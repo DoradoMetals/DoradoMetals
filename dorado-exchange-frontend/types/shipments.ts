@@ -24,4 +24,5 @@ export interface CarrierPickup {
   pickup_requested_at: string,
   pickup_status: string,
   confirmation_number: number,
+  location: string,
 }

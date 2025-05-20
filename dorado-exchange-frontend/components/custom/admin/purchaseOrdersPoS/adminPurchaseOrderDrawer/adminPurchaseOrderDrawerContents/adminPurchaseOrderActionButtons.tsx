@@ -1,12 +1,33 @@
 import { Button } from '@/components/ui/button'
 import { PurchaseOrderActionButtonsProps, statusConfig } from '@/types/purchase-order'
 import { cn } from '@/lib/utils'
-import { useMovePurchaseOrderStatus } from '@/lib/queries/admin/useAdminPurchaseOrders'
+import {
+  useAcceptOffer,
+  useMovePurchaseOrderStatus,
+  useRejectOffer,
+} from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { useMemo } from 'react'
+import { useSpotPrices } from '@/lib/queries/useSpotPrices'
+import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 
 export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtonsProps) {
+  const { data: spotPrices = [] } = useSpotPrices()
+  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
+
   const movePurchaseOrderStatus = useMovePurchaseOrderStatus()
+  const acceptOffer = useAcceptOffer()
+  const rejectOffer = useRejectOffer()
+
   const handleAction = (action: string, status: string) => {
+    if (action === 'accept_offer') {
+      acceptOffer.mutate({
+        purchase_order: order,
+        order_spots: orderSpotPrices,
+        spot_prices: spotPrices,
+      })
+    } else if (action === 'reject_offer') {
+      rejectOffer.mutate({ purchase_order: order, offer_notes: '' })
+    }
     if (action !== 'adjust_price' && action !== 'reopen_order') {
       movePurchaseOrderStatus.mutate({
         order_status: status,
@@ -49,14 +70,14 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
       case 'Offer Sent':
         return [
           {
-            label: 'Move to Accepted',
-            action: 'move_to_accepted',
+            label: 'Accept Offer for Customer',
+            action: 'accept_offer',
             status: 'Accepted',
             disabled: false,
           },
           {
-            label: 'Move to Rejected',
-            action: 'move_to_rejected',
+            label: 'Reject Offer for Customer',
+            action: 'reject_offer',
             status: 'Rejected',
             disabled: false,
           },

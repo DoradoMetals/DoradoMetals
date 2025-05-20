@@ -148,9 +148,10 @@ export type FedexPickup = {
 };
 
 export type FedexCancelPickupInput = {
+  id: string,
   confirmationCode: number,
   pickupDate: string,
-  code: string,
+  location: string,
 }
 
 export type FedexLocationsInput = {

@@ -144,25 +144,45 @@ const getAdminPurchaseOrderMetals = async (req, res) => {
 
 const changePurchaseOrderStatus = async (req, res) => {
   const { order_status, order, action, user_name } = req.body;
+
   if (action === "move_to_offer_sent") {
     const now = new Date();
     const sentAt = new Date(now.getTime());
     const expiresAt = order.spots_locked
       ? new Date(now.getTime() + 24 * 60 * 60 * 1000)
       : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const client = await pool.connect();
     try {
+      await client.query("BEGIN");
+
+      await client.query(
+        `UPDATE exchange.purchase_order_items
+         SET price = NULL
+         WHERE purchase_order_id = $1`,
+        [order.id]
+      );
+
+      await client.query(
+        `UPDATE exchange.purchase_orders
+         SET total_price = NULL
+         WHERE id = $1`,
+        [order.id]
+      );
+
       const query = `
-      UPDATE exchange.purchase_orders
-      SET
-        offer_status = $1,
-        offer_sent_at = $2,
-        offer_expires_at = $3,
-        updated_at = NOW(),
-        updated_by = $4,
-        purchase_order_status = $5
-      WHERE id = $6
-      RETURNING *
+        UPDATE exchange.purchase_orders
+        SET
+          offer_status = $1,
+          offer_sent_at = $2,
+          offer_expires_at = $3,
+          updated_at = NOW(),
+          updated_by = $4,
+          purchase_order_status = $5
+        WHERE id = $6
+        RETURNING *;
       `;
+
       const values = [
         "Sent",
         sentAt,
@@ -172,26 +192,33 @@ const changePurchaseOrderStatus = async (req, res) => {
         order.id,
       ];
 
-      const { rows } = await pool.query(query, values);
+      const { rows } = await client.query(query, values);
+
       if (rows.length === 0) {
+        await client.query("ROLLBACK");
         return res.status(404).json({ error: "Purchase Order not found" });
       }
+
+      await client.query("COMMIT");
       res.status(200).json(rows[0]);
     } catch (error) {
+      await client.query("ROLLBACK");
       console.error("Error updating Purchase Order status:", error);
       res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+      client.release();
     }
   } else {
     try {
       const query = `
-      UPDATE exchange.purchase_orders
-      SET
-        purchase_order_status = $1,
-        updated_at = NOW(),
-        updated_by = $2
-      WHERE id = $3
-      RETURNING *
-    `;
+        UPDATE exchange.purchase_orders
+        SET
+          purchase_order_status = $1,
+          updated_at = NOW(),
+          updated_by = $2
+        WHERE id = $3
+        RETURNING *;
+      `;
 
       const values = [order_status, user_name, order.id];
 

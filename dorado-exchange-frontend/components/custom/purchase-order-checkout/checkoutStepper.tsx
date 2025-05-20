@@ -114,7 +114,14 @@ export default function CheckoutStepper() {
       setData({
         address: defaultAddress,
         confirmation: false,
-        fedexPackageToggle: true,
+        fedexPackageToggle: false,
+        insurance: {
+          insured: true,
+          declaredValue: {
+            amount: 0,
+            currency: 'USD',
+          },
+        },
       })
       hasInitialized.current = true
     }

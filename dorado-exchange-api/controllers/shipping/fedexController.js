@@ -89,8 +89,13 @@ const validateAddress = async (address) => {
 };
 
 const getFedexRates = async (req, res) => {
-  const { shippingType, customerAddress, packageDetails, pickupType, declaredValue } =
-    req.body;
+  const {
+    shippingType,
+    customerAddress,
+    packageDetails,
+    pickupType,
+    declaredValue,
+  } = req.body;
   const shipper = shippingType === "Inbound" ? customerAddress : DORADO_ADDRESS;
   const recipient =
     shippingType === "Inbound" ? DORADO_ADDRESS : customerAddress;
@@ -178,7 +183,7 @@ const createFedexLabel = async (
   packageDetails,
   pickupType,
   serviceType,
-  declaredValue,
+  declaredValue
 ) => {
   try {
     const token = await getFedExAccessToken();
@@ -285,7 +290,7 @@ const createFedexLabel = async (
 };
 
 const cancelLabel = async (req, res) => {
-  const { tracking_number, shipment_id } = req.body
+  const { tracking_number, shipment_id } = req.body;
   try {
     const token = await getFedExAccessToken();
     const cancelPayload = {
@@ -408,15 +413,30 @@ const scheduleFedexPickup = async (
   try {
     const token = await getFedExAccessToken();
 
-    const readyTimestamp = new Date(
-      `${pickupDate}T${pickupTime}Z`
-    ).toISOString();
-    const closeTime = new Date(
-      new Date(`${pickupDate}T${pickupTime}Z`).getTime() + 60 * 60 * 1000
-    )
-      .toISOString()
-      .split("T")[1]
-      .slice(0, 8);
+    function pad(n) {
+      return n.toString().padStart(2, "0");
+    }
+
+    function formatFedExLocalDateTime(date) {
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+        date.getDate()
+      )}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+        date.getSeconds()
+      )}`;
+    }
+
+    function formatFedExLocalTime(date) {
+      return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+        date.getSeconds()
+      )}`;
+    }
+
+    // Input strings like "2025-05-20" and "13:00"
+    const readyDate = new Date(`${pickupDate}T${pickupTime}`);
+    const readyTimestamp = formatFedExLocalDateTime(readyDate); // e.g. "2025-05-20T13:00:00"
+
+    const closeDate = new Date(readyDate.getTime() + 2 * 60 * 60 * 1000); // Add 2 hours
+    const customerCloseTime = formatFedExLocalTime(closeDate); // e.g. "15:00:00"
 
     const pickupPayload = {
       associatedAccountNumber: {
@@ -431,8 +451,8 @@ const scheduleFedexPickup = async (
           address: customerAddress,
         },
         readyDateTimestamp: readyTimestamp,
-        customerCloseTime: closeTime,
-        packageLocation: 'FRONT',
+        customerCloseTime: customerCloseTime,
+        packageLocation: "FRONT",
       },
       trackingNumber,
       carrierCode: code,
@@ -450,30 +470,37 @@ const scheduleFedexPickup = async (
     );
 
     const confirmationNumber = response.data?.output?.pickupConfirmationCode;
+    const location = response.data?.output?.location;
 
-    return { confirmationNumber };
+    return { confirmationNumber, location };
   } catch (error) {
-    const responseData = error?.response?.data;
-    console.error("FedEx pickup scheduling failed FULL ERROR:", JSON.stringify({
-      status: error?.response?.status,
-      statusText: error?.response?.statusText,
-      headers: error?.response?.headers,
-      data: error?.response?.data,
-    }, null, 2));
+    const responseData = error?.response?.data ?? null;
 
-    const errors = responseData?.errors;
-    if (Array.isArray(errors)) {
-      errors.forEach((err, i) => {
-        console.error(`Error ${i + 1}:`, JSON.stringify(err, null, 2));
-      });
+    console.error("FedEx pickup scheduling failed FULL ERROR:");
+    console.error("Raw error:", error.toString());
+    if (error?.response) {
+      console.error("Status:", error.response.status);
+      console.error("Status Text:", error.response.statusText);
+      console.error(
+        "Headers:",
+        JSON.stringify(error.response.headers, null, 2)
+      );
+      console.error("Data:", JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error(
+        "No response from FedEx API (likely network error or auth issue)"
+      );
     }
+
+    // Optional: also log config if needed
+    // console.error("Request config:", JSON.stringify(error.config, null, 2));
 
     throw new Error("FedEx pickup scheduling failed");
   }
 };
 
 const cancelFedexPickup = async (req, res) => {
-  const { confirmationNumber, pickupDate, code } = req.body;
+  const { id, confirmationCode, pickupDate, location } = req.body;
 
   try {
     const token = await getFedExAccessToken();
@@ -482,12 +509,12 @@ const cancelFedexPickup = async (req, res) => {
       associatedAccountNumber: {
         value: process.env.FEDEX_ACCOUNT_NUMBER,
       },
-      pickupConfirmationCode: confirmationNumber,
+      pickupConfirmationCode: confirmationCode,
       scheduledDate: pickupDate,
-      carrierCode: code,
+      location: location,
     };
 
-    const response = await axios.post(
+    const response = await axios.put(
       process.env.FEDEX_API_URL + "/pickup/v1/pickups/cancel",
       cancelPayload,
       {
@@ -496,6 +523,27 @@ const cancelFedexPickup = async (req, res) => {
           "Content-Type": "application/json",
         },
       }
+    );
+
+    const pickupResult = await pool.query(
+      `SELECT order_id FROM exchange.carrier_pickups WHERE id = $1`,
+      [id]
+    );
+
+    const order_id = pickupResult.rows[0]?.order_id;
+    if (!order_id) {
+      throw new Error("No order_id found for carrier pickup");
+    }
+
+    await pool.query(`DELETE FROM exchange.carrier_pickups WHERE id = $1`, [
+      id,
+    ]);
+
+    await pool.query(
+      `UPDATE exchange.inbound_shipments
+       SET pickup_type = 'Store Dropoff', shipping_status = 'Waiting for Dropoff'
+       WHERE order_id = $1`,
+      [order_id]
     );
 
     res.json({

@@ -144,11 +144,16 @@ const acceptOffer = async (req, res) => {
         spot_prices.map(async (spot) => {
           const query = `
             UPDATE exchange.order_metals
-            SET bid_spot = $1
-            WHERE purchase_order_id = $2 AND type = $3
+            SET bid_spot = $1, scrap_percentage = $2
+            WHERE purchase_order_id = $3 AND type = $4
             RETURNING *;
           `;
-          const values = [spot.bid_spot, order.id, spot.type];
+          const values = [
+            spot.bid_spot,
+            spot.scrap_percentage,
+            order.id,
+            spot.type,
+          ];
           const result = await client.query(query, values);
           return result.rows[0];
         })
@@ -159,7 +164,7 @@ const acceptOffer = async (req, res) => {
     // 2. Lock and insert prices for all order items
     await Promise.all(
       order.order_items.map(async (item) => {
-        const price = calculateItemPrice(item, updatedSpots); // pass updated spots here
+        const price = calculateItemPrice(item, updatedSpots);
         const query = `
           UPDATE exchange.purchase_order_items
           SET price = $1
@@ -171,7 +176,7 @@ const acceptOffer = async (req, res) => {
     );
 
     // 3. Lock and insert total order price
-    const total_price = calculateTotalPrice(order, updatedSpots); // pass updated spots here
+    const total_price = calculateTotalPrice(order, updatedSpots);
     const updateOrderQuery = `
       UPDATE exchange.purchase_orders
       SET 
@@ -224,7 +229,7 @@ const rejectOffer = async (req, res) => {
 const createPurchaseOrder = async (req, res) => {
   const { purchase_order, user_id } = req.body;
   const client = await pool.connect();
-  let purchase_order_id;
+
   try {
     await client.query("BEGIN");
 
@@ -236,9 +241,9 @@ const createPurchaseOrder = async (req, res) => {
     `;
     const orderValues = [user_id, purchase_order.address.id, "In Transit"];
     const { rows } = await client.query(insertOrderQuery, orderValues);
-    purchase_order_id = rows[0].id;
+    const purchase_order_id = rows[0].id;
 
-    // Step 2: Insert items
+    // Step 2: Insert order items
     const insertItemQuery = `
       INSERT INTO exchange.purchase_order_items (purchase_order_id, scrap_id, product_id, quantity, bullion_premium)
       VALUES ($1, $2, $3, $4, $5)
@@ -258,20 +263,7 @@ const createPurchaseOrder = async (req, res) => {
       ]);
     }
 
-    await client.query("COMMIT");
-  } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Error creating purchase order:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  } finally {
-    client.release();
-  }
-
-  // Step 3: Generate FedEx label (non-transactional)
-  let trackingNumber = null;
-  let labelFileBase64 = null;
-
-  try {
+    // Step 3: Generate FedEx label
     const labelData = await createFedexLabel(
       purchase_order.address.name,
       purchase_order.address.phone_number,
@@ -280,65 +272,59 @@ const createPurchaseOrder = async (req, res) => {
       {
         weight: purchase_order.package.weight,
         dimensions: purchase_order.package.dimensions,
-        insured: purchase_order.insured,
+        insured: purchase_order.insurance.insured,
       },
       purchase_order.pickup?.label || "DROPOFF_AT_FEDEX_LOCATION",
       purchase_order.service?.serviceType || "FEDEX_GROUND",
       purchase_order.insurance.declaredValue
     );
 
-    trackingNumber = labelData.tracking_number;
-    labelFileBase64 = labelData.labelFile;
+    const trackingNumber = labelData.tracking_number;
+    const labelFileBase64 = labelData.labelFile;
+    const labelBuffer = Buffer.from(labelFileBase64, "base64");
 
-    if (trackingNumber && labelFileBase64) {
-      const labelBuffer = Buffer.from(labelFileBase64, "base64");
-      const shipping_status =
-        purchase_order.pickup.name === "Carrier Pickup"
-          ? "Waiting for Pickup"
-          : "Waiting for Dropoff";
+    const shipping_status =
+      purchase_order.pickup.name === "Carrier Pickup"
+        ? "Waiting for Pickup"
+        : "Waiting for Dropoff";
 
-      await pool.query(
-        `
-        INSERT INTO exchange.inbound_shipments (
-          order_id,
-          tracking_number,
-          carrier,
-          shipping_status,
-          shipping_label,
-          label_type,
-          pickup_type,
-          package,
-          service_type,
-          net_charge,
-          insured,
-          declared_value
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      `,
-        [
-          purchase_order_id,
-          trackingNumber,
-          "FedEx",
-          shipping_status,
-          labelBuffer,
-          "Generated",
-          purchase_order.pickup?.name || "Unknown",
-          purchase_order.package.label,
-          purchase_order.service.serviceDescription,
-          purchase_order.service.netCharge,
-          purchase_order.insurance.insured,
-          purchase_order.insurance.declaredValue.amount,
-        ]
-      );
-    }
-  } catch (labelError) {
-    console.error("Label generation or insert failed:", labelError);
-  }
+    await client.query(
+      `
+      INSERT INTO exchange.inbound_shipments (
+        order_id,
+        tracking_number,
+        carrier,
+        shipping_status,
+        shipping_label,
+        label_type,
+        pickup_type,
+        package,
+        service_type,
+        net_charge,
+        insured,
+        declared_value
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    `,
+      [
+        purchase_order_id,
+        trackingNumber,
+        "FedEx",
+        shipping_status,
+        labelBuffer,
+        "Generated",
+        purchase_order.pickup?.name || "Unknown",
+        purchase_order.package.label,
+        purchase_order.service.serviceDescription,
+        purchase_order.service.netCharge,
+        purchase_order.insurance.insured,
+        purchase_order.insurance.declaredValue.amount,
+      ]
+    );
 
-  // Step 4: Schedule pickup (and insert confirmation record)
-  if (purchase_order.pickup?.name === "Carrier Pickup") {
-    try {
-      const { confirmationNumber } = await scheduleFedexPickup(
+    // Step 4: Schedule Pickup (if needed)
+    if (purchase_order.pickup?.name === "Carrier Pickup") {
+      const { confirmationNumber, location } = await scheduleFedexPickup(
         purchase_order.address.name,
         purchase_order.address.phone_number,
         formatAddressForFedEx(purchase_order.address),
@@ -348,39 +334,35 @@ const createPurchaseOrder = async (req, res) => {
         trackingNumber
       );
 
-      if (confirmationNumber) {
-        await pool.query(
-          `
-            INSERT INTO exchange.carrier_pickups (
-              user_id,
-              order_id,
-              carrier,
-              pickup_requested_at,
-              pickup_status,
-              confirmation_number
-            )
-            VALUES ($1, $2, $3, $4, $5, $6)
-          `,
-          [
-            user_id,
-            purchase_order_id,
-            "FedEx",
-            new Date(
-              `${purchase_order.pickup.date}T${purchase_order.pickup.time}Z`
-            ).toISOString(),
-            "scheduled",
-            confirmationNumber,
-          ]
-        );
-      }
-    } catch (pickupError) {
-      console.error("Pickup scheduling failed:", pickupError);
+      await client.query(
+        `
+        INSERT INTO exchange.carrier_pickups (
+          user_id,
+          order_id,
+          carrier,
+          pickup_requested_at,
+          pickup_status,
+          confirmation_number,
+          location
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `,
+        [
+          user_id,
+          purchase_order_id,
+          "FedEx",
+          new Date(
+            `${purchase_order.pickup.date}T${purchase_order.pickup.time}Z`
+          ).toISOString(),
+          "scheduled",
+          confirmationNumber,
+          location,
+        ]
+      );
     }
-  }
 
-  // Step 5: Create payout record
-  try {
-    await pool.query(
+    // Step 5: Create payout
+    await client.query(
       `
       INSERT INTO exchange.payouts (
         user_id, order_id, method, account_holder_name, bank_name, account_type, routing_number, account_number, email_to
@@ -399,15 +381,11 @@ const createPurchaseOrder = async (req, res) => {
         purchase_order.payout.payout_email || null,
       ]
     );
-  } catch (payoutError) {
-    console.error("Payout creation failed:", payoutError);
-  }
 
-  try {
+    // Step 6: Create order metals
     const metals = ["Gold", "Silver", "Platinum", "Palladium"];
-
     for (const metal of metals) {
-      await pool.query(
+      await client.query(
         `
         INSERT INTO exchange.order_metals (
           purchase_order_id, type
@@ -417,11 +395,17 @@ const createPurchaseOrder = async (req, res) => {
         [purchase_order_id, metal]
       );
     }
-  } catch (metalError) {
-    console.error("Inserting empty order metals failed:", metalError);
-  }
 
-  return res.status(200).json({ success: true, purchase_order_id });
+    await client.query("COMMIT");
+
+    return res.status(200).json({ success: true, purchase_order_id });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error creating purchase order:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  } finally {
+    client.release();
+  }
 };
 
 module.exports = {

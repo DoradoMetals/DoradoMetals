@@ -30,6 +30,7 @@ const {
   deleteOrderBullionItem,
   addNewOrderBullionItem,
 } = require("../controllers/admin/adminPurchaseOrdersController");
+const { acceptOffer, rejectOffer } = require("../controllers/purchase-orders/purchaseOrderController");
 
 const router = express.Router();
 
@@ -67,5 +68,7 @@ router.post("/add_new_order_scrap_item", addNewOrderScrapItem);
 router.post("/update_order_bullion_item", updateOrderBullionItem);
 router.post("/delete_order_bullion_items", deleteOrderBullionItem);
 router.post("/add_new_order_bullion_item", addNewOrderBullionItem);
+router.post("/accept_offer", acceptOffer);
+router.post("/reject_offer", rejectOffer);
 
 module.exports = router;
