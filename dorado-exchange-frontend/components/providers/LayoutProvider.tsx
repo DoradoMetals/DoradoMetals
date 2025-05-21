@@ -26,7 +26,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
     <>
       <div className="flex flex-col min-h-screen">
         <Shell />
-        <div className="lg:pt-[1px]">
+        <div className="flex flex-col relative lg:pt-[1px] flex-grow">
           {showMobileCarousel && <MobileProductCarousel />}
           {children}
         </div>

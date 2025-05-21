@@ -8,7 +8,7 @@ import Link from 'next/link'
 export default function Footer() {
   return (
     <>
-      <footer className="hidden lg:flex flex-col w-full bg-neutral-800 dark:bg-highest text-white px-8 py-5 mt-10">
+      <footer className="hidden lg:flex flex-col w-full bg-neutral-800 dark:bg-highest text-white px-8 py-5">
         <div className="w-full mx-auto flex flex-wrap justify-between gap-10">
           <div className="flex flex-col gap-2">
             <h4 className="text-xl font-medium mb-3">Resources</h4>
