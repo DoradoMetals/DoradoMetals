@@ -207,22 +207,75 @@ const acceptOffer = async (req, res) => {
 const rejectOffer = async (req, res) => {
   const { order, offer_notes } = req.body;
 
+  const num_rejections = order.num_rejections + 1;
+
   try {
     const query = `
       UPDATE exchange.purchase_orders
       SET
         purchase_order_status = $1,
         offer_status = $2,
-        offer_notes = $3
-      WHERE id = $4
+        offer_notes = $3,
+        num_rejections = $4
+      WHERE id = $5
+      RETURNING *;
     `;
-    const values = ["Rejected", "Rejected", offer_notes, order.id];
+    const values = [
+      "Rejected",
+      "Rejected",
+      offer_notes,
+      num_rejections,
+      order.id,
+    ];
     const { rows } = await pool.query(query, values);
 
     res.status(200).json(rows[0]);
   } catch (error) {
-    console.error("Error accepting offer:", error);
-    res.status(500).json({ error: "Failed to accept offer." });
+    console.error("Error rejecting offer:", error);
+    res.status(500).json({ error: "Failed to reject offer." });
+  }
+};
+
+const cancelOrder = async (req, res) => {
+  const { order } = req.body;
+
+  try {
+    const query = `
+      UPDATE exchange.purchase_orders
+      SET
+        purchase_order_status = $1,
+        offer_status = $2
+      WHERE id = $3
+      RETURNING *;
+    `;
+    const values = ["Cancelled", "Cancelled", order.id];
+    const { rows } = await pool.query(query, values);
+
+    res.status(200).json(rows[0]);
+  } catch (error) {
+    console.error("Error cancelling order:", error);
+    res.status(500).json({ error: "Failed to cancel order." });
+  }
+};
+
+const updateOfferNotes = async (req, res) => {
+  const { order, offer_notes } = req.body;
+
+  try {
+    const query = `
+      UPDATE exchange.purchase_orders
+      SET
+        offer_notes = $1
+      WHERE id = $2
+      RETURNING *;
+    `;
+    const values = [offer_notes, order.id];
+    const { rows } = await pool.query(query, values);
+
+    res.status(200).json(rows[0]);
+  } catch (error) {
+    console.error("Error updating offer notes:", error);
+    res.status(500).json({ error: "Failed to update offer notes." });
   }
 };
 
@@ -414,4 +467,6 @@ module.exports = {
   createPurchaseOrder,
   acceptOffer,
   rejectOffer,
+  updateOfferNotes,
+  cancelOrder,
 };

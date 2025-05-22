@@ -236,6 +236,59 @@ const changePurchaseOrderStatus = async (req, res) => {
   }
 };
 
+const updateRejectedOffer = async (req, res) => {
+  const { order, user_name } = req.body;
+
+  if (order.offer_status === "Resent") {
+    try {
+      const query = 
+      `
+        UPDATE exchange.purchase_orders
+        SET
+          offer_status = $1,
+          offer_sent_at = null,
+          offer_expires_at = null,
+          updated_at = NOW(),
+          updated_by = $2
+        WHERE id = $3
+        RETURNING *;
+      `;
+      const values = ["Rejected", user_name, order.id];
+      const { rows } = await pool.query(query, values);
+      res.status(200).json(rows[0]);
+    } catch (error) {
+      console.error("Error updating scrap percentage:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  } else {
+    const now = new Date();
+    const sentAt = new Date(now.getTime());
+    const expiresAt = order.spots_locked
+      ? new Date(now.getTime() + 24 * 60 * 60 * 1000)
+      : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    try {
+      const query = `
+      UPDATE exchange.purchase_orders
+      SET
+        offer_status = $1,
+        offer_sent_at = $2,
+        offer_expires_at = $3,
+        updated_at = NOW(),
+        updated_by = $4
+      WHERE id = $5
+      RETURNING *;
+    `;
+      const values = ["Resent", sentAt, expiresAt, user_name, order.id];
+      const { rows } = await pool.query(query, values);
+      res.status(200).json(rows[0]);
+    } catch (error) {
+      console.error("Error updating scrap percentage:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+};
+
 const updateOrderScrapPercentage = async (req, res) => {
   const { spot, scrap_percentage } = req.body;
 
@@ -845,4 +898,5 @@ module.exports = {
   addNewOrderBullionItem,
   expireStaleOffers,
   autoAcceptOrder,
+  updateRejectedOffer,
 };

@@ -5,6 +5,7 @@ import {
   useAcceptOffer,
   useMovePurchaseOrderStatus,
   useRejectOffer,
+  useUpdateRejectedOffer,
 } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { useMemo } from 'react'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
@@ -17,6 +18,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
   const movePurchaseOrderStatus = useMovePurchaseOrderStatus()
   const acceptOffer = useAcceptOffer()
   const rejectOffer = useRejectOffer()
+  const updateRejected = useUpdateRejectedOffer()
 
   const handleAction = (action: string, status: string) => {
     if (action === 'accept_offer') {
@@ -25,8 +27,13 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
         order_spots: orderSpotPrices,
         spot_prices: spotPrices,
       })
-    } else if (action === 'reject_offer') {
+    }
+    if (action === 'reject_offer') {
       rejectOffer.mutate({ purchase_order: order, offer_notes: '' })
+    }
+
+    if (action === 'update_rejected_offer') {
+      updateRejected.mutate({ purchase_order: order })
     }
     if (action !== 'adjust_price' && action !== 'reopen_order') {
       movePurchaseOrderStatus.mutate({
@@ -90,7 +97,12 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
         ]
       case 'Accepted':
         return [
-          { label: 'Move to Payment Processing', action: 'move_to_payment_processing', status: 'Payment Processing', disabled: false },
+          {
+            label: 'Move to Payment Processing',
+            action: 'move_to_payment_processing',
+            status: 'Payment Processing',
+            disabled: false,
+          },
           {
             label: 'Back to Offer Sent',
             action: 'move_to_offer_sent',
@@ -101,13 +113,13 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
       case 'Rejected':
         return [
           {
-            label: 'Adjust Price',
-            action: 'move_to_received',
-            status: 'Received',
+            label: 'Update Offer',
+            action: 'update_rejected_offer',
+            status: 'Rejected',
             disabled: false,
           },
           {
-            label: 'Move to Cancelled',
+            label: 'Cancel Order',
             action: 'move_to_cancelled',
             status: 'Cancelled',
             disabled: false,
@@ -138,7 +150,14 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
           },
         ]
       case 'Completed':
-        return [{ label: 'Move to Payment Processing', action: 'move_to_payment_processing', status: 'Payment Processing', disabled: false }]
+        return [
+          {
+            label: 'Move to Payment Processing',
+            action: 'move_to_payment_processing',
+            status: 'Payment Processing',
+            disabled: false,
+          },
+        ]
       default:
         return []
     }

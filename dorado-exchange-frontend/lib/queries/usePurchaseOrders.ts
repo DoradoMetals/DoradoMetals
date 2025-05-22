@@ -121,8 +121,6 @@ export const useAcceptOffer = () => {
               }
         )
       )
-      const updatedOrders = queryClient.getQueryData(queryKey)
-      console.log('Cached orders AFTER:', updatedOrders)
       return { previousOrders, queryKey }
     },
 
@@ -178,8 +176,107 @@ export const useRejectOffer = () => {
         )
       )
 
-      const updated = queryClient.getQueryData(queryKey)
-      console.log('Cached orders AFTER REJECT:', updated)
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useCancelOrder = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ purchase_order }: { purchase_order: PurchaseOrder }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/cancel_order', {
+        user_id: user.id,
+        order: purchase_order,
+      })
+    },
+
+    onMutate: async ({ purchase_order }) => {
+      const queryKey = ['purchase_orders', user?.id]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order.id
+            ? order
+            : {
+                ...order,
+                offer_status: 'Cancelled',
+                purchase_order_status: 'Cancelled',
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useUpdateOfferNotes = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      purchase_order,
+      offer_notes,
+    }: {
+      purchase_order: PurchaseOrder
+      offer_notes: string
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/update_offer_notes', {
+        user_id: user.id,
+        order: purchase_order,
+        offer_notes,
+      })
+    },
+
+    onMutate: async ({ purchase_order, offer_notes }) => {
+      const queryKey = ['purchase_orders', user?.id]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order.id
+            ? order
+            : {
+                ...order,
+                offer_notes,
+              }
+        )
+      )
 
       return { previousOrders, queryKey }
     },

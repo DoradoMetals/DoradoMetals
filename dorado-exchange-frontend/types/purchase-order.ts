@@ -66,6 +66,9 @@ export interface PurchaseOrder {
   spots_locked: boolean
   offer_notes?: string
   total_price?: number
+  num_rejections: number,
+  waive_shipping_fee: boolean,
+  waive_payout_fee: boolean,
 }
 
 export const purchaseOrderCheckoutSchema = z.object({

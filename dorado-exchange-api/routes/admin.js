@@ -29,7 +29,9 @@ const {
   updateOrderBullionItem,
   deleteOrderBullionItem,
   addNewOrderBullionItem,
+  updateRejectedOffer,
 } = require("../controllers/admin/adminPurchaseOrdersController");
+
 const { acceptOffer, rejectOffer } = require("../controllers/purchase-orders/purchaseOrderController");
 
 const router = express.Router();
@@ -70,5 +72,6 @@ router.post("/delete_order_bullion_items", deleteOrderBullionItem);
 router.post("/add_new_order_bullion_item", addNewOrderBullionItem);
 router.post("/accept_offer", acceptOffer);
 router.post("/reject_offer", rejectOffer);
+router.post("/update_rejected_offer", updateRejectedOffer);
 
 module.exports = router;
