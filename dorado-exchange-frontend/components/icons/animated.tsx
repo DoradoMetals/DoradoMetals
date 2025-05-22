@@ -56,7 +56,7 @@ export const AnimatedScroll: React.FC<{
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth="16"
-      className="scroll-2"
+      className="scroll-1 scroll-2"
     ></path>
     <line
       x1="104"

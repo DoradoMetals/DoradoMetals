@@ -42,18 +42,18 @@ export default function Page() {
         </div>
         <div className="text-sm text-neutral-700 mb-4">
           <BlurredStagger text="View your order by clicking the button below." delay={3200} />
-        </div>
+      </div>
       </div>
       <motion.div
         initial={{
           opacity: 0,
           filter: 'blur(8px)',
-          clipPath: 'inset(0 50% 0 50%)', // squeezed from sides
+          clipPath: 'inset(0 50% 0 50%)',
         }}
         animate={{
           opacity: 1,
           filter: 'blur(0px)',
-          clipPath: 'inset(0 0% 0 0%)', // fully revealed
+          clipPath: 'inset(0 0% 0 0%)',
         }}
         transition={{
           duration: 1,

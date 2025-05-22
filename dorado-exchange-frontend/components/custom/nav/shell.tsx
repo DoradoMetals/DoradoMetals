@@ -121,6 +121,7 @@ export default function Shell() {
               className="px-0 hover:bg-card relative"
               variant="ghost"
               onClick={() => openDrawer('cart')}
+              disabled={isAnyDrawerOpen}
             >
               <motion.div
                 initial={{ opacity: 1 }}

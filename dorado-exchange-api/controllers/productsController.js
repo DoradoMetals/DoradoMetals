@@ -47,10 +47,10 @@ const getFilteredProducts = async (req, res) => {
 
   try {
     let baseQuery = `
-      SELECT product.${PRODUCT_FIELDS}, metal.type AS metal_type
+      SELECT product.${PRODUCT_FIELDS}, mint.name AS mint_name, metal.type AS metal_type
       FROM exchange.products product
       JOIN exchange.metals metal ON metal.id = product.metal_id
-
+      JOIN exchange.mints mint ON mint.id = product.mint_id
     `;
 
     const conditions = ["product.display = true"];
@@ -72,7 +72,7 @@ const getFilteredProducts = async (req, res) => {
     }
 
     const whereClause = `WHERE ${conditions.join(" AND ")}`;
-    const finalQuery = `${baseQuery} ${whereClause} ORDER BY product.product_name ASC;`;
+    const finalQuery = `${baseQuery} ${whereClause} AND product.display = true ORDER BY product.product_name ASC;`;
 
     const result = await pool.query(finalQuery, values);
 

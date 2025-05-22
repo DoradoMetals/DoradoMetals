@@ -44,7 +44,7 @@ export default function AcceptedPurchaseOrder({ order }: PurchaseOrderDrawerCont
             'dark:[background-image:radial-gradient(#404040_1px,transparent_1px)]'
           )}
         />
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)] dark:bg-black"></div>
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)] dark:bg-black" />
         <Confetti ref={confettiRef} className="absolute left-0 top-0 z-0 size-full" manualstart />
         <div className="p-4">
           <div className="text-2xl text-neutral-800 mb-2">
@@ -55,7 +55,7 @@ export default function AcceptedPurchaseOrder({ order }: PurchaseOrderDrawerCont
           </div>
           <div className="text-sm text-neutral-700 mb-6 text-left">
             <BlurredStagger
-              text="Our team will begin processing your payment shortly."
+              text="Our team will begin processing your payment."
               delay={2200}
             />
           </div>
