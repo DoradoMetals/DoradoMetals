@@ -325,7 +325,7 @@ const cancelOrder = async (req, res) => {
       order.id,
       trackingNumber,
       "FedEx",
-      "Waiting for Dropoff",
+      "Label Created",
       labelBuffer,
       "Generated",
       "Store Dropoff",
@@ -448,11 +448,6 @@ const createPurchaseOrder = async (req, res) => {
     const labelFileBase64 = labelData.labelFile;
     const labelBuffer = Buffer.from(labelFileBase64, "base64");
 
-    const shipping_status =
-      purchase_order.pickup.name === "Carrier Pickup"
-        ? "Waiting for Pickup"
-        : "Waiting for Dropoff";
-
     await client.query(
       `
       INSERT INTO exchange.inbound_shipments (
@@ -475,7 +470,7 @@ const createPurchaseOrder = async (req, res) => {
         purchase_order_id,
         trackingNumber,
         "FedEx",
-        shipping_status,
+        "Label Created",
         labelBuffer,
         "Generated",
         purchase_order.pickup?.name || "Unknown",

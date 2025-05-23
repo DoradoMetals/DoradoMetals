@@ -541,7 +541,7 @@ const cancelFedexPickup = async (req, res) => {
 
     await pool.query(
       `UPDATE exchange.inbound_shipments
-       SET pickup_type = 'Store Dropoff', shipping_status = 'Waiting for Dropoff'
+       SET pickup_type = 'Store Dropoff', shipping_status = 'Label Created'
        WHERE order_id = $1`,
       [order_id]
     );

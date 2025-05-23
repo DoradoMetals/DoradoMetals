@@ -26,8 +26,7 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
 
   return (
     <>
-      {order.shipment.shipping_status === 'Waiting for Pickup' ||
-      order.shipment.shipping_status === 'Waiting for Dropoff' ? (
+      {order.shipment.shipping_status === 'Label Created' ? (
         <div className="flex flex-col w-full gap-5">
           <PreTransit
             order={order}
@@ -68,13 +67,13 @@ function ShipmentTrackingSection({
   const scan_events = trackingInfo.scan_events ?? []
 
   const getMatch = (status: string) =>
-    scan_events.find((e) => e.status.toLowerCase() === status.toLowerCase())
+    scan_events.find((e) => e.status?.toLowerCase() === status.toLowerCase())
 
   const pickedUp = getMatch('Picked Up')
   const outForDelivery = getMatch('Out for Delivery')
   const delivered = getMatch('Delivered')
 
-  const inTransits = scan_events.filter((e) => e.status.toLowerCase() === 'in transit')
+  const inTransits = scan_events.filter((e) => e.status?.toLowerCase() === 'in transit')
 
   const steps = [
     {
@@ -104,6 +103,7 @@ function ShipmentTrackingSection({
     },
   ]
 
+  console.log(scan_events)
   return (
     <div className="flex flex-col gap-5 w-full">
       <div className="flex">
@@ -161,11 +161,7 @@ export function PreTransit({
   background?: string
   hoverBg?: string
 }) {
-  if (
-    order.shipment.shipping_status !== 'Waiting for Pickup' &&
-    order.shipment.shipping_status !== 'Waiting for Dropoff'
-  )
-    return null
+  if (order.shipment.shipping_status !== 'Label Created') return null
 
   const { downloadBase64 } = useDownloadBase64()
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()

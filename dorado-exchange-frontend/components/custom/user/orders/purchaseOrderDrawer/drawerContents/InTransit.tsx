@@ -32,8 +32,7 @@ export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerCon
 
   return (
     <>
-      {order.shipment.shipping_status === 'Waiting for Pickup' ||
-      order.shipment.shipping_status === 'Waiting for Dropoff' ? (
+      {order.shipment.shipping_status === 'Label Created' ? (
         <div className="flex flex-col w-full gap-5">
           <DropoffInstructionsSection
             order={order}
@@ -169,8 +168,7 @@ export function DropoffInstructionsSection({
   hoverBg?: string
 }) {
   if (
-    order.shipment.shipping_status !== 'Waiting for Pickup' &&
-    order.shipment.shipping_status !== 'Waiting for Dropoff'
+    order.shipment.shipping_status !== 'Label Created'
   )
     return null
 

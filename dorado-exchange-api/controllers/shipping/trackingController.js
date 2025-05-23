@@ -23,9 +23,10 @@ const parseTracking = (trackingOutput) => {
     trackingOutput.estimatedDeliveryTimeWindow?.window.ends || "TBD";
 
   const statusMap = {
+    OC: "Label Created",
     PU: "Picked Up",
     IT: "In Transit",
-    OC: "Out for Delivery",
+    OD: "Out for Delivery",
     DL: "Delivered",
   };
 
