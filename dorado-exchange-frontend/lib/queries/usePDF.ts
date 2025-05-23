@@ -1,9 +1,9 @@
-import { apiRequest, pdfRequest } from '@/utils/axiosInstance'
+import { pdfRequest } from '@/utils/axiosInstance'
 import { PurchaseOrder } from '@/types/purchase-order'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
 import { useMutation } from '@tanstack/react-query'
 import { SpotPrice } from '@/types/metal'
-import { PackageOption, packageOptions } from '@/types/packaging'
+import { PackageOption } from '@/types/packaging'
 import { PayoutMethod } from '@/types/payout'
 
 const downloadPackingListRequest = async ({
@@ -65,5 +65,36 @@ const downloadReturnPackingListRequest = async ({
 export const useDownloadReturnPackingList = () => {
   return useMutation({
     mutationFn: downloadReturnPackingListRequest,
+  })
+}
+
+const downloadInvoiceRequest = async ({
+  purchaseOrder,
+  spotPrices,
+  orderSpots,
+}: {
+  purchaseOrder: PurchaseOrder
+  spotPrices: SpotPrice[]
+  orderSpots: SpotPrice[]
+}) => {
+  const blob = await pdfRequest<Blob>('POST', '/pdf/generate_invoice', {
+    purchaseOrder,
+    spotPrices,
+    orderSpots,
+  })
+
+  const url = URL.createObjectURL(blob)
+  const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${formatPurchaseOrderNumber(purchaseOrder.order_number)}_invoice.pdf`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+export const useDownloadInvoice = () => {
+  return useMutation({
+    mutationFn: downloadInvoiceRequest,
   })
 }

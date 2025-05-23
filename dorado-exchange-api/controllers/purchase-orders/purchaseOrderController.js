@@ -92,7 +92,11 @@ const getPurchaseOrders = async (req, res) => {
           'declared_value', ret.declared_value
         ) AS return_shipment,
         to_jsonb(cp) AS carrier_pickup,
-        to_jsonb(pay) AS payout
+        to_jsonb(pay) AS payout,
+        jsonb_build_object(
+          'user_name', u.name,
+          'user_email', u.email
+        ) AS user
       FROM exchange.purchase_orders po
       LEFT JOIN exchange.purchase_order_items poi ON poi.purchase_order_id = po.id
       LEFT JOIN exchange.scrap s ON poi.scrap_id = s.id
@@ -104,8 +108,9 @@ const getPurchaseOrders = async (req, res) => {
       LEFT JOIN exchange.return_shipments ret ON ret.order_id = po.id
       LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = po.id
       LEFT JOIN exchange.payouts pay ON pay.order_id = po.id
+      LEFT JOIN exchange.users u ON u.id = po.user_id
       WHERE po.user_id = $1
-      GROUP BY po.id, addr.id, ship.id, ret.id, cp.id, pay.id
+      GROUP BY po.id, addr.id, ship.id, ret.id, cp.id, pay.id, u.id
       ORDER BY po.created_at DESC;
     `;
 

@@ -1,5 +1,10 @@
 import { Button } from '@/components/ui/button'
-import { useDownloadPackingList, useDownloadReturnPackingList } from '@/lib/queries/usePDF'
+import {
+  useDownloadInvoice,
+  useDownloadPackingList,
+  useDownloadReturnPackingList,
+} from '@/lib/queries/usePDF'
+import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { packageOptions } from '@/types/packaging'
 import { payoutOptions } from '@/types/payout'
@@ -15,8 +20,11 @@ export default function PurchaseOrderDrawerHeader({
 }: PurchaseOrderDrawerHeaderProps) {
   const downloadPackingList = useDownloadPackingList()
   const downloadReturnPackingList = useDownloadReturnPackingList()
+  const downloadInvoice = useDownloadInvoice()
+
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const { data: spotPrices = [] } = useSpotPrices()
+  const { data: orderSpots = [] } = usePurchaseOrderMetals(order.id)
 
   const status = statusConfig[order.purchase_order_status]
   const Icon = status?.icon
@@ -71,8 +79,12 @@ export default function PurchaseOrderDrawerHeader({
               <Button
                 variant="link"
                 className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
+                onClick={() => {
+                  downloadInvoice.mutate({ purchaseOrder: order, spotPrices, orderSpots })
+                }}
+                disabled={downloadInvoice.isPending}
               >
-                Invoice
+                {downloadInvoice.isPending ? 'Loading...' : 'Download Invoice'}
               </Button>
             )}
         </div>

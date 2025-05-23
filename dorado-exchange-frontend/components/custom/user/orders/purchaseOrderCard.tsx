@@ -1,5 +1,9 @@
 import { Button } from '@/components/ui/button'
-import { useDownloadPackingList } from '@/lib/queries/usePDF'
+import {
+  useDownloadInvoice,
+  useDownloadPackingList,
+  useDownloadReturnPackingList,
+} from '@/lib/queries/usePDF'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { cn } from '@/lib/utils'
 import { useDrawerStore } from '@/store/drawerStore'
@@ -23,6 +27,9 @@ export default function PurchaseOrderCard({
 }) {
   const { openDrawer } = useDrawerStore()
   const downloadPackingList = useDownloadPackingList()
+  const downloadReturnPackingList = useDownloadReturnPackingList()
+  const downloadInvoice = useDownloadInvoice()
+
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
@@ -39,7 +46,15 @@ export default function PurchaseOrderCard({
     return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
   }, [order, spotPrices, orderSpotPrices, payoutFee])
 
+  const handleDownload = () => {
+    const payload = { purchaseOrder: order, spotPrices, packageDetails, payoutDetails }
 
+    if (order.purchase_order_status === 'Cancelled') {
+      downloadReturnPackingList.mutate(payload)
+    } else {
+      downloadPackingList.mutate(payload)
+    }
+  }
 
   return (
     <div className="flex flex-col w-full bg-card raised-off-page h-auto rounded-lg p-4">
@@ -76,31 +91,36 @@ export default function PurchaseOrderCard({
         </div>
         <div className="flex items-center justify-between w-full">
           <div className="">
-            {order.purchase_order_status === 'In Transit' ||
-            order.purchase_order_status === 'Received' ? (
+            {(order.purchase_order_status === 'In Transit' ||
+              order.purchase_order_status === 'Cancelled') && (
               <Button
                 variant="link"
-                className={`font-normal text-base bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} px-0`}
-                onClick={() =>
-                  downloadPackingList.mutate({
-                    purchaseOrder: order,
-                    spotPrices,
-                    packageDetails,
-                    payoutDetails,
-                  })
-                }
-                disabled={downloadPackingList.isPending}
+                className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
+                onClick={handleDownload}
+                disabled={downloadPackingList.isPending || downloadReturnPackingList.isPending}
               >
-                {downloadPackingList.isPending ? 'Loading...' : 'Download Packing List'}
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                className={`font-normal text-sm bg-transparent hover:bg-transparent hover:underline-none ${status.text_color} p-0`}
-              >
-                Invoice
+                {downloadPackingList.isPending || downloadReturnPackingList.isPending
+                  ? 'Loading...'
+                  : 'Download Packing List'}
               </Button>
             )}
+            {order.purchase_order_status !== 'In Transit' &&
+              order.purchase_order_status !== 'Cancelled' && (
+                <Button
+                  variant="link"
+                  className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
+                  onClick={() => {
+                    downloadInvoice.mutate({
+                      purchaseOrder: order,
+                      spotPrices,
+                      orderSpots: orderSpotPrices,
+                    })
+                  }}
+                  disabled={downloadInvoice.isPending}
+                >
+                  {downloadInvoice.isPending ? 'Loading...' : 'Download Invoice'}
+                </Button>
+              )}
           </div>
           <div>
             <Button
