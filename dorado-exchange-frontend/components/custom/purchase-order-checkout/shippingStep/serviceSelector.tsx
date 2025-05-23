@@ -84,7 +84,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
                   {rate?.netCharge != null ? (
                     <PriceNumberFlow value={rate.netCharge} />
                   ) : (
-                    <span className="text-neutral-500 select-none">&nbsp;</span> // reserve space
+                    <span className="text-neutral-500 select-none">&nbsp;</span>
                   )}
                 </div>
               </div>

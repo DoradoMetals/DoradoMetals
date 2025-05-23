@@ -33,6 +33,34 @@ function calculateTotalPrice(order, spots) {
   return baseTotal - shipping - payoutFee;
 }
 
+function calculateReturnDeclaredValue(order, spots) {
+  const total = order.order_items.reduce((acc, item) => {
+    if (item.item_type === "product") {
+      const spot = spots?.find((s) => s.type === item.product?.metal_type);
+
+      const price =
+        (item?.product?.content ?? 0) *
+        (spot.bid_spot *
+          (item.bullion_premium ?? item?.product?.bid_premium ?? 0));
+
+      const quantity = item.quantity ?? 1;
+      return acc + price * quantity;
+    }
+
+    if (item.item_type === "scrap") {
+      const spot = spots?.find((s) => s.type === item.scrap?.metal);
+
+      const price =
+        (item?.scrap?.content ?? 0) * (spot.bid_spot * spot.scrap_percentage);
+      return acc + price;
+    }
+
+    return acc;
+  }, 0);
+
+  return total;
+}
+
 function calculateItemPrice(item, spots) {
   if (item.item_type === "product") {
     const spot = spots?.find((s) => s.type === item.product?.metal_type);
@@ -48,5 +76,6 @@ function calculateItemPrice(item, spots) {
 
 module.exports = {
   calculateTotalPrice,
+  calculateReturnDeclaredValue,
   calculateItemPrice,
 };

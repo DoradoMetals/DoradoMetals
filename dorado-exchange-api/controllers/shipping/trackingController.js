@@ -67,24 +67,27 @@ const updateFedexShipmentTracking = async (
   shipment_end,
   tracking_number,
   inbound_shipment,
-  outbound_shipment
+  outbound_shipment,
+  return_shipment
 ) => {
   try {
+    console.log(tracking_number, shipment_end, shipment_start);
     const token = await getFedExAccessToken();
     const trackingPayload = {
       includeDetailedScans: true,
-      masterTrackingNumberInfo: {
-        shipDateEnd: shipment_end,
-        shipDateBegin: shipment_start,
-        trackingNumberInfo: {
-          trackingNumber: tracking_number,
+      trackingInfo: [
+        {
+          shipDateEnd: shipment_end,
+          shipDateBegin: shipment_start,
+          trackingNumberInfo: {
+            trackingNumber: tracking_number,
+          },
         },
-      },
-      associatedType: "STANDARD_MPS",
+      ],
     };
 
     const response = await axios.post(
-      process.env.FEDEX_API_URL + "/track/v1/associatedshipments",
+      process.env.FEDEX_API_URL + "/track/v1/trackingnumbers",
       trackingPayload,
       {
         headers: {
@@ -108,6 +111,11 @@ const updateFedexShipmentTracking = async (
         `DELETE FROM exchange.shipment_tracking_events WHERE outbound_shipment_id = $1`,
         [outbound_shipment]
       );
+    } else if (return_shipment) {
+      await pool.query(
+        `DELETE FROM exchange.shipment_tracking_events WHERE return_shipment_id = $1`,
+        [return_shipment]
+      );
     }
 
     for (const event of trackingInfo.scanEvents) {
@@ -116,15 +124,17 @@ const updateFedexShipmentTracking = async (
           INSERT INTO exchange.shipment_tracking_events (
             inbound_shipment_id,
             outbound_shipment_id,
+            return_shipment_id,
             status,
             location,
             scan_time
           )
-          VALUES ($1, $2, $3, $4, $5)
+          VALUES ($1, $2, $3, $4, $5, $6)
         `,
         [
           inbound_shipment,
           outbound_shipment,
+          return_shipment,
           event.status,
           event.location,
           event.date,
@@ -163,6 +173,22 @@ const updateFedexShipmentTracking = async (
               : trackingInfo.estimatedDeliveryTime,
             trackingInfo.deliveredAt,
             outbound_shipment,
+          ]
+        );
+      } else if (return_shipment) {
+        await pool.query(
+          `
+        UPDATE exchange.return_shipments
+        SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
+        WHERE id = $4
+      `,
+          [
+            trackingInfo.latestStatus,
+            trackingInfo.estimatedDeliveryTime === "TBD"
+              ? null
+              : trackingInfo.estimatedDeliveryTime,
+            trackingInfo.deliveredAt,
+            return_shipment,
           ]
         );
       }

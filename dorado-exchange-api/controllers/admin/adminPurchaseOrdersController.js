@@ -76,8 +76,29 @@ const getAllPurchaseOrders = async (req, res) => {
           'package', ship.package,
           'shipping_label', encode(ship.shipping_label, 'base64'),
           'shipping_charge', ship.net_charge,
-          'shipping_service', ship.service_type
+          'shipping_service', ship.service_type,
+          'insured', ship.insured,
+          'declared_value', ship.declared_value
         ) AS shipment,
+        jsonb_build_object(
+          'id', ret.id,
+          'order_id', ret.order_id,
+          'tracking_number', ret.tracking_number,
+          'carrier', ret.carrier,
+          'shipping_status', ret.shipping_status,
+          'estimated_delivery', ret.estimated_delivery,
+          'shipped_at', ret.shipped_at,
+          'delivered_at', ret.delivered_at,
+          'created_at', ret.created_at,
+          'label_type', ret.label_type,
+          'pickup_type', ret.pickup_type,
+          'package', ret.package,
+          'shipping_label', encode(ret.shipping_label, 'base64'),
+          'shipping_charge', ret.net_charge,
+          'shipping_service', ret.service_type,
+          'insured', ret.insured,
+          'declared_value', ret.declared_value
+        ) AS return_shipment,
         to_jsonb(cp) AS carrier_pickup,
         to_jsonb(pay) AS payout,
         jsonb_build_object(
@@ -92,10 +113,11 @@ const getAllPurchaseOrders = async (req, res) => {
       LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
       LEFT JOIN exchange.addresses addr ON addr.id = po.address_id
       LEFT JOIN exchange.inbound_shipments ship ON ship.order_id = po.id
+      LEFT JOIN exchange.return_shipments ret ON ret.order_id = po.id
       LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = po.id
       LEFT JOIN exchange.payouts pay ON pay.order_id = po.id
       LEFT JOIN exchange.users u ON u.id = po.user_id
-      GROUP BY po.id, addr.id, ship.id, cp.id, pay.id, u.id
+      GROUP BY po.id, addr.id, ship.id, ret.id, cp.id, pay.id, u.id
       ORDER BY po.created_at DESC;
     `;
 

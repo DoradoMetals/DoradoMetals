@@ -1,7 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { useGetSession } from './useAuth'
-import { PurchaseOrder, PurchaseOrderCheckout } from '@/types/purchase-order'
+import {
+  PurchaseOrder,
+  PurchaseOrderCheckout,
+  PurchaseOrderReturnShipment,
+} from '@/types/purchase-order'
 import { SpotPrice } from '@/types/metal'
 import getPurchaseOrderItemPrice from '@/utils/getPurchaseOrderItemPrice'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
@@ -198,11 +202,18 @@ export const useCancelOrder = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ purchase_order }: { purchase_order: PurchaseOrder }) => {
+    mutationFn: async ({
+      purchase_order,
+      return_shipment,
+    }: {
+      purchase_order: PurchaseOrder
+      return_shipment: PurchaseOrderReturnShipment
+    }) => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/cancel_order', {
         user_id: user.id,
         order: purchase_order,
+        return_shipment: return_shipment,
       })
     },
 
@@ -220,22 +231,44 @@ export const useCancelOrder = () => {
                 ...order,
                 offer_status: 'Cancelled',
                 purchase_order_status: 'Cancelled',
+                spots_locked: false,
               }
         )
       )
 
-      return { previousOrders, queryKey }
+      const metalsQueryKey = ['purchase_orders_metals', purchase_order.id]
+      const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(metalsQueryKey)
+
+      queryClient.setQueryData<SpotPrice[]>(queryKey, (old = []) =>
+        old.map((s) => ({
+          ...s,
+          bid_spot: null as unknown as number,
+        }))
+      )
+
+      return { previousSpotPrices, previousOrders, queryKey, metalsQueryKey }
     },
 
     onError: (_err, _vars, context) => {
+      if (context?.previousSpotPrices && context.metalsQueryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousSpotPrices)
+      }
       if (context?.previousOrders && context.queryKey) {
         queryClient.setQueryData(context.queryKey, context.previousOrders)
       }
     },
-
     onSettled: (_data, _err, _vars, context) => {
+      if (context?.metalsQueryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
       if (context?.queryKey) {
-        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
       }
     },
   })

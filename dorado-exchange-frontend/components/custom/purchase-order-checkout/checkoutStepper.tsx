@@ -149,8 +149,6 @@ export default function CheckoutStepper() {
     }
   }
 
-  console.log(fedexRatesInput)
-
   const { data: rates = [], isLoading: ratesLoading } = useFedExRates(fedexRatesInput)
 
   useEffect(() => {

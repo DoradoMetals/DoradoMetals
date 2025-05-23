@@ -54,6 +54,7 @@ export interface PurchaseOrder {
   order_items: PurchaseOrderItem[]
   address: Address
   shipment: Shipment
+  return_shipment: Shipment
   carrier_pickup?: CarrierPickup
   payout: Payout
   user: {
@@ -69,7 +70,18 @@ export interface PurchaseOrder {
   num_rejections: number,
   waive_shipping_fee: boolean,
   waive_payout_fee: boolean,
+  shipping_paid: boolean,
 }
+
+export const purchaseOrderReturnShipmentSchema = z.object({
+  address: addressSchema,
+  package: packageSchema,
+  pickup: pickupSchema,
+  service: serviceSchema,
+  insurance: insuranceSchema,
+})
+
+export type PurchaseOrderReturnShipment = z.infer<typeof purchaseOrderReturnShipmentSchema>
 
 export const purchaseOrderCheckoutSchema = z.object({
   address: addressSchema,

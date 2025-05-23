@@ -85,16 +85,19 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
             <TableBody>
               {scrapItems.map((item, i) => (
                 <TableRow key={i} className="hover:bg-transparent">
-                  <TableCell className='text-left'>{item.scrap?.name}</TableCell>
-                  <TableCell className='text-center'>{item.scrap?.content?.toFixed(2)} toz</TableCell>
-                  <TableCell className='text-center'>
+                  <TableCell className="text-left">{item.scrap?.name}</TableCell>
+                  <TableCell className="text-center">
+                    {item.scrap?.content?.toFixed(2)} toz
+                  </TableCell>
+                  <TableCell className="text-center">
                     {(
                       (item.scrap?.content ?? 0) *
                       (orderSpotPrices?.find((s) => s.type === item.scrap?.metal)
                         ?.scrap_percentage ??
                         spotPrices.find((s) => s.type === item.scrap?.metal)?.scrap_percentage ??
                         1)
-                    ).toFixed(2)} toz
+                    ).toFixed(2)}{' '}
+                    toz
                   </TableCell>
                   <TableCell className="text-right">
                     <PriceNumberFlow
@@ -129,7 +132,12 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                       value={
                         item.quantity *
                         (item.price ??
-                          getPurchaseOrderBullionPrice(item.product!, spotPrices, orderSpotPrices, item.bullion_premium ?? null))
+                          getPurchaseOrderBullionPrice(
+                            item.product!,
+                            spotPrices,
+                            orderSpotPrices,
+                            item.bullion_premium ?? null
+                          ))
                       }
                     />
                   </TableCell>
@@ -142,7 +150,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
 
       {order.shipment && (
         <Accordion
-          label="Shipping Cost"
+          label="Shipping Charges"
           open={open.shipment ?? false}
           toggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
           total={order.shipment.shipping_charge ?? 0}
@@ -151,10 +159,20 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
             <TableBody>
               <TableRow className="hover:bg-transparent">
                 <TableCell>{order.shipment.shipping_service}</TableCell>
+                <TableCell>{order.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                 <TableCell className="text-right p-0">
                   -<PriceNumberFlow value={order.shipment.shipping_charge} />
                 </TableCell>
               </TableRow>
+              {order.purchase_order_status === 'Cancelled' && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell>{order.return_shipment.shipping_service} (Return)</TableCell>
+                  <TableCell>{order.return_shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
+                  <TableCell className="text-right p-0">
+                    -<PriceNumberFlow value={order.return_shipment.shipping_charge} />
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </Accordion>

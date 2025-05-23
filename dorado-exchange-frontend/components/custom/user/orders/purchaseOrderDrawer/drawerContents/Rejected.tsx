@@ -25,6 +25,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { packageOptions } from '@/types/packaging'
+import { pickupOptions } from '@/types/pickup'
+import { serviceOptions, ShippingService } from '@/types/service'
+import getReturnDeclaredValue from '@/utils/getReturnDeclaredValue'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { ShieldCheck, ShieldSlash } from '@phosphor-icons/react'
+import { FedexRateInput, formatFedexRatesAddress } from '@/types/shipping'
+import { useFedExRates } from '@/lib/queries/shipping/useFedex'
 
 export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: spotPrices = [] } = useSpotPrices()
@@ -36,6 +44,7 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
 
   const [offerNotes, setOfferNotes] = useState(order.offer_notes ?? '')
   const [open, setOpen] = useState(false)
+  const [insureReturn, setInsureReturn] = useState(false)
 
   const config = statusConfig[order.purchase_order_status]
 
@@ -57,6 +66,61 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
   const total = useMemo(() => {
     return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
   }, [order, spotPrices, orderSpotPrices, payoutFee])
+
+  const declaredValue = useMemo(() => {
+    return getReturnDeclaredValue(order, spotPrices, orderSpotPrices)
+  }, [order, spotPrices, orderSpotPrices])
+
+  const matchedService = serviceOptions.FEDEX_EXPRESS_SAVER
+  const selectedPackage = packageOptions[1]
+  const selectedPickup = pickupOptions.DROPOFF_AT_FEDEX_LOCATION
+
+  const fedexRatesInput = useMemo(
+    (): FedexRateInput => ({
+      shippingType: 'Return',
+      customerAddress: formatFedexRatesAddress(order.address),
+      pickupType: selectedPickup.label,
+      packageDetails: {
+        weight: selectedPackage.weight,
+        dimensions: selectedPackage.dimensions,
+      },
+      ...(insureReturn
+        ? {
+            declaredValue: {
+              amount: declaredValue,
+              currency: 'USD' as const,
+            },
+          }
+        : {}),
+    }),
+    [order.address, insureReturn, declaredValue, selectedPackage, selectedPickup]
+  )
+
+  const { data: rates = [], isLoading: ratesLoading } = useFedExRates(fedexRatesInput)
+
+  const selectedRate = rates.find((r) => r.serviceType === matchedService.serviceType)
+
+  const returnShipment = {
+    address: order.address,
+    package: selectedPackage,
+    pickup: selectedPickup,
+    service: {
+      ...matchedService,
+      serviceType: matchedService.serviceType,
+      serviceDescription: matchedService.serviceDescription ?? '',
+      netCharge: selectedRate?.netCharge ?? 0,
+      currency: selectedRate?.currency ?? 'USD',
+      transitTime: selectedRate?.transitTime ?? new Date(),
+      deliveryDay: selectedRate?.deliveryDay ?? '',
+    },
+    insurance: {
+      declaredValue: {
+        amount: insureReturn ? declaredValue : 0.0,
+        currency: 'USD' as const,
+      },
+      insured: insureReturn,
+    },
+  }
 
   return (
     <>
@@ -160,11 +224,55 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
                 <DialogTitle className="text-left">Cancel Order?</DialogTitle>
               </DialogHeader>
               <DialogDescription>
-                We’re sorry we could not meet your price expectations. We will get your items ready
-                for return. Please note, shipping charges may still apply. We will be in touch soon
-                to coordinate the return shipment.
+                We're sorry we could not meet your price expectations. We will get your items ready
+                for return. Before your items are returned, you will need to pay the shipping
+                charges, including the return shipment. Please select if you would like your return
+                shipment insured.
               </DialogDescription>
 
+              <RadioGroup
+                value={insureReturn ? 'insured' : 'uninsured'}
+                onValueChange={(value) => setInsureReturn(value === 'insured')}
+                className="flex items-center w-full justify-between"
+              >
+                {['insured', 'uninsured'].map((option) => {
+                  const Icon = option === 'insured' ? ShieldCheck : ShieldSlash
+
+                  return (
+                    <label
+                      key={option}
+                      htmlFor={option}
+                      className={cn(
+                        'raised-off-page relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md'
+                      )}
+                    >
+                      <Icon size={28} className={cn(config.text_color)} />
+                      <div className="text-xs sm:text-sm text-neutral-800 font-medium capitalize">
+                        {option}
+                      </div>
+                      <RadioGroupItem id={option} value={option} className="sr-only" />
+                    </label>
+                  )
+                })}
+              </RadioGroup>
+              <div className="flex w-full justify-between items-center">
+                <div>Return Charge:</div>
+                {selectedRate?.netCharge != null ? (
+                  <PriceNumberFlow value={selectedRate.netCharge} />
+                ) : (
+                  <span className="text-neutral-500 select-none">Loading...</span>
+                )}
+              </div>
+              <div className="flex w-full justify-between items-center">
+                <div>Total Charge:</div>
+                {selectedRate?.netCharge != null ? (
+                  <PriceNumberFlow
+                    value={order.shipment.shipping_charge + selectedRate.netCharge}
+                  />
+                ) : (
+                  <span className="text-neutral-500 select-none">Loading...</span>
+                )}
+              </div>
               <DialogFooter>
                 <Button
                   variant="default"
@@ -174,7 +282,7 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
                     'text-white raised-off-page w-full p-4'
                   )}
                   onClick={() => {
-                    cancelOrder.mutate({ purchase_order: order })
+                    cancelOrder.mutate({ purchase_order: order, return_shipment: returnShipment })
                   }}
                   disabled={cancelOrder.isPending}
                 >

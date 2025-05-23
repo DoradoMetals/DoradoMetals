@@ -129,7 +129,12 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
                       value={
                         item.quantity *
                         (item.price ??
-                          getPurchaseOrderBullionPrice(item.product!, spotPrices, orderSpotPrices, item.bullion_premium ?? null))
+                          getPurchaseOrderBullionPrice(
+                            item.product!,
+                            spotPrices,
+                            orderSpotPrices,
+                            item.bullion_premium ?? null
+                          ))
                       }
                     />
                   </TableCell>
@@ -142,7 +147,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
 
       {order.shipment && (
         <Accordion
-          label="Shipping Cost"
+          label="Shipping Charges"
           open={open.shipment ?? false}
           toggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
           total={order.shipment.shipping_charge ?? 0}
@@ -151,10 +156,20 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
             <TableBody>
               <TableRow className="hover:bg-transparent">
                 <TableCell>{order.shipment.shipping_service}</TableCell>
+                <TableCell>{order.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                 <TableCell className="text-right p-0">
                   -<PriceNumberFlow value={order.shipment.shipping_charge} />
                 </TableCell>
               </TableRow>
+              {order.purchase_order_status === 'Cancelled' && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell>{order.return_shipment.shipping_service} (Return)</TableCell>
+                  <TableCell>{order.return_shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
+                  <TableCell className="text-right p-0">
+                    -<PriceNumberFlow value={order.return_shipment.shipping_charge} />
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </Accordion>

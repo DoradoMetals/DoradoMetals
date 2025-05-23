@@ -61,7 +61,7 @@ export function formatFedexRatesAddress(address: Address) {
 }
 
 export type FedexRateInput = {
-  shippingType: "Inbound" | "Outbound";
+  shippingType: "Inbound" | "Outbound" | "Return";
   customerAddress: FedexRatesAddress;
   packageDetails: {
     weight: { units: "LB" | "KG"; value: number };

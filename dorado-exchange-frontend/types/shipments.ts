@@ -14,6 +14,8 @@ export interface Shipment {
   package: string,
   shipping_service: string,
   shipping_charge: number,
+  insured: boolean,
+  declared_value: number
 }
 
 export interface CarrierPickup {

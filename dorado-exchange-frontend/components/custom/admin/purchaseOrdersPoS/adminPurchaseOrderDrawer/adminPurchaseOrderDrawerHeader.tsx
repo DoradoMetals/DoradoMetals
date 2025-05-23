@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { useDownloadPackingList } from '@/lib/queries/usePDF'
+import { useDownloadPackingList, useDownloadReturnPackingList } from '@/lib/queries/usePDF'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { packageOptions } from '@/types/packaging'
 import { payoutOptions } from '@/types/payout'
@@ -11,15 +11,28 @@ export default function PurchaseOrderDrawerHeader({
   order,
   username,
 }: PurchaseOrderDrawerHeaderProps) {
-    const downloadPackingList = useDownloadPackingList()
+  const downloadPackingList = useDownloadPackingList()
+  const downloadReturnPackingList = useDownloadReturnPackingList()
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const { data: spotPrices = [] } = useSpotPrices()
 
   const status = statusConfig[order.purchase_order_status] ?? ''
   const Icon = status?.icon ?? CheckCheck
-  const packageDetails = packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
-  const payoutDetails = payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
-  
+  const packageDetails =
+    packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
+  const payoutDetails =
+    payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
+
+  const handleDownload = () => {
+    const payload = { purchaseOrder: order, spotPrices, packageDetails, payoutDetails }
+
+    if (order.purchase_order_status === 'Cancelled') {
+      downloadReturnPackingList.mutate(payload)
+    } else {
+      downloadPackingList.mutate(payload)
+    }
+  }
+
   return (
     <div className="flex flex-col w-full gap-6 border-b-1 border-border">
       <div className="flex w-full justify-between items-center">
@@ -38,23 +51,29 @@ export default function PurchaseOrderDrawerHeader({
           <span className="text-lg text-neutral-800">{order.purchase_order_status}</span>
         </div>
         <div className="flex ml-auto">
-          {order.purchase_order_status === 'In Transit' ||
-          order.purchase_order_status === 'Received' ? (
+          {(order.purchase_order_status === 'In Transit' ||
+            order.purchase_order_status === 'Cancelled') && (
             <Button
               variant="link"
               className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
-              onClick={() => downloadPackingList.mutate({ purchaseOrder: order, spotPrices, packageDetails, payoutDetails })}
-              disabled={downloadPackingList.isPending}
+              onClick={handleDownload}
+              disabled={
+                downloadPackingList.isPending || downloadReturnPackingList.isPending
+              }
             >
-              {downloadPackingList.isPending ? 'Loading...' : ' Download Packing List'}
+              {(downloadPackingList.isPending || downloadReturnPackingList.isPending)
+                ? 'Loading...'
+                : 'Download Packing List'}
             </Button>
-          ) : (
-            <Button
-              variant="link"
-              className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
-            >
-              Invoice
-            </Button>
+          )}
+          {order.purchase_order_status !== 'In Transit' &&
+            order.purchase_order_status !== 'Cancelled' && (
+              <Button
+                variant="link"
+                className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
+              >
+                Invoice
+              </Button>
           )}
         </div>
       </div>

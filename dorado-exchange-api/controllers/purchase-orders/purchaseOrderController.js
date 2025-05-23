@@ -2,6 +2,7 @@ const pool = require("../../db");
 const {
   calculateItemPrice,
   calculateTotalPrice,
+  calculateReturnDeclaredValue,
 } = require("../../utils/price-calculations");
 const {
   createFedexLabel,
@@ -67,8 +68,29 @@ const getPurchaseOrders = async (req, res) => {
           'package', ship.package,
           'shipping_label', encode(ship.shipping_label, 'base64'),
           'shipping_charge', ship.net_charge,
-          'shipping_service', ship.service_type
+          'shipping_service', ship.service_type,
+          'insured', ship.insured,
+          'declared_value', ship.declared_value
         ) AS shipment,
+        jsonb_build_object(
+          'id', ret.id,
+          'order_id', ret.order_id,
+          'tracking_number', ret.tracking_number,
+          'carrier', ret.carrier,
+          'shipping_status', ret.shipping_status,
+          'estimated_delivery', ret.estimated_delivery,
+          'shipped_at', ret.shipped_at,
+          'delivered_at', ret.delivered_at,
+          'created_at', ret.created_at,
+          'label_type', ret.label_type,
+          'pickup_type', ret.pickup_type,
+          'package', ret.package,
+          'shipping_label', encode(ret.shipping_label, 'base64'),
+          'shipping_charge', ret.net_charge,
+          'shipping_service', ret.service_type,
+          'insured', ret.insured,
+          'declared_value', ret.declared_value
+        ) AS return_shipment,
         to_jsonb(cp) AS carrier_pickup,
         to_jsonb(pay) AS payout
       FROM exchange.purchase_orders po
@@ -79,10 +101,11 @@ const getPurchaseOrders = async (req, res) => {
       LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
       LEFT JOIN exchange.addresses addr ON addr.id = po.address_id
       LEFT JOIN exchange.inbound_shipments ship ON ship.order_id = po.id
+      LEFT JOIN exchange.return_shipments ret ON ret.order_id = po.id
       LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = po.id
       LEFT JOIN exchange.payouts pay ON pay.order_id = po.id
       WHERE po.user_id = $1
-      GROUP BY po.id, addr.id, ship.id, cp.id, pay.id
+      GROUP BY po.id, addr.id, ship.id, ret.id, cp.id, pay.id
       ORDER BY po.created_at DESC;
     `;
 
@@ -237,24 +260,92 @@ const rejectOffer = async (req, res) => {
 };
 
 const cancelOrder = async (req, res) => {
-  const { order } = req.body;
+  const { order, return_shipment } = req.body;
+  const client = await pool.connect();
 
   try {
-    const query = `
+    await client.query("BEGIN");
+
+    const updateQuery = `
       UPDATE exchange.purchase_orders
       SET
         purchase_order_status = $1,
+        spots_locked = false,
         offer_status = $2
       WHERE id = $3
       RETURNING *;
     `;
-    const values = ["Cancelled", "Cancelled", order.id];
-    const { rows } = await pool.query(query, values);
+    const updateValues = ["Cancelled", "Cancelled", order.id];
+    const { rows } = await client.query(updateQuery, updateValues);
 
+    await client.query(
+      `UPDATE exchange.order_metals
+       SET bid_spot = NULL
+       WHERE purchase_order_id = $1`,
+      [order.id]
+    );
+
+    const labelData = await createFedexLabel(
+      return_shipment.address.name,
+      return_shipment.address.phone_number,
+      formatAddressForFedEx(return_shipment.address),
+      "Return",
+      {
+        weight: return_shipment.package.weight,
+        dimensions: return_shipment.package.dimensions,
+        insured: return_shipment.insurance.declaredValue,
+      },
+      return_shipment.pickup?.label || "DROPOFF_AT_FEDEX_LOCATION",
+      return_shipment.service?.serviceType || "FEDEX_EXPRESS_SAVER",
+      return_shipment.declaredValue
+    );
+
+    const trackingNumber = labelData.tracking_number;
+    const labelFileBase64 = labelData.labelFile;
+    const labelBuffer = Buffer.from(labelFileBase64, "base64");
+
+    const insertQuery = `
+      INSERT INTO exchange.return_shipments (
+        order_id,
+        tracking_number,
+        carrier,
+        shipping_status,
+        shipping_label,
+        label_type,
+        pickup_type,
+        package,
+        service_type,
+        net_charge,
+        insured,
+        declared_value
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    `;
+    const insertValues = [
+      order.id,
+      trackingNumber,
+      "FedEx",
+      "Waiting for Dropoff",
+      labelBuffer,
+      "Generated",
+      "Store Dropoff",
+      "Medium Box",
+      "Express Saver",
+      return_shipment.service.netCharge,
+      return_shipment.insurance.insured,
+      return_shipment.insurance.declaredValue.amount,
+    ];
+
+    await client.query(insertQuery, insertValues);
+
+    await client.query("COMMIT");
     res.status(200).json(rows[0]);
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error cancelling order:", error);
     res.status(500).json({ error: "Failed to cancel order." });
+  } finally {
+    client.release();
   }
 };
 
@@ -328,7 +419,7 @@ const createPurchaseOrder = async (req, res) => {
         insured: purchase_order.insurance.insured,
       },
       purchase_order.pickup?.label || "DROPOFF_AT_FEDEX_LOCATION",
-      purchase_order.service?.serviceType || "FEDEX_GROUND",
+      purchase_order.service?.serviceType || "FEDEX_EXPRESS_SAVER",
       purchase_order.insurance.declaredValue
     );
 
