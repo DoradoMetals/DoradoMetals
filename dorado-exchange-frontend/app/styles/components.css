@@ -46,9 +46,12 @@
 }
 
 .form-submit-button {
-  @apply w-full 
+  @apply 
+    w-full 
     mb-8 
-    shadow-lg;
+    shadow-lg
+    text-white
+    hover:text-white;
 }
 
 .radio-group-buttons {

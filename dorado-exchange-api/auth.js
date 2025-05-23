@@ -6,7 +6,10 @@ const {
   renderVerifyEmail,
   renderChangeEmail,
   renderResetPasswordEmail,
+  renderCreateAccountEmail,
 } = require("./emails/renderEmail");
+
+const { magicLink, admin } = require("better-auth/plugins");
 
 require("dotenv").config();
 
@@ -94,6 +97,20 @@ const auth = betterAuth({
     },
   },
   trustedOrigins: [process.env.FRONTEND_URL],
+  plugins: [
+    magicLink({
+      sendMagicLink: async ({ email, token, url }, request) => {
+        const emailUrl = `${process.env.FRONTEND_URL}/verify-login?token=${token}`;
+        console.log('here')
+        await sendEmail({
+          to: email,
+          subject: "Your Dorado account is ready",
+          html: renderCreateAccountEmail({ firstName: "", url: emailUrl }),
+        });
+      },
+    }),
+    admin(),
+  ],
 });
 
 module.exports = { auth };

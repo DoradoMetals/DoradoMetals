@@ -1,10 +1,12 @@
-import { Suspense } from "react";
-import ResetPasswordForm from "@/components/custom/auth/resetPasswordForm";
+import { Suspense } from 'react'
+import ResetPasswordForm from '@/components/custom/auth/resetPasswordForm'
 
 export default function Page() {
   return (
     <Suspense fallback={<p>Loading...</p>}>
-      <ResetPasswordForm />
+      <div className="h-screen mt-12 lg:mt-32 ">
+        <ResetPasswordForm />
+      </div>
     </Suspense>
-  );
+  )
 }

@@ -8,6 +8,7 @@ import ScrapCards from './scrapPoS/ScrapCards'
 import ProductCards from './productsPoS/productCards'
 import ProductsInventory from './productsPoS/productsInventory'
 import AdminPurchaseOrders from './purchaseOrdersPoS/AdminPurchaseOrders'
+import { UsersPage } from './usersPoS/usersPage'
 
 export function AdminTabs() {
   return (
@@ -71,7 +72,9 @@ export function AdminTabs() {
             </Tabs>
           </TabsContent>
 
-          <TabsContent value="users"></TabsContent>
+          <TabsContent value="users">
+            <UsersPage />
+          </TabsContent>
         </Tabs>
       </div>
     </>

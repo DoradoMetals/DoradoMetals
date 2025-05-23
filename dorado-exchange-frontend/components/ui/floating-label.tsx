@@ -11,7 +11,7 @@ const floatingLabelVariant = cva(
 		variants: {
 			size: {
 				xs: "peer-placeholder-shown:text-sm peer-placeholder-shown:top-2.5",
-				sm: "peer-placeholder-shown:text-sm peer-placeholder-shown:top-3.5",
+				sm: "peer-placeholder-shown:text-sm peer-placeholder-shown:top-2.5",
 				md: "peer-placeholder-shown:text-base peer-placeholder-shown:top-3.5",
 				lg: "peer-placeholder-shown:text-lg peer-placeholder-shown:top-4",
 				textarea: "peer-placeholder-shown:text-base peer-placeholder-shown:top-3.5",

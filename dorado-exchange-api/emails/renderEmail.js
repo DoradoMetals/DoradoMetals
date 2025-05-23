@@ -33,9 +33,14 @@ function renderChangeEmail({ firstName, url }) {
   return renderTemplate('changeEmail.raw.html', { firstName, url });
 }
 
+function renderCreateAccountEmail({firstName, url}) {
+  return renderTemplate('createAccount.raw.html', {firstName, url});
+}
+
 module.exports = {
   renderAccountCreatedEmail,
   renderResetPasswordEmail,
   renderVerifyEmail,
   renderChangeEmail,
+  renderCreateAccountEmail,
 };

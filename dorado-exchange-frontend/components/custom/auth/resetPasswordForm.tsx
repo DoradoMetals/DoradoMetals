@@ -35,20 +35,19 @@ export default function ResetPasswordForm() {
       {
         onSuccess: () => {
           form.reset()
-          router.push('/authentication?tab=sign-in&resetSuccess=true')
+          router.push('/')
         },
       }
     )
   }
 
   return (
-    <div className="h-screen mt-12 lg:mt-32 flex justify-center">
-      <div className="flex flex-col w-full max-w-sm px-4">
-        <p className="text-lg text-neutral-600 font-bold mr-auto mb-10">Reset Password</p>
-
+    <div className="flex justify-center w-full">
+      <div className="flex flex-col w-full max-w-lg gap-6">
+        <p className="text-xs text-neutral-600 tracking-widest mr-auto uppercase">Reset Password</p>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <div className="space-y-10">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-6">
               <FormField
                 control={form.control}
                 name="password"
@@ -62,7 +61,7 @@ export default function ResetPasswordForm() {
                           type={showPassword ? 'text' : 'password'}
                           autoComplete="current-password"
                           size="sm"
-                          className="input-floating-label-form"
+                          className="input-floating-label-form h-10"
                           {...field}
                         />
                       </FormControl>
@@ -88,7 +87,7 @@ export default function ResetPasswordForm() {
                           type={showConfirmPassword ? 'text' : 'password'}
                           autoComplete="current-password"
                           size="sm"
-                          className="input-floating-label-form"
+                          className="input-floating-label-form h-10"
                           {...field}
                         />
                       </FormControl>
@@ -106,21 +105,20 @@ export default function ResetPasswordForm() {
               type="submit"
               variant="default"
               disabled={resetPasswordMutation.isPending}
-              className="form-submit-button liquid-gold raised-off-page shine-on-hover"
+              className="form-submit-button liquid-gold raised-off-page shine-on-hover !mb-0"
             >
               {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
             </Button>
+            {resetPasswordMutation.error && (
+              <p className="text-sm text-center text-destructive">
+                {resetPasswordMutation.error.message}
+              </p>
+            )}
+            {resetPasswordMutation.isSuccess && (
+              <p className="text-sm text-center text-green-500">Password reset successful!</p>
+            )}
           </form>
         </Form>
-
-        {resetPasswordMutation.error && (
-          <p className="text-sm text-center text-destructive">
-            {resetPasswordMutation.error.message}
-          </p>
-        )}
-        {resetPasswordMutation.isSuccess && (
-          <p className="text-sm text-center text-green-500">Password reset successful!</p>
-        )}
       </div>
     </div>
   )
