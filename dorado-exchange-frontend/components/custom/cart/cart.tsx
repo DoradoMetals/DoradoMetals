@@ -3,7 +3,6 @@
 import { Button } from '@/components/ui/button'
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import Image from 'next/image'
-import Link from 'next/link'
 import NumberFlow from '@number-flow/react'
 import { cartStore } from '@/store/cartStore'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
@@ -11,9 +10,11 @@ import getProductPrice from '@/utils/getProductPrice'
 import PriceNumberFlow from '../products/PriceNumberFlow'
 import { useRouter } from 'next/navigation'
 import { useDrawerStore } from '@/store/drawerStore'
+import { useUser } from '@/lib/authClient'
 
 export default function Cart() {
   const router = useRouter()
+  const { user } = useUser()
   const { closeDrawer } = useDrawerStore()
 
   const items = cartStore((state) => state.items)
@@ -51,7 +52,6 @@ export default function Cart() {
           closeDrawer()
         }}
         className="raised-off-page secondary-gradient text-white hover:text-white shine-on-hover px-10"
-
       >
         Start Shopping
       </Button>
@@ -148,8 +148,11 @@ export default function Cart() {
       </div>
       <Button
         className="raised-off-page w-full secondary-gradient text-white hover:text-white shine-on-hover"
+        onClick={() => {
+          user ? router.push('/checkout') : router.push('/authentication')
+        }}
       >
-        Checkout
+        {user ? 'Checkout' : 'Sign In to Checkout'}
       </Button>
     </div>
   )

@@ -36,7 +36,7 @@ export default function SignInForm() {
   }
 
   return (
-    <div className="grid place-items-center">
+    <div className="grid place-items-center pb-20">
       <div className="flex flex-col w-full">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">

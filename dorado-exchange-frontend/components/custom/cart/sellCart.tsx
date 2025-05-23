@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react'
+import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import NumberFlow from '@number-flow/react'
@@ -16,11 +16,12 @@ import getProductBidPrice from '@/utils/getProductBidPrice'
 import { useDrawerStore } from '@/store/drawerStore'
 import { ShoppingCartSimple } from '@phosphor-icons/react/dist/ssr'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { useUser } from '@/lib/authClient'
 
 export default function SellCart() {
   const router = useRouter()
+  const { user } = useUser()
   const { closeDrawer } = useDrawerStore()
-
   const items = sellCartStore((state) => state.items)
   const addItem = sellCartStore((state) => state.addItem)
   const removeOne = sellCartStore((state) => state.removeOne)
@@ -128,7 +129,7 @@ export default function SellCart() {
                 variant="ghost"
                 size="sm"
                 className="hover:bg-card p-1"
-                onClick={() => addItem({ type: 'product', data: {...item, quantity: 1} })}
+                onClick={() => addItem({ type: 'product', data: { ...item, quantity: 1 } })}
               >
                 <Plus size={16} />
               </Button>
@@ -205,9 +206,11 @@ export default function SellCart() {
       </div>
       <Button
         className="raised-off-page primary-gradient shine-on-hover w-full text-white"
-        onClick={() => router.push('/checkout')}
+        onClick={() => {
+          user ? router.push('/checkout') : router.push('/authentication')
+        }}
       >
-        Sell Your Items
+        {user ? 'Sell Your Items' : 'Sign In to Sell Your Items'}
       </Button>
     </div>
   )
