@@ -334,7 +334,7 @@ function StatusSelector({
             <Button
               variant="ghost"
               className={cn(
-                'px-2 hover:bg-transparent raised-off-page w-32 bg-card hover:bg-card flex items-center justify-between font-normal h-8',
+                'px-2 hover:bg-transparent raised-off-page min-w-44 bg-card hover:bg-card flex items-center justify-between font-normal h-8',
                 selectedStatus
                   ? `${statusConfig[selectedStatus]?.text_color} hover:${statusConfig[selectedStatus]?.text_color}`
                   : 'text-neutral-700'
@@ -355,7 +355,7 @@ function StatusSelector({
           <PopoverContent
             align="start"
             side="bottom"
-            className="p-0 w-50"
+            className="p-0 w-44"
             onOpenAutoFocus={(e) => e.preventDefault()}
           >
             <Command className="bg-card h-full">

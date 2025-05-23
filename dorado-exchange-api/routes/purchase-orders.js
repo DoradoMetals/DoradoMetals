@@ -8,6 +8,7 @@ const {
   rejectOffer,
   updateOfferNotes,
   cancelOrder,
+  createReview,
 } = require("../controllers/purchase-orders/purchaseOrderController");
 
 const router = express.Router();
@@ -19,5 +20,6 @@ router.post("/accept_offer", requireAuth, acceptOffer);
 router.post("/reject_offer", requireAuth, rejectOffer);
 router.post("/update_offer_notes", requireAuth, updateOfferNotes);
 router.post("/cancel_order", requireAuth, cancelOrder);
+router.post("/create_review", requireAuth, createReview);
 
 module.exports = router;

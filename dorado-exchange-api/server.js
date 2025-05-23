@@ -9,6 +9,7 @@ const adminRoutes = require("./routes/admin");
 const shippingRoutes = require("./routes/shipping");
 const purchaseOrderRoutes = require("./routes/purchase-orders");
 const pdfRoutes = require("./routes/pdf");
+const reviewRoutes = require("./routes/reviews");
 
 const spotRoutes = require("./routes/spots");
 const { toNodeHandler } = require("better-auth/node");
@@ -46,6 +47,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/shipping", shippingRoutes);
 app.use("/api/purchase_orders", purchaseOrderRoutes);
 app.use("/api/pdf", pdfRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 setupScheduler();
 

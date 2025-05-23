@@ -54,31 +54,34 @@ export default function OfferSentPurchaseOrder({ order }: PurchaseOrderDrawerCon
   }
 
   return (
-    <div className="flex flex-col h-full w-full items-center justify-between">
-      <div className="flex items-center w-full justify-between">
-        <div className="text-2xl text-neutral-900">Offered Price:</div>
-        <div className="text-2xl text-neutral-900">
-          <PriceNumberFlow value={total} />
+    <div className="flex flex-col h-full w-full items-center">
+      <div className="raised-off-page bg-card p-4 rounded-lg mb-4">
+        <div className="flex items-center w-full justify-between">
+          <div className="text-2xl text-neutral-900">Offered Price:</div>
+          <div className="text-2xl text-neutral-900">
+            <PriceNumberFlow value={total} />
+          </div>
+        </div>
+        <div className="flex flex-col gap-4 h-full w-full items-center justify-center">
+          <CountdownRing
+            sentAt={order.offer_sent_at!}
+            expiresAt={order.offer_expires_at!}
+            fillColor={config.stroke_color}
+          />
+          {order.spots_locked ? (
+            <p className="text-sm text-neutral-700 mb-6 lg:px-14 text-left">
+              Spot prices have been locked for your order. You will have 24 hours to accept or
+              reject our offer, after which we will unlock the current spot prices.
+            </p>
+          ) : (
+            <p className="text-sm text-neutral-700 mb-6 lg:px-14 text-left">
+              Spot prices have not been locked for your order. You will have 1 week to accept or
+              reject our offer, after which it will automatically be accepted on your behalf.
+            </p>
+          )}
         </div>
       </div>
-      <div className="flex flex-col gap-4 h-full w-full items-center justify-center">
-        <CountdownRing
-          sentAt={order.offer_sent_at!}
-          expiresAt={order.offer_expires_at!}
-          fillColor={config.stroke_color}
-        />
-        {order.spots_locked ? (
-          <p className="text-sm text-neutral-700 mb-6 lg:px-14 text-center">
-            Spot prices have been locked for your order. You will have 24 hours to accept or reject
-            our offer, after which we will unlock the current spot prices.
-          </p>
-        ) : (
-          <p className="text-sm text-neutral-700 mb-6 lg:px-14 text-center">
-            Spot prices have not been locked for your order. You will have 1 week to accept or
-            reject our offer, after which it will automatically be accepted on your behalf.
-          </p>
-        )}
-      </div>
+
       <div className="flex flex-col items-center w-full gap-2">
         <Button
           variant="default"

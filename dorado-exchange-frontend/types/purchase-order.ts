@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { boolean, z } from 'zod'
 import { Address, addressSchema } from './address'
 import { packageSchema } from './packaging'
 import { serviceSchema } from './service'
@@ -71,6 +71,7 @@ export interface PurchaseOrder {
   waive_shipping_fee: boolean,
   waive_payout_fee: boolean,
   shipping_paid: boolean,
+  review_created: boolean,
 }
 
 export const purchaseOrderReturnShipmentSchema = z.object({

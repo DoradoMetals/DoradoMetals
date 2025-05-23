@@ -370,6 +370,27 @@ const updateOfferNotes = async (req, res) => {
   }
 };
 
+const createReview = async (req, res) => {
+  const { order } = req.body;
+
+  try {
+    const query = `
+      UPDATE exchange.purchase_orders
+      SET
+        review_created = true
+      WHERE id = $1
+      RETURNING *;
+    `;
+    const values = [order.id];
+    const { rows } = await pool.query(query, values);
+
+    res.status(200).json(rows[0]);
+  } catch (error) {
+    console.error("Error updating creating review:", error);
+    res.status(500).json({ error: "Failed to create review." });
+  }
+};
+
 const createPurchaseOrder = async (req, res) => {
   const { purchase_order, user_id } = req.body;
   const client = await pool.connect();
@@ -560,4 +581,5 @@ module.exports = {
   rejectOffer,
   updateOfferNotes,
   cancelOrder,
+  createReview,
 };

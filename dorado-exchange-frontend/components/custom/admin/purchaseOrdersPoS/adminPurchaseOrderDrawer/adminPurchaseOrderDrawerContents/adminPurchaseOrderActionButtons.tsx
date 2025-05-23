@@ -152,7 +152,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
       case 'Completed':
         return [
           {
-            label: 'Move to Payment Processing',
+            label: 'Back to Payment Processing',
             action: 'move_to_payment_processing',
             status: 'Payment Processing',
             disabled: false,

@@ -31,6 +31,7 @@ export default function Page() {
   }, [])
   return (
     <div className="flex flex-col justify-center items-center px-4 flex-grow pb-5">
+      
       <Confetti ref={confettiRef} className="absolute left-0 top-0 z-0 size-full" manualstart />
       <div className="px-4 flex flex-col items-center h-full w-full justify-center">
         <div className="text-2xl text-neutral-800 mb-2">

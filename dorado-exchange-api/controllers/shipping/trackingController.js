@@ -71,7 +71,6 @@ const updateFedexShipmentTracking = async (
   return_shipment
 ) => {
   try {
-    console.log(tracking_number, shipment_end, shipment_start);
     const token = await getFedExAccessToken();
     const trackingPayload = {
       includeDetailedScans: true,
