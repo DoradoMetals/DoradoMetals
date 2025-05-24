@@ -139,6 +139,12 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
             status: 'Completed',
             disabled: false,
           },
+          {
+            label: 'Back to Accepted',
+            action: 'move_to_accepted',
+            status: 'Accepted',
+            disabled: false,
+          },
         ]
       case 'Cancelled':
         return [

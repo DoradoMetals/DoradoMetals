@@ -1555,6 +1555,8 @@ const generateReturnPackingList = async (req, res) => {
 
 const generateInvoice = async (req, res) => {
   const { purchaseOrder, spotPrices = [], orderSpots = [] } = req.body;
+
+  const doneStatus = ["Accepted", "Payment Processing", "Completed"];
   try {
     const browser = await puppeteer.launch({
       headless: true,
@@ -1802,6 +1804,13 @@ const generateInvoice = async (req, res) => {
             .text-right {
               text-align: right;
             }
+            .text-left {
+              text-align: left;
+            }
+            .text-bold {
+              font-weight: bold;
+              font-size: 12px;
+            }
             .order-info table {
               width: 100%;
               table-layout: fixed;
@@ -1882,9 +1891,13 @@ const generateInvoice = async (req, res) => {
               </div>
             </div>
 
-            <div class="packing-title">Invoice</div>
+            <div class="packing-title">${
+              doneStatus.includes(purchaseOrder.purchase_order_status)
+                ? "Invoice"
+                : "Invoice Preview"
+            } </div>
             <div class="packing-subtitle">${
-              purchaseOrder.offer_status === "Accepted"
+              doneStatus.includes(purchaseOrder.purchase_order_status)
                 ? "You have accepted our offer. View your final price breakdown below."
                 : "Please note: until our offer has been accepted, prices seen here may not be representative of the final amounts and do not represent an obligation to purchase your items at these amounts."
             } </div>
@@ -1937,7 +1950,7 @@ const generateInvoice = async (req, res) => {
                 <div class="detail-content">
                   <div class="detail-row">
                     <span class="detail-label">${
-                      purchaseOrder.purchase_order_status === "Accepted"
+                      doneStatus.includes(purchaseOrder.purchase_order_status)
                         ? "Total Payout"
                         : "Total Estimate"
                     }</span>
@@ -2126,7 +2139,7 @@ const generateInvoice = async (req, res) => {
                     <th>Content</th>
                     <th>Premium</th>
                     <th class="text-right">${
-                      purchaseOrder.purchase_order_status === "Accepted"
+                      doneStatus.includes(purchaseOrder.purchase_order_status)
                         ? "Payout"
                         : "Estimate"
                     }</th>
@@ -2154,7 +2167,7 @@ const generateInvoice = async (req, res) => {
                     <th>Content</th>
                     <th>Premium</th>
                     <th class="text-right">${
-                      purchaseOrder.purchase_order_status === "Accepted"
+                      doneStatus.includes(purchaseOrder.purchase_order_status)
                         ? "Payout"
                         : "Estimate"
                     }</th>
@@ -2175,10 +2188,50 @@ const generateInvoice = async (req, res) => {
                   <tr>
                     <th class="text-left">Name</th>
                     <th>Type</th>
-                    <th class="text-right">Amount</th>
+                    <th class="text-right">${
+                      doneStatus.includes(
+                        purchaseOrder.purchase_order_status
+                      )
+                        ? "Payout"
+                        : "Estimate"
+                    }</th>
                   </tr>
                 </thead>
                 <tbody>
+                             ${
+                               scrapItems
+                                 ? `
+                  <tr>
+                    <td class="text-left">Scrap Total</td>
+                    <td>Addition</td>
+                    <td class="text-right">${scrapTotal.toLocaleString(
+                      "en-US",
+                      {
+                        style: "currency",
+                        currency: "USD",
+                      }
+                    )}</td>
+                  </tr>
+                              `
+                                 : ""
+                             }
+                  ${
+                    bullionItems
+                      ? `
+                  <tr>
+                    <td class="text-left">Bullion Total</td>
+                    <td>Addition</td>
+                    <td class="text-right">${bullionTotal.toLocaleString(
+                      "en-US",
+                      {
+                        style: "currency",
+                        currency: "USD",
+                      }
+                    )}</td>
+                  </tr>
+                              `
+                      : ""
+                  }
                   <tr>
                     <td class="text-left">Shipping Fees</td>
                     <td>Deduction</td>
@@ -2201,47 +2254,18 @@ const generateInvoice = async (req, res) => {
                       }
                     )}</td>
                   </tr>
-                  ${
-                    bullionItems
-                      ? `
+                       
+
                   <tr>
-                    <td class="text-left">Bullion Total</td>
-                    <td>Addition</td>
-                    <td class="text-right">${bullionTotal.toLocaleString(
-                      "en-US",
-                      {
-                        style: "currency",
-                        currency: "USD",
-                      }
-                    )}</td>
-                  </tr>
-                              `
-                      : ""
-                  }
-                  ${
-                    scrapItems
-                      ? `
-                  <tr>
-                    <td class="text-left">Scrap Total</td>
-                    <td>Addition</td>
-                    <td class="text-right">${scrapTotal.toLocaleString(
-                      "en-US",
-                      {
-                        style: "currency",
-                        currency: "USD",
-                      }
-                    )}</td>
-                  </tr>
-                              `
-                      : ""
-                  }
-                  <tr>
-                    <td class="text-left">Total: </td>
+                    <td class="text-left text-bold">Total: </td>
                     <td></td>
-                    <td class="text-right">${total.toLocaleString("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    })}</td>
+                    <td class="text-right text-bold">${total.toLocaleString(
+                      "en-US",
+                      {
+                        style: "currency",
+                        currency: "USD",
+                      }
+                    )}</td>
                   </tr>
                 </tbody>
               </table>

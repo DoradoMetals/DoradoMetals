@@ -392,12 +392,12 @@ const lockOrderSpots = async (req, res) => {
       spots.map(async (spot) => {
         const query = `
           UPDATE exchange.order_metals
-          SET bid_spot = $1
-          WHERE purchase_order_id = $2 AND type = $3
+          SET bid_spot = $1, scrap_percentage = $2
+          WHERE purchase_order_id = $3 AND type = $4
           RETURNING *;
         `;
 
-        const values = [spot.bid_spot, purchase_order_id, spot.type];
+        const values = [spot.bid_spot, spot.scrap_percentage, purchase_order_id, spot.type];
         const result = await pool.query(query, values);
         return result.rows[0];
       })
@@ -422,7 +422,7 @@ const resetOrderSpots = async (req, res) => {
     );
     const query = `
       UPDATE exchange.order_metals
-      SET bid_spot = NULL
+      SET bid_spot = NULL, scrap_percentage = NULL
       WHERE purchase_order_id = $1
       RETURNING *;
     `;

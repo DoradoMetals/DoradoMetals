@@ -28,21 +28,47 @@ export default function PurchaseOrderDrawerHeader({
 
   const status = statusConfig[order.purchase_order_status]
   const Icon = status?.icon
-  const packageDetails =
-    packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
-  const payoutDetails =
-    payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
+  const packageDetails = packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
+  const payoutDetails = payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
 
-  const handleDownload = () => {
-    const payload = { purchaseOrder: order, spotPrices, packageDetails, payoutDetails }
-    if (order.purchase_order_status === 'Cancelled') {
-      downloadReturnPackingList.mutate(payload)
-    } else {
-      downloadPackingList.mutate(payload)
-    }
-  }
-
-  const isLoading = downloadPackingList.isPending || downloadReturnPackingList.isPending
+  const downloadOptions = [
+    {
+      statuses: ['In Transit'],
+      label: 'Download Label + Packing List',
+      onClick: () => {
+        downloadPackingList.mutate({
+          purchaseOrder: order,
+          spotPrices,
+          packageDetails,
+          payoutDetails,
+        })
+      },
+      isPending: downloadPackingList.isPending,
+    },
+    {
+      statuses: ['Cancelled'],
+      label: 'Download Label + Packing List',
+      onClick: () => {
+        downloadReturnPackingList.mutate({
+          purchaseOrder: order,
+          spotPrices,
+        })
+      },
+      isPending: downloadReturnPackingList.isPending,
+    },
+    {
+      statuses: ['Received', 'Offer Sent', 'Rejected'],
+      label: 'Download Invoice Preview',
+      onClick: () => downloadInvoice.mutate({ purchaseOrder: order, spotPrices, orderSpots, fileName: 'invoice_preview' }),
+      isPending: downloadInvoice.isPending,
+    },
+    {
+      statuses: ['Accepted', 'Payment Processing', 'Completed'],
+      label: 'Download Invoice',
+      onClick: () => downloadInvoice.mutate({ purchaseOrder: order, spotPrices, orderSpots, fileName: 'invoice' }),
+      isPending: downloadInvoice.isPending,
+    },
+  ]
 
   return (
     <div className="flex flex-col w-full border-b-1 gap-3 border-border">
@@ -63,30 +89,19 @@ export default function PurchaseOrderDrawerHeader({
           <span className="text-lg text-neutral-800">{order.purchase_order_status}</span>
         </div>
         <div className="flex ml-auto">
-          {(order.purchase_order_status === 'In Transit' ||
-            order.purchase_order_status === 'Cancelled') && (
-            <Button
-              variant="link"
-              className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
-              onClick={handleDownload}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Loading...' : 'Download Label + Packing List'}
-            </Button>
-          )}
-          {order.purchase_order_status !== 'In Transit' &&
-            order.purchase_order_status !== 'Cancelled' && (
+          {downloadOptions.map(({ statuses, label, onClick, isPending }, index) =>
+            statuses.includes(order.purchase_order_status) ? (
               <Button
+                key={index}
                 variant="link"
                 className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
-                onClick={() => {
-                  downloadInvoice.mutate({ purchaseOrder: order, spotPrices, orderSpots })
-                }}
-                disabled={downloadInvoice.isPending}
+                onClick={onClick}
+                disabled={isPending}
               >
-                {downloadInvoice.isPending ? 'Loading...' : 'Download Invoice'}
+                {isPending ? 'Loading...' : label}
               </Button>
-            )}
+            ) : null
+          )}
         </div>
       </div>
     </div>

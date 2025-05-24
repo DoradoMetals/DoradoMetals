@@ -32,29 +32,68 @@ export default function PurchaseOrderCard({
 
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const { data: spotPrices = [] } = useSpotPrices()
-  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
+  const { data: orderSpots = [] } = usePurchaseOrderMetals(order.id)
 
   const status = statusConfig[order.purchase_order_status]
   const Icon = status?.icon
-  const packageDetails =
-    packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
-  const payoutDetails =
-    payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
+  const packageDetails = packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
+  const payoutDetails = payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
   const payoutFee = payoutDetails?.cost ?? 0
 
   const total = useMemo(() => {
-    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
-  }, [order, spotPrices, orderSpotPrices, payoutFee])
+    return getPurchaseOrderTotal(order, spotPrices, orderSpots, payoutFee)
+  }, [order, spotPrices, orderSpots, payoutFee])
 
-  const handleDownload = () => {
-    const payload = { purchaseOrder: order, spotPrices, packageDetails, payoutDetails }
-
-    if (order.purchase_order_status === 'Cancelled') {
-      downloadReturnPackingList.mutate(payload)
-    } else {
-      downloadPackingList.mutate(payload)
-    }
-  }
+  const downloadOptions = [
+    {
+      statuses: ['In Transit'],
+      label: 'Download Label + Packing List',
+      onClick: () => {
+        downloadPackingList.mutate({
+          purchaseOrder: order,
+          spotPrices,
+          packageDetails,
+          payoutDetails,
+        })
+      },
+      isPending: downloadPackingList.isPending,
+    },
+    {
+      statuses: ['Cancelled'],
+      label: 'Download Label + Packing List',
+      onClick: () => {
+        downloadReturnPackingList.mutate({
+          purchaseOrder: order,
+          spotPrices,
+        })
+      },
+      isPending: downloadReturnPackingList.isPending,
+    },
+    {
+      statuses: ['Received', 'Offer Sent', 'Rejected'],
+      label: 'Download Invoice Preview',
+      onClick: () =>
+        downloadInvoice.mutate({
+          purchaseOrder: order,
+          spotPrices,
+          orderSpots,
+          fileName: 'invoice_preview',
+        }),
+      isPending: downloadInvoice.isPending,
+    },
+    {
+      statuses: ['Accepted', 'Payment Processing', 'Completed'],
+      label: 'Download Invoice',
+      onClick: () =>
+        downloadInvoice.mutate({
+          purchaseOrder: order,
+          spotPrices,
+          orderSpots,
+          fileName: 'invoice',
+        }),
+      isPending: downloadInvoice.isPending,
+    },
+  ]
 
   return (
     <div className="flex flex-col w-full bg-card raised-off-page h-auto rounded-lg p-4">
@@ -91,36 +130,19 @@ export default function PurchaseOrderCard({
         </div>
         <div className="flex items-center justify-between w-full">
           <div className="">
-            {(order.purchase_order_status === 'In Transit' ||
-              order.purchase_order_status === 'Cancelled') && (
-              <Button
-                variant="link"
-                className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
-                onClick={handleDownload}
-                disabled={downloadPackingList.isPending || downloadReturnPackingList.isPending}
-              >
-                {downloadPackingList.isPending || downloadReturnPackingList.isPending
-                  ? 'Loading...'
-                  : 'Download Packing List'}
-              </Button>
-            )}
-            {order.purchase_order_status !== 'In Transit' &&
-              order.purchase_order_status !== 'Cancelled' && (
+            {downloadOptions.map(({ statuses, label, onClick, isPending }, index) =>
+              statuses.includes(order.purchase_order_status) ? (
                 <Button
+                  key={index}
                   variant="link"
                   className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
-                  onClick={() => {
-                    downloadInvoice.mutate({
-                      purchaseOrder: order,
-                      spotPrices,
-                      orderSpots: orderSpotPrices,
-                    })
-                  }}
-                  disabled={downloadInvoice.isPending}
+                  onClick={onClick}
+                  disabled={isPending}
                 >
-                  {downloadInvoice.isPending ? 'Loading...' : 'Download Invoice'}
+                  {isPending ? 'Loading...' : label}
                 </Button>
-              )}
+              ) : null
+            )}
           </div>
           <div>
             <Button

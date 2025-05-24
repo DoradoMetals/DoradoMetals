@@ -72,10 +72,12 @@ const downloadInvoiceRequest = async ({
   purchaseOrder,
   spotPrices,
   orderSpots,
+  fileName,
 }: {
   purchaseOrder: PurchaseOrder
   spotPrices: SpotPrice[]
   orderSpots: SpotPrice[]
+  fileName: string
 }) => {
   const blob = await pdfRequest<Blob>('POST', '/pdf/generate_invoice', {
     purchaseOrder,
@@ -87,7 +89,7 @@ const downloadInvoiceRequest = async ({
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const link = document.createElement('a')
   link.href = url
-  link.download = `${formatPurchaseOrderNumber(purchaseOrder.order_number)}_invoice.pdf`
+  link.download = `${formatPurchaseOrderNumber(purchaseOrder.order_number)}_${fileName}.pdf`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
