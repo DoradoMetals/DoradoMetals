@@ -2,16 +2,23 @@
 
 import FeaturedProducts from '@/components/custom/nav/featuredProducts'
 import { Button } from '@/components/ui/button'
-import { Calculator, Eye, Handshake, Lightning, PaperPlaneTilt, ShieldCheck } from '@phosphor-icons/react'
+import {
+  Calculator,
+  Eye,
+  Handshake,
+  Lightning,
+  PaperPlaneTilt,
+  ShieldCheck,
+} from '@phosphor-icons/react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import MobileProductCarousel from '../components/custom/products/mobileProductCarousel'
-import { useUser } from '@/lib/authClient'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 export default function Home() {
   const router = useRouter()
-  const { user } = useUser()
+  const { user } = useGetSession()
 
   return (
     <div className="">

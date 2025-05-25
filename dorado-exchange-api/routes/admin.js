@@ -11,7 +11,7 @@ const {
   getInventory,
 } = require("../controllers/admin/adminProductsController");
 const { getAllScrap } = require("../controllers/admin/adminScrapController");
-const { getUser } = require("../controllers/admin/adminUserController");
+const { getUser, getAllUsers } = require("../controllers/admin/adminUserController");
 const {
   getAllPurchaseOrders,
   getAdminPurchaseOrderMetals,
@@ -52,6 +52,7 @@ router.get("/get_scrap", getAllScrap);
 
 //users
 router.get("/get_user", getUser);
+router.get("/get_all_users", getAllUsers);
 
 //purchase orders
 router.get("/get_admin_purchase_orders", getAllPurchaseOrders);

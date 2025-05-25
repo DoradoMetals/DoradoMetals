@@ -16,11 +16,11 @@ import getProductBidPrice from '@/utils/getProductBidPrice'
 import { useDrawerStore } from '@/store/drawerStore'
 import { ShoppingCartSimple } from '@phosphor-icons/react/dist/ssr'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
-import { useUser } from '@/lib/authClient'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 export default function SellCart() {
   const router = useRouter()
-  const { user } = useUser()
+  const { user } = useGetSession()
   const { closeDrawer } = useDrawerStore()
   const items = sellCartStore((state) => state.items)
   const addItem = sellCartStore((state) => state.addItem)

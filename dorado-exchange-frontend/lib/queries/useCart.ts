@@ -2,10 +2,10 @@ import { useMutation } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { cartStore } from '@/store/cartStore'
 import { useEffect } from 'react'
-import { useUser } from '../authClient'
+import { useGetSession } from './useAuth'
 
 export const useSyncCartToBackend = () => {
-   const { user } = useUser();
+  const { user } = useGetSession()
 
   return useMutation({
     mutationFn: async () => {
@@ -24,7 +24,7 @@ export const useSyncCartToBackend = () => {
 }
 
 export const useCartAutoSync = () => {
-  const { user } = useUser();
+  const { user } = useGetSession()
   const syncCartMutation = useSyncCartToBackend()
 
   useEffect(() => {

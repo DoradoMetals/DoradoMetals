@@ -24,7 +24,7 @@ export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDraw
   )
 
   const handleMarkShippingPaid = () => {
-    console.log('Shipping Paid')
+    // console.log('Shipping Paid')
   }
 
   return (

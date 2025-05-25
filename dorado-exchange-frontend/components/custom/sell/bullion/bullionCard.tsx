@@ -49,7 +49,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
   const isOver = overOrUnder >= 0
 
   return (
-    <div className="flex flex-col bg-card w-full h-auto group relative items-center mx-auto z-50 raised-off-page rounded-lg">
+    <div className="flex flex-col bg-card w-full h-auto group relative items-center mx-auto z-20 raised-off-page rounded-lg">
       <div className="flex justify-between w-full h-36 sm:h-44 md:h-52">
         <div className="flex flex-items-center">
           <div className="relative aspect-square w-32 h-36 sm:w-40 sm:h-44 md:w-48 md:h-52">

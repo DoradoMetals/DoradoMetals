@@ -10,6 +10,9 @@ const auth = createAuthClient({
       user: {
         role: { type: 'string' },
       },
+      session: {
+        impersonatedBy: { type: 'string' },
+      },
     }),
     adminClient(),
     magicLinkClient(),

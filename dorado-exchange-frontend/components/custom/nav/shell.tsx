@@ -7,7 +7,6 @@ import { cartStore } from '@/store/cartStore'
 import { sellCartStore } from '@/store/sellCartStore'
 import { useCartAutoSync } from '@/lib/queries/useCart'
 import { useSellCartAutoSync } from '@/lib/queries/useSellCart'
-import { useUser } from '@/lib/authClient'
 
 import { DesktopLogo, Logo } from '../../icons/logo'
 import { Button } from '@/components/ui/button'
@@ -21,10 +20,11 @@ import Sidebar from './sidebar'
 
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 export default function Shell() {
   const pathname = usePathname()
-  const { user } = useUser()
+  const { user } = useGetSession()
 
   const { activeDrawer, openDrawer, closeDrawer } = useDrawerStore()
   const isAnyDrawerOpen = !!activeDrawer
@@ -40,29 +40,43 @@ export default function Shell() {
       key: 1,
       label: 'BUY',
       src: '/buy',
-      className: pathname === '/buy' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
+      className:
+        pathname === '/buy'
+          ? 'text-primary-gradient'
+          : 'text-neutral-500 hover-text-primary-gradient',
     },
     {
       key: 2,
       label: 'SELL',
       src: '/sell',
-      className: pathname === '/sell' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
+      className:
+        pathname === '/sell'
+          ? 'text-primary-gradient'
+          : 'text-neutral-500 hover-text-primary-gradient',
     },
     {
       key: 3,
       label: 'ADMIN',
       src: '/admin',
-      className: pathname === '/admin' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
+      className:
+        pathname === '/admin'
+          ? 'text-primary-gradient'
+          : 'text-neutral-500 hover-text-primary-gradient',
       hidden: user?.role !== 'admin',
     },
   ]
 
   return (
-    <div className={cn("z-60 sticky top-0 bg-card", isAnyDrawerOpen ? 'shadow-none sm:opacity-50' : 'raised-off-page')}>
+    <div
+      className={cn(
+        'z-60 sticky top-0 bg-card h-24',
+        isAnyDrawerOpen ? 'shadow-none sm:opacity-50' : 'raised-off-page'
+      )}
+    >
       <Spots />
 
       <nav>
-        <div className="hidden lg:flex p-4 pt-1 px-20">
+        <div className="hidden lg:flex p-4 pt-0 px-20">
           <div className="flex items-center gap-2 -mt-4">
             <Link href="/" className="px-0">
               <DesktopLogo />
@@ -102,7 +116,7 @@ export default function Shell() {
           </div>
         </div>
 
-        <div className="flex lg:hidden py-4 pt-1 px-3">
+        <div className="flex lg:hidden py-4 pt-0 px-3">
           <div className="flex items-center gap-2">
             <Link href="/" className="px-0">
               <Logo />
@@ -110,9 +124,7 @@ export default function Shell() {
 
             <div className="flex items-end">
               <Link href="/">
-                <span className="text-base text-neutral-900">
-                  Dorado Metals Exchange
-                </span>
+                <span className="text-base text-neutral-900">Dorado Metals Exchange</span>
               </Link>
             </div>
           </div>
@@ -131,12 +143,12 @@ export default function Shell() {
               >
                 <CartIcon size={20} isOpen={false} className="text-neutral-900 hover:bg-card" />
                 {items > 0 && (
-                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full primary-gradient ">
-                  <div className="flex flex-1 items-center text-white justify-center text-[10px]">
-                    {items}
+                  <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full primary-gradient ">
+                    <div className="flex flex-1 items-center text-white justify-center text-[10px]">
+                      {items}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
               </motion.div>
             </Button>
 

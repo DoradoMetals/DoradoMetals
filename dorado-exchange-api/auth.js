@@ -44,6 +44,14 @@ const auth = betterAuth({
   },
   session: {
     modelName: "exchange.session",
+    additionalFields: {
+      impersonatedBy: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+        input: false,
+      },
+    },
     cookieCache: {
       enabled: true,
       maxAge: 5 * 60,
@@ -101,7 +109,7 @@ const auth = betterAuth({
     magicLink({
       sendMagicLink: async ({ email, token, url }, request) => {
         const emailUrl = `${process.env.FRONTEND_URL}/verify-login?token=${token}`;
-        console.log('here')
+        console.log("here");
         await sendEmail({
           to: email,
           subject: "Your Dorado account is ready",
@@ -109,7 +117,11 @@ const auth = betterAuth({
         });
       },
     }),
-    admin(),
+    admin({
+      canImpersonate: async ({ user }) => {
+        return user.role === "admin";
+      },
+    }),
   ],
 });
 

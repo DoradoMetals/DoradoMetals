@@ -8,7 +8,6 @@ import { useAddress } from '@/lib/queries/useAddresses'
 import { Address } from '@/types/address'
 import { useEffect, useMemo, useRef } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import { useUser } from '@/lib/authClient'
 import ReviewStep from './reviewStep/reviewStep'
 import { sellCartStore } from '@/store/sellCartStore'
 import { useRouter } from 'next/navigation'
@@ -17,6 +16,7 @@ import { useFedExRates } from '@/lib/queries/shipping/useFedex'
 import getProductBidPrice from '@/utils/getProductBidPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getScrapPrice from '@/utils/getScrapPrice'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -30,8 +30,8 @@ const { useStepper, utils } = defineStepper(
 
 export default function CheckoutStepper() {
   const router = useRouter()
-  const { user } = useUser()
-  const { data: addresses = [], isLoading } = useAddress()
+  const { user } = useGetSession()
+  const { data: addresses = [] } = useAddress()
 
   const { setData } = usePurchaseOrderCheckoutStore()
   const {

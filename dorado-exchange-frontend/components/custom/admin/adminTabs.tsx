@@ -9,11 +9,12 @@ import ProductCards from './productsPoS/productCards'
 import ProductsInventory from './productsPoS/productsInventory'
 import AdminPurchaseOrders from './purchaseOrdersPoS/AdminPurchaseOrders'
 import { UsersPage } from './usersPoS/usersPage'
+import UsersTable from './usersPoS/usersTable'
 
 export function AdminTabs() {
   return (
     <>
-      <div className="flex w-full p-4 mt-4 lg:mt-10">
+      <div className="flex w-full mt-4 lg:mt-10">
         <Tabs defaultValue="inventory" className="flex w-full items-center justify-center">
           <TabsList className="justify-center grid grid-cols-3 w-full max-w-4xl bg-transparent px-0">
             <TabsTrigger className="tab-indicator-secondary" value="inventory">
@@ -72,7 +73,7 @@ export function AdminTabs() {
             </Tabs>
           </TabsContent>
 
-          <TabsContent value="users">
+          <TabsContent value="users" className="flex flex-col gap-2 max-w-4xl">
             <UsersPage />
           </TabsContent>
         </Tabs>

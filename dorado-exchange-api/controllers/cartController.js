@@ -1,5 +1,5 @@
 const pool = require("../db");
-const { PRODUCT_FIELDS } = require('../constants/productsConstants');
+const { PRODUCT_FIELDS } = require("../constants/productsConstants");
 
 const getCart = async (req, res) => {
   const { user_id } = req.query;
@@ -10,13 +10,21 @@ const getCart = async (req, res) => {
 
   try {
     const query = `
-      SELECT ci.id AS cart_item_id, ci.product_id, ci.quantity, p.${PRODUCT_FIELDS}
+      SELECT 
+        ci.id AS cart_item_id, 
+        ci.product_id, 
+        ci.quantity, 
+        p.${PRODUCT_FIELDS}, 
+        metal.type AS metal_type, 
+        mint.name AS mint_name
       FROM exchange.cart_items ci
       LEFT JOIN exchange.products p ON ci.product_id = p.id
+      LEFT JOIN exchange.metals metal ON metal.id = p.metal_id
+      LEFT JOIN exchange.mints mint ON mint.id = p.mint_id
       WHERE ci.cart_id = (
         SELECT id FROM exchange.carts WHERE user_id = $1
       );
-    `;
+`;
     const { rows } = await pool.query(query, [user_id]);
     res.status(200).json(rows);
   } catch (error) {
@@ -58,10 +66,9 @@ const syncCart = async (req, res) => {
           ).rows[0].id;
 
     // Clear existing cart items
-    await client.query(
-      `DELETE FROM exchange.cart_items WHERE cart_id = $1`,
-      [cartId]
-    );
+    await client.query(`DELETE FROM exchange.cart_items WHERE cart_id = $1`, [
+      cartId,
+    ]);
 
     // Insert new items
     for (const item of cart) {

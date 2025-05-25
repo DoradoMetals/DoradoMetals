@@ -2,19 +2,17 @@
 
 import Drawer from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import { SignIn, SignOut, User, List } from "@phosphor-icons/react"
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { ThemeSwitcher } from '../theme/theme-switcher'
-import { useSignOut } from '@/lib/queries/useAuth'
-import { useUser } from '@/lib/authClient'
+import { useGetSession, useSignOut } from '@/lib/queries/useAuth'
 import { useDrawerStore } from '@/store/drawerStore'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function Sidebar() {
-  const { user } = useUser()
+  const { user } = useGetSession()
   const router = useRouter()
   const pathname = usePathname()
   const signOutMutation = useSignOut()

@@ -1,25 +1,34 @@
-import { ReactNode } from 'react';
-import { useUser } from '@/lib/authClient';
-import { useRouter } from 'next/navigation';
+import { ReactNode, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 interface ProtectedPageProps {
-  children: ReactNode;
-  requiredRoles: string[];
+  children: ReactNode
+  requiredRoles: string[]
 }
 
 export default function ProtectedPage({ children, requiredRoles }: ProtectedPageProps) {
-  const { user, isPending } = useUser();
-  const router = useRouter();
+  const { user, isPending } = useGetSession()
 
-  const role = user?.role;
-  const authorized = requiredRoles.includes(role ?? '');
+  const router = useRouter()
 
-  if (isPending) return <p>Loading...</p>;
+  const role = user?.role
+  const authorized = requiredRoles.includes(role ?? '')
 
-  if (!authorized) {
-    router.replace('/authentication');
-    return null;
-  }
+  const [checked, setChecked] = useState(false)
 
-  return <>{children}</>;
+  useEffect(() => {
+    if (!isPending) {
+      if (!authorized) {
+        router.replace('/authentication')
+      }
+      setChecked(true)
+    }
+  }, [authorized, isPending, router])
+
+  if (!checked || isPending) return <p>Loading...</p>
+
+  if (!authorized) return null
+
+  return <>{children}</>
 }

@@ -6,14 +6,14 @@ import { useRouter } from 'next/navigation'
 import { List, UserPen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeSwitcherDesktop } from '../theme/theme-switcher-desktop'
-import { useUser } from '@/lib/authClient'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 export default function ProfileMenu() {
-  const { user } = useUser()
+  const { user } = useGetSession()
   const router = useRouter()
 
   return (
-    <div className="relative flex w-full justify-start md:justify-center">
+    <div className="relative flex w-full justify-start md:justify-center z-60">
       <Dropdown>
         {user ? (
           <TriggerWrapper>
