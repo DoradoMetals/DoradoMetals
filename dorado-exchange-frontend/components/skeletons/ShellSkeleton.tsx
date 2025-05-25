@@ -10,32 +10,6 @@ export default function ShellSkeleton() {
           </div>
         ))}
       </div>
-
-      {/* 🟡 Navbar Skeleton */}
-      <nav className="bg-card px-4 py-4 sm:px-32 animate-pulse">
-        <div className="flex items-center justify-between w-full">
-          {/* Left: Logo + Title */}
-          <div className="flex items-center gap-4">
-            {/* Logo */}
-            <div className="h-8 w-8 bg-muted rounded-sm" />
-
-            {/* Title */}
-            <div className="h-6 w-48 bg-muted rounded-sm hidden sm:block" />
-          </div>
-
-          {/* Middle: Desktop nav links */}
-          <div className="hidden lg:flex items-center gap-8">
-            <div className="h-4 w-10 bg-muted rounded-sm" />
-            <div className="h-4 w-10 bg-muted rounded-sm" />
-          </div>
-
-          {/* Right: Icons */}
-          <div className="flex items-center gap-6">
-            <div className="h-6 w-6 bg-muted rounded-full" /> {/* Cart */}
-            <div className="h-6 w-6 bg-muted rounded-full" /> {/* Profile */}
-          </div>
-        </div>
-      </nav>
     </div>
   )
 }

@@ -16,14 +16,6 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
   const { user, isPending, session } = useGetSession()
   const stopImpersonation = useStopImpersonation()
 
-  if (!user && isPending) {
-    return (
-      <>
-        <ShellSkeleton />
-      </>
-    )
-  }
-
   return (
     <>
       <div className="flex flex-col min-h-screen">

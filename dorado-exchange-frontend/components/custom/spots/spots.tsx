@@ -1,7 +1,7 @@
 'use client'
 
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import NumberFlow, { NumberFlowGroup } from '@number-flow/react'
+import { NumberFlowGroup } from '@number-flow/react'
 import { CaretUp, CaretDown } from '@phosphor-icons/react'
 import MobileSpotTicker from './mobileSpots'
 import PriceNumberFlow from '../products/PriceNumberFlow'
@@ -12,7 +12,7 @@ export default function Spots() {
 
   return (
     <>
-      <div className="w-screen py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap">
+      <div className="w-screen py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap h-10">
         {spots && (
           <div className="hidden md:flex items-end sm:px-25">
             <div className="flex items-end gap-10 ml-auto">

@@ -79,7 +79,7 @@ export const useUpdateUser = () => {
   return useMutation({
     mutationFn: async (userData: { name?: string; image?: string }) => updateUser(userData),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
   })
 }
@@ -93,7 +93,7 @@ export const useChangeEmail = () => {
         callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/change-email`,
       }),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
   })
 }
@@ -117,7 +117,7 @@ export const useSignUp = () => {
         }
       ),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
   })
 }
@@ -150,7 +150,7 @@ export const useSignIn = () => {
       if (session?.user?.id) {
         await hydrateCarts(session.user.id)
       }
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
     onSuccess: async () => {
       router.replace('/')
@@ -209,7 +209,7 @@ export const useGoogleSignIn = () => {
       if (session?.user?.id) {
         await hydrateCarts(session.user.id)
       }
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
     onSuccess: async () => {
       router.replace('/')
@@ -222,7 +222,7 @@ export const useForgotPassword = () => {
   return useMutation({
     mutationFn: async (email: string) => forgetPassword({ email }),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
   })
 }
@@ -233,7 +233,7 @@ export const useResetPassword = () => {
     mutationFn: async ({ newPassword, token }: { newPassword: string; token: string }) =>
       resetPassword({ newPassword, token }),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
   })
 }
@@ -243,7 +243,7 @@ export const useVerifyEmail = () => {
   return useMutation({
     mutationFn: async (token: string) => verifyEmail({ query: { token } }),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
   })
 }
@@ -253,7 +253,7 @@ export const useSendVerifyEmail = () => {
   return useMutation({
     mutationFn: async (email: string) => sendVerificationEmail({ email }),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'] })
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
   })
 }
@@ -297,14 +297,13 @@ export const useImpersonateUser = () => {
       return user_impersonating
     },
     onSettled: async () => {
-      queryClient.clear()
-      queryClient.invalidateQueries({ queryKey: ['session'] })
       const session = (await getSession()).data
       if (session?.user?.id) {
         await hydrateCarts(session.user.id)
       }
     },
     onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
       router.replace('/')
     },
   })
@@ -326,14 +325,13 @@ export const useStopImpersonation = () => {
       await admin.stopImpersonating()
     },
     onSettled: async () => {
-      queryClient.clear()
-      queryClient.invalidateQueries({ queryKey: ['session'] })
       const session = (await getSession()).data
       if (session?.user?.id) {
         await hydrateCarts(session.user.id)
       }
     },
     onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
       router.replace('/admin')
     },
   })
