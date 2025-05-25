@@ -9,20 +9,38 @@ import { StateSelect } from '../account/stateSelect'
 import { Address, addressSchema } from '@/types/address'
 import { useUpdateAddress } from '@/lib/queries/useAddresses'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
+import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { useDrawerStore } from '@/store/drawerStore'
 
 export default function AddressForm({
   address,
-  setOpen,
+  onSuccess,
 }: {
   address: Address
-  setOpen: (open: boolean) => void
+  onSuccess?: (address: Address) => void
 }) {
+  const [formError, setFormError] = useState<string | null>(null)
   const updateAddressMutation = useUpdateAddress()
 
+  const { closeDrawer } = useDrawerStore()
+
   const handleAddressSubmit = (values: Address) => {
+    setFormError(null)
+
     updateAddressMutation.mutate(values, {
-      onSettled: () => {
-        setOpen(false)
+      onError: (error: any) => {
+        const message =
+          error?.response?.data?.message || error?.message || 'Failed to update address.'
+        setFormError(message)
+
+        setTimeout(() => {
+          setFormError(null)
+        }, 5000)
+      },
+      onSuccess: (updatedAddressFromServer) => {
+        onSuccess?.(updatedAddressFromServer)
+        closeDrawer()
       },
     })
   }
@@ -87,8 +105,7 @@ export default function AddressForm({
                     <FloatingLabelInput
                       label="Phone Number"
                       type="text"
-                      inputMode='tel'
-                      pattern="[0-9]*"
+                      inputMode="tel"
                       autoComplete="tel"
                       size="sm"
                       className="input-floating-label-form"
@@ -244,9 +261,12 @@ export default function AddressForm({
               )}
             />
           </div>
+          {formError && (
+            <div className="text-xs text-destructive font-normal mb-1 text-left">{formError}</div>
+          )}
           <Button
             type="submit"
-            className="form-submit-button liquid-gold raised-off-page shine-on-hover"
+            className="form-submit-button liquid-gold raised-off-page shine-on-hover !mb-0"
             disabled={updateAddressMutation.isPending}
           >
             {updateAddressMutation.isPending ? 'Saving...' : 'Save Changes'}

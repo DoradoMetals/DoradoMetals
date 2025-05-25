@@ -6,15 +6,14 @@ import { Address } from '@/types/address'
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus } from 'lucide-react'
-import AddressModal from './addressDialog'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { AddressCarousel } from './addressCarousel'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import AddressDrawer from './addressDrawer'
+import { useDrawerStore } from '@/store/drawerStore'
 
 export default function AddressTab() {
   const { user } = useGetSession()
   const { data: addresses = [], isLoading } = useAddress()
-  const [open, setOpen] = useState(false)
 
   const noAddresses = () => {
     if (!addresses || addresses.length === 0) {
@@ -22,6 +21,8 @@ export default function AddressTab() {
     }
     return false
   }
+
+  const { openDrawer } = useDrawerStore()
 
   const defaultValues: Address = {
     id: crypto.randomUUID(),
@@ -72,7 +73,7 @@ export default function AddressTab() {
                 className="ml-auto text-primary-gradient"
                 onClick={() => {
                   setSelectedAddress(defaultValues)
-                  setOpen(true)
+                  openDrawer('address')
                 }}
               >
                 + Create New
@@ -95,7 +96,7 @@ export default function AddressTab() {
                   iconSize={16}
                   onClick={() => {
                     setSelectedAddress(defaultValues)
-                    setOpen(true)
+                    openDrawer('address')
                   }}
                 >
                   <div className="flex items-center gap-2">Add Address</div>
@@ -103,20 +104,10 @@ export default function AddressTab() {
               </div>
             ) : null}
             <div className="flex flex-col gap-3 justify-center">
-              <AddressCarousel
-                setOpen={setOpen}
-                addresses={addresses}
-                selectedAddress={selectedAddress}
-                setSelectedAddress={setSelectedAddress}
-              />
+              <AddressCarousel addresses={addresses} setSelectedAddress={setSelectedAddress} />
             </div>
 
-            <AddressModal
-              address={selectedAddress}
-              open={open}
-              setOpen={setOpen}
-              title="Create New Address"
-            />
+            <AddressDrawer address={selectedAddress} />
           </div>
         </>
       )}

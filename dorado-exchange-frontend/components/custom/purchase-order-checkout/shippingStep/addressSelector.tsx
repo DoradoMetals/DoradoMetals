@@ -11,24 +11,23 @@ import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStor
 import { Button } from '@/components/ui/button'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { NotePencil } from '@phosphor-icons/react'
+import { useDrawerStore } from '@/store/drawerStore'
 
 interface AddressSelectorProps {
   addresses: Address[]
   emptyAddress: Address
-  setTitle: (title: string) => void
+
   setDraftAddress: (addr: Address) => void
-  setOpen: (open: boolean) => void
 }
 
 export function AddressSelector({
   addresses,
   emptyAddress,
-  setTitle,
   setDraftAddress,
-  setOpen,
 }: AddressSelectorProps) {
   const address = usePurchaseOrderCheckoutStore((state) => state.data.address)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+  const { openDrawer } = useDrawerStore()
 
   const [expanded, setExpanded] = useState(false)
 
@@ -65,16 +64,17 @@ export function AddressSelector({
               className="text-neutral-700 hover:text-primary hover:bg-background px-0 py-0 h-auto min-h-0 font-normal"
               onClick={(e) => {
                 e.stopPropagation()
-                setTitle('Edit Address')
                 setDraftAddress(address ?? emptyAddress)
-                setOpen(true)
+                openDrawer('address')
               }}
             >
               <NotePencil size={20} color={getPrimaryIconStroke()} />
             </Button>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between w-full gap-1">
-                <span className="text-base sm:text-lg text-neutral-800 font-medium">{address?.name}</span>
+                <span className="text-base sm:text-lg text-neutral-800 font-medium">
+                  {address?.name}
+                </span>
                 <span className="text-sm text-neutral-500 whitespace-nowrap">
                   {formatPhoneNumber(address?.phone_number ?? '')}
                 </span>

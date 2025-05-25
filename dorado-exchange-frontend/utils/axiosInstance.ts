@@ -1,12 +1,12 @@
-import axios, { AxiosRequestConfig, Method } from "axios";
+import axios, { AxiosRequestConfig, Method } from 'axios'
 
 const axiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
   withCredentials: true,
-});
+})
 
 const apiRequest = async <T>(
   method: Method,
@@ -22,15 +22,14 @@ const apiRequest = async <T>(
       data,
       params,
       headers,
-    };
+    }
 
-    const response = await axiosInstance(config);
-    return response.data;
+    const response = await axiosInstance(config)
+    return response.data
   } catch (error: any) {
-    console.error(`API Error: ${error.response?.status || "Unknown"}`, error);
-    throw error.response?.data || { message: "Something went wrong" };
+    throw error.response?.data || { message: 'Something went wrong' }
   }
-};
+}
 
 const pdfRequest = async <T>(
   method: Method,
@@ -47,14 +46,14 @@ const pdfRequest = async <T>(
       params,
       headers,
       responseType: 'blob', // 👈 only this is needed!
-    };
+    }
 
-    const response = await axiosInstance(config);
-    return response.data;
+    const response = await axiosInstance(config)
+    return response.data
   } catch (error: any) {
-    console.error(`API Error: ${error.response?.status || "Unknown"}`, error);
-    throw error.response?.data || { message: "Something went wrong" };
+    console.error(`API Error: ${error.response?.status || 'Unknown'}`, error)
+    throw error.response?.data || { message: 'Something went wrong' }
   }
-};
+}
 
-export { axiosInstance, apiRequest, pdfRequest };
+export { axiosInstance, apiRequest, pdfRequest }

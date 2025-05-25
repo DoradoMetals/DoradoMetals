@@ -6,19 +6,16 @@ import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { PackageSelector } from './packageSelector'
-import {
-  FedexPickupTimesInput,
-  formatFedexPickupAddress,
-  FedexRate,
-} from '@/types/shipping'
+import { FedexPickupTimesInput, formatFedexPickupAddress, FedexRate } from '@/types/shipping'
 import { useFedExPickupTimes } from '@/lib/queries/shipping/useFedex'
 import { ServiceSelector } from './serviceSelector'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import CheckoutAddressModal from './checkoutAddressDialog'
 import { PickupSelector } from './pickupSelector'
 import PickupScheduler from './pickupScheduler'
 import { FedexLocationsMap } from './FedexLocations'
 import { InsuranceSelector } from './insuranceSelector'
+import AddressDrawer from '../../user/addresses/addressDrawer'
+import { useDrawerStore } from '@/store/drawerStore'
 
 interface ShippingStepProps {
   addresses: Address[]
@@ -33,9 +30,8 @@ export default function ShippingStep({
   rates,
   isLoading,
 }: ShippingStepProps) {
-  const [open, setOpen] = useState(false)
-  const [title, setTitle] = useState('Create New')
   const [draftAddress, setDraftAddress] = useState<Address>(emptyAddress)
+  const { openDrawer } = useDrawerStore()
 
   const isEmpty = addresses.length === 0
 
@@ -57,15 +53,13 @@ export default function ShippingStep({
 
   return (
     <div className="space-y-6 w-full">
-      <CheckoutAddressModal
+      <AddressDrawer
         address={draftAddress}
-        open={open}
-        setOpen={setOpen}
-        title={title}
         onSuccess={(savedAddress: Address) => {
           setData({ address: savedAddress })
         }}
       />
+
       {isEmpty ? (
         <div className="flex flex-col items-center gap-4">
           <div className="text-center text-lg text-neutral-800">
@@ -80,9 +74,8 @@ export default function ShippingStep({
             icon={Plus}
             iconSize={16}
             onClick={() => {
-              setTitle('Create New')
               setDraftAddress(emptyAddress)
-              setOpen(true)
+              openDrawer('address')
             }}
             className="border-primary text-primary hover:text-neutral-900 hover:bg-primary"
           >
@@ -96,9 +89,8 @@ export default function ShippingStep({
             variant="outline"
             className="flex ml-auto h-auto min-h-0 font-normal text-neutral-700 border-none hover:bg-background p-0"
             onClick={() => {
-              setTitle('Create New')
               setDraftAddress(emptyAddress)
-              setOpen(true)
+              openDrawer('address')
             }}
           >
             <div className="flex text-xs items-center gap-1">
@@ -110,10 +102,8 @@ export default function ShippingStep({
             <div className="flex flex-col gap-1">
               <AddressSelector
                 addresses={addresses}
-                setTitle={setTitle}
                 setDraftAddress={setDraftAddress}
                 emptyAddress={emptyAddress}
-                setOpen={setOpen}
               />
               {address && !address.is_valid && (
                 <div className="text-sm text-destructive rounded-md">
