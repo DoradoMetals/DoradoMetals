@@ -14,7 +14,16 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
   const showMobileCarousel = mobileProductCarouselRoutes.includes(pathname)
 
   const { user, isPending, session } = useGetSession()
+
   const stopImpersonation = useStopImpersonation()
+
+  if (!user && isPending) {
+    return (
+      <>
+        <ShellSkeleton />
+      </>
+    )
+  }
 
   return (
     <>
