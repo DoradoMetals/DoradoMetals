@@ -56,9 +56,9 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const isOver = overOrUnder >= 0
 
   return (
-    <div className="space-y-4 h-[34rem] max-h-[34rem] -mt-4 w-full sm:w-[22rem] max-w-[22rem] group relative flex-col items-center mx-auto z-50">
-      <div className="h-1/5 rounded-lg">
-        <div className="relative w-full">
+    <div className="space-y-4 h-[32rem] max-w-[22rem] group relative flex-col items-center mx-auto z-50">
+      <div className="h-1/5 rounded-lg mb-8">
+        <div className="relative w-full aspect-[4/3]">
           <Swiper
             modules={[Navigation, Pagination]}
             navigation={{
@@ -140,144 +140,141 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
               </Button>
             </div>
           </Swiper>
+        </div>
+      </div>
 
-          <div className="absolute -bottom-10 flex items-end justify-between w-full px-3 pr-5">
-            {variants.length > 0 && weightOptions && (
-              <RadioGroup
-                value={selectedProduct.product_name}
-                onValueChange={(val) => {
-                  const variant = variants.find((v) => v.product_name === val)
-                  if (variant) setSelectedProduct(variant)
+      <div className="relative h-4/5 bg-card rounded-lg rounded-b-xl -mt-10 flex flex-col justify-end border-2 border-secondary raised-off-page">
+        <div className="flex items-end justify-between w-full px-3 pr-5 pb-2">
+          {variants.length > 0 && weightOptions && (
+            <RadioGroup
+              value={selectedProduct.product_name}
+              onValueChange={(val) => {
+                const variant = variants.find((v) => v.product_name === val)
+                if (variant) setSelectedProduct(variant)
+              }}
+            >
+              <FloatingButton
+                isOpen={variantsOpen}
+                setIsOpen={setVariantsOpen}
+                triggerContent={
+                  <Button
+                    variant="ghost"
+                    className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs bg-secondary text-white hover:bg-secondary hover:text-white hover:shadow-sm"
+                  >
+                    <Scale size={16} />
+                  </Button>
+                }
+              >
+                {weightOptions.map((option) => (
+                  <FloatingButtonItem key={option.name}>
+                    <label
+                      htmlFor={option.value}
+                      className="h-8 w-10 xs:w-14 sm:w-15 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:border-secondary has-[[data-state=checked]]:text-white text-neutral-900"
+                    >
+                      <RadioGroupItem
+                        id={option.value}
+                        value={option.name}
+                        className="sr-only"
+                        disabled={option.disabled}
+                      />
+                      {option.value}
+                    </label>
+                  </FloatingButtonItem>
+                ))}
+              </FloatingButton>
+            </RadioGroup>
+          )}
+
+          <AnimatePresence>
+            {!variantsOpen && (
+              <motion.div
+                className="ml-auto will-change-transform"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{
+                  duration: 0.2,
+                  ease: 'easeInOut',
+                  delay: 0.2,
                 }}
               >
-                <FloatingButton
-                  isOpen={variantsOpen}
-                  setIsOpen={setVariantsOpen}
-                  triggerContent={
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
                     <Button
                       variant="ghost"
-                      className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs bg-secondary text-white hover:bg-secondary hover:text-white hover:shadow-sm"
+                      className="text-neutral-500 hover:text-neutral-900 p-0 h-5"
+                      onClick={() => setOpen(true)}
                     >
-                      <Scale size={16} />
+                      <CircleHelp size={20} className="p-0" />
                     </Button>
-                  }
-                >
-                  {weightOptions.map((option) => (
-                    <FloatingButtonItem key={option.name}>
-                      <label
-                        htmlFor={option.value}
-                        className="h-8 w-10 xs:w-14 sm:w-16 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:border-secondary has-[[data-state=checked]]:text-white text-neutral-900"
-                      >
-                        <RadioGroupItem
-                          id={option.value}
-                          value={option.name}
-                          className="sr-only"
-                          disabled={option.disabled}
-                        />
-                        {option.value}
-                      </label>
-                    </FloatingButtonItem>
-                  ))}
-                </FloatingButton>
-              </RadioGroup>
-            )}
-
-            <AnimatePresence>
-              {!variantsOpen && (
-                <motion.div
-                  className="ml-auto will-change-transform"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{
-                    duration: 0.2,
-                    ease: 'easeInOut',
-                    delay: 0.2,
-                  }}
-                >
-                  <Popover open={open} onOpenChange={setOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="text-neutral-500 hover:text-neutral-900 p-0 h-5"
-                        onClick={() => setOpen(true)}
-                      >
-                        <CircleHelp size={20} className="p-0" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      align="end"
-                      side="top"
-                      className="p-2 bg-background border-border border-1 shadow-lg w-[14rem]"
-                      onOpenAutoFocus={(e) => e.preventDefault()}
-                      forceMount
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="end"
+                    side="top"
+                    className="p-2 bg-background border-border border-1 shadow-lg w-[14rem]"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    forceMount
+                  >
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{
+                        duration: 0.2,
+                        ease: 'easeInOut',
+                        delay: 0.2,
+                      }}
                     >
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{
-                          duration: 0.2,
-                          ease: 'easeInOut',
-                          delay: 0.2,
-                        }}
-                      >
-                        <div className="flex flex-col gap-2">
-                          <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                            <div className="flex w-full items-start justify-between pl-8">
-                              <div className="text-xs text-neutral-600">
-                                {spot?.type} Spot Price
-                              </div>
-                              <div className="text-sm">
-                                <PriceNumberFlow value={spot?.ask_spot ?? 0} />
-                              </div>
-                            </div>
-
-                            <div className="flex w-full items-start">
-                              <X size={16} className="text-neutral-700 px-0" />
-                              <div className="flex w-full items-start justify-between pl-4">
-                                <div className="text-xs text-neutral-600">Content (oz)</div>
-                                <div className="text-sm">{selectedProduct.content}</div>
-                              </div>
-                            </div>
-
-                            <div className="flex w-full items-start">
-                              {overOrUnder >= 0 ? (
-                                <Plus size={16} className="text-neutral-700 px-0" />
-                              ) : (
-                                <Minus size={16} className="text-neutral-700 px-0" />
-                              )}
-
-                              <div className="flex w-full items-start justify-between pl-4">
-                                <div className="text-xs text-neutral-600">Premium</div>
-                                <div className="text-sm">
-                                  <PriceNumberFlow value={Math.abs(overOrUnder)} />
-                                </div>
-                              </div>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
+                          <div className="flex w-full items-start justify-between pl-8">
+                            <div className="text-xs text-neutral-600">{spot?.type} Spot Price</div>
+                            <div className="text-sm">
+                              <PriceNumberFlow value={spot?.ask_spot ?? 0} />
                             </div>
                           </div>
 
                           <div className="flex w-full items-start">
-                            <Equal size={16} className="text-neutral-700 px-0" />
+                            <X size={16} className="text-neutral-700 px-0" />
                             <div className="flex w-full items-start justify-between pl-4">
-                              <div className="text-xs text-neutral-600">Total</div>
-                              <div className="text-sm text-neutral-900">
-                                <PriceNumberFlow value={price} />
+                              <div className="text-xs text-neutral-600">Content (oz)</div>
+                              <div className="text-sm">{selectedProduct.content}</div>
+                            </div>
+                          </div>
+
+                          <div className="flex w-full items-start">
+                            {overOrUnder >= 0 ? (
+                              <Plus size={16} className="text-neutral-700 px-0" />
+                            ) : (
+                              <Minus size={16} className="text-neutral-700 px-0" />
+                            )}
+
+                            <div className="flex w-full items-start justify-between pl-4">
+                              <div className="text-xs text-neutral-600">Premium</div>
+                              <div className="text-sm">
+                                <PriceNumberFlow value={Math.abs(overOrUnder)} />
                               </div>
                             </div>
                           </div>
                         </div>
-                      </motion.div>
-                    </PopoverContent>
-                  </Popover>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-      </div>
 
-      <div className="h-4/5 bg-card rounded-lg rounded-b-xl -mt-14 lg:-mt-10 flex flex-col justify-end border-2 border-secondary raised-off-page">
+                        <div className="flex w-full items-start">
+                          <Equal size={16} className="text-neutral-700 px-0" />
+                          <div className="flex w-full items-start justify-between pl-4">
+                            <div className="text-xs text-neutral-600">Total</div>
+                            <div className="text-sm text-neutral-900">
+                              <PriceNumberFlow value={price} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </PopoverContent>
+                </Popover>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         <div className="space-y-4">
           <div className="px-6">
             <div className="flex items-start">
@@ -339,10 +336,3 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
     </div>
   )
 }
-
-// <div className="flex flex-col items-start">
-// <div className="text-xs text-neutral-500">Buyback</div>
-// <div className="text-neutral-800 text-base lg:text-lg ml-auto">
-//   <PriceNumberFlow value={buybackPrice} />
-// </div>
-// </div>

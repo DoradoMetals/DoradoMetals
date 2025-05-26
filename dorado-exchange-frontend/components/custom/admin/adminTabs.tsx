@@ -1,20 +1,15 @@
 'use client'
 
-import ProductsTableEditable from './productsPoS/productTable'
-import PurchaseOrdersTable from './purchaseOrdersPoS/purchaseOrdersTable'
-import PurchaseOrderCards from './purchaseOrdersPoS/purchaseOrderCards'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ScrapCards from './scrapPoS/ScrapCards'
-import ProductCards from './productsPoS/productCards'
 import ProductsInventory from './productsPoS/productsInventory'
 import AdminPurchaseOrders from './purchaseOrdersPoS/AdminPurchaseOrders'
 import { UsersPage } from './usersPoS/usersPage'
-import UsersTable from './usersPoS/usersTable'
 
 export function AdminTabs() {
   return (
     <>
-      <div className="flex w-full mt-4 lg:mt-10">
+      <div className="flex w-full mt-4 lg:mt-10 mb-8">
         <Tabs defaultValue="inventory" className="flex w-full items-center justify-center">
           <TabsList className="justify-center grid grid-cols-3 w-full max-w-4xl bg-transparent px-0">
             <TabsTrigger className="tab-indicator-secondary" value="inventory">

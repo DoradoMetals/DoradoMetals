@@ -17,7 +17,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
 
   const stopImpersonation = useStopImpersonation()
 
-  if (!user && isPending) {
+  if (!session && isPending === true) {
     return (
       <>
         <ShellSkeleton />

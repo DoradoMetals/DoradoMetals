@@ -304,8 +304,6 @@ export const useImpersonateUser = () => {
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-      await queryClient.refetchQueries({ queryKey: ['session'] }) // Force immediate refetch
-
       router.replace('/')
     },
   })
@@ -334,8 +332,6 @@ export const useStopImpersonation = () => {
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-      await queryClient.refetchQueries({ queryKey: ['session'] }) // Force immediate refetch
-
       router.replace('/admin')
     },
   })
