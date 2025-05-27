@@ -2305,8 +2305,8 @@ const generateInvoice = async (req, res) => {
 
     res.end(pdfBuffer);
   } catch (error) {
-    console.error("Error generating packing list:", error);
-    res.status(500).json({ error: "Failed to generate packing list PDF." });
+    console.error("Error generating invoice", error);
+    res.status(500).json({ error: "Failed to generate invoice." });
   }
 };
 

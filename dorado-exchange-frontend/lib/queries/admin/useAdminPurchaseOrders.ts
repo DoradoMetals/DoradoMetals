@@ -834,12 +834,16 @@ export const useAcceptOffer = () => {
       spot_prices: SpotPrice[]
     }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<PurchaseOrder>('POST', '/admin/accept_offer', {
-        user_id: user.id,
-        order: purchase_order,
-        order_spots,
-        spot_prices,
-      })
+      return await apiRequest<{ purchaseOrder: PurchaseOrder; orderSpots: SpotPrice[] }>(
+        'POST',
+        '/admin/accept_offer',
+        {
+          user_id: user.id,
+          order: purchase_order,
+          order_spots,
+          spot_prices,
+        }
+      )
     },
 
     onMutate: async ({ purchase_order, order_spots, spot_prices }) => {
@@ -873,7 +877,7 @@ export const useAcceptOffer = () => {
               }
         )
       )
-      return { previousOrders, queryKey }
+      return { previousOrders, queryKey, spot_prices }
     },
 
     onError: (_err, _vars, context) => {
@@ -885,6 +889,13 @@ export const useAcceptOffer = () => {
       if (context?.queryKey) {
         queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
       }
+    },
+    onSuccess: async (data, context) => {
+      await apiRequest('POST', '/purchase_orders/send_offer_accepted_email', {
+        order: data.purchaseOrder,
+        order_spots: data.orderSpots,
+        spot_prices: context.spot_prices,
+      })
     },
   })
 }
@@ -1041,4 +1052,3 @@ export const useUpdateRejectedOffer = () => {
 //     },
 //   })
 // }
-

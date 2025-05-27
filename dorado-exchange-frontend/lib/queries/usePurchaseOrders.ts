@@ -10,6 +10,9 @@ import { SpotPrice } from '@/types/metal'
 import getPurchaseOrderItemPrice from '@/utils/getPurchaseOrderItemPrice'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 import { payoutOptions } from '@/types/payout'
+import { useSpotPrices } from './useSpotPrices'
+import { packageOptions } from '@/types/packaging'
+import { useDownloadPackingList } from './usePDF'
 
 export const usePurchaseOrders = () => {
   const { user } = useGetSession()
@@ -35,21 +38,37 @@ export const usePurchaseOrders = () => {
 export const useCreatePurchaseOrder = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
+  const { data: spotPrices = [] } = useSpotPrices()
 
   return useMutation({
     mutationFn: async (purchase_order: PurchaseOrderCheckout) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<PurchaseOrderCheckout>(
-        'POST',
-        '/purchase_orders/create_purchase_order',
-        {
-          user_id: user.id,
-          purchase_order: purchase_order,
-        }
-      )
+      return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/create_purchase_order', {
+        user_id: user.id,
+        purchase_order: purchase_order,
+        user: user,
+      })
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase_orders', user], refetchType: 'active' })
+    },
+    onSuccess: async (purchaseOrder: PurchaseOrder) => {
+      const packageDetails =
+        packageOptions.find((pkg) => pkg.label === purchaseOrder.shipment.package) ??
+        packageOptions[0]
+      const payoutDetails =
+        payoutOptions.find((payout) => payout.method === purchaseOrder.payout.method) ??
+        payoutOptions[0]
+      try {
+        await apiRequest('POST', '/purchase_orders/send_created_email', {
+          purchaseOrder: purchaseOrder,
+          spotPrices: spotPrices,
+          packageDetails: packageDetails,
+          payoutDetails: payoutDetails,
+        })
+      } catch (err) {
+        console.error('Failed to send confirmation email:', err)
+      }
     },
   })
 }
@@ -86,12 +105,16 @@ export const useAcceptOffer = () => {
       spot_prices: SpotPrice[]
     }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/accept_offer', {
-        user_id: user.id,
-        order: purchase_order,
-        order_spots,
-        spot_prices,
-      })
+      return await apiRequest<{ purchaseOrder: PurchaseOrder; orderSpots: SpotPrice[] }>(
+        'POST',
+        '/purchase_orders/accept_offer',
+        {
+          user_id: user.id,
+          order: purchase_order,
+          order_spots,
+          spot_prices,
+        }
+      )
     },
 
     onMutate: async ({ purchase_order, order_spots, spot_prices }) => {
@@ -125,7 +148,7 @@ export const useAcceptOffer = () => {
               }
         )
       )
-      return { previousOrders, queryKey }
+      return { purchase_order, order_spots, spot_prices, previousOrders, queryKey }
     },
 
     onError: (_err, _vars, context) => {
@@ -137,6 +160,13 @@ export const useAcceptOffer = () => {
       if (context?.queryKey) {
         queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
       }
+    },
+    onSuccess: async (data, context) => {
+      await apiRequest('POST', '/purchase_orders/send_offer_accepted_email', {
+        order: data.purchaseOrder,
+        order_spots: data.orderSpots,
+        spot_prices: context.spot_prices,
+      })
     },
   })
 }

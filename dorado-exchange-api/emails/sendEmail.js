@@ -10,16 +10,16 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendEmail = async ({ to, subject, text, html }) => {
+const sendEmail = async ({ to, subject, text, html, attachments = [] }) => {
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
     to,
     subject,
     text,
     html,
+    attachments,
   });
 };
-
 module.exports = {
   sendEmail,
 };

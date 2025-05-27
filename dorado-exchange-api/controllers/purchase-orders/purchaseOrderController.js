@@ -1,14 +1,22 @@
 const pool = require("../../db");
+const axios = require("axios");
+
+const {
+  renderPurchaseOrderPlacedEmail,
+  renderOfferAcceptedEmail,
+} = require("../../emails/renderEmail");
+const { sendEmail } = require("../../emails/sendEmail");
 const {
   calculateItemPrice,
   calculateTotalPrice,
-  calculateReturnDeclaredValue,
 } = require("../../utils/price-calculations");
 const {
   createFedexLabel,
   scheduleFedexPickup,
   formatAddressForFedEx,
 } = require("../shipping/fedexController");
+
+const { formatPurchaseOrderNumber } = require("../../utils/formatOrderNumbers");
 
 const getPurchaseOrders = async (req, res) => {
   const { user_id } = req.query;
@@ -219,10 +227,108 @@ const acceptOffer = async (req, res) => {
 
     await client.query("COMMIT");
 
-    const finalQuery = `SELECT * FROM exchange.purchase_orders WHERE id = $1`;
-    const { rows } = await client.query(finalQuery, [order.id]);
+    const purchaseOrder = await pool.query(
+      `SELECT 
+        po.*,
+        json_agg(DISTINCT jsonb_build_object(
+          'id', poi.id,
+          'purchase_order_id', poi.purchase_order_id,
+          'price', poi.price,
+          'quantity', poi.quantity,
+          'confirmed', poi.confirmed,
+          'bullion_premium', poi.bullion_premium,
+          'item_type', CASE 
+            WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
+            WHEN poi.product_id IS NOT NULL THEN 'product'
+            ELSE 'unknown'
+          END,
+          'scrap', jsonb_build_object(
+            'id', s.id,
+            'pre_melt', s.pre_melt,
+            'post_melt', s.post_melt,
+            'purity', s.purity,
+            'content', s.content,
+            'gross_unit', s.gross_unit,
+            'metal', ms.type
+          ),
+          'product', jsonb_build_object(
+            'id', p.id,
+            'product_name', p.product_name,
+            'content', p.content,
+            'product_type', p.product_type,
+            'image_front', p.image_front,
+            'image_back', p.image_back,
+            'bid_premium', p.bid_premium,
+            'ask_premium', p.ask_premium,
+            'variant_group', p.variant_group,
+            'shadow_offset', p.shadow_offset,
+            'metal_type', mp.type
+          )
+        )) AS order_items,
+        to_jsonb(addr) AS address,
+        jsonb_build_object(
+          'id', ship.id,
+          'order_id', ship.order_id,
+          'tracking_number', ship.tracking_number,
+          'carrier', ship.carrier,
+          'shipping_status', ship.shipping_status,
+          'estimated_delivery', ship.estimated_delivery,
+          'shipped_at', ship.shipped_at,
+          'delivered_at', ship.delivered_at,
+          'created_at', ship.created_at,
+          'label_type', ship.label_type,
+          'pickup_type', ship.pickup_type,
+          'package', ship.package,
+          'shipping_label', encode(ship.shipping_label, 'base64'),
+          'shipping_charge', ship.net_charge,
+          'shipping_service', ship.service_type,
+          'insured', ship.insured,
+          'declared_value', ship.declared_value
+        ) AS shipment,
+        jsonb_build_object(
+          'id', ret.id,
+          'order_id', ret.order_id,
+          'tracking_number', ret.tracking_number,
+          'carrier', ret.carrier,
+          'shipping_status', ret.shipping_status,
+          'estimated_delivery', ret.estimated_delivery,
+          'shipped_at', ret.shipped_at,
+          'delivered_at', ret.delivered_at,
+          'created_at', ret.created_at,
+          'label_type', ret.label_type,
+          'pickup_type', ret.pickup_type,
+          'package', ret.package,
+          'shipping_label', encode(ret.shipping_label, 'base64'),
+          'shipping_charge', ret.net_charge,
+          'shipping_service', ret.service_type,
+          'insured', ret.insured,
+          'declared_value', ret.declared_value
+        ) AS return_shipment,
+        to_jsonb(cp) AS carrier_pickup,
+        to_jsonb(pay) AS payout,
+        jsonb_build_object(
+          'user_name', u.name,
+          'user_email', u.email
+        ) AS user
+      FROM exchange.purchase_orders po
+      LEFT JOIN exchange.purchase_order_items poi ON poi.purchase_order_id = po.id
+      LEFT JOIN exchange.scrap s ON poi.scrap_id = s.id
+      LEFT JOIN exchange.products p ON poi.product_id = p.id
+      LEFT JOIN exchange.metals ms ON s.metal_id = ms.id
+      LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
+      LEFT JOIN exchange.addresses addr ON addr.id = po.address_id
+      LEFT JOIN exchange.inbound_shipments ship ON ship.order_id = po.id
+      LEFT JOIN exchange.return_shipments ret ON ret.order_id = po.id
+      LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = po.id
+      LEFT JOIN exchange.payouts pay ON pay.order_id = po.id
+      LEFT JOIN exchange.users u ON u.id = po.user_id
+      WHERE po.id = $1
+      GROUP BY po.id, addr.id, ship.id, ret.id, cp.id, pay.id, u.id
+      ORDER BY po.created_at DESC;`,
+      [order.id]
+    );
 
-    res.status(200).json(rows[0]);
+    return res.status(200).json({purchaseOrder: purchaseOrder.rows[0], orderSpots: updatedSpots});
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error accepting offer:", error);
@@ -397,7 +503,7 @@ const createReview = async (req, res) => {
 };
 
 const createPurchaseOrder = async (req, res) => {
-  const { purchase_order, user_id } = req.body;
+  const { purchase_order, user_id, user } = req.body;
   const client = await pool.connect();
 
   try {
@@ -563,13 +669,200 @@ const createPurchaseOrder = async (req, res) => {
 
     await client.query("COMMIT");
 
-    return res.status(200).json({ success: true, purchase_order_id });
+    const purchaseOrder = await pool.query(
+      `SELECT 
+        po.*,
+        json_agg(DISTINCT jsonb_build_object(
+          'id', poi.id,
+          'purchase_order_id', poi.purchase_order_id,
+          'price', poi.price,
+          'quantity', poi.quantity,
+          'confirmed', poi.confirmed,
+          'bullion_premium', poi.bullion_premium,
+          'item_type', CASE 
+            WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
+            WHEN poi.product_id IS NOT NULL THEN 'product'
+            ELSE 'unknown'
+          END,
+          'scrap', jsonb_build_object(
+            'id', s.id,
+            'pre_melt', s.pre_melt,
+            'post_melt', s.post_melt,
+            'purity', s.purity,
+            'content', s.content,
+            'gross_unit', s.gross_unit,
+            'metal', ms.type
+          ),
+          'product', jsonb_build_object(
+            'id', p.id,
+            'product_name', p.product_name,
+            'content', p.content,
+            'product_type', p.product_type,
+            'image_front', p.image_front,
+            'image_back', p.image_back,
+            'bid_premium', p.bid_premium,
+            'ask_premium', p.ask_premium,
+            'variant_group', p.variant_group,
+            'shadow_offset', p.shadow_offset,
+            'metal_type', mp.type
+          )
+        )) AS order_items,
+        to_jsonb(addr) AS address,
+        jsonb_build_object(
+          'id', ship.id,
+          'order_id', ship.order_id,
+          'tracking_number', ship.tracking_number,
+          'carrier', ship.carrier,
+          'shipping_status', ship.shipping_status,
+          'estimated_delivery', ship.estimated_delivery,
+          'shipped_at', ship.shipped_at,
+          'delivered_at', ship.delivered_at,
+          'created_at', ship.created_at,
+          'label_type', ship.label_type,
+          'pickup_type', ship.pickup_type,
+          'package', ship.package,
+          'shipping_label', encode(ship.shipping_label, 'base64'),
+          'shipping_charge', ship.net_charge,
+          'shipping_service', ship.service_type,
+          'insured', ship.insured,
+          'declared_value', ship.declared_value
+        ) AS shipment,
+        jsonb_build_object(
+          'id', ret.id,
+          'order_id', ret.order_id,
+          'tracking_number', ret.tracking_number,
+          'carrier', ret.carrier,
+          'shipping_status', ret.shipping_status,
+          'estimated_delivery', ret.estimated_delivery,
+          'shipped_at', ret.shipped_at,
+          'delivered_at', ret.delivered_at,
+          'created_at', ret.created_at,
+          'label_type', ret.label_type,
+          'pickup_type', ret.pickup_type,
+          'package', ret.package,
+          'shipping_label', encode(ret.shipping_label, 'base64'),
+          'shipping_charge', ret.net_charge,
+          'shipping_service', ret.service_type,
+          'insured', ret.insured,
+          'declared_value', ret.declared_value
+        ) AS return_shipment,
+        to_jsonb(cp) AS carrier_pickup,
+        to_jsonb(pay) AS payout,
+        jsonb_build_object(
+          'user_name', u.name,
+          'user_email', u.email
+        ) AS user
+      FROM exchange.purchase_orders po
+      LEFT JOIN exchange.purchase_order_items poi ON poi.purchase_order_id = po.id
+      LEFT JOIN exchange.scrap s ON poi.scrap_id = s.id
+      LEFT JOIN exchange.products p ON poi.product_id = p.id
+      LEFT JOIN exchange.metals ms ON s.metal_id = ms.id
+      LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
+      LEFT JOIN exchange.addresses addr ON addr.id = po.address_id
+      LEFT JOIN exchange.inbound_shipments ship ON ship.order_id = po.id
+      LEFT JOIN exchange.return_shipments ret ON ret.order_id = po.id
+      LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = po.id
+      LEFT JOIN exchange.payouts pay ON pay.order_id = po.id
+      LEFT JOIN exchange.users u ON u.id = po.user_id
+      WHERE po.id = $1
+      GROUP BY po.id, addr.id, ship.id, ret.id, cp.id, pay.id, u.id
+      ORDER BY po.created_at DESC;`,
+      [purchase_order_id]
+    );
+
+    return res.status(200).json(purchaseOrder.rows[0]);
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error creating purchase order:", error);
     return res.status(500).json({ error: "Internal Server Error" });
   } finally {
     client.release();
+  }
+};
+
+const sendCreatedEmail = async (req, res) => {
+  const {
+    purchaseOrder,
+    spotPrices = [],
+    packageDetails,
+    payoutDetails,
+  } = req.body;
+
+  const pdfResp = await axios.post(
+    `${process.env.API_URL}/pdf/generate_packing_list`,
+    { purchaseOrder, spotPrices, packageDetails, payoutDetails },
+    { responseType: "arraybuffer" }
+  );
+  const pdfBuffer = Buffer.from(pdfResp.data, "binary");
+
+  try {
+    await sendEmail({
+      to: purchaseOrder.user.user_email,
+      subject: "Your Order Has Been Placed!",
+      html: renderPurchaseOrderPlacedEmail({
+        firstName: purchaseOrder.user.user_name,
+        url: `${process.env.FRONTEND_URL}/orders`,
+      }),
+      attachments: [
+        {
+          filename: `${formatPurchaseOrderNumber(
+            purchaseOrder.order_number
+          )}_packing_list.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    });
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error("Failed to send confirmation email:", err);
+    return res.status(500).json({ error: "Email delivery failed" });
+  }
+};
+
+const sendAcceptedEmail = async (req, res) => {
+  const { order, order_spots, spot_prices } = req.body;
+  let pdfBuffer;
+
+  // 1) Catch PDF‐generation errors
+  try {
+    const pdfResp = await axios.post(
+      `${process.env.API_URL}/pdf/generate_invoice`,
+      {
+        purchaseOrder: order,
+        spotPrices: spot_prices,
+        orderSpots: order_spots,
+      },
+      { responseType: "arraybuffer" }
+    );
+    pdfBuffer = Buffer.from(pdfResp.data, "binary");
+  } catch (err) {
+    console.error("[sendAcceptedEmail] PDF fetch failed:", err.message);
+    return res.status(500).json({ error: "Could not generate invoice PDF." });
+  }
+
+  try {
+    await sendEmail({
+      to: order.user.user_email,
+      subject: "Offer Accepted!",
+      html: renderOfferAcceptedEmail({
+        firstName: order.user.user_name,
+        url: `${process.env.FRONTEND_URL}/orders`,
+      }),
+      attachments: [
+        {
+          filename: `${formatPurchaseOrderNumber(
+            order.order_number
+          )}_invoice.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    });
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error("[sendAcceptedEmail] Email delivery failed:", err.message);
+    return res.status(500).json({ error: "Email delivery failed" });
   }
 };
 
@@ -582,4 +875,6 @@ module.exports = {
   updateOfferNotes,
   cancelOrder,
   createReview,
+  sendCreatedEmail,
+  sendAcceptedEmail,
 };
