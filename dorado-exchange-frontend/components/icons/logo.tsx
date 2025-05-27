@@ -231,12 +231,11 @@ export const XIcon: React.FC<{
   </svg>
 )
 
-
 export const ScaleIcon: React.FC<{
   size?: number
   height?: number
   className?: string
-  stroke?: string,
+  stroke?: string
 }> = ({ size = 50, height, className = '', stroke, ...props }) => (
   <svg
     width={size}
@@ -253,5 +252,28 @@ export const ScaleIcon: React.FC<{
     <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
     <path d="M5 8l3 8H3l2-8z" />
     <path d="M19 8l3 8h-5l2-8z" />
+  </svg>
+)
+
+export const ZelleIcon: React.FC<{
+  size?: number
+  height?: number
+  className?: string
+  stroke?: string
+  color?: string
+}> = ({ size = 50, height, className = '', stroke, color, ...props }) => (
+  <svg
+    width={size}
+    height={size}
+    className={className}
+    viewBox="0 0 256 256"
+    fill={color}
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    color={color}
+  >
+    <path stroke={color} d="M13.559 24h-2.841a.483.483 0 0 1-.483-.483v-2.765H5.638a.667.667 0 0 1-.666-.666v-2.234a.67.67 0 0 1 .142-.412l8.139-10.382h-7.25a.667.667 0 0 1-.667-.667V3.914c0-.367.299-.666.666-.666h4.23V.483c0-.266.217-.483.483-.483h2.841c.266 0 .483.217.483.483v2.765h4.323c.367 0 .666.299.666.666v2.137a.67.67 0 0 1-.141.41l-8.19 10.481h7.665c.367 0 .666.299.666.666v2.477a.667.667 0 0 1-.666.667h-4.32v2.765a.483.483 0 0 1-.483.483Z" />
   </svg>
 )

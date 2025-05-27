@@ -29,7 +29,7 @@ import {
   useDeleteProduct,
   useSaveProduct,
 } from '@/lib/queries/admin/useAdminProducts'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   PaginationState,
@@ -49,8 +49,7 @@ import {
 } from '@/lib/queries/admin/useAdmin'
 import { Switch } from '@/components/ui/switch'
 import { AdminProduct } from '@/types/admin'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ChevronLeft, ChevronRight, Edit, Settings, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Settings, Trash2, X } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { cn } from '@/lib/utils'
@@ -94,6 +93,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
 
   const displayColumns = [
     'display',
+    'slug',
     'homepage_display',
     'filter_category',
     'shadow_offset',
@@ -296,7 +296,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
         <Input
           type="number"
           pattern="[0-9]*"
-          inputMode='decimal'
+          inputMode="decimal"
           className="input-floating-label-form no-spinner text-right min-w-20"
           defaultValue={row.original.content}
           onBlur={(e) => handleUpdate(row.original.id, { content: Number(e.target.value) })}
@@ -326,7 +326,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
         <Input
           type="number"
           pattern="[0-9]*"
-          inputMode='decimal'
+          inputMode="decimal"
           className="input-floating-label-form no-spinner text-right min-w-20"
           defaultValue={row.original.purity}
           onBlur={(e) => handleUpdate(row.original.id, { purity: Number(e.target.value) })}
@@ -341,7 +341,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
         <Input
           type="number"
           pattern="[0-9]*"
-          inputMode='decimal'
+          inputMode="decimal"
           className="input-floating-label-form no-spinner text-right min-w-14"
           defaultValue={row.original.bid_premium}
           onBlur={(e) => handleUpdate(row.original.id, { bid_premium: Number(e.target.value) })}
@@ -356,7 +356,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
         <Input
           type="number"
           pattern="[0-9]*"
-          inputMode='decimal'
+          inputMode="decimal"
           className="input-floating-label-form no-spinner text-right min-w-14"
           defaultValue={row.original.ask_premium}
           onBlur={(e) => handleUpdate(row.original.id, { ask_premium: Number(e.target.value) })}
@@ -411,6 +411,19 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           onCheckedChange={(checked) =>
             handleUpdate(row.original.id, { homepage_display: checked })
           }
+        />
+      ),
+    },
+    {
+      id: 'slug',
+      header: 'Slug',
+      accessorKey: 'slug',
+      cell: ({ row }) => (
+        <Input
+          type="text"
+          className="input-floating-label-form min-w-48"
+          defaultValue={row.original.slug}
+          onBlur={(e) => handleUpdate(row.original.id, { slug: e.target.value })}
         />
       ),
     },

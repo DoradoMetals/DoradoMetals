@@ -24,6 +24,7 @@ export interface AdminProduct {
   homepage_display: boolean
   filter_category: string
   quantity: number
+  slug: string
 }
 
 export interface AdminMetal {

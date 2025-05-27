@@ -26,6 +26,7 @@ import 'swiper/css/pagination'
 import { cn } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
 import getProductAskOverUnderSpot from '@/utils/getProductAskOverUnderSpot'
+import { useRouter } from 'next/navigation'
 
 type ProductCardProps = {
   product: Product
@@ -33,6 +34,7 @@ type ProductCardProps = {
 }
 
 export default function ProductCard({ product, variants }: ProductCardProps) {
+  const router = useRouter()
   const [selectedProduct, setSelectedProduct] = useState<Product>(product)
   const [open, setOpen] = useState(false)
   const [variantsOpen, setVariantsOpen] = useState(false)
@@ -54,9 +56,15 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
   const overOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
   const isOver = overOrUnder >= 0
-
   return (
-    <div className="space-y-4 h-[32rem] max-w-[22rem] group relative flex-col items-center mx-auto z-50">
+    <div
+      role="button"
+      tabIndex={0}
+      className="cursor-pointer space-y-4 h-[32rem] max-w-[22rem] group relative flex-col items-center mx-auto z-0"
+      onClick={() => {
+        router.push(`/product/${selectedProduct.slug}`)
+      }}
+    >
       <div className="h-1/5 rounded-lg mb-8">
         <div className="relative w-full aspect-[4/3]">
           <Swiper
@@ -116,7 +124,11 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
               <Button
                 size="icon"
                 variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation()
+                }}
                 className={cn(
+                  'z-1',
                   isBeginning
                     ? `text-neutral-400 pointer-events-none hover:text-neutral-400`
                     : 'text-neutral-900'
@@ -130,7 +142,11 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
               <Button
                 size="icon"
                 variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation()
+                }}
                 className={cn(
+                  'z-1',
                   isEnd
                     ? `text-neutral-400 pointer-events-none hover:text-neutral-400`
                     : 'text-neutral-900'
@@ -188,14 +204,14 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
           <AnimatePresence>
             {!variantsOpen && (
               <motion.div
-                className="ml-auto will-change-transform"
+                className="flex flex-col items-end justify-end ml-auto will-change-transform"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{
                   duration: 0.2,
                   ease: 'easeInOut',
-                  delay: 0.2,
+                  delay: 0.05,
                 }}
               >
                 <Popover open={open} onOpenChange={setOpen}>
@@ -203,7 +219,10 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                     <Button
                       variant="ghost"
                       className="text-neutral-500 hover:text-neutral-900 p-0 h-5"
-                      onClick={() => setOpen(true)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpen(true)
+                      }}
                     >
                       <CircleHelp size={20} className="p-0" />
                     </Button>
@@ -295,15 +314,21 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
           <div
             className={cn(
-              'secondary-gradient w-full rounded-b-lg py-2 text-white',
+              'cursor-default secondary-gradient w-full rounded-b-lg py-2 text-white',
               quantity === 0 ? 'shine-on-hover' : ''
             )}
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
           >
             {quantity === 0 ? (
               <Button
                 variant="ghost"
                 className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
-                onClick={() => addItem(selectedProduct)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  addItem(selectedProduct)
+                }}
               >
                 Add to Cart
               </Button>
@@ -312,7 +337,10 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                 <Button
                   variant="ghost"
                   className="text-white hover:text-white"
-                  onClick={() => removeOne(selectedProduct)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    removeOne(selectedProduct)
+                  }}
                 >
                   <Minus size={20} />
                 </Button>
@@ -324,7 +352,10 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                 <Button
                   variant="ghost"
                   className="text-white hover:text-white"
-                  onClick={() => addItem(selectedProduct)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    addItem(selectedProduct)
+                  }}
                 >
                   <Plus size={20} />
                 </Button>

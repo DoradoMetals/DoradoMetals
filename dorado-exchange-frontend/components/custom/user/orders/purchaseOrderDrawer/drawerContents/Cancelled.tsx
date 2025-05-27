@@ -17,7 +17,7 @@ import { ShipmentTracking } from '@/types/shipping'
 
 import { formatDateWithTimeInParens } from '@/utils/dateFormatting'
 import { addDays } from 'date-fns'
-import { useReturnShipmentTracking, useShipmentTracking } from '@/lib/queries/shipping/useShipments'
+import { useReturnShipmentTracking } from '@/lib/queries/shipping/useShipments'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 
 export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
@@ -65,7 +65,8 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
               <div className="flex flex-col gap-1 text-left text-xl text-neutral-900 mb-4">
                 You have cancelled your order.
                 <div className="text-sm text-neutral-700">
-                  Before we can return your items, we must collect payment for both the original and return shipments.
+                  Before we can return your items, we must collect payment for both the original and
+                  return shipments.
                 </div>
               </div>
 

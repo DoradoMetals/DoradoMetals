@@ -9,7 +9,8 @@ const PRODUCT_FIELDS = `
   image_front,
   image_back,
   variant_group,
-  shadow_offset
+  shadow_offset,
+  slug
 `;
 
 const PRODUCT_FIELDS_WITH_ALIAS = `
@@ -23,7 +24,8 @@ const PRODUCT_FIELDS_WITH_ALIAS = `
   p.image_front,
   p.image_back,
   p.variant_group,
-  p.shadow_offset
+  p.shadow_offset,
+  p.slug
 `;
 
 module.exports = { PRODUCT_FIELDS, PRODUCT_FIELDS_WITH_ALIAS };

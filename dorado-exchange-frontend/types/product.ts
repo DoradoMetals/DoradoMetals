@@ -16,6 +16,7 @@ export interface Product {
   metal_type: string,
   variant_group: string,
   shadow_offset: number,
+  slug: string,
 }
 
 export const productSchema = z.object({

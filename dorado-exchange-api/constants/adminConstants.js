@@ -20,7 +20,8 @@ const ADMIN_PRODUCT_FIELDS = `
   updated_by,
   homepage_display,
   filter_category,
-  quantity
+  quantity,
+  slug
 `;
 
 const ADMIN_PRODUCT_FIELDS_WITH_ALIAS = `
@@ -45,7 +46,8 @@ const ADMIN_PRODUCT_FIELDS_WITH_ALIAS = `
   p.updated_by,
   p.homepage_display,
   p.filter_category,
-  p.quantity
+  p.quantity,
+  p.slug
 `;
 
 module.exports = { ADMIN_PRODUCT_FIELDS, ADMIN_PRODUCT_FIELDS_WITH_ALIAS };

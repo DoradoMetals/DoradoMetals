@@ -5,8 +5,7 @@ const pool = require("../../db");
 
 const getAllProducts = async (req, res) => {
   try {
-    const query = 
-    `
+    const query = `
       SELECT ${ADMIN_PRODUCT_FIELDS_WITH_ALIAS}, metal.type AS metal, supplier.name AS supplier, mint.name AS mint
       FROM exchange.products p
       JOIN exchange.metals metal ON metal.id = p.metal_id
@@ -89,8 +88,9 @@ const saveProduct = async (req, res) => {
         shadow_offset = $14,
         stock = $15,
         updated_by = $16,
-        updated_at = NOW()
-      WHERE id = $17
+        updated_at = NOW(),
+        slug= $17
+      WHERE id = $18
     `;
 
     const values = [
@@ -110,6 +110,7 @@ const saveProduct = async (req, res) => {
       product.shadow_offset,
       product.stock,
       user.name,
+      product.slug,
       product.id, // used in WHERE clause
     ];
 
@@ -189,7 +190,7 @@ const getInventory = async (req, res) => {
     const result = await pool.query(query);
     const rows = result.rows;
 
-    const metalTypes = ['Gold', 'Silver', 'Platinum', 'Palladium'];
+    const metalTypes = ["Gold", "Silver", "Platinum", "Palladium"];
     const inventory = {};
 
     // Initialize all 4 metal categories
@@ -199,7 +200,7 @@ const getInventory = async (req, res) => {
         coins: 0,
         bars: 0,
         other: 0,
-        inventory_list: []
+        inventory_list: [],
       };
     }
 
@@ -212,7 +213,7 @@ const getInventory = async (req, res) => {
         product_type,
         content,
         quantity,
-        metal
+        metal,
       } = product;
 
       if (!inventory[metal]) continue; // skip unrecognized metals
@@ -221,9 +222,9 @@ const getInventory = async (req, res) => {
 
       group.total_content += (content || 0) * (quantity || 0);
 
-      if (product_type === 'Coin') {
+      if (product_type === "Coin") {
         group.coins += quantity;
-      } else if (product_type === 'Bar') {
+      } else if (product_type === "Bar") {
         group.bars += quantity;
       } else {
         group.other += quantity;
@@ -236,7 +237,7 @@ const getInventory = async (req, res) => {
         ask_premium,
         product_type,
         content,
-        quantity
+        quantity,
       });
     }
     res.status(200).json(inventory);
