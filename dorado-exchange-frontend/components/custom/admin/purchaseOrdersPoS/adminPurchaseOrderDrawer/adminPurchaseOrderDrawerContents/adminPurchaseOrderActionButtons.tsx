@@ -5,6 +5,7 @@ import {
   useAcceptOffer,
   useMovePurchaseOrderStatus,
   useRejectOffer,
+  useSendOffer,
   useUpdateRejectedOffer,
 } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { useMemo } from 'react'
@@ -18,6 +19,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
   const movePurchaseOrderStatus = useMovePurchaseOrderStatus()
   const acceptOffer = useAcceptOffer()
   const rejectOffer = useRejectOffer()
+  const sendOffer = useSendOffer()
   const updateRejected = useUpdateRejectedOffer()
 
   const handleAction = (action: string, status: string) => {
@@ -27,19 +29,19 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
         order_spots: orderSpotPrices,
         spot_prices: spotPrices,
       })
-    }
-    if (action === 'reject_offer') {
+    } else if (action === 'reject_offer') {
       rejectOffer.mutate({ purchase_order: order, offer_notes: '' })
-    }
-
-    if (action === 'update_rejected_offer') {
-      updateRejected.mutate({ purchase_order: order })
-    }
-    if (action !== 'adjust_price' && action !== 'reopen_order') {
+    } else if (action === 'update_rejected_offer') {
+      updateRejected.mutate({ order_status: status, order: order })
+    } else if (action === 'send_offer') {
+      sendOffer.mutate({
+        order_status: status,
+        order: order,
+      })
+    } else {
       movePurchaseOrderStatus.mutate({
         order_status: status,
         order: order,
-        action: action,
       })
     }
   }
@@ -63,7 +65,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
         return [
           {
             label: 'Move to Offer Sent',
-            action: 'move_to_offer_sent',
+            action: 'send_offer',
             status: 'Offer Sent',
             disabled: !allItemsConfirmed,
           },
@@ -105,7 +107,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
           },
           {
             label: 'Back to Offer Sent',
-            action: 'move_to_offer_sent',
+            action: 'send_offer',
             status: 'Offer Sent',
             disabled: !allItemsConfirmed,
           },
@@ -126,7 +128,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
           },
           {
             label: 'Back to Offer Sent',
-            action: 'move_to_offer_sent',
+            action: 'send_offer',
             status: 'Offer Sent',
             disabled: !allItemsConfirmed,
           },

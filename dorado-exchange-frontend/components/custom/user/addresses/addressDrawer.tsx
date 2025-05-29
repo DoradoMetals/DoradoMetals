@@ -20,8 +20,6 @@ export default function AddressDrawer({ address, onSuccess }: AddressDrawerProps
 
   const title = !address.name && !address.line_1 ? 'Create New Address' : 'Edit Address'
 
-  console.log(activeDrawer)
-
   const pathname = usePathname()
 
   useEffect(() => {

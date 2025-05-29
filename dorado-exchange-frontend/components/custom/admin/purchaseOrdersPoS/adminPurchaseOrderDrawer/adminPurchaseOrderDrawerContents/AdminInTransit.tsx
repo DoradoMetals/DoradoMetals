@@ -103,7 +103,6 @@ function ShipmentTrackingSection({
     },
   ]
 
-  console.log(scan_events)
   return (
     <div className="flex flex-col gap-5 w-full">
       <div className="flex">

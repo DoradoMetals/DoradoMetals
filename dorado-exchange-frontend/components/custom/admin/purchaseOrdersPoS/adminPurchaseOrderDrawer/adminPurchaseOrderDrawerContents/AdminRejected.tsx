@@ -72,7 +72,6 @@ export default function AdminRejectedPurchaseOrder({ order }: PurchaseOrderDrawe
   }
 
   const handleLockSpots = (spots: SpotPrice[], purchase_order_id: string) => {
-    console.log(purchase_order_id)
     lockSpots.mutate({ spots, purchase_order_id })
   }
 

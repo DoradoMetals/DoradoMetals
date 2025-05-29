@@ -109,7 +109,6 @@ const auth = betterAuth({
     magicLink({
       sendMagicLink: async ({ email, token, url }, request) => {
         const emailUrl = `${process.env.FRONTEND_URL}/verify-login?token=${token}`;
-        console.log("here");
         await sendEmail({
           to: email,
           subject: "Your Dorado account is ready",
