@@ -62,7 +62,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
       tabIndex={0}
       className="cursor-pointer space-y-4 h-[32rem] max-w-[22rem] group relative flex-col items-center mx-auto z-0"
       onClick={() => {
-        router.push(`/product/${selectedProduct.slug}`)
+        router.push(`/buy/${selectedProduct.slug}`)
       }}
     >
       <div className="h-1/5 rounded-lg mb-8">
