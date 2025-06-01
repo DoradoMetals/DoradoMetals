@@ -80,7 +80,7 @@ function BreadcrumbNav() {
   const segments = pathname.split('/').filter(Boolean)
 
   const formatSegment = (segment: string) =>
-    segment.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+    segment.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 
   return (
     <div className="hidden lg:flex pt-4 px-20 pb-0">

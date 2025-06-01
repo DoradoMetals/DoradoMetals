@@ -143,7 +143,7 @@ export default function ReviewStep() {
        
             createPurchaseOrder.mutate(validated, {
               onSuccess: () => {
-                router.push("/order_placed")
+                router.push("/order-placed")
                 sellCartStore.getState().clearCart()
                 usePurchaseOrderCheckoutStore.getState().clear()
               },
