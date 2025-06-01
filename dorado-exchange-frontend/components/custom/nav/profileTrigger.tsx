@@ -1,10 +1,10 @@
 import React from 'react'
 import { User2 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { useGetSession } from '@/lib/queries/useAuth'
+import { useUser } from '@/lib/authClient'
 
 export default function ProfileTrigger() {
-  const { user } = useGetSession()
+  const { user } = useUser()
   return (
     <div className="flex items-center hover:cursor-pointer">
       {user ? (

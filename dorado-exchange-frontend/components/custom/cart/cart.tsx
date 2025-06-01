@@ -10,11 +10,11 @@ import getProductPrice from '@/utils/getProductPrice'
 import PriceNumberFlow from '../products/PriceNumberFlow'
 import { useRouter } from 'next/navigation'
 import { useDrawerStore } from '@/store/drawerStore'
-import { useGetSession } from '@/lib/queries/useAuth'
+import { useUser } from '@/lib/authClient'
 
 export default function Cart() {
   const router = useRouter()
-  const { user } = useGetSession()
+  const { user } = useUser()
 
   const { closeDrawer } = useDrawerStore()
 

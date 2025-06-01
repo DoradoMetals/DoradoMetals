@@ -2,16 +2,15 @@
 
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
-import { magicLink } from '@/lib/authClient'
+import { magicLink, useUser } from '@/lib/authClient'
 import ResetPasswordForm from '@/components/custom/auth/resetPasswordForm'
 import { Button } from '@/components/ui/button'
-import { useGetSession } from '@/lib/queries/useAuth'
 
 export default function Page() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const router = useRouter()
-  const { user } = useGetSession()
+  const { user } = useUser()
 
   const [status, setStatus] = useState<'verifying' | 'error' | 'success'>('verifying')
 

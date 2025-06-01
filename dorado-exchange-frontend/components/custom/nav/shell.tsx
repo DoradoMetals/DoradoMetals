@@ -20,11 +20,11 @@ import Sidebar from './sidebar'
 
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { useGetSession } from '@/lib/queries/useAuth'
+import { useUser } from '@/lib/authClient'
 
 export default function Shell() {
   const pathname = usePathname()
-  const { user } = useGetSession()
+  const { user} = useUser()
 
   const { activeDrawer, openDrawer, closeDrawer } = useDrawerStore()
   const isAnyDrawerOpen = !!activeDrawer

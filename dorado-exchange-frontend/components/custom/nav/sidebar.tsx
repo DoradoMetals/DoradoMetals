@@ -7,12 +7,13 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { ThemeSwitcher } from '../theme/theme-switcher'
-import { useGetSession, useSignOut } from '@/lib/queries/useAuth'
+import { useSignOut } from '@/lib/queries/useAuth'
 import { useDrawerStore } from '@/store/drawerStore'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { useUser } from '@/lib/authClient'
 
 export default function Sidebar() {
-  const { user } = useGetSession()
+  const { user } = useUser()
   const router = useRouter()
   const pathname = usePathname()
   const signOutMutation = useSignOut()
