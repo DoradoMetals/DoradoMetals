@@ -10,6 +10,7 @@ const shippingRoutes = require("./routes/shipping");
 const purchaseOrderRoutes = require("./routes/purchase-orders");
 const pdfRoutes = require("./routes/pdf");
 const reviewRoutes = require("./routes/reviews");
+const emailRoutes = require("./routes/emails");
 
 const spotRoutes = require("./routes/spots");
 const { toNodeHandler } = require("better-auth/node");
@@ -37,7 +38,6 @@ app.all("/api/auth/*", toNodeHandler(auth));
 
 app.use(express.json());
 
-// Use the products and email routes
 app.use("/api/products", productRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/cart", cartRoutes);
@@ -48,11 +48,17 @@ app.use("/api/shipping", shippingRoutes);
 app.use("/api/purchase_orders", purchaseOrderRoutes);
 app.use("/api/pdf", pdfRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/emails", emailRoutes);
 
 setupScheduler();
 
 app.use((req, res, next) => {
   next();
+});
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: "Internal Server Error" });
 });
 
 app.listen(PORT, () => {});

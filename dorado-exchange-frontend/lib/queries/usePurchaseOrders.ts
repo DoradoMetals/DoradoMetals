@@ -12,7 +12,6 @@ import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 import { payoutOptions } from '@/types/payout'
 import { useSpotPrices } from './useSpotPrices'
 import { packageOptions } from '@/types/packaging'
-import { useDownloadPackingList } from './usePDF'
 
 export const usePurchaseOrders = () => {
   const { user } = useGetSession()
@@ -60,7 +59,7 @@ export const useCreatePurchaseOrder = () => {
         payoutOptions.find((payout) => payout.method === purchaseOrder.payout.method) ??
         payoutOptions[0]
       try {
-        await apiRequest('POST', '/purchase_orders/send_created_email', {
+        await apiRequest('POST', '/emails/purchase_order_created', {
           purchaseOrder: purchaseOrder,
           spotPrices: spotPrices,
           packageDetails: packageDetails,
@@ -116,6 +115,7 @@ export const useAcceptOffer = () => {
         }
       )
     },
+    
 
     onMutate: async ({ purchase_order, order_spots, spot_prices }) => {
       const queryKey = ['purchase_orders', user?.id]
@@ -162,7 +162,7 @@ export const useAcceptOffer = () => {
       }
     },
     onSuccess: async (data, context) => {
-      await apiRequest('POST', '/purchase_orders/send_offer_accepted_email', {
+      await apiRequest('POST', '/purchase_orders/purchase_order_offer_accepted', {
         order: data.purchaseOrder,
         order_spots: data.orderSpots,
         spot_prices: context.spot_prices,

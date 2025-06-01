@@ -1,4 +1,7 @@
 const express = require("express");
+
+const { requireAdmin } = require("../middleware/authMiddleware");
+
 const {
   getAllProducts,
   getAllMetals,
@@ -10,69 +13,32 @@ const {
   createProduct,
   getInventory,
 } = require("../controllers/admin/adminProductsController");
-const { getAllScrap } = require("../controllers/admin/adminScrapController");
-const { getUser, getAllUsers } = require("../controllers/admin/adminUserController");
-const {
-  getAllPurchaseOrders,
-  getAdminPurchaseOrderMetals,
-  changePurchaseOrderStatus,
-  updateOrderScrapPercentage,
-  resetOrderScrapPercentage,
-  updateOrderSpot,
-  lockOrderSpots,
-  resetOrderSpots,
-  updateOrderScrapItem,
-  deleteOrderScrapItem,
-  saveOrderItems,
-  resetOrderItem,
-  addNewOrderScrapItem,
-  updateOrderBullionItem,
-  deleteOrderBullionItem,
-  addNewOrderBullionItem,
-  updateRejectedOffer,
-} = require("../controllers/admin/adminPurchaseOrdersController");
 
-const { acceptOffer, rejectOffer } = require("../controllers/purchase-orders/purchaseOrderController");
+const { getAllScrap } = require("../controllers/admin/adminScrapController");
+
+const {
+  getUser,
+  getAllUsers,
+} = require("../controllers/admin/adminUserController");
 
 const router = express.Router();
 
 //products
-router.get("/get_products", getAllProducts);
-router.get("/get_metals", getAllMetals);
-router.get("/get_suppliers", getAllSuppliers);
-router.get("/get_mints", getAllMints);
-router.get("/get_product_types", getAllTypes);
-router.post("/save_product", saveProduct);
-router.post("/create_product", createProduct);
-router.post("/delete_product", deleteProduct);
-router.get("/get_inventory", getInventory);
+router.get("/get_products", requireAdmin, getAllProducts);
+router.get("/get_metals", requireAdmin, getAllMetals);
+router.get("/get_suppliers", requireAdmin, getAllSuppliers);
+router.get("/get_mints", requireAdmin, getAllMints);
+router.get("/get_product_types", requireAdmin, getAllTypes);
+router.post("/save_product", requireAdmin, saveProduct);
+router.post("/create_product", requireAdmin, createProduct);
+router.post("/delete_product", requireAdmin, deleteProduct);
+router.get("/get_inventory", requireAdmin, getInventory);
 
 //scrap
-router.get("/get_scrap", getAllScrap);
+router.get("/get_scrap", requireAdmin, getAllScrap);
 
 //users
-router.get("/get_user", getUser);
-router.get("/get_all_users", getAllUsers);
-
-//purchase orders
-router.get("/get_admin_purchase_orders", getAllPurchaseOrders);
-router.post("/get_admin_purchase_order_metals", getAdminPurchaseOrderMetals);
-router.post("/change_purchase_order_status", changePurchaseOrderStatus);
-router.post("/update_purchase_order_scrap_percentage", updateOrderScrapPercentage);
-router.post("/reset_purchase_order_scrap_percentage", resetOrderScrapPercentage);
-router.post("/update_purchase_order_spot", updateOrderSpot);
-router.post("/lock_purchase_order_spots", lockOrderSpots);
-router.post("/reset_purchase_order_spots", resetOrderSpots);
-router.post("/save_order_items", saveOrderItems);
-router.post("/reset_order_item", resetOrderItem);
-router.post("/update_order_scrap_item", updateOrderScrapItem);
-router.post("/delete_order_scrap_items", deleteOrderScrapItem);
-router.post("/add_new_order_scrap_item", addNewOrderScrapItem);
-router.post("/update_order_bullion_item", updateOrderBullionItem);
-router.post("/delete_order_bullion_items", deleteOrderBullionItem);
-router.post("/add_new_order_bullion_item", addNewOrderBullionItem);
-router.post("/accept_offer", acceptOffer);
-router.post("/reject_offer", rejectOffer);
-router.post("/update_rejected_offer", updateRejectedOffer);
+router.get("/get_user", requireAdmin, getUser);
+router.get("/get_all_users", requireAdmin, getAllUsers);
 
 module.exports = router;

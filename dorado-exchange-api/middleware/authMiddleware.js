@@ -2,10 +2,11 @@ const { auth } = require("../auth");
 const { fromNodeHeaders } = require("better-auth/node");
 
 const requireAuth = async (req, res, next) => {
-
   try {
     if (!req.headers) {
-      return res.status(400).json({ error: "Bad Request", message: "Headers are missing" });
+      return res
+        .status(400)
+        .json({ error: "Bad Request", message: "Headers are missing" });
     }
 
     const session = await auth.api.getSession({
@@ -23,4 +24,42 @@ const requireAuth = async (req, res, next) => {
   }
 };
 
-module.exports = { requireAuth };
+const roleLevels = {
+  user: 1,
+  verified_user: 2,
+  admin: 3,
+};
+
+const requireRole = (minimumRole) => {
+  if (!roleLevels[minimumRole]) {
+    throw new Error(`Unknown role "${minimumRole}"`);
+  }
+
+  return async (req, res, next) => {
+    await requireAuth(req, res, () => {
+      const userRole = req.user.role;
+      const userLevel = roleLevels[userRole] || 0;
+      const requiredLevel = roleLevels[minimumRole];
+
+      if (userLevel < requiredLevel) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: `Access requires at least "${minimumRole}" privileges`,
+        });
+      }
+
+      next();
+    });
+  };
+};
+
+const requireUser = requireRole("user");
+const requireVerifiedUser = requireRole("verified_user");
+const requireAdmin = requireRole("admin");
+
+module.exports = {
+  requireAuth,
+  requireUser,
+  requireVerifiedUser,
+  requireAdmin,
+};

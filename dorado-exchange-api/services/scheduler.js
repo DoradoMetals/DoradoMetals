@@ -1,8 +1,6 @@
 const cron = require("node-cron");
 const { updateSpotPrices } = require("../controllers/spotController");
-const {
-  expireStaleOffers,
-} = require("../controllers/admin/adminPurchaseOrdersController");
+const { expireStaleOffers } = require("../controllers/purchaseOrderController");
 
 function setupScheduler() {
   try {

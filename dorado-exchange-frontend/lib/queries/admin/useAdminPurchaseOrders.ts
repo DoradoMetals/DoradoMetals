@@ -18,11 +18,9 @@ export const useAdminPurchaseOrders = () => {
       if (!user?.id) return []
       return await apiRequest<PurchaseOrder[]>(
         'GET',
-        '/admin/get_admin_purchase_orders',
+        '/purchase_orders/get_all_purchase_orders',
         undefined,
-        {
-          user_id: user.id,
-        }
+        {}
       )
     },
     enabled: !!user,
@@ -35,20 +33,11 @@ export const useMovePurchaseOrderStatus = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      order_status,
-      order,
-      action,
-    }: {
-      order_status: string
-      order: PurchaseOrder
-      action: string
-    }) => {
+    mutationFn: async ({ order_status, order }: { order_status: string; order: PurchaseOrder }) => {
       if (!user?.id || user?.role !== 'admin') throw new Error('User is not an admin.')
-      await apiRequest('POST', '/admin/change_purchase_order_status', {
+      await apiRequest('POST', '/purchase_orders/update_status', {
         order_status,
         order,
-        action,
         user_name: user?.name,
       })
     },
@@ -57,6 +46,77 @@ export const useMovePurchaseOrderStatus = () => {
         queryKey: ['admin_purchase_orders', user],
         refetchType: 'active',
       })
+    },
+  })
+}
+
+export const useSendOffer = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ order_status, order }: { order_status: string; order: PurchaseOrder }) => {
+      if (!user?.id || user?.role !== 'admin') throw new Error('User is not an admin.')
+      await apiRequest('POST', '/purchase_orders/send_offer', {
+        order_status,
+        order,
+        user_name: user?.name,
+      })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['admin_purchase_orders', user],
+        refetchType: 'active',
+      })
+    },
+  })
+}
+
+export const useUpdateRejectedOffer = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ order_status, order }: { order_status: string; order: PurchaseOrder }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      await apiRequest<PurchaseOrder>('POST', '/purchase_orders/update_rejected_offer', {
+        order_status,
+        order,
+        user_name: user?.name,
+      })
+    },
+
+    onMutate: async ({ order: purchase_order }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order.id
+            ? order
+            : {
+                ...order,
+                offer_status: order.offer_status === 'Resent' ? 'Rejected' : 'Resent',
+                purchase_order_status: 'Rejected',
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
     },
   })
 }
@@ -97,7 +157,7 @@ export const useUpdateOrderScrapPercentage = () => {
       scrap_percentage: number
     }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<SpotPrice>('POST', '/admin/update_purchase_order_scrap_percentage', {
+      return await apiRequest<SpotPrice>('POST', '/purchase_orders/update_scrap', {
         user_id: user.id,
         spot,
         scrap_percentage,
@@ -137,7 +197,7 @@ export const useResetOrderScrapPercentage = () => {
     mutationFn: async ({ spot }: { spot: SpotPrice }) => {
       if (!user?.id) throw new Error('User is not authenticated')
 
-      return await apiRequest<SpotPrice>('POST', '/admin/reset_purchase_order_scrap_percentage', {
+      return await apiRequest<SpotPrice>('POST', '/purchase_orders/reset_scrap', {
         user_id: user.id,
         spot,
       })
@@ -187,7 +247,7 @@ export const useUpdateOrderSpotPrice = () => {
   return useMutation({
     mutationFn: async ({ spot, updated_spot }: { spot: SpotPrice; updated_spot: number }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<SpotPrice>('POST', '/admin/update_purchase_order_spot', {
+      return await apiRequest<SpotPrice>('POST', '/purchase_orders/update_spot', {
         user_id: user.id,
         spot,
         updated_spot,
@@ -233,7 +293,7 @@ export const useLockOrderSpotPrices = () => {
       purchase_order_id: string
     }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<SpotPrice[]>('POST', '/admin/lock_purchase_order_spots', {
+      return await apiRequest<SpotPrice[]>('POST', '/purchase_orders/lock_spots', {
         user_id: user.id,
         spots,
         purchase_order_id: purchase_order_id,
@@ -300,7 +360,7 @@ export const useResetOrderSpotPrices = () => {
   return useMutation({
     mutationFn: async ({ purchase_order_id }: { purchase_order_id: string }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<SpotPrice[]>('POST', '/admin/reset_purchase_order_spots', {
+      return await apiRequest<SpotPrice[]>('POST', '/purchase_orders/unlock_spots', {
         user_id: user.id,
         purchase_order_id,
       })
@@ -371,7 +431,7 @@ export const useSaveOrderItems = () => {
       purchase_order_id: string
     }) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/save_order_items', {
+      return await apiRequest('POST', '/purchase_orders/save_order_items', {
         ids,
         purchase_order_id,
       })
@@ -422,7 +482,7 @@ export const useResetOrderItem = () => {
   return useMutation({
     mutationFn: async ({ id, purchase_order_id }: { id: string; purchase_order_id: string }) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/reset_order_item', {
+      return await apiRequest('POST', '/purchase_orders/reset_order_item', {
         id,
         purchase_order_id,
       })
@@ -471,7 +531,7 @@ export const useUpdateOrderScrapItem = () => {
   return useMutation({
     mutationFn: async (item: PurchaseOrderItem) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/update_order_scrap_item', { item })
+      return await apiRequest('POST', '/purchase_orders/update_scrap_item', { item })
     },
     onMutate: async (item) => {
       const queryKey = ['admin_purchase_orders', user]
@@ -517,27 +577,28 @@ export const useUpdateOrderScrapItem = () => {
   })
 }
 
-export const useDeleteOrderScrapItems = () => {
+export const useDeleteOrderItems = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async ({
-      ids,
+      items,
       purchase_order_id,
     }: {
-      ids: string[]
+      items: PurchaseOrderItem[]
       purchase_order_id: string
     }) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/delete_order_scrap_items', { ids })
+      return await apiRequest('POST', '/purchase_orders/delete_order_items', { items })
     },
 
-    onMutate: async ({ ids, purchase_order_id }) => {
+    onMutate: async ({ items, purchase_order_id }) => {
       const queryKey = ['admin_purchase_orders', user]
       await queryClient.cancelQueries({ queryKey })
 
       const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+      const ids = items.map((item) => item.id)
 
       queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
         old.map((order) =>
@@ -586,7 +647,7 @@ export const useAddNewOrderScrapItem = () => {
       purchase_order_id: string
     }) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/add_new_order_scrap_item', {
+      return await apiRequest('POST', '/purchase_orders/create_order_item', {
         item,
         purchase_order_id,
       })
@@ -656,7 +717,7 @@ export const useUpdateOrderBullionItem = () => {
   return useMutation({
     mutationFn: async (item: PurchaseOrderItem) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/update_order_bullion_item', { item })
+      return await apiRequest('POST', '/purchase_orders/update_bullion_item', { item })
     },
     onMutate: async (item) => {
       const queryKey = ['admin_purchase_orders', user]
@@ -701,56 +762,6 @@ export const useUpdateOrderBullionItem = () => {
   })
 }
 
-export const useDeleteOrderBullionItems = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({
-      ids,
-      purchase_order_id,
-    }: {
-      ids: string[]
-      purchase_order_id: string
-    }) => {
-      if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/delete_order_bullion_items', { ids })
-    },
-
-    onMutate: async ({ ids, purchase_order_id }) => {
-      const queryKey = ['admin_purchase_orders', user]
-      await queryClient.cancelQueries({ queryKey })
-
-      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
-
-      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
-        old.map((order) =>
-          order.id !== purchase_order_id
-            ? order
-            : {
-                ...order,
-                order_items: order.order_items.filter((oi) => !ids.includes(oi.id)),
-              }
-        )
-      )
-
-      return { previousOrders, queryKey }
-    },
-
-    onError: (_err, _vars, context) => {
-      if (context?.previousOrders && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousOrders)
-      }
-    },
-
-    onSettled: (_data, _err, _vars, context) => {
-      if (context?.queryKey) {
-        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
-      }
-    },
-  })
-}
-
 export const useAddNewOrderBullionItem = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
@@ -764,7 +775,7 @@ export const useAddNewOrderBullionItem = () => {
       purchase_order_id: string
     }) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/add_new_order_bullion_item', {
+      return await apiRequest('POST', '/purchase_orders/create_order_item', {
         item,
         purchase_order_id,
       })
@@ -836,7 +847,7 @@ export const useAcceptOffer = () => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<{ purchaseOrder: PurchaseOrder; orderSpots: SpotPrice[] }>(
         'POST',
-        '/admin/accept_offer',
+        '/purchase_orders/accept_offer',
         {
           user_id: user.id,
           order: purchase_order,
@@ -891,7 +902,7 @@ export const useAcceptOffer = () => {
       }
     },
     onSuccess: async (data, context) => {
-      await apiRequest('POST', '/purchase_orders/send_offer_accepted_email', {
+      await apiRequest('POST', '/emails/purchase_order_offer_accepted', {
         order: data.purchaseOrder,
         order_spots: data.orderSpots,
         spot_prices: context.spot_prices,
@@ -913,7 +924,7 @@ export const useRejectOffer = () => {
       offer_notes: string
     }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<PurchaseOrder>('POST', '/admin/reject_offer', {
+      return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/reject_offer', {
         user_id: user.id,
         order: purchase_order,
         offer_notes,
@@ -936,54 +947,6 @@ export const useRejectOffer = () => {
                 purchase_order_status: 'Rejected',
                 offer_notes,
                 num_rejections: order.num_rejections + 1,
-              }
-        )
-      )
-
-      return { previousOrders, queryKey }
-    },
-
-    onError: (_err, _vars, context) => {
-      if (context?.previousOrders && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousOrders)
-      }
-    },
-
-    onSettled: (_data, _err, _vars, context) => {
-      if (context?.queryKey) {
-        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
-      }
-    },
-  })
-}
-
-export const useUpdateRejectedOffer = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({ purchase_order }: { purchase_order: PurchaseOrder }) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<PurchaseOrder>('POST', '/admin/update_rejected_offer', {
-        user_name: user.name,
-        order: purchase_order,
-      })
-    },
-
-    onMutate: async ({ purchase_order }) => {
-      const queryKey = ['admin_purchase_orders', user]
-      await queryClient.cancelQueries({ queryKey })
-
-      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
-
-      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
-        old.map((order) =>
-          order.id !== purchase_order.id
-            ? order
-            : {
-                ...order,
-                offer_status: order.offer_status === 'Resent' ? 'Rejected' : 'Resent',
-                purchase_order_status: 'Rejected',
               }
         )
       )
