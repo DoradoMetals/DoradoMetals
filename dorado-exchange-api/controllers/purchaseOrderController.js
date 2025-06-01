@@ -197,6 +197,79 @@ async function unlockSpots(req, res, next) {
   }
 }
 
+async function saveOrderItems(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.toggleOrderItemStatus({
+      item_status: true,
+      ids: req.body.ids,
+      purchase_order_id: req.body.purchase_order_id,
+    });
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function resetOrderItems(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.toggleOrderItemStatus({
+      item_status: false,
+      ids: [req.body.id],
+      purchase_order_id: req.body.purchase_order_id,
+    });
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function deleteOrderItems(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.deleteOrderItems(req.body);
+
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function updateScrapItem(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.updateScrapItem(req.body);
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function createOrderItem(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.createOrderItem(req.body);
+
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function updateBullion(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.updateBullion(req.body);
+
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function expireStaleOffers(req, res, next) {
+  try {
+    await purchaseOrderService.expireStaleOffers();
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getPurchaseOrderById,
   getPurchaseOrders,
@@ -216,4 +289,11 @@ module.exports = {
   updateSpot,
   lockSpots,
   unlockSpots,
+  saveOrderItems,
+  resetOrderItems,
+  deleteOrderItems,
+  updateScrapItem,
+  createOrderItem,
+  updateBullion,
+  expireStaleOffers,
 };

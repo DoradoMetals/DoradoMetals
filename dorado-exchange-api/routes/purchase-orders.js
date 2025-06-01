@@ -18,6 +18,12 @@ const {
   updateSpot,
   lockSpots,
   unlockSpots,
+  saveOrderItems,
+  resetOrderItems,
+  deleteOrderItems,
+  updateScrapItem,
+  createOrderItem,
+  updateBullion,
 } = require("../controllers/purchaseOrderController");
 
 const router = express.Router();
@@ -38,9 +44,15 @@ router.post("/send_offer", requireAdmin, sendOffer);
 router.post("/update_status", requireAdmin, updateStatus);
 router.post("/update_rejected_offer", requireAdmin, updateRejectedOffer);
 router.post("/update_scrap", requireAdmin, updateScrapPercentage);
-router.post("/reset_scrap", requireAdmin, resetScrapPercentage),
+router.post("/reset_scrap", requireAdmin, resetScrapPercentage);
 router.post("/update_spot", requireAdmin, updateSpot);
-router.post("/lock_spots", requireAdmin, lockSpots),
+router.post("/lock_spots", requireAdmin, lockSpots);
 router.post("/unlock_spots", requireAdmin, unlockSpots);
+router.post("/save_order_items", requireAdmin, saveOrderItems);
+router.post("/reset_order_item", requireAdmin, resetOrderItems);
+router.post("/delete_order_items", requireAdmin, deleteOrderItems);
+router.post("/create_order_item", requireAdmin, createOrderItem);
+router.post("/update_scrap_item", requireAdmin, updateScrapItem);
+router.post("/update_bullion_item", requireAdmin, updateBullion);
 
 module.exports = router;

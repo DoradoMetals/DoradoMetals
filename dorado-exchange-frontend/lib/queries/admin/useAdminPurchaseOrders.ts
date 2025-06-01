@@ -431,7 +431,7 @@ export const useSaveOrderItems = () => {
       purchase_order_id: string
     }) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/save_order_items', {
+      return await apiRequest('POST', '/purchase_orders/save_order_items', {
         ids,
         purchase_order_id,
       })
@@ -482,7 +482,7 @@ export const useResetOrderItem = () => {
   return useMutation({
     mutationFn: async ({ id, purchase_order_id }: { id: string; purchase_order_id: string }) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/reset_order_item', {
+      return await apiRequest('POST', '/purchase_orders/reset_order_item', {
         id,
         purchase_order_id,
       })
@@ -531,7 +531,7 @@ export const useUpdateOrderScrapItem = () => {
   return useMutation({
     mutationFn: async (item: PurchaseOrderItem) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/update_order_scrap_item', { item })
+      return await apiRequest('POST', '/purchase_orders/update_scrap_item', { item })
     },
     onMutate: async (item) => {
       const queryKey = ['admin_purchase_orders', user]
@@ -577,27 +577,28 @@ export const useUpdateOrderScrapItem = () => {
   })
 }
 
-export const useDeleteOrderScrapItems = () => {
+export const useDeleteOrderItems = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async ({
-      ids,
+      items,
       purchase_order_id,
     }: {
-      ids: string[]
+      items: PurchaseOrderItem[]
       purchase_order_id: string
     }) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/delete_order_scrap_items', { ids })
+      return await apiRequest('POST', '/purchase_orders/delete_order_items', { items })
     },
 
-    onMutate: async ({ ids, purchase_order_id }) => {
+    onMutate: async ({ items, purchase_order_id }) => {
       const queryKey = ['admin_purchase_orders', user]
       await queryClient.cancelQueries({ queryKey })
 
       const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+      const ids = items.map((item) => item.id)
 
       queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
         old.map((order) =>
@@ -646,7 +647,7 @@ export const useAddNewOrderScrapItem = () => {
       purchase_order_id: string
     }) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/add_new_order_scrap_item', {
+      return await apiRequest('POST', '/purchase_orders/create_order_item', {
         item,
         purchase_order_id,
       })
@@ -716,7 +717,7 @@ export const useUpdateOrderBullionItem = () => {
   return useMutation({
     mutationFn: async (item: PurchaseOrderItem) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/update_order_bullion_item', { item })
+      return await apiRequest('POST', '/purchase_orders/update_bullion_item', { item })
     },
     onMutate: async (item) => {
       const queryKey = ['admin_purchase_orders', user]
@@ -761,56 +762,6 @@ export const useUpdateOrderBullionItem = () => {
   })
 }
 
-export const useDeleteOrderBullionItems = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({
-      ids,
-      purchase_order_id,
-    }: {
-      ids: string[]
-      purchase_order_id: string
-    }) => {
-      if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/delete_order_bullion_items', { ids })
-    },
-
-    onMutate: async ({ ids, purchase_order_id }) => {
-      const queryKey = ['admin_purchase_orders', user]
-      await queryClient.cancelQueries({ queryKey })
-
-      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
-
-      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
-        old.map((order) =>
-          order.id !== purchase_order_id
-            ? order
-            : {
-                ...order,
-                order_items: order.order_items.filter((oi) => !ids.includes(oi.id)),
-              }
-        )
-      )
-
-      return { previousOrders, queryKey }
-    },
-
-    onError: (_err, _vars, context) => {
-      if (context?.previousOrders && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousOrders)
-      }
-    },
-
-    onSettled: (_data, _err, _vars, context) => {
-      if (context?.queryKey) {
-        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
-      }
-    },
-  })
-}
-
 export const useAddNewOrderBullionItem = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
@@ -824,7 +775,7 @@ export const useAddNewOrderBullionItem = () => {
       purchase_order_id: string
     }) => {
       if (!user?.id) throw new Error('Not authenticated')
-      return await apiRequest('POST', '/admin/add_new_order_bullion_item', {
+      return await apiRequest('POST', '/purchase_orders/create_order_item', {
         item,
         purchase_order_id,
       })
@@ -896,7 +847,7 @@ export const useAcceptOffer = () => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<{ purchaseOrder: PurchaseOrder; orderSpots: SpotPrice[] }>(
         'POST',
-        '/admin/accept_offer',
+        '/purchase_orders/accept_offer',
         {
           user_id: user.id,
           order: purchase_order,
@@ -973,7 +924,7 @@ export const useRejectOffer = () => {
       offer_notes: string
     }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<PurchaseOrder>('POST', '/admin/reject_offer', {
+      return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/reject_offer', {
         user_id: user.id,
         order: purchase_order,
         offer_notes,

@@ -115,6 +115,7 @@ export const useAcceptOffer = () => {
         }
       )
     },
+    
 
     onMutate: async ({ purchase_order, order_spots, spot_prices }) => {
       const queryKey = ['purchase_orders', user?.id]

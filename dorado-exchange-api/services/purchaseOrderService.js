@@ -1,6 +1,7 @@
 const pool = require("../db");
 const purchaseOrderRepo = require("../repositories/purchaseOrdersRepository");
 const shippingRepo = require("../repositories/shippingRepository");
+const scrapRepo = require("../repositories/scrapRepository");
 
 const {
   createFedexLabel,
@@ -360,6 +361,133 @@ async function unlockSpots({ purchase_order_id }) {
   }
 }
 
+async function toggleOrderItemStatus({ item_status, ids, purchase_order_id }) {
+  return await purchaseOrderRepo.toggleOrderItemStatus({
+    item_status: item_status,
+    ids: ids,
+    purchase_order_id: purchase_order_id,
+  });
+}
+
+async function updateScrapItem({ item }) {
+  return await scrapRepo.updateScrapItem({ item });
+}
+
+async function deleteOrderItems({ items }) {
+  const ids = items.map((item) => item.id);
+  const scrapIds = items
+    .map((item) => item.scrap?.id)
+    .filter((id) => id !== null);
+  await scrapRepo.deleteItems(scrapIds);
+  return await purchaseOrderRepo.deleteOrderItems(ids);
+}
+
+async function createOrderItem({ item, purchase_order_id }) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    let scrap_id = null;
+    if (!item?.id) {
+      scrap_id = await scrapRepo.createNewItem(item, client);
+    }
+
+    const updated = purchaseOrderRepo.createOrderItem(
+      item,
+      purchase_order_id,
+      scrap_id,
+      client
+    );
+
+    await client.query("COMMIT");
+
+    return updated;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function updateBullion({ item }) {
+  return await purchaseOrderRepo.updateBullion(item);
+}
+
+async function expireStaleOffers() {
+  const expiredOrders = await purchaseOrderRepo.findExpiredOffers();
+
+  for (const order of expiredOrders) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      if (order.spots_locked) {
+        const newSentAt = new Date();
+        const newExpiresAt = new Date(
+          newSentAt.getTime() + 7 * 24 * 60 * 60 * 1000
+        );
+
+        await purchaseOrderRepo.toggleSpots(false, order.id, client);
+
+        await purchaseOrderRepo.updateOffer(client, {
+          orderId: order.id,
+          sentAt: newSentAt,
+          expiresAt: newExpiresAt,
+          offerStatus: "Sent",
+        });
+
+        await purchaseOrderRepo.clearOrderMetals(order.id, client);
+      } else {
+        await autoAcceptOrder(order.id);
+      }
+
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error("[CRON] Error expiring offer:", order.id, err);
+    } finally {
+      client.release();
+    }
+  }
+}
+
+async function autoAcceptOrder(orderId) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const spotPrices = await purchaseOrderRepo.getCurrentSpotPrices(client);
+
+    const updatedSpots = await purchaseOrderRepo.updateOrderMetals(
+      orderId,
+      spotPrices,
+      client
+    );
+
+    const order = await purchaseOrderRepo.findById(orderId, client);
+
+    await purchaseOrderRepo.updateOrderItemPrices(
+      orderId,
+      order.order_items,
+      updatedSpots,
+      client
+    );
+
+    const total = calculateTotalPrice(order, updatedSpots);
+
+    await purchaseOrderRepo.moveOrderToAccepted(orderId, total, client);
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("[CRON] Failed to auto-accept order", orderId, err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   listOrdersForUser,
   getById,
@@ -379,4 +507,11 @@ module.exports = {
   updateSpot,
   lockSpots,
   unlockSpots,
+  toggleOrderItemStatus,
+  updateScrapItem,
+  deleteOrderItems,
+  createOrderItem,
+  updateBullion,
+  expireStaleOffers,
+  autoAcceptOrder,
 };

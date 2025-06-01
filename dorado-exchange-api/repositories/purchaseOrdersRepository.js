@@ -2,6 +2,8 @@
 const pool = require("../db");
 const { calculateItemPrice } = require("../utils/price-calculations");
 
+const { auth } = require("../auth");
+
 async function findAllByUser(userId) {
   const query = `
     SELECT 
@@ -576,23 +578,39 @@ async function resetOrderTotal(client, orderId) {
 
 async function updateOffer(
   client,
-  { orderId, sentAt, expiresAt, offerStatus }
+  { orderId, sentAt, expiresAt, offerStatus, updated_by }
 ) {
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(req.headers),
+  });
+
   const query = `
     UPDATE exchange.purchase_orders
       SET
         offer_status = $1,
         offer_sent_at = $2,
-        offer_expires_at = $3
-    WHERE id = $4
+        offer_expires_at = $3,
+        updated_by = $4,
+        updated_at = NOW()
+    WHERE id = $5
     RETURNING *;
   `;
-  const values = [offerStatus, sentAt, expiresAt, orderId];
+  const values = [
+    offerStatus,
+    sentAt,
+    expiresAt,
+    updated_by ?? session.user.name,
+    orderId,
+  ];
   const { rows } = await client.query(query, values);
   return rows[0];
 }
 
 async function updateStatus(order, order_status, user_name) {
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(req.headers),
+  });
+
   const query = `
     UPDATE exchange.purchase_orders
     SET
@@ -603,7 +621,7 @@ async function updateStatus(order, order_status, user_name) {
     RETURNING *;
   `;
 
-  const values = [order_status, user_name, order.id];
+  const values = [order_status, user_name ?? session.user.name, order.id];
   const { rows } = await pool.query(query, values);
   return rows[0];
 }
@@ -650,10 +668,74 @@ async function updateSpot({ spot, updated_spot }) {
     SET bid_spot = $1 
     WHERE purchase_order_id = $2
     AND type = $3
-    RETURNING *
+    RETURNING *;
   `;
   const values = [updated_spot, spot.purchase_order_id, spot.type];
   return await pool.query(query, values);
+}
+
+async function toggleOrderItemStatus({ item_status, ids, purchase_order_id }) {
+  const query = `
+    UPDATE exchange.purchase_order_items
+    SET confirmed = $1
+    WHERE purchase_order_id = $2
+      AND id = ANY($3::uuid[])
+    RETURNING *;
+  `;
+  const values = [item_status, purchase_order_id, ids];
+  return await pool.query(query, values);
+}
+
+async function deleteOrderItems(ids) {
+  const query = `
+    DELETE FROM exchange.purchase_order_items
+    WHERE id = ANY($1::uuid[])
+    RETURNING *;
+  `;
+  const values = [ids];
+  return await pool.query(query, values);
+}
+
+async function createOrderItem(item, purchase_order_id, scrap_id, client) {
+  const query = `
+    INSERT INTO exchange.purchase_order_items (
+      purchase_order_id, scrap_id, product_id, quantity, confirmed
+    )
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING *
+  `;
+  const values = [purchase_order_id, scrap_id, item?.id ?? null, 1, false];
+  return await client.query(query, values);
+}
+
+async function updateBullion(item) {
+  const query = `
+    UPDATE exchange.purchase_order_items
+    SET quantity = $1, bullion_premium = $2
+    WHERE id = $3
+    RETURNING *;
+  `;
+
+  const values = [item.quantity, item.bullion_premium, item.id];
+  return await pool.query(query, values);
+}
+
+async function findExpiredOffers() {
+  const query = `
+    SELECT * FROM exchange.purchase_orders
+    WHERE offer_status = 'Sent'
+      AND offer_expires_at IS NOT NULL
+      AND offer_expires_at < NOW();
+  `;
+  const { rows } = await pool.query(query);
+  return rows;
+}
+
+async function getCurrentSpotPrices(client) {
+  const { rows } = await client.query(`
+    SELECT type, bid_spot FROM exchange.metals;
+  `);
+  return rows;
 }
 
 module.exports = {
@@ -682,4 +764,10 @@ module.exports = {
   resetScrapPercentage,
   toggleSpots,
   updateSpot,
+  toggleOrderItemStatus,
+  deleteOrderItems,
+  createOrderItem,
+  updateBullion,
+  findExpiredOffers,
+  getCurrentSpotPrices,
 };
