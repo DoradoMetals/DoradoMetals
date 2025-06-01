@@ -3,8 +3,7 @@ import { Input } from '@/components/ui/input'
 import {
   useAddNewOrderBullionItem,
   useAddNewOrderScrapItem,
-  useDeleteOrderBullionItems,
-  useDeleteOrderScrapItems,
+  useDeleteOrderItems,
   useLockOrderSpotPrices,
   useResetOrderItem,
   useResetOrderScrapPercentage,
@@ -262,7 +261,7 @@ function ScrapTable({
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   const updateOrderItem = useUpdateOrderScrapItem()
-  const deleteOrderItems = useDeleteOrderScrapItems()
+  const deleteOrderItems = useDeleteOrderItems()
   const resetOrderItem = useResetOrderItem()
   const saveOrderItems = useSaveOrderItems()
   const addNewItem = useAddNewOrderScrapItem()
@@ -272,7 +271,10 @@ function ScrapTable({
   }
 
   const handleDeleteItems = (ids: string[]) => {
-    deleteOrderItems.mutate({ ids: ids, purchase_order_id: order_id })
+    deleteOrderItems.mutate({
+      items: scrapItems.filter((item) => ids.includes(item.id)),
+      purchase_order_id: order_id,
+    })
   }
 
   const handleSavedItems = (ids: string[]) => {
@@ -631,7 +633,7 @@ function BullionTable({
   const { data: products = [] } = useProducts()
 
   const updateOrderItem = useUpdateOrderBullionItem()
-  const deleteOrderItems = useDeleteOrderBullionItems()
+  const deleteOrderItems = useDeleteOrderItems()
   const addNewItem = useAddNewOrderBullionItem()
 
   const handleUpdateItem = (item: PurchaseOrderItem) => {
@@ -639,7 +641,10 @@ function BullionTable({
   }
 
   const handleDeleteItems = (ids: string[]) => {
-    deleteOrderItems.mutate({ ids: ids, purchase_order_id: order_id })
+    deleteOrderItems.mutate({
+      items: bullionItems.filter((item) => ids.includes(item.id)),
+      purchase_order_id: order_id,
+    })
   }
 
   const handleSavedItems = (ids: string[]) => {
