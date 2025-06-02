@@ -1,6 +1,4 @@
-const pool = require("../db");
-
-async function insertShipment(orderId, kind, data, labelBuffer) {
+async function insertShipment(client, orderId, kind, data, labelBuffer) {
   const table =
     kind === "return"
       ? "exchange.return_shipments"
@@ -32,19 +30,19 @@ async function insertShipment(orderId, kind, data, labelBuffer) {
     "Label Created",
     labelBuffer,
     "Generated",
-    data.pickup?.label || "DROPOFF_AT_FEDEX_LOCATION",
-    data.package.dimensions || data.package.label,
+    data.pickup?.name || "Store Dropoff",
+    data.package.label || "Small Box",
     data.service.serviceType || "FEDEX_EXPRESS_SAVER",
     data.service.netCharge,
     data.insurance.insured,
     data.insurance.declaredValue.amount,
   ];
 
-  const { rows } = await pool.query(query, vals);
+  const { rows } = await client.query(query, vals);
   return rows[0];
 }
 
-async function insertPickup(orderId, userId, pickup) {
+async function insertPickup(client, orderId, userId, pickup) {
   const query = `
     INSERT INTO exchange.carrier_pickups (
       user_id, 
@@ -68,7 +66,7 @@ async function insertPickup(orderId, userId, pickup) {
     pickup.confirmationNumber,
     pickup.location,
   ];
-  const { rows } = await pool.query(query, vals);
+  const { rows } = await client.query(query, vals);
   return rows[0];
 }
 

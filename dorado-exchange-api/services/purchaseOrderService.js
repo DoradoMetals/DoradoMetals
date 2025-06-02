@@ -175,6 +175,7 @@ async function createPurchaseOrder(purchase_order, user_id) {
       purchase_order.service?.serviceType,
       purchase_order.insurance.declaredValue
     );
+
     const buffer = Buffer.from(labelData.labelFile, "base64");
     await shippingRepo.insertShipment(
       client,
@@ -189,7 +190,6 @@ async function createPurchaseOrder(purchase_order, user_id) {
       },
       buffer
     );
-
     if (purchase_order.pickup?.name === "Carrier Pickup") {
       const { confirmationNumber, location } = await scheduleFedexPickup(
         purchase_order.address.name,

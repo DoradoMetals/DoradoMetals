@@ -1,4 +1,4 @@
-const axios = require("axios");
+const pdfRepo = require("../repositories/pdfRepo");
 
 const {
   renderPurchaseOrderPlacedEmail,
@@ -8,24 +8,13 @@ const {
 const { sendEmail } = require("../emails/sendEmail");
 const { formatPurchaseOrderNumber } = require("../utils/formatOrderNumbers");
 
-async function _fetchPdf(endpoint, payload) {
-  const resp = await axios.post(
-    `${process.env.API_URL}/pdf/${endpoint}`,
-    payload,
-    {
-      responseType: "arraybuffer",
-    }
-  );
-  return Buffer.from(resp.data, "binary");
-}
-
 async function sendCreatedEmail({
   purchaseOrder,
   spotPrices,
   packageDetails,
   payoutDetails,
 }) {
-  const pdfBuffer = await _fetchPdf("generate_packing_list", {
+  const pdfBuffer = await pdfRepo.generatePackingList({
     purchaseOrder,
     spotPrices,
     packageDetails,
@@ -54,7 +43,7 @@ async function sendCreatedEmail({
 async function sendAcceptedEmail({ order, order_spots, spot_prices }) {
   let pdfBuffer;
   try {
-    pdfBuffer = await _fetchPdf("generate_invoice", {
+    pdfBuffer = await pdfRepo.generateInvoice({
       purchaseOrder: order,
       orderSpots: order_spots,
       spotPrices: spot_prices,
