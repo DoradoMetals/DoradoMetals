@@ -14,7 +14,6 @@ import PriceNumberFlow from './PriceNumberFlow'
 import getProductPrice from '@/utils/getProductPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { ProductShadow } from './productShadow'
-import getProductBidPrice from '@/utils/getProductBidPrice'
 import { PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Popover } from '@radix-ui/react-popover'
 import { Swiper, SwiperSlide } from 'swiper/react'
@@ -51,11 +50,9 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
   const spot = spotPrices.find((s) => s.type === product.metal_type)
   const price = getProductPrice(selectedProduct, spot)
-  const buybackPrice = getProductBidPrice(selectedProduct, spot)
   const weightOptions = ozOptions[product.variant_group]
 
   const overOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
-  const isOver = overOrUnder >= 0
   return (
     <div
       role="button"
@@ -176,6 +173,10 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                   <Button
                     variant="ghost"
                     className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs bg-secondary text-white hover:bg-secondary hover:text-white hover:shadow-sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setVariantsOpen(true)
+                    }}
                   >
                     <Scale size={16} />
                   </Button>
@@ -186,6 +187,9 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                     <label
                       htmlFor={option.value}
                       className="h-8 w-10 xs:w-14 sm:w-15 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:border-secondary has-[[data-state=checked]]:text-white text-neutral-900"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                      }}
                     >
                       <RadioGroupItem
                         id={option.value}
