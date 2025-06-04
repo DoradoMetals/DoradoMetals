@@ -1,4 +1,6 @@
 const { betterAuth } = require("better-auth");
+const { stripe } = require("@better-auth/stripe");
+const { stripeClient } = require("./stripe")
 const { Pool } = require("pg");
 const { sendEmail } = require("./emails/sendEmail");
 const {
@@ -26,6 +28,11 @@ const auth = betterAuth({
         defaultValue: "user",
         input: false,
       },
+      stripeCustomerId: {
+        type: "string",
+        required: false,
+        input: false,
+      }
     },
     changeEmail: {
       enabled: true,
@@ -120,6 +127,11 @@ const auth = betterAuth({
       canImpersonate: async ({ user }) => {
         return user.role === "admin";
       },
+    }),
+    stripe({
+      stripeClient,
+      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+      createCustomerOnSignUp: true,
     }),
   ],
 });

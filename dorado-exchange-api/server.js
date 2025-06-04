@@ -11,6 +11,7 @@ const purchaseOrderRoutes = require("./routes/purchase-orders");
 const pdfRoutes = require("./routes/pdf");
 const reviewRoutes = require("./routes/reviews");
 const emailRoutes = require("./routes/emails");
+const stripeRoutes = require('./routes/stripe');
 
 const spotRoutes = require("./routes/spots");
 const { toNodeHandler } = require("better-auth/node");
@@ -33,7 +34,7 @@ app.use(
 );
 types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
 
-//Mount BetterAuth authentication routes
+app.use("/api/auth/stripe", stripeRoutes);
 app.all("/api/auth/*", toNodeHandler(auth));
 
 app.use(express.json());

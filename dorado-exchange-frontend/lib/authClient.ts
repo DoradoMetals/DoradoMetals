@@ -2,6 +2,7 @@
 
 import { createAuthClient } from 'better-auth/react'
 import { inferAdditionalFields, magicLinkClient, adminClient } from 'better-auth/client/plugins'
+import { stripeClient } from '@better-auth/stripe/client'
 
 const auth = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_AUTH_URL,
@@ -9,6 +10,7 @@ const auth = createAuthClient({
     inferAdditionalFields({
       user: {
         role: { type: 'string' },
+        stripeCustomerId: { type: 'string' },
       },
       session: {
         impersonatedBy: { type: 'string' },
@@ -16,6 +18,9 @@ const auth = createAuthClient({
     }),
     adminClient(),
     magicLinkClient(),
+    stripeClient({
+      subscription: false,
+    }),
   ],
 })
 
