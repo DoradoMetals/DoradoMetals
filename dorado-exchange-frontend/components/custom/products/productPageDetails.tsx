@@ -435,31 +435,33 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             toggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
           >
             <div className="flex flex-col gap-3">
-              {paymentOptions.map((payment, index) => {
-                const Icon = payment.icon
-                return (
-                  <div
-                    key={index}
-                    className={cn(
-                      'flex flex-col items-start gap-1',
-                      index !== paymentOptions.length - 1 && 'border-b border-border'
-                    )}
-                  >
-                    <div className="flex w-full gap-2 items-center">
-                      <div className="flex items-center gap-1">
-                        <Icon color={getPrimaryIconStroke()} size={20} />
-                        <div className="text-base text-neutral-800">{payment.label}</div>
+              {paymentOptions
+                .filter((payment) => payment.disabled)
+                .map((payment, index) => {
+                  const Icon = payment.icon
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        'flex flex-col items-start gap-1',
+                        index !== paymentOptions.length - 1 && 'border-b border-border'
+                      )}
+                    >
+                      <div className="flex w-full gap-2 items-center">
+                        <div className="flex items-center gap-1">
+                          <Icon color={getPrimaryIconStroke()} size={20} />
+                          <div className="text-base text-neutral-800">{payment.label}</div>
+                        </div>
+                        <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1">
+                          <span className="text-left">{payment.time_delay}</span>
+                          <Circle size={6} weight="fill" className="text-neutral-300" />
+                          <span className="text-right">{payment.cost}</span>
+                        </div>
                       </div>
-                      <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1">
-                        <span className="text-left">{payment.time_delay}</span>
-                        <Circle size={6} weight="fill" className="text-neutral-300" />
-                        <span className="text-right">{payment.cost}</span>
-                      </div>
+                      <div className="text-sm text-neutral-800 pb-2">{payment.description}</div>
                     </div>
-                    <div className="text-sm text-neutral-800 pb-2">{payment.description}</div>
-                  </div>
-                )
-              })}
+                  )
+                })}
             </div>
           </Accordion>
         </div>

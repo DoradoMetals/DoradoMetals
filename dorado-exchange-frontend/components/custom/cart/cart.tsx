@@ -150,7 +150,7 @@ export default function Cart() {
       <Button
         className="raised-off-page w-full secondary-gradient text-white hover:text-white shine-on-hover"
         onClick={() => {
-          user ? router.push('/checkout') : router.push('/authentication')
+          user ? router.push('/sales-order-checkout') : router.push('/authentication')
         }}
       >
         {user ? 'Checkout' : 'Sign In to Checkout'}

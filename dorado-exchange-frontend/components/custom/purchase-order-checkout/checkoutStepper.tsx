@@ -178,7 +178,7 @@ export default function CheckoutStepper() {
         <Button
           variant="default"
           className="mt-6 liquid-gold raised-off-screen shine-on-hover px-5 py-4"
-          onClick={() => router.push('sell')}
+          onClick={() => router.push('/sell')}
         >
           Add Items to Sell
         </Button>
