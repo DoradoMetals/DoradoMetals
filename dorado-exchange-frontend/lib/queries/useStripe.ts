@@ -23,7 +23,6 @@ export const useCreatePaymentIntent = () => {
 
   return useMutation({
     mutationFn: async (amount: number) => {
-      console.log('here')
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<string>('POST', '/stripe/create_payment_intent', {
         amount: amount,
