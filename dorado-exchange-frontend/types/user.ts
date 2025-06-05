@@ -9,7 +9,7 @@ export const userSchema = z.object({
   emailVerified: z.boolean().optional(),
   image: z.string().url().nullable().optional(),
   role: z.string().optional(),
-  stripeCustomerId: z.string().optional(),
+  stripeCustomerId: z.string().nullable().optional(),
 })
 
 export type User = z.infer<typeof userSchema>

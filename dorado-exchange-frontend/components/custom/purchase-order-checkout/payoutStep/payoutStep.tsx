@@ -22,7 +22,7 @@ import EcheckForm from './echeckForm'
 import { cn } from '@/lib/utils'
 import { useEffect } from 'react'
 import { User } from '@/types/user'
-import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { Asterisk, Circle, Dot, DotOutline, Minus } from '@phosphor-icons/react'
 

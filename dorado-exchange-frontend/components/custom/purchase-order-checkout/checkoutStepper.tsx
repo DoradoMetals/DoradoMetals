@@ -17,6 +17,7 @@ import getProductBidPrice from '@/utils/getProductBidPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getScrapPrice from '@/utils/getScrapPrice'
 import { useUser } from '@/lib/authClient'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -30,7 +31,7 @@ const { useStepper, utils } = defineStepper(
 
 export default function CheckoutStepper() {
   const router = useRouter()
-  const { user } = useUser()
+  const { user } = useGetSession()
   const { data: addresses = [] } = useAddress()
 
   const { setData } = usePurchaseOrderCheckoutStore()
