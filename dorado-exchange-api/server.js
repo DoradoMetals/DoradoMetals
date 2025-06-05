@@ -11,12 +11,15 @@ const purchaseOrderRoutes = require("./routes/purchase-orders");
 const pdfRoutes = require("./routes/pdf");
 const reviewRoutes = require("./routes/reviews");
 const emailRoutes = require("./routes/emails");
+const stripeRoutes = require("./routes/stripe");
 
 const spotRoutes = require("./routes/spots");
 const { toNodeHandler } = require("better-auth/node");
 const { auth } = require("./auth");
 const { setupScheduler } = require("./services/scheduler");
 const pg = require("pg");
+const { handleStripeWebhook } = require("./controllers/stripeController");
+
 const types = pg.types;
 
 dotenv.config();
@@ -33,11 +36,16 @@ app.use(
 );
 types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
 
-//Mount BetterAuth authentication routes
+app.post(
+  "/api/auth/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  handleStripeWebhook
+);
+
 app.all("/api/auth/*", toNodeHandler(auth));
 
 app.use(express.json());
-
+app.use("/api/stripe", stripeRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/cart", cartRoutes);

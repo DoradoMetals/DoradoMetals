@@ -580,9 +580,7 @@ async function updateOffer(
   client,
   { orderId, sentAt, expiresAt, offerStatus, updated_by }
 ) {
-  const session = await auth.api.getSession({
-    headers: fromNodeHeaders(req.headers),
-  });
+  const session = await auth.api.getSession();
 
   const query = `
     UPDATE exchange.purchase_orders
@@ -607,9 +605,7 @@ async function updateOffer(
 }
 
 async function updateStatus(order, order_status, user_name) {
-  const session = await auth.api.getSession({
-    headers: fromNodeHeaders(req.headers),
-  });
+  const session = await auth.api.getSession();
 
   const query = `
     UPDATE exchange.purchase_orders

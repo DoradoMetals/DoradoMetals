@@ -10,8 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@better-auth/stripe": "^1.2.8",
     "axios": "^1.8.4",
-    "better-auth": "^1.2.7",
+    "better-auth": "^1.2.8",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -20,6 +21,7 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.10.0",
     "pg": "^8.13.3",
-    "puppeteer": "^24.7.2"
+    "puppeteer": "^24.7.2",
+    "stripe": "^18.2.1"
   }
 }

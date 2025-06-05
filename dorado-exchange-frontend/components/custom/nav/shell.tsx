@@ -28,7 +28,6 @@ export default function Shell() {
 
   const { activeDrawer, openDrawer, closeDrawer } = useDrawerStore()
   const isAnyDrawerOpen = !!activeDrawer
-
   const items =
     cartStore((state) => state.items.length) + sellCartStore((state) => state.items.length)
 
