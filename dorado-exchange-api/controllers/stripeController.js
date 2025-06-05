@@ -1,4 +1,5 @@
 const { stripeClient } = require("../stripe");
+const stripeService = require("../services/stripeService");
 
 async function handleStripeWebhook(req, res) {
   const sig = req.headers["stripe-signature"];
@@ -45,4 +46,31 @@ async function handleStripeWebhook(req, res) {
   res.json({ received: true });
 }
 
-module.exports = { handleStripeWebhook };
+async function retrievePaymentIntent(req, res, next) {
+  try {
+    const paymentIntent = await stripeService.retrievePaymentIntent(
+      req.headers
+    );
+    res.json(paymentIntent.client_secret);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function updatePaymentIntent(req, res, next) {
+  try {
+    const paymentIntent = await stripeService.updatePaymentIntent(
+      req.body,
+      req.headers
+    );
+    res.json(paymentIntent.client_secret);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = {
+  handleStripeWebhook,
+  retrievePaymentIntent,
+  updatePaymentIntent,
+};

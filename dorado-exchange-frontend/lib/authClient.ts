@@ -10,7 +10,7 @@ const auth = createAuthClient({
     inferAdditionalFields({
       user: {
         role: { type: 'string' },
-        stripeCustomerId: { type: 'string' },
+        stripeCustomerId: { type: 'string', required: false },
       },
       session: {
         impersonatedBy: { type: 'string' },

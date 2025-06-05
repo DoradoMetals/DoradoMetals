@@ -73,10 +73,10 @@ const validateAddress = async (address) => {
 
   const fedexResult = response.data?.output?.resolvedAddresses?.[0];
 
+  console.log(fedexResult);
+
   const isValid =
     fedexResult?.attributes?.Matched === "true" &&
-    fedexResult?.attributes?.ValidlyFormed === "true" &&
-    fedexResult?.attributes?.CountrySupported === "true" &&
     fedexResult?.attributes?.Resolved === "true";
 
   const classification = fedexResult?.classification;
