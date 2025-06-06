@@ -239,6 +239,7 @@ async function sendOffer({ order, order_status, user_name }) {
       sentAt,
       expiresAt,
       offerStatus: "Sent",
+      updated_by: user_name,
     });
 
     if (!updated) {
@@ -278,6 +279,7 @@ async function updateRejectedOffer({ order, order_status, user_name }) {
       sentAt: order.offer_status === "Resent" ? null : sentAt,
       expiresAt: order.offer_status === "Resent" ? null : expiresAt,
       offerStatus: order.offer_status === "Resent" ? "Rejected" : "Resent",
+      updated_by: user_name,
     });
 
     if (!updated) {
@@ -435,6 +437,7 @@ async function expireStaleOffers() {
           sentAt: newSentAt,
           expiresAt: newExpiresAt,
           offerStatus: "Sent",
+          updated_by: "Scheduler",
         });
 
         await purchaseOrderRepo.clearOrderMetals(order.id, client);

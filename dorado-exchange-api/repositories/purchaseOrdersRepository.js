@@ -580,7 +580,6 @@ async function updateOffer(
   client,
   { orderId, sentAt, expiresAt, offerStatus, updated_by }
 ) {
-  const session = await auth.api.getSession();
 
   const query = `
     UPDATE exchange.purchase_orders
@@ -597,15 +596,14 @@ async function updateOffer(
     offerStatus,
     sentAt,
     expiresAt,
-    updated_by ?? session.user.name,
+    updated_by,
     orderId,
   ];
   const { rows } = await client.query(query, values);
   return rows[0];
 }
 
-async function updateStatus(order, order_status, user_name) {
-  const session = await auth.api.getSession();
+async function updateStatus(order, order_status, user_name,) {
 
   const query = `
     UPDATE exchange.purchase_orders
@@ -617,7 +615,7 @@ async function updateStatus(order, order_status, user_name) {
     RETURNING *;
   `;
 
-  const values = [order_status, user_name ?? session.user.name, order.id];
+  const values = [order_status, user_name, order.id];
   const { rows } = await pool.query(query, values);
   return rows[0];
 }

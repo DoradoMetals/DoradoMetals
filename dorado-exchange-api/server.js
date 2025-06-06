@@ -45,6 +45,7 @@ app.post(
 app.all("/api/auth/*", toNodeHandler(auth));
 
 app.use(express.json());
+
 app.use("/api/stripe", stripeRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/addresses", addressRoutes);
