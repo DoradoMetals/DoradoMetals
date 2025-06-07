@@ -12,6 +12,14 @@ const DORADO_ADDRESS = {
   countryCode: process.env.FEDEX_RETURN_COUNTRY,
 };
 
+const FEDEX_STORE_ADDRESS = {
+  streetLines: ["13605 Midway Rd"],
+  city: "Farmers Branch",
+  stateOrProvinceCode: "TX",
+  postalCode: "75244",
+  countryCode: "US",
+};
+
 let fedexAccessToken = null;
 
 const formatAddressForFedEx = (address) => {
@@ -243,6 +251,40 @@ const createFedexLabel = async (
               },
             },
           },
+        },
+        shipmentSpecialServices: {
+          specialServiceTypes: ["HOLD_AT_LOCATION"],
+          holdAtLocationDetail: {
+            locationId: "ADSK",
+            locationContactAndAddress: {
+              address: FEDEX_STORE_ADDRESS,
+              contact: {
+                phoneNumber: "9727880816",
+                companyName: "FedEx Office Print & Ship Center",
+              },
+            },
+            locationType: "FEDEX_OFFICE",
+          },
+        },
+        emailNotificationDetail: {
+          aggregationType: "PER_SHIPMENT",
+          emailNotificationRecipients: [
+            {
+              name: "Dorado Shipping",
+              emailNotificationRecipientType: "RECIPIENT",
+              emailAddress: "shipping@doradometals.com",
+              notificationFormatType: "HTML",
+              notificationType: "EMAIL",
+              locale: "en_US",
+              notificationEventType: [
+                "ON_TENDER",
+                "ON_SHIPMENT",
+                "ON_EXCEPTION",
+                "ON_ESTIMATED_DELIVERY",
+                "ON_DELIVERY",
+              ],
+            },
+          ],
         },
       },
     };

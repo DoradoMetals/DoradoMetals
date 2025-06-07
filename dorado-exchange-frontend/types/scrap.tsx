@@ -7,7 +7,7 @@ import { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
 export const scrapSchema = z.object({
   id: z.string().uuid(),
   metal: z.string(),
-  gem_id: z.string().uuid().optional(),
+  gem_id: z.string().uuid().nullable().optional(),
   name: z.string().optional(),
   description: z.string().optional(),
   pre_melt: z.coerce
@@ -17,14 +17,7 @@ export const scrapSchema = z.object({
       (val) => val === undefined || val === 0 || /^(?!-)(\d+\.?\d*|\.\d+)?$/.test(val.toString()),
       { message: 'Must be a valid weight' }
     ),
-  post_melt: z.coerce
-    .number()
-    .positive()
-    .refine(
-      (val) => val === undefined || val === 0 || /^(?!-)(\d+\.?\d*|\.\d+)?$/.test(val.toString()),
-      { message: 'Must be a valid weight' }
-    )
-    .optional(),
+  post_melt: z.coerce.number().optional(),
   gross_unit: z.string(),
   purity: z.number(),
   content: z.number().optional(),
