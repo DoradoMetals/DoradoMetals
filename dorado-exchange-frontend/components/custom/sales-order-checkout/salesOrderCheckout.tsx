@@ -48,7 +48,6 @@ export default function SalesOrderCheckout() {
   }, [items, spotPrices])
 
   useEffect(() => {
-    console.log(clientSecret)
     if (clientSecret && total > 0) {
       updatePaymentIntent.mutate({ amount: total, type: 'sales_order_checkout' })
     }
