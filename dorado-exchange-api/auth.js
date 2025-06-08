@@ -32,6 +32,12 @@ const auth = betterAuth({
         type: "string",
         required: false,
         input: false,
+      },
+      dorado_funds: {
+        type: "number",
+        required: false,
+        defaultValue: 0,
+        input: false,
       }
     },
     changeEmail: {

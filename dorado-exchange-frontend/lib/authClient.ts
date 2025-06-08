@@ -11,6 +11,7 @@ const auth = createAuthClient({
       user: {
         role: { type: 'string' },
         stripeCustomerId: { type: 'string', required: false },
+        dorado_funds: { type: 'number', required: false },
       },
       session: {
         impersonatedBy: { type: 'string' },

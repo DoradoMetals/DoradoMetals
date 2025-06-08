@@ -58,6 +58,7 @@ export interface PurchaseOrder {
   carrier_pickup?: CarrierPickup
   payout: Payout
   user: {
+    user_id: string,
     user_name: string
     user_email: string
   }

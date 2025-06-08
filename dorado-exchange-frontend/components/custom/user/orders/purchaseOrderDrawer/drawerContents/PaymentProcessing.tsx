@@ -13,9 +13,8 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
         <div className="text-left">
           <div className="text-xl text-neutral-800 mb-2">Your payment is processing!</div>
           <div className="text-sm text-neutral-600">
-            See below for payment details. If you need to make any
-            last minute changes to your payment method, please call us and we will do our best to
-            accomodate you.
+            See below for payment details. If you need to make any last minute changes to your
+            payment method, please call us and we will do our best to accomodate you.
           </div>
         </div>
       </div>
@@ -80,6 +79,23 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
                 </div>
               </div>
             )}
+
+            {order.payout.method === 'DORADO_ACCOUNT' && (
+              <div className="w-full items-center flex justify-between">
+                <div className="flex flex-col w-full gap-2 w-full">
+                  <div className="flex justify-between w-full text-base text-neutral-800 items-center">
+                    <div className="flex flex-col text-left">
+                      <p>Name:</p>
+                      <p>Email:</p>
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <p>{order.payout.account_holder_name}</p>
+                      <p>{order.payout.email_to}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div>
@@ -103,6 +119,14 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
             <div className="text-sm text-neutral-600">
               When we send you your eCheck, you will receive it instantly. You will be able to find
               it in your email inbox, and we will have it available for download here as well.
+            </div>
+          )}
+
+          {order.payout.method === 'DORADO_ACCOUNT' && (
+            <div className="text-sm text-neutral-600">
+              Your funds should now be available. You can use those funds to purchase bullion
+              from us, and they can be withdrawn and sent to you via one of the other payout
+              methods at any time. You can see your total available balance in your account.
             </div>
           )}
         </div>

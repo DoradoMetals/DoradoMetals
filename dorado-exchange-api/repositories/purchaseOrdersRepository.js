@@ -85,6 +85,7 @@ async function findAllByUser(userId) {
       to_jsonb(cp) AS carrier_pickup,
       to_jsonb(pay) AS payout,
       jsonb_build_object(
+        'user_id', u.id,
         'user_name', u.name,
         'user_email', u.email
       ) AS "user"
@@ -189,6 +190,7 @@ async function findById(id) {
       to_jsonb(cp) AS carrier_pickup,
       to_jsonb(pay) AS payout,
       jsonb_build_object(
+        'user_id', u.id,
         'user_name', u.name,
         'user_email', u.email
       ) AS "user"
@@ -294,6 +296,7 @@ async function getAll() {
         to_jsonb(cp) AS carrier_pickup,
         to_jsonb(pay) AS payout,
         jsonb_build_object(
+          'user_id', u.id,
           'user_name', u.name,
           'user_email', u.email
         ) AS user
@@ -580,7 +583,6 @@ async function updateOffer(
   client,
   { orderId, sentAt, expiresAt, offerStatus, updated_by }
 ) {
-
   const query = `
     UPDATE exchange.purchase_orders
       SET
@@ -592,19 +594,12 @@ async function updateOffer(
     WHERE id = $5
     RETURNING *;
   `;
-  const values = [
-    offerStatus,
-    sentAt,
-    expiresAt,
-    updated_by,
-    orderId,
-  ];
+  const values = [offerStatus, sentAt, expiresAt, updated_by, orderId];
   const { rows } = await client.query(query, values);
   return rows[0];
 }
 
-async function updateStatus(order, order_status, user_name,) {
-
+async function updateStatus(order, order_status, user_name) {
   const query = `
     UPDATE exchange.purchase_orders
     SET
@@ -732,6 +727,16 @@ async function getCurrentSpotPrices(client) {
   return rows;
 }
 
+async function addDoradoFunds(user_id, total, client) {
+  const query = `
+  UPDATE exchange.users
+    SET dorado_funds = dorado_funds + $1
+  WHERE id = $2
+  `;
+  const values = [total, user_id];
+  return await client.query(query, values);
+}
+
 module.exports = {
   findAllByUser,
   findById,
@@ -764,4 +769,5 @@ module.exports = {
   updateBullion,
   findExpiredOffers,
   getCurrentSpotPrices,
+  addDoradoFunds,
 };

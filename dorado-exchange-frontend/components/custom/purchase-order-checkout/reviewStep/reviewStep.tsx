@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation'
 export default function ReviewStep() {
   const data = usePurchaseOrderCheckoutStore((state) => state.data)
   const createPurchaseOrder = useCreatePurchaseOrder()
-  const router = useRouter();
+  const router = useRouter()
 
   return (
     <div className="flex flex-col gap-4 w-full text-sm text-neutral-800">
@@ -79,6 +79,7 @@ export default function ReviewStep() {
                 ACH: 'ACH',
                 WIRE: 'Wire',
                 ECHECK: 'eCheck',
+                DORADO_ACCOUNT: 'Dorado Account',
               }[data.payout?.method ?? 'ACH']
             }
           </div>
@@ -111,18 +112,19 @@ export default function ReviewStep() {
           </>
         )}
 
-        {data.payout?.method === 'ECHECK' && (
-          <div className="flex flex-col gap-1 mt-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-neutral-600">Name:</span>
-              <span className="text-neutral-800">{data.payout.account_holder_name}</span>
+        {data.payout?.method === 'ECHECK' ||
+          (data.payout?.method === 'DORADO_ACCOUNT' && (
+            <div className="flex flex-col gap-1 mt-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-neutral-600">Name:</span>
+                <span className="text-neutral-800">{data.payout.account_holder_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-600">Email:</span>
+                <span className="text-neutral-800">{data.payout.payout_email}</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-600">Email:</span>
-              <span className="text-neutral-800">{data.payout.payout_email}</span>
-            </div>
-          </div>
-        )}
+          ))}
       </div>
 
       <ItemTables />
@@ -138,12 +140,11 @@ export default function ReviewStep() {
           }
 
           try {
-
             const validated = purchaseOrderCheckoutSchema.parse(checkoutPayload)
-       
+
             createPurchaseOrder.mutate(validated, {
               onSuccess: () => {
-                router.push("/order-placed")
+                router.push('/order-placed')
                 sellCartStore.getState().clearCart()
                 usePurchaseOrderCheckoutStore.getState().clear()
               },

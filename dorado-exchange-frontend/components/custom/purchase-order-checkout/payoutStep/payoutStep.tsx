@@ -13,6 +13,8 @@ import {
   WirePayout,
   EcheckPayout,
   PayoutMethodType,
+  DoradoPayout,
+  doradoAccountSchema,
 } from '@/types/payout'
 
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
@@ -24,7 +26,8 @@ import { useEffect } from 'react'
 import { User } from '@/types/user'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
-import { Asterisk, Circle, Dot, DotOutline, Minus } from '@phosphor-icons/react'
+import { AsteriskIcon, CircleIcon, DotIcon, DotOutlineIcon, MinusIcon } from '@phosphor-icons/react'
+import DoradoAccountForm from './doradoAccountForm'
 
 export default function PayoutStep({ user }: { user?: User }) {
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
@@ -70,6 +73,18 @@ export default function PayoutStep({ user }: { user?: User }) {
     },
   })
 
+  const doradoAccountForm = useForm<DoradoPayout>({
+    resolver: zodResolver(doradoAccountSchema),
+    mode: 'onChange',
+    shouldUnregister: false,
+    defaultValues: {
+      account_holder_name:
+        storeData?.method === 'DORADO_ACCOUNT' ? storeData.account_holder_name : user?.name ?? '',
+      payout_email:
+        storeData?.method === 'DORADO_ACCOUNT' ? storeData.payout_email : user?.email ?? '',
+    },
+  })
+
   useEffect(() => {
     if (selected === 'ACH') {
       setData({ payoutValid: achForm.formState.isValid })
@@ -77,12 +92,15 @@ export default function PayoutStep({ user }: { user?: User }) {
       setData({ payoutValid: wireForm.formState.isValid })
     } else if (selected === 'ECHECK') {
       setData({ payoutValid: echeckForm.formState.isValid })
+    } else if (selected === 'DORADO_ACCOUNT') {
+      setData({ payoutValid: doradoAccountForm.formState.isValid })
     }
   }, [
     selected,
     achForm.formState.isValid,
     wireForm.formState.isValid,
     echeckForm.formState.isValid,
+    doradoAccountForm.formState.isValid,
     setData,
   ])
 
@@ -93,6 +111,8 @@ export default function PayoutStep({ user }: { user?: User }) {
       wireForm.trigger()
     } else if (selected === 'ECHECK') {
       echeckForm.trigger()
+    } else if (selected === 'DORADO_ACCOUNT') {
+      doradoAccountForm.trigger()
     }
   }, [selected])
 
@@ -111,11 +131,18 @@ export default function PayoutStep({ user }: { user?: User }) {
           ...wireForm.getValues(),
         },
       })
-    } else {
+    } else if (method === 'ECHECK') {
       setData({
         payout: {
           method: method,
           ...echeckForm.getValues(),
+        },
+      })
+    } else {
+      setData({
+        payout: {
+          method: method,
+          ...doradoAccountForm.getValues(),
         },
       })
     }
@@ -136,7 +163,7 @@ export default function PayoutStep({ user }: { user?: User }) {
               }}
               className={cn(
                 'w-full p-4 text-left flex items-center cursor-pointer',
-                selected === option.method && 'bg-transparent'
+                selected === option.method && 'bg-transparent', selected !== option.method && 'opacity-80'
               )}
             >
               <div className="flex items-center gap-2 w-full justify-between">
@@ -146,7 +173,7 @@ export default function PayoutStep({ user }: { user?: User }) {
                     <span className="font-medium">{option.label}</span>
                     <div className="text-neutral-700 text-xs flex items-center gap-2 pt-1 pl-4">
                       <span>{option.time_delay}</span>
-                      <Circle size={6} weight="fill" className="text-neutral-300" />
+                      <CircleIcon size={6} weight="fill" className="text-neutral-300" />
                       <span>
                         {option.cost === 0.0 ? 'Free' : <PriceNumberFlow value={option.cost} />}
                       </span>
@@ -167,13 +194,17 @@ export default function PayoutStep({ user }: { user?: User }) {
 
             <div
               className={cn(
-                'transition-all duration-500 bg-background border-b border-border',
+                'transition-all duration-500 bg-background border-b border-border rounded-b-lg',
                 index === payoutOptions.length - 1 && 'border-none'
               )}
             >
               <ACHForm form={achForm} visible={option.method === 'ACH' && isSelected} />
               <WireForm form={wireForm} visible={option.method === 'WIRE' && isSelected} />
               <EcheckForm form={echeckForm} visible={option.method === 'ECHECK' && isSelected} />
+              <DoradoAccountForm
+                form={doradoAccountForm}
+                visible={option.method === 'DORADO_ACCOUNT' && isSelected}
+              />
             </div>
           </div>
         )

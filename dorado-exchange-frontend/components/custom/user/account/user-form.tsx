@@ -16,6 +16,7 @@ import {
 } from '@/lib/queries/useAuth'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import { useRouter } from 'next/navigation'
+import PriceNumberFlow from '../../products/PriceNumberFlow'
 
 export default function UserForm() {
   const { user, isPending } = useGetSession()
@@ -28,20 +29,21 @@ export default function UserForm() {
 
   const defaultValues: User = {
     id: user?.id ?? '',
-    email: '',
-    name: '',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    emailVerified: false,
-    image: '',
-    role: '',
+    email: user?.email ?? '',
+    name: user?.name ?? '',
+    createdAt: user?.createdAt ?? new Date(),
+    updatedAt: user?.updatedAt ?? new Date(),
+    emailVerified: user?.emailVerified ?? false,
+    image: user?.image ?? '',
+    role: user?.role ?? '',
+    stripeCustomerId: user?.stripeCustomerId ?? '',
+    dorado_funds: user?.dorado_funds ?? 0,
   }
 
   const userForm = useForm<User>({
     resolver: zodResolver(userSchema),
     mode: 'onSubmit',
-    defaultValues: user || defaultValues,
-    values: user,
+    defaultValues: defaultValues,
   })
 
   const handleUserSubmit = async (values: User) => {
@@ -80,6 +82,12 @@ export default function UserForm() {
       ) : (
         <div>
           <h2 className="secondary-text mb-4">Account Information</h2>
+          <div className="flex items-center justify-between w-full my-4">
+            <div className="text-base text-neutral-700">Current Account Funds:</div>
+            <div className="text-lg text-neutral-800">
+              <PriceNumberFlow value={user?.dorado_funds ?? 0} />
+            </div>
+          </div>
           <div className="flex items-center mb-8">
             {user?.emailVerified ? (
               <div className="flex items-center gap-2 mr-auto">

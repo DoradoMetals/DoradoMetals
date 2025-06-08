@@ -79,6 +79,23 @@ export default function AdminPaymentProcessingPurchaseOrder({
                 </div>
               </div>
             )}
+
+            {order.payout.method === 'DORADO_ACCOUNT' && (
+              <div className="w-full items-center flex justify-between">
+                <div className="flex flex-col w-full gap-2 w-full">
+                  <div className="flex justify-between w-full text-base text-neutral-800 items-center">
+                    <div className="flex flex-col text-left">
+                      <p>Name:</p>
+                      <p>Email:</p>
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <p>{order.payout.account_holder_name}</p>
+                      <p>{order.payout.email_to}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

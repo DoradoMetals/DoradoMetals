@@ -10,6 +10,7 @@ export const userSchema = z.object({
   image: z.string().url().nullable().optional(),
   role: z.string().optional(),
   stripeCustomerId: z.string().nullable().optional(),
+  dorado_funds: z.number(),
 })
 
 export type User = z.infer<typeof userSchema>

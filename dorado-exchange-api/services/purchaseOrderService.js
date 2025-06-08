@@ -49,6 +49,10 @@ async function acceptOffer({ order, order_spots, spot_prices }) {
     const total = calculateTotalPrice(order, updatedSpots);
     await purchaseOrderRepo.moveOrderToAccepted(order.id, total, client);
 
+    if (order.payout.method === "DORADO_ACCOUNT") {
+      await purchaseOrderRepo.addDoradoFunds(order.user_id, total, client);
+    }
+
     await client.query("COMMIT");
     const purchaseOrder = await getById(order.id);
     return { purchaseOrder, orderSpots: updatedSpots };
@@ -480,6 +484,10 @@ async function autoAcceptOrder(orderId) {
     const total = calculateTotalPrice(order, updatedSpots);
 
     await purchaseOrderRepo.moveOrderToAccepted(orderId, total, client);
+
+    if (order.payout.method === "DORADO_ACCOUNT") {
+      await purchaseOrderRepo.addDoradoFunds(order.user_id, total, client);
+    }
 
     await client.query("COMMIT");
   } catch (err) {
