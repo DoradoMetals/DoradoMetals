@@ -54,7 +54,7 @@ async function acceptOffer({ order, order_spots, spot_prices }) {
       await transactionRepo.addFunds(order.user_id, total, client);
       await transactionRepo.addTransactionLog(
         order.user_id,
-        "Addition",
+        "Credit",
         order.id,
         null,
         total,
@@ -498,7 +498,7 @@ async function autoAcceptOrder(orderId) {
       await transactionRepo.addFunds(order.user_id, total, client);
       await transactionRepo.addTransactionLog(
         order.user_id,
-        "Addition",
+        "Credit",
         orderId,
         null,
         total,

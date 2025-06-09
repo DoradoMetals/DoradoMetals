@@ -1,7 +1,7 @@
 export interface Transaction {
   id: string
   user_id: string
-  transaction_type: 'Addition' | 'Deduction' | 'Deposit' | 'Withdrawal'
+  transaction_type: 'Credit' | 'Debit'
   purchase_order_id?: string
   sales_order_id?: string
   amount: number
