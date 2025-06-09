@@ -111,7 +111,7 @@ export default function ScrapForm() {
                 <Button type="button" variant="outline" onClick={handleAddAnother} className=' raised-off-page hover:bg-card bg-card'>
                   Add Another
                 </Button>
-                <Button type="button" className="ml-auto raised-off-page primary-gradient hover:primary-gradient shine-on-hover" onClick={() => router.push('/checkout')}>
+                <Button type="button" className="ml-auto raised-off-page primary-gradient hover:primary-gradient shine-on-hover text-white" onClick={() => router.push('/checkout')}>
                   Go to Checkout
                 </Button>
               </>
@@ -160,7 +160,7 @@ function ItemFormStep() {
         </div>
       </div>
       <div className="lg:flex lg:justify-between lg:w-3/5 lg:ml-auto">
-        <Button type="submit" className="liquid-gold raised-off-page w-full shine-on-hover">
+        <Button type="submit" className="liquid-gold raised-off-page w-full shine-on-hover text-white">
           Add Item
         </Button>
       </div>

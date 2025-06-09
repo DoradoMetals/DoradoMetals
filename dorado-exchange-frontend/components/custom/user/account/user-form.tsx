@@ -26,7 +26,7 @@ export default function UserForm() {
   const router = useRouter()
   const [isIdentityVerified] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
-
+  console.log(user)
   const defaultValues: User = {
     id: user?.id ?? '',
     email: user?.email ?? '',

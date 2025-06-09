@@ -90,7 +90,8 @@ export const usePurchaseOrderMetals = (purchase_order_id: string) => {
 }
 
 export const useAcceptOffer = () => {
-  const { user } = useGetSession()
+  const { user, refetch: refetchSession } = useGetSession()
+
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -115,7 +116,6 @@ export const useAcceptOffer = () => {
         }
       )
     },
-    
 
     onMutate: async ({ purchase_order, order_spots, spot_prices }) => {
       const queryKey = ['purchase_orders', user?.id]
@@ -159,6 +159,7 @@ export const useAcceptOffer = () => {
     onSettled: (_data, _err, _vars, context) => {
       if (context?.queryKey) {
         queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+        refetchSession()
       }
     },
     onSuccess: async (data, context) => {

@@ -2,6 +2,7 @@ const pool = require("../db");
 const purchaseOrderRepo = require("../repositories/purchaseOrdersRepository");
 const shippingRepo = require("../repositories/shippingRepository");
 const scrapRepo = require("../repositories/scrapRepository");
+const transactionRepo = require("../repositories/transactionRepo");
 
 const {
   createFedexLabel,
@@ -50,7 +51,15 @@ async function acceptOffer({ order, order_spots, spot_prices }) {
     await purchaseOrderRepo.moveOrderToAccepted(order.id, total, client);
 
     if (order.payout.method === "DORADO_ACCOUNT") {
-      await purchaseOrderRepo.addDoradoFunds(order.user_id, total, client);
+      await transactionRepo.addFunds(order.user_id, total, client);
+      await transactionRepo.addTransactionLog(
+        order.user_id,
+        "Addition",
+        order.id,
+        null,
+        total,
+        client
+      );
     }
 
     await client.query("COMMIT");
@@ -486,7 +495,15 @@ async function autoAcceptOrder(orderId) {
     await purchaseOrderRepo.moveOrderToAccepted(orderId, total, client);
 
     if (order.payout.method === "DORADO_ACCOUNT") {
-      await purchaseOrderRepo.addDoradoFunds(order.user_id, total, client);
+      await transactionRepo.addFunds(order.user_id, total, client);
+      await transactionRepo.addTransactionLog(
+        order.user_id,
+        "Addition",
+        orderId,
+        null,
+        total,
+        client
+      );
     }
 
     await client.query("COMMIT");

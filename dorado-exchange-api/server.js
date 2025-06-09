@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+
 const productRoutes = require("./routes/products");
 const addressRoutes = require("./routes/addresses");
 const cartRoutes = require("./routes/carts");
@@ -12,8 +13,9 @@ const pdfRoutes = require("./routes/pdf");
 const reviewRoutes = require("./routes/reviews");
 const emailRoutes = require("./routes/emails");
 const stripeRoutes = require("./routes/stripe");
-
 const spotRoutes = require("./routes/spots");
+const transactionRoutes = require("./routes/transactions");
+
 const { toNodeHandler } = require("better-auth/node");
 const { auth } = require("./auth");
 const { setupScheduler } = require("./services/scheduler");
@@ -58,6 +60,7 @@ app.use("/api/purchase_orders", purchaseOrderRoutes);
 app.use("/api/pdf", pdfRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/emails", emailRoutes);
+app.use("/api/transactions", transactionRoutes);
 
 setupScheduler();
 

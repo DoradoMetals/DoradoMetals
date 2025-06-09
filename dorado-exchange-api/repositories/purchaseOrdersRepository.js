@@ -727,16 +727,6 @@ async function getCurrentSpotPrices(client) {
   return rows;
 }
 
-async function addDoradoFunds(user_id, total, client) {
-  const query = `
-  UPDATE exchange.users
-    SET dorado_funds = dorado_funds + $1
-  WHERE id = $2
-  `;
-  const values = [total, user_id];
-  return await client.query(query, values);
-}
-
 module.exports = {
   findAllByUser,
   findById,
@@ -769,5 +759,4 @@ module.exports = {
   updateBullion,
   findExpiredOffers,
   getCurrentSpotPrices,
-  addDoradoFunds,
 };
