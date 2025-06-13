@@ -23,12 +23,22 @@ const parseTracking = (trackingOutput) => {
     trackingOutput.estimatedDeliveryTimeWindow?.window.ends || "TBD";
 
   const statusMap = {
+    EP: "Enroute to Pickup",
+    PD: "Pickup Delay",
+    DD: "Delivery Delay",
+    DE: "Delivery Exception",
     OC: "Label Created",
     PU: "Picked Up",
+    AR: "Arrived at FedEx Location",
     IT: "In Transit",
+    OW: "On the Way",
     OD: "Out for Delivery",
     DL: "Delivered",
+    HL: "Hold at Location",
+    PM: "In Progress",
   };
+
+  console.log(trackingOutput)
 
   const relevantStatusCodes = Object.keys(statusMap);
 
@@ -46,6 +56,8 @@ const parseTracking = (trackingOutput) => {
         status: statusMap[event.derivedStatusCode] || "Unknown",
       };
     });
+
+  
 
   const derivedCode = trackingOutput.latestStatusDetail?.derivedCode;
   const latestStatus =
@@ -141,8 +153,11 @@ const updateFedexShipmentTracking = async (
         ]
       );
     }
+          console.log(trackingInfo.latestStatus)
+
 
     if (trackingInfo.latestStatus) {
+
       if (inbound_shipment) {
         await pool.query(
           `

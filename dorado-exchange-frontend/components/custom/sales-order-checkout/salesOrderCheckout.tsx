@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { useAddress } from '@/lib/queries/useAddresses'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { useUser } from '@/lib/authClient'
@@ -127,46 +127,48 @@ export default function SalesOrderCheckout() {
 
   return (
     <div className="flex w-full justify-center p-4">
-      <div className="flex flex-col lg:flex-row items-center lg:items-start w-full lg:max-w-7xl justify-between gap-6">
-        <div className="flex flex-col gap-6 w-full">
-          <ShippingSelect
-            addresses={addresses}
-            isLoading={isAddressesPending}
-            orderPrices={orderPrices}
-          />
-          <div className="separator-inset" />
-          <PaymentSelect orderPrices={orderPrices} />
-          {clientSecret && data.address && cardNeeded && (
-            <StripeWrapper
-              clientSecret={clientSecret}
-              stripePromise={stripePromise}
-              address={data.address}
-              setIsLoading={setIsLoading}
+      {!isAddressesPending && (
+        <div className="flex flex-col lg:flex-row items-center lg:items-start w-full lg:max-w-7xl justify-between gap-6">
+          <div className="flex flex-col gap-6 w-full">
+            <ShippingSelect
+              addresses={addresses}
+              isLoading={isAddressesPending}
+              orderPrices={orderPrices}
             />
-          )}
+            <div className="separator-inset" />
+            <PaymentSelect orderPrices={orderPrices} />
+            {clientSecret && data.address && cardNeeded && (
+              <StripeWrapper
+                clientSecret={clientSecret}
+                stripePromise={stripePromise}
+                address={data.address}
+                setIsLoading={setIsLoading}
+              />
+            )}
+          </div>
+          <div className="flex flex-col gap-3 w-full lg:mt-5">
+            <OrderSummary orderPrices={orderPrices} />
+            {!cardNeeded ? (
+              <Button
+                className="raised-off-page liquid-gold shine-on-hover w-full text-white"
+                disabled={createOrder.isPending || isLoading}
+                onClick={handleSubmit}
+              >
+                {createOrder.isPending || isLoading ? 'Processing…' : 'Place Order'}
+              </Button>
+            ) : (
+              <Button
+                className="raised-off-page liquid-gold shine-on-hover w-full text-white"
+                disabled={createOrder.isPending || isLoading}
+                type="submit"
+                form="payment-form"
+              >
+                {createOrder.isPending || isLoading ? 'Processing…' : 'Place Order'}
+              </Button>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col gap-3 w-full lg:mt-5">
-          <OrderSummary orderPrices={orderPrices} />
-          {!cardNeeded ? (
-            <Button
-              className="raised-off-page liquid-gold shine-on-hover w-full text-white"
-              disabled={createOrder.isPending || isLoading}
-              onClick={handleSubmit}
-            >
-              {createOrder.isPending || isLoading ? 'Processing…' : 'Place Order'}
-            </Button>
-          ) : (
-            <Button
-              className="raised-off-page liquid-gold shine-on-hover w-full text-white"
-              disabled={createOrder.isPending || isLoading}
-              type="submit"
-              form="payment-form"
-            >
-              {createOrder.isPending || isLoading ? 'Processing…' : 'Place Order'}
-            </Button>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   )
 }

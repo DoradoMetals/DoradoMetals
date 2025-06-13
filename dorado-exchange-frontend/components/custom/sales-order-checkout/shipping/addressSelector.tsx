@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { Address } from '@/types/address'
@@ -39,6 +39,14 @@ export function AddressSelector({
       setExpanded(false)
     }
   }
+
+  useEffect(() => {
+    if (addresses) {
+      setData({
+        address: addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress,
+      })
+    }
+  }, [addresses])
 
   return (
     <div className="rounded-lg overflow-hidden bg-card raised-off-page">

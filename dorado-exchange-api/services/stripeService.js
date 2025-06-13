@@ -51,7 +51,7 @@ async function updatePaymentIntent(
 
   const amount = Math.round(orderPrices.post_charges_amount * 100);
 
-  if (vals.payment_intent_id) {
+  if (vals?.payment_intent_id) {
     const paymentIntent = await stripeClient.paymentIntents.update(
       vals.payment_intent_id,
       {
@@ -60,6 +60,8 @@ async function updatePaymentIntent(
     );
     await stripeRepo.updatePaymentIntent(paymentIntent);
     return paymentIntent;
+  } else {
+    return;
   }
 }
 

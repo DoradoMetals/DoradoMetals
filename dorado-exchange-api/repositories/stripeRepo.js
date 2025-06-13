@@ -1,6 +1,4 @@
 const pool = require("../db");
-const { auth } = require("../auth");
-const { fromNodeHeaders } = require("better-auth/node");
 
 async function retrievePaymentIntent(type, session) {
   const query = `
