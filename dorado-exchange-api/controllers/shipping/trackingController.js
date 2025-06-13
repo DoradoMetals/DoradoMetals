@@ -19,8 +19,19 @@ const getFedExAccessToken = async () => {
 };
 
 const parseTracking = (trackingOutput) => {
-  const estimatedDeliveryTime =
-    trackingOutput.estimatedDeliveryTimeWindow?.window.ends || "TBD";
+  const windowInfo = trackingOutput.estimatedDeliveryTimeWindow?.window;
+  const standardEnd = trackingOutput.standardTransitTimeWindow?.window?.ends;
+  const fromDateTimes = trackingOutput.dateAndTimes?.find(
+    (dt) => dt.type === "ESTIMATED_DELIVERY"
+  )?.dateTime;
+
+  const estimatedDeliveryTime = windowInfo?.ends
+    ? windowInfo.ends
+    : standardEnd
+    ? standardEnd
+    : fromDateTimes
+    ? fromDateTimes
+    : "TBD";
 
   const statusMap = {
     EP: "Enroute to Pickup",
@@ -38,7 +49,7 @@ const parseTracking = (trackingOutput) => {
     PM: "In Progress",
   };
 
-  console.log(trackingOutput)
+  console.log(trackingOutput);
 
   const relevantStatusCodes = Object.keys(statusMap);
 
@@ -56,8 +67,6 @@ const parseTracking = (trackingOutput) => {
         status: statusMap[event.derivedStatusCode] || "Unknown",
       };
     });
-
-  
 
   const derivedCode = trackingOutput.latestStatusDetail?.derivedCode;
   const latestStatus =
@@ -153,11 +162,8 @@ const updateFedexShipmentTracking = async (
         ]
       );
     }
-          console.log(trackingInfo.latestStatus)
-
 
     if (trackingInfo.latestStatus) {
-
       if (inbound_shipment) {
         await pool.query(
           `
