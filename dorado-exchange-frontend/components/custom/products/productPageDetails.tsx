@@ -455,7 +455,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1">
                           <span className="text-left">{payment.time_delay}</span>
                           <Circle size={6} weight="fill" className="text-neutral-300" />
-                          <span className="text-right">{payment.cost}</span>
+                          <span className="text-right">{payment.subcharge}</span>
                         </div>
                       </div>
                       <div className="text-sm text-neutral-800 pb-2">{payment.description}</div>

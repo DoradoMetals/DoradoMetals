@@ -27,10 +27,10 @@ import {
 } from '@/components/ui/dialog'
 import { packageOptions } from '@/types/packaging'
 import { pickupOptions } from '@/types/pickup'
-import { serviceOptions, ShippingService } from '@/types/service'
+import { serviceOptions } from '@/types/service'
 import getReturnDeclaredValue from '@/utils/getReturnDeclaredValue'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { ShieldCheck, ShieldSlash } from '@phosphor-icons/react'
+import { ShieldCheckIcon, ShieldSlashIcon } from '@phosphor-icons/react'
 import { FedexRateInput, formatFedexRatesAddress } from '@/types/shipping'
 import { useFedExRates } from '@/lib/queries/shipping/useFedex'
 
@@ -236,7 +236,7 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
                 className="flex items-center w-full justify-between"
               >
                 {['insured', 'uninsured'].map((option) => {
-                  const Icon = option === 'insured' ? ShieldCheck : ShieldSlash
+                  const Icon = option === 'insured' ? ShieldCheckIcon : ShieldSlashIcon
 
                   return (
                     <label

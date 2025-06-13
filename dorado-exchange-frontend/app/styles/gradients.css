@@ -95,8 +95,6 @@
   }
 } */
 
-
-
 @layer components {
   .liquid-gold {
     position: relative;
@@ -121,8 +119,6 @@
     pointer-events: none;
   }
 }
-
-
 
 @keyframes backgroundShift {
   0% {

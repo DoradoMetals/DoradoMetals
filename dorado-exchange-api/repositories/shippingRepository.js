@@ -32,7 +32,7 @@ async function insertShipment(client, orderId, kind, data, labelBuffer) {
     "Generated",
     data.pickup?.name || "Store Dropoff",
     data.package.label || "Small Box",
-    data.service.serviceType || "FEDEX_EXPRESS_SAVER",
+    data.service.serviceDescription || "Express Saver",
     data.service.netCharge,
     data.insurance.insured,
     data.insurance.declaredValue.amount,

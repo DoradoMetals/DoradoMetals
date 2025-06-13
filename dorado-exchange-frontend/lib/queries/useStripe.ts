@@ -1,8 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { useGetSession } from './useAuth'
+import { SpotPrice } from '@/types/metal'
+import { User } from '@/types/user'
+import { Product } from '@/types/product'
 
-export const useRetrievePaymentIntent = () => {
+export interface IntentParams {
+  items: Product[]
+  using_funds: boolean
+  spots: SpotPrice[]
+  user: User
+  shipping_service: string
+  payment_method: string
+  type: string
+}
+
+export const useRetrievePaymentIntent = (type: string) => {
   const { user } = useGetSession()
 
   return useQuery<string>({
@@ -10,31 +23,10 @@ export const useRetrievePaymentIntent = () => {
     queryFn: async () => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<string>('GET', '/stripe/retrieve_payment_intent', undefined, {
-        user_id: user.id,
+        type: type,
       })
     },
     enabled: !!user?.id,
-  })
-}
-
-export const useCreatePaymentIntent = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (amount: number) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<string>('POST', '/stripe/create_payment_intent', {
-        amount: amount,
-        user_id: user.id,
-      })
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['payment_intent', user?.id],
-        refetchType: 'active',
-      })
-    },
   })
 }
 
@@ -43,13 +35,9 @@ export const useUpdatePaymentIntent = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ amount, type }: { amount: number; type: string }) => {
+    mutationFn: async (params: IntentParams) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<string>('POST', '/stripe/update_payment_intent', {
-        amount: amount,
-        type: type,
-        user_id: user.id,
-      })
+      return await apiRequest<string>('POST', '/stripe/update_payment_intent', params)
     },
     onSettled: () => {
       queryClient.invalidateQueries({

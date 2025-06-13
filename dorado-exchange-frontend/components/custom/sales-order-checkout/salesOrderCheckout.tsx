@@ -2,9 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { useAddress } from '@/lib/queries/useAddresses'
-import { Address } from '@/types/address'
-import { useEffect, useMemo, useRef } from 'react'
-import { sellCartStore } from '@/store/sellCartStore'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { useUser } from '@/lib/authClient'
@@ -12,194 +10,102 @@ import { cartStore } from '@/store/cartStore'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import ShippingSelect from './shipping/shippingSelect'
 
-import { loadStripe, Appearance } from '@stripe/stripe-js'
-import { Elements } from '@stripe/react-stripe-js'
-import {
-  useCreatePaymentIntent,
-  useRetrievePaymentIntent,
-  useUpdatePaymentIntent,
-} from '@/lib/queries/useStripe'
-import StripeForm from '../stripe/stripeForm'
-import getProductPrice from '@/utils/getProductPrice'
-
+import { loadStripe } from '@stripe/stripe-js'
+import { useRetrievePaymentIntent, useUpdatePaymentIntent } from '@/lib/queries/useStripe'
+import StripeWrapper from '../stripe/StripeWrapper'
+import PaymentSelect from './payment/paymentSelect'
+import { salesOrderCheckoutSchema } from '@/types/sales-orders'
+import { useCreateSalesOrder } from '@/lib/queries/useSalesOrders'
+import { calculateSalesOrderPrices } from '@/utils/calculateSalesOrderPrices'
+import OrderSummary from './summary/orderSummary'
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function SalesOrderCheckout() {
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+
   const router = useRouter()
-  const {
-    data: clientSecret,
-    isPending: paymentIntentPending,
-    isError,
-  } = useRetrievePaymentIntent()
-  const updatePaymentIntent = useUpdatePaymentIntent()
-  const { user } = useUser()
-  const { data: addresses = [], isPending: isAddressesPending } = useAddress()
-  const { data: spotPrices = [] } = useSpotPrices()
 
-  const items = cartStore((state) => state.items)
-
-  const total = useMemo(() => {
-    return items.reduce((acc, item) => {
-      const spot = spotPrices.find((s) => s.type === item.metal_type)
-      const price = getProductPrice(item, spot)
-      const quantity = item.quantity ?? 1
-      return acc + price * quantity
-    }, 0)
-  }, [items, spotPrices])
-
-  useEffect(() => {
-    if (clientSecret && total > 0) {
-      updatePaymentIntent.mutate({ amount: total, type: 'sales_order_checkout' })
-    }
-  }, [total])
-
-  const { setData } = useSalesOrderCheckoutStore()
-  const { paymentValid } = useSalesOrderCheckoutStore((state) => state.data)
-  const hasInitialized = useRef(false)
-
-  const isDarkMode =
-    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
-
-  // const appearance: Appearance = {
-  //   theme: 'stripe',
-  //   labels: 'floating',
-  //   variables: {
-  //     colorBackground: 'transparent',
-  //     colorText: '#000',
-  //     colorTextPlaceholder: '#999',
-  //   },
-  //   rules: {
-  //     '.Tab, .Tab:hover, .Tab--selected, .TabLabel': {
-  //       backgroundColor: 'transparent',
-  //       border: 'none',
-  //       boxShadow: 'none',
-  //     },
-  //     '.Block': {
-  //       backgroundColor: 'transparent',
-  //       border: 'none',
-  //       boxShadow: 'none',
-  //     },
-  //     '.AccordionItem': {
-  //       backgroundColor: 'transparent',
-  //       border: 'none',
-  //       boxShadow: 'none',
-  //     },
-  //     '.Input': {
-  //       backgroundColor: 'transparent',
-  //       boxShadow: 'none',
-  //     },
-  //     '.StripeElement': {
-  //       backgroundColor: 'transparent',
-  //     },
-  //   },
-  // }
-
-  const lightAppearance: Appearance = {
-    theme: 'stripe',
-    variables: {
-      colorBackground: 'transparent',
-      colorText: '#000',
-      colorTextPlaceholder: '#999',
-      colorPrimary: '#d4af37',
-    },
-    rules: {
-      '.Tab, .Tab--selected, .Tab:hover, .TabLabel': {
-        backgroundColor: 'transparent',
-        border: 'none',
-        boxShadow: 'none',
-      },
-      '.AccordionItem': {
-        backgroundColor: 'transparent',
-        border: 'none',
-        boxShadow: 'inset 0px 1px 0px hsla(0, 0%, 99%, 1), 0px 1px 3px hsla(0, 0%, 0%, 0.2)',
-      },
-      '.AccordionItem--selected': {
-        backgroundColor: 'hsl(0, 0%, 97%)',
-        border: 'none',
-        boxShadow: 'inset 0px 1px 0px hsla(0, 0%, 99%, 1), 0px 1px 3px hsla(0, 0%, 0%, 0.2)',
-      },
-      '.Input': {
-        backgroundColor: 'transparent',
-        borderColor: 'hsl(0, 0%, 80%)',
-        boxShadow: 'none',
-      },
-      '.StripeElement': {
-        backgroundColor: 'transparent',
-      },
-    },
-  }
-
-  const darkAppearance: Appearance = {
-    theme: 'night',
-    variables: {
-      colorBackground: 'transparent',
-      colorText: '#fff',
-      colorTextPlaceholder: '#999',
-      colorPrimary: '#d4af37',
-    },
-    rules: {
-      '.Tab, .Tab--selected, .Tab:hover, .TabLabel': {
-        backgroundColor: 'transparent',
-        border: 'none',
-        boxShadow: 'none',
-      },
-      '.AccordionItem': {
-        backgroundColor: 'transparent',
-        border: 'none',
-        boxShadow: 'inset 0px 1px 0px hsla(0, 0%, 100%, 0.1), 0px 1px 3px hsla(0, 0%, 0%, 0.2)',
-      },
-      '.AccordionItem--selected': {
-        backgroundColor: 'hsl(0, 0%, 15%)',
-        border: 'none',
-        boxShadow: 'inset 0px 1px 0px hsla(0, 0%, 100%, 0.1), 0px 1px 3px hsla(0, 0%, 0%, 0.2)',
-      },
-      '.Input': {
-        backgroundColor: 'transparent',
-        borderColor: 'hsl(0, 0%, 30%)',
-        boxShadow: 'none',
-      },
-      '.StripeElement': {
-        backgroundColor: 'transparent',
-      },
-    },
-  }
-  const appearance = isDarkMode ? darkAppearance : lightAppearance
-
-  const loader = 'auto'
-
-  const emptyAddress: Address = {
-    id: crypto.randomUUID(),
-    user_id: user?.id ?? '',
-    line_1: '',
-    line_2: '',
-    city: '',
-    state: '',
-    country: 'United States',
-    zip: '',
-    name: '',
-    is_default: addresses.length === 0,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    phone_number: '',
-    country_code: 'US',
-    is_valid: false,
-    is_residential: false,
-  }
-
-  const defaultAddress: Address =
-    addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress
-
-  useEffect(() => {
-    if (!hasInitialized.current && addresses.length > 0) {
-      setData({
-        address: defaultAddress,
-        confirmation: false,
-      })
-      hasInitialized.current = true
-    }
-  }, [addresses])
-
+  const { data } = useSalesOrderCheckoutStore()
   const cartItems = cartStore((state) => state.items)
+
+  const { data: spotPrices = [] } = useSpotPrices()
+  const { data: addresses = [], isPending: isAddressesPending } = useAddress()
+  const { user } = useUser()
+  const createOrder = useCreateSalesOrder()
+  const updatePaymentIntent = useUpdatePaymentIntent()
+  const { data: clientSecret } = useRetrievePaymentIntent('sales_order_checkout')
+
+  const orderPrices = useMemo(() => {
+    return calculateSalesOrderPrices(
+      cartItems,
+      data.using_funds ?? true,
+      spotPrices,
+      user?.dorado_funds ?? 0,
+      data.service?.cost ?? 0,
+      data.payment_method ?? 'CARD_AND_FUNDS'
+    )
+  }, [
+    cartItems,
+    data.using_funds,
+    spotPrices,
+    user?.dorado_funds,
+    data.service?.cost,
+    data.payment_method,
+  ])
+
+  const cardNeeded = useMemo(() => {
+    console.log(data.payment_method)
+    if (data.payment_method === 'FUNDS') {
+      return false
+    } else {
+      return true
+    }
+  }, [data.payment_method])
+
+  useEffect(() => {
+    if (clientSecret && orderPrices.baseTotal > 0 && cardNeeded) {
+      updatePaymentIntent.mutate({
+        items: cartItems,
+        using_funds: data?.using_funds ?? true,
+        spots: spotPrices,
+        user: user!,
+        shipping_service: data.service?.value ?? 'STANDARD',
+        payment_method: data.payment_method ?? 'CARD_AND_FUNDS',
+        type: 'sales_order_checkout',
+      })
+    }
+  }, [
+    cartItems,
+    data.using_funds,
+    spotPrices,
+    clientSecret,
+    orderPrices.baseTotal,
+    data.payment_method,
+    user,
+    cardNeeded,
+  ])
+
+  const handleSubmit = () => {
+    const checkoutPayload = {
+      ...data,
+      address: data.address!,
+      service: data.service!,
+      items: cartItems,
+    }
+
+    const validated = salesOrderCheckoutSchema.parse(checkoutPayload)
+
+    createOrder.mutate(
+      { sales_order: validated, spotPrices: spotPrices },
+      {
+        onSuccess: () => {
+          router.push('/order-placed')
+          cartStore.getState().clearCart()
+          useSalesOrderCheckoutStore.getState().clear()
+        },
+      }
+    )
+  }
 
   if (cartItems.length === 0) {
     return (
@@ -220,26 +126,46 @@ export default function SalesOrderCheckout() {
   }
 
   return (
-    <div className="flex w-full justify-center p-2">
-      <div className="hidden lg:flex items-center w-full lg:max-w-7xl justify-between">
+    <div className="flex w-full justify-center p-4">
+      <div className="flex flex-col lg:flex-row items-center lg:items-start w-full lg:max-w-7xl justify-between gap-6">
         <div className="flex flex-col gap-6 w-full">
           <ShippingSelect
             addresses={addresses}
-            emptyAddress={defaultAddress}
             isLoading={isAddressesPending}
+            orderPrices={orderPrices}
           />
-                <div className="separator-inset" />
-
-          {clientSecret && (
-            <Elements options={{ clientSecret, appearance, loader }} stripe={stripePromise}>
-              <StripeForm />
-            </Elements>
+          <div className="separator-inset" />
+          <PaymentSelect orderPrices={orderPrices} />
+          {clientSecret && data.address && cardNeeded && (
+            <StripeWrapper
+              clientSecret={clientSecret}
+              stripePromise={stripePromise}
+              address={data.address}
+              setIsLoading={setIsLoading}
+            />
           )}
         </div>
-        <div className="w-full">DESKTOP ITEMS AND PRICES</div>
-      </div>
-      <div className="flex flex-col lg:hidden">
-        <div className="">MOBILE</div>
+        <div className="flex flex-col gap-3 w-full lg:mt-5">
+          <OrderSummary orderPrices={orderPrices} />
+          {!cardNeeded ? (
+            <Button
+              className="raised-off-page liquid-gold shine-on-hover w-full text-white"
+              disabled={createOrder.isPending || isLoading}
+              onClick={handleSubmit}
+            >
+              {createOrder.isPending || isLoading ? 'Processing…' : 'Place Order'}
+            </Button>
+          ) : (
+            <Button
+              className="raised-off-page liquid-gold shine-on-hover w-full text-white"
+              disabled={createOrder.isPending || isLoading}
+              type="submit"
+              form="payment-form"
+            >
+              {createOrder.isPending || isLoading ? 'Processing…' : 'Place Order'}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )

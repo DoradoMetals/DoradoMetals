@@ -83,12 +83,12 @@ export default function Shell() {
 
             <div className="flex items-end">
               <Link href="/">
-                <span className="text-lg text-neutral-900 font-medium tracking-widest">
+                <h1 className="text-lg text-neutral-700 font-medium tracking-wide">
                   Dorado Metals Exchange
-                </span>
+                </h1>
               </Link>
 
-              <div className="flex text-base items-center font-semibold tracking-wide pl-32 gap-8">
+              <div className="flex text-base items-center tracking-wide pl-32 gap-8">
                 {menuItems
                   .filter((item) => !item.hidden)
                   .map((item) => (
@@ -123,7 +123,7 @@ export default function Shell() {
 
             <div className="flex items-end">
               <Link href="/">
-                <span className="text-base text-neutral-900">Dorado Metals Exchange</span>
+                <h1 className="text-base text-neutral-900 font-medium">Dorado Metals Exchange</h1>
               </Link>
             </div>
           </div>

@@ -1,26 +1,25 @@
 'use client'
 
-import { Address } from '@/types/address'
+import { Address, emptyAddress } from '@/types/address'
 import { AddressSelector } from './addressSelector'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import AddressDrawer from '../../user/addresses/addressDrawer'
 import { useDrawerStore } from '@/store/drawerStore'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import ServiceSelector from './serviceSelector'
+import { SalesOrderTotals } from '@/types/sales-orders'
+import { PlusIcon } from '@phosphor-icons/react'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 interface ShippingSelectProps {
   addresses: Address[]
-  emptyAddress: Address
   isLoading: boolean
+  orderPrices: SalesOrderTotals
 }
 
-export default function ShippingSelect({
-  addresses,
-  emptyAddress,
-  isLoading,
-}: ShippingSelectProps) {
+export default function ShippingSelect({ addresses, isLoading, orderPrices }: ShippingSelectProps) {
   const [draftAddress, setDraftAddress] = useState<Address>(emptyAddress)
   const { openDrawer } = useDrawerStore()
 
@@ -65,7 +64,7 @@ export default function ShippingSelect({
           <Button
             type="button"
             variant="outline"
-            className="flex ml-auto h-auto min-h-0 font-normal text-neutral-700 border-none hover:bg-background p-0"
+            className="flex ml-auto h-auto min-h-0 font-normal border-none hover:bg-background p-0 text-primary-gradient"
             onClick={() => {
               setDraftAddress(emptyAddress)
               openDrawer('address')
@@ -73,7 +72,7 @@ export default function ShippingSelect({
           >
             <div className="flex text-xs items-center gap-1">
               Add New Address
-              <Plus size={16} className="" />
+              <PlusIcon size={16} color={getPrimaryIconStroke()}/>
             </div>
           </Button>
           <div className="flex flex-col gap-1">
@@ -89,11 +88,14 @@ export default function ShippingSelect({
                 </div>
               )}
             </div>
+            <div className="text-xs lg:text-sm text-primary-gradient">
+              Your card's billing address must match shipping address.
+            </div>
           </div>
         </div>
       )}
       <div className="separator-inset" />
-      <ServiceSelector />
+      <ServiceSelector orderPrices={orderPrices} />
     </div>
   )
 }

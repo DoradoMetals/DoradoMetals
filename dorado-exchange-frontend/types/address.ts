@@ -49,3 +49,23 @@ export const addressSchema = z.object({
 })
 
 export type Address = z.infer<typeof addressSchema>
+
+export const emptyAddress: Address = {
+  id: crypto.randomUUID(),
+  user_id: '',
+  line_1: '',
+  line_2: '',
+  city: '',
+  state: '',
+  country: 'United States',
+  zip: '',
+  name: '',
+  is_default: false,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  phone_number: '',
+  country_code: 'US',
+  is_valid: false,
+  is_residential: false,
+}
+

@@ -1,23 +1,26 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { SalesOrderCheckout } from '@/types/sales-orders'
+import { SalesOrderCheckout, salesOrderServiceOptions } from '@/types/sales-orders'
+import { emptyAddress } from '@/types/address'
 
 type PartialCheckout = Partial<SalesOrderCheckout>
 
 interface SalesOrderCheckoutState {
   data: PartialCheckout
   setData: (values: PartialCheckout) => void
-  updateField: <K extends keyof SalesOrderCheckout>(
-    key: K,
-    value: SalesOrderCheckout[K]
-  ) => void
+  updateField: <K extends keyof SalesOrderCheckout>(key: K, value: SalesOrderCheckout[K]) => void
   clear: () => void
 }
 
 export const useSalesOrderCheckoutStore = create<SalesOrderCheckoutState>()(
   persist(
     (set) => ({
-      data: {},
+      data: {
+        address: emptyAddress,
+        service: salesOrderServiceOptions.STANDARD,
+        using_funds: true,
+        payment_method: 'CARD',
+      },
       setData: (values) => set((state) => ({ data: { ...state.data, ...values } })),
       updateField: (key, value) =>
         set((state) => ({
@@ -26,7 +29,15 @@ export const useSalesOrderCheckoutStore = create<SalesOrderCheckoutState>()(
             [key]: value,
           },
         })),
-      clear: () => set({ data: {} }),
+      clear: () =>
+        set({
+          data: {
+            address: emptyAddress,
+            service: salesOrderServiceOptions.STANDARD,
+            using_funds: true,
+            payment_method: 'CARD',
+          },
+        }),
     }),
     {
       name: 'sales-order-checkout',

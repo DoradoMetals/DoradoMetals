@@ -16,7 +16,6 @@ import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 interface AddressSelectorProps {
   addresses: Address[]
   emptyAddress: Address
-
   setDraftAddress: (addr: Address) => void
 }
 

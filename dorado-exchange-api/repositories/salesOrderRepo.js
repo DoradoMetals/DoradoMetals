@@ -1,0 +1,138 @@
+const pool = require("../db");
+const { calculateItemAsk } = require("../utils/price-calculations");
+
+async function findById(id) {
+  const query = `
+    SELECT 
+      so.*,
+      json_agg(DISTINCT jsonb_build_object(
+        'id', soi.id,
+        'sales_order_id', soi.sales_order_id,
+        'price', soi.price,
+        'quantity', soi.quantity,
+        'bullion_premium', soi.bullion_premium,
+        'product', jsonb_build_object(
+          'id', p.id,
+          'product_name', p.product_name,
+          'content', p.content,
+          'product_type', p.product_type,
+          'image_front', p.image_front,
+          'image_back', p.image_back,
+          'bid_premium', p.bid_premium,
+          'ask_premium', p.ask_premium,
+          'variant_group', p.variant_group,
+          'shadow_offset', p.shadow_offset,
+          'metal_type', mp.type
+        )
+      )) AS order_items,
+      to_jsonb(addr) AS address,
+      jsonb_build_object(
+        'user_id', u.id,
+        'user_name', u.name,
+        'user_email', u.email
+      ) AS "user"
+    FROM exchange.sales_orders so
+    LEFT JOIN exchange.sales_order_items soi ON soi.sales_order_id = so.id
+    LEFT JOIN exchange.products p ON soi.product_id = p.id
+    LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
+    LEFT JOIN exchange.addresses addr ON addr.id = so.address_id
+    LEFT JOIN exchange.users u ON u.id = so.user_id
+    WHERE so.id = $1
+    GROUP BY so.id, addr.id, u.id
+    ORDER BY so.created_at DESC
+    LIMIT 1;
+  `;
+  const { rows } = await pool.query(query, [id]);
+  return rows[0] || null;
+}
+
+async function findAllByUser(userId) {
+  const query = `
+   SELECT *
+   FROM exchange.sales_orders AS so
+   LEFT JOIN exchange.users u ON u.id = so.user_id
+   WHERE so.user_id = $1
+  `;
+  const values = [userId];
+  const { rows } = await pool.query(query, values);
+  return rows;
+}
+
+async function insertOrder(client, { user, status, sales_order, orderPrices }) {
+  const query = `
+    INSERT INTO exchange.sales_orders (
+      user_id,
+      address_id,
+      sales_order_status,
+      order_total,
+      shipping_service,
+      shipping_cost,
+      pre_charges_amount,
+      post_charges_amount,
+      subject_to_charges_amount
+    )
+    VALUES (
+      $1,
+      $2,
+      $3,
+      $4,
+      $5,
+      $6,
+      $7,
+      $8,
+      $9
+    )
+    RETURNING id;
+  `;
+  values = [
+    user.id,
+    sales_order.address.id,
+    status,
+    orderPrices.order_total,
+    sales_order.service.label,
+    sales_order.service.cost,
+    orderPrices.pre_charges_amount,
+    orderPrices.post_charges_amount,
+    orderPrices.subject_to_charges_amount,
+  ];
+  const { rows } = await client.query(query, values);
+  return rows[0].id;
+}
+
+async function insertItems(client, orderId, items, spot_prices) {
+  const query = `
+    INSERT INTO exchange.sales_order_items
+      (sales_order_id, product_id, price, quantity)
+    VALUES
+      ($1, $2, $3, $4)
+  `;
+  for (const item of items) {
+    await client.query(query, [
+      orderId,
+      item.id,
+      calculateItemAsk(item, spot_prices),
+      item.quantity,
+    ]);
+  }
+}
+
+async function insertOrderMetals(orderId, spot_prices, client) {
+  await Promise.all(
+    spot_prices.map(async (spot) => {
+      const query = `
+        INSERT INTO exchange.order_metals (sales_order_id, type, ask_spot)
+        VALUES ($1, $2, $3)
+      `;
+      const values = [orderId, spot.type, spot.ask_spot];
+      await client.query(query, values);
+    })
+  );
+}
+
+module.exports = {
+  findById,
+  findAllByUser,
+  insertOrder,
+  insertItems,
+  insertOrderMetals,
+};

@@ -1,12 +1,7 @@
-import { ZelleIcon } from '@/components/icons/logo'
 import {
-  Bank,
-  CreditCard,
-  CurrencyDollar,
-  Globe,
-  Rocket,
-  AirplaneInFlight,
-  Truck as PhosphorTruck,
+  CreditCardIcon,
+  AirplaneInFlightIcon,
+  TruckIcon as PhosphorTruckIcon,
 } from '@phosphor-icons/react'
 
 import { z } from 'zod'
@@ -14,8 +9,7 @@ import { Address, addressSchema } from './address'
 import { packageSchema } from './packaging'
 import { serviceSchema } from './service'
 import { pickupSchema } from './pickup'
-import { Payout, payoutSchema } from './payout'
-import { Shipment } from './shipments'
+import { Payout } from './payout'
 import { Truck, PackageOpen, ShieldCheck, Hourglass, Handshake, LucideIcon } from 'lucide-react'
 
 import { Product, productSchema } from './product'
@@ -49,7 +43,6 @@ export interface SalesOrder {
   user_id: string
   order_items: SalesOrderItem[]
   address: Address
-  return_shipment: Shipment
   payout: Payout
   user: {
     user_name: string
@@ -161,54 +154,45 @@ export interface PurchaseOrderActionButtonsProps {
   order: SalesOrder
 }
 
-export type PaymentMethodType = 'ACH' | 'WIRE' | 'CARD' | 'ZELLE'
+export type PaymentMethodType = 'CARD' | 'FUNDS' | 'CARD_AND_FUNDS'
 
 export interface PaymentMethod {
   method: PaymentMethodType
   label: string
   description?: string
   icon: any
-  cost: string
+  subcharge: string
   time_delay: string
   disabled: boolean
 }
 
 export const paymentOptions: PaymentMethod[] = [
-  {
-    method: 'ACH',
-    label: 'ACH',
-    description: 'Direct deposit to our account.',
-    icon: Bank,
-    cost: 'Free',
-    time_delay: '1-24 hours',
-    disabled: true,
-  },
-  {
-    method: 'WIRE',
-    label: 'Wire',
-    description: 'Domestic wire transfer to our account.',
-    icon: Globe,
-    cost: '$20.00',
-    time_delay: '1-5 hours',
-    disabled: true,
-  },
+  // {
+  //   method: 'ACH',
+  //   label: 'ACH',
+  //   description: 'Direct deposit to our account.',
+  //   icon: BankIcon,
+  //   cost: 'Free',
+  //   time_delay: '1-24 hours',
+  //   disabled: true,
+  // },
   {
     method: 'CARD',
     label: 'Card',
     description: 'Secure card transaction through Stripe.',
-    icon: CreditCard,
-    cost: '3%',
+    icon: CreditCardIcon,
+    subcharge: '2.9%',
     time_delay: 'Instant',
     disabled: false,
   },
   {
-    method: 'ZELLE',
-    label: 'Zelle',
-    description: 'Secure peer-to-peer money transfer through Zelle.',
-    icon: CurrencyDollar,
-    cost: 'Free',
+    method: 'CARD_AND_FUNDS',
+    label: 'Card',
+    description: 'Secure card transaction through Stripe.',
+    icon: CreditCardIcon,
+    subcharge: '2.9%',
     time_delay: 'Instant',
-    disabled: true,
+    disabled: false,
   },
 ]
 
@@ -222,6 +206,7 @@ export type SalesOrderService = z.infer<typeof salesOrderServiceSchema>
 
 type SalesOrderServiceUIOption = SalesOrderService & {
   icon?: any
+  highValue: boolean
 }
 
 export const salesOrderServiceOptions: Record<string, SalesOrderServiceUIOption> = {
@@ -230,31 +215,38 @@ export const salesOrderServiceOptions: Record<string, SalesOrderServiceUIOption>
     value: 'STANDARD',
     cost: 25,
     time: '3 Days',
-    icon: PhosphorTruck,
+    icon: PhosphorTruckIcon,
+    highValue: false,
   },
   OVERNIGHT: {
     label: 'Overnight',
     value: 'OVERNIGHT',
     cost: 50,
     time: '1 Day',
-    icon: AirplaneInFlight,
-  },
-  FREE: {
-    // This entry will only be shown when total > $1,000
-    label: 'Overnight (Free)',
-    value: 'FREE',
-    cost: 0,
-    time: '1 Day',
-    icon: AirplaneInFlight,
+    icon: AirplaneInFlightIcon,
+    highValue: false,
   },
 }
 
 export const salesOrderCheckoutSchema = z.object({
   address: addressSchema,
   service: salesOrderServiceSchema,
-  paymentValid: z.boolean(),
-  payment: payoutSchema,
-  confirmation: z.boolean(),
+  using_funds: z.boolean(),
+  payment_method: z.enum(['CARD', 'FUNDS', 'CARD_AND_FUNDS']),
   items: z.array(productSchema).min(1, 'At least one item is required'),
 })
+
 export type SalesOrderCheckout = z.infer<typeof salesOrderCheckoutSchema>
+
+export interface SalesOrderTotals {
+  itemTotal: number
+  baseTotal: number
+  shippingCharge: number
+  beginningFunds: number
+  appliedFunds: number
+  endingFunds: number
+  subjectToChargesAmount: number
+  postChargesAmount: number
+  subchargeAmount: number
+  orderTotal: number
+}

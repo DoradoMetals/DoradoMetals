@@ -21,22 +21,33 @@ async function handleStripeWebhook(req, res) {
 
   switch (event.type) {
     case "payment_intent.succeeded": {
-      const paymentIntent = event.data.object;
-      console.log("✅  PaymentIntent succeeded:", paymentIntent.id);
+      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      break;
+    }
+
+    case "charge.updated": {
+      await stripeService.updateStatus({ paymentIntent: event.data.object });
       break;
     }
 
     case "payment_intent.payment_failed": {
-      const paymentIntent = event.data.object;
-      const failedMsg = paymentIntent.last_payment_error?.message || "Unknown";
-      console.log(
-        `❌  PaymentIntent failed (${paymentIntent.id}): ${failedMsg}`
-      );
+      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      break;
+    }
+
+    case "payment_intent.created": {
+      await stripeService.updateStatus({ paymentIntent: event.data.object });
       break;
     }
 
     case "customer.created": {
       console.log("Created Customer");
+      break;
+    }
+
+    case "charge.failed": {
+      console.log(event.type);
+      break;
     }
 
     default:
@@ -49,6 +60,7 @@ async function handleStripeWebhook(req, res) {
 async function retrievePaymentIntent(req, res, next) {
   try {
     const paymentIntent = await stripeService.retrievePaymentIntent(
+      req.query.type,
       req.headers
     );
     res.json(paymentIntent.client_secret);

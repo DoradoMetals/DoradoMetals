@@ -463,7 +463,7 @@ async function insertReturnShipment(
     "Generated",
     shipment.pickup?.label || "DROPOFF_AT_FEDEX_LOCATION",
     shipment.package.dimensions,
-    shipment.service?.serviceType || "FEDEX_EXPRESS_SAVER",
+    shipment.service?.serviceDescription || "Express Saver",
     shipment.service.netCharge,
     shipment.insurance.insured,
     shipment.insurance.declaredValue.amount,
@@ -515,6 +515,8 @@ async function insertItems(client, orderId, items) {
     VALUES
       ($1,$2,$3,$4,$5)
   `;
+
+  //TODO: is bid_premium right..?
   for (const { type, data } of items) {
     await client.query(query, [
       orderId,

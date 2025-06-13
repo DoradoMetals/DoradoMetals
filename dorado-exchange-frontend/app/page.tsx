@@ -3,12 +3,12 @@
 import FeaturedProducts from '@/components/custom/nav/featuredProducts'
 import { Button } from '@/components/ui/button'
 import {
-  Calculator,
-  Eye,
-  Handshake,
-  Lightning,
-  PaperPlaneTilt,
-  ShieldCheck,
+  CalculatorIcon,
+  EyeIcon,
+  HandshakeIcon,
+  LightningIcon,
+  PaperPlaneTiltIcon,
+  ShieldCheckIcon,
 } from '@phosphor-icons/react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -30,7 +30,7 @@ export default function Home() {
             <div className="w-full max-w-[80vw]">
               <div className="relative flex items-center justify-between w-full">
                 <div className="w-full flex flex-col h-full gap-5">
-                  <div className="text-6xl text-neutral-900 z-20">Metals Trading, Refined.</div>
+                  <h1 className="text-6xl text-neutral-900 z-20">Metals Trading, Refined.</h1>
                   <div className="text-xl text-neutral-700 max-w-xl z-20">
                     Trading metals shouldn't be complicated. Built to be smarter, simpler, and
                     fairer, we make it easy to get real prices, fast decisions, and full
@@ -82,7 +82,7 @@ export default function Home() {
                 <div className="flex w-full max-w-[80vw] items-center justify-between p-2">
                   <div className="flex flex-col items-start gap-2">
                     <div className="flex items-center gap-3">
-                      <Calculator size={24} color={getPrimaryIconStroke()} />
+                      <CalculatorIcon size={24} color={getPrimaryIconStroke()} />
                       <div className="text-xl text-neutral-800 font-medium">Instant estimates</div>
                     </div>
                     <div className="text-base text-neutral-600 max-w-md">
@@ -94,7 +94,7 @@ export default function Home() {
                   <div className="flex flex-col items-center">
                     <div className="flex flex-col items-start gap-2">
                       <div className="flex items-center gap-3 w-full">
-                        <PaperPlaneTilt size={24} color={getPrimaryIconStroke()} />
+                        <PaperPlaneTiltIcon size={24} color={getPrimaryIconStroke()} />
                         <div className="text-xl text-neutral-800 font-medium">
                           Effortless shipping
                         </div>
@@ -109,7 +109,7 @@ export default function Home() {
                   <div className="flex flex-col items-end">
                     <div className="flex flex-col items-start gap-2">
                       <div className="flex items-center gap-3">
-                        <Lightning size={24} color={getPrimaryIconStroke()} />
+                        <LightningIcon size={24} color={getPrimaryIconStroke()} />
                         <div className="text-xl text-neutral-800 font-medium">
                           Lightning-fast payouts
                         </div>
@@ -143,7 +143,7 @@ export default function Home() {
                 <div className="flex w-full max-w-[80vw] items-center justify-between p-2">
                   <div className="flex flex-col items-start gap-2">
                     <div className="flex items-center gap-3">
-                      <Eye size={24} className="text-secondary" />
+                      <EyeIcon size={24} className="text-secondary" />
                       <div className="text-xl text-neutral-800 font-medium">
                         Transparent pricing
                       </div>
@@ -157,7 +157,7 @@ export default function Home() {
                   <div className="flex flex-col items-center">
                     <div className="flex flex-col items-start gap-2">
                       <div className="flex items-center gap-3 w-full">
-                        <ShieldCheck size={24} className="text-secondary" />
+                        <ShieldCheckIcon size={24} className="text-secondary" />
                         <div className="text-xl text-neutral-800 font-medium">
                           White-glove insured delivery
                         </div>
@@ -171,7 +171,7 @@ export default function Home() {
                   <div className="flex flex-col items-end">
                     <div className="flex flex-col items-start gap-2">
                       <div className="flex items-center gap-3">
-                        <Handshake size={24} className="text-secondary" />
+                        <HandshakeIcon size={24} className="text-secondary" />
                         <div className="text-xl text-neutral-800 font-medium">
                           Seamless checkout experience
                         </div>
@@ -247,7 +247,7 @@ export default function Home() {
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
-                    <Calculator size={24} color={getPrimaryIconStroke()} />
+                    <CalculatorIcon size={24} color={getPrimaryIconStroke()} />
                     <div className="text-2xl text-neutral-800 font-medium">Instant estimates</div>
                   </div>
                   <div className="text-sm text-neutral-600 max-w-xs">
@@ -260,7 +260,7 @@ export default function Home() {
                 <div className="flex flex-col items-center">
                   <div className="flex flex-col items-start gap-1">
                     <div className="flex items-center gap-1">
-                      <PaperPlaneTilt size={24} color={getPrimaryIconStroke()} />
+                      <PaperPlaneTiltIcon size={24} color={getPrimaryIconStroke()} />
                       <div className="text-2xl text-neutral-800 font-medium">
                         Effortless shipping
                       </div>
@@ -275,7 +275,7 @@ export default function Home() {
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
-                    <Lightning size={24} color={getPrimaryIconStroke()} />
+                    <LightningIcon size={24} color={getPrimaryIconStroke()} />
                     <div className="text-2xl text-neutral-800 font-medium">
                       Lightning-fast payouts
                     </div>
@@ -302,7 +302,7 @@ export default function Home() {
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
-                    <Eye size={24} className="text-secondary" />
+                    <EyeIcon size={24} className="text-secondary" />
                     <div className="text-2xl text-neutral-800 font-medium">Transparent pricing</div>
                   </div>
                   <div className="text-sm text-neutral-600 max-w-xs">
@@ -314,7 +314,7 @@ export default function Home() {
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
-                    <ShieldCheck size={24} className="text-secondary" />
+                    <ShieldCheckIcon size={24} className="text-secondary" />
                     <div className="text-2xl text-neutral-800 font-medium">Insured delivery</div>
                   </div>
                   <div className="text-sm text-neutral-600 max-w-xs">
@@ -326,7 +326,7 @@ export default function Home() {
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
-                    <Handshake size={24} className="text-secondary" />
+                    <HandshakeIcon size={24} className="text-secondary" />
                     <div className="text-2xl text-neutral-800 font-medium">Seamless checkout</div>
                   </div>
                   <div className="text-sm text-neutral-600 max-w-xs">

@@ -1,13 +1,15 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-header);
+
   --breakpoint-xs: 19rem;
 
   --color-highest: var(--highest);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -102,13 +104,13 @@
   --input: hsl(0, 0%, 75%);
   --muted: hsl(0, 0%, 70%);
 
-  --primary: hsl(42, 65%, 41%);
+  --primary: hsl(43, 61%, 56%);
 
   --secondary: hsl(0, 0%, 0%);
   --accent: hsl(220, 50%, 36%);
   --ring: hsl(220, 50%, 36%);
 
-  --destructive: hsl(358, 93%, 64%);
+  --destructive: hsl(344, 100%, 50%);
   --success: hsl(129, 76%, 35%);
 
   --foreground: hsl(0, 0%, 5%);
@@ -179,7 +181,7 @@
   --input: hsl(215, 12%, 57%);
   --muted: hsl(215, 10%, 68%); */
 
-  --primary: hsl(42, 65%, 41%);
+  --primary: hsl(43, 61%, 56%);
 
   --secondary: hsl(0, 0%, 0%);
   --accent: hsl(220, 50%, 36%);
@@ -201,7 +203,7 @@
   hsl(220, 50%, 36%);    - Cobalt
   */
 
-  --destructive: hsl(360, 100%, 50%);
+  --destructive: hsl(344, 100%, 50%);
   --success: hsl(130, 100%, 50%);
 
   --foreground: hsl(0, 0%, 95%);
