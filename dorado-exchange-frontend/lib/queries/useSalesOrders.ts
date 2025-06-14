@@ -47,3 +47,20 @@ export const useCreateSalesOrder = () => {
     },
   })
 }
+
+export const useSalesOrderMetals = (sales_order_id: string) => {
+  const { user } = useGetSession()
+
+  return useQuery<SpotPrice[]>({
+    queryKey: ['sales_orders_metals', user?.id, sales_order_id],
+    queryFn: async () => {
+      if (!user?.id) return []
+      return await apiRequest<SpotPrice[]>('POST', '/sales_orders/get_order_metals', {
+        user_id: user.id,
+        sales_order_id: sales_order_id,
+      })
+    },
+    enabled: !!user && !!sales_order_id,
+    refetchInterval: 60000,
+  })
+}

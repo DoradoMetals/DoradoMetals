@@ -58,6 +58,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
               fill
               className="object-cover"
               alt="thumbnail front"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           </div>
           <div className="flex flex-col h-full justify-between py-2 mr-auto gap-4">

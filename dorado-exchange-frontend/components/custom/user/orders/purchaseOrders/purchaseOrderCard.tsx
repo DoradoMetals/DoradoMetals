@@ -13,10 +13,10 @@ import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
 import { formatFullDate } from '@/utils/dateFormatting'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
 import { ChevronRight } from 'lucide-react'
-import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { useMemo } from 'react'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
+import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 
 export default function PurchaseOrderCard({
   order,

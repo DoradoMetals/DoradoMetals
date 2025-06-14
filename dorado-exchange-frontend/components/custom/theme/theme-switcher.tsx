@@ -12,7 +12,7 @@ export function ThemeSwitcher() {
     <Button
       variant="outline"
       onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-      className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-highest raised-off-page"
+      className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
     >
       {theme === 'light' ? (
         <Moon size={20} color={getPrimaryIconStroke()}/>

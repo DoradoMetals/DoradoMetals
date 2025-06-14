@@ -5,6 +5,8 @@ import { useMutation } from '@tanstack/react-query'
 import { SpotPrice } from '@/types/metal'
 import { PackageOption } from '@/types/packaging'
 import { PayoutMethod } from '@/types/payout'
+import { SalesOrder } from '@/types/sales-orders'
+import { useFormatSalesOrderNumber } from '@/utils/formatSalesOrderNumber'
 
 const downloadPackingListRequest = async ({
   purchaseOrder,
@@ -98,5 +100,35 @@ const downloadInvoiceRequest = async ({
 export const useDownloadInvoice = () => {
   return useMutation({
     mutationFn: downloadInvoiceRequest,
+  })
+}
+
+const downloadSalesOrderInvoiceRequest = async ({
+  salesOrder,
+  orderSpots,
+  fileName,
+}: {
+  salesOrder: SalesOrder
+  orderSpots: SpotPrice[]
+  fileName: string
+}) => {
+  const blob = await pdfRequest<Blob>('POST', '/pdf/generate_sales_order_invoice', {
+    salesOrder: salesOrder,
+    spots: orderSpots,
+  })
+
+  const url = URL.createObjectURL(blob)
+  const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${formatSalesOrderNumber(salesOrder.order_number)}_${fileName}.pdf`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+export const useDownloadSalesOrderInvoice = () => {
+  return useMutation({
+    mutationFn: downloadSalesOrderInvoiceRequest,
   })
 }

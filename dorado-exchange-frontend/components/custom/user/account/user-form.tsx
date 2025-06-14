@@ -82,7 +82,7 @@ export default function UserForm() {
         <div>
           <h2 className="secondary-text mb-4">Account Information</h2>
           <div className="flex items-center justify-between w-full my-4">
-            <div className="text-base text-neutral-700">Current Account Funds:</div>
+            <div className="text-base text-neutral-700">Bullion Credit:</div>
             <div className="text-lg text-neutral-800">
               <PriceNumberFlow value={user?.dorado_funds ?? 0} />
             </div>

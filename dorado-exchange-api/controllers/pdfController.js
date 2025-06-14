@@ -68,4 +68,5 @@ module.exports = {
   generatePackingList,
   generateReturnPackingList,
   generateInvoice,
+  generateSalesOrderInvoice,
 };

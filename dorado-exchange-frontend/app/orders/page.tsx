@@ -13,7 +13,7 @@ export default function Page() {
   return (
     <div className="flex flex-col h-full items-center gap-4">
       {user ? (
-        <div className='w-full sm:max-w-4xl mt-3 lg:mt-10'>
+        <div className='w-full sm:max-w-4xl mt-3'>
           <OrdersTabs />
          </div> 
         

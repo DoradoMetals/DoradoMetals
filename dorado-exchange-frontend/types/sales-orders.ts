@@ -2,6 +2,10 @@ import {
   CreditCardIcon,
   AirplaneInFlightIcon,
   TruckIcon as PhosphorTruckIcon,
+  PackageIcon,
+  HourglassIcon,
+  TruckIcon,
+  ShieldCheckIcon,
 } from '@phosphor-icons/react'
 
 import { z } from 'zod'
@@ -10,7 +14,7 @@ import { packageSchema } from './packaging'
 import { serviceSchema } from './service'
 import { pickupSchema } from './pickup'
 import { Payout } from './payout'
-import { Truck, PackageOpen, ShieldCheck, Hourglass, Handshake, LucideIcon } from 'lucide-react'
+import { LucideIcon } from 'lucide-react'
 
 import { Product, productSchema } from './product'
 import { User } from './user'
@@ -35,12 +39,26 @@ export interface SalesOrderMetal {
 
 export interface SalesOrder {
   id: string
-  order_number: number
+  user_id: string
   sales_order_status: string
   notes: string
   created_at: Date
   updated_at: Date
-  user_id: string
+  created_by: string
+  updated_by: string
+  order_number: number
+  order_total: number
+  review_created: boolean
+  shipping_service: string
+  shipping_cost: number
+  pre_charges_amount: number
+  post_charges_amount: number
+  subject_to_charges_amount: number
+  used_funds: boolean
+  item_total: number
+  base_total: number
+  charges_amount: number
+
   order_items: SalesOrderItem[]
   address: Address
   payout: Payout
@@ -49,7 +67,6 @@ export interface SalesOrder {
     user_email: string
   }
   total_price?: number
-  review_created: boolean
 }
 
 export const salesOrderReturnShipmentSchema = z.object({
@@ -78,55 +95,54 @@ export type StatusConfig = Record<string, StatusConfigEntry>
 
 export const statusConfig: StatusConfig = {
   Pending: {
-    background_color: 'bg-orange-500',
-    hover_background_color: 'hover:bg-orange-500',
-    text_color: 'text-orange-500',
-    border_color: 'border-orange-500',
-    stroke_color: 'stroke-orange-500',
-    icon: Handshake,
+    background_color: 'bg-orange-700',
+    hover_background_color: 'hover:bg-orange-700',
+    text_color: 'text-orange-700',
+    border_color: 'border-orange-700',
+    stroke_color: 'stroke-orange-700',
+    icon: HourglassIcon,
     value_label: 'Payout',
-    gradient: 'bg-gradient-to-l from-orange-400 via-orange-500 to-orange-600',
+    gradient: 'bg-gradient-to-l from-orange-600 via-orange-700 to-orange-800',
   },
-
   Paid: {
-    background_color: 'bg-fuchsia-400',
-    hover_background_color: 'hover:bg-fuchsia-400',
-    text_color: 'text-fuchsia-400',
-    border_color: 'border-fuchsia-400',
-    stroke_color: 'stroke-fuchsia-400',
-    icon: PackageOpen,
+    background_color: 'bg-fuchsia-600',
+    hover_background_color: 'hover:bg-fuchsia-600',
+    text_color: 'text-fuchsia-600',
+    border_color: 'border-fuchsia-600',
+    stroke_color: 'stroke-fuchsia-600',
+    icon: CreditCardIcon,
     value_label: 'Estimate',
-    gradient: 'bg-gradient-to-l from-fuchsia-300 via-fuchsia-400 to-fuchsia-500',
+    gradient: 'bg-gradient-to-l from-fuchsia-500 via-fuchsia-600 to-fuchsia-700',
   },
   Preparing: {
-    background_color: 'bg-yellow-400',
-    hover_background_color: 'hover:bg-yellow-400',
-    text_color: 'text-yellow-400',
-    border_color: 'border-yellow-400',
-    stroke_color: 'stroke-yellow-400',
-    icon: Hourglass,
+    background_color: 'bg-yellow-500',
+    hover_background_color: 'hover:bg-yellow-500',
+    text_color: 'text-yellow-500',
+    border_color: 'border-yellow-500',
+    stroke_color: 'stroke-yellow-500',
+    icon: PackageIcon,
     value_label: 'Offer',
-    gradient: 'bg-gradient-to-l from-yellow-300 via-yellow-400 to-yellow-500',
+    gradient: 'bg-gradient-to-l from-yellow-400 via-yellow-500 to-yellow-600',
   },
   'In Transit': {
-    background_color: 'bg-cyan-300',
-    hover_background_color: 'hover:bg-cyan-300',
-    text_color: 'text-cyan-300',
-    border_color: 'border-cyan-300',
-    stroke_color: 'stroke-cyan-300',
-    icon: Truck,
+    background_color: 'bg-cyan-600',
+    hover_background_color: 'hover:bg-cyan-600',
+    text_color: 'text-cyan-600',
+    border_color: 'border-cyan-600',
+    stroke_color: 'stroke-cyan-600',
+    icon: TruckIcon,
     value_label: 'Estimate',
-    gradient: 'bg-gradient-to-l from-cyan-200 via-cyan-300 to-cyan-400',
+    gradient: 'bg-gradient-to-l from-cyan-400 via-cyan-500 to-cyan-600',
   },
   Completed: {
-    background_color: 'bg-green-500',
-    hover_background_color: 'hover:bg-green-500',
-    text_color: 'text-green-500',
-    border_color: 'border-green-500',
-    stroke_color: 'stroke-green-500',
-    icon: ShieldCheck,
+    background_color: 'bg-green-700',
+    hover_background_color: 'hover:bg-green-700',
+    text_color: 'text-green-700',
+    border_color: 'border-green-700',
+    stroke_color: 'stroke-green-700',
+    icon: ShieldCheckIcon,
     value_label: 'Payout',
-    gradient: 'bg-gradient-to-l from-green-400 via-green-500 to-green-600',
+    gradient: 'bg-gradient-to-l from-green-600 via-green-700 to-green-800',
   },
 }
 
@@ -142,15 +158,15 @@ export interface SalesOrderDrawerHeaderProps {
   setIsOrderActive: (open: boolean) => void
 }
 
-export interface PurchaseOrderDrawerContentProps {
+export interface SalesOrderDrawerContentProps {
   order: SalesOrder
 }
 
-export interface PurchaseOrderDrawerFooterProps {
+export interface SalesOrderDrawerFooterProps {
   order: SalesOrder
 }
 
-export interface PurchaseOrderActionButtonsProps {
+export interface SalesOrderActionButtonsProps {
   order: SalesOrder
 }
 

@@ -29,6 +29,16 @@ async function getAllSalesOrders(req, res, next) {
   }
 }
 
+async function getOrderMetals(req, res, next) {
+  try {
+    const { sales_order_id } = req.body;
+    const metals = await salesOrderService.getMetalsForOrder(sales_order_id);
+    return res.json(metals);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function cancelOrder(req, res, next) {
   try {
     const result = await salesOrderService.cancelOrder(req.body);
@@ -49,10 +59,10 @@ async function createReview(req, res, next) {
 
 async function createSalesOrder(req, res, next) {
   try {
-
-
-    
-    const order = await salesOrderService.createSalesOrder(req.body, req.headers);
+    const order = await salesOrderService.createSalesOrder(
+      req.body,
+      req.headers
+    );
     return res.status(200).json(order);
   } catch (err) {
     return next(err);
@@ -63,6 +73,7 @@ module.exports = {
   getSalesOrderById,
   getSalesOrders,
   getAllSalesOrders,
+  getOrderMetals,
   cancelOrder,
   createReview,
   createSalesOrder,

@@ -2229,12 +2229,8 @@ const generateInvoice = async ({
   return pdfBuffer;
 };
 
-const generateSalesOrderInvoice = async ({
-  purchaseOrder,
-  spotPrices = [],
-  orderSpots = [],
-}) => {
-  const doneStatus = ["Accepted", "Payment Processing", "Completed"];
+const generateSalesOrderInvoice = async ({ salesOrder, spots = [] }) => {
+  const doneStatus = ["Paid", "Preparing", "In Transit", "Completed"];
 
   const browser = await puppeteer.launch({
     headless: true,
@@ -2242,17 +2238,10 @@ const generateSalesOrderInvoice = async ({
   });
   const page = await browser.newPage();
 
-  const spots = purchaseOrder.spots_locked ? orderSpots : spotPrices;
-  const total = calculateTotalPrice(purchaseOrder, spots);
-
-  const bullionItems = purchaseOrder.order_items
-    .filter((item) => item.item_type === "product" && item.product)
+  const bullionItems = salesOrder.order_items
+    .filter((item) => item.product)
     .map((item) => {
       const product = item.product || {};
-      const unitPrice =
-        item.price != null ? item.price : calculateItemPrice(item, spots);
-      const totalPrice = unitPrice * item.quantity;
-
       return `
         <tr>
           <td class="text-left">${
@@ -2260,28 +2249,16 @@ const generateSalesOrderInvoice = async ({
           }</td>
           <td>${item.quantity}</td>
           <td>${product.content.toFixed(3)} t oz</td>
-          <td>${(item.bullion_premium * 100).toFixed(1)}% of spot</td>
           <td class="text-right">
-            ${
-              totalPrice
-                ? totalPrice.toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                  })
-                : "-"
-            }
+            ${(item.price * item.quantity).toLocaleString("en-US", {
+              style: "currency",
+              currency: "USD",
+            })}
           </td>
         </tr>
       `;
     })
     .join("");
-
-  const bullionTotal = getBullionTotal(
-    purchaseOrder.order_items.filter(
-      (item) => item.item_type === "product" && item.product
-    ),
-    spots
-  );
 
   const htmlContent = `
       <html>
@@ -2525,7 +2502,7 @@ const generateSalesOrderInvoice = async ({
             </div>
 
             <div class="packing-title">${
-              doneStatus.includes(purchaseOrder.purchase_order_status)
+              doneStatus.includes(salesOrder.sales_order_status)
                 ? "Invoice"
                 : "Invoice Preview"
             } </div>
@@ -2538,7 +2515,7 @@ const generateSalesOrderInvoice = async ({
                 <div class="detail-content">
                   <div class="detail-row">
                     <span class="detail-label">Number:</span>
-                    <span class="detail-value">PO-${purchaseOrder.order_number
+                    <span class="detail-value">PO-${salesOrder.order_number
                       .toString()
                       .padStart(6, "0")}
                       </span>
@@ -2546,13 +2523,13 @@ const generateSalesOrderInvoice = async ({
                   <div class="detail-row">
                     <span class="detail-label">Name:</span>
                     <span class="detail-value">${
-                      purchaseOrder.user?.user_name ?? ""
+                      salesOrder.user?.user_name ?? ""
                     }</span>
                   </div>
                   <div class="detail-row">
                     <span class="detail-label">Placed:</span>
                     <span class="detail-value">${new Date(
-                      purchaseOrder.created_at
+                      salesOrder.created_at
                     ).toLocaleDateString("en-US", {
                       month: "long",
                       day: "numeric",
@@ -2562,71 +2539,46 @@ const generateSalesOrderInvoice = async ({
                   <div class="detail-row">
                     <span class="detail-label">Status:</span>
                     <span class="detail-value">${
-                      purchaseOrder.purchase_order_status
+                      salesOrder.sales_order_status
                     }</span>
                   </div>
                   <div class="detail-row">
                     <span class="detail-label">Items:</span>
                     <span class="detail-value">${
-                      purchaseOrder.order_items.length
+                      salesOrder.order_items.length
                     }</span>
                   </div>
                 </div>
               </div>
 
               <div class="details">
-                <h3>Offer</h3>
+                <h3>Shipping To</h3>
                 <div class="detail-content">
                   <div class="detail-row">
-                    <span class="detail-label">${
-                      doneStatus.includes(purchaseOrder.purchase_order_status)
-                        ? "Total Payout"
-                        : "Total Estimate"
-                    }</span>
-                    <span class="detail-value">${total.toLocaleString("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    })}</span>
-                  </div>
-                  <div class="detail-row">
-                    <span class="detail-label">Status:</span>
+                    <span class="detail-label">Street 1:</span>
                     <span class="detail-value">${
-                      purchaseOrder.offer_status
+                      salesOrder.address.line_1
                     }</span>
                   </div>
                   <div class="detail-row">
-                    <span class="detail-label">Sent:</span>
+                    <span class="detail-label">Street 2:</span>
                     <span class="detail-value">${
-                      purchaseOrder.offer_sent_at
-                        ? new Date(
-                            purchaseOrder.offer_sent_at
-                          ).toLocaleDateString("en-US", {
-                            month: "long",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                        : "N/A"
+                      salesOrder.address.line_2
                     }</span>
                   </div>
                   <div class="detail-row">
-                    <span class="detail-label">Expires:</span>
+                    <span class="detail-label">City:</span>
+                    <span class="detail-value">${salesOrder.address.city}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">State:</span>
                     <span class="detail-value">${
-                      purchaseOrder.offer_expires_at
-                        ? new Date(
-                            purchaseOrder.offer_expires_at
-                          ).toLocaleDateString("en-US", {
-                            month: "long",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                        : "N/A"
+                      salesOrder.address.state
                     }</span>
                   </div>
                   <div class="detail-row">
-                    <span class="detail-label">Rejections:</span>
-                    <span class="detail-value">${
-                      purchaseOrder.num_rejections
-                    }</span>
+                    <span class="detail-label">Zip Code:</span>
+                    <span class="detail-value">${salesOrder.address.zip}</span>
                   </div>
                 </div>
               </div>
@@ -2635,16 +2587,10 @@ const generateSalesOrderInvoice = async ({
                 <h3>Spots</h3>
                 <div class="detail-content">
                   <div class="detail-row">
-                    <span class="detail-label">Status:</span>
-                    <span class="detail-value">${
-                      purchaseOrder.spots_locked ? "Locked" : "Unlocked"
-                    }</span>
-                  </div>
-                  <div class="detail-row">
                     <span class="detail-label">Gold:</span>
                     <span class="detail-value">${spots
                       .find((s) => s.type === "Gold")
-                      .bid_spot.toLocaleString("en-US", {
+                      .ask_spot.toLocaleString("en-US", {
                         style: "currency",
                         currency: "USD",
                       })}</span>
@@ -2653,7 +2599,7 @@ const generateSalesOrderInvoice = async ({
                     <span class="detail-label">Silver:</span>
                     <span class="detail-value">${spots
                       .find((s) => s.type === "Silver")
-                      .bid_spot.toLocaleString("en-US", {
+                      .ask_spot.toLocaleString("en-US", {
                         style: "currency",
                         currency: "USD",
                       })}</span>
@@ -2662,7 +2608,7 @@ const generateSalesOrderInvoice = async ({
                     <span class="detail-label">Platinum:</span>
                     <span class="detail-value">${spots
                       .find((s) => s.type === "Platinum")
-                      .bid_spot.toLocaleString("en-US", {
+                      .ask_spot.toLocaleString("en-US", {
                         style: "currency",
                         currency: "USD",
                       })}</span>
@@ -2671,67 +2617,14 @@ const generateSalesOrderInvoice = async ({
                     <span class="detail-label">Palladium:</span>
                     <span class="detail-value">${spots
                       .find((s) => s.type === "Palladium")
-                      .bid_spot.toLocaleString("en-US", {
+                      .ask_spot.toLocaleString("en-US", {
                         style: "currency",
                         currency: "USD",
                       })}</span>
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div class="order-info">
-              <table>
-                <thead>
-                  <tr>
-                    <th class="text-left">Shipping Type</th>
-                    <th>Service</th>
-                    <th>Insured</th>
-                    <th>Packaging</th>
-                    <th class="text-right">Charges</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="text-left">Inbound</td>
-                    <td>${purchaseOrder.shipment.shipping_service}</td>
-                    <td>${purchaseOrder.shipment.insured ? "Yes" : "No"}</td>
-                    <td>${purchaseOrder.shipment.package}</td>
-                    <td class="text-right">${purchaseOrder.shipment.shipping_charge.toLocaleString(
-                      "en-US",
-                      {
-                        style: "currency",
-                        currency: "USD",
-                      }
-                    )}</td>
-                  </tr>
-                  ${
-                    purchaseOrder.purchase_order_status === "Cancelled"
-                      ? `<tr>
-                          <td class="text-left">Return</td>
-                          <td>${
-                            purchaseOrder.return_shipment?.shipping_service
-                          }</td>
-                          <td>${
-                            purchaseOrder.return_shipment?.insured
-                              ? "Yes"
-                              : "No"
-                          }</td>
-                          <td>${purchaseOrder.return_shipment?.package}</td>
-                          <td class="text-right">${(
-                            purchaseOrder.return_shipment?.shipping_charge ?? 0
-                          ).toLocaleString("en-US", {
-                            style: "currency",
-                            currency: "USD",
-                          })}</td>
-                        </tr>`
-                      : ""
-                  }
-                </tbody>
-              </table>
-            </div>
-
-            
+            </div>            
 
             ${
               bullionItems
@@ -2740,15 +2633,10 @@ const generateSalesOrderInvoice = async ({
               <table>
                 <thead>
                   <tr>
-                    <th class="text-left">Bullion Products</th>
+                    <th class="text-left">Order Items</th>
                     <th>Quantity</th>
                     <th>Content</th>
-                    <th>Premium</th>
-                    <th class="text-right">${
-                      doneStatus.includes(purchaseOrder.purchase_order_status)
-                        ? "Payout"
-                        : "Estimate"
-                    }</th>
+                    <th class="text-right">Cost</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2766,9 +2654,8 @@ const generateSalesOrderInvoice = async ({
               <table>
                 <thead>
                   <tr>
-                    <th class="text-left">Name</th>
-                    <th>Type</th>
-                    <th class="text-right">Price
+                    <th class="text-left">Charges</th>
+                    <th class="text-right">Cost
                     </th>
                   </tr>
                 </thead>
@@ -2778,9 +2665,8 @@ const generateSalesOrderInvoice = async ({
                     bullionItems
                       ? `
                   <tr>
-                    <td class="text-left">Bullion Total</td>
-                    <td>Addition</td>
-                    <td class="text-right">${bullionTotal.toLocaleString(
+                    <td class="text-left">Item Total</td>
+                    <td class="text-right">${salesOrder.item_total.toLocaleString(
                       "en-US",
                       {
                         style: "currency",
@@ -2792,23 +2678,53 @@ const generateSalesOrderInvoice = async ({
                       : ""
                   }
                   <tr>
-                    <td class="text-left">Shipping Fees</td>
-                    <td>Deduction</td>
-                    <td class="text-right">${(
-                      purchaseOrder.shipment.shipping_charge +
-                      (purchaseOrder.return_shipment?.shipping_charge ?? 0)
-                    ).toLocaleString("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    })}</td>
+                    <td class="text-left">Shipping Fee</td>
+                    <td class="text-right">${salesOrder.shipping_cost.toLocaleString(
+                      "en-US",
+                      {
+                        style: "currency",
+                        currency: "USD",
+                      }
+                    )}</td>
                   </tr>
 
-                       
+                  ${
+                    salesOrder.used_funds
+                      ? `
+                      <tr>
+                    <td class="text-left">Credit Applied</td>
+                    <td class="text-right">-${salesOrder.pre_charges_amount.toLocaleString(
+                      "en-US",
+                      {
+                        style: "currency",
+                        currency: "USD",
+                      }
+                    )}</td>
+                  </tr>
+                    `
+                      : ""
+                  }
 
+                  ${
+                    salesOrder.charges_amount > 0
+                      ? `
+                      <tr>
+                    <td class="text-left">Payment Fee</td>
+                    <td class="text-right">${salesOrder.charges_amount.toLocaleString(
+                      "en-US",
+                      {
+                        style: "currency",
+                        currency: "USD",
+                      }
+                    )}</td>
+                  </tr>
+                    `
+                      : ""
+                  }
+                       
                   <tr>
                     <td class="text-left text-bold">Total: </td>
-                    <td></td>
-                    <td class="text-right text-bold">${total.toLocaleString(
+                    <td class="text-right text-bold">${salesOrder.order_total.toLocaleString(
                       "en-US",
                       {
                         style: "currency",
@@ -2852,4 +2768,5 @@ module.exports = {
   generatePackingList,
   generateReturnPackingList,
   generateInvoice,
+  generateSalesOrderInvoice,
 };

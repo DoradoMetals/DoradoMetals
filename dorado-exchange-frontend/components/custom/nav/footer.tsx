@@ -8,7 +8,7 @@ import Link from 'next/link'
 export default function Footer() {
   return (
     <>
-      <footer className="hidden lg:flex flex-col w-full bg-neutral-800 dark:bg-highest text-white px-8 py-5">
+      <footer className="hidden lg:flex flex-col w-full bg-neutral-800 dark:bg-highest text-white px-8 py-5 raised-off-page">
         <div className="w-full mx-auto flex flex-wrap justify-between gap-10">
           <div className="flex flex-col gap-2">
             <h4 className="text-xl font-medium mb-3">Resources</h4>
@@ -73,7 +73,7 @@ export default function Footer() {
         <div className="mt-10 text-xs text-neutral-500 text-left">© Dorado Metals Exchange LLC</div>
       </footer>
 
-      <footer className="flex flex-col lg:hidden w-full bg-neutral-800 dark:bg-highest px-3 py-3 pt-6">
+      <footer className="flex flex-col lg:hidden w-full bg-neutral-800 dark:bg-highest px-3 py-3 pt-6 raised-off-page">
         <div className="flex flex-col gap-2 w-full">
           <div className="flex w-full items-center justify-between">
             <Link href="/" className="text-xs text-neutral-200 dark:text-neutral-700">

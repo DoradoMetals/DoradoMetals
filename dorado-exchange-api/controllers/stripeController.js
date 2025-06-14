@@ -25,11 +25,6 @@ async function handleStripeWebhook(req, res) {
       break;
     }
 
-    case "charge.updated": {
-      await stripeService.updateStatus({ paymentIntent: event.data.object });
-      break;
-    }
-
     case "payment_intent.payment_failed": {
       await stripeService.updateStatus({ paymentIntent: event.data.object });
       break;
@@ -40,13 +35,21 @@ async function handleStripeWebhook(req, res) {
       break;
     }
 
-    case "customer.created": {
-      console.log("Created Customer");
+    case "charge.failed": {
+      await stripeService.updateStatus({ paymentIntent: event.data.object });
       break;
     }
 
-    case "charge.failed": {
-      console.log(event.type);
+    case "charge.updated": {
+      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      break;
+    }
+
+    case "charge.succeeded": {
+      await stripeService.updateStatus({ paymentIntent: event.data.object });
+    }
+
+    case "customer.created": {
       break;
     }
 

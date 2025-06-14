@@ -69,10 +69,22 @@ async function attachOrder(
   await client.query(query, values);
 }
 
+async function attachCustomerToUser(customerId, userId) {
+  const query = `
+  UPDATE exchange.users
+    SET "stripeCustomerId" = $1
+  WHERE id = $2
+  `
+  const values = [customerId, userId]
+
+  await pool.query(query, values)
+}
+
 module.exports = {
   retrievePaymentIntent,
   createPaymentIntent,
   updatePaymentIntent,
   updateStatus,
   attachOrder,
+  attachCustomerToUser,
 };

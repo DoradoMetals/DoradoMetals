@@ -17,11 +17,17 @@ import {
 } from '../ui/breadcrumb'
 import React from 'react'
 import Link from 'next/link'
+import { useDrawerStore } from '@/store/drawerStore'
+import { cn } from '@/lib/utils'
+import { AnimatePresence, motion } from 'framer-motion'
 
 export default function LayoutProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const mobileProductCarouselRoutes = ['/buy']
   const showMobileCarousel = mobileProductCarouselRoutes.includes(pathname)
+
+  const { activeDrawer, openDrawer, closeDrawer } = useDrawerStore()
+  const isAnyDrawerOpen = !!activeDrawer
 
   const { user, isPending, session } = useGetSession()
 
@@ -38,6 +44,24 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
   return (
     <>
       <div className="flex flex-col min-h-screen">
+        <AnimatePresence>
+          {isAnyDrawerOpen && (
+            <motion.div
+              initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+              animate={{ opacity: 1, backdropFilter: 'blur(4px)' }}
+              exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+              transition={{
+                opacity: { duration: 0.3, ease: 'easeInOut' },
+                backdropFilter: {
+                  type: 'spring',
+                  stiffness: 80,
+                  damping: 20,
+                },
+              }}
+              className="hidden sm:fixed sm:inset-0 sm:z-65 sm:bg-black/50 sm:pointer-events-none sm:will-change-[opacity,backdrop-filter]"
+            />
+          )}
+        </AnimatePresence>
         <Shell />
         {session?.impersonatedBy && (
           <div className="z-50 sticky top-24 bg-destructive w-full raised-off-page">
@@ -83,7 +107,7 @@ function BreadcrumbNav() {
     segment.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 
   return (
-    <div className="hidden lg:flex pt-4 px-20 pb-0">
+    <div className="sticky top-26 hidden lg:flex pt-4 px-20 pb-0">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>

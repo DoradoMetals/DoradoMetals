@@ -69,7 +69,7 @@ export default function Shell() {
     <div
       className={cn(
         'z-60 sticky top-0 bg-card h-24',
-        isAnyDrawerOpen ? 'shadow-none sm:opacity-50' : 'raised-off-page'
+        isAnyDrawerOpen ? 'shadow-none' : 'raised-off-page'
       )}
     >
       <Spots />

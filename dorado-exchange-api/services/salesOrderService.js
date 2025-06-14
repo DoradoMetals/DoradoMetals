@@ -12,6 +12,18 @@ async function getById(orderId) {
   return salesOrderRepo.findById(orderId);
 }
 
+async function listOrdersForUser(userId) {
+  return salesOrderRepo.findAllByUser(userId);
+}
+
+async function getAll() {
+  return salesOrderRepo.getAll();
+}
+
+async function getMetalsForOrder(orderId) {
+  return salesOrderRepo.findMetalsByOrderId(orderId);
+}
+
 async function getItemsFromServer(order_items) {
   const productIds = order_items.map((item) => item.id);
   const serverItems = await productRepo.getItemsFromIds(productIds);
@@ -32,7 +44,7 @@ async function createSalesOrder(
     headers: fromNodeHeaders(headers),
   });
   const items = await getItemsFromServer(sales_order.items);
-  
+
   const client = await pool.connect();
 
   try {
@@ -97,6 +109,9 @@ async function createSalesOrder(
 
 module.exports = {
   getById,
+  listOrdersForUser,
+  getAll,
+  getMetalsForOrder,
   getItemsFromServer,
   createSalesOrder,
 };

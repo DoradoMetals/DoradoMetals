@@ -30,7 +30,7 @@ export default function Home() {
             <div className="w-full max-w-[80vw]">
               <div className="relative flex items-center justify-between w-full">
                 <div className="w-full flex flex-col h-full gap-5">
-                  <h1 className="text-6xl text-neutral-900 z-20">Metals Trading, Refined.</h1>
+                  <h1 className="text-6xl text-neutral-900 z-20">Precious Metals Trading</h1>
                   <div className="text-xl text-neutral-700 max-w-xl z-20">
                     Trading metals shouldn't be complicated. Built to be smarter, simpler, and
                     fairer, we make it easy to get real prices, fast decisions, and full
@@ -212,7 +212,7 @@ export default function Home() {
                 <div className="flex flex-col h-full w-full">
                   <div className="flex flex-col h-full gap-5 pl-5 pt-10 lg:max-w-[45vw] lg:pl-40 lg:pt-40">
                     <div className="text-3xl text-neutral-900 font-medium">
-                      Metals Trading, Refined.
+                      Precious Metals Trading
                     </div>
                     <div className="text-sm text-neutral-800">
                       Trading metals shouldn't be complicated. Built to be smarter, simpler, and

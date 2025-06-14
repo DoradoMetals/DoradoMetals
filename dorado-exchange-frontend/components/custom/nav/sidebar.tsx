@@ -30,19 +30,19 @@ export default function Sidebar() {
       key: 1,
       label: 'Buy from Us',
       src: '/buy',
-      className: pathname === '/buy' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
+      className: pathname === '/buy' ? 'text-primary-gradient' : 'text-white hover-text-primary-gradient',
     },
     {
       key: 2,
       label: 'Sell to Us',
       src: '/sell',
-      className: pathname === '/sell' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
+      className: pathname === '/sell' ? 'text-primary-gradient' : 'text-white hover-text-primary-gradient',
     },
     {
       key: 3,
       label: 'Admin',
       src: '/admin',
-      className: pathname === '/admin' ? 'text-primary-gradient' : 'text-neutral-500 hover-text-primary-gradient',
+      className: pathname === '/admin' ? 'text-primary-gradient' : 'text-white hover-text-primary-gradient',
       hidden: user?.role !== 'admin',
     },
   ]
@@ -62,7 +62,7 @@ export default function Sidebar() {
               router.push('/account')
               closeDrawer()
             }}
-            className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-highest raised-off-page"
+            className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
           >
             <User size={20} color={getPrimaryIconStroke()} />
             <div className="text-sm text-primary-gradient">Account</div>
@@ -76,7 +76,7 @@ export default function Sidebar() {
               router.push('/orders')
               closeDrawer()
             }}
-            className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-highest raised-off-page"
+            className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
           >
             <List size={20} color={getPrimaryIconStroke()} />
             <div className="text-sm text-primary-gradient">Orders</div>
@@ -96,7 +96,7 @@ export default function Sidebar() {
                 }
               }}
               disabled={signOutMutation.isPending}
-              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-highest raised-off-page"
+              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
             >
               <SignOut size={20} color={getPrimaryIconStroke()} />
               <div className="text-sm text-primary-gradient">Sign Out</div>
@@ -110,7 +110,7 @@ export default function Sidebar() {
                 router.push('/authentication?tab=sign-in')
                 closeDrawer()
               }}
-              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-highest raised-off-page"
+              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
             >
               <SignIn size={20} color={getPrimaryIconStroke()} />
               <div className="text-sm text-primary-gradient">Sign In</div>
@@ -147,7 +147,7 @@ export default function Sidebar() {
 
   return (
     <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
-      <div className="w-screen h-full bg-card border-t-1 border-neutral-200">
+      <div className="w-screen h-full bg-neutral-800/50 dark:bg-neutral-200/50 backdrop-blur-xl border-t-1 border-border">
         {drawerContent}
       </div>
     </Drawer>

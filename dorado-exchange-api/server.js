@@ -15,7 +15,7 @@ const emailRoutes = require("./routes/emails");
 const stripeRoutes = require("./routes/stripe");
 const spotRoutes = require("./routes/spots");
 const transactionRoutes = require("./routes/transactions");
-const salesOrderRoutes = require("./routes/sales_orders");
+const salesOrderRoutes = require("./routes/sales-orders");
 
 const { toNodeHandler } = require("better-auth/node");
 const { auth } = require("./auth");

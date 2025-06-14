@@ -105,7 +105,7 @@ function getScrapTotal(items, spots) {
 }
 
 //sales orders
-function calculateItemAsk(item, spots, payment_method) {
+function calculateItemAsk(item, spots) {
   const spot = spots?.find((s) => s.type === item.metal_type);
   return (
     (item?.content ?? 0) * ((spot?.ask_spot ?? 0) * (item?.ask_premium ?? 0))
@@ -154,9 +154,10 @@ function calculateSalesOrderTotal(
   const subject_to_charges_amount = base_total - appliedFunds;
 
   let post_charges_amount = subject_to_charges_amount;
+  let charges_amount = 0;
   if (payment_method !== "FUNDS") {
-    const card_fee = calculateCardCharge(subject_to_charges_amount);
-    post_charges_amount += card_fee;
+    charges_amount = calculateCardCharge(subject_to_charges_amount);
+    post_charges_amount += charges_amount;
   }
 
   const order_total = pre_charges_amount + post_charges_amount;
@@ -169,6 +170,7 @@ function calculateSalesOrderTotal(
     pre_charges_amount,
     subject_to_charges_amount,
     post_charges_amount,
+    charges_amount,
     order_total,
   };
 }

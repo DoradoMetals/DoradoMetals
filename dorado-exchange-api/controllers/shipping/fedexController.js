@@ -355,10 +355,10 @@ const cancelLabel = async (req, res) => {
       await pool.query(
         `
         UPDATE exchange.inbound_shipments
-        SET shipping_label = $1
-        WHERE id = $2
+        SET shipping_label = $1, shipping_status = $2, tracking_number = $3
+        WHERE id = $4
       `,
-        [null, shipment_id]
+        [null, 'Label Cancelled', null, shipment_id]
       );
     }
 
