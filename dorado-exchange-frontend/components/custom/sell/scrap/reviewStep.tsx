@@ -1,12 +1,13 @@
-import { getGrossLabel, getPurityLabel, Scrap } from "@/types/scrap"
-import { Anvil, CheckCircle, Percent, Scale } from "lucide-react"
-import { useFormContext } from "react-hook-form"
+import { getGrossLabel, getPurityLabel, Scrap } from '@/types/scrap'
+import { Anvil, CheckCircle, Percent, Scale } from 'lucide-react'
+import { useFormContext } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
-import getScrapPrice from "@/utils/getScrapPrice"
-import { convertTroyOz } from "@/utils/convertTroyOz"
-import { useSpotPrices } from "@/lib/queries/useSpotPrices"
-import PriceNumberFlow from "../../products/PriceNumberFlow"
-
+import getScrapPrice from '@/utils/getScrapPrice'
+import { convertTroyOz } from '@/utils/convertTroyOz'
+import { useSpotPrices } from '@/lib/queries/useSpotPrices'
+import PriceNumberFlow from '../../products/PriceNumberFlow'
+import { BarbellIcon, CoinsIcon, PercentIcon, ScalesIcon } from '@phosphor-icons/react'
+import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
 
 export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const form = useFormContext<Scrap>()
@@ -28,15 +29,15 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Anvil className="text-neutral-600" size={20} />
+              <CoinsIcon color={getPrimaryIconStroke()} size={24} />
               <span className="text-base text-neutral-600">Metal:</span>
             </div>
-            <span className="text-sm text-neutral-800">{metal}</span>
+            <span className="text-lg text-neutral-800">{metal}</span>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Scale className="text-neutral-600" size={20} />
+              <ScalesIcon color={getPrimaryIconStroke()} size={24} />
               <span className="text-base text-neutral-600">Pre Melt:</span>
             </div>
             {getGrossLabel(pre_melt, unit)}
@@ -44,18 +45,18 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
-              <Percent className="text-neutral-600" size={20} />
+              <PercentIcon color={getPrimaryIconStroke()} size={24} />
               <span className="text-base text-neutral-600">Purity:</span>
             </div>
             {getPurityLabel(purity, metal)}
           </div>
         </div>
 
-        <hr />
+        <div className="separator-inset" />
 
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Price Estimate:</span>
-          <span className="text-neutral-800 text-lg">
+        <div className="flex items-end justify-between">
+          <span className="text-base text-neutral-800 ">Price Estimate:</span>
+          <span className="text-xl text-neutral-900">
             <PriceNumberFlow value={price} />
           </span>
         </div>

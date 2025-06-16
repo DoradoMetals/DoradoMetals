@@ -110,13 +110,13 @@ export function getPurityLabel(purity: number, metal: string) {
 
   return match ? (
     <div className="flex items-center gap-1">
-      <span className="text-sm text-neutral-800">{match.label}</span>{' '}
-      <span className="text-xs text-neutral-700">({percent})</span>
+      <span className="text-lg text-neutral-800">{match.label}</span>{' '}
+      <span className="text-base text-neutral-700">({percent})</span>
     </div>
   ) : (
     <div className="flex items-center gap-1">
-      <span className="text-sm text-neutral-800">{percent}</span>{' '}
-      <span className="text-xs text-neutral-700">pure</span>
+      <span className="text-lg text-neutral-800">{percent}</span>{' '}
+      <span className="text-base text-neutral-700">pure</span>
     </div>
   )
 }
@@ -127,8 +127,8 @@ export function getGrossLabel(gross: number, unit: string) {
   return (
     <>
       <div className="flex items-center gap-1">
-        <span className="text-sm text-neutral-800">{gross}</span>{' '}
-        <span className="text-xs text-neutral-700">{unit}</span>
+        <span className="text-lg text-neutral-800">{gross}</span>{' '}
+        <span className="text-base text-neutral-700">{unit}</span>
       </div>
     </>
   )

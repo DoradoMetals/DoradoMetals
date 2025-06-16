@@ -108,10 +108,18 @@ export default function ScrapForm() {
           <div className="flex justify-end gap-4">
             {stepper.current.id === 'review' && (
               <>
-                <Button type="button" variant="outline" onClick={handleAddAnother} className=' raised-off-page hover:bg-card bg-card'>
-                  Add Another
+                <Button
+                  type="button"
+                  onClick={handleAddAnother}
+                  className="raised-off-page hover:bg-card bg-card"
+                >
+                  <div className="text-primary-gradient">Add Another</div>
                 </Button>
-                <Button type="button" className="ml-auto raised-off-page primary-gradient hover:primary-gradient shine-on-hover text-white" onClick={() => router.push('/checkout')}>
+                <Button
+                  type="button"
+                  className="ml-auto raised-off-page liquid-gold shine-on-hover text-white"
+                  onClick={() => router.push('/checkout')}
+                >
                   Go to Checkout
                 </Button>
               </>
@@ -151,16 +159,17 @@ function ItemFormStep() {
       <div className="lg:flex lg:justify-between">
         <div className="hidden lg:block flex flex-col">
           <div className="section-label text-primary-gradient">Select Purity</div>
-          <div className='Select '>
-
-          </div>
+          <div className="Select "></div>
         </div>
         <div className="w-full lg:w-3/5">
           <PurityStep />
         </div>
       </div>
       <div className="lg:flex lg:justify-between lg:w-3/5 lg:ml-auto">
-        <Button type="submit" className="liquid-gold raised-off-page w-full shine-on-hover text-white">
+        <Button
+          type="submit"
+          className="liquid-gold raised-off-page w-full shine-on-hover text-white"
+        >
           Add Item
         </Button>
       </div>
