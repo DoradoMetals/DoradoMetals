@@ -60,6 +60,12 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
             status: 'Received',
             disabled: false,
           },
+          {
+            label: 'Cancel Order',
+            action: 'move_to_cancelled',
+            status: 'Cancelled',
+            disabled: false,
+          },
         ]
       case 'Received':
         return [
@@ -73,6 +79,12 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
             label: 'Back to In Transit',
             action: 'move_to_in_transit',
             status: 'In Transit',
+            disabled: false,
+          },
+          {
+            label: 'Cancel Order',
+            action: 'move_to_cancelled',
+            status: 'Cancelled',
             disabled: false,
           },
         ]
@@ -111,6 +123,12 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
             status: 'Offer Sent',
             disabled: !allItemsConfirmed,
           },
+          {
+            label: 'Cancel Order',
+            action: 'move_to_cancelled',
+            status: 'Cancelled',
+            disabled: false,
+          },
         ]
       case 'Rejected':
         return [
@@ -145,6 +163,12 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
             label: 'Back to Accepted',
             action: 'move_to_accepted',
             status: 'Accepted',
+            disabled: false,
+          },
+          {
+            label: 'Cancel Order',
+            action: 'move_to_cancelled',
+            status: 'Cancelled',
             disabled: false,
           },
         ]

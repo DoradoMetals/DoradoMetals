@@ -49,8 +49,6 @@ const parseTracking = (trackingOutput) => {
     PM: "In Progress",
   };
 
-  console.log(trackingOutput);
-
   const relevantStatusCodes = Object.keys(statusMap);
 
   let scanEvents = (trackingOutput.scanEvents || [])
