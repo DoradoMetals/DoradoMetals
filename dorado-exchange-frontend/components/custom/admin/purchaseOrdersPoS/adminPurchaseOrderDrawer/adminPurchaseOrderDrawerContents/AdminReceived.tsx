@@ -78,8 +78,8 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   return (
     <>
       <div className="flex w-full">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-4 w-full">
+          <div className="flex flex-col gap-2 w-full">
             <div className="flex w-full justify-between items-center mb-2">
               <div className="text-xs tracking-widest text-neutral-600">Order Spots</div>
               <Button
