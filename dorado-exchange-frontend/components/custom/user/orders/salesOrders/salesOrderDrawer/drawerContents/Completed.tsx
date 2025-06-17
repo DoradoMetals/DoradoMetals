@@ -20,7 +20,7 @@ export default function CompletedSalesOrder({ order }: SalesOrderDrawerContentPr
             <div className="text-xl text neutral-800">Order Complete!</div>
 
             <div className="text-sm text-neutral-600 text-left mb-4">
-              Your order has been completed, and <PriceNumberFlow value={order.total_price ?? 0} />{' '}
+              Your order has been completed, and <PriceNumberFlow value={order.order_total ?? 0} />{' '}
               has been sent via your method of choice! If you need any help with this order, please
               call us. Otherwise, please feel free to leave a review of your experience below!
             </div>
