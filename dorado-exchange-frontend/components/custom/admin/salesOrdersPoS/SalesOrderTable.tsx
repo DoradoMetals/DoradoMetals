@@ -27,7 +27,6 @@ import { TableFilterSelect } from '../../../table/filterSelect'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
 import { TableSearchSelect } from '@/components/table/filterSelectSearch'
 import { UserDetailsDialog } from '../usersPoS/usersModal'
-import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import {
   Dialog,
   DialogContent,
@@ -37,14 +36,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import AdminPurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
-import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
-import { useGetSession } from '@/lib/queries/useAuth'
 import { useDrawerStore } from '@/store/drawerStore'
+import { useAdminSalesOrders } from '@/lib/queries/admin/useAdminSalesOrders'
+import { SalesOrder, statusConfig } from '@/types/sales-orders'
+import AdminSalesOrderDrawer from './adminSalesOrderDrawer/adminSalesOrderDrawer'
 
-export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus: string | null }) {
-  const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
-  const { user } = useGetSession()
+export default function SalesOrdersTable({ selectedStatus }: { selectedStatus: string | null }) {
+  const { data: salesOrders = [] } = useAdminSalesOrders()
 
   const { openDrawer } = useDrawerStore()
 
@@ -53,11 +51,11 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
   const [activeOrder, setActiveOrder] = useState<string | null>(null)
   const [activeUser, setActiveUser] = useState<string | null>(null)
 
-  const filteredPurchaseOrders = selectedStatus
-    ? purchaseOrders.filter((po) => po.purchase_order_status === selectedStatus)
-    : purchaseOrders
+  const filteredSalesOrders = selectedStatus
+    ? salesOrders.filter((so) => so.sales_order_status === selectedStatus)
+    : salesOrders
 
-  const columns: ColumnDef<PurchaseOrder>[] = [
+  const columns: ColumnDef<SalesOrder>[] = [
     {
       id: 'order_number',
       header: function Header({ column }) {
@@ -85,8 +83,8 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
       filterFn: 'includesString',
       cell: ({ row }) => {
         const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
-        const config = statusConfig[row.original.purchase_order_status]
-        if (!config) return <Fragment key={row.original.purchase_order_status} />
+        const config = statusConfig[row.original.sales_order_status]
+        if (!config) return <Fragment key={row.original.sales_order_status} />
 
         return (
           <div className="flex justify-center">
@@ -95,9 +93,10 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
               size="icon"
               className={`flex items-center justify-center bg-transparent hover:bg-transparent ${config.text_color}`}
               onClick={() => {
+                console.log('Opening admin drawer for order', row.original.id)
                 setActiveOrder(row.original.id)
                 setActiveUser(row.original.user_id)
-                openDrawer('purchaseOrder')
+                openDrawer('salesOrder')
               }}
             >
               <p>{formatPurchaseOrderNumber(row.original.order_number)}</p>
@@ -135,8 +134,8 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
       filterFn: 'includesString',
       cell: ({ row }) => {
         const [userDialogOpen, setUserDialogOpen] = useState(false)
-        const config = statusConfig[row.original.purchase_order_status]
-        if (!config) return <Fragment key={row.original.purchase_order_status} />
+        const config = statusConfig[row.original.sales_order_status]
+        if (!config) return <Fragment key={row.original.sales_order_status} />
 
         return (
           <div className="text-left sm:text-center">
@@ -174,7 +173,7 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
       },
     },
     {
-      id: 'purchase_order_status',
+      id: 'sales_order_status',
       header: function Header({ column }) {
         const anchorRef = useRef<HTMLDivElement>(null)
         const uniqueStatuses = React.useMemo(() => {
@@ -189,16 +188,16 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
           </div>
         )
       },
-      accessorKey: 'purchase_order_status',
+      accessorKey: 'sales_order_status',
       enableColumnFilter: true,
       enableHiding: false,
       filterFn: 'includesString',
       cell: ({ row }) => {
-        const config = statusConfig[row.original.purchase_order_status]
-        if (!config) return <Fragment key={row.original.purchase_order_status} />
+        const config = statusConfig[row.original.sales_order_status]
+        if (!config) return <Fragment key={row.original.sales_order_status} />
         const Icon = config.icon
         return (
-          <div className="flex justify-center">
+          <div className="flex justify-center p-0">
             <Icon size={20} className={config.text_color} />
           </div>
         )
@@ -217,8 +216,8 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
       cell: ({ row }) => {
         const [open, setOpen] = React.useState(false)
         const [value, setValue] = React.useState(row.original.notes)
-        const config = statusConfig[row.original.purchase_order_status]
-        if (!config) return <Fragment key={row.original.purchase_order_status} />
+        const config = statusConfig[row.original.sales_order_status]
+        if (!config) return <Fragment key={row.original.sales_order_status} />
 
         return (
           <div className="hidden sm:flex justify-center">
@@ -247,7 +246,7 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
   ]
 
   const table = useReactTable({
-    data: filteredPurchaseOrders,
+    data: filteredSalesOrders,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -331,7 +330,9 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
         </Button>
       </div>
 
-      {activeOrder && <AdminPurchaseOrderDrawer order_id={activeOrder} user_id={activeUser ?? ''} />}
+      {activeOrder && (
+        <AdminSalesOrderDrawer order_id={activeOrder ?? ''} user_id={activeUser ?? ''} />
+      )}
     </div>
   )
 }

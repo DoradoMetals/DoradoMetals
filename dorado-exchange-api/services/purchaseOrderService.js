@@ -1,7 +1,7 @@
 const pool = require("../db");
-const purchaseOrderRepo = require("../repositories/purchaseOrdersRepository");
-const shippingRepo = require("../repositories/shippingRepository");
-const scrapRepo = require("../repositories/scrapRepository");
+const purchaseOrderRepo = require("../repositories/purchaseOrdersRepo");
+const shippingRepo = require("../repositories/shippingRepo");
+const scrapRepo = require("../repositories/scrapRepo");
 const transactionRepo = require("../repositories/transactionRepo");
 
 const {

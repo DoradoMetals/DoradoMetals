@@ -54,7 +54,6 @@ export default function SalesOrderCheckout() {
   ])
 
   const cardNeeded = useMemo(() => {
-    console.log(data.payment_method)
     if (data.payment_method === 'FUNDS') {
       return false
     } else {

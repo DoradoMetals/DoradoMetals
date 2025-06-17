@@ -6,6 +6,9 @@ const salesOrderRepo = require("../repositories/salesOrderRepo");
 const stripeRepo = require("../repositories/stripeRepo");
 const transactionsRepo = require("../repositories/transactionRepo");
 const productRepo = require("../repositories/productRepo");
+const shippingRepo = require("../repositories/shippingRepo");
+const supplierRepo = require("../repositories/supplierRepo");
+const emailService = require("../services/emailService");
 const { calculateSalesOrderTotal } = require("../utils/price-calculations");
 
 async function getById(orderId) {
@@ -61,7 +64,7 @@ async function createSalesOrder(
 
     const orderId = await salesOrderRepo.insertOrder(client, {
       user: session.user,
-      status: "Paid",
+      status: "Preparing",
       sales_order: sales_order,
       orderPrices,
     });
@@ -107,6 +110,51 @@ async function createSalesOrder(
   }
 }
 
+
+async function updateStatus({ order, order_status, user_name }) {
+  return await salesOrderRepo.updateStatus(order, order_status, user_name);
+}
+
+
+async function sendOrderToSupplier(order, spots, supplier_id) {
+  const client = await pool.connect();
+
+  const sales_order = await getById(order_id);
+  const supplier = await supplierRepo.getSupplierFromId(supplier_id);
+  try {
+    await client.query("BEGIN");
+
+    await emailService.sendSalesOrderToSupplier(
+      sales_order,
+      spots,
+      supplier.email
+    );
+
+    await shippingRepo.insertOutboundShipment(
+      client,
+      sales_order.id,
+      supplier.shipping_carrier,
+      sales_order.shipping_service,
+      sales_order.shipping_cost,
+      sales_order.item_total
+    );
+
+    await salesOrderRepo.updateOrderSent(sales_order.id, client);
+
+    await client.query("COMMIT");
+    return await getById(sales_order.id);
+  } catch (err) {
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function insertTrackingNumber(tracking_number, id) {
+  await shippingRepo.insertTrackingNumber(tracking_number, id);
+  return await salesOrderRepo.updateTracking(id);
+}
+
 module.exports = {
   getById,
   listOrdersForUser,
@@ -114,4 +162,7 @@ module.exports = {
   getMetalsForOrder,
   getItemsFromServer,
   createSalesOrder,
+  updateStatus,
+  sendOrderToSupplier,
+  insertTrackingNumber,
 };

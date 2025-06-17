@@ -69,6 +69,33 @@ async function createSalesOrder(req, res, next) {
   }
 }
 
+async function updateStatus(req, res, next) {
+  try {
+    const updated = await salesOrderService.updateStatus(req.body);
+    return res.status(200).json(updated);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function sendOrderToSupplier(req, res, next) {
+  try {
+    const order = await salesOrderService.sendOrderToSupplier(req.body);
+    return res.status(200).json(order);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function updateOrderTracking(req, res, next) {
+  try {
+    const order = await salesOrderService.insertTrackingNumber(req.body);
+    return res.status(200).json(order);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getSalesOrderById,
   getSalesOrders,
@@ -77,4 +104,7 @@ module.exports = {
   cancelOrder,
   createReview,
   createSalesOrder,
+  updateStatus,
+  sendOrderToSupplier,
+  updateOrderTracking,
 };

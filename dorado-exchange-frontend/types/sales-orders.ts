@@ -58,7 +58,8 @@ export interface SalesOrder {
   item_total: number
   base_total: number
   charges_amount: number
-
+  order_sent: boolean,
+  tracking_updated: boolean,
   order_items: SalesOrderItem[]
   address: Address
   payout: Payout
@@ -66,7 +67,6 @@ export interface SalesOrder {
     user_name: string
     user_email: string
   }
-  total_price?: number
 }
 
 export const salesOrderReturnShipmentSchema = z.object({
@@ -78,7 +78,7 @@ export const salesOrderReturnShipmentSchema = z.object({
 })
 export type SalesOrderReturnShipment = z.infer<typeof salesOrderReturnShipmentSchema>
 
-export const SalesOrderStatuses = ['Pending', 'Paid', 'Preparing', 'In Transit', 'Completed']
+export const SalesOrderStatuses = ['Pending', 'Preparing', 'In Transit', 'Completed']
 
 export type StatusConfigEntry = {
   text_color: string
@@ -101,28 +101,18 @@ export const statusConfig: StatusConfig = {
     border_color: 'border-rose-600',
     stroke_color: 'stroke-rose-600',
     icon: HourglassIcon,
-    value_label: 'Payout',
+    value_label: 'Price',
     gradient: 'bg-gradient-to-l from-rose-500 via-rose-600 to-rose-700',
   },
-  Paid: {
+  Preparing: {
     background_color: 'bg-amber-500',
     hover_background_color: 'hover:bg-amber-500',
     text_color: 'text-amber-500',
     border_color: 'border-amber-500',
     stroke_color: 'stroke-amber-500',
-    icon: CreditCardIcon,
-    value_label: 'Estimate',
-    gradient: 'bg-gradient-to-l from-amber-400 via-amber-500 to-amber-600',
-  },
-  Preparing: {
-    background_color: 'bg-fuchsia-500',
-    hover_background_color: 'hover:bg-fuchsia-500',
-    text_color: 'text-fuchsia-500',
-    border_color: 'border-fuchsia-500',
-    stroke_color: 'stroke-fuchsia-500',
     icon: PackageIcon,
-    value_label: 'Offer',
-    gradient: 'bg-gradient-to-l from-fuchsia-500 via-fuchsia-500 to-fuchsia-500',
+    value_label: 'Price',
+    gradient: 'bg-gradient-to-l from-amber-400 via-amber-500 to-amber-600',
   },
   'In Transit': {
     background_color: 'bg-cyan-600',
@@ -131,7 +121,7 @@ export const statusConfig: StatusConfig = {
     border_color: 'border-cyan-600',
     stroke_color: 'stroke-cyan-600',
     icon: TruckIcon,
-    value_label: 'Estimate',
+    value_label: 'Price',
     gradient: 'bg-gradient-to-l from-cyan-400 via-cyan-500 to-cyan-600',
   },
   Completed: {
@@ -141,7 +131,7 @@ export const statusConfig: StatusConfig = {
     border_color: 'border-green-700',
     stroke_color: 'stroke-green-700',
     icon: ShieldCheckIcon,
-    value_label: 'Payout',
+    value_label: 'Price',
     gradient: 'bg-gradient-to-l from-green-600 via-green-700 to-green-800',
   },
 }

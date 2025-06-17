@@ -5,6 +5,9 @@ const {
   getSalesOrders,
   getOrderMetals,
   getAllSalesOrders,
+  sendOrderToSupplier,
+  updateOrderTracking,
+  updateStatus,
 } = require("../controllers/salesOrderController");
 
 const router = express.Router();
@@ -16,5 +19,8 @@ router.post("/get_order_metals", requireUser, getOrderMetals);
 
 // admin
 router.get("/get_all", requireAdmin, getAllSalesOrders);
+router.post("/update_status", requireAdmin, updateStatus);
+router.post("/send_order_to_supplier", requireAdmin, sendOrderToSupplier);
+router.post("/update_tracking", requireAdmin, updateOrderTracking);
 
 module.exports = router;

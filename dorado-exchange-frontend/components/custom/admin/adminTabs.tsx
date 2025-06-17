@@ -5,6 +5,7 @@ import ScrapCards from './scrapPoS/ScrapCards'
 import ProductsInventory from './productsPoS/productsInventory'
 import AdminPurchaseOrders from './purchaseOrdersPoS/AdminPurchaseOrders'
 import { UsersPage } from './usersPoS/usersPage'
+import AdminSalesOrders from './salesOrdersPoS/AdminSalesOrders'
 
 export function AdminTabs() {
   return (
@@ -62,7 +63,7 @@ export function AdminTabs() {
                   <AdminPurchaseOrders />
                 </TabsContent>
                 <TabsContent value="sales-orders">
-                  <div>Under Construction</div>
+                  <AdminSalesOrders />
                 </TabsContent>
               </div>
             </Tabs>

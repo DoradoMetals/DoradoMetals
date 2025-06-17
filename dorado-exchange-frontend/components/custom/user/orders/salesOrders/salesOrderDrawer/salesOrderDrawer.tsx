@@ -17,6 +17,8 @@ export default function SalesOrderDrawer({ order_id, user }: SalesOrderDrawerPro
 
   const isDrawerOpen = activeDrawer === 'salesOrder'
 
+  console.log('here')
+
   if (!order) {
     return null
   }

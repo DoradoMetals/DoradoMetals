@@ -169,7 +169,7 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
       <div className="flex w-full justify-between items-center mt-3">
         <div className="text-sm text-neutral-700">Questions? Give us a call.</div>
         <a
-          href={`tel:+${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`}
+          href={`tel:+1${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`}
           className={cn('text-sm hover:underline', statusColor)}
         >
           {formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}

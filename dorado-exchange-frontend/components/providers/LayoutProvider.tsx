@@ -58,7 +58,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
                   damping: 20,
                 },
               }}
-              className="hidden sm:fixed sm:inset-0 sm:z-65 sm:bg-black/50 sm:pointer-events-none sm:will-change-[opacity,backdrop-filter]"
+              className="z-10 fixed sm:inset-0 sm:z-65 sm:bg-black/50 sm:pointer-events-none sm:will-change-[opacity,backdrop-filter]"
             />
           )}
         </AnimatePresence>

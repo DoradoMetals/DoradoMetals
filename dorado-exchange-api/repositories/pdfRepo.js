@@ -2230,7 +2230,7 @@ const generateInvoice = async ({
 };
 
 const generateSalesOrderInvoice = async ({ salesOrder, spots = [] }) => {
-  const doneStatus = ["Paid", "Preparing", "In Transit", "Completed"];
+  const doneStatus = ["Preparing", "In Transit", "Completed"];
 
   const browser = await puppeteer.launch({
     headless: true,

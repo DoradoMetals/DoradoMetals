@@ -221,7 +221,7 @@ async function insertItems(client, orderId, items, spot_prices) {
       item.id,
       calculateItemAsk(item, spot_prices),
       item.quantity,
-      item.ask_premium
+      item.ask_premium,
     ]);
   }
 }
@@ -239,6 +239,44 @@ async function insertOrderMetals(orderId, spot_prices, client) {
   );
 }
 
+async function updateStatus(order, order_status, user_name) {
+  const query = `
+    UPDATE exchange.sales_orders
+    SET
+      sales_order_status = $1,
+      updated_at = NOW(),
+      updated_by = $2
+    WHERE id = $3
+    RETURNING *;
+  `;
+
+  const values = [order_status, user_name, order.id];
+  const { rows } = await pool.query(query, values);
+  return rows[0];
+}
+
+async function updateTracking(orderId) {
+  const query = `
+    UPDATE exchange.sales_orders
+    SET tracking_updated = true
+    WHERE id = $1
+    RETURNING *;
+  `;
+  const { rows } = await pool.query(query, [orderId]);
+  return rows;
+}
+
+async function updateOrderSent(orderId, client) {
+  const query = `
+    UPDATE exchange.sales_orders
+    SET order_sent = true
+    WHERE id = $1
+    RETURNING *;
+  `;
+  const { rows } = await pool.query(query, [orderId]);
+  return rows;
+}
+
 module.exports = {
   findById,
   findAllByUser,
@@ -247,4 +285,7 @@ module.exports = {
   insertOrder,
   insertItems,
   insertOrderMetals,
+  updateStatus,
+  updateTracking,
+  updateOrderSent,
 };

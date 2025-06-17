@@ -27,10 +27,9 @@ export function UserDetailsDialog({ open, setOpen, user_id, username, color }: P
       <DialogTrigger asChild>
         <Button
           variant="ghost"
-          className="flex items-center justify-center p-0 text-xs font-normal hover:bg-transparent tracking-wide text-neutral-700"
+          className="p-0 text-xs font-normal hover:bg-transparent tracking-wide text-neutral-700 overflow-hidden"
         >
-          <div className="hidden sm:flex">{username}</div>
-          <Search size={16} className={`${color}`} />
+          <div className='w-20 sm:w-40 truncate whitespace-nowrap overflow-hidden'>{username}</div>
         </Button>
       </DialogTrigger>
       <DialogContent>

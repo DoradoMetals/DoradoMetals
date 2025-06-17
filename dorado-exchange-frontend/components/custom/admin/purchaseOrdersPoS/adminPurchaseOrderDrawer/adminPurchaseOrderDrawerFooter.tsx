@@ -254,7 +254,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
 
         {order?.address?.phone_number ? (
           <a
-            href={`tel:+${order.address.phone_number}`}
+            href={`tel:+1${order.address.phone_number}`}
             className={cn('text-sm hover:underline', statusColor)}
           >
             {formatPhoneNumber(order.address.phone_number ?? '')}
