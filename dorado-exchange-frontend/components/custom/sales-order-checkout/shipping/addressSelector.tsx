@@ -9,7 +9,7 @@ import formatPhoneNumber from '@/utils/formatPhoneNumber'
 
 import { Button } from '@/components/ui/button'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
-import { NotePencil } from '@phosphor-icons/react'
+import { NotePencilIcon } from '@phosphor-icons/react'
 import { useDrawerStore } from '@/store/drawerStore'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 
@@ -75,7 +75,7 @@ export function AddressSelector({
                 openDrawer('address')
               }}
             >
-              <NotePencil size={20} color={getPrimaryIconStroke()} />
+              <NotePencilIcon size={20} color={getPrimaryIconStroke()} />
             </Button>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between w-full gap-1">

@@ -26,7 +26,15 @@ async function createPaymentIntent(type, session) {
       name: session.user?.name ?? "",
       email: session.user?.email ?? "",
     });
-    customerId = id
+    customerId = id;
+    await stripeRepo.attachCustomerToUser(customerId, session?.user?.id);
+  }
+
+  const existing = await stripeRepo.retrievePaymentIntent(type, session);
+  if (existing?.payment_intent_id) {
+    return await stripeClient.paymentIntents.retrieve(
+      existing.payment_intent_id
+    );
   }
 
   const paymentIntent = await stripeClient.paymentIntents.create({
@@ -36,7 +44,6 @@ async function createPaymentIntent(type, session) {
     automatic_payment_methods: { enabled: true },
   });
 
-  await stripeRepo.attachCustomerToUser(customerId, session?.user?.id);
   await stripeRepo.createPaymentIntent(paymentIntent, type, session);
   return paymentIntent;
 }
@@ -67,7 +74,7 @@ async function updatePaymentIntent(
   const amount = Math.round(orderPrices.post_charges_amount * 100);
 
   if (
-    retrieved_intent?.payment_intent_id ||
+    retrieved_intent?.payment_intent_id &&
     !retrieved_intent?.status === "succeeded"
   ) {
     const paymentIntent = await stripeClient.paymentIntents.update(
@@ -77,6 +84,7 @@ async function updatePaymentIntent(
       }
     );
     await stripeRepo.updatePaymentIntent(paymentIntent);
+
     return paymentIntent;
   } else {
     return await createPaymentIntent(type, session);
@@ -87,8 +95,13 @@ async function updateStatus({ paymentIntent }) {
   await stripeRepo.updateStatus({ paymentIntent });
 }
 
+async function updateMethod({ paymentMethod }) {
+  await stripeRepo.updateMethod({ paymentMethod });
+}
+
 module.exports = {
   retrievePaymentIntent,
   updatePaymentIntent,
   updateStatus,
+  updateMethod,
 };

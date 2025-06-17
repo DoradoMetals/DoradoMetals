@@ -1,13 +1,13 @@
 import { getGrossLabel, getPurityLabel, Scrap } from '@/types/scrap'
-import { Anvil, CheckCircle, Percent, Scale } from 'lucide-react'
+import { CheckCircle} from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
 import getScrapPrice from '@/utils/getScrapPrice'
 import { convertTroyOz } from '@/utils/convertTroyOz'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
-import { BarbellIcon, CoinsIcon, PercentIcon, ScalesIcon } from '@phosphor-icons/react'
-import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
+import { CoinsIcon, PercentIcon, ScalesIcon } from '@phosphor-icons/react'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const form = useFormContext<Scrap>()

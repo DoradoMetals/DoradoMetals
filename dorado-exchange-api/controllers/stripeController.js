@@ -22,11 +22,17 @@ async function handleStripeWebhook(req, res) {
   switch (event.type) {
     case "payment_intent.succeeded": {
       await stripeService.updateStatus({ paymentIntent: event.data.object });
+      const paymentMethod = await stripeClient.paymentMethods.retrieve(
+        event.data.object.payment_method
+      );
+
+      await stripeService.updateMethod({ paymentMethod: paymentMethod });
       break;
     }
 
     case "payment_intent.payment_failed": {
       await stripeService.updateStatus({ paymentIntent: event.data.object });
+
       break;
     }
 
@@ -51,6 +57,10 @@ async function handleStripeWebhook(req, res) {
 
     case "customer.created": {
       break;
+    }
+
+    case "payment_method.updated": {
+      await stripeService.updateMethod({ paymentMethod: event.data.object });
     }
 
     default:

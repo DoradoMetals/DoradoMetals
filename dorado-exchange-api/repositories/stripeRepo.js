@@ -25,6 +25,7 @@ async function createPaymentIntent(payment_intent, type, session) {
   VALUES (
     $1, $2, $3, $4
   )
+  ON CONFLICT DO NOTHING
   `;
   const values = [session.session.id, session.user.id, type, payment_intent.id];
   await pool.query(query, values);
@@ -43,7 +44,8 @@ async function updatePaymentIntent(payment_intent) {
 async function updateStatus({ paymentIntent }) {
   const query = `
     UPDATE exchange.payment_intents
-    SET payment_status = $1, method = $2
+    SET payment_status = $1, 
+        method_id = $2
     WHERE payment_intent_id = $3
   `;
   const values = [
@@ -54,11 +56,34 @@ async function updateStatus({ paymentIntent }) {
   await pool.query(query, values);
 }
 
+async function updateMethod({ paymentMethod }) {
+  const query = `
+    UPDATE exchange.payment_intents
+    SET method_type = $1,
+        routing = $2,
+        last_four = $3,
+        card_brand = $4,
+        bank_name = $5,
+        bank_account_type = $6
+    WHERE method_id = $7
+  `;
+  const values = [
+    paymentMethod.us_bank_account?.networks?.preferred ?? paymentMethod.type,
+    paymentMethod?.us_bank_account?.routing_number,
+    paymentMethod?.us_bank_account?.last4 ?? paymentMethod?.card?.last4,
+    paymentMethod?.card?.brand,
+    paymentMethod?.us_bank_account?.bank_name,
+    paymentMethod?.us_bank_account?.account_type,
+    paymentMethod?.id,
+  ];
+  await pool.query(query, values);
+}
+
 async function attachOrder(
   payment_intent_id,
   purchase_order_id,
   sales_order_id,
-  client,
+  client
 ) {
   const query = `
     UPDATE exchange.payment_intents
@@ -74,10 +99,10 @@ async function attachCustomerToUser(customerId, userId) {
   UPDATE exchange.users
     SET "stripeCustomerId" = $1
   WHERE id = $2
-  `
-  const values = [customerId, userId]
+  `;
+  const values = [customerId, userId];
 
-  await pool.query(query, values)
+  await pool.query(query, values);
 }
 
 module.exports = {
@@ -85,6 +110,7 @@ module.exports = {
   createPaymentIntent,
   updatePaymentIntent,
   updateStatus,
+  updateMethod,
   attachOrder,
   attachCustomerToUser,
 };

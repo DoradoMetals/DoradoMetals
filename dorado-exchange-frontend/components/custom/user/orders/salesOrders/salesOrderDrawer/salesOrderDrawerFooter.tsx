@@ -29,13 +29,11 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
 
   const [open, setOpen] = useState({
-    scrap: false,
-    bullion: false,
+    items: false,
     shipment: false,
-    payout: false,
     total: false,
   })
-  
+
   // const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
   // const payoutFee = payoutMethod?.cost ?? 0
 
@@ -43,38 +41,23 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
   //   return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
   // }, [order, spotPrices, orderSpotPrices, payoutFee])
 
-
-
   return (
     <div className="flex flex-col w-full gap-2">
-
-
-      {/* {bullionItems.length > 0 && (
+      {order.order_items.length > 0 && (
         <Accordion
           label={`Bullion ${valueLabel}`}
-          open={open.bullion}
-          toggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
-          total={bullionTotal}
+          open={open.items}
+          toggle={() => setOpen((prev) => ({ ...prev, items: !prev.items }))}
+          total={order.item_total}
         >
           <Table className="font-normal text-neutral-700 overflow-hidden">
             <TableBody>
-              {bullionItems.map((item, i) => (
+              {order.order_items.map((item, i) => (
                 <TableRow key={i} className="hover:bg-transparent">
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>{item.product?.product_name}</TableCell>
                   <TableCell className="text-right p-0">
-                    <PriceNumberFlow
-                      value={
-                        item.quantity *
-                        (item.price ??
-                          getPurchaseOrderBullionPrice(
-                            item.product!,
-                            spotPrices,
-                            orderSpotPrices,
-                            item.bullion_premium ?? null
-                          ))
-                      }
-                    />
+                    <PriceNumberFlow value={item.quantity * (item.price ?? 0)} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -82,7 +65,7 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
           </Table>
         </Accordion>
       )}
-
+      {/* 
       {order.shipment && (
         <Accordion
           label="Shipping Charges"
@@ -181,7 +164,7 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
             <PriceNumberFlow value={total} />
           </div>
         </div>
-      </Accordion>
+      </Accordion> */}
 
       <div className="flex w-full justify-between items-center mt-3">
         <div className="text-sm text-neutral-700">Questions? Give us a call.</div>
@@ -191,7 +174,7 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
         >
           {formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}
         </a>
-      </div> */}
+      </div>
     </div>
   )
 }
