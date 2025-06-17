@@ -1825,8 +1825,8 @@ const generateInvoice = async ({
 
             <div class="packing-title">${
               doneStatus.includes(purchaseOrder.purchase_order_status)
-                ? "Invoice"
-                : "Invoice Preview"
+                ? "Purchase Order Invoice"
+                : "Purchase Order Preview"
             } </div>
             <div class="packing-subtitle">${
               doneStatus.includes(purchaseOrder.purchase_order_status)
@@ -2503,8 +2503,8 @@ const generateSalesOrderInvoice = async ({ salesOrder, spots = [] }) => {
 
             <div class="packing-title">${
               doneStatus.includes(salesOrder.sales_order_status)
-                ? "Invoice"
-                : "Invoice Preview"
+                ? "Sales Order Invoice"
+                : "Sales Order Preview"
             } </div>
             <div class="packing-subtitle">Items and price details contained below.</div>
 
@@ -2515,7 +2515,7 @@ const generateSalesOrderInvoice = async ({ salesOrder, spots = [] }) => {
                 <div class="detail-content">
                   <div class="detail-row">
                     <span class="detail-label">Number:</span>
-                    <span class="detail-value">PO-${salesOrder.order_number
+                    <span class="detail-value">SO-${salesOrder.order_number
                       .toString()
                       .padStart(6, "0")}
                       </span>
