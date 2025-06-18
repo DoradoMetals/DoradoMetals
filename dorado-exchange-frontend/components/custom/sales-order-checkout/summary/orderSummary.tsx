@@ -144,8 +144,17 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
         </div>
       )}
 
+      {orderPrices.salesTax > 0 && (
+        <div className="w-full flex items-center justify-between">
+          <div className="text-sm text-neutral-700">Sales Tax</div>
+          <div className="text-base text-neutral-800">
+            <PriceNumberFlow value={orderPrices.salesTax} />
+          </div>
+        </div>
+      )}
+
       {orderPrices.orderTotal > 0 && (
-        <div className='pt-2'>
+        <div className="pt-2">
           <div className="separator-inset" />
 
           <div className="w-full flex items-center justify-between pt-2">

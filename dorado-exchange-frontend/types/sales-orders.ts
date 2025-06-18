@@ -67,6 +67,7 @@ export interface SalesOrder {
     user_name: string
     user_email: string
   }
+  sales_tax: number,
 }
 
 export const salesOrderReturnShipmentSchema = z.object({
@@ -254,5 +255,6 @@ export interface SalesOrderTotals {
   subjectToChargesAmount: number
   postChargesAmount: number
   subchargeAmount: number
+  salesTax: number,
   orderTotal: number
 }

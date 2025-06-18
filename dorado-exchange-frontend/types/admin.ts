@@ -25,6 +25,8 @@ export interface AdminProduct {
   filter_category: string
   quantity: number
   slug: string
+  legal_tender: boolean,
+  domestic_tender: boolean,
 }
 
 export interface AdminMetal {

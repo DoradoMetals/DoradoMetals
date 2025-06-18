@@ -3,6 +3,8 @@ const PRODUCT_FIELDS = `
   product_name,
   product_description,
   content,
+  purity,
+  gross,
   bid_premium,
   ask_premium,
   product_type,
@@ -10,7 +12,9 @@ const PRODUCT_FIELDS = `
   image_back,
   variant_group,
   shadow_offset,
-  slug
+  slug,
+  legal_tender,
+  domestic_tender
 `;
 
 const PRODUCT_FIELDS_WITH_ALIAS = `
@@ -18,6 +22,8 @@ const PRODUCT_FIELDS_WITH_ALIAS = `
   p.product_name,
   p.product_description,
   p.content,
+  p.purity,
+  p.gross,
   p.bid_premium,
   p.ask_premium,
   p.product_type,
@@ -25,8 +31,9 @@ const PRODUCT_FIELDS_WITH_ALIAS = `
   p.image_back,
   p.variant_group,
   p.shadow_offset,
-  p.slug
+  p.slug,
+  p.legal_tender,
+  p.domestic_tender
 `;
 
 module.exports = { PRODUCT_FIELDS, PRODUCT_FIELDS_WITH_ALIAS };
-

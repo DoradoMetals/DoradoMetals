@@ -17,6 +17,7 @@ const spotRoutes = require("./routes/spots");
 const transactionRoutes = require("./routes/transactions");
 const salesOrderRoutes = require("./routes/sales-orders");
 const supplierRoutes = require("./routes/suppliers");
+const taxRoutes = require("./routes/tax");
 
 const { toNodeHandler } = require("better-auth/node");
 const { auth } = require("./auth");
@@ -65,6 +66,7 @@ app.use("/api/emails", emailRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/sales_orders", salesOrderRoutes);
 app.use("/api/suppliers", supplierRoutes);
+app.use("/api/tax", taxRoutes);
 
 setupScheduler();
 

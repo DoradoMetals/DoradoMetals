@@ -2,10 +2,6 @@ import { SpotPrice } from '@/types/metal'
 import { Product } from '@/types/product'
 import { PaymentMethodType, SalesOrderTotals } from '@/types/sales-orders'
 
-export function calculateTotalBeforeFees(itemsTotal: number, shippingCharge: number): number {
-  return itemsTotal + shippingCharge
-}
-
 export function calculateCardCharge(orderTotal: number): number {
   return orderTotal * 0.029
 }
@@ -25,11 +21,12 @@ export function calculateSalesOrderPrices(
   spots: SpotPrice[],
   funds: number,
   serviceCost: number,
-  paymentMethod: PaymentMethodType
+  paymentMethod: PaymentMethodType,
+  salesTax: number,
 ): SalesOrderTotals {
   const itemTotal = calculateItemTotals(items, spots)
   const shippingCharge = itemTotal > 1000 ? 0 : serviceCost
-  const baseTotal = calculateTotalBeforeFees(itemTotal, shippingCharge)
+  const baseTotal = itemTotal + shippingCharge + salesTax
 
   const beginningFunds = funds
   const appliedFunds = usingFunds ? Math.min(beginningFunds, baseTotal) : 0
@@ -56,6 +53,7 @@ export function calculateSalesOrderPrices(
     subjectToChargesAmount,
     postChargesAmount,
     subchargeAmount,
+    salesTax,
     orderTotal,
   }
 }

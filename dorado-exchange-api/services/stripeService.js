@@ -1,6 +1,8 @@
 const { stripeClient } = require("../stripe");
 const stripeRepo = require("../repositories/stripeRepo");
 const salesOrderService = require("../services/salesOrderService");
+const addressService = require("../services/addressService");
+const taxService = require("../services/taxService");
 const { calculateSalesOrderTotal } = require("../utils/price-calculations");
 
 const { auth } = require("../auth");
@@ -49,7 +51,7 @@ async function createPaymentIntent(type, session) {
 }
 
 async function updatePaymentIntent(
-  { items, using_funds, spots, shipping_service, payment_method, type },
+  { items, using_funds, spots, shipping_service, payment_method, type, address_id },
   headers
 ) {
   const session = await auth.api.getSession({
@@ -60,10 +62,13 @@ async function updatePaymentIntent(
     type,
     session
   );
+
+  const address = await addressService.getAddressFromId(address_id)
   const server_items = await salesOrderService.getItemsFromServer(items);
+  const items_with_tax = await taxService.attachSalesTaxToItems(address?.state ?? 'TX', server_items, spots)
 
   const orderPrices = calculateSalesOrderTotal(
-    server_items,
+    items_with_tax,
     using_funds,
     spots,
     session.user,

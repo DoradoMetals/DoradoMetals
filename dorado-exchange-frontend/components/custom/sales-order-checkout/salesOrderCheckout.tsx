@@ -18,6 +18,10 @@ import { salesOrderCheckoutSchema } from '@/types/sales-orders'
 import { useCreateSalesOrder } from '@/lib/queries/useSalesOrders'
 import { calculateSalesOrderPrices } from '@/utils/calculateSalesOrderPrices'
 import OrderSummary from './summary/orderSummary'
+import { useSalesTax } from '@/lib/queries/useSalesTax'
+import { emptyAddress } from '@/types/address'
+import { ShoppingCartIcon } from '@phosphor-icons/react'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function SalesOrderCheckout() {
@@ -30,6 +34,13 @@ export default function SalesOrderCheckout() {
 
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: addresses = [], isPending: isAddressesPending } = useAddress()
+
+  const { data: salesTax = 0 } = useSalesTax({
+    address: data.address ?? emptyAddress,
+    items: cartItems,
+    spots: spotPrices,
+  })
+
   const { user } = useUser()
   const createOrder = useCreateSalesOrder()
   const updatePaymentIntent = useUpdatePaymentIntent()
@@ -42,7 +53,8 @@ export default function SalesOrderCheckout() {
       spotPrices,
       user?.dorado_funds ?? 0,
       data.service?.cost ?? 0,
-      data.payment_method ?? 'CARD_AND_FUNDS'
+      data.payment_method ?? 'CARD_AND_FUNDS',
+      salesTax ?? 0
     )
   }, [
     cartItems,
@@ -51,6 +63,7 @@ export default function SalesOrderCheckout() {
     user?.dorado_funds,
     data.service?.cost,
     data.payment_method,
+    salesTax,
   ])
 
   const cardNeeded = useMemo(() => {
@@ -71,6 +84,7 @@ export default function SalesOrderCheckout() {
         shipping_service: data.service?.value ?? 'STANDARD',
         payment_method: data.payment_method ?? 'CARD_AND_FUNDS',
         type: 'sales_order_checkout',
+        address_id: data?.address?.id ?? '',
       })
     }
   }, [
@@ -108,17 +122,27 @@ export default function SalesOrderCheckout() {
 
   if (cartItems.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center w-full p-10 text-center">
-        <h2 className="text-xl font-semibold text-neutral-800">Your cart is empty</h2>
-        <p className="text-sm text-muted-foreground mt-2">
-          You need to add items before checking out.
-        </p>
+      <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10">
+        <div className="relative mb-5">
+          <ShoppingCartIcon size={80} strokeWidth={1.5} color={getPrimaryIconStroke()}/>
+          <div className="absolute -top-6 right-3.5 border border-borderr text-xl text-primary-gradient rounded-full w-10 h-10 flex items-center justify-center">
+            0
+          </div>
+        </div>
+
+        <div className="flex-col items-center gap-1 mb-5">
+          <h2 className="text-xl text-neutral-900">Your cart is empty!</h2>
+          <p className="text-xs text-neutral-700">Please add items before checking out.</p>
+        </div>
+
         <Button
-          variant="default"
-          className="mt-6 liquid-gold raised-off-screen shine-on-hover px-5 py-4"
-          onClick={() => router.push('/buy')}
+          variant="secondary"
+          onClick={() => {
+            router.push('/buy')
+          }}
+          className="raised-off-page liquid-gold text-white hover:text-white shine-on-hover px-10"
         >
-          Add Items
+          Start Shopping
         </Button>
       </div>
     )

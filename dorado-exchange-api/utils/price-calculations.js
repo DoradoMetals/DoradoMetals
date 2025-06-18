@@ -134,6 +134,14 @@ function getShippingCharge(item_total, shipping_service) {
   return item_total > 1000 ? 0 : shipping_service === "OVERNIGHT" ? 50 : 25;
 }
 
+function calculateSalesTax(items, spots) {
+  return items.reduce((acc, item) => {
+    return (
+      acc + calculateItemAsk(item, spots) * item.quantity * item.sales_tax_rate
+    );
+  }, 0);
+}
+
 function calculateSalesOrderTotal(
   items,
   using_funds,
@@ -144,7 +152,9 @@ function calculateSalesOrderTotal(
 ) {
   const item_total = calculateItemTotals(items, spots);
   const shipping_charge = getShippingCharge(item_total, shipping_service);
-  const base_total = item_total + shipping_charge;
+  const sales_tax = calculateSalesTax(items, spots);
+
+  const base_total = item_total + shipping_charge + sales_tax;
 
   const beginning_funds = user.dorado_funds ?? 0;
   const appliedFunds = using_funds ? Math.min(beginning_funds, base_total) : 0;
@@ -171,6 +181,7 @@ function calculateSalesOrderTotal(
     subject_to_charges_amount,
     post_charges_amount,
     charges_amount,
+    sales_tax,
     order_total,
   };
 }
@@ -179,8 +190,10 @@ module.exports = {
   calculateTotalPrice,
   calculateReturnDeclaredValue,
   calculateItemPrice,
+  calculateSalesTax,
   getBullionTotal,
   getScrapTotal,
   calculateItemAsk,
+  calculateItemTotals,
   calculateSalesOrderTotal,
 };

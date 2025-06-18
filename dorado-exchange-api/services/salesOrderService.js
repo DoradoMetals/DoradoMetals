@@ -8,7 +8,12 @@ const transactionsRepo = require("../repositories/transactionRepo");
 const productRepo = require("../repositories/productRepo");
 const shippingRepo = require("../repositories/shippingRepo");
 const supplierRepo = require("../repositories/supplierRepo");
+const taxRepo = require("../repositories/taxRepo");
+
 const emailService = require("../services/emailService");
+const addressService = require("../services/addressService");
+const taxService = require("../services/taxService");
+
 const { calculateSalesOrderTotal } = require("../utils/price-calculations");
 
 async function getById(orderId) {
@@ -46,12 +51,19 @@ async function createSalesOrder(
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(headers),
   });
-  const items = await getItemsFromServer(sales_order.items);
-
+  const address = await addressService.getAddressFromId(sales_order.address.id);
+  const serverItems = await getItemsFromServer(sales_order.items);
+  const items = await taxService.attachSalesTaxToItems(
+    address.state,
+    serverItems,
+    spot_prices
+  );
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+
+    console.log(items)
 
     const orderPrices = calculateSalesOrderTotal(
       items,
@@ -92,11 +104,13 @@ async function createSalesOrder(
     await salesOrderRepo.insertItems(
       client,
       orderId,
-      sales_order.items,
+      items,
       spot_prices
     );
 
     await salesOrderRepo.insertOrderMetals(orderId, spot_prices, client);
+
+    await taxRepo.updateStateSalesTax(orderPrices.sales_tax, address.state, client);
 
     await client.query("COMMIT");
 
@@ -110,11 +124,9 @@ async function createSalesOrder(
   }
 }
 
-
 async function updateStatus({ order, order_status, user_name }) {
   return await salesOrderRepo.updateStatus(order, order_status, user_name);
 }
-
 
 async function sendOrderToSupplier(order, spots, supplier_id) {
   const client = await pool.connect();

@@ -170,7 +170,8 @@ async function insertOrder(client, { user, status, sales_order, orderPrices }) {
       used_funds,
       item_total,
       base_total,
-      charges_amount
+      charges_amount,
+      sales_tax
     )
     VALUES (
       $1,
@@ -185,7 +186,8 @@ async function insertOrder(client, { user, status, sales_order, orderPrices }) {
       $10,
       $11,
       $12,
-      $13
+      $13,
+      $14
     )
     RETURNING id;
   `;
@@ -203,6 +205,7 @@ async function insertOrder(client, { user, status, sales_order, orderPrices }) {
     orderPrices.item_total,
     orderPrices.base_total,
     orderPrices.charges_amount,
+    orderPrices.sales_tax
   ];
   const { rows } = await client.query(query, values);
   return rows[0].id;
@@ -211,9 +214,9 @@ async function insertOrder(client, { user, status, sales_order, orderPrices }) {
 async function insertItems(client, orderId, items, spot_prices) {
   const query = `
     INSERT INTO exchange.sales_order_items
-      (sales_order_id, product_id, price, quantity, bullion_premium)
+      (sales_order_id, product_id, price, quantity, bullion_premium, sales_tax_rate)
     VALUES
-      ($1, $2, $3, $4, $5)
+      ($1, $2, $3, $4, $5, $6)
   `;
   for (const item of items) {
     await client.query(query, [
@@ -222,6 +225,7 @@ async function insertItems(client, orderId, items, spot_prices) {
       calculateItemAsk(item, spot_prices),
       item.quantity,
       item.ask_premium,
+      item.sales_tax_rate
     ]);
   }
 }

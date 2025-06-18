@@ -13,6 +13,7 @@ export interface IntentParams {
   shipping_service: string
   payment_method: string
   type: string
+  address_id: string
 }
 
 export const useRetrievePaymentIntent = (type: string) => {
