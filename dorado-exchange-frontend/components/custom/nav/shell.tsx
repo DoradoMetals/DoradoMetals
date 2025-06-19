@@ -75,7 +75,7 @@ export default function Shell() {
       <Spots />
 
       <nav>
-        <div className="hidden lg:flex p-4 pt-0 px-20">
+        <div className="hidden lg:flex p-4 pt-0 px-20 mt-2">
           <div className="flex items-center gap-2 -mt-4">
             <Link href="/" className="px-0">
               <DesktopLogo />

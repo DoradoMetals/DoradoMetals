@@ -54,6 +54,7 @@ const updateSpotPrices = async () => {
     const spotData = response.data;
 
     const metals = {};
+
     for (const metal of spotData) {
       const name = metal.data?.symbol?.trim();
       const bid = metal.data?.bid;
