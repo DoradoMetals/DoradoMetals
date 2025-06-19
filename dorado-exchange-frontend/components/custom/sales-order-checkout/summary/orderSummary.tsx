@@ -8,11 +8,15 @@ import Image from 'next/image'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 import NumberFlow from '@number-flow/react'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
+import { QuestionIcon } from '@phosphor-icons/react'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { useRouter } from 'next/navigation'
 
 export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
   const { items, addItem, removeOne, removeAll } = cartStore()
   const { data, setData } = useSalesOrderCheckoutStore()
   const { data: spotPrices = [] } = useSpotPrices()
+  const router = useRouter()
 
   const itemContent = (
     <div className="w-full flex-col">
@@ -146,7 +150,12 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
 
       {orderPrices.salesTax > 0 && (
         <div className="w-full flex items-center justify-between">
-          <div className="text-sm text-neutral-700">Sales Tax</div>
+          <div className="flex items-center gap-1">
+            <div className="text-sm text-neutral-700">Sales Tax</div>
+            <Button variant="ghost" className="h-4 p-0" onClick={() => router.push('/sales-tax')}>
+              <QuestionIcon size={16} className='text-neutral-500' />
+            </Button>
+          </div>
           <div className="text-base text-neutral-800">
             <PriceNumberFlow value={orderPrices.salesTax} />
           </div>

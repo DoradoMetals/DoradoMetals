@@ -11,66 +11,80 @@ export default function Footer() {
       <footer className="hidden lg:flex flex-col w-full bg-neutral-800 dark:bg-highest text-white px-8 py-5 raised-off-page">
         <div className="w-full mx-auto flex flex-wrap justify-between gap-10">
           <div className="flex flex-col gap-2">
-            <h4 className="text-xl font-medium mb-3">Resources</h4>
-            <Link href="/" className="text-neutral-200 dark:text-neutral-700">
+            <h4 className="text-base font-medium mb-1">Resources</h4>
+            <Link href="/" className="text-xs text-neutral-200 dark:text-neutral-700">
               Why Dorado?
             </Link>
-            <Link href="/" className="text-neutral-200 dark:text-neutral-700">
+            <Link href="/" className="text-xs text-neutral-200 dark:text-neutral-700">
               Metals Trading
             </Link>
-            <Link href="/terms-and-conditions" className="text-neutral-200 dark:text-neutral-700">
+            <Link
+              href="/terms-and-conditions"
+              className="text-xs text-neutral-200 dark:text-neutral-700"
+            >
               Terms and Conditions
             </Link>
-            <Link href="/privacy-policy" className="text-neutral-200 dark:text-neutral-700">
+            <Link href="/privacy-policy" className="text-xs text-neutral-200 dark:text-neutral-700">
               Privacy Policy
+            </Link>
+            <Link href="/sales-tax" className="text-xs text-neutral-200 dark:text-neutral-700">
+              Sales Tax
             </Link>
           </div>
 
           <div className="flex flex-col gap-2">
-            <h4 className="text-xl font-medium mb-3">Socials</h4>
-            <Link href="/" className="text-neutral-200 dark:text-neutral-700">
+            <h4 className="text-lg font-medium mb-1">Socials</h4>
+            <Link href="/" className="text-xs text-neutral-200 dark:text-neutral-700">
               X
             </Link>
-            <Link href="/" className="text-neutral-200 dark:text-neutral-700">
+            <Link href="/" className="text-xs text-neutral-200 dark:text-neutral-700">
               Facebook
             </Link>
-            <Link target="_blank" href="https://www.instagram.com/doradometals/?utm_source=qr#" className="text-neutral-200 dark:text-neutral-700">
+            <Link
+              target="_blank"
+              href="https://www.instagram.com/doradometals/?utm_source=qr#"
+              className="text-xs text-neutral-200 dark:text-neutral-700"
+            >
               Instagram
             </Link>
           </div>
 
           <div className="flex flex-col gap-2">
-            <h4 className="text-xl font-medium mb-3">Links</h4>
-            <Link target="_blank" href="https://www.ebay.com/sch/i.html?item=146566125667&rt=nc&_trksid=p4429486.m3561.l161211&_ssn=doradometals" className="text-neutral-200 dark:text-neutral-700">
+            <h4 className="text-lg font-medium mb-1">Links</h4>
+            <Link
+              target="_blank"
+              href="https://www.ebay.com/sch/i.html?item=146566125667&rt=nc&_trksid=p4429486.m3561.l161211&_ssn=doradometals"
+              className="text-xs text-neutral-200 dark:text-neutral-700"
+            >
               eBay Listings
             </Link>
           </div>
 
           <div className="flex flex-col gap-2">
-            <h4 className="text-xl font-medium mb-3">Company</h4>
-            <Link href="/" className="text-neutral-200 dark:text-neutral-700">
+            <h4 className="text-lg font-medium mb-1">Company</h4>
+            <Link href="/" className="text-xs text-neutral-200 dark:text-neutral-700">
               About Us
             </Link>
           </div>
 
           <div className="flex flex-col gap-2">
-            <h4 className="text-xl font-medium mb-3">Contact Us</h4>
+            <h4 className="text-lg font-medium mb-1">Contact Us</h4>
             <a
               href={`tel:+${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`}
-              className="text-neutral-200 dark:text-neutral-700"
+              className="text-xs text-neutral-200 dark:text-neutral-700"
             >
               {formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}
             </a>
             <Link
               href="mailto:support@doradometals.com"
-              className="text-neutral-200 dark:text-neutral-700"
+              className="text-xs text-neutral-200 dark:text-neutral-700"
             >
               support@doradometals.com
             </Link>
           </div>
         </div>
 
-        <div className="mt-10 text-xs text-neutral-500 text-left">© Dorado Metals Exchange LLC</div>
+        <div className="mt-5 text-xs text-neutral-500 text-left">© Dorado Metals Exchange LLC</div>
       </footer>
 
       <footer className="flex flex-col lg:hidden w-full bg-neutral-800 dark:bg-highest px-3 py-3 pt-6 raised-off-page">
@@ -95,7 +109,11 @@ export default function Footer() {
             </Link>
           </div>
           <div className="flex w-full items-center justify-between">
-            <Link target="_blank" href="https://www.ebay.com/sch/i.html?item=146566125667&rt=nc&_trksid=p4429486.m3561.l161211&_ssn=doradometals" className="text-xs text-neutral-200 dark:text-neutral-700">
+            <Link
+              target="_blank"
+              href="https://www.ebay.com/sch/i.html?item=146566125667&rt=nc&_trksid=p4429486.m3561.l161211&_ssn=doradometals"
+              className="text-xs text-neutral-200 dark:text-neutral-700"
+            >
               eBay Listings
             </Link>
             <Link href="/" className="text-xs text-neutral-200 dark:text-neutral-700">
@@ -118,12 +136,13 @@ export default function Footer() {
           </div>
         </div>
         <div className="flex items-center w-full justify-between mt-1">
-          <div className="text-xs text-neutral-200 dark:text-neutral-700 text-left">© Dorado Metals Exchange LLC</div>
+          <div className="text-xs text-neutral-200 dark:text-neutral-700 text-left">
+            © Dorado Metals Exchange LLC
+          </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" className="p-0">
               <Link target="_blank" href="https://www.instagram.com/doradometals/?utm_source=qr#">
                 <InstagramIcon size={20} className="text-neutral-200 dark:text-neutral-700" />
-
               </Link>
             </Button>
             <Button variant="ghost" className="p-0">
