@@ -49,7 +49,7 @@ export const useCreatePurchaseOrder = () => {
       })
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase_orders', user], refetchType: 'active' })
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders', user?.id], refetchType: 'active' })
     },
     onSuccess: async (purchaseOrder: PurchaseOrder) => {
       const packageDetails =

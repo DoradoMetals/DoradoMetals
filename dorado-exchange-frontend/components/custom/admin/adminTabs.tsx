@@ -6,7 +6,7 @@ import ProductsInventory from './productsPoS/productsInventory'
 import AdminPurchaseOrders from './purchaseOrdersPoS/AdminPurchaseOrders'
 import { UsersPage } from './usersPoS/usersPage'
 import AdminSalesOrders from './salesOrdersPoS/AdminSalesOrders'
-import { ClipboardTextIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
+import { ClipboardTextIcon, CoinsIcon, CurrencyDollarIcon, GearIcon } from '@phosphor-icons/react'
 import { useAdminSalesOrders } from '@/lib/queries/admin/useAdminSalesOrders'
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
@@ -46,12 +46,12 @@ export function AdminTabs() {
                   className="cursor-pointer bg-background data-[state=active]:bg-card rounded-lg p-2 sm:p-4 raised-off-page w-full h-auto"
                 >
                   <div className="flex items-start sm:items-center justify-between w-full">
-                    <ClipboardTextIcon
+                    <CoinsIcon
                       className="hidden sm:flex"
                       size={64}
                       color={getPrimaryIconStroke()}
                     />
-                    <ClipboardTextIcon
+                    <CoinsIcon
                       className="sm:hidden"
                       size={48}
                       color={getPrimaryIconStroke()}
@@ -79,12 +79,12 @@ export function AdminTabs() {
                   className="cursor-pointer bg-background data-[state=active]:bg-card rounded-lg p-2 sm:p-4 raised-off-page w-full h-auto"
                 >
                   <div className="flex items-start sm:items-center justify-between w-full">
-                    <CurrencyDollarIcon
+                    <GearIcon
                       className="hidden sm:flex"
                       size={64}
                       color={getPrimaryIconStroke()}
                     />
-                    <CurrencyDollarIcon
+                    <GearIcon
                       className="sm:hidden"
                       size={48}
                       color={getPrimaryIconStroke()}
@@ -159,7 +159,6 @@ export function AdminTabs() {
                     </div>
                   </TabsTrigger>
                 </TabsList>
-                <div className="separator-inset max-w-4xl" />
 
                 <TabsContent value="purchase-orders">
                   <AdminPurchaseOrders />

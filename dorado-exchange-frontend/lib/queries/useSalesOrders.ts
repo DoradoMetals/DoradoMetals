@@ -43,7 +43,7 @@ export const useCreateSalesOrder = () => {
       })
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales_orders', user], refetchType: 'active' })
+      queryClient.invalidateQueries({ queryKey: ['sales_orders', user?.id], refetchType: 'active' })
     },
   })
 }
