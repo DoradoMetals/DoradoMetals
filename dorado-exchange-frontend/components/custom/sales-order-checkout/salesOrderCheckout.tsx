@@ -22,6 +22,7 @@ import { useSalesTax } from '@/lib/queries/useSalesTax'
 import { emptyAddress } from '@/types/address'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { useGetSession } from '@/lib/queries/useAuth'
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function SalesOrderCheckout() {
@@ -41,7 +42,7 @@ export default function SalesOrderCheckout() {
     spots: spotPrices,
   })
 
-  const { user } = useUser()
+  const { user } = useGetSession()
   const createOrder = useCreateSalesOrder()
   const updatePaymentIntent = useUpdatePaymentIntent()
   const { data: clientSecret } = useRetrievePaymentIntent('sales_order_checkout')

@@ -87,7 +87,7 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
         disabled={!selectedSupplier || sendOrder.isPending || order.order_sent}
       >
         {sendOrder.isPending
-          ? `Sending to ${selectedSupplier?.name}`
+          ? `Sending to ${selectedSupplier?.name}...`
           : order.order_sent
           ? `Order sent to ${selectedSupplier?.name}`
           : selectedSupplier

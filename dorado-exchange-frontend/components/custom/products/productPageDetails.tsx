@@ -25,6 +25,7 @@ import { sellCartStore } from '@/store/sellCartStore'
 import { Lens } from '@/components/ui/lens'
 import { paymentOptions, salesOrderServiceOptions } from '@/types/sales-orders'
 import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
+import getProductBidOverUnderSpot from '@/utils/getProductBidOverUnderSpot'
 
 type ProductPageProps = {
   product: Product
@@ -65,7 +66,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   const spot = spotPrices.find((s) => s.type === product.metal_type)
   const weightOptions = ozOptions[product.variant_group]
 
-  const overOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
+  const askOverOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
+    const bidOverOrUnder = getProductBidOverUnderSpot(selectedProduct, spot)
+
 
   const price = useMemo(() => {
     return getProductPrice(selectedProduct, spot)
@@ -323,7 +326,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     </div>
 
                     <div className="flex w-full items-start">
-                      {overOrUnder >= 0 ? (
+                      {askOverOrUnder >= 0 ? (
                         <Plus size={16} className="text-neutral-700 px-0" />
                       ) : (
                         <Minus size={16} className="text-neutral-700 px-0" />
@@ -332,7 +335,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       <div className="flex w-full items-start justify-between pl-4">
                         <div className="text-xs text-neutral-600">Ask Premium</div>
                         <div className="text-sm">
-                          <PriceNumberFlow value={Math.abs(overOrUnder)} />
+                          <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
                         </div>
                       </div>
                     </div>
@@ -374,7 +377,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     </div>
 
                     <div className="flex w-full items-start">
-                      {overOrUnder <= 0 ? (
+                      {bidOverOrUnder >= 0 ? (
                         <Plus size={16} className="text-neutral-700 px-0" />
                       ) : (
                         <Minus size={16} className="text-neutral-700 px-0" />
@@ -383,7 +386,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       <div className="flex w-full items-start justify-between pl-4">
                         <div className="text-xs text-neutral-600">Bid Premium</div>
                         <div className="text-sm">
-                          <PriceNumberFlow value={Math.abs(overOrUnder)} />
+                          <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
                         </div>
                       </div>
                     </div>
@@ -739,7 +742,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     </div>
 
                     <div className="flex w-full items-start">
-                      {overOrUnder >= 0 ? (
+                      {askOverOrUnder >= 0 ? (
                         <Plus size={16} className="text-neutral-700 px-0" />
                       ) : (
                         <Minus size={16} className="text-neutral-700 px-0" />
@@ -748,7 +751,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       <div className="flex w-full items-start justify-between pl-4">
                         <div className="text-xs text-neutral-600">Ask Premium</div>
                         <div className="text-sm">
-                          <PriceNumberFlow value={Math.abs(overOrUnder)} />
+                          <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
                         </div>
                       </div>
                     </div>
@@ -790,7 +793,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     </div>
 
                     <div className="flex w-full items-start">
-                      {overOrUnder <= 0 ? (
+                      {bidOverOrUnder >= 0 ? (
                         <Plus size={16} className="text-neutral-700 px-0" />
                       ) : (
                         <Minus size={16} className="text-neutral-700 px-0" />
@@ -799,7 +802,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       <div className="flex w-full items-start justify-between pl-4">
                         <div className="text-xs text-neutral-600">Bid Premium</div>
                         <div className="text-sm">
-                          <PriceNumberFlow value={Math.abs(overOrUnder)} />
+                          <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
                         </div>
                       </div>
                     </div>

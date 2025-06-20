@@ -46,7 +46,7 @@ export default function Spots() {
                 onClick={() => toggleType()}
               >
                 <SwapIcon size={20} color={getPrimaryIconStroke()} />
-                {type === 'Bid' ? 'Ask' : 'Bid'}
+                Show {type === 'Bid' ? 'Ask' : 'Bid'}
               </Button>
             </div>
           </div>

@@ -3,10 +3,6 @@
 import Drawer from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import {
-  SignIn,
-  SignOut,
-  User,
-  List,
   UserIcon,
   ListIcon,
   SignOutIcon,
@@ -144,7 +140,7 @@ export default function Sidebar() {
               className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
             >
               <SwapIcon size={20} color={getPrimaryIconStroke()} />
-              <div className="text-sm text-primary-gradient">{type === 'Bid' ? 'Ask' : 'Bid'}</div>
+              <div className="text-sm text-primary-gradient">Show {type === 'Bid' ? 'Ask' : 'Bid'}</div>
             </Button>
           </div>
         </div>

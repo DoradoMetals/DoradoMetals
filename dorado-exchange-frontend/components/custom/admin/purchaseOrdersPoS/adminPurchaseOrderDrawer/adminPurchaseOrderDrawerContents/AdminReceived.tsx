@@ -75,6 +75,8 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   }
 
   const config = statusConfig[order.purchase_order_status]
+
+
   return (
     <>
       <div className="flex w-full">
@@ -124,11 +126,11 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                       readOnly={!order.spots_locked}
                       className={cn(
                         'input-floating-label-form no-spinner text-center w-full text-base h-8',
-                        !order.spots_locked && 'cursor-not-allowed'
+                        !order?.spots_locked && 'cursor-not-allowed'
                       )}
                       value={
-                        spot.bid_spot ??
-                        spotPrices.find((s) => s.type === spot.type)?.bid_spot ??
+                        spot?.bid_spot ??
+                        spotPrices?.find((s) => s.type === spot.type)?.bid_spot ??
                         ''
                       }
                       onChange={(e) => handleUpdateSpot(spot, Number(e.target.value))}
@@ -138,6 +140,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
               ))}
             </div>
           </div>
+
           <div className="separator-inset" />
 
           {scrapItems && (
