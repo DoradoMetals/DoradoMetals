@@ -43,12 +43,12 @@ async function findAllByUser(userId) {
           'metal_type', mp.type
         )
       )) AS order_items,
-      to_jsonb(addr)           AS address,
-      jsonb_build_object(
+        to_jsonb(addr) AS address,
+       jsonb_build_object(
         'id', ship.id,
-        'order_id', ship.order_id,
+        'purchase_order_id', ship.purchase_order_id,
+        'sales_order_id', ship.sales_order_id,
         'tracking_number', ship.tracking_number,
-        'carrier', ship.carrier,
         'shipping_status', ship.shipping_status,
         'estimated_delivery', ship.estimated_delivery,
         'shipped_at', ship.shipped_at,
@@ -61,13 +61,15 @@ async function findAllByUser(userId) {
         'shipping_charge', ship.net_charge,
         'shipping_service', ship.service_type,
         'insured', ship.insured,
-        'declared_value', ship.declared_value
+        'declared_value', ship.declared_value,
+        'type', ship.type,
+        'carrier_id', ship.carrier_id
       ) AS shipment,
       jsonb_build_object(
         'id', ret.id,
-        'order_id', ret.order_id,
+        'purchase_order_id', ret.purchase_order_id,
+        'sales_order_id', ret.sales_order_id,
         'tracking_number', ret.tracking_number,
-        'carrier', ret.carrier,
         'shipping_status', ret.shipping_status,
         'estimated_delivery', ret.estimated_delivery,
         'shipped_at', ret.shipped_at,
@@ -80,7 +82,9 @@ async function findAllByUser(userId) {
         'shipping_charge', ret.net_charge,
         'shipping_service', ret.service_type,
         'insured', ret.insured,
-        'declared_value', ret.declared_value
+        'declared_value', ret.declared_value,
+        'type', ret.type,
+        'carrier_id', ret.carrier_id
       ) AS return_shipment,
       to_jsonb(cp) AS carrier_pickup,
       to_jsonb(pay) AS payout,
@@ -96,8 +100,8 @@ async function findAllByUser(userId) {
     LEFT JOIN exchange.metals ms ON s.metal_id = ms.id
     LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
     LEFT JOIN exchange.addresses addr ON addr.id = po.address_id
-    LEFT JOIN exchange.inbound_shipments ship ON ship.order_id = po.id
-    LEFT JOIN exchange.return_shipments ret ON ret.order_id = po.id
+    LEFT JOIN exchange.shipments ship ON ship.purchase_order_id = po.id AND ship.type = 'Inbound'
+    LEFT JOIN exchange.shipments ret ON ret.purchase_order_id = po.id AND ship.type = 'Return'
     LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = po.id
     LEFT JOIN exchange.payouts pay ON pay.order_id = po.id
     LEFT JOIN exchange.users u ON u.id = po.user_id
@@ -151,9 +155,9 @@ async function findById(id) {
       to_jsonb(addr) AS address,
       jsonb_build_object(
         'id', ship.id,
-        'order_id', ship.order_id,
+        'purchase_order_id', ship.purchase_order_id,
+        'sales_order_id', ship.sales_order_id,
         'tracking_number', ship.tracking_number,
-        'carrier', ship.carrier,
         'shipping_status', ship.shipping_status,
         'estimated_delivery', ship.estimated_delivery,
         'shipped_at', ship.shipped_at,
@@ -166,13 +170,15 @@ async function findById(id) {
         'shipping_charge', ship.net_charge,
         'shipping_service', ship.service_type,
         'insured', ship.insured,
-        'declared_value', ship.declared_value
+        'declared_value', ship.declared_value,
+        'type', ship.type,
+        'carrier_id', ship.carrier_id
       ) AS shipment,
       jsonb_build_object(
         'id', ret.id,
-        'order_id', ret.order_id,
+        'purchase_order_id', ret.purchase_order_id,
+        'sales_order_id', ret.sales_order_id,
         'tracking_number', ret.tracking_number,
-        'carrier', ret.carrier,
         'shipping_status', ret.shipping_status,
         'estimated_delivery', ret.estimated_delivery,
         'shipped_at', ret.shipped_at,
@@ -185,7 +191,9 @@ async function findById(id) {
         'shipping_charge', ret.net_charge,
         'shipping_service', ret.service_type,
         'insured', ret.insured,
-        'declared_value', ret.declared_value
+        'declared_value', ret.declared_value,
+        'type', ret.type,
+        'carrier_id', ret.carrier_id
       ) AS return_shipment,
       to_jsonb(cp) AS carrier_pickup,
       to_jsonb(pay) AS payout,
@@ -201,8 +209,8 @@ async function findById(id) {
     LEFT JOIN exchange.metals ms ON s.metal_id = ms.id
     LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
     LEFT JOIN exchange.addresses addr ON addr.id = po.address_id
-    LEFT JOIN exchange.inbound_shipments ship ON ship.order_id = po.id
-    LEFT JOIN exchange.return_shipments ret ON ret.order_id = po.id
+    LEFT JOIN exchange.shipments ship ON ship.purchase_order_id = po.id AND ship.type = 'Inbound'
+    LEFT JOIN exchange.shipments ret ON ret.purchase_order_id = po.id AND ship.type = 'Return'
     LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = po.id
     LEFT JOIN exchange.payouts pay ON pay.order_id = po.id
     LEFT JOIN exchange.users u ON u.id = po.user_id
@@ -255,60 +263,64 @@ async function getAll() {
           )
         )) AS order_items,
         to_jsonb(addr) AS address,
-        jsonb_build_object(
-          'id', ship.id,
-          'order_id', ship.order_id,
-          'tracking_number', ship.tracking_number,
-          'carrier', ship.carrier,
-          'shipping_status', ship.shipping_status,
-          'estimated_delivery', ship.estimated_delivery,
-          'shipped_at', ship.shipped_at,
-          'delivered_at', ship.delivered_at,
-          'created_at', ship.created_at,
-          'label_type', ship.label_type,
-          'pickup_type', ship.pickup_type,
-          'package', ship.package,
-          'shipping_label', encode(ship.shipping_label, 'base64'),
-          'shipping_charge', ship.net_charge,
-          'shipping_service', ship.service_type,
-          'insured', ship.insured,
-          'declared_value', ship.declared_value
-        ) AS shipment,
-        jsonb_build_object(
-          'id', ret.id,
-          'order_id', ret.order_id,
-          'tracking_number', ret.tracking_number,
-          'carrier', ret.carrier,
-          'shipping_status', ret.shipping_status,
-          'estimated_delivery', ret.estimated_delivery,
-          'shipped_at', ret.shipped_at,
-          'delivered_at', ret.delivered_at,
-          'created_at', ret.created_at,
-          'label_type', ret.label_type,
-          'pickup_type', ret.pickup_type,
-          'package', ret.package,
-          'shipping_label', encode(ret.shipping_label, 'base64'),
-          'shipping_charge', ret.net_charge,
-          'shipping_service', ret.service_type,
-          'insured', ret.insured,
-          'declared_value', ret.declared_value
-        ) AS return_shipment,
-        to_jsonb(cp) AS carrier_pickup,
-        to_jsonb(pay) AS payout,
-        jsonb_build_object(
-          'user_id', u.id,
-          'user_name', u.name,
-          'user_email', u.email
-        ) AS user
-      FROM exchange.purchase_orders po
-      LEFT JOIN exchange.purchase_order_items poi ON poi.purchase_order_id = po.id
-      LEFT JOIN exchange.scrap s ON poi.scrap_id = s.id
-      LEFT JOIN exchange.products p ON poi.product_id = p.id
-      LEFT JOIN exchange.metals ms ON s.metal_id = ms.id
-      LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
-      LEFT JOIN exchange.addresses addr ON addr.id = po.address_id
-      LEFT JOIN exchange.inbound_shipments ship ON ship.order_id = po.id
-      LEFT JOIN exchange.return_shipments ret ON ret.order_id = po.id
+      jsonb_build_object(
+        'id', ship.id,
+        'purchase_order_id', ship.purchase_order_id,
+        'sales_order_id', ship.sales_order_id,
+        'tracking_number', ship.tracking_number,
+        'shipping_status', ship.shipping_status,
+        'estimated_delivery', ship.estimated_delivery,
+        'shipped_at', ship.shipped_at,
+        'delivered_at', ship.delivered_at,
+        'created_at', ship.created_at,
+        'label_type', ship.label_type,
+        'pickup_type', ship.pickup_type,
+        'package', ship.package,
+        'shipping_label', encode(ship.shipping_label, 'base64'),
+        'shipping_charge', ship.net_charge,
+        'shipping_service', ship.service_type,
+        'insured', ship.insured,
+        'declared_value', ship.declared_value,
+        'type', ship.type,
+        'carrier_id', ship.carrier_id
+      ) AS shipment,
+      jsonb_build_object(
+        'id', ret.id,
+        'purchase_order_id', ret.purchase_order_id,
+        'sales_order_id', ret.sales_order_id,
+        'tracking_number', ret.tracking_number,
+        'shipping_status', ret.shipping_status,
+        'estimated_delivery', ret.estimated_delivery,
+        'shipped_at', ret.shipped_at,
+        'delivered_at', ret.delivered_at,
+        'created_at', ret.created_at,
+        'label_type', ret.label_type,
+        'pickup_type', ret.pickup_type,
+        'package', ret.package,
+        'shipping_label', encode(ret.shipping_label, 'base64'),
+        'shipping_charge', ret.net_charge,
+        'shipping_service', ret.service_type,
+        'insured', ret.insured,
+        'declared_value', ret.declared_value,
+        'type', ret.type,
+        'carrier_id', ret.carrier_id
+      ) AS return_shipment,
+      to_jsonb(cp) AS carrier_pickup,
+      to_jsonb(pay) AS payout,
+      jsonb_build_object(
+        'user_id', u.id,
+        'user_name', u.name,
+        'user_email', u.email
+      ) AS "user"
+    FROM exchange.purchase_orders po
+    LEFT JOIN exchange.purchase_order_items poi ON poi.purchase_order_id = po.id
+    LEFT JOIN exchange.scrap s ON poi.scrap_id = s.id
+    LEFT JOIN exchange.products p ON poi.product_id = p.id
+    LEFT JOIN exchange.metals ms ON s.metal_id = ms.id
+    LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
+    LEFT JOIN exchange.addresses addr ON addr.id = po.address_id
+    LEFT JOIN exchange.shipments ship ON ship.purchase_order_id = po.id AND ship.type = 'Inbound'
+    LEFT JOIN exchange.shipments ret ON ret.purchase_order_id = po.id AND ship.type = 'Return'
       LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = po.id
       LEFT JOIN exchange.payouts pay ON pay.order_id = po.id
       LEFT JOIN exchange.users u ON u.id = po.user_id

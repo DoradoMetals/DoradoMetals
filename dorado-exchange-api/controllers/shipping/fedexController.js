@@ -351,17 +351,6 @@ const cancelLabel = async (req, res) => {
       }
     );
 
-    if (response.data.output.cancelledShipment === true) {
-      await pool.query(
-        `
-        UPDATE exchange.inbound_shipments
-        SET shipping_label = $1, shipping_status = $2, tracking_number = $3
-        WHERE id = $4
-      `,
-        [null, 'Label Cancelled', null, shipment_id]
-      );
-    }
-
     res.json({ message: "Label cancelled." });
   } catch (error) {
     const response = error?.response?.data;
@@ -578,13 +567,6 @@ const cancelFedexPickup = async (req, res) => {
     await pool.query(`DELETE FROM exchange.carrier_pickups WHERE id = $1`, [
       id,
     ]);
-
-    await pool.query(
-      `UPDATE exchange.inbound_shipments
-       SET pickup_type = 'Store Dropoff', shipping_status = 'Label Created'
-       WHERE order_id = $1`,
-      [order_id]
-    );
 
     res.json({
       message: "Pickup successfully canceled.",

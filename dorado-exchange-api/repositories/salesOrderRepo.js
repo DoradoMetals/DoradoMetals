@@ -30,15 +30,37 @@ async function findById(id) {
         'user_id', u.id,
         'user_name', u.name,
         'user_email', u.email
-      ) AS "user"
+      ) AS "user",
+      jsonb_build_object(
+        'id', ship.id,
+        'purchase_order_id', ship.purchase_order_id,
+        'sales_order_id', ship.sales_order_id,
+        'tracking_number', ship.tracking_number,
+        'shipping_status', ship.shipping_status,
+        'estimated_delivery', ship.estimated_delivery,
+        'shipped_at', ship.shipped_at,
+        'delivered_at', ship.delivered_at,
+        'created_at', ship.created_at,
+        'label_type', ship.label_type,
+        'pickup_type', ship.pickup_type,
+        'package', ship.package,
+        'shipping_label', encode(ship.shipping_label, 'base64'),
+        'shipping_charge', ship.net_charge,
+        'shipping_service', ship.service_type,
+        'insured', ship.insured,
+        'declared_value', ship.declared_value,
+        'type', ship.type,
+        'carrier_id', ship.carrier_id
+    ) AS shipment
     FROM exchange.sales_orders so
     LEFT JOIN exchange.sales_order_items soi ON soi.sales_order_id = so.id
     LEFT JOIN exchange.products p ON soi.product_id = p.id
     LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
     LEFT JOIN exchange.addresses addr ON addr.id = so.address_id
     LEFT JOIN exchange.users u ON u.id = so.user_id
+    LEFT JOIN exchange.shipments ship ON ship.sales_order_id = so.id
     WHERE so.id = $1
-    GROUP BY so.id, addr.id, u.id
+    GROUP BY so.id, addr.id, u.id, ship.id
     ORDER BY so.created_at DESC
     LIMIT 1;
   `;
@@ -75,15 +97,37 @@ async function findAllByUser(userId) {
         'user_id', u.id,
         'user_name', u.name,
         'user_email', u.email
-      ) AS "user"
+      ) AS "user",
+            jsonb_build_object(
+        'id', ship.id,
+        'purchase_order_id', ship.purchase_order_id,
+        'sales_order_id', ship.sales_order_id,
+        'tracking_number', ship.tracking_number,
+        'shipping_status', ship.shipping_status,
+        'estimated_delivery', ship.estimated_delivery,
+        'shipped_at', ship.shipped_at,
+        'delivered_at', ship.delivered_at,
+        'created_at', ship.created_at,
+        'label_type', ship.label_type,
+        'pickup_type', ship.pickup_type,
+        'package', ship.package,
+        'shipping_label', encode(ship.shipping_label, 'base64'),
+        'shipping_charge', ship.net_charge,
+        'shipping_service', ship.service_type,
+        'insured', ship.insured,
+        'declared_value', ship.declared_value,
+        'type', ship.type,
+        'carrier_id', ship.carrier_id
+    ) AS shipment
     FROM exchange.sales_orders so
     LEFT JOIN exchange.sales_order_items soi ON soi.sales_order_id = so.id
     LEFT JOIN exchange.products p ON soi.product_id = p.id
     LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
     LEFT JOIN exchange.addresses addr ON addr.id = so.address_id
     LEFT JOIN exchange.users u ON u.id = so.user_id
+    LEFT JOIN exchange.shipments ship ON ship.sales_order_id = so.id
     WHERE so.user_id = $1
-    GROUP BY so.id, addr.id, u.id
+    GROUP BY so.id, addr.id, u.id, ship.id
     ORDER BY so.created_at DESC;
   `;
   const { rows } = await pool.query(query, [userId]);
@@ -119,14 +163,36 @@ async function getAll() {
         'user_id', u.id,
         'user_name', u.name,
         'user_email', u.email
-      ) AS "user"
+      ) AS "user",
+            jsonb_build_object(
+        'id', ship.id,
+        'purchase_order_id', ship.purchase_order_id,
+        'sales_order_id', ship.sales_order_id,
+        'tracking_number', ship.tracking_number,
+        'shipping_status', ship.shipping_status,
+        'estimated_delivery', ship.estimated_delivery,
+        'shipped_at', ship.shipped_at,
+        'delivered_at', ship.delivered_at,
+        'created_at', ship.created_at,
+        'label_type', ship.label_type,
+        'pickup_type', ship.pickup_type,
+        'package', ship.package,
+        'shipping_label', encode(ship.shipping_label, 'base64'),
+        'shipping_charge', ship.net_charge,
+        'shipping_service', ship.service_type,
+        'insured', ship.insured,
+        'declared_value', ship.declared_value,
+        'type', ship.type,
+        'carrier_id', ship.carrier_id
+    ) AS shipment
     FROM exchange.sales_orders so
     LEFT JOIN exchange.sales_order_items soi ON soi.sales_order_id = so.id
     LEFT JOIN exchange.products p ON soi.product_id = p.id
     LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
     LEFT JOIN exchange.addresses addr ON addr.id = so.address_id
     LEFT JOIN exchange.users u ON u.id = so.user_id
-    GROUP BY so.id, addr.id, u.id
+    LEFT JOIN exchange.shipments ship ON ship.sales_order_id = so.id
+    GROUP BY so.id, addr.id, u.id, ship.id
     ORDER BY so.created_at DESC;
     `;
 

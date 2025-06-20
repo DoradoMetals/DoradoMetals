@@ -1,6 +1,5 @@
-import { InventoryProduct } from '@/types/admin'
+import { AdminProductsInventory, InventoryProduct } from '@/types/admin'
 import { SpotPrice } from '@/types/metal'
-import getProductPrice from '@/utils/getProductPrice'
 
 export function getInventoryPriceTotals({
   product_list,
@@ -12,6 +11,32 @@ export function getInventoryPriceTotals({
   if (!spot || !product_list?.length) return 0
 
   return product_list.reduce((sum, product) => {
-    return sum + (product.quantity * (product.content * (spot.ask_spot * product.ask_premium)))
+    return sum + product.quantity * (product.content * (spot.ask_spot * product.ask_premium))
   }, 0)
+}
+
+export function getInventoryValue({
+  productInventory,
+  spots,
+}: {
+  productInventory: AdminProductsInventory
+  spots: SpotPrice[]
+}): number {
+  if (!productInventory || !spots.length) return 0
+
+  return (Object.keys(productInventory) as Array<keyof AdminProductsInventory>).reduce(
+    (total, metalKey) => {
+      const group = productInventory[metalKey]
+      const spot = spots.find((s) => s.type === metalKey)
+      if (!spot) return total
+      return (
+        total +
+        getInventoryPriceTotals({
+          product_list: group.inventory_list,
+          spot,
+        })
+      )
+    },
+    0
+  )
 }

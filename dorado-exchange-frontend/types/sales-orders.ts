@@ -19,6 +19,7 @@ import { LucideIcon } from 'lucide-react'
 import { Product, productSchema } from './product'
 import { User } from './user'
 import { insuranceSchema } from './insurance'
+import { Shipment } from './shipments'
 
 export interface SalesOrderItem {
   id: string
@@ -64,6 +65,7 @@ export interface SalesOrder {
   order_items: SalesOrderItem[]
   address: Address
   payout: Payout
+  shipment: Shipment
   user: {
     user_name: string
     user_email: string

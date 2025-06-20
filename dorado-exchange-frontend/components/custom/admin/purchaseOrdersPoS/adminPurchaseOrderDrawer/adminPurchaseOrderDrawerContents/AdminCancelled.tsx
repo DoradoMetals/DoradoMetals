@@ -1,22 +1,17 @@
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
 import { Button } from '@/components/ui/button'
-import { useReturnShipmentTracking } from '@/lib/queries/shipping/useShipments'
+import { useTracking } from '@/lib/queries/shipping/useShipments'
 import { cn } from '@/lib/utils'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
-
-import { addDays } from 'date-fns'
 
 export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const config = statusConfig[order.purchase_order_status]
 
-  const shipment_start = new Date(order.return_shipment.created_at).toISOString().slice(0, 10)
-  const shipment_end = addDays(new Date(), 1).toISOString().slice(0, 10)
-  const { data: trackingInfo, isLoading } = useReturnShipmentTracking(
+  const { data: trackingInfo, isLoading } = useTracking(
     order.return_shipment.id,
-    shipment_start,
-    shipment_end,
-    order.return_shipment.tracking_number
+    order.return_shipment.tracking_number,
+    order.return_shipment.carrier_id,
   )
 
   const handleMarkShippingPaid = () => {

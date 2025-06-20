@@ -121,29 +121,6 @@ export const useUpdateRejectedOffer = () => {
   })
 }
 
-export const useAdminInTransit = (
-  shipment_id: string,
-  shipment_start: string,
-  shipment_end: string,
-  tracking_number: string
-) => {
-  const { user } = useGetSession()
-
-  return useQuery<ShipmentTracking | null>({
-    queryKey: ['admin_inbound_shipment_tracking', shipment_id, user],
-    queryFn: async () => {
-      if (!user?.id || user?.role !== 'admin') return null
-      return await apiRequest<ShipmentTracking>('POST', '/shipping/get_inbound_shipment_tracking', {
-        tracking_number,
-        shipment_id,
-        shipment_end,
-        shipment_start,
-      })
-    },
-    enabled: !!user,
-  })
-}
-
 export const useUpdateOrderScrapPercentage = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()

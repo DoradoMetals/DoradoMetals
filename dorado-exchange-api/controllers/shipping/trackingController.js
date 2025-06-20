@@ -38,6 +38,7 @@ const parseTracking = (trackingOutput) => {
     PD: "Pickup Delay",
     DD: "Delivery Delay",
     DE: "Delivery Exception",
+    TD: "Delivery Attempted",
     OC: "Label Created",
     PU: "Picked Up",
     AR: "Arrived at FedEx Location",
@@ -45,8 +46,18 @@ const parseTracking = (trackingOutput) => {
     OW: "On the Way",
     OD: "Out for Delivery",
     DL: "Delivered",
-    HL: "Hold at Location",
+    HL: "Held at Location",
     PM: "In Progress",
+    FD: "At FedEx Destination",
+    PF: "Ready for Delivery",
+    CH: "Location Changed",
+    CL: "Clearance Delay",
+    SD: "Shipment Delayed",
+    SA: "Shipment Arrived",
+    RR: "Return Received",
+    DY: "Delayed",
+    RS: "Returning to Shipper",
+
   };
 
   const relevantStatusCodes = Object.keys(statusMap);
@@ -68,7 +79,7 @@ const parseTracking = (trackingOutput) => {
 
   const derivedCode = trackingOutput.latestStatusDetail?.derivedCode;
   const latestStatus =
-    derivedCode && statusMap[derivedCode] ? statusMap[derivedCode] : null;
+    derivedCode && statusMap[derivedCode] ? statusMap[derivedCode] : 'Status Unknown';
 
   const deliveredAt =
     trackingOutput.dateAndTimes?.find((dt) => dt.type === "ACTUAL_DELIVERY")
@@ -82,13 +93,9 @@ const parseTracking = (trackingOutput) => {
   };
 };
 
-const updateFedexShipmentTracking = async (
-  shipment_start,
-  shipment_end,
+
+const getFedexShipmentTracking = async (
   tracking_number,
-  inbound_shipment,
-  outbound_shipment,
-  return_shipment
 ) => {
   try {
     const token = await getFedExAccessToken();
@@ -96,8 +103,6 @@ const updateFedexShipmentTracking = async (
       includeDetailedScans: true,
       trackingInfo: [
         {
-          shipDateEnd: shipment_end,
-          shipDateBegin: shipment_start,
           trackingNumberInfo: {
             trackingNumber: tracking_number,
           },
@@ -118,100 +123,9 @@ const updateFedexShipmentTracking = async (
 
     const trackingOutput =
       response.data.output.completeTrackResults[0].trackResults[0];
-    const trackingInfo = parseTracking(trackingOutput);
 
-    if (inbound_shipment) {
-      await pool.query(
-        `DELETE FROM exchange.shipment_tracking_events WHERE inbound_shipment_id = $1`,
-        [inbound_shipment]
-      );
-    } else if (outbound_shipment) {
-      await pool.query(
-        `DELETE FROM exchange.shipment_tracking_events WHERE outbound_shipment_id = $1`,
-        [outbound_shipment]
-      );
-    } else if (return_shipment) {
-      await pool.query(
-        `DELETE FROM exchange.shipment_tracking_events WHERE return_shipment_id = $1`,
-        [return_shipment]
-      );
-    }
-
-    for (const event of trackingInfo.scanEvents) {
-      await pool.query(
-        `
-          INSERT INTO exchange.shipment_tracking_events (
-            inbound_shipment_id,
-            outbound_shipment_id,
-            return_shipment_id,
-            status,
-            location,
-            scan_time
-          )
-          VALUES ($1, $2, $3, $4, $5, $6)
-        `,
-        [
-          inbound_shipment,
-          outbound_shipment,
-          return_shipment,
-          event.status,
-          event.location,
-          event.date,
-        ]
-      );
-    }
-
-    if (trackingInfo.latestStatus) {
-      if (inbound_shipment) {
-        await pool.query(
-          `
-        UPDATE exchange.inbound_shipments
-        SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
-        WHERE id = $4
-      `,
-          [
-            trackingInfo.latestStatus,
-            trackingInfo.estimatedDeliveryTime === "TBD"
-              ? null
-              : trackingInfo.estimatedDeliveryTime,
-            trackingInfo.deliveredAt,
-            inbound_shipment,
-          ]
-        );
-      } else if (outbound_shipment) {
-        await pool.query(
-          `
-        UPDATE exchange.outbound_shipments
-        SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
-        WHERE id = $4
-      `,
-          [
-            trackingInfo.latestStatus,
-            trackingInfo.estimatedDeliveryTime === "TBD"
-              ? null
-              : trackingInfo.estimatedDeliveryTime,
-            trackingInfo.deliveredAt,
-            outbound_shipment,
-          ]
-        );
-      } else if (return_shipment) {
-        await pool.query(
-          `
-        UPDATE exchange.return_shipments
-        SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
-        WHERE id = $4
-      `,
-          [
-            trackingInfo.latestStatus,
-            trackingInfo.estimatedDeliveryTime === "TBD"
-              ? null
-              : trackingInfo.estimatedDeliveryTime,
-            trackingInfo.deliveredAt,
-            return_shipment,
-          ]
-        );
-      }
-    }
+      
+    return parseTracking(trackingOutput);
   } catch (error) {
     console.error("FedEx tracking failed:", error?.response?.data || error);
     throw new Error("FedEx shipment tracker failed");
@@ -219,5 +133,5 @@ const updateFedexShipmentTracking = async (
 };
 
 module.exports = {
-  updateFedexShipmentTracking,
+  getFedexShipmentTracking,
 };

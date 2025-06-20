@@ -1,21 +1,17 @@
 import { Button } from '@/components/ui/button'
-import { useShipmentTracking } from '@/lib/queries/shipping/useShipments'
+import { useTracking } from '@/lib/queries/shipping/useShipments'
 import { cn } from '@/lib/utils'
 import { packageOptions } from '@/types/packaging'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import { formatPickupDateTime } from '@/utils/dateFormatting'
-import { addDays } from 'date-fns'
 import { Car, CheckCheck, PackageOpen, Printer } from 'lucide-react'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
 
 export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
-  const shipment_start = new Date(order.shipment.created_at).toISOString().slice(0, 10)
-  const shipment_end = addDays(new Date(), 1).toISOString().slice(0, 10)
-  const { data: trackingInfo, isLoading } = useShipmentTracking(
+  const { data: trackingInfo, isLoading } = useTracking(
     order.shipment.id,
-    shipment_start,
-    shipment_end,
-    order.shipment.tracking_number
+    order.shipment.tracking_number,
+    order.shipment.carrier_id,
   )
 
   const color = statusConfig[order.purchase_order_status]?.text_color

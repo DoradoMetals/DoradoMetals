@@ -89,7 +89,7 @@ async function sendOrderToSupplier(req, res, next) {
 
 async function updateOrderTracking(req, res, next) {
   try {
-    const order = await salesOrderService.insertTrackingNumber(req.body);
+    const order = await salesOrderService.updateTracking(req.body);
     return res.status(200).json(order);
   } catch (err) {
     return next(err);

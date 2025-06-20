@@ -146,13 +146,22 @@ async function sendOrderToSupplier({ order, spots, supplier_id }) {
       client
     );
 
-    await shippingRepo.insertOutboundShipment(
-      client,
+    await shippingRepo.insertShipment(
+      null,
       sales_order.id,
-      supplier.shipping_carrier,
+      null,
+      null,
+      "Label Created",
+      null,
+      "Generated",
+      "DropShip",
+      "Small Box",
       sales_order.shipping_service,
       sales_order.shipping_cost,
-      sales_order.item_total
+      true,
+      sales_order.item_total,
+      "Outbound",
+      client
     );
 
     await salesOrderRepo.updateOrderSent(sales_order.id, client);
@@ -167,9 +176,14 @@ async function sendOrderToSupplier({ order, spots, supplier_id }) {
   }
 }
 
-async function insertTrackingNumber(tracking_number, id) {
-  await shippingRepo.insertTrackingNumber(tracking_number, id);
-  return await salesOrderRepo.updateTracking(id);
+async function updateTracking({
+  order_id,
+  shipment_id,
+  tracking_number,
+  carrier_id,
+}) {
+  await shippingRepo.insertTracking(shipment_id, tracking_number, carrier_id);
+  return await salesOrderRepo.updateTracking(order_id);
 }
 
 module.exports = {
@@ -181,5 +195,5 @@ module.exports = {
   createSalesOrder,
   updateStatus,
   sendOrderToSupplier,
-  insertTrackingNumber,
+  updateTracking,
 };

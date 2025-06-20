@@ -7,7 +7,7 @@ export default function ProductsInventory() {
   const [selectedMetal, setSelectedMetal] = useState<string | null>(null)
 
   return (
-    <div className="space-y-6">
+    <div className="">
       <ProductCards selectedMetal={selectedMetal ?? ''} setSelectedMetal={setSelectedMetal} />
       <ProductsTableEditable selectedMetal={selectedMetal ?? ''} />
     </div>

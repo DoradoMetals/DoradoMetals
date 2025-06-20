@@ -11,12 +11,7 @@ const {
   getFedexLocations,
 } = require("../controllers/shipping/fedexController");
 
-const {
-  getInboundShipment,
-  getInboundShipmentTracking,
-  getReturnShipment,
-  getReturnShipmentTracking,
-} = require("../controllers/shipping/shipmentController");
+const { getTracking } = require("../controllers/shippingController");
 
 const { requireUser } = require("../middleware/authMiddleware");
 
@@ -32,10 +27,7 @@ router.post("/schedule_fedex_pickup", requireUser, scheduleFedexPickup);
 router.post("/cancel_fedex_pickup", requireUser, cancelFedexPickup);
 router.post("/get_fedex_locations", requireUser, getFedexLocations);
 
-//Shipments
-router.get("/get_inbound_shipment", requireUser, getInboundShipment);
-router.post("/get_inbound_shipment_tracking", requireUser, getInboundShipmentTracking);
-router.get("/get_return_shipment", requireUser, getReturnShipment);
-router.post("/get_return_shipment_tracking", requireUser, getReturnShipmentTracking);
+//Shipping
+router.post("/get_tracking", requireUser, getTracking);
 
 module.exports = router;

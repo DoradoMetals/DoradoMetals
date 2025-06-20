@@ -191,18 +191,23 @@ async function createPurchaseOrder(purchase_order, user_id) {
 
     const buffer = Buffer.from(labelData.labelFile, "base64");
     await shippingRepo.insertShipment(
-      client,
       orderId,
-      "inbound",
-      {
-        ...labelData,
-        pickup: purchase_order.pickup,
-        package: purchase_order.package,
-        service: purchase_order.service,
-        insurance: purchase_order.insurance,
-      },
-      buffer
+      null,
+      labelData.tracking_number,
+      "30179428-b311-4873-8d08-382901c581d8",
+      "Label Created",
+      buffer,
+      "Generated",
+      purchase_order.pickup.name,
+      purchase_order.package.label,
+      purchase_order.service.serviceDescription,
+      purchase_order.service.netCharge,
+      purchase_order.insurance.insured,
+      purchase_order.insurance.declaredValue.amount,
+      "Inbound",
+      client
     );
+
     if (purchase_order.pickup?.name === "Carrier Pickup") {
       const { confirmationNumber, location } = await scheduleFedexPickup(
         purchase_order.address.name,

@@ -1,33 +1,49 @@
 import { useEffect, useState } from 'react'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import { useSendOrderToSupplier, useUpdateTracking } from '@/lib/queries/admin/useAdminSalesOrders'
 import { useGetAllSuppliers } from '@/lib/queries/admin/useSuppliers'
 import { SalesOrderDrawerContentProps, statusConfig } from '@/types/sales-orders'
 import { Supplier } from '@/types/supplier'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { useSalesOrderMetals } from '@/lib/queries/useSalesOrders'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
+import { useGetAllCarriers } from '@/lib/queries/admin/useCarriers'
+import { Carrier } from '@/types/carriers'
+import { RadioGroupImage } from '@/components/ui/radio-group-image'
 
 export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: suppliers = [] } = useGetAllSuppliers()
+  const { data: carriers = [] } = useGetAllCarriers()
   const { data: orderSpots = [] } = useSalesOrderMetals(order.id)
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
+
   const updateTracking = useUpdateTracking()
   const sendOrder = useSendOrderToSupplier()
 
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
+  const [selectedCarrier, setSelectedCarrier] = useState<Carrier | null>(null)
+  const [trackingNumber, setTrackingNumber] = useState('')
+
   const handleSupplierChange = (supplierId: string) => {
-    const sup = suppliers.find((s) => s.id === supplierId) ?? null
-    setSelectedSupplier(sup)
+    const supplier = suppliers.find((s) => s.id === supplierId) ?? null
+    setSelectedSupplier(supplier)
+  }
+
+  const handleCarrierChange = (carrierId: string) => {
+    const carrier = carriers.find((c) => c.id === carrierId) ?? null
+    setSelectedCarrier(carrier)
   }
 
   useEffect(() => {
     if (suppliers.length && order.supplier_id) {
-      const sup = suppliers.find((s) => s.id === order.supplier_id) ?? null
-      setSelectedSupplier(sup)
+      handleSupplierChange(order.supplier_id)
     }
   }, [suppliers, order.supplier_id])
+
+  useEffect(() => {
+    if (carriers.length && order.shipment.carrier_id) {
+      handleCarrierChange(order.shipment.carrier_id)
+    }
+  }, [carriers, order.shipment.carrier_id])
 
   const config = statusConfig[order.sales_order_status]
 
@@ -38,36 +54,11 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
         fill this order.
       </p>
       {suppliers && (
-        <RadioGroup
+        <RadioGroupImage
+          items={suppliers}
           value={selectedSupplier?.id ?? ''}
           onValueChange={handleSupplierChange}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full"
-        >
-          {suppliers.map((sup) => {
-            return (
-              <label
-                key={sup.id}
-                htmlFor={`supplier-${sup.id}`}
-                className={cn(
-                  'raised-off-page relative peer flex flex-col items-center justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md',
-                  sup.is_active && 'opacity-30 pointer-events-none'
-                )}
-              >
-                <div className="flex flex-col justify-center items-center gap-3">
-                  <Image
-                    src={sup.logo ?? ''}
-                    width={110}
-                    height={110}
-                    className="pointer-events-none cursor-auto object-contain focus:outline-none drop-shadow-lg"
-                    alt={sup.logo ?? ''}
-                  />
-                  <div className="text-lg text-neutral-800">{sup.name}</div>
-                </div>
-                <RadioGroupItem id={`supplier-${sup.id}`} value={sup.id} className="sr-only" />
-              </label>
-            )
-          })}
-        </RadioGroup>
+        />
       )}
 
       <Button
@@ -97,16 +88,51 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
 
       <div className="separator-inset" />
 
+      {carriers && (
+        <RadioGroupImage
+          items={carriers}
+          value={selectedCarrier?.id ?? ''}
+          onValueChange={handleCarrierChange}
+          disabled={!order.order_sent}
+        />
+      )}
+
       <FloatingLabelInput
         type="text"
         className="input-floating-label-form min-w-48"
         label="Tracking Number"
-        defaultValue={''}
-        disabled={!order.order_sent}
-        onBlur={(e) =>
-          updateTracking.mutate({ order_id: order.id, tracking_number: e.target.value })
-        }
+        value={trackingNumber}
+        disabled={!selectedCarrier || updateTracking.isPending}
+        onChange={(e) => setTrackingNumber(e.target.value)}
       />
+
+      <Button
+        className={cn(
+          'p-4 raised-off-page w-full text-white',
+          config.background_color,
+          config.hover_background_color,
+          !selectedCarrier || updateTracking.isPending || (trackingNumber === '' && 'opacity-30')
+        )}
+        onClick={() => {
+          updateTracking.mutate({
+            order_id: order.id,
+            shipment_id: order.shipment.id,
+            tracking_number: trackingNumber,
+            carrier_id: selectedCarrier?.id ?? '',
+          })
+        }}
+        disabled={!selectedCarrier || updateTracking.isPending || trackingNumber === ''}
+      >
+        {updateTracking.isPending
+          ? `Updating tracking for ${selectedCarrier?.name}...`
+          : trackingNumber === ''
+          ? `Enter tracking for ${selectedCarrier?.name}`
+          : selectedCarrier
+          ? order.tracking_updated
+            ? `Resend tracking for ${selectedCarrier?.name}`
+            : `Update tracking for ${selectedCarrier?.name}`
+          : 'Select Carrier'}
+      </Button>
     </div>
   )
 }

@@ -31,7 +31,7 @@ export function SalesOrderActionButtons({ order }: SalesOrderActionButtonsProps)
             label: 'Move to In Transit',
             action: 'move_to_in_transit',
             status: 'In Transit',
-            disabled: !order.order_sent && !order.tracking_updated,
+            disabled: !order.order_sent || !order.tracking_updated
           },
           {
             label: 'Back to Pending',

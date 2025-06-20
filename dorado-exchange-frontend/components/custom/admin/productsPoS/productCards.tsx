@@ -55,16 +55,7 @@ export default function ProductCards({
   ]
 
   return (
-    <div className='w-full mb-6'>
-      <div className="flex w-full ml-auto">
-        <Button
-          variant="ghost"
-          className="text-sm text-primary-gradient p-0 ml-auto"
-          onClick={() => setShowDetails((prev) => !prev)}
-        >
-          {showDetails ? 'Hide Inventory Totals' : 'Show Inventory Totals'}
-        </Button>
-      </div>
+    <div className="w-full">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2 w-full">
         {productsInventory &&
           Object.entries(productsInventory).map(([metal, data]) => {
@@ -137,6 +128,15 @@ export default function ProductCards({
               </Button>
             )
           })}
+      </div>
+      <div className="flex w-full ml-auto">
+        <Button
+          variant="ghost"
+          className="text-sm text-primary-gradient p-0 ml-auto"
+          onClick={() => setShowDetails((prev) => !prev)}
+        >
+          {showDetails ? 'Hide Inventory Totals' : 'Show Inventory Totals'}
+        </Button>
       </div>
     </div>
   )

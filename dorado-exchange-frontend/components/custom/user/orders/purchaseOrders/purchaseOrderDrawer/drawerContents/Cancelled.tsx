@@ -2,14 +2,12 @@ import { Button } from '@/components/ui/button'
 
 import { useAcceptOffer, usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import { useMemo } from 'react'
 import { payoutOptions } from '@/types/payout'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 import { cn } from '@/lib/utils'
-import { addDays } from 'date-fns'
-import { useReturnShipmentTracking } from '@/lib/queries/shipping/useShipments'
+import { useTracking } from '@/lib/queries/shipping/useShipments'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
 
@@ -17,13 +15,10 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
 
-  const shipment_start = new Date(order.return_shipment.created_at).toISOString().slice(0, 10)
-  const shipment_end = addDays(new Date(), 1).toISOString().slice(0, 10)
-  const { data: trackingInfo, isLoading } = useReturnShipmentTracking(
+  const { data: trackingInfo, isLoading } = useTracking(
     order.return_shipment.id,
-    shipment_start,
-    shipment_end,
-    order.return_shipment.tracking_number
+    order.return_shipment.tracking_number,
+    order.return_shipment.carrier_id,
   )
 
   const acceptOffer = useAcceptOffer()
