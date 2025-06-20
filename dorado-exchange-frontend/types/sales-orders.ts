@@ -58,8 +58,9 @@ export interface SalesOrder {
   item_total: number
   base_total: number
   charges_amount: number
-  order_sent: boolean,
-  tracking_updated: boolean,
+  order_sent: boolean
+  tracking_updated: boolean
+  supplier_id: string
   order_items: SalesOrderItem[]
   address: Address
   payout: Payout
@@ -67,7 +68,7 @@ export interface SalesOrder {
     user_name: string
     user_email: string
   }
-  sales_tax: number,
+  sales_tax: number
 }
 
 export const salesOrderReturnShipmentSchema = z.object({

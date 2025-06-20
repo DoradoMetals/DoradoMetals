@@ -205,7 +205,7 @@ async function insertOrder(client, { user, status, sales_order, orderPrices }) {
     orderPrices.item_total,
     orderPrices.base_total,
     orderPrices.charges_amount,
-    orderPrices.sales_tax
+    orderPrices.sales_tax,
   ];
   const { rows } = await client.query(query, values);
   return rows[0].id;
@@ -225,7 +225,7 @@ async function insertItems(client, orderId, items, spot_prices) {
       calculateItemAsk(item, spot_prices),
       item.quantity,
       item.ask_premium,
-      item.sales_tax_rate
+      item.sales_tax_rate,
     ]);
   }
 }
@@ -277,8 +277,20 @@ async function updateOrderSent(orderId, client) {
     WHERE id = $1
     RETURNING *;
   `;
-  const { rows } = await pool.query(query, [orderId]);
+  const { rows } = await client.query(query, [orderId]);
   return rows;
+}
+
+async function attachSupplierToOrder(id, supplier_id, client) {
+  return await client.query(
+    `
+    UPDATE exchange.sales_orders
+    SET supplier_id = $1
+    WHERE id = $2
+    RETURNING id, supplier_id
+  `,
+    [supplier_id, id]
+  );
 }
 
 module.exports = {
@@ -292,4 +304,5 @@ module.exports = {
   updateStatus,
   updateTracking,
   updateOrderSent,
+  attachSupplierToOrder,
 };

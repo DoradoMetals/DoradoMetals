@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import { useSendOrderToSupplier, useUpdateTracking } from '@/lib/queries/admin/useAdminSalesOrders'
@@ -11,10 +11,9 @@ import { useSalesOrderMetals } from '@/lib/queries/useSalesOrders'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 
 export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const { data: suppliers = [] } = useGetAllSuppliers()
   const { data: orderSpots = [] } = useSalesOrderMetals(order.id)
-
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const updateTracking = useUpdateTracking()
   const sendOrder = useSendOrderToSupplier()
 
@@ -22,6 +21,13 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
     const sup = suppliers.find((s) => s.id === supplierId) ?? null
     setSelectedSupplier(sup)
   }
+
+  useEffect(() => {
+    if (suppliers.length && order.supplier_id) {
+      const sup = suppliers.find((s) => s.id === order.supplier_id) ?? null
+      setSelectedSupplier(sup)
+    }
+  }, [suppliers, order.supplier_id])
 
   const config = statusConfig[order.sales_order_status]
 
@@ -69,7 +75,7 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
           'p-4 raised-off-page w-full text-white',
           config.background_color,
           config.hover_background_color,
-          !selectedSupplier && 'opacity-30'
+          !selectedSupplier || (sendOrder.isPending && 'opacity-30')
         )}
         onClick={() => {
           sendOrder.mutate({
@@ -78,9 +84,15 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
             supplier_id: selectedSupplier?.id ?? '',
           })
         }}
-        disabled={!selectedSupplier}
+        disabled={!selectedSupplier || sendOrder.isPending || order.order_sent}
       >
-        Send Order To Supplier
+        {sendOrder.isPending
+          ? `Sending to ${selectedSupplier?.name}`
+          : order.order_sent
+          ? `Order sent to ${selectedSupplier?.name}`
+          : selectedSupplier
+          ? `Send Order to ${selectedSupplier?.name}`
+          : 'Select Supplier'}
       </Button>
 
       <div className="separator-inset" />

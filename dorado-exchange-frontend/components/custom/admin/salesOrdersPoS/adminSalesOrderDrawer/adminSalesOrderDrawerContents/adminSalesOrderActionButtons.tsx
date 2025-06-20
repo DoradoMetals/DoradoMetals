@@ -14,7 +14,6 @@ export function SalesOrderActionButtons({ order }: SalesOrderActionButtonsProps)
     })
   }
 
-  console.log('here')
   const getButtonActions = () => {
     switch (order.sales_order_status) {
       case 'Pending':

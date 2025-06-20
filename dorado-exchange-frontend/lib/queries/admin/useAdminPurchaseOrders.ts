@@ -901,13 +901,6 @@ export const useAcceptOffer = () => {
         queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
       }
     },
-    onSuccess: async (data, context) => {
-      await apiRequest('POST', '/emails/purchase_order_offer_accepted', {
-        order: data.purchaseOrder,
-        order_spots: data.orderSpots,
-        spot_prices: context.spot_prices,
-      })
-    },
   })
 }
 

@@ -19,7 +19,6 @@ export default function AdminSalesOrderDrawer({
   const { activeDrawer, closeDrawer } = useDrawerStore()
   const isDrawerOpen = activeDrawer === 'salesOrder'
 
-  console.log(isDrawerOpen)
   const { data: orderUser } = useAdminUser(user_id!, { enabled: isDrawerOpen })
   const { data: orders = [] } = useAdminSalesOrders()
 

@@ -63,8 +63,6 @@ async function createSalesOrder(
   try {
     await client.query("BEGIN");
 
-    console.log(items)
-
     const orderPrices = calculateSalesOrderTotal(
       items,
       sales_order.using_funds,
@@ -101,16 +99,15 @@ async function createSalesOrder(
       await stripeRepo.attachOrder(payment_intent_id, null, orderId, client);
     }
 
-    await salesOrderRepo.insertItems(
-      client,
-      orderId,
-      items,
-      spot_prices
-    );
+    await salesOrderRepo.insertItems(client, orderId, items, spot_prices);
 
     await salesOrderRepo.insertOrderMetals(orderId, spot_prices, client);
 
-    await taxRepo.updateStateSalesTax(orderPrices.sales_tax, address.state, client);
+    await taxRepo.updateStateSalesTax(
+      orderPrices.sales_tax,
+      address.state,
+      client
+    );
 
     await client.query("COMMIT");
 
@@ -128,11 +125,12 @@ async function updateStatus({ order, order_status, user_name }) {
   return await salesOrderRepo.updateStatus(order, order_status, user_name);
 }
 
-async function sendOrderToSupplier(order, spots, supplier_id) {
+async function sendOrderToSupplier({ order, spots, supplier_id }) {
   const client = await pool.connect();
 
-  const sales_order = await getById(order_id);
+  const sales_order = await getById(order.id);
   const supplier = await supplierRepo.getSupplierFromId(supplier_id);
+
   try {
     await client.query("BEGIN");
 
@@ -140,6 +138,12 @@ async function sendOrderToSupplier(order, spots, supplier_id) {
       sales_order,
       spots,
       supplier.email
+    );
+
+    await salesOrderRepo.attachSupplierToOrder(
+      sales_order.id,
+      supplier_id,
+      client
     );
 
     await shippingRepo.insertOutboundShipment(
@@ -156,6 +160,7 @@ async function sendOrderToSupplier(order, spots, supplier_id) {
     await client.query("COMMIT");
     return await getById(sales_order.id);
   } catch (err) {
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();

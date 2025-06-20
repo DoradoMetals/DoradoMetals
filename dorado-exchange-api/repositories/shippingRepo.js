@@ -92,7 +92,7 @@ async function insertTrackingNumber(tracking_number, id) {
     RETURNING *;
   `;
   const vals = [tracking_number, id];
-  return await client.query(query, vals);
+  return await pool.query(query, vals);
 }
 
 async function insertPickup(client, orderId, userId, pickup) {

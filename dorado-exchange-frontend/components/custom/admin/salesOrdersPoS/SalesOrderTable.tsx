@@ -93,7 +93,6 @@ export default function SalesOrdersTable({ selectedStatus }: { selectedStatus: s
               size="icon"
               className={`flex items-center justify-center bg-transparent hover:bg-transparent ${config.text_color}`}
               onClick={() => {
-                console.log('Opening admin drawer for order', row.original.id)
                 setActiveOrder(row.original.id)
                 setActiveUser(row.original.user_id)
                 openDrawer('salesOrder')

@@ -3,6 +3,7 @@ const pdfRepo = require("../repositories/pdfRepo");
 const {
   renderPurchaseOrderPlacedEmail,
   renderOfferAcceptedEmail,
+  renderSalesOrderToSupplierEmail,
 } = require("../emails/renderEmail");
 
 const { sendEmail } = require("../emails/sendEmail");
@@ -76,39 +77,41 @@ async function sendAcceptedEmail({ order, order_spots, spot_prices }) {
   });
 }
 
-async function sendSalesOrderToSupplier({ order, spots, email }) {
-  console.log("SENDING ORDER EMAIL")
-  // let pdfBuffer;
-  // try {
-  //   pdfBuffer = await pdfRepo.generateSalesOrderInvoice({
-  //     salesOrder: order,
-  //     spots: spots,
-  //   });
-  // } catch (err) {
-  //   const msg = "[EmailService] invoice PDF generation failed";
-  //   err.message = `${msg}: ${err.message}`;
-  //   throw err;
-  // }
+async function sendSalesOrderToSupplier(order, spots, email) {
+  let pdfBuffer;
+  try {
+    pdfBuffer = await pdfRepo.generateSalesOrderInvoice({
+      salesOrder: order,
+      spots: spots,
+    });
+  } catch (err) {
+    const msg = "[EmailService] invoice PDF generation failed";
+    err.message = `${msg}: ${err.message}`;
+    throw err;
+  }
 
-  // await sendEmail({
-  //   to: order.user.user_email,
-  //   subject: `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(
-  //     order.order_number
-  //   )}`,
-  //   html: renderOfferAcceptedEmail({
-  //     firstName: order.user.user_name,
-  //     url: `${process.env.FRONTEND_URL}/orders`,
-  //   }),
-  //   attachments: [
-  //     {
-  //       filename: `${formatPurchaseOrderNumber(
-  //         order.order_number
-  //       )}_invoice.pdf`,
-  //       content: pdfBuffer,
-  //       contentType: "application/pdf",
-  //     },
-  //   ],
-  // });
+  await sendEmail({
+    // to: email,
+    to: 'exchange@doradometals.com',
+    subject: `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(
+      order.order_number
+    )}`,
+    html: renderSalesOrderToSupplierEmail({
+      firstName: order.user.user_name,
+      url: `${process.env.FRONTEND_URL}/orders`,
+      order: order,
+      spots: spots,
+    }),
+    attachments: [
+      {
+        filename: `${formatSalesOrderNumber(
+          order.order_number
+        )}_invoice.pdf`,
+        content: pdfBuffer,
+        contentType: "application/pdf",
+      },
+    ],
+  });
 }
 
 module.exports = {

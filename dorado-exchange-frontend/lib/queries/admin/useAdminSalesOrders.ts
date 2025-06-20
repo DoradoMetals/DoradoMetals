@@ -55,12 +55,40 @@ export const useSendOrderToSupplier = () => {
       supplier_id: string
     }) => {
       if (!user?.id || user?.role !== 'admin') throw new Error('User is not an admin.')
+      console.log(supplier_id)
       await apiRequest('POST', '/sales_orders/send_order_to_supplier', {
         order,
         spots,
         supplier_id,
       })
     },
+    onMutate: async ({ order: sales_order, supplier_id: supplier_id }) => {
+      const queryKey = ['admin_sales_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<SalesOrder[]>(queryKey)
+
+      queryClient.setQueryData<SalesOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== sales_order.id
+            ? order
+            : {
+                ...order,
+                order_sent: true,
+                supplier_id: supplier_id,
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
     onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: ['admin_sales_orders', user],
