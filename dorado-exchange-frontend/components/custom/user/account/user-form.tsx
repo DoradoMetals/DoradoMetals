@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
-import { MailCheck, MailWarning, MailX, Router, UserCheck2, UserX2 } from 'lucide-react'
+import { MailCheck, MailWarning, MailX, UserCheck2, UserX2 } from 'lucide-react'
 import { User, userSchema } from '@/types/user'
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -33,7 +33,6 @@ export default function UserForm() {
     createdAt: user?.createdAt ?? new Date(),
     updatedAt: user?.updatedAt ?? new Date(),
     emailVerified: user?.emailVerified ?? false,
-    image: user?.image ?? '',
     role: user?.role ?? '',
     stripeCustomerId: user?.stripeCustomerId ?? '',
     dorado_funds: user?.dorado_funds ?? 0,
