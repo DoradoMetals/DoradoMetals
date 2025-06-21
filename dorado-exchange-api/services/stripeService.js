@@ -1,6 +1,6 @@
 const { stripeClient } = require("../stripe");
 const stripeRepo = require("../repositories/stripeRepo");
-const salesOrderService = require("../services/salesOrderService");
+const productService = require("../services/productService");
 const addressService = require("../services/addressService");
 const taxService = require("../services/taxService");
 const { calculateSalesOrderTotal } = require("../utils/price-calculations");
@@ -43,6 +43,7 @@ async function createPaymentIntent(type, session) {
     amount: 50,
     currency: "usd",
     customer: customerId,
+    capture_method: "manual",
     automatic_payment_methods: { enabled: true },
   });
 
@@ -51,7 +52,15 @@ async function createPaymentIntent(type, session) {
 }
 
 async function updatePaymentIntent(
-  { items, using_funds, spots, shipping_service, payment_method, type, address_id },
+  {
+    items,
+    using_funds,
+    spots,
+    shipping_service,
+    payment_method,
+    type,
+    address_id,
+  },
   headers
 ) {
   const session = await auth.api.getSession({
@@ -63,9 +72,13 @@ async function updatePaymentIntent(
     session
   );
 
-  const address = await addressService.getAddressFromId(address_id)
-  const server_items = await salesOrderService.getItemsFromServer(items);
-  const items_with_tax = await taxService.attachSalesTaxToItems(address?.state ?? 'TX', server_items, spots)
+  const address = await addressService.getAddressFromId(address_id);
+  const server_items = await productService.getItemsFromServer(items);
+  const items_with_tax = await taxService.attachSalesTaxToItems(
+    address?.state ?? "TX",
+    server_items,
+    spots
+  );
 
   const orderPrices = calculateSalesOrderTotal(
     items_with_tax,
@@ -80,7 +93,11 @@ async function updatePaymentIntent(
 
   if (
     retrieved_intent?.payment_intent_id &&
-    !retrieved_intent?.status === "succeeded"
+    [
+      "requires_payment_method",
+      "requires_confirmation",
+      "requires_action",
+    ].includes(retrieved_intent?.status)
   ) {
     const paymentIntent = await stripeClient.paymentIntents.update(
       retrieved_intent.payment_intent_id,
@@ -96,6 +113,28 @@ async function updatePaymentIntent(
   }
 }
 
+async function capturePaymentIntent(payment_intent_id) {
+  try {
+    const paymentIntent = await stripeClient.paymentIntents.capture(
+      payment_intent_id
+    );
+    return paymentIntent;
+  } catch (err) {
+    throw err;
+  }
+}
+
+async function cancelPaymentIntent(payment_intent_id) {
+  try {
+    const paymentIntent = await stripeClient.paymentIntents.cancel(
+      payment_intent_id
+    );
+    return paymentIntent;
+  } catch (err) {
+    throw err;
+  }
+}
+
 async function updateStatus({ paymentIntent }) {
   await stripeRepo.updateStatus({ paymentIntent });
 }
@@ -107,6 +146,8 @@ async function updateMethod({ paymentMethod }) {
 module.exports = {
   retrievePaymentIntent,
   updatePaymentIntent,
+  capturePaymentIntent,
+  cancelPaymentIntent,
   updateStatus,
   updateMethod,
 };

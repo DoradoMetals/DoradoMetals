@@ -13,6 +13,8 @@ const taxRepo = require("../repositories/taxRepo");
 const emailService = require("../services/emailService");
 const addressService = require("../services/addressService");
 const taxService = require("../services/taxService");
+const stripeService = require("../services/stripeService");
+const productService = require("../services/productService")
 
 const { calculateSalesOrderTotal } = require("../utils/price-calculations");
 
@@ -32,18 +34,6 @@ async function getMetalsForOrder(orderId) {
   return salesOrderRepo.findMetalsByOrderId(orderId);
 }
 
-async function getItemsFromServer(order_items) {
-  const productIds = order_items.map((item) => item.id);
-  const serverItems = await productRepo.getItemsFromIds(productIds);
-  const clientMap = new Map(
-    order_items.map((item) => [item.id, item.quantity])
-  );
-  return serverItems.map((si) => ({
-    ...si,
-    quantity: clientMap.get(si.id) ?? 0,
-  }));
-}
-
 async function createSalesOrder(
   { sales_order, payment_intent_id, spot_prices },
   headers
@@ -52,7 +42,7 @@ async function createSalesOrder(
     headers: fromNodeHeaders(headers),
   });
   const address = await addressService.getAddressFromId(sales_order.address.id);
-  const serverItems = await getItemsFromServer(sales_order.items);
+  const serverItems = await productService.getItemsFromServer(sales_order.items);
   const items = await taxService.attachSalesTaxToItems(
     address.state,
     serverItems,
@@ -95,10 +85,6 @@ async function createSalesOrder(
       );
     }
 
-    if (orderPrices.post_charges_amount > 0) {
-      await stripeRepo.attachOrder(payment_intent_id, null, orderId, client);
-    }
-
     await salesOrderRepo.insertItems(client, orderId, items, spot_prices);
 
     await salesOrderRepo.insertOrderMetals(orderId, spot_prices, client);
@@ -109,11 +95,16 @@ async function createSalesOrder(
       client
     );
 
+    if (orderPrices.post_charges_amount > 0) {
+      await stripeRepo.attachOrder(payment_intent_id, null, orderId, client);
+    }
     await client.query("COMMIT");
 
-    const order = await getById(orderId);
-    return order;
+    await stripeService.capturePaymentIntent(payment_intent_id);
+
+    return await getById(orderId);
   } catch (err) {
+    await stripeService.cancelPaymentIntent(payment_intent_id);
     await client.query("ROLLBACK");
     throw err;
   } finally {
@@ -191,7 +182,6 @@ module.exports = {
   listOrdersForUser,
   getAll,
   getMetalsForOrder,
-  getItemsFromServer,
   createSalesOrder,
   updateStatus,
   sendOrderToSupplier,

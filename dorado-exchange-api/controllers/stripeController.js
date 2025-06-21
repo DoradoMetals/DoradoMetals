@@ -41,12 +41,22 @@ async function handleStripeWebhook(req, res) {
       break;
     }
 
+    case "payment_intent.amount_capturable_updated": {
+      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      break;
+    }
+
     case "charge.failed": {
       await stripeService.updateStatus({ paymentIntent: event.data.object });
       break;
     }
 
     case "charge.updated": {
+      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      break;
+    }
+
+    case "charge.captured": {
       await stripeService.updateStatus({ paymentIntent: event.data.object });
       break;
     }
