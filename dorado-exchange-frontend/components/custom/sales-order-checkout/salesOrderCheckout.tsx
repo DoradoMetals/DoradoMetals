@@ -161,7 +161,7 @@ export default function SalesOrderCheckout() {
 
   return (
     <div className="flex w-full justify-center p-4">
-      {!isAddressesPending && (
+      {!isAddressesPending && data.address && (
         <div className="flex flex-col lg:flex-row items-center lg:items-start w-full lg:max-w-7xl justify-between gap-6">
           <div className="flex flex-col gap-6 w-full">
             <ShippingSelect

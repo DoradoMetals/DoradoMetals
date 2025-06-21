@@ -59,7 +59,6 @@ export default function SalesOrderStripeForm({
       },
       redirect: 'if_required',
     })
-    console.log(paymentIntent?.status)
     if (paymentIntent?.status === 'requires_capture') {
 
       console.log('here')
@@ -107,7 +106,7 @@ export default function SalesOrderStripeForm({
     },
     defaultValues: {
       billingDetails: {
-        name: address.name,
+
         phone: address.phone_number,
         address: {
           line1: address.line_1,
@@ -129,7 +128,7 @@ export default function SalesOrderStripeForm({
           postalCode: 'never',
           country: 'never',
         },
-        name: 'never',
+        name: 'auto',
         email: 'never',
         phone: 'never',
       },
