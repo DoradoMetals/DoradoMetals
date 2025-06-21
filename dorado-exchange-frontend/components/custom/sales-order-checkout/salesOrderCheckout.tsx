@@ -23,6 +23,7 @@ import { emptyAddress } from '@/types/address'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useGetSession } from '@/lib/queries/useAuth'
+import { useMutationState } from '@tanstack/react-query'
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function SalesOrderCheckout() {
@@ -46,6 +47,15 @@ export default function SalesOrderCheckout() {
   const createOrder = useCreateSalesOrder()
   const updatePaymentIntent = useUpdatePaymentIntent()
   const { data: clientSecret } = useRetrievePaymentIntent('sales_order_checkout')
+
+  const isOrderCreating =
+    useMutationState({
+      filters: {
+        mutationKey: ['createSalesOrder'],
+        status: 'pending',
+      },
+      select: () => true,
+    }).length > 0
 
   const orderPrices = useMemo(() => {
     return calculateSalesOrderPrices(
@@ -125,7 +135,7 @@ export default function SalesOrderCheckout() {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10">
         <div className="relative mb-5">
-          <ShoppingCartIcon size={80} strokeWidth={1.5} color={getPrimaryIconStroke()}/>
+          <ShoppingCartIcon size={80} strokeWidth={1.5} color={getPrimaryIconStroke()} />
           <div className="absolute -top-6 right-3.5 border border-borderr text-xl text-primary-gradient rounded-full w-10 h-10 flex items-center justify-center">
             0
           </div>
@@ -175,19 +185,19 @@ export default function SalesOrderCheckout() {
             {!cardNeeded ? (
               <Button
                 className="raised-off-page liquid-gold shine-on-hover w-full text-white"
-                disabled={createOrder.isPending || isLoading}
+                disabled={isOrderCreating || isLoading}
                 onClick={handleSubmit}
               >
-                {createOrder.isPending || isLoading ? 'Processing…' : 'Place Order'}
+                {isOrderCreating || isLoading ? 'Processing…' : 'Place Order'}
               </Button>
             ) : (
               <Button
                 className="raised-off-page liquid-gold shine-on-hover w-full text-white"
-                disabled={createOrder.isPending || isLoading}
+                disabled={isOrderCreating || isLoading}
                 type="submit"
                 form="payment-form"
               >
-                {createOrder.isPending || isLoading ? 'Processing…' : 'Place Order'}
+                {isOrderCreating || isLoading ? 'Processing…' : 'Place Order'}
               </Button>
             )}
           </div>

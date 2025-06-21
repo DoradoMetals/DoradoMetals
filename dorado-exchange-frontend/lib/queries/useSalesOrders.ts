@@ -25,6 +25,7 @@ export const useCreateSalesOrder = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
+    mutationKey: ['createSalesOrder'],
     mutationFn: async ({
       paymentIntentId,
       sales_order,
