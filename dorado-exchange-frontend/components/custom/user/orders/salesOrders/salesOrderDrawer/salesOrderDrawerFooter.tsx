@@ -15,9 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 
 import { SalesOrderDrawerFooterProps, statusConfig } from '@/types/sales-orders'
 
@@ -25,27 +23,16 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
   const valueLabel = statusConfig[order.sales_order_status]?.value_label ?? ''
   const statusColor = statusConfig[order.sales_order_status]?.text_color ?? ''
 
-  const { data: spotPrices = [] } = useSpotPrices()
-  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
-
   const [open, setOpen] = useState({
     items: false,
-    shipment: false,
     total: false,
   })
-
-  // const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
-  // const payoutFee = payoutMethod?.cost ?? 0
-
-  // const total = useMemo(() => {
-  //   return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
-  // }, [order, spotPrices, orderSpotPrices, payoutFee])
 
   return (
     <div className="flex flex-col w-full gap-2">
       {order.order_items.length > 0 && (
         <Accordion
-          label={`Bullion ${valueLabel}`}
+          label={`Item Prices`}
           open={open.items}
           toggle={() => setOpen((prev) => ({ ...prev, items: !prev.items }))}
           total={order.item_total}
@@ -65,112 +52,59 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
           </Table>
         </Accordion>
       )}
-      {/* 
-      {order.shipment && (
-        <Accordion
-          label="Shipping Charges"
-          open={open.shipment ?? false}
-          toggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
-          total={order.shipment.shipping_charge ?? 0}
-        >
-          <Table className="font-normal text-neutral-700 overflow-hidden">
-            <TableBody>
-              <TableRow className="hover:bg-transparent">
-                <TableCell>{order.shipment.shipping_service}</TableCell>
-                <TableCell>{order.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
-                <TableCell className="text-right p-0">
-                  -<PriceNumberFlow value={order.shipment.shipping_charge} />
-                </TableCell>
-              </TableRow>
-              {order.purchase_order_status === 'Cancelled' && (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell>{order.return_shipment.shipping_service} (Return)</TableCell>
-                  <TableCell>{order.return_shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
-                  <TableCell className="text-right p-0">
-                    -<PriceNumberFlow value={order.return_shipment.shipping_charge} />
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </Accordion>
-      )}
-
-      {payoutFee > 0 && (
-        <Accordion
-          label="Payout Fee"
-          open={open.payout ?? false}
-          toggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
-          total={payoutFee}
-        >
-          <Table className="font-normal text-neutral-700 overflow-hidden">
-            <TableBody>
-              <TableRow className="hover:bg-transparent">
-                <TableCell>{payoutMethod?.label ?? 'Unknown Method'}</TableCell>
-                <TableCell className="text-right p-0">
-                  -<PriceNumberFlow value={payoutFee} />
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </Accordion>
-      )}
 
       <Accordion
-        label={`Total ${valueLabel}`}
+        label={`Total Price`}
         open={open.total}
         toggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
-        total={total}
+        total={order.order_total}
       >
-        <div className="grid grid-cols-2 gap-2 text-sm text-neutral-700">
-          {scrapItems.length > 0 && (
-            <>
-              <div>Scrap:</div>
-              <div className="text-right">
-                <PriceNumberFlow value={scrapTotal} />
+        <div className="flex flex-col gap-2 pr-2">
+          {order.used_funds && (
+            <div className="flex items-center justify-between w-full">
+              <div className="text-sm text-neutral-700">Dorado Funds Applied:</div>
+              <div className="text-right text-sm text-neutral-800">
+                <PriceNumberFlow value={order.pre_charges_amount} />
               </div>
-            </>
+            </div>
           )}
 
-          {bullionItems.length > 0 && (
-            <>
-              <div>Bullion:</div>
-              <div className="text-right">
-                <PriceNumberFlow value={bullionTotal} />
+          {order.subject_to_charges_amount > 0 && (
+            <div className="flex items-center justify-between w-full">
+              <div className="text-sm text-neutral-700">
+                {order.used_funds ? 'Amount Remaining: ' : 'Before Fees: '}
               </div>
-            </>
+              <div className="text-right text-sm text-neutral-800">
+                <PriceNumberFlow value={order.subject_to_charges_amount} />
+              </div>
+            </div>
           )}
 
-          {order.shipment?.shipping_charge > 0 && (
-            <>
-              <div>Shipping:</div>
-              <div className="text-right">
-                -<PriceNumberFlow value={order.shipment.shipping_charge} />
+          {order.shipping_cost > 0 && (
+            <div className="flex items-center justify-between w-full">
+              <div className="text-sm text-neutral-700">Shipping Fee:</div>
+              <div className="text-right text-sm text-neutral-800">
+                <PriceNumberFlow value={order.shipping_cost} />
               </div>
-            </>
+            </div>
           )}
 
-          {payoutFee > 0 && (
-            <>
-              <div>Payout Fee:</div>
-              <div className="text-right">
-                -<PriceNumberFlow value={payoutFee} />
+          {order.subject_to_charges_amount > 0 && (
+            <div className="flex items-center justify-between w-full">
+              <div className="text-sm text-neutral-700">Payment Fee:</div>
+              <div className="text-right text-sm text-neutral-800">
+                <PriceNumberFlow value={order.charges_amount} />
               </div>
-            </>
+            </div>
           )}
-
-          <div className="font-medium">Total:</div>
-          <div className="font-medium text-right">
-            <PriceNumberFlow value={total} />
-          </div>
         </div>
-      </Accordion> */}
+      </Accordion>
 
       <div className="flex w-full justify-between items-center mt-3">
         <div className="text-sm text-neutral-700">Questions? Give us a call.</div>
         <a
           href={`tel:+1${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`}
-          className={cn('text-sm hover:underline', statusColor)}
+          className="text-sm hover:underline text-primary-gradient"
         >
           {formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}
         </a>

@@ -225,7 +225,7 @@ function renderEmptyStatus(status: string) {
   return (
     <div className="flex flex-col flex-grow items-center justify-center gap-4 py-20">
       <div className="relative">
-        <Icon className={config.text_color} size={128} />
+        <Icon color={getPrimaryIconStroke()} size={128} />
         <SearchX className="absolute -top-2 -right-2 text-neutral-500" size={32} />
       </div>
       <p className="text-lg font-medium text-muted-foreground">No {status} Orders Found</p>
@@ -262,9 +262,8 @@ function StatusSelector({
           className="w-full z-10 purchase-order-status-swiper flex items-center justify-center [&.purchase-order-status-swiper_.swiper-wrapper]:pl-1"
         >
           {SalesOrderStatuses.map((status) => {
-            const config = statusConfig[status]
+            const Icon = statusConfig[status].icon
             const isSelected = selectedStatus === status
-            const Icon = config.icon
 
             return (
               <SwiperSlide key={status} className="!w-auto py-2">
@@ -273,13 +272,11 @@ function StatusSelector({
                   onClick={() => setSelectedStatus(isSelected ? null : status)}
                   className={cn(
                     'text-sm px-4 py-1 whitespace-nowrap raised-off-page rounded-lg transition-colors duration-150 flex items-center justify-between gap-1',
-                    isSelected
-                      ? `${config?.background_color} text-white`
-                      : `bg-card ${config?.text_color}`
+                    isSelected ? `primary-gradient text-white` : 'bg-card'
                   )}
                 >
-                  {status}
-                  <Icon size={16} />
+                  <Icon size={20} color={isSelected ? 'white' : getPrimaryIconStroke()} />
+                  <div className={cn(!isSelected && 'text-primary-gradient')}>{status}</div>
                 </Button>
               </SwiperSlide>
             )
@@ -294,17 +291,14 @@ function StatusSelector({
             <Button
               variant="ghost"
               className={cn(
-                'px-2 hover:bg-transparent raised-off-page min-w-44 bg-card hover:bg-card flex items-center justify-between font-normal h-8',
-                selectedStatus
-                  ? `${statusConfig[selectedStatus]?.text_color} hover:${statusConfig[selectedStatus]?.text_color}`
-                  : 'text-neutral-700'
+                'px-2 hover:bg-transparent raised-off-page min-w-44 bg-card hover:bg-card flex items-center justify-between font-normal h-8'
               )}
             >
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 text-neutral-700">
                 {selectedStatus === null ? (
-                  <List size={14} className="text-neutral-700" />
+                  <List size={18} color={getPrimaryIconStroke()} />
                 ) : (
-                  SelectedIcon && <SelectedIcon size={14} className={selectedConfig?.text_color} />
+                  SelectedIcon && <SelectedIcon size={18} color={getPrimaryIconStroke()} />
                 )}
                 {selectedStatus ?? 'All Orders'}
               </div>
@@ -319,43 +313,24 @@ function StatusSelector({
             onOpenAutoFocus={(e) => e.preventDefault()}
           >
             <Command className="bg-card h-full">
-              <CommandList className="h-full">
+              <CommandList className="h-full cursor-pointer">
                 <CommandItem
                   onSelect={() => {
                     setSelectedStatus(null)
                     setOpen(false)
                   }}
                   className={cn(
-                    'group h-9 px-3 flex items-center justify-between gap-2 rounded-sm transition-colors duration-150',
-                    selectedStatus === null
-                      ? 'bg-neutral-800 text-neutral-100'
-                      : 'text-neutral-800 hover:bg-neutral-800 hover:text-neutral-100'
+                    'group h-9 px-3 flex items-center justify-between gap-2 rounded-sm transition-colors duration-150 cursor-pointer',
+                    !selectedStatus && 'primary-gradient'
                   )}
                 >
-                  <div className="flex items-center gap-2 font-normal">
-                    <List
-                      size={16}
-                      className={cn(
-                        'transition-colors',
-                        selectedStatus === null
-                          ? 'text-neutral-100'
-                          : 'text-neutral-800 group-hover:text-neutral-100'
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        'transition-colors',
-                        selectedStatus === null
-                          ? 'text-neutral-100'
-                          : 'text-neutral-800 group-hover:text-neutral-100'
-                      )}
-                    >
+                  <div className={cn('flex items-center gap-2 font-normal')}>
+                    <List size={18} color={!selectedStatus ? 'white' : getPrimaryIconStroke()} />
+                    <span className={cn(!selectedStatus ? 'text-white' : 'transition-colors')}>
                       All Orders
                     </span>
                   </div>
-                  {selectedStatus === null && (
-                    <Check className="h-4 w-4 text-neutral-100 opacity-100" />
-                  )}
+                  {selectedStatus === null && <Check className="h-4 w-4 text-white opacity-100" />}
                 </CommandItem>
                 {SalesOrderStatuses.map((status) => {
                   const config = statusConfig[status]
@@ -370,23 +345,17 @@ function StatusSelector({
                         setOpen(false)
                       }}
                       className={cn(
-                        'group h-9 px-3 flex items-center justify-between gap-2 transition-colors duration-150 hover:text-white',
-                        config.hover_background_color,
-                        config.text_color,
-                        isSelected ? `${config.background_color} text-white` : ''
+                        'group h-9 px-3 flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer',
+                        isSelected && 'primary-gradient'
                       )}
                     >
                       <div className="flex items-center gap-2 font-normal">
-                        <Icon
-                          size={16}
-                          className={cn(
-                            isSelected
-                              ? 'text-white'
-                              : `${config.text_color} group-hover:text-white`
-                          )}
-                        />
-                        <span>{status}</span>
+                        <Icon size={18} color={isSelected ? 'white' : getPrimaryIconStroke()} />
+                        <span className={cn(isSelected ? 'text-white' : 'transition-colors')}>
+                          {status}
+                        </span>
                       </div>
+                      {isSelected && <Check className="h-4 w-4 text-white opacity-100" />}
                     </CommandItem>
                   )
                 })}

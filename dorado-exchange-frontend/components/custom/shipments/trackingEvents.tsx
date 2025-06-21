@@ -11,6 +11,7 @@ export default function TrackingEvents({
   borderColor,
   delivery_date,
   shipping_status,
+  useStatusColor = true,
 }: {
   isLoading: boolean
   trackingInfo: ShipmentTracking | null | undefined
@@ -18,6 +19,7 @@ export default function TrackingEvents({
   borderColor?: string
   delivery_date?: string
   shipping_status: string
+  useStatusColor?: boolean
 }) {
   const scanEvents = trackingInfo?.scan_events ?? []
 
@@ -113,13 +115,17 @@ export default function TrackingEvents({
                 className={cn(
                   'relative pl-6 pb-6 flex justify-between items-start',
                   i < steps.length - 1 && 'border-l',
-                  step.active ? borderColor : 'border-card'
+                  step.active
+                    ? useStatusColor
+                      ? borderColor
+                      : 'primary-gradient-tracking-border'
+                    : 'border-card'
                 )}
               >
                 <div
                   className={cn(
                     'absolute -left-[10px] w-5 h-5 rounded-full',
-                    step.active ? background_color : 'bg-card'
+                    step.active ? useStatusColor ? background_color : 'primary-gradient' : 'bg-card'
                   )}
                 />
 

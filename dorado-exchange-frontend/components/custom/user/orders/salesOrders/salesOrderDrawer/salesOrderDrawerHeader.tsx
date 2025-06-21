@@ -5,6 +5,7 @@ import { useSalesOrderMetals } from '@/lib/queries/useSalesOrders'
 import { SalesOrderDrawerHeaderProps, statusConfig } from '@/types/sales-orders'
 import { formatFullDate } from '@/utils/dateFormatting'
 import { useFormatSalesOrderNumber } from '@/utils/formatSalesOrderNumber'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function SalesOrderDrawerHeader({ order }: SalesOrderDrawerHeaderProps) {
   const downloadInvoice = useDownloadSalesOrderInvoice()
@@ -12,8 +13,7 @@ export default function SalesOrderDrawerHeader({ order }: SalesOrderDrawerHeader
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
   const { data: orderSpots = [] } = useSalesOrderMetals(order.id)
 
-  const status = statusConfig[order.sales_order_status]
-  const Icon = status?.icon
+  const Icon = statusConfig[order.sales_order_status].icon
 
   const downloadOptions = [
     {
@@ -40,11 +40,7 @@ export default function SalesOrderDrawerHeader({ order }: SalesOrderDrawerHeader
       </div>
       <div className="flex w-full justify-between items-center">
         <div className="flex items-center gap-2">
-          {status && Icon && (
-            <div className={`${status.text_color}`}>
-              <Icon size={24} />
-            </div>
-          )}
+          {Icon && <Icon size={24} color={getPrimaryIconStroke()} />}
           <span className="text-lg text-neutral-800">{order.sales_order_status}</span>
         </div>
         <div className="flex ml-auto">
@@ -53,7 +49,7 @@ export default function SalesOrderDrawerHeader({ order }: SalesOrderDrawerHeader
               <Button
                 key={index}
                 variant="link"
-                className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
+                className={`font-normal text-sm bg-transparent hover:bg-transparent text-primary-gradient px-0`}
                 onClick={onClick}
                 disabled={isPending}
               >

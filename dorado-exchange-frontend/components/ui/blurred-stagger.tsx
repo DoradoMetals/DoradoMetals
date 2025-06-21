@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 
 export const BlurredStagger = ({
-  text = 'we love hextaui.com ❤️',
+  text,
   delay = 600, // ← delay in ms before starting animation
 }: {
   text: string
@@ -48,9 +48,9 @@ export const BlurredStagger = ({
           key={index}
           variants={letterAnimation}
           transition={{ duration: 0.3 }}
-          className="inline-block"
+          className=""
         >
-          {char === ' ' ? '\u00A0' : char}
+          {char}
         </motion.span>
       ))}
     </motion.div>

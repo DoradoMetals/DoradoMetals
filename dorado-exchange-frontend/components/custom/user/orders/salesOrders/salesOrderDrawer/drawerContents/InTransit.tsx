@@ -22,6 +22,7 @@ export default function InTransitSalesOrder({ order }: SalesOrderDrawerContentPr
         borderColor={border}
         delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery}
         shipping_status={order.shipment.shipping_status}
+        useStatusColor={false}
       />
     </>
   )

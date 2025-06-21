@@ -3,14 +3,11 @@ import { BlurredStagger } from '@/components/ui/blurred-stagger'
 import { Confetti, ConfettiRef } from '@/components/ui/confetti'
 import { ShineBorder } from '@/components/ui/shine-border'
 import { cn } from '@/lib/utils'
-import { payoutOptions } from '@/types/payout'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import { useEffect, useRef } from 'react'
 
 export default function AcceptedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const config = statusConfig[order.purchase_order_status]
-  const payout = payoutOptions.find((p) => p.method === order.payout?.method)
-  const Icon = payout?.icon
   const confettiRef = useRef<ConfettiRef>(null)
 
   useEffect(() => {
