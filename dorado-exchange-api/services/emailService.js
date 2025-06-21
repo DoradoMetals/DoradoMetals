@@ -91,8 +91,7 @@ async function sendSalesOrderToSupplier(order, spots, email) {
   }
 
   await sendEmail({
-    // to: email,
-    to: 'exchange@doradometals.com',
+    to: email,
     subject: `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(
       order.order_number
     )}`,

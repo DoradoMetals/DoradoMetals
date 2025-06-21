@@ -34,10 +34,10 @@ async function createPaymentIntent(payment_intent, type, session) {
 async function updatePaymentIntent(payment_intent) {
   const query = `
     UPDATE exchange.payment_intents
-    SET payment_status = $1, updated_at = NOW()
-    WHERE payment_intent_id = $2
+    SET payment_status = $1, updated_at = NOW(), amount = $2
+    WHERE payment_intent_id = $3
   `;
-  const values = [payment_intent.status, payment_intent.id];
+  const values = [payment_intent.status, payment_intent.amount, payment_intent.id];
   await pool.query(query, values);
 }
 

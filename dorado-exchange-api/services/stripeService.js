@@ -90,21 +90,22 @@ async function updatePaymentIntent(
   );
 
   const amount = Math.round(orderPrices.post_charges_amount * 100);
-
   if (
     retrieved_intent?.payment_intent_id &&
     [
       "requires_payment_method",
       "requires_confirmation",
       "requires_action",
-    ].includes(retrieved_intent?.status)
+    ].includes(retrieved_intent?.payment_status)
   ) {
+   
     const paymentIntent = await stripeClient.paymentIntents.update(
       retrieved_intent.payment_intent_id,
       {
         amount: amount,
       }
     );
+
     await stripeRepo.updatePaymentIntent(paymentIntent);
 
     return paymentIntent;

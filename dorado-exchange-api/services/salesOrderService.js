@@ -5,7 +5,6 @@ const { fromNodeHeaders } = require("better-auth/node");
 const salesOrderRepo = require("../repositories/salesOrderRepo");
 const stripeRepo = require("../repositories/stripeRepo");
 const transactionsRepo = require("../repositories/transactionRepo");
-const productRepo = require("../repositories/productRepo");
 const shippingRepo = require("../repositories/shippingRepo");
 const supplierRepo = require("../repositories/supplierRepo");
 const taxRepo = require("../repositories/taxRepo");
