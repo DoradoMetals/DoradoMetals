@@ -1,3 +1,5 @@
+'use client';
+
 import ProtectedPage from '@/components/custom/auth/protectedPage'
 import SalesOrderCheckout from '@/components/custom/sales-order-checkout/salesOrderCheckout'
 import { protectedRoutes } from '@/types/routes'

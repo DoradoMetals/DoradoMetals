@@ -1,7 +1,6 @@
 'use client'
 
 import AccountTab from '@/components/custom/user/account/accountTab'
-import { UserTabs } from '@/components/custom/user/user-tabs'
 import { Button } from '@/components/ui/button'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { UserRoundX } from 'lucide-react'

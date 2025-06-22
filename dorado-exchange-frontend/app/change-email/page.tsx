@@ -1,3 +1,5 @@
+'use client';
+
 import { Suspense } from 'react'
 import ChangeEmail from '@/components/custom/auth/changeEmail'
 import ProtectedPage from '@/components/custom/auth/protectedPage'

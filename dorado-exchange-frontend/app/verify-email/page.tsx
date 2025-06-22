@@ -1,3 +1,5 @@
+'use client';
+
 import ProtectedPage from '@/components/custom/auth/protectedPage'
 import VerifyEmail from '@/components/custom/auth/verifyEmail'
 import { protectedRoutes } from '@/types/routes'

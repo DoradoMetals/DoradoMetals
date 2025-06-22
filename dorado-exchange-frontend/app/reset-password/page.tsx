@@ -1,3 +1,5 @@
+'use client';
+
 import { Suspense } from 'react'
 import ResetPasswordForm from '@/components/custom/auth/resetPasswordForm'
 import ProtectedPage from '@/components/custom/auth/protectedPage'
