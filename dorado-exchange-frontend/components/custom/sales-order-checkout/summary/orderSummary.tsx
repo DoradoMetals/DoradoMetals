@@ -9,12 +9,11 @@ import PriceNumberFlow from '../../products/PriceNumberFlow'
 import NumberFlow from '@number-flow/react'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import { QuestionIcon } from '@phosphor-icons/react'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useRouter } from 'next/navigation'
 
 export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
   const { items, addItem, removeOne, removeAll } = cartStore()
-  const { data, setData } = useSalesOrderCheckoutStore()
+  const { data } = useSalesOrderCheckoutStore()
   const { data: spotPrices = [] } = useSpotPrices()
   const router = useRouter()
 
@@ -137,7 +136,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
           <div className="text-sm text-neutral-700">
             {`${
               paymentOptions.find((option) => option.method === data.payment_method)?.label
-            } Subcharge `}
+            } Surcharge `}
             {`(${
               paymentOptions.find((option) => option.method === data.payment_method)?.subcharge
             })`}

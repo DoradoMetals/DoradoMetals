@@ -887,8 +887,8 @@ const generatePackingList = async ({
               <div class="step">
                 <h3>2) Pack your items.</h3>
                 <p>
-                  Pack your items in a medium box. Dimensions shown below. Any fees incurred from incorrect package sizing
-                  will be deducted from your payout. If you need to change your package size or need more than one package,
+                  Pack your items in a medium box. Make sure to take pictures of your items in case of insurance claims prior to packing. Dimensions shown below. Any fees incurred from incorrect package sizing
+                  will be deducted from your payout. If you believe your items value to be greater than $5,000, you must double box your items. Furthermore, the packaging should not allow your items to be displayed or seen. Do not disclose the contents of your shipment to any other party, including shipping carrier employees. If you need to change your package size or need more than one package,
                   please call us. If you have changed your mind on including an item, or forgot to add one earlier — no worries.
                   Simply include or omit it from your shipment, and we’ll update your order accordingly once we receive it.
                 </p>
@@ -912,7 +912,7 @@ const generatePackingList = async ({
                 <p>
                   We’ll take care of the rest. You will receive an email as soon as we get your shipment.
                   Furthermore, once your label is scanned by FedEx, we’ll begin providing status updates
-                  of your shipment on the order screen.
+                  of your shipment on the order screen. You can optionally obtain a printed receipt with the tracking number attached, this will help with any nessecary insurance claims.
                 </p>
               </div>
             </div>
