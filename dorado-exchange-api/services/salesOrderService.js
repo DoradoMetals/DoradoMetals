@@ -13,7 +13,7 @@ const emailService = require("../services/emailService");
 const addressService = require("../services/addressService");
 const taxService = require("../services/taxService");
 const stripeService = require("../services/stripeService");
-const productService = require("../services/productService")
+const productService = require("../services/productService");
 
 const { calculateSalesOrderTotal } = require("../utils/price-calculations");
 
@@ -41,7 +41,9 @@ async function createSalesOrder(
     headers: fromNodeHeaders(headers),
   });
   const address = await addressService.getAddressFromId(sales_order.address.id);
-  const serverItems = await productService.getItemsFromServer(sales_order.items);
+  const serverItems = await productService.getItemsFromServer(
+    sales_order.items
+  );
   const items = await taxService.attachSalesTaxToItems(
     address.state,
     serverItems,
@@ -63,7 +65,7 @@ async function createSalesOrder(
 
     const orderId = await salesOrderRepo.insertOrder(client, {
       user: session.user,
-      status: "Preparing",
+      status: "Pending",
       sales_order: sales_order,
       orderPrices,
     });
@@ -99,11 +101,12 @@ async function createSalesOrder(
     }
     await client.query("COMMIT");
 
-    await stripeService.capturePaymentIntent(payment_intent_id);
+    if (orderPrices.post_charges_amount > 0) {
+      await stripeService.capturePaymentIntent(payment_intent_id);
+    }
 
     return await getById(orderId);
   } catch (err) {
-    await stripeService.cancelPaymentIntent(payment_intent_id);
     await client.query("ROLLBACK");
     throw err;
   } finally {

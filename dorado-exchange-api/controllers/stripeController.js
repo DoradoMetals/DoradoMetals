@@ -21,7 +21,7 @@ async function handleStripeWebhook(req, res) {
 
   switch (event.type) {
     case "payment_intent.succeeded": {
-      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      await stripeService.updateIntentFromWebhook({ paymentIntent: event.data.object });
       const paymentMethod = await stripeClient.paymentMethods.retrieve(
         event.data.object.payment_method
       );
@@ -31,38 +31,38 @@ async function handleStripeWebhook(req, res) {
     }
 
     case "payment_intent.payment_failed": {
-      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      await stripeService.updateIntentFromWebhook({ paymentIntent: event.data.object });
 
       break;
     }
 
     case "payment_intent.created": {
-      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      await stripeService.updateIntentFromWebhook({ paymentIntent: event.data.object });
       break;
     }
 
     case "payment_intent.amount_capturable_updated": {
-      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      await stripeService.updateIntentFromWebhook({ paymentIntent: event.data.object });
       break;
     }
 
     case "charge.failed": {
-      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      await stripeService.updateIntentFromWebhook({ paymentIntent: event.data.object });
       break;
     }
 
     case "charge.updated": {
-      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      await stripeService.updateIntentFromWebhook({ paymentIntent: event.data.object });
       break;
     }
 
     case "charge.captured": {
-      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      await stripeService.updateIntentFromWebhook({ paymentIntent: event.data.object });
       break;
     }
 
     case "charge.succeeded": {
-      await stripeService.updateStatus({ paymentIntent: event.data.object });
+      await stripeService.updateIntentFromWebhook({ paymentIntent: event.data.object });
     }
 
     case "customer.created": {
@@ -104,8 +104,21 @@ async function updatePaymentIntent(req, res, next) {
   }
 }
 
+async function getPaymentIntentFromSalesOrderId(req, res, next) {
+
+  try {
+    const paymentIntent = await stripeService.getPaymentIntentFromSalesOrderId(
+      req.query
+    );
+    res.json(paymentIntent);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   handleStripeWebhook,
   retrievePaymentIntent,
   updatePaymentIntent,
+  getPaymentIntentFromSalesOrderId,
 };

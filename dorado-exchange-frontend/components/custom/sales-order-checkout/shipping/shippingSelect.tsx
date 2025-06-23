@@ -29,7 +29,7 @@ export default function ShippingSelect({ addresses, isLoading, orderPrices }: Sh
   const setData = useSalesOrderCheckoutStore((state) => state.setData)
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="flex flex-col w-full">
       <AddressDrawer
         address={draftAddress}
         onSuccess={(savedAddress: Address) => {
@@ -60,22 +60,25 @@ export default function ShippingSelect({ addresses, isLoading, orderPrices }: Sh
           </Button>
         </div>
       ) : (
-        <div className="space-y-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="flex ml-auto h-auto min-h-0 font-normal border-none hover:bg-background p-0 text-primary-gradient"
-            onClick={() => {
-              setDraftAddress(emptyAddress)
-              openDrawer('address')
-            }}
-          >
-            <div className="flex text-xs items-center gap-1">
-              Add New Address
-              <PlusIcon size={16} color={getPrimaryIconStroke()}/>
-            </div>
-          </Button>
-          <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between w-full">
+            <div className="text-xs text-neutral-600 uppercase tracking-widest">Shipping To:</div>
+            <Button
+              type="button"
+              variant="outline"
+              className="flex ml-auto h-auto min-h-0 font-normal border-none hover:bg-background p-0 text-primary-gradient"
+              onClick={() => {
+                setDraftAddress(emptyAddress)
+                openDrawer('address')
+              }}
+            >
+              <div className="flex text-xs items-center gap-1">
+                Add New Address
+                <PlusIcon size={16} color={getPrimaryIconStroke()} />
+              </div>
+            </Button>
+          </div>
+          <div className="flex flex-col gap-1 mb-6">
             <div className="flex flex-col gap-1">
               <AddressSelector
                 addresses={addresses}
@@ -94,8 +97,10 @@ export default function ShippingSelect({ addresses, isLoading, orderPrices }: Sh
           </div>
         </div>
       )}
-      <div className="separator-inset" />
-      <ServiceSelector orderPrices={orderPrices} />
+      <div className="flex flex-col gap-6">
+        <div className="separator-inset" />
+        <ServiceSelector orderPrices={orderPrices} />
+      </div>
     </div>
   )
 }

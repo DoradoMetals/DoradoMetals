@@ -17,14 +17,22 @@ import ProfileMenu from './profileMenu'
 import SignInButton from '../auth/signInButton'
 import Spots from '../spots/spots'
 import Sidebar from './sidebar'
-
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '../../ui/breadcrumb'
+import React from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useUser } from '@/lib/authClient'
 
 export default function Shell() {
   const pathname = usePathname()
-  const { user} = useUser()
+  const { user } = useUser()
 
   const { activeDrawer, openDrawer, closeDrawer } = useDrawerStore()
   const isAnyDrawerOpen = !!activeDrawer
@@ -63,6 +71,15 @@ export default function Shell() {
           : 'text-neutral-500 hover-text-primary-gradient',
       hidden: user?.role !== 'admin',
     },
+    {
+      key: 4,
+      label: 'ORDERS',
+      src: '/orders',
+      className:
+        pathname === '/orders'
+          ? 'text-primary-gradient'
+          : 'text-neutral-500 hover-text-primary-gradient',
+    },
   ]
 
   return (
@@ -72,7 +89,11 @@ export default function Shell() {
         isAnyDrawerOpen ? 'shadow-none' : 'raised-off-page'
       )}
     >
-      <Spots />
+      <div className="flex items-start justify-between w-full w-screen sticky mt-1">
+        {pathname !== '/' && <BreadcrumbNav />}
+
+        <Spots />
+      </div>
 
       <nav>
         <div className="hidden lg:flex p-4 pt-0 px-20 mt-2">
@@ -99,6 +120,7 @@ export default function Shell() {
               </div>
             </div>
           </div>
+
           <div className="hidden lg:flex items-center gap-2 ml-auto">
             <Button className="px-0 relative" variant="ghost" onClick={() => openDrawer('cart')}>
               <CartIcon size={24} isOpen={activeDrawer === 'cart'} className="text-neutral-900" />
@@ -170,6 +192,49 @@ export default function Shell() {
         <Sidebar />
         <CartTabs />
       </nav>
+    </div>
+  )
+}
+
+function BreadcrumbNav() {
+  const pathname = usePathname()
+  const segments = pathname.split('/').filter(Boolean)
+
+  const formatSegment = (segment: string) =>
+    segment.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+
+  return (
+    <div className="hidden lg:flex pb-0 lg:px-22">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/">Home</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+
+          {segments.map((segment, i) => {
+            const href = '/' + segments.slice(0, i + 1).join('/')
+            const isLast = i === segments.length - 1
+            const label = formatSegment(segment)
+
+            return (
+              <React.Fragment key={i}>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {isLast ? (
+                    <BreadcrumbPage>{label}</BreadcrumbPage>
+                  ) : (
+                    <BreadcrumbLink asChild>
+                      <Link href={href}>{label}</Link>
+                    </BreadcrumbLink>
+                  )}
+                </BreadcrumbItem>
+              </React.Fragment>
+            )
+          })}
+        </BreadcrumbList>
+      </Breadcrumb>
     </div>
   )
 }

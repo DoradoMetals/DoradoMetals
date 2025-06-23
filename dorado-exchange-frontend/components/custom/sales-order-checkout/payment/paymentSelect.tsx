@@ -43,6 +43,8 @@ export default function PaymentSelect({ orderPrices }: { orderPrices: SalesOrder
     <>
       {orderPrices.beginningFunds > 0 && (
         <div className="">
+          <div className="text-xs text-neutral-600 uppercase tracking-widest mb-4">Payment Method:</div>
+
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1 items-start">
               <div className="text-sm text-neutral-700">Use Bullion Credit?</div>

@@ -4,6 +4,7 @@ import { useGetSession } from './useAuth'
 import { SpotPrice } from '@/types/metal'
 import { User } from '@/types/user'
 import { Product } from '@/types/product'
+import { PaymentIntent } from '@/types/payment-intent'
 
 export interface IntentParams {
   items: Product[]
@@ -39,6 +40,46 @@ export const useUpdatePaymentIntent = () => {
     mutationFn: async (params: IntentParams) => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<string>('POST', '/stripe/update_payment_intent', params)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['payment_intent', user?.id],
+        refetchType: 'active',
+      })
+    },
+  })
+}
+
+export const useGetSalesOrderPaymentIntent = (sales_order_id: string) => {
+  const { user } = useGetSession()
+
+  return useQuery<PaymentIntent>({
+    queryKey: ['payment_intent', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<PaymentIntent>(
+        'GET',
+        '/stripe/get_sales_order_payment_intent',
+        undefined,
+        {
+          sales_order_id: sales_order_id,
+        }
+      )
+    },
+    enabled: !!user?.id,
+  })
+}
+
+export const useCancelPaymentIntent = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (sales_order_id) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<string>('POST', '/stripe/cancel_payment_intent', {
+        sales_order_id: sales_order_id,
+      })
     },
     onSettled: () => {
       queryClient.invalidateQueries({

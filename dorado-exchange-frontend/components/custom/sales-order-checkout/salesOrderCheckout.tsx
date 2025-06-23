@@ -160,7 +160,7 @@ export default function SalesOrderCheckout() {
   }
 
   return (
-    <div className="flex w-full justify-center p-4">
+    <div className="flex w-full justify-center p-4 lg:mt-10">
       {!isAddressesPending && data.address && (
         <div className="flex flex-col lg:flex-row items-center lg:items-start w-full lg:max-w-7xl justify-between gap-6">
           <div className="flex flex-col gap-6 w-full">
@@ -180,7 +180,7 @@ export default function SalesOrderCheckout() {
               />
             )}
           </div>
-          <div className="flex flex-col gap-3 w-full lg:mt-5">
+          <div className="flex flex-col gap-3 w-full">
             <OrderSummary orderPrices={orderPrices} />
             {!cardNeeded ? (
               <Button
@@ -193,7 +193,7 @@ export default function SalesOrderCheckout() {
             ) : (
               <Button
                 className="raised-off-page liquid-gold shine-on-hover w-full text-white"
-                disabled={isOrderCreating || isLoading}
+                disabled={isOrderCreating || isLoading || !clientSecret || !stripePromise}
                 type="submit"
                 form="payment-form"
               >

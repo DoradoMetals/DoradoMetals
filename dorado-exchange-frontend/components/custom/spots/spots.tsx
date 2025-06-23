@@ -15,7 +15,7 @@ export default function Spots() {
 
   return (
     <>
-      <div className="w-screen py-2 overflow-x-auto overflow-y-hidden whitespace-nowrap h-10">
+      <div className="overflow-x-auto overflow-y-hidden whitespace-nowrap h-10 ml-auto">
         {spots && (
           <div className="hidden md:flex items-center sm:px-22">
             <div className="flex items-center gap-10 ml-auto">

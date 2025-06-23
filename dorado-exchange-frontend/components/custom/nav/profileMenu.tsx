@@ -40,20 +40,6 @@ export default function ProfileMenu() {
                     Account
                   </Button>
 
-                  <Button
-                    variant="ghost"
-                    effect="expandIcon"
-                    iconPlacement="right"
-                    iconSize={20}
-                    onClick={() => {
-                      router.push('/orders')
-                    }}
-                    icon={List}
-                    className="px-4 h-8 py-2 text-md font-light hover:bg-card hover:text-primary"
-                  >
-                    Orders
-                  </Button>
-
                   <ThemeSwitcherDesktop />
 
                   <div className="border-t border-neutral-300 my-2" />

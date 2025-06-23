@@ -34,24 +34,21 @@ async function createPaymentIntent(payment_intent, type, session) {
 async function updatePaymentIntent(payment_intent) {
   const query = `
     UPDATE exchange.payment_intents
-    SET payment_status = $1, updated_at = NOW(), amount = $2
-    WHERE payment_intent_id = $3
-  `;
-  const values = [payment_intent.status, payment_intent.amount, payment_intent.id];
-  await pool.query(query, values);
-}
-
-async function updateStatus({ paymentIntent }) {
-  const query = `
-    UPDATE exchange.payment_intents
-    SET payment_status = $1, 
-        method_id = $2
-    WHERE payment_intent_id = $3
+    SET payment_status = $1,
+        updated_at = NOW(),
+        amount = $2,
+        amount_received = $3,
+        amount_capturable = $4,
+        method_id = $5
+    WHERE payment_intent_id = $6
   `;
   const values = [
-    paymentIntent.status,
-    paymentIntent.payment_method,
-    paymentIntent.id,
+    payment_intent.status,
+    payment_intent.amount,
+    payment_intent.amount_received,
+    payment_intent.amount_capturable,
+    payment_intent.payment_method,
+    payment_intent.id,
   ];
   await pool.query(query, values);
 }
@@ -105,12 +102,23 @@ async function attachCustomerToUser(customerId, userId) {
   await pool.query(query, values);
 }
 
+async function getPaymentIntentFromSalesOrderId(sales_order_id) {
+  const query = `
+  SELECT *
+  FROM exchange.payment_intents
+  WHERE sales_order_id = $1
+  `;
+  const values = [sales_order_id];
+  const result = await pool.query(query, values);
+  return result.rows[0];
+}
+
 module.exports = {
   retrievePaymentIntent,
   createPaymentIntent,
   updatePaymentIntent,
-  updateStatus,
   updateMethod,
   attachOrder,
   attachCustomerToUser,
+  getPaymentIntentFromSalesOrderId,
 };

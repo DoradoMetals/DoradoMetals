@@ -60,7 +60,6 @@ export default function SalesOrderStripeForm({
       redirect: 'if_required',
     })
     if (paymentIntent?.status === 'requires_capture') {
-
       console.log('here')
       const liveItems = cartStore.getState().items
 
@@ -91,7 +90,7 @@ export default function SalesOrderStripeForm({
     } else if (error?.type === 'card_error' || error?.type === 'validation_error') {
       setMessage(error.message ?? 'A payment error occurred.')
     } else if (error) {
-      setMessage('An unexpected payment error occurred.')
+      setMessage(error.message ?? 'An unexpected payment error occurred.')
     }
 
     setIsLoading(false)
@@ -106,7 +105,6 @@ export default function SalesOrderStripeForm({
     },
     defaultValues: {
       billingDetails: {
-
         phone: address.phone_number,
         address: {
           line1: address.line_1,
@@ -138,7 +136,9 @@ export default function SalesOrderStripeForm({
   return (
     <form id="payment-form" onSubmit={handleSubmit}>
       <PaymentElement id="payment-element" options={paymentElementOptions} />
-      {message && <div id="payment-message">{message}</div>}
+      <div className="text-xs text-destructive mt-1">
+        {message && <div id="payment-message">{message}</div>}
+      </div>
     </form>
   )
 }

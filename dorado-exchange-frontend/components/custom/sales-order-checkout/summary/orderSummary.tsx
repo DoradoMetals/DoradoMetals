@@ -152,7 +152,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
           <div className="flex items-center gap-1">
             <div className="text-sm text-neutral-700">Sales Tax</div>
             <Button variant="ghost" className="h-4 p-0" onClick={() => router.push('/sales-tax')}>
-              <QuestionIcon size={16} className='text-neutral-500' />
+              <QuestionIcon size={16} className="text-neutral-500" />
             </Button>
           </div>
           <div className="text-base text-neutral-800">
@@ -177,10 +177,13 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
   )
 
   return (
-    <div className="flex w-full bg-card raised-off-page rounded-lg p-4">
-      <div className="flex flex-col w-full gap-3">
-        {itemContent}
-        {paymentContent}
+    <div className='flex flex-col gap-2'>
+      <div className="text-xs text-neutral-600 uppercase tracking-widest">Order Summary:</div>
+      <div className="flex w-full bg-card raised-off-page rounded-lg p-4">
+        <div className="flex flex-col w-full gap-3">
+          {itemContent}
+          {paymentContent}
+        </div>
       </div>
     </div>
   )

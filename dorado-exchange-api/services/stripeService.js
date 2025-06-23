@@ -98,7 +98,6 @@ async function updatePaymentIntent(
       "requires_action",
     ].includes(retrieved_intent?.payment_status)
   ) {
-   
     const paymentIntent = await stripeClient.paymentIntents.update(
       retrieved_intent.payment_intent_id,
       {
@@ -136,19 +135,23 @@ async function cancelPaymentIntent(payment_intent_id) {
   }
 }
 
-async function updateStatus({ paymentIntent }) {
-  await stripeRepo.updateStatus({ paymentIntent });
-}
-
 async function updateMethod({ paymentMethod }) {
   await stripeRepo.updateMethod({ paymentMethod });
 }
 
+async function updateIntentFromWebhook({ paymentIntent }) {
+  await stripeRepo.updatePaymentIntent(paymentIntent);
+}
+
+async function getPaymentIntentFromSalesOrderId({ sales_order_id }) {
+  return await stripeRepo.getPaymentIntentFromSalesOrderId(sales_order_id);
+}
 module.exports = {
   retrievePaymentIntent,
   updatePaymentIntent,
   capturePaymentIntent,
   cancelPaymentIntent,
-  updateStatus,
   updateMethod,
+  updateIntentFromWebhook,
+  getPaymentIntentFromSalesOrderId,
 };
