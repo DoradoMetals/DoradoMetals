@@ -21,12 +21,15 @@ import { ValidatedField } from '@/components/ui/validated_field'
 import { PasswordRequirements } from './passwordRequirements'
 import orSeparator from './orSeparator'
 import GoogleButton from './googleButton'
+import { verifyRecaptcha } from './verifyRecaptcha'
 
 export default function SignUpForm() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [showRequirements, setShowRequirements] = useState(false)
-  const { mutate: signUpMutation, error, isPending } = useSignUp()
+
+  const { run: checkCaptcha, isPending: recaptchaPending } = verifyRecaptcha('sign_up')
+  const { mutate: signUpMutation, error, isPending: signUpPending } = useSignUp()
 
   const form = useForm<SignUp>({
     resolver: zodResolver(signUpSchema),
@@ -34,7 +37,12 @@ export default function SignUpForm() {
     mode: 'onBlur',
   })
 
-  const handleSubmit = (values: SignUp) => {
+  const handleSubmit = async (values: SignUp) => {
+    const human = await checkCaptcha()
+    if (!human) {
+      console.warn('Bot detected')
+      return
+    }
     signUpMutation(
       {
         email: values.email,
@@ -131,10 +139,10 @@ export default function SignUpForm() {
             <Button
               type="submit"
               variant="default"
-              disabled={isPending}
+              disabled={recaptchaPending || signUpPending}
               className="form-submit-button liquid-gold raised-off-page shine-on-hover text-white"
             >
-              {isPending ? 'Signing Up...' : 'Sign Up'}
+              {recaptchaPending ? 'Verifying…' : signUpPending ? 'Signing Up…' : 'Sign Up'}
             </Button>
           </form>
         </Form>
