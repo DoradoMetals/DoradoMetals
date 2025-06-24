@@ -34,36 +34,62 @@ const parseTracking = (trackingOutput) => {
     : "TBD";
 
   const statusMap = {
-    EP: "Enroute to Pickup",
-    PD: "Pickup Delay",
-    DD: "Delivery Delay",
-    DE: "Delivery Exception",
-    TD: "Delivery Attempted",
-    OC: "Label Created",
+    DO: "Dropped Off",
+    LC: "Return Label Cancelled",
+    DS: "Vehicle Dispatched",
+    PD: "Pickup Delayed",
+    CA: "Cancelled",
     PU: "Picked Up",
-    AR: "Arrived at FedEx Location",
-    IT: "In Transit",
-    OW: "On the Way",
-    OD: "Out for Delivery",
-    DL: "Delivered",
-    HL: "Held at Location",
-    PM: "In Progress",
-    FD: "At FedEx Destination",
-    PF: "Ready for Delivery",
-    CH: "Location Changed",
-    CL: "Clearance Delay",
-    SD: "Shipment Delayed",
-    SA: "Shipment Arrived",
-    RR: "Return Received",
-    DY: "Delayed",
+    US: "Delivery Updated",
+    RD: "Return Label Expired",
+    IP: "In Fedex Possession",
+    HP: "Delivered",
+    RG: "Return Label Expiring Soon",
+    RP: "Return Label Sent",
     RS: "Returning to Shipper",
 
+    AR: "In Transit",
+    AF: "In Transit",
+    AC: "At Canada Post",
+    IT: "In Transit",
+    OX: "Information Sent To USPS",
+    PM: "In Progress",
+    DP: "In Transit",
+    DR: "Vehicle Unused",
+    CP: "Clearance",
+    EA: "Export Approved",
+    IN: "On Demand Care Complete",
+    MD: "Manifest",
+    TR: "Enroute to Delivery",
+    CC: "International Release",
+    RC: "Delivery Option Cancelled",
+    CH: "Location Changed",
+
+    OD: "Out for Delivery",
+    DL: "Delivered",
+
+    DD: "Delivery Delayed",
+    DE: "Delivery Exception",
+    SE: "Shipment Exception",
+    CD: "Clearance Delay",
+
+    AE: "In Transit",
+    AO: "In Transit",
+    DY: "Delivery Updated",
+
+    RR: "Delivery Option Requested",
+    RM: "Delivery Option Updated",
+    HA: "Hold at Location Accepted",
+    RT: "Return Requested",
+    RA: "Address Change Requested",
+    PR: "Address Changed",
+    AS: "Address Corrected",
   };
 
   const relevantStatusCodes = Object.keys(statusMap);
 
   let scanEvents = (trackingOutput.scanEvents || [])
-    .filter((event) => relevantStatusCodes.includes(event.derivedStatusCode))
+    .filter((event) => relevantStatusCodes.includes(event.eventType))
     .map((event) => {
       const city =
         event.scanLocation?.city
@@ -73,30 +99,28 @@ const parseTracking = (trackingOutput) => {
       return {
         date: event.date,
         location: `${city}, ${state}`.trim(),
-        status: statusMap[event.derivedStatusCode] || "Unknown",
+        status: statusMap[event.eventType] || "Unknown",
       };
-    });
+    })
+    .reverse();
 
-  const derivedCode = trackingOutput.latestStatusDetail?.derivedCode;
   const latestStatus =
-    derivedCode && statusMap[derivedCode] ? statusMap[derivedCode] : 'Status Unknown';
+    scanEvents[scanEvents.length - 1]?.status || "Status Unknown";
+
+  console.log(latestStatus);
 
   const deliveredAt =
-    trackingOutput.dateAndTimes?.find((dt) => dt.type === "ACTUAL_DELIVERY")
-      ?.dateTime || null;
+    scanEvents.find((event) => event.status === "Delivered")?.date || null;
 
   return {
     estimatedDeliveryTime,
-    scanEvents: scanEvents.reverse(),
+    scanEvents,
     latestStatus,
     deliveredAt,
   };
 };
 
-
-const getFedexShipmentTracking = async (
-  tracking_number,
-) => {
+const getFedexShipmentTracking = async (tracking_number) => {
   try {
     const token = await getFedExAccessToken();
     const trackingPayload = {
@@ -124,7 +148,6 @@ const getFedexShipmentTracking = async (
     const trackingOutput =
       response.data.output.completeTrackResults[0].trackResults[0];
 
-      
     return parseTracking(trackingOutput);
   } catch (error) {
     console.error("FedEx tracking failed:", error?.response?.data || error);
