@@ -131,8 +131,6 @@ export default function SalesOrderCheckout() {
     )
   }
 
-  console.log(data.address)
-
   if (cartItems.length === 0) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10">
@@ -163,7 +161,7 @@ export default function SalesOrderCheckout() {
 
   return (
     <div className="flex w-full justify-center p-4 lg:mt-10">
-      {!isAddressesPending && data.address?.is_valid === true && (
+      {!isAddressesPending && (
         <div className="flex flex-col lg:flex-row items-center lg:items-start w-full lg:max-w-7xl justify-between gap-6">
           <div className="flex flex-col gap-6 w-full">
             <ShippingSelect
@@ -173,7 +171,7 @@ export default function SalesOrderCheckout() {
             />
             <div className="separator-inset" />
             <PaymentSelect orderPrices={orderPrices} />
-            {clientSecret && data.address && cardNeeded && (
+            {clientSecret && data.address?.is_valid === true && cardNeeded && (
               <StripeWrapper
                 clientSecret={clientSecret}
                 stripePromise={stripePromise}

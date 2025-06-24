@@ -30,7 +30,7 @@ export default function AddressDrawer({ address, onSuccess }: AddressDrawerProps
     <>
       <div>
         <Drawer open={isAddressOpen} setOpen={closeDrawer}>
-          <div className="h-full bg-background border-t-1 border-border lg:border-none flex flex-col p-4 flex-1 overflow-y-auto">
+          <div className="h-full bg-background border-t-1 border-border lg:border-none flex flex-col p-4 flex-1 overflow-y-auto pb-30 sm:pb-5">
             <Button
               variant="ghost"
               size="icon"

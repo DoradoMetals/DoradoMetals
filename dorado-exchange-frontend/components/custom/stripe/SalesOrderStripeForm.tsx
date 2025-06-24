@@ -60,7 +60,6 @@ export default function SalesOrderStripeForm({
       redirect: 'if_required',
     })
     if (paymentIntent?.status === 'requires_capture') {
-      console.log('here')
       const liveItems = cartStore.getState().items
 
       const checkoutPayload = {
@@ -80,7 +79,6 @@ export default function SalesOrderStripeForm({
         },
         {
           onSuccess: () => {
-            console.log('going to order placed')
             router.push('/order-placed')
             cartStore.getState().clearCart()
             useSalesOrderCheckoutStore.getState().clear()

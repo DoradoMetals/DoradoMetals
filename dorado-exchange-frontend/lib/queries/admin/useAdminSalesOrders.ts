@@ -55,7 +55,6 @@ export const useSendOrderToSupplier = () => {
       supplier_id: string
     }) => {
       if (!user?.id || user?.role !== 'admin') throw new Error('User is not an admin.')
-      console.log(supplier_id)
       await apiRequest('POST', '/sales_orders/send_order_to_supplier', {
         order,
         spots,
