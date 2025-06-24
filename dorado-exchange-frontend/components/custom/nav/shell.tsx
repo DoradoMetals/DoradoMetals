@@ -17,14 +17,7 @@ import ProfileMenu from './profileMenu'
 import SignInButton from '../auth/signInButton'
 import Spots from '../spots/spots'
 import Sidebar from './sidebar'
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '../../ui/breadcrumb'
+
 import React from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -90,8 +83,6 @@ export default function Shell() {
       )}
     >
       <div className="flex items-start justify-between w-full w-screen sticky mt-1">
-        {pathname !== '/' && <BreadcrumbNav />}
-
         <Spots />
       </div>
 
@@ -192,49 +183,6 @@ export default function Shell() {
         <Sidebar />
         <CartTabs />
       </nav>
-    </div>
-  )
-}
-
-function BreadcrumbNav() {
-  const pathname = usePathname()
-  const segments = pathname.split('/').filter(Boolean)
-
-  const formatSegment = (segment: string) =>
-    segment.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-
-  return (
-    <div className="hidden lg:flex pb-0 lg:px-22">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/">Home</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-
-          {segments.map((segment, i) => {
-            const href = '/' + segments.slice(0, i + 1).join('/')
-            const isLast = i === segments.length - 1
-            const label = formatSegment(segment)
-
-            return (
-              <React.Fragment key={i}>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  {isLast ? (
-                    <BreadcrumbPage>{label}</BreadcrumbPage>
-                  ) : (
-                    <BreadcrumbLink asChild>
-                      <Link href={href}>{label}</Link>
-                    </BreadcrumbLink>
-                  )}
-                </BreadcrumbItem>
-              </React.Fragment>
-            )
-          })}
-        </BreadcrumbList>
-      </Breadcrumb>
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { createAuthClient } from 'better-auth/react'
 import { inferAdditionalFields, magicLinkClient, adminClient } from 'better-auth/client/plugins'
 import { stripeClient } from '@better-auth/stripe/client'
 
-const auth = createAuthClient({
+export const auth = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_AUTH_URL,
   plugins: [
     inferAdditionalFields({
@@ -33,10 +33,11 @@ export const {
   signOut,
   updateUser,
   changeEmail,
-  forgetPassword,
+  requestPasswordReset,
   resetPassword,
   verifyEmail,
   sendVerificationEmail,
+  changePassword,
   magicLink,
   admin,
 } = auth

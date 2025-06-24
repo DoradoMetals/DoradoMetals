@@ -2,17 +2,15 @@
 
 import { Button } from '@/components/ui/button'
 import { useAddress } from '@/lib/queries/useAddresses'
-import { Address } from '@/types/address'
+import { Address, emptyAddress } from '@/types/address'
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus } from 'lucide-react'
-import { useGetSession } from '@/lib/queries/useAuth'
 import { AddressCarousel } from './addressCarousel'
 import AddressDrawer from './addressDrawer'
 import { useDrawerStore } from '@/store/drawerStore'
 
 export default function AddressTab() {
-  const { user } = useGetSession()
   const { data: addresses = [], isLoading } = useAddress()
 
   const noAddresses = () => {
@@ -24,27 +22,8 @@ export default function AddressTab() {
 
   const { openDrawer } = useDrawerStore()
 
-  const defaultValues: Address = {
-    id: crypto.randomUUID(),
-    user_id: user?.id ?? '',
-    line_1: '',
-    line_2: '',
-    city: '',
-    state: '',
-    country: 'United States',
-    zip: '',
-    name: '',
-    is_default: noAddresses(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    phone_number: '',
-    country_code: 'US',
-    is_valid: false,
-    is_residential: false,
-  }
-
   const [selectedAddress, setSelectedAddress] = useState<Address>(
-    () => addresses?.[0] ?? defaultValues
+    () => addresses?.[0] ?? emptyAddress
   )
 
   return (
@@ -70,9 +49,9 @@ export default function AddressTab() {
             {!noAddresses() ? (
               <Button
                 variant="ghost"
-                className="ml-auto text-primary-gradient"
+                className="ml-auto text-primary-gradient p-0"
                 onClick={() => {
-                  setSelectedAddress(defaultValues)
+                  setSelectedAddress(emptyAddress)
                   openDrawer('address')
                 }}
               >
@@ -95,7 +74,7 @@ export default function AddressTab() {
                   icon={Plus}
                   iconSize={16}
                   onClick={() => {
-                    setSelectedAddress(defaultValues)
+                    setSelectedAddress(emptyAddress)
                     openDrawer('address')
                   }}
                 >

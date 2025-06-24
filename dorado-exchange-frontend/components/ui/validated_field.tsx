@@ -2,10 +2,11 @@
 
 import { FormField, FormItem, FormControl, FormMessage } from '@/components/ui/form'
 import { FloatingLabelInput, FloatingLabelInputProps } from '@/components/ui/floating-label-input'
-import { ValidCheckIcon } from '@/components/ui/valid-check-icon'
+import { InvalidXIcon, ValidCheckIcon } from '@/components/ui/valid-check-icon'
 import { Control, FieldPath, FieldValues } from 'react-hook-form'
-
-
+import ShowPasswordButton from '../custom/auth/showPasswordButton'
+import { Dispatch, SetStateAction } from 'react'
+import { XIcon } from '@phosphor-icons/react'
 
 type ValidatedFieldProps<T extends FieldValues> = {
   control: Control<T>
@@ -13,12 +14,21 @@ type ValidatedFieldProps<T extends FieldValues> = {
   label: string
   type?: string
   rightAligned?: boolean
+  disabled?: boolean
 
   inputProps?: Partial<FloatingLabelInputProps>
+
+  showPasswordButton?: boolean
+  showPassword?: boolean
+  setShowPassword?: Dispatch<SetStateAction<boolean>>
+
   className?: string
   size?: 'sm' | 'md' | 'lg'
   showIcon?: boolean
   messageClassName?: string
+
+  showOnTouch?: boolean
+  showFormError?: boolean
 }
 
 export function ValidatedField<T extends FieldValues>({
@@ -27,27 +37,33 @@ export function ValidatedField<T extends FieldValues>({
   label,
   type = 'text',
   rightAligned = false,
+  disabled = false,
   inputProps = {},
+  showPasswordButton = false,
+  showPassword,
+  setShowPassword,
   className = 'input-floating-label-form',
   size = 'sm',
   showIcon = true,
   messageClassName = 'absolute right-0 -bottom-5.5 -translate-y-1/2 error-text',
+  showOnTouch = false,
+  showFormError = true,
 }: ValidatedFieldProps<T>) {
   return (
     <FormField
       control={control}
       name={name}
       render={({ field, fieldState }) => {
-        // 👇 Merge onChange manually
         const mergedOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-          inputProps.onChange?.(e) // your custom logic
-          field.onChange(e) // RHF tracking
+          inputProps.onChange?.(e)
+          field.onChange(e)
         }
+        const allowShowIcon = showIcon && (showOnTouch ? fieldState.isTouched : true)
 
         return (
           <FormItem>
             <div className="relative w-full">
-              {fieldState.isTouched && fieldState.error && (
+              {showFormError && fieldState.isTouched && fieldState.error && (
                 <FormMessage className={messageClassName} />
               )}
 
@@ -62,8 +78,17 @@ export function ValidatedField<T extends FieldValues>({
                     className={`${className} ${rightAligned ? 'text-right' : ''}`}
                     size={size}
                     pattern={type === 'number' ? '[0-9]*' : undefined}
+                    disabled={disabled}
                   />
-                  {showIcon && <ValidCheckIcon isValid={!fieldState.invalid} />}
+                  <div className="absolute inset-y-0 right-0 flex items-center space-x-2 pr-2">
+                    {showPasswordButton && showPassword !== undefined && setShowPassword && (
+                      <ShowPasswordButton
+                        showPassword={showPassword}
+                        setShowPassword={setShowPassword}
+                      />
+                    )}
+                    {allowShowIcon && (fieldState.error ? <InvalidXIcon /> : <ValidCheckIcon />)}
+                  </div>
                 </div>
               </FormControl>
             </div>

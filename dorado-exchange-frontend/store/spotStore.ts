@@ -12,7 +12,7 @@ interface SpotTypeState {
 export const useSpotTypeStore = create<SpotTypeState>()(
   persist(
     (set) => ({
-      type: 'Bid',
+      type: 'Ask',
       setType: (type) => set({ type }),
       toggleType: () =>
         set((state) => ({ type: state.type === 'Bid' ? 'Ask' : 'Bid' })),

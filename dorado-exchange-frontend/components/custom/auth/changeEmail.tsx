@@ -24,7 +24,7 @@ export default function ChangeEmail() {
   
 
   return (
-    <div className="h-screen flex flex-col items-center justify-center">
+    <div className="flex flex-col items-center justify-center">
       {verifyEmailMutation.isPending && <p>Changing your email...</p>}
       {verifyEmailMutation.isSuccess && <p>Email changed! Redirecting...</p>}
       {verifyEmailMutation.isError && (

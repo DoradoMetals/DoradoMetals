@@ -23,7 +23,7 @@ export default function VerifyEmail() {
   }, [token]);
 
   return (
-    <div className="h-screen flex flex-col items-center justify-center">
+    <div className="flex flex-col items-center justify-center">
       {verifyEmailMutation.isPending && <p>Verifying your email...</p>}
       {verifyEmailMutation.isSuccess && <p>Email verified! Redirecting...</p>}
       {verifyEmailMutation.isError && (

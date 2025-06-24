@@ -11,7 +11,7 @@ export function getInventoryPriceTotals({
   if (!spot || !product_list?.length) return 0
 
   return product_list.reduce((sum, product) => {
-    return sum + product.quantity * (product.content * (spot.ask_spot * product.ask_premium))
+    return sum + product.quantity * (product.content * (spot.bid_spot * product.bid_premium))
   }, 0)
 }
 

@@ -3,24 +3,16 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import { ForgotPasswordDialog } from './forgotPasswordDialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useSignIn } from '@/lib/queries/useAuth'
 
 import orSeparator from './orSeparator'
-import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import { SignIn, signInSchema } from '@/types/auth'
-import ShowPasswordButton from './showPasswordButton'
 import GoogleButton from './googleButton'
+import { ValidatedField } from '@/components/ui/validated_field'
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false)
@@ -40,56 +32,26 @@ export default function SignInForm() {
       <div className="flex flex-col w-full">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <FormField
+            <ValidatedField
               control={form.control}
               name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="relative w-full">
-                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
-                  </div>
-                  <FormControl>
-                    <FloatingLabelInput
-                      label="Email"
-                      type="email"
-                      autoComplete="email"
-                      size="sm"
-                      className="input-floating-label-form"
-                      {...field}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
+              label="Email"
+              type="email"
+              showOnTouch={true}
             />
 
             <div className="mb-2">
-              <FormField
+              <ValidatedField
                 control={form.control}
                 name="password"
-                render={({ field }) => (
-                  <FormItem className="w-full">
-                    <div className="relative w-full">
-                      <div className="relative w-full">
-                        <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
-                      </div>
-                      <FormControl>
-                        <FloatingLabelInput
-                          label="Password"
-                          type={showPassword ? 'text' : 'password'}
-                          autoComplete="current-password"
-                          size="sm"
-                          className="input-floating-label-form"
-                          {...field}
-                        />
-                      </FormControl>
-
-                      <ShowPasswordButton
-                        showPassword={showPassword}
-                        setShowPassword={setShowPassword}
-                      />
-                    </div>
-                  </FormItem>
-                )}
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                showPasswordButton
+                showPassword={showPassword}
+                setShowPassword={setShowPassword}
+                showOnTouch={true}
+                showFormError={false}
+                showIcon={false}
               />
             </div>
 

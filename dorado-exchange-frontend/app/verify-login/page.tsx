@@ -33,7 +33,7 @@ export default function Page() {
 
   if (status === 'error') {
     return (
-      <div className="h-screen flex flex-col items-center justify-center">
+      <div className="flex flex-col items-center justify-center">
         <p className="text-red-500">Invalid or expired link.</p>
         <Button onClick={() => router.push('/')}>Go to Home</Button>
       </div>

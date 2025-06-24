@@ -13,6 +13,7 @@ import {
   useChangeEmail,
   useSendVerifyEmail,
   useGetSession,
+  useRequestPasswordReset,
 } from '@/lib/queries/useAuth'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import { useRouter } from 'next/navigation'
@@ -64,6 +65,8 @@ export default function UserForm() {
       })
     }
   }
+
+  const requestPasswordReset = useRequestPasswordReset()
 
   return (
     <div>
@@ -183,13 +186,21 @@ export default function UserForm() {
                     </FormItem>
                   )}
                 />
-                <div className="mt-2">
+
+                <div className="flex items-center justify-between w-full">
                   <Button
                     variant="ghost"
                     className="text-primary-gradient hover-text-primary-gradient p-0"
-                    onClick={() => router.push('/reset-password')}
+                    onClick={() => requestPasswordReset.mutate(user?.email ?? '')}
                   >
-                    Reset Password
+                    {requestPasswordReset.isPending ? 'Sending...' : 'Send Password Reset Link'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="text-primary-gradient hover-text-primary-gradient p-0"
+                    onClick={() => router.push('/change-password')}
+                  >
+                    Change Password
                   </Button>
                 </div>
               </div>

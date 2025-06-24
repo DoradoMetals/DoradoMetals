@@ -12,8 +12,9 @@ import { SellCartItem } from '@/types/sellCart'
 import {
   admin,
   changeEmail,
-  forgetPassword,
+  changePassword,
   getSession,
+  requestPasswordReset,
   resetPassword,
   sendVerificationEmail,
   signIn,
@@ -187,6 +188,7 @@ export const useSignOut = () => {
       localStorage.removeItem('dorado_sell_cart')
       localStorage.removeItem('cartSynced')
       localStorage.removeItem('purchase-order-checkout')
+      localStorage.removeItem('sales-order-checkout')
       queryClient.removeQueries()
       router.replace('/')
     },
@@ -217,10 +219,11 @@ export const useGoogleSignIn = () => {
   })
 }
 
-export const useForgotPassword = () => {
+export const useRequestPasswordReset = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (email: string) => forgetPassword({ email }),
+    mutationFn: async (email: string) =>
+      requestPasswordReset({ email, redirectTo: '/reset-password' }),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
@@ -232,6 +235,27 @@ export const useResetPassword = () => {
   return useMutation({
     mutationFn: async ({ newPassword, token }: { newPassword: string; token: string }) =>
       resetPassword({ newPassword, token }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
+    },
+  })
+}
+
+export const useChangePassword = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      newPassword,
+      currentPassword,
+    }: {
+      newPassword: string
+      currentPassword: string
+    }) =>
+      changePassword({
+        newPassword: newPassword,
+        currentPassword: currentPassword,
+        revokeOtherSessions: true,
+      }),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
@@ -290,6 +314,7 @@ export const useImpersonateUser = () => {
       localStorage.removeItem('dorado_sell_cart')
       localStorage.removeItem('cartSynced')
       localStorage.removeItem('purchase-order-checkout')
+      localStorage.removeItem('sales-order-checkout')
       queryClient.removeQueries()
       const user_impersonating = await admin.impersonateUser({
         userId: user_id,
@@ -321,6 +346,7 @@ export const useStopImpersonation = () => {
       localStorage.removeItem('dorado_sell_cart')
       localStorage.removeItem('cartSynced')
       localStorage.removeItem('purchase-order-checkout')
+      localStorage.removeItem('sales-order-checkout')
       queryClient.removeQueries()
       await admin.stopImpersonating()
     },

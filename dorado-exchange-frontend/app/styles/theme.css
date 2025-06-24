@@ -111,7 +111,7 @@
   --ring: hsl(220, 50%, 36%);
 
   --destructive: hsl(344, 100%, 50%);
-  --success: hsl(129, 76%, 35%);
+  --success: hsl(90, 30%, 35%);
 
   --foreground: hsl(0, 0%, 5%);
   --card-foreground: hsl(0, 0%, 5%);
@@ -204,7 +204,7 @@
   */
 
   --destructive: hsl(344, 100%, 50%);
-  --success: hsl(130, 100%, 50%);
+  --success: hsl(90, 30%, 35%);
 
   --foreground: hsl(0, 0%, 95%);
   --card-foreground: hsl(0, 0%, 95%);

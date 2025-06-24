@@ -22,7 +22,6 @@ export default function ACHForm({
 }) {
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
 
-  // ⚡ Helper to sync state when any field changes
   const syncToStore = () => {
     const values = form.getValues()
     setData({ payout: { method: 'ACH', ...values } })

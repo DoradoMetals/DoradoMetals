@@ -11,16 +11,16 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Form, FormField, FormItem, FormControl, FormMessage } from '@/components/ui/form'
-import { useForgotPassword } from '@/lib/queries/useAuth'
-import { FloatingLabelInput } from '@/components/ui/floating-label-input'
+import { Form } from '@/components/ui/form'
+import { useRequestPasswordReset } from '@/lib/queries/useAuth'
+import { ValidatedField } from '@/components/ui/validated_field'
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
 })
 
 export function ForgotPasswordDialog() {
-  const forgotPasswordMutation = useForgotPassword()
+  const forgotPasswordMutation = useRequestPasswordReset()
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -43,32 +43,20 @@ export function ForgotPasswordDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent className="">
-        <DialogTitle className='text-neutral-800 text-lg'>Reset Password</DialogTitle>
-        <DialogDescription className='mb-6'>Enter your email, and we will send you a reset link.</DialogDescription>
+        <DialogTitle className="text-neutral-800 text-lg">Reset Password</DialogTitle>
+        <DialogDescription className="mb-6">
+          Enter your email, and we will send you a reset link.
+        </DialogDescription>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
+            <ValidatedField
               control={form.control}
               name="email"
-              render={({ field }) => (
-                <FormItem className="w-full">
-                  <div className="relative w-full">
-                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
-                  </div>
-                  <FormControl>
-                    <FloatingLabelInput
-                      label="Email"
-                      type="email"
-                      autoComplete="email"
-                      disabled={forgotPasswordMutation.isPending}
-                      size="sm"
-                      className="input-floating-label-form"
-                      {...field}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
+              label="Email"
+              type="email"
+              disabled={forgotPasswordMutation.isPending}
+              showOnTouch={true}
             />
 
             <Button

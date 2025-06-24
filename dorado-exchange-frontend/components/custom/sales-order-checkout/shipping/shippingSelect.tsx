@@ -38,7 +38,7 @@ export default function ShippingSelect({ addresses, isLoading, orderPrices }: Sh
       />
 
       {isEmpty ? (
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-4 mb-6">
           <div className="text-center text-lg text-neutral-800">
             Create an address to continue checkout.
           </div>

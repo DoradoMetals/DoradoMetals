@@ -1,6 +1,7 @@
 export const protectedRoutes = {
   account: { path: '/account', roles: ['user', 'admin'] },
   changeEmail: { path: '/change-email', roles: ['user', 'admin'] },
+  changePassword: { path: '/change-password', roles: ['admin', 'user']},
   verifyEmail: { path: '/verify-email', roles: ['user', 'admin'] },
   resetPassword: { path: '/reset-password', roles: ['user', 'admin'] },
   verifyLogin: { path: '/verify-login', roles: ['user', 'admin'] },

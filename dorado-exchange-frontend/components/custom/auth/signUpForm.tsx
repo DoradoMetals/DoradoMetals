@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,24 +13,25 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
-import { useSignUp } from '@/lib/queries/useAuth'
-import orSeparator from './orSeparator'
-import { useState } from 'react'
-import { FloatingLabelInput } from '@/components/ui/floating-label-input'
-import { SignUp, signUpSchema } from '@/types/auth'
-import Link from 'next/link'
 import { Checkbox } from '@/components/ui/checkbox'
-import ShowPasswordButton from './showPasswordButton'
+import Link from 'next/link'
+import { useSignUp } from '@/lib/queries/useAuth'
+import { SignUp, signUpSchema } from '@/types/auth'
+import { ValidatedField } from '@/components/ui/validated_field'
+import { PasswordRequirements } from './passwordRequirements'
+import orSeparator from './orSeparator'
 import GoogleButton from './googleButton'
 
 export default function SignUpForm() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
+  const [showRequirements, setShowRequirements] = useState(false)
   const { mutate: signUpMutation, error, isPending } = useSignUp()
 
   const form = useForm<SignUp>({
     resolver: zodResolver(signUpSchema),
     defaultValues: { email: '', password: '', name: '', terms: false },
+    mode: 'onBlur',
   })
 
   const handleSubmit = (values: SignUp) => {
@@ -49,81 +51,41 @@ export default function SignUpForm() {
 
   return (
     <div className="grid place-items-center pb-20">
-      <div className="flex flex-col w-full">
+      <div className="flex flex-col w-full max-w-lg">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
-            <FormField
+            <ValidatedField
               control={form.control}
               name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="relative w-full">
-                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
-                  </div>
-                  <FormControl>
-                    <FloatingLabelInput
-                      label="Name"
-                      type="name"
-                      autoComplete="name"
-                      size="sm"
-                      className="input-floating-label-form "
-                      {...field}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
+              label="Name"
+              type="text"
+              showOnTouch={true}
             />
 
-            <FormField
+            <ValidatedField
               control={form.control}
               name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="relative w-full">
-                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
-                  </div>
-                  <FormControl>
-                    <FloatingLabelInput
-                      label="Email"
-                      type="email"
-                      autoComplete="email"
-                      size="sm"
-                      className="input-floating-label-form"
-                      {...field}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
+              label="Email"
+              type="email"
+              showOnTouch={true}
             />
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="relative w-full">
-                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
-
-                    <FormControl>
-                      <FloatingLabelInput
-                        label="Password"
-                        type={showPassword ? 'text' : 'password'}
-                        autoComplete="new-password"
-                        size="sm"
-                        className="input-floating-label-form"
-                        {...field}
-                      />
-                    </FormControl>
-
-                    <ShowPasswordButton
-                      showPassword={showPassword}
-                      setShowPassword={setShowPassword}
-                    />
-                  </div>
-                </FormItem>
-              )}
-            />
-
+            <div className="flex flex-col gap-1">
+              <ValidatedField
+                control={form.control}
+                name="password"
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                showPasswordButton
+                showPassword={showPassword}
+                setShowPassword={setShowPassword}
+                showOnTouch={true}
+                showFormError={false}
+                showIcon={false}
+                inputProps={{ onFocus: () => setShowRequirements(true) }}
+              />
+              {showRequirements && <PasswordRequirements control={form.control} name="password" />}
+            </div>
             <div className="flex justify-between items-center w-full">
               <FormField
                 control={form.control}
@@ -149,7 +111,10 @@ export default function SignUpForm() {
                             Terms and Condtions
                           </Link>
                           and
-                          <Link className="text-primary-gradient tracking-wide" href={'/privacy-policy'}>
+                          <Link
+                            className="text-primary-gradient tracking-wide"
+                            href={'/privacy-policy'}
+                          >
                             Privacy Policy.
                           </Link>
                         </div>
@@ -161,9 +126,7 @@ export default function SignUpForm() {
               />
             </div>
 
-            <div className="flex mb-0 p-0 error-text ml-auto">
-              <p className="ml-auto">{error ? error.message : null}</p>
-            </div>
+            <div className="text-red-600 text-sm">{error ? error.message : null}</div>
 
             <Button
               type="submit"
