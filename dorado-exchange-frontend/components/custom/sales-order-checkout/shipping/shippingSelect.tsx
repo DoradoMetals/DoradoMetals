@@ -4,7 +4,7 @@ import { Address, emptyAddress } from '@/types/address'
 import { AddressSelector } from './addressSelector'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import AddressDrawer from '../../user/addresses/addressDrawer'
 import { useDrawerStore } from '@/store/drawerStore'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
@@ -12,6 +12,7 @@ import ServiceSelector from './serviceSelector'
 import { SalesOrderTotals } from '@/types/sales-orders'
 import { PlusIcon } from '@phosphor-icons/react'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 interface ShippingSelectProps {
   addresses: Address[]
@@ -19,7 +20,8 @@ interface ShippingSelectProps {
   orderPrices: SalesOrderTotals
 }
 
-export default function ShippingSelect({ addresses, isLoading, orderPrices }: ShippingSelectProps) {
+export default function ShippingSelect({ addresses, orderPrices }: ShippingSelectProps) {
+  const { user } = useGetSession()
   const [draftAddress, setDraftAddress] = useState<Address>(emptyAddress)
   const { openDrawer } = useDrawerStore()
 
@@ -51,7 +53,7 @@ export default function ShippingSelect({ addresses, isLoading, orderPrices }: Sh
             icon={Plus}
             iconSize={16}
             onClick={() => {
-              setDraftAddress(emptyAddress)
+              setDraftAddress({ ...emptyAddress, user_id: user?.id ?? '' })
               openDrawer('address')
             }}
             className="border-primary text-primary hover:text-neutral-900 hover:bg-primary"
@@ -68,7 +70,7 @@ export default function ShippingSelect({ addresses, isLoading, orderPrices }: Sh
               variant="outline"
               className="flex ml-auto h-auto min-h-0 font-normal border-none hover:bg-background p-0 text-primary-gradient"
               onClick={() => {
-                setDraftAddress(emptyAddress)
+                setDraftAddress({ ...emptyAddress, user_id: user?.id ?? '' })
                 openDrawer('address')
               }}
             >

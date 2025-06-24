@@ -16,6 +16,7 @@ import { FedexLocationsMap } from './FedexLocations'
 import { InsuranceSelector } from './insuranceSelector'
 import AddressDrawer from '../../user/addresses/addressDrawer'
 import { useDrawerStore } from '@/store/drawerStore'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 interface ShippingStepProps {
   addresses: Address[]
@@ -30,6 +31,7 @@ export default function ShippingStep({
   rates,
   isLoading,
 }: ShippingStepProps) {
+  const { user } = useGetSession();
   const [draftAddress, setDraftAddress] = useState<Address>(emptyAddress)
   const { openDrawer } = useDrawerStore()
 
@@ -74,7 +76,7 @@ export default function ShippingStep({
             icon={Plus}
             iconSize={16}
             onClick={() => {
-              setDraftAddress(emptyAddress)
+              setDraftAddress({...emptyAddress, user_id: user?.id ?? ''})
               openDrawer('address')
             }}
             className="border-primary text-primary hover:text-neutral-900 hover:bg-primary"
@@ -89,7 +91,7 @@ export default function ShippingStep({
             variant="outline"
             className="flex ml-auto h-auto min-h-0 font-normal text-neutral-700 border-none hover:bg-background p-0"
             onClick={() => {
-              setDraftAddress(emptyAddress)
+              setDraftAddress({...emptyAddress, user_id: user?.id ?? ''})
               openDrawer('address')
             }}
           >

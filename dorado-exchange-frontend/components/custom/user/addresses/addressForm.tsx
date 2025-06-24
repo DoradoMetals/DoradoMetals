@@ -9,7 +9,7 @@ import { StateSelect } from '../account/stateSelect'
 import { Address, addressSchema } from '@/types/address'
 import { useUpdateAddress } from '@/lib/queries/useAddresses'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useDrawerStore } from '@/store/drawerStore'
 
 export default function AddressForm({

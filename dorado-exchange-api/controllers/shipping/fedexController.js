@@ -317,14 +317,6 @@ const createFedexLabel = async (
       JSON.stringify(response, null, 2)
     );
 
-    const paramList = response?.errors?.[0]?.parameterList;
-    if (paramList) {
-      console.log(
-        "Parameter validation errors:",
-        JSON.stringify(paramList, null, 2)
-      );
-    }
-
     throw new Error("FedEx label generation failed");
   }
 };
@@ -358,14 +350,6 @@ const cancelLabel = async (req, res) => {
       "FedEx label cancellation failed:",
       JSON.stringify(response, null, 2)
     );
-
-    const paramList = response?.errors?.[0]?.parameterList;
-    if (paramList) {
-      console.log(
-        "Parameter validation errors:",
-        JSON.stringify(paramList, null, 2)
-      );
-    }
 
     throw new Error("FedEx label cancellation failed");
   }

@@ -42,7 +42,6 @@ export function AddressSelector({
 
   useEffect(() => {
     if (addresses) {
-      console.log('here')
       setData({
         address: addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress,
       })

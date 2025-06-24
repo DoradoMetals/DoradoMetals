@@ -65,7 +65,7 @@ export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => vo
   const [columnVisibility, setColumnVisibility] = useState(getColumnVisibilityForTab('impersonate'))
 
   const handleUpdate = (id: string, updatedFields: Partial<AdminUser>) => {
-    console.log(updatedFields)
+
   }
 
   const columns: ColumnDef<AdminUser>[] = [

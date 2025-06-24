@@ -171,7 +171,7 @@ export default function SalesOrderCheckout() {
             />
             <div className="separator-inset" />
             <PaymentSelect orderPrices={orderPrices} />
-            {clientSecret && data.address?.is_valid === true && cardNeeded && (
+            {clientSecret && data.address && cardNeeded && (
               <StripeWrapper
                 clientSecret={clientSecret}
                 stripePromise={stripePromise}
@@ -185,7 +185,7 @@ export default function SalesOrderCheckout() {
             {!cardNeeded ? (
               <Button
                 className="raised-off-page liquid-gold shine-on-hover w-full text-white"
-                disabled={isOrderCreating || isLoading}
+                disabled={isOrderCreating || isLoading || !data.address?.is_valid}
                 onClick={handleSubmit}
               >
                 {isOrderCreating || isLoading ? 'Processing…' : 'Place Order'}
@@ -193,11 +193,11 @@ export default function SalesOrderCheckout() {
             ) : (
               <Button
                 className="raised-off-page liquid-gold shine-on-hover w-full text-white"
-                disabled={isOrderCreating || isLoading || !clientSecret || !stripePromise}
+                disabled={isOrderCreating || isLoading || !clientSecret || !stripePromise || !data.address?.is_valid}
                 type="submit"
                 form="payment-form"
               >
-                {isOrderCreating || isLoading ? 'Processing…' : 'Place Order'}
+                {!data.address?.is_valid ? 'Please provide a valid address.' : isOrderCreating || isLoading ? 'Processing…' : 'Place Order'}
               </Button>
             )}
           </div>

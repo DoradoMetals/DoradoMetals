@@ -41,7 +41,6 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
   }, [order, spotPrices, orderSpotPrices, payoutFee])
 
   const handlePayShipping = () => {
-    // console.log('Pay Shipping')
   }
 
   return (

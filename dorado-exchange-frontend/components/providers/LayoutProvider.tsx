@@ -106,7 +106,7 @@ function BreadcrumbNav() {
     segment.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 
   return (
-    <div className="hidden lg:sticky lg:top-26 lg:flex lg:px-22">
+    <div className="hidden lg:sticky lg:top-28 lg:flex lg:px-20">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>

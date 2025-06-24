@@ -9,8 +9,10 @@ import { Plus } from 'lucide-react'
 import { AddressCarousel } from './addressCarousel'
 import AddressDrawer from './addressDrawer'
 import { useDrawerStore } from '@/store/drawerStore'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 export default function AddressTab() {
+  const { user } = useGetSession()
   const { data: addresses = [], isLoading } = useAddress()
 
   const noAddresses = () => {
@@ -74,7 +76,7 @@ export default function AddressTab() {
                   icon={Plus}
                   iconSize={16}
                   onClick={() => {
-                    setSelectedAddress(emptyAddress)
+                    setSelectedAddress({ ...emptyAddress, user_id: user?.id ?? '' })
                     openDrawer('address')
                   }}
                 >
