@@ -13,17 +13,25 @@ import orSeparator from './orSeparator'
 import { SignIn, signInSchema } from '@/types/auth'
 import GoogleButton from './googleButton'
 import { ValidatedField } from '@/components/ui/validated_field'
+import { verifyRecaptcha } from './verifyRecaptcha'
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false)
-  const { mutate: signInMutation, error, isPending } = useSignIn()
+
+  const { run: checkCaptcha, isPending: recaptchaPending } = verifyRecaptcha('sign_in')
+  const { mutate: signInMutation, error, isPending: signInPending } = useSignIn()
 
   const form = useForm<SignIn>({
     resolver: zodResolver(signInSchema),
     defaultValues: { email: '', password: '', rememberMe: true },
   })
 
-  const onSubmit = (values: SignIn) => {
+  const onSubmit = async (values: SignIn) => {
+    const human = await checkCaptcha()
+    if (!human) {
+      console.warn('Bot detected')
+      return
+    }
     signInMutation(values)
   }
 
@@ -88,10 +96,10 @@ export default function SignInForm() {
             <Button
               type="submit"
               variant="default"
-              disabled={isPending}
-              className="form-submit-button liquid-gold raised-off-page shine-on-hover text-white"
+              disabled={recaptchaPending || signInPending}
+              className="liquid-gold raised-off-page shine-on-hover text-white w-full mb-8"
             >
-              {isPending ? 'Signing In...' : 'Sign In'}
+              {recaptchaPending ? 'Verifying…' : signInPending ? 'Signing In…' : 'Sign In'}
             </Button>
           </form>
         </Form>

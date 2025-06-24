@@ -17,7 +17,7 @@ export function SignInAndUpTabs() {
   }
 
   return (
-    <Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="flex w-full px-10 max-w-lg mt-10 lg:mt-24">
+    <Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="flex w-full px-10 max-w-lg mt-10 lg:mt-10">
       <TabsList className="justify-center h-auto w-full gap-2 rounded-none bg-transparent px-0 py-1">
         <TabsTrigger className="tab-indicator-primary" value="sign-in">
           Sign In

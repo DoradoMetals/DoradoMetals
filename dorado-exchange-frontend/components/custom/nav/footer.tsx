@@ -84,7 +84,29 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-5 text-xs text-neutral-500 text-left">© Dorado Metals Exchange LLC</div>
+        <div className="flex items-center w-full justify-between mt-5 ">
+          <div className="text-xs text-neutral-500 text-left">© Dorado Metals Exchange LLC</div>
+
+          <div className="text-xs text-neutral-500 gap-1">
+            This site is protected by reCAPTCHA and the Google
+            <Link
+              className="text-neutral-300 dark:text-neutral-600 tracking-wide"
+              href="https://policies.google.com/privacy"
+            >
+              {' '}
+              Privacy Policy{' '}
+            </Link>
+            and
+            <Link
+              className="text-neutral-300 dark:text-neutral-600 tracking-wide"
+              href="https://policies.google.com/terms"
+            >
+              {' '}
+              Terms of Service{' '}
+            </Link>
+            apply.
+          </div>
+        </div>
       </footer>
 
       <footer className="flex flex-col lg:hidden w-full bg-neutral-800 dark:bg-highest px-3 py-3 pt-6 raised-off-page">
@@ -120,6 +142,12 @@ export default function Footer() {
               About Us
             </Link>
           </div>
+          <div className="flex w-full items-center justify-between">
+            <Link href="/sales-tax" className="text-xs text-neutral-200 dark:text-neutral-700">
+              Sales Tax
+            </Link>
+          </div>
+
           <div className="flex w-full items-center justify-between mt-4">
             <Link
               href="mailto:support@doradometals.com"

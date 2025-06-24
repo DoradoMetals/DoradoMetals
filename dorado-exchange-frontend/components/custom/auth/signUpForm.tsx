@@ -140,7 +140,7 @@ export default function SignUpForm() {
               type="submit"
               variant="default"
               disabled={recaptchaPending || signUpPending}
-              className="form-submit-button liquid-gold raised-off-page shine-on-hover text-white"
+              className="liquid-gold raised-off-page shine-on-hover text-white w-full mb-8"
             >
               {recaptchaPending ? 'Verifying…' : signUpPending ? 'Signing Up…' : 'Sign Up'}
             </Button>
