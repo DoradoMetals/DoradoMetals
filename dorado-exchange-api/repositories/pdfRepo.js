@@ -1519,6 +1519,9 @@ const generateInvoice = async ({
       return `
         <tr>
           <td class="text-left">${scrap.name || "Scrap Item"}</td>
+                    <td>${scrap.pre_melt} ${
+        scrap.gross_unit || ""
+      }</td>
           <td>${scrap.post_melt ?? scrap.pre_melt} ${
         scrap.gross_unit || ""
       }</td>
@@ -1526,7 +1529,7 @@ const generateInvoice = async ({
             scrap.purity != null ? (scrap.purity * 100).toFixed(1) + "%" : "-"
           }</td>
           <td>${scrap.content.toFixed(3)} t oz</td>
-          <td>${(spot.scrap_percentage * 100).toFixed(1)}% of spot</td>
+          <td>${(spot.scrap_percentage * 100).toFixed(1)}%</td>
           <td class="text-right">
             ${
               price
@@ -2094,6 +2097,7 @@ const generateInvoice = async ({
                 <thead>
                   <tr>
                     <th class="text-left">Line Items</th>
+                    <th>Pre-Melt</th>
                     <th>Post-Melt</th>
                     <th>Purity</th>
                     <th>Content</th>
