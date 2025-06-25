@@ -24,7 +24,7 @@ export default function TrackingEvents({
   const scanEvents = trackingInfo?.scan_events ?? []
 
   const normalizedScanEvents = scanEvents
-    .filter((e) => e.scan_time && e.status && e.location)
+    .filter((e) => e.status !== 'Label Created' && e.scan_time && e.status && e.location)
     .sort((a, b) => new Date(b.scan_time).getTime() - new Date(a.scan_time).getTime())
 
   const dedupedMap = new Map<string, (typeof normalizedScanEvents)[0]>()
