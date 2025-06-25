@@ -16,8 +16,9 @@ import { useFedExRates } from '@/lib/queries/shipping/useFedex'
 import getProductBidPrice from '@/utils/getProductBidPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getScrapPrice from '@/utils/getScrapPrice'
-import { useUser } from '@/lib/authClient'
 import { useGetSession } from '@/lib/queries/useAuth'
+import { ShoppingCartIcon } from '@phosphor-icons/react'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -133,22 +134,31 @@ export default function CheckoutStepper() {
 
   const cartItems = sellCartStore((state) => state.items)
 
-  let fedexRatesInput: FedexRateInput | null = null
-
-  if (address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined) {
-    fedexRatesInput = {
-      shippingType: 'Inbound',
-      customerAddress: formatFedexRatesAddress(address),
-      pickupType: pickup?.label || 'DROPOFF_AT_FEDEX_LOCATION',
-      packageDetails: {
-        weight: pkg.weight,
-        dimensions: pkg.dimensions,
-      },
-      ...(insurance?.insured && insurance?.declaredValue
-        ? { declaredValue: insurance.declaredValue }
-        : {}),
+  const fedexRatesInput = useMemo<FedexRateInput | null>(() => {
+    if (address?.is_valid && pkg?.dimensions && pkg.weight?.value != null) {
+      return {
+        shippingType: 'Inbound',
+        customerAddress: formatFedexRatesAddress(address),
+        pickupType: pickup?.label || 'DROPOFF_AT_FEDEX_LOCATION',
+        packageDetails: {
+          weight: pkg.weight,
+          dimensions: pkg.dimensions,
+        },
+        ...(insurance?.insured && insurance.declaredValue
+          ? { declaredValue: insurance.declaredValue }
+          : {}),
+      }
     }
-  }
+    return null
+  }, [
+    address?.is_valid,
+    address,
+    pkg?.dimensions,
+    pkg?.weight?.value,
+    pickup?.label,
+    insurance?.insured,
+    insurance?.declaredValue,
+  ])
 
   const { data: rates = [], isLoading: ratesLoading } = useFedExRates(fedexRatesInput)
 
@@ -171,17 +181,27 @@ export default function CheckoutStepper() {
 
   if (cartItems.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center w-full p-10 text-center">
-        <h2 className="text-xl font-semibold text-neutral-800">Your cart is empty</h2>
-        <p className="text-sm text-muted-foreground mt-2">
-          You need to add items before checking out.
-        </p>
+      <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10 lg:mt-30">
+        <div className="relative mb-5">
+          <ShoppingCartIcon size={80} strokeWidth={1.5} color={getPrimaryIconStroke()} />
+          <div className="absolute -top-6 right-3.5 border border-borderr text-xl text-primary-gradient rounded-full w-10 h-10 flex items-center justify-center">
+            0
+          </div>
+        </div>
+
+        <div className="flex-col items-center gap-1 mb-5">
+          <h2 className="text-xl text-neutral-900">Your cart is empty!</h2>
+          <p className="text-xs text-neutral-700">Please add items before checking out.</p>
+        </div>
+
         <Button
-          variant="default"
-          className="mt-6 liquid-gold raised-off-screen shine-on-hover px-5 py-4"
-          onClick={() => router.push('/sell')}
+          variant="secondary"
+          onClick={() => {
+            router.push('/sell')
+          }}
+          className="raised-off-page liquid-gold text-white hover:text-white shine-on-hover px-10"
         >
-          Add Items to Sell
+          Start Shopping
         </Button>
       </div>
     )

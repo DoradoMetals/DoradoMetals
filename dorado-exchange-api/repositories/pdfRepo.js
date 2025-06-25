@@ -299,7 +299,6 @@ const generatePackingList = async ({
   purchaseOrder,
   spotPrices = [],
   packageDetails,
-  payoutDetails,
 }) => {
   const browser = await puppeteer.launch({
     headless: true,
@@ -307,7 +306,7 @@ const generatePackingList = async ({
   });
   const page = await browser.newPage();
 
-  const payoutFee = order.payout.cost;
+  const payoutFee = purchaseOrder.payout.cost;
 
   const total =
     purchaseOrder.order_items.reduce((acc, item) => {

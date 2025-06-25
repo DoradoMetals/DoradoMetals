@@ -1,5 +1,5 @@
 import { LucideIcon, Package2, Inbox } from 'lucide-react'
-import { Package } from '@phosphor-icons/react'
+import { PackageIcon } from '@phosphor-icons/react'
 import { z } from 'zod'
 
 export interface Package {
@@ -92,7 +92,7 @@ export const packageOptions: PackageOption[] = [
     label: 'Large Box',
     weight: { units: 'LB', value: 20 },
     dimensions: { length: 18, width: 14, height: 6, units: 'IN' },
-    icon: Package,
+    icon: PackageIcon,
     fedexPackage: false,
   },
   {
@@ -113,7 +113,7 @@ export const packageOptions: PackageOption[] = [
     label: 'FedEx Large',
     weight: { units: 'LB', value: 10 },
     dimensions: { length: 17.8, width: 12.3, height: 3, units: 'IN' },
-    icon: Package,
+    icon: PackageIcon,
     fedexPackage: true,
   },
 ]

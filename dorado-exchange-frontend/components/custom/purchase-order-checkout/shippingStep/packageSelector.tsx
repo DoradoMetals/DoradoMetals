@@ -4,18 +4,34 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+import { sellCartStore } from '@/store/sellCartStore'
 import { packageOptions } from '@/types/packaging'
 import { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
 export function PackageSelector() {
   const selectedPackage = usePurchaseOrderCheckoutStore((state) => state.data.package)
   const fedexPackageToggle = usePurchaseOrderCheckoutStore((state) => state.data.fedexPackageToggle)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+  const { items } = sellCartStore()
 
   const filteredOptions = useMemo(() => {
     return packageOptions.filter((pkg) => pkg.fedexPackage === fedexPackageToggle)
   }, [fedexPackageToggle])
+
+  const totalCartWeight = useMemo(() => {
+    return items.reduce((sum, item) => {
+      const qty = item.data.quantity ?? 1
+      const perUnit =
+        item.type === 'product' ? (item.data as any).gross : (item.data as any).pre_melt
+      return sum + perUnit * qty
+    }, 0)
+  }, [items])
+
+  const packagingWeight = useMemo<number>(() => {
+    if (!selectedPackage) return totalCartWeight
+    return Math.max(totalCartWeight, selectedPackage.weight.value)
+  }, [totalCartWeight, selectedPackage])
 
   const handleFedExToggle = (checked: boolean) => {
     setData({
@@ -26,10 +42,31 @@ export function PackageSelector() {
 
   const handleChange = (label: string) => {
     const selected = packageOptions.find((p) => p.label === label)
-    if (selected) {
-      setData({ package: selected })
-    }
+    console.log(packagingWeight)
+    if (!selected) return
+    setData({
+      package: {
+        ...selected,
+        weight: {
+          units: 'LB',
+          value: packagingWeight,
+        },
+      },
+    })
   }
+
+  useEffect(() => {
+    if (!selectedPackage) return
+    setData({
+      package: {
+        ...selectedPackage,
+        weight: {
+          ...selectedPackage.weight,
+          value: packagingWeight,
+        },
+      },
+    })
+  }, [packagingWeight])
 
   return (
     <div className="space-y-2">

@@ -133,7 +133,7 @@ export default function SalesOrderCheckout() {
 
   if (cartItems.length === 0) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10">
+      <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10 lg:mt-30">
         <div className="relative mb-5">
           <ShoppingCartIcon size={80} strokeWidth={1.5} color={getPrimaryIconStroke()} />
           <div className="absolute -top-6 right-3.5 border border-borderr text-xl text-primary-gradient rounded-full w-10 h-10 flex items-center justify-center">
