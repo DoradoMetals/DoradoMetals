@@ -2,13 +2,7 @@
 
 import Drawer from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
-import {
-  UserIcon,
-  ListIcon,
-  SignOutIcon,
-  SignInIcon,
-  SwapIcon,
-} from '@phosphor-icons/react'
+import { UserIcon, ListIcon, SignOutIcon, SignInIcon, SwapIcon } from '@phosphor-icons/react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -18,6 +12,7 @@ import { useDrawerStore } from '@/store/drawerStore'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useUser } from '@/lib/authClient'
 import { useSpotTypeStore } from '@/store/spotStore'
+import { protectedRoutes } from '@/types/routes'
 
 export default function Sidebar() {
   const { user } = useUser()
@@ -33,30 +28,14 @@ export default function Sidebar() {
     closeDrawer()
   }, [pathname, closeDrawer])
 
-  const menuItems = [
-    {
-      key: 1,
-      label: 'Buy from Us',
-      src: '/buy',
-      className:
-        pathname === '/buy' ? 'text-primary-gradient' : 'text-white hover-text-primary-gradient',
-    },
-    {
-      key: 2,
-      label: 'Sell to Us',
-      src: '/sell',
-      className:
-        pathname === '/sell' ? 'text-primary-gradient' : 'text-white hover-text-primary-gradient',
-    },
-    {
-      key: 3,
-      label: 'Admin',
-      src: '/admin',
-      className:
-        pathname === '/admin' ? 'text-primary-gradient' : 'text-white hover-text-primary-gradient',
-      hidden: user?.role !== 'admin',
-    },
-  ]
+  const menuItems = Object.entries(protectedRoutes)
+    .filter(([_, route]) => route.mobileDisplay)
+    .filter(([_, route]) => route.roles.length === 0 || route.roles.includes(user?.role ?? ''))
+    .map(([key, route]) => ({
+      key,
+      href: route.path,
+      label: route.mobileLabel,
+    }))
 
   const drawerContent = (
     <div className="w-full flex-col">
@@ -140,7 +119,9 @@ export default function Sidebar() {
               className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
             >
               <SwapIcon size={20} color={getPrimaryIconStroke()} />
-              <div className="text-sm text-primary-gradient">Show {type === 'Bid' ? 'Ask' : 'Bid'}</div>
+              <div className="text-sm text-primary-gradient">
+                Show {type === 'Bid' ? 'Ask' : 'Bid'}
+              </div>
             </Button>
           </div>
         </div>
@@ -152,19 +133,25 @@ export default function Sidebar() {
       </div>
 
       {/* Menu items */}
-      <div className="flex-col text-lg p-5 gap-3">
-        {menuItems
-          .filter((item) => !item.hidden)
-          .map((item) => (
-            <div className="flex-col items-center pb-5" key={item.key}>
-              <div className="flex items-center justify-center pb-2 text-xl">
-                <Link href={item.src} className={item.className} onClick={closeDrawer}>
-                  {item.label}
-                </Link>
-              </div>
-            </div>
-          ))}
-      </div>
+      <nav aria-label="Primary site navigation" className="flex-col items-center pb-5">
+        <ul className="flex-col p-5 gap-3">
+          {menuItems.map((item) => {
+            const isActive = pathname === item.href
+            const linkClasses = isActive
+              ? 'text-primary-gradient'
+              : 'text-neutral-200 dark:text-neutral-800  hover-text-primary-gradient'
+            return (
+              <li className="flex-col items-center pb-5 text-xl" key={item.key}>
+                <div className="flex items-center justify-center">
+                  <Link href={item.href} className={linkClasses}>
+                    {item.label}
+                  </Link>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
     </div>
   )
 

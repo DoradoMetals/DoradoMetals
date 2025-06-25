@@ -62,7 +62,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex flex-col gap-10">
-            <div className="flex flex-col w-full justify-center items-center bg-card gap-10 pb-10">
+            <div className="flex flex-col w-full justify-center items-center gap-10 pb-10">
               <div className="flex justify-center items-center w-full liquid-gold">
                 <div className="flex w-full items-center justify-between p-2 max-w-[80vw]">
                   <div className="text-2xl text-white">
@@ -123,7 +123,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-col w-full justify-center items-center bg-card pb-10">
+            <div className="flex flex-col w-full justify-center items-center pb-10">
               <div className="flex justify-center items-center w-full secondary-gradient">
                 <div className="flex w-full items-center justify-between p-2 max-w-[80vw]">
                   <div className="text-sm lg:text-2xl text-white">
@@ -196,7 +196,7 @@ export default function Home() {
         </div>
 
         {/* mobile */}
-        <div className="flex flex-col lg:hidden">
+        <div className="flex flex-col lg:hidden bg-background">
           <div className="relative flex min-h-[35vh]">
             <Image
               src="/homepage_images/falling-bars.png"
@@ -243,7 +243,7 @@ export default function Home() {
                 Selling your metal online has never been easier.
               </div>
             </div>
-            <div className="flex flex-col bg-linear-to-r from-highest to-card gap-6 px-4 py-8">
+            <div className="flex flex-col gap-6 px-4 py-8">
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
@@ -282,7 +282,7 @@ export default function Home() {
                   </div>
                   <div className="text-sm text-neutral-600 max-w-xs">
                     Once your items are evaluated and your offer accepted, we process payouts
-                    immediatley - so you get your funds without delays.
+                    immediately - so you get your funds without delays.
                   </div>
                 </div>
               </div>
@@ -298,7 +298,7 @@ export default function Home() {
             <div className="flex w-full justify-center secondary-gradient">
               <div className="text-base text-white p-2">Buy precious metals with confidence.</div>
             </div>
-            <div className="flex flex-col bg-linear-to-r from-highest to-card gap-6 px-4 py-8">
+            <div className="flex flex-col gap-6 px-4 py-8">
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">

@@ -3,8 +3,8 @@
 import { motion, useAnimation } from 'framer-motion';
 import type { HTMLAttributes } from 'react';
 import { forwardRef, useEffect } from 'react';
-import { ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ShoppingCartIcon } from '@phosphor-icons/react';
 
 export interface CartIconProps extends HTMLAttributes<HTMLDivElement> {
   size?: number;
@@ -45,7 +45,7 @@ const CartIcon = forwardRef<HTMLDivElement, CartIconProps>(
         {...props}
       >
         <motion.div animate={controls} variants={iconVariants} className='will-change-transform'>
-          <ShoppingCart size={size} />
+          <ShoppingCartIcon size={size} />
         </motion.div>
       </div>
     );
