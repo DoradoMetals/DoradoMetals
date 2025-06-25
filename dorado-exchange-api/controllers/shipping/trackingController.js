@@ -34,6 +34,7 @@ const parseTracking = (trackingOutput) => {
     : "TBD";
 
   const statusMap = {
+    OC: "Label Created",
     DO: "Dropped Off",
     LC: "Return Label Cancelled",
     DS: "Vehicle Dispatched",
@@ -103,6 +104,8 @@ const parseTracking = (trackingOutput) => {
       };
     })
     .reverse();
+
+  console.log(trackingOutput.scanEvents)
 
   const latestStatus =
     scanEvents[scanEvents.length - 1]?.status || "Status Unknown";
