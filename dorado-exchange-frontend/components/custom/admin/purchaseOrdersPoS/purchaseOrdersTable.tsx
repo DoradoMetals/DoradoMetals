@@ -8,6 +8,7 @@ import {
   getFacetedUniqueValues,
   getFilteredRowModel,
   getPaginationRowModel,
+  orderColumns,
   PaginationState,
   useReactTable,
 } from '@tanstack/react-table'
@@ -39,12 +40,10 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import AdminPurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
 import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
-import { useGetSession } from '@/lib/queries/useAuth'
 import { useDrawerStore } from '@/store/drawerStore'
 
 export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus: string | null }) {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
-  const { user } = useGetSession()
 
   const { openDrawer } = useDrawerStore()
 
@@ -176,6 +175,8 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
     {
       id: 'purchase_order_status',
       header: function Header({ column }) {
+        if (selectedStatus === 'In Transit') return null
+
         const anchorRef = useRef<HTMLDivElement>(null)
         const uniqueStatuses = React.useMemo(() => {
           const values = column.getFacetedUniqueValues?.()
@@ -194,14 +195,45 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
       enableHiding: false,
       filterFn: 'includesString',
       cell: ({ row }) => {
+        if (selectedStatus === 'In Transit') return null
+
         const config = statusConfig[row.original.purchase_order_status]
         if (!config) return <Fragment key={row.original.purchase_order_status} />
+
         const Icon = config.icon
         return (
           <div className="flex justify-center">
             <Icon size={20} className={config.text_color} />
           </div>
         )
+      },
+    },
+    {
+      id: 'shipment.shipping_status',
+      header: ({ column }) => {
+        if (selectedStatus !== 'In Transit') return null
+
+        const anchorRef = useRef<HTMLDivElement>(null)
+        const uniqueStatuses = React.useMemo(() => {
+          const values = column.getFacetedUniqueValues?.()
+          return values ? Array.from(values.keys()).sort() : []
+        }, [column])
+
+        return (
+          <div ref={anchorRef} className="flex items-center justify-center gap-1 h-full">
+            <span className="text-xs text-neutral-600">Shipment Status</span>
+            <TableFilterSelect column={column} options={uniqueStatuses} anchorRef={anchorRef} />
+          </div>
+        )
+      },
+      accessorKey: 'shipment.shipping_status',
+      enableColumnFilter: true,
+      filterFn: 'includesString',
+
+      // cell-fn also guards with an `if`
+      cell: ({ row }) => {
+        if (selectedStatus !== 'In Transit') return null
+        return <div className="text-xs sm:text-sm text-neutral-800 text-left sm:text-center">{row.original.shipment.shipping_status}</div>
       },
     },
     {
@@ -331,7 +363,9 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
         </Button>
       </div>
 
-      {activeOrder && <AdminPurchaseOrderDrawer order_id={activeOrder} user_id={activeUser ?? ''} />}
+      {activeOrder && (
+        <AdminPurchaseOrderDrawer order_id={activeOrder} user_id={activeUser ?? ''} />
+      )}
     </div>
   )
 }

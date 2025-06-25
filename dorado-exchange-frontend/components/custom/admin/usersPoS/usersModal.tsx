@@ -27,9 +27,9 @@ export function UserDetailsDialog({ open, setOpen, user_id, username, color }: P
       <DialogTrigger asChild>
         <Button
           variant="ghost"
-          className="p-0 text-xs font-normal hover:bg-transparent tracking-wide text-neutral-700 overflow-hidden"
+          className="p-0 text-xs sm:text-sm font-normal hover:bg-transparent tracking-wide text-neutral-800 overflow-hidden"
         >
-          <div className='w-20 sm:w-40 truncate whitespace-nowrap overflow-hidden'>{username}</div>
+          <div className='w-22 sm:w-40 truncate whitespace-nowrap overflow-hidden text-left'>{username}</div>
         </Button>
       </DialogTrigger>
       <DialogContent>

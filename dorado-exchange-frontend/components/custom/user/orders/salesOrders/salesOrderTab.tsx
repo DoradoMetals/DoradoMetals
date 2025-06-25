@@ -259,7 +259,7 @@ function StatusSelector({
           }}
           slidesPerView="auto"
           spaceBetween={6}
-          className="w-full z-10 purchase-order-status-swiper flex items-center justify-center [&.purchase-order-status-swiper_.swiper-wrapper]:pl-1"
+          className="w-full z-10 sales-order-status-swiper flex items-center justify-center [&.sales-order-status-swiper_.swiper-wrapper]:pl-1"
         >
           {SalesOrderStatuses.map((status) => {
             const Icon = statusConfig[status].icon
