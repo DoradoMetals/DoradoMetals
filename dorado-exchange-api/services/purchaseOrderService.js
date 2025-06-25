@@ -521,6 +521,14 @@ async function autoAcceptOrder(orderId) {
   }
 }
 
+async function editShippingCharge({order_id, shipping_charge}) {
+  return await purchaseOrderRepo.editShippingCharge(order_id, shipping_charge)
+}
+
+async function editPayoutCharge({order_id, payout_charge}) {
+  return await purchaseOrderRepo.editPayoutCharge(order_id, payout_charge)
+}
+
 module.exports = {
   listOrdersForUser,
   getById,
@@ -547,4 +555,6 @@ module.exports = {
   updateBullion,
   expireStaleOffers,
   autoAcceptOrder,
+  editShippingCharge,
+  editPayoutCharge,
 };

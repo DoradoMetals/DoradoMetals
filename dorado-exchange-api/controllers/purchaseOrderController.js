@@ -270,6 +270,22 @@ async function expireStaleOffers(req, res, next) {
   }
 }
 
+async function editShippingCharge(req, res, next) {
+  try {
+    await purchaseOrderService.editShippingCharge(req.body);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function editPayoutCharge(req, res, next) {
+  try {
+    await purchaseOrderService.editPayoutCharge(req.body);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getPurchaseOrderById,
   getPurchaseOrders,
@@ -296,4 +312,6 @@ module.exports = {
   createOrderItem,
   updateBullion,
   expireStaleOffers,
+  editShippingCharge,
+  editPayoutCharge,
 };

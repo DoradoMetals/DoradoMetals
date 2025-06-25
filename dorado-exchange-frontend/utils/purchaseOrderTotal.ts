@@ -7,7 +7,6 @@ export default function getPurchaseOrderTotal(
   order: PurchaseOrder,
   spotPrices: SpotPrice[],
   orderSpotPrices: SpotPrice[],
-  payoutFee: number
 ): number {
   const baseTotal = order.order_items.reduce((acc, item) => {
     if (item.item_type === 'product') {
@@ -39,5 +38,5 @@ export default function getPurchaseOrderTotal(
   }, 0)
 
   const shipping = order.shipment?.shipping_charge ?? 0
-  return baseTotal - shipping - payoutFee
+  return baseTotal - shipping - order.payout.cost
 }

@@ -27,12 +27,7 @@ function calculateTotalPrice(order, spots) {
 
   const shipping = order.shipment?.shipping_charge ?? 0;
 
-  let payoutFee = 0;
-  if (order.payout.method === "WIRE") {
-    payoutFee = 20;
-  }
-
-  return baseTotal - shipping - payoutFee;
+  return baseTotal - shipping - order.payout.cost;
 }
 
 function calculateReturnDeclaredValue(order, spots) {

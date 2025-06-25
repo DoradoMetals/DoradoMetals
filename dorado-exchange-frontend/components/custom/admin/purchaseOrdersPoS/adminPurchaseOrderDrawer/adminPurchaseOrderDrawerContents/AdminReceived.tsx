@@ -4,6 +4,8 @@ import {
   useAddNewOrderBullionItem,
   useAddNewOrderScrapItem,
   useDeleteOrderItems,
+  useEditPayoutCharge,
+  useEditShippingCharge,
   useLockOrderSpotPrices,
   useResetOrderItem,
   useResetOrderScrapPercentage,
@@ -49,6 +51,8 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   const updateSpot = useUpdateOrderSpotPrice()
   const lockSpots = useLockOrderSpotPrices()
   const resetSpots = useResetOrderSpotPrices()
+  const editShippingCharge = useEditShippingCharge()
+  const editPayoutCharge = useEditPayoutCharge()
 
   const rawScrapItems = order.order_items.filter((item) => item.item_type === 'scrap' && item.scrap)
   const scrapItems = assignScrapItemNames(rawScrapItems)
@@ -75,7 +79,6 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   }
 
   const config = statusConfig[order.purchase_order_status]
-
 
   return (
     <>
@@ -199,6 +202,46 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
               <BullionTable bullionItems={bullionItems} config={config} order_id={order.id} />
             </div>
           )}
+          <div className="separator-inset" />
+
+          <div className="flex items-center justify-between w-full gap-3">
+            <div className="flex-col items-start">
+              <div className="text-sm text-neutral-600">Shipping Charge</div>
+              <Input
+                type="number"
+                pattern="[0-9]*"
+                inputMode="decimal"
+                className={cn(
+                  'input-floating-label-form no-spinner text-right w-full text-base h-8'
+                )}
+                defaultValue={order.shipment.shipping_charge ?? 0}
+                onBlur={(e) =>
+                  editShippingCharge.mutate({
+                    purchase_order: order,
+                    shipping_charge: Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div className="flex-col items-start">
+              <div className="text-sm text-neutral-600">Payout Charge</div>
+              <Input
+                type="number"
+                pattern="[0-9]*"
+                inputMode="decimal"
+                className={cn(
+                  'input-floating-label-form no-spinner text-right w-full text-base h-8'
+                )}
+                defaultValue={order.payout.cost ?? 0}
+                onBlur={(e) =>
+                  editPayoutCharge.mutate({
+                    purchase_order: order,
+                    payout_charge: Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+          </div>
           <div className="separator-inset" />
         </div>
       </div>

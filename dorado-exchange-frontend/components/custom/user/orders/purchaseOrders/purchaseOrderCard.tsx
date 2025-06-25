@@ -38,11 +38,10 @@ export default function PurchaseOrderCard({
   const Icon = status?.icon
   const packageDetails = packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
   const payoutDetails = payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
-  const payoutFee = payoutDetails?.cost ?? 0
 
   const total = useMemo(() => {
-    return getPurchaseOrderTotal(order, spotPrices, orderSpots, payoutFee)
-  }, [order, spotPrices, orderSpots, payoutFee])
+    return getPurchaseOrderTotal(order, spotPrices, orderSpots)
+  }, [order, spotPrices, orderSpots])
 
   const downloadOptions = [
     {

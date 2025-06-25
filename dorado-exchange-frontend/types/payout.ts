@@ -28,6 +28,7 @@ export interface Payout {
 export const echeckSchema = z.object({
   account_holder_name: z.string().min(1, 'Addressed to name required'),
   payout_email: z.string().email('Valid email required'),
+  cost: z.number(),
 })
 
 export const achSchema = z.object({
@@ -45,6 +46,7 @@ export const achSchema = z.object({
   confirmation: z
     .boolean()
     .refine((val) => val === true, { message: 'You must confirm your bank information.' }),
+  cost: z.number(),
 })
 
 export const wireSchema = z.object({
@@ -61,11 +63,13 @@ export const wireSchema = z.object({
   confirmation: z
     .boolean()
     .refine((val) => val === true, { message: 'You must confirm your bank information.' }),
+  cost: z.number(),
 })
 
 export const doradoAccountSchema = z.object({
   account_holder_name: z.string().min(1, 'Addressed to name required'),
   payout_email: z.string().email('Valid email required'),
+  cost: z.number(),
 })
 
 export type EcheckPayout = z.infer<typeof echeckSchema>

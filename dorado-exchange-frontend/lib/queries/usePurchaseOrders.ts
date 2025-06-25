@@ -123,9 +123,6 @@ export const useAcceptOffer = () => {
 
       const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
 
-      const payoutMethod = payoutOptions.find((p) => p.method === purchase_order.payout?.method)
-      const payoutFee = payoutMethod?.cost ?? 0
-
       queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
         old.map((order) =>
           order.id !== purchase_order.id
@@ -143,7 +140,6 @@ export const useAcceptOffer = () => {
                   purchase_order,
                   spot_prices,
                   order_spots,
-                  payoutFee
                 ),
               }
         )

@@ -46,6 +46,7 @@ export default function PayoutStep({ user }: { user?: User }) {
       account_number: storeData?.method === 'ACH' ? storeData.account_number : '',
       account_type: storeData?.method === 'ACH' ? storeData.account_type : 'Checking',
       confirmation: storeData?.method === 'ACH' ? storeData.confirmation : false,
+      cost: payoutOptions.find((option) => option.label === 'ACH')?.cost ?? 0,
     },
   })
 
@@ -59,6 +60,7 @@ export default function PayoutStep({ user }: { user?: User }) {
       routing_number: storeData?.method === 'WIRE' ? storeData.routing_number : '',
       account_number: storeData?.method === 'WIRE' ? storeData.account_number : '',
       confirmation: storeData?.method === 'WIRE' ? storeData.confirmation : false,
+      cost: payoutOptions.find((option) => option.label === 'WIRE')?.cost ?? 20,
     },
   })
 
@@ -70,6 +72,7 @@ export default function PayoutStep({ user }: { user?: User }) {
       account_holder_name:
         storeData?.method === 'ECHECK' ? storeData.account_holder_name : user?.name ?? '',
       payout_email: storeData?.method === 'ECHECK' ? storeData.payout_email : user?.email ?? '',
+      cost: payoutOptions.find((option) => option.label === 'ECHECK')?.cost ?? 0,
     },
   })
 
@@ -82,6 +85,7 @@ export default function PayoutStep({ user }: { user?: User }) {
         storeData?.method === 'DORADO_ACCOUNT' ? storeData.account_holder_name : user?.name ?? '',
       payout_email:
         storeData?.method === 'DORADO_ACCOUNT' ? storeData.payout_email : user?.email ?? '',
+      cost: payoutOptions.find((option) => option.label === 'DORADO_ACCOUNT')?.cost ?? 0,
     },
   })
 
@@ -163,7 +167,8 @@ export default function PayoutStep({ user }: { user?: User }) {
               }}
               className={cn(
                 'w-full p-4 text-left flex items-center cursor-pointer',
-                selected === option.method && 'bg-transparent', selected !== option.method && 'opacity-80'
+                selected === option.method && 'bg-transparent',
+                selected !== option.method && 'opacity-80'
               )}
             >
               <div className="flex items-center gap-2 w-full justify-between">

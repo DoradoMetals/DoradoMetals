@@ -74,7 +74,7 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
         }}
       >
         {addresses.map((address, index) => (
-          <SwiperSlide key={address.id} className="rounded-xl w-full">
+          <SwiperSlide key={address.id} className="">
             <div className="flex w-full bg-card p-4 transition-all duration-300 rounded-xl raised-off-page">
               <div className="flex flex-col w-full">
                 <div className="flex items-start justify-between w-full">

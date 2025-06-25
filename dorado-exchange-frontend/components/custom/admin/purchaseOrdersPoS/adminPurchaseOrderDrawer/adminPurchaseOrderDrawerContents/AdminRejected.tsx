@@ -40,7 +40,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { useProducts } from '@/lib/queries/useProducts'
 import { Product } from '@/types/product'
-import { payoutOptions } from '@/types/payout'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import CountdownRing from '@/components/ui/countdown-ring'
@@ -80,12 +79,9 @@ export default function AdminRejectedPurchaseOrder({ order }: PurchaseOrderDrawe
 
   const config = statusConfig[order.purchase_order_status]
 
-  const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
-  const payoutFee = payoutMethod?.cost ?? 0
-
   const total = useMemo(() => {
-    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
-  }, [order, spotPrices, orderSpotPrices, payoutFee])
+    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices)
+  }, [order, spotPrices, orderSpotPrices])
 
   return (
     <>

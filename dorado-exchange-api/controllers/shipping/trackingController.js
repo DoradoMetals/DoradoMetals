@@ -105,12 +105,8 @@ const parseTracking = (trackingOutput) => {
     })
     .reverse();
 
-  console.log(trackingOutput.scanEvents)
-
   const latestStatus =
     scanEvents[scanEvents.length - 1]?.status || "Status Unknown";
-
-  console.log(latestStatus);
 
   const deliveredAt =
     scanEvents.find((event) => event.status === "Delivered")?.date || null;

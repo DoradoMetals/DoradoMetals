@@ -556,10 +556,19 @@ async function insertOrderMetals(
 
 async function insertPayout(client, orderId, payout) {
   const query = `
-    INSERT INTO exchange.payouts
-      (user_id, order_id, method, account_holder_name,
-       bank_name, account_type, routing_number, account_number, email_to)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    INSERT INTO exchange.payouts (
+      user_id,
+      order_id,
+      method,
+      account_holder_name,
+      bank_name,
+      account_type,
+      routing_number,
+      account_number,
+      email_to,
+      cost
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
   `;
   const vals = [
     payout.userId,
@@ -571,6 +580,7 @@ async function insertPayout(client, orderId, payout) {
     payout.routing_number || null,
     payout.account_number || null,
     payout.payout_email || null,
+    payout.cost || null,
   ];
   await client.query(query, vals);
 }
@@ -741,6 +751,29 @@ async function getCurrentSpotPrices(client) {
   return rows;
 }
 
+async function editShippingCharge(order_id, shipping_charge) {
+  const query = `
+  UPDATE exchange.shipments
+  SET net_charge = $1
+  WHERE purchase_order_id = $2
+  RETURNING *;
+  `;
+  const values = [shipping_charge, order_id];
+  return await pool.query(query, values);
+}
+
+
+async function editPayoutCharge(order_id, shipping_charge) {
+  const query = `
+  UPDATE exchange.payouts
+  SET cost = $1
+  WHERE order_id = $2
+  RETURNING *;
+  `;
+  const values = [shipping_charge, order_id];
+  return await pool.query(query, values);
+}
+
 module.exports = {
   findAllByUser,
   findById,
@@ -773,4 +806,6 @@ module.exports = {
   updateBullion,
   findExpiredOffers,
   getCurrentSpotPrices,
+  editShippingCharge,
+  editPayoutCharge,
 };

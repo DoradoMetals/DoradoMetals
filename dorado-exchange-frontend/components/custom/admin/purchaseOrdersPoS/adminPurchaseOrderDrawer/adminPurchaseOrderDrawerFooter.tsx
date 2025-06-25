@@ -50,11 +50,11 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
   const scrapItems = assignScrapItemNames(rawScrapItems)
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
   const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
-  const payoutFee = payoutMethod?.cost ?? 0
+  const payoutFee = order.payout.cost
 
   const total = useMemo(() => {
-    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
-  }, [order, spotPrices, orderSpotPrices, payoutFee])
+    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices)
+  }, [order, spotPrices, orderSpotPrices])
 
   const scrapTotal = useMemo(() => {
     return getPurchaseOrderScrapTotal(scrapItems, spotPrices, orderSpotPrices)
@@ -289,7 +289,7 @@ function Accordion({
       >
         {label}
         <div className="flex items-center gap-2 text-base">
-          {label === 'Shipping Cost' || label === 'Payout Fee' ? (
+          {label === 'Shipping Charges' || label === 'Payout Fee' ? (
             <div className="flex items-center gap-0">
               -<PriceNumberFlow value={total} />
             </div>

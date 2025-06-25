@@ -4,13 +4,19 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { PurchaseOrdersContent } from './purchaseOrders/purchaseOrderTab'
 import { SalesOrdersContent } from './salesOrders/salesOrderTab'
+import { useSalesOrders } from '@/lib/queries/useSalesOrders'
+import { usePurchaseOrders } from '@/lib/queries/usePurchaseOrders'
 
 export function OrdersTabs() {
   const { user } = useGetSession()
+  const { data: salesOrders = [] } = useSalesOrders()
+  const { data: purchaseOrders = [] } = usePurchaseOrders()
+
+  const defaultTab = purchaseOrders.length > 0 && salesOrders.length === 0 ? 'sold' : 'bought'
 
   return (
     <div>
-      <Tabs defaultValue="bought" className="flex h-full w-full items-center justify-center p-4">
+      <Tabs defaultValue={defaultTab} className="flex h-full w-full items-center justify-center p-4">
         <div className="w-full max-w-lg">
           <TabsList className="justify-center w-full gap-2 rounded-none bg-transparent p-0">
             <TabsTrigger value="bought" className="tab-indicator-primary">

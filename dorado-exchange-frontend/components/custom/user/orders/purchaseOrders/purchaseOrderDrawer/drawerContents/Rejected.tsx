@@ -10,7 +10,6 @@ import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import { useMemo, useState } from 'react'
-import { payoutOptions } from '@/types/payout'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import CountdownRing from '@/components/ui/countdown-ring'
@@ -48,9 +47,6 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
 
   const config = statusConfig[order.purchase_order_status]
 
-  const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
-  const payoutFee = payoutMethod?.cost ?? 0
-
   const handleAcceptOffer = () => {
     acceptOffer.mutate({
       purchase_order: order,
@@ -64,8 +60,8 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
   }
 
   const total = useMemo(() => {
-    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
-  }, [order, spotPrices, orderSpotPrices, payoutFee])
+    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices)
+  }, [order, spotPrices, orderSpotPrices])
 
   const declaredValue = useMemo(() => {
     return getReturnDeclaredValue(order, spotPrices, orderSpotPrices)

@@ -25,9 +25,6 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
 
   const config = statusConfig[order.purchase_order_status]
 
-  const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
-  const payoutFee = payoutMethod?.cost ?? 0
-
   const handleAcceptOffer = () => {
     acceptOffer.mutate({
       purchase_order: order,
@@ -37,8 +34,8 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
   }
 
   const total = useMemo(() => {
-    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
-  }, [order, spotPrices, orderSpotPrices, payoutFee])
+    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices)
+  }, [order, spotPrices, orderSpotPrices])
 
   const handlePayShipping = () => {
   }

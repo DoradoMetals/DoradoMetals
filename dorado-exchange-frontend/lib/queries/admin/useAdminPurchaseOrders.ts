@@ -840,9 +840,6 @@ export const useAcceptOffer = () => {
 
       const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
 
-      const payoutMethod = payoutOptions.find((p) => p.method === purchase_order.payout?.method)
-      const payoutFee = payoutMethod?.cost ?? 0
-
       queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
         old.map((order) =>
           order.id !== purchase_order.id
@@ -860,7 +857,6 @@ export const useAcceptOffer = () => {
                   purchase_order,
                   spot_prices,
                   order_spots,
-                  payoutFee
                 ),
               }
         )
@@ -917,6 +913,118 @@ export const useRejectOffer = () => {
                 purchase_order_status: 'Rejected',
                 offer_notes,
                 num_rejections: order.num_rejections + 1,
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useEditShippingCharge = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      purchase_order,
+      shipping_charge,
+    }: {
+      purchase_order: PurchaseOrder
+      shipping_charge: number
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/edit_shipping_charge', {
+        order_id: purchase_order.id,
+        shipping_charge,
+      })
+    },
+
+    onMutate: async ({ purchase_order, shipping_charge }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order.id
+            ? order
+            : {
+                ...order,
+                shipment: {
+                  ...order.shipment,
+                  shipping_charge: shipping_charge,
+                },
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useEditPayoutCharge = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      purchase_order,
+      payout_charge,
+    }: {
+      purchase_order: PurchaseOrder
+      payout_charge: number
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/edit_payout_charge', {
+        order_id: purchase_order.id,
+        payout_charge,
+      })
+    },
+
+    onMutate: async ({ purchase_order, payout_charge }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order.id
+            ? order
+            : {
+                ...order,
+                payout: {
+                  ...order.payout,
+                  cost: payout_charge,
+                },
               }
         )
       )

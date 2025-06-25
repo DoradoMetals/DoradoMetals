@@ -307,7 +307,7 @@ const generatePackingList = async ({
   });
   const page = await browser.newPage();
 
-  const payoutFee = payoutDetails.cost;
+  const payoutFee = order.payout.cost;
 
   const total =
     purchaseOrder.order_items.reduce((acc, item) => {
@@ -1498,7 +1498,7 @@ const generateInvoice = async ({
 
   const spots = purchaseOrder.spots_locked ? orderSpots : spotPrices;
   const total = calculateTotalPrice(purchaseOrder, spots);
-  const payoutCost = purchaseOrder.payout.method === "WIRE" ? 20 : 0;
+  const payoutCost = purchaseOrder.payout.cost
   const payoutDelay =
     purchaseOrder.payout.method === "WIRE"
       ? "1-5 hours"
@@ -2169,7 +2169,7 @@ const generateInvoice = async ({
                   <tr>
                     <td class="text-left">Shipping Fees</td>
                     <td>Deduction</td>
-                    <td class="text-right">${(
+                    <td class="text-right">-${(
                       purchaseOrder.shipment.shipping_charge +
                       (purchaseOrder.return_shipment?.shipping_charge ?? 0)
                     ).toLocaleString("en-US", {
@@ -2180,7 +2180,7 @@ const generateInvoice = async ({
                   <tr>
                     <td class="text-left">Payout Fees</td>
                     <td>Deduction</td>
-                    <td class="text-right">${payoutCost.toLocaleString(
+                    <td class="text-right">-${payoutCost.toLocaleString(
                       "en-US",
                       {
                         style: "currency",

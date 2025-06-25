@@ -34,12 +34,9 @@ export default function OfferSentPurchaseOrder({ order }: PurchaseOrderDrawerCon
   const acceptOffer = useAcceptOffer()
   const rejectOffer = useRejectOffer()
 
-  const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
-  const payoutFee = payoutMethod?.cost ?? 0
-
   const total = useMemo(() => {
-    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices, payoutFee)
-  }, [order, spotPrices, orderSpotPrices, payoutFee])
+    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices)
+  }, [order, spotPrices, orderSpotPrices])
 
   const handleAcceptOffer = () => {
     acceptOffer.mutate({
