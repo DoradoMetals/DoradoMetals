@@ -9,15 +9,17 @@ import { useCreatePurchaseOrder } from '@/lib/queries/usePurchaseOrders'
 import { purchaseOrderCheckoutSchema } from '@/types/purchase-order'
 import { sellCartStore } from '@/store/sellCartStore'
 import { useRouter } from 'next/navigation'
+import { useTransition } from 'react'
 
 export default function ReviewStep() {
   const data = usePurchaseOrderCheckoutStore((state) => state.data)
   const createPurchaseOrder = useCreatePurchaseOrder()
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
 
   return (
     <div className="flex flex-col gap-4 w-full text-sm text-neutral-800">
-      {/* Address */}
+
       <div className="rounded-xl border border-border bg-card px-4 py-3 raised-off-page">
         <div className="flex w-full items-center justify-between">
           <div className="text-xl text-neutral-800">{data.address?.name}</div>
@@ -32,7 +34,7 @@ export default function ReviewStep() {
         </div>
       </div>
 
-      {/* Shipment */}
+
       <div className="rounded-xl border border-border bg-card px-4 py-3 raised-off-page">
         <div className="flex justify-between items-center">
           <div className="text-xl text-neutral-800">
@@ -41,9 +43,6 @@ export default function ReviewStep() {
           <div className="text-sm font-normal text-neutral-600">
             {formatTimeDiff(data.service?.transitTime ?? new Date())}
           </div>
-          {/* <div className="text-base text-neutral-600">
-            <PriceNumberFlow value={data.service?.netCharge ?? 0} />
-          </div> */}
         </div>
 
         <div className="mt-4 flex justify-between">
@@ -70,7 +69,6 @@ export default function ReviewStep() {
         </div>
       </div>
 
-      {/* Payment */}
       <div className="rounded-xl border border-border bg-card px-4 py-3 raised-off-page">
         <div className="flex justify-between">
           <div className="text-xl text-neutral-800">
@@ -143,8 +141,10 @@ export default function ReviewStep() {
             const validated = purchaseOrderCheckoutSchema.parse(checkoutPayload)
 
             createPurchaseOrder.mutate(validated, {
-              onSuccess: () => {
-                router.push('/order-placed')
+              onSuccess: async () => {
+                startTransition(() => {
+                  router.push('/order-placed')
+                })
                 sellCartStore.getState().clearCart()
                 usePurchaseOrderCheckoutStore.getState().clear()
               },
@@ -154,7 +154,7 @@ export default function ReviewStep() {
           }
         }}
       >
-        {createPurchaseOrder.isPending ? 'Placing Order...' : 'Confirm and Place Order'}
+        {createPurchaseOrder.isPending || isPending ? 'Placing Order…' : 'Confirm and Place Order'}
       </Button>
     </div>
   )

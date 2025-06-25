@@ -8,11 +8,15 @@ export default function StripeWrapper({
   stripePromise,
   address,
   setIsLoading,
+  isPending,
+  startTransition,
 }: {
   clientSecret: string
   stripePromise: Promise<Stripe | null>
   address: Address
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
+  isPending: boolean
+  startTransition: (cb: () => void) => void
 }) {
   function createStripeAppearance(theme: 'dark' | 'light'): Appearance {
     const getColor = (varName: string) =>
@@ -119,7 +123,12 @@ export default function StripeWrapper({
 
   return (
     <Elements options={{ clientSecret, appearance, loader }} stripe={stripePromise}>
-      <SalesOrderStripeForm address={address} setIsLoading={setIsLoading} />
+      <SalesOrderStripeForm
+        address={address}
+        setIsLoading={setIsLoading}
+        isPending={isPending}
+        startTransition={startTransition}
+      />
     </Elements>
   )
 }

@@ -15,15 +15,20 @@ import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 export default function SalesOrderStripeForm({
   address,
   setIsLoading,
+  isPending,
+  startTransition,
 }: {
   address: Address
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
+  isPending: boolean
+  startTransition: (cb: () => void) => void
 }) {
   const orderData = useSalesOrderCheckoutStore((state) => state.data)
 
   const { data: spotPrices = [] } = useSpotPrices()
   const createOrder = useCreateSalesOrder()
   const router = useRouter()
+
   const stripe = useStripe()
   const elements = useElements()
   const { user } = useGetSession()
@@ -78,8 +83,10 @@ export default function SalesOrderStripeForm({
           spotPrices: spotPrices,
         },
         {
-          onSuccess: () => {
-            router.push('/order-placed')
+          onSuccess: async () => {
+            startTransition(() => {
+              router.push('/order-placed')
+            })
             cartStore.getState().clearCart()
             useSalesOrderCheckoutStore.getState().clear()
           },

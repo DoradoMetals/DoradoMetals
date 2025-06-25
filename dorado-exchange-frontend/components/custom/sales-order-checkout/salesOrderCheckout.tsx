@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { useAddress } from '@/lib/queries/useAddresses'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { useUser } from '@/lib/authClient'
@@ -30,6 +30,7 @@ export default function SalesOrderCheckout() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
 
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
 
   const { data } = useSalesOrderCheckoutStore()
   const cartItems = cartStore((state) => state.items)
@@ -122,8 +123,10 @@ export default function SalesOrderCheckout() {
     createOrder.mutate(
       { sales_order: validated, spotPrices: spotPrices },
       {
-        onSuccess: () => {
-          router.push('/order-placed')
+        onSuccess: async () => {
+          startTransition(() => {
+            router.push('/order-placed')
+          })
           cartStore.getState().clearCart()
           useSalesOrderCheckoutStore.getState().clear()
         },
@@ -177,6 +180,8 @@ export default function SalesOrderCheckout() {
                 stripePromise={stripePromise}
                 address={data.address}
                 setIsLoading={setIsLoading}
+                isPending={isPending}
+                startTransition={startTransition}
               />
             )}
           </div>
@@ -185,19 +190,30 @@ export default function SalesOrderCheckout() {
             {!cardNeeded ? (
               <Button
                 className="raised-off-page liquid-gold shine-on-hover w-full text-white"
-                disabled={isOrderCreating || isLoading || !data.address?.is_valid}
+                disabled={isOrderCreating || isLoading || !data.address?.is_valid || isPending}
                 onClick={handleSubmit}
               >
-                {isOrderCreating || isLoading ? 'Processing…' : 'Place Order'}
+                {isOrderCreating || isLoading || isPending ? 'Processing…' : 'Place Order'}
               </Button>
             ) : (
               <Button
                 className="raised-off-page liquid-gold shine-on-hover w-full text-white"
-                disabled={isOrderCreating || isLoading || !clientSecret || !stripePromise || !data.address?.is_valid}
+                disabled={
+                  isOrderCreating ||
+                  isLoading ||
+                  !clientSecret ||
+                  !stripePromise ||
+                  !data.address?.is_valid ||
+                  isPending
+                }
                 type="submit"
                 form="payment-form"
               >
-                {!data.address?.is_valid ? 'Please provide a valid address.' : isOrderCreating || isLoading ? 'Processing…' : 'Place Order'}
+                {!data.address?.is_valid
+                  ? 'Please provide a valid address.'
+                  : isOrderCreating || isLoading || isPending
+                  ? 'Processing…'
+                  : 'Place Order'}
               </Button>
             )}
           </div>
