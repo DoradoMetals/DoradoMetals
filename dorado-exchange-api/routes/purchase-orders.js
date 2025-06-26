@@ -26,6 +26,8 @@ const {
   updateBullion,
   editShippingCharge,
   editPayoutCharge,
+  addFundsToAccount,
+  changePayoutMethod,
 } = require("../controllers/purchaseOrderController");
 
 const router = express.Router();
@@ -58,5 +60,7 @@ router.post("/update_scrap_item", requireAdmin, updateScrapItem);
 router.post("/update_bullion_item", requireAdmin, updateBullion);
 router.post("/edit_shipping_charge", requireAdmin, editShippingCharge);
 router.post("/edit_payout_charge", requireAdmin, editPayoutCharge);
+router.post("/edit_payout_method", requireAdmin, changePayoutMethod);
+router.post("/add_funds_to_account", requireAdmin, addFundsToAccount),
 
 module.exports = router;

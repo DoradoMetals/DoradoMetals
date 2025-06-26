@@ -762,7 +762,6 @@ async function editShippingCharge(order_id, shipping_charge) {
   return await pool.query(query, values);
 }
 
-
 async function editPayoutCharge(order_id, shipping_charge) {
   const query = `
   UPDATE exchange.payouts
@@ -771,6 +770,17 @@ async function editPayoutCharge(order_id, shipping_charge) {
   RETURNING *;
   `;
   const values = [shipping_charge, order_id];
+  return await pool.query(query, values);
+}
+
+async function changePayoutMethod(order_id, method) {
+  const query = `
+  UPDATE exchange.payouts
+  SET method = $1
+  WHERE order_id = $2
+  RETURNING *;
+  `;
+  const values = [method, order_id];
   return await pool.query(query, values);
 }
 
@@ -808,4 +818,5 @@ module.exports = {
   getCurrentSpotPrices,
   editShippingCharge,
   editPayoutCharge,
+  changePayoutMethod,
 };

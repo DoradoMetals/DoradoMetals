@@ -50,18 +50,6 @@ async function acceptOffer({ order, order_spots, spot_prices }) {
     const total = calculateTotalPrice(order, updatedSpots);
     await purchaseOrderRepo.moveOrderToAccepted(order.id, total, client);
 
-    if (order.payout.method === "DORADO_ACCOUNT") {
-      await transactionRepo.addFunds(order.user_id, total, client);
-      await transactionRepo.addTransactionLog(
-        order.user_id,
-        "Credit",
-        order.id,
-        null,
-        total,
-        client
-      );
-    }
-
     await client.query("COMMIT");
     const purchaseOrder = await getById(order.id);
     return { purchaseOrder, orderSpots: updatedSpots };
@@ -499,18 +487,6 @@ async function autoAcceptOrder(orderId) {
 
     await purchaseOrderRepo.moveOrderToAccepted(orderId, total, client);
 
-    if (order.payout.method === "DORADO_ACCOUNT") {
-      await transactionRepo.addFunds(order.user_id, total, client);
-      await transactionRepo.addTransactionLog(
-        order.user_id,
-        "Credit",
-        orderId,
-        null,
-        total,
-        client
-      );
-    }
-
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
@@ -521,12 +497,39 @@ async function autoAcceptOrder(orderId) {
   }
 }
 
-async function editShippingCharge({order_id, shipping_charge}) {
-  return await purchaseOrderRepo.editShippingCharge(order_id, shipping_charge)
+async function editShippingCharge({ order_id, shipping_charge }) {
+  return await purchaseOrderRepo.editShippingCharge(order_id, shipping_charge);
 }
 
-async function editPayoutCharge({order_id, payout_charge}) {
-  return await purchaseOrderRepo.editPayoutCharge(order_id, payout_charge)
+async function editPayoutCharge({ order_id, payout_charge }) {
+  return await purchaseOrderRepo.editPayoutCharge(order_id, payout_charge);
+}
+
+async function addFundsToAccount({ order, spots }) {
+  const client = await pool.connect();
+  console.log(order, spots)
+  try {
+    await transactionRepo.addFunds(order.user_id, total, client);
+    await transactionRepo.addTransactionLog(
+      order.user_id,
+      "Credit",
+      order.id,
+      null,
+      calculateTotalPrice(order, spots),
+      client
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to move payments", order.id, err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function changePayoutMethod({ order_id, method }) {
+  return await purchaseOrderRepo.changePayoutMethod(order_id, method);
 }
 
 module.exports = {
@@ -557,4 +560,6 @@ module.exports = {
   autoAcceptOrder,
   editShippingCharge,
   editPayoutCharge,
+  addFundsToAccount,
+  changePayoutMethod,
 };
