@@ -10,9 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@better-auth/stripe": "^1.2.10",
+    "@better-auth/stripe": "1.2.10",
     "axios": "^1.8.4",
-    "better-auth": "^1.2.10",
+    "better-auth": "1.2.10",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
