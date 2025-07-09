@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { sellCartStore } from '@/store/sellCartStore'
 import { packageOptions } from '@/types/packaging'
+import { convertToPounds } from '@/utils/convertTroyOz'
 import { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
 import { useEffect, useMemo } from 'react'
 
@@ -22,13 +23,13 @@ export function PackageSelector() {
   const totalCartWeight = useMemo(() => {
     return items.reduce((sum, item) => {
       const qty = item.data.quantity ?? 1
-      const perUnit =
-        item.type === 'product' ? (item.data as any).gross : (item.data as any).pre_melt
-      return sum + perUnit * qty
+      const raw = item.type === 'product' ? item.data.gross : item.data.pre_melt
+      const converted = convertToPounds(raw, item.type === 'product' ? 'toz' : item.data.gross_unit)
+      return sum + converted * qty
     }, 0)
   }, [items])
 
-  const packagingWeight = useMemo<number>(() => {
+  const packagingWeight = useMemo(() => {
     if (!selectedPackage) return totalCartWeight
     return Math.max(totalCartWeight, selectedPackage.weight.value)
   }, [totalCartWeight, selectedPackage])
