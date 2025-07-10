@@ -5,7 +5,7 @@ import { defineStepper } from '@stepperize/react'
 import ShippingStep from './shippingStep/shippingStep'
 import PayoutStep from './payoutStep/payoutStep'
 import { useAddress } from '@/lib/queries/useAddresses'
-import { Address } from '@/types/address'
+import { Address, emptyAddress } from '@/types/address'
 import { useEffect, useMemo, useRef } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import ReviewStep from './reviewStep/reviewStep'
@@ -13,12 +13,12 @@ import { sellCartStore } from '@/store/sellCartStore'
 import { useRouter } from 'next/navigation'
 import { FedexRateInput, formatFedexRatesAddress } from '@/types/shipping'
 import { useFedExRates } from '@/lib/queries/shipping/useFedex'
-import getProductBidPrice from '@/utils/getProductBidPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import getScrapPrice from '@/utils/getScrapPrice'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { getDeclaredValue } from '@/utils/getDeclaredValue'
+import getFedexRatesInput from '@/utils/getFedexRatesInput'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -32,44 +32,21 @@ const { useStepper, utils } = defineStepper(
 
 export default function CheckoutStepper() {
   const router = useRouter()
+    const hasInitialized = useRef(false)
+
   const { user } = useGetSession()
   const { data: addresses = [] } = useAddress()
-
-  const { setData } = usePurchaseOrderCheckoutStore()
-  const {
-    address,
-    insurance,
-    package: pkg,
-    service,
-    pickup,
-    payoutValid,
-  } = usePurchaseOrderCheckoutStore((state) => state.data)
-  const hasInitialized = useRef(false)
-
+  const { data, setData } = usePurchaseOrderCheckoutStore()
   const { data: spotPrices = [] } = useSpotPrices()
-
   const items = sellCartStore((state) => state.items)
 
   const declaredValue = useMemo(() => {
-    const baseTotal = items.reduce((acc, item) => {
-      if (item.type === 'product') {
-        const spot = spotPrices.find((s) => s.type === item.data.metal_type)
-        const price = getProductBidPrice(item.data, spot)
-        const quantity = item.data.quantity ?? 1
-        return acc + price * quantity
-      }
-      if (item.type === 'scrap') {
-        const spot = spotPrices.find((s) => s.type === item.data.metal)
-        const price = getScrapPrice(item.data.content ?? 0, spot)
-        return acc + price
-      }
-      return acc
-    }, 0)
+    const baseTotal = getDeclaredValue(items, spotPrices)
     return Math.min(baseTotal, 50000)
   }, [items, spotPrices])
 
   useEffect(() => {
-    if (insurance?.insured) {
+    if (data.insurance?.insured) {
       setData({
         insurance: {
           insured: true,
@@ -80,36 +57,17 @@ export default function CheckoutStepper() {
         },
       })
     }
-  }, [insurance?.insured, declaredValue])
+  }, [data.insurance?.insured, declaredValue])
 
   const isShippingStepComplete =
-    !!address?.is_valid &&
-    !!pkg &&
-    !!service &&
-    !!pickup?.label &&
-    (pickup.label !== 'CONTACT_FEDEX_TO_SCHEDULE' || (!!pickup.date && !!pickup.time))
+    !!data.address?.is_valid &&
+    !!data.package &&
+    !!data.service &&
+    !!data.pickup?.label &&
+    (data.pickup.label !== 'CONTACT_FEDEX_TO_SCHEDULE' ||
+      (!!data.pickup.date && !!data.pickup.time))
 
-  const emptyAddress: Address = {
-    id: crypto.randomUUID(),
-    user_id: user?.id ?? '',
-    line_1: '',
-    line_2: '',
-    city: '',
-    state: '',
-    country: 'United States',
-    zip: '',
-    name: '',
-    is_default: addresses.length === 0,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    phone_number: '',
-    country_code: 'US',
-    is_valid: false,
-    is_residential: false,
-  }
-
-  const defaultAddress: Address =
-    addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress
+  const defaultAddress: Address = addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress
 
   useEffect(() => {
     if (!hasInitialized.current && addresses.length > 0) {
@@ -120,7 +78,7 @@ export default function CheckoutStepper() {
         insurance: {
           insured: true,
           declaredValue: {
-            amount: 0,
+            amount: declaredValue ?? 0,
             currency: 'USD',
           },
         },
@@ -134,42 +92,27 @@ export default function CheckoutStepper() {
 
   const cartItems = sellCartStore((state) => state.items)
 
-  const fedexRatesInput = useMemo<FedexRateInput | null>(() => {
-    if (address?.is_valid && pkg?.dimensions && pkg.weight?.value != null) {
-      return {
-        shippingType: 'Inbound',
-        customerAddress: formatFedexRatesAddress(address),
-        pickupType: pickup?.label || 'DROPOFF_AT_FEDEX_LOCATION',
-        packageDetails: {
-          weight: pkg.weight,
-          dimensions: pkg.dimensions,
-        },
-        ...(insurance?.insured && insurance.declaredValue
-          ? { declaredValue: insurance.declaredValue }
-          : {}),
-      }
-    }
-    return null
-  }, [
-    address?.is_valid,
-    address,
-    pkg?.dimensions,
-    pkg?.weight?.value,
-    pickup?.label,
-    insurance?.insured,
-    insurance?.declaredValue,
-  ])
+  const fedexRatesInput = getFedexRatesInput({
+    address: data.address ?? emptyAddress,
+    package: data.package,
+    shippingType: 'Inbound',
+    pickupLabel: data.pickup?.label ?? 'DROPOFF_AT_FEDEX_LOCATION',
+    insurance: data.insurance
+  })
 
   const { data: rates = [], isLoading: ratesLoading } = useFedExRates(fedexRatesInput)
 
   useEffect(() => {
-    const currentServiceType = service?.serviceType
+    const currentServiceType = data.service?.serviceType
     const freshRate = rates.find((r) => r.serviceType === currentServiceType)
 
-    if (currentServiceType && freshRate && freshRate.netCharge !== service?.netCharge) {
+    if (currentServiceType && freshRate && freshRate.netCharge !== data.service?.netCharge) {
       setData({
         service: {
-          ...service,
+          code: data.service?.code ?? '',
+          serviceType: data.service?.serviceType ?? '',
+          serviceDescription: data.service?.serviceDescription ?? '',
+          icon: data.service?.icon,
           netCharge: freshRate.netCharge,
           currency: freshRate.currency,
           transitTime: freshRate.transitTime ?? new Date(),
@@ -177,7 +120,7 @@ export default function CheckoutStepper() {
         },
       })
     }
-  }, [rates, service?.serviceType])
+  }, [rates, data.service?.serviceType])
 
   if (cartItems.length === 0) {
     return (
@@ -268,7 +211,7 @@ export default function CheckoutStepper() {
                 onClick={stepper.next}
                 disabled={
                   (stepper.current.id === 'shipping' && !isShippingStepComplete) ||
-                  (stepper.current.id === 'payout' && !payoutValid)
+                  (stepper.current.id === 'payout' && !data.payoutValid)
                 }
               >
                 {stepper.current.id === 'shipping'

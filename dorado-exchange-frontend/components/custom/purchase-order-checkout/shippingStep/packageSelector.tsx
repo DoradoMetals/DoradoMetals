@@ -25,6 +25,7 @@ export function PackageSelector() {
       const qty = item.data.quantity ?? 1
       const raw = item.type === 'product' ? item.data.gross : item.data.pre_melt
       const converted = convertToPounds(raw, item.type === 'product' ? 'toz' : item.data.gross_unit)
+
       return sum + converted * qty
     }, 0)
   }, [items])
@@ -43,7 +44,6 @@ export function PackageSelector() {
 
   const handleChange = (label: string) => {
     const selected = packageOptions.find((p) => p.label === label)
-    console.log(packagingWeight)
     if (!selected) return
     setData({
       package: {

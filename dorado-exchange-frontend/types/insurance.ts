@@ -7,3 +7,5 @@ export const insuranceSchema = z.object({
   }),
   insured: z.boolean(),
 })
+
+export type Insurance = z.infer<typeof insuranceSchema>

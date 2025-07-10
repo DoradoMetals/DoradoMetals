@@ -1,7 +1,10 @@
-import { PurchaseOrder } from '@/types/purchase-order'
+import { PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
 import { SpotPrice } from '@/types/metal'
+import { SellCartItem } from '@/types/sellCart'
+import getProductBidPrice from './getProductBidPrice'
+import getScrapPrice from './getScrapPrice'
 
-export default function getReturnDeclaredValue(
+export function getReturnDeclaredValue(
   order: PurchaseOrder,
   spotPrices: SpotPrice[],
   orderSpotPrices: SpotPrice[]
@@ -34,6 +37,25 @@ export default function getReturnDeclaredValue(
 
     return acc
   }, 0)
+
+  return Math.min(total, 50000)
+}
+
+export function getDeclaredValue(items: SellCartItem[], spotPrices: SpotPrice[]): number {
+     const total = items.reduce((acc, item) => {
+       if (item.type === 'product') {
+         const spot = spotPrices.find((s) => s.type === item.data.metal_type)
+         const price = getProductBidPrice(item.data, spot)
+         const quantity = item.data.quantity ?? 1
+         return acc + price * quantity
+       }
+       if (item.type === 'scrap') {
+         const spot = spotPrices.find((s) => s.type === item.data.metal)
+         const price = getScrapPrice(item.data.content ?? 0, spot)
+         return acc + price
+       }
+       return acc
+     }, 0)
 
   return Math.min(total, 50000)
 }
