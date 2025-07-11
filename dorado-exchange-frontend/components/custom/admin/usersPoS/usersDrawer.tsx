@@ -221,6 +221,7 @@ function DoradoCredit({ user }: { user: AdminUser }) {
 function UserActions({ user }: { user: AdminUser }) {
   const requestPasswordReset = useRequestPasswordReset()
   const impersonateUser = useImpersonateUser()
+  const { closeDrawer } = useDrawerStore()
   return (
     <div className="flex flex-col gap-2 w-full items-start items-stretch">
       <div className="section-label mb-2">Actions</div>
@@ -228,6 +229,7 @@ function UserActions({ user }: { user: AdminUser }) {
         variant="default"
         className="w-full liquid-gold raised-off-page text-white"
         onClick={() => {
+          closeDrawer()
           impersonateUser.mutate({ user_id: user.id })
         }}
       >
