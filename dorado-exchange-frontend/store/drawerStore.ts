@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-type DrawerType = 'cart' | 'sidebar' | 'purchaseOrder' | 'salesOrder' | 'address' | null
+type DrawerType = 'cart' | 'sidebar' | 'purchaseOrder' | 'salesOrder' | 'address' | 'users' | null
 
 interface DrawerState {
   activeDrawer: DrawerType

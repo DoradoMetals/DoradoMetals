@@ -92,6 +92,7 @@ export interface AdminUser {
   email_verified: string,
   image: string,
   role: string,
+  dorado_funds: number,
 }
 
 export interface InventoryProduct {

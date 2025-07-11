@@ -1,3 +1,4 @@
+import { CheckCircleIcon, CrownIcon, Icon, ShieldIcon, UserCheckIcon, UserIcon } from '@phosphor-icons/react'
 import * as z from 'zod'
 
 export const userSchema = z.object({
@@ -14,3 +15,33 @@ export const userSchema = z.object({
 })
 
 export type User = z.infer<typeof userSchema>
+
+export type UserRoleOption = {
+  label: string
+  value: string
+  icon: Icon
+  colorClass: string
+}
+
+export const userRoleOptions: UserRoleOption[] = [
+  {
+    label: 'Admin',
+    value: 'admin',
+    icon: CrownIcon,
+    colorClass: 'text-blue-500',
+  },
+  {
+    label: 'Verified User',
+    value: 'verified_user',
+    icon: UserCheckIcon,
+    colorClass: 'text-green-500',
+  },
+  {
+    label: 'User',
+    value: 'user',
+    icon: UserIcon,
+    colorClass: 'text-yellow-500',
+  },
+]
+
+

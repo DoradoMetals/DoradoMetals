@@ -22,51 +22,26 @@ import {
 } from '@tanstack/react-table'
 
 import { AdminUser } from '@/types/admin'
-import { ChevronLeft, ChevronRight, Settings, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Settings, X } from 'lucide-react'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { cn } from '@/lib/utils'
-import { Plus, UserSwitch } from '@phosphor-icons/react'
+import { PlusIcon } from '@phosphor-icons/react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useAdminUsers } from '@/lib/queries/admin/useAdminUser'
-import { useImpersonateUser } from '@/lib/queries/useAuth'
+import { userRoleOptions } from '@/types/user'
+import { useDrawerStore } from '@/store/drawerStore'
+import AdminUsersDrawer from './usersDrawer'
+import PriceNumberFlow from '../../products/PriceNumberFlow'
 
 export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => void }) {
   const { data: users = [] } = useAdminUsers()
-  const impersonateUser = useImpersonateUser()
 
-  const [activeTab, setActiveTab] = useState<'impersonate' | 'details'>('impersonate')
+  const { openDrawer } = useDrawerStore()
+  const [activeUser, setActiveUser] = useState<string | null>(null)
+
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 8 })
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-
-  const alwaysVisibleColumns = ['name']
-
-  const impersonateColumns = ['impersonate', 'role']
-
-  const detailsColumns = ['email', 'created_at', 'updated_at', 'emailVerified', 'image']
-
-  const getColumnVisibilityForTab = (tab: 'impersonate' | 'details') => {
-    const visibleColumns = new Set([
-      ...alwaysVisibleColumns,
-      ...(tab === 'impersonate' ? impersonateColumns : []),
-      ...(tab === 'details' ? detailsColumns : []),
-    ])
-
-    const allColumns = [...alwaysVisibleColumns, ...impersonateColumns, ...detailsColumns]
-
-    const visibility: Record<string, boolean> = {}
-    for (const col of allColumns) {
-      visibility[col] = visibleColumns.has(col)
-    }
-
-    return visibility
-  }
-
-  const [columnVisibility, setColumnVisibility] = useState(getColumnVisibilityForTab('impersonate'))
-
-  const handleUpdate = (id: string, updatedFields: Partial<AdminUser>) => {
-
-  }
 
   const columns: ColumnDef<AdminUser>[] = [
     {
@@ -82,49 +57,46 @@ export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => vo
       enableColumnFilter: true,
       enableHiding: false,
       filterFn: 'includesString',
-      cell: ({ row }) => (
-        <div className="w-28 sm:w-full overflow-hidden text-ellipsis whitespace-nowrap text-left text-xs sm:text-sm text-neutral-900">
-          {row.original.name}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const role =
+          userRoleOptions.find((role) => role.value === row.original.role) ?? userRoleOptions[1]
+        const Icon = role.icon
+        return (
+          <Button
+            variant="ghost"
+            className={`flex items-center h-6 p-0 gap-2`}
+            onClick={() => {
+              setActiveUser(row.original.id)
+              openDrawer('users')
+            }}
+          >
+            <Icon size={20} className={cn(role.colorClass)} />
+            <p className={cn(role.colorClass)}>{row.original.name}</p>
+          </Button>
+        )
+      },
     },
     {
       id: 'email',
       header: function Header({ column }) {
         return (
-          <div className="text-left">
+          <div className="text-left hidden sm:flex">
             <span className="text-xs text-neutral-600">Email</span>
           </div>
         )
       },
       accessorKey: 'email',
       cell: ({ row }) => (
-        <div className="w-32 sm:w-full overflow-hidden text-ellipsis whitespace-nowrap text-left text-xs sm:text-sm text-neutral-900">
+        <div className="w-32 hidden sm:flex sm:w-full overflow-hidden text-ellipsis whitespace-nowrap text-left text-xs sm:text-sm text-neutral-900">
           {row.original.email}
         </div>
       ),
     },
-
-    {
-      id: 'role',
-      header: function Header({ column }) {
-        return (
-          <div className="text-left">
-            <span className="text-xs text-neutral-600">Role</span>
-          </div>
-        )
-      },
-      accessorKey: 'role',
-      cell: ({ row }) => (
-        <div className="text-left text-xs sm:text-sm text-neutral-900">{row.original.role}</div>
-      ),
-    },
-
     {
       id: 'created_at',
       header: function Header({ column }) {
         return (
-          <div className="flex items-center justify-center gap-1 h-full">
+          <div className="flex items-center justify-start gap-1 h-full hidden sm:flex">
             <span className="text-xs text-neutral-600">Created On</span>
           </div>
         )
@@ -138,53 +110,27 @@ export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => vo
           month: 'long',
           day: 'numeric',
         })}`
-        return <div className="text-left text-xs sm:text-sm text-neutral-900">{formatted}</div>
+        return (
+          <div className="text-left text-xs sm:text-sm text-neutral-900 hidden sm:flex">
+            {formatted}
+          </div>
+        )
       },
     },
 
     {
-      id: 'updated_at',
+      id: 'dorado_funds',
       header: function Header({ column }) {
         return (
-          <div className="flex items-center justify-center gap-1 h-full">
-            <span className="text-xs text-neutral-600">Updated On</span>
+          <div className="hidden sm:flex justify-end">
+            <span className="text-xs text-neutral-600">Dorado Credit</span>
           </div>
         )
       },
-      accessorKey: 'updated_at',
-      cell: ({ row }) => {
-        const date = new Date(row.original.updated_at)
-
-        const formatted = `${date.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        })}`
-        return <div className="text-left text-xs sm:text-sm text-neutral-900">{formatted}</div>
-      },
-    },
-
-    {
-      id: 'impersonate',
-      header: function Header({ column }) {
-        return (
-          <div className="text-right">
-            <span className="text-xs text-neutral-600">Impersonate</span>
-          </div>
-        )
-      },
-      accessorKey: 'impersonate',
+      accessorKey: 'dorado_funds',
       cell: ({ row }) => (
-        <div className="flex justify-end">
-          <Button
-            variant="ghost"
-            className="p-0 hover:bg-transparent h-4"
-            onClick={() => {
-              impersonateUser.mutate({ user_id: row.original.id })
-            }}
-          >
-            <UserSwitch size={24} color={getPrimaryIconStroke()} />
-          </Button>
+        <div className="flex justify-end hidden sm:flex">
+          <PriceNumberFlow value={row.original.dorado_funds} />
         </div>
       ),
     },
@@ -199,34 +145,33 @@ export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => vo
     state: {
       pagination,
       columnFilters,
-      columnVisibility,
     },
     onPaginationChange: setPagination,
     onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
     autoResetPageIndex: false,
   })
 
   const MemoizedRow = React.memo(function MemoizedRow({
     row,
+    isLast,
   }: {
     row: ReturnType<typeof table.getRowModel>['rows'][0]
+    isLast: boolean
   }) {
     return (
-      <TableRow className="border-none items-center hover:bg-background" key={row.id}>
-        {row.getVisibleCells().map((cell) => (
-          <TableCell
-            key={cell.id}
-            className={cn(
-              'align-middle text-left px-2 py-2 text-xs sm:text-sm text-neutral-900',
-              cell.column.id === 'name' &&
-                'sticky left-0 bg-card z-10 after:content-[""] after:absolute after:top-0 after:right-0 after:w-px after:h-full after:bg-border'
-            )}
-          >
-            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-          </TableCell>
-        ))}
-      </TableRow>
+      <>
+        <TableRow className="border-none items-center hover:bg-transparent" key={row.id}>
+          {row.getVisibleCells().map((cell) => (
+            <TableCell
+              key={cell.id}
+              className={cn('align-middle text-left px-2 py-2 text-xs sm:text-sm text-neutral-900')}
+            >
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </TableCell>
+          ))}
+        </TableRow>
+        {!isLast && <TableRow className="separator-inset border-none" />}
+      </>
     )
   })
 
@@ -241,7 +186,7 @@ export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => vo
             setOpen(true)
           }}
         >
-          <Plus size={16} color={getPrimaryIconStroke()} />
+          <PlusIcon size={16} color={getPrimaryIconStroke()} />
           Create New User
         </Button>
 
@@ -274,14 +219,7 @@ export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => vo
               >
                 {table
                   .getAllLeafColumns()
-                  .filter((col) => {
-                    const visibleKeys = new Set([
-                      ...alwaysVisibleColumns,
-                      ...(activeTab === 'impersonate' ? impersonateColumns : []),
-                      ...(activeTab === 'details' ? detailsColumns : []),
-                    ])
-                    return visibleKeys.has(col.id) && col.getCanHide()
-                  })
+
                   .map((column) => (
                     <div key={column.id} className="flex items-center gap-2 w-full">
                       <Checkbox
@@ -303,61 +241,30 @@ export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => vo
               </PopoverContent>
             </Popover>
           </div>
-
-          <div className="flex w-full sm:w-auto gap-1">
-            {(['impersonate', 'details'] as const).map((tab) => (
-              <Button
-                key={tab}
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  'text-sm raised-off-page w-full sm:w-auto',
-                  activeTab === tab ? 'liquid-gold' : 'bg-card hover:bg-card border-none'
-                )}
-                onClick={() => {
-                  setActiveTab(tab)
-                  setColumnVisibility(getColumnVisibilityForTab(tab))
-                }}
-              >
-                <div
-                  className={cn(
-                    activeTab === tab ? 'text-white hover:text-white' : 'text-primary-gradient'
-                  )}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </div>
-              </Button>
-            ))}
-          </div>
         </div>
       </div>
 
-      <div className="w-full bg-card rounded-lg p-2">
+      <div className="w-full bg-card rounded-lg p-2 raised-off-page">
         <Table>
-          <TableHeader className="border-b border-border">
+          <TableHeader className="border-none">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow
                 key={headerGroup.id}
                 className="border-none items-center bg-card hover:bg-card"
               >
                 {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className={cn(
-                      'align-middle h-10 text-xs text-neutral-600',
-                      header.column.id === 'name' &&
-                        'sticky left-0 bg-card z-10 after:content-[""] after:absolute after:top-0 after:right-0 after:w-px after:h-full after:bg-border'
-                    )}
-                  >
+                  <TableHead key={header.id} className="align-middle h-10 text-xs text-neutral-600">
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
             ))}
+            <TableRow className="separator-inset border-none" />
           </TableHeader>
+
           <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <MemoizedRow key={row.id} row={row} />
+            {table.getRowModel().rows.map((row, i, allRows) => (
+              <MemoizedRow key={row.id} row={row} isLast={i === allRows.length - 1} />
             ))}
           </TableBody>
         </Table>
@@ -388,6 +295,7 @@ export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => vo
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
+      {activeUser && <AdminUsersDrawer user_id={activeUser ?? ''} users={users ?? []} />}
     </div>
   )
 }

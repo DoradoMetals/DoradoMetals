@@ -16,11 +16,6 @@ const {
 
 const { getAllScrap } = require("../controllers/admin/adminScrapController");
 
-const {
-  getUser,
-  getAllUsers,
-} = require("../controllers/admin/adminUserController");
-
 const router = express.Router();
 
 //products
@@ -36,9 +31,5 @@ router.get("/get_inventory", requireAdmin, getInventory);
 
 //scrap
 router.get("/get_scrap", requireAdmin, getAllScrap);
-
-//users
-router.get("/get_user", requireAdmin, getUser);
-router.get("/get_all_users", requireAdmin, getAllUsers);
 
 module.exports = router;
