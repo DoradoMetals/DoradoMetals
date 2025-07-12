@@ -47,10 +47,10 @@ export function CartTabs() {
           >
             <TabsList className="w-full rounded-none bg-transparent mt-10 px-0">
               <TabsTrigger value="buy" className="tab-indicator-secondary">
-                Buy {`(${items.length})`}
+                Buy Cart {`(${items.length})`}
               </TabsTrigger>
               <TabsTrigger value="sell" className="tab-indicator-primary">
-                Sell {`(${sellItems.length})`}
+                Sell Cart {`(${sellItems.length})`}
               </TabsTrigger>
             </TabsList>
             <div className="separator-inset -mt-[11px]" />
