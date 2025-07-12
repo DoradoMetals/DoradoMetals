@@ -507,9 +507,8 @@ async function editPayoutCharge({ order_id, payout_charge }) {
 
 async function addFundsToAccount({ order, spots }) {
   const client = await pool.connect();
-  console.log(order, spots)
   try {
-    await transactionRepo.addFunds(order.user_id, total, client);
+    await transactionRepo.addFunds(order.user_id, order.total_price, client);
     await transactionRepo.addTransactionLog(
       order.user_id,
       "Credit",
