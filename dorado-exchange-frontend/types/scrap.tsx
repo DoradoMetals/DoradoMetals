@@ -73,7 +73,7 @@ export const purityOptions: Record<string, PurityOption[]> = {
   Gold: [
     { label: '10 Karat', value: 0.4 },
     { label: '12 Karat', value: 0.48 },
-    { label: '14 Karat', value: 0.56 },
+    { label: '14 Karat', value: 0.563 },
     { label: '18 Karat', value: 0.73 },
     { label: '22 Karat', value: 0.9 },
     { label: '24 Karat', value: 1.0 },

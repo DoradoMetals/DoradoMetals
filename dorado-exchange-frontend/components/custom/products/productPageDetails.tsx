@@ -197,7 +197,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   addItem(selectedProduct)
                 }}
               >
-                Add to Cart
+                Buy
               </Button>
             ) : (
               <div className="flex items-center justify-center">
@@ -241,7 +241,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   addSellItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
                 }
               >
-                Add to Sell Cart
+                Sell
               </Button>
             ) : (
               <div className="flex items-center justify-center">
@@ -636,7 +636,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 addItem(selectedProduct)
               }}
             >
-              Add to Cart
+              Buy
             </Button>
           ) : (
             <div className="flex items-center justify-center">
@@ -676,7 +676,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 addSellItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
               }
             >
-              Add to Sell Cart
+              Sell
             </Button>
           ) : (
             <div className="flex items-center justify-center">

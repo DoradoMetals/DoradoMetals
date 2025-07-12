@@ -74,7 +74,7 @@ export interface PackageOption {
 }
 
 export const packageOptions: PackageOption[] = [
-    {
+  {
     label: 'Small Box',
     weight: { units: 'LB', value: 2 },
     dimensions: { length: 9, width: 6, height: 2, units: 'IN' },
@@ -98,7 +98,7 @@ export const packageOptions: PackageOption[] = [
   {
     label: 'FedEx Small',
     weight: { units: 'LB', value: 2 },
-    dimensions: { length: 12.2, width: 10.8, height: 1.50, units: 'IN' },
+    dimensions: { length: 12.2, width: 10.8, height: 1.5, units: 'IN' },
     icon: Inbox,
     fedexPackage: true,
   },
