@@ -41,7 +41,6 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
         order: order,
       })
     } else if (action === 'move_to_completed' && order.payout.method === 'DORADO_ACCOUNT') {
-      console.log('here')
       addAccountFunds.mutate({ purchase_order: order, spots: orderSpotPrices })
       movePurchaseOrderStatus.mutate({
         order_status: status,
