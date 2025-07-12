@@ -853,11 +853,7 @@ export const useAcceptOffer = () => {
                   ...item,
                   price: getPurchaseOrderItemPrice(item, spot_prices),
                 })),
-                total_price: getPurchaseOrderTotal(
-                  purchase_order,
-                  spot_prices,
-                  order_spots,
-                ),
+                total_price: getPurchaseOrderTotal(purchase_order, spot_prices, order_spots),
               }
         )
       )
@@ -1042,6 +1038,90 @@ export const useEditPayoutCharge = () => {
       if (context?.queryKey) {
         queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
       }
+    },
+  })
+}
+
+export const useEditPayoutMethod = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      purchase_order,
+      payout_method,
+    }: {
+      purchase_order: PurchaseOrder
+      payout_method: string
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/edit_payout_method', {
+        order_id: purchase_order.id,
+        method: payout_method,
+      })
+    },
+
+    onMutate: async ({ purchase_order, payout_method }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order.id
+            ? order
+            : {
+                ...order,
+                payout: {
+                  ...order.payout,
+                  method: payout_method,
+                },
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useAddFundsToAccount = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      purchase_order,
+      spots,
+    }: {
+      purchase_order: PurchaseOrder
+      spots: SpotPrice[]
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/add_funds_to_account', {
+        order: purchase_order,
+        spots,
+      })
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['admin_purchase_orders', user],
+        refetchType: 'active',
+      })
     },
   })
 }

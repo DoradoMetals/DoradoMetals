@@ -3,6 +3,7 @@ import { PurchaseOrderActionButtonsProps, statusConfig } from '@/types/purchase-
 import { cn } from '@/lib/utils'
 import {
   useAcceptOffer,
+  useAddFundsToAccount,
   useMovePurchaseOrderStatus,
   useRejectOffer,
   useSendOffer,
@@ -21,6 +22,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
   const rejectOffer = useRejectOffer()
   const sendOffer = useSendOffer()
   const updateRejected = useUpdateRejectedOffer()
+  const addAccountFunds = useAddFundsToAccount()
 
   const handleAction = (action: string, status: string) => {
     if (action === 'accept_offer') {
@@ -35,6 +37,12 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
       updateRejected.mutate({ order_status: status, order: order })
     } else if (action === 'send_offer') {
       sendOffer.mutate({
+        order_status: status,
+        order: order,
+      })
+    } else if (action === 'move_to_completed' && order.payout.method === 'DORADO_ACCOUNT') {
+      addAccountFunds.mutate({ purchase_order: order, spots: orderSpotPrices })
+      movePurchaseOrderStatus.mutate({
         order_status: status,
         order: order,
       })

@@ -286,6 +286,22 @@ async function editPayoutCharge(req, res, next) {
   }
 }
 
+async function changePayoutMethod(req, res, next) {
+  try {
+    await purchaseOrderService.changePayoutMethod(req.body);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function addFundsToAccount(req, res, next) {
+  try {
+    await purchaseOrderService.addFundsToAccount(req.body);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getPurchaseOrderById,
   getPurchaseOrders,
@@ -314,4 +330,6 @@ module.exports = {
   expireStaleOffers,
   editShippingCharge,
   editPayoutCharge,
+  changePayoutMethod,
+  addFundsToAccount,
 };
