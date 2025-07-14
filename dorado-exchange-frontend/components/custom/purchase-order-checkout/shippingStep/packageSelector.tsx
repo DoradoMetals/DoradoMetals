@@ -32,7 +32,9 @@ export function PackageSelector() {
 
   const packagingWeight = useMemo(() => {
     if (!selectedPackage) return totalCartWeight
-    return Math.max(totalCartWeight, selectedPackage.weight.value)
+    const opt = packageOptions.find(p => p.label === selectedPackage.label)
+    const minWeight = opt?.weight.value ?? 0
+    return Math.max(totalCartWeight, minWeight)
   }, [totalCartWeight, selectedPackage])
 
   const handleFedExToggle = (checked: boolean) => {

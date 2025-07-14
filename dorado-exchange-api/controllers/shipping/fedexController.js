@@ -138,6 +138,7 @@ const getFedexRates = async (req, res) => {
           },
         },
       },
+      carrierCodes: ['FDXE']
     };
 
     const rateResponse = await axios.post(
