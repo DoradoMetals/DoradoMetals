@@ -44,7 +44,7 @@ export default function BullionTab() {
     : filtered
 
   const displayedBullion = isShowAll
-    ? filteredBullion
+    ? filteredBullion.filter((group) => !group.default.is_generic)
     : filteredBullion.filter((group) => group.default.is_generic)
 
   const handleClear = () => {
