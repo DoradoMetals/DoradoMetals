@@ -34,11 +34,15 @@ export default function AdminPaymentProcessingPurchaseOrder({
                 <div className="flex gap-1 justify-between w-full text-base text-neutral-800 items-center">
                   <div className="flex flex-col text-left">
                     <p>Name:</p>
+                    <p>Type:</p>
+                    <p>Bank:</p>
                     <p>Routing:</p>
                     <p>Account:</p>
                   </div>
                   <div className="flex flex-col text-right">
                     <p>{order.payout.account_holder_name}</p>
+                    <p>{order.payout.account_type}</p>
+                    <p>{order.payout.bank_name}</p>
                     <p>{order.payout.routing_number}</p>
                     <p>{order.payout.account_number}</p>
                   </div>
