@@ -71,7 +71,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
     ? products.filter((p) => p.metal === selectedMetal)
     : products
 
-  const [activeTab, setActiveTab] = useState<'general' | 'details' | 'display'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'details' | 'display' | 'dev'>('general')
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 8 })
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
 
@@ -93,19 +93,23 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
 
   const displayColumns = [
     'display',
-    'slug',
+    'sell_display',
     'homepage_display',
     'filter_category',
-    'shadow_offset',
+    'slug',
     'variant_group',
+    'variant_label',
   ]
 
-  const getColumnVisibilityForTab = (tab: 'general' | 'details' | 'display') => {
+  const devColumns = ['shadow_offset', 'image_front', 'image_back']
+
+  const getColumnVisibilityForTab = (tab: 'general' | 'details' | 'display' | 'dev') => {
     const visibleColumns = new Set([
       ...alwaysVisibleColumns,
       ...(tab === 'general' ? generalColumns : []),
       ...(tab === 'details' ? detailsColumns : []),
       ...(tab === 'display' ? displayColumns : []),
+      ...(tab === 'dev' ? devColumns : []),
     ])
 
     const allColumns = [
@@ -113,6 +117,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
       ...generalColumns,
       ...detailsColumns,
       ...displayColumns,
+      ...devColumns,
     ]
 
     const visibility: Record<string, boolean> = {}
@@ -149,7 +154,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
       cell: ({ row }) => (
         <Input
           type="text"
-          className="input-floating-label-form min-w-40 sm:min-w-70"
+          className="input-floating-label-form min-w-70"
           defaultValue={row.original.product_name}
           onBlur={(e) => handleUpdate(row.original.id, { product_name: e.target.value })}
         />
@@ -209,7 +214,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           defaultValue={row.original.metal}
           onValueChange={(value) => handleUpdate(row.original.id, { metal: value })}
         >
-          <SelectTrigger className="bg-card raised-off-page border-none h-9 w-30">
+          <SelectTrigger className="bg-card raised-off-page border-none h-9">
             <SelectValue placeholder="Metal" />
           </SelectTrigger>
           <SelectContent>
@@ -231,7 +236,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           defaultValue={row.original.supplier}
           onValueChange={(value) => handleUpdate(row.original.id, { supplier: value })}
         >
-          <SelectTrigger className="bg-card raised-off-page border-none h-9 w-30">
+          <SelectTrigger className="bg-card raised-off-page border-none h-9">
             <SelectValue placeholder="Supplier" />
           </SelectTrigger>
           <SelectContent className="bg-card">
@@ -253,7 +258,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           defaultValue={row.original.mint}
           onValueChange={(value) => handleUpdate(row.original.id, { mint: value })}
         >
-          <SelectTrigger className="bg-card raised-off-page border-none h-9 w-46">
+          <SelectTrigger className="bg-card raised-off-page border-none h-9">
             <SelectValue placeholder="Mint" />
           </SelectTrigger>
           <SelectContent>
@@ -275,7 +280,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           defaultValue={row.original.product_type}
           onValueChange={(value) => handleUpdate(row.original.id, { product_type: value })}
         >
-          <SelectTrigger className="bg-card raised-off-page border-none h-9 w-30">
+          <SelectTrigger className="bg-card raised-off-page border-none h-9">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
@@ -297,7 +302,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           type="number"
           pattern="[0-9]*"
           inputMode="decimal"
-          className="input-floating-label-form no-spinner text-right min-w-20"
+          className="input-floating-label-form no-spinner text-right"
           defaultValue={row.original.content}
           onBlur={(e) => handleUpdate(row.original.id, { content: Number(e.target.value) })}
         />
@@ -312,7 +317,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           type="number"
           pattern="[0-9]*"
           inputMode="decimal"
-          className="input-floating-label-form no-spinner text-right min-w-20"
+          className="input-floating-label-form no-spinner text-right"
           defaultValue={row.original.gross}
           onBlur={(e) => handleUpdate(row.original.id, { gross: Number(e.target.value) })}
         />
@@ -327,7 +332,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           type="number"
           pattern="[0-9]*"
           inputMode="decimal"
-          className="input-floating-label-form no-spinner text-right min-w-20"
+          className="input-floating-label-form no-spinner text-right"
           defaultValue={row.original.purity}
           onBlur={(e) => handleUpdate(row.original.id, { purity: Number(e.target.value) })}
         />
@@ -342,7 +347,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           type="number"
           pattern="[0-9]*"
           inputMode="decimal"
-          className="input-floating-label-form no-spinner text-right min-w-14"
+          className="input-floating-label-form no-spinner text-right"
           defaultValue={row.original.bid_premium}
           onBlur={(e) => handleUpdate(row.original.id, { bid_premium: Number(e.target.value) })}
         />
@@ -357,7 +362,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           type="number"
           pattern="[0-9]*"
           inputMode="decimal"
-          className="input-floating-label-form no-spinner text-right min-w-14"
+          className="input-floating-label-form no-spinner text-right"
           defaultValue={row.original.ask_premium}
           onBlur={(e) => handleUpdate(row.original.id, { ask_premium: Number(e.target.value) })}
         />
@@ -371,7 +376,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
         <Input
           type="number"
           pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right min-w-14"
+          className="input-floating-label-form no-spinner text-right"
           defaultValue={row.original.quantity}
           onBlur={(e) => handleUpdate(row.original.id, { stock: Number(e.target.value) })}
         />
@@ -379,7 +384,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
     },
     {
       id: 'display',
-      header: 'Display?',
+      header: 'Buy Display',
       accessorKey: 'display',
       cell: ({ row }) => (
         <Switch
@@ -389,21 +394,19 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
       ),
     },
     {
-      id: 'variant_group',
-      header: 'Variant Group',
-      accessorKey: 'variant_group',
+      id: 'sell_display',
+      header: 'Sell Display',
+      accessorKey: 'sell_display',
       cell: ({ row }) => (
-        <Input
-          type="text"
-          className="input-floating-label-form min-w-48"
-          defaultValue={row.original.variant_group}
-          onBlur={(e) => handleUpdate(row.original.id, { variant_group: e.target.value })}
+        <Switch
+          checked={row.original.sell_display}
+          onCheckedChange={(checked) => handleUpdate(row.original.id, { sell_display: checked })}
         />
       ),
     },
     {
       id: 'homepage_display',
-      header: 'Featured?',
+      header: 'Featured',
       accessorKey: 'homepage_display',
       cell: ({ row }) => (
         <Switch
@@ -415,13 +418,39 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
       ),
     },
     {
+      id: 'variant_group',
+      header: 'Variant Group',
+      accessorKey: 'variant_group',
+      cell: ({ row }) => (
+        <Input
+          type="text"
+          className="input-floating-label-form"
+          defaultValue={row.original.variant_group}
+          onBlur={(e) => handleUpdate(row.original.id, { variant_group: e.target.value })}
+        />
+      ),
+    },
+    {
+      id: 'variant_label',
+      header: 'Variant Label',
+      accessorKey: 'variant_label',
+      cell: ({ row }) => (
+        <Input
+          type="text"
+          className="input-floating-label-form"
+          defaultValue={row.original.variant_label}
+          onBlur={(e) => handleUpdate(row.original.id, { variant_label: e.target.value })}
+        />
+      ),
+    },
+    {
       id: 'slug',
       header: 'Slug',
       accessorKey: 'slug',
       cell: ({ row }) => (
         <Input
           type="text"
-          className="input-floating-label-form min-w-48"
+          className="input-floating-label-form"
           defaultValue={row.original.slug}
           onBlur={(e) => handleUpdate(row.original.id, { slug: e.target.value })}
         />
@@ -434,7 +463,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
       cell: ({ row }) => (
         <Input
           type="text"
-          className="input-floating-label-form min-w-36"
+          className="input-floating-label-form"
           defaultValue={row.original.filter_category}
           onBlur={(e) => handleUpdate(row.original.id, { filter_category: e.target.value })}
         />
@@ -448,9 +477,35 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
         <Input
           type="number"
           pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right min-w-14"
+          className="input-floating-label-form no-spinner text-right"
           defaultValue={row.original.shadow_offset}
           onBlur={(e) => handleUpdate(row.original.id, { shadow_offset: Number(e.target.value) })}
+        />
+      ),
+    },
+    {
+      id: 'image_front',
+      header: 'Front Image Path',
+      accessorKey: 'image_front',
+      cell: ({ row }) => (
+        <Input
+          type="text"
+          className="input-floating-label-form min-w-100"
+          defaultValue={row.original.image_front}
+          onBlur={(e) => handleUpdate(row.original.id, { image_front: e.target.value })}
+        />
+      ),
+    },
+    {
+      id: 'image_back',
+      header: 'Back Image Path',
+      accessorKey: 'image_back',
+      cell: ({ row }) => (
+        <Input
+          type="text"
+          className="input-floating-label-form min-w-100"
+          defaultValue={row.original.image_back}
+          onBlur={(e) => handleUpdate(row.original.id, { image_back: e.target.value })}
         />
       ),
     },
@@ -472,6 +527,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
               <Button
                 variant="ghost"
                 className="text-destructive hover:text-destructive hover:bg-background"
+                disabled={true}
               >
                 <Trash2 size={20} />
               </Button>
@@ -509,6 +565,14 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
       pagination,
       columnFilters,
       columnVisibility,
+    },
+    initialState: {
+      pagination: { pageIndex: 0, pageSize: 10 },
+      columnVisibility: {
+        slug: false,
+        filter_category: false,
+        shadow_offset: false,
+      },
     },
     onPaginationChange: setPagination,
     onColumnFiltersChange: setColumnFilters,
@@ -585,6 +649,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
                       ...(activeTab === 'general' ? generalColumns : []),
                       ...(activeTab === 'details' ? detailsColumns : []),
                       ...(activeTab === 'display' ? displayColumns : []),
+                      ...(activeTab === 'dev' ? devColumns : []),
                     ])
                     return visibleKeys.has(col.id) && col.getCanHide()
                   })
@@ -611,7 +676,7 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           </div>
 
           <div className="flex w-full sm:w-auto gap-1">
-            {(['general', 'details', 'display'] as const).map((tab) => (
+            {(['general', 'details', 'display', 'dev'] as const).map((tab) => (
               <Button
                 key={tab}
                 variant="ghost"

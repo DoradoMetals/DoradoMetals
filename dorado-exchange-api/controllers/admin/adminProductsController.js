@@ -89,8 +89,17 @@ const saveProduct = async (req, res) => {
         stock = $15,
         updated_by = $16,
         updated_at = NOW(),
-        slug= $17
-      WHERE id = $18
+        slug= $17,
+        homepage_display = $18,
+        legal_tender = $19,
+        domestic_tender = $20,
+        sell_display = $21,
+        is_generic = $22,
+        variant_label = $23,
+        quantity = $24,
+        image_front = $25,
+        image_back = $26
+      WHERE id = $27
     `;
 
     const values = [
@@ -111,7 +120,16 @@ const saveProduct = async (req, res) => {
       product.stock,
       user.name,
       product.slug,
-      product.id, // used in WHERE clause
+      product.homepage_display,
+      product.legal_tender,
+      product.domestic_tender,
+      product.sell_display,
+      product.is_generic,
+      product.variant_label,
+      product.quantity,
+      product.image_front,
+      product.image_back,
+      product.id,
     ];
 
     await pool.query(query, values);
@@ -126,7 +144,6 @@ const createProduct = async (req, res) => {
   const { created_by } = req.body;
 
   try {
-    // Step 1: Insert new product and get its ID
     const insertQuery = `
       INSERT INTO exchange.products (created_by, updated_by)
       VALUES ($1, $1)
@@ -135,7 +152,6 @@ const createProduct = async (req, res) => {
     const insertResult = await pool.query(insertQuery, [created_by]);
     const newProductId = insertResult.rows[0].id;
 
-    // Step 2: Query full product details with joins
     const selectQuery = `
       SELECT 
         ${ADMIN_PRODUCT_FIELDS_WITH_ALIAS}, 
@@ -193,7 +209,6 @@ const getInventory = async (req, res) => {
     const metalTypes = ["Gold", "Silver", "Platinum", "Palladium"];
     const inventory = {};
 
-    // Initialize all 4 metal categories
     for (const metal of metalTypes) {
       inventory[metal] = {
         total_content: 0,
@@ -216,7 +231,7 @@ const getInventory = async (req, res) => {
         metal,
       } = product;
 
-      if (!inventory[metal]) continue; // skip unrecognized metals
+      if (!inventory[metal]) continue;
 
       const group = inventory[metal];
 

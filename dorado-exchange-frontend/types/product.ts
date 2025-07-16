@@ -21,6 +21,7 @@ export interface Product {
   slug: string
   legal_tender: boolean
   domestic_tender: boolean
+  sell_display: boolean,
   is_generic: boolean
   variant_label?: string
 }
@@ -46,6 +47,7 @@ export const productSchema = z.object({
   slug: z.string().optional(),
   legal_tender: z.boolean().optional(),
   domestic_tender: z.boolean().optional(),
+  sell_display: z.boolean(),
   is_generic: z.boolean(),
   variant_label: z.string().optional(),
 })

@@ -15,6 +15,7 @@ const PRODUCT_FIELDS = `
   slug,
   legal_tender,
   domestic_tender,
+  sell_display,
   is_generic,
   variant_label
 `;
@@ -36,6 +37,7 @@ const PRODUCT_FIELDS_WITH_ALIAS = `
   p.slug,
   p.legal_tender,
   p.domestic_tender,
+  p.sell_display,
   p.is_generic,
   p.variant_label
 `;

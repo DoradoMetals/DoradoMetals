@@ -25,7 +25,7 @@ export function AdminTabs() {
     <>
       <div className="flex w-full mt-4 lg:mt-10 mb-8">
         <Tabs defaultValue="inventory" className="flex w-full items-center justify-center">
-          <TabsList className="justify-center grid grid-cols-3 w-full max-w-4xl bg-transparent px-0">
+          <TabsList className="justify-center grid grid-cols-3 w-full max-w-7xl bg-transparent px-0">
             <TabsTrigger className="tab-indicator-primary" value="inventory">
               Inventory
             </TabsTrigger>
@@ -36,9 +36,9 @@ export function AdminTabs() {
               Users
             </TabsTrigger>
           </TabsList>
-          <div className="separator-inset -mt-[11px] max-w-4xl" />
+          <div className="separator-inset -mt-[11px] max-w-7xl" />
 
-          <TabsContent value="inventory" className="max-w-4xl">
+          <TabsContent value="inventory" className="max-w-7xl">
             <Tabs defaultValue="products" className="mt-3">
               <TabsList className="justify-center h-auto w-full gap-2 bg-transparent px-0">
                 <TabsTrigger
@@ -107,7 +107,7 @@ export function AdminTabs() {
             </Tabs>
           </TabsContent>
 
-          <TabsContent value="orders" className="max-w-4xl">
+          <TabsContent value="orders" className="max-w-7xl">
             <Tabs defaultValue="purchase-orders" className="mt-3 flex justify-center items-center">
               <div className="flex flex-col w-full justify-center gap-3">
                 <TabsList className="justify-center h-auto w-full gap-2 rounded-none bg-transparent px-0">
@@ -170,7 +170,7 @@ export function AdminTabs() {
             </Tabs>
           </TabsContent>
 
-          <TabsContent value="users" className="flex flex-col gap-2 max-w-4xl">
+          <TabsContent value="users" className="flex flex-col gap-2 max-w-7xl">
             <UsersPage />
           </TabsContent>
         </Tabs>
