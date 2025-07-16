@@ -24,7 +24,10 @@ type BullionCardProps = {
 }
 
 export default function BullionCard({ product, variants }: BullionCardProps) {
-  const [selectedProduct, setSelectedProduct] = useState<Product>(product)
+  const initialVariant =
+    variants.length > 0 ? [...variants].sort((a, b) => b.content - a.content)[0] : product
+
+  const [selectedProduct, setSelectedProduct] = useState<Product>(initialVariant)
   const [open, setOpen] = useState(false)
   const [variantsOpen, setVariantsOpen] = useState(false)
 
@@ -197,28 +200,30 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                     </Button>
                   }
                 >
-                  {variants.map((option) => {
-                    const isSelected = selectedProduct.product_name === option.product_name
+                  {[...variants]
+                    .sort((a, b) => b.content - a.content)
+                    .map((option) => {
+                      const isSelected = selectedProduct.product_name === option.product_name
 
-                    return (
-                      <BullionFloatingButtonItem key={option.id}>
-                        <label
-                          htmlFor={option.product_name}
-                          className={cn(
-                            'h-5.5 sm:h-7 md:h-8.5 lg:h-9 w-8 xs:w-12 sm:w-14 rounded-lg flex items-center justify-center text-xs cursor-pointer border text-neutral-900 raised-off-page',
-                            isSelected && 'liquid-gold text-white'
-                          )}
-                        >
-                          <RadioGroupItem
-                            id={option.product_name}
-                            value={option.product_name}
-                            className="sr-only"
-                          />
-                          {option.variant_label}
-                        </label>
-                      </BullionFloatingButtonItem>
-                    )
-                  })}
+                      return (
+                        <BullionFloatingButtonItem key={option.id}>
+                          <label
+                            htmlFor={option.product_name}
+                            className={cn(
+                              'h-5.5 sm:h-7 md:h-8.5 lg:h-9 w-8 xs:w-12 sm:w-14 rounded-lg flex items-center justify-center text-xs cursor-pointer border text-neutral-900 raised-off-page',
+                              isSelected && 'liquid-gold text-white'
+                            )}
+                          >
+                            <RadioGroupItem
+                              id={option.product_name}
+                              value={option.product_name}
+                              className="sr-only"
+                            />
+                            {option.variant_label}
+                          </label>
+                        </BullionFloatingButtonItem>
+                      )
+                    })}
                 </BullionFloatingButton>
               </RadioGroup>
             </div>

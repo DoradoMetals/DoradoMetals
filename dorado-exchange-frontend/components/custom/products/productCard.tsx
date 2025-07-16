@@ -34,7 +34,10 @@ type ProductCardProps = {
 
 export default function ProductCard({ product, variants }: ProductCardProps) {
   const router = useRouter()
-  const [selectedProduct, setSelectedProduct] = useState<Product>(product)
+  const initialVariant =
+    variants.length > 0 ? [...variants].sort((a, b) => b.content - a.content)[0] : product
+
+  const [selectedProduct, setSelectedProduct] = useState<Product>(initialVariant)
   const [open, setOpen] = useState(false)
   const [variantsOpen, setVariantsOpen] = useState(false)
   const [isBeginning, setIsBeginning] = useState(true)
@@ -181,24 +184,26 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                   </Button>
                 }
               >
-                {variants.map((option) => (
-                  <FloatingButtonItem key={option.id}>
-                    <label
-                      htmlFor={option.product_name}
-                      className="h-8 w-10 xs:w-14 sm:w-15 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:border-secondary has-[[data-state=checked]]:text-white text-neutral-900"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                      }}
-                    >
-                      <RadioGroupItem
-                        id={option.product_name}
-                        value={option.product_name}
-                        className="sr-only"
-                      />
-                      {option.variant_label}
-                    </label>
-                  </FloatingButtonItem>
-                ))}
+                {[...variants]
+                  .sort((a, b) => b.content - a.content)
+                  .map((option) => (
+                    <FloatingButtonItem key={option.id}>
+                      <label
+                        htmlFor={option.product_name}
+                        className="h-8 w-10 xs:w-14 sm:w-15 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:border-secondary has-[[data-state=checked]]:text-white text-neutral-900"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                        }}
+                      >
+                        <RadioGroupItem
+                          id={option.product_name}
+                          value={option.product_name}
+                          className="sr-only"
+                        />
+                        {option.variant_label}
+                      </label>
+                    </FloatingButtonItem>
+                  ))}
               </FloatingButton>
             </RadioGroup>
           )}

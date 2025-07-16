@@ -33,7 +33,10 @@ type ProductPageProps = {
 }
 
 export default function ProductPageDetails({ product, variants }: ProductPageProps) {
-  const [selectedProduct, setSelectedProduct] = useState<Product>(product)
+  const initialVariant =
+    variants.length > 0 ? [...variants].sort((a, b) => b.content - a.content)[0] : product
+
+  const [selectedProduct, setSelectedProduct] = useState<Product>(initialVariant)
   const [selectedImage, setSelectedImage] = useState<string>(product.image_front)
   const [hovering, setHovering] = useState(false)
 
@@ -66,8 +69,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   const spot = spotPrices.find((s) => s.type === product.metal_type)
 
   const askOverOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
-    const bidOverOrUnder = getProductBidOverUnderSpot(selectedProduct, spot)
-
+  const bidOverOrUnder = getProductBidOverUnderSpot(selectedProduct, spot)
 
   const price = useMemo(() => {
     return getProductPrice(selectedProduct, spot)
@@ -144,41 +146,43 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               }}
               className="gap-3 w-full flex"
             >
-              {variants.map((option) => {
-                const isSelected = option.product_name === selectedProduct.product_name
-                return (
-                  <motion.label
-                    key={option.id}
-                    initial={false}
-                    animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
-                    className={cn(
-                      'relative flex w-full justify-center rounded-md px-3 py-2 font-normal cursor-pointer raised-off-page',
-                      isSelected
-                        ? ' liquid-gold text-white hover:text-white'
-                        : 'bg-card text-neutral-800'
-                    )}
-                  >
-                    <div className="absolute top-1 right-1">
-                      <CheckCircle
-                        size={16}
-                        className={cn(
-                          'transition-opacity duration-200 text-white',
-                          isSelected ? 'opacity-100' : 'opacity-0'
-                        )}
+              {[...variants]
+                .sort((a, b) => b.content - a.content)
+                .map((option) => {
+                  const isSelected = option.product_name === selectedProduct.product_name
+                  return (
+                    <motion.label
+                      key={option.id}
+                      initial={false}
+                      animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
+                      transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
+                      className={cn(
+                        'relative flex w-full justify-center rounded-md px-3 py-2 font-normal cursor-pointer raised-off-page',
+                        isSelected
+                          ? ' liquid-gold text-white hover:text-white'
+                          : 'bg-card text-neutral-800'
+                      )}
+                    >
+                      <div className="absolute top-1 right-1">
+                        <CheckCircle
+                          size={16}
+                          className={cn(
+                            'transition-opacity duration-200 text-white',
+                            isSelected ? 'opacity-100' : 'opacity-0'
+                          )}
+                        />
+                      </div>
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="text-sm">{option.variant_label}</div>
+                      </div>
+                      <RadioGroupItem
+                        id={option.product_name}
+                        value={option.product_name}
+                        className="sr-only"
                       />
-                    </div>
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="text-sm">{option.variant_label}</div>
-                    </div>
-                    <RadioGroupItem
-                      id={option.product_name}
-                      value={option.product_name}
-                      className="sr-only"
-                    />
-                  </motion.label>
-                )
-              })}
+                    </motion.label>
+                  )
+                })}
             </RadioGroup>
           )}
           <div
@@ -474,17 +478,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
         </div>
       </div>
 
-
-
-
-
-
-
-
-
-
-
-
       {/* mobile */}
       <div className="flex flex-col lg:hidden items-center justify-center w-full gap-4 flex-1">
         {/* images */}
@@ -577,131 +570,135 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             }}
             className="gap-3 w-full flex"
           >
-            {variants.map((option) => {
-              const isSelected = option.product_name === selectedProduct.product_name
-              return (
-                <motion.label
-                  key={option.id}
-                  initial={false}
-                  animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
-                  transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
-                  className={cn(
-                    'relative flex w-full justify-center rounded-md px-3 py-2 font-normal cursor-pointer raised-off-page',
-                    isSelected
-                      ? ' liquid-gold text-white hover:text-white'
-                      : 'bg-card text-neutral-800'
-                  )}
-                >
-                  <div className="absolute top-1 right-1">
-                    <CheckCircle
-                      size={16}
-                      className={cn(
-                        'transition-opacity duration-200 text-white',
-                        isSelected ? 'opacity-100' : 'opacity-0'
-                      )}
+            {[...variants]
+              .sort((a, b) => b.content - a.content)
+              .map((option) => {
+                const isSelected = option.product_name === selectedProduct.product_name
+                return (
+                  <motion.label
+                    key={option.id}
+                    initial={false}
+                    animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
+                    className={cn(
+                      'relative flex w-full justify-center rounded-md px-3 py-2 font-normal cursor-pointer raised-off-page',
+                      isSelected
+                        ? ' liquid-gold text-white hover:text-white'
+                        : 'bg-card text-neutral-800'
+                    )}
+                  >
+                    <div className="absolute top-1 right-1">
+                      <CheckCircle
+                        size={16}
+                        className={cn(
+                          'transition-opacity duration-200 text-white',
+                          isSelected ? 'opacity-100' : 'opacity-0'
+                        )}
+                      />
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="text-sm">{option.variant_label}</div>
+                    </div>
+                    <RadioGroupItem
+                      id={option.product_name}
+                      value={option.product_name}
+                      className="sr-only"
                     />
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="text-sm">{option.variant_label}</div>
-                  </div>
-                  <RadioGroupItem
-                    id={option.product_name}
-                    value={option.product_name}
-                    className="sr-only"
-                  />
-                </motion.label>
-              )
-            })}
+                  </motion.label>
+                )
+              })}
           </RadioGroup>
         )}
 
         {/* cart buttons */}
-        <div className='flex flex-col gap-1 w-full'>
-
- 
-        <div
-          className={cn(
-            'cursor-default secondary-gradient raised-off-page w-full rounded-lg py-1 text-white',
-            quantity === 0 ? 'shine-on-hover' : ''
-          )}
-        >
-          {quantity === 0 ? (
-            <Button
-              variant="ghost"
-              className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
-              onClick={() => {
-                addItem(selectedProduct)
-              }}
-            >
-              Add to Cart
-            </Button>
-          ) : (
-            <div className="flex items-center justify-center">
+        <div className="flex flex-col gap-1 w-full">
+          <div
+            className={cn(
+              'cursor-default secondary-gradient raised-off-page w-full rounded-lg py-1 text-white',
+              quantity === 0 ? 'shine-on-hover' : ''
+            )}
+          >
+            {quantity === 0 ? (
               <Button
                 variant="ghost"
-                className="text-white hover:text-white"
-                onClick={() => {
-                  removeOne(selectedProduct)
-                }}
-              >
-                <Minus size={20} />
-              </Button>
-              <NumberFlow value={quantity} className="text-white text-lg font-semibold" trend={0} />
-              <Button
-                variant="ghost"
-                className="text-white hover:text-white"
+                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
                 onClick={() => {
                   addItem(selectedProduct)
                 }}
               >
-                <Plus size={20} />
+                Add to Cart
               </Button>
-            </div>
-          )}
-        </div>
-        <div
-          className={cn(
-            'cursor-default liquid-gold raised-off-page w-full rounded-lg py-1 text-white',
-            sellQuantity === 0 ? 'shine-on-hover' : ''
-          )}
-        >
-          {sellQuantity === 0 ? (
-            <Button
-              variant="ghost"
-              className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
-              onClick={() =>
-                addSellItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
-              }
-            >
-              Add to Sell Cart
-            </Button>
-          ) : (
-            <div className="flex items-center justify-center">
+            ) : (
+              <div className="flex items-center justify-center">
+                <Button
+                  variant="ghost"
+                  className="text-white hover:text-white"
+                  onClick={() => {
+                    removeOne(selectedProduct)
+                  }}
+                >
+                  <Minus size={20} />
+                </Button>
+                <NumberFlow
+                  value={quantity}
+                  className="text-white text-lg font-semibold"
+                  trend={0}
+                />
+                <Button
+                  variant="ghost"
+                  className="text-white hover:text-white"
+                  onClick={() => {
+                    addItem(selectedProduct)
+                  }}
+                >
+                  <Plus size={20} />
+                </Button>
+              </div>
+            )}
+          </div>
+          <div
+            className={cn(
+              'cursor-default liquid-gold raised-off-page w-full rounded-lg py-1 text-white',
+              sellQuantity === 0 ? 'shine-on-hover' : ''
+            )}
+          >
+            {sellQuantity === 0 ? (
               <Button
                 variant="ghost"
-                className="text-white hover:text-white"
-                onClick={() => removeOneSell({ type: 'product', data: selectedProduct })}
-              >
-                <Minus size={20} />
-              </Button>
-              <NumberFlow
-                value={sellQuantity}
-                className="text-white text-lg font-semibold"
-                trend={0}
-              />
-              <Button
-                variant="ghost"
-                className="text-white hover:text-white"
+                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
                 onClick={() =>
                   addSellItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
                 }
               >
-                <Plus size={20} />
+                Add to Sell Cart
               </Button>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center justify-center">
+                <Button
+                  variant="ghost"
+                  className="text-white hover:text-white"
+                  onClick={() => removeOneSell({ type: 'product', data: selectedProduct })}
+                >
+                  <Minus size={20} />
+                </Button>
+                <NumberFlow
+                  value={sellQuantity}
+                  className="text-white text-lg font-semibold"
+                  trend={0}
+                />
+                <Button
+                  variant="ghost"
+                  className="text-white hover:text-white"
+                  onClick={() =>
+                    addSellItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
+                  }
+                >
+                  <Plus size={20} />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
-               </div>
 
         {/* accordions */}
         <div className="flex flex-col gap-2 w-full">
