@@ -23,7 +23,9 @@ const ADMIN_PRODUCT_FIELDS = `
   quantity,
   slug,
   legal_tender,
-  domestic_tender
+  domestic_tender,
+  is_generic,
+  variant_label
 `;
 
 const ADMIN_PRODUCT_FIELDS_WITH_ALIAS = `
@@ -51,7 +53,9 @@ const ADMIN_PRODUCT_FIELDS_WITH_ALIAS = `
   p.quantity,
   p.slug,
   p.legal_tender,
-  p.domestic_tender
+  p.domestic_tender,
+  p.is_generic,
+  p.variant_label
 `;
 
 module.exports = { ADMIN_PRODUCT_FIELDS, ADMIN_PRODUCT_FIELDS_WITH_ALIAS };

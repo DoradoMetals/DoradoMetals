@@ -1,4 +1,4 @@
-import { useAllProducts } from '@/lib/queries/useProducts'
+import { useSellProducts } from '@/lib/queries/useProducts'
 import { useState } from 'react'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import fuzzysort from 'fuzzysort'
@@ -8,10 +8,15 @@ import BullionCard from './bullionCard'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { Switch } from '@/components/ui/switch'
 
 export default function BullionTab() {
-  const { data: bullionProducts = [], isLoading } = useAllProducts()
+  const { data: bullionProducts = [] } = useSellProducts()
   const [input, setInput] = useState('')
+  const [showGenerics, setShowGenerics] = useState(false)
+
+  const isInputActive = input !== ''
+  const isShowAll = isInputActive || showGenerics
 
   const metalOptions = ['Gold', 'Silver', 'Platinum', 'Palladium']
   const [selectedMetal, setSelectedMetal] = useState('All')
@@ -38,12 +43,28 @@ export default function BullionTab() {
         .map((r) => r.obj)
     : filtered
 
+  const displayedBullion = isShowAll
+    ? filteredBullion
+    : filteredBullion.filter((group) => group.default.is_generic)
+
   const handleClear = () => {
     setInput('')
   }
 
   return (
-    <div className="relative flex flex-col gap-4 mt-8 mb-8 w-full">
+    <div className="relative flex flex-col gap-2 mt-8 mb-8 w-full">
+      <div className="flex items-center justify-between w-full gap-2">
+        <label htmlFor="show-generics" className="text-sm font-medium text-neutral-700">
+          Show All Products
+        </label>
+        <Switch
+          id="show-generics"
+          checked={isShowAll}
+          onCheckedChange={(val) => setShowGenerics(val)}
+          disabled={isInputActive}
+        />
+      </div>
+
       <RadioGroup
         value={selectedMetal}
         onValueChange={(val) => {
@@ -62,8 +83,8 @@ export default function BullionTab() {
               transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
               onClick={(e) => {
                 if (isSelected) {
-                  e.preventDefault() // 👈 prevents Radix from swallowing the click
-                  setSelectedMetal('All') // 👈 deselects
+                  e.preventDefault() // prevents Radix from swallowing the click
+                  setSelectedMetal('All')
                 }
               }}
               className={cn(
@@ -81,6 +102,7 @@ export default function BullionTab() {
           )
         })}
       </RadioGroup>
+
       <div className="relative w-full mt-4">
         <FloatingLabelInput
           label="Search Products"
@@ -89,7 +111,7 @@ export default function BullionTab() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />
-        {input !== '' && (
+        {input && (
           <Button
             variant="ghost"
             onClick={handleClear}
@@ -100,8 +122,9 @@ export default function BullionTab() {
           </Button>
         )}
       </div>
+
       <div className="flex flex-col gap-6 sm:gap-8 mt-4">
-        {filteredBullion.map((group) => (
+        {displayedBullion.map((group) => (
           <BullionCard key={group.default.id} product={group.default} variants={group.variants} />
         ))}
       </div>

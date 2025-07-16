@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { ozOptions, Product } from '@/types/product'
+import { Product } from '@/types/product'
 import { Button } from '@/components/ui/button'
 import { CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
@@ -43,7 +43,6 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
 
   const spot = spotPrices.find((s) => s.type === selectedProduct.metal_type)
   const price = getProductBidPrice(selectedProduct, spot)
-  const weightOptions = ozOptions[product.variant_group]
 
   const overOrUnder = getProductBidOverUnderSpot(selectedProduct, spot)
   const isOver = overOrUnder >= 0
@@ -177,7 +176,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
             )}
           </AnimatePresence>
 
-          {variants.length > 0 && weightOptions && (
+          {variants.length > 0 && (
             <div className="mt-auto">
               <RadioGroup
                 value={selectedProduct.product_name}
@@ -198,25 +197,24 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                     </Button>
                   }
                 >
-                  {weightOptions.map((option) => {
-                    const isSelected = selectedProduct.product_name === option.name
+                  {variants.map((option) => {
+                    const isSelected = selectedProduct.product_name === option.product_name
 
                     return (
-                      <BullionFloatingButtonItem key={option.name}>
+                      <BullionFloatingButtonItem key={option.id}>
                         <label
-                          htmlFor={option.value}
+                          htmlFor={option.product_name}
                           className={cn(
                             'h-5.5 sm:h-7 md:h-8.5 lg:h-9 w-8 xs:w-12 sm:w-14 rounded-lg flex items-center justify-center text-xs cursor-pointer border text-neutral-900 raised-off-page',
                             isSelected && 'liquid-gold text-white'
                           )}
                         >
                           <RadioGroupItem
-                            id={option.value}
-                            value={option.name}
+                            id={option.product_name}
+                            value={option.product_name}
                             className="sr-only"
-                            disabled={option.disabled}
                           />
-                          {option.value}
+                          {option.variant_label}
                         </label>
                       </BullionFloatingButtonItem>
                     )

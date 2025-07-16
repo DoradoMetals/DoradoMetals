@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { ozOptions, Product } from '@/types/product'
+import { Product } from '@/types/product'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
@@ -50,7 +50,6 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
   const spot = spotPrices.find((s) => s.type === product.metal_type)
   const price = getProductPrice(selectedProduct, spot)
-  const weightOptions = ozOptions[product.variant_group]
 
   const overOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
   return (
@@ -158,7 +157,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
       <div className="relative h-4/5 bg-card rounded-lg rounded-b-xl -mt-10 flex flex-col justify-end border-2 border-secondary raised-off-page">
         <div className="flex items-end justify-between w-full px-3 pr-5 pb-2">
-          {variants.length > 0 && weightOptions && (
+          {variants.length > 0 && (
             <RadioGroup
               value={selectedProduct.product_name}
               onValueChange={(val) => {
@@ -182,22 +181,21 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                   </Button>
                 }
               >
-                {weightOptions.map((option) => (
-                  <FloatingButtonItem key={option.name}>
+                {variants.map((option) => (
+                  <FloatingButtonItem key={option.id}>
                     <label
-                      htmlFor={option.value}
+                      htmlFor={option.product_name}
                       className="h-8 w-10 xs:w-14 sm:w-15 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:border-secondary has-[[data-state=checked]]:text-white text-neutral-900"
                       onClick={(e) => {
                         e.stopPropagation()
                       }}
                     >
                       <RadioGroupItem
-                        id={option.value}
-                        value={option.name}
+                        id={option.product_name}
+                        value={option.product_name}
                         className="sr-only"
-                        disabled={option.disabled}
                       />
-                      {option.value}
+                      {option.variant_label}
                     </label>
                   </FloatingButtonItem>
                 ))}

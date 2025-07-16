@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { ozOptions, Product } from '@/types/product'
+import { Product } from '@/types/product'
 import { Button } from '@/components/ui/button'
 import { ChevronDown, Equal, Minus, Plus, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
@@ -64,7 +64,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   const { data: spotPrices = [] } = useSpotPrices()
 
   const spot = spotPrices.find((s) => s.type === product.metal_type)
-  const weightOptions = ozOptions[product.variant_group]
 
   const askOverOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
     const bidOverOrUnder = getProductBidOverUnderSpot(selectedProduct, spot)
@@ -136,7 +135,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </motion.div>
             </AnimatePresence>
           </div>
-          {variants.length > 0 && weightOptions && (
+          {variants.length > 0 && (
             <RadioGroup
               value={selectedProduct.product_name}
               onValueChange={(val) => {
@@ -145,11 +144,11 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               }}
               className="gap-3 w-full flex"
             >
-              {weightOptions.map((option) => {
-                const isSelected = option.name === selectedProduct.product_name
+              {variants.map((option) => {
+                const isSelected = option.product_name === selectedProduct.product_name
                 return (
                   <motion.label
-                    key={option.name}
+                    key={option.id}
                     initial={false}
                     animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
                     transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
@@ -170,13 +169,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       />
                     </div>
                     <div className="flex flex-col items-center gap-2">
-                      <div className="text-sm">{option.value}</div>
+                      <div className="text-sm">{option.variant_label}</div>
                     </div>
                     <RadioGroupItem
-                      id={option.value}
-                      value={option.name}
+                      id={option.product_name}
+                      value={option.product_name}
                       className="sr-only"
-                      disabled={option.disabled}
                     />
                   </motion.label>
                 )
@@ -570,7 +568,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
         </div>
 
         {/* variant radio group */}
-        {variants.length > 0 && weightOptions && (
+        {variants.length > 0 && (
           <RadioGroup
             value={selectedProduct.product_name}
             onValueChange={(val) => {
@@ -579,11 +577,11 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             }}
             className="gap-3 w-full flex"
           >
-            {weightOptions.map((option) => {
-              const isSelected = option.name === selectedProduct.product_name
+            {variants.map((option) => {
+              const isSelected = option.product_name === selectedProduct.product_name
               return (
                 <motion.label
-                  key={option.name}
+                  key={option.id}
                   initial={false}
                   animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
                   transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
@@ -604,13 +602,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     />
                   </div>
                   <div className="flex flex-col items-center gap-2">
-                    <div className="text-sm">{option.value}</div>
+                    <div className="text-sm">{option.variant_label}</div>
                   </div>
                   <RadioGroupItem
-                    id={option.value}
-                    value={option.name}
+                    id={option.product_name}
+                    value={option.product_name}
                     className="sr-only"
-                    disabled={option.disabled}
                   />
                 </motion.label>
               )

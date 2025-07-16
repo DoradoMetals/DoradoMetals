@@ -14,7 +14,9 @@ const PRODUCT_FIELDS = `
   shadow_offset,
   slug,
   legal_tender,
-  domestic_tender
+  domestic_tender,
+  is_generic,
+  variant_label
 `;
 
 const PRODUCT_FIELDS_WITH_ALIAS = `
@@ -33,7 +35,9 @@ const PRODUCT_FIELDS_WITH_ALIAS = `
   p.shadow_offset,
   p.slug,
   p.legal_tender,
-  p.domestic_tender
+  p.domestic_tender,
+  p.is_generic,
+  p.variant_label
 `;
 
 module.exports = { PRODUCT_FIELDS, PRODUCT_FIELDS_WITH_ALIAS };
