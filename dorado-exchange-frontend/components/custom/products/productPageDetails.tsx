@@ -20,7 +20,13 @@ import 'swiper/css/pagination'
 import { cn } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
 import getProductAskOverUnderSpot from '@/utils/getProductAskOverUnderSpot'
-import { CheckCircle, Circle, Clock, ShieldCheck, Tag } from '@phosphor-icons/react'
+import {
+  CheckCircleIcon,
+  CircleIcon,
+  ClockIcon,
+  ShieldCheckIcon,
+  TagIcon,
+} from '@phosphor-icons/react'
 import { sellCartStore } from '@/store/sellCartStore'
 import { Lens } from '@/components/ui/lens'
 import { paymentOptions, salesOrderServiceOptions } from '@/types/sales-orders'
@@ -46,6 +52,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
     buyback: false,
     shipping: false,
     payment: false,
+    specs: false,
   })
 
   const items = cartStore((state) => state.items)
@@ -133,6 +140,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
                     alt="Selected product view"
                   />
+                  <div className="absolute bottom-0 left-1 flex justify-start section-label p-2">
+                    {selectedImage === selectedProduct.image_front ? 'Obverse' : 'Reverse'}
+                  </div>
                 </Lens>
               </motion.div>
             </AnimatePresence>
@@ -164,7 +174,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       )}
                     >
                       <div className="absolute top-1 right-1">
-                        <CheckCircle
+                        <CheckCircleIcon
                           size={16}
                           className={cn(
                             'transition-opacity duration-200 text-white',
@@ -187,14 +197,14 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           )}
           <div
             className={cn(
-              'cursor-default secondary-gradient raised-off-page w-full rounded-lg py-2 text-white',
+              'cursor-default secondary-gradient raised-off-page w-full rounded-lg py-1 text-white',
               quantity === 0 ? 'shine-on-hover' : ''
             )}
           >
             {quantity === 0 ? (
               <Button
                 variant="ghost"
-                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
+                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white text-base"
                 onClick={() => {
                   addItem(selectedProduct)
                 }}
@@ -231,14 +241,14 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           </div>
           <div
             className={cn(
-              'cursor-default liquid-gold raised-off-page w-full rounded-lg py-2 text-white',
+              'cursor-default liquid-gold raised-off-page w-full rounded-lg py-1 text-white',
               sellQuantity === 0 ? 'shine-on-hover' : ''
             )}
           >
             {sellQuantity === 0 ? (
               <Button
                 variant="ghost"
-                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
+                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white text-base"
                 onClick={() =>
                   addSellItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
                 }
@@ -425,15 +435,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="separator-inset" />
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <ShieldCheck color={getPrimaryIconStroke()} size={20} />
+                    <ShieldCheckIcon color={getPrimaryIconStroke()} size={20} />
                     Every shipment is fully insured.
                   </div>
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <Clock color={getPrimaryIconStroke()} size={20} />
+                    <ClockIcon color={getPrimaryIconStroke()} size={20} />
                     Ships the same day we receive your payment.
                   </div>
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <Tag color={getPrimaryIconStroke()} size={20} />
+                    <TagIcon color={getPrimaryIconStroke()} size={20} />
                     Free shipping for orders over $1000.
                   </div>
                 </div>
@@ -444,17 +454,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               open={open.payment}
               toggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
             >
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col">
                 {paymentOptions
-                  .filter((payment) => payment.disabled)
+                  .filter((payment) => !payment.disabled)
                   .map((payment, index) => {
                     const Icon = payment.icon
                     return (
                       <div
                         key={index}
                         className={cn(
-                          'flex flex-col items-start gap-1',
-                          index !== paymentOptions.length - 1 && 'border-b border-border'
+                          'flex flex-col items-start gap-1 py-2',
+                          index !== paymentOptions.length - 1
+                            ? 'border-b border-border pt-0'
+                            : 'pb-0'
                         )}
                       >
                         <div className="flex w-full gap-2 items-center">
@@ -462,16 +474,42 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                             <Icon color={getPrimaryIconStroke()} size={20} />
                             <div className="text-base text-neutral-800">{payment.label}</div>
                           </div>
-                          <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1">
+                          <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1 pl-4">
                             <span className="text-left">{payment.time_delay}</span>
-                            <Circle size={6} weight="fill" className="text-neutral-300" />
+                            <CircleIcon size={6} weight="fill" className="text-neutral-300" />
                             <span className="text-right">{payment.subcharge}</span>
                           </div>
                         </div>
-                        <div className="text-sm text-neutral-800 pb-2">{payment.description}</div>
+                        <div className="text-sm text-neutral-600">{payment.description}</div>
                       </div>
                     )
                   })}
+              </div>
+            </Accordion>
+            <Accordion
+              label={`Product Specifications`}
+              open={open.specs}
+              toggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}
+            >
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex items-center w-full justify-between">
+                  <div className="text-sm text-neutral-800">Weight (troy oz):</div>
+                  <div className="text-sm text-neutral-600">{selectedProduct.gross.toFixed(4)}</div>
+                </div>
+                <div className="flex items-center w-full justify-between">
+                  <div className="text-sm text-neutral-800">Purity:</div>
+                  <div className="text-sm text-neutral-600">
+                    {selectedProduct.purity.toFixed(4)}
+                  </div>
+                </div>
+                <div className="flex items-center w-full justify-between">
+                  <div className="text-sm text-neutral-800">
+                    {selectedProduct.metal_type} Content:
+                  </div>
+                  <div className="text-sm text-neutral-600">
+                    {selectedProduct.content.toFixed(4)}
+                  </div>
+                </div>
               </div>
             </Accordion>
           </div>
@@ -480,7 +518,26 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
       {/* mobile */}
       <div className="flex flex-col lg:hidden items-center justify-center w-full gap-4 flex-1">
-        {/* images */}
+        <div className="bg-card rounded-lg raised-off-page p-4 flex flex-col gap-4 w-full">
+          <div className="flex flex-col w-full">
+            <h1 className="text-2xl text-neutral-800">{selectedProduct.product_name}</h1>
+            <div className="text-sm text-neutral-700">{selectedProduct.mint_name}</div>
+          </div>
+          <div className="flex w-full justify-between items-center">
+            <div className="flex flex-col items-start gap-0">
+              <div className="text-sm text-neutral-700">Price:</div>
+              <div className="text-xl text-neutral-800">
+                <PriceNumberFlow value={price} />
+              </div>
+            </div>
+            <div className="flex flex-col items-start gap-0">
+              <div className="text-sm text-neutral-700">Buyback:</div>
+              <div className="text-xl text-neutral-800">
+                <PriceNumberFlow value={buybackPrice} />
+              </div>
+            </div>
+          </div>
+        </div>
         <div className="flex flex-col gap-3 w-full">
           <div className="flex relative aspect-square bg-card raised-off-page rounded-lg h-full w-full">
             <AnimatePresence mode="wait">
@@ -501,6 +558,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     alt="Selected product view"
                   />
                 </Lens>
+                <div className="absolute bottom-0 left-1 flex justify-start section-label p-2">
+                  {selectedImage === selectedProduct.image_front ? 'Obverse' : 'Reverse'}
+                </div>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -538,29 +598,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           </div>
         </div>
 
-        {/* name and pricing */}
-        <div className="bg-card rounded-lg raised-off-page p-4 flex flex-col gap-4 w-full">
-          <div className="flex flex-col w-full">
-            <h1 className="text-2xl text-neutral-800">{selectedProduct.product_name}</h1>
-            <div className="text-sm text-neutral-700">{selectedProduct.mint_name}</div>
-          </div>
-          <div className="flex w-full justify-between items-center">
-            <div className="flex flex-col items-start gap-0">
-              <div className="text-sm text-neutral-700">Price:</div>
-              <div className="text-xl text-neutral-800">
-                <PriceNumberFlow value={price} />
-              </div>
-            </div>
-            <div className="flex flex-col items-start gap-0">
-              <div className="text-sm text-neutral-700">Buyback:</div>
-              <div className="text-xl text-neutral-800">
-                <PriceNumberFlow value={buybackPrice} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* variant radio group */}
         {variants.length > 0 && (
           <RadioGroup
             value={selectedProduct.product_name}
@@ -588,7 +625,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     )}
                   >
                     <div className="absolute top-1 right-1">
-                      <CheckCircle
+                      <CheckCircleIcon
                         size={16}
                         className={cn(
                           'transition-opacity duration-200 text-white',
@@ -833,15 +870,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="separator-inset" />
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <ShieldCheck color={getPrimaryIconStroke()} size={20} />
+                    <ShieldCheckIcon color={getPrimaryIconStroke()} size={20} />
                     Every shipment is fully insured.
                   </div>
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <Clock color={getPrimaryIconStroke()} size={20} />
+                    <ClockIcon color={getPrimaryIconStroke()} size={20} />
                     Ships the same day we receive your payment.
                   </div>
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <Tag color={getPrimaryIconStroke()} size={20} />
+                    <TagIcon color={getPrimaryIconStroke()} size={20} />
                     Free shipping for orders over $1000.
                   </div>
                 </div>
@@ -852,17 +889,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               open={open.payment}
               toggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
             >
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col">
                 {paymentOptions
-                  .filter((payment) => payment.disabled)
+                  .filter((payment) => !payment.disabled)
                   .map((payment, index) => {
                     const Icon = payment.icon
                     return (
                       <div
                         key={index}
                         className={cn(
-                          'flex flex-col items-start gap-1',
-                          index !== paymentOptions.length - 1 && 'border-b border-border'
+                          'flex flex-col items-start gap-1 py-2',
+                          index !== paymentOptions.length - 1
+                            ? 'border-b border-border pt-0'
+                            : 'pb-0'
                         )}
                       >
                         <div className="flex w-full gap-2 items-center">
@@ -870,16 +909,42 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                             <Icon color={getPrimaryIconStroke()} size={20} />
                             <div className="text-base text-neutral-800">{payment.label}</div>
                           </div>
-                          <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1">
+                          <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1 pl-4">
                             <span className="text-left">{payment.time_delay}</span>
-                            <Circle size={6} weight="fill" className="text-neutral-300" />
+                            <CircleIcon size={6} weight="fill" className="text-neutral-300" />
                             <span className="text-right">{payment.subcharge}</span>
                           </div>
                         </div>
-                        <div className="text-sm text-neutral-800 pb-2">{payment.description}</div>
+                        <div className="text-sm text-neutral-600">{payment.description}</div>
                       </div>
                     )
                   })}
+              </div>
+            </Accordion>
+            <Accordion
+              label={`Product Specifications`}
+              open={open.specs}
+              toggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}
+            >
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex items-center w-full justify-between">
+                  <div className="text-sm text-neutral-800">Weight (troy oz):</div>
+                  <div className="text-sm text-neutral-600">{selectedProduct.gross.toFixed(4)}</div>
+                </div>
+                <div className="flex items-center w-full justify-between">
+                  <div className="text-sm text-neutral-800">Purity:</div>
+                  <div className="text-sm text-neutral-600">
+                    {selectedProduct.purity.toFixed(4)}
+                  </div>
+                </div>
+                <div className="flex items-center w-full justify-between">
+                  <div className="text-sm text-neutral-800">
+                    {selectedProduct.metal_type} Content:
+                  </div>
+                  <div className="text-sm text-neutral-600">
+                    {selectedProduct.content.toFixed(4)}
+                  </div>
+                </div>
               </div>
             </Accordion>
           </div>
@@ -922,7 +987,7 @@ function Accordion({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden will-change-transform"
           >
-            <div className="p-2 pr-9">{children}</div>
+            <div className="p-2">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
