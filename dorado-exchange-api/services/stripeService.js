@@ -47,8 +47,6 @@ async function createPaymentIntent(type, session) {
     automatic_payment_methods: { enabled: true },
   });
 
-  console.log(paymentIntent.payment_method_types)
-
   await stripeRepo.createPaymentIntent(paymentIntent, type, session);
   return paymentIntent;
 }

@@ -9,6 +9,7 @@ async function retrievePaymentIntent(type, session) {
     AND type = $3
     AND payment_status != 'succeeded'
     AND payment_status != 'processing'
+    AND payment_status != 'canceled'
   `;
   const values = [session.session.id, session.user.id, type];
   const { rows } = await pool.query(query, values);
@@ -21,14 +22,14 @@ async function createPaymentIntent(payment_intent, type, session) {
     session_id,
     user_id,
     type,
+    payment_status,
     payment_intent_id
   )
   VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, $5
   )
-  ON CONFLICT DO NOTHING
   `;
-  const values = [session.session.id, session.user.id, type, payment_intent.id];
+  const values = [session.session.id, session.user.id, type, payment_intent.status, payment_intent.id];
   await pool.query(query, values);
 }
 

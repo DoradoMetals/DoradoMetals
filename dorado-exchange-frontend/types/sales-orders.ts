@@ -210,7 +210,7 @@ export const paymentOptions: PaymentMethod[] = [
     description: 'Pay directly from your bank account via secure ACH debit.',
     icon: BankIcon,
     subcharge: '0.5% surcharge',
-    time_delay: '1–3 business days',
+    time_delay: '1-3 business days',
     disabled: false,
     value: 'ach',
     display: true,
@@ -235,7 +235,7 @@ export const paymentOptions: PaymentMethod[] = [
     subcharge: 'Free',
     time_delay: '1-2 business days',
     disabled: true,
-    value: 'wire',
+    value: 'us_domestic_wire',
     display: false,
   },
   {
