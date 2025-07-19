@@ -36,7 +36,7 @@ export function calculateSalesOrderPrices(
 
   let postChargesAmount = subjectToChargesAmount
   let subchargeAmount = 0
-  if (paymentMethod !== 'FUNDS') {
+  if (paymentMethod !== 'CREDIT') {
     postChargesAmount += calculateCardCharge(subjectToChargesAmount)
     subchargeAmount = postChargesAmount - subjectToChargesAmount
   }

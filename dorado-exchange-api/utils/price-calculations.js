@@ -160,7 +160,7 @@ function calculateSalesOrderTotal(
 
   let post_charges_amount = subject_to_charges_amount;
   let charges_amount = 0;
-  if (payment_method !== "FUNDS") {
+  if (payment_method !== "CREDIT") {
     charges_amount = calculateCardCharge(subject_to_charges_amount);
     post_charges_amount += charges_amount;
   }
