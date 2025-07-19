@@ -14,13 +14,13 @@ export interface Product {
   image_back: string
   quantity?: number
   mint_name: string
-  price: number
+  price?: number
   metal_type: string
   variant_group: string
   shadow_offset: number
-  slug: string
-  legal_tender: boolean
-  domestic_tender: boolean
+  slug?: string
+  legal_tender?: boolean
+  domestic_tender?: boolean
   sell_display: boolean,
   is_generic: boolean
   variant_label?: string

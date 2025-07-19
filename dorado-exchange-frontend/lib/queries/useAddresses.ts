@@ -18,6 +18,19 @@ export const useAddress = () => {
   })
 }
 
+export const useUserAddress = (user_id: string) => {
+  return useQuery<Address[]>({
+    queryKey: ['address', user_id],
+    queryFn: async () => {
+      if (!user_id) return []
+      return await apiRequest<Address[]>('GET', '/addresses/get_addresses', undefined, {
+        user_id: user_id,
+      })
+    },
+    enabled: !!user_id,
+  })
+}
+
 export const useUpdateAddress = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()

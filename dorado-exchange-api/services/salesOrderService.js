@@ -101,10 +101,6 @@ async function createSalesOrder(
     }
     await client.query("COMMIT");
 
-    if (orderPrices.post_charges_amount > 0) {
-      await stripeService.capturePaymentIntent(payment_intent_id);
-    }
-
     return await getById(orderId);
   } catch (err) {
     await client.query("ROLLBACK");

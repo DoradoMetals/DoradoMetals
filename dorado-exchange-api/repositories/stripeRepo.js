@@ -8,6 +8,7 @@ async function retrievePaymentIntent(type, session) {
     AND user_id = $2
     AND type = $3
     AND payment_status != 'succeeded'
+    AND payment_status != 'processing'
   `;
   const values = [session.session.id, session.user.id, type];
   const { rows } = await pool.query(query, values);

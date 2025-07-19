@@ -54,7 +54,7 @@ export const useGetSalesOrderPaymentIntent = (sales_order_id: string) => {
   const { user } = useGetSession()
 
   return useQuery<PaymentIntent>({
-    queryKey: ['payment_intent', user?.id],
+    queryKey: ['admin_pending_payment_intent', user?.id, sales_order_id],
     queryFn: async () => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<PaymentIntent>(
@@ -70,20 +70,21 @@ export const useGetSalesOrderPaymentIntent = (sales_order_id: string) => {
   })
 }
 
-export const useCancelPaymentIntent = () => {
+export const useCancelPaymentIntent = (sales_order_id: string) => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (sales_order_id) => {
+    mutationFn: async (payment_intent_id: string) => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<string>('POST', '/stripe/cancel_payment_intent', {
-        sales_order_id: sales_order_id,
+        payment_intent_id: payment_intent_id,
       })
     },
+
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ['payment_intent', user?.id],
+        queryKey: ['admin_pending_payment_intent', user?.id, sales_order_id],
         refetchType: 'active',
       })
     },

@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'
 import { useUpdateCredit } from '@/lib/queries/admin/useAdminUser'
 import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { CreateSalesOrderDrawer } from '../salesOrdersPoS/createSalesOrder/createSalesOrderDrawer'
 
 export default function AdminUsersDrawer({
   users,
@@ -57,6 +58,10 @@ export default function AdminUsersDrawer({
         <div className="separator-inset" />
 
         <UserActions user={user} />
+
+        <div className="separator-inset" />
+
+        <UserOrders user={user} />
       </div>
     </Drawer>
   )
@@ -173,11 +178,12 @@ function DoradoCredit({ user }: { user: AdminUser }) {
               >
                 <div
                   className={cn(
-                    'flex items-center gap-1', mode === m.value ? 'text-white hover:text-white' : 'text-primary-gradient'
+                    'flex items-center gap-1',
+                    mode === m.value ? 'text-white hover:text-white' : 'text-primary-gradient'
                   )}
                 >
                   {m.label}
-                  <Icon size={20} color={mode === m.value ? 'white' : getPrimaryIconStroke()}/>
+                  <Icon size={20} color={mode === m.value ? 'white' : getPrimaryIconStroke()} />
                 </div>
                 <RadioGroupItem id={m.value} value={m.value} className="sr-only" />
               </label>
@@ -244,13 +250,25 @@ function UserActions({ user }: { user: AdminUser }) {
           {requestPasswordReset.isPending ? 'Sending...' : 'Send Password Reset'}
         </div>
       </Button>
+    </div>
+  )
+}
 
-      {/* <Button
+function UserOrders({ user }: { user: AdminUser }) {
+  const { openDrawer, setCreateSalesOrderUser } = useDrawerStore()
+  return (
+    <div className="flex flex-col gap-2 w-full items-start items-stretch">
+      <div className="section-label mb-2">Orders</div>
+      <Button
         variant="default"
-        className="w-full raised-off-page text-white bg-destructive hover:bg-destructive"
+        className="w-full liquid-gold raised-off-page text-white"
+        onClick={() => {
+          setCreateSalesOrderUser(user)
+          openDrawer('createSalesOrder')
+        }}
       >
-        Delete User
-      </Button> */}
+        Create Sales Order
+      </Button>
     </div>
   )
 }

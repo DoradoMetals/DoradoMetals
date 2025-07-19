@@ -40,12 +40,14 @@ async function createPaymentIntent(type, session) {
   }
 
   const paymentIntent = await stripeClient.paymentIntents.create({
-    amount: 50,
+    amount: 100,
     currency: "usd",
     customer: customerId,
-    capture_method: "manual",
+    capture_method: "automatic",
     automatic_payment_methods: { enabled: true },
   });
+
+  console.log(paymentIntent.payment_method_types)
 
   await stripeRepo.createPaymentIntent(paymentIntent, type, session);
   return paymentIntent;
@@ -124,7 +126,7 @@ async function capturePaymentIntent(payment_intent_id) {
   }
 }
 
-async function cancelPaymentIntent(payment_intent_id) {
+async function cancelPaymentIntent({payment_intent_id}) {
   try {
     const paymentIntent = await stripeClient.paymentIntents.cancel(
       payment_intent_id

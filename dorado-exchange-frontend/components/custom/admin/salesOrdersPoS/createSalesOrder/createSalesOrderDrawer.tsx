@@ -1,0 +1,379 @@
+'use client'
+
+import { useUserAddress } from '@/lib/queries/useAddresses'
+import { User } from '@/types/user'
+import { Address } from '@/types/address'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useDrawerStore } from '@/store/drawerStore'
+import { AdminAddressCarousel } from './selectSalesOrderAddress'
+import Drawer from '@/components/ui/drawer'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { cn } from '@/lib/utils'
+
+import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
+import { adminSalesOrderServiceOptions } from '@/types/sales-orders'
+import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
+import { useAdminSalesOrderCheckoutStore } from '@/store/adminSalesOrderCheckoutStore'
+import { useProducts } from '@/lib/queries/useProducts'
+import { SearchableDropdown } from '@/components/ui/input-dropdown-search'
+import { Product } from '@/types/product'
+import Image from 'next/image'
+import { useSpotPrices } from '@/lib/queries/useSpotPrices'
+import { Minus, Plus, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import getProductPrice from '@/utils/getProductPrice'
+import NumberFlow from '@number-flow/react'
+import { SpotPrice } from '@/types/metal'
+import { useEffect, useState } from 'react'
+import { Input } from '@/components/ui/input'
+import { LockIcon, LockOpenIcon } from '@phosphor-icons/react'
+
+export function CreateSalesOrderDrawer() {
+  const { activeDrawer, closeDrawer, createSalesOrderUser } = useDrawerStore()
+  const isDrawerOpen = activeDrawer === 'createSalesOrder'
+  const { data: spotPrices = [] } = useSpotPrices()
+
+  const { data, setData } = useAdminSalesOrderCheckoutStore()
+
+  const [spotsLocked, setSpotsLocked] = useState(false)
+
+  const selectedUser = createSalesOrderUser
+  const { data: addresses = [], isLoading } = useUserAddress(selectedUser?.id ?? '')
+
+  useEffect(() => {
+    if (spotPrices.length > 0 && !spotsLocked) {
+      setData({
+        order_metals: spotPrices,
+      })
+    }
+  }, [spotPrices, spotsLocked])
+
+  return (
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer} anchor="left">
+      <div className="flex flex-col flex-1 h-full gap-6 p-4 overflow-y-scroll sm:overflow-y-auto pb-30 sm:pb-5 bg-background w-full">
+        <div className="flex items-end w-full justify-between">
+          <div className="section-label">Create Sales Order</div>
+          <div className="text-base text-neutral-800">{selectedUser?.name}</div>
+        </div>
+        <div className="separator-inset" />
+
+        <div className="flex flex-col gap-2 items-start">
+          <div className="flex w-full justify-between items-center mb-2">
+            <div className="text-xs tracking-widest text-neutral-600">Order Spots</div>
+            <Button
+              variant="link"
+              className="text-primary-gradient p-0 font-normal text-sm h-4 hover:bg-transparent"
+              onClick={() => setSpotsLocked((prev) => !prev)}
+            >
+              {spotsLocked ? (
+                <div className="flex gap-1 items-center">
+                  Unlock Spots
+                  <LockOpenIcon size={16} color={getPrimaryIconStroke()} />
+                </div>
+              ) : (
+                <div className="flex gap-1 items-center">
+                  Lock Spots
+                  <LockIcon size={16} color={getPrimaryIconStroke()} />
+                </div>
+              )}
+            </Button>
+          </div>
+
+          <SpotSelector spotsLocked={spotsLocked} />
+        </div>
+        <div className="separator-inset" />
+
+        <div className="flex flex-col gap-2 items-start">
+          <div className="section-label">Products</div>
+          <ProductSelector />
+        </div>
+        <div className="separator-inset" />
+
+        <div className="flex flex-col gap-2 items-start w-full">
+          <div className="section-label">Address</div>
+          <AddressSelect user={selectedUser} addresses={addresses} isLoading={isLoading} />
+        </div>
+        <div className="separator-inset" />
+
+        <div className="flex flex-col gap-2 items-start">
+          <div className="section-label">Shipping</div>
+          <ServiceSelector />
+        </div>
+        <div className="separator-inset" />
+      </div>
+    </Drawer>
+  )
+}
+
+export function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
+  const { data, setData } = useAdminSalesOrderCheckoutStore()
+  const spots = data.order_metals ?? []
+
+  const updateSpot = (spot: SpotPrice, new_spot: number) => {
+    const updated = spots.map((s) => (s.id === spot.id ? { ...s, ask_spot: new_spot } : s))
+    setData({ order_metals: updated })
+  }
+
+  return (
+    <div className="grid grid-cols-2 w-full gap-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+      {spots.map((spot) => (
+        <div key={spot.id} className="flex flex-col w-full">
+          <div className="flex items-center justify-between w-full text-sm text-neutral-700">
+            {spot.type}
+          </div>
+
+          <div className="flex items-center gap-1 w-full">
+            <Input
+              type="number"
+              pattern="[0-9]*"
+              inputMode="decimal"
+              readOnly={!spotsLocked}
+              className={cn(
+                'input-floating-label-form no-spinner text-center w-full text-base h-8',
+                !spotsLocked && 'cursor-not-allowed'
+              )}
+              value={spot?.ask_spot ?? ''}
+              onChange={(e) => updateSpot(spot, Number(e.target.value))}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function ProductSelector() {
+  const { data: products = [] } = useProducts()
+  const { data, setData } = useAdminSalesOrderCheckoutStore()
+  const spots = data.order_metals ?? []
+  const items = data.items ?? []
+
+  const handleSelect = (product: Product) => {
+    setData({
+      items: [...(data.items ?? []), product],
+    })
+  }
+
+  function addItem(item: Product) {
+    const existing = data.items ?? []
+    const found = existing.find((i) => i.id === item.id)
+    if (found) {
+      setData({
+        items: existing.map((i) =>
+          i.id === item.id ? { ...i, quantity: (i.quantity ?? 1) + 1 } : i
+        ),
+      })
+    } else {
+      setData({
+        items: [...existing, { ...item, quantity: 1 }],
+      })
+    }
+  }
+
+  function removeOne(item: Product) {
+    const existing = data.items ?? []
+    setData({
+      items: existing
+        .map((i) => (i.id === item.id ? { ...i, quantity: (i.quantity ?? 1) - 1 } : i))
+        .filter((i) => (i.quantity ?? 1) > 0),
+    })
+  }
+
+  function removeAll(item: Product) {
+    const existing = data.items ?? []
+    setData({
+      items: existing.filter((i) => i.id !== item.id),
+    })
+  }
+
+  return (
+    <div className="flex flex-col items-center w-full">
+      <SearchableDropdown
+        items={products}
+        getLabel={(p) => p.product_name}
+        selected={null}
+        onSelect={handleSelect}
+        placeholder="Search products…"
+        limit={50}
+        inputClassname="input-floating-label-form"
+      />
+      <div className="w-full flex-col">
+        <div className="flex-col gap-5">
+          {items.map((item, index) => {
+            const spot = spots.find((s) => s.type === item.metal_type)
+            const price = getProductPrice(item, spot)
+            const quantity = item.quantity ?? 1
+
+            return (
+              <div
+                key={item.product_name}
+                className={`flex items-center justify-between w-full gap-4 py-4 ${
+                  index !== items.length - 1 ? 'border-b border-neutral-300' : 'border-none'
+                }`}
+              >
+                <div className="flex-shrink-0">
+                  <Image
+                    src={item.image_front}
+                    width={80}
+                    height={80}
+                    className="pointer-events-none cursor-auto object-contain focus:outline-none drop-shadow-lg"
+                    alt={item.product_name}
+                  />
+                </div>
+
+                <div className="flex flex-col flex-grow min-w-0">
+                  <div className="flex justify-between items-start w-full mt-2">
+                    <div className="flex flex-col">
+                      <div className="primary-text">{item.product_name}</div>
+                      <div className="tertiary-text">{item.mint_name}</div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="hover:bg-card p-0 pb-2"
+                      onClick={() => removeAll(item)}
+                    >
+                      <Trash2 size={16} className="text-neutral-500" />
+                    </Button>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-3">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="hover:bg-card p-1"
+                        onClick={() => removeOne(item)}
+                      >
+                        <Minus size={16} />
+                      </Button>
+                      <NumberFlow
+                        value={quantity}
+                        transformTiming={{ duration: 750, easing: 'ease-in' }}
+                        spinTiming={{ duration: 150, easing: 'ease-out' }}
+                        opacityTiming={{ duration: 350, easing: 'ease-out' }}
+                        className="primary-text"
+                        trend={0}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="hover:bg-card p-1"
+                        onClick={() => addItem(item)}
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </div>
+                    <div className="text-neutral-800 text-base">
+                      <PriceNumberFlow value={price * quantity} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface AddressSelectProps {
+  user: User | null
+  addresses: Address[]
+  isLoading: boolean
+}
+
+export function AddressSelect({ user, addresses, isLoading }: AddressSelectProps) {
+  return (
+    <div className="flex flex-col w-full">
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-9 w-full mb-8" />
+          <Skeleton className="h-9 w-full mb-8" />
+          <div className="grid grid-cols-2 gap-4">
+            <Skeleton className="h-9 w-full mb-8" />
+            <Skeleton className="h-9 w-full mb-8" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Skeleton className="h-9 w-full mb-8" />
+            <Skeleton className="h-9 w-full mb-8" />
+          </div>
+          <Skeleton className="h-9 w-full mb-8" />
+        </div>
+      ) : (
+        <>
+          {addresses && addresses.length > 0 ? (
+            <div className="flex flex-col gap-3 justify-center w-full">
+              <AdminAddressCarousel addresses={addresses} />
+            </div>
+          ) : user ? (
+            <div className="flex items-center justify-center text-base text-neutral-600">
+              Please create an address for this user.
+            </div>
+          ) : (
+            <div className="flex items-center justify-center text-base text-neutral-600">
+              Select a user to see addresses.
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+export function ServiceSelector() {
+  const { data, setData } = useAdminSalesOrderCheckoutStore()
+
+  function handleServiceChange(serviceKey: string) {
+    const option = adminSalesOrderServiceOptions[serviceKey]
+
+    setData({
+      service: {
+        ...option,
+      },
+    })
+  }
+
+  return (
+    <div className="space-y-2 w-full">
+      <RadioGroup
+        value={data.service?.value ?? ''}
+        onValueChange={handleServiceChange}
+        className="gap-3 w-full flex flex-col"
+      >
+        {Object.entries(adminSalesOrderServiceOptions).map(([serviceKey, option]) => {
+          return (
+            <label
+              key={serviceKey}
+              htmlFor={serviceKey}
+              className={cn(
+                'raised-off-page relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md'
+              )}
+            >
+              <div className="flex items-center gap-2 text-base font-medium text-neutral-800">
+                {option.icon && (
+                  <option.icon
+                    size={24}
+                    stroke={getCustomPrimaryIconStroke()}
+                    color={getPrimaryIconStroke()}
+                  />
+                )}
+                {option.label}
+              </div>
+
+              <div className="flex items-center w-full justify-between">
+                <div className="text-sm text-neutral-600">{option.time}</div>
+                <div className="text-base text-neutral-800">
+                  <PriceNumberFlow value={option.cost} />
+                </div>
+              </div>
+
+              <RadioGroupItem id={serviceKey} value={serviceKey} className="sr-only" />
+            </label>
+          )
+        })}
+      </RadioGroup>
+    </div>
+  )
+}

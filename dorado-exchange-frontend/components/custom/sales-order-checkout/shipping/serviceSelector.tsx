@@ -23,7 +23,7 @@ export default function ServiceSelector({ orderPrices }: { orderPrices: SalesOrd
 
   return (
     <div className="space-y-2">
-                  <div className="text-xs text-neutral-600 uppercase tracking-widest">Shipping Service:</div>
+      <div className="text-xs text-neutral-600 uppercase tracking-widest">Shipping Service:</div>
 
       <RadioGroup
         value={selected?.value ?? ''}

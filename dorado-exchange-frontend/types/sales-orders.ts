@@ -6,6 +6,8 @@ import {
   HourglassIcon,
   TruckIcon,
   ShieldCheckIcon,
+  CurrencyDollarIcon,
+  BankIcon,
 } from '@phosphor-icons/react'
 
 import { z } from 'zod'
@@ -20,6 +22,7 @@ import { Product, productSchema } from './product'
 import { User } from './user'
 import { insuranceSchema } from './insurance'
 import { Shipment } from './shipments'
+import { spotPriceSchema } from './metal'
 
 export interface SalesOrderItem {
   id: string
@@ -164,8 +167,6 @@ export interface SalesOrderActionButtonsProps {
   order: SalesOrder
 }
 
-export type PaymentMethodType = 'CARD' | 'FUNDS' | 'CARD_AND_FUNDS'
-
 export interface PaymentMethod {
   method: PaymentMethodType
   label: string
@@ -174,18 +175,24 @@ export interface PaymentMethod {
   subcharge: string
   time_delay: string
   disabled: boolean
+  value: string
+  display: boolean
 }
 
+export const PaymentMethodTypeValues = [
+  'CARD',
+  'ACH',
+  'CREDIT',
+  'WIRE',
+  'APPLE PAY',
+  'GOOGLE PAY',
+] as const
+
+export type PaymentMethodType = (typeof PaymentMethodTypeValues)[number]
+
+export const paymentMethodTypeSchema = z.enum(PaymentMethodTypeValues)
+
 export const paymentOptions: PaymentMethod[] = [
-  // {
-  //   method: 'ACH',
-  //   label: 'ACH',
-  //   description: 'Direct deposit to our account.',
-  //   icon: BankIcon,
-  //   cost: 'Free',
-  //   time_delay: '1-24 hours',
-  //   disabled: true,
-  // },
   {
     method: 'CARD',
     label: 'Card',
@@ -194,15 +201,64 @@ export const paymentOptions: PaymentMethod[] = [
     subcharge: '2.9% surcharge',
     time_delay: 'Instant',
     disabled: false,
+    value: 'card',
+    display: true,
   },
   {
-    method: 'CARD_AND_FUNDS',
+    method: 'ACH',
+    label: 'ACH Transfer',
+    description: 'Pay directly from your bank account via secure ACH debit.',
+    icon: BankIcon,
+    subcharge: '0.5% surcharge',
+    time_delay: '1–3 business days',
+    disabled: false,
+    value: 'ach',
+    display: true,
+  },
+  {
+    method: 'CREDIT',
     label: 'Dorado Credit',
-    description: 'Pay in full or partially using Dorado Credit - obtained by selling your metals to us.',
+    description:
+      'Pay in full or partially using Dorado Credit – obtained by selling your metals to us.',
     icon: CreditCardIcon,
     subcharge: 'No Fee',
     time_delay: 'Instant',
     disabled: false,
+    value: 'dorado_credit',
+    display: true,
+  },
+  {
+    method: 'WIRE',
+    label: 'Wire Transfer',
+    description: 'Avoid fees by placing a wire using your bank.',
+    icon: BankIcon,
+    subcharge: 'Free',
+    time_delay: '1-2 business days',
+    disabled: true,
+    value: 'wire',
+    display: false,
+  },
+  {
+    method: 'APPLE PAY',
+    label: 'Apple Pay',
+    description: 'Pay instantly using Apple Pay.',
+    icon: CreditCardIcon,
+    subcharge: '2.9% surcharge',
+    time_delay: 'Instant',
+    disabled: false,
+    value: 'apple_pay',
+    display: false,
+  },
+  {
+    method: 'GOOGLE PAY',
+    label: 'Google Pay',
+    description: 'Pay instantly using Google Pay.',
+    icon: CreditCardIcon,
+    subcharge: '2.9% surcharge',
+    time_delay: 'Instant',
+    disabled: false,
+    value: 'google_pay',
+    display: false,
   },
 ]
 
@@ -238,15 +294,51 @@ export const salesOrderServiceOptions: Record<string, SalesOrderServiceUIOption>
   },
 }
 
+export const adminSalesOrderServiceOptions: Record<string, SalesOrderServiceUIOption> = {
+  FREE: {
+    label: 'Free',
+    value: 'FREE',
+    cost: 0,
+    time: '1 Days',
+    icon: CurrencyDollarIcon,
+    highValue: false,
+  },
+  STANDARD: {
+    label: 'Standard',
+    value: 'STANDARD',
+    cost: 25,
+    time: '3 Days',
+    icon: PhosphorTruckIcon,
+    highValue: false,
+  },
+  OVERNIGHT: {
+    label: 'Overnight',
+    value: 'OVERNIGHT',
+    cost: 50,
+    time: '1 Day',
+    icon: AirplaneInFlightIcon,
+    highValue: false,
+  },
+}
+
 export const salesOrderCheckoutSchema = z.object({
   address: addressSchema,
   service: salesOrderServiceSchema,
   using_funds: z.boolean(),
-  payment_method: z.enum(['CARD', 'FUNDS', 'CARD_AND_FUNDS']),
+  payment_method: paymentMethodTypeSchema,
   items: z.array(productSchema).min(1, 'At least one item is required'),
 })
-
 export type SalesOrderCheckout = z.infer<typeof salesOrderCheckoutSchema>
+
+export const adminSalesOrderCheckoutSchema = z.object({
+  address: addressSchema,
+  service: salesOrderServiceSchema,
+  using_funds: z.boolean(),
+  payment_method: paymentMethodTypeSchema,
+  items: z.array(productSchema).min(1, 'At least one item is required'),
+  order_metals: z.array(spotPriceSchema),
+})
+export type AdminSalesOrderCheckout = z.infer<typeof adminSalesOrderCheckoutSchema>
 
 export interface SalesOrderTotals {
   itemTotal: number
@@ -258,6 +350,6 @@ export interface SalesOrderTotals {
   subjectToChargesAmount: number
   postChargesAmount: number
   subchargeAmount: number
-  salesTax: number,
+  salesTax: number
   orderTotal: number
 }

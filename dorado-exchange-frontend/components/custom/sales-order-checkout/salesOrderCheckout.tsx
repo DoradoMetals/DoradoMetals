@@ -5,7 +5,6 @@ import { useAddress } from '@/lib/queries/useAddresses'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import { useUser } from '@/lib/authClient'
 import { cartStore } from '@/store/cartStore'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import ShippingSelect from './shipping/shippingSelect'
@@ -65,7 +64,7 @@ export default function SalesOrderCheckout() {
       spotPrices,
       user?.dorado_funds ?? 0,
       data.service?.cost ?? 0,
-      data.payment_method ?? 'CARD_AND_FUNDS',
+      data.payment_method ?? 'CARD',
       salesTax ?? 0
     )
   }, [
@@ -79,7 +78,7 @@ export default function SalesOrderCheckout() {
   ])
 
   const cardNeeded = useMemo(() => {
-    if (data.payment_method === 'FUNDS') {
+    if (data.payment_method === 'CREDIT') {
       return false
     } else {
       return true
@@ -94,7 +93,7 @@ export default function SalesOrderCheckout() {
         spots: spotPrices,
         user: user!,
         shipping_service: data.service?.value ?? 'STANDARD',
-        payment_method: data.payment_method ?? 'CARD_AND_FUNDS',
+        payment_method: data.payment_method ?? 'CARD',
         type: 'sales_order_checkout',
         address_id: data?.address?.id ?? '',
       })
@@ -185,7 +184,7 @@ export default function SalesOrderCheckout() {
               />
             )}
           </div>
-          <div className="flex flex-col gap-3 w-full">
+          <div className="flex flex-col gap-3 w-full sticky top-26">
             <OrderSummary orderPrices={orderPrices} />
             {!cardNeeded ? (
               <Button

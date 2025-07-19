@@ -33,6 +33,7 @@ import { userRoleOptions } from '@/types/user'
 import { useDrawerStore } from '@/store/drawerStore'
 import AdminUsersDrawer from './usersDrawer'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
+import { CreateSalesOrderDrawer } from '../salesOrdersPoS/createSalesOrder/createSalesOrderDrawer'
 
 export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => void }) {
   const { data: users = [] } = useAdminUsers()
@@ -296,6 +297,7 @@ export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => vo
         </Button>
       </div>
       {activeUser && <AdminUsersDrawer user_id={activeUser ?? ''} users={users ?? []} />}
+      {activeUser && <CreateSalesOrderDrawer />}
     </div>
   )
 }

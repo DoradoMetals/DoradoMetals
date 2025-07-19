@@ -456,17 +456,17 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             >
               <div className="flex flex-col">
                 {paymentOptions
-                  .filter((payment) => !payment.disabled)
+                  .filter((payment) => !payment.disabled && payment.display)
                   .map((payment, index) => {
+                    console.log(index)
+                    console.log(payment)
                     const Icon = payment.icon
                     return (
                       <div
                         key={index}
                         className={cn(
                           'flex flex-col items-start gap-1 py-2',
-                          index !== paymentOptions.length - 1
-                            ? 'border-b border-border pt-0'
-                            : 'pb-0'
+                          index !== 0 && 'border-t border-border'
                         )}
                       >
                         <div className="flex w-full gap-2 items-center">
@@ -891,7 +891,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             >
               <div className="flex flex-col">
                 {paymentOptions
-                  .filter((payment) => !payment.disabled)
+                  .filter((payment) => !payment.disabled && payment.display)
                   .map((payment, index) => {
                     const Icon = payment.icon
                     return (

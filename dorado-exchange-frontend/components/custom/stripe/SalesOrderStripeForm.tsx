@@ -64,7 +64,7 @@ export default function SalesOrderStripeForm({
       },
       redirect: 'if_required',
     })
-    if (paymentIntent?.status === 'requires_capture') {
+    if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
       const liveItems = cartStore.getState().items
 
       const checkoutPayload = {
@@ -105,8 +105,8 @@ export default function SalesOrderStripeForm({
     layout: {
       type: 'accordion',
       defaultCollapsed: false,
-      radios: true,
-      spacedAccordionItems: false,
+      radios: false,
+      spacedAccordionItems: true,
     },
     defaultValues: {
       billingDetails: {

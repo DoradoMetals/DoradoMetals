@@ -19,11 +19,7 @@ export default function PaymentSelect({ orderPrices }: { orderPrices: SalesOrder
 
     const nextUsingFunds = hasFunds && data.using_funds
 
-    const nextMethod = nextUsingFunds
-      ? orderPrices.baseTotal > funds
-        ? 'CARD_AND_FUNDS'
-        : 'FUNDS'
-      : 'CARD'
+    const nextMethod = nextUsingFunds ? (orderPrices.baseTotal > funds ? 'CARD' : 'CREDIT') : 'CARD'
 
     if (data.using_funds !== nextUsingFunds || data.payment_method !== nextMethod) {
       setData({
@@ -43,7 +39,9 @@ export default function PaymentSelect({ orderPrices }: { orderPrices: SalesOrder
     <>
       {orderPrices.beginningFunds > 0 && (
         <div className="">
-          <div className="text-xs text-neutral-600 uppercase tracking-widest mb-4">Payment Method:</div>
+          <div className="text-xs text-neutral-600 uppercase tracking-widest mb-4">
+            Payment Method:
+          </div>
 
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1 items-start">

@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { FC, ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
 type Anchor = 'left' | 'right'
 
@@ -32,7 +33,7 @@ const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right' }) => {
             animate={{ x: 0 }}
             exit={{ x: anchor === 'right' ? '100%' : '-100%' }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="drawer-layout backdrop-blur-xs"
+            className={cn("drawer-layout backdrop-blur-xs", anchor === 'right' ? 'right-0' : 'left-0')}
           >
             {children}
           </motion.div>

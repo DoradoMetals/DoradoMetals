@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 export interface SearchableDropdownProps<T> {
   items: T[]
   getLabel: (item: T) => string
-  selected: T | null
+  selected?: T | null
   onSelect: (item: T) => void
   placeholder?: string
   limit?: number
@@ -114,7 +114,7 @@ export function SearchableDropdown<T>({
         <PopoverContent
           side="bottom"
           align="start"
-          className="w-[var(--radix-popover-trigger-width)] p-0"
+          className="w-[var(--radix-popover-trigger-width)] p-0 z-80"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <Command>
@@ -135,7 +135,7 @@ export function SearchableDropdown<T>({
                     }}
                     className={cn(
                       'flex items-center justify-between px-2 h-8 cursor-pointer',
-                      isHighlighted && 'bg-gray-100',
+                      isHighlighted && 'bg-neutral-700',
                       isActive && 'font-medium'
                     )}
                   >
