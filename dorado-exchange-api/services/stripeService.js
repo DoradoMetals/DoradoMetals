@@ -40,7 +40,7 @@ async function createPaymentIntent(type, session) {
   }
 
   const paymentIntent = await stripeClient.paymentIntents.create({
-    amount: 100,
+    amount: 1000,
     currency: "usd",
     customer: customerId,
     capture_method: "automatic",
