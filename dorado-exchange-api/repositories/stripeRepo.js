@@ -67,7 +67,7 @@ async function updateMethod({ paymentMethod }) {
     WHERE method_id = $7
   `;
   const values = [
-    paymentMethod.us_bank_account?.networks?.preferred ?? paymentMethod.type,
+    paymentMethod.type,
     paymentMethod?.us_bank_account?.routing_number,
     paymentMethod?.us_bank_account?.last4 ?? paymentMethod?.card?.last4,
     paymentMethod?.card?.brand,
