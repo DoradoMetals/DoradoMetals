@@ -172,7 +172,8 @@ export interface PaymentMethod {
   label: string
   description?: string
   icon: any
-  subcharge: string
+  surcharge_label: string
+  surcharge: number
   time_delay: string
   disabled: boolean
   value: string
@@ -198,7 +199,8 @@ export const paymentOptions: PaymentMethod[] = [
     label: 'Card',
     description: 'Secure card transaction through Stripe.',
     icon: CreditCardIcon,
-    subcharge: '2.9% surcharge',
+    surcharge_label: '2.9%',
+    surcharge: 0.029,
     time_delay: 'Instant',
     disabled: false,
     value: 'card',
@@ -206,13 +208,14 @@ export const paymentOptions: PaymentMethod[] = [
   },
   {
     method: 'ACH',
-    label: 'ACH Transfer',
+    label: 'ACH',
     description: 'Pay directly from your bank account via secure ACH debit.',
     icon: BankIcon,
-    subcharge: '0.5% surcharge',
+    surcharge_label: '0.5%',
+    surcharge: 0.005,
     time_delay: '1-3 business days',
     disabled: false,
-    value: 'ach',
+    value: 'us_bank_account',
     display: true,
   },
   {
@@ -221,7 +224,8 @@ export const paymentOptions: PaymentMethod[] = [
     description:
       'Pay in full or partially using Dorado Credit – obtained by selling your metals to us.',
     icon: CreditCardIcon,
-    subcharge: 'No Fee',
+    surcharge_label: 'No Fee',
+    surcharge: 0,
     time_delay: 'Instant',
     disabled: false,
     value: 'dorado_credit',
@@ -232,7 +236,8 @@ export const paymentOptions: PaymentMethod[] = [
     label: 'Wire Transfer',
     description: 'Avoid fees by placing a wire using your bank.',
     icon: BankIcon,
-    subcharge: 'Free',
+    surcharge_label: 'No Fee',
+    surcharge: 0,
     time_delay: '1-2 business days',
     disabled: true,
     value: 'us_domestic_wire',
@@ -243,7 +248,8 @@ export const paymentOptions: PaymentMethod[] = [
     label: 'Apple Pay',
     description: 'Pay instantly using Apple Pay.',
     icon: CreditCardIcon,
-    subcharge: '2.9% surcharge',
+    surcharge_label: '2.9%',
+    surcharge: 0.029,
     time_delay: 'Instant',
     disabled: false,
     value: 'apple_pay',
@@ -254,7 +260,8 @@ export const paymentOptions: PaymentMethod[] = [
     label: 'Google Pay',
     description: 'Pay instantly using Google Pay.',
     icon: CreditCardIcon,
-    subcharge: '2.9% surcharge',
+    surcharge_label: '2.9%',
+    surcharge: 0.029,
     time_delay: 'Instant',
     disabled: false,
     value: 'google_pay',
@@ -349,7 +356,7 @@ export interface SalesOrderTotals {
   endingFunds: number
   subjectToChargesAmount: number
   postChargesAmount: number
-  subchargeAmount: number
+  surchargeAmount: number
   salesTax: number
   orderTotal: number
 }

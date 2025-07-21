@@ -107,8 +107,12 @@ function calculateItemAsk(item, spots) {
   );
 }
 
-function calculateCardCharge(order_total) {
-  return order_total * 0.029;
+function calculateCardCharge(order_total, payment_method) {
+  if (payment_method === "ACH") {
+    return order_total * 0.005;
+  } else {
+    return order_total * 0.029;
+  }
 }
 
 function calculateItemTotals(items, spots) {
@@ -160,8 +164,8 @@ function calculateSalesOrderTotal(
 
   let post_charges_amount = subject_to_charges_amount;
   let charges_amount = 0;
-  if (payment_method !== "CREDIT") {
-    charges_amount = calculateCardCharge(subject_to_charges_amount);
+  if (subject_to_charges_amount > 0) {
+    charges_amount = calculateCardCharge(subject_to_charges_amount, payment_method);
     post_charges_amount += charges_amount;
   }
 

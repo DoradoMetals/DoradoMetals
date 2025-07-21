@@ -458,8 +458,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 {paymentOptions
                   .filter((payment) => !payment.disabled && payment.display)
                   .map((payment, index) => {
-                    console.log(index)
-                    console.log(payment)
+
                     const Icon = payment.icon
                     return (
                       <div
@@ -477,7 +476,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                           <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1 pl-4">
                             <span className="text-left">{payment.time_delay}</span>
                             <CircleIcon size={6} weight="fill" className="text-neutral-300" />
-                            <span className="text-right">{payment.subcharge}</span>
+                            <span className="text-right">{payment.surcharge_label}</span>
                           </div>
                         </div>
                         <div className="text-sm text-neutral-600">{payment.description}</div>
@@ -912,7 +911,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                           <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1 pl-4">
                             <span className="text-left">{payment.time_delay}</span>
                             <CircleIcon size={6} weight="fill" className="text-neutral-300" />
-                            <span className="text-right">{payment.subcharge}</span>
+                            <span className="text-right">{payment.surcharge_label}</span>
                           </div>
                         </div>
                         <div className="text-sm text-neutral-600">{payment.description}</div>

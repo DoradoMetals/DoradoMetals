@@ -7,7 +7,7 @@ import { Address } from '@/types/address'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import { useCreateSalesOrder } from '@/lib/queries/useSalesOrders'
-import { salesOrderCheckoutSchema } from '@/types/sales-orders'
+import { paymentOptions, salesOrderCheckoutSchema } from '@/types/sales-orders'
 import { useRouter } from 'next/navigation'
 import { cartStore } from '@/store/cartStore'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
@@ -24,6 +24,8 @@ export default function SalesOrderStripeForm({
   startTransition: (cb: () => void) => void
 }) {
   const orderData = useSalesOrderCheckoutStore((state) => state.data)
+
+  const { data, setData } = useSalesOrderCheckoutStore()
 
   const { data: spotPrices = [] } = useSpotPrices()
   const createOrder = useCreateSalesOrder()
@@ -138,9 +140,24 @@ export default function SalesOrderStripeForm({
     },
   }
 
+  const handleChangePaymentMethod = (method: string) => {
+    if (data.payment_method !== 'CREDIT') {
+      const paymentMethod = paymentOptions.find((p) => p.value === method)?.method
+      setData({
+        payment_method: paymentMethod,
+      })
+    }
+  }
+
   return (
     <form id="payment-form" onSubmit={handleSubmit}>
-      <PaymentElement id="payment-element" options={paymentElementOptions} />
+      <PaymentElement
+        id="payment-element"
+        options={paymentElementOptions}
+        onChange={(e) => {
+          handleChangePaymentMethod(e.value.type)
+        }}
+      />
       <div className="text-xs text-destructive mt-1">
         {message && <div id="payment-message">{message}</div>}
       </div>

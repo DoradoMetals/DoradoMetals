@@ -131,18 +131,18 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
         </div>
       )}
 
-      {orderPrices.subchargeAmount > 0 && (
+      {orderPrices.surchargeAmount > 0 && (
         <div className="w-full flex items-center justify-between">
           <div className="text-sm text-neutral-700">
             {`${
               paymentOptions.find((option) => option.method === data.payment_method)?.label
             } Surcharge `}
             {`(${
-              paymentOptions.find((option) => option.method === data.payment_method)?.subcharge
+              paymentOptions.find((option) => option.method === data.payment_method)?.surcharge_label
             })`}
           </div>
           <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={orderPrices.subchargeAmount} />
+            <PriceNumberFlow value={orderPrices.surchargeAmount} />
           </div>
         </div>
       )}
