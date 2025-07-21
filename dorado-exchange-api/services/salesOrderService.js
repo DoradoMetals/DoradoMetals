@@ -65,7 +65,7 @@ async function createSalesOrder(
 
     const orderId = await salesOrderRepo.insertOrder(client, {
       user: session.user,
-      status: "Pending",
+      status: sales_order.payment_method === "CREDIT" ? "Preparing" : "Pending",
       sales_order: sales_order,
       orderPrices,
     });
