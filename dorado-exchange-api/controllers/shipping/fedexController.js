@@ -138,7 +138,7 @@ const getFedexRates = async (req, res) => {
           },
         },
       },
-      carrierCodes: ['FDXE']
+      carrierCodes: ["FDXE"],
     };
 
     const rateResponse = await axios.post(
@@ -342,6 +342,11 @@ const cancelLabel = async (req, res) => {
           "Content-Type": "application/json",
         },
       }
+    );
+
+    await pool.query(
+      `UPDATE exchange.shipments SET shipping_status = $1 WHERE id = $2`,
+      ["Cancelled", shipment_id]
     );
 
     res.json({ message: "Label cancelled." });

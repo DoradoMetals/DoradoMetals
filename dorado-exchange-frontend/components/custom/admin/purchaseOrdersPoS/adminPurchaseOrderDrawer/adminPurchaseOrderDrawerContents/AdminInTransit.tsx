@@ -2,7 +2,6 @@ import { Button } from '@/components/ui/button'
 import { useTracking } from '@/lib/queries/shipping/useShipments'
 import { cn } from '@/lib/utils'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
-import { addDays } from 'date-fns'
 import { useDownloadBase64 } from '@/utils/useDownloadLabel'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
 import { useCancelFedExLabel, useCancelFedExPickup } from '@/lib/queries/shipping/useFedex'
@@ -24,13 +23,7 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
     <>
       {order.shipment.shipping_status === 'Label Created' ? (
         <div className="flex flex-col w-full gap-5">
-          <PreTransit
-            order={order}
-            color={color}
-            border={border}
-            background={baseBg}
-            hoverBg={hoverBg}
-          />
+          <PreTransit order={order} color={color} border={border} hoverBg={hoverBg} />
         </div>
       ) : (
         <TrackingEvents
@@ -50,20 +43,16 @@ export function PreTransit({
   order,
   color,
   border,
-  background,
   hoverBg,
 }: {
   order: PurchaseOrderDrawerContentProps['order']
   color?: string
   border?: string
-  background?: string
   hoverBg?: string
 }) {
-  if (order.shipment.shipping_status !== 'Label Created') return null
-
   const { downloadBase64 } = useDownloadBase64()
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
-  const cancelLabel = useCancelFedExLabel()
+  const cancelLabel = useCancelFedExLabel(order.id)
   const cancelPickup = useCancelFedExPickup()
 
   return (
@@ -117,7 +106,11 @@ export function PreTransit({
         <Button
           variant="outline"
           className="text-destructive bg-transparent border border-destructive hover:text-white hover:bg-destructive"
-          disabled={!order.shipment.shipping_label}
+          disabled={
+            !order.shipment.shipping_label ||
+            order.shipment.shipping_status === 'Cancelled' ||
+            cancelLabel.isPending
+          }
           onClick={() =>
             cancelLabel.mutate({
               tracking_number: order.shipment.tracking_number,
@@ -125,7 +118,11 @@ export function PreTransit({
             })
           }
         >
-          Cancel Label
+          {order.shipment.shipping_status === 'Cancelled'
+            ? 'Label Cancelled'
+            : cancelLabel.isPending
+            ? 'Cancelling'
+            : 'Cancel Label'}
         </Button>
       </div>
     </div>
