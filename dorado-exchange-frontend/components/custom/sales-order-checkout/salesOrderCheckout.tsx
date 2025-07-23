@@ -23,6 +23,7 @@ import { ShoppingCartIcon } from '@phosphor-icons/react'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { useMutationState } from '@tanstack/react-query'
+
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function SalesOrderCheckout() {

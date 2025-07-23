@@ -125,6 +125,7 @@ async function retrievePaymentIntent(req, res, next) {
   try {
     const paymentIntent = await stripeService.retrievePaymentIntent(
       req.query.type,
+      req.query.user_id,
       req.headers
     );
     res.json(paymentIntent.client_secret);

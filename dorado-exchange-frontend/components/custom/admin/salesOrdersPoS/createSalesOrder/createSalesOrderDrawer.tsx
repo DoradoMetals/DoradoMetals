@@ -2,7 +2,7 @@
 
 import { useUserAddress } from '@/lib/queries/useAddresses'
 import { User } from '@/types/user'
-import { Address } from '@/types/address'
+import { Address, emptyAddress } from '@/types/address'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDrawerStore } from '@/store/drawerStore'
 import { AdminAddressCarousel } from './selectSalesOrderAddress'
@@ -11,7 +11,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 
 import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
-import { adminSalesOrderServiceOptions } from '@/types/sales-orders'
+import {
+  adminSalesOrderCheckoutSchema,
+  adminSalesOrderServiceOptions,
+  paymentOptions,
+  SalesOrderTotals,
+} from '@/types/sales-orders'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import { useAdminSalesOrderCheckoutStore } from '@/store/adminSalesOrderCheckoutStore'
 import { useProducts } from '@/lib/queries/useProducts'
@@ -24,21 +29,57 @@ import { Button } from '@/components/ui/button'
 import getProductPrice from '@/utils/getProductPrice'
 import NumberFlow from '@number-flow/react'
 import { SpotPrice } from '@/types/metal'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Input } from '@/components/ui/input'
-import { LockIcon, LockOpenIcon } from '@phosphor-icons/react'
+import { LockIcon, LockOpenIcon, QuestionIcon } from '@phosphor-icons/react'
+import { useRouter } from 'next/navigation'
+import { calculateSalesOrderPrices } from '@/utils/calculateSalesOrderPrices'
+import { useSalesTax } from '@/lib/queries/useSalesTax'
+import { useMutationState } from '@tanstack/react-query'
+import { useCreateSalesOrder } from '@/lib/queries/useSalesOrders'
+import { useRetrievePaymentIntent, useUpdatePaymentIntent } from '@/lib/queries/useStripe'
+import AdminStripeWrapper from '@/components/custom/stripe/admin/AdminStripeWrapper'
+import { loadStripe } from '@stripe/stripe-js'
+import { Switch } from '@/components/ui/switch'
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export function CreateSalesOrderDrawer() {
-  const { activeDrawer, closeDrawer, createSalesOrderUser } = useDrawerStore()
-  const isDrawerOpen = activeDrawer === 'createSalesOrder'
-  const { data: spotPrices = [] } = useSpotPrices()
-
   const { data, setData } = useAdminSalesOrderCheckoutStore()
+  const { activeDrawer, closeDrawer, createSalesOrderUser } = useDrawerStore()
+  const selectedUser = createSalesOrderUser
 
   const [spotsLocked, setSpotsLocked] = useState(false)
 
-  const selectedUser = createSalesOrderUser
   const { data: addresses = [], isLoading } = useUserAddress(selectedUser?.id ?? '')
+
+  const isDrawerOpen = activeDrawer === 'createSalesOrder'
+  const { data: spotPrices = [] } = useSpotPrices()
+
+  const { data: salesTax = 0 } = useSalesTax({
+    address: data.address ?? emptyAddress,
+    items: data.items ?? [],
+    spots: spotPrices,
+  })
+
+  const orderPrices = useMemo(() => {
+    return calculateSalesOrderPrices(
+      data.items ?? [],
+      data.using_funds ?? true,
+      data.order_metals ?? [],
+      selectedUser?.dorado_funds ?? 0,
+      data.service?.cost ?? 0,
+      data.payment_method ?? 'CARD',
+      salesTax ?? 0
+    )
+  }, [
+    data.items,
+    data.using_funds,
+    data.order_metals,
+    selectedUser?.dorado_funds,
+    data.service?.cost,
+    data.payment_method,
+    salesTax,
+  ])
 
   useEffect(() => {
     if (spotPrices.length > 0 && !spotsLocked) {
@@ -51,61 +92,51 @@ export function CreateSalesOrderDrawer() {
   return (
     <Drawer open={isDrawerOpen} setOpen={closeDrawer} anchor="left">
       <div className="flex flex-col flex-1 h-full gap-6 p-4 overflow-y-scroll sm:overflow-y-auto pb-30 sm:pb-5 bg-background w-full">
-        <div className="flex items-end w-full justify-between">
-          <div className="section-label">Create Sales Order</div>
-          <div className="text-base text-neutral-800">{selectedUser?.name}</div>
-        </div>
+        <div className="text-base text-neutral-800">{selectedUser?.name}</div>
+
         <div className="separator-inset" />
 
         <div className="flex flex-col gap-2 items-start">
-          <div className="flex w-full justify-between items-center mb-2">
-            <div className="text-xs tracking-widest text-neutral-600">Order Spots</div>
-            <Button
-              variant="link"
-              className="text-primary-gradient p-0 font-normal text-sm h-4 hover:bg-transparent"
-              onClick={() => setSpotsLocked((prev) => !prev)}
-            >
-              {spotsLocked ? (
-                <div className="flex gap-1 items-center">
-                  Unlock Spots
-                  <LockOpenIcon size={16} color={getPrimaryIconStroke()} />
-                </div>
-              ) : (
-                <div className="flex gap-1 items-center">
-                  Lock Spots
-                  <LockIcon size={16} color={getPrimaryIconStroke()} />
-                </div>
-              )}
-            </Button>
-          </div>
+          <Button
+            variant="link"
+            className="text-primary-gradient p-0 font-normal text-sm h-4 hover:bg-transparent ml-auto"
+            onClick={() => setSpotsLocked((prev) => !prev)}
+          >
+            {spotsLocked ? (
+              <div className="flex gap-1 items-center">
+                Unlock Spots
+                <LockOpenIcon size={16} color={getPrimaryIconStroke()} />
+              </div>
+            ) : (
+              <div className="flex gap-1 items-center">
+                Lock Spots
+                <LockIcon size={16} color={getPrimaryIconStroke()} />
+              </div>
+            )}
+          </Button>
 
           <SpotSelector spotsLocked={spotsLocked} />
-        </div>
-        <div className="separator-inset" />
-
-        <div className="flex flex-col gap-2 items-start">
-          <div className="section-label">Products</div>
           <ProductSelector />
         </div>
-        <div className="separator-inset" />
 
-        <div className="flex flex-col gap-2 items-start w-full">
-          <div className="section-label">Address</div>
+        <div className="separator-inset" />
+        <div className="flex flex-col gap-3">
           <AddressSelect user={selectedUser} addresses={addresses} isLoading={isLoading} />
-        </div>
-        <div className="separator-inset" />
-
-        <div className="flex flex-col gap-2 items-start">
-          <div className="section-label">Shipping</div>
           <ServiceSelector />
         </div>
+
         <div className="separator-inset" />
+        <div className="flex flex-col gap-3">
+          <OrderSummary orderPrices={orderPrices} />
+          <CreditSelect orderPrices={orderPrices} />
+          <PaymentSelect orderPrices={orderPrices} user={selectedUser!} />
+        </div>
       </div>
     </Drawer>
   )
 }
 
-export function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
+function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
   const spots = data.order_metals ?? []
 
@@ -142,7 +173,7 @@ export function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
   )
 }
 
-export function ProductSelector() {
+function ProductSelector() {
   const { data: products = [] } = useProducts()
   const { data, setData } = useAdminSalesOrderCheckoutStore()
   const spots = data.order_metals ?? []
@@ -284,7 +315,7 @@ interface AddressSelectProps {
   isLoading: boolean
 }
 
-export function AddressSelect({ user, addresses, isLoading }: AddressSelectProps) {
+function AddressSelect({ user, addresses, isLoading }: AddressSelectProps) {
   return (
     <div className="flex flex-col w-full">
       {isLoading ? (
@@ -322,7 +353,7 @@ export function AddressSelect({ user, addresses, isLoading }: AddressSelectProps
   )
 }
 
-export function ServiceSelector() {
+function ServiceSelector() {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
 
   function handleServiceChange(serviceKey: string) {
@@ -375,5 +406,296 @@ export function ServiceSelector() {
         })}
       </RadioGroup>
     </div>
+  )
+}
+
+function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
+  const { data } = useAdminSalesOrderCheckoutStore()
+  const router = useRouter()
+
+  const paymentContent = (
+    <div className="w-full flex-col">
+      <div className="section-label text-primary-gradient my-4">Payment Details</div>
+
+      <div className="w-full flex items-center justify-between">
+        <div className="text-sm text-neutral-700">Shipping</div>
+        <div className="text-base text-neutral-800">
+          <PriceNumberFlow value={orderPrices.shippingCharge} />
+        </div>
+      </div>
+
+      {orderPrices.appliedFunds > 0 && (
+        <div className="w-full flex items-center justify-between">
+          <div className="text-sm text-neutral-700">Dorado Funds Applied</div>
+          <div className="text-base text-neutral-800">
+            <PriceNumberFlow value={orderPrices.appliedFunds} />
+          </div>
+        </div>
+      )}
+      {orderPrices.subjectToChargesAmount > 0 && (
+        <div className="w-full flex items-center justify-between">
+          <div className="text-sm text-neutral-700">
+            {' '}
+            {orderPrices.appliedFunds > 0 ? 'Amount Remaining' : 'Items'}
+          </div>
+          <div className="text-base text-neutral-800">
+            <PriceNumberFlow value={orderPrices.subjectToChargesAmount} />
+          </div>
+        </div>
+      )}
+
+      {orderPrices.surchargeAmount > 0 && (
+        <div className="w-full flex items-center justify-between">
+          <div className="text-sm text-neutral-700">
+            {`${
+              paymentOptions.find((option) => option.method === data.payment_method)?.label
+            } Surcharge `}
+            {`(${
+              paymentOptions.find((option) => option.method === data.payment_method)
+                ?.surcharge_label
+            })`}
+          </div>
+          <div className="text-base text-neutral-800">
+            <PriceNumberFlow value={orderPrices.surchargeAmount} />
+          </div>
+        </div>
+      )}
+
+      {orderPrices.salesTax > 0 && (
+        <div className="w-full flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <div className="text-sm text-neutral-700">Sales Tax</div>
+            <Button variant="ghost" className="h-4 p-0" onClick={() => router.push('/sales-tax')}>
+              <QuestionIcon size={16} className="text-neutral-500" />
+            </Button>
+          </div>
+          <div className="text-base text-neutral-800">
+            <PriceNumberFlow value={orderPrices.salesTax} />
+          </div>
+        </div>
+      )}
+
+      {orderPrices.orderTotal > 0 && (
+        <div className="pt-2">
+          <div className="separator-inset" />
+
+          <div className="w-full flex items-center justify-between pt-2">
+            <div className="text-base text-primary-gradient">Order Total</div>
+            <div className="text-lg text-neutral-900">
+              <PriceNumberFlow value={orderPrices.orderTotal} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  return (
+    <div className="flex flex-col gap-2 w-full">
+      <div className="flex w-full bg-card raised-off-page rounded-lg p-4">
+        <div className="flex flex-col w-full gap-3">{paymentContent}</div>
+      </div>
+    </div>
+  )
+}
+
+function CreditSelect({ orderPrices }: { orderPrices: SalesOrderTotals }) {
+  const { data, setData } = useAdminSalesOrderCheckoutStore()
+
+  const handleFundsToggle = (checked: boolean) => {
+    setData({
+      using_funds: checked,
+    })
+  }
+
+  useEffect(() => {
+    const usingFunds = !!data.using_funds
+    const prev = data.payment_method
+    const { beginningFunds, baseTotal } = orderPrices
+
+    let next = prev
+
+    if (usingFunds) {
+      if (beginningFunds >= baseTotal) {
+        next = 'CREDIT'
+      } else if (prev === 'CREDIT') {
+        next = 'CARD'
+      }
+    } else {
+      if (prev === 'CREDIT') next = 'CARD'
+    }
+
+    if (next !== prev) {
+      setData({ payment_method: next })
+    }
+  }, [
+    data.using_funds,
+    data.payment_method,
+    orderPrices.beginningFunds,
+    orderPrices.baseTotal,
+    setData,
+  ])
+
+  return (
+    <>
+      {orderPrices.beginningFunds > 0 && (
+        <div className="">
+          <div className="text-xs text-neutral-600 uppercase tracking-widest mb-4">
+            Payment Method:
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1 items-start">
+              <div className="text-sm text-neutral-700">Use Bullion Credit?</div>
+              <Switch
+                checked={data.using_funds}
+                onCheckedChange={handleFundsToggle}
+                disabled={orderPrices.beginningFunds <= 0}
+              />
+            </div>
+            <div className="flex flex-col gap-1 items-end">
+              <div className="text-sm text-neutral-700">Credit Available:</div>
+              <div className="text-lg text-neutral-900">
+                <PriceNumberFlow value={orderPrices.beginningFunds} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function PaymentSelect({ orderPrices, user }: { orderPrices: SalesOrderTotals; user: User }) {
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+
+  const { data } = useAdminSalesOrderCheckoutStore()
+
+  const createOrder = useCreateSalesOrder()
+  const updatePaymentIntent = useUpdatePaymentIntent()
+  const { data: clientSecret } = useRetrievePaymentIntent('admin', user.id!)
+  const isOrderCreating =
+    useMutationState({
+      filters: {
+        mutationKey: ['createSalesOrder'],
+        status: 'pending',
+      },
+      select: () => true,
+    }).length > 0
+
+  const cardNeeded = useMemo(() => {
+    if (data.payment_method === 'CREDIT') {
+      return false
+    } else {
+      return true
+    }
+  }, [data.payment_method])
+  const itemsMissing = (data.items?.length ?? 0) === 0
+
+  const disabled =
+    itemsMissing ||
+    !data.address?.is_valid ||
+    isOrderCreating ||
+    isLoading ||
+    isPending ||
+    (cardNeeded && (!clientSecret || !stripePromise))
+
+  useEffect(() => {
+    console.log(orderPrices.baseTotal)
+    if (clientSecret && orderPrices.baseTotal > 0 && cardNeeded && !itemsMissing) {
+      updatePaymentIntent.mutate({
+        items: data?.items ?? [],
+        using_funds: data?.using_funds ?? true,
+        spots: data.order_metals ?? [],
+        user: user!,
+        shipping_service: data.service?.value ?? 'STANDARD',
+        payment_method: data.payment_method ?? 'CARD',
+        type: 'admin',
+        address_id: data?.address?.id ?? '',
+      })
+    }
+  }, [
+    data?.items,
+    data.using_funds,
+    data.order_metals,
+    clientSecret,
+    orderPrices.baseTotal,
+    data.payment_method,
+    user,
+    cardNeeded,
+    itemsMissing,
+  ])
+
+  const handleSubmit = () => {
+    const checkoutPayload = {
+      ...data,
+      address: data.address!,
+      service: data.service!,
+      items: data.items,
+    }
+
+    const validated = adminSalesOrderCheckoutSchema.parse(checkoutPayload)
+
+    createOrder.mutate(
+      { sales_order: validated, spotPrices: data.order_metals ?? [] },
+      {
+        onSuccess: async () => {
+          startTransition(() => {
+            router.push('/order-placed')
+          })
+          useAdminSalesOrderCheckoutStore.getState().clear()
+        },
+      }
+    )
+  }
+
+  return (
+    <>
+      {clientSecret && data.address && (
+        <div className="flex flex-col items-center w-full gap-3">
+          <div className="flex flex-col gap-6 w-full">
+            {cardNeeded && (
+              <AdminStripeWrapper
+                clientSecret={clientSecret}
+                stripePromise={stripePromise}
+                address={data.address}
+                setIsLoading={setIsLoading}
+                isPending={isPending}
+                startTransition={startTransition}
+              />
+            )}
+          </div>
+          <div className="flex flex-col gap-3 w-full sticky top-26">
+            {!cardNeeded ? (
+              <Button
+                className="raised-off-page liquid-gold shine-on-hover w-full text-white"
+                disabled={isOrderCreating || isLoading || !data.address?.is_valid || isPending}
+                onClick={handleSubmit}
+              >
+                {isOrderCreating || isLoading || isPending ? 'Processing…' : 'Place Order'}
+              </Button>
+            ) : (
+              <Button
+                className="raised-off-page liquid-gold shine-on-hover w-full text-white"
+                disabled={disabled}
+                type="submit"
+                form="admin-payment-form"
+              >
+                {!data.address?.is_valid
+                  ? 'Please provide a valid address.'
+                  : itemsMissing
+                  ? 'Please add items.'
+                  : isOrderCreating || isLoading || isPending
+                  ? 'Processing…'
+                  : 'Place Order'}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

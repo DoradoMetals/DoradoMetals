@@ -14,16 +14,30 @@ export default function PaymentSelect({ orderPrices }: { orderPrices: SalesOrder
   }
 
   useEffect(() => {
-    if (orderPrices.beginningFunds > 0 && data.using_funds) {
-      setData({
-        payment_method: 'CREDIT',
-      })
+    const usingFunds = !!data.using_funds
+    const prev = data.payment_method
+    const { beginningFunds, baseTotal } = orderPrices
+
+    let next = prev
+
+    if (usingFunds) {
+      if (beginningFunds >= baseTotal) {
+        next = 'CREDIT'
+      } else if (prev === 'CREDIT') {
+        next = 'CARD'
+      }
+    } else {
+      if (prev === 'CREDIT') next = 'CARD'
+    }
+
+    if (next !== prev) {
+      setData({ payment_method: next })
     }
   }, [
-    orderPrices.baseTotal,
-    orderPrices.beginningFunds,
     data.using_funds,
     data.payment_method,
+    orderPrices.beginningFunds,
+    orderPrices.baseTotal,
     setData,
   ])
 

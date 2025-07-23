@@ -32,7 +32,7 @@ const { useStepper, utils } = defineStepper(
 
 export default function CheckoutStepper() {
   const router = useRouter()
-    const hasInitialized = useRef(false)
+  const hasInitialized = useRef(false)
 
   const { user } = useGetSession()
   const { data: addresses = [] } = useAddress()
@@ -41,8 +41,7 @@ export default function CheckoutStepper() {
   const items = sellCartStore((state) => state.items)
 
   const declaredValue = useMemo(() => {
-    const baseTotal = getDeclaredValue(items, spotPrices)
-    return Math.min(baseTotal, 50000)
+    return getDeclaredValue(items, spotPrices)
   }, [items, spotPrices])
 
   useEffect(() => {
@@ -67,7 +66,8 @@ export default function CheckoutStepper() {
     (data.pickup.label !== 'CONTACT_FEDEX_TO_SCHEDULE' ||
       (!!data.pickup.date && !!data.pickup.time))
 
-  const defaultAddress: Address = addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress
+  const defaultAddress: Address =
+    addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress
 
   useEffect(() => {
     if (!hasInitialized.current && addresses.length > 0) {
@@ -97,7 +97,7 @@ export default function CheckoutStepper() {
     package: data.package,
     shippingType: 'Inbound',
     pickupLabel: data.pickup?.label ?? 'DROPOFF_AT_FEDEX_LOCATION',
-    insurance: data.insurance
+    insurance: data.insurance,
   })
 
   const { data: rates = [], isLoading: ratesLoading } = useFedExRates(fedexRatesInput)

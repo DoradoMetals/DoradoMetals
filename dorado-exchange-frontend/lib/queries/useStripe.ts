@@ -17,15 +17,16 @@ export interface IntentParams {
   address_id: string
 }
 
-export const useRetrievePaymentIntent = (type: string) => {
+export const useRetrievePaymentIntent = (type: string, user_id?: string) => {
   const { user } = useGetSession()
 
   return useQuery<string>({
-    queryKey: ['payment_intent', user?.id],
+    queryKey: ['payment_intent', user?.id, type, user_id],
     queryFn: async () => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<string>('GET', '/stripe/retrieve_payment_intent', undefined, {
         type: type,
+        user_id: user_id ?? user?.id,
       })
     },
     enabled: !!user?.id,
@@ -36,14 +37,15 @@ export const useUpdatePaymentIntent = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: async (params: IntentParams) => {
+  return useMutation<string, Error, IntentParams>({
+    mutationFn: async (params) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<string>('POST', '/stripe/update_payment_intent', params)
+      return apiRequest<string>('POST', '/stripe/update_payment_intent', params)
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
+      if (!variables) return
       queryClient.invalidateQueries({
-        queryKey: ['payment_intent', user?.id],
+        queryKey: ['payment_intent', user?.id, variables.type, variables.user.id],
         refetchType: 'active',
       })
     },

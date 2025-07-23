@@ -8,19 +8,20 @@ const { calculateSalesOrderTotal } = require("../utils/price-calculations");
 const { auth } = require("../auth");
 const { fromNodeHeaders } = require("better-auth/node");
 
-async function retrievePaymentIntent(type, headers) {
+async function retrievePaymentIntent(type, user_id, headers) {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(headers),
   });
-  const vals = await stripeRepo.retrievePaymentIntent(type, session);
+
+  const vals = await stripeRepo.retrievePaymentIntent(type, session, user_id);
   if (vals?.payment_intent_id) {
     return await stripeClient.paymentIntents.retrieve(vals.payment_intent_id);
   } else {
-    return await createPaymentIntent(type, session);
+    return await createPaymentIntent(type, user_id, session);
   }
 }
 
-async function createPaymentIntent(type, session) {
+async function createPaymentIntent(type, user_id, session) {
   let customerId = session?.user?.stripeCustomerId;
 
   if (!customerId) {
@@ -32,7 +33,7 @@ async function createPaymentIntent(type, session) {
     await stripeRepo.attachCustomerToUser(customerId, session?.user?.id);
   }
 
-  const existing = await stripeRepo.retrievePaymentIntent(type, session);
+  const existing = await stripeRepo.retrievePaymentIntent(type, session, user_id);
   if (existing?.payment_intent_id) {
     return await stripeClient.paymentIntents.retrieve(
       existing.payment_intent_id
@@ -47,7 +48,7 @@ async function createPaymentIntent(type, session) {
     automatic_payment_methods: { enabled: true },
   });
 
-  await stripeRepo.createPaymentIntent(paymentIntent, type, session);
+  await stripeRepo.createPaymentIntent(paymentIntent, type, user_id, session);
   return paymentIntent;
 }
 
@@ -58,6 +59,7 @@ async function updatePaymentIntent(
     spots,
     shipping_service,
     payment_method,
+    user,
     type,
     address_id,
   },
@@ -69,7 +71,8 @@ async function updatePaymentIntent(
 
   const retrieved_intent = await stripeRepo.retrievePaymentIntent(
     type,
-    session
+    session,
+    user?.id
   );
 
   const address = await addressService.getAddressFromId(address_id);
@@ -88,6 +91,8 @@ async function updatePaymentIntent(
     shipping_service,
     payment_method
   );
+
+  console.log(orderPrices.order_total)
 
   const amount = Math.round(orderPrices.post_charges_amount * 100);
   if (
@@ -109,7 +114,7 @@ async function updatePaymentIntent(
 
     return paymentIntent;
   } else {
-    return await createPaymentIntent(type, session);
+    return await createPaymentIntent(type, user?.id, session);
   }
 }
 

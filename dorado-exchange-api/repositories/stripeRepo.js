@@ -1,6 +1,6 @@
 const pool = require("../db");
 
-async function retrievePaymentIntent(type, session) {
+async function retrievePaymentIntent(type, session, user_id) {
   const query = `
     SELECT *
     FROM exchange.payment_intents
@@ -11,25 +11,35 @@ async function retrievePaymentIntent(type, session) {
     AND payment_status != 'processing'
     AND payment_status != 'canceled'
   `;
-  const values = [session.session.id, session.user.id, type];
+  const values = [
+    session.session.id,
+    type === "admin" ? user_id : session.user.id,
+    type,
+  ];
   const { rows } = await pool.query(query, values);
   return rows[0];
 }
 
-async function createPaymentIntent(payment_intent, type, session) {
+async function createPaymentIntent(payment_intent, type, user_id, session) {
   const query = `
-  INSERT INTO exchange.payment_intents (
-    session_id,
-    user_id,
-    type,
-    payment_status,
-    payment_intent_id
-  )
-  VALUES (
-    $1, $2, $3, $4, $5
-  )
+    INSERT INTO exchange.payment_intents (
+      session_id,
+      user_id,
+      type,
+      payment_status,
+      payment_intent_id
+    )
+    VALUES (
+      $1, $2, $3, $4, $5
+    )
   `;
-  const values = [session.session.id, session.user.id, type, payment_intent.status, payment_intent.id];
+  const values = [
+    session.session.id,
+    type === "admin" ? user_id : session.user.id,
+    type,
+    payment_intent.status,
+    payment_intent.id,
+  ];
   await pool.query(query, values);
 }
 
