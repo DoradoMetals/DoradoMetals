@@ -1,11 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { useGetSession } from '../useAuth'
-import { ShipmentTracking } from '@/types/shipping'
 import { PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
 import { SpotPrice } from '@/types/metal'
 import { Product } from '@/types/product'
-import { payoutOptions } from '@/types/payout'
 import getPurchaseOrderItemPrice from '@/utils/getPurchaseOrderItemPrice'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 

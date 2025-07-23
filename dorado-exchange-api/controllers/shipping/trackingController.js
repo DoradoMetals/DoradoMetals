@@ -1,5 +1,4 @@
 const axios = require("axios");
-const pool = require("../../db");
 
 let fedexAccessToken = null;
 

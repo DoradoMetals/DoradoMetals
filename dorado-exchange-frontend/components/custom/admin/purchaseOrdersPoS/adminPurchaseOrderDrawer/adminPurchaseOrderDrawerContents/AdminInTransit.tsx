@@ -21,7 +21,8 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
 
   return (
     <>
-      {order.shipment.shipping_status === 'Label Created' ? (
+      {order.shipment.shipping_status === 'Label Created' ||
+      order.shipment.shipping_status === 'Cancelled' ? (
         <div className="flex flex-col w-full gap-5">
           <PreTransit order={order} color={color} border={border} hoverBg={hoverBg} />
         </div>
