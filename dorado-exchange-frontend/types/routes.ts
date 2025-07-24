@@ -171,4 +171,13 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     mobileDisplay: false,
     footerDisplay: false,
   },
+  images: {
+    path: '/images',
+    roles: ['admin'],
+    desktopLabel: 'Images',
+    mobileLabel: 'Images',
+    desktopDisplay: false,
+    mobileDisplay: false,
+    footerDisplay: false,
+  },
 }

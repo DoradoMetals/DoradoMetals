@@ -17,6 +17,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-list-endpoints": "^7.1.1",
+    "minio": "^8.0.5",
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.10.0",

@@ -21,6 +21,7 @@ const taxRoutes = require("./routes/tax");
 const carriersRoutes = require("./routes/carriers");
 const recaptchaRoutes = require("./routes/recaptcha");
 const userRoutes = require("./routes/users");
+const imageRoutes = require("./routes/images")
 
 const { toNodeHandler } = require("better-auth/node");
 const { auth } = require("./auth");
@@ -73,6 +74,7 @@ app.use("/api/tax", taxRoutes);
 app.use("/api/carriers", carriersRoutes);
 app.use("/api/recaptcha", recaptchaRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/images", imageRoutes);
 
 setupScheduler();
 
