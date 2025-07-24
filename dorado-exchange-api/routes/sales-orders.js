@@ -8,6 +8,7 @@ const {
   sendOrderToSupplier,
   updateOrderTracking,
   updateStatus,
+  adminCreateSalesOrder,
 } = require("../controllers/salesOrderController");
 
 const router = express.Router();
@@ -22,5 +23,6 @@ router.get("/get_all", requireAdmin, getAllSalesOrders);
 router.post("/update_status", requireAdmin, updateStatus);
 router.post("/send_order_to_supplier", requireAdmin, sendOrderToSupplier);
 router.post("/update_tracking", requireAdmin, updateOrderTracking);
+router.post("/admin_create_sales_order", requireAdmin, adminCreateSalesOrder);
 
 module.exports = router;

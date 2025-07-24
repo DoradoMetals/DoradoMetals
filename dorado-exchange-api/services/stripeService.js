@@ -33,7 +33,11 @@ async function createPaymentIntent(type, user_id, session) {
     await stripeRepo.attachCustomerToUser(customerId, session?.user?.id);
   }
 
-  const existing = await stripeRepo.retrievePaymentIntent(type, session, user_id);
+  const existing = await stripeRepo.retrievePaymentIntent(
+    type,
+    session,
+    user_id
+  );
   if (existing?.payment_intent_id) {
     return await stripeClient.paymentIntents.retrieve(
       existing.payment_intent_id
@@ -83,18 +87,19 @@ async function updatePaymentIntent(
     spots
   );
 
+  
   const orderPrices = calculateSalesOrderTotal(
     items_with_tax,
     using_funds,
     spots,
-    session.user,
+    type === "admin" ? user : session.user,
     shipping_service,
     payment_method
   );
 
-  console.log(orderPrices.order_total)
+  const rawAmount = Math.round(orderPrices.post_charges_amount * 100);
 
-  const amount = Math.round(orderPrices.post_charges_amount * 100);
+  const amount = Math.max(rawAmount, 1000);
   if (
     retrieved_intent?.payment_intent_id &&
     [
@@ -129,7 +134,7 @@ async function capturePaymentIntent(payment_intent_id) {
   }
 }
 
-async function cancelPaymentIntent({payment_intent_id}) {
+async function cancelPaymentIntent({ payment_intent_id }) {
   try {
     const paymentIntent = await stripeClient.paymentIntents.cancel(
       payment_intent_id

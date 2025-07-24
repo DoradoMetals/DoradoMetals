@@ -110,6 +110,82 @@ async function createSalesOrder(
   }
 }
 
+async function adminCreateSalesOrder({
+  sales_order,
+  payment_intent_id,
+  spot_prices,
+  user,
+}) {
+  const address = await addressService.getAddressFromId(sales_order.address.id);
+  const serverItems = await productService.getItemsFromServer(
+    sales_order.items
+  );
+  const items = await taxService.attachSalesTaxToItems(
+    address.state,
+    serverItems,
+    spot_prices
+  );
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const orderPrices = calculateSalesOrderTotal(
+      items,
+      sales_order.using_funds,
+      spot_prices,
+      user,
+      sales_order.service.value,
+      sales_order.payment_method
+    );
+
+    const orderId = await salesOrderRepo.insertOrder(client, {
+      user: user,
+      status: sales_order.payment_method === "CREDIT" ? "Preparing" : "Pending",
+      sales_order: sales_order,
+      orderPrices,
+    });
+
+    if (sales_order.using_funds === true) {
+      await transactionsRepo.removeFunds(
+        user.id,
+        orderPrices.pre_charges_amount,
+        client
+      );
+      await transactionsRepo.addTransactionLog(
+        user.id,
+        "Debit",
+        null,
+        orderId,
+        orderPrices.pre_charges_amount,
+        client
+      );
+    }
+
+    await salesOrderRepo.insertItems(client, orderId, items, spot_prices);
+
+    await salesOrderRepo.insertOrderMetals(orderId, spot_prices, client);
+
+    await taxRepo.updateStateSalesTax(
+      orderPrices.sales_tax,
+      address.state,
+      client
+    );
+
+    if (orderPrices.post_charges_amount > 0) {
+      await stripeRepo.attachOrder(payment_intent_id, null, orderId, client);
+    }
+    await client.query("COMMIT");
+
+    return await getById(orderId);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function updateStatus({ order, order_status, user_name }) {
   return await salesOrderRepo.updateStatus(order, order_status, user_name);
 }
@@ -181,6 +257,7 @@ module.exports = {
   getAll,
   getMetalsForOrder,
   createSalesOrder,
+  adminCreateSalesOrder,
   updateStatus,
   sendOrderToSupplier,
   updateTracking,

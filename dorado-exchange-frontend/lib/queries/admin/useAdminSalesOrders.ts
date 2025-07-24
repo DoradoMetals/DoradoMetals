@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useGetSession } from '../useAuth'
-import { SalesOrder } from '@/types/sales-orders'
+import { AdminSalesOrderCheckout, SalesOrder } from '@/types/sales-orders'
 import { apiRequest } from '@/utils/axiosInstance'
 import { SpotPrice } from '@/types/metal'
 
@@ -15,6 +15,34 @@ export const useAdminSalesOrders = () => {
     },
     enabled: !!user,
     refetchInterval: 10000,
+  })
+}
+
+export const useAdminCreateSalesOrder = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationKey: ['adminCreateSalesOrder'],
+    mutationFn: async ({
+      paymentIntentId,
+      sales_order,
+    }: {
+      paymentIntentId?: string
+      sales_order: AdminSalesOrderCheckout
+
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<SalesOrder>('POST', '/sales_orders/admin_create_sales_order', {
+        sales_order: sales_order,
+        payment_intent_id: paymentIntentId,
+        spot_prices: sales_order.order_metals,
+        user: sales_order.user,
+      })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin_sales_orders', user], refetchType: 'active' })
+    },
   })
 }
 

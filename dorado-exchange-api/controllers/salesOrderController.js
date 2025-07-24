@@ -69,6 +69,15 @@ async function createSalesOrder(req, res, next) {
   }
 }
 
+async function adminCreateSalesOrder(req, res, next) {
+  try {
+    const order = await salesOrderService.adminCreateSalesOrder(req.body);
+    return res.status(200).json(order);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function updateStatus(req, res, next) {
   try {
     const updated = await salesOrderService.updateStatus(req.body);
@@ -104,6 +113,7 @@ module.exports = {
   cancelOrder,
   createReview,
   createSalesOrder,
+  adminCreateSalesOrder,
   updateStatus,
   sendOrderToSupplier,
   updateOrderTracking,

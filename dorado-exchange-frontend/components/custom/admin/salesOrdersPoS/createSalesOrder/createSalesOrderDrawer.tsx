@@ -36,21 +36,20 @@ import { useRouter } from 'next/navigation'
 import { calculateSalesOrderPrices } from '@/utils/calculateSalesOrderPrices'
 import { useSalesTax } from '@/lib/queries/useSalesTax'
 import { useMutationState } from '@tanstack/react-query'
-import { useCreateSalesOrder } from '@/lib/queries/useSalesOrders'
 import { useRetrievePaymentIntent, useUpdatePaymentIntent } from '@/lib/queries/useStripe'
 import AdminStripeWrapper from '@/components/custom/stripe/admin/AdminStripeWrapper'
 import { loadStripe } from '@stripe/stripe-js'
 import { Switch } from '@/components/ui/switch'
+import { useAdminCreateSalesOrder } from '@/lib/queries/admin/useAdminSalesOrders'
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export function CreateSalesOrderDrawer() {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
   const { activeDrawer, closeDrawer, createSalesOrderUser } = useDrawerStore()
-  const selectedUser = createSalesOrderUser
 
   const [spotsLocked, setSpotsLocked] = useState(false)
 
-  const { data: addresses = [], isLoading } = useUserAddress(selectedUser?.id ?? '')
+  const { data: addresses = [], isLoading } = useUserAddress(createSalesOrderUser?.id ?? '')
 
   const isDrawerOpen = activeDrawer === 'createSalesOrder'
   const { data: spotPrices = [] } = useSpotPrices()
@@ -66,7 +65,7 @@ export function CreateSalesOrderDrawer() {
       data.items ?? [],
       data.using_funds ?? true,
       data.order_metals ?? [],
-      selectedUser?.dorado_funds ?? 0,
+      createSalesOrderUser?.dorado_funds ?? 0,
       data.service?.cost ?? 0,
       data.payment_method ?? 'CARD',
       salesTax ?? 0
@@ -75,7 +74,7 @@ export function CreateSalesOrderDrawer() {
     data.items,
     data.using_funds,
     data.order_metals,
-    selectedUser?.dorado_funds,
+    createSalesOrderUser?.dorado_funds,
     data.service?.cost,
     data.payment_method,
     salesTax,
@@ -89,10 +88,24 @@ export function CreateSalesOrderDrawer() {
     }
   }, [spotPrices, spotsLocked])
 
+  useEffect(() => {
+    setData({
+      user: createSalesOrderUser!,
+    })
+  }, [createSalesOrderUser])
+
+  const defaultAddress = addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress
+
+  useEffect(() => {
+    if (addresses.length > 0 && data.address?.id !== defaultAddress.id) {
+      setData({ address: defaultAddress })
+    }
+  }, [defaultAddress.id, addresses.length, data.address?.id, setData])
+
   return (
     <Drawer open={isDrawerOpen} setOpen={closeDrawer} anchor="left">
       <div className="flex flex-col flex-1 h-full gap-6 p-4 overflow-y-scroll sm:overflow-y-auto pb-30 sm:pb-5 bg-background w-full">
-        <div className="text-base text-neutral-800">{selectedUser?.name}</div>
+        <div className="text-base text-neutral-800">{createSalesOrderUser?.name}</div>
 
         <div className="separator-inset" />
 
@@ -121,7 +134,7 @@ export function CreateSalesOrderDrawer() {
 
         <div className="separator-inset" />
         <div className="flex flex-col gap-3">
-          <AddressSelect user={selectedUser} addresses={addresses} isLoading={isLoading} />
+          <AddressSelect user={createSalesOrderUser} addresses={addresses} isLoading={isLoading} />
           <ServiceSelector />
         </div>
 
@@ -129,7 +142,7 @@ export function CreateSalesOrderDrawer() {
         <div className="flex flex-col gap-3">
           <OrderSummary orderPrices={orderPrices} />
           <CreditSelect orderPrices={orderPrices} />
-          <PaymentSelect orderPrices={orderPrices} user={selectedUser!} />
+          <PaymentSelect orderPrices={orderPrices} user={createSalesOrderUser!} />
         </div>
       </div>
     </Drawer>
@@ -179,12 +192,6 @@ function ProductSelector() {
   const spots = data.order_metals ?? []
   const items = data.items ?? []
 
-  const handleSelect = (product: Product) => {
-    setData({
-      items: [...(data.items ?? []), product],
-    })
-  }
-
   function addItem(item: Product) {
     const existing = data.items ?? []
     const found = existing.find((i) => i.id === item.id)
@@ -223,7 +230,7 @@ function ProductSelector() {
         items={products}
         getLabel={(p) => p.product_name}
         selected={null}
-        onSelect={handleSelect}
+        onSelect={addItem}
         placeholder="Search products…"
         limit={50}
         inputClassname="input-floating-label-form"
@@ -428,7 +435,7 @@ function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
         <div className="w-full flex items-center justify-between">
           <div className="text-sm text-neutral-700">Dorado Funds Applied</div>
           <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={orderPrices.appliedFunds} />
+            -<PriceNumberFlow value={orderPrices.appliedFunds} />
           </div>
         </div>
       )}
@@ -475,18 +482,16 @@ function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
         </div>
       )}
 
-      {orderPrices.orderTotal > 0 && (
-        <div className="pt-2">
-          <div className="separator-inset" />
+      <div className="pt-2">
+        <div className="separator-inset" />
 
-          <div className="w-full flex items-center justify-between pt-2">
-            <div className="text-base text-primary-gradient">Order Total</div>
-            <div className="text-lg text-neutral-900">
-              <PriceNumberFlow value={orderPrices.orderTotal} />
-            </div>
+        <div className="w-full flex items-center justify-between pt-2">
+          <div className="text-base text-primary-gradient">Order Total</div>
+          <div className="text-lg text-neutral-900">
+            <PriceNumberFlow value={orderPrices.postChargesAmount} />
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 
@@ -528,13 +533,7 @@ function CreditSelect({ orderPrices }: { orderPrices: SalesOrderTotals }) {
     if (next !== prev) {
       setData({ payment_method: next })
     }
-  }, [
-    data.using_funds,
-    data.payment_method,
-    orderPrices.beginningFunds,
-    orderPrices.baseTotal,
-    setData,
-  ])
+  }, [data.using_funds, data.payment_method, orderPrices.beginningFunds, orderPrices.baseTotal])
 
   return (
     <>
@@ -568,13 +567,11 @@ function CreditSelect({ orderPrices }: { orderPrices: SalesOrderTotals }) {
 
 function PaymentSelect({ orderPrices, user }: { orderPrices: SalesOrderTotals; user: User }) {
   const [isLoading, setIsLoading] = useState<boolean>(false)
-
-  const router = useRouter()
+  const { closeDrawer } = useDrawerStore()
   const [isPending, startTransition] = useTransition()
 
   const { data } = useAdminSalesOrderCheckoutStore()
-
-  const createOrder = useCreateSalesOrder()
+  const createOrder = useAdminCreateSalesOrder()
   const updatePaymentIntent = useUpdatePaymentIntent()
   const { data: clientSecret } = useRetrievePaymentIntent('admin', user.id!)
   const isOrderCreating =
@@ -604,8 +601,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices: SalesOrderTotals; u
     (cardNeeded && (!clientSecret || !stripePromise))
 
   useEffect(() => {
-    console.log(orderPrices.baseTotal)
-    if (clientSecret && orderPrices.baseTotal > 0 && cardNeeded && !itemsMissing) {
+    if (clientSecret && orderPrices.postChargesAmount > 0 && cardNeeded && !itemsMissing) {
       updatePaymentIntent.mutate({
         items: data?.items ?? [],
         using_funds: data?.using_funds ?? true,
@@ -622,7 +618,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices: SalesOrderTotals; u
     data.using_funds,
     data.order_metals,
     clientSecret,
-    orderPrices.baseTotal,
+    orderPrices.postChargesAmount,
     data.payment_method,
     user,
     cardNeeded,
@@ -640,11 +636,11 @@ function PaymentSelect({ orderPrices, user }: { orderPrices: SalesOrderTotals; u
     const validated = adminSalesOrderCheckoutSchema.parse(checkoutPayload)
 
     createOrder.mutate(
-      { sales_order: validated, spotPrices: data.order_metals ?? [] },
+      { sales_order: validated },
       {
         onSuccess: async () => {
           startTransition(() => {
-            router.push('/order-placed')
+            closeDrawer()
           })
           useAdminSalesOrderCheckoutStore.getState().clear()
         },
@@ -672,10 +668,16 @@ function PaymentSelect({ orderPrices, user }: { orderPrices: SalesOrderTotals; u
             {!cardNeeded ? (
               <Button
                 className="raised-off-page liquid-gold shine-on-hover w-full text-white"
-                disabled={isOrderCreating || isLoading || !data.address?.is_valid || isPending}
+                disabled={disabled}
                 onClick={handleSubmit}
               >
-                {isOrderCreating || isLoading || isPending ? 'Processing…' : 'Place Order'}
+                {!data.address?.is_valid
+                  ? 'Please provide a valid address.'
+                  : itemsMissing
+                  ? 'Please add items.'
+                  : isOrderCreating || isLoading || isPending
+                  ? 'Processing…'
+                  : 'Place Order'}
               </Button>
             ) : (
               <Button

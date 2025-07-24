@@ -130,7 +130,13 @@ function calculateItemTotals(items, spots) {
 }
 
 function getShippingCharge(item_total, shipping_service) {
-  return item_total > 1000 ? 0 : shipping_service === "OVERNIGHT" ? 50 : 25;
+  return item_total > 1000
+    ? 0
+    : shipping_service === "OVERNIGHT"
+    ? 50
+    : shipping_service === "STANDARD"
+    ? 25
+    : 0;
 }
 
 function calculateSalesTax(items, spots) {
@@ -165,7 +171,10 @@ function calculateSalesOrderTotal(
   let post_charges_amount = subject_to_charges_amount;
   let charges_amount = 0;
   if (subject_to_charges_amount > 0) {
-    charges_amount = calculateCardCharge(subject_to_charges_amount, payment_method);
+    charges_amount = calculateCardCharge(
+      subject_to_charges_amount,
+      payment_method
+    );
     post_charges_amount += charges_amount;
   }
 

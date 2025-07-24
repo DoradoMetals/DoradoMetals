@@ -19,7 +19,7 @@ import { Payout } from './payout'
 import { LucideIcon } from 'lucide-react'
 
 import { Product, productSchema } from './product'
-import { User } from './user'
+import { User, userSchema } from './user'
 import { insuranceSchema } from './insurance'
 import { Shipment } from './shipments'
 import { spotPriceSchema } from './metal'
@@ -344,6 +344,7 @@ export const adminSalesOrderCheckoutSchema = z.object({
   payment_method: paymentMethodTypeSchema,
   items: z.array(productSchema).min(1, 'At least one item is required'),
   order_metals: z.array(spotPriceSchema),
+  user: userSchema,
 })
 export type AdminSalesOrderCheckout = z.infer<typeof adminSalesOrderCheckoutSchema>
 

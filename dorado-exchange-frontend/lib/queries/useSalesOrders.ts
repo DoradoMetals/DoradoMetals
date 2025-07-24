@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { useGetSession } from './useAuth'
-import { SalesOrder, SalesOrderCheckout } from '@/types/sales-orders'
+import { AdminSalesOrderCheckout, SalesOrder, SalesOrderCheckout } from '@/types/sales-orders'
 import { SpotPrice } from '@/types/metal'
+import { User } from '@/types/user'
 
 export const useSalesOrders = () => {
   const { user } = useGetSession()

@@ -5,12 +5,14 @@ import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { StripePaymentElementOptions } from '@stripe/stripe-js'
 import { Address } from '@/types/address'
 import { useGetSession } from '@/lib/queries/useAuth'
-import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
-import { useCreateSalesOrder } from '@/lib/queries/useSalesOrders'
-import { paymentOptions, salesOrderCheckoutSchema } from '@/types/sales-orders'
-import { useRouter } from 'next/navigation'
-import { cartStore } from '@/store/cartStore'
+import {
+  adminSalesOrderCheckoutSchema,
+  paymentOptions,
+} from '@/types/sales-orders'
+
 import { useAdminSalesOrderCheckoutStore } from '@/store/adminSalesOrderCheckoutStore'
+import { useDrawerStore } from '@/store/drawerStore'
+import { useAdminCreateSalesOrder } from '@/lib/queries/admin/useAdminSalesOrders'
 
 export default function AdminStripeForm({
   address,
@@ -25,8 +27,8 @@ export default function AdminStripeForm({
 }) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
 
-  const createOrder = useCreateSalesOrder()
-  const router = useRouter()
+  const createOrder = useAdminCreateSalesOrder()
+  const { closeDrawer } = useDrawerStore()
 
   const stripe = useStripe()
   const elements = useElements()
@@ -64,30 +66,30 @@ export default function AdminStripeForm({
       redirect: 'if_required',
     })
     if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
-      const liveItems = cartStore.getState().items
-
       const checkoutPayload = {
         ...data,
         address: data.address!,
         service: data.service!,
-        items: liveItems,
+        using_funds: data.using_funds,
+        payment_method: data.payment_method,
+        items: data.items,
+        order_metals: data.order_metals,
+        user: data.user,
       }
 
-      const validated = salesOrderCheckoutSchema.parse(checkoutPayload)
+      const validated = adminSalesOrderCheckoutSchema.parse(checkoutPayload)
 
       createOrder.mutate(
         {
           paymentIntentId: paymentIntent.id,
           sales_order: validated,
-          spotPrices: data.order_metals ?? [],
         },
         {
           onSuccess: async () => {
             startTransition(() => {
-              router.push('/order-placed')
+              closeDrawer()
             })
-            cartStore.getState().clearCart()
-            useSalesOrderCheckoutStore.getState().clear()
+            useAdminSalesOrderCheckoutStore.getState().clear()
           },
         }
       )

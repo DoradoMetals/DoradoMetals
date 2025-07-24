@@ -126,7 +126,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
             {orderPrices.appliedFunds > 0 ? 'Amount Remaining' : 'Items'}
           </div>
           <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={orderPrices.subjectToChargesAmount} />
+            -<PriceNumberFlow value={orderPrices.subjectToChargesAmount} />
           </div>
         </div>
       )}
@@ -138,7 +138,8 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
               paymentOptions.find((option) => option.method === data.payment_method)?.label
             } Surcharge `}
             {`(${
-              paymentOptions.find((option) => option.method === data.payment_method)?.surcharge_label
+              paymentOptions.find((option) => option.method === data.payment_method)
+                ?.surcharge_label
             })`}
           </div>
           <div className="text-base text-neutral-800">
@@ -161,23 +162,21 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
         </div>
       )}
 
-      {orderPrices.orderTotal > 0 && (
-        <div className="pt-2">
-          <div className="separator-inset" />
+      <div className="pt-2">
+        <div className="separator-inset" />
 
-          <div className="w-full flex items-center justify-between pt-2">
-            <div className="text-base text-primary-gradient">Order Total</div>
-            <div className="text-lg text-neutral-900">
-              <PriceNumberFlow value={orderPrices.orderTotal} />
-            </div>
+        <div className="w-full flex items-center justify-between pt-2">
+          <div className="text-base text-primary-gradient">Order Total</div>
+          <div className="text-lg text-neutral-900">
+            <PriceNumberFlow value={orderPrices.postChargesAmount} />
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 
   return (
-    <div className='flex flex-col gap-2'>
+    <div className="flex flex-col gap-2">
       <div className="text-xs text-neutral-600 uppercase tracking-widest">Order Summary:</div>
       <div className="flex w-full bg-card raised-off-page rounded-lg p-4">
         <div className="flex flex-col w-full gap-3">
