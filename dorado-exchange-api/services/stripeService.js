@@ -86,7 +86,6 @@ async function updatePaymentIntent(
     server_items,
     spots
   );
-
   
   const orderPrices = calculateSalesOrderTotal(
     items_with_tax,

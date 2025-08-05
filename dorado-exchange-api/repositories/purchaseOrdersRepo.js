@@ -580,7 +580,7 @@ async function insertPayout(client, orderId, payout) {
     payout.routing_number || null,
     payout.account_number || null,
     payout.payout_email || null,
-    payout.cost || null,
+    payout.cost || 0,
   ];
   await client.query(query, vals);
 }
