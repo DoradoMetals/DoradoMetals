@@ -21,12 +21,12 @@ export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDraw
   return (
     <>
       <div className="flex flex-col w-full h-full">
-        {!order.shipping_paid ? (
+        {!order.return_shipping_paid ? (
           <div className="flex flex-col w-full h-auto raised-off-screen bg-card p-4 rounded-lg">
             <div className="flex w-full justify-between items-center mb-1">
               <div className="text-lg text-neutral-800">Customer Payment:</div>
               <div className="text-lg text-neutral-800">
-                {order.shipping_paid ? 'Complete' : 'Incomplete'}
+                {order.return_shipping_paid ? 'Complete' : 'Incomplete'}
               </div>
             </div>
             <div className="flex w-full justify-between items-center mb-3">

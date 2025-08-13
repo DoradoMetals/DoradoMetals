@@ -71,7 +71,7 @@ export interface PurchaseOrder {
   num_rejections: number,
   waive_shipping_fee: boolean,
   waive_payout_fee: boolean,
-  shipping_paid: boolean,
+  return_shipping_paid: boolean,
   review_created: boolean,
 }
 

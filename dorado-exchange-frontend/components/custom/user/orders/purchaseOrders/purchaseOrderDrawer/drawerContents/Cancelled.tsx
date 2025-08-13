@@ -43,7 +43,7 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
   return (
     <>
       <div className="flex flex-col w-full h-full">
-        {!order.shipping_paid ? (
+        {!order.return_shipping_paid ? (
           <div className="flex flex-col h-full w-full mb-4 gap-6">
             <div className="flex flex-col w-full">
               <div className="flex flex-col gap-1 text-left text-xl text-neutral-900 mb-4">

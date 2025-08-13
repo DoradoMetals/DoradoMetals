@@ -40,7 +40,7 @@ export const userRoleOptions: UserRoleOption[] = [
     label: 'User',
     value: 'user',
     icon: UserIcon,
-    colorClass: 'text-yellow-500',
+    colorClass: 'text-neutral-500',
   },
 ]
 
