@@ -2179,7 +2179,7 @@ const generateInvoice = async ({
                   <tr>
                     <td class="text-left">Payout Fees</td>
                     <td>Deduction</td>
-                    <td class="text-right">-${payoutCost.toLocaleString(
+                    <td class="text-right">-${payoutCost?.toLocaleString(
                       "en-US",
                       {
                         style: "currency",
