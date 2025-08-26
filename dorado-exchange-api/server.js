@@ -22,6 +22,7 @@ const carriersRoutes = require("./routes/carriers");
 const recaptchaRoutes = require("./routes/recaptcha");
 const userRoutes = require("./routes/users");
 const imageRoutes = require("./routes/images")
+const leadRoutes = require("./routes/leads");
 
 const { toNodeHandler } = require("better-auth/node");
 const { auth } = require("./auth");
@@ -75,6 +76,7 @@ app.use("/api/carriers", carriersRoutes);
 app.use("/api/recaptcha", recaptchaRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/images", imageRoutes);
+app.use("/api/leads", leadRoutes);
 
 setupScheduler();
 

@@ -14,6 +14,7 @@ import { useGetInventory } from '@/lib/queries/admin/useAdminProducts'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import PriceNumberFlow from '../products/PriceNumberFlow'
 import { getInventoryValue } from './productsPoS/inventoryPrices'
+import { LeadsPage } from './leadsPoS/leadsPage'
 
 export function AdminTabs() {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
@@ -25,7 +26,7 @@ export function AdminTabs() {
     <>
       <div className="flex w-full mt-4 lg:mt-10 mb-8">
         <Tabs defaultValue="inventory" className="flex w-full items-center justify-center">
-          <TabsList className="justify-center grid grid-cols-3 w-full max-w-7xl bg-transparent px-0">
+          <TabsList className="justify-center grid grid-cols-4 w-full max-w-7xl bg-transparent px-0">
             <TabsTrigger className="tab-indicator-primary" value="inventory">
               Inventory
             </TabsTrigger>
@@ -34,6 +35,9 @@ export function AdminTabs() {
             </TabsTrigger>
             <TabsTrigger className="tab-indicator-primary" value="users">
               Users
+            </TabsTrigger>
+            <TabsTrigger className="tab-indicator-primary" value="leads">
+              Leads
             </TabsTrigger>
           </TabsList>
           <div className="separator-inset -mt-[11px] max-w-7xl" />
@@ -51,11 +55,7 @@ export function AdminTabs() {
                       size={64}
                       color={getPrimaryIconStroke()}
                     />
-                    <CoinsIcon
-                      className="sm:hidden"
-                      size={48}
-                      color={getPrimaryIconStroke()}
-                    />
+                    <CoinsIcon className="sm:hidden" size={48} color={getPrimaryIconStroke()} />
 
                     <div className="flex flex-col items-end">
                       <div className="text-lg sm:text-2xl text-neutral-800">
@@ -79,16 +79,8 @@ export function AdminTabs() {
                   className="cursor-pointer bg-background data-[state=active]:bg-card rounded-lg p-2 sm:p-4 raised-off-page w-full h-auto"
                 >
                   <div className="flex items-start sm:items-center justify-between w-full">
-                    <GearIcon
-                      className="hidden sm:flex"
-                      size={64}
-                      color={getPrimaryIconStroke()}
-                    />
-                    <GearIcon
-                      className="sm:hidden"
-                      size={48}
-                      color={getPrimaryIconStroke()}
-                    />
+                    <GearIcon className="hidden sm:flex" size={64} color={getPrimaryIconStroke()} />
+                    <GearIcon className="sm:hidden" size={48} color={getPrimaryIconStroke()} />
                     <div className="flex flex-col items-end">
                       <div className="text-lg sm:text-2xl text-neutral-800">
                         <PriceNumberFlow value={0} />
@@ -172,6 +164,10 @@ export function AdminTabs() {
 
           <TabsContent value="users" className="flex flex-col gap-2 max-w-7xl">
             <UsersPage />
+          </TabsContent>
+
+          <TabsContent value="leads" className="flex flex-col gap-2 max-w-7xl">
+            <LeadsPage />
           </TabsContent>
         </Tabs>
       </div>
