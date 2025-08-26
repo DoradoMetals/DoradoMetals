@@ -8,7 +8,7 @@ import { sellCartStore } from '@/store/sellCartStore'
 import { useCartAutoSync } from '@/lib/queries/useCart'
 import { useSellCartAutoSync } from '@/lib/queries/useSellCart'
 
-import { DesktopLogo, Logo } from '../../icons/logo'
+import { Logo } from '../../icons/logo'
 import { Button } from '@/components/ui/button'
 import { MenuIcon } from '@/components/icons/navIcon'
 import { CartIcon } from '@/components/icons/cartIcon'
@@ -65,16 +65,10 @@ export default function Shell() {
       <div className="hidden lg:flex p-4 pt-0 px-20 mt-2">
         <div className="flex items-center gap-2 -mt-4">
           <Link href="/" className="px-0">
-            <DesktopLogo />
+            <Logo size={212} />
           </Link>
 
           <div className="flex items-end">
-            <Link href="/">
-              <h1 className="text-lg text-neutral-700 font-medium tracking-wide">
-                Dorado Metals Exchange
-              </h1>
-            </Link>
-
             <div className="flex text-base items-center tracking-wide pl-32 gap-8">
               <nav aria-label="Primary site navigation" className="hidden lg:block px-20 pt-2">
                 <ul className="flex items-end text-base uppercase tracking-wide gap-8">
@@ -155,12 +149,6 @@ export default function Shell() {
           <Link href="/" className="px-0">
             <Logo />
           </Link>
-
-          <div className="flex items-end">
-            <Link href="/">
-              <h1 className="text-base text-neutral-900 font-medium">Dorado Metals Exchange</h1>
-            </Link>
-          </div>
         </div>
         <div className="lg:hidden flex items-center ml-auto gap-2">
           <Button
@@ -175,7 +163,7 @@ export default function Shell() {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
               className="relative flex items-center justify-center will-change-transform"
             >
-              <CartIcon size={20} isOpen={false} className="text-neutral-900 hover:bg-card" />
+              <CartIcon size={28} isOpen={false} className="text-neutral-900 hover:bg-card" />
               {items > 0 && (
                 <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full primary-gradient ">
                   <div className="flex flex-1 items-center text-white justify-center text-[10px]">
@@ -197,7 +185,7 @@ export default function Shell() {
               }
             }}
           >
-            <MenuIcon size={24} isOpen={isAnyDrawerOpen} className="p-0 text-neutral-900 mt-1" />
+            <MenuIcon size={28} isOpen={isAnyDrawerOpen} className="p-0 text-neutral-900 mt-1" />
           </Button>
         </div>
       </div>

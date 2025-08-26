@@ -1,8 +1,9 @@
 'use client'
 
-import { FacebookIcon, InstagramIcon, XIcon } from '@/components/icons/logo'
+import { FacebookIcon, InstagramIcon, Logo, XIcon } from '@/components/icons/logo'
 import { Button } from '@/components/ui/button'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import Image from 'next/image'
 import Link from 'next/link'
 
 export default function Footer() {
@@ -85,6 +86,16 @@ export default function Footer() {
         </div>
 
         <div className="flex items-center w-full justify-between mt-5 ">
+          <Link href="/" className="px-0">
+            <Logo size={200}/>
+          </Link>
+
+          <Link href="https://occc.texas.gov/" className="px-0">
+            <Image src="/occc.svg" width={148} height={148} alt="Office of Consumer Credit" />
+          </Link>
+        </div>
+
+        <div className="flex items-center w-full justify-between mt-5 ">
           <div className="text-xs text-neutral-500 text-left">© Dorado Metals Exchange LLC</div>
 
           <div className="text-xs text-neutral-500 gap-1">
@@ -107,6 +118,8 @@ export default function Footer() {
             apply.
           </div>
         </div>
+
+        
       </footer>
 
       <footer className="flex flex-col lg:hidden w-full bg-neutral-800 dark:bg-highest px-3 py-3 pt-6 raised-off-page">
@@ -180,6 +193,15 @@ export default function Footer() {
               <XIcon size={20} className="text-neutral-200 dark:text-neutral-700" />
             </Button>
           </div>
+        </div>
+                <div className="flex items-center w-full justify-between mt-5 ">
+          <Link href="/" className="px-0">
+            <Logo size={128}/>
+          </Link>
+
+          <Link href="https://occc.texas.gov/" className="px-0">
+            <Image src="/occc.svg" width={100} height={100} alt="Office of Consumer Credit" />
+          </Link>
         </div>
       </footer>
     </>
