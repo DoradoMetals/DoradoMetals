@@ -1,12 +1,27 @@
-import { useState } from "react";
-import PurchaseOrderCards from "./purchaseOrderCards";
-import PurchaseOrdersTable from "./purchaseOrdersTable";
+import { useState } from 'react'
+import PurchaseOrderCards from './purchaseOrderCards'
+import PurchaseOrdersTable from './purchaseOrdersTable'
+import { Button } from '@/components/ui/button'
+import { FileXIcon } from '@phosphor-icons/react'
+import { usePurgeCancelled } from '@/lib/queries/admin/useAdminPurchaseOrders'
 
 export default function AdminPurchaseOrders() {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
+  const purgeCancelled = usePurgeCancelled()
   return (
-    <div className="space-y-2">
-      <PurchaseOrderCards selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus}/>
+    <div className="flex flex-col w-full gap-3">
+      <div className="flex justify-end">
+        <Button
+          className="flex gap-3 p-4 raised-off-page bg-card text-destructive hover:bg-destructive hover:text-white text-base"
+          onClick={() => purgeCancelled.mutate()}
+          disabled={purgeCancelled.isPending}
+        >
+          <FileXIcon size={24} />
+          {purgeCancelled.isPending ? 'Purging...' : 'Purge Cancelled'}
+        </Button>
+      </div>
+
+      <PurchaseOrderCards selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} />
       <PurchaseOrdersTable selectedStatus={selectedStatus} />
     </div>
   )

@@ -531,6 +531,10 @@ async function changePayoutMethod({ order_id, method }) {
   return await purchaseOrderRepo.changePayoutMethod(order_id, method);
 }
 
+async function purgeCancelled() {
+  return await purchaseOrderRepo.purgeCancelled();
+}
+
 module.exports = {
   listOrdersForUser,
   getById,
@@ -561,4 +565,5 @@ module.exports = {
   editPayoutCharge,
   addFundsToAccount,
   changePayoutMethod,
+  purgeCancelled,
 };

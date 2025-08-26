@@ -1123,3 +1123,22 @@ export const useAddFundsToAccount = () => {
     },
   })
 }
+
+export const usePurgeCancelled = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<PurchaseOrder>('DELETE', '/purchase_orders/purge_cancelled', {})
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['admin_purchase_orders', user],
+        refetchType: 'active',
+      })
+    },
+  })
+}

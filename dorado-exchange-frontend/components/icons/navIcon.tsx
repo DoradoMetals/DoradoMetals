@@ -33,8 +33,6 @@ const lineVariants: Variants = {
 const MenuIcon = forwardRef<HTMLDivElement, MenuIconProps>(
   ({ isOpen, className, size = 28, strokeWidth, ...props }, ref) => {
     const controls = useAnimation();
-
-    // Call animation immediately when prop changes
     useEffect(() => {
       controls.start(isOpen ? 'animate' : 'normal');
     }, [isOpen]);

@@ -302,6 +302,14 @@ async function addFundsToAccount(req, res, next) {
   }
 }
 
+async function purgeCancelled(req, res, next) {
+  try {
+    await purchaseOrderService.purgeCancelled();
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getPurchaseOrderById,
   getPurchaseOrders,
@@ -332,4 +340,5 @@ module.exports = {
   editPayoutCharge,
   changePayoutMethod,
   addFundsToAccount,
+  purgeCancelled,
 };

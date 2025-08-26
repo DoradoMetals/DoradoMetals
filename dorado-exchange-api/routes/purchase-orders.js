@@ -28,6 +28,7 @@ const {
   editPayoutCharge,
   addFundsToAccount,
   changePayoutMethod,
+  purgeCancelled,
 } = require("../controllers/purchaseOrderController");
 
 const router = express.Router();
@@ -62,5 +63,6 @@ router.post("/edit_shipping_charge", requireAdmin, editShippingCharge);
 router.post("/edit_payout_charge", requireAdmin, editPayoutCharge);
 router.post("/edit_payout_method", requireAdmin, changePayoutMethod);
 router.post("/add_funds_to_account", requireAdmin, addFundsToAccount),
+router.delete("/purge_cancelled", requireAdmin, purgeCancelled);
 
 module.exports = router;

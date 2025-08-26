@@ -64,7 +64,7 @@ export default function PurchaseOrderCards({
         </Swiper>
       </div>
 
-      <div className="hidden sm:grid grid-cols-2 md:grid-cols-4 gap-x-2 gap-y-2 mb-6">
+      <div className="hidden sm:grid grid-cols-2 md:grid-cols-4 gap-x-2 gap-y-2">
         {Object.entries(statusConfig).map(([status, config]) => {
           const Icon = config.icon
           const count = statusCounts[status] ?? 0
@@ -76,7 +76,7 @@ export default function PurchaseOrderCards({
               key={status}
               onClick={() => setSelectedStatus(isSelected ? null : status)}
               className={cn(
-                'hidden sm:flex items-center justify-between rounded-lg p-4 bg-card raised-off-page mt-4 w-full h-full transition-colors hover:bg-highest',
+                'hidden sm:flex items-center justify-between rounded-lg p-4 bg-card raised-off-page w-full h-full transition-colors hover:bg-highest',
                 isSelected && `${config.border_color} border-2`
               )}
             >

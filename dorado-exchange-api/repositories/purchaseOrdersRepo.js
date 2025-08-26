@@ -784,6 +784,14 @@ async function changePayoutMethod(order_id, method) {
   return await pool.query(query, values);
 }
 
+async function purgeCancelled() {
+  const query = `
+    DELETE FROM exchange.purchase_orders
+    WHERE purchase_order_status = 'Cancelled'
+  `
+  return await pool.query(query, [])
+}
+
 module.exports = {
   findAllByUser,
   findById,
@@ -819,4 +827,5 @@ module.exports = {
   editShippingCharge,
   editPayoutCharge,
   changePayoutMethod,
+  purgeCancelled,
 };
