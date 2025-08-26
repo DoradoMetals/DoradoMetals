@@ -12,7 +12,7 @@ export default function AdminPurchaseOrders() {
     <div className="flex flex-col w-full gap-3">
       <div className="flex justify-end">
         <Button
-          className="flex gap-3 p-4 raised-off-page bg-card text-destructive hover:bg-destructive hover:text-white text-base"
+          className="w-full md:w-44 flex gap-3 p-4 raised-off-page bg-card text-destructive border-destructive border-1 hover:bg-destructive hover:text-white text-base"
           onClick={() => purgeCancelled.mutate()}
           disabled={purgeCancelled.isPending}
         >
