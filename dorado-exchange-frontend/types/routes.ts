@@ -6,6 +6,7 @@ export type RouteConfig = {
   desktopDisplay: boolean
   mobileDisplay: boolean
   footerDisplay: boolean
+  seoIndex: boolean
 }
 
 export const protectedRoutes: Record<string, RouteConfig> = {
@@ -17,6 +18,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: true,
     mobileDisplay: true,
     footerDisplay: false,
+    seoIndex: true,
   },
   sell: {
     path: '/sell',
@@ -26,15 +28,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: true,
     mobileDisplay: true,
     footerDisplay: false,
-  },
-  orders: {
-    path: '/orders',
-    roles: ['user', 'admin'],
-    desktopLabel: 'Orders',
-    mobileLabel: 'Orders',
-    desktopDisplay: true,
-    mobileDisplay: false,
-    footerDisplay: false,
+    seoIndex: true,
   },
   resources: {
     path: '/resources',
@@ -44,24 +38,17 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: true,
   },
-  admin: {
-    path: '/admin',
-    roles: ['admin'],
-    desktopLabel: 'Admin',
-    mobileLabel: 'Admin',
-    desktopDisplay: true,
-    mobileDisplay: true,
-    footerDisplay: false,
-  },
-  account: {
-    path: '/account',
-    roles: ['user', 'admin'],
-    desktopLabel: 'Account',
-    mobileLabel: 'Account',
-    desktopDisplay: true,
+  aboutUs: {
+    path: '/about-us',
+    roles: [],
+    desktopLabel: 'About Us',
+    mobileLabel: 'About Us',
+    desktopDisplay: false,
     mobileDisplay: false,
-    footerDisplay: false,
+    footerDisplay: true,
+    seoIndex: true,
   },
   authentication: {
     path: '/authentication',
@@ -71,6 +58,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: true,
   },
   salesTax: {
     path: '/sales-tax',
@@ -80,24 +68,57 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: true,
   },
-  termsAndCondtions: {
+  termsAndConditions: {
     path: '/terms-and-conditions',
-    roles: [''],
+    roles: [],
     desktopLabel: 'Terms and Conditions',
     mobileLabel: 'Terms and Conditions',
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: true,
   },
   privacyPolicy: {
     path: '/privacy-policy',
-    roles: [''],
+    roles: [],
     desktopLabel: 'Privacy Policy',
     mobileLabel: 'Privacy Policy',
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: true,
+  },
+  admin: {
+    path: '/admin',
+    roles: ['admin'],
+    desktopLabel: 'Admin',
+    mobileLabel: 'Admin',
+    desktopDisplay: true,
+    mobileDisplay: true,
+    footerDisplay: false,
+    seoIndex: false,
+  },
+  account: {
+    path: '/account',
+    roles: ['user', 'admin'],
+    desktopLabel: 'Account',
+    mobileLabel: 'Account',
+    desktopDisplay: true,
+    mobileDisplay: false,
+    footerDisplay: false,
+    seoIndex: false,
+  },
+  orders: {
+    path: '/orders',
+    roles: ['user', 'admin'],
+    desktopLabel: 'Orders',
+    mobileLabel: 'Orders',
+    desktopDisplay: true,
+    mobileDisplay: false,
+    footerDisplay: false,
+    seoIndex: false,
   },
   changeEmail: {
     path: '/change-email',
@@ -107,6 +128,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: false,
   },
   changePassword: {
     path: '/change-password',
@@ -116,6 +138,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: false,
   },
   checkout: {
     path: '/checkout',
@@ -125,6 +148,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: false,
   },
   orderPlaced: {
     path: '/order-placed',
@@ -134,6 +158,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: false,
   },
   resetPassword: {
     path: '/reset-password',
@@ -143,6 +168,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: false,
   },
   salesOrderCheckout: {
     path: '/sales-order-checkout',
@@ -152,6 +178,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: false,
   },
   verifyEmail: {
     path: '/verify-email',
@@ -161,6 +188,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: false,
   },
   verifyLogin: {
     path: '/verify-login',
@@ -170,6 +198,7 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: false,
   },
   images: {
     path: '/images',
@@ -179,5 +208,23 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,
+    seoIndex: false,
   },
 }
+
+type R = (typeof protectedRoutes)[keyof typeof protectedRoutes]
+
+export const isPublic = (r: R) => r.roles.length === 0 || r.roles.every((role) => !role?.trim?.())
+
+export const shouldIndex = (r: R) => isPublic(r) && r.seoIndex
+export const shouldDisallow = (r: R) => !isPublic(r) || (isPublic(r) && !r.seoIndex)
+
+export const indexablePaths = () =>
+  Object.values(protectedRoutes)
+    .filter(shouldIndex)
+    .map((r) => r.path)
+
+export const nonIndexablePaths = () =>
+  Object.values(protectedRoutes)
+    .filter(shouldDisallow)
+    .map((r) => r.path)

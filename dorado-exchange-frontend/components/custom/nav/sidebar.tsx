@@ -30,7 +30,7 @@ export default function Sidebar() {
 
   const menuItems = Object.entries(protectedRoutes)
     .filter(([_, route]) => route.mobileDisplay)
-    .filter(([_, route]) => route.roles.length === 0 || route.roles.includes(user?.role ?? ''))
+    .filter(([_, route]) => route.roles.length === 0 || route.roles?.includes(user?.role ?? ''))
     .map(([key, route]) => ({
       key,
       href: route.path,
@@ -49,9 +49,9 @@ export default function Sidebar() {
                 router.push('/account')
                 closeDrawer()
               }}
-              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
+              className="w-18 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
             >
-              <UserIcon size={20} color={getPrimaryIconStroke()} />
+              <UserIcon size={24} color={getPrimaryIconStroke()} />
               <div className="text-sm text-primary-gradient">Account</div>
             </Button>
           </div>
@@ -63,9 +63,9 @@ export default function Sidebar() {
                 router.push('/orders')
                 closeDrawer()
               }}
-              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
+              className="w-18 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
             >
-              <ListIcon size={20} color={getPrimaryIconStroke()} />
+              <ListIcon size={24} color={getPrimaryIconStroke()} />
               <div className="text-sm text-primary-gradient">Orders</div>
             </Button>
           </div>
@@ -83,9 +83,9 @@ export default function Sidebar() {
                   }
                 }}
                 disabled={signOutMutation.isPending}
-                className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
+                className="w-18 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
               >
-                <SignOutIcon size={20} color={getPrimaryIconStroke()} />
+                <SignOutIcon size={24} color={getPrimaryIconStroke()} />
                 <div className="text-sm text-primary-gradient">Sign Out</div>
               </Button>
             </div>
@@ -97,9 +97,9 @@ export default function Sidebar() {
                   router.push('/authentication?tab=sign-in')
                   closeDrawer()
                 }}
-                className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
+                className="w-18 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
               >
-                <SignInIcon size={20} color={getPrimaryIconStroke()} />
+                <SignInIcon size={24} color={getPrimaryIconStroke()} />
                 <div className="text-sm text-primary-gradient">Sign In</div>
               </Button>
             </div>
@@ -116,11 +116,11 @@ export default function Sidebar() {
               onClick={() => {
                 toggleType()
               }}
-              className="w-16 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
+              className="w-18 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
             >
-              <SwapIcon size={20} color={getPrimaryIconStroke()} />
+              <SwapIcon size={24} color={getPrimaryIconStroke()} />
               <div className="text-sm text-primary-gradient">
-                Show {type === 'Bid' ? 'Ask' : 'Bid'}
+               {type === 'Bid' ? 'Ask' : 'Bid'} Spots
               </div>
             </Button>
           </div>
