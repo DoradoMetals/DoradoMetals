@@ -1,9 +1,11 @@
+// app/sitemap.ts
 import type { MetadataRoute } from 'next'
 import { protectedRoutes } from '@/types/routes'
 import { apiRequest } from '@/utils/axiosInstance'
 import { Product } from '@/types/product'
 
-export const revalidate = 60 * 60 * 6 // 6h
+// ⬇️ MUST be a literal
+export const revalidate = 21600 // 6 hours
 
 type R = (typeof protectedRoutes)[keyof typeof protectedRoutes]
 const isPublic = (r: R) => r.roles.length === 0 || r.roles.every((role) => !role?.trim?.())
@@ -18,7 +20,7 @@ function dedupe(arr: MetadataRoute.Sitemap): MetadataRoute.Sitemap {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_FRONTEND_URL
+  const base = process.env.NEXT_PUBLIC_FRONTEND_URL!
   const now = new Date()
 
   const staticEntries: MetadataRoute.Sitemap = [
@@ -39,8 +41,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ),
   ]
 
-  const products = await apiRequest<Product[]>('GET', '/products/get_all_products', {})
-  console.log('sitemap products: ', products)
+  let products: Product[] = []
+  try {
+    products = await apiRequest<Product[]>('GET', '/products/get_all_products', {})
+    console.log('sitemap products: ', products.length)
+  } catch (e) {
+    console.error('sitemap products fetch failed:', e)
+  }
 
   const toAbs = (src?: string) =>
     src ? (src.startsWith('http') ? src : new URL(src, base).toString()) : undefined
