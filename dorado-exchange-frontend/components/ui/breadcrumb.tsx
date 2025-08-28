@@ -43,7 +43,7 @@ const BreadcrumbLink = React.forwardRef<
   return (
     <Comp
       ref={ref}
-      className={cn('text-sm hover:text-neutral-900 transition-colors tracking-wide', className)}
+      className={cn('text-base hover:text-neutral-900 transition-colors tracking-wide', className)}
       {...props}
     />
   )
@@ -57,7 +57,7 @@ const BreadcrumbPage = React.forwardRef<HTMLSpanElement, React.ComponentPropsWit
       role="link"
       aria-disabled="true"
       aria-current="page"
-      className={cn('text-sm text-neutral-900 font-normal tracking-wide', className)}
+      className={cn('text-base text-neutral-900 font-normal tracking-wide', className)}
       {...props}
     />
   )
@@ -72,7 +72,7 @@ function BreadcrumbSeparator({ children, className, ...props }: React.ComponentP
       className={cn('[&>svg]:size-3.5', className)}
       {...props}
     >
-      {children ?? <ChevronRight size={16} className="text-neutral-700" />}
+      {children ?? <ChevronRight size={20} className="text-neutral-700" />}
     </li>
   )
 }

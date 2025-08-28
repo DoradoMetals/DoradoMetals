@@ -18,7 +18,7 @@ export default function FeaturedProducts() {
   const [isBeginning, setIsBeginning] = useState(true)
   const [isEnd, setIsEnd] = useState(false)
   return (
-    <div className="w-full mb-4 lg:mb-0 justify-center items-center">
+    <div className="relative w-full max-w-7xl min-w-0 mb-4 lg:mb-0">
       <Swiper
         modules={[Navigation, Pagination]}
         navigation={{
@@ -32,8 +32,8 @@ export default function FeaturedProducts() {
         breakpoints={{
           718: { slidesPerView: 2, slidesPerGroup: 2 },
           1375: { slidesPerView: 3, slidesPerGroup: 3 },
-          1811: { slidesPerView: 4, slidesPerGroup: 4 },
-          2304: { slidesPerView: 5, slidesPerGroup: 5 },
+          1811: { slidesPerView: 3, slidesPerGroup: 3 },
+          2304: { slidesPerView: 4, slidesPerGroup: 4 },
         }}
         onReachBeginning={() => setIsBeginning(true)}
         onReachEnd={() => setIsEnd(true)}
@@ -41,7 +41,7 @@ export default function FeaturedProducts() {
           setIsBeginning(false)
           setIsEnd(false)
         }}
-        className="w-full z-10 featured-swiper justify-center items-center flex justify-center items-center
+        className="w-full z-10 featured-swiper
         [&.featured-swiper_.swiper-pagination]:!static [&.featured-swiper_.swiper-pagination]:lg:mt-2
         [&.featured-swiper_.swiper-pagination-bullet]:!bg-neutral-700
         [&.featured-swiper_.swiper-pagination-bullet]:!opacity-30
@@ -54,7 +54,7 @@ export default function FeaturedProducts() {
           </SwiperSlide>
         ))}
 
-        <div className="hidden lg:block absolute -bottom-8 -translate-y-1/2 featured-swiper-prev z-20">
+        <div className="hidden lg:block absolute -bottom-8 left-7 -translate-y-1/2 featured-swiper-prev z-20">
           <Button
             size="icon"
             variant="ghost"
@@ -68,7 +68,7 @@ export default function FeaturedProducts() {
           </Button>
         </div>
 
-        <div className="hidden lg:block absolute -bottom-8 right-0 -translate-y-1/2 featured-swiper-next z-20">
+        <div className="hidden lg:block absolute -bottom-8 right-7 -translate-y-1/2 featured-swiper-next z-20">
           <Button
             size="icon"
             variant="ghost"

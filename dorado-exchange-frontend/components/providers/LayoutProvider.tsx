@@ -7,6 +7,14 @@ import { useGetSession, useStopImpersonation } from '@/lib/queries/useAuth'
 import ShellSkeleton from '../skeletons/ShellSkeleton'
 import Footer from '../custom/nav/footer'
 import { Button } from '../ui/button'
+
+import React, { useState } from 'react'
+
+import { useDrawerStore } from '@/store/drawerStore'
+import { AnimatePresence, motion } from 'framer-motion'
+import { MagnifyingGlassIcon, PhoneIcon, XIcon } from '@phosphor-icons/react'
+import { Input } from '../ui/input'
+import formatPhoneNumber from '@/utils/formatPhoneNumber'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -15,10 +23,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '../ui/breadcrumb'
-import React from 'react'
 import Link from 'next/link'
-import { useDrawerStore } from '@/store/drawerStore'
-import { AnimatePresence, motion } from 'framer-motion'
+import { FloatingNav } from '../ui/floating-menu'
 
 export default function LayoutProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -31,6 +37,8 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
   const { user, isPending, session } = useGetSession()
 
   const stopImpersonation = useStopImpersonation()
+
+  const [visible, setVisible] = useState(true)
 
   if (!session && isPending === true) {
     return (
@@ -61,7 +69,10 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
             />
           )}
         </AnimatePresence>
-        <Shell />
+        <Shell visible={visible} />
+
+        <BreadcrumbBar visible={visible} setVisible={setVisible} />
+
         {session?.impersonatedBy && (
           <div className="z-50 sticky top-24 bg-destructive w-full raised-off-page">
             <div className="flex w-full items-center justify-between px-3 lg:px-20 py-1">
@@ -84,12 +95,14 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
             </div>
           </div>
         )}
-        {pathname !== '/' && <BreadcrumbNav />}
 
-        <div className="flex flex-col relative flex-grow">
-          {showMobileCarousel && <MobileProductCarousel />}
-          {children}
+        <div className="flex items-center justify-center relative flex-grow min-w-0">
+          <div className="mx-auto w-full max-w-7xl px-4 lg:px-6 lg:mb-30">
+            {showMobileCarousel && <MobileProductCarousel />}
+            {children}
+          </div>
         </div>
+
         <div className="mt-auto">
           <Footer />
         </div>
@@ -106,7 +119,7 @@ function BreadcrumbNav() {
     segment.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 
   return (
-    <div className="hidden lg:flex lg:px-20 pt-2">
+    <div className="hidden lg:block">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -137,6 +150,61 @@ function BreadcrumbNav() {
           })}
         </BreadcrumbList>
       </Breadcrumb>
+    </div>
+  )
+}
+
+function BreadcrumbBar({
+  visible,
+  setVisible,
+}: {
+  visible: boolean
+  setVisible: React.Dispatch<React.SetStateAction<boolean>>
+}) {
+  const [input, setInput] = React.useState('')
+
+  return (
+    <div className="relative w-full">
+      <FloatingNav
+        className="inset-x-0 bg-highest flex items-center justify-center raised-off-page border-0 border-none lg:border-t-1 lg:border-border"
+        visible={visible}
+        setVisible={setVisible}
+      >
+        <div className="flex max-w-7xl justify-center items-center w-full py-2">
+          <div className="flex w-full justify-between items-center">
+            <div className="hidden lg:flex pl-2 w-1/3 justify-start">
+              <BreadcrumbNav />
+            </div>
+
+            <div className="relative flex w-full lg:w-1/3 justify-center px-4 lg:px-0">
+              <Input className="px-8 lg:px-10" value={input} onChange={(e) => setInput(e.target.value)} placeholder='Search...'/>
+              <div className="absolute left-6 lg:left-3 top-1/2 -translate-y-1/2 hover:bg-transparent">
+                <MagnifyingGlassIcon className="text-neutral-600" size={18} />
+              </div>
+              {input !== '' && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setInput('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-600 hover:bg-transparent"
+                  tabIndex={-1}
+                >
+                  <XIcon size={16} />
+                </Button>
+              )}
+            </div>
+
+            <div className="hidden lg:flex w-1/3 justify-end">
+              <a
+                href={`tel:+${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`}
+                className="flex text-base text-neutral-800 gap-2 items-center justify-end"
+              >
+                <PhoneIcon size={24} />
+                {formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}
+              </a>
+            </div>
+          </div>
+        </div>
+      </FloatingNav>
     </div>
   )
 }

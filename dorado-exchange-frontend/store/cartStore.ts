@@ -32,7 +32,7 @@ export const cartStore = create<CartState>()(
 
       addItem: (product: Product) => {
         const items = [...get().items]
-        const existing = items.find(i => i.product_name === product.product_name)
+        const existing = items.find((i) => i.product_name === product.product_name)
 
         if (existing) {
           existing.quantity = (existing.quantity || 1) + 1
@@ -45,7 +45,7 @@ export const cartStore = create<CartState>()(
 
       removeOne: (product: Product) => {
         let items = [...get().items]
-        const index = items.findIndex(i => i.product_name === product.product_name)
+        const index = items.findIndex((i) => i.product_name === product.product_name)
 
         if (index !== -1) {
           const item = items[index]
@@ -59,7 +59,7 @@ export const cartStore = create<CartState>()(
       },
 
       removeAll: (product: Product) => {
-        const filtered = get().items.filter(i => i.product_name !== product.product_name)
+        const filtered = get().items.filter((i) => i.product_name !== product.product_name)
         set({ items: filtered })
       },
 
@@ -74,23 +74,25 @@ export const cartStore = create<CartState>()(
       mergeCartItems: (backendItems: Product[]) => {
         const localItems = get().items
         const merged = new Map<string, Product>()
-      
-        // First, add backend items (these are the source of truth)
-        for (const item of backendItems) {
-          const key = item.product_name
-          merged.set(key, { ...item, quantity: item.quantity || 1 })
-        }
-      
-        // Then add local items only if not already present
-        for (const item of localItems) {
-          const key = item.product_name
-          if (!merged.has(key)) {
+
+        if (backendItems.length > 0) {
+          for (const item of backendItems) {
+            const key = item.product_name
             merged.set(key, { ...item, quantity: item.quantity || 1 })
           }
         }
-      
+
+        if (localItems.length > 0) {
+          for (const item of localItems) {
+            const key = item.product_name
+            if (!merged.has(key)) {
+              merged.set(key, { ...item, quantity: item.quantity || 1 })
+            }
+          }
+        }
+
         set({ items: Array.from(merged.values()) })
-      }
+      },
     }),
     {
       name: 'dorado_cart',

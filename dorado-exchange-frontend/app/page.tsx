@@ -25,10 +25,9 @@ export default function Home() {
       <div className="flex flex-col w-full">
         {/* desktop */}
         <div className="hidden relative lg:flex flex-col">
-          <div className="relative flex min-h-[50vh] items-center justify-center">
-            <div className=" absolute inset-0 bg-primary/25 dark:bg-transparent z-10 pointer-events-none" />
-            <div className="w-full max-w-[80vw]">
-              <div className="relative flex items-center justify-between w-full">
+          <div className="relative flex min-h-[50vh] items-center justify-center h-full py-0 my-0 -mb-6 -mt-6">
+            <div className="w-full h-full">
+              <div className="relative flex items-center justify-between w-ful h-full">
                 <div className="w-full flex flex-col h-full gap-5">
                   <h1 className="text-6xl text-neutral-900 z-20">Precious Metals Trading</h1>
                   <div className="text-xl text-neutral-700 max-w-xl z-20">
@@ -63,8 +62,8 @@ export default function Home() {
           </div>
           <div className="flex flex-col gap-10">
             <div className="flex flex-col w-full justify-center items-center gap-10 pb-10">
-              <div className="flex justify-center items-center w-full liquid-gold">
-                <div className="flex w-full items-center justify-between p-2 max-w-[80vw]">
+              <div className="flex justify-center items-center w-full liquid-gold rounded-lg">
+                <div className="flex w-full items-center justify-between py-1 pl-2">
                   <div className="text-2xl text-white">
                     Selling your metal online has never been easier.
                   </div>
@@ -79,7 +78,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex justify-center w-full">
-                <div className="flex w-full max-w-[80vw] items-center justify-between p-2">
+                <div className="flex w-full items-center justify-between p-2">
                   <div className="flex flex-col items-start gap-2">
                     <div className="flex items-center gap-3">
                       <CalculatorIcon size={24} color={getPrimaryIconStroke()} />
@@ -124,8 +123,8 @@ export default function Home() {
               </div>
             </div>
             <div className="flex flex-col w-full justify-center items-center pb-10">
-              <div className="flex justify-center items-center w-full secondary-gradient">
-                <div className="flex w-full items-center justify-between p-2 max-w-[80vw]">
+              <div className="flex justify-center items-center w-full secondary-gradient rounded-lg">
+                <div className="flex w-full items-center justify-between py-1 pl-2">
                   <div className="text-sm lg:text-2xl text-white">
                     Buy precious metals with confidence.
                   </div>
@@ -140,7 +139,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex justify-center w-full my-6">
-                <div className="flex w-full max-w-[80vw] items-center justify-between p-2">
+                <div className="flex w-full items-center justify-between p-2">
                   <div className="flex flex-col items-start gap-2">
                     <div className="flex items-center gap-3">
                       <EyeIcon size={24} className="text-secondary" />
@@ -184,10 +183,10 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col w-full items-center max-w-[80vw] gap-2 px-2 mb-2"></div>
+              <div className="flex flex-col w-full items-center gap-2 px-2 mb-2"></div>
               <div className="flex items-center justify-center">
-                <div className="flex flex-col w-full max-w-[80vw] gap-2 px-2">
-                  <div className="text-xl text-neutral-800 font-medium -mb-10">Featured</div>
+                <div className="flex flex-col w-full gap-2 px-2">
+                  <div className="text-xl text-neutral-800 font-medium -mb-8 ml-8">Featured</div>
                   <FeaturedProducts />
                 </div>
               </div>
@@ -196,54 +195,15 @@ export default function Home() {
         </div>
 
         {/* mobile */}
-        <div className="flex flex-col lg:hidden bg-background">
-          <div className="relative flex min-h-[35vh]">
-            <Image
-              src="/homepage_images/falling-bars.png"
-              fill
-              className="object-cover"
-              alt="thumbnail"
-              priority
-            />
-            <div className="absolute inset-0 bg-neutral-200/70 z-10 pointer-events-none" />
-
-            <div className="absolute inset-0 z-20 flex items-start justify-start w-full">
-              <div className="flex items-start justify-start w-full">
-                <div className="flex flex-col h-full w-full">
-                  <div className="flex flex-col h-full gap-5 pl-5 pt-10 lg:max-w-[45vw] lg:pl-40 lg:pt-40">
-                    <div className="text-3xl text-neutral-900 font-medium">
-                      Precious Metals Trading
-                    </div>
-                    <div className="text-sm text-neutral-800">
-                      Trading metals shouldn't be complicated. Built to be smarter, simpler, and
-                      fairer, we make it easy to get real prices, fast decisions, and full
-                      transparency without compromise.
-                    </div>
-                  </div>
-                  {!user && (
-                    <div className="flex items-center justify-center w-full">
-                      <Button
-                        variant={'default'}
-                        className="w-full mt-10 text-white text-lg font-normal max-w-xs raised-off-page liquid-gold shine-on-hover"
-                        onClick={() => {
-                          router.push('/authentication')
-                        }}
-                      >
-                        Get Started
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="flex flex-col lg:hidden bg-background mt-4">
+          
           <div className="flex flex-col lg:hidden">
-            <div className="flex w-full justify-center liquid-gold">
+            <div className="flex w-full justify-center liquid-gold rouned-lg">
               <div className="text-base text-white p-2">
-                Selling your metal online has never been easier.
+                Selling your metals online has never been easier.
               </div>
             </div>
-            <div className="flex flex-col gap-6 px-4 py-8">
+            <div className="flex flex-col gap-6 pl-4 py-8">
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
@@ -294,11 +254,11 @@ export default function Home() {
               </Button>
             </div>
           </div>
-          <div className="flex flex-col lg:hidden">
-            <div className="flex w-full justify-center secondary-gradient">
+          <div className="flex flex-col lg:hidden w-full">
+            <div className="flex w-full justify-center secondary-gradient rounded-lg">
               <div className="text-base text-white p-2">Buy precious metals with confidence.</div>
             </div>
-            <div className="flex flex-col gap-6 px-4 py-8">
+            <div className="flex flex-col gap-6 px-4 py-8 w-full">
               <div className="flex flex-col items-center">
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-1">
@@ -337,8 +297,8 @@ export default function Home() {
               </div>
               <div className="border border-secondary" />
               <MobileProductCarousel />
-              <div className="flex items-center justify-center">
-                <div className="flex flex-col w-full lg:max-w-[80vw] gap-2 px-2">
+              <div className="flex items-center justify-center w-full">
+                <div className="flex flex-col w-full gap-2 px-2">
                   <div className="text-xl text-neutral-800 font-medium -mb-6">Featured</div>
                   <FeaturedProducts />
                 </div>

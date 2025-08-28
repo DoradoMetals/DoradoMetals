@@ -157,7 +157,7 @@ export default function Sidebar() {
 
   return (
     <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
-      <div className="w-screen h-full bg-neutral-800/50 dark:bg-neutral-200/50 backdrop-blur-xl border-t-1 border-border">
+      <div className="w-full h-full bg-neutral-800/50 dark:bg-neutral-200/50 backdrop-blur-xl border-t-1 border-border">
         {drawerContent}
       </div>
     </Drawer>

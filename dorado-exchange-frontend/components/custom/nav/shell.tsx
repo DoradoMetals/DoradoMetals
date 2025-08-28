@@ -16,21 +16,33 @@ import { CartTabs } from '../cart/cartTabs'
 import Spots from '../spots/spots'
 import Sidebar from './sidebar'
 
-import React from 'react'
-import { motion } from 'framer-motion'
+import React, { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion, useScroll, useMotionValueEvent } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useUser } from '@/lib/authClient'
 import { protectedRoutes } from '@/types/routes'
-import { useSignOut } from '@/lib/queries/useAuth'
-import { MoonStarsIcon, SignInIcon, SignOutIcon, SunIcon, UserIcon } from '@phosphor-icons/react'
+import { MagnifyingGlassIcon, MoonIcon, PhoneIcon, SunIcon, XIcon } from '@phosphor-icons/react'
 import { useTheme } from 'next-themes'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
+import { Input } from '@/components/ui/input'
+import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import AccountMenu from './accountMenu'
 
-export default function Shell() {
+export default function Shell({
+  visible,
+
+}: {
+  visible: boolean
+}) {
   const pathname = usePathname()
   const { user } = useUser()
-
-  const signOutMutation = useSignOut()
 
   const { activeDrawer, openDrawer, closeDrawer } = useDrawerStore()
   const isAnyDrawerOpen = !!activeDrawer
@@ -54,50 +66,46 @@ export default function Shell() {
   return (
     <div
       className={cn(
-        'z-60 sticky top-0 bg-card h-24',
-        isAnyDrawerOpen ? 'shadow-none' : 'raised-off-page'
+        'z-60 sticky top-0 bg-highest flex flex-col items-center justify-center',
+        isAnyDrawerOpen || visible ? 'shadow-none' : 'raised-off-page'
       )}
     >
-      <div className="flex items-start justify-between w-full w-screen sticky mt-1">
+      <div className="flex items-start justify-between w-full sticky">
         <Spots />
       </div>
 
-      <div className="hidden lg:flex p-4 pt-0 px-20 mt-2">
-        <div className="flex items-center gap-2 -mt-4">
-          <Link href="/" className="px-0">
-            <Logo size={212} />
-          </Link>
-
-          <div className="flex items-end">
-            <div className="flex text-base items-center tracking-wide pl-32 gap-8">
-              <nav aria-label="Primary site navigation" className="hidden lg:block px-20 pt-2">
-                <ul className="flex items-end text-base uppercase tracking-wide gap-8">
-                  {menuItems.map((item) => {
-                    const isActive = pathname === item.href
-                    const linkClasses = isActive
-                      ? 'text-primary-gradient'
-                      : 'text-neutral-500 hover-text-primary-gradient'
-                    return (
-                      <li key={item.key}>
-                        <Link href={item.href} className={linkClasses}>
-                          {item.label}
-                        </Link>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </nav>
-            </div>
+      <div className="hidden lg:flex py-3 max-w-7xl justify-center items-center w-full">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex w-1/3 justify-start">
+            <Link href="/" className="px-0">
+              <Logo size={312} />
+            </Link>
           </div>
-        </div>
 
-        <div className="hidden lg:flex items-center gap-2 ml-auto">
-          <div className="flex gap-4 items-center">
+          <nav aria-label="Primary site navigation" className="hidden lg:flex w-1/3 justify-center">
+            <ul className="flex items-end text-xl uppercase font-medium tracking-widest gap-8">
+              {menuItems.map((item) => {
+                const isActive = pathname === item.href
+                const linkClasses = isActive
+                  ? 'text-primary-gradient'
+                  : 'text-neutral-500 hover-text-primary-gradient'
+                return (
+                  <li key={item.key}>
+                    <Link href={item.href} className={linkClasses}>
+                      {item.label}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </nav>
+
+          <div className="flex gap-4 items-center w-1/3 justify-end">
             <Button className="px-0 relative" variant="ghost" onClick={() => openDrawer('cart')}>
               <CartIcon
-                size={24}
+                size={28}
                 isOpen={activeDrawer === 'cart'}
-                className="text-neutral-800 hover:text-neutral-900"
+                className="text-neutral-700 hover:text-neutral-900"
               />
               {items > 0 && (
                 <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full primary-gradient">
@@ -112,45 +120,24 @@ export default function Shell() {
               <Button
                 variant="ghost"
                 onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                className="p-0 text-neutral-800"
+                className="p-0 text-neutral-700 hover:text-neutral-900"
               >
-                {theme === 'light' ? <MoonStarsIcon size={24} /> : <SunIcon size={24} />}
+                {theme === 'light' ? <MoonIcon size={28} /> : <SunIcon size={28} />}
               </Button>
-              {user ? (
-                <Button
-                  variant="ghost"
-                  className="p-0 flex gap-1 items-center text-neutral-800"
-                  onClick={async () => {
-                    try {
-                      await signOutMutation.mutateAsync()
-                    } catch (err) {
-                      console.error('Sign out failed:', err)
-                    }
-                  }}
-                  disabled={signOutMutation.isPending}
-                >
-                  Sign Out <SignOutIcon size={24} />
-                </Button>
-              ) : (
-                <Link
-                  className="p-0 flex gap-1 items-center text-neutral-800"
-                  href={'/authentication?tab=sign-in'}
-                >
-                  Sign In <SignInIcon size={24} />
-                </Link>
-              )}
+
+              <AccountMenu />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="flex lg:hidden py-4 pt-0 px-3">
+      <div className="flex items-center justify-between w-full lg:hidden py-2 px-3">
         <div className="flex items-center gap-2">
           <Link href="/" className="px-0">
             <Logo />
           </Link>
         </div>
-        <div className="lg:hidden flex items-center ml-auto gap-2">
+        <div className="lg:hidden flex items-center gap-2">
           <Button
             className="px-0 hover:bg-card relative"
             variant="ghost"
@@ -192,6 +179,8 @@ export default function Shell() {
 
       <Sidebar />
       <CartTabs />
+
     </div>
   )
 }
+

@@ -34,27 +34,25 @@ export default function MobileSpotTicker({ type }: { type: 'Bid' | 'Ask' }) {
     <div className="overflow-hidden w-full md:hidden">
       <motion.div
         ref={containerRef}
-        className="flex items-end gap-8 w-max px-4 will-change-transform"
+        className="flex items-end gap-10 w-max px-4 will-change-transform"
         style={{ x }}
       >
         {[...spots, ...spots, ...spots].map((spot, i) => {
           const trendUp = spot.dollar_change >= 0
           const CaretIcon = trendUp ? CaretUpIcon : CaretDownIcon
+          const colorClass = trendUp ? 'text-success' : 'text-destructive'
 
           return (
-            <div key={`${spot.id}-${i}`} className="flex items-center gap-2">
-              <span className="text-neutral-900 text-sm pb-[1px]">{spot.type}:</span>
+            <div key={`${spot.id}-${i}`} className="flex items-center gap-2 text-white">
+              <span className="text-sm font-medium uppercase tracking-wide">{spot.type}:</span>
               <NumberFlowGroup>
-                <div className="text-sm flex items-center">
-                  <PriceNumberFlow
-                    value={type === 'Bid' ? spot.bid_spot : spot.ask_spot}
-                    className="text-sm"
-                  />
+                <div className="text-base flex font-medium items-center">
+                  <PriceNumberFlow value={type === 'Bid' ? spot.bid_spot : spot.ask_spot} />
                 </div>
 
-                <div className="flex items-center text-xs gap-[0.5px] text-neutral-700 pt-[.5px]">
-                  <CaretIcon size={14} color={getPrimaryIconStroke()} />
-                  <PriceNumberFlow value={spot.dollar_change} />
+                <div className="flex items-center gap-1 text-sm">
+                  <CaretIcon size={16} className={colorClass} />
+                  <PriceNumberFlow value={spot.dollar_change} className={colorClass} />
                 </div>
               </NumberFlowGroup>
             </div>

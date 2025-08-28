@@ -305,6 +305,12 @@
   border-image: linear-gradient(to bottom, #ae8625, #f5d67d, #d2ac47, #edc967, #ae8625) 1;
 }
 
+.primary-gradient-border {
+  border-width: 2px;
+  border-style: solid;
+  border-image: linear-gradient(to bottom, #ae8625, #f5d67d, #d2ac47, #edc967, #ae8625) 1;
+}
+
 /* .silver-gradient {
   background: linear-gradient(to left,
     #70706F 0%,
