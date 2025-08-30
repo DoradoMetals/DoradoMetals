@@ -10,6 +10,7 @@ type DrawerType =
   | 'users'
   | 'createSalesOrder'
   | 'leads'
+  | 'product'
   | null
 
 interface DrawerState {

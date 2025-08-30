@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
-import { SearchIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import {
@@ -12,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { MagnifyingGlassIcon } from "@phosphor-icons/react"
 
 function Command({
   className,
@@ -60,13 +60,13 @@ function CommandInput({
   return (
     <div
       data-slot="command-input-wrapper"
-      className="flex h-9 items-center gap-2 border-b px-3"
+      className="flex h-9 items-center gap-2 px-3"
     >
-      <SearchIcon className="size-4 shrink-0 opacity-50" />
+      <MagnifyingGlassIcon size={16} className="text-neutral-600" />
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(
-          "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+          "placeholder:text-neutral-500 border-b flex w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         {...props}

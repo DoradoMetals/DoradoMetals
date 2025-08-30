@@ -8,7 +8,7 @@ import ShellSkeleton from '../skeletons/ShellSkeleton'
 import Footer from '../custom/nav/footer'
 import { Button } from '../ui/button'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import { useDrawerStore } from '@/store/drawerStore'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -25,6 +25,7 @@ import {
 } from '../ui/breadcrumb'
 import Link from 'next/link'
 import { FloatingNav } from '../ui/floating-menu'
+import { cn } from '@/lib/utils'
 
 export default function LayoutProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -40,6 +41,14 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
 
   const [visible, setVisible] = useState(true)
 
+  useEffect(() => {
+    if (activeDrawer) {
+      document.body.style.overflowY = 'hidden'
+    } else {
+      document.body.style.overflowY = ''
+    }
+  }, [activeDrawer])
+
   if (!session && isPending === true) {
     return (
       <>
@@ -50,7 +59,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
 
   return (
     <>
-      <div className="flex flex-col min-h-screen">
+      <div className='flex flex-col min-h-screen'>
         <AnimatePresence>
           {isAnyDrawerOpen && (
             <motion.div
@@ -97,7 +106,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
         )}
 
         <div className="flex items-center justify-center relative flex-grow min-w-0">
-          <div className="mx-auto w-full max-w-7xl px-4 lg:px-6 lg:mb-30">
+          <div className="w-full max-w-7xl lg:mb-30">
             {showMobileCarousel && <MobileProductCarousel />}
             {children}
           </div>
@@ -161,12 +170,18 @@ function BreadcrumbBar({
   visible: boolean
   setVisible: React.Dispatch<React.SetStateAction<boolean>>
 }) {
-  const [input, setInput] = React.useState('')
+  const [input, setInput] = useState('')
+
+  const { activeDrawer } = useDrawerStore()
+  const isAnyDrawerOpen = !!activeDrawer
 
   return (
     <div className="relative w-full">
       <FloatingNav
-        className="inset-x-0 bg-highest flex items-center justify-center raised-off-page border-0 border-none lg:border-t-1 lg:border-border"
+        className={cn(
+          'inset-x-0 flex bg-highest items-center justify-center border-0 border-none lg:border-t-1 lg:border-border z-55',
+          isAnyDrawerOpen ? 'shadow-none' : 'raised-off-page'
+        )}
         visible={visible}
         setVisible={setVisible}
       >
@@ -177,7 +192,12 @@ function BreadcrumbBar({
             </div>
 
             <div className="relative flex w-full lg:w-1/3 justify-center px-4 lg:px-0">
-              <Input className="px-8 lg:px-10" value={input} onChange={(e) => setInput(e.target.value)} placeholder='Search...'/>
+              <Input
+                className="px-8 lg:px-10"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Search..."
+              />
               <div className="absolute left-6 lg:left-3 top-1/2 -translate-y-1/2 hover:bg-transparent">
                 <MagnifyingGlassIcon className="text-neutral-600" size={18} />
               </div>

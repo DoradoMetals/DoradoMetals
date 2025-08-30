@@ -41,7 +41,7 @@ export function FloatingNav({
         transition={{
           duration: 0.2,
         }}
-        className={cn('sticky z-50 flex items-center justify-center', className)}
+        className={cn('sticky flex items-center justify-center', className)}
       >
         {children}
       </motion.div>

@@ -16,31 +16,16 @@ import { CartTabs } from '../cart/cartTabs'
 import Spots from '../spots/spots'
 import Sidebar from './sidebar'
 
-import React, { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion, useScroll, useMotionValueEvent } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useUser } from '@/lib/authClient'
 import { protectedRoutes } from '@/types/routes'
-import { MagnifyingGlassIcon, MoonIcon, PhoneIcon, SunIcon, XIcon } from '@phosphor-icons/react'
+import { MoonIcon, SunIcon } from '@phosphor-icons/react'
 import { useTheme } from 'next-themes'
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
-import { Input } from '@/components/ui/input'
-import formatPhoneNumber from '@/utils/formatPhoneNumber'
+
 import AccountMenu from './accountMenu'
 
-export default function Shell({
-  visible,
-
-}: {
-  visible: boolean
-}) {
+export default function Shell({ visible }: { visible: boolean }) {
   const pathname = usePathname()
   const { user } = useUser()
 
@@ -179,8 +164,6 @@ export default function Shell({
 
       <Sidebar />
       <CartTabs />
-
     </div>
   )
 }
-

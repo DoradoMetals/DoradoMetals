@@ -8,6 +8,7 @@
     max-w-full sm:max-w-1/2 md:max-w-1/2 lg:max-w-2/5 xl:max-w-1/4
     shadow-lg
     will-change-transform
+    overflow-hidden
 }
 
 

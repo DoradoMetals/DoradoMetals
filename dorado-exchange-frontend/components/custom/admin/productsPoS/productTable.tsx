@@ -1,3 +1,6 @@
+'use client'
+
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Table,
   TableBody,
@@ -6,578 +9,127 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select'
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
-
-import {
-  useAdminProducts,
-  useCreateProduct,
-  useDeleteProduct,
-  useSaveProduct,
-} from '@/lib/queries/admin/useAdminProducts'
-import React, { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { X as XIcon } from '@phosphor-icons/react'
+
 import {
-  PaginationState,
-  useReactTable,
-  getCoreRowModel,
-  getPaginationRowModel,
-  flexRender,
   ColumnDef,
-  getFilteredRowModel,
   ColumnFiltersState,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  PaginationState,
+  flexRender,
+  useReactTable,
 } from '@tanstack/react-table'
-import {
-  useAdminMetals,
-  useAdminMints,
-  useAdminSuppliers,
-  useAdminTypes,
-} from '@/lib/queries/admin/useAdmin'
-import { Switch } from '@/components/ui/switch'
+
 import { AdminProduct } from '@/types/admin'
-import { ChevronLeft, ChevronRight, Settings, Trash2, X } from 'lucide-react'
-import { Textarea } from '@/components/ui/textarea'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
-import { cn } from '@/lib/utils'
-import { NotePencil, Plus } from '@phosphor-icons/react'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Checkbox } from '@/components/ui/checkbox'
+import { useAdminProducts } from '@/lib/queries/admin/useAdminProducts'
+import { useDrawerStore } from '@/store/drawerStore'
+import ProductDrawer from './productDrawer'
+import { formatFullDate } from '@/utils/dateFormatting'
 
-export default function ProductsTableEditable({ selectedMetal }: { selectedMetal: string }) {
+/** Helpers */
+const formatPremium = (mult?: number | null) => {
+  if (mult == null) return '-'
+  const pct = Math.abs(mult - 1) * 100
+  const dir = mult >= 1 ? 'over' : 'under'
+  return `${pct.toFixed(2)}% ${dir}`
+}
+
+export default function ProductsTableSimple({ selectedMetal }: { selectedMetal?: string }) {
   const { data: products = [] } = useAdminProducts()
-  const { data: metals } = useAdminMetals()
-  const { data: suppliers } = useAdminSuppliers()
-  const { data: mints } = useAdminMints()
-  const { data: types } = useAdminTypes()
-  const saveProduct = useSaveProduct()
-  const deleteProduct = useDeleteProduct()
-  const createProduct = useCreateProduct()
+  const { openDrawer } = useDrawerStore()
 
-  const filteredProducts = selectedMetal
-    ? products.filter((p) => p.metal === selectedMetal)
-    : products
-
-  const [activeTab, setActiveTab] = useState<'general' | 'details' | 'display' | 'dev'>('general')
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 8 })
+  const [activeProduct, setActiveProduct] = useState<string | null>(null)
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
 
-  const alwaysVisibleColumns = ['name']
-
-  const generalColumns = ['bid', 'ask', 'quantity']
-
-  const detailsColumns = [
-    'description',
-    'content',
-    'gross',
-    'purity',
-    'metal',
-    'mint',
-    'supplier',
-    'type',
-    'delete',
-  ]
-
-  const displayColumns = [
-    'display',
-    'sell_display',
-    'homepage_display',
-    'filter_category',
-    'slug',
-    'variant_group',
-    'variant_label',
-  ]
-
-  const devColumns = ['shadow_offset', 'image_front', 'image_back']
-
-  const getColumnVisibilityForTab = (tab: 'general' | 'details' | 'display' | 'dev') => {
-    const visibleColumns = new Set([
-      ...alwaysVisibleColumns,
-      ...(tab === 'general' ? generalColumns : []),
-      ...(tab === 'details' ? detailsColumns : []),
-      ...(tab === 'display' ? displayColumns : []),
-      ...(tab === 'dev' ? devColumns : []),
-    ])
-
-    const allColumns = [
-      ...alwaysVisibleColumns,
-      ...generalColumns,
-      ...detailsColumns,
-      ...displayColumns,
-      ...devColumns,
-    ]
-
-    const visibility: Record<string, boolean> = {}
-    for (const col of allColumns) {
-      visibility[col] = visibleColumns.has(col)
-    }
-
-    return visibility
-  }
-
-  const [columnVisibility, setColumnVisibility] = useState(getColumnVisibilityForTab('general'))
-
-  const handleUpdate = (id: string, updatedFields: Partial<AdminProduct>) => {
-    const product = table.getRowModel().rows.find((r) => r.original.id === id)?.original
-    if (!product) return
-    const updated = { ...product, ...updatedFields }
-    saveProduct.mutate(updated)
-  }
+  const filteredProducts = useMemo(() => {
+    if (!selectedMetal) return products
+    return products.filter((p) => p.metal === selectedMetal)
+  }, [products, selectedMetal])
 
   const columns: ColumnDef<AdminProduct>[] = [
     {
       id: 'name',
-      header: function Header({ column }) {
-        return (
-          <div className="flex items-center justify-center gap-1 h-full">
-            <span className="text-xs text-neutral-600">Name</span>
-          </div>
-        )
-      },
+      header: () => <span className="flex justify-start text-sm text-neutral-600">Name</span>,
       accessorKey: 'product_name',
-      enableColumnFilter: true,
-      enableHiding: false,
       filterFn: 'includesString',
       cell: ({ row }) => (
-        <Input
-          type="text"
-          className="input-floating-label-form min-w-70"
-          defaultValue={row.original.product_name}
-          onBlur={(e) => handleUpdate(row.original.id, { product_name: e.target.value })}
-        />
+        <div className="flex justify-start text-xs sm:text-sm text-neutral-900">
+          {row.original.product_name}
+        </div>
       ),
-    },
-    {
-      id: 'description',
-      header: 'Desc.',
-      accessorKey: 'product_description',
-      cell: ({ row }) => {
-        const [open, setOpen] = React.useState(false)
-        const [value, setValue] = React.useState(row.original.product_description)
-
-        const handleSave = () => {
-          handleUpdate(row.original.id, { product_description: value })
-          setOpen(false)
-        }
-
-        return (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild className="w-5">
-              <Button variant="ghost" size="sm" className="hover:bg-background px-0">
-                <NotePencil size={20} color={getPrimaryIconStroke()} />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Product Description</DialogTitle>
-              </DialogHeader>
-              <Textarea
-                className="input-floating-label-form"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-              />
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  className="raised-off-page liquid-gold shine-on-hover text-white hover:text-white"
-                >
-                  Save
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )
-      },
     },
     {
       id: 'metal',
-      header: 'Metal',
+      header: () => (
+        <span className="hidden sm:flex justify-center text-sm text-neutral-600">Metal</span>
+      ),
       accessorKey: 'metal',
       cell: ({ row }) => (
-        <Select
-          defaultValue={row.original.metal}
-          onValueChange={(value) => handleUpdate(row.original.id, { metal: value })}
-        >
-          <SelectTrigger className="bg-card raised-off-page border-none h-9">
-            <SelectValue placeholder="Metal" />
-          </SelectTrigger>
-          <SelectContent>
-            {metals?.map((metal, index) => (
-              <SelectItem key={index} value={metal.type}>
-                {metal.type}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="hidden sm:flex justify-center text-xs sm:text-sm text-neutral-900">
+          {row.original.metal ?? '-'}
+        </div>
       ),
     },
     {
-      id: 'supplier',
-      header: 'Supplier',
-      accessorKey: 'supplier',
-      cell: ({ row }) => (
-        <Select
-          defaultValue={row.original.supplier}
-          onValueChange={(value) => handleUpdate(row.original.id, { supplier: value })}
-        >
-          <SelectTrigger className="bg-card raised-off-page border-none h-9">
-            <SelectValue placeholder="Supplier" />
-          </SelectTrigger>
-          <SelectContent className="bg-card">
-            {suppliers?.map((supplier, index) => (
-              <SelectItem key={index} value={supplier.name}>
-                {supplier.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      id: 'active',
+      header: () => (
+        <span className="hidden sm:flex justify-center text-sm text-neutral-600">Active</span>
       ),
-    },
-    {
-      id: 'mint',
-      header: 'Mint',
-      accessorKey: 'mint',
-      cell: ({ row }) => (
-        <Select
-          defaultValue={row.original.mint}
-          onValueChange={(value) => handleUpdate(row.original.id, { mint: value })}
-        >
-          <SelectTrigger className="bg-card raised-off-page border-none h-9">
-            <SelectValue placeholder="Mint" />
-          </SelectTrigger>
-          <SelectContent>
-            {mints?.map((mint, index) => (
-              <SelectItem key={index} value={mint.name}>
-                {mint.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ),
-    },
-    {
-      id: 'type',
-      header: 'Type',
-      accessorKey: 'product_type',
-      cell: ({ row }) => (
-        <Select
-          defaultValue={row.original.product_type}
-          onValueChange={(value) => handleUpdate(row.original.id, { product_type: value })}
-        >
-          <SelectTrigger className="bg-card raised-off-page border-none h-9">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            {types?.map((type, index) => (
-              <SelectItem key={index} value={type.name}>
-                {type.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ),
-    },
-    {
-      id: 'content',
-      header: 'Content',
-      accessorKey: 'content',
-      cell: ({ row }) => (
-        <Input
-          type="number"
-          pattern="[0-9]*"
-          inputMode="decimal"
-          className="input-floating-label-form no-spinner text-right"
-          defaultValue={row.original.content}
-          onBlur={(e) => handleUpdate(row.original.id, { content: Number(e.target.value) })}
-        />
-      ),
-    },
-    {
-      id: 'gross',
-      header: 'Gross',
-      accessorKey: 'gross',
-      cell: ({ row }) => (
-        <Input
-          type="number"
-          pattern="[0-9]*"
-          inputMode="decimal"
-          className="input-floating-label-form no-spinner text-right"
-          defaultValue={row.original.gross}
-          onBlur={(e) => handleUpdate(row.original.id, { gross: Number(e.target.value) })}
-        />
-      ),
-    },
-    {
-      id: 'purity',
-      header: 'Purity',
-      accessorKey: 'purity',
-      cell: ({ row }) => (
-        <Input
-          type="number"
-          pattern="[0-9]*"
-          inputMode="decimal"
-          className="input-floating-label-form no-spinner text-right"
-          defaultValue={row.original.purity}
-          onBlur={(e) => handleUpdate(row.original.id, { purity: Number(e.target.value) })}
-        />
-      ),
+      cell: ({ row }) => {
+        const active = !!(row.original.display || row.original.sell_display)
+        return (
+          <div className="flex justify-center">
+            <div
+              className={[
+                'px-2 py-0.5 border rounded-lg text-xs font-semibold inline-flex items-center justify-center',
+                active
+                  ? 'bg-success/20 text-success border-success'
+                  : 'bg-destructive/20 text-destructive border-destructive',
+              ].join(' ')}
+            >
+              {active ? 'Active' : 'Inactive'}
+            </div>
+          </div>
+        )
+      },
     },
     {
       id: 'bid',
-      header: 'Bid',
-      accessorKey: 'bid_premium',
+      header: () => <span className="flex justify-center text-sm text-neutral-600">Bid</span>,
       cell: ({ row }) => (
-        <Input
-          type="number"
-          pattern="[0-9]*"
-          inputMode="decimal"
-          className="input-floating-label-form no-spinner text-right"
-          defaultValue={row.original.bid_premium}
-          onBlur={(e) => handleUpdate(row.original.id, { bid_premium: Number(e.target.value) })}
-        />
+        <div className="flex justify-center text-xs sm:text-sm text-neutral-900">
+          {formatPremium(row.original.bid_premium)}
+        </div>
       ),
     },
     {
       id: 'ask',
-      header: 'Ask',
-      accessorKey: 'ask_premium',
+      header: () => <span className="flex justify-center text-sm text-neutral-600">Ask</span>,
       cell: ({ row }) => (
-        <Input
-          type="number"
-          pattern="[0-9]*"
-          inputMode="decimal"
-          className="input-floating-label-form no-spinner text-right"
-          defaultValue={row.original.ask_premium}
-          onBlur={(e) => handleUpdate(row.original.id, { ask_premium: Number(e.target.value) })}
-        />
+        <div className="flex justify-center text-xs sm:text-sm text-neutral-900">
+          {formatPremium(row.original.ask_premium)}
+        </div>
       ),
-    },
-    {
-      id: 'quantity',
-      header: 'Quantity',
-      accessorKey: 'quantity',
-      cell: ({ row }) => (
-        <Input
-          type="number"
-          pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right"
-          defaultValue={row.original.quantity}
-          onBlur={(e) => handleUpdate(row.original.id, { stock: Number(e.target.value) })}
-        />
-      ),
-    },
-    {
-      id: 'display',
-      header: 'Buy Display',
-      accessorKey: 'display',
-      cell: ({ row }) => (
-        <Switch
-          checked={row.original.display}
-          onCheckedChange={(checked) => handleUpdate(row.original.id, { display: checked })}
-        />
-      ),
-    },
-    {
-      id: 'sell_display',
-      header: 'Sell Display',
-      accessorKey: 'sell_display',
-      cell: ({ row }) => (
-        <Switch
-          checked={row.original.sell_display}
-          onCheckedChange={(checked) => handleUpdate(row.original.id, { sell_display: checked })}
-        />
-      ),
-    },
-    {
-      id: 'homepage_display',
-      header: 'Featured',
-      accessorKey: 'homepage_display',
-      cell: ({ row }) => (
-        <Switch
-          checked={row.original.homepage_display}
-          onCheckedChange={(checked) =>
-            handleUpdate(row.original.id, { homepage_display: checked })
-          }
-        />
-      ),
-    },
-    {
-      id: 'variant_group',
-      header: 'Variant Group',
-      accessorKey: 'variant_group',
-      cell: ({ row }) => (
-        <Input
-          type="text"
-          className="input-floating-label-form"
-          defaultValue={row.original.variant_group}
-          onBlur={(e) => handleUpdate(row.original.id, { variant_group: e.target.value })}
-        />
-      ),
-    },
-    {
-      id: 'variant_label',
-      header: 'Variant Label',
-      accessorKey: 'variant_label',
-      cell: ({ row }) => (
-        <Input
-          type="text"
-          className="input-floating-label-form"
-          defaultValue={row.original.variant_label}
-          onBlur={(e) => handleUpdate(row.original.id, { variant_label: e.target.value })}
-        />
-      ),
-    },
-    {
-      id: 'slug',
-      header: 'Slug',
-      accessorKey: 'slug',
-      cell: ({ row }) => (
-        <Input
-          type="text"
-          className="input-floating-label-form"
-          defaultValue={row.original.slug}
-          onBlur={(e) => handleUpdate(row.original.id, { slug: e.target.value })}
-        />
-      ),
-    },
-    {
-      id: 'filter_category',
-      header: 'Filter Category',
-      accessorKey: 'filter_category',
-      cell: ({ row }) => (
-        <Input
-          type="text"
-          className="input-floating-label-form"
-          defaultValue={row.original.filter_category}
-          onBlur={(e) => handleUpdate(row.original.id, { filter_category: e.target.value })}
-        />
-      ),
-    },
-    {
-      id: 'shadow_offset',
-      header: 'Offset',
-      accessorKey: 'shadow_offset',
-      cell: ({ row }) => (
-        <Input
-          type="number"
-          pattern="[0-9]*"
-          className="input-floating-label-form no-spinner text-right"
-          defaultValue={row.original.shadow_offset}
-          onBlur={(e) => handleUpdate(row.original.id, { shadow_offset: Number(e.target.value) })}
-        />
-      ),
-    },
-    {
-      id: 'image_front',
-      header: 'Front Image Path',
-      accessorKey: 'image_front',
-      cell: ({ row }) => (
-        <Input
-          type="text"
-          className="input-floating-label-form min-w-100"
-          defaultValue={row.original.image_front}
-          onBlur={(e) => handleUpdate(row.original.id, { image_front: e.target.value })}
-        />
-      ),
-    },
-    {
-      id: 'image_back',
-      header: 'Back Image Path',
-      accessorKey: 'image_back',
-      cell: ({ row }) => (
-        <Input
-          type="text"
-          className="input-floating-label-form min-w-100"
-          defaultValue={row.original.image_back}
-          onBlur={(e) => handleUpdate(row.original.id, { image_back: e.target.value })}
-        />
-      ),
-    },
-    {
-      id: 'delete',
-      header: 'Delete',
-      cell: ({ row }) => {
-        const [open, setOpen] = React.useState(false)
-        const product = row.original
-
-        const handleConfirmDelete = () => {
-          deleteProduct.mutate(product)
-          setOpen(false)
-        }
-
-        return (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                className="text-destructive hover:text-destructive hover:bg-background"
-                disabled={true}
-              >
-                <Trash2 size={20} />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Are you sure?</DialogTitle>
-              </DialogHeader>
-              <div className="text-sm text-neutral-700">
-                This will permanently delete <strong>{product.product_name}</strong>. You can't undo
-                this action.
-              </div>
-              <DialogFooter className="pt-4">
-                <Button variant="ghost" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                <Button variant="destructive" onClick={handleConfirmDelete}>
-                  Delete
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )
-      },
     },
   ]
 
   const table = useReactTable({
     data: filteredProducts,
-    columns: columns,
+    columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    state: {
-      pagination,
-      columnFilters,
-      columnVisibility,
-    },
-    initialState: {
-      pagination: { pageIndex: 0, pageSize: 10 },
-      columnVisibility: {
-        slug: false,
-        filter_category: false,
-        shadow_offset: false,
-      },
-    },
+    state: { pagination, columnFilters },
     onPaginationChange: setPagination,
     onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
     autoResetPageIndex: false,
+    initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
   })
 
   const MemoizedRow = React.memo(function MemoizedRow({
@@ -586,9 +138,16 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
     row: ReturnType<typeof table.getRowModel>['rows'][0]
   }) {
     return (
-      <TableRow className="border-none items-center hover:bg-background" key={row.id}>
+      <TableRow
+        key={row.id}
+        className="border-none items-center hover:bg-background hover:cursor-pointer"
+        onClick={() => {
+          setActiveProduct(row.original.id)
+          openDrawer('product')
+        }}
+      >
         {row.getVisibleCells().map((cell) => (
-          <TableCell className="align-middle text-center px-2 py-2" key={cell.id}>
+          <TableCell key={cell.id} className="align-middle px-2 py-2">
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </TableCell>
         ))}
@@ -596,140 +155,44 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
     )
   })
 
-  const getHeaderAlignment = (id: string) => {
-    return id === 'product_name' ? 'text-left' : 'text-center'
-  }
-
   return (
     <div className="space-y-4 w-full">
-      <div className="flex flex-col">
-        <Button
-          variant="ghost"
-          className="flex items-center gap-1 text-primary-gradient p-0 mr-auto"
-          size="sm"
-          onClick={() => createProduct.mutate()}
-          disabled={products.some((p) => p.product_name.trim() === '')}
-        >
-          <Plus size={16} color={getPrimaryIconStroke()} />
-          Create New
-        </Button>
-
-        <div className="gap-2 flex flex-col sm:flex-row sm:items-start sm:justify-between w-full gap-5">
-          <div className="flex w-full gap-2">
-            <div className="w-full">
-              <DebouncedInput
-                type="text"
-                placeholder="Search by product name..."
-                value={String(table.getColumn('name')?.getFilterValue() ?? '')}
-                onChange={(value) => table.getColumn('name')?.setFilterValue(value)}
-              />
-            </div>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="raised-off-page bg-card text-neutral-800 hover:bg-card"
-                >
-                  <Settings size={16} className="text-neutral-800" />
-                  <div className="hidden sm:block ml-1">Columns</div>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-40 p-2 space-y-2 bg-background"
-                align="end"
-                side="bottom"
-              >
-                {table
-                  .getAllLeafColumns()
-                  .filter((col) => {
-                    const visibleKeys = new Set([
-                      ...alwaysVisibleColumns,
-                      ...(activeTab === 'general' ? generalColumns : []),
-                      ...(activeTab === 'details' ? detailsColumns : []),
-                      ...(activeTab === 'display' ? displayColumns : []),
-                      ...(activeTab === 'dev' ? devColumns : []),
-                    ])
-                    return visibleKeys.has(col.id) && col.getCanHide()
-                  })
-                  .map((column) => (
-                    <div key={column.id} className="flex items-center gap-2 w-full">
-                      <Checkbox
-                        id={`col-${column.id}`}
-                        checked={column.getIsVisible()}
-                        onCheckedChange={() => column.toggleVisibility()}
-                        className="checkbox-form"
-                      />
-                      <label
-                        htmlFor={`col-${column.id}`}
-                        className="text-sm cursor-pointer text-left"
-                      >
-                        {typeof column.columnDef.header === 'function'
-                          ? column.id
-                          : column.columnDef.header}
-                      </label>
-                    </div>
-                  ))}
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="flex w-full sm:w-auto gap-1">
-            {(['general', 'details', 'display', 'dev'] as const).map((tab) => (
-              <Button
-                key={tab}
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  'text-sm raised-off-page w-full sm:w-auto',
-                  activeTab === tab ? 'liquid-gold' : 'bg-card hover:bg-card border-none'
-                )}
-                onClick={() => {
-                  setActiveTab(tab)
-                  setColumnVisibility(getColumnVisibilityForTab(tab))
-                }}
-              >
-                <div
-                  className={cn(
-                    activeTab === tab ? 'text-white hover:text-white' : 'text-primary-gradient'
-                  )}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </div>
-              </Button>
-            ))}
-          </div>
+      {/* Top bar */}
+      <div className="flex">
+        <div className="w-full">
+          <DebouncedInput
+            type="text"
+            placeholder="Search by product name..."
+            value={String(table.getColumn('name')?.getFilterValue() ?? '')}
+            onChange={(value) => table.getColumn('name')?.setFilterValue(value)}
+          />
         </div>
       </div>
 
-      <Table className="w-full">
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow
-              key={headerGroup.id}
-              className="border-none items-center bg-card hover:bg-card"
-            >
-              {headerGroup.headers.map((header) => (
-                <TableHead
-                  key={header.id}
-                  className={`align-middle h-10 text-xs text-neutral-600 ${getHeaderAlignment(
-                    header.column.id
-                  )}`}
-                >
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.map((row) => (
-            <MemoizedRow key={row.id} row={row} />
-          ))}
-        </TableBody>
-      </Table>
+      {/* Table */}
+      <div className="w-full bg-card rounded-lg p-2 raised-off-page">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((hg) => (
+              <TableRow key={hg.id} className="border-none items-center bg-card hover:bg-card">
+                {hg.headers.map((header) => (
+                  <TableHead key={header.id} className="align-middle h-10 text-xs text-neutral-600">
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
 
+          <TableBody>
+            {table.getRowModel().rows.map((row) => (
+              <MemoizedRow key={row.id} row={row} />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
       <div className="flex justify-center items-center gap-4">
         <Button
           variant="ghost"
@@ -755,6 +218,8 @@ export default function ProductsTableEditable({ selectedMetal }: { selectedMetal
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
+
+      {activeProduct && <ProductDrawer product_id={activeProduct} products={products} />}
     </div>
   )
 }
