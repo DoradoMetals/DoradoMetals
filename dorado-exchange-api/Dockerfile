@@ -1,7 +1,5 @@
-# Use a Debian-based slim Node image (not Alpine)
-FROM node:18-slim
+FROM node:20-bullseye-slim
 
-# Install Chromium dependencies
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
@@ -20,24 +18,13 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     wget \
     --no-install-recommends \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+
 WORKDIR /app
-
-# Install app dependencies
 COPY package.json ./
 RUN npm install
-
-# Copy the rest of the code
 COPY . .
-
-# Tell Puppeteer where Chromium is (optional, but good)
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-
-# Expose port
 EXPOSE 5000
-
-# Run your app
 CMD ["node", "server.js"]
