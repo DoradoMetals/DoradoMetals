@@ -99,7 +99,7 @@ function Details({ lead }: { lead: Lead }) {
       <div className="section-label mb-4">Details</div>
       <div className="flex flex-col gap-1">
         <Label htmlFor="name" className="text-xs pl-1 font-medium text-neutral-700">
-          Product Name
+          Name
         </Label>
 
         <Input
@@ -119,6 +119,7 @@ function Details({ lead }: { lead: Lead }) {
 
         <Input
           ref={inputRef}
+          id="phone"
           type="text"
           inputMode="tel"
           autoComplete="tel"
@@ -137,12 +138,12 @@ function Details({ lead }: { lead: Lead }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="name" className="text-xs pl-1 font-medium text-neutral-700">
-          Product Name
+        <Label htmlFor="email" className="text-xs pl-1 font-medium text-neutral-700">
+          Email
         </Label>
 
         <Input
-          id="name"
+          id="email"
           placeholder="Enter name..."
           type="text"
           className="input-floating-label-form"
