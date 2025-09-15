@@ -7,14 +7,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
 import React, { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,14 +19,14 @@ import {
   getFilteredRowModel,
   ColumnFiltersState,
 } from '@tanstack/react-table'
-import { ChevronLeft, ChevronRight, Settings, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Settings, X } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Checkbox } from '@/components/ui/checkbox'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
-import { PlusIcon, CheckCircle, XCircle, CheckIcon, XIcon } from '@phosphor-icons/react' // <-- icons for booleans
+import { PlusIcon, CheckIcon, XIcon } from '@phosphor-icons/react'
 
 import { Lead, LeadCard } from '@/types/leads'
-import { useLeads, useDeleteLead } from '@/lib/queries/useLeads'
+import { useLeads } from '@/lib/queries/useLeads'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
 import { useDrawerStore } from '@/store/drawerStore'
 import LeadsDrawer from './leadsDrawer'
@@ -47,7 +39,6 @@ export default function LeadsTable({
   selectedCard: LeadCard
 }) {
   const { data: leads = [] } = useLeads()
-  const deleteLead = useDeleteLead()
 
   const { openDrawer } = useDrawerStore()
   const [activeLead, setActiveLead] = useState<string | null>(null)
@@ -139,51 +130,6 @@ export default function LeadsTable({
           <BoolIcon value={row.original.converted} />
         </div>
       ),
-    },
-    {
-      id: 'delete',
-      header: () => <span className="flex justify-end text-sm text-neutral-600">Deleted</span>,
-      cell: ({ row }) => {
-        const [open, setOpen] = React.useState(false)
-        const lead = row.original
-
-        const handleConfirmDelete = () => {
-          deleteLead.mutate(lead)
-          setOpen(false)
-        }
-
-        return (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <div className="flex justify-end">
-                <Button
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive hover:bg-background"
-                >
-                  <Trash2 size={18} />
-                </Button>
-              </div>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Delete Lead?</DialogTitle>
-              </DialogHeader>
-              <div className="text-sm text-neutral-700">
-                This will permanently delete{' '}
-                <strong>{lead.name || lead.email || lead.phone}</strong>.
-              </div>
-              <DialogFooter className="pt-4">
-                <Button variant="ghost" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                <Button variant="destructive" onClick={handleConfirmDelete}>
-                  Delete
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )
-      },
     },
   ]
 

@@ -58,7 +58,7 @@ export interface PurchaseOrder {
   carrier_pickup?: CarrierPickup
   payout: Payout
   user: {
-    user_id: string,
+    user_id: string
     user_name: string
     user_email: string
   }
@@ -68,11 +68,11 @@ export interface PurchaseOrder {
   spots_locked: boolean
   offer_notes?: string
   total_price?: number
-  num_rejections: number,
-  waive_shipping_fee: boolean,
-  waive_payout_fee: boolean,
-  return_shipping_paid: boolean,
-  review_created: boolean,
+  num_rejections: number
+  waive_shipping_fee: boolean
+  waive_payout_fee: boolean
+  return_shipping_paid: boolean
+  review_created: boolean
 }
 
 export const purchaseOrderReturnShipmentSchema = z.object({
@@ -115,6 +115,7 @@ export type StatusConfigEntry = {
   text_color: string
   background_color: string
   hover_background_color: string
+  muted_color: string
   border_color: string
   stroke_color: string
   icon: LucideIcon
@@ -128,6 +129,7 @@ export const statusConfig: StatusConfig = {
   'In Transit': {
     background_color: 'bg-cyan-300',
     hover_background_color: 'hover:bg-cyan-300',
+    muted_color: 'hover:bg-cyan-300/20',
     text_color: 'text-cyan-300',
     border_color: 'border-cyan-300',
     stroke_color: 'stroke-cyan-300',
@@ -138,6 +140,7 @@ export const statusConfig: StatusConfig = {
   Received: {
     background_color: 'bg-fuchsia-400',
     hover_background_color: 'hover:bg-fuchsia-400',
+    muted_color: 'hover:bg-fuchsia-400/20',
     text_color: 'text-fuchsia-400',
     border_color: 'border-fuchsia-400',
     stroke_color: 'stroke-fuchsia-400',
@@ -148,6 +151,7 @@ export const statusConfig: StatusConfig = {
   'Offer Sent': {
     background_color: 'bg-yellow-400',
     hover_background_color: 'hover:bg-yellow-400',
+    muted_color: 'hover:bg-yellow-400/20',
     text_color: 'text-yellow-400',
     border_color: 'border-yellow-400',
     stroke_color: 'stroke-yellow-400',
@@ -158,6 +162,7 @@ export const statusConfig: StatusConfig = {
   Accepted: {
     background_color: 'bg-orange-500',
     hover_background_color: 'hover:bg-orange-500',
+    muted_color: 'hover:bg-orange-500/20',
     text_color: 'text-orange-500',
     border_color: 'border-orange-500',
     stroke_color: 'stroke-orange-500',
@@ -168,6 +173,7 @@ export const statusConfig: StatusConfig = {
   Rejected: {
     background_color: 'bg-rose-400',
     hover_background_color: 'hover:bg-rose-400',
+    muted_color: 'hover:bg-rose-400/20',
     text_color: 'text-rose-400',
     border_color: 'border-rose-400',
     stroke_color: 'stroke-rose-400',
@@ -178,6 +184,7 @@ export const statusConfig: StatusConfig = {
   'Payment Processing': {
     background_color: 'bg-sky-600',
     hover_background_color: 'hover:bg-sky-600',
+    muted_color: 'hover:bg-sky-600/20',
     text_color: 'text-sky-600',
     border_color: 'border-sky-600',
     stroke_color: 'stroke-sky-600',
@@ -188,6 +195,7 @@ export const statusConfig: StatusConfig = {
   Cancelled: {
     background_color: 'bg-red-600',
     hover_background_color: 'hover:bg-red-600',
+    muted_color: 'hover:bg-red-600/20',
     text_color: 'text-red-600',
     border_color: 'border-red-600',
     stroke_color: 'stroke-red-600',
@@ -198,6 +206,7 @@ export const statusConfig: StatusConfig = {
   Completed: {
     background_color: 'bg-green-500',
     hover_background_color: 'hover:bg-green-500',
+    muted_color: 'hover:bg-green-500/20',
     text_color: 'text-green-500',
     border_color: 'border-green-500',
     stroke_color: 'stroke-green-500',

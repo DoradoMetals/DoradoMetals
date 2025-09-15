@@ -12,6 +12,8 @@ export type CalendarProps = React.ComponentProps<typeof DayPicker>
 function Calendar({
   className,
   classNames,
+  startMonth,
+  endMonth,
   showOutsideDays = true,
   components: userComponents,
   ...props
@@ -106,6 +108,8 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      startMonth={startMonth}
+      endMonth={endMonth}
       className={cn('w-fit', className)}
       classNames={mergedClassNames}
       components={mergedComponents}

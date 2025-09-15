@@ -18,6 +18,15 @@ async function getAll(req, res, next) {
   }
 }
 
+async function getAdmins(req, res, next) {
+  try {
+    const result = await usersService.getAdminUsers();
+    return res.status(200).json(result);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function updateCredit(req, res, next) {
   try {
     const result = await usersService.adjustDoradoCredit(req.body);
@@ -30,5 +39,6 @@ async function updateCredit(req, res, next) {
 module.exports = {
   getUser,
   getAll,
+  getAdmins,
   updateCredit,
 };

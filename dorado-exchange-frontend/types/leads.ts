@@ -7,11 +7,12 @@ export interface Lead {
   updated_at: Date
   created_by: string
   updated_by: string
-  last_contacted: Date
+  last_contacted?: Date | null
   converted: boolean
   contacted: boolean
   responded: boolean
-  contacted_by: string
+  contact: string
+  notes?: string
 }
 
 export interface NewLead {

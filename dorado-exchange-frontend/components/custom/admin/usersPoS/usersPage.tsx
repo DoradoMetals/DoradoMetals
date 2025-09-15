@@ -13,6 +13,7 @@ import { useCreateUser } from '@/lib/queries/useAuth'
 import { X } from 'lucide-react'
 import { useState } from 'react'
 import UsersTable from './usersTable'
+import { isValidEmail } from '@/utils/isValid'
 
 export function UsersPage() {
   const [open, setOpen] = useState(false)
@@ -31,8 +32,6 @@ export function UsersPage() {
       console.error('User creation failed', err)
     }
   }
-
-  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
   return (
     <>

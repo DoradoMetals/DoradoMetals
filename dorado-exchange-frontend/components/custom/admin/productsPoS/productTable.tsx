@@ -31,7 +31,6 @@ import { useDrawerStore } from '@/store/drawerStore'
 import ProductDrawer from './productDrawer'
 import { formatFullDate } from '@/utils/dateFormatting'
 
-/** Helpers */
 const formatPremium = (mult?: number | null) => {
   if (mult == null) return '-'
   const pct = Math.abs(mult - 1) * 100
@@ -157,7 +156,6 @@ export default function ProductsTableSimple({ selectedMetal }: { selectedMetal?:
 
   return (
     <div className="space-y-4 w-full">
-      {/* Top bar */}
       <div className="flex">
         <div className="w-full">
           <DebouncedInput
@@ -169,7 +167,6 @@ export default function ProductsTableSimple({ selectedMetal }: { selectedMetal?:
         </div>
       </div>
 
-      {/* Table */}
       <div className="w-full bg-card rounded-lg p-2 raised-off-page">
         <Table>
           <TableHeader>
@@ -192,7 +189,6 @@ export default function ProductsTableSimple({ selectedMetal }: { selectedMetal?:
         </Table>
       </div>
 
-      {/* Pagination */}
       <div className="flex justify-center items-center gap-4">
         <Button
           variant="ghost"

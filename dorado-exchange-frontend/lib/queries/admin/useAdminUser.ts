@@ -32,6 +32,19 @@ export const useAdminUsers = () => {
   })
 }
 
+export const useAdminRoleUsers = () => {
+  const { user } = useGetSession()
+
+  return useQuery<AdminUser[]>({
+    queryKey: ['adminRoleUsers', user?.id],
+    queryFn: async () => {
+      return await apiRequest<AdminUser[]>('GET', '/users/get_admin_users', undefined, { user })
+    },
+    staleTime: 0,
+    enabled: !!user,
+  })
+}
+
 export const useUpdateCredit= () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()

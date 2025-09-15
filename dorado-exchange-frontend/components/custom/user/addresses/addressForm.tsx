@@ -9,8 +9,9 @@ import { StateSelect } from '../account/stateSelect'
 import { Address, addressSchema } from '@/types/address'
 import { useUpdateAddress } from '@/lib/queries/useAddresses'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useDrawerStore } from '@/store/drawerStore'
+import formatPhoneNumber, { normalizePhone } from '@/utils/formatPhoneNumber'
 
 export default function AddressForm({
   address,
@@ -50,18 +51,6 @@ export default function AddressForm({
     defaultValues: address,
     values: address,
   })
-
-  const formatPhoneNumber = (value: string) => {
-    if (!value) return ''
-
-    const digits = value.replace(/\D/g, '')
-
-    const cleanDigits = digits.startsWith('1') ? digits.slice(1) : digits
-
-    if (cleanDigits.length <= 3) return `(${cleanDigits}`
-    if (cleanDigits.length <= 6) return `(${cleanDigits.slice(0, 3)}) ${cleanDigits.slice(3)}`
-    return `(${cleanDigits.slice(0, 3)}) ${cleanDigits.slice(3, 6)} - ${cleanDigits.slice(6, 10)}`
-  }
 
   return (
     <div>
@@ -112,11 +101,7 @@ export default function AddressForm({
                       {...field}
                       value={formatPhoneNumber(field.value)}
                       onChange={(e) => {
-                        let digits = e.target.value.replace(/\D/g, '')
-                        if (digits.length === 11 && digits.startsWith('1')) {
-                          digits = digits.slice(1)
-                        }
-                        field.onChange(digits.slice(0, 10))
+                        field.onChange(normalizePhone(e.target.value))
                       }}
                     />
                   </FormControl>

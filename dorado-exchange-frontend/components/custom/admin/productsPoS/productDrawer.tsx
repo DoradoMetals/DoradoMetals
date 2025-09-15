@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label'
 import PremiumControl from './premiumControl'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import QuantityBar from './quantityInput'
-import { DisplayToggle } from './displayToggle'
+import { DisplayToggle } from '../../../ui/displayToggle'
 import ShadowOffsetPicker from './shadowOffset'
 import { Input } from '@/components/ui/input'
 
@@ -127,12 +127,14 @@ function Details({ product }: { product: AdminProduct }) {
           value={product.metal}
           options={metals?.map((m) => m.type)}
           onChange={(val) => handleUpdate(product.id, { metal: val })}
+          triggerClass='raised-off-page'
         />
         <PopoverSelect
           label="Product Type"
           value={product.product_type}
           options={types?.map((item) => item.name)}
           onChange={(val) => handleUpdate(product.id, { product_type: val })}
+          triggerClass='raised-off-page'
         />
       </div>
       <PopoverSelect
@@ -140,12 +142,14 @@ function Details({ product }: { product: AdminProduct }) {
         value={product.supplier}
         options={suppliers?.map((item) => item.name)}
         onChange={(val) => handleUpdate(product.id, { supplier: val })}
+        triggerClass='raised-off-page'
       />
       <PopoverSelect
         label="Mint"
         value={product.mint}
         options={mints?.map((item) => item.name)}
         onChange={(val) => handleUpdate(product.id, { mint: val })}
+        triggerClass='raised-off-page'
       />
 
       <div className="flex flex-col w-full gap-1">
@@ -210,16 +214,6 @@ function Specifications({ product }: { product: AdminProduct }) {
   const handleUpdate = (id: string, updatedFields: Partial<AdminProduct>) => {
     const updated = { ...product, ...updatedFields }
     saveProduct.mutate(updated)
-  }
-
-  const commitNumber = (
-    e: React.FocusEvent<HTMLInputElement>,
-    key: keyof Pick<AdminProduct, 'content' | 'purity' | 'gross'>
-  ) => {
-    const n = parseFloat(e.target.value)
-    if (Number.isFinite(n)) {
-      handleUpdate(product.id, { [key]: n } as any)
-    }
   }
 
   return (

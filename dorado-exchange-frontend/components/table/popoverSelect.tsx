@@ -12,7 +12,7 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import { Button } from '@/components/ui/button'
-import { Check, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type PopoverSelectProps = {
@@ -21,6 +21,8 @@ type PopoverSelectProps = {
   options: string[]
   onChange: (value: string) => void
   placeholder?: string
+  triggerClass?: string
+  popoverClass?: string
 }
 
 export function PopoverSelect({
@@ -29,11 +31,13 @@ export function PopoverSelect({
   options,
   onChange,
   placeholder = 'Select...',
+  triggerClass,
+  popoverClass,
 }: PopoverSelectProps) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="w-full flex flex-col gap-1">
+    <div className="w-full flex flex-col">
       {label && <span className="text-xs text-neutral-700 font-medium pl-1">{label}</span>}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -42,13 +46,20 @@ export function PopoverSelect({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between bg-card border-none raised-off-page hover:bg-card"
+            className={cn('w-full m-0 justify-between bg-card border-none hover:bg-card', triggerClass)}
           >
             {value || <span className="text-neutral-500">{placeholder}</span>}
             <ChevronDown size={16} className="text-neutral-600" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="p-0 w-full bg-card z-70" align="start" sideOffset={4}>
+        <PopoverContent
+          align="start"
+          sideOffset={4}
+          className={cn(
+            'p-0 m-0 bg-card z-70 w-[var(--radix-popover-trigger-width)] min-w-0 max-w-none',
+            popoverClass
+          )}
+        >
           <Command className="bg-neutral-100">
             <CommandInput placeholder={`Search ${label || 'options'}...`} />
             <CommandSeparator />

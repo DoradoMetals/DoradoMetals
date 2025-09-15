@@ -50,8 +50,9 @@ async function updateLead(lead, user_name) {
         converted = $6,
         contacted = $7,
         responded = $8,
-        contacted_by = $9
-    WHERE id = $10
+        contact = $9,
+        notes = $10
+    WHERE id = $11
     RETURNING *;
   `;
 
@@ -64,7 +65,8 @@ async function updateLead(lead, user_name) {
     lead.converted,
     lead.contacted,
     lead.responded,
-    lead.contacted_by,
+    lead.contact,
+    lead.notes,
     lead.id,
   ];
 

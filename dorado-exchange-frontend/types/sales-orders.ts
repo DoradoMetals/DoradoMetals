@@ -91,6 +91,7 @@ export type StatusConfigEntry = {
   text_color: string
   background_color: string
   hover_background_color: string
+  muted_color: string
   border_color: string
   stroke_color: string
   icon: LucideIcon
@@ -104,6 +105,7 @@ export const statusConfig: StatusConfig = {
   Pending: {
     background_color: 'bg-rose-600',
     hover_background_color: 'hover:bg-rose-600',
+    muted_color: 'hover:bg-rose-600/20',
     text_color: 'text-rose-600',
     border_color: 'border-rose-600',
     stroke_color: 'stroke-rose-600',
@@ -114,6 +116,7 @@ export const statusConfig: StatusConfig = {
   Preparing: {
     background_color: 'bg-amber-500',
     hover_background_color: 'hover:bg-amber-500',
+    muted_color: 'hover:bg-amber-500/20',
     text_color: 'text-amber-500',
     border_color: 'border-amber-500',
     stroke_color: 'stroke-amber-500',
@@ -124,6 +127,7 @@ export const statusConfig: StatusConfig = {
   'In Transit': {
     background_color: 'bg-cyan-600',
     hover_background_color: 'hover:bg-cyan-600',
+    muted_color: 'hover:bg-cyan-600/20',
     text_color: 'text-cyan-600',
     border_color: 'border-cyan-600',
     stroke_color: 'stroke-cyan-600',
@@ -134,6 +138,7 @@ export const statusConfig: StatusConfig = {
   Completed: {
     background_color: 'bg-green-700',
     hover_background_color: 'hover:bg-green-700',
+    muted_color: 'hover:bg-green-700/20',
     text_color: 'text-green-700',
     border_color: 'border-green-700',
     stroke_color: 'stroke-green-700',

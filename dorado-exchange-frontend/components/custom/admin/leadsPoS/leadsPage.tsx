@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react'
 import LeadsTable from './leadsTable'
 import LeadsCards from './leadsCards'
 import { LeadCard, LeadsStats } from '@/types/leads'
+import formatPhoneNumber, { normalizePhone } from '@/utils/formatPhoneNumber'
 
 export function LeadsPage() {
   const { user } = useGetSession()
@@ -41,14 +42,6 @@ export function LeadsPage() {
       contactedCount: contacted,
     }
   }, [leads])
-
-  const formatPhoneNumber = (digits: string) => {
-    if (!digits) return ''
-    const clean = digits.startsWith('1') && digits.length === 11 ? digits.slice(1) : digits
-    if (clean.length <= 3) return `(${clean}`
-    if (clean.length <= 6) return `(${clean.slice(0, 3)}) ${clean.slice(3)}`
-    return `(${clean.slice(0, 3)}) ${clean.slice(3, 6)} - ${clean.slice(6, 10)}`
-  }
 
   const phoneDisplay = useMemo(() => formatPhoneNumber(phoneDigits), [phoneDigits])
   const hasPhone = phoneDigits.replace(/\D/g, '').length >= 10
@@ -119,9 +112,7 @@ export function LeadsPage() {
                   maxLength={17}
                   value={phoneDisplay}
                   onChange={(e) => {
-                    let digits = e.target.value.replace(/\D/g, '')
-                    if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1)
-                    setPhoneDigits(digits.slice(0, 10))
+                    setPhoneDigits(normalizePhone(e.target.value))
                   }}
                 />
                 {phoneDigits !== '' && (

@@ -22,6 +22,19 @@ async function getAllUsers() {
   return result.rows;
 }
 
+async function getAdminUsers() {
+  const query = `
+      SELECT curr_user.id, curr_user.email, curr_user.name, curr_user."createdAt" AS created_at, curr_user."updatedAt" AS updated_at, curr_user."emailVerified" AS email_verified, curr_user.image, curr_user.role, curr_user.dorado_funds
+      FROM exchange.users curr_user
+      WHERE role = 'admin'
+      ORDER BY curr_user.name DESC
+    `;
+  const values = [];
+  const result = await pool.query(query, values);
+  return result.rows;
+}
+
+
 async function adjustUserCredit(user_id, mode, amount) {
   const query = `
     UPDATE exchange.users
@@ -39,5 +52,6 @@ async function adjustUserCredit(user_id, mode, amount) {
 module.exports = {
   getUser,
   getAllUsers,
+  getAdminUsers,
   adjustUserCredit,
 };

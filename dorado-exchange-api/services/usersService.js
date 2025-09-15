@@ -8,6 +8,10 @@ async function getAllUsers() {
   return await usersRepo.getAllUsers();
 }
 
+async function getAdminUsers() {
+  return await usersRepo.getAdminUsers();
+}
+
 async function adjustDoradoCredit({user_id, mode, amount}) {
   return await usersRepo.adjustUserCredit(user_id, mode, amount)
 }
@@ -15,5 +19,6 @@ async function adjustDoradoCredit({user_id, mode, amount}) {
 module.exports = {
   getUser,
   getAllUsers,
+  getAdminUsers,
   adjustDoradoCredit,
 };

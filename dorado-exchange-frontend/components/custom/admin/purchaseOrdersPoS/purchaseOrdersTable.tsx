@@ -27,7 +27,6 @@ import { ChevronLeft, ChevronRight, Notebook } from 'lucide-react'
 import { TableFilterSelect } from '../../../table/filterSelect'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
 import { TableSearchSelect } from '@/components/table/filterSelectSearch'
-import { UserDetailsDialog } from '../usersPoS/usersModal'
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import {
   Dialog,
@@ -41,6 +40,7 @@ import { Textarea } from '@/components/ui/textarea'
 import AdminPurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
 import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
 import { useDrawerStore } from '@/store/drawerStore'
+import { cn } from '@/lib/utils'
 
 export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus: string | null }) {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
@@ -88,20 +88,9 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
         if (!config) return <Fragment key={row.original.purchase_order_status} />
 
         return (
-          <div className="flex justify-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`flex items-center justify-center bg-transparent hover:bg-transparent ${config.text_color}`}
-              onClick={() => {
-                setActiveOrder(row.original.id)
-                setActiveUser(row.original.user_id)
-                openDrawer('purchaseOrder')
-              }}
-            >
-              <p>{formatPurchaseOrderNumber(row.original.order_number)}</p>
-            </Button>
-          </div>
+          <p className={`flex items-center justify-center ${config.text_color}`}>
+            {formatPurchaseOrderNumber(row.original.order_number)}
+          </p>
         )
       },
     },
@@ -117,7 +106,7 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
         }, [column])
 
         return (
-          <div ref={anchorRef} className="flex items-center justify-center  gap-1 h-full">
+          <div ref={anchorRef} className="flex items-center justify-center gap-1 h-full">
             <span className="text-xs text-neutral-600">User</span>
             <TableSearchSelect
               column={column}
@@ -133,21 +122,7 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
       enableHiding: false,
       filterFn: 'includesString',
       cell: ({ row }) => {
-        const [userDialogOpen, setUserDialogOpen] = useState(false)
-        const config = statusConfig[row.original.purchase_order_status]
-        if (!config) return <Fragment key={row.original.purchase_order_status} />
-
-        return (
-          <div className="text-left sm:text-center">
-            <UserDetailsDialog
-              open={userDialogOpen}
-              setOpen={setUserDialogOpen}
-              user_id={row.original.user_id}
-              username={row.original.user.user_name}
-              color={config.text_color}
-            />
-          </div>
-        )
+        return <div className="flex justify-center items-center">{row.original.user.user_name}</div>
       },
     },
 
@@ -230,10 +205,13 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
       enableColumnFilter: true,
       filterFn: 'includesString',
 
-      // cell-fn also guards with an `if`
       cell: ({ row }) => {
         if (selectedStatus !== 'In Transit') return null
-        return <div className="text-xs sm:text-sm text-neutral-800 text-left sm:text-center">{row.original.shipment.shipping_status}</div>
+        return (
+          <div className="text-xs sm:text-sm text-neutral-800 text-left sm:text-center">
+            {row.original.shipment.shipping_status}
+          </div>
+        )
       },
     },
     {
@@ -299,8 +277,18 @@ export default function PurchaseOrdersTable({ selectedStatus }: { selectedStatus
   }: {
     row: ReturnType<typeof table.getRowModel>['rows'][0]
   }) {
+    const config = statusConfig[row.original.purchase_order_status]
+
     return (
-      <TableRow className="border-none items-center hover:bg-background" key={row.id}>
+      <TableRow
+        key={row.id}
+        className={cn('border-none items-center hover:cursor-pointer', config.muted_color)}
+        onClick={() => {
+          setActiveOrder(row.original.id)
+          setActiveUser(row.original.user_id)
+          openDrawer('purchaseOrder')
+        }}
+      >
         {row.getVisibleCells().map((cell) => (
           <TableCell className="align-middle text-center px-0 py-2" key={cell.id}>
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
