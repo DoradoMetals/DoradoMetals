@@ -1,7 +1,7 @@
-const pool = require("../db");
-const axios = require("axios");
+import pool from "../db.js";
+import axios from "axios";
 
-const getSpotPrices = async (req, res) => {
+export async function getSpotPrices (req, res) {
   try {
     const result = await pool.query(
       `SELECT id, type, ask_spot, bid_spot, percent_change, dollar_change, scrap_percentage, bullion_percentage
@@ -22,7 +22,7 @@ const getSpotPrices = async (req, res) => {
   }
 };
 
-const updateScrapPercentages = async (req, res) => {
+export async function updateScrapPercentages (req, res) {
   const { id, scrap_percentage } = req.body;
   try {
     const query = `
@@ -42,7 +42,7 @@ const updateScrapPercentages = async (req, res) => {
   }
 };
 
-const updateSpotPrices = async () => {
+export async function updateSpotPrices () {
   try {
     const response = await axios.get(process.env.SPOT_API_URL, {
       headers: {
@@ -117,10 +117,4 @@ const updateSpotPrices = async () => {
   } catch (err) {
     console.error("❌ Error updating spot prices:", err.message);
   }
-};
-
-module.exports = {
-  getSpotPrices,
-  updateScrapPercentages,
-  updateSpotPrices,
 };

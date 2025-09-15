@@ -1,10 +1,9 @@
-const express = require("express");
+import express from 'express';
+import { getAllSuppliers } from '../controllers/supplierController.js';
+import { requireAdmin } from '../middleware/authMiddleware.js';
+
 const router = express.Router();
 
-const { getAllSuppliers } = require("../controllers/supplierController");
+router.get('/get_all', requireAdmin, getAllSuppliers);
 
-const { requireAdmin } = require("../middleware/authMiddleware");
-
-router.get("/get_all", requireAdmin, getAllSuppliers);
-
-module.exports = router;
+export default router;

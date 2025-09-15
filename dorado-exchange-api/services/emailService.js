@@ -1,18 +1,18 @@
-const pdfRepo = require("../repositories/pdfRepo");
+import * as pdfRepo from '../repositories/pdfRepo.js';
 
-const {
+import {
   renderPurchaseOrderPlacedEmail,
   renderOfferAcceptedEmail,
   renderSalesOrderToSupplierEmail,
-} = require("../emails/renderEmail");
+} from '../emails/renderEmail.js';
 
-const { sendEmail } = require("../emails/sendEmail");
-const {
+import { sendEmail } from '../emails/sendEmail.js';
+import {
   formatPurchaseOrderNumber,
   formatSalesOrderNumber,
-} = require("../utils/formatOrderNumbers");
+} from '../utils/formatOrderNumbers.js';
 
-async function sendCreatedEmail({
+export async function sendCreatedEmail({
   purchaseOrder,
   spotPrices,
   packageDetails,
@@ -27,7 +27,7 @@ async function sendCreatedEmail({
 
   await sendEmail({
     to: purchaseOrder.user.user_email,
-    subject: "Your Order Has Been Placed!",
+    subject: 'Your Order Has Been Placed!',
     html: renderPurchaseOrderPlacedEmail({
       firstName: purchaseOrder.user.user_name,
       url: `${process.env.FRONTEND_URL}/orders`,
@@ -38,13 +38,13 @@ async function sendCreatedEmail({
           purchaseOrder.order_number
         )}_packing_list.pdf`,
         content: pdfBuffer,
-        contentType: "application/pdf",
+        contentType: 'application/pdf',
       },
     ],
   });
 }
 
-async function sendAcceptedEmail({ order, order_spots, spot_prices }) {
+export async function sendAcceptedEmail({ order, order_spots, spot_prices, email }) {
   let pdfBuffer;
   try {
     pdfBuffer = await pdfRepo.generateInvoice({
@@ -53,68 +53,56 @@ async function sendAcceptedEmail({ order, order_spots, spot_prices }) {
       spotPrices: spot_prices,
     });
   } catch (err) {
-    const msg = "[EmailService] invoice PDF generation failed";
+    const msg = '[EmailService] invoice PDF generation failed';
     err.message = `${msg}: ${err.message}`;
     throw err;
   }
 
   await sendEmail({
     to: email,
-    subject: "",
+    subject: `Offer Accepted - Order ${formatPurchaseOrderNumber(order.order_number)}`,
     html: renderOfferAcceptedEmail({
       firstName: order.user.user_name,
       url: `${process.env.FRONTEND_URL}/orders`,
     }),
     attachments: [
       {
-        filename: `${formatPurchaseOrderNumber(
-          order.order_number
-        )}_invoice.pdf`,
+        filename: `${formatPurchaseOrderNumber(order.order_number)}_invoice.pdf`,
         content: pdfBuffer,
-        contentType: "application/pdf",
+        contentType: 'application/pdf',
       },
     ],
   });
 }
 
-async function sendSalesOrderToSupplier(order, spots, email) {
+export async function sendSalesOrderToSupplier(order, spots, email) {
   let pdfBuffer;
   try {
     pdfBuffer = await pdfRepo.generateSalesOrderInvoice({
       salesOrder: order,
-      spots: spots,
+      spots,
     });
   } catch (err) {
-    const msg = "[EmailService] invoice PDF generation failed";
+    const msg = '[EmailService] invoice PDF generation failed';
     err.message = `${msg}: ${err.message}`;
     throw err;
   }
 
   await sendEmail({
     to: email,
-    subject: `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(
-      order.order_number
-    )}`,
+    subject: `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(order.order_number)}`,
     html: renderSalesOrderToSupplierEmail({
       firstName: order.user.user_name,
       url: `${process.env.FRONTEND_URL}/orders`,
-      order: order,
-      spots: spots,
+      order,
+      spots,
     }),
     attachments: [
       {
-        filename: `${formatSalesOrderNumber(
-          order.order_number
-        )}_invoice.pdf`,
+        filename: `${formatSalesOrderNumber(order.order_number)}_invoice.pdf`,
         content: pdfBuffer,
-        contentType: "application/pdf",
+        contentType: 'application/pdf',
       },
     ],
   });
 }
-
-module.exports = {
-  sendCreatedEmail,
-  sendAcceptedEmail,
-  sendSalesOrderToSupplier,
-};

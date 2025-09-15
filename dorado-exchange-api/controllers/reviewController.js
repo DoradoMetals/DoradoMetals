@@ -1,6 +1,6 @@
-const pool = require("../db");
+import pool from "../db.js";
 
-const createReview = async (req, res) => {
+export async function createReview (req, res) {
   const { review, user } = req.body;
   
   try {
@@ -29,6 +29,4 @@ const createReview = async (req, res) => {
   }
 };
 
-module.exports = {
-  createReview,
-};
+

@@ -1,9 +1,5 @@
-const carriersRepo = require("../repositories/carriersRepo")
+import * as carriersRepo from '../repositories/carriersRepo.js';
 
-async function getAll() {
-  return await carriersRepo.getAll()
-}
-
-module.exports = {
-  getAll,
+export async function getAll() {
+  return await carriersRepo.getAll();
 }

@@ -1,25 +1,25 @@
-const puppeteer = require("puppeteer");
-const {
+import puppeteer from "puppeteer";
+import {
   calculateTotalPrice,
   calculateItemPrice,
   getBullionTotal,
   getScrapTotal,
-} = require("../utils/price-calculations");
+} from "../utils/price-calculations.js";
 
-const { formatPhoneNumber } = require("../utils/formatPhoneNumber");
-const { assignScrapItemNames } = require("../utils/assignScrapNames");
+import { formatPhoneNumber } from "../utils/formatPhoneNumber.js";
+import { assignScrapItemNames } from "../utils/assignScrapNames.js";
 
-function getScrapPrice(content, spot) {
+export function getScrapPrice(content, spot) {
   if (!spot || !content) return 0;
   return content * (spot.bid_spot * spot.scrap_percentage);
 }
 
-function getProductBidPrice(product, spot) {
+export function getProductBidPrice(product, spot) {
   if (!spot || !product) return 0;
   return product.content * (spot.bid_spot * product.bid_premium);
 }
 
-function generateBoxSVG(length, width, height, label) {
+export function generateBoxSVG(length, width, height, label) {
   const isFedExBox = label.startsWith("FedEx");
 
   const scale = 10;
@@ -295,11 +295,11 @@ ${scribbleLines.join("\n")}
   }
 }
 
-const generatePackingList = async ({
+export async function generatePackingList({
   purchaseOrder,
   spotPrices = [],
   packageDetails,
-}) => {
+}) {
   const browser = await puppeteer.launch({
     headless: true,
     args: ["--no-sandbox"],
@@ -952,12 +952,12 @@ const generatePackingList = async ({
 
   await browser.close();
   return pdfBuffer;
-};
+}
 
-const generateReturnPackingList = async ({
+export async function generateReturnPackingList({
   purchaseOrder,
   spotPrices = [],
-}) => {
+}) {
   const browser = await puppeteer.launch({
     headless: true,
     args: ["--no-sandbox"],
@@ -1480,13 +1480,13 @@ const generateReturnPackingList = async ({
 
   await browser.close();
   return pdfBuffer;
-};
+}
 
-const generateInvoice = async ({
+export async function generateInvoice({
   purchaseOrder,
   spotPrices = [],
   orderSpots = [],
-}) => {
+}) {
   const doneStatus = ["Accepted", "Payment Processing", "Completed"];
 
   const browser = await puppeteer.launch({
@@ -1497,7 +1497,7 @@ const generateInvoice = async ({
 
   const spots = purchaseOrder.spots_locked ? orderSpots : spotPrices;
   const total = calculateTotalPrice(purchaseOrder, spots);
-  const payoutCost = purchaseOrder.payout.cost
+  const payoutCost = purchaseOrder.payout.cost;
   const payoutDelay =
     purchaseOrder.payout.method === "WIRE"
       ? "1-5 hours"
@@ -1518,9 +1518,7 @@ const generateInvoice = async ({
       return `
         <tr>
           <td class="text-left">${scrap.name || "Scrap Item"}</td>
-                    <td>${scrap.pre_melt} ${
-        scrap.gross_unit || ""
-      }</td>
+                    <td>${scrap.pre_melt} ${scrap.gross_unit || ""}</td>
           <td>${scrap.post_melt ?? scrap.pre_melt} ${
         scrap.gross_unit || ""
       }</td>
@@ -2230,9 +2228,9 @@ const generateInvoice = async ({
 
   await browser.close();
   return pdfBuffer;
-};
+}
 
-const generateSalesOrderInvoice = async ({ salesOrder, spots = [] }) => {
+export async function generateSalesOrderInvoice({ salesOrder, spots = [] }) {
   const doneStatus = ["Preparing", "In Transit", "Completed"];
 
   const browser = await puppeteer.launch({
@@ -2765,11 +2763,4 @@ const generateSalesOrderInvoice = async ({ salesOrder, spots = [] }) => {
 
   await browser.close();
   return pdfBuffer;
-};
-
-module.exports = {
-  generatePackingList,
-  generateReturnPackingList,
-  generateInvoice,
-  generateSalesOrderInvoice,
-};
+}

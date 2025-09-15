@@ -1,6 +1,6 @@
-const salesOrderService = require("../services/salesOrderService");
+import * as salesOrderService from "../services/salesOrderService.js";
 
-async function getSalesOrderById(req, res) {
+export async function getSalesOrderById(req, res) {
   try {
     const orderId = req.params.id;
     const order = await salesOrderService.getById(orderId);
@@ -10,7 +10,7 @@ async function getSalesOrderById(req, res) {
   }
 }
 
-async function getSalesOrders(req, res, next) {
+export async function getSalesOrders(req, res, next) {
   try {
     const userId = req.user.id;
     const orders = await salesOrderService.listOrdersForUser(userId);
@@ -20,7 +20,7 @@ async function getSalesOrders(req, res, next) {
   }
 }
 
-async function getAllSalesOrders(req, res, next) {
+export async function getAllSalesOrders(req, res, next) {
   try {
     const orders = await salesOrderService.getAll();
     return res.json(orders);
@@ -29,7 +29,7 @@ async function getAllSalesOrders(req, res, next) {
   }
 }
 
-async function getOrderMetals(req, res, next) {
+export async function getOrderMetals(req, res, next) {
   try {
     const { sales_order_id } = req.body;
     const metals = await salesOrderService.getMetalsForOrder(sales_order_id);
@@ -39,7 +39,7 @@ async function getOrderMetals(req, res, next) {
   }
 }
 
-async function cancelOrder(req, res, next) {
+export async function cancelOrder(req, res, next) {
   try {
     const result = await salesOrderService.cancelOrder(req.body);
     return res.status(200).json(result);
@@ -48,7 +48,7 @@ async function cancelOrder(req, res, next) {
   }
 }
 
-async function createReview(req, res, next) {
+export async function createReview(req, res, next) {
   try {
     const result = await salesOrderService.createReview(req.body);
     return res.status(200).json(result);
@@ -57,7 +57,7 @@ async function createReview(req, res, next) {
   }
 }
 
-async function createSalesOrder(req, res, next) {
+export async function createSalesOrder(req, res, next) {
   try {
     const order = await salesOrderService.createSalesOrder(
       req.body,
@@ -69,7 +69,7 @@ async function createSalesOrder(req, res, next) {
   }
 }
 
-async function adminCreateSalesOrder(req, res, next) {
+export async function adminCreateSalesOrder(req, res, next) {
   try {
     const order = await salesOrderService.adminCreateSalesOrder(req.body);
     return res.status(200).json(order);
@@ -78,7 +78,7 @@ async function adminCreateSalesOrder(req, res, next) {
   }
 }
 
-async function updateStatus(req, res, next) {
+export async function updateStatus(req, res, next) {
   try {
     const updated = await salesOrderService.updateStatus(req.body);
     return res.status(200).json(updated);
@@ -87,7 +87,7 @@ async function updateStatus(req, res, next) {
   }
 }
 
-async function sendOrderToSupplier(req, res, next) {
+export async function sendOrderToSupplier(req, res, next) {
   try {
     const order = await salesOrderService.sendOrderToSupplier(req.body);
     return res.status(200).json(order);
@@ -96,7 +96,7 @@ async function sendOrderToSupplier(req, res, next) {
   }
 }
 
-async function updateOrderTracking(req, res, next) {
+export async function updateOrderTracking(req, res, next) {
   try {
     const order = await salesOrderService.updateTracking(req.body);
     return res.status(200).json(order);
@@ -104,17 +104,3 @@ async function updateOrderTracking(req, res, next) {
     return next(err);
   }
 }
-
-module.exports = {
-  getSalesOrderById,
-  getSalesOrders,
-  getAllSalesOrders,
-  getOrderMetals,
-  cancelOrder,
-  createReview,
-  createSalesOrder,
-  adminCreateSalesOrder,
-  updateStatus,
-  sendOrderToSupplier,
-  updateOrderTracking,
-};

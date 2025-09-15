@@ -1,7 +1,7 @@
-const pool = require("../db");
-const { validateAddress } = require("./shipping/fedexController");
+import pool from "../db.js";
+import { validateAddress } from "./shipping/fedexController.js";
 
-const getAddresses = async (req, res) => {
+export async function  getAddresses (req, res)  {
   const { user_id } = req.query;
 
   try {
@@ -18,7 +18,7 @@ const getAddresses = async (req, res) => {
   }
 };
 
-const createAndUpdateAddress = async (req, res) => {
+export async function createAndUpdateAddress (req, res) {
   const address = req.body.address;
   const user_id = req.body.user_id;
 
@@ -85,9 +85,8 @@ const createAndUpdateAddress = async (req, res) => {
       false,
     ];
 
-    const result = await pool.query(query, values);
+    await pool.query(query, values);
 
-    // Validate address using the reusable FedEx function
     const { is_valid, is_residential } = await validateAddress(address);
 
     const finalUpdate = await pool.query(
@@ -113,7 +112,7 @@ const createAndUpdateAddress = async (req, res) => {
   }
 };
 
-const deleteAddress = async (req, res) => {
+export async function deleteAddress (req, res) {
   const { user_id, address } = req.body;
 
   try {
@@ -157,7 +156,7 @@ const deleteAddress = async (req, res) => {
   }
 };
 
-const setDefaultAddress = async (req, res) => {
+export async function  setDefaultAddress (req, res) {
   const user_id = req.body.user_id;
   const address = req.body.address;
 
@@ -178,11 +177,4 @@ const setDefaultAddress = async (req, res) => {
     console.error("Error setting default address", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
-};
-
-module.exports = {
-  getAddresses,
-  createAndUpdateAddress,
-  deleteAddress,
-  setDefaultAddress,
 };

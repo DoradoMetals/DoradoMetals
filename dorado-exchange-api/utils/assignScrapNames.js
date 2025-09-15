@@ -1,4 +1,4 @@
-function assignScrapItemNames(scrapItems) {
+export function assignScrapItemNames(scrapItems) {
   const metalOrder = ["Gold", "Silver", "Platinum", "Palladium"];
 
   const validScrapItems = scrapItems.filter((item) => item.scrap?.metal);
@@ -31,7 +31,3 @@ function assignScrapItemNames(scrapItems) {
     };
   });
 }
-
-module.exports = {
-  assignScrapItemNames,
-};

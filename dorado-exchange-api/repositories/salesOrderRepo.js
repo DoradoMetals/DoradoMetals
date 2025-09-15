@@ -1,5 +1,5 @@
-const pool = require("../db");
-const { calculateItemAsk } = require("../utils/price-calculations");
+import pool from '../db.js';
+import { calculateItemAsk } from '../utils/price-calculations.js';
 
 async function findById(id) {
   const query = `
@@ -68,7 +68,7 @@ async function findById(id) {
   return rows[0] || null;
 }
 
-async function findAllByUser(userId) {
+export async function findAllByUser(userId) {
   const query = `
     SELECT 
       so.*,
@@ -134,7 +134,7 @@ async function findAllByUser(userId) {
   return rows;
 }
 
-async function getAll() {
+export async function getAll() {
   const query = `
     SELECT 
       so.*,
@@ -200,7 +200,7 @@ async function getAll() {
   return rows;
 }
 
-async function findMetalsByOrderId(orderId) {
+export async function findMetalsByOrderId(orderId) {
   const query = `
     SELECT 
       id,
@@ -221,7 +221,7 @@ async function findMetalsByOrderId(orderId) {
   return rows;
 }
 
-async function insertOrder(client, { user, status, sales_order, orderPrices }) {
+export async function insertOrder(client, { user, status, sales_order, orderPrices }) {
   const query = `
     INSERT INTO exchange.sales_orders (
       user_id,
@@ -277,7 +277,7 @@ async function insertOrder(client, { user, status, sales_order, orderPrices }) {
   return rows[0].id;
 }
 
-async function insertItems(client, orderId, items, spot_prices) {
+export async function insertItems(client, orderId, items, spot_prices) {
   const query = `
     INSERT INTO exchange.sales_order_items
       (sales_order_id, product_id, price, quantity, bullion_premium, sales_tax_rate)
@@ -296,7 +296,7 @@ async function insertItems(client, orderId, items, spot_prices) {
   }
 }
 
-async function insertOrderMetals(orderId, spot_prices, client) {
+export async function insertOrderMetals(orderId, spot_prices, client) {
   await Promise.all(
     spot_prices.map(async (spot) => {
       const query = `
@@ -358,17 +358,3 @@ async function attachSupplierToOrder(id, supplier_id, client) {
     [supplier_id, id]
   );
 }
-
-module.exports = {
-  findById,
-  findAllByUser,
-  getAll,
-  findMetalsByOrderId,
-  insertOrder,
-  insertItems,
-  insertOrderMetals,
-  updateStatus,
-  updateTracking,
-  updateOrderSent,
-  attachSupplierToOrder,
-};

@@ -1,6 +1,6 @@
-const carriersService = require("../services/carriersService");
+import * as carriersService from "../services/carriersService.js";
 
-async function getAll(req, res, next) {
+export async function getAll(req, res, next) {
   try {
     const result = await carriersService.getAll();
     return res.status(200).json(result);
@@ -8,7 +8,3 @@ async function getAll(req, res, next) {
     return next(err);
   }
 }
-
-module.exports = {
-  getAll,
-};

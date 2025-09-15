@@ -1,6 +1,6 @@
-const emailService = require('../services/emailService');
+import * as emailService from '../services/emailService.js';
 
-async function sendCreatedEmail(req, res, next) {
+export async function sendCreatedEmail(req, res, next) {
   try {
     await emailService.sendCreatedEmail(req.body);
     return res.status(200).json({ success: true });
@@ -10,7 +10,7 @@ async function sendCreatedEmail(req, res, next) {
   }
 }
 
-async function sendAcceptedEmail(req, res, next) {
+export async function sendAcceptedEmail(req, res, next) {
   try {
     await emailService.sendAcceptedEmail(req.body);
     return res.status(200).json({ success: true });
@@ -19,8 +19,3 @@ async function sendAcceptedEmail(req, res, next) {
     return next(err);
   }
 }
-
-module.exports = {
-  sendCreatedEmail,
-  sendAcceptedEmail
-};

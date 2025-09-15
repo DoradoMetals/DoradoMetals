@@ -1,6 +1,6 @@
-const purchaseOrderService = require("../services/purchaseOrderService");
+import * as purchaseOrderService from "../services/purchaseOrderService.js";
 
-async function getPurchaseOrderById(req, res) {
+export async function getPurchaseOrderById(req, res) {
   try {
     const orderId = req.params.id;
     const order = await purchaseOrderService.getById(orderId);
@@ -10,7 +10,7 @@ async function getPurchaseOrderById(req, res) {
   }
 }
 
-async function getPurchaseOrders(req, res, next) {
+export async function getPurchaseOrders(req, res, next) {
   try {
     const userId = req.user.id;
     const orders = await purchaseOrderService.listOrdersForUser(userId);
@@ -20,7 +20,7 @@ async function getPurchaseOrders(req, res, next) {
   }
 }
 
-async function getAllPurchaseOrders(req, res, next) {
+export async function getAllPurchaseOrders(req, res, next) {
   try {
     const orders = await purchaseOrderService.getAll();
     return res.json(orders);
@@ -29,7 +29,7 @@ async function getAllPurchaseOrders(req, res, next) {
   }
 }
 
-async function getPurchaseOrderMetals(req, res, next) {
+export async function getPurchaseOrderMetals(req, res, next) {
   try {
     const { purchase_order_id } = req.body;
     const metals = await purchaseOrderService.getMetalsForOrder(
@@ -41,7 +41,7 @@ async function getPurchaseOrderMetals(req, res, next) {
   }
 }
 
-async function acceptOffer(req, res, next) {
+export async function acceptOffer(req, res, next) {
   try {
     const { order, order_spots, spot_prices } = req.body;
     const { purchaseOrder, orderSpots } =
@@ -59,7 +59,7 @@ async function acceptOffer(req, res, next) {
   }
 }
 
-async function rejectOffer(req, res, next) {
+export async function rejectOffer(req, res, next) {
   try {
     const { order, offer_notes } = req.body;
     const updated = await purchaseOrderService.rejectOffer({
@@ -72,7 +72,7 @@ async function rejectOffer(req, res, next) {
   }
 }
 
-async function cancelOrder(req, res, next) {
+export async function cancelOrder(req, res, next) {
   try {
     const { order, return_shipment } = req.body;
     const result = await purchaseOrderService.cancelOrder({
@@ -85,7 +85,7 @@ async function cancelOrder(req, res, next) {
   }
 }
 
-async function updateOfferNotes(req, res, next) {
+export async function updateOfferNotes(req, res, next) {
   try {
     const { order, offer_notes } = req.body;
     const result = await purchaseOrderService.updateOfferNotes({
@@ -98,7 +98,7 @@ async function updateOfferNotes(req, res, next) {
   }
 }
 
-async function createReview(req, res, next) {
+export async function createReview(req, res, next) {
   try {
     const { order } = req.body;
     const result = await purchaseOrderService.createReview({
@@ -110,7 +110,7 @@ async function createReview(req, res, next) {
   }
 }
 
-async function createPurchaseOrder(req, res, next) {
+export async function createPurchaseOrder(req, res, next) {
   try {
     const { purchase_order, user_id } = req.body;
     const order = await purchaseOrderService.createPurchaseOrder(
@@ -123,7 +123,7 @@ async function createPurchaseOrder(req, res, next) {
   }
 }
 
-async function sendOffer(req, res, next) {
+export async function sendOffer(req, res, next) {
   try {
     await purchaseOrderService.sendOffer(req.body);
     const updated = await purchaseOrderService.updateStatus(req.body);
@@ -133,7 +133,7 @@ async function sendOffer(req, res, next) {
   }
 }
 
-async function updateRejectedOffer(req, res, next) {
+export async function updateRejectedOffer(req, res, next) {
   try {
     await purchaseOrderService.sendOffer(req.body);
     const updated = await purchaseOrderService.updateStatus(req.body);
@@ -143,7 +143,7 @@ async function updateRejectedOffer(req, res, next) {
   }
 }
 
-async function updateStatus(req, res, next) {
+export async function updateStatus(req, res, next) {
   try {
     const updated = await purchaseOrderService.updateStatus(req.body);
     return res.status(200).json(updated);
@@ -152,7 +152,7 @@ async function updateStatus(req, res, next) {
   }
 }
 
-async function updateScrapPercentage(req, res, next) {
+export async function updateScrapPercentage(req, res, next) {
   try {
     const updated = await purchaseOrderService.updateScrap(req.body);
     return res.status(200).json({ updated });
@@ -161,7 +161,7 @@ async function updateScrapPercentage(req, res, next) {
   }
 }
 
-async function resetScrapPercentage(req, res, next) {
+export async function resetScrapPercentage(req, res, next) {
   try {
     const updated = await purchaseOrderService.resetScrap(req.body);
     return res.status(200).json({ updated });
@@ -170,7 +170,7 @@ async function resetScrapPercentage(req, res, next) {
   }
 }
 
-async function updateSpot(req, res, next) {
+export async function updateSpot(req, res, next) {
   try {
     const updated = await purchaseOrderService.updateSpot(req.body);
     return res.status(200).json({ updated });
@@ -179,7 +179,7 @@ async function updateSpot(req, res, next) {
   }
 }
 
-async function lockSpots(req, res, next) {
+export async function lockSpots(req, res, next) {
   try {
     const updated = await purchaseOrderService.lockSpots(req.body);
     return res.status(200).json({ updated });
@@ -188,7 +188,7 @@ async function lockSpots(req, res, next) {
   }
 }
 
-async function unlockSpots(req, res, next) {
+export async function unlockSpots(req, res, next) {
   try {
     const updated = await purchaseOrderService.unlockSpots(req.body);
     return res.status(200).json({ updated });
@@ -197,7 +197,7 @@ async function unlockSpots(req, res, next) {
   }
 }
 
-async function saveOrderItems(req, res, next) {
+export async function saveOrderItems(req, res, next) {
   try {
     const updated = await purchaseOrderService.toggleOrderItemStatus({
       item_status: true,
@@ -210,7 +210,7 @@ async function saveOrderItems(req, res, next) {
   }
 }
 
-async function resetOrderItems(req, res, next) {
+export async function resetOrderItems(req, res, next) {
   try {
     const updated = await purchaseOrderService.toggleOrderItemStatus({
       item_status: false,
@@ -223,7 +223,7 @@ async function resetOrderItems(req, res, next) {
   }
 }
 
-async function deleteOrderItems(req, res, next) {
+export async function deleteOrderItems(req, res, next) {
   try {
     const updated = await purchaseOrderService.deleteOrderItems(req.body);
 
@@ -233,7 +233,7 @@ async function deleteOrderItems(req, res, next) {
   }
 }
 
-async function updateScrapItem(req, res, next) {
+export async function updateScrapItem(req, res, next) {
   try {
     const updated = await purchaseOrderService.updateScrapItem(req.body);
     return res.status(200).json({ updated });
@@ -242,7 +242,7 @@ async function updateScrapItem(req, res, next) {
   }
 }
 
-async function createOrderItem(req, res, next) {
+export async function createOrderItem(req, res, next) {
   try {
     const updated = await purchaseOrderService.createOrderItem(req.body);
 
@@ -252,7 +252,7 @@ async function createOrderItem(req, res, next) {
   }
 }
 
-async function updateBullion(req, res, next) {
+export async function updateBullion(req, res, next) {
   try {
     const updated = await purchaseOrderService.updateBullion(req.body);
 
@@ -262,7 +262,7 @@ async function updateBullion(req, res, next) {
   }
 }
 
-async function expireStaleOffers(req, res, next) {
+export async function expireStaleOffers(req, res, next) {
   try {
     await purchaseOrderService.expireStaleOffers();
   } catch (err) {
@@ -270,7 +270,7 @@ async function expireStaleOffers(req, res, next) {
   }
 }
 
-async function editShippingCharge(req, res, next) {
+export async function editShippingCharge(req, res, next) {
   try {
     await purchaseOrderService.editShippingCharge(req.body);
   } catch (err) {
@@ -278,7 +278,7 @@ async function editShippingCharge(req, res, next) {
   }
 }
 
-async function editPayoutCharge(req, res, next) {
+export async function editPayoutCharge(req, res, next) {
   try {
     await purchaseOrderService.editPayoutCharge(req.body);
   } catch (err) {
@@ -286,7 +286,7 @@ async function editPayoutCharge(req, res, next) {
   }
 }
 
-async function changePayoutMethod(req, res, next) {
+export async function changePayoutMethod(req, res, next) {
   try {
     await purchaseOrderService.changePayoutMethod(req.body);
   } catch (err) {
@@ -294,7 +294,7 @@ async function changePayoutMethod(req, res, next) {
   }
 }
 
-async function addFundsToAccount(req, res, next) {
+export async function addFundsToAccount(req, res, next) {
   try {
     await purchaseOrderService.addFundsToAccount(req.body);
   } catch (err) {
@@ -302,7 +302,7 @@ async function addFundsToAccount(req, res, next) {
   }
 }
 
-async function purgeCancelled(req, res, next) {
+export async function purgeCancelled(req, res, next) {
   try {
     await purchaseOrderService.purgeCancelled();
   } catch (err) {
@@ -310,35 +310,3 @@ async function purgeCancelled(req, res, next) {
   }
 }
 
-module.exports = {
-  getPurchaseOrderById,
-  getPurchaseOrders,
-  getAllPurchaseOrders,
-  getPurchaseOrderMetals,
-  acceptOffer,
-  rejectOffer,
-  updateOfferNotes,
-  cancelOrder,
-  createReview,
-  createPurchaseOrder,
-  sendOffer,
-  updateRejectedOffer,
-  updateStatus,
-  updateScrapPercentage,
-  resetScrapPercentage,
-  updateSpot,
-  lockSpots,
-  unlockSpots,
-  saveOrderItems,
-  resetOrderItems,
-  deleteOrderItems,
-  updateScrapItem,
-  createOrderItem,
-  updateBullion,
-  expireStaleOffers,
-  editShippingCharge,
-  editPayoutCharge,
-  changePayoutMethod,
-  addFundsToAccount,
-  purgeCancelled,
-};

@@ -1,14 +1,10 @@
-const supplierRepo = require("../repositories/supplierRepo");
+import * as supplierRepo from "../repositories/supplierRepo.js";
 
-async function getAllSuppliers() {
+export async function getAllSuppliers() {
   return await supplierRepo.getAllSuppliers();
 }
 
-async function getSupplierFromId(ids) {
+export async function getSupplierFromId(ids) {
   return await supplierRepo.getSupplierFromId(id);
 }
 
-module.exports = {
-  getAllSuppliers,
-  getSupplierFromId,
-};

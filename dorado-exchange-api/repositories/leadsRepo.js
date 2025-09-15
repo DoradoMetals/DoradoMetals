@@ -1,6 +1,6 @@
-const pool = require("../db");
+import pool from '../db.js';
 
-async function getLead(id) {
+export async function getLead(id) {
   const query = `
     SELECT *
     FROM exchange.leads
@@ -11,7 +11,7 @@ async function getLead(id) {
   return result.rows[0];
 }
 
-async function getAllLeads() {
+export async function getAllLeads() {
   const query = `
     SELECT *
     FROM exchange.leads
@@ -21,7 +21,7 @@ async function getAllLeads() {
   return result.rows;
 }
 
-async function createLead(lead) {
+export async function createLead(lead) {
   const query = `
     INSERT INTO exchange.leads (name, phone, email, created_by, updated_by)
     VALUES ($1, $2, $3, $4, $5)
@@ -38,7 +38,7 @@ async function createLead(lead) {
   return result.rows[0];
 }
 
-async function updateLead(lead, user_name) {
+export async function updateLead(lead, user_name) {
   const query = `
     UPDATE exchange.leads
     SET name = $1,
@@ -74,18 +74,10 @@ async function updateLead(lead, user_name) {
   return result.rows[0];
 }
 
-async function deleteLead(id) {
+export async function deleteLead(id) {
   const query = `
     DELETE FROM exchange.leads WHERE id = $1
   `;
   const values = [id];
   return await pool.query(query, values);
 }
-
-module.exports = {
-  getLead,
-  getAllLeads,
-  createLead,
-  updateLead,
-  deleteLead,
-};

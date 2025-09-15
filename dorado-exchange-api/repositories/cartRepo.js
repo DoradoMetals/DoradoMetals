@@ -1,7 +1,7 @@
-const { PRODUCT_FIELDS } = require("../constants/productsConstants");
-const pool = require("../db");
+import { PRODUCT_FIELDS } from "../constants/productsConstants.js";
+import pool from "../db.js";
 
-async function getCart(user_id) {
+export async function getCart(user_id) {
   const query = `
     SELECT 
       ci.id AS cart_item_id, 
@@ -23,7 +23,7 @@ async function getCart(user_id) {
   return result.rows;
 }
 
-async function createNew(user_id, client) {
+export async function createNew(user_id, client) {
   const query = `
     INSERT INTO exchange.carts (id, user_id)
     VALUES (gen_random_uuid(), $1)
@@ -35,20 +35,20 @@ async function createNew(user_id, client) {
   return result.rows[0];
 }
 
-async function getCartId(user_id, client) {
+export async function getCartId(user_id, client) {
   const query = `SELECT id FROM exchange.carts WHERE user_id = $1`;
   const values = [user_id];
   const result = await client.query(query, values);
   return result.rows[0];
 }
 
-async function clearCart(cart_id, client) {
+export async function clearCart(cart_id, client) {
   const query = `DELETE FROM exchange.cart_items WHERE cart_id = $1`;
   const values = [cart_id];
   return await client.query(query, values);
 }
 
-async function addItems(items, cart_id, client) {
+export async function addItems(items, cart_id, client) {
   if (items.length === 0) return;
 
   const productIds = items.map((item) => item.id);
@@ -66,11 +66,3 @@ async function addItems(items, cart_id, client) {
   const values = [cart_id, productIds, quantities];
   return await client.query(query, values);
 }
-
-module.exports = {
-  getCart,
-  createNew,
-  getCartId,
-  clearCart,
-  addItems,
-};

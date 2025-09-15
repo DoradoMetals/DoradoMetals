@@ -1,9 +1,8 @@
-const pool = require("../../db");
+import pool from "../../db.js";
 
-const getAllScrap = async (req, res) => {
+export async function getAllScrap(req, res) {
   try {
-    const query = 
-    `
+    const query = `
 	    SELECT 
         order_item.id AS order_item_id, order_item.price AS price,
         purchase_order.id AS order_id, purchase_order.purchase_order_status AS order_status, purchase_order.created_at, purchase_order.updated_at, purchase_order.notes, purchase_order.updated_by, purchase_order.order_number,
@@ -23,9 +22,4 @@ const getAllScrap = async (req, res) => {
     console.error("Error fetching scrap:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};
-
-
-module.exports = {
-  getAllScrap,
-};
+}

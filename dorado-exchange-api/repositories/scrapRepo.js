@@ -1,7 +1,7 @@
-const pool = require("../db");
-const { convertTroyOz } = require("../utils/convertWeights");
+import pool from '../db.js';
+import { convertTroyOz } from '../utils/convertWeights.js';
 
-async function updateScrapItem({ item }) {
+export async function updateScrapItem({ item }) {
   const content =
     convertTroyOz(
       item.scrap.post_melt ?? item.scrap.pre_melt,
@@ -25,7 +25,7 @@ async function updateScrapItem({ item }) {
   return await pool.query(query, values);
 }
 
-async function deleteItems(ids) {
+export async function deleteItems(ids) {
   const query = `
     DELETE FROM exchange.scrap
     WHERE id = ANY($1::uuid[]);
@@ -34,7 +34,7 @@ async function deleteItems(ids) {
   return await pool.query(query, values);
 }
 
-async function createNewItem(item, client) {
+export async function createNewItem(item, client) {
   const metalQuery = `
     SELECT id FROM exchange.metals
     WHERE type = $1
@@ -45,25 +45,19 @@ async function createNewItem(item, client) {
   const metal_id = metalResult.rows[0].id;
 
   const scrapQuery = `
-      INSERT INTO exchange.scrap (
-        metal_id, pre_melt, purity, content, gross_unit
-      )
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id
-    `;
+    INSERT INTO exchange.scrap (
+      metal_id, pre_melt, purity, content, gross_unit
+    )
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING id
+  `;
   const scrapValues = [
     metal_id,
     item.pre_melt ?? 1,
     item.purity ?? 1,
     item.content ?? (item.pre_melt ?? 1) * (item.purity ?? 1),
-    item.gross_unit ?? "t oz",
+    item.gross_unit ?? 't oz',
   ];
   const scrapResult = await client.query(scrapQuery, scrapValues);
   return scrapResult.rows[0].id;
 }
-
-module.exports = {
-  updateScrapItem,
-  deleteItems,
-  createNewItem,
-};

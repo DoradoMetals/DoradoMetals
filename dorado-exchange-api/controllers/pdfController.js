@@ -1,6 +1,6 @@
-const pdfRepo = require("../repositories/pdfRepo");
+import * as pdfRepo from "../repositories/pdfRepo.js";
 
-const generatePackingList = async (req, res, next) => {
+export async function generatePackingList(req, res, next) {
   try {
     const pdf = await pdfRepo.generatePackingList(req.body);
 
@@ -14,9 +14,9 @@ const generatePackingList = async (req, res, next) => {
   } catch (err) {
     return next(err);
   }
-};
+}
 
-const generateReturnPackingList = async (req, res, next) => {
+export async function generateReturnPackingList(req, res, next) {
   try {
     const pdf = await pdfRepo.generateReturnPackingList(req.body);
 
@@ -30,9 +30,9 @@ const generateReturnPackingList = async (req, res, next) => {
   } catch (err) {
     return next(err);
   }
-};
+}
 
-const generateInvoice = async (req, res, next) => {
+export async function generateInvoice(req, res, next) {
   try {
     const pdf = await pdfRepo.generateInvoice(req.body);
 
@@ -46,9 +46,9 @@ const generateInvoice = async (req, res, next) => {
   } catch (err) {
     return next(err);
   }
-};
+}
 
-const generateSalesOrderInvoice = async (req, res, next) => {
+export async function generateSalesOrderInvoice(req, res, next) {
   try {
     const pdf = await pdfRepo.generateSalesOrderInvoice(req.body);
 
@@ -62,11 +62,4 @@ const generateSalesOrderInvoice = async (req, res, next) => {
   } catch (err) {
     return next(err);
   }
-};
-
-module.exports = {
-  generatePackingList,
-  generateReturnPackingList,
-  generateInvoice,
-  generateSalesOrderInvoice,
-};
+}

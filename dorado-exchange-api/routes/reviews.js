@@ -1,10 +1,9 @@
-const express = require("express");
-const { requireUser } = require("../middleware/authMiddleware");
-const { createReview } = require("../controllers/reviewController");
+import express from 'express';
+import { requireUser } from '../middleware/authMiddleware.js';
+import { createReview } from '../controllers/reviewController.js';
 
 const router = express.Router();
 
-router.post("/create_review", requireUser, createReview);
+router.post('/create_review', requireUser, createReview);
 
-module.exports = router;
- 
+export default router;

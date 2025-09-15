@@ -1,6 +1,6 @@
-const transactionService = require("../services/transactionService");
+import * as transactionService from "../services/transactionService.js";
 
-async function getTransactionHistory(req, res, next) {
+export async function getTransactionHistory(req, res, next) {
   try {
     const { user_id } = req.body;
     const result = await transactionService.getTransactionHistory(user_id);
@@ -9,7 +9,3 @@ async function getTransactionHistory(req, res, next) {
     return next(err);
   }
 }
-
-module.exports = {
-  getTransactionHistory,
-};

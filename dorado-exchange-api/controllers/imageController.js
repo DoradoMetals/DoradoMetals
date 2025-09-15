@@ -1,6 +1,6 @@
-const imageService = require("../services/imageService");
+import * as imageService from "../services/imageService.js";
 
-async function uploadImage(req, res, next) {
+export async function uploadImage(req, res, next) {
   try {
     const result = await imageService.uploadImage(req.body);
     return res.status(200).json(result);
@@ -9,7 +9,7 @@ async function uploadImage(req, res, next) {
   }
 }
 
-async function getUrl(req, res, next) {
+export async function getUrl(req, res, next) {
   try {
     const result = await imageService.getUrl(req.query);
     return res.status(200).json(result);
@@ -18,7 +18,7 @@ async function getUrl(req, res, next) {
   }
 }
 
-async function getTestImages(req, res, next) {
+export async function getTestImages(req, res, next) {
   try {
     const result = await imageService.getTestImages(req.body);
     return res.status(200).json(result);
@@ -28,7 +28,7 @@ async function getTestImages(req, res, next) {
 }
 
 
-async function deleteImage(req, res, next) {
+export async function deleteImage(req, res, next) {
   try {
     const result = await imageService.deleteImage(req.body);
     return res.status(200).json(result);
@@ -36,10 +36,3 @@ async function deleteImage(req, res, next) {
     return next(err);
   }
 }
-
-module.exports = {
-  uploadImage,
-  getUrl,
-  getTestImages,
-  deleteImage
-};

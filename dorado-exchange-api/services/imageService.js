@@ -1,15 +1,15 @@
-const { minio } = require("../minio");
-const imageRepo = require("../repositories/imageRepo");
+import minio from '../minio.js';
+import * as imageRepo from '../repositories/imageRepo.js';
 
 const PUT_TTL_SECONDS = 60 * 5;
 const GET_TTL_SECONDS = 60 * 10;
 
-async function uploadImage({ mimeType, size, path, filename, user_id }) {
+export async function uploadImage({ mimeType, size, path, filename, user_id }) {
   const row = await imageRepo.insertImage({
-    user_id: user_id,
+    user_id,
     bucket: process.env.MINIO_BUCKET,
-    path: path,
-    filename: filename,
+    path,
+    filename,
     mime_type: mimeType,
     size_bytes: size,
   });
@@ -26,7 +26,7 @@ async function uploadImage({ mimeType, size, path, filename, user_id }) {
   };
 }
 
-async function getUrl({ image_id }) {
+export async function getUrl({ image_id }) {
   const img = await imageRepo.getImageById(image_id);
   return await minio.presignedGetObject(
     img.bucket,
@@ -35,21 +35,17 @@ async function getUrl({ image_id }) {
   );
 }
 
-async function attachUrlToImage(image) {
+export async function attachUrlToImage(image) {
   const url = await getUrl({ image_id: image.id });
   return { ...image, url };
 }
 
-async function getTestImages() {
+export async function getTestImages() {
   const images = await imageRepo.getTestImages();
-
-  const imagesWithUrls = await Promise.all(
-    images.map((img) => attachUrlToImage(img))
-  );
-  return imagesWithUrls;
+  return Promise.all(images.map((img) => attachUrlToImage(img)));
 }
 
-async function deleteImage({ user_id, id }) {
+export async function deleteImage({ user_id, id }) {
   const img = await imageRepo.getImageById(id);
 
   await minio.removeObject(img?.bucket, img?.path + img?.filename);
@@ -57,10 +53,3 @@ async function deleteImage({ user_id, id }) {
 
   return { success: true };
 }
-
-module.exports = {
-  uploadImage,
-  getUrl,
-  getTestImages,
-  deleteImage,
-};

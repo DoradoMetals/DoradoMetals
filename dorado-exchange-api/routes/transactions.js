@@ -1,11 +1,9 @@
-const express = require("express");
-const { requireUser } = require("../middleware/authMiddleware");
-const {
-  getTransactionHistory,
-} = require("../controllers/transactionController");
+import express from 'express';
+import { requireUser } from '../middleware/authMiddleware.js';
+import { getTransactionHistory } from '../controllers/transactionController.js';
 
 const router = express.Router();
 
-router.get("/get_transactions", requireUser, getTransactionHistory);
+router.get('/get_transactions', requireUser, getTransactionHistory);
 
-module.exports = router;
+export default router;

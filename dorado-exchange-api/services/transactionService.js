@@ -1,9 +1,5 @@
-const transactionRepo = require("../repositories/transactionRepo");
+import * as transactionRepo from '../repositories/transactionRepo.js';
 
-async function getTransactionHistory(user_id) {
-  return transactionRepo.getTransactionHistory(user_id)
-}
-
-module.exports = {
-  getTransactionHistory
+export async function getTransactionHistory(user_id) {
+  return transactionRepo.getTransactionHistory(user_id);
 }

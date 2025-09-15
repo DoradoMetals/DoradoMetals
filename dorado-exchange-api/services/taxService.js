@@ -1,12 +1,11 @@
-const taxRepo = require("../repositories/taxRepo");
-
-const {
+import * as taxRepo from '../repositories/taxRepo.js';
+import {
   calculateSalesTax,
   calculateItemTotals,
   calculateItemAsk,
-} = require("../utils/price-calculations");
+} from '../utils/price-calculations.js';
 
-async function attachSalesTaxToItems(state_code, items, spots) {
+export async function attachSalesTaxToItems(state_code, items, spots) {
   const item_total = calculateItemTotals(items, spots);
 
   const promises = items.map(async (item) => ({
@@ -22,22 +21,15 @@ async function attachSalesTaxToItems(state_code, items, spots) {
   return Promise.all(promises);
 }
 
-async function getSalesTax({ address, items, spots }) {
+export async function getSalesTax({ address, items, spots }) {
   const items_with_tax = await attachSalesTaxToItems(address.state, items, spots);
   return calculateSalesTax(items_with_tax, spots);
 }
 
-async function updateStateSalesTax(amount, state) {
-  await taxRepo.updateStateSalesTax(amount, state)
+export async function updateStateSalesTax(amount, state) {
+  await taxRepo.updateStateSalesTax(amount, state);
 }
 
-async function isNexus(state) {
-  return await taxRepo.isNexus(state)
+export async function isNexus(state) {
+  return await taxRepo.isNexus(state);
 }
-
-module.exports = {
-  attachSalesTaxToItems,
-  getSalesTax,
-  updateStateSalesTax,
-  isNexus,
-};

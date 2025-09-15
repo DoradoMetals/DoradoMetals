@@ -1,6 +1,6 @@
-const productRepo = require("../repositories/productRepo");
+import * as productRepo from "../repositories/productRepo.js";
 
-async function getItemsFromServer(items) {
+export async function getItemsFromServer(items) {
   const productIds = items.map((item) => item.id);
   const serverItems = await productRepo.getItemsFromIds(productIds);
   const clientMap = new Map(
@@ -10,8 +10,4 @@ async function getItemsFromServer(items) {
     ...si,
     quantity: clientMap.get(si.id) ?? 0,
   }));
-}
-
-module.exports = {
-  getItemsFromServer,
 }

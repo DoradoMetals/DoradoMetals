@@ -1,9 +1,9 @@
-const express = require("express");
+import express from 'express';
+import { requireUser } from '../middleware/authMiddleware.js';
+import { getSalesTax } from '../controllers/taxController.js';
+
 const router = express.Router();
 
-const { requireUser } = require("../middleware/authMiddleware");
-const { getSalesTax } = require("../controllers/taxController");
+router.post('/get_sales_tax', requireUser, getSalesTax);
 
-router.post("/get_sales_tax", requireUser, getSalesTax);
-
-module.exports = router;
+export default router;

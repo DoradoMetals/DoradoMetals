@@ -1,39 +1,38 @@
-const pool = require("../db");
-const { auth } = require("../auth");
-const { fromNodeHeaders } = require("better-auth/node");
+import pool from '../db.js';
+import { auth } from '../auth.js';
+import { fromNodeHeaders } from 'better-auth/node';
 
-const salesOrderRepo = require("../repositories/salesOrderRepo");
-const stripeRepo = require("../repositories/stripeRepo");
-const transactionsRepo = require("../repositories/transactionRepo");
-const shippingRepo = require("../repositories/shippingRepo");
-const supplierRepo = require("../repositories/supplierRepo");
-const taxRepo = require("../repositories/taxRepo");
+import * as salesOrderRepo from '../repositories/salesOrderRepo.js';
+import * as stripeRepo from '../repositories/stripeRepo.js';
+import * as transactionsRepo from '../repositories/transactionRepo.js';
+import * as shippingRepo from '../repositories/shippingRepo.js';
+import * as supplierRepo from '../repositories/supplierRepo.js';
+import * as taxRepo from '../repositories/taxRepo.js';
 
-const emailService = require("../services/emailService");
-const addressService = require("../services/addressService");
-const taxService = require("../services/taxService");
-const stripeService = require("../services/stripeService");
-const productService = require("../services/productService");
+import * as emailService from '../services/emailService.js';
+import * as addressService from '../services/addressService.js';
+import * as taxService from '../services/taxService.js';
+import * as productService from '../services/productService.js';
 
-const { calculateSalesOrderTotal } = require("../utils/price-calculations");
+import { calculateSalesOrderTotal } from '../utils/price-calculations.js';
 
-async function getById(orderId) {
+export async function getById(orderId) {
   return salesOrderRepo.findById(orderId);
 }
 
-async function listOrdersForUser(userId) {
+export async function listOrdersForUser(userId) {
   return salesOrderRepo.findAllByUser(userId);
 }
 
-async function getAll() {
+export async function getAll() {
   return salesOrderRepo.getAll();
 }
 
-async function getMetalsForOrder(orderId) {
+export async function getMetalsForOrder(orderId) {
   return salesOrderRepo.findMetalsByOrderId(orderId);
 }
 
-async function createSalesOrder(
+export async function createSalesOrder(
   { sales_order, payment_intent_id, spot_prices },
   headers
 ) {
@@ -110,7 +109,7 @@ async function createSalesOrder(
   }
 }
 
-async function adminCreateSalesOrder({
+export async function adminCreateSalesOrder({
   sales_order,
   payment_intent_id,
   spot_prices,
@@ -186,11 +185,11 @@ async function adminCreateSalesOrder({
   }
 }
 
-async function updateStatus({ order, order_status, user_name }) {
+export async function updateStatus({ order, order_status, user_name }) {
   return await salesOrderRepo.updateStatus(order, order_status, user_name);
 }
 
-async function sendOrderToSupplier({ order, spots, supplier_id }) {
+export async function sendOrderToSupplier({ order, spots, supplier_id }) {
   const client = await pool.connect();
 
   const sales_order = await getById(order.id);
@@ -241,7 +240,7 @@ async function sendOrderToSupplier({ order, spots, supplier_id }) {
   }
 }
 
-async function updateTracking({
+export async function updateTracking({
   order_id,
   shipment_id,
   tracking_number,
@@ -250,15 +249,3 @@ async function updateTracking({
   await shippingRepo.insertTracking(shipment_id, tracking_number, carrier_id);
   return await salesOrderRepo.updateTracking(order_id);
 }
-
-module.exports = {
-  getById,
-  listOrdersForUser,
-  getAll,
-  getMetalsForOrder,
-  createSalesOrder,
-  adminCreateSalesOrder,
-  updateStatus,
-  sendOrderToSupplier,
-  updateTracking,
-};

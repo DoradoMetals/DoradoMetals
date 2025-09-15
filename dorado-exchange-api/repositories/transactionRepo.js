@@ -1,37 +1,37 @@
-const pool = require("../db");
+import pool from '../db.js';
 
-async function addFunds(user_id, total, client) {
+export async function addFunds(user_id, total, client) {
   const query = `
-  UPDATE exchange.users
+    UPDATE exchange.users
     SET dorado_funds = dorado_funds + $1
-  WHERE id = $2
+    WHERE id = $2
   `;
   const values = [total, user_id];
   return await client.query(query, values);
 }
 
-async function removeFunds(user_id, total, client) {
+export async function removeFunds(user_id, total, client) {
   const query = `
-  UPDATE exchange.users
+    UPDATE exchange.users
     SET dorado_funds = dorado_funds - $1
-  WHERE id = $2
+    WHERE id = $2
   `;
   const values = [total, user_id];
   return await client.query(query, values);
 }
 
-async function getTransactionHistory(user_id) {
+export async function getTransactionHistory(user_id) {
   const query = `
-  SELECT *
-  FROM exchange.account_transactions
-  WHERE user_id = $1
+    SELECT *
+    FROM exchange.account_transactions
+    WHERE user_id = $1
   `;
   const values = [user_id];
   const result = await pool.query(query, values);
   return result.rows[0];
 }
 
-async function addTransactionLog(
+export async function addTransactionLog(
   user_id,
   transaction_type,
   purchase_order_id,
@@ -40,8 +40,8 @@ async function addTransactionLog(
   client
 ) {
   const query = `
-  INSERT INTO exchange.account_transactions (user_id, transaction_type, purchase_order_id, sales_order_id, amount)
-  VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO exchange.account_transactions (user_id, transaction_type, purchase_order_id, sales_order_id, amount)
+    VALUES ($1, $2, $3, $4, $5)
   `;
   const values = [
     user_id,
@@ -52,10 +52,3 @@ async function addTransactionLog(
   ];
   return await client.query(query, values);
 }
-
-module.exports = {
-  addFunds,
-  removeFunds,
-  getTransactionHistory,
-  addTransactionLog,
-};

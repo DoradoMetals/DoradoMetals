@@ -1,7 +1,7 @@
-const axios = require("axios");
-const pool = require("../../db");
+import axios from "axios";
+import pool from "../../db.js";
 
-const DORADO_ADDRESS = {
+export const DORADO_ADDRESS = {
   streetLines: [
     process.env.FEDEX_RETURN_ADDRESS_LINE_1,
     process.env.FEDEX_RETURN_ADDRESS_LINE_2,
@@ -12,7 +12,7 @@ const DORADO_ADDRESS = {
   countryCode: process.env.FEDEX_RETURN_COUNTRY,
 };
 
-const FEDEX_STORE_ADDRESS = {
+export const FEDEX_STORE_ADDRESS = {
   streetLines: ["13605 Midway Rd"],
   city: "Farmers Branch",
   stateOrProvinceCode: "TX",
@@ -22,7 +22,7 @@ const FEDEX_STORE_ADDRESS = {
 
 let fedexAccessToken = null;
 
-const formatAddressForFedEx = (address) => {
+export const formatAddressForFedEx = (address) => {
   return {
     streetLines: [address.line_1, address.line_2].filter(Boolean),
     city: address.city,
@@ -33,7 +33,7 @@ const formatAddressForFedEx = (address) => {
   };
 };
 
-const getFedExAccessToken = async () => {
+export async function getFedExAccessToken() {
   const response = await axios.post(
     process.env.FEDEX_API_URL + "/oauth/token",
     new URLSearchParams({
@@ -46,9 +46,9 @@ const getFedExAccessToken = async () => {
 
   fedexAccessToken = response.data.access_token;
   return fedexAccessToken;
-};
+}
 
-const validateAddress = async (address) => {
+export async function validateAddress(address) {
   const token = await getFedExAccessToken();
 
   const fedexPayload = {
@@ -92,9 +92,9 @@ const validateAddress = async (address) => {
     is_valid: isValid,
     is_residential: isResidential,
   };
-};
+}
 
-const getFedexRates = async (req, res) => {
+export async function getFedexRates(req, res) {
   const {
     shippingType,
     customerAddress,
@@ -180,9 +180,9 @@ const getFedexRates = async (req, res) => {
 
     res.status(500).json({ error: "FedEx rate request failed." });
   }
-};
+}
 
-const createFedexLabel = async (
+export async function createFedexLabel(
   customerName,
   customerPhone,
   customerAddress,
@@ -191,7 +191,7 @@ const createFedexLabel = async (
   pickupType,
   serviceType,
   declaredValue
-) => {
+) {
   try {
     const token = await getFedExAccessToken();
 
@@ -320,9 +320,9 @@ const createFedexLabel = async (
 
     throw new Error("FedEx label generation failed");
   }
-};
+}
 
-const cancelLabel = async (req, res) => {
+export async function  cancelLabel (req, res) {
   const { tracking_number, shipment_id } = req.body;
   try {
     const token = await getFedExAccessToken();
@@ -361,7 +361,7 @@ const cancelLabel = async (req, res) => {
   }
 };
 
-const checkFedexPickupAvailability = async (req, res) => {
+export async function  checkFedexPickupAvailability (req, res) {
   const { customerAddress, code } = req.body;
 
   try {
@@ -420,7 +420,7 @@ const checkFedexPickupAvailability = async (req, res) => {
   }
 };
 
-const scheduleFedexPickup = async (
+export async function  scheduleFedexPickup (
   customerName,
   customerPhone,
   customerAddress,
@@ -428,7 +428,7 @@ const scheduleFedexPickup = async (
   pickupTime,
   code,
   trackingNumber
-) => {
+)  {
   try {
     const token = await getFedExAccessToken();
 
@@ -450,12 +450,11 @@ const scheduleFedexPickup = async (
       )}`;
     }
 
-    // Input strings like "2025-05-20" and "13:00"
     const readyDate = new Date(`${pickupDate}T${pickupTime}`);
-    const readyTimestamp = formatFedExLocalDateTime(readyDate); // e.g. "2025-05-20T13:00:00"
+    const readyTimestamp = formatFedExLocalDateTime(readyDate);
 
-    const closeDate = new Date(readyDate.getTime() + 2 * 60 * 60 * 1000); // Add 2 hours
-    const customerCloseTime = formatFedExLocalTime(closeDate); // e.g. "15:00:00"
+    const closeDate = new Date(readyDate.getTime() + 2 * 60 * 60 * 1000);
+    const customerCloseTime = formatFedExLocalTime(closeDate);
 
     const pickupPayload = {
       associatedAccountNumber: {
@@ -511,14 +510,13 @@ const scheduleFedexPickup = async (
       );
     }
 
-    // Optional: also log config if needed
-    // console.error("Request config:", JSON.stringify(error.config, null, 2));
+
 
     throw new Error("FedEx pickup scheduling failed");
   }
 };
 
-const cancelFedexPickup = async (req, res) => {
+export async function  cancelFedexPickup (req, res) {
   const { id, confirmationCode, pickupDate, location } = req.body;
 
   try {
@@ -571,7 +569,7 @@ const cancelFedexPickup = async (req, res) => {
   }
 };
 
-const getFedexLocations = async (req, res) => {
+export async function  getFedexLocations (req, res) {
   const { customerAddress, radiusMiles = 25, maxResults = 10 } = req.body;
 
   try {
@@ -663,16 +661,4 @@ const getFedexLocations = async (req, res) => {
     );
     res.status(500).json({ error: "FedEx location search failed." });
   }
-};
-
-module.exports = {
-  formatAddressForFedEx,
-  validateAddress,
-  getFedexRates,
-  createFedexLabel,
-  cancelLabel,
-  checkFedexPickupAvailability,
-  scheduleFedexPickup,
-  cancelFedexPickup,
-  getFedexLocations,
 };

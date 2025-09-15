@@ -1,6 +1,6 @@
-const shippingService = require("../services/shippingService");
+import * as shippingService from "../services/shippingService.js";
 
-async function getTracking(req, res, next) {
+export async function getTracking(req, res, next) {
   try {
     const tracking = await shippingService.getTracking(req.body);
     res.json(tracking);
@@ -8,7 +8,3 @@ async function getTracking(req, res, next) {
     return next(err);
   }
 }
-
-module.exports = {
-  getTracking,
-};

@@ -1,10 +1,7 @@
-// src/repositories/purchaseOrderRepository.js
-const pool = require("../db");
-const { calculateItemPrice } = require("../utils/price-calculations");
+import pool from '../db.js';
+import { calculateItemPrice } from '../utils/price-calculations.js';
 
-const { auth } = require("../auth");
-
-async function findAllByUser(userId) {
+export async function findAllByUser(userId) {
   const query = `
     SELECT 
       po.*,
@@ -113,7 +110,7 @@ async function findAllByUser(userId) {
   return rows;
 }
 
-async function findById(id) {
+export async function findById(id) {
   const query = `
     SELECT 
       po.*,
@@ -223,7 +220,7 @@ async function findById(id) {
   return rows[0] || null;
 }
 
-async function getAll() {
+export async function getAll() {
   const query = `
       SELECT 
         po.*,
@@ -332,7 +329,7 @@ async function getAll() {
   return rows;
 }
 
-async function findMetalsByOrderId(orderId) {
+export async function findMetalsByOrderId(orderId) {
   const query = `
     SELECT 
       id,
@@ -353,7 +350,7 @@ async function findMetalsByOrderId(orderId) {
   return rows;
 }
 
-async function updateOrderMetals(orderId, spotPrices, client) {
+export async function updateOrderMetals(orderId, spotPrices, client) {
   const updates = await Promise.all(
     spotPrices.map(async (spot) => {
       const query = `
@@ -372,7 +369,7 @@ async function updateOrderMetals(orderId, spotPrices, client) {
   return updates;
 }
 
-async function updateOrderItemPrices(orderId, items, spotRows, client) {
+export async function updateOrderItemPrices(orderId, items, spotRows, client) {
   await Promise.all(
     items.map((item) => {
       const price = calculateItemPrice(item, spotRows);
@@ -387,7 +384,7 @@ async function updateOrderItemPrices(orderId, items, spotRows, client) {
   );
 }
 
-async function moveOrderToAccepted(orderId, totalPrice, client) {
+export async function moveOrderToAccepted(orderId, totalPrice, client) {
   const query = `
     UPDATE exchange.purchase_orders
     SET offer_status = $1,
@@ -399,7 +396,7 @@ async function moveOrderToAccepted(orderId, totalPrice, client) {
   await client.query(query, ["Accepted", "Accepted", totalPrice, orderId]);
 }
 
-async function rejectOfferById(orderId, offerNotes, client) {
+export async function rejectOfferById(orderId, offerNotes, client) {
   const query = `
     UPDATE exchange.purchase_orders
     SET 
@@ -415,7 +412,7 @@ async function rejectOfferById(orderId, offerNotes, client) {
   return rows[0];
 }
 
-async function cancelOrderById(orderId, client) {
+export async function cancelOrderById(orderId, client) {
   const query = `
     UPDATE exchange.purchase_orders
     SET
@@ -430,7 +427,7 @@ async function cancelOrderById(orderId, client) {
   return rows[0];
 }
 
-async function clearOrderMetals(orderId, client) {
+export async function clearOrderMetals(orderId, client) {
   const query = `
     UPDATE exchange.order_metals
     SET bid_spot = NULL, scrap_percentage = NULL
@@ -439,12 +436,11 @@ async function clearOrderMetals(orderId, client) {
   return client.query(query, [orderId]);
 }
 
-async function insertReturnShipment(
+export async function insertReturnShipment(
   client,
   orderId,
   shipment,
   labelBuffer,
-  client
 ) {
   const query = `
     INSERT INTO exchange.return_shipments (
@@ -484,7 +480,7 @@ async function insertReturnShipment(
   return rows[0];
 }
 
-async function updateOfferNotes(order, offer_notes) {
+export async function updateOfferNotes(order, offer_notes) {
   const query = `
     UPDATE exchange.purchase_orders
     SET offer_notes = $1
@@ -497,7 +493,7 @@ async function updateOfferNotes(order, offer_notes) {
   return rows[0];
 }
 
-async function createReview(order) {
+export async function createReview(order) {
   const query = `
     UPDATE exchange.purchase_orders
     SET review_created = true
@@ -510,7 +506,7 @@ async function createReview(order) {
   return rows[0];
 }
 
-async function insertOrder(client, { userId, addressId, status }) {
+export async function insertOrder(client, { userId, addressId, status }) {
   const query = `
     INSERT INTO exchange.purchase_orders (user_id, address_id, purchase_order_status)
     VALUES ($1, $2, $3)
@@ -520,7 +516,7 @@ async function insertOrder(client, { userId, addressId, status }) {
   return rows[0].id;
 }
 
-async function insertItems(client, orderId, items) {
+export async function insertItems(client, orderId, items) {
   const query = `
     INSERT INTO exchange.purchase_order_items
       (purchase_order_id, scrap_id, product_id, quantity, bullion_premium)
@@ -540,7 +536,7 @@ async function insertItems(client, orderId, items) {
   }
 }
 
-async function insertOrderMetals(
+export async function insertOrderMetals(
   client,
   orderId,
   metals = ["Gold", "Silver", "Platinum", "Palladium"]
@@ -554,7 +550,7 @@ async function insertOrderMetals(
   }
 }
 
-async function insertPayout(client, orderId, payout) {
+export async function insertPayout(client, orderId, payout) {
   const query = `
     INSERT INTO exchange.payouts (
       user_id,
@@ -585,7 +581,7 @@ async function insertPayout(client, orderId, payout) {
   await client.query(query, vals);
 }
 
-async function clearItemPrices(client, orderId) {
+export async function clearItemPrices(client, orderId) {
   const query = `
     UPDATE exchange.purchase_order_items
       SET price = NULL
@@ -594,7 +590,7 @@ async function clearItemPrices(client, orderId) {
   return client.query(query, [orderId]);
 }
 
-async function resetOrderTotal(client, orderId) {
+export async function resetOrderTotal(client, orderId) {
   const query = `
     UPDATE exchange.purchase_orders
       SET total_price = NULL
@@ -603,7 +599,7 @@ async function resetOrderTotal(client, orderId) {
   return client.query(query, [orderId]);
 }
 
-async function updateOffer(
+export async function updateOffer(
   client,
   { orderId, sentAt, expiresAt, offerStatus, updated_by }
 ) {
@@ -623,7 +619,7 @@ async function updateOffer(
   return rows[0];
 }
 
-async function updateStatus(order, order_status, user_name) {
+export async function updateStatus(order, order_status, user_name) {
   const query = `
     UPDATE exchange.purchase_orders
     SET
@@ -639,7 +635,7 @@ async function updateStatus(order, order_status, user_name) {
   return rows[0];
 }
 
-async function updateScrapPercentage(spot, scrap_percentage) {
+export async function updateScrapPercentage(spot, scrap_percentage) {
   const query = `
     UPDATE exchange.order_metals
     SET scrap_percentage = $1
@@ -651,7 +647,7 @@ async function updateScrapPercentage(spot, scrap_percentage) {
   return await pool.query(query, values);
 }
 
-async function resetScrapPercentage(spot) {
+export async function resetScrapPercentage(spot) {
   const query = `
     UPDATE exchange.order_metals om
     SET scrap_percentage = m.scrap_percentage
@@ -665,7 +661,7 @@ async function resetScrapPercentage(spot) {
   return await pool.query(query, values);
 }
 
-async function toggleSpots(locked, order_id, client) {
+export async function toggleSpots(locked, order_id, client) {
   const query = `
     UPDATE exchange.purchase_orders
     SET spots_locked = $1
@@ -675,7 +671,7 @@ async function toggleSpots(locked, order_id, client) {
   return await client.query(query, values);
 }
 
-async function updateSpot({ spot, updated_spot }) {
+export async function updateSpot({ spot, updated_spot }) {
   const query = `
     UPDATE exchange.order_metals
     SET bid_spot = $1 
@@ -687,7 +683,7 @@ async function updateSpot({ spot, updated_spot }) {
   return await pool.query(query, values);
 }
 
-async function toggleOrderItemStatus({ item_status, ids, purchase_order_id }) {
+export async function toggleOrderItemStatus({ item_status, ids, purchase_order_id }) {
   const query = `
     UPDATE exchange.purchase_order_items
     SET confirmed = $1
@@ -699,7 +695,7 @@ async function toggleOrderItemStatus({ item_status, ids, purchase_order_id }) {
   return await pool.query(query, values);
 }
 
-async function deleteOrderItems(ids) {
+export async function deleteOrderItems(ids) {
   const query = `
     DELETE FROM exchange.purchase_order_items
     WHERE id = ANY($1::uuid[])
@@ -709,7 +705,7 @@ async function deleteOrderItems(ids) {
   return await pool.query(query, values);
 }
 
-async function createOrderItem(item, purchase_order_id, scrap_id, client) {
+export async function createOrderItem(item, purchase_order_id, scrap_id, client) {
   const query = `
     INSERT INTO exchange.purchase_order_items (
       purchase_order_id, scrap_id, product_id, quantity, confirmed
@@ -721,7 +717,7 @@ async function createOrderItem(item, purchase_order_id, scrap_id, client) {
   return await client.query(query, values);
 }
 
-async function updateBullion(item) {
+export async function updateBullion(item) {
   const query = `
     UPDATE exchange.purchase_order_items
     SET quantity = $1, bullion_premium = $2
@@ -733,7 +729,7 @@ async function updateBullion(item) {
   return await pool.query(query, values);
 }
 
-async function findExpiredOffers() {
+export async function findExpiredOffers() {
   const query = `
     SELECT * FROM exchange.purchase_orders
     WHERE offer_status = 'Sent'
@@ -744,14 +740,14 @@ async function findExpiredOffers() {
   return rows;
 }
 
-async function getCurrentSpotPrices(client) {
+export async function getCurrentSpotPrices(client) {
   const { rows } = await client.query(`
     SELECT type, bid_spot FROM exchange.metals;
   `);
   return rows;
 }
 
-async function editShippingCharge(order_id, shipping_charge) {
+export async function editShippingCharge(order_id, shipping_charge) {
   const query = `
   UPDATE exchange.shipments
   SET net_charge = $1
@@ -762,7 +758,7 @@ async function editShippingCharge(order_id, shipping_charge) {
   return await pool.query(query, values);
 }
 
-async function editPayoutCharge(order_id, shipping_charge) {
+export async function editPayoutCharge(order_id, shipping_charge) {
   const query = `
   UPDATE exchange.payouts
   SET cost = $1
@@ -773,7 +769,7 @@ async function editPayoutCharge(order_id, shipping_charge) {
   return await pool.query(query, values);
 }
 
-async function changePayoutMethod(order_id, method) {
+export async function changePayoutMethod(order_id, method) {
   const query = `
   UPDATE exchange.payouts
   SET method = $1
@@ -784,48 +780,10 @@ async function changePayoutMethod(order_id, method) {
   return await pool.query(query, values);
 }
 
-async function purgeCancelled() {
+export async function purgeCancelled() {
   const query = `
     DELETE FROM exchange.purchase_orders
     WHERE purchase_order_status = 'Cancelled'
   `
   return await pool.query(query, [])
 }
-
-module.exports = {
-  findAllByUser,
-  findById,
-  getAll,
-  findMetalsByOrderId,
-  updateOrderMetals,
-  updateOrderItemPrices,
-  moveOrderToAccepted,
-  rejectOfferById,
-  cancelOrderById,
-  clearOrderMetals,
-  insertReturnShipment,
-  updateOfferNotes,
-  createReview,
-  insertOrder,
-  insertItems,
-  insertOrderMetals,
-  insertPayout,
-  clearItemPrices,
-  resetOrderTotal,
-  updateOffer,
-  updateStatus,
-  updateScrapPercentage,
-  resetScrapPercentage,
-  toggleSpots,
-  updateSpot,
-  toggleOrderItemStatus,
-  deleteOrderItems,
-  createOrderItem,
-  updateBullion,
-  findExpiredOffers,
-  getCurrentSpotPrices,
-  editShippingCharge,
-  editPayoutCharge,
-  changePayoutMethod,
-  purgeCancelled,
-};

@@ -1,9 +1,7 @@
-const {
-  ADMIN_PRODUCT_FIELDS_WITH_ALIAS,
-} = require("../../constants/adminConstants");
-const pool = require("../../db");
+import { ADMIN_PRODUCT_FIELDS_WITH_ALIAS } from "../../constants/adminConstants.js";
+import pool from "../../db.js";
 
-const getAllProducts = async (req, res) => {
+export async function getAllProducts(req, res) {
   try {
     const query = `
       SELECT ${ADMIN_PRODUCT_FIELDS_WITH_ALIAS}, metal.type AS metal, supplier.name AS supplier, mint.name AS mint
@@ -19,9 +17,9 @@ const getAllProducts = async (req, res) => {
     console.error("Error fetching products:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};
+}
 
-const getAllMetals = async (req, res) => {
+export async function getAllMetals(req, res) {
   try {
     const query = `SELECT * FROM exchange.metals ORDER BY type ASC`;
     const result = await pool.query(query);
@@ -30,9 +28,9 @@ const getAllMetals = async (req, res) => {
     console.error("Error fetching metals:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};
+}
 
-const getAllSuppliers = async (req, res) => {
+export async function getAllSuppliers(req, res) {
   try {
     const query = `SELECT * FROM exchange.suppliers ORDER BY name ASC`;
     const result = await pool.query(query);
@@ -41,9 +39,9 @@ const getAllSuppliers = async (req, res) => {
     console.error("Error fetching suppliers:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};
+}
 
-const getAllMints = async (req, res) => {
+export async function getAllMints(req, res) {
   try {
     const query = `SELECT * FROM exchange.mints ORDER BY name ASC`;
     const result = await pool.query(query);
@@ -52,9 +50,9 @@ const getAllMints = async (req, res) => {
     console.error("Error fetching mints:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};
+}
 
-const getAllTypes = async (req, res) => {
+export async function getAllTypes(req, res) {
   try {
     const query = `SELECT DISTINCT product_type AS name FROM exchange.products`;
     const result = await pool.query(query);
@@ -63,9 +61,9 @@ const getAllTypes = async (req, res) => {
     console.error("Error fetching suppliers:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};
+}
 
-const saveProduct = async (req, res) => {
+export async function saveProduct(req, res) {
   const product = req.body.product;
   const user = req.body.user;
 
@@ -138,9 +136,9 @@ const saveProduct = async (req, res) => {
     console.error("Error updating product:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
-};
+}
 
-const createProduct = async (req, res) => {
+export async function createProduct(req, res) {
   const { created_by } = req.body;
 
   try {
@@ -171,9 +169,9 @@ const createProduct = async (req, res) => {
     console.error("Error creating product:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
-};
+}
 
-const deleteProduct = async (req, res) => {
+export async function deleteProduct (req, res) {
   const product = req.body.product;
 
   try {
@@ -186,7 +184,7 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-const getInventory = async (req, res) => {
+export async function getInventory (req, res) {
   try {
     const query = `
       SELECT
@@ -260,16 +258,4 @@ const getInventory = async (req, res) => {
     console.error("Error fetching inventory:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};
-
-module.exports = {
-  getAllProducts,
-  getAllMetals,
-  getAllSuppliers,
-  getAllMints,
-  getAllTypes,
-  saveProduct,
-  createProduct,
-  deleteProduct,
-  getInventory,
 };

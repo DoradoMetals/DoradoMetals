@@ -1,4 +1,4 @@
-function convertTroyOz(num, unit) {
+export function convertTroyOz(num, unit) {
   if (isNaN(num)) return 0;
   switch (unit.toLowerCase()) {
     case "t oz":
@@ -13,7 +13,3 @@ function convertTroyOz(num, unit) {
       return 0;
   }
 }
-
-module.exports = {
-  convertTroyOz,
-};

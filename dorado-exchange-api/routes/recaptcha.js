@@ -1,8 +1,8 @@
-const express = require("express");
-const { verifyRecaptcha } = require("../controllers/recaptchaController");
+import express from 'express';
+import { verifyRecaptcha } from '../controllers/recaptchaController.js';
 
 const router = express.Router();
 
-router.post("/verify-recaptcha", verifyRecaptcha);
+router.post('/verify-recaptcha', verifyRecaptcha);
 
-module.exports = router;
+export default router;

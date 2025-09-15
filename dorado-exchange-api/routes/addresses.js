@@ -1,19 +1,17 @@
-const express = require("express");
-
-const {
+import express from 'express';
+import {
   getAddresses,
   createAndUpdateAddress,
   deleteAddress,
   setDefaultAddress,
-} = require("../controllers/addressController");
-
-const { requireUser } = require("../middleware/authMiddleware");
+} from '../controllers/addressController.js';
+import { requireUser } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.get("/get_addresses", requireUser, getAddresses);
-router.post("/create_and_update_address", requireUser, createAndUpdateAddress);
-router.delete("/delete_address", requireUser, deleteAddress);
-router.post("/set_default_address", requireUser, setDefaultAddress);
+router.get('/get_addresses', requireUser, getAddresses);
+router.post('/create_and_update_address', requireUser, createAndUpdateAddress);
+router.delete('/delete_address', requireUser, deleteAddress);
+router.post('/set_default_address', requireUser, setDefaultAddress);
 
-module.exports = router;
+export default router;

@@ -1,18 +1,18 @@
-const express = require("express");
-const {
+import express from 'express';
+import {
   getAllProducts,
   getHomepageProducts,
   getFilteredProducts,
   getProductFromSlug,
   getSellProducts,
-} = require("../controllers/productsController");
+} from '../controllers/productsController.js';
 
 const router = express.Router();
 
-router.get("/get_all_products", getAllProducts);
-router.get("/get_sell_products", getSellProducts);
-router.get("/get_homepage_products", getHomepageProducts);
-router.get("/get_products", getFilteredProducts);
-router.get("/get_product_from_slug", getProductFromSlug);
+router.get('/get_all_products', getAllProducts);
+router.get('/get_sell_products', getSellProducts);
+router.get('/get_homepage_products', getHomepageProducts);
+router.get('/get_products', getFilteredProducts);
+router.get('/get_product_from_slug', getProductFromSlug);
 
-module.exports = router;
+export default router;

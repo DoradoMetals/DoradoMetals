@@ -1,10 +1,9 @@
-const express = require("express");
-
-const { requireAdmin } = require("../middleware/authMiddleware");
-const { getAll } = require("../controllers/carriersController");
+import express from 'express';
+import { requireAdmin } from '../middleware/authMiddleware.js';
+import { getAll } from '../controllers/carriersController.js';
 
 const router = express.Router();
 
-router.get("/get_all", requireAdmin, getAll);
+router.get('/get_all', requireAdmin, getAll);
 
-module.exports = router;
+export default router;

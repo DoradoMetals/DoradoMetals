@@ -1,10 +1,9 @@
-const pool = require("../db");
-const {
-  PRODUCT_FIELDS,
+import pool from "../db.js";
+import {
   PRODUCT_FIELDS_WITH_ALIAS,
-} = require("../constants/productsConstants");
+} from "../constants/productsConstants.js";
 
-const getSellCart = async (req, res) => {
+export async function getSellCart (req, res) {
   const { user_id } = req.query;
 
   if (!user_id) {
@@ -12,19 +11,17 @@ const getSellCart = async (req, res) => {
   }
 
   try {
-    // Get cart ID
     const cartResult = await pool.query(
       `SELECT id FROM exchange.sell_carts WHERE user_id = $1`,
       [user_id]
     );
 
     if (cartResult.rows.length === 0) {
-      return res.status(200).json([]); // No cart, return empty array
+      return res.status(200).json([]);
     }
 
     const cartId = cartResult.rows[0].id;
 
-    // Fetch scrap items
     const scrapQuery = `
       SELECT sci.id AS cart_item_id, sci.scrap_id, sci.quantity,
              s.*, metal.type AS metal
@@ -47,7 +44,6 @@ const getSellCart = async (req, res) => {
       },
     }));
 
-    // Fetch product items
     const productQuery = `
       SELECT sci.id AS cart_item_id, sci.product_id, sci.quantity,
              ${PRODUCT_FIELDS_WITH_ALIAS}, metal.type AS metal_type
@@ -75,7 +71,7 @@ const getSellCart = async (req, res) => {
   }
 };
 
-const syncSellCart = async (req, res) => {
+export async function syncSellCart (req, res) {
   const { user_id, cart } = req.body;
 
   if (!user_id || !Array.isArray(cart)) {
@@ -87,7 +83,6 @@ const syncSellCart = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Create cart if it doesn't exist
     const cartResult = await client.query(
       `
       INSERT INTO exchange.sell_carts (user_id)
@@ -108,17 +103,14 @@ const syncSellCart = async (req, res) => {
             )
           ).rows[0].id;
 
-    // Clear existing items
     await client.query(
       `DELETE FROM exchange.sell_cart_items WHERE cart_id = $1`,
       [cartId]
     );
 
-    // Insert each cart item
     for (const item of cart) {
       const quantity = item.quantity || 1;
 
-      // Handle product
       if (item.type === "product" && item.product_name) {
         const productRes = await client.query(
           `SELECT id FROM exchange.products WHERE product_name = $1 LIMIT 1`,
@@ -136,7 +128,6 @@ const syncSellCart = async (req, res) => {
         );
       }
 
-      // Handle scrap
       if (item.type === "scrap") {
         let scrapId = item.data.id || null
       
@@ -180,7 +171,6 @@ const syncSellCart = async (req, res) => {
       }
     }
 
-    // Cleanup orphaned scrap entries
     await client.query(
       `
       DELETE FROM exchange.scrap
@@ -201,9 +191,4 @@ const syncSellCart = async (req, res) => {
   } finally {
     client.release();
   }
-};
-
-module.exports = {
-  getSellCart,
-  syncSellCart,
 };

@@ -1,15 +1,9 @@
-const pool = require("../db");
-const scrapRepo = require("../repositories/scrapRepo");
+import * as scrapRepo from "../repositories/scrapRepo.js";
 
-async function updateScrapItem({ item }) {
+export async function updateScrapItem({ item }) {
   return await scrapRepo.updateScrapItem({ item });
 }
 
-async function deleteItems({ ids }) {
+export async function deleteItems({ ids }) {
   return scrapRepo.deleteItems(orderId);
 }
-
-module.exports = {
-  updateScrapItem,
-  deleteItems,
-};

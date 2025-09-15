@@ -1,7 +1,7 @@
-const { stripeClient } = require("../stripe");
-const stripeService = require("../services/stripeService");
+import stripeClient from "../stripe.js";
+import * as stripeService from "../services/stripeService.js";
 
-async function handleStripeWebhook(req, res) {
+export async function handleStripeWebhook(req, res) {
   const sig = req.headers["stripe-signature"];
   let event;
 
@@ -121,7 +121,7 @@ async function handleStripeWebhook(req, res) {
   res.json({ received: true });
 }
 
-async function retrievePaymentIntent(req, res, next) {
+export async function retrievePaymentIntent(req, res, next) {
   try {
     const paymentIntent = await stripeService.retrievePaymentIntent(
       req.query.type,
@@ -134,7 +134,7 @@ async function retrievePaymentIntent(req, res, next) {
   }
 }
 
-async function updatePaymentIntent(req, res, next) {
+export async function updatePaymentIntent(req, res, next) {
   try {
     const paymentIntent = await stripeService.updatePaymentIntent(
       req.body,
@@ -146,7 +146,7 @@ async function updatePaymentIntent(req, res, next) {
   }
 }
 
-async function getPaymentIntentFromSalesOrderId(req, res, next) {
+export async function getPaymentIntentFromSalesOrderId(req, res, next) {
   try {
     const paymentIntent = await stripeService.getPaymentIntentFromSalesOrderId(
       req.query
@@ -157,7 +157,7 @@ async function getPaymentIntentFromSalesOrderId(req, res, next) {
   }
 }
 
-async function cancelPaymentIntent(req, res, next) {
+export async function cancelPaymentIntent(req, res, next) {
   try {
     const paymentIntent = await stripeService.cancelPaymentIntent(req.body);
     res.json(paymentIntent);
@@ -165,11 +165,3 @@ async function cancelPaymentIntent(req, res, next) {
     return next(err);
   }
 }
-
-module.exports = {
-  handleStripeWebhook,
-  retrievePaymentIntent,
-  updatePaymentIntent,
-  getPaymentIntentFromSalesOrderId,
-  cancelPaymentIntent,
-};

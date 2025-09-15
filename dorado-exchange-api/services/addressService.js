@@ -1,9 +1,5 @@
-const addressRepo = require("../repositories/addressRepo");
+import * as addressRepo from '../repositories/addressRepo.js';
 
-async function getAddressFromId(id) {
+export async function getAddressFromId(id) {
   return await addressRepo.getAddressFromId(id);
 }
-
-module.exports = {
-  getAddressFromId,
-};

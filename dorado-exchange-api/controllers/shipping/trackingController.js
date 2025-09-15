@@ -1,8 +1,8 @@
-const axios = require("axios");
+import axios from "axios";
 
 let fedexAccessToken = null;
 
-const getFedExAccessToken = async () => {
+export async function  getFedExAccessToken  () {
   const response = await axios.post(
     process.env.FEDEX_API_URL + "/oauth/token",
     new URLSearchParams({
@@ -17,7 +17,7 @@ const getFedExAccessToken = async () => {
   return fedexAccessToken;
 };
 
-const parseTracking = (trackingOutput) => {
+function parseTracking (trackingOutput) {
   const windowInfo = trackingOutput.estimatedDeliveryTimeWindow?.window;
   const standardEnd = trackingOutput.standardTransitTimeWindow?.window?.ends;
   const fromDateTimes = trackingOutput.dateAndTimes?.find(
@@ -118,7 +118,7 @@ const parseTracking = (trackingOutput) => {
   };
 };
 
-const getFedexShipmentTracking = async (tracking_number) => {
+export async function  getFedexShipmentTracking (tracking_number){
   try {
     const token = await getFedExAccessToken();
     const trackingPayload = {
@@ -151,8 +151,4 @@ const getFedexShipmentTracking = async (tracking_number) => {
     console.error("FedEx tracking failed:", error?.response?.data || error);
     throw new Error("FedEx shipment tracker failed");
   }
-};
-
-module.exports = {
-  getFedexShipmentTracking,
 };

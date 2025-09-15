@@ -1,4 +1,4 @@
-function calculateTotalPrice(order, spots) {
+export function calculateTotalPrice(order, spots) {
   const baseTotal = order.order_items.reduce((acc, item) => {
     if (item.item_type === "product") {
       const spot = spots?.find((s) => s.type === item.product?.metal_type);
@@ -30,7 +30,7 @@ function calculateTotalPrice(order, spots) {
   return baseTotal - shipping - order.payout.cost;
 }
 
-function calculateReturnDeclaredValue(order, spots) {
+export function calculateReturnDeclaredValue(order, spots) {
   const total = order.order_items.reduce((acc, item) => {
     if (item.item_type === "product") {
       const spot = spots?.find((s) => s.type === item.product?.metal_type);
@@ -58,7 +58,7 @@ function calculateReturnDeclaredValue(order, spots) {
   return total;
 }
 
-function calculateItemPrice(item, spots) {
+export function calculateItemPrice(item, spots) {
   if (item.item_type === "product") {
     const spot = spots?.find((s) => s.type === item.product?.metal_type);
     return (
@@ -76,7 +76,7 @@ function calculateItemPrice(item, spots) {
   }
 }
 
-function getBullionTotal(items, spots) {
+export function getBullionTotal(items, spots) {
   return items.reduce((acc, item) => {
     const spot = spots?.find((s) => s.type === item.product?.metal_type);
     const price =
@@ -89,7 +89,7 @@ function getBullionTotal(items, spots) {
   }, 0);
 }
 
-function getScrapTotal(items, spots) {
+export function getScrapTotal(items, spots) {
   return items.reduce((acc, item) => {
     const spot = spots?.find((s) => s.type === item.scrap?.metal);
     const price =
@@ -100,14 +100,14 @@ function getScrapTotal(items, spots) {
 }
 
 //sales orders
-function calculateItemAsk(item, spots) {
+export function calculateItemAsk(item, spots) {
   const spot = spots?.find((s) => s.type === item.metal_type);
   return (
     (item?.content ?? 0) * ((spot?.ask_spot ?? 0) * (item?.ask_premium ?? 0))
   );
 }
 
-function calculateCardCharge(order_total, payment_method) {
+export function calculateCardCharge(order_total, payment_method) {
   if (payment_method === "ACH") {
     return order_total * 0.005;
   } else {
@@ -115,7 +115,7 @@ function calculateCardCharge(order_total, payment_method) {
   }
 }
 
-function calculateItemTotals(items, spots) {
+export function calculateItemTotals(items, spots) {
   const baseTotal = items.reduce((acc, item) => {
     const spot = spots?.find((s) => s.type === item.metal_type);
 
@@ -129,7 +129,7 @@ function calculateItemTotals(items, spots) {
   return baseTotal;
 }
 
-function getShippingCharge(item_total, shipping_service) {
+export function getShippingCharge(item_total, shipping_service) {
   return item_total > 1000
     ? 0
     : shipping_service === "OVERNIGHT"
@@ -139,7 +139,7 @@ function getShippingCharge(item_total, shipping_service) {
     : 0;
 }
 
-function calculateSalesTax(items, spots) {
+export function calculateSalesTax(items, spots) {
   return items.reduce((acc, item) => {
     return (
       acc + calculateItemAsk(item, spots) * item.quantity * item.sales_tax_rate
@@ -147,7 +147,7 @@ function calculateSalesTax(items, spots) {
   }, 0);
 }
 
-function calculateSalesOrderTotal(
+export function calculateSalesOrderTotal(
   items,
   using_funds,
   spots,
@@ -193,15 +193,3 @@ function calculateSalesOrderTotal(
     order_total,
   };
 }
-
-module.exports = {
-  calculateTotalPrice,
-  calculateReturnDeclaredValue,
-  calculateItemPrice,
-  calculateSalesTax,
-  getBullionTotal,
-  getScrapTotal,
-  calculateItemAsk,
-  calculateItemTotals,
-  calculateSalesOrderTotal,
-};

@@ -1,18 +1,17 @@
-const express = require("express");
-const router = express.Router();
-
-const {
+import express from 'express';
+import {
   retrievePaymentIntent,
   updatePaymentIntent,
   getPaymentIntentFromSalesOrderId,
   cancelPaymentIntent,
-} = require("../controllers/stripeController");
+} from '../controllers/stripeController.js';
+import { requireUser, requireAdmin } from '../middleware/authMiddleware.js';
 
-const { requireUser, requireAdmin } = require("../middleware/authMiddleware");
+const router = express.Router();
 
-router.get("/retrieve_payment_intent", requireUser, retrievePaymentIntent);
-router.get("/get_sales_order_payment_intent", requireAdmin, getPaymentIntentFromSalesOrderId);
-router.post("/update_payment_intent", requireUser, updatePaymentIntent);
-router.post("/cancel_payment_intent", requireAdmin, cancelPaymentIntent);
+router.get('/retrieve_payment_intent', requireUser, retrievePaymentIntent);
+router.get('/get_sales_order_payment_intent', requireAdmin, getPaymentIntentFromSalesOrderId);
+router.post('/update_payment_intent', requireUser, updatePaymentIntent);
+router.post('/cancel_payment_intent', requireAdmin, cancelPaymentIntent);
 
-module.exports = router;
+export default router;

@@ -1,33 +1,33 @@
-const pool = require("../db");
-const purchaseOrderRepo = require("../repositories/purchaseOrdersRepo");
-const shippingRepo = require("../repositories/shippingRepo");
-const scrapRepo = require("../repositories/scrapRepo");
-const transactionRepo = require("../repositories/transactionRepo");
+import pool from "../db.js";
+import * as purchaseOrderRepo from "../repositories/purchaseOrdersRepo.js";
+import * as shippingRepo from "../repositories/shippingRepo.js";
+import * as scrapRepo from "../repositories/scrapRepo.js";
+import * as transactionRepo from "../repositories/transactionRepo.js";
 
-const {
+import {
   createFedexLabel,
   formatAddressForFedEx,
-} = require("../controllers/shipping/fedexController");
+} from "../controllers/shipping/fedexController.js";
 
-const { calculateTotalPrice } = require("../utils/price-calculations");
+import { calculateTotalPrice } from "../utils/price-calculations.js";
 
-async function listOrdersForUser(userId) {
+export async function listOrdersForUser(userId) {
   return purchaseOrderRepo.findAllByUser(userId);
 }
 
-async function getById(orderId) {
+export async function getById(orderId) {
   return purchaseOrderRepo.findById(orderId);
 }
 
-async function getAll() {
+export async function getAll() {
   return purchaseOrderRepo.getAll();
 }
 
-async function getMetalsForOrder(orderId) {
+export async function getMetalsForOrder(orderId) {
   return purchaseOrderRepo.findMetalsByOrderId(orderId);
 }
 
-async function acceptOffer({ order, order_spots, spot_prices }) {
+export async function acceptOffer({ order, order_spots, spot_prices }) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -61,7 +61,7 @@ async function acceptOffer({ order, order_spots, spot_prices }) {
   }
 }
 
-async function rejectOffer({ orderId, offerNotes }) {
+export async function rejectOffer({ orderId, offerNotes }) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -84,7 +84,7 @@ async function rejectOffer({ orderId, offerNotes }) {
   }
 }
 
-async function cancelOrder({ order, return_shipment }) {
+export async function cancelOrder({ order, return_shipment }) {
   const client = await pool.connect();
 
   try {
@@ -114,6 +114,7 @@ async function cancelOrder({ order, return_shipment }) {
     const labelBuffer = Buffer.from(labelData.labelFile, "base64");
 
     const insertedShipment = await purchaseOrderRepo.insertReturnShipment(
+      client,
       order.id,
       {
         tracking_number: labelData.tracking_number,
@@ -123,7 +124,6 @@ async function cancelOrder({ order, return_shipment }) {
         insurance: return_shipment.insurance,
       },
       labelBuffer,
-      client
     );
 
     await client.query("COMMIT");
@@ -137,15 +137,15 @@ async function cancelOrder({ order, return_shipment }) {
   }
 }
 
-async function updateOfferNotes(order, offer_notes) {
+export async function updateOfferNotes(order, offer_notes) {
   return purchaseOrderRepo.updateOfferNotes(order, offer_notes);
 }
 
-async function createReview(order) {
+export async function createReview(order) {
   return purchaseOrderRepo.createReview(order);
 }
 
-async function createPurchaseOrder(purchase_order, user_id) {
+export async function createPurchaseOrder(purchase_order, user_id) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -226,7 +226,7 @@ async function createPurchaseOrder(purchase_order, user_id) {
   }
 }
 
-async function sendOffer({ order, order_status, user_name }) {
+export async function sendOffer({ order, order_status, user_name }) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -266,7 +266,7 @@ async function sendOffer({ order, order_status, user_name }) {
   }
 }
 
-async function updateRejectedOffer({ order, order_status, user_name }) {
+export async function updateRejectedOffer({ order, order_status, user_name }) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -306,23 +306,23 @@ async function updateRejectedOffer({ order, order_status, user_name }) {
   }
 }
 
-async function updateStatus({ order, order_status, user_name }) {
+export async function updateStatus({ order, order_status, user_name }) {
   return await purchaseOrderRepo.updateStatus(order, order_status, user_name);
 }
 
-async function updateScrap({ spot, scrap_percentage }) {
+export async function updateScrap({ spot, scrap_percentage }) {
   return await purchaseOrderRepo.updateScrapPercentage(spot, scrap_percentage);
 }
 
-async function resetScrap({ spot }) {
+export async function resetScrap({ spot }) {
   return await purchaseOrderRepo.resetScrapPercentage(spot);
 }
 
-async function updateSpot({ spot, updated_spot }) {
+export async function updateSpot({ spot, updated_spot }) {
   return await purchaseOrderRepo.updateSpot({ spot, updated_spot });
 }
 
-async function lockSpots({ spots, purchase_order_id }) {
+export async function lockSpots({ spots, purchase_order_id }) {
   const client = await pool.connect();
 
   try {
@@ -346,7 +346,7 @@ async function lockSpots({ spots, purchase_order_id }) {
   }
 }
 
-async function unlockSpots({ purchase_order_id }) {
+export async function unlockSpots({ purchase_order_id }) {
   const client = await pool.connect();
 
   try {
@@ -369,7 +369,11 @@ async function unlockSpots({ purchase_order_id }) {
   }
 }
 
-async function toggleOrderItemStatus({ item_status, ids, purchase_order_id }) {
+export async function toggleOrderItemStatus({
+  item_status,
+  ids,
+  purchase_order_id,
+}) {
   return await purchaseOrderRepo.toggleOrderItemStatus({
     item_status: item_status,
     ids: ids,
@@ -377,11 +381,11 @@ async function toggleOrderItemStatus({ item_status, ids, purchase_order_id }) {
   });
 }
 
-async function updateScrapItem({ item }) {
+export async function updateScrapItem({ item }) {
   return await scrapRepo.updateScrapItem({ item });
 }
 
-async function deleteOrderItems({ items }) {
+export async function deleteOrderItems({ items }) {
   const ids = items.map((item) => item.id);
   const scrapIds = items
     .map((item) => item.scrap?.id)
@@ -390,7 +394,7 @@ async function deleteOrderItems({ items }) {
   return await purchaseOrderRepo.deleteOrderItems(ids);
 }
 
-async function createOrderItem({ item, purchase_order_id }) {
+export async function createOrderItem({ item, purchase_order_id }) {
   const client = await pool.connect();
 
   try {
@@ -418,11 +422,11 @@ async function createOrderItem({ item, purchase_order_id }) {
   }
 }
 
-async function updateBullion({ item }) {
+export async function updateBullion({ item }) {
   return await purchaseOrderRepo.updateBullion(item);
 }
 
-async function expireStaleOffers() {
+export async function expireStaleOffers() {
   const expiredOrders = await purchaseOrderRepo.findExpiredOffers();
 
   for (const order of expiredOrders) {
@@ -461,7 +465,7 @@ async function expireStaleOffers() {
   }
 }
 
-async function autoAcceptOrder(orderId) {
+export async function autoAcceptOrder(orderId) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -497,15 +501,15 @@ async function autoAcceptOrder(orderId) {
   }
 }
 
-async function editShippingCharge({ order_id, shipping_charge }) {
+export async function editShippingCharge({ order_id, shipping_charge }) {
   return await purchaseOrderRepo.editShippingCharge(order_id, shipping_charge);
 }
 
-async function editPayoutCharge({ order_id, payout_charge }) {
+export async function editPayoutCharge({ order_id, payout_charge }) {
   return await purchaseOrderRepo.editPayoutCharge(order_id, payout_charge);
 }
 
-async function addFundsToAccount({ order, spots }) {
+export async function addFundsToAccount({ order, spots }) {
   const client = await pool.connect();
   try {
     await transactionRepo.addFunds(order.user_id, order.total_price, client);
@@ -527,43 +531,10 @@ async function addFundsToAccount({ order, spots }) {
   }
 }
 
-async function changePayoutMethod({ order_id, method }) {
+export async function changePayoutMethod({ order_id, method }) {
   return await purchaseOrderRepo.changePayoutMethod(order_id, method);
 }
 
-async function purgeCancelled() {
+export async function purgeCancelled() {
   return await purchaseOrderRepo.purgeCancelled();
 }
-
-module.exports = {
-  listOrdersForUser,
-  getById,
-  getAll,
-  getMetalsForOrder,
-  acceptOffer,
-  rejectOffer,
-  cancelOrder,
-  updateOfferNotes,
-  createReview,
-  createPurchaseOrder,
-  sendOffer,
-  updateStatus,
-  updateRejectedOffer,
-  updateScrap,
-  resetScrap,
-  updateSpot,
-  lockSpots,
-  unlockSpots,
-  toggleOrderItemStatus,
-  updateScrapItem,
-  deleteOrderItems,
-  createOrderItem,
-  updateBullion,
-  expireStaleOffers,
-  autoAcceptOrder,
-  editShippingCharge,
-  editPayoutCharge,
-  addFundsToAccount,
-  changePayoutMethod,
-  purgeCancelled,
-};

@@ -1,4 +1,4 @@
-function formatPhoneNumber(value) {
+export function formatPhoneNumber(value) {
   if (!value) return "";
 
   const digits = value.replace(/\D/g, "");
@@ -13,7 +13,3 @@ function formatPhoneNumber(value) {
     6
   )}-${cleanDigits.slice(6, 10)}`;
 }
-
-module.exports = {
-  formatPhoneNumber,
-};

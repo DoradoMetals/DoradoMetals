@@ -1,6 +1,6 @@
-const taxService = require("../services/taxService");
+import * as taxService from "../services/taxService.js";
 
-async function getSalesTax(req, res, next) {
+export async function getSalesTax(req, res, next) {
   try {
     const tax = await taxService.getSalesTax(req.body);
     return res.json(tax);
@@ -8,7 +8,3 @@ async function getSalesTax(req, res, next) {
     return next(err);
   }
 }
-
-module.exports = {
-  getSalesTax,
-};

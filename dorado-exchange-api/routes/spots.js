@@ -1,11 +1,12 @@
-const express = require("express");
-const router = express.Router();
-const {
+import express from 'express';
+import {
   getSpotPrices,
   updateScrapPercentages,
-} = require("../controllers/spotController");
+} from '../controllers/spotController.js';
 
-router.get("/spot_prices", getSpotPrices);
-router.post("/update_scrap_percentage", updateScrapPercentages);
+const router = express.Router();
 
-module.exports = router;
+router.get('/spot_prices', getSpotPrices);
+router.post('/update_scrap_percentage', updateScrapPercentages);
+
+export default router;

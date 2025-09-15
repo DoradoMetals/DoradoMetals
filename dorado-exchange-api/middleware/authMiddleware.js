@@ -1,7 +1,7 @@
-const { auth } = require("../auth");
-const { fromNodeHeaders } = require("better-auth/node");
+import { auth } from "../auth.js";
+import { fromNodeHeaders } from "better-auth/node";
 
-const requireAuth = async (req, res, next) => {
+export const requireAuth = async (req, res, next) => {
   try {
     if (!req.headers) {
       return res
@@ -53,13 +53,6 @@ const requireRole = (minimumRole) => {
   };
 };
 
-const requireUser = requireRole("user");
-const requireVerifiedUser = requireRole("verified_user");
-const requireAdmin = requireRole("admin");
-
-module.exports = {
-  requireAuth,
-  requireUser,
-  requireVerifiedUser,
-  requireAdmin,
-};
+export const requireUser = requireRole("user");
+export const requireVerifiedUser = requireRole("verified_user");
+export const requireAdmin = requireRole("admin");

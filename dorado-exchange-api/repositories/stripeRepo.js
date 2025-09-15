@@ -1,6 +1,6 @@
-const pool = require("../db");
+import pool from '../db.js';
 
-async function retrievePaymentIntent(type, session, user_id) {
+export async function retrievePaymentIntent(type, session, user_id) {
   const query = `
     SELECT *
     FROM exchange.payment_intents
@@ -13,14 +13,14 @@ async function retrievePaymentIntent(type, session, user_id) {
   `;
   const values = [
     session.session.id,
-    type === "admin" ? user_id : session.user.id,
+    type === 'admin' ? user_id : session.user.id,
     type,
   ];
   const { rows } = await pool.query(query, values);
   return rows[0];
 }
 
-async function createPaymentIntent(payment_intent, type, user_id, session) {
+export async function createPaymentIntent(payment_intent, type, user_id, session) {
   const query = `
     INSERT INTO exchange.payment_intents (
       session_id,
@@ -35,7 +35,7 @@ async function createPaymentIntent(payment_intent, type, user_id, session) {
   `;
   const values = [
     session.session.id,
-    type === "admin" ? user_id : session.user.id,
+    type === 'admin' ? user_id : session.user.id,
     type,
     payment_intent.status,
     payment_intent.id,
@@ -43,7 +43,7 @@ async function createPaymentIntent(payment_intent, type, user_id, session) {
   await pool.query(query, values);
 }
 
-async function updatePaymentIntent(payment_intent) {
+export async function updatePaymentIntent(payment_intent) {
   const query = `
     UPDATE exchange.payment_intents
     SET payment_status = $1,
@@ -65,7 +65,7 @@ async function updatePaymentIntent(payment_intent) {
   await pool.query(query, values);
 }
 
-async function updateMethod({ paymentMethod }) {
+export async function updateMethod({ paymentMethod }) {
   const query = `
     UPDATE exchange.payment_intents
     SET method_type = $1,
@@ -88,7 +88,7 @@ async function updateMethod({ paymentMethod }) {
   await pool.query(query, values);
 }
 
-async function attachOrder(
+export async function attachOrder(
   payment_intent_id,
   purchase_order_id,
   sales_order_id,
@@ -103,34 +103,23 @@ async function attachOrder(
   await client.query(query, values);
 }
 
-async function attachCustomerToUser(customerId, userId) {
+export async function attachCustomerToUser(customerId, userId) {
   const query = `
-  UPDATE exchange.users
+    UPDATE exchange.users
     SET "stripeCustomerId" = $1
-  WHERE id = $2
+    WHERE id = $2
   `;
   const values = [customerId, userId];
-
   await pool.query(query, values);
 }
 
-async function getPaymentIntentFromSalesOrderId(sales_order_id) {
+export async function getPaymentIntentFromSalesOrderId(sales_order_id) {
   const query = `
-  SELECT *
-  FROM exchange.payment_intents
-  WHERE sales_order_id = $1
+    SELECT *
+    FROM exchange.payment_intents
+    WHERE sales_order_id = $1
   `;
   const values = [sales_order_id];
   const result = await pool.query(query, values);
   return result.rows[0];
 }
-
-module.exports = {
-  retrievePaymentIntent,
-  createPaymentIntent,
-  updatePaymentIntent,
-  updateMethod,
-  attachOrder,
-  attachCustomerToUser,
-  getPaymentIntentFromSalesOrderId,
-};

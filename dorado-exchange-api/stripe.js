@@ -1,8 +1,6 @@
-const { Stripe } = require("stripe");
-require("dotenv").config();
+import 'dotenv/config';
+import Stripe from 'stripe';
 
 const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-module.exports = {
-  stripeClient
-};
+export default stripeClient;

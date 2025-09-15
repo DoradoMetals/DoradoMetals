@@ -1,6 +1,6 @@
-const pool = require("../db");
+import pool from '../db.js';
 
-async function insertShipment(
+export async function insertShipment(
   purchase_order_id,
   sales_order_id,
   tracking_number,
@@ -9,7 +9,7 @@ async function insertShipment(
   label,
   labelType,
   pickupType,
-  package,
+  pkg,
   service,
   netCharge,
   insured,
@@ -47,7 +47,7 @@ async function insertShipment(
     label,
     labelType,
     pickupType,
-    package,
+    pkg,
     service,
     netCharge,
     insured,
@@ -59,7 +59,7 @@ async function insertShipment(
   return rows[0];
 }
 
-async function insertTracking(shipment_id, tracking_number, carrier_id) {
+export async function insertTracking(shipment_id, tracking_number, carrier_id) {
   const query = `
     UPDATE exchange.shipments
     SET tracking_number = $1,
@@ -71,7 +71,7 @@ async function insertTracking(shipment_id, tracking_number, carrier_id) {
   return await pool.query(query, vals);
 }
 
-async function insertPickup(client, orderId, userId, pickup) {
+export async function insertPickup(client, orderId, userId, pickup) {
   const query = `
     INSERT INTO exchange.carrier_pickups (
       user_id, 
@@ -89,9 +89,9 @@ async function insertPickup(client, orderId, userId, pickup) {
   const vals = [
     userId,
     orderId,
-    "FedEx",
+    'FedEx',
     requestedAt,
-    "scheduled",
+    'scheduled',
     pickup.confirmationNumber,
     pickup.location,
   ];
@@ -99,52 +99,49 @@ async function insertPickup(client, orderId, userId, pickup) {
   return rows[0];
 }
 
-//new stuff
-async function getCarrier(carrier_id, client) {
+export async function getCarrier(carrier_id, client) {
   const query = `
-  SELECT name
-  FROM exchange.carriers
-  WHERE id = $1
+    SELECT name
+    FROM exchange.carriers
+    WHERE id = $1
   `;
-
   const values = [carrier_id];
   const result = await client.query(query, values);
-  return result.rows[0]?.name ?? "";
+  return result.rows[0]?.name ?? '';
 }
 
-async function getTrackingEvents(shipment_id, client) {
+export async function getTrackingEvents(shipment_id, client) {
   const query = `
-      SELECT 
-        s.*,
-        json_agg(
-          json_build_object(
-            'status', e.status,
-            'location', e.location,
-            'scan_time', e.scan_time
-          )
-          ORDER BY e.scan_time ASC
-        ) AS scan_events
-      FROM exchange.shipments s
-      LEFT JOIN exchange.shipment_tracking_events e
-        ON s.id = e.shipment_id
-      WHERE s.id = $1
-      GROUP BY s.id
-    `;
-
+    SELECT 
+      s.*,
+      json_agg(
+        json_build_object(
+          'status', e.status,
+          'location', e.location,
+          'scan_time', e.scan_time
+        )
+        ORDER BY e.scan_time ASC
+      ) AS scan_events
+    FROM exchange.shipments s
+    LEFT JOIN exchange.shipment_tracking_events e
+      ON s.id = e.shipment_id
+    WHERE s.id = $1
+    GROUP BY s.id
+  `;
   const { rows } = await client.query(query, [shipment_id]);
   return rows[0];
 }
 
-async function deleteTrackingEvents(shipment_id, client) {
+export async function deleteTrackingEvents(shipment_id, client) {
   const query = `
-  DELETE FROM exchange.shipment_tracking_events 
-  WHERE shipment_id = $1
+    DELETE FROM exchange.shipment_tracking_events 
+    WHERE shipment_id = $1
   `;
   const values = [shipment_id];
   await client.query(query, values);
 }
 
-async function insertTrackingEvents(trackingInfo, shipment_id, client) {
+export async function insertTrackingEvents(trackingInfo, shipment_id, client) {
   const events = trackingInfo.scanEvents;
   if (!events.length) return;
 
@@ -173,7 +170,7 @@ async function insertTrackingEvents(trackingInfo, shipment_id, client) {
   await client.query(query, [ids, statuses, locations, times]);
 }
 
-async function updateStatus(trackingInfo, shipment_id, client) {
+export async function updateStatus(trackingInfo, shipment_id, client) {
   const query = `
     UPDATE exchange.shipments
     SET shipping_status = $1, estimated_delivery = $2, delivered_at = $3
@@ -182,7 +179,7 @@ async function updateStatus(trackingInfo, shipment_id, client) {
 
   const values = [
     trackingInfo.latestStatus,
-    trackingInfo.estimatedDeliveryTime === "TBD"
+    trackingInfo.estimatedDeliveryTime === 'TBD'
       ? null
       : trackingInfo.estimatedDeliveryTime,
     trackingInfo.deliveredAt,
@@ -191,14 +188,3 @@ async function updateStatus(trackingInfo, shipment_id, client) {
 
   await client.query(query, values);
 }
-
-module.exports = {
-  insertShipment,
-  insertTracking,
-  insertPickup,
-  getCarrier,
-  getTrackingEvents,
-  deleteTrackingEvents,
-  insertTrackingEvents,
-  updateStatus,
-};

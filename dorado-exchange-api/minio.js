@@ -1,4 +1,4 @@
-const { Client } = require('minio');
+import { Client } from 'minio';
 
 const minio = new Client({
   endPoint: process.env.MINIO_ENDPOINT,
@@ -8,4 +8,4 @@ const minio = new Client({
   secretKey: process.env.MINIO_SECRET_KEY,
 });
 
-module.exports = { minio };
+export default minio;

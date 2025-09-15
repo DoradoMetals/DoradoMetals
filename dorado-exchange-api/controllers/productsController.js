@@ -1,7 +1,7 @@
-const pool = require("../db");
-const { PRODUCT_FIELDS } = require("../constants/productsConstants");
+import pool from "../db.js";
+import { PRODUCT_FIELDS } from "../constants/productsConstants.js";
 
-const getAllProducts = async (req, res) => {
+export async function  getAllProducts (req, res) {
   try {
     const result = await pool.query(
       `
@@ -21,7 +21,7 @@ const getAllProducts = async (req, res) => {
   }
 };
 
-const getSellProducts = async (req, res) => {
+export async function getSellProducts(req, res) {
   try {
     const result = await pool.query(
       `
@@ -39,9 +39,9 @@ const getSellProducts = async (req, res) => {
     console.error("Error fetching products:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};
+}
 
-const getProductFromSlug = async (req, res) => {
+export async function getProductFromSlug(req, res) {
   const { slug } = req.query;
 
   try {
@@ -65,9 +65,9 @@ const getProductFromSlug = async (req, res) => {
     console.error("Slug lookup failed:", err);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};
+}
 
-const getHomepageProducts = async (req, res) => {
+export async function getHomepageProducts(req, res) {
   try {
     const result = await pool.query(
       `
@@ -86,9 +86,9 @@ const getHomepageProducts = async (req, res) => {
     console.error("Error fetching products:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};
+}
 
-const getFilteredProducts = async (req, res) => {
+export async function getFilteredProducts(req, res) {
   const { metal_type, filter_category, product_type } = req.query;
 
   try {
@@ -127,12 +127,4 @@ const getFilteredProducts = async (req, res) => {
     console.error("Error fetching filtered products:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};
-
-module.exports = {
-  getAllProducts,
-  getSellProducts,
-  getHomepageProducts,
-  getFilteredProducts,
-  getProductFromSlug,
-};
+}

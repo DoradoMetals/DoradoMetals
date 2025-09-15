@@ -1,6 +1,6 @@
-const usersService = require("../services/usersService");
+import * as usersService from "../services/usersService.js";
 
-async function getUser(req, res, next) {
+export async function getUser(req, res, next) {
   try {
     const result = await usersService.getUser(req.query.user_id);
     return res.status(200).json(result);
@@ -9,7 +9,7 @@ async function getUser(req, res, next) {
   }
 }
 
-async function getAll(req, res, next) {
+export async function getAll(req, res, next) {
   try {
     const result = await usersService.getAllUsers();
     return res.status(200).json(result);
@@ -18,7 +18,7 @@ async function getAll(req, res, next) {
   }
 }
 
-async function getAdmins(req, res, next) {
+export async function getAdmins(req, res, next) {
   try {
     const result = await usersService.getAdminUsers();
     return res.status(200).json(result);
@@ -27,7 +27,7 @@ async function getAdmins(req, res, next) {
   }
 }
 
-async function updateCredit(req, res, next) {
+export async function updateCredit(req, res, next) {
   try {
     const result = await usersService.adjustDoradoCredit(req.body);
     return res.status(200).json(result);
@@ -35,10 +35,3 @@ async function updateCredit(req, res, next) {
     return next(err);
   }
 }
-
-module.exports = {
-  getUser,
-  getAll,
-  getAdmins,
-  updateCredit,
-};

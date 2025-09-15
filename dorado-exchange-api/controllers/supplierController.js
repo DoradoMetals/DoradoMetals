@@ -1,6 +1,6 @@
-const supplierService = require("../services/supplierService");
+import * as supplierService from "../services/supplierService.js";
 
-async function getAllSuppliers(req, res, next) {
+export async function getAllSuppliers(req, res, next) {
   try {
     const suppliers = await supplierService.getAllSuppliers();
     return res.json(suppliers);
@@ -8,7 +8,3 @@ async function getAllSuppliers(req, res, next) {
     return next(err);
   }
 }
-
-module.exports = {
-  getAllSuppliers,
-};

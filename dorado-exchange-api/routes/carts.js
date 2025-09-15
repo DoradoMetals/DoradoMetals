@@ -1,9 +1,9 @@
-const express = require("express");
-const { getCart, syncCart } = require("../controllers/cartController");
+import express from 'express';
+import { getCart, syncCart } from '../controllers/cartController.js';
 
 const router = express.Router();
 
-router.get("/get_cart", getCart);
-router.post("/sync_cart", syncCart);
+router.get('/get_cart', getCart);
+router.post('/sync_cart', syncCart);
 
-module.exports = router;
+export default router;

@@ -1,11 +1,11 @@
-const pool = require("../db");
+import pool from '../db.js';
 
-async function getSalesTax(state, item, item_price, item_total) {
+export async function getSalesTax(state, item, item_price, item_total) {
   const hasNexus = await isNexus(state);
-  const collectingNexus = process.env.COLLECTING_NEXUS_TAXES === 'true' ? true : false
+  const collectingNexus = process.env.COLLECTING_NEXUS_TAXES === 'true' ? true : false;
 
   if (collectingNexus && !hasNexus) {
-    return Number(0)
+    return Number(0);
   }
 
   const query = `
@@ -32,9 +32,9 @@ async function getSalesTax(state, item, item_price, item_total) {
             ((r.purity_min <> 0) OR (r.purity_max <> 1))    DESC,
             ((r.aggregate_min <> 0) OR (r.aggregate_max <> 1e12)) DESC
           LIMIT 1
-          ),
+        ),
         0
-    ) AS tax_rate;
+      ) AS tax_rate;
   `;
 
   const values = [
@@ -53,30 +53,24 @@ async function getSalesTax(state, item, item_price, item_total) {
   return Number(result.rows[0].tax_rate);
 }
 
-async function updateStateSalesTax(amount, state, client) {
+export async function updateStateSalesTax(amount, state, client) {
   const query = `
-  UPDATE exchange.state_sales_tax
-  SET amount_owed = amount_owed + $1
-  WHERE state = $2
-  AND reached_nexus = true
+    UPDATE exchange.state_sales_tax
+    SET amount_owed = amount_owed + $1
+    WHERE state = $2
+    AND reached_nexus = true
   `;
   const values = [amount, state];
   await client.query(query, values);
 }
 
-async function isNexus(state) {
+export async function isNexus(state) {
   const query = `
-  SELECT reached_nexus
-  FROM exchange.state_sales_tax
-  WHERE state = $1
+    SELECT reached_nexus
+    FROM exchange.state_sales_tax
+    WHERE state = $1
   `;
   const values = [state];
   const result = await pool.query(query, values);
-  return result?.rows[0]?.reached_nexus
+  return result?.rows[0]?.reached_nexus;
 }
-
-module.exports = {
-  getSalesTax,
-  updateStateSalesTax,
-  isNexus,
-};

@@ -1,14 +1,14 @@
-const { stripeClient } = require("../stripe");
-const stripeRepo = require("../repositories/stripeRepo");
-const productService = require("../services/productService");
-const addressService = require("../services/addressService");
-const taxService = require("../services/taxService");
-const { calculateSalesOrderTotal } = require("../utils/price-calculations");
+import stripeClient from "../stripe.js";
+import * as stripeRepo from "../repositories/stripeRepo.js";
+import * as productService from "../services/productService.js";
+import * as addressService from "../services/addressService.js";
+import * as taxService from "../services/taxService.js";
+import { calculateSalesOrderTotal } from "../utils/price-calculations.js";
 
-const { auth } = require("../auth");
-const { fromNodeHeaders } = require("better-auth/node");
+import { auth } from "../auth.js";
+import { fromNodeHeaders } from "better-auth/node";
 
-async function retrievePaymentIntent(type, user_id, headers) {
+export async function retrievePaymentIntent(type, user_id, headers) {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(headers),
   });
@@ -21,7 +21,7 @@ async function retrievePaymentIntent(type, user_id, headers) {
   }
 }
 
-async function createPaymentIntent(type, user_id, session) {
+export async function createPaymentIntent(type, user_id, session) {
   let customerId = session?.user?.stripeCustomerId;
 
   if (!customerId) {
@@ -56,7 +56,7 @@ async function createPaymentIntent(type, user_id, session) {
   return paymentIntent;
 }
 
-async function updatePaymentIntent(
+export async function updatePaymentIntent(
   {
     items,
     using_funds,
@@ -122,7 +122,7 @@ async function updatePaymentIntent(
   }
 }
 
-async function capturePaymentIntent(payment_intent_id) {
+export async function capturePaymentIntent(payment_intent_id) {
   try {
     const paymentIntent = await stripeClient.paymentIntents.capture(
       payment_intent_id
@@ -133,7 +133,7 @@ async function capturePaymentIntent(payment_intent_id) {
   }
 }
 
-async function cancelPaymentIntent({ payment_intent_id }) {
+export async function cancelPaymentIntent({ payment_intent_id }) {
   try {
     const paymentIntent = await stripeClient.paymentIntents.cancel(
       payment_intent_id
@@ -144,23 +144,15 @@ async function cancelPaymentIntent({ payment_intent_id }) {
   }
 }
 
-async function updateMethod({ paymentMethod }) {
+export async function updateMethod({ paymentMethod }) {
   await stripeRepo.updateMethod({ paymentMethod });
 }
 
-async function updateIntentFromWebhook({ paymentIntent }) {
+export async function updateIntentFromWebhook({ paymentIntent }) {
   await stripeRepo.updatePaymentIntent(paymentIntent);
 }
 
-async function getPaymentIntentFromSalesOrderId({ sales_order_id }) {
+export async function getPaymentIntentFromSalesOrderId({ sales_order_id }) {
   return await stripeRepo.getPaymentIntentFromSalesOrderId(sales_order_id);
 }
-module.exports = {
-  retrievePaymentIntent,
-  updatePaymentIntent,
-  capturePaymentIntent,
-  cancelPaymentIntent,
-  updateMethod,
-  updateIntentFromWebhook,
-  getPaymentIntentFromSalesOrderId,
-};
+

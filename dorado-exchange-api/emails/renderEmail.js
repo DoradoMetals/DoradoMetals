@@ -1,6 +1,10 @@
-const fs = require("fs");
-const path = require("path");
-const { formatSalesOrderNumber } = require("../utils/formatOrderNumbers");
+import fs from "fs";
+import path from "path";
+import { formatSalesOrderNumber } from "../utils/formatOrderNumbers.js";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function renderTemplate(
   contentFile,
@@ -21,36 +25,35 @@ function renderTemplate(
   return finalHtml;
 }
 
-// Specific email renderers
-function renderAccountCreatedEmail({ firstName, url }) {
+export function renderAccountCreatedEmail({ firstName, url }) {
   return renderTemplate("accountCreated.raw.html", { firstName, url });
 }
 
-function renderResetPasswordEmail({ firstName, url }) {
+export function renderResetPasswordEmail({ firstName, url }) {
   return renderTemplate("resetPassword.raw.html", { firstName, url });
 }
 
-function renderVerifyEmail({ firstName, url }) {
+export function renderVerifyEmail({ firstName, url }) {
   return renderTemplate("verifyEmail.raw.html", { firstName, url });
 }
 
-function renderChangeEmail({ firstName, url }) {
+export function renderChangeEmail({ firstName, url }) {
   return renderTemplate("changeEmail.raw.html", { firstName, url });
 }
 
-function renderCreateAccountEmail({ firstName, url }) {
+export function renderCreateAccountEmail({ firstName, url }) {
   return renderTemplate("createAccount.raw.html", { firstName, url });
 }
 
-function renderPurchaseOrderPlacedEmail({ firstName, url }) {
+export function renderPurchaseOrderPlacedEmail({ firstName, url }) {
   return renderTemplate("purchaseOrderPlaced.raw.html", { firstName, url });
 }
 
-function renderSalesOrderPlacedEmail({ firstName, url }) {
+export function renderSalesOrderPlacedEmail({ firstName, url }) {
   return renderTemplate("salesOrderPlaced.raw.html", { firstName, url });
 }
 
-function renderOfferSentEmail({ firstName, url, offerExpiration }) {
+export function renderOfferSentEmail({ firstName, url, offerExpiration }) {
   return renderTemplate("offerSent.raw.html", {
     firstName,
     url,
@@ -58,11 +61,11 @@ function renderOfferSentEmail({ firstName, url, offerExpiration }) {
   });
 }
 
-function renderOfferAcceptedEmail({ firstName, url }) {
+export function renderOfferAcceptedEmail({ firstName, url }) {
   return renderTemplate("offerAccepted.raw.html", { firstName, url });
 }
 
-function renderSalesOrderToSupplierEmail({ firstName, url, order, spots }) {
+export function renderSalesOrderToSupplierEmail({ firstName, url, order, spots }) {
   const layoutPath = path.join(__dirname, "templates", "baseLayout.raw.html");
   const contentPath = path.join(
     __dirname,
@@ -72,12 +75,10 @@ function renderSalesOrderToSupplierEmail({ firstName, url, order, spots }) {
   let layout = fs.readFileSync(layoutPath, "utf8");
   let content = fs.readFileSync(contentPath, "utf8");
 
-  // 1) basic placeholders
   content = content
     .replace(/\[First Name\]/g, firstName)
     .replace(/href=""/g, `href="${url}"`);
 
-  // 2) build shipping <tr>…</tr> rows
   const addr = order.address;
   const shippingHtml = [
     `<tr><td style="padding:4px 8px;"><strong>Street 1:</strong> ${addr.line_1}</td></tr>`,
@@ -90,7 +91,6 @@ function renderSalesOrderToSupplierEmail({ firstName, url, order, spots }) {
     .filter(Boolean)
     .join("");
 
-  // 3) build spots <tr>…</tr> rows
   const spotsHtml = spots
     .map(
       (s) => `
@@ -104,7 +104,6 @@ function renderSalesOrderToSupplierEmail({ firstName, url, order, spots }) {
     )
     .join("");
 
-  // 4) build order‐item rows
   const orderRows = order.order_items
     .map((item) => {
       const subtotal = (item.quantity * item.price).toFixed(2);
@@ -118,10 +117,8 @@ function renderSalesOrderToSupplierEmail({ firstName, url, order, spots }) {
     })
     .join("");
 
-  // 5) total
   const total = order.item_total.toFixed(2);
 
-  // 6) inject everything
   content = content
     .replace("[SHIPPING_ROWS]", shippingHtml)
     .replace("[SPOTS_ROWS]", spotsHtml)
@@ -132,16 +129,3 @@ function renderSalesOrderToSupplierEmail({ firstName, url, order, spots }) {
 
   return layout.replace("[BODY]", content);
 }
-
-module.exports = {
-  renderAccountCreatedEmail,
-  renderResetPasswordEmail,
-  renderVerifyEmail,
-  renderChangeEmail,
-  renderCreateAccountEmail,
-  renderPurchaseOrderPlacedEmail,
-  renderSalesOrderPlacedEmail,
-  renderOfferSentEmail,
-  renderOfferAcceptedEmail,
-  renderSalesOrderToSupplierEmail,
-};

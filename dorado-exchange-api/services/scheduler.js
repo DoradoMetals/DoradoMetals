@@ -1,18 +1,18 @@
-const cron = require("node-cron");
-const { updateSpotPrices } = require("../controllers/spotController");
-const { expireStaleOffers } = require("../controllers/purchaseOrderController");
+import cron from 'node-cron';
+import { updateSpotPrices } from '../controllers/spotController.js';
+import { expireStaleOffers } from '../controllers/purchaseOrderController.js';
 
-function setupScheduler() {
+export function setupScheduler() {
   try {
     updateSpotPrices();
   } catch (err) {
-    console.error("Startup: Failed to update spot prices", err);
+    console.error('Startup: Failed to update spot prices', err);
   }
 
   try {
     expireStaleOffers();
   } catch (err) {
-    console.error("Startup: Failed to expire offers", err);
+    console.error('Startup: Failed to expire offers', err);
   }
 
   cron.schedule(process.env.SPOT_UPDATE_SCHEDULE, async () => {
@@ -23,4 +23,3 @@ function setupScheduler() {
     await expireStaleOffers();
   });
 }
-module.exports = { setupScheduler };

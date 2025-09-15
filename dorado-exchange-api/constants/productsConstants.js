@@ -1,4 +1,4 @@
-const PRODUCT_FIELDS = `
+export const PRODUCT_FIELDS = `
   id,
   product_name,
   product_description,
@@ -20,7 +20,7 @@ const PRODUCT_FIELDS = `
   variant_label
 `;
 
-const PRODUCT_FIELDS_WITH_ALIAS = `
+export const PRODUCT_FIELDS_WITH_ALIAS = `
   p.id,
   p.product_name,
   p.product_description,
@@ -41,5 +41,3 @@ const PRODUCT_FIELDS_WITH_ALIAS = `
   p.is_generic,
   p.variant_label
 `;
-
-module.exports = { PRODUCT_FIELDS, PRODUCT_FIELDS_WITH_ALIAS };
