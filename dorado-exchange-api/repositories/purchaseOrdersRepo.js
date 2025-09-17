@@ -667,7 +667,7 @@ export async function toggleSpots(locked, order_id, client) {
     SET spots_locked = $1
     WHERE id = $2
   `;
-  values = [locked, order_id];
+  const values = [locked, order_id];
   return await client.query(query, values);
 }
 
