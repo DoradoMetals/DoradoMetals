@@ -41,18 +41,16 @@ export default function LeadsDrawer({ leads, lead_id }: { leads: Lead[]; lead_id
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
-      <div className="flex flex-col flex-1 h-full space-y-4 p-5 overflow-y-scroll sm:overflow-y-auto pb-30 sm:pb-5 bg-background w-full">
-        <Header lead={lead} />
-        <div className="separator-inset" />
-        <Details lead={lead} />
-        <div className="separator-inset" />
-        <Booleans lead={lead} />
-        <div className="separator-inset" />
-        <Contacted lead={lead} />
-        <div className="separator-inset" />
-        <Actions lead={lead} />
-      </div>
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background">
+      <Header lead={lead} />
+      <div className="separator-inset" />
+      <Details lead={lead} />
+      <div className="separator-inset" />
+      <Booleans lead={lead} />
+      <div className="separator-inset" />
+      <Contacted lead={lead} />
+      <div className="separator-inset" />
+      <Actions lead={lead} />
     </Drawer>
   )
 }

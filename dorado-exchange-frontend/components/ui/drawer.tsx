@@ -10,10 +10,11 @@ interface Props {
   setOpen: (open: boolean) => void
   children: ReactNode
   anchor?: Anchor
+  className?: string
 }
 
-const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right' }) => {
-  if (typeof document === 'undefined') return null;
+const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right', className }) => {
+  if (typeof document === 'undefined') return null
 
   return createPortal(
     <AnimatePresence>
@@ -33,7 +34,11 @@ const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right' }) => {
             animate={{ x: 0 }}
             exit={{ x: anchor === 'right' ? '100%' : '-100%' }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className={cn("drawer-layout backdrop-blur-xs", anchor === 'right' ? 'right-0' : 'left-0')}
+            className={cn(
+              'drawer-layout backdrop-blur-xs',
+              anchor === 'right' ? 'right-0' : 'left-0',
+              className
+            )}
           >
             {children}
           </motion.div>

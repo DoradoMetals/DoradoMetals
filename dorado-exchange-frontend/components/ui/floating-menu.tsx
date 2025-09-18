@@ -1,5 +1,5 @@
 'use client'
-import React, { ReactNode } from 'react'
+import React, { ReactNode, useEffect } from 'react'
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
@@ -15,17 +15,27 @@ export function FloatingNav({
   setVisible: React.Dispatch<React.SetStateAction<boolean>>
 }) {
   const { scrollYProgress } = useScroll()
+  const hasScrollbar = document.documentElement.scrollHeight > document.documentElement.clientHeight
 
   useMotionValueEvent(scrollYProgress, 'change', (current) => {
     const prev = scrollYProgress.getPrevious() ?? current
     if (typeof current !== 'number' || typeof prev !== 'number') return
 
-    if (current > 0.05) {
+    if (current > 0.5) {
       setVisible(false)
       return
     }
     setVisible(current - prev < 0)
   })
+
+  useEffect(() => {
+    if (!hasScrollbar) {
+      setVisible(true)
+    } else {
+      const atTop = window.scrollY <= 0
+      setVisible(atTop)
+    }
+  }, [setVisible, hasScrollbar])
 
   return (
     <AnimatePresence initial={false}>

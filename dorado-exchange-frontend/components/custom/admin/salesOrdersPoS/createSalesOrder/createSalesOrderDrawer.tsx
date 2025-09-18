@@ -103,47 +103,45 @@ export function CreateSalesOrderDrawer() {
   }, [defaultAddress.id, addresses.length, data.address?.id, setData])
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} anchor="left">
-      <div className="flex flex-col flex-1 h-full gap-6 p-4 overflow-y-scroll sm:overflow-y-auto pb-30 sm:pb-5 bg-background w-full">
-        <div className="text-base text-neutral-800">{createSalesOrderUser?.name}</div>
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer} anchor="left" className="bg-background">
+      <div className="text-base text-neutral-800">{createSalesOrderUser?.name}</div>
 
-        <div className="separator-inset" />
+      <div className="separator-inset" />
 
-        <div className="flex flex-col gap-2 items-start">
-          <Button
-            variant="link"
-            className="text-primary-gradient p-0 font-normal text-sm h-4 hover:bg-transparent ml-auto"
-            onClick={() => setSpotsLocked((prev) => !prev)}
-          >
-            {spotsLocked ? (
-              <div className="flex gap-1 items-center">
-                Unlock Spots
-                <LockOpenIcon size={16} color={getPrimaryIconStroke()} />
-              </div>
-            ) : (
-              <div className="flex gap-1 items-center">
-                Lock Spots
-                <LockIcon size={16} color={getPrimaryIconStroke()} />
-              </div>
-            )}
-          </Button>
+      <div className="flex flex-col gap-2 items-start">
+        <Button
+          variant="link"
+          className="text-primary-gradient p-0 font-normal text-sm h-4 hover:bg-transparent ml-auto"
+          onClick={() => setSpotsLocked((prev) => !prev)}
+        >
+          {spotsLocked ? (
+            <div className="flex gap-1 items-center">
+              Unlock Spots
+              <LockOpenIcon size={16} color={getPrimaryIconStroke()} />
+            </div>
+          ) : (
+            <div className="flex gap-1 items-center">
+              Lock Spots
+              <LockIcon size={16} color={getPrimaryIconStroke()} />
+            </div>
+          )}
+        </Button>
 
-          <SpotSelector spotsLocked={spotsLocked} />
-          <ProductSelector />
-        </div>
+        <SpotSelector spotsLocked={spotsLocked} />
+        <ProductSelector />
+      </div>
 
-        <div className="separator-inset" />
-        <div className="flex flex-col gap-3">
-          <AddressSelect user={createSalesOrderUser} addresses={addresses} isLoading={isLoading} />
-          <ServiceSelector />
-        </div>
+      <div className="separator-inset" />
+      <div className="flex flex-col gap-3">
+        <AddressSelect user={createSalesOrderUser} addresses={addresses} isLoading={isLoading} />
+        <ServiceSelector />
+      </div>
 
-        <div className="separator-inset" />
-        <div className="flex flex-col gap-3">
-          <OrderSummary orderPrices={orderPrices} />
-          <CreditSelect orderPrices={orderPrices} />
-          <PaymentSelect orderPrices={orderPrices} user={createSalesOrderUser!} />
-        </div>
+      <div className="separator-inset" />
+      <div className="flex flex-col gap-3">
+        <OrderSummary orderPrices={orderPrices} />
+        <CreditSelect orderPrices={orderPrices} />
+        <PaymentSelect orderPrices={orderPrices} user={createSalesOrderUser!} />
       </div>
     </Drawer>
   )

@@ -22,20 +22,18 @@ export default function SalesOrderDrawer({ order_id, user }: SalesOrderDrawerPro
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
-      <div className="flex flex-col h-full max-w-full space-y-4 px-5 py-4 bg-background">
-        <SalesOrderDrawerHeader
-          order={order}
-          username={user?.name ?? ''}
-          setIsOrderActive={() => {}}
-        />
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background max-w-full">
+      <SalesOrderDrawerHeader
+        order={order}
+        username={user?.name ?? ''}
+        setIsOrderActive={() => {}}
+      />
 
-        <div className="flex-1 overflow-y-auto pb-30 sm:pb-5">
-          <SalesOrderDrawerContent order={order} />
-        </div>
-
-        <SalesOrderDrawerFooter order={order} />
+      <div className="flex-1 overflow-y-auto pb-30 sm:pb-5">
+        <SalesOrderDrawerContent order={order} />
       </div>
+
+      <SalesOrderDrawerFooter order={order} />
     </Drawer>
   )
 }

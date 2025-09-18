@@ -14,9 +14,9 @@ import { getGrossLabel, getPurityLabel, Scrap } from '@/types/scrap'
 import { Product } from '@/types/product'
 import getProductBidPrice from '@/utils/getProductBidPrice'
 import { useDrawerStore } from '@/store/drawerStore'
-import { ShoppingCartSimple } from '@phosphor-icons/react/dist/ssr'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useUser } from '@/lib/authClient'
+import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
 
 export default function SellCart() {
   const router = useRouter()
@@ -51,7 +51,7 @@ export default function SellCart() {
   const emptyCart = (
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
       <div className="relative mb-5">
-        <ShoppingCartSimple size={80} strokeWidth={1.5} color={getPrimaryIconStroke()} />
+        <ShoppingCartSimpleIcon size={80} strokeWidth={1.5} color={getPrimaryIconStroke()} />
         <div className="absolute -top-6 right-3.5 border border-border text-xl text-primary-gradient rounded-full w-10 h-10 flex items-center justify-center">
           0
         </div>
@@ -197,10 +197,10 @@ export default function SellCart() {
   )
 
   const cartFooter = (
-    <div className="w-full p-5 bg-card">
-      <div className="flex justify-between items-center mb-4">
-        <div className="text-lg text-neutral-800">Price Estimate</div>
-        <div className="text-lg text-neutral-800">
+    <div className="w-full bg-card mt-2">
+      <div className="flex justify-between items-end sm:mb-2">
+        <div className="text-lg text-neutral-800 font-semibold tracking-wide">Price Estimate:</div>
+        <div className="text-xl sm:text-2xl text-neutral-900">
           <PriceNumberFlow value={total} />
         </div>
       </div>

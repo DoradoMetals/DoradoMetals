@@ -2,15 +2,15 @@
   @apply 
     fixed
     top-24 sm:top-0
+    overflow-y-scroll sm:overflow-y-auto
+    space-y-4
+    pb-30 sm:pb-5
+    p-4
+    flex flex-col flex-1
     z-[70]
-    h-full 
+    h-screen
     w-full sm:w-1/2 md:w-1/2 lg:w-2/5 xl:w-1/4
     max-w-full sm:max-w-1/2 md:max-w-1/2 lg:max-w-2/5 xl:max-w-1/4
     shadow-lg
-    will-change-transform
-    overflow-hidden
+    will-change-transform;
 }
-
-
-
-

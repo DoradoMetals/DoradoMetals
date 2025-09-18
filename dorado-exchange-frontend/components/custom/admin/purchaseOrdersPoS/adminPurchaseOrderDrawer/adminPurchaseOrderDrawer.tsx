@@ -30,19 +30,17 @@ export default function AdminPurchaseOrderDrawer({
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
-      <div className="flex flex-col flex-1 h-full space-y-4 p-5 overflow-y-scroll sm:overflow-y-auto pb-30 sm:pb-5 bg-background">
-        <AdminPurchaseOrderDrawerHeader
-          setIsOrderActive={closeDrawer}
-          order={order}
-          username={orderUser?.name ?? ''}
-        />
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background">
+      <AdminPurchaseOrderDrawerHeader
+        setIsOrderActive={closeDrawer}
+        order={order}
+        username={orderUser?.name ?? ''}
+      />
 
-        <AdminPurchaseOrderDrawerContent order={order} />
+      <AdminPurchaseOrderDrawerContent order={order} />
 
-        <div className="mt-auto">
-          <AdminPurchaseOrderDrawerFooter order={order} />
-        </div>
+      <div className="mt-auto">
+        <AdminPurchaseOrderDrawerFooter order={order} />
       </div>
     </Drawer>
   )

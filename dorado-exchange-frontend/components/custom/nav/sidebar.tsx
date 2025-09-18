@@ -120,7 +120,7 @@ export default function Sidebar() {
             >
               <SwapIcon size={24} color={getPrimaryIconStroke()} />
               <div className="text-sm text-primary-gradient">
-               {type === 'Bid' ? 'Ask' : 'Bid'} Spots
+                {type === 'Bid' ? 'Ask' : 'Bid'} Spots
               </div>
             </Button>
           </div>
@@ -156,10 +156,12 @@ export default function Sidebar() {
   )
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
-      <div className="w-full h-full bg-neutral-800/50 dark:bg-neutral-200/50 backdrop-blur-xl border-t-1 border-border">
-        {drawerContent}
-      </div>
+    <Drawer
+      open={isDrawerOpen}
+      setOpen={closeDrawer}
+      className="bg-neutral-800/50 dark:bg-neutral-200/50 !backdrop-blur-sm border-t-1 border-border"
+    >
+      {drawerContent}
     </Drawer>
   )
 }

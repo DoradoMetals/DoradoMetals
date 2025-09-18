@@ -185,7 +185,7 @@ function BreadcrumbBar({
         visible={visible}
         setVisible={setVisible}
       >
-        <div className="flex max-w-7xl justify-center items-center w-full py-2">
+        <div className="flex max-w-7xl justify-center items-center w-full pb-2">
           <div className="flex w-full justify-between items-center">
             <div className="hidden lg:flex pl-2 w-1/3 justify-start">
               <BreadcrumbNav />

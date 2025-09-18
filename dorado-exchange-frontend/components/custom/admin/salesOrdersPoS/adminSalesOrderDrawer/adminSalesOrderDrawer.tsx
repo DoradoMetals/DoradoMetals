@@ -29,19 +29,17 @@ export default function AdminSalesOrderDrawer({
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
-      <div className="flex flex-col flex-1 h-full space-y-4 p-5 overflow-y-scroll sm:overflow-y-auto pb-30 sm:pb-5 bg-background">
-        <AdminSalesOrderDrawerHeader
-          setIsOrderActive={closeDrawer}
-          order={order}
-          username={orderUser?.name ?? ''}
-        />
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background">
+      <AdminSalesOrderDrawerHeader
+        setIsOrderActive={closeDrawer}
+        order={order}
+        username={orderUser?.name ?? ''}
+      />
 
-        <AdminSalesOrderDrawerContent order={order} />
+      <AdminSalesOrderDrawerContent order={order} />
 
-        <div className="mt-auto">
-          <AdminSalesOrderDrawerFooter order={order} />
-        </div>
+      <div className="mt-auto">
+        <AdminSalesOrderDrawerFooter order={order} />
       </div>
     </Drawer>
   )

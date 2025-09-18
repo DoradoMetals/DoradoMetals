@@ -140,10 +140,10 @@ export default function Cart() {
   )
 
   const cartFooter = (
-    <div className="w-full p-5 bg-card">
-      <div className="flex justify-between items-center mb-4">
-        <div className="text-lg text-neutral-800">Total</div>
-        <div className="text-lg text-neutral-800">
+    <div className="w-full bg-card mt-2">
+      <div className="flex justify-between items-end sm:mb-2">
+        <div className="text-lg text-neutral-800 font-semibold tracking-wide">Total:</div>
+        <div className="text-xl sm:text-2xl text-neutral-800">
           <PriceNumberFlow value={total} />
         </div>
       </div>

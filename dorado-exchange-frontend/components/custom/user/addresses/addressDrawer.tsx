@@ -29,19 +29,21 @@ export default function AddressDrawer({ address, onSuccess }: AddressDrawerProps
   return (
     <>
       <div>
-        <Drawer open={isAddressOpen} setOpen={closeDrawer}>
-          <div className="h-full bg-background border-t-1 border-border lg:border-none flex flex-col p-4 flex-1 overflow-y-auto pb-30 sm:pb-5">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:flex hover:bg-card p-2"
-              onClick={closeDrawer}
-            >
-              <X size={24} className="text-neutral-900" />
-            </Button>
-            <div className="text-sm text-neutral-600 tracking-widest mt-8 mb-10">{title}</div>
-            <AddressForm address={address} onSuccess={onSuccess} />
-          </div>
+        <Drawer
+          open={isAddressOpen}
+          setOpen={closeDrawer}
+          className="bg-background border-border border-t-1 lg:border-none"
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden sm:flex hover:bg-card p-2"
+            onClick={closeDrawer}
+          >
+            <X size={24} className="text-neutral-900" />
+          </Button>
+          <div className="text-sm text-neutral-600 tracking-widest mt-8 mb-10">{title}</div>
+          <AddressForm address={address} onSuccess={onSuccess} />
         </Drawer>
       </div>
     </>

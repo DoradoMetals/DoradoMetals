@@ -44,22 +44,20 @@ export default function ProductDrawer({
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
-      <div className="flex flex-col flex-1 h-full space-y-4 p-5 overflow-y-scroll sm:overflow-y-auto pb-30 sm:pb-5 bg-background w-full">
-        <Header product={product} />
-        <div className="separator-inset" />
-        <Details product={product} />
-        <div className="separator-inset" />
-        <Inventory product={product} />
-        <div className="separator-inset" />
-        <Specifications product={product} />
-        <div className="separator-inset" />
-        <Displays product={product} />
-        <div className="separator-inset" />
-        <Dev product={product} />
-        <div className="separator-inset" />
-        <Images product={product} />
-      </div>
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background">
+      <Header product={product} />
+      <div className="separator-inset" />
+      <Details product={product} />
+      <div className="separator-inset" />
+      <Inventory product={product} />
+      <div className="separator-inset" />
+      <Specifications product={product} />
+      <div className="separator-inset" />
+      <Displays product={product} />
+      <div className="separator-inset" />
+      <Dev product={product} />
+      <div className="separator-inset" />
+      <Images product={product} />
     </Drawer>
   )
 }
@@ -127,14 +125,14 @@ function Details({ product }: { product: AdminProduct }) {
           value={product.metal}
           options={metals?.map((m) => m.type)}
           onChange={(val) => handleUpdate(product.id, { metal: val })}
-          triggerClass='raised-off-page'
+          triggerClass="raised-off-page"
         />
         <PopoverSelect
           label="Product Type"
           value={product.product_type}
           options={types?.map((item) => item.name)}
           onChange={(val) => handleUpdate(product.id, { product_type: val })}
-          triggerClass='raised-off-page'
+          triggerClass="raised-off-page"
         />
       </div>
       <PopoverSelect
@@ -142,14 +140,14 @@ function Details({ product }: { product: AdminProduct }) {
         value={product.supplier}
         options={suppliers?.map((item) => item.name)}
         onChange={(val) => handleUpdate(product.id, { supplier: val })}
-        triggerClass='raised-off-page'
+        triggerClass="raised-off-page"
       />
       <PopoverSelect
         label="Mint"
         value={product.mint}
         options={mints?.map((item) => item.name)}
         onChange={(val) => handleUpdate(product.id, { mint: val })}
-        triggerClass='raised-off-page'
+        triggerClass="raised-off-page"
       />
 
       <div className="flex flex-col w-full gap-1">

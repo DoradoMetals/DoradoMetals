@@ -23,18 +23,16 @@ export default function PurchaseOrderDrawer({ order_id, user }: PurchaseOrderDra
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
-      <div className="flex flex-col flex-1 h-full space-y-4 p-5 overflow-y-scroll sm:overflow-y-auto pb-30 sm:pb-5 bg-background">
-        <PurchaseOrderDrawerHeader
-          order={order}
-          username={user?.name ?? ''}
-          setIsOrderActive={() => {}}
-        />
-        <PurchaseOrderDrawerContent order={order} />
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background">
+      <PurchaseOrderDrawerHeader
+        order={order}
+        username={user?.name ?? ''}
+        setIsOrderActive={() => {}}
+      />
+      <PurchaseOrderDrawerContent order={order} />
 
-        <div className="mt-auto">
-          <PurchaseOrderDrawerFooter order={order} />
-        </div>
+      <div className="mt-auto">
+        <PurchaseOrderDrawerFooter order={order} />
       </div>
     </Drawer>
   )
