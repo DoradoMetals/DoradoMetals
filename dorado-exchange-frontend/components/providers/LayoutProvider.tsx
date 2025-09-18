@@ -26,6 +26,7 @@ import {
 import Link from 'next/link'
 import { FloatingNav } from '../ui/floating-menu'
 import { cn } from '@/lib/utils'
+import { useScrollLock } from '@/utils/useScrollock'
 
 export default function LayoutProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -41,13 +42,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
 
   const [visible, setVisible] = useState(true)
 
-  useEffect(() => {
-    if (activeDrawer) {
-      document.body.style.overflowY = 'hidden'
-    } else {
-      document.body.style.overflowY = ''
-    }
-  }, [activeDrawer])
+  useScrollLock(isAnyDrawerOpen)
 
   if (!session && isPending === true) {
     return (
@@ -59,7 +54,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
 
   return (
     <>
-      <div className='flex flex-col min-h-screen'>
+      <div className={cn('flex flex-col min-h-screen')}>
         <AnimatePresence>
           {isAnyDrawerOpen && (
             <motion.div
