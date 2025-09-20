@@ -1,7 +1,7 @@
 .drawer-layout {
   @apply 
     fixed
-    top-24 sm:top-0
+    top-23 sm:top-0
     overflow-y-scroll sm:overflow-y-auto
     space-y-4
     pb-30 sm:pb-5
