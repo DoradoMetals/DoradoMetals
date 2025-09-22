@@ -15,7 +15,7 @@ export async function getAllLeads() {
   const query = `
     SELECT *
     FROM exchange.leads
-    ORDER BY created_at DESC
+    ORDER BY last_contacted DESC
   `;
   const result = await pool.query(query, []);
   return result.rows;
