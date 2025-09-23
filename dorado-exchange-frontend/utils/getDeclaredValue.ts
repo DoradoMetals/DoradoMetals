@@ -38,7 +38,7 @@ export function getReturnDeclaredValue(
     return acc
   }, 0)
 
-  return Math.min(total, 5000)
+  return Math.min(total, 25000)
 }
 
 export function getDeclaredValue(items: SellCartItem[], spotPrices: SpotPrice[]): number {
@@ -57,5 +57,5 @@ export function getDeclaredValue(items: SellCartItem[], spotPrices: SpotPrice[])
        return acc
      }, 0)
 
-  return Math.min(total, 5000)
+  return Math.min(total, 25000)
 }
