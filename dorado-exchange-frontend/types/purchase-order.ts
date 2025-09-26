@@ -272,3 +272,22 @@ export function assignScrapItemNames(scrapItems: PurchaseOrderItem[]): PurchaseO
     }
   })
 }
+
+export interface PurchaseOrderTotals {
+  total_content: number
+  refiner: {
+    content: number
+    percentage: number
+    profit: number
+  }
+  dorado: {
+    content: number
+    percentage: number
+    profit: number
+  }
+  customer: {
+    content: number
+    percentage: number
+    profit: number
+  }
+}

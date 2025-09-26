@@ -77,8 +77,8 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
             <TableHeader className="text-xs text-neutral-700 hover:bg-transparent">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="text-left">Line Item</TableHead>
-                <TableHead className="text-center">Content</TableHead>
-                <TableHead className="text-center">Payable</TableHead>
+                <TableHead className="text-center">Content (toz)</TableHead>
+                <TableHead className="text-center">Payable (toz)</TableHead>
                 <TableHead className="text-right">Estimate</TableHead>
               </TableRow>
             </TableHeader>
@@ -86,10 +86,10 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
               {scrapItems.map((item, i) => (
                 <TableRow key={i} className="hover:bg-transparent">
                   <TableCell className="text-left">{item.scrap?.name}</TableCell>
-                  <TableCell className="text-center">
-                    {item.scrap?.content?.toFixed(2)} toz
+                  <TableCell className="text-right">
+                    {item.scrap?.content?.toFixed(2)}
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="text-right">
                     {(
                       (item.scrap?.content ?? 0) *
                       (orderSpotPrices?.find((s) => s.type === item.scrap?.metal)
@@ -97,7 +97,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                         spotPrices.find((s) => s.type === item.scrap?.metal)?.scrap_percentage ??
                         1)
                     ).toFixed(2)}{' '}
-                    toz
+
                   </TableCell>
                   <TableCell className="text-right">
                     <PriceNumberFlow

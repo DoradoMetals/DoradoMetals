@@ -1,11 +1,22 @@
+import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import { Button } from '@/components/ui/button'
 import { Command, CommandItem, CommandList } from '@/components/ui/command'
+import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { useEditPayoutMethod } from '@/lib/queries/admin/useAdminPurchaseOrders'
+import {
+  useEditPayoutMethod,
+  usePurchaseOrderRefinerMetals,
+  useResetOrderRefinerScrapPercentage,
+  useUpdateOrderRefinerScrapPercentage,
+  useUpdateOrderRefinerSpotPrice,
+} from '@/lib/queries/admin/useAdminPurchaseOrders'
+import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { cn } from '@/lib/utils'
+import { SpotPrice } from '@/types/metal'
 import { payoutOptions } from '@/types/payout'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import { CaretDownIcon } from '@phosphor-icons/react'
+import { RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 
 export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
@@ -14,17 +25,114 @@ export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawe
   const [open, setOpen] = useState(false)
   const changePayoutMethod = useEditPayoutMethod()
 
+  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
+  const { data: refinerSpotPrices = [] } = usePurchaseOrderRefinerMetals(order.id)
+  const updateSpot = useUpdateOrderRefinerSpotPrice()
+  const updateScrapPercentage = useUpdateOrderRefinerScrapPercentage()
+  const resetScrapPercentage = useResetOrderRefinerScrapPercentage()
+
+  const handleUpdateScrapPercentage = (spot: SpotPrice, scrap_percentage: number) => {
+    updateScrapPercentage.mutate({ spot, scrap_percentage })
+  }
+
+  const handleResetScrapPercentage = (spot: SpotPrice) => {
+    resetScrapPercentage.mutate({ spot })
+  }
+
+  const handleUpdateSpot = (spot: SpotPrice, updated_spot: number) => {
+    updateSpot.mutate({ spot, updated_spot })
+  }
+
   return (
     <div className="flex flex-col items-center justify-center sm:px-6 w-full h-full gap-5">
       <div className="flex flex-col items-center gap-3">
-        <config.icon className={cn(config.text_color, 'mb-6')} size={128} strokeWidth={1.5} />
-        <h2 className="text-2xl text-neutral-800 mb-2">Customer Accepted!</h2>
-
-        <p className="text-sm text-neutral-700 mb-6 lg:px-14 text-center">
-          Customer has an accepted an offer total of ${order.total_price?.toFixed(2)}. Once you are
-          ready, please move the order to Payment Processing.
+        <p className="text-sm text-neutral-700 mb-6 text-left">
+          Customer has accepted our offer of{' '}
+          <span className="text-base text-neutral-900 font-semibold">
+            <PriceNumberFlow value={order.total_price ?? 0} />
+          </span>
+          . Don't forget to update the refiner spots and percentages! Once you are ready, please
+          move the order to Payment Processing.
         </p>
       </div>
+      <div className="separator-inset" />
+
+      <div className="flex w-full">
+        <div className="flex flex-col gap-4 w-full">
+          <div className="w-full section-label">Update Refiner Spots</div>
+          <div className="flex flex-col gap-2 w-full">
+            <div className="grid grid-cols-2 w-full gap-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+              {refinerSpotPrices.map((spot) => (
+                <div key={spot.id} className="flex flex-col w-full">
+                  <div className="flex items-center justify-between w-full text-sm text-neutral-700">
+                    {spot.type}
+                  </div>
+
+                  <div className="flex items-center gap-1 w-full">
+                    <Input
+                      type="number"
+                      pattern="[0-9]*"
+                      inputMode="decimal"
+                      className={cn(
+                        'input-floating-label-form no-spinner text-center w-full text-base h-8',
+                        !order?.spots_locked && 'cursor-not-allowed'
+                      )}
+                      defaultValue={
+                        spot?.bid_spot ??
+                        orderSpotPrices?.find((s) => s.type === spot.type)?.bid_spot ??
+                        ''
+                      }
+                      onBlur={(e) => handleUpdateSpot(spot, Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="separator-inset" />
+
+          <div className="flex flex-col w-full gap-3">
+            {refinerSpotPrices.length > 0 && (
+              <div className="flex flex-col gap-4">
+                <div className="w-full section-label">Update Refiner Scrap Percentages</div>
+                <div className="flex w-full gap-4 items-center justify-between">
+                  {refinerSpotPrices.map((spot) => (
+                    <div key={spot.id} className="flex flex-col w-full">
+                      <div className="flex items-center justify-between w-full text-sm text-neutral-700">
+                        {spot.type}
+                        <Button
+                          variant="ghost"
+                          className="p-0 h-4"
+                          onClick={() => handleResetScrapPercentage(spot)}
+                        >
+                          <RotateCcw size={16} className={config.text_color} />
+                        </Button>
+                      </div>
+
+                      <div className="flex items-center gap-1 w-full">
+                        <Input
+                          type="number"
+                          pattern="[0-9]*"
+                          inputMode="decimal"
+                          className="input-floating-label-form no-spinner text-center w-full text-base h-8"
+                          defaultValue={
+                            spot.scrap_percentage ??
+                            orderSpotPrices.find((s) => s.type === spot.type)?.scrap_percentage ??
+                            ''
+                          }
+                          onBlur={(e) => handleUpdateScrapPercentage(spot, Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="separator-inset" />
+        </div>
+      </div>
+
       <div className="flex flex-col gap-1 items-start w-full">
         <div className="text-sm text-neutral-600 tracking-wide">Change Payout Method</div>
         <Popover open={open} onOpenChange={setOpen}>
@@ -36,7 +144,7 @@ export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawe
                 'flex items-center justify-between gap-1 px-4 font-normal text-sm bg-card raised-off-page border-none h-9 w-full'
               )}
             >
-              {order.payout.method}
+              {payoutOptions.find((m) => m.method === order.payout.method)?.label}
               <CaretDownIcon size={20} />
             </Button>
           </PopoverTrigger>
@@ -48,9 +156,9 @@ export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawe
           >
             <Command className="bg-card">
               <CommandList>
-                {payoutOptions.map(({ method, icon: Icon }) => (
+                {payoutOptions.map(({ label, method, icon: Icon }) => (
                   <CommandItem
-                    key={method}
+                    key={label}
                     onSelect={() => {
                       changePayoutMethod.mutate({
                         purchase_order: order,
@@ -65,7 +173,7 @@ export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawe
                     )}
                   >
                     <Icon size={16} className={cn(config.text_color)} />
-                    <span className="transition-colors">{method}</span>
+                    <span className="transition-colors">{label}</span>
                   </CommandItem>
                 ))}
               </CommandList>

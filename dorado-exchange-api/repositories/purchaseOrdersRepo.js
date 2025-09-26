@@ -787,3 +787,100 @@ export async function purgeCancelled() {
   `
   return await pool.query(query, [])
 }
+
+export async function updateRefinerMetals(orderId, spotPrices, client) {
+  const updates = await Promise.all(
+    spotPrices.map(async (spot) => {
+      const query = `
+        UPDATE exchange.refiner_metals
+        SET bid_spot = $1,
+            scrap_percentage = $2
+        WHERE purchase_order_id = $3
+        AND type = $4
+        RETURNING *;
+      `;
+      const vals = [spot.bid_spot, spot.scrap_percentage, orderId, spot.type];
+      const { rows } = await client.query(query, vals);
+      return rows[0];
+    })
+  );
+  return updates;
+}
+
+export async function findRefinerMetalsByOrderId(orderId) {
+  const query = `
+    SELECT 
+      id,
+      purchase_order_id,
+      type,
+      ask_spot,
+      bid_spot,
+      percent_change,
+      dollar_change,
+      scrap_percentage,
+      created_at,
+      updated_at
+    FROM exchange.refiner_metals
+    WHERE purchase_order_id = $1
+    ORDER BY type ASC;
+  `;
+  const { rows } = await pool.query(query, [orderId]);
+  return rows;
+}
+
+export async function insertRefinerMetals(
+  client,
+  orderId,
+  metals = ["Gold", "Silver", "Platinum", "Palladium"]
+) {
+  const query = `
+    INSERT INTO exchange.refiner_metals (purchase_order_id, type)
+    VALUES ($1, $2)
+  `;
+  for (const metal of metals) {
+    await client.query(query, [orderId, metal]);
+  }
+}
+
+export async function updateRefinerScrapPercentage(spot, scrap_percentage) {
+      console.log('scrap: ', spot)
+
+  const query = `
+    UPDATE exchange.refiner_metals
+    SET scrap_percentage = $1
+    WHERE purchase_order_id = $2
+    AND type = $3
+    RETURNING *
+  `;
+  const values = [scrap_percentage, spot.purchase_order_id, spot.type];
+  return await pool.query(query, values);
+}
+
+export async function resetRefinerScrapPercentage(spot) {
+
+  const query = `
+    UPDATE exchange.refiner_metals om
+    SET scrap_percentage = m.scrap_percentage
+    FROM exchange.metals m
+    WHERE om.purchase_order_id = $1
+      AND om.type = m.type
+      AND om.type = $2
+    RETURNING om.*;
+  `;
+  const values = [spot.purchase_order_id, spot.type];
+  return await pool.query(query, values);
+}
+
+export async function updateRefinerSpot({ spot, updated_spot }) {
+
+  console.log('spot: ', spot)
+  const query = `
+    UPDATE exchange.refiner_metals
+    SET bid_spot = $1 
+    WHERE purchase_order_id = $2
+    AND type = $3
+    RETURNING *;
+  `;
+  const values = [updated_spot, spot.purchase_order_id, spot.type];
+  return await pool.query(query, values);
+}

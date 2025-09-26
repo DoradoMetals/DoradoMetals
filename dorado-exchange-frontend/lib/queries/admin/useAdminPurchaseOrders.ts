@@ -1142,3 +1142,157 @@ export const usePurgeCancelled = () => {
     },
   })
 }
+
+
+export const usePurchaseOrderRefinerMetals = (purchase_order_id: string) => {
+  const { user } = useGetSession()
+
+  return useQuery<SpotPrice[]>({
+    queryKey: ['purchase_order_refiner_metals', purchase_order_id],
+    queryFn: async () => {
+      if (!user?.id) return []
+      return await apiRequest<SpotPrice[]>('POST', '/purchase_orders/get_purchase_order_refiner_metals', {
+        user_id: user.id,
+        purchase_order_id: purchase_order_id,
+      })
+    },
+    enabled: !!user && !!purchase_order_id,
+    refetchInterval: 60000,
+  })
+}
+
+export const useUpdateOrderRefinerScrapPercentage = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      spot,
+      scrap_percentage,
+    }: {
+      spot: SpotPrice
+      scrap_percentage: number
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<SpotPrice>('POST', '/purchase_orders/update_refiner_scrap', {
+        user_id: user.id,
+        spot,
+        scrap_percentage,
+      })
+    },
+    onMutate: async ({ spot, scrap_percentage }) => {
+      const queryKey = ['purchase_order_refiner_metals', spot.purchase_order_id]
+      await queryClient.cancelQueries({ queryKey })
+      const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(queryKey)
+      queryClient.setQueryData<SpotPrice[]>(queryKey, (old = []) =>
+        old.map((s) => (s.id === spot.id ? { ...s, scrap_percentage } : s))
+      )
+
+      return { previousSpotPrices, queryKey }
+    },
+    onError: (_err, _newData, context) => {
+      if (context?.previousSpotPrices && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousSpotPrices)
+      }
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
+    },
+  })
+}
+
+export const useResetOrderRefinerScrapPercentage = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ spot }: { spot: SpotPrice }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+
+      return await apiRequest<SpotPrice>('POST', '/purchase_orders/reset_refiner_scrap', {
+        user_id: user.id,
+        spot,
+      })
+    },
+    onMutate: async ({ spot }) => {
+      const queryKey = ['purchase_order_refiner_metals', spot.purchase_order_id]
+
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(queryKey)
+      const globalSpotPrices = queryClient.getQueryData<SpotPrice[]>(['spot_prices'])
+
+      const globalScrapPercentage = globalSpotPrices?.find(
+        (s) => s.type === spot.type
+      )?.scrap_percentage
+
+      queryClient.setQueryData<SpotPrice[]>(queryKey, (old = []) =>
+        old.map((s) =>
+          s.id === spot.id
+            ? { ...s, scrap_percentage: globalScrapPercentage ?? s.scrap_percentage }
+            : s
+        )
+      )
+
+      return { previousSpotPrices, queryKey }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousSpotPrices && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousSpotPrices)
+      }
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
+    },
+  })
+}
+
+export const useUpdateOrderRefinerSpotPrice = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ spot, updated_spot }: { spot: SpotPrice; updated_spot: number }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<SpotPrice>('POST', '/purchase_orders/update_refiner_spot', {
+        user_id: user.id,
+        spot,
+        updated_spot,
+      })
+    },
+    onMutate: async ({ spot, updated_spot }) => {
+      const queryKey = ['purchase_order_refiner_metals', spot.purchase_order_id]
+      await queryClient.cancelQueries({ queryKey })
+      const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(queryKey)
+
+      queryClient.setQueryData<SpotPrice[]>(queryKey, (old = []) =>
+        old.map((s) => (s.id === spot.id ? { ...s, bid_spot: updated_spot } : s))
+      )
+
+      return { previousSpotPrices, queryKey }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousSpotPrices && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousSpotPrices)
+      }
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
+    },
+  })
+}

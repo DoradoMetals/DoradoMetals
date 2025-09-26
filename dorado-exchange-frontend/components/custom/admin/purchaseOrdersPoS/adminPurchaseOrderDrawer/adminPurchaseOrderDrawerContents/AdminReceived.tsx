@@ -131,12 +131,12 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                         'input-floating-label-form no-spinner text-center w-full text-base h-8',
                         !order?.spots_locked && 'cursor-not-allowed'
                       )}
-                      value={
+                      defaultValue={
                         spot?.bid_spot ??
                         spotPrices?.find((s) => s.type === spot.type)?.bid_spot ??
                         ''
                       }
-                      onChange={(e) => handleUpdateSpot(spot, Number(e.target.value))}
+                      onBlur={(e) => handleUpdateSpot(spot, Number(e.target.value))}
                     />
                   </div>
                 </div>
@@ -173,12 +173,12 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                             pattern="[0-9]*"
                             inputMode="decimal"
                             className="input-floating-label-form no-spinner text-center w-full text-base h-8"
-                            value={
+                            defaultValue={
                               spot.scrap_percentage ??
                               spotPrices.find((s) => s.type === spot.type)?.scrap_percentage ??
                               ''
                             }
-                            onChange={(e) =>
+                            onBlur={(e) =>
                               handleUpdateScrapPercentage(spot, Number(e.target.value))
                             }
                           />

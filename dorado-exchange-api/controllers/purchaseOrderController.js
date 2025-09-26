@@ -310,3 +310,42 @@ export async function purgeCancelled(req, res, next) {
   }
 }
 
+export async function getPurchaseOrderRefinerMetals(req, res, next) {
+  try {
+    const { purchase_order_id } = req.body;
+    const metals = await purchaseOrderService.getRefinerMetalsForOrder(
+      purchase_order_id
+    );
+    return res.json(metals);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export async function updateRefinerScrapPercentage(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.updateRefinerScrap(req.body);
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export async function resetRefinerScrapPercentage(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.resetRefinerScrap(req.body);
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export async function updateRefinerSpot(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.updateRefinerSpot(req.body);
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+

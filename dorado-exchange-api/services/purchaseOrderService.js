@@ -40,6 +40,8 @@ export async function acceptOffer({ order, order_spots, spot_prices }) {
           client
         );
 
+    await purchaseOrderRepo.updateRefinerMetals(order.id, updatedSpots, client);
+
     await purchaseOrderRepo.updateOrderItemPrices(
       order.id,
       order.order_items,
@@ -123,7 +125,7 @@ export async function cancelOrder({ order, return_shipment }) {
         service: return_shipment.service,
         insurance: return_shipment.insurance,
       },
-      labelBuffer,
+      labelBuffer
     );
 
     await client.query("COMMIT");
@@ -157,6 +159,7 @@ export async function createPurchaseOrder(purchase_order, user_id) {
     });
     await purchaseOrderRepo.insertItems(client, orderId, purchase_order.items);
     await purchaseOrderRepo.insertOrderMetals(client, orderId);
+    await purchaseOrderRepo.insertRefinerMetals(client, orderId);
     await purchaseOrderRepo.insertPayout(client, orderId, {
       userId: user_id,
       ...purchase_order.payout,
@@ -478,6 +481,8 @@ export async function autoAcceptOrder(orderId) {
       client
     );
 
+    await purchaseOrderRepo.updateRefinerMetals(order.id, updatedSpots, client);
+
     const order = await purchaseOrderRepo.findById(orderId, client);
 
     await purchaseOrderRepo.updateOrderItemPrices(
@@ -537,4 +542,20 @@ export async function changePayoutMethod({ order_id, method }) {
 
 export async function purgeCancelled() {
   return await purchaseOrderRepo.purgeCancelled();
+}
+
+export async function getRefinerMetalsForOrder(orderId) {
+  return purchaseOrderRepo.findRefinerMetalsByOrderId(orderId);
+}
+
+export async function updateRefinerScrap({ spot, scrap_percentage }) {
+  return await purchaseOrderRepo.updateRefinerScrapPercentage(spot, scrap_percentage);
+}
+
+export async function resetRefinerScrap({ spot }) {
+  return await purchaseOrderRepo.resetRefinerScrapPercentage(spot);
+}
+
+export async function updateRefinerSpot({ spot, updated_spot }) {
+  return await purchaseOrderRepo.updateRefinerSpot({ spot, updated_spot });
 }

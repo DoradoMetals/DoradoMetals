@@ -29,6 +29,10 @@ import {
   addFundsToAccount,
   changePayoutMethod,
   purgeCancelled,
+  updateRefinerSpot,
+  resetRefinerScrapPercentage,
+  updateRefinerScrapPercentage,
+  getPurchaseOrderRefinerMetals,
 } from '../controllers/purchaseOrderController.js';
 
 const router = express.Router();
@@ -64,5 +68,9 @@ router.post('/edit_payout_charge', requireAdmin, editPayoutCharge);
 router.post('/edit_payout_method', requireAdmin, changePayoutMethod);
 router.post('/add_funds_to_account', requireAdmin, addFundsToAccount);
 router.delete('/purge_cancelled', requireAdmin, purgeCancelled);
+router.post('/get_purchase_order_refiner_metals', requireAdmin, getPurchaseOrderRefinerMetals);
+router.post('/update_refiner_scrap', requireAdmin, updateRefinerScrapPercentage);
+router.post('/reset_refiner_scrap', requireAdmin, resetRefinerScrapPercentage);
+router.post('/update_refiner_spot', requireAdmin, updateRefinerSpot);
 
 export default router;
