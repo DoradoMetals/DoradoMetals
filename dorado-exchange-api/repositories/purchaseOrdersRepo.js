@@ -12,6 +12,7 @@ export async function findAllByUser(userId) {
         'quantity', poi.quantity,
         'confirmed', poi.confirmed,
         'premium', poi.premium,
+        'refiner_premium', poi.refiner_premium,
         'item_type', CASE 
           WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
           WHEN poi.product_id IS NOT NULL THEN 'product'
@@ -24,7 +25,8 @@ export async function findAllByUser(userId) {
           'purity', s.purity,
           'content', s.content,
           'gross_unit', s.gross_unit,
-          'metal', ms.type
+          'metal', ms.type,
+          'bid_premium', s.bid_premium
         ),
         'product', jsonb_build_object(
           'id', p.id,
@@ -121,6 +123,7 @@ export async function findById(id) {
         'quantity', poi.quantity,
         'confirmed', poi.confirmed,
         'premium', poi.premium,
+        'refiner_premium', poi.refiner_premium,
         'item_type', CASE 
           WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
           WHEN poi.product_id IS NOT NULL THEN 'product'
@@ -133,7 +136,8 @@ export async function findById(id) {
           'purity', s.purity,
           'content', s.content,
           'gross_unit', s.gross_unit,
-          'metal', ms.type
+          'metal', ms.type,
+          'bid_premium', s.bid_premium
         ),
         'product', jsonb_build_object(
           'id', p.id,
@@ -231,6 +235,7 @@ export async function getAll() {
           'quantity', poi.quantity,
           'confirmed', poi.confirmed,
           'premium', poi.premium,
+          'refiner_premium', poi.refiner_premium,
           'item_type', CASE 
             WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
             WHEN poi.product_id IS NOT NULL THEN 'product'
@@ -243,7 +248,8 @@ export async function getAll() {
             'purity', s.purity,
             'content', s.content,
             'gross_unit', s.gross_unit,
-            'metal', ms.type
+            'metal', ms.type,
+            'bid_premium', s.bid_premium
           ),
           'product', jsonb_build_object(
             'id', p.id,
@@ -339,7 +345,6 @@ export async function findMetalsByOrderId(orderId) {
       bid_spot,
       percent_change,
       dollar_change,
-      scrap_percentage,
       created_at,
       updated_at
     FROM exchange.order_metals
@@ -355,13 +360,12 @@ export async function updateOrderMetals(orderId, spotPrices, client) {
     spotPrices.map(async (spot) => {
       const query = `
         UPDATE exchange.order_metals
-        SET bid_spot = $1,
-            scrap_percentage = $2
-        WHERE purchase_order_id = $3
-        AND type = $4
+        SET bid_spot = $1
+        WHERE purchase_order_id = $2
+        AND type = $3
         RETURNING *;
       `;
-      const vals = [spot.bid_spot, spot.scrap_percentage, orderId, spot.type];
+      const vals = [spot.bid_spot, orderId, spot.type];
       const { rows } = await client.query(query, vals);
       return rows[0];
     })
@@ -430,7 +434,7 @@ export async function cancelOrderById(orderId, client) {
 export async function clearOrderMetals(orderId, client) {
   const query = `
     UPDATE exchange.order_metals
-    SET bid_spot = NULL, scrap_percentage = NULL
+    SET bid_spot = NULL
     WHERE purchase_order_id = $1;
   `;
   return client.query(query, [orderId]);
@@ -524,14 +528,13 @@ export async function insertItems(client, orderId, items) {
       ($1,$2,$3,$4,$5)
   `;
 
-  //TODO: is bid_premium right..?
   for (const { type, data } of items) {
     await client.query(query, [
       orderId,
       type === "scrap" ? data.id : null,
       type === "product" ? data.id : null,
-      data.quantity,
-      data.bid_premium ?? null,
+      data.quantity ?? 1,
+      data.bid_premium ?? 0.75,
     ]);
   }
 }
@@ -633,32 +636,6 @@ export async function updateStatus(order, order_status, user_name) {
   const values = [order_status, user_name, order.id];
   const { rows } = await pool.query(query, values);
   return rows[0];
-}
-
-export async function updateScrapPercentage(spot, scrap_percentage) {
-  const query = `
-    UPDATE exchange.order_metals
-    SET scrap_percentage = $1
-    WHERE purchase_order_id = $2
-    AND type = $3
-    RETURNING *
-  `;
-  const values = [scrap_percentage, spot.purchase_order_id, spot.type];
-  return await pool.query(query, values);
-}
-
-export async function resetScrapPercentage(spot) {
-  const query = `
-    UPDATE exchange.order_metals om
-    SET scrap_percentage = m.scrap_percentage
-    FROM exchange.metals m
-    WHERE om.purchase_order_id = $1
-      AND om.type = m.type
-      AND om.type = $2
-    RETURNING om.*;
-  `;
-  const values = [spot.purchase_order_id, spot.type];
-  return await pool.query(query, values);
 }
 
 export async function toggleSpots(locked, order_id, client) {
@@ -793,13 +770,12 @@ export async function updateRefinerMetals(orderId, spotPrices, client) {
     spotPrices.map(async (spot) => {
       const query = `
         UPDATE exchange.refiner_metals
-        SET bid_spot = $1,
-            scrap_percentage = $2
-        WHERE purchase_order_id = $3
-        AND type = $4
+        SET bid_spot = $1
+        WHERE purchase_order_id = $2
+        AND type = $3
         RETURNING *;
       `;
-      const vals = [spot.bid_spot, spot.scrap_percentage, orderId, spot.type];
+      const vals = [spot.bid_spot, orderId, spot.type];
       const { rows } = await client.query(query, vals);
       return rows[0];
     })
@@ -817,7 +793,6 @@ export async function findRefinerMetalsByOrderId(orderId) {
       bid_spot,
       percent_change,
       dollar_change,
-      scrap_percentage,
       created_at,
       updated_at
     FROM exchange.refiner_metals
@@ -842,38 +817,8 @@ export async function insertRefinerMetals(
   }
 }
 
-export async function updateRefinerScrapPercentage(spot, scrap_percentage) {
-      console.log('scrap: ', spot)
-
-  const query = `
-    UPDATE exchange.refiner_metals
-    SET scrap_percentage = $1
-    WHERE purchase_order_id = $2
-    AND type = $3
-    RETURNING *
-  `;
-  const values = [scrap_percentage, spot.purchase_order_id, spot.type];
-  return await pool.query(query, values);
-}
-
-export async function resetRefinerScrapPercentage(spot) {
-
-  const query = `
-    UPDATE exchange.refiner_metals om
-    SET scrap_percentage = m.scrap_percentage
-    FROM exchange.metals m
-    WHERE om.purchase_order_id = $1
-      AND om.type = m.type
-      AND om.type = $2
-    RETURNING om.*;
-  `;
-  const values = [spot.purchase_order_id, spot.type];
-  return await pool.query(query, values);
-}
-
 export async function updateRefinerSpot({ spot, updated_spot }) {
 
-  console.log('spot: ', spot)
   const query = `
     UPDATE exchange.refiner_metals
     SET bid_spot = $1 
@@ -882,5 +827,25 @@ export async function updateRefinerSpot({ spot, updated_spot }) {
     RETURNING *;
   `;
   const values = [updated_spot, spot.purchase_order_id, spot.type];
+  return await pool.query(query, values);
+}
+
+export async function updatePremium(item_id, premium) {
+  const query = `
+    UPDATE exchange.purchase_order_items
+    SET premium = $1
+    WHERE id = $2
+  `;
+  const values = [premium, item_id];
+  return await pool.query(query, values);
+}
+
+export async function updateRefinerPremium(item_id, refiner_premium) {
+  const query = `
+    UPDATE exchange.purchase_order_items
+    SET refiner_premium = $1
+    WHERE id = $2
+  `;
+  const values = [refiner_premium, item_id];
   return await pool.query(query, values);
 }

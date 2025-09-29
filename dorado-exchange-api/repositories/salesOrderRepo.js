@@ -210,7 +210,6 @@ export async function findMetalsByOrderId(orderId) {
       bid_spot,
       percent_change,
       dollar_change,
-      scrap_percentage,
       created_at,
       updated_at
     FROM exchange.order_metals

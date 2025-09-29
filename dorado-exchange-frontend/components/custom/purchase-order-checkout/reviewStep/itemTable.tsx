@@ -37,20 +37,20 @@ export default function ReviewItemTables() {
 
       if (item.type === 'scrap') {
         const spot = spotPrices.find((s) => s.type === item.data.metal)
-        const price = getScrapPrice(item.data.content ?? 0, spot)
+        const price = getScrapPrice(item.data.content ?? 0, item.data.bid_premium ?? 0, spot)
         return acc + price
       }
 
       return acc
     }, 0)
 
-    return baseTotal - (shippingCost ?? 0 + paymentCost ?? 0)
+    return baseTotal - (shippingCost ?? 0 + paymentCost)
   }, [items, spotPrices, shippingCost, paymentCost])
 
   const scrapTotal = useMemo(() => {
     return scrapItems.reduce((acc, item) => {
       const spot = spotPrices.find((s) => s.type === item.data.metal)
-      return acc + getScrapPrice(item.data.content ?? 0, spot)
+      return acc + getScrapPrice(item.data.content ?? 0, item.data.bid_premium ?? 0, spot)
     }, 0)
   }, [scrapItems, spotPrices])
 
@@ -240,7 +240,7 @@ const scrapColumns: ColumnDef<Extract<SellCartItem, { type: 'scrap' }>>[] = [
 
       return (
         <span className="font-normal text-right block w-full">
-          <PriceNumberFlow value={getScrapPrice(row.original.data.content ?? 0, spot)} />
+          <PriceNumberFlow value={getScrapPrice(row.original.data.content ?? 0, row.original.data.bid_premium ?? 0, spot)} />
         </span>
       )
     },

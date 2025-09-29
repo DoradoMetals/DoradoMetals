@@ -32,6 +32,7 @@ export interface PurchaseOrderItem {
   price?: number
   confirmed: boolean
   premium?: number
+  refiner_premium?: number
 }
 
 export interface PurchaseOrderMetal {
@@ -39,7 +40,6 @@ export interface PurchaseOrderMetal {
   purchase_order_id: string
   type: string
   spot: number
-  scrap_percentage: number
   created_at: Date
 }
 

@@ -10,8 +10,8 @@ export async function updateScrapItem({ item }) {
 
   const query = `
     UPDATE exchange.scrap
-    SET content = $1, purity = $2, pre_melt = $3, post_melt = $4
-    WHERE id = $5
+    SET content = $1, purity = $2, pre_melt = $3, post_melt = $4, bid_premium = $5
+    WHERE id = $6
     RETURNING *;
   `;
 
@@ -20,6 +20,7 @@ export async function updateScrapItem({ item }) {
     item.scrap.purity,
     item.scrap.pre_melt,
     item.scrap.post_melt,
+    item.scrap.bid_premium,
     item.scrap.id,
   ];
   return await pool.query(query, values);
@@ -46,9 +47,9 @@ export async function createNewItem(item, client) {
 
   const scrapQuery = `
     INSERT INTO exchange.scrap (
-      metal_id, pre_melt, purity, content, gross_unit
+      metal_id, pre_melt, purity, content, gross_unit, bid_premium
     )
-    VALUES ($1, $2, $3, $4, $5)
+    VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING id
   `;
   const scrapValues = [
@@ -57,6 +58,7 @@ export async function createNewItem(item, client) {
     item.purity ?? 1,
     item.content ?? (item.pre_melt ?? 1) * (item.purity ?? 1),
     item.gross_unit ?? 't oz',
+    item.bid_premium ?? .75
   ];
   const scrapResult = await client.query(scrapQuery, scrapValues);
   return scrapResult.rows[0].id;

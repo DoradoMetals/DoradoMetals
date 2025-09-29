@@ -89,10 +89,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
                   <TableCell className="text-center">
                     {(
                       (item.scrap?.content ?? 0) *
-                      (orderSpotPrices?.find((s) => s.type === item.scrap?.metal)
-                        ?.scrap_percentage ??
-                        spotPrices.find((s) => s.type === item.scrap?.metal)?.scrap_percentage ??
-                        1)
+                      ( item?.premium ?? item?.scrap?.bid_premium ?? 1)
                     ).toFixed(2)}{' '}
                     toz
                   </TableCell>
@@ -100,7 +97,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
                     <PriceNumberFlow
                       value={
                         item.price ??
-                        getPurchaseOrderScrapPrice(item.scrap!, spotPrices, orderSpotPrices)
+                        getPurchaseOrderScrapPrice(item, spotPrices, orderSpotPrices)
                       }
                     />
                   </TableCell>

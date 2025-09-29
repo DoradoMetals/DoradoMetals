@@ -41,6 +41,7 @@ export async function getSellCart (req, res) {
         purity: Number(row.purity),
         content: Number(row.content),
         quantity: row.quantity,
+        bid_premium: Number(row.bid_premium),
       },
     }));
 
@@ -138,17 +139,16 @@ export async function syncSellCart (req, res) {
           `,
           [scrapId]
         )
-      
         if (existingScrap.rows.length === 0) {
           await client.query(
             `
             INSERT INTO exchange.scrap (
-              id, metal_id, gem_id, pre_melt, purity, content, gross_unit
+              id, metal_id, gem_id, pre_melt, purity, content, gross_unit, bid_premium
             )
             VALUES (
               $1,
               (SELECT id FROM exchange.metals WHERE LOWER(type) = LOWER($2)),
-              $3, $4, $5, $6, $7
+              $3, $4, $5, $6, $7, $8
             )
             `,
             [
@@ -159,6 +159,7 @@ export async function syncSellCart (req, res) {
               item.data.purity,
               item.data.content,
               item.data.gross_unit,
+              item.data.bid_premium,
             ]
           )
         }

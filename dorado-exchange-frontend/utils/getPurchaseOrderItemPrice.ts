@@ -6,16 +6,9 @@ export default function getPurchaseOrderItemPrice(
   item: PurchaseOrderItem,
   spots: SpotPrice[]
 ): number {
-  if (item.item_type === 'product') {
-    const spot = spots.find((s) => s.type === item.product?.metal_type)!
-    return (
-      (item?.product?.content ?? 0) *
-      (spot.bid_spot * (item.premium ?? item?.product?.bid_premium ?? 0))
-    )
-  } else if (item.item_type === 'scrap') {
-    const spot = spots.find((s) => s.type === item.scrap?.metal)!
-    return (item?.scrap?.content ?? 0) * (spot.bid_spot * spot.scrap_percentage)
-  } else {
-    return 0
-  }
+  const spot = spots.find((s) => s.type === (item.product?.metal_type ?? item.scrap?.metal))!
+  return (
+    (item?.product?.content ?? item?.scrap?.content ?? 1) *
+    (spot.bid_spot * (item.premium ?? item?.product?.bid_premium ?? item?.scrap?.bid_premium ?? 1))
+  )
 }

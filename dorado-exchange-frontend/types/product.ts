@@ -44,7 +44,6 @@ export const productSchema = z.object({
   variant_group: z.string(),
   shadow_offset: z.number(),
   quantity: z.number().optional(),
-  slug: z.string().optional(),
   legal_tender: z.boolean().optional(),
   domestic_tender: z.boolean().optional(),
   sell_display: z.boolean(),

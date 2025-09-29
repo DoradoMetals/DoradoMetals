@@ -1,8 +1,7 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation} from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { sellCartStore } from '@/store/sellCartStore'
 import { useEffect } from 'react'
-import { useGetSession } from './useAuth'
 import { useUser } from '../authClient'
 
 export const useSyncSellCartToBackend = () => {

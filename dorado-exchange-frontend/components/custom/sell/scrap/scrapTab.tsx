@@ -23,6 +23,8 @@ const { useStepper, utils } = defineStepper(
 )
 
 export default function ScrapForm() {
+  const { data: spotPrices = [] } = useSpotPrices()
+
   const form = useForm<ScrapInput>({
     resolver: zodResolver(scrapSchema),
     mode: 'onChange',
@@ -33,6 +35,7 @@ export default function ScrapForm() {
       pre_melt: 0,
       gross_unit: 'g',
       purity: purityOptions['Gold'][0].value,
+      bid_premium: spotPrices[0]?.scrap_percentage ?? .75,
     },
   })
 
@@ -40,7 +43,6 @@ export default function ScrapForm() {
   const currentIndex = utils.getIndex(stepper.current.id)
 
   const addItem = sellCartStore.getState().addItem
-  const { data: spotPrices = [] } = useSpotPrices()
 
   const [submitted, setSubmitted] = useState(false)
   const [showBanner, setShowBanner] = useState(false)
@@ -61,7 +63,11 @@ export default function ScrapForm() {
     const spot = spotPrices.find((s) => s.id === values.metal)
     const content =
       convertTroyOz(values.pre_melt ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
-    const price = getScrapPrice(content, spot)
+    const price = getScrapPrice(content, spot?.scrap_percentage ?? 0, spot)
+
+    const bid_premium = spot?.scrap_percentage ?? .75
+
+
 
     const item = {
       type: 'scrap' as const,
@@ -69,6 +75,7 @@ export default function ScrapForm() {
         ...values,
         content,
         price,
+        bid_premium,
       },
     }
 
@@ -88,6 +95,7 @@ export default function ScrapForm() {
       pre_melt: 0,
       gross_unit: 'g',
       purity: purityOptions['Gold'][0].value,
+      bid_premium: spotPrices[0]?.scrap_percentage ?? .75,
     })
     setSubmitted(false)
     stepper.goTo('itemForm')

@@ -19,9 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
-import getScrapPrice from '@/utils/getScrapPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import getProductBidPrice from '@/utils/getProductBidPrice'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
 import { payoutOptions } from '@/types/payout'
@@ -92,10 +90,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                   <TableCell className="text-right">
                     {(
                       (item.scrap?.content ?? 0) *
-                      (orderSpotPrices?.find((s) => s.type === item.scrap?.metal)
-                        ?.scrap_percentage ??
-                        spotPrices.find((s) => s.type === item.scrap?.metal)?.scrap_percentage ??
-                        1)
+                      (item?.premium ?? item?.scrap?.bid_premium ?? 0)
                     ).toFixed(2)}{' '}
 
                   </TableCell>
@@ -103,7 +98,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                     <PriceNumberFlow
                       value={
                         item.price ??
-                        getPurchaseOrderScrapPrice(item.scrap!, spotPrices, orderSpotPrices)
+                        getPurchaseOrderScrapPrice(item, spotPrices, orderSpotPrices)
                       }
                     />
                   </TableCell>

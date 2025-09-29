@@ -41,7 +41,7 @@ export default function SellCart() {
 
     if (item.type === 'scrap') {
       const spot = spotPrices.find((s) => s.type === item.data.metal)
-      const price = getScrapPrice(item.data.content ?? 0, spot)
+      const price = getScrapPrice(item.data.content ?? 0, item.data.bid_premium ?? 0, spot)
       return acc + price
     }
 
@@ -145,7 +145,7 @@ export default function SellCart() {
 
   const renderScrapItem = (item: Scrap, index: number) => {
     const spot = spotPrices.find((s) => s.type === item.metal)
-    const price = getScrapPrice(item.content ?? 0, spot)
+    const price = getScrapPrice(item.content ?? 0, item.bid_premium ?? 0, spot)
 
     return (
       <div

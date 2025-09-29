@@ -18,7 +18,7 @@ export function calculateTotalPrice(order, spots) {
 
       const price =
         item.price ??
-        (item?.scrap?.content ?? 0) * (spot.bid_spot * spot.scrap_percentage);
+        (item?.scrap?.content ?? 0) * (spot.bid_spot * item.premium);
       return acc + price;
     }
 
@@ -48,7 +48,7 @@ export function calculateReturnDeclaredValue(order, spots) {
       const spot = spots?.find((s) => s.type === item.scrap?.metal);
 
       const price =
-        (item?.scrap?.content ?? 0) * (spot.bid_spot * spot.scrap_percentage);
+        (item?.scrap?.content ?? 0) * (spot.bid_spot * item.premium);
       return acc + price;
     }
 
@@ -71,7 +71,7 @@ export function calculateItemPrice(item, spots) {
     const spot = spots?.find((s) => s.type === item.scrap?.metal);
     return (
       item.price ??
-      (item?.scrap.content ?? 0) * (spot.bid_spot * spot.scrap_percentage)
+      (item?.scrap.content ?? 0) * (spot.bid_spot * item.premium)
     );
   }
 }
@@ -94,7 +94,7 @@ export function getScrapTotal(items, spots) {
     const spot = spots?.find((s) => s.type === item.scrap?.metal);
     const price =
       item.price ??
-      (item?.scrap?.content ?? 0) * (spot.bid_spot * spot.scrap_percentage);
+      (item?.scrap?.content ?? 0) * (spot.bid_spot * item.premium);
     return acc + price;
   }, 0);
 }

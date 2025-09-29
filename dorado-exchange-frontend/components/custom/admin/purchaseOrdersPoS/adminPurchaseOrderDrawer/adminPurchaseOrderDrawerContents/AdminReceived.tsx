@@ -8,12 +8,10 @@ import {
   useEditShippingCharge,
   useLockOrderSpotPrices,
   useResetOrderItem,
-  useResetOrderScrapPercentage,
   useResetOrderSpotPrices,
   useSaveOrderItems,
   useUpdateOrderBullionItem,
   useUpdateOrderScrapItem,
-  useUpdateOrderScrapPercentage,
   useUpdateOrderSpotPrice,
 } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
@@ -46,8 +44,7 @@ import { Product } from '@/types/product'
 export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
-  const updateScrapPercentage = useUpdateOrderScrapPercentage()
-  const resetScrapPercentage = useResetOrderScrapPercentage()
+
   const updateSpot = useUpdateOrderSpotPrice()
   const lockSpots = useLockOrderSpotPrices()
   const resetSpots = useResetOrderSpotPrices()
@@ -57,14 +54,6 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   const rawScrapItems = order.order_items.filter((item) => item.item_type === 'scrap' && item.scrap)
   const scrapItems = assignScrapItemNames(rawScrapItems)
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
-
-  const handleUpdateScrapPercentage = (spot: SpotPrice, scrap_percentage: number) => {
-    updateScrapPercentage.mutate({ spot, scrap_percentage })
-  }
-
-  const handleResetScrapPercentage = (spot: SpotPrice) => {
-    resetScrapPercentage.mutate({ spot })
-  }
 
   const handleUpdateSpot = (spot: SpotPrice, updated_spot: number) => {
     updateSpot.mutate({ spot, updated_spot })
@@ -144,54 +133,15 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
             </div>
           </div>
 
-          <div className="separator-inset" />
-
           {scrapItems && (
             <div className="flex flex-col w-full gap-3">
               <div className="flex w-full justify-start items-center mb-2">
                 <div className="text-xs tracking-widest text-neutral-600">Scrap</div>
               </div>
-              {scrapItems.length > 0 && (
-                <div className="flex flex-col">
-                  <div className="flex w-full gap-4 items-center justify-between">
-                    {orderSpotPrices.map((spot) => (
-                      <div key={spot.id} className="flex flex-col w-full">
-                        <div className="flex items-center justify-between w-full text-sm text-neutral-700">
-                          {spot.type}
-                          <Button
-                            variant="ghost"
-                            className="p-0 h-4"
-                            onClick={() => handleResetScrapPercentage(spot)}
-                          >
-                            <RotateCcw size={16} className={config.text_color} />
-                          </Button>
-                        </div>
 
-                        <div className="flex items-center gap-1 w-full">
-                          <Input
-                            type="number"
-                            pattern="[0-9]*"
-                            inputMode="decimal"
-                            className="input-floating-label-form no-spinner text-center w-full text-base h-8"
-                            defaultValue={
-                              spot.scrap_percentage ??
-                              spotPrices.find((s) => s.type === spot.type)?.scrap_percentage ??
-                              ''
-                            }
-                            onBlur={(e) =>
-                              handleUpdateScrapPercentage(spot, Number(e.target.value))
-                            }
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
               <ScrapTable scrapItems={scrapItems} config={config} order_id={order.id} />
             </div>
           )}
-
           <div className="separator-inset" />
 
           {bullionItems && (
@@ -311,7 +261,8 @@ function ScrapTable({
                 <TableHead className="text-left">Line Item</TableHead>
                 <TableHead className="text-center">Pre Melt</TableHead>
                 <TableHead className="text-center">Post Melt</TableHead>
-                <TableHead className="text-right">Assay</TableHead>
+                <TableHead className="text-center">Assay</TableHead>
+                <TableHead className="text-right">Premium</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -450,6 +401,34 @@ function ScrapTable({
                       </div>
                     ) : (
                       <>{((item.scrap?.purity ?? 0) * 100).toFixed(1)}%</>
+                    )}
+                  </TableCell>
+
+                  <TableCell className="text-right">
+                    {editMode && selectedIds.includes(item.id) ? (
+                      <div className="flex justify-center">
+                        <Input
+                          type="number"
+                          pattern="[0-9]*"
+                          inputMode="decimal"
+                          className={cn(
+                            'input-floating-label-form no-spinner text-center text-base h-6'
+                          )}
+                          defaultValue={item.premium}
+                          onBlur={(e) => {
+                            const premium = parseFloat(e.target.value)
+                            if (!isNaN(premium)) {
+                              const updatedItem = {
+                                ...item,
+                                premium: premium,
+                              }
+                              handleUpdateItem(updatedItem)
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <>{((item.premium ?? 0) * 100).toFixed(1)}%</>
                     )}
                   </TableCell>
                 </TableRow>
@@ -772,7 +751,9 @@ function BullionTable({
                         />
                       </div>
                     ) : (
-                      <div>{item.premium ?? item.product?.bid_premium}</div>
+                      <div>
+                        {((item.premium ?? item.product?.bid_premium ?? 0) * 100).toFixed(1)}%
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>

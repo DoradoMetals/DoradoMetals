@@ -44,7 +44,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let products: Product[] = []
   try {
     products = await apiRequest<Product[]>('GET', '/products/get_all_products', {})
-    console.log('sitemap products: ', products.length)
   } catch (e) {
     console.error('sitemap products fetch failed:', e)
   }

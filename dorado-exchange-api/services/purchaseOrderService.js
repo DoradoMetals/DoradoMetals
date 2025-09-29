@@ -313,14 +313,6 @@ export async function updateStatus({ order, order_status, user_name }) {
   return await purchaseOrderRepo.updateStatus(order, order_status, user_name);
 }
 
-export async function updateScrap({ spot, scrap_percentage }) {
-  return await purchaseOrderRepo.updateScrapPercentage(spot, scrap_percentage);
-}
-
-export async function resetScrap({ spot }) {
-  return await purchaseOrderRepo.resetScrapPercentage(spot);
-}
-
 export async function updateSpot({ spot, updated_spot }) {
   return await purchaseOrderRepo.updateSpot({ spot, updated_spot });
 }
@@ -385,7 +377,8 @@ export async function toggleOrderItemStatus({
 }
 
 export async function updateScrapItem({ item }) {
-  return await scrapRepo.updateScrapItem({ item });
+  await scrapRepo.updateScrapItem({ item });
+  return await purchaseOrderRepo.updatePremium(item.id, item.premium)
 }
 
 export async function deleteOrderItems({ items }) {
@@ -548,14 +541,13 @@ export async function getRefinerMetalsForOrder(orderId) {
   return purchaseOrderRepo.findRefinerMetalsByOrderId(orderId);
 }
 
-export async function updateRefinerScrap({ spot, scrap_percentage }) {
-  return await purchaseOrderRepo.updateRefinerScrapPercentage(spot, scrap_percentage);
-}
-
-export async function resetRefinerScrap({ spot }) {
-  return await purchaseOrderRepo.resetRefinerScrapPercentage(spot);
-}
-
 export async function updateRefinerSpot({ spot, updated_spot }) {
   return await purchaseOrderRepo.updateRefinerSpot({ spot, updated_spot });
 }
+
+export async function updateRefinerPremium({ item_id, refiner_premium }) {
+  return await purchaseOrderRepo.updateRefinerPremium(item_id, refiner_premium);
+}
+
+
+

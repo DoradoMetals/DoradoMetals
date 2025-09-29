@@ -29,9 +29,8 @@ export function getReturnDeclaredValue(
       const globalSpot = spotPrices.find((s) => s.type === item.scrap?.metal)
 
       const bid_spot = orderSpot?.bid_spot ?? globalSpot?.bid_spot ?? 0
-      const scrap_percentage = orderSpot?.scrap_percentage ?? globalSpot?.scrap_percentage ?? 0
 
-      const price = item.price ?? (item?.scrap?.content ?? 0) * (bid_spot * scrap_percentage)
+      const price = item.price ?? (item?.scrap?.content ?? 0) * (bid_spot * (item.premium ?? item?.scrap?.bid_premium ?? 1))
       return acc + price
     }
 
@@ -51,7 +50,7 @@ export function getDeclaredValue(items: SellCartItem[], spotPrices: SpotPrice[])
        }
        if (item.type === 'scrap') {
          const spot = spotPrices.find((s) => s.type === item.data.metal)
-         const price = getScrapPrice(item.data.content ?? 0, spot)
+         const price = getScrapPrice(item.data.content ?? 0, item.data.bid_premium ?? 1, spot)
          return acc + price
        }
        return acc

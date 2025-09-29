@@ -6,17 +6,20 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   useEditPayoutMethod,
   usePurchaseOrderRefinerMetals,
-  useResetOrderRefinerScrapPercentage,
-  useUpdateOrderRefinerScrapPercentage,
   useUpdateOrderRefinerSpotPrice,
+  useUpdateRefinerPremium,
 } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { cn } from '@/lib/utils'
 import { SpotPrice } from '@/types/metal'
 import { payoutOptions } from '@/types/payout'
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
+import {
+  assignScrapItemNames,
+  PurchaseOrderDrawerContentProps,
+  PurchaseOrderItem,
+  statusConfig,
+} from '@/types/purchase-order'
 import { CaretDownIcon } from '@phosphor-icons/react'
-import { RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 
 export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
@@ -28,19 +31,22 @@ export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawe
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
   const { data: refinerSpotPrices = [] } = usePurchaseOrderRefinerMetals(order.id)
   const updateSpot = useUpdateOrderRefinerSpotPrice()
-  const updateScrapPercentage = useUpdateOrderRefinerScrapPercentage()
-  const resetScrapPercentage = useResetOrderRefinerScrapPercentage()
-
-  const handleUpdateScrapPercentage = (spot: SpotPrice, scrap_percentage: number) => {
-    updateScrapPercentage.mutate({ spot, scrap_percentage })
-  }
-
-  const handleResetScrapPercentage = (spot: SpotPrice) => {
-    resetScrapPercentage.mutate({ spot })
-  }
 
   const handleUpdateSpot = (spot: SpotPrice, updated_spot: number) => {
     updateSpot.mutate({ spot, updated_spot })
+  }
+  const updatePremium = useUpdateRefinerPremium()
+
+  const handleUpdatePremium = (item_id: string, raw: string) => {
+    const trimmed = raw.trim()
+    const refiner_premium = trimmed === '' ? null : Number(trimmed)
+    if (refiner_premium === null || !Number.isNaN(refiner_premium)) {
+      updatePremium.mutate({
+        purchase_order_id: order.id,
+        item_id,
+        refiner_premium,
+      })
+    }
   }
 
   return (
@@ -74,8 +80,7 @@ export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawe
                       pattern="[0-9]*"
                       inputMode="decimal"
                       className={cn(
-                        'input-floating-label-form no-spinner text-center w-full text-base h-8',
-                        !order?.spots_locked && 'cursor-not-allowed'
+                        'input-floating-label-form no-spinner text-center w-full text-base h-8'
                       )}
                       defaultValue={
                         spot?.bid_spot ??
@@ -89,47 +94,67 @@ export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawe
               ))}
             </div>
           </div>
-          <div className="separator-inset" />
+        </div>
+      </div>
 
-          <div className="flex flex-col w-full gap-3">
-            {refinerSpotPrices.length > 0 && (
-              <div className="flex flex-col gap-4">
-                <div className="w-full section-label">Update Refiner Scrap Percentages</div>
-                <div className="flex w-full gap-4 items-center justify-between">
-                  {refinerSpotPrices.map((spot) => (
-                    <div key={spot.id} className="flex flex-col w-full">
-                      <div className="flex items-center justify-between w-full text-sm text-neutral-700">
-                        {spot.type}
-                        <Button
-                          variant="ghost"
-                          className="p-0 h-4"
-                          onClick={() => handleResetScrapPercentage(spot)}
-                        >
-                          <RotateCcw size={16} className={config.text_color} />
-                        </Button>
-                      </div>
+      <div className="separator-inset" />
 
-                      <div className="flex items-center gap-1 w-full">
-                        <Input
-                          type="number"
-                          pattern="[0-9]*"
-                          inputMode="decimal"
-                          className="input-floating-label-form no-spinner text-center w-full text-base h-8"
-                          defaultValue={
-                            spot.scrap_percentage ??
-                            orderSpotPrices.find((s) => s.type === spot.type)?.scrap_percentage ??
-                            ''
-                          }
-                          onBlur={(e) => handleUpdateScrapPercentage(spot, Number(e.target.value))}
-                        />
+      <div className="flex w-full">
+        <div className="flex flex-col gap-4 w-full">
+          <div className="w-full section-label">Update Item Premiums</div>
+
+          {(() => {
+            const rawScrap = order.order_items.filter((it) => it.item_type === 'scrap' && it.scrap)
+            const scrapItems = assignScrapItemNames(rawScrap)
+            const bullionItems = order.order_items.filter((it) => it.item_type === 'product')
+
+            const rows: PurchaseOrderItem[] = [...scrapItems, ...bullionItems]
+
+            return (
+              <div className="rounded-xl border border-border bg-card raised-off-page overflow-hidden">
+                <div className="grid grid-cols-[1fr_140px] items-center px-3 py-2 text-xs tracking-widest text-neutral-600 bg-muted/40">
+                  <div>Item</div>
+                  <div className="text-right">Premium (%)</div>
+                </div>
+
+                <div className="divide-y">
+                  {rows.map((item) => {
+                    const label =
+                      item.item_type === 'scrap'
+                        ? item.scrap?.name ?? item.scrap?.metal ?? 'Scrap'
+                        : item.product?.product_name ?? 'Bullion'
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="grid grid-cols-[1fr_140px] items-center px-3 py-2 text-sm"
+                      >
+                        <div className="truncate">
+                          <span className="text-neutral-800">{label}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="-9999"
+                            className={cn('input-floating-label-form no-spinner text-right h-8')}
+                            defaultValue={
+                              item.refiner_premium
+                            }
+                            placeholder="e.g. 2.50"
+                            onBlur={(e) => handleUpdatePremium(item.id, e.target.value)}
+                          />
+                          <span className="text-xs text-neutral-600 select-none">%</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
-            )}
-          </div>
-          <div className="separator-inset" />
+            )
+          })()}
         </div>
       </div>
 

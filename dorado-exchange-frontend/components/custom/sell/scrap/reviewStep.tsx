@@ -15,13 +15,14 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const unit = form.watch('gross_unit') || 'g'
   const pre_melt = form.watch('pre_melt') ?? 0
   const purity = form.watch('purity') ?? 0
+  const bid_premium = form.watch('bid_premium') ?? 0
 
   const { data: spotPrices = [] } = useSpotPrices()
 
   const spot = spotPrices.find((s) => s.type === metal)
   const content = convertTroyOz(pre_melt, unit) * purity
 
-  const price = getScrapPrice(content, spot)
+  const price = getScrapPrice(content, bid_premium ?? 0, spot)
 
   return (
     <AnimatePresence mode="wait">

@@ -48,7 +48,8 @@ function scrapMatches(a: Scrap, b: Scrap): boolean {
     a.pre_melt === b.pre_melt &&
     a.purity === b.purity &&
     a.gross_unit === b.gross_unit &&
-    a.metal === b.metal
+    a.metal === b.metal &&
+    a.bid_premium === b.bid_premium
   )
 }
 

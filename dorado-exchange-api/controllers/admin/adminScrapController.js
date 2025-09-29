@@ -8,7 +8,7 @@ export async function getAllScrap(req, res) {
         purchase_order.id AS order_id, purchase_order.purchase_order_status AS order_status, purchase_order.created_at, purchase_order.updated_at, purchase_order.notes, purchase_order.updated_by, purchase_order.order_number,
         curr_user.id AS user_id, curr_user.name AS username,
         scrap.id AS scrap_id, scrap.pre_melt, scrap.purity, scrap.content, scrap.gross_unit,
-        metal.type AS metal
+        metal.type AS metal, scrap.bid_premium
       FROM exchange.purchase_order_items order_item
       JOIN exchange.purchase_orders purchase_order ON order_item.purchase_order_id = purchase_order.id
       JOIN exchange.users curr_user ON purchase_order.user_id = curr_user.id

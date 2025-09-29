@@ -1,5 +1,3 @@
-import getScrapPrice from './getScrapPrice'
-import getProductBidPrice from './getProductBidPrice'
 import { PurchaseOrder } from '@/types/purchase-order'
 import { SpotPrice } from '@/types/metal'
 
@@ -28,9 +26,8 @@ export default function getPurchaseOrderTotal(
       const globalSpot = spotPrices.find((s) => s.type === item.scrap?.metal)
 
       const bid_spot = orderSpot?.bid_spot ?? globalSpot?.bid_spot ?? 0
-      const scrap_percentage = orderSpot?.scrap_percentage ?? globalSpot?.scrap_percentage ?? 0
 
-      const price = item.price ?? (item?.scrap?.content ?? 0) * (bid_spot * scrap_percentage)
+      const price = item.price ?? (item?.scrap?.content ?? 0) * (bid_spot * (item.premium ?? 1))
       return acc + price
     }
 

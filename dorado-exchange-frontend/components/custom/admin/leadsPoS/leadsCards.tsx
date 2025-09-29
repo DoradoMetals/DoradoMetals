@@ -84,8 +84,6 @@ export default function LeadsCards({
     },
   ]
 
-  console.log(contactedCount)
-
   const fmt = (pct: number, count: number) => `${Math.round(pct)}% (${count})`
 
   return (

@@ -9,14 +9,9 @@ import {
 import { formatPhoneNumber } from "../utils/formatPhoneNumber.js";
 import { assignScrapItemNames } from "../utils/assignScrapNames.js";
 
-export function getScrapPrice(content, spot) {
-  if (!spot || !content) return 0;
-  return content * (spot.bid_spot * spot.scrap_percentage);
-}
-
-export function getProductBidPrice(product, spot) {
-  if (!spot || !product) return 0;
-  return product.content * (spot.bid_spot * product.bid_premium);
+export function getItemPrice(content, premium, bid_spot) {
+  if (!bid_spot || !premium || !content) return 0;
+  return content * (bid_spot * premium);
 }
 
 export function generateBoxSVG(length, width, height, label) {
@@ -314,7 +309,7 @@ export async function generatePackingList({
         const product = item.product;
         const spot = spotPrices.find((s) => s.type === product?.metal_type);
 
-        const price = item.price ?? getProductBidPrice(product, spot);
+        const price = item.price ?? getItemPrice(product.content, item.premium ?? item.product.bid_premium, spot.bid_spot);
         const quantity = item.quantity ?? 1;
 
         return acc + price * quantity;
@@ -324,7 +319,7 @@ export async function generatePackingList({
         const scrap = item.scrap;
         const spot = spotPrices.find((s) => s.type === scrap?.metal);
 
-        const price = item.price ?? getScrapPrice(scrap.content, spot);
+        const price = item.price ?? getItemPrice(scrap.content, item.premium ?? item.scrap.bid_premium, spot.bid_spot);
 
         return acc + price;
       }
@@ -343,7 +338,7 @@ export async function generatePackingList({
       const scrap = item.scrap || {};
       const spot = spotPrices.find((s) => s.type === scrap.metal);
       const price =
-        item.price != null ? item.price : getScrapPrice(scrap.content, spot);
+        item.price != null ? item.price : getItemPrice(scrap.content, item.premium ?? item.scrap.bid_premium, spot.bid_spot);
 
       return `
         <tr>
@@ -374,7 +369,7 @@ export async function generatePackingList({
       const product = item.product || {};
       const spot = spotPrices.find((s) => s.type === product.metal_type);
       const unitPrice =
-        item.price != null ? item.price : getProductBidPrice(product, spot);
+        item.price != null ? item.price : getItemPrice(product.content, item.premium, spot.bid_spot);
       const totalPrice = unitPrice * item.quantity;
 
       return `
@@ -977,7 +972,7 @@ export async function generateReturnPackingList({
       const scrap = item.scrap || {};
       const spot = spotPrices.find((s) => s.type === scrap.metal);
       const price =
-        item.price != null ? item.price : getScrapPrice(scrap.content, spot);
+        item.price != null ? item.price : getItemPrice(scrap.content, item.premium, spot.bid_spot);
 
       return `
         <tr>
@@ -1008,7 +1003,7 @@ export async function generateReturnPackingList({
       const product = item.product || {};
       const spot = spotPrices.find((s) => s.type === product.metal_type);
       const unitPrice =
-        item.price != null ? item.price : getProductBidPrice(product, spot);
+        item.price != null ? item.price : getItemPrice(product.content, item.premium, spot.bid_spot);
       const totalPrice = unitPrice * item.quantity;
 
       return `
@@ -1526,7 +1521,7 @@ export async function generateInvoice({
             scrap.purity != null ? (scrap.purity * 100).toFixed(1) + "%" : "-"
           }</td>
           <td>${scrap.content.toFixed(3)} t oz</td>
-          <td>${(spot.scrap_percentage * 100).toFixed(1)}%</td>
+          <td>${(item.premium * 100).toFixed(1)}%</td>
           <td class="text-right">
             ${
               price

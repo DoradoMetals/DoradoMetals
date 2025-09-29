@@ -1,24 +1,8 @@
-import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { usePurchaseOrderRefinerMetals } from '@/lib/queries/admin/useAdminPurchaseOrders'
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { cn } from '@/lib/utils'
-import { SpotPrice } from '@/types/metal'
 import { payoutOptions } from '@/types/payout'
-import {
-  PurchaseOrder,
-  PurchaseOrderDrawerContentProps,
-  statusConfig,
-} from '@/types/purchase-order'
-import { computePurchaseOrderTotals } from '@/utils/calculatePurchaseOrderTotals'
+import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import ProfitBreakdown from './profitBreakdown'
+import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 
 export default function AdminPaymentProcessingPurchaseOrder({
   order,
