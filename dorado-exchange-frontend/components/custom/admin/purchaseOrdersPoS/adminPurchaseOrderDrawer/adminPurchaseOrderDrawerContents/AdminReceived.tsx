@@ -755,13 +755,13 @@ function BullionTable({
                           className={cn(
                             'input-floating-label-form no-spinner text-right text-base h-6'
                           )}
-                          defaultValue={item.bullion_premium ?? item.product?.bid_premium}
+                          defaultValue={item.premium ?? item.product?.bid_premium}
                           onBlur={(e) => {
-                            const bullion_premium = parseFloat(e.target.value)
-                            if (!isNaN(bullion_premium)) {
+                            const premium = parseFloat(e.target.value)
+                            if (!isNaN(premium)) {
                               const updatedItem = {
                                 ...item,
-                                bullion_premium: bullion_premium,
+                                premium: premium,
                                 product: {
                                   ...item.product!,
                                 },
@@ -772,7 +772,7 @@ function BullionTable({
                         />
                       </div>
                     ) : (
-                      <div>{item.bullion_premium ?? item.product?.bid_premium}</div>
+                      <div>{item.premium ?? item.product?.bid_premium}</div>
                     )}
                   </TableCell>
                 </TableRow>

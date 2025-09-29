@@ -1,7 +1,7 @@
 import pool from '../db.js';
 import { calculateItemAsk } from '../utils/price-calculations.js';
 
-async function findById(id) {
+export async function findById(id) {
   const query = `
     SELECT 
       so.*,
@@ -10,7 +10,7 @@ async function findById(id) {
         'sales_order_id', soi.sales_order_id,
         'price', soi.price,
         'quantity', soi.quantity,
-        'bullion_premium', soi.bullion_premium,
+        'premium', soi.premium,
         'product', jsonb_build_object(
           'id', p.id,
           'product_name', p.product_name,
@@ -77,7 +77,7 @@ export async function findAllByUser(userId) {
         'sales_order_id', soi.sales_order_id,
         'price', soi.price,
         'quantity', soi.quantity,
-        'bullion_premium', soi.bullion_premium,
+        'premium', soi.premium,
         'product', jsonb_build_object(
           'id', p.id,
           'product_name', p.product_name,
@@ -143,7 +143,7 @@ export async function getAll() {
         'sales_order_id', soi.sales_order_id,
         'price', soi.price,
         'quantity', soi.quantity,
-        'bullion_premium', soi.bullion_premium,
+        'premium', soi.premium,
         'product', jsonb_build_object(
           'id', p.id,
           'product_name', p.product_name,
@@ -280,7 +280,7 @@ export async function insertOrder(client, { user, status, sales_order, orderPric
 export async function insertItems(client, orderId, items, spot_prices) {
   const query = `
     INSERT INTO exchange.sales_order_items
-      (sales_order_id, product_id, price, quantity, bullion_premium, sales_tax_rate)
+      (sales_order_id, product_id, price, quantity, premium, sales_tax_rate)
     VALUES
       ($1, $2, $3, $4, $5, $6)
   `;

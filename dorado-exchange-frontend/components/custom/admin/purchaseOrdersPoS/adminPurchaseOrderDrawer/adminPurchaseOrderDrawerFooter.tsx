@@ -136,7 +136,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                             item.product!,
                             spotPrices,
                             orderSpotPrices,
-                            item.bullion_premium ?? null
+                            item.premium ?? null
                           ))
                       }
                     />

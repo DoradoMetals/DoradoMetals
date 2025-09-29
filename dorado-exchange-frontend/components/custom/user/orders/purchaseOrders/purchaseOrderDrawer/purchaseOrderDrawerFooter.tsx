@@ -133,7 +133,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
                             item.product!,
                             spotPrices,
                             orderSpotPrices,
-                            item.bullion_premium ?? null
+                            item.premium ?? null
                           ))
                       }
                     />

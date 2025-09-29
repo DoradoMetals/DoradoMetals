@@ -31,7 +31,7 @@ export interface PurchaseOrderItem {
   quantity: number
   price?: number
   confirmed: boolean
-  bullion_premium?: number
+  premium?: number
 }
 
 export interface PurchaseOrderMetal {
@@ -273,21 +273,38 @@ export function assignScrapItemNames(scrapItems: PurchaseOrderItem[]): PurchaseO
   })
 }
 
+export interface ProfitMetalsDict {
+  gold: {
+    content: number
+    percentage: number
+    profit: number
+  }
+  silver: {
+    content: number
+    percentage: number
+    profit: number
+  }
+  platinum: {
+    content: number
+    percentage: number
+    profit: number
+  }
+  palladium: {
+    content: number
+    percentage: number
+    profit: number
+  }
+}
+
+export interface ProfitCategoriesDict {
+  scrap: ProfitMetalsDict
+  bullion: ProfitMetalsDict
+  total: ProfitMetalsDict
+}
+
 export interface PurchaseOrderTotals {
   total_content: number
-  refiner: {
-    content: number
-    percentage: number
-    profit: number
-  }
-  dorado: {
-    content: number
-    percentage: number
-    profit: number
-  }
-  customer: {
-    content: number
-    percentage: number
-    profit: number
-  }
+  refiner: ProfitCategoriesDict
+  dorado: ProfitCategoriesDict
+  customer: ProfitCategoriesDict
 }

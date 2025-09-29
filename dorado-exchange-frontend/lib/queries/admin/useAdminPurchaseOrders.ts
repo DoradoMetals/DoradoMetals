@@ -711,7 +711,7 @@ export const useUpdateOrderBullionItem = () => {
                     ? {
                         ...oi,
                         quantity: item.quantity,
-                        bullion_premium: item.bullion_premium,
+                        premium: item.premium,
                         product: {
                           ...oi.product!,
                         },

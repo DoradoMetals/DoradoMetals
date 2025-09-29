@@ -7,7 +7,7 @@ export function calculateTotalPrice(order, spots) {
         item.price ??
         (item?.product?.content ?? 0) *
           (spot.bid_spot *
-            (item.bullion_premium ?? item?.product?.bid_premium ?? 0));
+            (item.premium ?? item?.product?.bid_premium ?? 0));
 
       const quantity = item.quantity ?? 1;
       return acc + price * quantity;
@@ -38,7 +38,7 @@ export function calculateReturnDeclaredValue(order, spots) {
       const price =
         (item?.product?.content ?? 0) *
         (spot.bid_spot *
-          (item.bullion_premium ?? item?.product?.bid_premium ?? 0));
+          (item.premium ?? item?.product?.bid_premium ?? 0));
 
       const quantity = item.quantity ?? 1;
       return acc + price * quantity;
@@ -65,7 +65,7 @@ export function calculateItemPrice(item, spots) {
       item.price ??
       (item?.product.content ?? 0) *
         (spot.bid_spot *
-          (item.bullion_premium ?? item?.product.bid_premium ?? 0))
+          (item.premium ?? item?.product.bid_premium ?? 0))
     );
   } else if (item.item_type === "scrap") {
     const spot = spots?.find((s) => s.type === item.scrap?.metal);
@@ -83,7 +83,7 @@ export function getBullionTotal(items, spots) {
       item.price ??
       (item?.product?.content ?? 0) *
         (spot.bid_spot *
-          (item.bullion_premium ?? item?.product?.bid_premium ?? 0));
+          (item.premium ?? item?.product?.bid_premium ?? 0));
     const quantity = item.quantity ?? 1;
     return acc + price * quantity;
   }, 0);

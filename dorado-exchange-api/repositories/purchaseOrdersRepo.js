@@ -11,7 +11,7 @@ export async function findAllByUser(userId) {
         'price', poi.price,
         'quantity', poi.quantity,
         'confirmed', poi.confirmed,
-        'bullion_premium', poi.bullion_premium,
+        'premium', poi.premium,
         'item_type', CASE 
           WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
           WHEN poi.product_id IS NOT NULL THEN 'product'
@@ -120,7 +120,7 @@ export async function findById(id) {
         'price', poi.price,
         'quantity', poi.quantity,
         'confirmed', poi.confirmed,
-        'bullion_premium', poi.bullion_premium,
+        'premium', poi.premium,
         'item_type', CASE 
           WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
           WHEN poi.product_id IS NOT NULL THEN 'product'
@@ -230,7 +230,7 @@ export async function getAll() {
           'price', poi.price,
           'quantity', poi.quantity,
           'confirmed', poi.confirmed,
-          'bullion_premium', poi.bullion_premium,
+          'premium', poi.premium,
           'item_type', CASE 
             WHEN poi.scrap_id IS NOT NULL THEN 'scrap'
             WHEN poi.product_id IS NOT NULL THEN 'product'
@@ -519,7 +519,7 @@ export async function insertOrder(client, { userId, addressId, status }) {
 export async function insertItems(client, orderId, items) {
   const query = `
     INSERT INTO exchange.purchase_order_items
-      (purchase_order_id, scrap_id, product_id, quantity, bullion_premium)
+      (purchase_order_id, scrap_id, product_id, quantity, premium)
     VALUES
       ($1,$2,$3,$4,$5)
   `;
@@ -720,12 +720,12 @@ export async function createOrderItem(item, purchase_order_id, scrap_id, client)
 export async function updateBullion(item) {
   const query = `
     UPDATE exchange.purchase_order_items
-    SET quantity = $1, bullion_premium = $2
+    SET quantity = $1, premium = $2
     WHERE id = $3
     RETURNING *;
   `;
 
-  const values = [item.quantity, item.bullion_premium, item.id];
+  const values = [item.quantity, item.premium, item.id];
   return await pool.query(query, values);
 }
 

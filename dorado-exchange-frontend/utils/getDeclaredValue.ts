@@ -18,7 +18,7 @@ export function getReturnDeclaredValue(
       const price =
         item.price ??
         (item?.product?.content ?? 0) *
-          (bid_spot * (item.bullion_premium ?? item?.product?.bid_premium ?? 0))
+          (bid_spot * (item.premium ?? item?.product?.bid_premium ?? 0))
 
       const quantity = item.quantity ?? 1
       return acc + price * quantity

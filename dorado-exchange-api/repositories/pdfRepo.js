@@ -1559,7 +1559,7 @@ export async function generateInvoice({
           }</td>
           <td>${item.quantity}</td>
           <td>${product.content.toFixed(3)} t oz</td>
-          <td>${(item.bullion_premium * 100).toFixed(1)}% of spot</td>
+          <td>${(item.premium * 100).toFixed(1)}% of spot</td>
           <td class="text-right">
             ${
               totalPrice

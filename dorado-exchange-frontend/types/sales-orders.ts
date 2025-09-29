@@ -30,7 +30,7 @@ export interface SalesOrderItem {
   product?: Product
   quantity: number
   price?: number
-  bullion_premium?: number
+  premium?: number
 }
 
 export interface SalesOrderMetal {

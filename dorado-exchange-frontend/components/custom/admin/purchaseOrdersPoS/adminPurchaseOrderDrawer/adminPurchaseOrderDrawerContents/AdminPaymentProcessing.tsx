@@ -7,9 +7,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { usePurchaseOrderRefinerMetals } from '@/lib/queries/admin/useAdminPurchaseOrders'
+import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { cn } from '@/lib/utils'
+import { SpotPrice } from '@/types/metal'
 import { payoutOptions } from '@/types/payout'
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
+import {
+  PurchaseOrder,
+  PurchaseOrderDrawerContentProps,
+  statusConfig,
+} from '@/types/purchase-order'
+import { computePurchaseOrderTotals } from '@/utils/calculatePurchaseOrderTotals'
+import ProfitBreakdown from './profitBreakdown'
 
 export default function AdminPaymentProcessingPurchaseOrder({
   order,
@@ -111,42 +120,7 @@ export default function AdminPaymentProcessingPurchaseOrder({
           </div>
         </div>
       </div>
-      <div className="flex w-full bg-card raised-off-page p-4">
-        <div className="flex flex-col gap-4">
-          <div className="text-xl text-neutral-900">Content and Profit Breakdown</div>
-
-          <Table className="font-normal text-neutral-700 overflow-hidden">
-            <TableHeader className="text-xs text-neutral-700 hover:bg-transparent">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-left"></TableHead>
-                <TableHead className="text-center">Content (toz)</TableHead>
-                <TableHead className="text-center">Percentage (%)</TableHead>
-                <TableHead className="text-right">Profit ($)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow className="hover:bg-transparent">
-                <TableCell className="text-left">Refiner</TableCell>
-                <TableCell className="text-right"></TableCell>
-                <TableCell className="text-right"></TableCell>
-                <TableCell className="text-right"></TableCell>
-              </TableRow>
-              <TableRow className="hover:bg-transparent">
-                <TableCell className="text-left">Customer</TableCell>
-                <TableCell className="text-right"></TableCell>
-                <TableCell className="text-right"></TableCell>
-                <TableCell className="text-right"></TableCell>
-              </TableRow>
-              <TableRow className="hover:bg-transparent">
-                <TableCell className="text-left">Dorado</TableCell>
-                <TableCell className="text-right"></TableCell>
-                <TableCell className="text-right"></TableCell>
-                <TableCell className="text-right"></TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      <ProfitBreakdown order={order} />
     </div>
   )
 }
