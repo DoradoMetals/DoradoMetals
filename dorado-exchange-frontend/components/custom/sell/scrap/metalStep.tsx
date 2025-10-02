@@ -1,14 +1,16 @@
-import { FormField, FormItem, FormMessage } from "@/components/ui/form"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { metalOptions, purityOptions, Scrap } from "@/types/scrap"
-import { CheckCircle } from "lucide-react"
-import { useFormContext } from "react-hook-form"
+import { FormField, FormItem, FormMessage } from '@/components/ui/form'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { metalOptions, purityOptions, Scrap } from '@/types/scrap'
+import { CheckCircle } from 'lucide-react'
+import { useFormContext } from 'react-hook-form'
 import { motion } from 'framer-motion'
-import { cn } from "@/lib/utils"
-import getPrimaryIconStroke from "@/utils/getPrimaryIconStroke"
+import { cn } from '@/lib/utils'
+import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 
 export default function MetalStep() {
   const form = useFormContext<Scrap>()
+  const { data: spotPrices = [] } = useSpotPrices()
 
   return (
     <FormField
@@ -16,8 +18,6 @@ export default function MetalStep() {
       name="metal"
       render={({ field }) => (
         <FormItem>
-          {/* <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Select Metal</h2> */}
-
           <RadioGroup
             value={field.value}
             onValueChange={(val) => {
@@ -26,6 +26,9 @@ export default function MetalStep() {
               if (defaultPurity !== undefined) {
                 form.setValue('purity', defaultPurity)
               }
+              const spot = spotPrices.find((s) => s.type === val)
+              form.setValue('bid_premium', spot?.scrap_percentage)
+              console.log(spot?.scrap_percentage)
             }}
             className="gap-3 w-full items-stretch flex flex-col"
           >
@@ -71,4 +74,3 @@ export default function MetalStep() {
     />
   )
 }
-

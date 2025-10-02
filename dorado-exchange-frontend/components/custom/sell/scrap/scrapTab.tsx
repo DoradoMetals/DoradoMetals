@@ -16,6 +16,7 @@ import PurityStep from './purityStep'
 import WeightStep from './weightStep'
 import MetalStep from './metalStep'
 import ReviewStep from './reviewStep'
+import { usePayoutBrackets } from '@/lib/queries/usePayoutBrackets'
 
 const { useStepper, utils } = defineStepper(
   { id: 'itemForm', title: 'Item Details', description: 'Enter your item information.' },
@@ -35,7 +36,7 @@ export default function ScrapForm() {
       pre_melt: 0,
       gross_unit: 'g',
       purity: purityOptions['Gold'][0].value,
-      bid_premium: spotPrices[0]?.scrap_percentage ?? .75,
+      bid_premium: spotPrices[0]?.scrap_percentage ?? 0.75,
     },
   })
 
@@ -60,14 +61,12 @@ export default function ScrapForm() {
   const router = useRouter()
 
   const handleSubmit = (values: Scrap) => {
-    const spot = spotPrices.find((s) => s.id === values.metal)
+    const spot = spotPrices.find((s) => s.type === values.metal)
     const content =
       convertTroyOz(values.pre_melt ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
     const price = getScrapPrice(content, spot?.scrap_percentage ?? 0, spot)
 
-    const bid_premium = spot?.scrap_percentage ?? .75
-
-
+    const bid_premium = spot?.scrap_percentage ?? 0.75
 
     const item = {
       type: 'scrap' as const,
@@ -80,7 +79,6 @@ export default function ScrapForm() {
     }
 
     addItem(item)
-
     setSubmitted(true)
     setShowBanner(true)
 
@@ -95,7 +93,7 @@ export default function ScrapForm() {
       pre_melt: 0,
       gross_unit: 'g',
       purity: purityOptions['Gold'][0].value,
-      bid_premium: spotPrices[0]?.scrap_percentage ?? .75,
+      bid_premium: spotPrices[0]?.scrap_percentage ?? 0.75,
     })
     setSubmitted(false)
     stepper.goTo('itemForm')
