@@ -76,12 +76,10 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
     updateOrderItem.mutate(updatedItem)
   }
 
-  if (scrapItems.length === 0) return null
-
   return (
     <>
-
-        <div className="flex flex-col gap-4 w-full">
+      <div className="flex flex-col gap-4 w-full">
+        {scrapItems.length > 0 && (
           <div className="flex flex-col gap-4 w-full">
             <div className="w-full section-label">Update Scrap Actuals</div>
             <div className="rounded-xl border border-border bg-card raised-off-page overflow-hidden">
@@ -146,46 +144,46 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
               </Table>
             </div>
           </div>
+        )}
 
-          <div className="separator-inset" />
-          <div className="flex flex-col gap-4 w-full">
-            <div className="w-full section-label">Update Shipping Actual</div>
+        <div className="separator-inset" />
+        <div className="flex flex-col gap-4 w-full">
+          <div className="w-full section-label">Update Shipping Actual</div>
 
-            <div className="rounded-xl border border-border bg-card raised-off-page overflow-hidden">
-              <div className="flex items-center justify-between w-full px-3 py-2 text-xs tracking-widest text-neutral-600 bg-muted/40">
-                <div>Estimate</div>
-                <div className="text-right">Actual</div>
-              </div>
+          <div className="rounded-xl border border-border bg-card raised-off-page overflow-hidden">
+            <div className="flex items-center justify-between w-full px-3 py-2 text-xs tracking-widest text-neutral-600 bg-muted/40">
+              <div>Estimate</div>
+              <div className="text-right">Actual</div>
+            </div>
 
-              <div className="divide-y">
-                <div className="flex items-center justify-between w-full items-center px-3 py-2 text-sm">
-                  <div className="truncate">
-                    <span className="text-neutral-800">${order.shipment.shipping_charge}</span>
-                  </div>
+            <div className="divide-y">
+              <div className="flex items-center justify-between w-full items-center px-3 py-2 text-sm">
+                <div className="truncate">
+                  <span className="text-neutral-800">${order.shipment.shipping_charge}</span>
+                </div>
 
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="-9999"
-                      className={cn('input-floating-label-form no-spinner text-right h-8')}
-                      defaultValue={order.shipping_fee_actual ?? 0}
-                      onBlur={(e) =>
-                        updateShippingFee.mutate({
-                          purchase_order_id: order.id,
-                          shipping_fee_actual: Number(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="-9999"
+                    className={cn('input-floating-label-form no-spinner text-right h-8')}
+                    defaultValue={order.shipping_fee_actual ?? 0}
+                    onBlur={(e) =>
+                      updateShippingFee.mutate({
+                        purchase_order_id: order.id,
+                        shipping_fee_actual: Number(e.target.value),
+                      })
+                    }
+                  />
                 </div>
               </div>
             </div>
           </div>
-          <div className="separator-inset" />
         </div>
- 
+        <div className="separator-inset" />
+      </div>
     </>
   )
 }
