@@ -34,6 +34,7 @@ import {
   updateRefinerScrapPercentage,
   getPurchaseOrderRefinerMetals,
   updateRefinerPremium,
+  updateShippingActual,
 } from '../controllers/purchaseOrderController.js';
 
 const router = express.Router();
@@ -74,5 +75,6 @@ router.post('/update_refiner_scrap', requireAdmin, updateRefinerScrapPercentage)
 router.post('/reset_refiner_scrap', requireAdmin, resetRefinerScrapPercentage);
 router.post('/update_refiner_spot', requireAdmin, updateRefinerSpot);
 router.post('/update_refiner_premium', requireAdmin, updateRefinerPremium);
+router.post('/update_shipping_actual', requireAdmin, updateShippingActual);
 
 export default router;

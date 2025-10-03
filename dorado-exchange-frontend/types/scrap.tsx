@@ -23,6 +23,9 @@ export const scrapSchema = z.object({
   content: z.number().optional(),
   price: z.number().optional(),
   bid_premium: z.coerce.number().optional(),
+  purity_actual: z.coerce.number().optional().nullable(),
+  post_melt_actual: z.coerce.number().optional().nullable(),
+  content_actual: z.coerce.number().optional().nullable(),
 })
 
 export type ScrapInput = z.input<typeof scrapSchema>

@@ -73,6 +73,7 @@ export interface PurchaseOrder {
   waive_payout_fee: boolean
   return_shipping_paid: boolean
   review_created: boolean
+  shipping_fee_actual?: number
 }
 
 export const purchaseOrderReturnShipmentSchema = z.object({

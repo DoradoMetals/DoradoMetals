@@ -433,6 +433,8 @@ export const useUpdateOrderScrapItem = () => {
                           pre_melt: item.scrap!.pre_melt,
                           post_melt: item.scrap!.post_melt,
                           purity: item.scrap!.purity,
+                          purity_actual: item.scrap!.purity_actual,
+                          post_melt_actual: item.scrap!.post_melt_actual,
                         },
                         premium: oi.premium,
                       }
@@ -1158,6 +1160,66 @@ export const useUpdateRefinerPremium = () => {
     onError: (_err, _vars, context) => {
       if (context?.previousOrders && context.queryKey) {
         queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
+    },
+  })
+}
+
+export const useUpdateShippingActual = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      purchase_order_id,
+      shipping_fee_actual,
+    }: {
+      purchase_order_id: string
+      shipping_fee_actual: number | null
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest('POST', '/purchase_orders/update_shipping_actual', {
+        purchase_order_id,
+        shipping_fee_actual,
+      })
+    },
+
+    onMutate: async ({ purchase_order_id, shipping_fee_actual }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders =
+        queryClient.getQueryData<PurchaseOrder[]>(queryKey) ?? []
+
+      // Make sure the updater returns PurchaseOrder[]
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old) => {
+        const list = old ?? []
+        const next = list.map((order): PurchaseOrder =>
+          order.id !== purchase_order_id
+            ? order
+            : { ...order, shipping_fee_actual } as PurchaseOrder
+        )
+        return next
+      })
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.setQueryData<PurchaseOrder[]>(
+          context.queryKey,
+          context.previousOrders ?? []
+        )
       }
     },
 

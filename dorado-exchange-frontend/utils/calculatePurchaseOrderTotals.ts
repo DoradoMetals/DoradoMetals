@@ -1,10 +1,4 @@
-// utils/purchase-order-profit.ts
-import {
-  PurchaseOrder,
-  PurchaseOrderItem,
-  PurchaseOrderTotals,
-  ProfitCategoriesDict,
-} from '@/types/purchase-order'
+import { PurchaseOrder, PurchaseOrderItem, PurchaseOrderTotals } from '@/types/purchase-order'
 import { SpotPrice } from '@/types/metal'
 
 type MetalName = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
@@ -20,12 +14,12 @@ const emptyMetalsDict = () => ({
   palladium: { content: 0, percentage: 0, profit: 0 },
 })
 
-/** Safe accessors */
 const getItemMetal = (item: PurchaseOrderItem): MetalName | null => {
   if (item.item_type === 'scrap') return (item.scrap?.metal ?? null) as MetalName | null
   if (item.item_type === 'product') return (item.product?.metal_type ?? null) as MetalName | null
   return null
 }
+
 const getItemContent = (item: PurchaseOrderItem): number => {
   if (item.item_type === 'scrap') return item.scrap?.content ?? 0
   if (item.item_type === 'product') {
@@ -36,9 +30,105 @@ const getItemContent = (item: PurchaseOrderItem): number => {
   return 0
 }
 
-/** Sum content by metal for a chosen category */
-function sumContentByMetal(order: PurchaseOrder, category: 'scrap' | 'bullion' | 'total') {
-  const totals = { Gold: 0, Silver: 0, Platinum: 0, Palladium: 0 } as Record<MetalName, number>
+const getScrapActualContent = (item: PurchaseOrderItem): number | null => {
+  if (item.item_type !== 'scrap' || !item.scrap) return null
+  const s = item.scrap
+  if (typeof s.content_actual === 'number') return s.content_actual
+  if (typeof s.post_melt_actual === 'number' && typeof s.purity_actual === 'number') {
+    return s.post_melt_actual * s.purity_actual
+  }
+  return null
+}
+
+const getSpot = (spots: SpotPrice[], metal: MetalName) =>
+  spots.find((s) => s.type.toLowerCase() === metal.toLowerCase()) ?? null
+
+type Shares = { customerShare: number; doradoShare: number; refinerShare: number }
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n))
+
+function premiumsToShares(
+  category: 'scrap' | 'bullion' | 'total',
+  doradoPremium?: number | null,
+  refinerPremium?: number | null
+): Shares {
+  let d = doradoPremium ?? undefined
+  let r = refinerPremium ?? undefined
+
+  if (d == null && r != null) d = r
+  if (r == null && d != null) r = d
+
+  if (d == null && r == null && (category === 'bullion' || category === 'total')) {
+    return { customerShare: 1, doradoShare: 0, refinerShare: 0 }
+  }
+
+  if (d == null) d = 1
+  if (r == null) r = 1
+
+  d = clamp01(d)
+  r = clamp01(r)
+
+  let customerShare = d
+  let doradoShare = Math.max(r - d, 0)
+  let refinerShare = 1 - r
+
+  const sum = customerShare + doradoShare + refinerShare
+  if (Math.abs(sum - 1) > 1e-9) {
+    const remainder = Math.max(1 - customerShare, 0)
+    const dr = doradoShare + refinerShare
+    if (dr > 0) {
+      const scale = remainder / dr
+      doradoShare *= scale
+      refinerShare *= scale
+    } else {
+      doradoShare = remainder
+    }
+  }
+
+  return {
+    customerShare: clamp01(customerShare),
+    doradoShare: clamp01(doradoShare),
+    refinerShare: clamp01(refinerShare),
+  }
+}
+
+function getSharesForItem(
+  item: PurchaseOrderItem,
+  metal: MetalName,
+  orderSpots: SpotPrice[],
+  refinerSpots: SpotPrice[],
+  category: 'scrap' | 'bullion' | 'total'
+) {
+  const orderSpot = getSpot(orderSpots, metal)
+  const refSpot = getSpot(refinerSpots, metal)
+
+  const doradoPremium =
+    item.premium != null
+      ? Number(item.premium)
+      : orderSpot?.scrap_percentage != null
+      ? Number(orderSpot.scrap_percentage)
+      : undefined
+
+  const refinerPremium =
+    item.refiner_premium != null
+      ? Number(item.refiner_premium)
+      : refSpot?.scrap_percentage != null
+      ? Number(refSpot.scrap_percentage)
+      : undefined
+
+  const shares = premiumsToShares(category, doradoPremium, refinerPremium)
+  return { ...shares, orderSpot, refSpot }
+}
+
+function computeCategoryForAllParties(
+  order: PurchaseOrder,
+  category: 'scrap' | 'bullion' | 'total',
+  orderSpots: SpotPrice[],
+  refinerSpots: SpotPrice[]
+) {
+  const make = () => emptyMetalsDict()
+  const customer = make()
+  const refiner = make()
+  const dorado = make()
 
   for (const item of order.order_items) {
     const metal = getItemMetal(item)
@@ -46,171 +136,74 @@ function sumContentByMetal(order: PurchaseOrder, category: 'scrap' | 'bullion' |
 
     const isScrap = item.item_type === 'scrap'
     const isBullion = item.item_type === 'product'
-
     if ((category === 'scrap' && !isScrap) || (category === 'bullion' && !isBullion)) continue
 
-    totals[metal] += getItemContent(item)
+    const baseContent = getItemContent(item)
+    if (!baseContent) continue
+
+    const { customerShare, doradoShare, refinerShare, orderSpot, refSpot } = getSharesForItem(
+      item,
+      metal,
+      orderSpots,
+      refinerSpots,
+      category
+    )
+
+    const actualScrap = isScrap ? getScrapActualContent(item) : null
+    const dorRefContentBasis = isScrap ? (actualScrap ?? baseContent) : baseContent
+
+    const custContent = baseContent * customerShare
+    const dorContent = dorRefContentBasis * doradoShare
+    const refContent = dorRefContentBasis * refinerShare
+
+    const key = toKey(metal)
+    const orderBid = orderSpot?.bid_spot ?? 0
+    const refBid = refSpot?.bid_spot ?? 0
+
+    customer[key].content += custContent
+    customer[key].profit += custContent * orderBid
+
+    dorado[key].content += dorContent
+    dorado[key].profit += dorContent * refBid
+
+    refiner[key].content += refContent
+    refiner[key].profit += refContent * refBid
   }
-
-  if (category === 'total') {
-    // already counted above; nothing to filter
-    // but if you want “total” explicitly, just re-run once more:
-    const allTotals = { Gold: 0, Silver: 0, Platinum: 0, Palladium: 0 } as Record<MetalName, number>
-    for (const item of order.order_items) {
-      const metal = getItemMetal(item)
-      if (!metal) continue
-      allTotals[metal] += getItemContent(item)
-    }
-    return allTotals
-  }
-
-  return totals
-}
-
-/** Get a spot record by metal name */
-const getSpot = (spots: SpotPrice[], metal: MetalName) =>
-  spots.find((s) => s.type.toLowerCase() === metal.toLowerCase()) ?? null
-
-/** Core: compute one category (scrap | bullion | total) */
-function computeCategory(
-  order: PurchaseOrder,
-  category: 'scrap' | 'bullion' | 'total',
-  orderSpots: SpotPrice[],
-  refinerSpots: SpotPrice[]
-): { categoryTotals: ProfitCategoriesDict; totalContent: number } {
-  const byMetal = sumContentByMetal(order, category)
-  const categoryTotals: ProfitCategoriesDict = {
-    scrap: emptyMetalsDict(),
-    bullion: emptyMetalsDict(),
-    total: emptyMetalsDict(),
-  }
-
-  // Decide where to store (so the shape matches your UI expectations)
-  const bucket = categoryTotals[category]
-
-  // Sum across metals to compute per-metal percentage later
-  const totalContent = (Object.values(byMetal) as number[]).reduce((a, b) => a + b, 0) || 0
 
   for (const metal of METALS) {
-    const content = byMetal[metal] || 0
     const key = toKey(metal)
+    const denom =
+      customer[key].content + dorado[key].content + refiner[key].content
 
-    // Rates as decimals (0–1). For bullion you can plug whatever policy you want.
-    const orderSpot = getSpot(orderSpots, metal)
-    const refSpot = getSpot(refinerSpots, metal)
+    const pct = (owned: number) => (denom ? (owned / denom) * 100 : 0)
 
-    const doradoRate = (orderSpot?.scrap_percentage ?? 0) / 100
-    const refinerRate = (refSpot?.scrap_percentage ?? 0) / 100
-
-    const customerContent = content * doradoRate
-    const refinerContent = content * refinerRate
-    const doradoContent = Math.max(content - (customerContent + refinerContent), 0)
-
-    // Dollar values
-    const customerDollars = customerContent * (orderSpot?.bid_spot ?? 0)
-    const refinerDollars = refinerContent * (refSpot?.bid_spot ?? 0)
-    const doradoDollars = doradoContent * (refSpot?.bid_spot ?? 0)
-
-    // Fill per-party sections
-    // (You only asked for one table at a time; but this structure lets you compose later.)
-    // For this layer we just store the “party” total in each category bucket,
-    // and the UI will pick which party to show.
-
-    // We’ll put the *combined* view inside `bucket` (content = total content for this metal in this category),
-    // and percentage is metal share of category.
-    bucket[key].content = content
-    bucket[key].percentage = totalContent ? (content / totalContent) * 100 : 0
-    // For “profit”, show Dorado dollars by default (what the business cares about most in this table).
-    bucket[key].profit = doradoDollars
-
-    // If you want all three parties broken out separately, you can also return them
-    // or compute three different ProfitCategoriesDicts; see next function.
+    customer[key].percentage = pct(customer[key].content)
+    dorado[key].percentage = pct(dorado[key].content)
+    refiner[key].percentage = pct(refiner[key].content)
   }
 
-  return { categoryTotals, totalContent }
-}
-
-/** Full “three-party” breakdown for one category */
-function computeCategoryForAllParties(
-  order: PurchaseOrder,
-  category: 'scrap' | 'bullion' | 'total',
-  orderSpots: SpotPrice[],
-  refinerSpots: SpotPrice[]
-) {
-  const byMetal = sumContentByMetal(order, category)
-  const totalContent = (Object.values(byMetal) as number[]).reduce((a, b) => a + b, 0) || 0
-
-  const make = () => emptyMetalsDict()
-  const customer = make()
-  const refiner = make()
-  const dorado = make()
-
-  for (const metal of METALS) {
-    const content = byMetal[metal] || 0
-    const key = toKey(metal)
-    const orderSpot = getSpot(orderSpots, metal)
-    const refSpot = getSpot(refinerSpots, metal)
-    const doradoRate = (orderSpot?.scrap_percentage ?? 0) / 100
-    const refinerRate = (refSpot?.scrap_percentage ?? 0) / 100
-
-    const custContent = content * doradoRate
-    const refContent = content * refinerRate
-    const dorContent = Math.max(content - (custContent + refContent), 0)
-
-    // Percent of the category for each metal (same across parties)
-    const pct = totalContent ? (content / totalContent) * 100 : 0
-
-    customer[key] = {
-      content: custContent,
-      percentage: pct,
-      profit: custContent * (orderSpot?.bid_spot ?? 0), // payout dollars
-    }
-    refiner[key] = {
-      content: refContent,
-      percentage: pct,
-      profit: refContent * (refSpot?.bid_spot ?? 0),
-    }
-    dorado[key] = {
-      content: dorContent,
-      percentage: pct,
-      profit: dorContent * (refSpot?.bid_spot ?? 0),
-    }
-  }
+  const totalContent =
+    (customer.gold.content + dorado.gold.content + refiner.gold.content) +
+    (customer.silver.content + dorado.silver.content + refiner.silver.content) +
+    (customer.platinum.content + dorado.platinum.content + refiner.platinum.content) +
+    (customer.palladium.content + dorado.palladium.content + refiner.palladium.content)
 
   return { customer, refiner, dorado, totalContent }
 }
 
-/** Public: compute everything you need for the page */
 export function computePurchaseOrderTotals(
   order: PurchaseOrder,
   orderSpots: SpotPrice[],
   refinerSpots: SpotPrice[]
 ): PurchaseOrderTotals {
-  // SCRAP – three-party view
   const scrap = computeCategoryForAllParties(order, 'scrap', orderSpots, refinerSpots)
-
-  // BULLION – placeholder: uses the same function, but you may set different rates later
   const bullion = computeCategoryForAllParties(order, 'bullion', orderSpots, refinerSpots)
-
-  // TOTAL – sum both categories (runs on 'total' for simplicity)
   const total = computeCategoryForAllParties(order, 'total', orderSpots, refinerSpots)
 
   return {
     total_content: total.totalContent,
-    refiner: {
-      scrap: scrap.refiner,
-      bullion: bullion.refiner,
-      total: total.refiner,
-    },
-    dorado: {
-      scrap: scrap.dorado,
-      bullion: bullion.dorado,
-      total: total.dorado,
-    },
-    customer: {
-      scrap: scrap.customer,
-      bullion: bullion.customer,
-      total: total.customer,
-    },
+    refiner: { scrap: scrap.refiner, bullion: bullion.refiner, total: total.refiner },
+    dorado: { scrap: scrap.dorado, bullion: bullion.dorado, total: total.dorado },
+    customer: { scrap: scrap.customer, bullion: bullion.customer, total: total.customer },
   }
 }

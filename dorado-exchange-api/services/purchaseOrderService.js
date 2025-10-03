@@ -550,4 +550,10 @@ export async function updateRefinerPremium({ item_id, refiner_premium }) {
 }
 
 
+export async function updateShippingActual({ purchase_order_id, shipping_fee_actual }) {
+  return await purchaseOrderRepo.updateShippingActual(purchase_order_id, shipping_fee_actual);
+}
+
+
+
 

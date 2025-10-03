@@ -16,7 +16,6 @@ import PurityStep from './purityStep'
 import WeightStep from './weightStep'
 import MetalStep from './metalStep'
 import ReviewStep from './reviewStep'
-import { usePayoutBrackets } from '@/lib/queries/usePayoutBrackets'
 
 const { useStepper, utils } = defineStepper(
   { id: 'itemForm', title: 'Item Details', description: 'Enter your item information.' },

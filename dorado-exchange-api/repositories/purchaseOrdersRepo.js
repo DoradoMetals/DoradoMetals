@@ -249,7 +249,10 @@ export async function getAll() {
             'content', s.content,
             'gross_unit', s.gross_unit,
             'metal', ms.type,
-            'bid_premium', s.bid_premium
+            'bid_premium', s.bid_premium,
+            'purity_actual', s.purity_actual,
+            'post_melt_actual', s.post_melt_actual,
+            'content_actual', s.content_actual
           ),
           'product', jsonb_build_object(
             'id', p.id,
@@ -847,5 +850,15 @@ export async function updateRefinerPremium(item_id, refiner_premium) {
     WHERE id = $2
   `;
   const values = [refiner_premium, item_id];
+  return await pool.query(query, values);
+}
+
+export async function updateShippingActual(purchase_order_id, shipping_fee_actual) {
+  const query = `
+    UPDATE exchange.purchase_orders
+    SET shipping_fee_actual = $1
+    WHERE id = $2
+  `;
+  const values = [shipping_fee_actual, purchase_order_id];
   return await pool.query(query, values);
 }

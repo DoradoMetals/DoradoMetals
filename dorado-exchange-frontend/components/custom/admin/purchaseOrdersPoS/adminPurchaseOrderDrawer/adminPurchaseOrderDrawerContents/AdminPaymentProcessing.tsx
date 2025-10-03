@@ -1,8 +1,10 @@
 import { cn } from '@/lib/utils'
 import { payoutOptions } from '@/types/payout'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
-import ProfitBreakdown from './profitBreakdown'
+import ProfitBreakdown from './viewProfitBreakdown'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
+import RefinerValues from './editRefinerValues'
+import ActualsEditor from './editActualValues'
 
 export default function AdminPaymentProcessingPurchaseOrder({
   order,
@@ -13,12 +15,6 @@ export default function AdminPaymentProcessingPurchaseOrder({
 
   return (
     <div className="flex flex-col items-center w-full gap-4 h-full">
-      <div className="flex w-full items-center justify-between">
-        <div className="text-xl text-neutral-900">Total Payout:</div>
-        <div className="text-xl text-neutral-900">
-          <PriceNumberFlow value={order.total_price ?? 0} />
-        </div>
-      </div>
       <div className="h-auto w-full p-4 rounded-lg flex flex-col gap-3 raised-off-page bg-card">
         <div className="flex flex-col items-start gap-4 w-full">
           <div className="flex w-full items-center justify-between">
@@ -26,7 +22,9 @@ export default function AdminPaymentProcessingPurchaseOrder({
               <Icon size={24} className={config.text_color} />
               {payout?.label}
             </div>
-            <div className={cn('text-sm', config.text_color)}>{payout?.time_delay}</div>
+            <div className="text-xl text-neutral-900">
+              <PriceNumberFlow value={order.total_price ?? 0} />
+            </div>
           </div>
 
           <div className="w-full">
@@ -104,7 +102,10 @@ export default function AdminPaymentProcessingPurchaseOrder({
           </div>
         </div>
       </div>
-      <ProfitBreakdown order={order} />
+      <div className="separator-inset" />
+      <RefinerValues order={order} />
+      <div className="separator-inset" />
+      <ActualsEditor order={order} />
     </div>
   )
 }

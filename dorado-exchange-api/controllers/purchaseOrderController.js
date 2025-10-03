@@ -358,5 +358,16 @@ export async function updateRefinerPremium(req, res, next) {
   }
 }
 
+export async function updateShippingActual(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.updateShippingActual(req.body);
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+
+
 
 
