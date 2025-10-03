@@ -80,7 +80,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
 
   return (
     <>
-      {order && (
+
         <div className="flex flex-col gap-4 w-full">
           <div className="flex flex-col gap-4 w-full">
             <div className="w-full section-label">Update Scrap Actuals</div>
@@ -185,7 +185,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
           </div>
           <div className="separator-inset" />
         </div>
-      )}
+ 
     </>
   )
 }

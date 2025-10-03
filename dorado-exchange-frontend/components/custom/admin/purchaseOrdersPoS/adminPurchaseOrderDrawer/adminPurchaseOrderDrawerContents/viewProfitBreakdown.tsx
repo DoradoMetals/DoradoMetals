@@ -187,7 +187,6 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
             )
           })}
 
-          {/* Shipping fee row (only for Total + Dorado/Customer) */}
           {showFeeRow && (
             <TableRow className="hover:bg-transparent">
               <TableCell className="text-left text-neutral-800">Shipping Fee</TableCell>
@@ -199,7 +198,6 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
             </TableRow>
           )}
 
-          {/* Net row to make the math obvious */}
           {showFeeRow && (
             <TableRow className="hover:bg-transparent">
               <TableCell className="text-left font-medium text-neutral-900">Net</TableCell>
@@ -255,7 +253,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
   }
 
   return (
-    <div className="flex w-full h-full bg-card raised-off-page p-4 rounded-md">
+    <div className="flex w-full bg-card raised-off-page p-4 rounded-md">
       <div className="flex flex-col gap-4 w-full">
         <div className="text-xl text-neutral-900">Content and Profit Breakdown</div>
 
