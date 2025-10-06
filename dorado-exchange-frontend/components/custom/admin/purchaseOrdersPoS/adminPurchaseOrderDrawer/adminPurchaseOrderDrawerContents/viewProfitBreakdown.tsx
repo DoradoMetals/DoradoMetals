@@ -143,9 +143,10 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
     }
 
     const showShipping = bucket === 'total' && (totals[party].shipping_fee ?? 0) > 0
+    const showFee = bucket === 'total' && (totals[party].refiner_fee ?? 0) > 0
     const showSpotNet =
       bucket === 'total' && party === 'dorado' && (totals.dorado.spot_net ?? 0) > 0
-    const showNetRow = bucket === 'total' // always show Net on Total
+    const showNetRow = bucket === 'total'
 
     return (
       <Table className="font-normal text-neutral-700 overflow-hidden">
@@ -179,6 +180,17 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
                 <PriceNumberFlow value={-totals[party].shipping_fee} />
+              </TableCell>
+            </TableRow>
+          )}
+
+          {showFee && (
+            <TableRow className="hover:bg-transparent">
+              <TableCell className="text-left text-neutral-800">Refiner Fee</TableCell>
+              <TableCell className="text-center">—</TableCell>
+              <TableCell className="text-center">—</TableCell>
+              <TableCell className="text-right">
+                <PriceNumberFlow value={-totals[party].refiner_fee} />
               </TableCell>
             </TableRow>
           )}

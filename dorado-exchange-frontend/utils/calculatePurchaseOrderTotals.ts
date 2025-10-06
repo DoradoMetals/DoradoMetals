@@ -229,15 +229,13 @@ export function getTotalProfit(
   spotNet: number = 0,
   refiner_fee: number = 0
 ): number {
+  const metalsProfit =
+    (totalMetals.gold?.profit ?? 0) +
+    (totalMetals.silver?.profit ?? 0) +
+    (totalMetals.platinum?.profit ?? 0) +
+    (totalMetals.palladium?.profit ?? 0)
 
-    const metalsProfit =
-      (totalMetals.gold?.profit ?? 0) +
-      (totalMetals.silver?.profit ?? 0) +
-      (totalMetals.platinum?.profit ?? 0) +
-      (totalMetals.palladium?.profit ?? 0)
-
-    return metalsProfit + spotNet - shippingFee - refiner_fee
-  
+  return metalsProfit + spotNet - shippingFee - refiner_fee
 }
 
 export function computePurchaseOrderTotals(
@@ -257,6 +255,7 @@ export function computePurchaseOrderTotals(
       bullion: bullion.refiner,
       total: total.refiner,
       shipping_fee: shipping.refiner,
+      refiner_fee: 0,
       spot_net: spotNet.refiner,
       total_profit: getTotalProfit(total.refiner, shipping.refiner, spotNet.refiner, 0),
     },
@@ -265,14 +264,21 @@ export function computePurchaseOrderTotals(
       bullion: bullion.dorado,
       total: total.dorado,
       shipping_fee: shipping.dorado,
+      refiner_fee: order.refiner_fee ?? 0,
       spot_net: spotNet.dorado,
-      total_profit: getTotalProfit(total.dorado, shipping.dorado - shipping.customer, spotNet.dorado, order.refiner_fee),
+      total_profit: getTotalProfit(
+        total.dorado,
+        shipping.dorado - shipping.customer,
+        spotNet.dorado,
+        order.refiner_fee
+      ),
     },
     customer: {
       scrap: scrap.customer,
       bullion: bullion.customer,
       total: total.customer,
       shipping_fee: shipping.customer,
+      refiner_fee: 0,
       spot_net: spotNet.customer,
       total_profit: getTotalProfit(total.customer, shipping.customer, spotNet.customer, 0),
     },

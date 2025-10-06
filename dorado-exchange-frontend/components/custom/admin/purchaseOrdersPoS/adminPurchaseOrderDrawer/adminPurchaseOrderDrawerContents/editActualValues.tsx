@@ -106,7 +106,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                               inputMode="decimal"
                               className={cn('input-floating-label-form no-spinner text-right h-8')}
                               defaultValue={
-                                s.purity_actual != null ? (s.purity_actual * 100).toString() : ''
+                                s.purity_actual != null ? (s.purity_actual * 100).toFixed(1).toString() : ''
                               }
                               placeholder={`${(s.purity ?? 0) * 100}`}
                               onBlur={(e) => {
