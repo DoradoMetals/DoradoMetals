@@ -64,185 +64,190 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
 
   return (
     <div className="flex flex-col w-full gap-2">
-      {scrapItems.length > 0 && (
-        <Accordion
-          label={`Scrap ${valueLabel}`}
-          open={open.scrap}
-          toggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
-          total={scrapTotal}
-        >
-          <Table className="font-normal text-neutral-700 overflow-hidden">
-            <TableHeader className="text-xs text-neutral-700 hover:bg-transparent">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-left">Line Item</TableHead>
-                <TableHead className="text-center">Content (toz)</TableHead>
-                <TableHead className="text-center">Payable (toz)</TableHead>
-                <TableHead className="text-right">Estimate</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {scrapItems.map((item, i) => (
-                <TableRow key={i} className="hover:bg-transparent">
-                  <TableCell className="text-left">{item.scrap?.name}</TableCell>
-                  <TableCell className="text-right">
-                    {item.scrap?.content?.toFixed(3)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {(
-                      (item.scrap?.content ?? 0) *
-                      (item?.premium ?? item?.scrap?.bid_premium ?? 0)
-                    ).toFixed(3)}{' '}
-
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <PriceNumberFlow
-                      value={
-                        item.price ??
-                        getPurchaseOrderScrapPrice(item, spotPrices, orderSpotPrices)
-                      }
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Accordion>
-      )}
-
-      {bullionItems.length > 0 && (
-        <Accordion
-          label={`Bullion ${valueLabel}`}
-          open={open.bullion}
-          toggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
-          total={bullionTotal}
-        >
-          <Table className="font-normal text-neutral-700 overflow-hidden">
-            <TableBody>
-              {bullionItems.map((item, i) => (
-                <TableRow key={i} className="hover:bg-transparent">
-                  <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.product?.product_name}</TableCell>
-                  <TableCell className="text-right p-0">
-                    <PriceNumberFlow
-                      value={
-                        item.quantity *
-                        (item.price ??
-                          getPurchaseOrderBullionPrice(
-                            item.product!,
-                            spotPrices,
-                            orderSpotPrices,
-                            item.premium ?? null
-                          ))
-                      }
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Accordion>
-      )}
-
-      {order.shipment && (
-        <Accordion
-          label="Shipping Charges"
-          open={open.shipment ?? false}
-          toggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
-          total={order.shipment.shipping_charge ?? 0}
-        >
-          <Table className="font-normal text-neutral-700 overflow-hidden">
-            <TableBody>
-              <TableRow className="hover:bg-transparent">
-                <TableCell>{order.shipment.shipping_service}</TableCell>
-                <TableCell>{order.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
-                <TableCell className="text-right p-0">
-                  -<PriceNumberFlow value={order.shipment.shipping_charge} />
-                </TableCell>
-              </TableRow>
-              {order.purchase_order_status === 'Cancelled' && (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell>{order.return_shipment.shipping_service} (Return)</TableCell>
-                  <TableCell>{order.return_shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
-                  <TableCell className="text-right p-0">
-                    -<PriceNumberFlow value={order.return_shipment.shipping_charge} />
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </Accordion>
-      )}
-
-      {payoutFee > 0 && (
-        <Accordion
-          label="Payout Fee"
-          open={open.payout ?? false}
-          toggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
-          total={payoutFee}
-        >
-          <Table className="font-normal text-neutral-700 overflow-hidden">
-            <TableBody>
-              <TableRow className="hover:bg-transparent">
-                <TableCell>{payoutMethod?.label ?? 'Unknown Method'}</TableCell>
-                <TableCell className="text-right p-0">
-                  -<PriceNumberFlow value={payoutFee} />
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </Accordion>
-      )}
-
-      <Accordion
-        label={`Total ${valueLabel}`}
-        open={open.total}
-        toggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
-        total={total}
-      >
-        <div className="grid grid-cols-2 gap-2 text-sm text-neutral-700">
+      {order.purchase_order_status !== 'Completed' && (
+        <div>
           {scrapItems.length > 0 && (
-            <>
-              <div>Scrap:</div>
-              <div className="text-right">
-                <PriceNumberFlow value={scrapTotal} />
-              </div>
-            </>
+            <Accordion
+              label={`Scrap ${valueLabel}`}
+              open={open.scrap}
+              toggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
+              total={scrapTotal}
+            >
+              <Table className="font-normal text-neutral-700 overflow-hidden">
+                <TableHeader className="text-xs text-neutral-700 hover:bg-transparent">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="text-left">Line Item</TableHead>
+                    <TableHead className="text-center">Content (toz)</TableHead>
+                    <TableHead className="text-center">Payable (toz)</TableHead>
+                    <TableHead className="text-right">Estimate</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {scrapItems.map((item, i) => (
+                    <TableRow key={i} className="hover:bg-transparent">
+                      <TableCell className="text-left">{item.scrap?.name}</TableCell>
+                      <TableCell className="text-right">
+                        {item.scrap?.content?.toFixed(3)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {(
+                          (item.scrap?.content ?? 0) *
+                          (item?.premium ?? item?.scrap?.bid_premium ?? 0)
+                        ).toFixed(3)}{' '}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <PriceNumberFlow
+                          value={
+                            item.price ??
+                            getPurchaseOrderScrapPrice(item, spotPrices, orderSpotPrices)
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Accordion>
           )}
 
           {bullionItems.length > 0 && (
-            <>
-              <div>Bullion:</div>
-              <div className="text-right">
-                <PriceNumberFlow value={bullionTotal} />
-              </div>
-            </>
+            <Accordion
+              label={`Bullion ${valueLabel}`}
+              open={open.bullion}
+              toggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
+              total={bullionTotal}
+            >
+              <Table className="font-normal text-neutral-700 overflow-hidden">
+                <TableBody>
+                  {bullionItems.map((item, i) => (
+                    <TableRow key={i} className="hover:bg-transparent">
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell>{item.product?.product_name}</TableCell>
+                      <TableCell className="text-right p-0">
+                        <PriceNumberFlow
+                          value={
+                            item.quantity *
+                            (item.price ??
+                              getPurchaseOrderBullionPrice(
+                                item.product!,
+                                spotPrices,
+                                orderSpotPrices,
+                                item.premium ?? null
+                              ))
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Accordion>
           )}
 
-          {order.shipment?.shipping_charge > 0 && (
-            <>
-              <div>Shipping:</div>
-              <div className="text-right">
-                -<PriceNumberFlow value={order.shipment.shipping_charge} />
-              </div>
-            </>
+          {order.shipment && (
+            <Accordion
+              label="Shipping Charges"
+              open={open.shipment ?? false}
+              toggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
+              total={order.shipment.shipping_charge ?? 0}
+            >
+              <Table className="font-normal text-neutral-700 overflow-hidden">
+                <TableBody>
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell>{order.shipment.shipping_service}</TableCell>
+                    <TableCell>{order.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
+                    <TableCell className="text-right p-0">
+                      -<PriceNumberFlow value={order.shipment.shipping_charge} />
+                    </TableCell>
+                  </TableRow>
+                  {order.purchase_order_status === 'Cancelled' && (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell>{order.return_shipment.shipping_service} (Return)</TableCell>
+                      <TableCell>
+                        {order.return_shipment.insured ? 'Insured' : 'Uninsured'}
+                      </TableCell>
+                      <TableCell className="text-right p-0">
+                        -<PriceNumberFlow value={order.return_shipment.shipping_charge} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Accordion>
           )}
 
           {payoutFee > 0 && (
-            <>
-              <div>Payout Fee:</div>
-              <div className="text-right">
-                -<PriceNumberFlow value={payoutFee} />
-              </div>
-            </>
+            <Accordion
+              label="Payout Fee"
+              open={open.payout ?? false}
+              toggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
+              total={payoutFee}
+            >
+              <Table className="font-normal text-neutral-700 overflow-hidden">
+                <TableBody>
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell>{payoutMethod?.label ?? 'Unknown Method'}</TableCell>
+                    <TableCell className="text-right p-0">
+                      -<PriceNumberFlow value={payoutFee} />
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </Accordion>
           )}
 
-          <div className="font-medium">Total:</div>
-          <div className="font-medium text-right">
-            <PriceNumberFlow value={total} />
-          </div>
-        </div>
-      </Accordion>
+          <Accordion
+            label={`Total ${valueLabel}`}
+            open={open.total}
+            toggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
+            total={total}
+          >
+            <div className="grid grid-cols-2 gap-2 text-sm text-neutral-700">
+              {scrapItems.length > 0 && (
+                <>
+                  <div>Scrap:</div>
+                  <div className="text-right">
+                    <PriceNumberFlow value={scrapTotal} />
+                  </div>
+                </>
+              )}
 
+              {bullionItems.length > 0 && (
+                <>
+                  <div>Bullion:</div>
+                  <div className="text-right">
+                    <PriceNumberFlow value={bullionTotal} />
+                  </div>
+                </>
+              )}
+
+              {order.shipment?.shipping_charge > 0 && (
+                <>
+                  <div>Shipping:</div>
+                  <div className="text-right">
+                    -<PriceNumberFlow value={order.shipment.shipping_charge} />
+                  </div>
+                </>
+              )}
+
+              {payoutFee > 0 && (
+                <>
+                  <div>Payout Fee:</div>
+                  <div className="text-right">
+                    -<PriceNumberFlow value={payoutFee} />
+                  </div>
+                </>
+              )}
+
+              <div className="font-medium">Total:</div>
+              <div className="font-medium text-right">
+                <PriceNumberFlow value={total} />
+              </div>
+            </div>
+          </Accordion>
+        </div>
+      )}
+      
       <PurchaseOrderActionButtons order={order} />
       <div className="flex w-full justify-between items-center mt-3">
         <div className="text-sm text-neutral-700">Call Customer:</div>
