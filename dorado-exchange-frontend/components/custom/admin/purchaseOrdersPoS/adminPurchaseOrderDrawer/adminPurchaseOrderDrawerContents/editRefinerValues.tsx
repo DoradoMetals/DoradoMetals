@@ -7,10 +7,10 @@ import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import {
   usePurchaseOrderRefinerMetals,
   useUpdateOrderRefinerSpotPrice,
+  useUpdateRefinerFee,
   useUpdateRefinerPremium,
 } from '@/lib/queries/admin/useAdminPurchaseOrders'
 
-import { SpotPrice } from '@/types/metal'
 import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
 
 export default function RefinerValues({ order }: { order: PurchaseOrder }) {
@@ -19,12 +19,7 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
 
   const updateSpot = useUpdateOrderRefinerSpotPrice()
   const updatePremium = useUpdateRefinerPremium()
-
-  const handleUpdateSpot = (spot: SpotPrice, updated_spot: number) => {
-    if (Number.isFinite(updated_spot)) {
-      updateSpot.mutate({ spot, updated_spot })
-    }
-  }
+  const updateFee = useUpdateRefinerFee()
 
   function parsePercentToDecimal(raw: string): number | null {
     const trimmed = raw.trim()
@@ -33,17 +28,6 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
     const val = Number(cleaned)
     if (Number.isNaN(val)) return null
     return val / 100
-  }
-
-  const handleUpdatePremium = (item_id: string, raw: string) => {
-    const refiner_premium = parsePercentToDecimal(raw)
-    if (refiner_premium === null || !Number.isNaN(refiner_premium)) {
-      updatePremium.mutate({
-        purchase_order_id: order.id,
-        item_id,
-        refiner_premium,
-      })
-    }
   }
 
   const rawScrap = order.order_items.filter((it) => it.item_type === 'scrap' && it.scrap)
@@ -76,7 +60,9 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
                       orderSpotPrices?.find((s) => s.type === spot.type)?.bid_spot ??
                       ''
                     }
-                    onBlur={(e) => handleUpdateSpot(spot, Number(e.target.value))}
+                    onBlur={(e) =>
+                      updateSpot.mutate({ spot: spot, updated_spot: Number(e.target.value) })
+                    }
                   />
                 </div>
               </div>
@@ -117,14 +103,49 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
                     defaultValue={
                       item.refiner_premium != null ? (item.refiner_premium * 100).toString() : ''
                     }
+                    disabled={updatePremium.isPending}
                     placeholder="e.g. 2.50"
-                    onBlur={(e) => handleUpdatePremium(item.id, e.target.value)}
+                    onBlur={(e) => {
+                      const refiner_premium = parsePercentToDecimal(e.target.value)
+                      if (refiner_premium === null || !Number.isNaN(refiner_premium)) {
+                        updatePremium.mutate({
+                          purchase_order_id: order.id,
+                          item_id: item.id,
+                          refiner_premium,
+                        })
+                      }
+                    }}
                   />
                   <span className="text-sm text-neutral-700 select-none">%</span>
                 </div>
               </div>
             )
           })}
+        </div>
+      </div>
+      <div className="rounded-xl border border-border bg-card raised-off-page">
+        <div className="flex items-center justify-between w-full px-3 py-2 text-xs tracking-widest text-neutral-600 bg-muted/40">
+          <div>Update Refiner Fee</div>
+          <div className="text-right">Amount</div>
+        </div>
+
+        <div className="flex items-center w-full items-center px-3 py-2 text-sm">
+          <div className="flex items-center gap-1 w-full">
+            <Input
+              type="number"
+              pattern="[0-9]*"
+              inputMode="decimal"
+              className={cn('input-floating-label-form no-spinner text-right w-full text-base h-8')}
+              defaultValue={order.refiner_fee}
+              disabled={updateFee.isPending}
+              onBlur={(e) =>
+                updateFee.mutate({
+                  purchase_order_id: order.id,
+                  refiner_fee: Number(e.target.value),
+                })
+              }
+            />
+          </div>
         </div>
       </div>
     </div>

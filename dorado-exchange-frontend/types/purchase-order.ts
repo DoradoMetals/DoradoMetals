@@ -74,6 +74,7 @@ export interface PurchaseOrder {
   return_shipping_paid: boolean
   review_created: boolean
   shipping_fee_actual?: number
+  refiner_fee?: number
 }
 
 export const purchaseOrderReturnShipmentSchema = z.object({

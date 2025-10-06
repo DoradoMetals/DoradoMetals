@@ -862,3 +862,13 @@ export async function updateShippingActual(purchase_order_id, shipping_fee_actua
   const values = [shipping_fee_actual, purchase_order_id];
   return await pool.query(query, values);
 }
+
+export async function updateRefinerFee(purchase_order_id, refiner_fee) {
+  const query = `
+    UPDATE exchange.purchase_orders
+    SET refiner_fee = $1
+    WHERE id = $2
+  `;
+  const values = [refiner_fee, purchase_order_id];
+  return await pool.query(query, values);
+}

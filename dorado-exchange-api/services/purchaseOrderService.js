@@ -554,6 +554,11 @@ export async function updateShippingActual({ purchase_order_id, shipping_fee_act
   return await purchaseOrderRepo.updateShippingActual(purchase_order_id, shipping_fee_actual);
 }
 
+export async function updateRefinerFee({ purchase_order_id, refiner_fee }) {
+  return await purchaseOrderRepo.updateRefinerFee(purchase_order_id, refiner_fee);
+}
+
+
 
 
 

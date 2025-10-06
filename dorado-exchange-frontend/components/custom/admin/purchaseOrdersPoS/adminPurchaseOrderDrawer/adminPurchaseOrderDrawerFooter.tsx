@@ -64,7 +64,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
 
   return (
     <div className="flex flex-col w-full gap-2">
-      {order.purchase_order_status !== 'Completed' && (
+      {order.purchase_order_status !== 'Completed' && order.purchase_order_status !== 'Payment Processing' && (
         <div>
           {scrapItems.length > 0 && (
             <Accordion
@@ -247,7 +247,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
           </Accordion>
         </div>
       )}
-      
+
       <PurchaseOrderActionButtons order={order} />
       <div className="flex w-full justify-between items-center mt-3">
         <div className="text-sm text-neutral-700">Call Customer:</div>

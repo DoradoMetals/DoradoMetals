@@ -1,4 +1,9 @@
-import { ProfitMetalsDict, PurchaseOrder, PurchaseOrderItem, PurchaseOrderTotals } from '@/types/purchase-order'
+import {
+  ProfitMetalsDict,
+  PurchaseOrder,
+  PurchaseOrderItem,
+  PurchaseOrderTotals,
+} from '@/types/purchase-order'
 import { SpotPrice } from '@/types/metal'
 
 type MetalName = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
@@ -188,27 +193,27 @@ function getShippingFees(order: PurchaseOrder) {
   return {
     refiner: 0,
     dorado: order.shipping_fee_actual ?? 0,
-    customer: order.shipment.shipping_charge ?? 0
+    customer: order.shipment.shipping_charge ?? 0,
   }
 }
 
 export function getSpotNet(
-  order: PurchaseOrder,
+  customerTotals: ProfitMetalsDict,
   orderSpots: SpotPrice[],
   refinerSpots: SpotPrice[]
 ) {
-  const present = new Set<MetalName>()
-  for (const item of order.order_items) {
-    const m = getItemMetal(item)
-    if (m) present.add(m)
-  }
-
   let sum = 0
-  for (const m of present) {
-    const orderBid = getSpot(orderSpots, m)?.bid_spot
-    const refBid   = getSpot(refinerSpots, m)?.bid_spot
+
+  for (const metal of METALS) {
+    const key = toKey(metal)
+    const qty = customerTotals[key]?.content ?? 0
+    if (!qty) continue
+
+    const orderBid = getSpot(orderSpots, metal)?.bid_spot
+    const refBid = getSpot(refinerSpots, metal)?.bid_spot
     if (orderBid == null || refBid == null) continue
-    sum += (refBid - orderBid)
+
+    sum += qty * (refBid - orderBid)
   }
 
   return {
@@ -221,15 +226,18 @@ export function getSpotNet(
 export function getTotalProfit(
   totalMetals: ProfitMetalsDict,
   shippingFee: number,
-  spotNet: number = 0
+  spotNet: number = 0,
+  refiner_fee: number = 0
 ): number {
-  const metalsProfit =
-    (totalMetals.gold?.profit ?? 0) +
-    (totalMetals.silver?.profit ?? 0) +
-    (totalMetals.platinum?.profit ?? 0) +
-    (totalMetals.palladium?.profit ?? 0)
 
-  return metalsProfit + spotNet - shippingFee
+    const metalsProfit =
+      (totalMetals.gold?.profit ?? 0) +
+      (totalMetals.silver?.profit ?? 0) +
+      (totalMetals.platinum?.profit ?? 0) +
+      (totalMetals.palladium?.profit ?? 0)
+
+    return metalsProfit + spotNet - shippingFee - refiner_fee
+  
 }
 
 export function computePurchaseOrderTotals(
@@ -241,7 +249,7 @@ export function computePurchaseOrderTotals(
   const bullion = computeMetalsForAllParties(order, 'bullion', orderSpots, refinerSpots)
   const total = computeMetalsForAllParties(order, 'total', orderSpots, refinerSpots)
   const shipping = getShippingFees(order)
-  const spotNet = getSpotNet(order, orderSpots, refinerSpots)
+  const spotNet = getSpotNet(total.customer, orderSpots, refinerSpots)
 
   return {
     refiner: {
@@ -250,7 +258,7 @@ export function computePurchaseOrderTotals(
       total: total.refiner,
       shipping_fee: shipping.refiner,
       spot_net: spotNet.refiner,
-      total_profit: getTotalProfit(total.refiner, shipping.refiner, spotNet.refiner),
+      total_profit: getTotalProfit(total.refiner, shipping.refiner, spotNet.refiner, 0),
     },
     dorado: {
       scrap: scrap.dorado,
@@ -258,7 +266,7 @@ export function computePurchaseOrderTotals(
       total: total.dorado,
       shipping_fee: shipping.dorado,
       spot_net: spotNet.dorado,
-      total_profit: getTotalProfit(total.dorado, shipping.dorado, spotNet.dorado),
+      total_profit: getTotalProfit(total.dorado, shipping.dorado - shipping.customer, spotNet.dorado, order.refiner_fee),
     },
     customer: {
       scrap: scrap.customer,
@@ -266,7 +274,7 @@ export function computePurchaseOrderTotals(
       total: total.customer,
       shipping_fee: shipping.customer,
       spot_net: spotNet.customer,
-      total_profit: getTotalProfit(total.customer, shipping.customer, spotNet.customer),
+      total_profit: getTotalProfit(total.customer, shipping.customer, spotNet.customer, 0),
     },
   }
 }

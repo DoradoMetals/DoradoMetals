@@ -78,7 +78,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
 
   return (
     <>
-      <div className="flex flex-col gap-4 w-full">
+      <div className="flex flex-col gap-4 w-full mb-4">
         {scrapItems.length > 0 && (
           <div className="flex flex-col gap-4 w-full">
             <div className="w-full section-label">Update Scrap Actuals</div>
