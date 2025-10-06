@@ -164,7 +164,7 @@ function computeCategoryForAllParties(
     customer[key].profit += custContent * orderBid
 
     dorado[key].content += dorContent
-    dorado[key].profit += dorContent * refBid
+    dorado[key].profit += dorContent * refBid + (refBid - orderBid)
 
     refiner[key].content += refContent
     refiner[key].profit += refContent * refBid
