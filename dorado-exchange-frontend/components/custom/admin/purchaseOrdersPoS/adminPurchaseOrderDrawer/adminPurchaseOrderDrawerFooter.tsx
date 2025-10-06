@@ -85,7 +85,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                 <TableRow key={i} className="hover:bg-transparent">
                   <TableCell className="text-left">{item.scrap?.name}</TableCell>
                   <TableCell className="text-right">
-                    {item.scrap?.content?.toFixed(2)}
+                    {item.scrap?.content?.toFixed(3)}
                   </TableCell>
                   <TableCell className="text-right">
                     {(

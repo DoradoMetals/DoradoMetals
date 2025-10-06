@@ -178,7 +178,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
             return (
               <TableRow key={label} className="hover:bg-transparent">
                 <TableCell className="text-left">{label}</TableCell>
-                <TableCell className="text-center">{v.content.toFixed(2)} toz</TableCell>
+                <TableCell className="text-center">{v.content.toFixed(3)} toz</TableCell>
                 <TableCell className="text-center">{v.percentage.toFixed(2)}%</TableCell>
                 <TableCell className="text-right">
                   <PriceNumberFlow value={v.profit} />

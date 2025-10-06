@@ -84,7 +84,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
                 <TableRow key={i} className="hover:bg-transparent">
                   <TableCell className="text-left">{item.scrap?.name}</TableCell>
                   <TableCell className="text-center">
-                    {item.scrap?.content?.toFixed(2)} toz
+                    {item.scrap?.content?.toFixed(3)} toz
                   </TableCell>
                   <TableCell className="text-center">
                     {(
