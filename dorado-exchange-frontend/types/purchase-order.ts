@@ -301,10 +301,12 @@ export interface ProfitCategoriesDict {
   scrap: ProfitMetalsDict
   bullion: ProfitMetalsDict
   total: ProfitMetalsDict
+  shipping_fee: number
+  spot_net: number
+  total_profit: number
 }
 
 export interface PurchaseOrderTotals {
-  total_content: number
   refiner: ProfitCategoriesDict
   dorado: ProfitCategoriesDict
   customer: ProfitCategoriesDict

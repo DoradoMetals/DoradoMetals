@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
@@ -77,40 +77,22 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
 
   const totals = computePurchaseOrderTotals(order, orderSpotPrices, refinerSpotPrices)
 
-  const shippingFeeFor = (party: Party, bucket: Bucket) => {
-    if (bucket !== 'total') return 0
-    if (party === 'customer') return order.shipment?.shipping_charge ?? 0
-    if (party === 'dorado') return order.shipping_fee_actual ?? 0
-    return 0
+  const metalsFor = (party: Party, bucket: Bucket) => totals[party][bucket]
+
+  const bucketHasAnyContent = (b: Bucket) => {
+    const parties: Party[] = ['customer', 'dorado', 'refiner']
+    for (const party of parties) {
+      const m = totals[party][b]
+      if (
+        m.gold.content > 0 ||
+        m.silver.content > 0 ||
+        m.platinum.content > 0 ||
+        m.palladium.content > 0
+      )
+        return true
+    }
+    return false
   }
-
-  const metalTotalsByBucket: Record<Bucket, Record<MetalLabel, number>> = useMemo(() => {
-    const init = () =>
-      ({ Gold: 0, Silver: 0, Platinum: 0, Palladium: 0 } as Record<MetalLabel, number>)
-    const add = (acc: Record<MetalLabel, number>, src: any) => {
-      acc.Gold += src.gold.content ?? 0
-      acc.Silver += src.silver.content ?? 0
-      acc.Platinum += src.platinum.content ?? 0
-      acc.Palladium += src.palladium.content ?? 0
-    }
-
-    const buckets: Bucket[] = ['scrap', 'bullion', 'total']
-    const out: Record<Bucket, Record<MetalLabel, number>> = {
-      scrap: init(),
-      bullion: init(),
-      total: init(),
-    }
-
-    for (const b of buckets) {
-      add(out[b], totals.customer[b])
-      add(out[b], totals.dorado[b])
-      add(out[b], totals.refiner[b])
-    }
-    return out
-  }, [totals])
-
-  const bucketHasAnyContent = (b: Bucket) =>
-    METALS.some((m) => (metalTotalsByBucket[b][m] ?? 0) > 0)
 
   const availableBuckets = (['scrap', 'bullion', 'total'] as Bucket[]).filter(bucketHasAnyContent)
 
@@ -134,33 +116,36 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
       [bucket]: prev[bucket] === party ? null : party,
     }))
 
-  const sumPartyGross = (bucket: Bucket, party: Party) => {
-    const d = totals[party][bucket]
-    return (d.gold.profit ?? 0) + (d.silver.profit ?? 0) + (d.platinum.profit ?? 0) + (d.palladium.profit ?? 0)
-  }
-
-  const sumPartyNet = (bucket: Bucket, party: Party) => {
-    const gross = sumPartyGross(bucket, party)
-    const fee = shippingFeeFor(party, bucket)
-    return gross - fee
-  }
-
   const renderTableBody = (party: Party, bucket: Bucket) => {
     const data = totals[party][bucket]
-    const visibleMetals = METALS.filter((m) => (metalTotalsByBucket[bucket][m] ?? 0) > 0)
+    const metals = data
+
+    // visible metals = those with content > 0 (no math other than boolean checks)
+    const visibleMetals = METALS.filter((label) => {
+      if (label === 'Gold') return metals.gold.content > 0
+      if (label === 'Silver') return metals.silver.content > 0
+      if (label === 'Platinum') return metals.platinum.content > 0
+      return metals.palladium.content > 0
+    })
     if (visibleMetals.length === 0) return null
 
     const pick = (label: MetalLabel) => {
       switch (label) {
-        case 'Gold': return data.gold
-        case 'Silver': return data.silver
-        case 'Platinum': return data.platinum
-        case 'Palladium': return data.palladium
+        case 'Gold':
+          return metals.gold
+        case 'Silver':
+          return metals.silver
+        case 'Platinum':
+          return metals.platinum
+        case 'Palladium':
+          return metals.palladium
       }
     }
 
-    const fee = shippingFeeFor(party, bucket)
-    const showFeeRow = bucket === 'total' && fee > 0
+    const showShipping = bucket === 'total' && (totals[party].shipping_fee ?? 0) > 0
+    const showSpotNet =
+      bucket === 'total' && party === 'dorado' && (totals.dorado.spot_net ?? 0) > 0
+    const showNetRow = bucket === 'total' // always show Net on Total
 
     return (
       <Table className="font-normal text-neutral-700 overflow-hidden">
@@ -187,24 +172,35 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
             )
           })}
 
-          {showFeeRow && (
+          {showShipping && (
             <TableRow className="hover:bg-transparent">
               <TableCell className="text-left text-neutral-800">Shipping Fee</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
-                <PriceNumberFlow value={-fee} />
+                <PriceNumberFlow value={-totals[party].shipping_fee} />
               </TableCell>
             </TableRow>
           )}
 
-          {showFeeRow && (
+          {showSpotNet && (
+            <TableRow className="hover:bg-transparent">
+              <TableCell className="text-left text-neutral-800">Spot Net</TableCell>
+              <TableCell className="text-center">—</TableCell>
+              <TableCell className="text-center">—</TableCell>
+              <TableCell className="text-right">
+                <PriceNumberFlow value={totals.dorado.spot_net} />
+              </TableCell>
+            </TableRow>
+          )}
+
+          {showNetRow && (
             <TableRow className="hover:bg-transparent">
               <TableCell className="text-left font-medium text-neutral-900">Net</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right font-medium text-neutral-900">
-                <PriceNumberFlow value={sumPartyNet(bucket, party)} />
+                <PriceNumberFlow value={totals[party].total_profit} />
               </TableCell>
             </TableRow>
           )}
@@ -213,11 +209,22 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
     )
   }
 
+  const accordionValue = (party: Party, bucket: Bucket) => {
+    if (bucket === 'total') return totals[party].total_profit
+    const m = totals[party][bucket]
+    return (
+      (m.gold.profit ?? 0) +
+      (m.silver.profit ?? 0) +
+      (m.platinum.profit ?? 0) +
+      (m.palladium.profit ?? 0)
+    )
+  }
+
   const renderBucket = (bucket: Bucket) => (
     <div className="flex flex-col gap-2">
       <AccordionItem
         label="Dorado"
-        value={bucket === 'total' ? sumPartyNet(bucket, 'dorado') : sumPartyGross(bucket, 'dorado')}
+        value={accordionValue('dorado', bucket)}
         open={isOpen(bucket, 'dorado')}
         onToggle={() => toggle(bucket, 'dorado')}
       >
@@ -226,7 +233,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
 
       <AccordionItem
         label="Customer"
-        value={bucket === 'total' ? sumPartyNet(bucket, 'customer') : sumPartyGross(bucket, 'customer')}
+        value={accordionValue('customer', bucket)}
         open={isOpen(bucket, 'customer')}
         onToggle={() => toggle(bucket, 'customer')}
       >
@@ -235,7 +242,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
 
       <AccordionItem
         label="Refiner"
-        value={sumPartyGross(bucket, 'refiner')}
+        value={accordionValue('refiner', bucket)}
         open={isOpen(bucket, 'refiner')}
         onToggle={() => toggle(bucket, 'refiner')}
       >
