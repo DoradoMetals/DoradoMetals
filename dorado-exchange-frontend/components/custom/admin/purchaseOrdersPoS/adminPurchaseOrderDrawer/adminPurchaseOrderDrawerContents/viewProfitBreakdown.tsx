@@ -142,17 +142,18 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
       }
     }
 
-    const showShipping = bucket === 'total' && (totals[party].shipping_fee ?? 0) > 0
-    const showFee = bucket === 'total' && (totals[party].refiner_fee ?? 0) > 0
+    const showShipping = bucket === 'total' && (totals[party].shipping_net ?? 0) !== 0
+    const showFee = bucket === 'total' && (totals[party].refiner_fee_net ?? 0) !== 0
     const showSpotNet =
-      bucket === 'total' && party === 'dorado' && (totals.dorado.spot_net ?? 0) > 0
+      bucket === 'total' && party === 'dorado' && (totals.dorado.spot_net ?? 0) !== 0
     const showNetRow = bucket === 'total'
+    const label = bucket === 'total' ? 'Type' : 'Metal'
 
     return (
       <Table className="font-normal text-neutral-700 overflow-hidden">
         <TableHeader className="text-sm text-neutral-800 hover:bg-transparent">
           <TableRow className="hover:bg-transparent">
-            <TableHead className="text-left">Metal</TableHead>
+            <TableHead className="text-left">{label}</TableHead>
             <TableHead className="text-center">Content</TableHead>
             <TableHead className="text-center">Percent</TableHead>
             <TableHead className="text-right">Dollars</TableHead>
@@ -163,7 +164,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
             const v = pick(label)!
             return (
               <TableRow key={label} className="hover:bg-transparent">
-                <TableCell className="text-left">{label}</TableCell>
+                <TableCell className="text-left">{bucket === 'total' ? `${label} Net` : label}</TableCell>
                 <TableCell className="text-center">{v.content.toFixed(3)} toz</TableCell>
                 <TableCell className="text-center">{v.percentage.toFixed(2)}%</TableCell>
                 <TableCell className="text-right">
@@ -175,11 +176,11 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
 
           {showShipping && (
             <TableRow className="hover:bg-transparent">
-              <TableCell className="text-left text-neutral-800">Shipping Fee</TableCell>
+              <TableCell className="text-left text-neutral-800">Shipping Net</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
-                <PriceNumberFlow value={-totals[party].shipping_fee} />
+                <PriceNumberFlow value={totals[party].shipping_net} />
               </TableCell>
             </TableRow>
           )}
@@ -190,7 +191,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
-                <PriceNumberFlow value={-totals[party].refiner_fee} />
+                <PriceNumberFlow value={totals[party].refiner_fee_net} />
               </TableCell>
             </TableRow>
           )}
@@ -208,7 +209,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
 
           {showNetRow && (
             <TableRow className="hover:bg-transparent">
-              <TableCell className="text-left font-medium text-neutral-900">Net</TableCell>
+              <TableCell className="text-left font-medium text-neutral-900">Total Net</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right font-medium text-neutral-900">

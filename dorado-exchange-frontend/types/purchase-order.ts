@@ -302,8 +302,8 @@ export interface ProfitCategoriesDict {
   scrap: ProfitMetalsDict
   bullion: ProfitMetalsDict
   total: ProfitMetalsDict
-  shipping_fee: number
-  refiner_fee: number
+  shipping_net: number
+  refiner_fee_net: number
   spot_net: number
   total_profit: number
 }
