@@ -262,7 +262,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
   return (
     <div className="flex w-full bg-card raised-off-page p-4 rounded-md">
       <div className="flex flex-col gap-4 w-full">
-        <div className="text-xl text-neutral-900">Content and Profit Breakdown</div>
+        <div className="text-xl text-neutral-900">Profit Breakdown</div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as Bucket)} className="w-full">
           <TabsList className="w-full justify-start gap-2 bg-transparent px-0">
