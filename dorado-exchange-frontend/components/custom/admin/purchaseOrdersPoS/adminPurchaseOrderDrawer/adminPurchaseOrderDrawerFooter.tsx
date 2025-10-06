@@ -65,7 +65,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
   return (
     <div className="flex flex-col w-full gap-2">
       {order.purchase_order_status !== 'Completed' && order.purchase_order_status !== 'Payment Processing' && (
-        <div>
+        <div className='flex flex-col w-full gap-2'>
           {scrapItems.length > 0 && (
             <Accordion
               label={`Scrap ${valueLabel}`}
