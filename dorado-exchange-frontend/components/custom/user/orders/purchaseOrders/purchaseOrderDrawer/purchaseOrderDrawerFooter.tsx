@@ -90,7 +90,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
                     {(
                       (item.scrap?.content ?? 0) *
                       ( item?.premium ?? item?.scrap?.bid_premium ?? 1)
-                    ).toFixed(2)}{' '}
+                    ).toFixed(3)}{' '}
                     toz
                   </TableCell>
                   <TableCell className="text-right">

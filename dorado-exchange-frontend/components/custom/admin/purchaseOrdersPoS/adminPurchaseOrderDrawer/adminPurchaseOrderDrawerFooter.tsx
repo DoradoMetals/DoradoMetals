@@ -91,7 +91,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                     {(
                       (item.scrap?.content ?? 0) *
                       (item?.premium ?? item?.scrap?.bid_premium ?? 0)
-                    ).toFixed(2)}{' '}
+                    ).toFixed(3)}{' '}
 
                   </TableCell>
                   <TableCell className="text-right">
