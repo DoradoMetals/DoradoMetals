@@ -140,7 +140,7 @@ export default function Cart() {
   )
 
   const cartFooter = (
-    <div className="w-full bg-card mt-2">
+    <div className="w-full mt-2">
       <div className="flex justify-between items-end sm:mb-2">
         <div className="text-lg text-neutral-800 font-semibold tracking-wide">Total:</div>
         <div className="text-xl sm:text-2xl text-neutral-800">
@@ -164,7 +164,7 @@ export default function Cart() {
         {items.length === 0 ? emptyCart : cartContent}
       </div>
 
-      {items.length > 0 && <div className="sticky bottom-0 w-full bg-card z-10">{cartFooter}</div>}
+      {items.length > 0 && <div className="sticky bottom-0 w-full z-10">{cartFooter}</div>}
     </>
   )
 }
