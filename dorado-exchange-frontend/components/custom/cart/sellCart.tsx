@@ -197,7 +197,7 @@ export default function SellCart() {
   )
 
   const cartFooter = (
-    <div className="w-full bg-card mt-2">
+    <div className="w-full mt-2">
       <div className="flex justify-between items-end sm:mb-2">
         <div className="text-lg text-neutral-800 font-semibold tracking-wide">Price Estimate:</div>
         <div className="text-xl sm:text-2xl text-neutral-900">
@@ -221,7 +221,7 @@ export default function SellCart() {
         {items.length === 0 ? emptyCart : cartContent}
       </div>
 
-      {items.length > 0 && <div className="sticky bottom-0 w-full bg-card z-10">{cartFooter}</div>}
+      {items.length > 0 && <div className="sticky bottom-0 w-full z-10">{cartFooter}</div>}
     </>
   )
 }
