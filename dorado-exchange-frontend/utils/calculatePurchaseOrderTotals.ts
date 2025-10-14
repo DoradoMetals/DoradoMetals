@@ -144,6 +144,7 @@ function computeMetalsForAllParties(
     if ((category === 'scrap' && !isScrap) || (category === 'bullion' && !isBullion)) continue
 
     const baseContent = getItemContent(item)
+
     if (!baseContent) continue
 
     const { customerShare, doradoShare, refinerShare, orderSpot, refSpot } = getSharesForItem(
@@ -155,11 +156,12 @@ function computeMetalsForAllParties(
     )
 
     const actualScrap = isScrap ? getScrapActualContent(item) : null
+
     const dorRefContentBasis = isScrap ? actualScrap ?? baseContent : baseContent
 
     const custContent = baseContent * customerShare
-    const dorContent = dorRefContentBasis * doradoShare
     const refContent = dorRefContentBasis * refinerShare
+    let dorContent = dorRefContentBasis - custContent - refContent
 
     const key = toKey(metal)
     const orderBid = orderSpot?.bid_spot ?? 0
@@ -278,9 +280,9 @@ export function computePurchaseOrderTotals(
       bullion: bullion.customer,
       total: total.customer,
       shipping_net: shipping.dorado - shipping.customer,
-      refiner_fee_net: 0,
+      refiner_fee_net: -Math.abs(Number(order.payout.cost ?? 0)),
       spot_net: spotNet.customer,
-      total_profit: getTotalProfit(total.customer, shipping.customer, spotNet.customer, 0),
+      total_profit: getTotalProfit(total.customer, shipping.customer, spotNet.customer, order.payout.cost),
     },
   }
 }
