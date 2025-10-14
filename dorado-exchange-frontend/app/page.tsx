@@ -1,312 +1,103 @@
 'use client'
 
-import FeaturedProducts from '@/components/custom/nav/featuredProducts'
 import { Button } from '@/components/ui/button'
-import {
-  CalculatorIcon,
-  EyeIcon,
-  HandshakeIcon,
-  LightningIcon,
-  PaperPlaneTiltIcon,
-  ShieldCheckIcon,
-} from '@phosphor-icons/react'
+import { usePayoutBrackets } from '@/lib/queries/usePayoutBrackets'
+import { Metal, pctLabel, topRatesByMetal } from '@/types/payout-brackets'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
-import MobileProductCarousel from '../components/custom/products/mobileProductCarousel'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
-import { useUser } from '@/lib/authClient'
+import { useMemo } from 'react'
 
 export default function Home() {
-  const router = useRouter()
-  const { user } = useUser()
+  const { data: rates = [] } = usePayoutBrackets()
+  const top4 = useMemo(() => topRatesByMetal(rates), [rates])
 
   return (
-    <div className="">
-      <div className="flex flex-col w-full">
-        {/* desktop */}
-        <div className="hidden relative lg:flex flex-col">
-          <div className="relative flex min-h-[50vh] items-center justify-center h-full py-0 my-0 -mb-6 -mt-6">
-            <div className="w-full h-full">
-              <div className="relative flex items-center justify-between w-ful h-full">
-                <div className="w-full flex flex-col h-full gap-5">
-                  <h1 className="text-6xl text-neutral-900 z-20">Precious Metals Trading</h1>
-                  <div className="text-xl text-neutral-700 max-w-xl z-20">
-                    Trading metals shouldn't be complicated. Built to be smarter, simpler, and
-                    fairer, we make it easy to get real prices, fast decisions, and full
-                    transparency without compromise.
-                  </div>
-                  {!user && (
-                    <Button
-                      variant={'default'}
-                      className="mt-10 max-w-lg text-white hover:text-white text-lg font-normal raised-off-page liquid-gold shine-on-hover"
-                      onClick={() => {
-                        router.push('/account')
-                      }}
-                    >
-                      Get Started
-                    </Button>
-                  )}
-                </div>
-                <div className="relative h-full w-full">
-                  <Image
-                    src="/homepage_images/falling-bars.png"
-                    height={2000}
-                    width={2000}
-                    className="object-cover"
-                    alt="thumbnail"
-                    priority
-                  />
-                </div>
-              </div>
+    <div className="flex flex-col h-full w-full bg-white items-center justify-center py-2 sm:py-8 gap-5 sm:gap-10">
+      {/* Hero */}
+      <section
+        aria-label="Dorado hero"
+        className="w-full flex flex-col items-center justify-center"
+      >
+        <div className="flex items-center justify-center max-w-5xl p-4">
+          <div className="flex flex-col items-center w-full gap-8">
+            <div className="flex flex-col gap-3">
+              <h1 className="text-3xl sm:text-4xl text-neutral-900 font-semibold text-left sm:text-center">
+                Precious Metals Trading Made Easy
+              </h1>
+              <h4 className="text-base sm:text-xl text-neutral-800 text-left sm:text-center">
+                Buying and selling precious metals can be stressful. We're here to fix that.
+              </h4>
             </div>
-          </div>
-          <div className="flex flex-col gap-10">
-            <div className="flex flex-col w-full justify-center items-center gap-10 pb-10">
-              <div className="flex justify-center items-center w-full liquid-gold rounded-lg">
-                <div className="flex w-full items-center justify-between py-1 pl-2">
-                  <div className="text-2xl text-white">
-                    Selling your metal online has never been easier.
-                  </div>
-                  <div className="-my-30">
-                    <Button
-                      className="liquid-gold shine-on-hover raised-off-page text-white text-lg p-8 z-30"
-                      onClick={() => router.push('/sell')}
-                    >
-                      Get an Estimate
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-center w-full">
-                <div className="flex w-full items-center justify-between p-2">
-                  <div className="flex flex-col items-start gap-2">
-                    <div className="flex items-center gap-3">
-                      <CalculatorIcon size={24} color={getPrimaryIconStroke()} />
-                      <div className="text-xl text-neutral-800 font-medium">Instant estimates</div>
-                    </div>
-                    <div className="text-base text-neutral-600 max-w-md">
-                      No more waiting or wondering. Input your items, and receive an immediate
-                      estimate, giving you upfront insight into your potential payout.
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-center">
-                    <div className="flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-3 w-full">
-                        <PaperPlaneTiltIcon size={24} color={getPrimaryIconStroke()} />
-                        <div className="text-xl text-neutral-800 font-medium">
-                          Effortless shipping
-                        </div>
-                      </div>
-                      <div className="text-base text-neutral-600 max-w-md">
-                        From prepaid labels to fully insured shipments, sending in your metals is
-                        easy and risk-free. Just pack, ship, and relax - we'll handle the rest.
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-end">
-                    <div className="flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-3">
-                        <LightningIcon size={24} color={getPrimaryIconStroke()} />
-                        <div className="text-xl text-neutral-800 font-medium">
-                          Lightning-fast payouts
-                        </div>
-                      </div>
-                      <div className="text-base text-neutral-600 max-w-md">
-                        Once your items are evaluated and your offer accepted, we process payouts
-                        immediatley - so you get your funds without delays.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="hidden sm:flex items-center justify-center">
+              <Image
+                src={'/landing-page.svg'}
+                alt="landing-page-svg"
+                height={3000}
+                width={3000}
+              ></Image>
             </div>
-            <div className="flex flex-col w-full justify-center items-center pb-10">
-              <div className="flex justify-center items-center w-full secondary-gradient rounded-lg">
-                <div className="flex w-full items-center justify-between py-1 pl-2">
-                  <div className="text-sm lg:text-2xl text-white">
-                    Buy precious metals with confidence.
-                  </div>
-                  <div className="-my-30">
-                    <Button
-                      className="secondary-gradient hover:secondary-gradient shine-on-hover raised-off-page text-white text-lg p-8"
-                      onClick={() => router.push('/buy')}
-                    >
-                      See All Products
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-center w-full my-6">
-                <div className="flex w-full items-center justify-between p-2">
-                  <div className="flex flex-col items-start gap-2">
-                    <div className="flex items-center gap-3">
-                      <EyeIcon size={24} className="text-secondary" />
-                      <div className="text-xl text-neutral-800 font-medium">
-                        Transparent pricing
-                      </div>
-                    </div>
-                    <div className="text-base text-neutral-600 max-w-md">
-                      View clear, competitive pricing in real time — no hidden fees, no fine print,
-                      just full transparency.
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-center">
-                    <div className="flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-3 w-full">
-                        <ShieldCheckIcon size={24} className="text-secondary" />
-                        <div className="text-xl text-neutral-800 font-medium">
-                          White-glove insured delivery
-                        </div>
-                      </div>
-                      <div className="text-base text-neutral-600 max-w-md">
-                        Every order is carefully packaged, fully insured, and shipped with priority
-                        handling to ensure it arrives in pristine condition.
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <div className="flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-3">
-                        <HandshakeIcon size={24} className="text-secondary" />
-                        <div className="text-xl text-neutral-800 font-medium">
-                          Seamless checkout experience
-                        </div>
-                      </div>
-                      <div className="text-base text-neutral-600 max-w-md">
-                        Our streamlined checkout process is fast, secure, and designed to make
-                        purchasing precious metals effortless.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col w-full items-center gap-2 px-2 mb-2"></div>
-              <div className="flex items-center justify-center">
-                <div className="flex flex-col w-full gap-2 px-2">
-                  <div className="text-xl text-neutral-800 font-medium -mb-8 ml-8">Featured</div>
-                  <FeaturedProducts />
-                </div>
-              </div>
+            <div className="flex sm:hidden items-center justify-center">
+              <Image
+                src={'/landing-page-mobile.svg'}
+                alt="landing-page-svg"
+                height={3000}
+                width={3000}
+              ></Image>
             </div>
+            <Button className="liquid-gold raised-off-page px-9 sm:px-10 py-6 sm:py-7 text-white text-lg sm:text-2xl">
+              Get An Estimate
+            </Button>
           </div>
         </div>
+      </section>
 
-        {/* mobile */}
-        <div className="flex flex-col lg:hidden bg-background mt-4">
-          
-          <div className="flex flex-col lg:hidden">
-            <div className="flex w-full justify-center liquid-gold rouned-lg">
-              <div className="text-base text-white p-2">
-                Selling your metals online has never been easier.
-              </div>
-            </div>
-            <div className="flex flex-col gap-6 pl-4 py-8">
-              <div className="flex flex-col items-center">
-                <div className="flex flex-col items-start gap-1">
-                  <div className="flex items-center gap-1">
-                    <CalculatorIcon size={24} color={getPrimaryIconStroke()} />
-                    <div className="text-2xl text-neutral-800 font-medium">Instant estimates</div>
+      {/* Rates */}
+      <section aria-label="Our current rates" className="w-full bg-white flex flex-col">
+        <div
+          className="
+          bg-primary
+          px-6
+          pt-4 pb-16 sm:pt-8 sm:pb-34 lg:pt-10 lg:pb-44
+          [clip-path:polygon(0_0,100%_0,100%_100%,50%_60%,0_100%)]
+          sm:[clip-path:polygon(0_0,100%_0,100%_100%,50%_40%,0_100%)]
+
+        "
+        >
+          <h2 className="text-center text-white font-semibold tracking-wide text-lg sm:text-2xl">
+            Get the highest rates for your precious metals
+          </h2>
+        </div>
+        <div className="flex items-center justify-center -mt-6 sm:-mt-20 w-full mb-8 md:mb-12">
+          <div className="flex flex-col items-center w-full max-w-5xl gap-4 md:gap-6">
+            <p className="flex md:hidden text-neutral-600 text-2xl my-2 md:my-4 md:pl-1">Up to</p>
+            <dl className="grid grid-cols-2 md:grid-cols-4 gap-y-8 w-full max-w-4xl">
+              {top4.map((r, i) => {
+                const metal = ['Gold', 'Silver', 'Platinum', 'Palladium'][i] as Metal
+                const value = r?.payout_pct ?? null
+                return (
+                  <div key={metal} className="flex justify-center items-center">
+                    <dt className="sr-only">{metal} payout</dt>
+                    <dd className="flex flex-col items-start text-5xl sm:text-6xl font-bold text-neutral-900">
+                      {pctLabel(value)}
+                      <p className="text-base text-neutral-700 pl-1 tracking-wide font-normal">on {metal}</p>
+                    </dd>
                   </div>
-                  <div className="text-sm text-neutral-600 max-w-xs">
-                    No more waiting or wondering. Input your items, and receive an immediate
-                    estimate, giving you upfront insight into your potential payout.
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="flex flex-col items-center">
-                  <div className="flex flex-col items-start gap-1">
-                    <div className="flex items-center gap-1">
-                      <PaperPlaneTiltIcon size={24} color={getPrimaryIconStroke()} />
-                      <div className="text-2xl text-neutral-800 font-medium">
-                        Effortless shipping
-                      </div>
-                    </div>
-                    <div className="text-sm text-neutral-600 max-w-xs">
-                      From prepaid labels to fully insured shipments,sending in your metals is easy
-                      and risk-free. Just pack, ship, and relax - we'll handle the rest.
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="flex flex-col items-start gap-1">
-                  <div className="flex items-center gap-1">
-                    <LightningIcon size={24} color={getPrimaryIconStroke()} />
-                    <div className="text-2xl text-neutral-800 font-medium">
-                      Lightning-fast payouts
-                    </div>
-                  </div>
-                  <div className="text-sm text-neutral-600 max-w-xs">
-                    Once your items are evaluated and your offer accepted, we process payouts
-                    immediately - so you get your funds without delays.
-                  </div>
-                </div>
-              </div>
-              <Button
-                className="raised-off-page liquid-gold shine-on-hover w-full shadow-sm text-white text-base p-5"
-                onClick={() => router.push('/sell')}
-              >
-                Get an Estimate
-              </Button>
-            </div>
-          </div>
-          <div className="flex flex-col lg:hidden w-full">
-            <div className="flex w-full justify-center secondary-gradient rounded-lg">
-              <div className="text-base text-white p-2">Buy precious metals with confidence.</div>
-            </div>
-            <div className="flex flex-col gap-6 px-4 py-8 w-full">
-              <div className="flex flex-col items-center">
-                <div className="flex flex-col items-start gap-1">
-                  <div className="flex items-center gap-1">
-                    <EyeIcon size={24} className="text-secondary" />
-                    <div className="text-2xl text-neutral-800 font-medium">Transparent pricing</div>
-                  </div>
-                  <div className="text-sm text-neutral-600 max-w-xs">
-                    View clear, competitive pricing in real time — no hidden fees, no fine print,
-                    just full transparency.
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="flex flex-col items-start gap-1">
-                  <div className="flex items-center gap-1">
-                    <ShieldCheckIcon size={24} className="text-secondary" />
-                    <div className="text-2xl text-neutral-800 font-medium">Insured delivery</div>
-                  </div>
-                  <div className="text-sm text-neutral-600 max-w-xs">
-                    Every order is carefully packaged, fully insured, and shipped with priority
-                    handling to ensure it arrives in pristine condition.
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="flex flex-col items-start gap-1">
-                  <div className="flex items-center gap-1">
-                    <HandshakeIcon size={24} className="text-secondary" />
-                    <div className="text-2xl text-neutral-800 font-medium">Seamless checkout</div>
-                  </div>
-                  <div className="text-sm text-neutral-600 max-w-xs">
-                    Our streamlined checkout process is fast, secure, and designed to make
-                    purchasing precious metals effortless.
-                  </div>
-                </div>
-              </div>
-              <div className="border border-secondary" />
-              <MobileProductCarousel />
-              <div className="flex items-center justify-center w-full">
-                <div className="flex flex-col w-full gap-2 px-2">
-                  <div className="text-xl text-neutral-800 font-medium -mb-6">Featured</div>
-                  <FeaturedProducts />
-                </div>
-              </div>
-            </div>
+                )
+              })}
+            </dl>
           </div>
         </div>
-      </div>
+        <p className="text-center text-neutral-600 text-sm md:text-lg max-w-2xl mx-auto mb-8 md:mb-12 px-4">
+          We buy at rates you won't find anywhere else. Skip the local pawn shop or jewelry store—
+          you deserve a fair market value for your metals.
+        </p>
+        <div className="flex justify-center -mb-5">
+          <Button className="bg-white raised-off-page px-6 sm:px-8 py-5 text-white text-lg z-1 text-primary hover:text-white hover:bg-primary">
+            View Full Rates
+          </Button>
+        </div>
+
+        <div className="h-12 bg-primary" />
+      </section>
     </div>
   )
 }

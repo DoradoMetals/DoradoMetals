@@ -54,7 +54,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
 
   return (
     <>
-      <div className={cn('flex flex-col min-h-screen')}>
+      <div className={cn('flex flex-col min-h-screen', pathname === '/' ? 'bg-white' : '')}>
         <AnimatePresence>
           {isAnyDrawerOpen && (
             <motion.div
@@ -101,7 +101,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
         )}
 
         <div className="flex items-center justify-center relative flex-grow min-w-0">
-          <div className="w-full max-w-7xl lg:mb-30">
+          <div className={cn("w-full lg:mb-30", pathname === '/' ? '' : 'max-w-7xl')}>
             {showMobileCarousel && <MobileProductCarousel />}
             {children}
           </div>
