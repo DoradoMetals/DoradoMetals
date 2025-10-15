@@ -37,8 +37,9 @@ export default function AdminPurchaseOrderDrawer({
         username={orderUser?.name ?? ''}
       />
 
-      <AdminPurchaseOrderDrawerContent order={order} />
-
+      <div className="mb-8">
+        <AdminPurchaseOrderDrawerContent order={order} />
+      </div>
       <div className="mt-auto">
         <AdminPurchaseOrderDrawerFooter order={order} />
       </div>

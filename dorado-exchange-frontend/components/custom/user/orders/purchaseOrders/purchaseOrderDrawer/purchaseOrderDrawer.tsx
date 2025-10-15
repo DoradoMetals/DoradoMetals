@@ -29,7 +29,9 @@ export default function PurchaseOrderDrawer({ order_id, user }: PurchaseOrderDra
         username={user?.name ?? ''}
         setIsOrderActive={() => {}}
       />
-      <PurchaseOrderDrawerContent order={order} />
+      <div className="mb-8">
+        <PurchaseOrderDrawerContent order={order} />
+      </div>
 
       <div className="mt-auto">
         <PurchaseOrderDrawerFooter order={order} />

@@ -1,12 +1,10 @@
 .drawer-layout {
-  @apply 
-    fixed
+  @apply fixed
     top-23 sm:top-0
     overflow-y-scroll sm:overflow-y-auto
     space-y-4
     pb-30 sm:pb-5
     p-4
-    overscroll-contain
     flex flex-col flex-1
     z-[70]
     h-full

@@ -36,8 +36,9 @@ export default function AdminSalesOrderDrawer({
         username={orderUser?.name ?? ''}
       />
 
-      <AdminSalesOrderDrawerContent order={order} />
-
+      <div className="mb-8">
+        <AdminSalesOrderDrawerContent order={order} />
+      </div>
       <div className="mt-auto">
         <AdminSalesOrderDrawerFooter order={order} />
       </div>
