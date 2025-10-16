@@ -5,7 +5,6 @@ import { ReactNode, useMemo } from 'react'
 import { LeadCard, LeadsStats } from '@/types/leads'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
-
 export default function LeadsCards({
   selectedCard,
   setSelectedCard,

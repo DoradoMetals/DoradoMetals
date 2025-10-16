@@ -22,7 +22,9 @@ export const useReviews = () => {
     queryKey: ['reviews', user?.id],
     queryFn: async () => {
       if (!user?.id) return []
-      return await apiRequest<Review[]>('GET', '/reviews/get_all', undefined, {})
+      const reviews =  await apiRequest<Review[]>('GET', '/reviews/get_all', undefined, {})
+      console.log(reviews)
+      return reviews
     },
     enabled: !!user,
   })

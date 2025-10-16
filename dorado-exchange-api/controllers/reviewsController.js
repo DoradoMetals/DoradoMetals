@@ -1,4 +1,4 @@
-import * as reviewService from "../services/reviewService.js";
+import * as reviewService from "../services/reviewsService.js";
 
 export async function getOne(req, res, next) {
   try {

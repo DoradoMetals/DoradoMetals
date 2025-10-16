@@ -15,8 +15,10 @@ export async function getAllReviews(id) {
   const query = `
     SELECT *
     FROM exchange.reviews
+    ORDER BY created_at DESC
   `;
-  return await pool.query(query, []);
+  const result = await pool.query(query, []);
+  return result.rows
 }
 
 export async function createReview(review) {
@@ -45,7 +47,7 @@ export async function updateReview(review, user_name) {
         updated_at = NOW(),
         updated_by = $3,
         name = $4,
-        hidden = $5,
+        hidden = $5
     WHERE id = $6
     RETURNING *;
   `;

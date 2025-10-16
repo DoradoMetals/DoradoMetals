@@ -1,4 +1,4 @@
-import * as  reviewsRepo from "../repositories/reviewRepo.js";
+import * as  reviewsRepo from "../repositories/reviewsRepo.js";
 
 export async function getReview(id) {
   return await reviewsRepo.getReview(id);

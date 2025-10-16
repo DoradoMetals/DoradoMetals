@@ -19,8 +19,12 @@ export interface NewReview {
   hidden: boolean
 }
 
-export interface ReviewStats{
+export type ReviewCard = '1 Star' | '2 Star' | '3 Star' | '4 Star' | '5 Star' | 'Hidden' | null
+
+export interface ReviewStats {
   totalReviews: number
   averageRating: number
-  reviewPercentage: number
+  hiddenCount: number
+  publicCount: number
+  starCounts: Record<1 | 2 | 3 | 4 | 5, number>
 }
