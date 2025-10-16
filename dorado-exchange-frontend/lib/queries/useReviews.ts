@@ -1,54 +1,97 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { useGetSession } from './useAuth'
-import { PurchaseOrder } from '@/types/purchase-order'
+import { NewReview, Review } from '@/types/reviews'
+
+export const useReview = (review_id: string) => {
+  return useQuery<Review[]>({
+    queryKey: ['review', review_id],
+    queryFn: async () => {
+      return await apiRequest<Review[]>('GET', '/reviews/get_one', undefined, {
+        review_id: review_id,
+      })
+    },
+    enabled: !!review_id,
+  })
+}
+
+export const useReviews = () => {
+  const { user } = useGetSession()
+
+  return useQuery<Review[]>({
+    queryKey: ['reviews', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return []
+      return await apiRequest<Review[]>('GET', '/reviews/get_all', undefined, {})
+    },
+    enabled: !!user,
+  })
+}
 
 export const useCreateReview = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ review, order }: { review: string; order: PurchaseOrder }) => {
+    mutationFn: async (review: NewReview) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      await apiRequest('POST', '/purchase_orders/create_review', {
-        user: user,
-        order: order,
-      })
-      return await apiRequest('POST', '/reviews/create_review', {
-        user: user,
-        review: review,
+      return await apiRequest<Review>('POST', '/reviews/create', {
+        review,
       })
     },
-    onMutate: async ({ review, order }) => {
-      const queryKey = ['purchase_orders', user?.id]
-      await queryClient.cancelQueries({ queryKey })
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', user?.id], refetchType: 'active' })
+    },
+  })
+}
 
-      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+export const useUpdateReview = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
 
-      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
-        old.map((o) =>
-          o.id !== order.id
-            ? o
-            : {
-                ...o,
-                review_created: true,
-              }
-        )
+  return useMutation({
+    mutationFn: async ({ review, user_name }: { review: Review; user_name: string }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<Review>('POST', '/reviews/update', {
+        user_name,
+        review,
+      })
+    },
+    onMutate: async (updated) => {
+      await queryClient.cancelQueries({ queryKey: ['reviews', user?.id] })
+
+      const previous = queryClient.getQueryData<Review[]>(['reviews', user?.id])
+
+      queryClient.setQueryData<Review[]>(['reviews', user?.id], (old = []) =>
+        old.map((review) => (review.id === updated?.review.id ? { ...review, ...updated.review } : review))
       )
 
-      return { previousOrders, queryKey }
+      return { previous }
     },
-
-    onError: (_err, _vars, context) => {
-      if (context?.previousOrders && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousOrders)
+    onError: (_err, _newProduct, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['reviews', user?.id], context.previous)
       }
     },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', user?.id], refetchType: 'active' })
+    },
+  })
+}
 
-    onSettled: (_data, _err, _vars, context) => {
-      if (context?.queryKey) {
-        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
-      }
+export const useDeleteReview = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (review: Review) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest('DELETE', '/reviews/delete', {
+        review_id: review.id,
+      })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', user?.id], refetchType: 'active' })
     },
   })
 }

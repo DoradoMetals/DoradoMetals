@@ -75,7 +75,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
         </AnimatePresence>
         <Shell visible={visible} />
 
-        <BreadcrumbBar visible={visible} setVisible={setVisible} />
+        {/* <BreadcrumbBar visible={visible} setVisible={setVisible} /> */}
 
         {session?.impersonatedBy && (
           <div className="z-50 sticky top-24 bg-destructive w-full raised-off-page">
