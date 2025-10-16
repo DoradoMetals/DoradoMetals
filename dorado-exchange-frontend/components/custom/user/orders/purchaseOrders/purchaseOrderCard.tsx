@@ -17,6 +17,7 @@ import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { useMemo } from 'react'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
+import { DownloadIcon, EyeIcon } from '@phosphor-icons/react'
 
 export default function PurchaseOrderCard({
   order,
@@ -36,8 +37,10 @@ export default function PurchaseOrderCard({
 
   const status = statusConfig[order.purchase_order_status]
   const Icon = status?.icon
-  const packageDetails = packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
-  const payoutDetails = payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
+  const packageDetails =
+    packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
+  const payoutDetails =
+    payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
 
   const total = useMemo(() => {
     return getPurchaseOrderTotal(order, spotPrices, orderSpots)
@@ -46,7 +49,7 @@ export default function PurchaseOrderCard({
   const downloadOptions = [
     {
       statuses: ['In Transit'],
-      label: 'Download Label + Packing List',
+      label: 'Download Label',
       onClick: () => {
         downloadPackingList.mutate({
           purchaseOrder: order,
@@ -59,7 +62,7 @@ export default function PurchaseOrderCard({
     },
     {
       statuses: ['Cancelled'],
-      label: 'Download Label + Packing List',
+      label: 'Download Label',
       onClick: () => {
         downloadReturnPackingList.mutate({
           purchaseOrder: order,
@@ -134,29 +137,37 @@ export default function PurchaseOrderCard({
                 <Button
                   key={index}
                   variant="link"
-                  className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
+                  className={cn('flex items-center justify-end gap-2 text-sm bg-transparent px-0')}
                   onClick={onClick}
                   disabled={isPending}
                 >
-                  {isPending ? 'Loading...' : label}
+                  <DownloadIcon
+                    size={24}
+                    className={cn(statusConfig[order.purchase_order_status]?.text_color)}
+                  />
+                  <p className={cn(statusConfig[order.purchase_order_status]?.text_color)}>
+                    {isPending ? 'Loading...' : label}
+                  </p>
                 </Button>
               ) : null
             )}
           </div>
           <div>
             <Button
-              variant="ghost"
               className={cn(
-                'p-0 h-auto text-base font-normal flex items-end gap-0 min-h-4',
-                statusConfig[order.purchase_order_status]?.text_color
+                'flex items-center justify-start gap-1 text-sm px-2 py-1 rounded-lg text-white raised-off-page',
+                status.background_color,
+                status.hover_background_color,
               )}
               onClick={() => {
                 setActivePurchaseOrder(order.id)
                 openDrawer('purchaseOrder')
               }}
             >
-              View Order
-              <ChevronRight size={16} className="pb-[2px]" />
+              <EyeIcon size={16} className="text-white" />
+              <p className="text-white">
+                View Order
+              </p>
             </Button>
           </div>
         </div>

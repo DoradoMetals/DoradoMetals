@@ -500,7 +500,7 @@ export async function updateOfferNotes(order, offer_notes) {
   return rows[0];
 }
 
-export async function createReview(order) {
+export async function createReview({order}) {
   const query = `
     UPDATE exchange.purchase_orders
     SET review_created = true
@@ -509,7 +509,6 @@ export async function createReview(order) {
   `;
   const values = [order.id];
   const { rows } = await pool.query(query, values);
-
   return rows[0];
 }
 

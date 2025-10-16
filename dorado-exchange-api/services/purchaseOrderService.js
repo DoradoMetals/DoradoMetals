@@ -143,8 +143,8 @@ export async function updateOfferNotes(order, offer_notes) {
   return purchaseOrderRepo.updateOfferNotes(order, offer_notes);
 }
 
-export async function createReview(order) {
-  return purchaseOrderRepo.createReview(order);
+export async function createReview({order}) {
+  return purchaseOrderRepo.createReview({order});
 }
 
 export async function createPurchaseOrder(purchase_order, user_id) {

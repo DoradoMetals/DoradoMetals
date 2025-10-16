@@ -49,7 +49,10 @@ export const useCreatePurchaseOrder = () => {
       })
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase_orders', user?.id], refetchType: 'active' })
+      queryClient.invalidateQueries({
+        queryKey: ['purchase_orders', user?.id],
+        refetchType: 'active',
+      })
     },
     onSuccess: async (purchaseOrder: PurchaseOrder) => {
       const packageDetails =
@@ -136,11 +139,7 @@ export const useAcceptOffer = () => {
                   ...item,
                   price: getPurchaseOrderItemPrice(item, spot_prices),
                 })),
-                total_price: getPurchaseOrderTotal(
-                  purchase_order,
-                  spot_prices,
-                  order_spots,
-                ),
+                total_price: getPurchaseOrderTotal(purchase_order, spot_prices, order_spots),
               }
         )
       )
@@ -334,6 +333,53 @@ export const useUpdateOfferNotes = () => {
             : {
                 ...order,
                 offer_notes,
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useSetReviewCreated = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ purchase_order }: { purchase_order: PurchaseOrder }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/create_review', {
+        user_id: user.id,
+        order: purchase_order,
+      })
+    },
+
+    onMutate: async ({ purchase_order }) => {
+      const queryKey = ['purchase_orders', user?.id]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== purchase_order.id
+            ? order
+            : {
+                ...order,
+                review_created: true,
               }
         )
       )

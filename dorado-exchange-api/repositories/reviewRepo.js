@@ -21,7 +21,7 @@ export async function getAllReviews(id) {
 
 export async function createReview(review) {
   const query = `
-    INSERT INTO exchange.leads (review_text, rating, created_by, updated_by, name, hidden)
+    INSERT INTO exchange.reviews (review_text, rating, created_by, updated_by, name, hidden)
     VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING *;
   `;

@@ -249,3 +249,7 @@ export async function updateTracking({
   await shippingRepo.insertTracking(shipment_id, tracking_number, carrier_id);
   return await salesOrderRepo.updateTracking(order_id);
 }
+
+export async function createReview({order}) {
+  return salesOrderRepo.createReview({order});
+}

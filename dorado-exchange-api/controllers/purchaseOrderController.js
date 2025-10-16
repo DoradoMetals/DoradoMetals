@@ -100,10 +100,7 @@ export async function updateOfferNotes(req, res, next) {
 
 export async function createReview(req, res, next) {
   try {
-    const { order } = req.body;
-    const result = await purchaseOrderService.createReview({
-      order,
-    });
+    const result = await purchaseOrderService.createReview(req.body);
     return res.status(200).json(result);
   } catch (err) {
     return next(err);
@@ -375,9 +372,3 @@ export async function updateRefinerFee(req, res, next) {
     return next(err);
   }
 }
-
-
-
-
-
-

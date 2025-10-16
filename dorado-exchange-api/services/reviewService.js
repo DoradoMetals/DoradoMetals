@@ -9,7 +9,7 @@ export async function getAllReviews() {
 }
 
 export async function createReview(review) {
-  return await reviewsRepo.createReview(lead)
+  return await reviewsRepo.createReview(review)
 }
 
 export async function updateReview(review, user_name) {

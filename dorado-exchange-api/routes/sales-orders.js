@@ -9,6 +9,7 @@ import {
   updateOrderTracking,
   updateStatus,
   adminCreateSalesOrder,
+  createReview,
 } from '../controllers/salesOrderController.js';
 
 const router = express.Router();
@@ -17,6 +18,7 @@ const router = express.Router();
 router.post('/create_sales_order', requireUser, createSalesOrder);
 router.get('/get_sales_orders', requireUser, getSalesOrders);
 router.post('/get_order_metals', requireUser, getOrderMetals);
+router.post('/create_review', requireUser, createReview);
 
 // admin
 router.get('/get_all', requireAdmin, getAllSalesOrders);

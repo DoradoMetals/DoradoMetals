@@ -48,15 +48,6 @@ export async function cancelOrder(req, res, next) {
   }
 }
 
-export async function createReview(req, res, next) {
-  try {
-    const result = await salesOrderService.createReview(req.body);
-    return res.status(200).json(result);
-  } catch (err) {
-    return next(err);
-  }
-}
-
 export async function createSalesOrder(req, res, next) {
   try {
     const order = await salesOrderService.createSalesOrder(
@@ -100,6 +91,15 @@ export async function updateOrderTracking(req, res, next) {
   try {
     const order = await salesOrderService.updateTracking(req.body);
     return res.status(200).json(order);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export async function createReview(req, res, next) {
+  try {
+    const result = await salesOrderService.createReview(req.body);
+    return res.status(200).json(result);
   } catch (err) {
     return next(err);
   }
