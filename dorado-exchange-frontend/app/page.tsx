@@ -228,7 +228,7 @@ export default function Home() {
                       </h3>
                     </div>
 
-                    <p className="mt-2 text-neutral-700 text-sm sm:text-lg max-w-sm">{opt.blurb}</p>
+                    <p className="mt-2 text-neutral-700 text-sm sm:text-lg max-w-55 md:max-w-sm">{opt.blurb}</p>
                     <Button variant="ghost" className="self-start p-0 mb-0">
                       <span className="mt-3 inline-flex items-center gap-2 text-neutral-500 text-xs md:text-sm">
                         Learn More
@@ -247,8 +247,8 @@ export default function Home() {
       <section aria-label="Reviews" className="w-full">
         <div className="bg-primary">
           <div className={cn('mx-auto max-w-7xl px-8')}>
-            <div className="flex flex-col gap-4 md:flex-row items-center md:items-start justify-between py-4 sm:py-6">
-              <div className="flex flex-col gap-1 md:gap-1 items-center md:items-start">
+            <div className="flex flex-col gap-4 md:flex-row items-start justify-between py-4 sm:py-6">
+              <div className="flex flex-col gap-1 md:gap-1 items-start w-full">
                 <h2 className="text-white text-xl sm:text-2xl font-semibold">
                   Don't just take our word for it…
                 </h2>
@@ -256,14 +256,16 @@ export default function Home() {
                   Read real reviews by real customers.
                 </p>
               </div>
-              <Button
-                className="flex items-start justify-start md:justify-end border-1 border-white hover:bg-white text-white hover:text-primary"
-                variant={'ghost'}
-              >
-                <a href="/reviews" className="text-sm sm:text-base">
-                  See All Reviews
-                </a>
-              </Button>
+              <div className="flex w-full justify-start md:justify-end">
+                <Button
+                  className="border-1 border-white hover:bg-white text-white hover:text-primary"
+                  variant={'ghost'}
+                >
+                  <a href="/reviews" className="text-sm sm:text-base">
+                    See All Reviews
+                  </a>
+                </Button>
+              </div>
             </div>
 
             <div
