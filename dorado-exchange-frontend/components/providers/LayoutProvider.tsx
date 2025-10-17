@@ -54,7 +54,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
 
   return (
     <>
-      <div className={cn('flex flex-col min-h-screen', pathname === '/' ? 'bg-white' : '')}>
+      <div className={cn('flex flex-col min-h-screen', pathname === '/' ? 'bg-card' : '')}>
         <AnimatePresence>
           {isAnyDrawerOpen && (
             <motion.div
