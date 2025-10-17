@@ -66,3 +66,50 @@ export const useSalesOrderMetals = (sales_order_id: string) => {
     refetchInterval: 60000,
   })
 }
+
+export const useSetReviewCreated = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ sales_order }: { sales_order: SalesOrder }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<SalesOrder>('POST', '/sales_orders/create_review', {
+        user_id: user.id,
+        order: sales_order,
+      })
+    },
+
+    onMutate: async ({ sales_order }) => {
+      const queryKey = ['sales_orders', user?.id]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<SalesOrder[]>(queryKey)
+
+      queryClient.setQueryData<SalesOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== sales_order.id
+            ? order
+            : {
+                ...order,
+                review_created: true,
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}

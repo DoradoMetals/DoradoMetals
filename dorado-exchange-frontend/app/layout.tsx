@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Montserrat, Open_Sans } from 'next/font/google'
+import { Montserrat, Open_Sans, Poppins } from 'next/font/google'
 import './styles/globals.css'
 import LayoutProvider from '@/components/providers/LayoutProvider' // ✅ Import the Client Component
 import { ThemeProvider } from '@/components/custom/theme/theme-provider'
@@ -20,6 +20,13 @@ export const openSans = Open_Sans({
   variable: '--font-sans',
 })
 
+export const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
+  variable: '--font-sans',
+})
+
+
 export const metadata: Metadata = {
   title: 'Dorado Metals Exchange',
   description: 'Secure online platform to exchange precious metals.',
@@ -30,7 +37,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${montserrat.variable} ${openSans.variable}`}
+      className={`${montserrat.variable} ${poppins.variable}`}
     >
       <body className="bg-background antialiased">
         <ThemeProvider attribute="class" defaultTheme="light">

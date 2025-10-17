@@ -9,7 +9,6 @@ import { useEffect } from 'react'
 import { ThemeSwitcher } from '../theme/theme-switcher'
 import { useSignOut } from '@/lib/queries/useAuth'
 import { useDrawerStore } from '@/store/drawerStore'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useUser } from '@/lib/authClient'
 import { useSpotTypeStore } from '@/store/spotStore'
 import { protectedRoutes } from '@/types/routes'
@@ -39,7 +38,6 @@ export default function Sidebar() {
 
   const drawerContent = (
     <div className="w-full flex-col">
-      {/* Top buttons */}
       <div className="flex flex-col items-center justify-center gap-3 p-10">
         <div className="flex items-center gap-5 justify-center">
           <div className="flex flex-col items-center">
@@ -49,10 +47,10 @@ export default function Sidebar() {
                 router.push('/account')
                 closeDrawer()
               }}
-              className="w-18 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
+              className="w-20 h-18 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
             >
-              <UserIcon size={24} color={getPrimaryIconStroke()} />
-              <div className="text-sm text-primary-gradient">Account</div>
+              <UserIcon size={24} className="text-primary" />
+              <div className="text-sm text-primary">Account</div>
             </Button>
           </div>
 
@@ -63,10 +61,10 @@ export default function Sidebar() {
                 router.push('/orders')
                 closeDrawer()
               }}
-              className="w-18 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
+              className="w-20 h-18 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
             >
-              <ListIcon size={24} color={getPrimaryIconStroke()} />
-              <div className="text-sm text-primary-gradient">Orders</div>
+              <ListIcon size={24} className="text-primary" />
+              <div className="text-sm text-primary">Orders</div>
             </Button>
           </div>
 
@@ -83,10 +81,10 @@ export default function Sidebar() {
                   }
                 }}
                 disabled={signOutMutation.isPending}
-                className="w-18 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
+                className="w-20 h-18 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
               >
-                <SignOutIcon size={24} color={getPrimaryIconStroke()} />
-                <div className="text-sm text-primary-gradient">Sign Out</div>
+                <SignOutIcon size={24} className="text-primary" />
+                <div className="text-sm text-primary">Sign Out</div>
               </Button>
             </div>
           ) : (
@@ -97,10 +95,10 @@ export default function Sidebar() {
                   router.push('/authentication?tab=sign-in')
                   closeDrawer()
                 }}
-                className="w-18 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
+                className="w-20 h-18 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
               >
-                <SignInIcon size={24} color={getPrimaryIconStroke()} />
-                <div className="text-sm text-primary-gradient">Sign In</div>
+                <SignInIcon size={24} className="text-primary" />
+                <div className="text-sm text-primary">Sign In</div>
               </Button>
             </div>
           )}
@@ -116,30 +114,26 @@ export default function Sidebar() {
               onClick={() => {
                 toggleType()
               }}
-              className="w-18 h-16 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
+              className="w-20 h-18 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
             >
-              <SwapIcon size={24} color={getPrimaryIconStroke()} />
-              <div className="text-sm text-primary-gradient">
-                {type === 'Bid' ? 'Ask' : 'Bid'} Spots
-              </div>
+              <SwapIcon size={24} className="text-primary" />
+              <div className="text-sm text-primary">{type === 'Bid' ? 'Ask' : 'Bid'} Spots</div>
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Separator */}
       <div className="flex w-full justify-center items-center pb-6 px-8">
-        <div className="flex-grow primary-gradient h-[1px]" />
+        <div className="flex-grow bg-primary h-[1px]" />
       </div>
 
-      {/* Menu items */}
       <nav aria-label="Primary site navigation" className="flex-col items-center pb-5">
         <ul className="flex-col p-5 gap-3">
           {menuItems.map((item) => {
             const isActive = pathname === item.href
             const linkClasses = isActive
-              ? 'text-primary-gradient'
-              : 'text-neutral-200 dark:text-neutral-800  hover-text-primary-gradient'
+              ? 'text-primary'
+              : 'text-neutral-200 dark:text-neutral-800  hover:text-primary'
             return (
               <li className="flex-col items-center pb-5 text-xl" key={item.key}>
                 <div className="flex items-center justify-center">

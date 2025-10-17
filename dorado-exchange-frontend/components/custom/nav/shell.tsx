@@ -52,7 +52,8 @@ export default function Shell({ visible }: { visible: boolean }) {
     <div
       className={cn(
         'z-60 sticky top-0 bg-highest flex flex-col items-center justify-center',
-        isAnyDrawerOpen || visible ? 'shadow-none' : 'raised-off-page'
+        isAnyDrawerOpen ? 'shadow-none' : 'raised-off-page'
+        // isAnyDrawerOpen || visible ? 'shadow-none' : 'raised-off-page' - Revert whenever breadcrumb bar is added back...
       )}
     >
       <div className="flex items-start justify-between w-full sticky">

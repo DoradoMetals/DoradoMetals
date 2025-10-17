@@ -25,7 +25,7 @@ function SegBtn({
       onClick={onClick}
       className={cn(
         'cursor-pointer h-10 w-full px-4 text-sm font-medium outline-none transition-colors',
-        'focus-visible:ring-2 focus-visible:ring-ring cursor-pointer',
+        'focus-visible:ring-2 focus-visible:ring-ring',
         checked ? active : inactive,
         className
       )}
@@ -40,11 +40,19 @@ export function DisplayToggle({
   value,
   onChange,
   className,
+  onLabel = 'Yes',
+  offLabel = 'No',
+  onIntent = 'success',
+  offIntent = 'destructive',
 }: {
   label: string
   value: boolean
   onChange: (next: boolean) => void
   className?: string
+  onLabel?: string
+  offLabel?: string
+  onIntent?: 'success' | 'destructive'
+  offIntent?: 'success' | 'destructive'
 }) {
   return (
     <div className={cn('flex flex-col gap-1 w-full', className)}>
@@ -57,14 +65,15 @@ export function DisplayToggle({
       >
         <SegBtn
           checked={value}
-          intent="success"
+          intent={onIntent}
           onClick={() => onChange(true)}
           className="border-r border-border"
         >
-          Yes
+          {onLabel}
         </SegBtn>
-        <SegBtn checked={!value} intent="destructive" onClick={() => onChange(false)}>
-          No
+
+        <SegBtn checked={!value} intent={offIntent} onClick={() => onChange(false)}>
+          {offLabel}
         </SegBtn>
       </div>
     </div>

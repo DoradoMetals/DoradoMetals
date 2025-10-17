@@ -7,6 +7,7 @@ import {
   GlobeIcon,
   EnvelopeIcon,
   UserIcon,
+  CoinsIcon,
 } from '@phosphor-icons/react'
 
 export interface Payout {
@@ -99,6 +100,7 @@ export interface PayoutMethod {
   icon: any
   cost: number
   time_delay: string
+  paragraph: string
 }
 
 export const payoutOptions: PayoutMethod[] = [
@@ -108,7 +110,8 @@ export const payoutOptions: PayoutMethod[] = [
     description: 'Direct deposit to a U.S. bank account',
     icon: BankIcon,
     cost: 0.0,
-    time_delay: '1-24 hours',
+    time_delay: '1-3 days',
+    paragraph: 'Direct deposit to bank accounts utilizing the automated clearing house network. Transfers in 1-3 business days.',
   },
   {
     method: 'WIRE',
@@ -117,6 +120,7 @@ export const payoutOptions: PayoutMethod[] = [
     icon: GlobeIcon,
     cost: 20.0,
     time_delay: '1-5 hours',
+    paragraph: 'Fast and secure electronic transfer of funds between bank accounts often used for large sums of money. Processes in hours.',
   },
   {
     method: 'ECHECK',
@@ -125,14 +129,16 @@ export const payoutOptions: PayoutMethod[] = [
     icon: EnvelopeIcon,
     cost: 0.0,
     time_delay: 'Instant',
+    paragraph: 'Digital check sent to your email. Can be printed out and deposited with your bank, or direct deposited through Deluxe. Processes instantly.',
   },
   {
     method: 'DORADO_ACCOUNT',
-    label: 'Dorado Account',
-    description: 'Funds will be added to your Dorado Account',
-    icon: UserIcon,
+    label: 'Bullion Exchange',
+    description: 'Bullion shipped to you',
+    icon: CoinsIcon,
     cost: 0.0,
-    time_delay: 'Instant',
+    time_delay: '5-7 days',
+    paragraph: 'In lieu of a cash payout, receive bullion of your choosing equal to the value of your metal. Arrives within one week.',
   },
 ]
 

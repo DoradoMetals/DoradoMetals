@@ -23,7 +23,7 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
-  overscroll-behavior: none;
+  /* overscroll-behavior: none; -revert when breadcrumb bar is added back */ 
 }
 
 svg {

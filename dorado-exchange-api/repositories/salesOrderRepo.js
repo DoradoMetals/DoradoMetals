@@ -308,7 +308,7 @@ export async function insertOrderMetals(orderId, spot_prices, client) {
   );
 }
 
-async function updateStatus(order, order_status, user_name) {
+export async function updateStatus(order, order_status, user_name) {
   const query = `
     UPDATE exchange.sales_orders
     SET
@@ -324,7 +324,7 @@ async function updateStatus(order, order_status, user_name) {
   return rows[0];
 }
 
-async function updateTracking(orderId) {
+export async function updateTracking(orderId) {
   const query = `
     UPDATE exchange.sales_orders
     SET tracking_updated = true
@@ -335,7 +335,7 @@ async function updateTracking(orderId) {
   return rows;
 }
 
-async function updateOrderSent(orderId, client) {
+export async function updateOrderSent(orderId, client) {
   const query = `
     UPDATE exchange.sales_orders
     SET order_sent = true
@@ -346,7 +346,7 @@ async function updateOrderSent(orderId, client) {
   return rows;
 }
 
-async function attachSupplierToOrder(id, supplier_id, client) {
+export async function attachSupplierToOrder(id, supplier_id, client) {
   return await client.query(
     `
     UPDATE exchange.sales_orders
@@ -356,4 +356,16 @@ async function attachSupplierToOrder(id, supplier_id, client) {
   `,
     [supplier_id, id]
   );
+}
+
+export async function createReview({order}) {
+  const query = `
+    UPDATE exchange.sales_orders
+    SET review_created = true
+    WHERE id = $1
+    RETURNING *;
+  `;
+  const values = [order.id];
+  const { rows } = await pool.query(query, values);
+  return rows[0];
 }

@@ -28,7 +28,6 @@ export default function MetalStep() {
               }
               const spot = spotPrices.find((s) => s.type === val)
               form.setValue('bid_premium', spot?.scrap_percentage)
-              console.log(spot?.scrap_percentage)
             }}
             className="gap-3 w-full items-stretch flex flex-col"
           >

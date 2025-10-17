@@ -15,5 +15,6 @@ export const usePayoutBrackets = () => {
       })
     },
     enabled: !!user,
+    staleTime: 100000,
   })
 }

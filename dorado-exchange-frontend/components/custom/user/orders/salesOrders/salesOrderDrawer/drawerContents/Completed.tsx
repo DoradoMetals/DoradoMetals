@@ -1,14 +1,18 @@
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
-import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { useCreateReview } from '@/lib/queries/useReviews'
 import { SalesOrderDrawerContentProps, statusConfig } from '@/types/sales-orders'
+import { useUser } from '@/lib/authClient'
+import { Rating, RatingButton } from '@/components/ui/rating'
+import { useSetReviewCreated } from '@/lib/queries/useSalesOrders'
+import { ReviewBlock } from '@/components/ui/review'
 
 export default function CompletedSalesOrder({ order }: SalesOrderDrawerContentProps) {
+  const { user } = useUser()
   const createReview = useCreateReview()
-  const [review, setReview] = useState('')
+  const setCreated = useSetReviewCreated()
 
   const config = statusConfig[order.sales_order_status]
 
@@ -23,24 +27,28 @@ export default function CompletedSalesOrder({ order }: SalesOrderDrawerContentPr
               Your order has been completed! If you need any additional help with your order, please
               call us. Otherwise, please feel free to leave a review of your experience below!
             </div>
-            <div className="flex flex-col gap-0 w-full">
-              <Textarea
-                className="input-floating-label-form min-h-50"
-                value={review}
-                onChange={(e) => setReview(e.target.value)}
-                disabled={order.review_created}
-              />
-              <Button
-                variant="link"
-                className={cn('p-0 ml-auto font-normal text-primary-gradient')}
-                // onClick={() => {
-                //   createReview.mutate({ review: review, order: order })
-                // }}
-                disabled={createReview.isPending || review === '' || order.review_created}
-              >
-                {createReview.isPending ? 'Loading...' : 'Upload Review'}
-              </Button>
-            </div>
+            <ReviewBlock
+              title="How did we do?"
+              defaultText=""
+              defaultRating={0}
+              reviewSubmitted={order.review_created}
+              maxLength={600}
+              submitLabel="Upload Review"
+              onSubmit={async ({ text, rating }) => {
+                await createReview.mutateAsync({
+                  review_text: text,
+                  rating,
+                  created_by: user?.name ?? '',
+                  updated_by: user?.name ?? '',
+                  name: user?.name ?? '',
+                  hidden: false,
+                })
+
+                await setCreated.mutateAsync({
+                  sales_order: order,
+                })
+              }}
+            />
           </div>
         </div>
       </div>

@@ -15,6 +15,7 @@ import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import PriceNumberFlow from '../products/PriceNumberFlow'
 import { getInventoryValue } from './productsPoS/inventoryPrices'
 import { LeadsPage } from './leadsPoS/leadsPage'
+import { ReviewsPage } from './reviewsPoS/reviewsPage'
 
 export function AdminTabs() {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
@@ -26,7 +27,7 @@ export function AdminTabs() {
     <>
       <div className="flex w-full mt-4 lg:mt-10 mb-8">
         <Tabs defaultValue="inventory" className="flex w-full items-center justify-center">
-          <TabsList className="justify-center grid grid-cols-4 w-full max-w-7xl bg-transparent px-0">
+          <TabsList className="justify-center grid grid-cols-5 w-full max-w-7xl bg-transparent px-0">
             <TabsTrigger className="tab-indicator-primary" value="inventory">
               Inventory
             </TabsTrigger>
@@ -38,6 +39,9 @@ export function AdminTabs() {
             </TabsTrigger>
             <TabsTrigger className="tab-indicator-primary" value="leads">
               Leads
+            </TabsTrigger>
+            <TabsTrigger className="tab-indicator-primary" value="reviews">
+              Reviews
             </TabsTrigger>
           </TabsList>
           <div className="separator-inset -mt-[11px] max-w-7xl" />
@@ -168,6 +172,10 @@ export function AdminTabs() {
 
           <TabsContent value="leads" className="flex flex-col gap-2 max-w-7xl">
             <LeadsPage />
+          </TabsContent>
+
+          <TabsContent value="reviews" className="flex flex-col gap-2 max-w-7xl">
+            <ReviewsPage />
           </TabsContent>
         </Tabs>
       </div>
