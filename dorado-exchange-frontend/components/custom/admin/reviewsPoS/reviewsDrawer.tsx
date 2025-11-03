@@ -4,7 +4,6 @@ import { useMemo } from 'react'
 import Drawer from '@/components/ui/drawer'
 import { useDrawerStore } from '@/store/drawerStore'
 
-import { Button } from '@/components/ui/button'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import { FloatingLabelTextarea } from '@/components/ui/floating-label-textarea'
 import { DisplayToggle } from '@/components/ui/displayToggle'
@@ -16,6 +15,7 @@ import { useGetSession } from '@/lib/queries/useAuth'
 import { useUpdateReview } from '@/lib/queries/useReviews'
 import type { Review } from '@/types/reviews'
 import { formatFullDate } from '@/utils/dateFormatting'
+import { Calendar } from '@/components/ui/calendar'
 
 export default function ReviewsDrawer({
   reviews,
@@ -37,6 +37,8 @@ export default function ReviewsDrawer({
       <EditFields review={review} />
       <div className="separator-inset" />
       <Visibility review={review} />
+      <div className="separator-inset" />
+      <Created review={review} />
       <div className="mt-auto">
         <Footer review={review} />
       </div>
@@ -149,19 +151,79 @@ function Visibility({ review }: { review: Review }) {
   )
 }
 
+function Created({ review }: { review: Review }) {
+  const { user } = useGetSession()
+  const updateReview = useUpdateReview()
+
+  const handleUpdate = (created_at: Date) =>
+    updateReview.mutate({ review: { ...review, created_at }, user_name: user?.name ?? '' })
+
+  const maxDate = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate())
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [])
+
+  const minDate = useMemo(() => {
+    const d = new Date('2025-03-01T00:00:00Z')
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [])
+
+  const firstOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1)
+  const clampDate = (d: Date, min: Date, max: Date) => (d < min ? min : d > max ? max : d)
+
+  const selectedDate = useMemo<Date>(() => {
+    const raw = review.created_at ? new Date(review.created_at) : maxDate
+    raw.setHours(0, 0, 0, 0)
+    return clampDate(raw, minDate, maxDate)
+  }, [review.created_at, minDate, maxDate])
+
+  const startMonth = useMemo(() => firstOfMonth(minDate), [minDate])
+  const endMonth = useMemo(() => firstOfMonth(maxDate), [maxDate])
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="section-label">Contact Info</div>
+
+      <div className="flex flex-col md:flex-row w-full justify-center md:justify-between gap-3 items-start">
+        <Calendar
+          mode="single"
+          showOutsideDays={false}
+          startMonth={startMonth}
+          endMonth={endMonth}
+          defaultMonth={selectedDate}
+          selected={selectedDate}
+          onSelect={(newDate) => {
+            if (!newDate) return
+            const d = new Date(newDate)
+            d.setHours(0, 0, 0, 0)
+            if (d < minDate || d > maxDate) return
+            console.log(d)
+            handleUpdate(d)
+          }}
+          className="p-2 bg-card w-full raised-off-page rounded-lg"
+          disabled={[{ before: minDate }, { after: maxDate }]}
+        />
+      </div>
+    </div>
+  )
+}
+
 function Footer({ review }: { review: Review }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-1 text-xs text-neutral-600">
         <span className="text-neutral-600">Created on</span>{' '}
-        <span className="font-medium text-neutral-800">{formatFullDate(review.updated_at)}</span>
+        <span className="font-medium text-neutral-800">{formatFullDate(review.created_at)}</span>
         <span className="text-neutral-600">by</span>
         <span className="font-medium text-neutral-800">{review.created_by || '—'}</span>
       </div>
 
       <div className="flex items-center gap-1 text-xs text-neutral-600">
         <span className="text-neutral-600">Updated on</span>{' '}
-        <span className="font-medium text-neutral-800">{formatFullDate(review.created_at)}</span>
+        <span className="font-medium text-neutral-800">{formatFullDate(review.updated_at)}</span>
         <span className="text-neutral-600">by</span>
         <span className="font-medium text-neutral-800">{review.updated_by || '—'}</span>
       </div>

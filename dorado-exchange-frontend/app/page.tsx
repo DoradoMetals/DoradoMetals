@@ -15,7 +15,7 @@ import { Navigation, Pagination } from 'swiper/modules'
 
 import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
-import { useReviews } from '@/lib/queries/useReviews'
+import { usePublicReviews } from '@/lib/queries/useReviews'
 import { Rating, RatingButton } from '@/components/ui/rating'
 import { cn } from '@/lib/utils'
 import { formatFullDate } from '@/utils/dateFormatting'
@@ -23,7 +23,7 @@ import { useRouter } from 'next/navigation'
 
 export default function Home() {
   const { data: rates = [] } = useRates()
-  const { data: reviews = [] } = useReviews()
+  const { data: reviews = [] } = usePublicReviews()
   const top4 = useMemo(() => topRatesByMetal(rates), [rates])
   const swiperRef = useRef<SwiperType | null>(null)
   const [isBeginning, setIsBeginning] = useState(true)

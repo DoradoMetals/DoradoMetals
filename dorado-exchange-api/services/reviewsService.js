@@ -8,6 +8,10 @@ export async function getAllReviews() {
   return await reviewsRepo.getAllReviews();
 }
 
+export async function getPublicReviews() {
+  return await reviewsRepo.getPublicReviews();
+}
+
 export async function createReview(review) {
   return await reviewsRepo.createReview(review)
 }

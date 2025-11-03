@@ -22,11 +22,19 @@ export const useReviews = () => {
     queryKey: ['reviews', user?.id],
     queryFn: async () => {
       if (!user?.id) return []
-      const reviews =  await apiRequest<Review[]>('GET', '/reviews/get_all', undefined, {})
-      console.log(reviews)
-      return reviews
+      return await apiRequest<Review[]>('GET', '/reviews/get_all', undefined, {})
     },
     enabled: !!user,
+    staleTime: 100000
+  })
+}
+
+export const usePublicReviews = () => {
+  return useQuery<Review[]>({
+    queryKey: ['reviews'],
+    queryFn: async () => {
+      return await apiRequest<Review[]>('GET', '/reviews/get_public', undefined, {})
+    },
   })
 }
 
