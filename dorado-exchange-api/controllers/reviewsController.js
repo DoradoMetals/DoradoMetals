@@ -18,6 +18,15 @@ export async function getAll(req, res, next) {
   }
 }
 
+export async function getPublic(req, res, next) {
+  try {
+    const reviews = await reviewService.getPublicReviews();
+    return res.status(200).json(reviews);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 export async function createReview(req, res, next) {
   try {
     const review = await reviewService.createReview(req.body.review);

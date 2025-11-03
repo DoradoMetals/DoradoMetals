@@ -11,7 +11,7 @@ export async function getReview(id) {
   return result.rows[0];
 }
 
-export async function getAllReviews(id) {
+export async function getAllReviews() {
   const query = `
     SELECT *
     FROM exchange.reviews
@@ -20,6 +20,19 @@ export async function getAllReviews(id) {
   const result = await pool.query(query, []);
   return result.rows
 }
+
+export async function getPublicReviews() {
+  const query = `
+    SELECT *
+    FROM exchange.reviews
+    WHERE hidden = false
+    ORDER BY created_at DESC
+    LIMIT 10
+  `;
+  const result = await pool.query(query, []);
+  return result.rows
+}
+
 
 export async function createReview(review) {
   const query = `
@@ -47,8 +60,9 @@ export async function updateReview(review, user_name) {
         updated_at = NOW(),
         updated_by = $3,
         name = $4,
-        hidden = $5
-    WHERE id = $6
+        hidden = $5,
+        created_at = $6
+    WHERE id = $7
     RETURNING *;
   `;
 
@@ -58,6 +72,7 @@ export async function updateReview(review, user_name) {
     user_name,
     review.name,
     review.hidden,
+    review.created_at,
     review.id,
   ];
 

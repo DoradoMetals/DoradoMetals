@@ -115,11 +115,8 @@ export function ReviewsPage() {
               <div className="relative w-full">
                 <FloatingLabelTextarea
                   label="Review Text"
-                  inputMode="tel"
-                  autoComplete="tel"
                   size="sm"
                   className="input-floating-label-form min-h-40"
-                  maxLength={17}
                   value={reviewText}
                   onChange={(e) => setReviewText(e.target.value)}
                 />
