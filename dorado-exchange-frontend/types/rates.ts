@@ -1,7 +1,7 @@
 export type Metal = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
 const METALS: Metal[] = ['Gold', 'Silver', 'Platinum', 'Palladium']
 
-export type PayoutBracket = {
+export type Rate = {
   id: string
   metal: Metal | string
   material: 'scrap' | 'bullion' | string
@@ -12,8 +12,8 @@ export type PayoutBracket = {
   effective_to?: string | null
 }
 
-export function topRatesByMetal(rates: PayoutBracket[]) {
-  const best = new Map<Metal, PayoutBracket>()
+export function topRatesByMetal(rates: Rate[]) {
+  const best = new Map<Metal, Rate>()
   for (const r of rates) {
     if (!METALS.includes(r.metal as Metal)) continue
     const m = r.metal as Metal

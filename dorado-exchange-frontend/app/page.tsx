@@ -1,10 +1,10 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { usePayoutBrackets } from '@/lib/queries/usePayoutBrackets'
+import { useRates } from '@/lib/queries/useRates'
 import { intakeOptions } from '@/types/intake'
 import { payoutOptions } from '@/types/payout'
-import { Metal, pctLabel, topRatesByMetal } from '@/types/payout-brackets'
+import { Metal, pctLabel, topRatesByMetal } from '@/types/rates'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpRightIcon, PhoneIcon } from '@phosphor-icons/react'
 import Image from 'next/image'
@@ -22,7 +22,7 @@ import { formatFullDate } from '@/utils/dateFormatting'
 import { useRouter } from 'next/navigation'
 
 export default function Home() {
-  const { data: rates = [] } = usePayoutBrackets()
+  const { data: rates = [] } = useRates()
   const { data: reviews = [] } = useReviews()
   const top4 = useMemo(() => topRatesByMetal(rates), [rates])
   const swiperRef = useRef<SwiperType | null>(null)

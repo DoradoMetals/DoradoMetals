@@ -24,7 +24,7 @@ import recaptchaRoutes from "./routes/recaptcha.js";
 import userRoutes from "./routes/users.js";
 import imageRoutes from "./routes/images.js";
 import leadRoutes from "./routes/leads.js";
-import payoutBracketRoutes from "./routes/payout-brackets.js";
+import rateRoutes from "./routes/rates.js";
 
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./auth.js";
@@ -76,7 +76,7 @@ app.use("/api/recaptcha", recaptchaRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/images", imageRoutes);
 app.use("/api/leads", leadRoutes);
-app.use("/api/payout_brackets", payoutBracketRoutes);
+app.use("/api/rates", rateRoutes);
 
 setupScheduler();
 
