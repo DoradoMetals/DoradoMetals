@@ -77,7 +77,7 @@ export default function SalesOrderCards({
               key={status}
               onClick={() => setSelectedStatus(isSelected ? null : status)}
               className={cn(
-                'hidden sm:flex items-center justify-between rounded-lg p-4 bg-card raised-off-page mt-4 w-full h-auto transition-colors hover:bg-highest',
+                'hidden sm:flex items-center justify-between rounded-lg p-4 bg-card raised-off-page w-full h-auto transition-colors hover:bg-highest',
                 isSelected && `${config.border_color} border-2`
               )}
             >

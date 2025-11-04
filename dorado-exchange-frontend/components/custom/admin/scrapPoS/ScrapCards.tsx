@@ -51,7 +51,7 @@ export default function ScrapCards() {
         return (
           <div
             key={spot.id}
-            className="flex items-center justify-between rounded-lg p-4 bg-card raised-off-page mt-4 w-full h-auto"
+            className="flex items-center justify-between rounded-lg p-4 bg-card raised-off-page w-full h-auto"
           >
             <div className="flex flex-col w-full">
               <div className="flex items-center w-full justify-between">
