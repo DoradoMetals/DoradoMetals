@@ -33,7 +33,7 @@ import { userRoleOptions } from '@/types/user'
 import { useDrawerStore } from '@/store/drawerStore'
 import AdminUsersDrawer from './usersDrawer'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
-import { CreateSalesOrderDrawer } from '../salesOrdersPoS/createSalesOrder/createSalesOrderDrawer'
+import { CreateSalesOrderDrawer } from '../salesOrders/createSalesOrder/createSalesOrderDrawer'
 
 export default function UsersTable({ setOpen }: { setOpen: (open: boolean) => void }) {
   const { data: users = [] } = useAdminUsers()

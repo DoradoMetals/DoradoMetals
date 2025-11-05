@@ -99,7 +99,9 @@ export default function Home() {
             <dl className="grid grid-cols-2 md:grid-cols-4 gap-y-8 w-full max-w-5xl">
               {top4.map((r, i) => {
                 const metal = ['Gold', 'Silver', 'Platinum', 'Palladium'][i] as Metal
-                const value = r?.payout_pct ?? null
+                const value = r
+                  ? Math.max(r.scrap_pct ?? -Infinity, r.bullion_pct ?? -Infinity)
+                  : null
                 return (
                   <div key={metal} className="flex justify-center">
                     <div className="flex flex-col items-start">
@@ -107,7 +109,7 @@ export default function Home() {
                         Up to
                       </p>
                       <dt className="sr-only">{metal} payout</dt>
-                      <dd className=" text-5xl sm:text-6xl font-bold text-neutral-900">
+                      <dd className="text-5xl sm:text-6xl font-bold text-neutral-900">
                         {pctLabel(value)}
                       </dd>
                       <p className="text-base text-neutral-700 pl-1 tracking-wide font-normal">
@@ -228,7 +230,9 @@ export default function Home() {
                       </h3>
                     </div>
 
-                    <p className="mt-2 text-neutral-700 text-sm sm:text-lg max-w-55 md:max-w-sm">{opt.blurb}</p>
+                    <p className="mt-2 text-neutral-700 text-sm sm:text-lg max-w-55 md:max-w-sm">
+                      {opt.blurb}
+                    </p>
                     <Button variant="ghost" className="self-start p-0 mb-0">
                       <span className="mt-3 inline-flex items-center gap-2 text-neutral-500 text-xs md:text-sm">
                         Learn More

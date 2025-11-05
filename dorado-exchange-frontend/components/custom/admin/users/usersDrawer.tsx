@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 import { useUpdateCredit } from '@/lib/queries/admin/useAdminUser'
 import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
-import { CreateSalesOrderDrawer } from '../salesOrdersPoS/createSalesOrder/createSalesOrderDrawer'
+import { CreateSalesOrderDrawer } from '../salesOrders/createSalesOrder/createSalesOrderDrawer'
 
 export default function AdminUsersDrawer({
   users,

@@ -12,7 +12,7 @@ export const useAdminProducts = () => {
         user_id: user?.id,
       })
     },
-    staleTime: 0,
+    staleTime: 1000,
     enabled: !!user,
   })
 }

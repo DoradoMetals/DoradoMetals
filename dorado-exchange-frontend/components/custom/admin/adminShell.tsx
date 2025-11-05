@@ -17,13 +17,13 @@ import {
   ListIcon,
   CaretLeftIcon,
 } from '@phosphor-icons/react'
-import ProductsInventory from './productsPoS/productsInventory'
-import ScrapCards from './scrapPoS/ScrapCards'
-import AdminPurchaseOrders from './purchaseOrdersPoS/AdminPurchaseOrders'
-import AdminSalesOrders from './salesOrdersPoS/AdminSalesOrders'
-import { UsersPage } from './usersPoS/usersPage'
-import { LeadsPage } from './leadsPoS/leadsPage'
-import { ReviewsPage } from './reviewsPoS/reviewsPage'
+import ProductsInventory from './products/productsInventory'
+import ScrapCards from './scrap/ScrapCards'
+import AdminPurchaseOrders from './purchaseOrders/AdminPurchaseOrders'
+import AdminSalesOrders from './salesOrders/AdminSalesOrders'
+import { UsersPage } from './users/usersPage'
+import { LeadsPage } from './leads/leadsPage'
+import { ReviewsPage } from './reviews/reviewsPage'
 import { useAdminSalesOrders } from '@/lib/queries/admin/useAdminSalesOrders'
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { useGetInventory } from '@/lib/queries/admin/useAdminProducts'
@@ -34,6 +34,7 @@ import { useGetSession } from '@/lib/queries/useAuth'
 import Drawer from '@/components/ui/drawer'
 import { cn } from '@/lib/utils'
 import { useDrawerStore } from '@/store/drawerStore'
+import RatesPage from './rates/ratesPage'
 
 export default function AdminShell() {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
@@ -127,7 +128,7 @@ export default function AdminShell() {
       case 'scrap':
         return <ScrapCards />
       case 'rates':
-        return <div className="text-sm text-neutral-700">TODO: Rates</div>
+        return <RatesPage />
       default:
         return null
     }
