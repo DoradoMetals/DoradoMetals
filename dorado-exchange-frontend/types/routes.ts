@@ -30,11 +30,21 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     footerDisplay: false,
     seoIndex: true,
   },
-    rates: {
+  rates: {
     path: '/rates',
     roles: [],
     desktopLabel: 'Rates',
     mobileLabel: 'See Rates',
+    desktopDisplay: false,
+    mobileDisplay: false,
+    footerDisplay: false,
+    seoIndex: true,
+  },
+  payoutOptions: {
+    path: '/payout-options',
+    roles: [],
+    desktopLabel: 'Payout Options',
+    mobileLabel: 'See Payout Options',
     desktopDisplay: false,
     mobileDisplay: false,
     footerDisplay: false,

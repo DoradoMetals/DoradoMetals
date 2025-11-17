@@ -171,7 +171,7 @@ export default function Home() {
                     <Button
                       type="button"
                       className="arrow inline-flex items-center justify-center hover:cursor-pointer p-0"
-                      onClick={() => router.push('/')}
+                      onClick={() => router.push('/payout-options')}
                     >
                       <ArrowUpRightIcon className="text-white hidden md:block" size={20} />
                       <ArrowUpRightIcon className="text-white md:hidden" size={16} />
