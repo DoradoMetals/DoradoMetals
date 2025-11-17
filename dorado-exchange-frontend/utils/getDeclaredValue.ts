@@ -1,4 +1,4 @@
-import { PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
+import { PurchaseOrder } from '@/types/purchase-order'
 import { SpotPrice } from '@/types/metal'
 import { SellCartItem } from '@/types/sellCart'
 import getProductBidPrice from './getProductBidPrice'

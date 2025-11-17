@@ -37,6 +37,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-full w-full bg-card items-center justify-center py-2 sm:py-8 gap-5 sm:gap-10 mb-50">
+      
       {/* Hero */}
       <section
         aria-label="Dorado hero"
@@ -127,7 +128,10 @@ export default function Home() {
           you deserve a fair market value for your metals.
         </p>
         <div className="flex justify-center -mb-5">
-          <Button className="bg-highest raised-off-page px-6 sm:px-8 py-5 text-white text-lg z-1 text-primary hover:text-white hover:bg-primary">
+          <Button
+            className="bg-highest raised-off-page px-6 sm:px-8 py-5 text-white text-lg z-1 text-primary hover:text-white hover:bg-primary"
+            onClick={() => router.push('/rates')}
+          >
             View Full Rates
           </Button>
         </div>
