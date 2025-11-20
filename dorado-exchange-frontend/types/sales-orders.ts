@@ -90,6 +90,7 @@ export const SalesOrderStatuses = ['Pending', 'Preparing', 'In Transit', 'Comple
 export type StatusConfigEntry = {
   text_color: string
   background_color: string
+  muted_bg: string
   hover_background_color: string
   muted_color: string
   border_color: string
@@ -104,6 +105,7 @@ export type StatusConfig = Record<string, StatusConfigEntry>
 export const statusConfig: StatusConfig = {
   Pending: {
     background_color: 'bg-rose-600',
+    muted_bg: "bg-rose-600/20",
     hover_background_color: 'hover:bg-rose-600',
     muted_color: 'hover:bg-rose-600/20',
     text_color: 'text-rose-600',
@@ -115,6 +117,7 @@ export const statusConfig: StatusConfig = {
   },
   Preparing: {
     background_color: 'bg-amber-500',
+    muted_bg: "bg-amber-500/20",
     hover_background_color: 'hover:bg-amber-500',
     muted_color: 'hover:bg-amber-500/20',
     text_color: 'text-amber-500',
@@ -126,6 +129,7 @@ export const statusConfig: StatusConfig = {
   },
   'In Transit': {
     background_color: 'bg-cyan-600',
+    muted_bg: "bg-cyan-600/20",
     hover_background_color: 'hover:bg-cyan-600',
     muted_color: 'hover:bg-cyan-600/20',
     text_color: 'text-cyan-600',
@@ -137,6 +141,7 @@ export const statusConfig: StatusConfig = {
   },
   Completed: {
     background_color: 'bg-green-700',
+    muted_bg: "bg-green-700/20",
     hover_background_color: 'hover:bg-green-700',
     muted_color: 'hover:bg-green-700/20',
     text_color: 'text-green-700',

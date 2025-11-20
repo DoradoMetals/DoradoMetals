@@ -116,6 +116,7 @@ export const PurchaseOrderStatuses = [
 export type StatusConfigEntry = {
   text_color: string
   background_color: string
+  muted_bg: string
   hover_background_color: string
   muted_color: string
   border_color: string
@@ -130,6 +131,7 @@ export type StatusConfig = Record<string, StatusConfigEntry>
 export const statusConfig: StatusConfig = {
   'In Transit': {
     background_color: 'bg-cyan-300',
+    muted_bg: "bg-cyan-300/20",
     hover_background_color: 'hover:bg-cyan-300',
     muted_color: 'hover:bg-cyan-300/20',
     text_color: 'text-cyan-300',
@@ -141,6 +143,7 @@ export const statusConfig: StatusConfig = {
   },
   Received: {
     background_color: 'bg-fuchsia-400',
+    muted_bg: "bg-fuchsia-400/20",
     hover_background_color: 'hover:bg-fuchsia-400',
     muted_color: 'hover:bg-fuchsia-400/20',
     text_color: 'text-fuchsia-400',
@@ -152,6 +155,7 @@ export const statusConfig: StatusConfig = {
   },
   'Offer Sent': {
     background_color: 'bg-yellow-400',
+    muted_bg: "bg-yellow-400/20",
     hover_background_color: 'hover:bg-yellow-400',
     muted_color: 'hover:bg-yellow-400/20',
     text_color: 'text-yellow-400',
@@ -163,6 +167,7 @@ export const statusConfig: StatusConfig = {
   },
   Accepted: {
     background_color: 'bg-orange-500',
+    muted_bg: "bg-orange-500/20",
     hover_background_color: 'hover:bg-orange-500',
     muted_color: 'hover:bg-orange-500/20',
     text_color: 'text-orange-500',
@@ -174,6 +179,7 @@ export const statusConfig: StatusConfig = {
   },
   Rejected: {
     background_color: 'bg-rose-400',
+    muted_bg: "bg-rose-400/20",
     hover_background_color: 'hover:bg-rose-400',
     muted_color: 'hover:bg-rose-400/20',
     text_color: 'text-rose-400',
@@ -185,6 +191,7 @@ export const statusConfig: StatusConfig = {
   },
   'Payment Processing': {
     background_color: 'bg-sky-600',
+    muted_bg: "bg-sky-600/20",
     hover_background_color: 'hover:bg-sky-600',
     muted_color: 'hover:bg-sky-600/20',
     text_color: 'text-sky-600',
@@ -196,6 +203,7 @@ export const statusConfig: StatusConfig = {
   },
   Cancelled: {
     background_color: 'bg-red-600',
+    muted_bg: "bg-red-600/20",
     hover_background_color: 'hover:bg-red-600',
     muted_color: 'hover:bg-red-600/20',
     text_color: 'text-red-600',
@@ -207,6 +215,7 @@ export const statusConfig: StatusConfig = {
   },
   Completed: {
     background_color: 'bg-green-500',
+    muted_bg: "bg-green-500/20",
     hover_background_color: 'hover:bg-green-500',
     muted_color: 'hover:bg-green-500/20',
     text_color: 'text-green-500',

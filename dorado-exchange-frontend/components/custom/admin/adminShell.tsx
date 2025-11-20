@@ -14,16 +14,10 @@ import {
   WalletIcon,
   ChartLineUpIcon,
   GearIcon,
-  ListIcon,
   CaretLeftIcon,
 } from '@phosphor-icons/react'
-import ProductsInventory from './products/productsInventory'
 import ScrapCards from './scrap/ScrapCards'
-import AdminPurchaseOrders from './purchaseOrders/AdminPurchaseOrders'
-import AdminSalesOrders from './salesOrders/AdminSalesOrders'
 import { UsersPage } from './users/usersPage'
-import { LeadsPage } from './leads/leadsPage'
-import { ReviewsPage } from './reviews/reviewsPage'
 import { useAdminSalesOrders } from '@/lib/queries/admin/useAdminSalesOrders'
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { useGetInventory } from '@/lib/queries/admin/useAdminProducts'
@@ -35,6 +29,11 @@ import Drawer from '@/components/ui/drawer'
 import { cn } from '@/lib/utils'
 import { useDrawerStore } from '@/store/drawerStore'
 import RatesPage from './rates/ratesPage'
+import LeadsPage from './leads/leadsPage'
+import ProductsPage from './products/productsPage'
+import PurchaseOrdersPage from './purchaseOrders/AdminPurchaseOrders'
+import SalesOrdersPage from './salesOrders/AdminSalesOrders'
+import ReviewsPage from './reviews/reviewsPage'
 
 export default function AdminShell() {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
@@ -108,9 +107,9 @@ export default function AdminShell() {
   const content = React.useMemo(() => {
     switch (selectedKey) {
       case 'purchase-orders':
-        return <AdminPurchaseOrders />
+        return <PurchaseOrdersPage />
       case 'sales-orders':
-        return <AdminSalesOrders />
+        return <SalesOrdersPage />
       case 'profits':
         return <div className="text-sm text-neutral-700">TODO: Profit and Loss</div>
       case 'expenses':
@@ -124,7 +123,7 @@ export default function AdminShell() {
       case 'reviews':
         return <ReviewsPage />
       case 'bullion':
-        return <ProductsInventory />
+        return <ProductsPage />
       case 'scrap':
         return <ScrapCards />
       case 'rates':

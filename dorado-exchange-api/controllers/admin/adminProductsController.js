@@ -139,15 +139,15 @@ export async function saveProduct(req, res) {
 }
 
 export async function createProduct(req, res) {
-  const { created_by } = req.body;
+  const { created_by, name } = req.body;
 
   try {
     const insertQuery = `
-      INSERT INTO exchange.products (created_by, updated_by)
-      VALUES ($1, $1)
+      INSERT INTO exchange.products (created_by, updated_by, product_name)
+      VALUES ($1, $1, $2)
       RETURNING id
     `;
-    const insertResult = await pool.query(insertQuery, [created_by]);
+    const insertResult = await pool.query(insertQuery, [created_by, name]);
     const newProductId = insertResult.rows[0].id;
 
     const selectQuery = `

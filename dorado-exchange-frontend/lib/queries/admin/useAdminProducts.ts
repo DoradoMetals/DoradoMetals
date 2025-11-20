@@ -54,18 +54,17 @@ export const useCreateProduct = () => {
   const { user } = useGetSession()
 
   return useMutation({
-    mutationFn: async (): Promise<AdminProduct> => {
+    mutationFn: async ({ name }: { name: string }): Promise<AdminProduct> => {
       if (!user?.name) throw new Error('User name is required to create product.')
       return await apiRequest<AdminProduct>('POST', '/admin/create_product', {
+        name,
         created_by: user.name,
       })
     },
 
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['adminProducts'] })
-
       const previousProducts = queryClient.getQueryData<AdminProduct[]>(['adminProducts'])
-
       return { previousProducts }
     },
 
