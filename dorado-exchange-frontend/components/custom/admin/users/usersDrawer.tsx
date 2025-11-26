@@ -82,7 +82,7 @@ function UserInfo({ user }: { user: AdminUser }) {
       />
       <Button
         variant="default"
-        className="w-full liquid-gold raised-off-page text-white"
+        className="w-full bg-primary raised-off-page text-white"
         disabled={true}
       >
         Upload Identity Images
@@ -162,14 +162,14 @@ function DoradoCredit({ user }: { user: AdminUser }) {
                 className={cn(
                   'w-full',
                   'text-sm raised-off-page',
-                  mode === m.value ? 'liquid-gold' : 'bg-card hover:bg-card border-none',
+                  mode === m.value ? 'bg-primary' : 'bg-card hover:bg-card border-none',
                   'flex items-center justify-center rounded-md cursor-pointer px-2 py-2 transition-colors'
                 )}
               >
                 <div
                   className={cn(
                     'flex items-center gap-1',
-                    mode === m.value ? 'text-white hover:text-white' : 'text-primary-gradient'
+                    mode === m.value ? 'text-white hover:text-white' : 'text-primary'
                   )}
                 >
                   {m.label}
@@ -199,7 +199,7 @@ function DoradoCredit({ user }: { user: AdminUser }) {
 
         <Button
           onClick={handleSubmit}
-          className="liquid-gold raised-off-page shine-on-hover text-white"
+          className="bg-primary raised-off-page text-white"
           disabled={updateCredit.isPending || !amount || wouldBeNegative}
         >
           Update Credit
@@ -223,7 +223,7 @@ function UserActions({ user }: { user: AdminUser }) {
       <div className="section-label mb-2">Actions</div>
       <Button
         variant="default"
-        className="w-full liquid-gold raised-off-page text-white"
+        className="w-full bg-primary raised-off-page text-white"
         onClick={() => {
           closeDrawer()
           impersonateUser.mutate({ user_id: user.id })
@@ -236,7 +236,7 @@ function UserActions({ user }: { user: AdminUser }) {
         className="w-full bg-card raised-off-page hover:bg-card"
         onClick={() => requestPasswordReset.mutate(user?.email ?? '')}
       >
-        <div className="text-primary-gradient">
+        <div className="text-primary">
           {requestPasswordReset.isPending ? 'Sending...' : 'Send Password Reset'}
         </div>
       </Button>
@@ -251,7 +251,7 @@ function UserOrders({ user }: { user: AdminUser }) {
       <div className="section-label mb-2">Orders</div>
       <Button
         variant="default"
-        className="w-full liquid-gold raised-off-page text-white"
+        className="w-full bg-primary raised-off-page text-white"
         onClick={() => {
           setCreateSalesOrderUser(user)
           openDrawer('createSalesOrder')

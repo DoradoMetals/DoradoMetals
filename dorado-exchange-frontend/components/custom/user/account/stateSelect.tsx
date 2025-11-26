@@ -49,7 +49,7 @@ export function StateSelect({ value, onChange }: StateSelectProps) {
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <Command className="bg-background">
-            <CommandInput placeholder="Search state..." className="h-8 secondary-text" />
+            <CommandInput placeholder="Search state..." className="h-8 text-sm text-neutral-600" />
             <CommandList className="max-h-40 overflow-y-auto bg-background">
               {stateOptions.map((state) => (
                 <CommandItem
@@ -58,7 +58,7 @@ export function StateSelect({ value, onChange }: StateSelectProps) {
                     onChange(state)
                     setOpen(false)
                   }}
-                  className="h-8 px-2 secondary-text"
+                  className="h-8 px-2 text-sm text-neutral-600"
                 >
                   <Check
                     className={`mr-2 h-4 w-4 ${value === state ? 'opacity-100' : 'opacity-0'}`}

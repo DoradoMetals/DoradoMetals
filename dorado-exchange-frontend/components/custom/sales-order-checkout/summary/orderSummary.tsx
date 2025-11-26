@@ -19,7 +19,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
 
   const itemContent = (
     <div className="w-full flex-col">
-      <div className="section-label text-primary-gradient mb-4">Items</div>
+      <div className="section-label text-primary mb-4">Items</div>
 
       <div className="flex-col gap-10">
         {items.map((item, index) => {
@@ -47,8 +47,8 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
               <div className="flex flex-col flex-grow min-w-0">
                 <div className="flex justify-between items-start w-full mt-2">
                   <div className="flex flex-col">
-                    <div className="primary-text">{item.product_name}</div>
-                    <div className="tertiary-text">{item.mint_name}</div>
+                    <div className="text-base text-neutral-700">{item.product_name}</div>
+                    <div className="text-xs text-neutral-500">{item.mint_name}</div>
                   </div>
                   <Button
                     variant="ghost"
@@ -75,7 +75,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
                       transformTiming={{ duration: 750, easing: 'ease-in' }}
                       spinTiming={{ duration: 150, easing: 'ease-out' }}
                       opacityTiming={{ duration: 350, easing: 'ease-out' }}
-                      className="primary-text"
+                      className="text-base text-neutral-700"
                       trend={0}
                     />
                     <Button
@@ -102,7 +102,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
   const paymentContent = (
     <div className="w-full flex-col">
       <div className="separator-inset" />
-      <div className="section-label text-primary-gradient my-4">Payment Details</div>
+      <div className="section-label text-primary my-4">Payment Details</div>
 
       <div className="w-full flex items-center justify-between">
         <div className="text-sm text-neutral-700">Shipping</div>
@@ -166,7 +166,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
         <div className="separator-inset" />
 
         <div className="w-full flex items-center justify-between pt-2">
-          <div className="text-base text-primary-gradient">Order Total</div>
+          <div className="text-base text-primary">Order Total</div>
           <div className="text-lg text-neutral-900">
             <PriceNumberFlow value={orderPrices.postChargesAmount} />
           </div>

@@ -7,8 +7,8 @@ const MASTER_STAGES = ['Picked Up', 'In Transit', 'Out for Delivery', 'Delivered
 export default function TrackingEvents({
   isLoading,
   trackingInfo,
-  background_color,
-  borderColor,
+  background_color = 'bg-primary',
+  borderColor = 'border-primary',
   delivery_date,
   shipping_status,
   useStatusColor = true,
@@ -118,14 +118,14 @@ export default function TrackingEvents({
                   step.active
                     ? useStatusColor
                       ? borderColor
-                      : 'primary-gradient-tracking-border'
+                      : 'border-primary'
                     : 'border-card'
                 )}
               >
                 <div
                   className={cn(
-                    'absolute -left-[10px] w-5 h-5 rounded-full',
-                    step.active ? useStatusColor ? background_color : 'primary-gradient' : 'bg-card'
+                    'absolute -left-[10px] w-5 h-5 rounded-full raised-off-page',
+                    step.active ? useStatusColor ? background_color : 'bg-primary' : 'bg-card'
                   )}
                 />
 

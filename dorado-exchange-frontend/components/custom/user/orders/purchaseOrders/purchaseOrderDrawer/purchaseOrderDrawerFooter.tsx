@@ -31,7 +31,6 @@ import getPurchaseOrderBullionTotal from '@/utils/purchaseOrderBullionTotal'
 
 export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
   const valueLabel = statusConfig[order.purchase_order_status]?.value_label ?? ''
-  const statusColor = statusConfig[order.purchase_order_status]?.text_color ?? ''
 
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
@@ -246,7 +245,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
         <div className="text-sm text-neutral-700">Questions? Give us a call.</div>
         <a
           href={`tel:+${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`}
-          className={cn('text-sm hover:underline', statusColor)}
+          className={cn('text-sm hover:underline text-primary')}
         >
           {formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}
         </a>

@@ -16,44 +16,6 @@
     dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)];
 }
 
-.header-text {
-  @apply text-xl
-    text-neutral-900;
-}
-.title-text {
-  @apply text-lg
-    text-neutral-900;
-}
-
-.primary-text {
-  @apply text-base
-    text-neutral-800;
-}
-
-.secondary-text {
-  @apply text-sm
-    text-neutral-600;
-}
-
-.tertiary-text {
-  @apply text-xs
-    text-neutral-500;
-}
-
-.error-text {
-  @apply text-xs
-    text-destructive;
-}
-
-.form-submit-button {
-  @apply 
-    w-full 
-    mb-8 
-    shadow-lg
-    text-white
-    hover:text-white;
-}
-
 .radio-group-buttons {
   @apply relative 
     flex 
@@ -116,4 +78,15 @@ number-flow-react::part(left)::after,
 number-flow-react::part(right)::after,
 number-flow-react::part(symbol) {
   padding: calc(var(--number-flow-mask-height, 0.25em) / 2) 0;
+}
+
+@layer components {
+  .floating-label {
+    @apply relative transition-colors;
+  }
+
+  .peer:focus ~ .floating-label,
+  .peer:not(:placeholder-shown) ~ .floating-label {
+    @apply text-primary;
+  }
 }

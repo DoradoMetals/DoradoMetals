@@ -1,11 +1,6 @@
-import { Button } from '@/components/ui/button'
-import { useState } from 'react'
-import { Textarea } from '@/components/ui/textarea'
-import { cn } from '@/lib/utils'
 import { useCreateReview } from '@/lib/queries/useReviews'
-import { SalesOrderDrawerContentProps, statusConfig } from '@/types/sales-orders'
+import { SalesOrderDrawerContentProps } from '@/types/sales-orders'
 import { useUser } from '@/lib/authClient'
-import { Rating, RatingButton } from '@/components/ui/rating'
 import { useSetReviewCreated } from '@/lib/queries/useSalesOrders'
 import { ReviewBlock } from '@/components/ui/review'
 
@@ -14,19 +9,11 @@ export default function CompletedSalesOrder({ order }: SalesOrderDrawerContentPr
   const createReview = useCreateReview()
   const setCreated = useSetReviewCreated()
 
-  const config = statusConfig[order.sales_order_status]
-
   return (
     <>
       <div className="flex flex-col w-full h-full">
         <div className="flex w-full mb-4">
           <div className="flex flex-col">
-            <div className="text-xl text neutral-800">Order Complete!</div>
-
-            <div className="text-sm text-neutral-600 text-left mb-4">
-              Your order has been completed! If you need any additional help with your order, please
-              call us. Otherwise, please feel free to leave a review of your experience below!
-            </div>
             <ReviewBlock
               title="How did we do?"
               defaultText=""

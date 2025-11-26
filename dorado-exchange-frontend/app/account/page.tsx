@@ -1,6 +1,6 @@
 'use client'
 
-import AccountTab from '@/components/custom/user/account/accountTab'
+import AccountShell from '@/components/custom/user/accountShell'
 import { Button } from '@/components/ui/button'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { UserRoundX } from 'lucide-react'
@@ -12,7 +12,7 @@ export default function Page() {
   return (
     <div className="flex flex-col h-full items-center gap-4">
       {user ? (
-        <AccountTab />
+        <AccountShell />
       ) : (
         <div className="w-full h-full flex flex-1 flex-col items-center justify-center text-center my-24 max-w-xs">
           <div className="mb-8">
@@ -24,7 +24,7 @@ export default function Page() {
           </div>
           <Button
             variant="default"
-            className="px-25 max-w-xl liquid-gold raised-off-page shine-on-hover text-white"
+            className="px-25 max-w-xl bg-primary raised-off-page text-white"
             onClick={() => {
               router.push('/authentication')
             }}

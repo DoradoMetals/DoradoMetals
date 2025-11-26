@@ -127,7 +127,7 @@ export default function CheckoutStepper() {
       <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10 lg:mt-30">
         <div className="relative mb-5">
           <ShoppingCartIcon size={80} strokeWidth={1.5} color={getPrimaryIconStroke()} />
-          <div className="absolute -top-6 right-3.5 border border-borderr text-xl text-primary-gradient rounded-full w-10 h-10 flex items-center justify-center">
+          <div className="absolute -top-6 right-3.5 border border-borderr text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
             0
           </div>
         </div>
@@ -142,7 +142,7 @@ export default function CheckoutStepper() {
           onClick={() => {
             router.push('/sell')
           }}
-          className="raised-off-page liquid-gold text-white hover:text-white shine-on-hover px-10"
+          className="raised-off-page bg-primary text-white hover:text-white px-10"
         >
           Start Shopping
         </Button>
@@ -158,8 +158,8 @@ export default function CheckoutStepper() {
             <div className="flex items-center gap-3">
               <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
               <div className="flex flex-col">
-                <h2 className="header-text">{stepper.current.title}</h2>
-                <p className="secondary-text">{stepper.current.description}</p>
+                <h2 className="text-xl text-neutral-900">{stepper.current.title}</h2>
+                <p className="text-sm text-neutral-600">{stepper.current.description}</p>
               </div>
             </div>
           </div>
@@ -167,8 +167,8 @@ export default function CheckoutStepper() {
             <div className="flex items-center gap-3">
               <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
               <div className="flex flex-col">
-                <h2 className="header-text">{stepper.current.title}</h2>
-                <p className="secondary-text">{stepper.current.description}</p>
+                <h2 className="text-xl text-neutral-900">{stepper.current.title}</h2>
+                <p className="text-sm text-neutral-600">{stepper.current.description}</p>
               </div>
             </div>
           </div>
@@ -207,7 +207,7 @@ export default function CheckoutStepper() {
             {stepper.current.id !== 'review' && (
               <Button
                 type="button"
-                className="ml-auto raised-off-page primary-gradient shine-on-hover text-white"
+                className="ml-auto raised-off-page bg-primary text-white"
                 onClick={stepper.next}
                 disabled={
                   (stepper.current.id === 'shipping' && !isShippingStepComplete) ||

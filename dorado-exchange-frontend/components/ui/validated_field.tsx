@@ -6,7 +6,7 @@ import { InvalidXIcon, ValidCheckIcon } from '@/components/ui/valid-check-icon'
 import { Control, FieldPath, FieldValues } from 'react-hook-form'
 import ShowPasswordButton from '../custom/auth/showPasswordButton'
 import { Dispatch, SetStateAction } from 'react'
-import { XIcon } from '@phosphor-icons/react'
+import { cn } from '@/lib/utils'
 
 type ValidatedFieldProps<T extends FieldValues> = {
   control: Control<T>
@@ -45,7 +45,7 @@ export function ValidatedField<T extends FieldValues>({
   className = 'input-floating-label-form',
   size = 'sm',
   showIcon = true,
-  messageClassName = 'absolute right-0 -bottom-5.5 -translate-y-1/2 error-text',
+  messageClassName = 'absolute right-0 -bottom-5.5 -translate-y-1/2 text-xs text-destructive',
   showOnTouch = false,
   showFormError = true,
 }: ValidatedFieldProps<T>) {
@@ -62,7 +62,7 @@ export function ValidatedField<T extends FieldValues>({
 
         return (
           <FormItem>
-            <div className="relative w-full">
+            <div className="relative w-full py-1">
               {showFormError && fieldState.isTouched && fieldState.error && (
                 <FormMessage className={messageClassName} />
               )}
@@ -75,7 +75,7 @@ export function ValidatedField<T extends FieldValues>({
                     onChange={mergedOnChange}
                     type={type}
                     label={label}
-                    className={`${className} ${rightAligned ? 'text-right' : ''}`}
+                    className={cn(className, rightAligned ? 'text-right' : 'text-left')}
                     size={size}
                     pattern={type === 'number' ? '[0-9]*' : undefined}
                     disabled={disabled}

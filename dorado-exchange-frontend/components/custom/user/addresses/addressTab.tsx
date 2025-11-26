@@ -47,11 +47,11 @@ export default function AddressTab() {
       ) : (
         <>
           <div className="flex items-center mb-4">
-            <h2 className="secondary-text">Addresses</h2>
+            <h2 className="text-sm text-neutral-600">Addresses</h2>
             {!noAddresses() ? (
               <Button
                 variant="ghost"
-                className="ml-auto text-primary-gradient p-0"
+                className="ml-auto text-primary p-0"
                 onClick={() => {
                   setSelectedAddress(emptyAddress)
                   openDrawer('address')
@@ -68,7 +68,7 @@ export default function AddressTab() {
                   Save a new address to your account.
                 </div>
                 <Button
-                  className="w-1/2 liquid-gold raised-off-page shine-on-hover text-white"
+                  className="w-1/2 bg-primary raised-off-page text-white"
                   effect="expandIcon"
                   variant="default"
                   size="sm"

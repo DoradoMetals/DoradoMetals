@@ -62,7 +62,7 @@ export function ForgotPasswordDialog() {
             <Button
               type="submit"
               disabled={forgotPasswordMutation.isPending || !form.watch('email')}
-              className="form-submit-button liquid-gold raised-off-page shine-on-hover"
+              className="w-full mb-8 text-white raised-off-page bg-primary hover:bg-primary"
             >
               {forgotPasswordMutation.isPending ? 'Sending...' : 'Send Reset Link'}
             </Button>

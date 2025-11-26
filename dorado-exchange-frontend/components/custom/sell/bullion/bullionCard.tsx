@@ -194,7 +194,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                   triggerContent={
                     <Button
                       variant="ghost"
-                      className="flex items-center h-7 w-7 rounded-full items-center justify-center z-10 liquid-gold text-white hover:text-white p-0 raised-off-page"
+                      className="flex items-center h-7 w-7 rounded-full items-center justify-center z-10 bg-primary text-white hover:text-white p-0 raised-off-page"
                     >
                       <Scale size={16} />
                     </Button>
@@ -211,7 +211,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                             htmlFor={option.product_name}
                             className={cn(
                               'h-5.5 sm:h-7 md:h-8.5 lg:h-9 w-8 xs:w-12 sm:w-14 rounded-lg flex items-center justify-center text-xs cursor-pointer border text-neutral-900 raised-off-page',
-                              isSelected && 'liquid-gold text-white'
+                              isSelected && 'bg-primary text-white'
                             )}
                           >
                             <RadioGroupItem
@@ -233,8 +233,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
 
       <div
         className={cn(
-          'liquid-gold w-full rounded-b-lg text-white',
-          quantity === 0 ? 'shine-on-hover' : ''
+          'bg-primary w-full rounded-b-lg text-white',
         )}
       >
         {quantity === 0 ? (

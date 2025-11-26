@@ -43,7 +43,7 @@ export function TableSearchSelect<TData>({
         <Button
           size="sm"
           variant="ghost"
-          className={cn('p-0 hover:bg-transparent', selected && 'text-primary-gradient')}
+          className={cn('p-0 hover:bg-transparent', selected && 'text-primary')}
         >
           <Filter size={14} />
         </Button>

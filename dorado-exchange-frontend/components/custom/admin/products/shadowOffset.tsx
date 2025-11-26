@@ -24,7 +24,7 @@ function DotBtn({
         'cursor-pointer w-full h-10 rounded-lg border text-sm font-medium raised-off-page',
         'grid place-items-center',
         'transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        checked ? 'border-0 liquid-gold text-white' : 'bg-card text-neutral-800 border-1 border-border',
+        checked ? 'border-0 bg-primary text-white' : 'bg-card text-neutral-800 border-1 border-border',
         className
       )}
     >

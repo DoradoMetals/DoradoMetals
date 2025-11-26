@@ -89,7 +89,7 @@ export default function SignInForm() {
               <ForgotPasswordDialog />
             </div>
 
-            <div className="flex mb-0 p-0 error-text ml-auto">
+            <div className="flex mb-0 p-0 text-xs text-destructive ml-auto">
               <p className="ml-auto">{error ? error.message : null}</p>
             </div>
 
@@ -97,7 +97,7 @@ export default function SignInForm() {
               type="submit"
               variant="default"
               disabled={recaptchaPending || signInPending}
-              className="liquid-gold raised-off-page shine-on-hover text-white w-full mb-8"
+              className="bg-primary raised-off-page text-white w-full mb-8"
             >
               {recaptchaPending ? 'Verifying…' : signInPending ? 'Signing In…' : 'Sign In'}
             </Button>

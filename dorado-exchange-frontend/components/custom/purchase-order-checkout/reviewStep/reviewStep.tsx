@@ -128,7 +128,7 @@ export default function ReviewStep() {
       <ItemTables />
 
       <Button
-        className="ml-auto raised-off-page primary-gradient shine-on-hover text-white w-full mt-2"
+        className="ml-auto raised-off-page bg-primary text-white w-full mt-2"
         disabled={createPurchaseOrder.isPending}
         onClick={() => {
           const liveCartItems = sellCartStore.getState().items

@@ -88,7 +88,7 @@ export default function ResetPasswordForm() {
               type="submit"
               variant="default"
               disabled={resetPasswordMutation.isPending}
-              className="form-submit-button liquid-gold raised-off-page shine-on-hover !mb-0"
+              className="w-full text-white raised-off-page bg-primary hover:bg-primary"
             >
               {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
             </Button>

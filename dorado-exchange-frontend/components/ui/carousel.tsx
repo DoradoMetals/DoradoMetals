@@ -135,7 +135,7 @@ function CarouselNavigation({ className, classNameButton, alwaysShow }: Carousel
           }
         }}
       >
-        <ChevronLeft className="title-text" size={20} />
+        <ChevronLeft className="text-lg text-neutral-800" size={20} />
       </button>
       <button
         type="button"
@@ -153,7 +153,7 @@ function CarouselNavigation({ className, classNameButton, alwaysShow }: Carousel
           }
         }}
       >
-        <ChevronRight className="title-text" size={20} />
+        <ChevronRight className="text-lg text-neutral-800" size={20} />
       </button>
     </div>
   )

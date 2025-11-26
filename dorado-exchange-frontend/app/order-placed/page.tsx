@@ -4,8 +4,6 @@ import { AnimatedScroll } from '@/components/icons/animated'
 import { BlurredStagger } from '@/components/ui/blurred-stagger'
 import { Button } from '@/components/ui/button'
 import { Confetti, ConfettiRef } from '@/components/ui/confetti'
-import { ShineBorder } from '@/components/ui/shine-border'
-import { cn } from '@/lib/utils'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
@@ -64,7 +62,7 @@ export default function Page() {
         className="w-full max-w-xs p-1"
       >
         <Button
-          className="liquid-gold raised-off-page w-full text-white hover:text-white"
+          className="bg-primary raised-off-page w-full text-white hover:text-white"
           onClick={() => {
             router.push('/orders')
           }}

@@ -11,13 +11,9 @@ import { payoutOptions } from '@/types/payout'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
 import { formatFullDate } from '@/utils/dateFormatting'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
-import { X } from 'lucide-react'
+import { DownloadIcon } from '@phosphor-icons/react'
 
-export default function PurchaseOrderDrawerHeader({
-  order,
-  username,
-  setIsOrderActive,
-}: PurchaseOrderDrawerHeaderProps) {
+export default function PurchaseOrderDrawerHeader({ order }: PurchaseOrderDrawerHeaderProps) {
   const downloadPackingList = useDownloadPackingList()
   const downloadReturnPackingList = useDownloadReturnPackingList()
   const downloadInvoice = useDownloadInvoice()
@@ -28,13 +24,15 @@ export default function PurchaseOrderDrawerHeader({
 
   const status = statusConfig[order.purchase_order_status]
   const Icon = status?.icon
-  const packageDetails = packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
-  const payoutDetails = payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
+  const packageDetails =
+    packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
+  const payoutDetails =
+    payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
 
   const downloadOptions = [
     {
       statuses: ['In Transit'],
-      label: 'Download Label + Packing List',
+      label: 'Shipping Info',
       onClick: () => {
         downloadPackingList.mutate({
           purchaseOrder: order,
@@ -47,7 +45,7 @@ export default function PurchaseOrderDrawerHeader({
     },
     {
       statuses: ['Cancelled'],
-      label: 'Download Label + Packing List',
+      label: 'Shipping Info',
       onClick: () => {
         downloadReturnPackingList.mutate({
           purchaseOrder: order,
@@ -58,14 +56,26 @@ export default function PurchaseOrderDrawerHeader({
     },
     {
       statuses: ['Received', 'Offer Sent', 'Rejected'],
-      label: 'Download Invoice Preview',
-      onClick: () => downloadInvoice.mutate({ purchaseOrder: order, spotPrices, orderSpots, fileName: 'invoice_preview' }),
+      label: 'Invoice Preview',
+      onClick: () =>
+        downloadInvoice.mutate({
+          purchaseOrder: order,
+          spotPrices,
+          orderSpots,
+          fileName: 'invoice_preview',
+        }),
       isPending: downloadInvoice.isPending,
     },
     {
       statuses: ['Accepted', 'Payment Processing', 'Completed'],
-      label: 'Download Invoice',
-      onClick: () => downloadInvoice.mutate({ purchaseOrder: order, spotPrices, orderSpots, fileName: 'invoice' }),
+      label: 'Invoice',
+      onClick: () =>
+        downloadInvoice.mutate({
+          purchaseOrder: order,
+          spotPrices,
+          orderSpots,
+          fileName: 'invoice',
+        }),
       isPending: downloadInvoice.isPending,
     },
   ]
@@ -82,7 +92,7 @@ export default function PurchaseOrderDrawerHeader({
       <div className="flex w-full justify-between items-center">
         <div className="flex items-center gap-2">
           {status && Icon && (
-            <div className={`${status.text_color}`}>
+            <div className="text-primary">
               <Icon size={24} />
             </div>
           )}
@@ -94,10 +104,11 @@ export default function PurchaseOrderDrawerHeader({
               <Button
                 key={index}
                 variant="link"
-                className={`font-normal text-sm bg-transparent hover:bg-transparent ${status.text_color} px-0`}
+                className='flex items-center justify-start gap-2 text-sm bg-transparent px-0'
                 onClick={onClick}
                 disabled={isPending}
               >
+                <DownloadIcon size={20} className="text-primary" />
                 {isPending ? 'Loading...' : label}
               </Button>
             ) : null

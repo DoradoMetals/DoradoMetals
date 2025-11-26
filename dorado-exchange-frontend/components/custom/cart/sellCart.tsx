@@ -52,14 +52,14 @@ export default function SellCart() {
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
       <div className="relative mb-5">
         <ShoppingCartSimpleIcon size={80} strokeWidth={1.5} color={getPrimaryIconStroke()} />
-        <div className="absolute -top-6 right-3.5 border border-border text-xl text-primary-gradient rounded-full w-10 h-10 flex items-center justify-center">
+        <div className="absolute -top-6 right-3.5 border border-border text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
           0
         </div>
       </div>
 
       <div className="flex-col items-center gap-1 mb-5">
-        <h2 className="title-text tracking-wide">Your sell cart is empty!</h2>
-        <p className="tertiary-text">Add items to get a price estimate.</p>
+        <h2 className="text-lg text-neutral-800 tracking-wide">Your sell cart is empty!</h2>
+        <p className="text-xs text-neutral-500">Add items to get a price estimate.</p>
       </div>
       <Link href="/sell" passHref>
         <Button
@@ -68,7 +68,7 @@ export default function SellCart() {
             router.push('/sell')
             closeDrawer()
           }}
-          className="raised-off-page liquid-gold text-white hover:text-white shine-on-hover px-12"
+          className="raised-off-page bg-primary text-white hover:text-white px-12"
         >
           Start Selling
         </Button>
@@ -101,8 +101,8 @@ export default function SellCart() {
         <div className="flex flex-col flex-grow min-w-0">
           <div className="flex justify-between items-start w-full mt-2">
             <div className="flex flex-col">
-              <div className="primary-text">{item.product_name}</div>
-              <div className="tertiary-text">{item.mint_name}</div>
+              <div className="text-base text-neutral-700">{item.product_name}</div>
+              <div className="text-xs text-neutral-500">{item.mint_name}</div>
             </div>
             <Button
               variant="ghost"
@@ -124,7 +124,7 @@ export default function SellCart() {
               >
                 <Minus size={16} />
               </Button>
-              <NumberFlow value={quantity} className="primary-text" trend={0} />
+              <NumberFlow value={quantity} className="text-base text-neutral-700" trend={0} />
               <Button
                 variant="ghost"
                 size="sm"
@@ -158,7 +158,7 @@ export default function SellCart() {
           <div className="flex justify-between items-start w-full mt-2">
             <div className="flex flex-col">
               <div className="text-sm text-neutral-800">{item.name || 'Custom Scrap'}</div>
-              <div className="flex items-center secondary-text gap-5"></div>
+              <div className="flex items-center text-sm text-neutral-600 gap-5"></div>
             </div>
             <Button
               variant="ghost"
@@ -205,7 +205,7 @@ export default function SellCart() {
         </div>
       </div>
       <Button
-        className="raised-off-page primary-gradient shine-on-hover w-full text-white"
+        className="raised-off-page bg-primary hover:bg-primary text-white"
         onClick={() => {
           user ? router.push('/checkout') : router.push('/authentication')
         }}

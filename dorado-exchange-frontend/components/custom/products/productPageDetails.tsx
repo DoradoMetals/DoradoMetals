@@ -169,7 +169,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       className={cn(
                         'relative flex w-full justify-center rounded-md px-3 py-2 font-normal cursor-pointer raised-off-page',
                         isSelected
-                          ? ' liquid-gold text-white hover:text-white'
+                          ? 'bg-primary text-white hover:text-white'
                           : 'bg-card text-neutral-800'
                       )}
                     >
@@ -197,8 +197,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           )}
           <div
             className={cn(
-              'cursor-default secondary-gradient raised-off-page w-full rounded-lg py-1 text-white',
-              quantity === 0 ? 'shine-on-hover' : ''
+              'cursor-default bg-primary raised-off-page w-full rounded-lg py-1 text-white',
             )}
           >
             {quantity === 0 ? (
@@ -241,8 +240,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           </div>
           <div
             className={cn(
-              'cursor-default liquid-gold raised-off-page w-full rounded-lg py-1 text-white',
-              sellQuantity === 0 ? 'shine-on-hover' : ''
+              'cursor-default bg-primary raised-off-page w-full rounded-lg py-1 text-white',
             )}
           >
             {sellQuantity === 0 ? (
@@ -619,7 +617,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     className={cn(
                       'relative flex w-full justify-center rounded-md px-3 py-2 font-normal cursor-pointer raised-off-page',
                       isSelected
-                        ? ' liquid-gold text-white hover:text-white'
+                        ? 'bg-primarytext-white hover:text-white'
                         : 'bg-card text-neutral-800'
                     )}
                   >
@@ -650,8 +648,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
         <div className="flex flex-col gap-1 w-full">
           <div
             className={cn(
-              'cursor-default secondary-gradient raised-off-page w-full rounded-lg py-1 text-white',
-              quantity === 0 ? 'shine-on-hover' : ''
+              'cursor-default bg-primary raised-off-page w-full rounded-lg py-1 text-white',
             )}
           >
             {quantity === 0 ? (
@@ -694,8 +691,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           </div>
           <div
             className={cn(
-              'cursor-default liquid-gold raised-off-page w-full rounded-lg py-1 text-white',
-              sellQuantity === 0 ? 'shine-on-hover' : ''
+              'cursor-default bg-primary raised-off-page w-full rounded-lg py-1 text-white',
             )}
           >
             {sellQuantity === 0 ? (

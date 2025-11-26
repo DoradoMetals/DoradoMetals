@@ -1,31 +1,20 @@
-import { cn } from '@/lib/utils'
 import { payoutOptions } from '@/types/payout'
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 
 export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
-  const config = statusConfig[order.purchase_order_status]
   const payout = payoutOptions.find((p) => p.method === order.payout?.method)
   const Icon = payout?.icon
 
   return (
     <div className="flex flex-col items-center gap-4 h-full">
-      <div className="flex flex-col gap-3 w-full">
-        <div className="text-left">
-          <div className="text-xl text-neutral-800 mb-2">Your payment is processing!</div>
-          <div className="text-sm text-neutral-600">
-            See below for payment details. If you need to make any last minute changes to your
-            payment method, please call us and we will do our best to accomodate you.
-          </div>
-        </div>
-      </div>
       <div className="h-auto w-full p-4 rounded-lg flex flex-col gap-3 raised-off-page bg-card">
         <div className="flex flex-col items-start gap-4 w-full">
           <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-1 text-xl text-neutral-800">
-              <Icon size={24} className={config.text_color} />
+              <Icon size={24} className="text-primary" />
               {payout?.label}
             </div>
-            <div className={cn('text-sm', config.text_color)}>{payout?.time_delay}</div>
+            <div className="text-sm text-primary">{payout?.time_delay}</div>
           </div>
 
           <div className="w-full">
@@ -124,9 +113,9 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
 
           {order.payout.method === 'DORADO_ACCOUNT' && (
             <div className="text-sm text-neutral-600">
-              Your funds should now be available. You can use those funds to purchase bullion
-              from us, and they can be withdrawn and sent to you via one of the other payout
-              methods at any time. You can see your total available balance in your account.
+              Your funds should now be available. You can use those funds to purchase bullion from
+              us, and they can be withdrawn and sent to you via one of the other payout methods at
+              any time. You can see your total available balance in your account.
             </div>
           )}
         </div>

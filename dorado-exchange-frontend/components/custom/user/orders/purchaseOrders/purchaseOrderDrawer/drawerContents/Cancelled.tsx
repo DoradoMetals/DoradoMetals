@@ -4,9 +4,7 @@ import { useAcceptOffer, usePurchaseOrderMetals } from '@/lib/queries/usePurchas
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import { useMemo } from 'react'
-import { payoutOptions } from '@/types/payout'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
-import { cn } from '@/lib/utils'
 import { useTracking } from '@/lib/queries/shipping/useShipments'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
@@ -18,12 +16,10 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
   const { data: trackingInfo, isLoading } = useTracking(
     order.return_shipment.id,
     order.return_shipment.tracking_number,
-    order.return_shipment.carrier_id,
+    order.return_shipment.carrier_id
   )
 
   const acceptOffer = useAcceptOffer()
-
-  const config = statusConfig[order.purchase_order_status]
 
   const handleAcceptOffer = () => {
     acceptOffer.mutate({
@@ -37,8 +33,7 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
     return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices)
   }, [order, spotPrices, orderSpotPrices])
 
-  const handlePayShipping = () => {
-  }
+  const handlePayShipping = () => {}
 
   return (
     <>
@@ -46,13 +41,6 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
         {!order.return_shipping_paid ? (
           <div className="flex flex-col h-full w-full mb-4 gap-6">
             <div className="flex flex-col w-full">
-              <div className="flex flex-col gap-1 text-left text-xl text-neutral-900 mb-4">
-                You have cancelled your order.
-                <div className="text-sm text-neutral-700">
-                  Before we can return your items, we must collect payment for both the original and
-                  return shipments.
-                </div>
-              </div>
 
               <div className="flex w-full justify-between items-center mb-1">
                 <div className="text-lg text-neutral-800">Shipping Charges:</div>
@@ -64,11 +52,7 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
               </div>
               <Button
                 variant="default"
-                className={cn(
-                  config.background_color,
-                  config.hover_background_color,
-                  'text-white raised-off-page w-full p-4'
-                )}
+                className="text-white raised-off-page w-full p-4 bg-primary"
                 onClick={handlePayShipping}
               >
                 Pay Shipping Charges
@@ -94,11 +78,7 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
               </div>
               <Button
                 variant="default"
-                className={cn(
-                  config.text_color,
-                  config.hover_background_color,
-                  'hover:text-white raised-off-page w-full p-4 bg-card'
-                )}
+                className="text-primary hover:text-white hover:bg-primary raised-off-page w-full p-4 bg-card"
                 onClick={handleAcceptOffer}
                 disabled={acceptOffer.isPending}
               >
@@ -110,8 +90,6 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
           <TrackingEvents
             isLoading={isLoading}
             trackingInfo={trackingInfo}
-            background_color={config.background_color}
-            borderColor={config.border_color}
             delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery}
             shipping_status={order.shipment.shipping_status}
           />

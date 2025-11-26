@@ -5,7 +5,7 @@ import { useSalesOrderMetals } from '@/lib/queries/useSalesOrders'
 import { SalesOrderDrawerHeaderProps, statusConfig } from '@/types/sales-orders'
 import { formatFullDate } from '@/utils/dateFormatting'
 import { useFormatSalesOrderNumber } from '@/utils/formatSalesOrderNumber'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { DownloadIcon } from '@phosphor-icons/react'
 
 export default function SalesOrderDrawerHeader({ order }: SalesOrderDrawerHeaderProps) {
   const downloadInvoice = useDownloadSalesOrderInvoice()
@@ -18,14 +18,14 @@ export default function SalesOrderDrawerHeader({ order }: SalesOrderDrawerHeader
   const downloadOptions = [
     {
       statuses: ['Pending'],
-      label: 'Download Invoice Preview',
+      label: 'Invoice Preview',
       onClick: () =>
         downloadInvoice.mutate({ salesOrder: order, orderSpots, fileName: 'invoice_preview' }),
       isPending: downloadInvoice.isPending,
     },
     {
       statuses: ['Preparing', 'In Transit', 'Completed'],
-      label: 'Download Invoice',
+      label: 'Invoice',
       onClick: () => downloadInvoice.mutate({ salesOrder: order, orderSpots, fileName: 'invoice' }),
       isPending: downloadInvoice.isPending,
     },
@@ -39,8 +39,8 @@ export default function SalesOrderDrawerHeader({ order }: SalesOrderDrawerHeader
         <div className="text-sm text-neutral-700">{formatSalesOrderNumber(order.order_number)}</div>
       </div>
       <div className="flex w-full justify-between items-center">
-        <div className="flex items-center gap-2">
-          {Icon && <Icon size={24} color={getPrimaryIconStroke()} />}
+        <div className="flex items-center gap-2 text-primary">
+          {Icon && <Icon size={24} />}
           <span className="text-lg text-neutral-800">{order.sales_order_status}</span>
         </div>
         <div className="flex ml-auto">
@@ -49,10 +49,11 @@ export default function SalesOrderDrawerHeader({ order }: SalesOrderDrawerHeader
               <Button
                 key={index}
                 variant="link"
-                className={`font-normal text-sm bg-transparent hover:bg-transparent text-primary-gradient px-0`}
+                className='flex items-center justify-start gap-2 text-sm bg-transparent px-0'
                 onClick={onClick}
                 disabled={isPending}
               >
+                <DownloadIcon size={20} className="text-primary" />
                 {isPending ? 'Loading...' : label}
               </Button>
             ) : null

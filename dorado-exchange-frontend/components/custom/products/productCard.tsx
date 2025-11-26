@@ -321,8 +321,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
 
           <div
             className={cn(
-              'cursor-default secondary-gradient w-full rounded-b-lg py-2 text-white',
-              quantity === 0 ? 'shine-on-hover' : ''
+              'cursor-default bg-primary w-full rounded-b-lg py-2 text-white',
             )}
             onClick={(e) => {
               e.stopPropagation()

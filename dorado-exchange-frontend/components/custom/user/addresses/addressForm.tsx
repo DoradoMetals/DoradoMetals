@@ -63,7 +63,7 @@ export default function AddressForm({
               render={({ field }) => (
                 <FormItem className="w-full">
                   <div className="relative w-full">
-                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2" />
                   </div>
                   <FormControl>
                     <FloatingLabelInput
@@ -87,7 +87,7 @@ export default function AddressForm({
               render={({ field }) => (
                 <FormItem className="w-full">
                   <div className="relative w-full">
-                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2" />
                   </div>
                   <FormControl>
                     <FloatingLabelInput
@@ -117,7 +117,7 @@ export default function AddressForm({
               render={({ field }) => (
                 <FormItem className="w-full">
                   <div className="relative w-full">
-                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2" />
                   </div>
                   <FormControl>
                     <FloatingLabelInput
@@ -142,7 +142,7 @@ export default function AddressForm({
                 render={({ field }) => (
                   <FormItem className="w-full">
                     <div className="relative w-full">
-                      <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                      <FormMessage className="absolute right-0 -top-3 -translate-y-1/2" />
                     </div>
                     <FormControl>
                       <FloatingLabelInput
@@ -163,7 +163,7 @@ export default function AddressForm({
                 render={({ field }) => (
                   <FormItem className="w-full">
                     <div className="relative w-full">
-                      <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                      <FormMessage className="absolute right-0 -top-3 -translate-y-1/2" />
                     </div>
                     <FormControl>
                       <FloatingLabelInput
@@ -189,7 +189,7 @@ export default function AddressForm({
                 render={({ field }) => (
                   <FormItem className="w-full">
                     <div className="relative w-full">
-                      <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                      <FormMessage className="absolute right-0 -top-3 -translate-y-1/2" />
                     </div>
                     <FormControl>
                       <FloatingLabelInput
@@ -212,7 +212,7 @@ export default function AddressForm({
                 render={({ field }) => (
                   <FormItem>
                     <div className="relative w-full">
-                      <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                      <FormMessage className="absolute right-0 -top-3 -translate-y-1/2" />
                     </div>
                     <StateSelect value={field.value} onChange={field.onChange} />
                   </FormItem>
@@ -228,7 +228,7 @@ export default function AddressForm({
               render={({ field }) => (
                 <FormItem className="w-full">
                   <div className="relative w-full">
-                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                    <FormMessage className="absolute right-0 -top-3 -translate-y-1/2" />
                   </div>
                   <FormControl>
                     <FloatingLabelInput
@@ -250,7 +250,7 @@ export default function AddressForm({
           )}
           <Button
             type="submit"
-            className="form-submit-button liquid-gold raised-off-page shine-on-hover !mb-0"
+            className="w-full text-white raised-off-page bg-primary hover:bg-primary"
             disabled={updateAddressMutation.isPending}
           >
             {updateAddressMutation.isPending ? 'Saving...' : 'Save Changes'}

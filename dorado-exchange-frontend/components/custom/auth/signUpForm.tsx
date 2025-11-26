@@ -113,14 +113,14 @@ export default function SignUpForm() {
                         <div className="flex items-end text-xs text-neutral-600 gap-1">
                           Accept our
                           <Link
-                            className="text-primary-gradient tracking-wide"
+                            className="text-primary tracking-wide"
                             href={'/terms-and-conditions'}
                           >
                             Terms and Condtions
                           </Link>
                           and
                           <Link
-                            className="text-primary-gradient tracking-wide"
+                            className="text-primary tracking-wide"
                             href={'/privacy-policy'}
                           >
                             Privacy Policy.
@@ -128,7 +128,7 @@ export default function SignUpForm() {
                         </div>
                       </FormLabel>
                     </div>
-                    <FormMessage className="error-text" />
+                    <FormMessage className="text-xs text-destructive" />
                   </FormItem>
                 )}
               />
@@ -140,7 +140,7 @@ export default function SignUpForm() {
               type="submit"
               variant="default"
               disabled={recaptchaPending || signUpPending}
-              className="liquid-gold raised-off-page shine-on-hover text-white w-full mb-8"
+              className="bg-primary raised-off-page text-white w-full mb-8"
             >
               {recaptchaPending ? 'Verifying…' : signUpPending ? 'Signing Up…' : 'Sign Up'}
             </Button>

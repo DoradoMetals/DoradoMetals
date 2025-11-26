@@ -130,16 +130,6 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     footerDisplay: false,
     seoIndex: false,
   },
-  orders: {
-    path: '/orders',
-    roles: ['user', 'admin'],
-    desktopLabel: 'Orders',
-    mobileLabel: 'Orders',
-    desktopDisplay: false,
-    mobileDisplay: false,
-    footerDisplay: false,
-    seoIndex: false,
-  },
   changeEmail: {
     path: '/change-email',
     roles: ['user', 'admin'],

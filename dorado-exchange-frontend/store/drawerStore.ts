@@ -13,6 +13,7 @@ type DrawerType =
   | 'product'
   | 'reviews'
   | 'adminSidebar'
+  | 'accountSidebar'
   | null
 
 interface DrawerState {

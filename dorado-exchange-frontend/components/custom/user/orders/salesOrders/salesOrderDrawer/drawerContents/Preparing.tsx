@@ -1,45 +1,13 @@
-// export default function PreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
-//   return (
-//     <div className="flex w-full">
-//       <div className="flex flex-col gap-6">
-//         <div className="flex flex-col gap-1">
-//           <h2 className="text-xl text-neutral-900">Your order has been placed.</h2>
-//           <div className="text-sm text-neutral-700">
-//             Please give our team some time to prepare your for order for shipment. Once your items
-//             have been sent, they should arrive within{' '}
-//             {Object.values(salesOrderServiceOptions)
-//               .find((o) => o.label === order.shipping_service)
-//               ?.time?.toLowerCase()}
-//             .
-//           </div>
-//         </div>
-//         <div className="w-full flex flex-col gap-2">
-//           <div className='text-sm tracking-wide text-neutral-600 border-b border-border pb-2'>
-//             Shipping To:
-//           </div>
-//           <AddressDisplay address={order.address} />
-//         </div>
-//       </div>
-//     </div>
-//   )
-// }
-
-import {
-  SalesOrderDrawerContentProps,
-  salesOrderServiceOptions,
-  statusConfig,
-} from '@/types/sales-orders'
-import { AnimatedHandshake, AnimatedScroll } from '@/components/icons/animated'
+import { SalesOrderDrawerContentProps, salesOrderServiceOptions } from '@/types/sales-orders'
+import { AnimatedScroll } from '@/components/icons/animated'
 import { BlurredStagger } from '@/components/ui/blurred-stagger'
 import { Confetti, ConfettiRef } from '@/components/ui/confetti'
 import { ShineBorder } from '@/components/ui/shine-border'
 import { cn } from '@/lib/utils'
 import { useEffect, useRef } from 'react'
-import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
 import DisplaySalesOrderProducts from './displayProducts'
 
 export default function PreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
-  const config = statusConfig[order.sales_order_status]
   const confettiRef = useRef<ConfettiRef>(null)
 
   const arrival = Object.values(salesOrderServiceOptions)
@@ -90,7 +58,7 @@ export default function PreparingSalesOrder({ order }: SalesOrderDrawerContentPr
             />
           </div>
           <div className="flex w-full justify-center">
-            <AnimatedScroll size={128} className="mb-6 z-1" color={getPrimaryIconStroke()} />
+            <AnimatedScroll size={128} className="mb-6 z-1 text-primary" />
           </div>
         </div>
       </div>

@@ -1,14 +1,17 @@
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { useDrawerStore } from '@/store/drawerStore'
+'use client'
 
+import { MouseEvent, useMemo } from 'react'
+import { Button } from '@/components/ui/button'
+import { useDrawerStore } from '@/store/drawerStore'
 import { formatFullDate } from '@/utils/dateFormatting'
-import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import { SalesOrder, statusConfig } from '@/types/sales-orders'
 import { useFormatSalesOrderNumber } from '@/utils/formatSalesOrderNumber'
 import { AvatarCircles } from '@/components/ui/avatar-circles'
-import { CaretRightIcon } from '@phosphor-icons/react'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
+import { DownloadIcon } from '@phosphor-icons/react'
+import { cn } from '@/lib/utils'
+import { useDownloadSalesOrderInvoice } from '@/lib/queries/usePDF'
+import { useSalesOrderMetals } from '@/lib/queries/useSalesOrders'
+import { OrderCardShell } from '../orderCardShell'
 
 export default function SalesOrderCard({
   order,
@@ -20,6 +23,9 @@ export default function SalesOrderCard({
   const { openDrawer } = useDrawerStore()
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
 
+  const { data: orderSpots = [] } = useSalesOrderMetals(order.id)
+  const downloadInvoice = useDownloadSalesOrderInvoice()
+
   const status = statusConfig[order.sales_order_status]
   const Icon = status?.icon
 
@@ -28,56 +34,77 @@ export default function SalesOrderCard({
     count: item.quantity || 1,
   }))
 
+  const itemsLabel =
+    order.order_items.length === 0
+      ? 'No Items Included'
+      : `${order.order_items.length} ${order.order_items.length === 1 ? 'Item' : 'Items'}`
+
+  const downloadOptions = [
+    {
+      statuses: ['Pending'],
+      label: 'Invoice Preview',
+      onClick: () =>
+        downloadInvoice.mutate({
+          salesOrder: order,
+          orderSpots,
+          fileName: 'invoice_preview',
+        }),
+      isPending: downloadInvoice.isPending,
+    },
+    {
+      statuses: ['Preparing', 'In Transit', 'Completed'],
+      label: 'Invoice',
+      onClick: () =>
+        downloadInvoice.mutate({
+          salesOrder: order,
+          orderSpots,
+          fileName: 'invoice',
+        }),
+      isPending: downloadInvoice.isPending,
+    },
+  ]
+
+  const handleOpen = () => {
+    setActiveOrder(order.id)
+    openDrawer('salesOrder')
+  }
+
+  const stopAnd = (fn: () => void, isPending: boolean) => (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    if (isPending) return
+    fn()
+  }
+
   return (
-    <div className="flex flex-col w-full bg-card h-auto rounded-lg p-4 raised-off-page">
-      <div className="border-b border-border mb-3">
-        <div className="flex items-center justify-between w-full pb-4">
-          <div className="text-sm text-neutral-600">{formatFullDate(order.created_at)}</div>
-          <div className="text-sm text-neutral-600 tracking-wide">
-            {formatSalesOrderNumber(order.order_number)}
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-col justify-between gap-6">
-        <div className="flex items-center w-full justify-between">
-          <div className="flex items-center gap-2 text-lg">
-            {status && Icon && <Icon size={24} color={getPrimaryIconStroke()} />}
-            <span className="text-lg text-neutral-800">{order.sales_order_status}</span>
-          </div>
-          <div className="flex flex-col gap-1 items-end">
-            <div className="text-lg text-neutral-800">
-              <PriceNumberFlow value={order.order_total} />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-end justify-between w-full">
-          <div className="flex flex-col gap-1 items-start">
-            
-            <AvatarCircles
-              items={avatarItems}
-              maxDisplay={3}
-              className="bg-transparent border-none"
-            />
-          </div>
-
-          <div className="pb-2">
-            <Button
-              variant="ghost"
-              className={cn(
-                'p-0 h-auto text-base font-normal flex items-end gap-0 min-h-4 text-primary-gradient'
-              )}
-              onClick={() => {
-                setActiveOrder(order.id)
-                openDrawer('salesOrder')
-              }}
-            >
-              View Order
-              <CaretRightIcon size={16} color={getPrimaryIconStroke()} className="pb-[2.5px]" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <OrderCardShell
+      createdAtLabel={formatFullDate(order.created_at)}
+      orderNumberLabel={formatSalesOrderNumber(order.order_number)}
+      statusLabel={order.sales_order_status}
+      StatusIcon={Icon}
+      total={order.order_total}
+      secondaryInfo={itemsLabel}
+      rightContent={
+        <AvatarCircles items={avatarItems} maxDisplay={3} className="bg-transparent border-none" />
+      }
+      downloadArea={
+        <>
+          {downloadOptions.map(({ statuses, label, onClick, isPending }, index) =>
+            statuses.includes(order.sales_order_status) ? (
+              <Button
+                key={index}
+                variant="link"
+                className="flex items-center justify-start gap-2 text-sm bg-transparent px-0"
+                onClick={stopAnd(onClick, isPending)}
+                disabled={isPending}
+              >
+                <DownloadIcon size={20} className="text-primary" />
+                <span>{isPending ? 'Loading...' : label}</span>
+              </Button>
+            ) : null
+          )}
+        </>
+      }
+      onOpen={handleOpen}
+    />
   )
 }

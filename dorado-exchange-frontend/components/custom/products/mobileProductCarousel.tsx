@@ -81,7 +81,7 @@ export default function AvatarCarousel() {
           >
             <span
               className={`text-base font-semibold tracking-widest uppercase transition-colors ${
-                isActive(category.name) ? 'text-secondary-gradient' : 'text-neutral-400 hover-text-secondary-gradient'
+                isActive(category.name) ? 'text-primary' : 'text-neutral-400 hover:text-primary'
               }`}
             >
               {category.name}

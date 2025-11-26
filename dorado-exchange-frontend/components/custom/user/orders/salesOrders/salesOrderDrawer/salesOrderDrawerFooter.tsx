@@ -1,28 +1,16 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
-
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import formatPhoneNumber from '@/utils/formatPhoneNumber'
 
-import { SalesOrderDrawerFooterProps, statusConfig } from '@/types/sales-orders'
+import { SalesOrderDrawerFooterProps } from '@/types/sales-orders'
 
 export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooterProps) {
-  const valueLabel = statusConfig[order.sales_order_status]?.value_label ?? ''
-  const statusColor = statusConfig[order.sales_order_status]?.text_color ?? ''
-
   const [open, setOpen] = useState({
     items: false,
     total: false,
@@ -104,7 +92,7 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
         <div className="text-sm text-neutral-700">Questions? Give us a call.</div>
         <a
           href={`tel:+1${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`}
-          className="text-sm hover:underline text-primary-gradient"
+          className="text-sm hover:underline text-primary"
         >
           {formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}
         </a>

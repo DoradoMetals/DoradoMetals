@@ -1,6 +1,6 @@
 'use client'
 
-import * as React from 'react'
+import { useMemo, useState } from 'react'
 import {
   ClipboardTextIcon,
   CurrencyDollarIcon,
@@ -46,7 +46,7 @@ export default function AdminShell() {
   const roleMeta = userRoleOptions.find((r) => r.value === currentRole) ?? userRoleOptions[0]
   const RoleIcon = roleMeta.icon
 
-  const sections: SidebarSection[] = React.useMemo(
+  const sections: SidebarSection[] = useMemo(
     () => [
       {
         label: 'Orders',
@@ -94,9 +94,9 @@ export default function AdminShell() {
     [purchaseOrders.length, salesOrders.length]
   )
 
-  const [selectedKey, setSelectedKey] = React.useState<string>(sections[0].items[0].key)
+  const [selectedKey, setSelectedKey] = useState<string>(sections[0].items[0].key)
 
-  const currentLabel = React.useMemo(() => {
+  const currentLabel = useMemo(() => {
     for (const s of sections) {
       const found = s.items.find((i) => i.key === selectedKey)
       if (found) return found.label
@@ -104,7 +104,7 @@ export default function AdminShell() {
     return 'Home'
   }, [sections, selectedKey])
 
-  const content = React.useMemo(() => {
+  const content = useMemo(() => {
     switch (selectedKey) {
       case 'purchase-orders':
         return <PurchaseOrdersPage />

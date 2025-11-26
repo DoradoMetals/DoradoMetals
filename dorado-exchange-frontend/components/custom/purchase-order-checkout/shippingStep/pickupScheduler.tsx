@@ -100,7 +100,7 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
                       size="sm"
                       className={cn(
                         'w-full text-neutral-700 font-normal raised-off-page bg-card hover:bg-card',
-                        pickup?.time === slot && 'text-primary-gradient'
+                        pickup?.time === slot && 'text-primary'
                       )}
                       onClick={() =>
                         setData({

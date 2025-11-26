@@ -73,8 +73,8 @@ export default function Shell({ visible }: { visible: boolean }) {
               {menuItems.map((item) => {
                 const isActive = pathname === item.href
                 const linkClasses = isActive
-                  ? 'text-primary-gradient'
-                  : 'text-neutral-500 hover-text-primary-gradient'
+                  ? 'text-primary'
+                  : 'text-neutral-500 hover:text-primary'
                 return (
                   <li key={item.key}>
                     <Link href={item.href} className={linkClasses}>
@@ -94,7 +94,7 @@ export default function Shell({ visible }: { visible: boolean }) {
                 className="text-neutral-700 hover:text-neutral-900"
               />
               {items > 0 && (
-                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full primary-gradient">
+                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full bg-primary">
                   <div className="flex flex-1 items-center text-white justify-center text-[10px]">
                     {items}
                   </div>
@@ -138,7 +138,7 @@ export default function Shell({ visible }: { visible: boolean }) {
             >
               <CartIcon size={28} isOpen={false} className="text-neutral-900 hover:bg-card" />
               {items > 0 && (
-                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full primary-gradient ">
+                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full bg-primary">
                   <div className="flex flex-1 items-center text-white justify-center text-[10px]">
                     {items}
                   </div>

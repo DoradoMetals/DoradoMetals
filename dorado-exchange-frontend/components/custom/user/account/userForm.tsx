@@ -13,10 +13,8 @@ import {
   useChangeEmail,
   useSendVerifyEmail,
   useGetSession,
-  useRequestPasswordReset,
 } from '@/lib/queries/useAuth'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
-import { useRouter } from 'next/navigation'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 
 export default function UserForm() {
@@ -24,9 +22,9 @@ export default function UserForm() {
   const updateUserMutation = useUpdateUser()
   const changeEmailMutation = useChangeEmail()
   const sendEmailVerificationMutation = useSendVerifyEmail()
-  const router = useRouter()
   const [isIdentityVerified] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
+
   const defaultValues: User = {
     id: user?.id ?? '',
     email: user?.email ?? '',
@@ -42,7 +40,7 @@ export default function UserForm() {
   const userForm = useForm<User>({
     resolver: zodResolver(userSchema),
     mode: 'onSubmit',
-    defaultValues: defaultValues,
+    defaultValues,
   })
 
   const handleUserSubmit = async (values: User) => {
@@ -56,17 +54,14 @@ export default function UserForm() {
   }
 
   const handleEmailVerification = () => {
-    if (user) {
-      sendEmailVerificationMutation.mutate(user?.email, {
-        onSettled: () => {
-          setEmailSent(true)
-          setTimeout(() => setEmailSent(false), 20000)
-        },
-      })
-    }
+    if (!user) return
+    sendEmailVerificationMutation.mutate(user.email, {
+      onSettled: () => {
+        setEmailSent(true)
+        setTimeout(() => setEmailSent(false), 20000)
+      },
+    })
   }
-
-  const requestPasswordReset = useRequestPasswordReset()
 
   return (
     <div>
@@ -82,13 +77,15 @@ export default function UserForm() {
         </div>
       ) : (
         <div>
-          <h2 className="secondary-text mb-4">Account Information</h2>
+          <h2 className="text-sm text-neutral-600 mb-4">Account Information</h2>
+
           <div className="flex items-center justify-between w-full my-4">
             <div className="text-base text-neutral-700">Bullion Credit:</div>
             <div className="text-lg text-neutral-800">
               <PriceNumberFlow value={user?.dorado_funds ?? 0} />
             </div>
           </div>
+
           <div className="flex items-center mb-8">
             {user?.emailVerified ? (
               <div className="flex items-center gap-2 mr-auto">
@@ -106,13 +103,14 @@ export default function UserForm() {
                   variant="link"
                   size="sm"
                   className="text-md flex items-center text-neutral-800 bg-background hover:bg-background hover:no-underline font-light hover:font-normal px-0"
-                  onClick={() => handleEmailVerification()}
+                  onClick={handleEmailVerification}
                 >
                   <MailX size={20} className="text-destructive" />
                   Verify Email
                 </Button>
               </div>
             )}
+
             {isIdentityVerified ? (
               <div className="flex items-center gap-2 ml-auto">
                 <UserCheck2 className="text-green-500 h-5 w-5" />
@@ -124,7 +122,8 @@ export default function UserForm() {
                   variant="link"
                   size="sm"
                   className="text-md flex items-center text-neutral-800 bg-background hover:bg-background hover:no-underline font-light hover:font-normal px-0"
-                  onClick={() => handleEmailVerification()}
+                  // TODO: swap to real identity flow later
+                  onClick={handleEmailVerification}
                 >
                   <UserX2 size={20} className="text-destructive" />
                   Verify Identity
@@ -171,12 +170,12 @@ export default function UserForm() {
                   render={({ field }) => (
                     <FormItem className="w-full">
                       <div className="relative w-full">
-                        <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 error-text" />
+                        <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 text-xs text-destructive" />
                       </div>
                       <FormControl>
                         <FloatingLabelInput
                           label="Name"
-                          type="name"
+                          type="text"
                           autoComplete="name"
                           size="sm"
                           className="input-floating-label-form"
@@ -186,27 +185,11 @@ export default function UserForm() {
                     </FormItem>
                   )}
                 />
-
-                <div className="flex items-center justify-between w-full">
-                  <Button
-                    variant="ghost"
-                    className="text-primary-gradient hover-text-primary-gradient p-0"
-                    onClick={() => requestPasswordReset.mutate(user?.email ?? '')}
-                  >
-                    {requestPasswordReset.isPending ? 'Sending...' : 'Send Password Reset Link'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="text-primary-gradient hover-text-primary-gradient p-0"
-                    onClick={() => router.push('/change-password')}
-                  >
-                    Change Password
-                  </Button>
-                </div>
               </div>
+
               <Button
                 type="submit"
-                className="form-submit-button liquid-gold raised-off-page shine-on-hover text-white"
+                className="w-full mb-8 text-white raised-off-page bg-primary hover:bg-primary"
                 disabled={updateUserMutation.isPending || changeEmailMutation.isPending}
               >
                 {updateUserMutation.isPending || changeEmailMutation.isPending

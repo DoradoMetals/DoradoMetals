@@ -174,7 +174,7 @@ export default function TermsAndConditions() {
             <p className="text-sm text-neutral-700">
               You may request additional insurance for your Products up to $50,000. If you believe
               your gold jewelry or other Products are worth more than $5,000.00, you must call us at{' '}
-              <Link href="tel:8172034786" className="text-xs text-primary-gradient">
+              <Link href="tel:8172034786" className="text-xs text-primary">
                 (817) 203-4786
               </Link>
               , receive written approval for the additional insurance and follow all instructions
@@ -233,7 +233,7 @@ export default function TermsAndConditions() {
             </ul>
             <p className="text-sm text-neutral-700">
               Please contact customer support at{' '}
-              <Link href="tel:8172034786" className="text-xs text-primary-gradient">
+              <Link href="tel:8172034786" className="text-xs text-primary">
                 (817) 203-4786
               </Link>{' '}
               if you have any questions concerning the Required Shipping Procedures prior to
@@ -267,13 +267,13 @@ export default function TermsAndConditions() {
             <h3 className="text-lg text-neutral-900">Rejecting Our Offer</h3>
             <p className="text-sm text-neutral-700">
               Please call or text{' '}
-              <Link href="tel:8172034786" className="text-xs text-primary-gradient">
+              <Link href="tel:8172034786" className="text-xs text-primary">
                 (817) 203-4786
               </Link>
               , reject your offer through your dashboard, or email{' '}
               <Link
                 href="mailto:support@doradometals.com"
-                className="text-xs text-primary-gradient"
+                className="text-xs text-primary"
               >
                 support@doradometals.com
               </Link>{' '}
@@ -359,12 +359,12 @@ export default function TermsAndConditions() {
               Insurance (“Claim”), you may file a Claim by emailing us at{' '}
               <Link
                 href="mailto:support@doradometals.com"
-                className="text-xs text-primary-gradient"
+                className="text-xs text-primary"
               >
                 support@doradometals.com
               </Link>{' '}
               or call{' '}
-              <Link href="tel:8172034786" className="text-xs text-primary-gradient">
+              <Link href="tel:8172034786" className="text-xs text-primary">
                 (817) 203-4786
               </Link>
               . You must file the Claim with us within ten (10) days of the date the Products were
@@ -493,7 +493,7 @@ export default function TermsAndConditions() {
             including the use of automatic dialing systems to your cellular, home or work numbers,
             as well as any other telephone number you provided. You may unsubscribe from receiving
             emails at any time, by calling{' '}
-            <Link href="tel:8172034786" className="text-xs text-primary-gradient">
+            <Link href="tel:8172034786" className="text-xs text-primary">
               (817) 203-4786
             </Link>
             . Telephone conversations with our employees, agents and independent contractors may be
@@ -512,7 +512,7 @@ export default function TermsAndConditions() {
             with us. Standard telephone minute and text charges may apply. We will not use auto
             dialed or prerecorded message calls or texts to contact you for marketing purposes. You
             may revoke your consent by contacting customer service at{' '}
-            <Link href="tel:8172034786" className="text-xs text-primary-gradient">
+            <Link href="tel:8172034786" className="text-xs text-primary">
               (817) 203-4786{' '}
             </Link>
             or by changing your account preferences. You are not required to consent to receive auto
@@ -577,7 +577,7 @@ export default function TermsAndConditions() {
             To review how we collect, use, and protect your personal information, see our full{' '}
             <Link
               href="https://doradometals.com/privacy-policy"
-              className="text-xs text-primary-gradient"
+              className="text-xs text-primary"
             >
               Privacy Policy
             </Link>
@@ -591,11 +591,11 @@ export default function TermsAndConditions() {
           <h2 className="text-2xl text-neutral-900">Customer Support and Contact Information</h2>
           <p className="text-sm text-neutral-700">
             If you have any questions or concerns, please contact us by phone:{' '}
-            <Link href="tel:8172034786" className="text-xs text-primary-gradient">
+            <Link href="tel:8172034786" className="text-xs text-primary">
               (817) 203-4786
             </Link>
             , email:{' '}
-            <Link href="mailto:support@doradometals.com" className="text-xs text-primary-gradient">
+            <Link href="mailto:support@doradometals.com" className="text-xs text-primary">
               support@doradometals.com
             </Link>{' '}
             , or address: 3198 Royal Lane Suite 209, Dallas, TX 75229

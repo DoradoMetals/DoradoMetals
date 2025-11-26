@@ -105,7 +105,7 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
                     <Button
                       variant="default"
                       size="sm"
-                      className="px-4 min-w-[80px] liquid-gold raised-off-page shine-on-hover text-white"
+                      className="px-4 min-w-[80px] bg-primary raised-off-page text-white"
                       onClick={() => {
                         setSelectedAddress(address)
                         openDrawer('address')
@@ -116,7 +116,7 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
                     <Button
                       variant="default"
                       size="sm"
-                      className="bg-card raised-off-page px-4 min-w-[80px] text-primary-gradient"
+                      className="bg-card raised-off-page px-4 min-w-[80px] text-primary"
                       onClick={() =>
                         deleteAddressMutation.mutate(address, {
                           onError: (error: any) => {
@@ -156,7 +156,7 @@ export const AddressCarousel: React.FC<AddressCarouselProps> = ({
                     <Button
                       variant="link"
                       size="sm"
-                      className="text-primary-gradient p-0 h-auto"
+                      className="text-primary p-0 h-auto"
                       onClick={() => setDefaultAddressMutation.mutate(address)}
                     >
                       Set Default

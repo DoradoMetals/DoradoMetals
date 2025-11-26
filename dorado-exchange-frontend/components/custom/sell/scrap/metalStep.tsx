@@ -55,8 +55,8 @@ export default function MetalStep() {
                   <div className="flex gap-4 w-full items-center">
                     <div className="flex items-center">{metal.logo}</div>
                     <div className="flex flex-col gap-1">
-                      <div className="title-text">{metal.label}</div>
-                      <p className="tertiary-text leading-snug">{metal.blurb}</p>
+                      <div className="text-lg text-neutral-800">{metal.label}</div>
+                      <p className="text-xs text-neutral-500 leading-snug">{metal.blurb}</p>
                     </div>
                   </div>
                   <RadioGroupItem

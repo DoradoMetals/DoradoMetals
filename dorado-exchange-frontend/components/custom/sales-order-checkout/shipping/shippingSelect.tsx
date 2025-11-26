@@ -68,7 +68,7 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
             <Button
               type="button"
               variant="outline"
-              className="flex ml-auto h-auto min-h-0 font-normal border-none hover:bg-background p-0 text-primary-gradient"
+              className="flex ml-auto h-auto min-h-0 font-normal border-none hover:bg-background p-0 text-primary"
               onClick={() => {
                 setDraftAddress({ ...emptyAddress, user_id: user?.id ?? '' })
                 openDrawer('address')
@@ -93,7 +93,7 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
                 </div>
               )}
             </div>
-            <div className="text-xs lg:text-sm text-primary-gradient">
+            <div className="text-xs lg:text-sm text-primary">
               Your card's billing address must match shipping address.
             </div>
           </div>

@@ -40,7 +40,7 @@ function Slider({
         <SliderPrimitive.Range
           data-slot="slider-range"
           className={cn(
-            'primary-gradient absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full shadow-primary/[0.5] shadow-sm rounded-full'
+            'bg-primary absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full shadow-primary/[0.5] shadow-sm rounded-full'
           )}
         />
       </SliderPrimitive.Track>

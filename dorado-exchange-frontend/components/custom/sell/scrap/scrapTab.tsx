@@ -118,11 +118,11 @@ export default function ScrapForm() {
                   onClick={handleAddAnother}
                   className="raised-off-page hover:bg-card bg-card"
                 >
-                  <div className="text-primary-gradient">Add Another</div>
+                  <div className="text-primary">Add Another</div>
                 </Button>
                 <Button
                   type="button"
-                  className="ml-auto raised-off-page liquid-gold shine-on-hover text-white"
+                  className="ml-auto raised-off-page bg-primary text-white"
                   onClick={() => router.push('/checkout')}
                 >
                   Go to Checkout
@@ -141,7 +141,7 @@ function ItemFormStep() {
     <div className="flex flex-col gap-6">
       <div className="w-full lg:flex lg:justify-between">
         <div className="hidden lg:block flex flex-col">
-          <div className="section-label text-primary-gradient">Select Metal</div>
+          <div className="section-label text-primary">Select Metal</div>
         </div>
         <div className="w-full lg:w-3/5">
           <MetalStep />
@@ -152,7 +152,7 @@ function ItemFormStep() {
 
       <div className="w-full lg:flex lg:justify-between">
         <div className="hidden lg:block flex flex-col">
-          <div className="section-label text-primary-gradient">Select Weight</div>
+          <div className="section-label text-primary">Select Weight</div>
         </div>
         <div className="w-full lg:w-3/5">
           <WeightStep />
@@ -163,7 +163,7 @@ function ItemFormStep() {
 
       <div className="lg:flex lg:justify-between">
         <div className="hidden lg:block flex flex-col">
-          <div className="section-label text-primary-gradient">Select Purity</div>
+          <div className="section-label text-primary">Select Purity</div>
           <div className="Select "></div>
         </div>
         <div className="w-full lg:w-3/5">
@@ -173,7 +173,7 @@ function ItemFormStep() {
       <div className="lg:flex lg:justify-between lg:w-3/5 lg:ml-auto">
         <Button
           type="submit"
-          className="liquid-gold raised-off-page w-full shine-on-hover text-white"
+          className="raised-off-page w-full bg-primary text-white"
         >
           Add Item
         </Button>

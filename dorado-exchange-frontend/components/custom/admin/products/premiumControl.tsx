@@ -100,7 +100,7 @@ export default function PremiumControl({
             groupValue={unit}
             className="border-0 rounded-none rounded-l-lg"
             ariaLabel="Dollar input"
-            activeClassName="liquid-gold text-white"
+            activeClassName="bg-primary text-white"
           >
             <CurrencyDollarIcon size={18} />
           </RadioPill>
@@ -110,7 +110,7 @@ export default function PremiumControl({
             groupValue={unit}
             className="rounded-none rounded-r-lg"
             ariaLabel="Percent input"
-            activeClassName="liquid-gold text-white"
+            activeClassName="bg-primary text-white"
           >
             <PercentIcon size={18} />
           </RadioPill>

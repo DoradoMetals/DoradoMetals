@@ -111,7 +111,7 @@ export function CreateSalesOrderDrawer() {
       <div className="flex flex-col gap-2 items-start">
         <Button
           variant="link"
-          className="text-primary-gradient p-0 font-normal text-sm h-4 hover:bg-transparent ml-auto"
+          className="text-primary p-0 font-normal text-sm h-4 hover:bg-transparent ml-auto"
           onClick={() => setSpotsLocked((prev) => !prev)}
         >
           {spotsLocked ? (
@@ -260,8 +260,8 @@ function ProductSelector() {
                 <div className="flex flex-col flex-grow min-w-0">
                   <div className="flex justify-between items-start w-full mt-2">
                     <div className="flex flex-col">
-                      <div className="primary-text">{item.product_name}</div>
-                      <div className="tertiary-text">{item.mint_name}</div>
+                      <div className="text-base text-neutral-700">{item.product_name}</div>
+                      <div className="text-xs text-neutral-500">{item.mint_name}</div>
                     </div>
                     <Button
                       variant="ghost"
@@ -288,7 +288,7 @@ function ProductSelector() {
                         transformTiming={{ duration: 750, easing: 'ease-in' }}
                         spinTiming={{ duration: 150, easing: 'ease-out' }}
                         opacityTiming={{ duration: 350, easing: 'ease-out' }}
-                        className="primary-text"
+                        className="text-base text-neutral-700"
                         trend={0}
                       />
                       <Button
@@ -420,7 +420,7 @@ function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
 
   const paymentContent = (
     <div className="w-full flex-col">
-      <div className="section-label text-primary-gradient my-4">Payment Details</div>
+      <div className="section-label text-primary my-4">Payment Details</div>
 
       <div className="w-full flex items-center justify-between">
         <div className="text-sm text-neutral-700">Shipping</div>
@@ -484,7 +484,7 @@ function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
         <div className="separator-inset" />
 
         <div className="w-full flex items-center justify-between pt-2">
-          <div className="text-base text-primary-gradient">Order Total</div>
+          <div className="text-base text-primary">Order Total</div>
           <div className="text-lg text-neutral-900">
             <PriceNumberFlow value={orderPrices.postChargesAmount} />
           </div>
@@ -665,7 +665,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices: SalesOrderTotals; u
           <div className="flex flex-col gap-3 w-full sticky top-26">
             {!cardNeeded ? (
               <Button
-                className="raised-off-page liquid-gold shine-on-hover w-full text-white"
+                className="raised-off-page bg-primary w-full text-white"
                 disabled={disabled}
                 onClick={handleSubmit}
               >
@@ -679,7 +679,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices: SalesOrderTotals; u
               </Button>
             ) : (
               <Button
-                className="raised-off-page liquid-gold shine-on-hover w-full text-white"
+                className="raised-off-page bg-primary w-full text-white"
                 disabled={disabled}
                 type="submit"
                 form="admin-payment-form"

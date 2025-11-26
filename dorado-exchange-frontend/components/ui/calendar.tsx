@@ -33,8 +33,7 @@ function Calendar({
       'size-9 text-muted-foreground/80 hover:text-foreground hover:bg-transparent p-0'
     ),
     weekday: 'size-9 p-0 text-xs font-medium text-muted-foreground/80',
-    day_button:
-      `relative flex size-8 items-center justify-center whitespace-nowrap rounded-lg p-0 text-foreground outline-offset-2 cursor-pointer 
+    day_button: `relative flex size-8 items-center justify-center whitespace-nowrap rounded-lg p-0 text-foreground outline-offset-2 cursor-pointer 
 
 
       focus:outline-none 
@@ -44,12 +43,13 @@ function Calendar({
 
       hover:text-foreground
       hover:bg-transparent
-      hover-text-primary-gradient
+      hover:text-primary
 
       group-[[data-selected]:not(.range-middle)]:[transition-property:color,background-color,border-radius,box-shadow] 
       group-[[data-selected]:not(.range-middle)]:duration-150 
       
-      group-data-[selected]:bg-transparent 
+      group-data-[selected]:bg-transparent
+      group[data-selected]:text-primary
       group-data-[selected]:group-[.range-middle]:bg-accent 
       group-data-[selected]:group-[.range-middle]:text-foreground 
       
@@ -64,7 +64,6 @@ function Calendar({
       group-[.range-start:not(.range-end)]:rounded-e-none 
       group-[.range-end:not(.range-start)]:rounded-s-none 
       group-[.range-middle]:rounded-none 
-      day-button
 `,
 
     day: 'group size-9 px-0 text-sm',

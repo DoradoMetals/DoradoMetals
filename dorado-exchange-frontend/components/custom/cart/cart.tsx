@@ -42,8 +42,8 @@ export default function Cart() {
       </div>
 
       <div className="flex-col items-center gap-1 mb-5">
-        <h2 className="title-text tracking-wide">Your cart is empty!</h2>
-        <p className="tertiary-text">Add items to get started.</p>
+        <h2 className="text-lg text-neutral-800 tracking-wide">Your cart is empty!</h2>
+        <p className="text-xs text-neutral-500">Add items to get started.</p>
       </div>
 
       <Button
@@ -52,7 +52,7 @@ export default function Cart() {
           router.push('/buy')
           closeDrawer()
         }}
-        className="raised-off-page secondary-gradient text-white hover:text-white shine-on-hover px-10"
+        className="raised-off-page bg-primary text-white hover:text-white px-10"
       >
         Start Shopping
       </Button>
@@ -87,8 +87,8 @@ export default function Cart() {
               <div className="flex flex-col flex-grow min-w-0">
                 <div className="flex justify-between items-start w-full mt-2">
                   <div className="flex flex-col">
-                    <div className="primary-text">{item.product_name}</div>
-                    <div className="tertiary-text">{item.mint_name}</div>
+                    <div className="text-base text-neutral-700">{item.product_name}</div>
+                    <div className="text-xs text-neutral-500">{item.mint_name}</div>
                   </div>
                   <Button
                     variant="ghost"
@@ -115,7 +115,7 @@ export default function Cart() {
                       transformTiming={{ duration: 750, easing: 'ease-in' }}
                       spinTiming={{ duration: 150, easing: 'ease-out' }}
                       opacityTiming={{ duration: 350, easing: 'ease-out' }}
-                      className="primary-text"
+                      className="text-base text-neutral-700"
                       trend={0}
                     />
                     <Button
@@ -148,7 +148,7 @@ export default function Cart() {
         </div>
       </div>
       <Button
-        className="raised-off-page w-full secondary-gradient text-white hover:text-white shine-on-hover"
+        className="raised-off-page w-full bg-primary text-white hover:text-white"
         onClick={() => {
           user ? router.push('/sales-order-checkout') : router.push('/authentication')
         }}

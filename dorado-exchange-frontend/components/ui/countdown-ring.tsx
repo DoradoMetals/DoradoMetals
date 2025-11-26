@@ -6,10 +6,10 @@ import { useEffect, useState } from 'react'
 interface CountdownRingProps {
   sentAt: string | Date
   expiresAt: string | Date
-  fillColor: string
+  fillColor?: string
 }
 
-export default function CountdownRing({ sentAt, expiresAt, fillColor }: CountdownRingProps) {
+export default function CountdownRing({ sentAt, expiresAt, fillColor = "stroke-primary" }: CountdownRingProps) {
   const sent = new Date(sentAt).getTime()
   const expires = new Date(expiresAt).getTime()
   const [now, setNow] = useState(Date.now())

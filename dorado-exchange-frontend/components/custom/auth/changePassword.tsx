@@ -11,7 +11,15 @@ import { ChangePassword, changePasswordSchema } from '@/types/auth'
 import { ValidatedField } from '@/components/ui/validated_field'
 import { PasswordRequirements } from './passwordRequirements'
 
-export default function ChangePasswordForm() {
+type ChangePasswordFormProps = {
+  showTitle?: boolean
+  onSuccess?: () => void
+}
+
+export default function ChangePasswordForm({
+  showTitle = true,
+  onSuccess,
+}: ChangePasswordFormProps) {
   const router = useRouter()
 
   const [showNewPassword, setShowNewPassword] = useState(false)
@@ -26,26 +34,36 @@ export default function ChangePasswordForm() {
     mode: 'onBlur',
   })
 
-  const onSubmit = async (values: ChangePassword) => {
+  const handleSuccess = () => {
+    form.reset()
+    if (onSuccess) {
+      onSuccess()
+    } else {
+      router.push('/account')
+    }
+  }
+
+  const handleSubmit = (values: ChangePassword) => {
     changePassword.mutate(
       { newPassword: values.newPassword, currentPassword: values.currentPassword },
-      {
-        onSuccess: () => {
-          form.reset()
-          router.push('/account')
-        },
-      }
+      { onSuccess: handleSuccess }
     )
   }
 
   return (
     <div className="flex justify-center w-full">
-      <div className="flex flex-col w-full max-w-lg gap-6">
-        <p className="text-xs text-neutral-600 tracking-widest mr-auto uppercase">Reset Password</p>
+      <div className="flex flex-col w-full gap-6">
+        {showTitle && (
+          <p className="text-xs text-neutral-600 tracking-widest mr-auto uppercase">
+            Reset Password
+          </p>
+        )}
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <div className="space-y-6">
               <ValidatedField
+                className="bg-highest border-1 border-border"
                 control={form.control}
                 name="currentPassword"
                 label="Current Password"
@@ -53,12 +71,13 @@ export default function ChangePasswordForm() {
                 showPasswordButton
                 showPassword={showCurrentPassword}
                 setShowPassword={setShowCurrentPassword}
-                showOnTouch={true}
+                showOnTouch
                 showIcon={false}
               />
 
               <div className="flex flex-col gap-1 mb-4">
                 <ValidatedField
+                  className="bg-highest border-1 border-border"
                   control={form.control}
                   name="newPassword"
                   label="New Password"
@@ -66,13 +85,14 @@ export default function ChangePasswordForm() {
                   showPasswordButton
                   showPassword={showNewPassword}
                   setShowPassword={setShowNewPassword}
-                  showOnTouch={true}
+                  showOnTouch
                   showFormError={false}
                   showIcon={false}
                   inputProps={{
                     onFocus: () => setShowRequirements(true),
                   }}
                 />
+
                 {showRequirements && (
                   <PasswordRequirements control={form.control} name="newPassword" />
                 )}
@@ -81,9 +101,9 @@ export default function ChangePasswordForm() {
 
             <Button
               type="submit"
-              variant="default"
+              variant="secondary"
               disabled={changePassword.isPending}
-              className="form-submit-button liquid-gold raised-off-page shine-on-hover !mb-0"
+              className="w-full mb-8 raised-off-page"
             >
               {changePassword.isPending ? 'Changing...' : 'Change Password'}
             </Button>

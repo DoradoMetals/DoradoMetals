@@ -37,7 +37,7 @@ const FloatingLabelInput = React.forwardRef<
       <FloatingLabel
         htmlFor={id}
         size={props.size}
-        className={cn('peer-focus-gradient', {
+        className={cn('floating-label', {
           'text-error peer-focus:text-error': error,
         })}
       >
@@ -45,7 +45,7 @@ const FloatingLabelInput = React.forwardRef<
       </FloatingLabel>
       <fieldset
         className={cn(
-          'absolute peer-focus-visible:border-none transition-all peer-focus-visible:border-primary inset-0 -top-[5px] rounded-md m-0 py-0 text-left px-2 pointer-events-none min-w-0 peer-focus:[&>legend]:max-w-full peer-focus-visible:[&>legend]:max-w-full peer-placeholder-shown:[&>legend]:max-w-0'
+          'absolute transition-all inset-0 -top-[5px] rounded-md m-0 py-0 text-left px-2 pointer-events-none min-w-0 peer-focus:[&>legend]:max-w-full peer-focus-visible:[&>legend]:max-w-full peer-placeholder-shown:[&>legend]:max-w-0'
         )}
       >
         <legend className="transition-all invisible whitespace-nowrap overflow-hidden w-auto max-w-full h-3 leading-4 text-xs font-normal p-0">

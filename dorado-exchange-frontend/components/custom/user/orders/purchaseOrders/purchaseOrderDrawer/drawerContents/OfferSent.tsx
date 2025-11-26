@@ -17,8 +17,6 @@ import {
   useRejectOffer,
 } from '@/lib/queries/usePurchaseOrders'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import { cn } from '@/lib/utils'
-import { payoutOptions } from '@/types/payout'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 import { useMemo, useState } from 'react'
@@ -26,8 +24,6 @@ import { useMemo, useState } from 'react'
 export default function OfferSentPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const [open, setOpen] = useState(false)
   const [rejectedNotes, setRejectedNotes] = useState('')
-
-  const config = statusConfig[order.purchase_order_status]
 
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
@@ -52,27 +48,23 @@ export default function OfferSentPurchaseOrder({ order }: PurchaseOrderDrawerCon
 
   return (
     <div className="flex flex-col h-full w-full items-center">
-      <div className="raised-off-page bg-card p-4 rounded-lg mb-4">
+      <div className="mb-4">
         <div className="flex items-center w-full justify-between">
-          <div className="text-2xl text-neutral-900">Offered Price:</div>
+          <div className="text-2xl text-neutral-900">Offered Payout:</div>
           <div className="text-2xl text-neutral-900">
             <PriceNumberFlow value={total} />
           </div>
         </div>
         <div className="flex flex-col gap-4 h-full w-full items-center justify-center">
-          <CountdownRing
-            sentAt={order.offer_sent_at!}
-            expiresAt={order.offer_expires_at!}
-            fillColor={config.stroke_color}
-          />
+          <CountdownRing sentAt={order.offer_sent_at!} expiresAt={order.offer_expires_at!} />
           {order.spots_locked ? (
-            <p className="text-sm text-neutral-700 mb-6 lg:px-14 text-left">
-              Spot prices have been locked for your order. You will have 24 hours to accept or
-              reject our offer, after which we will unlock the current spot prices.
+            <p className="text-sm text-neutral-700 mb-6 lg:px-8 text-left">
+              Spots have been locked for your order. You will have 24 hours to accept or
+              reject our offer, after which we will unlock the current spots.
             </p>
           ) : (
-            <p className="text-sm text-neutral-700 mb-6 lg:px-14 text-left">
-              Spot prices have not been locked for your order. You will have 1 week to accept or
+            <p className="text-sm text-neutral-700 mb-6 lg:px-8 text-left">
+              Spots have not been locked for your order. You will have 1 week to accept or
               reject our offer, after which it will automatically be accepted on your behalf.
             </p>
           )}
@@ -82,11 +74,7 @@ export default function OfferSentPurchaseOrder({ order }: PurchaseOrderDrawerCon
       <div className="flex flex-col items-center w-full gap-2">
         <Button
           variant="default"
-          className={cn(
-            config.background_color,
-            config.hover_background_color,
-            'text-white raised-off-page w-full p-4'
-          )}
+          className="text-white raised-off-page w-full p-4 bg-primary hover:bg-primary"
           onClick={() => {
             handleAcceptOffer()
           }}
@@ -97,11 +85,7 @@ export default function OfferSentPurchaseOrder({ order }: PurchaseOrderDrawerCon
           <DialogTrigger asChild>
             <Button
               variant="default"
-              className={cn(
-                config.text_color,
-                config.hover_background_color,
-                'hover:text-white raised-off-page w-full p-4 bg-card'
-              )}
+              className="hover:text-white raised-off-page w-full p-4 bg-card text-primary hover:bg-primary"
             >
               Reject Offer
             </Button>
@@ -122,11 +106,7 @@ export default function OfferSentPurchaseOrder({ order }: PurchaseOrderDrawerCon
             <DialogFooter>
               <Button
                 variant="default"
-                className={cn(
-                  config.background_color,
-                  config.hover_background_color,
-                  'text-white raised-off-page w-full p-4'
-                )}
+                className="text-white raised-off-page w-full p-4 bg-primary hover:bg-primary"
                 onClick={() => {
                   handleRejectOffer()
                 }}

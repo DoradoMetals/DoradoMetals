@@ -8,7 +8,7 @@ import {
 } from '@/lib/queries/usePurchaseOrders'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 import { useMemo, useState } from 'react'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
@@ -45,8 +45,6 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
   const [offerNotes, setOfferNotes] = useState(order.offer_notes ?? '')
   const [open, setOpen] = useState(false)
   const [insureReturn, setInsureReturn] = useState(false)
-
-  const config = statusConfig[order.purchase_order_status]
 
   const handleAcceptOffer = () => {
     acceptOffer.mutate({
@@ -132,10 +130,8 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
                 </div>
               </div>
               <div className="text-sm text-neutral-600 text-left mb-4">
-                We will be in touch as soon as possible to see if we can find a price that better
-                fits your expectations. If we choose to update your offer, you will see the new
-                offer here. In the meantime, please consider leaving us a note as to why you
-                rejected the initial offer if you have not already done so.
+                Please consider leaving us a note as to why you
+                rejected our initial offer. We will be in touch soon if we choose to update your offer.
               </div>
               <div className="flex flex-col gap-0 w-full">
                 <Textarea
@@ -145,7 +141,7 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
                 />
                 <Button
                   variant="link"
-                  className={cn(config.text_color, 'p-0 ml-auto')}
+                  className="p-0 ml-auto text-primary"
                   onClick={() => {
                     handleUpdateOrderNotes(offerNotes)
                   }}
@@ -178,22 +174,14 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
               </p>
             )}
             <div className="flex h-full w-full items-center justify-center">
-              <CountdownRing
-                sentAt={order.offer_sent_at!}
-                expiresAt={order.offer_expires_at!}
-                fillColor={config.stroke_color}
-              />
+              <CountdownRing sentAt={order.offer_sent_at!} expiresAt={order.offer_expires_at!} />
             </div>
           </div>
         )}
         <div className="flex flex-col items-center w-full gap-2 mt-auto">
           <Button
             variant="default"
-            className={cn(
-              config.background_color,
-              config.hover_background_color,
-              'text-white raised-off-page w-full p-4'
-            )}
+            className="text-white raised-off-page w-full p-4 bg-primary hover:bg-primary"
             onClick={handleAcceptOffer}
             disabled={acceptOffer.isPending}
           >
@@ -207,11 +195,7 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
             <DialogTrigger asChild>
               <Button
                 variant="default"
-                className={cn(
-                  config.text_color,
-                  config.hover_background_color,
-                  'hover:text-white raised-off-page w-full p-4 bg-card'
-                )}
+                className="text-primary hover:text-white raised-off-page w-full p-4 bg-card hover:bg-primary"
               >
                 Cancel Order
               </Button>
@@ -243,7 +227,7 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
                         'raised-off-page relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md'
                       )}
                     >
-                      <Icon size={28} className={cn(config.text_color)} />
+                      <Icon size={28} className="text-primary" />
                       <div className="text-xs sm:text-sm text-neutral-800 font-medium capitalize">
                         {option}
                       </div>
@@ -273,11 +257,7 @@ export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerCont
               <DialogFooter>
                 <Button
                   variant="default"
-                  className={cn(
-                    config.background_color,
-                    config.hover_background_color,
-                    'text-white raised-off-page w-full p-4'
-                  )}
+                  className="text-white raised-off-page w-full p-4 bg-primary hover:bg-primary"
                   onClick={() => {
                     cancelOrder.mutate({ purchase_order: order, return_shipment: returnShipment })
                   }}

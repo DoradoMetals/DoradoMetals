@@ -11,25 +11,19 @@ export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerCon
   const { data: trackingInfo, isLoading } = useTracking(
     order.shipment.id,
     order.shipment.tracking_number,
-    order.shipment.carrier_id,
+    order.shipment.carrier_id
   )
-
-  const color = statusConfig[order.purchase_order_status]?.text_color
-  const baseBg = statusConfig[order.purchase_order_status]?.background_color
-  const border = statusConfig[order.purchase_order_status]?.border_color
 
   return (
     <>
       {order.shipment.shipping_status === 'Label Created' ? (
         <div className="flex flex-col w-full gap-5">
-          <DropoffInstructionsSection order={order} color={color} border={border} />
+          <DropoffInstructionsSection order={order} />
         </div>
       ) : (
         <TrackingEvents
           isLoading={isLoading}
           trackingInfo={trackingInfo}
-          background_color={baseBg}
-          borderColor={border}
           delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery}
           shipping_status={order.shipment.shipping_status}
         />
@@ -40,12 +34,8 @@ export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerCon
 
 export function DropoffInstructionsSection({
   order,
-  color,
-  border,
 }: {
   order: PurchaseOrderDrawerContentProps['order']
-  color?: string
-  border?: string
 }) {
   if (order.shipment.shipping_status !== 'Label Created') return null
 
@@ -53,13 +43,13 @@ export function DropoffInstructionsSection({
 
   const steps = [
     {
-      icon: <Printer size={18} className={cn(color)} />,
+      icon: <Printer size={18} className="text-primary" />,
       title: 'Print Packing List and Label',
       description:
         'You will need to include the packing list inside your package. The label will attached to the outside of your package.',
     },
     {
-      icon: <PackageOpen size={18} className={cn(color)} />,
+      icon: <PackageOpen size={18} className="text-primary" />,
       title: 'Pack Your Items',
       description: `Pack up your items in a ${
         selectedPackage?.label
@@ -68,7 +58,7 @@ export function DropoffInstructionsSection({
       damage while your shipment is in-transit. `,
     },
     {
-      icon: <Car size={18} className={cn(color)} />,
+      icon: <Car size={18} className="text-primary" />,
       title:
         order.shipment.pickup_type === 'Carrier Pickup'
           ? 'Wait for Pickup'
@@ -83,18 +73,18 @@ export function DropoffInstructionsSection({
         order.shipment.pickup_type !== 'Carrier Pickup' ? (
           <Button
             variant="link"
-            className={cn('h-auto p-0 text-sm font-normal hover:underline', color)}
+            className="h-auto p-0 text-sm font-normal hover:underline text-primary"
           >
             Find Store
           </Button>
         ) : null,
     },
     {
-      icon: <CheckCheck size={18} className={cn(color)} />,
+      icon: <CheckCheck size={18} className="text-primary" />,
       title: 'Done!',
-      description: `We’ll take care of the rest. You will receive an email
+      description: `We'll take care of the rest. You will receive an email
       as soon as we get your shipment. As soon as your 
-      label is scanned, we’ll start updating this page
+      label is scanned, we'll start updating this page
       with your shipment progress.`,
     },
   ]
@@ -111,12 +101,7 @@ export function DropoffInstructionsSection({
               index === steps.length - 1 ? '' : 'border-l border-border'
             )}
           >
-            <div
-              className={cn(
-                'absolute -left-[16px] top-0 bg-card rounded-full border w-8 h-8 flex items-center justify-center',
-                border
-              )}
-            >
+            <div className="absolute -left-[16px] top-0 bg-card rounded-full border border-primary w-8 h-8 flex items-center justify-center">
               {step.icon}
             </div>
             <div className="pl-6">
