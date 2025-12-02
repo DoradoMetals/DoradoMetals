@@ -1,12 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
+import { Form } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
-import { MailCheck, MailWarning, MailX, UserCheck2, UserX2 } from 'lucide-react'
+import { MailCheck, MailWarning, MailX, UserX2 } from 'lucide-react'
 import { User, userSchema } from '@/types/user'
-import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   useUpdateUser,
@@ -14,15 +14,15 @@ import {
   useSendVerifyEmail,
   useGetSession,
 } from '@/lib/queries/useAuth'
-import { FloatingLabelInput } from '@/components/ui/floating-label-input'
+import { ValidatedField } from '@/components/ui/validated_field'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
+import { AccountAction } from '@/components/ui/account-action'
 
 export default function UserForm() {
   const { user, isPending } = useGetSession()
   const updateUserMutation = useUpdateUser()
   const changeEmailMutation = useChangeEmail()
   const sendEmailVerificationMutation = useSendVerifyEmail()
-  const [isIdentityVerified] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
 
   const defaultValues: User = {
@@ -63,143 +63,125 @@ export default function UserForm() {
     })
   }
 
-  return (
-    <div>
-      {isPending ? (
+  if (isPending) {
+    return (
+      <section className="w-full bg-card raised-off-page p-4 rounded-lg">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Skeleton className="h-9 w-full mb-8" />
-            <Skeleton className="h-9 w-full mb-8" />
-          </div>
-          <Skeleton className="h-9 w-full mb-8" />
-          <Skeleton className="h-9 w-full mb-8" />
-          <Skeleton className="h-9 w-full mb-8" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-8 w-40" />
+          <div className="h-px w-full bg-neutral-200 my-4" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-10 w-full" />
         </div>
-      ) : (
-        <div>
-          <h2 className="text-sm text-neutral-600 mb-4">Account Information</h2>
+      </section>
+    )
+  }
 
-          <div className="flex items-center justify-between w-full my-4">
-            <div className="text-base text-neutral-700">Bullion Credit:</div>
-            <div className="text-lg text-neutral-800">
-              <PriceNumberFlow value={user?.dorado_funds ?? 0} />
+  const emailVerified = !!user?.emailVerified
+
+  let EmailIcon = MailX
+
+  if (emailVerified) {
+    EmailIcon = MailCheck
+  } else if (emailSent) {
+    EmailIcon = MailWarning
+  }
+
+  const emailDescription = emailVerified
+    ? 'Email verified.'
+    : emailSent
+    ? 'Check your email inbox for the verification link.'
+    : 'Verify your email to keep your account secure.'
+
+  const emailButtonLabel = emailVerified ? 'Verified' : emailSent ? 'Link Sent' : 'Verify'
+
+  const emailButtonDisabled =
+    emailVerified || emailSent || sendEmailVerificationMutation.isPending
+
+  const emailButtonOnClick =
+    !emailVerified && !emailSent ? handleEmailVerification : undefined
+
+  return (
+    <section className="w-full bg-card raised-off-page p-4 rounded-lg">
+      <div className="border-b border-neutral-200 pb-6 mb-6">
+        <p className="text-xs text-neutral-500 mb-6 uppercase tracking-widest">Details</p>
+
+        <Form {...userForm}>
+          <form onSubmit={userForm.handleSubmit(handleUserSubmit)} className="space-y-5">
+            <ValidatedField
+              control={userForm.control}
+              name="name"
+              label="Name"
+              type="text"
+              className="bg-highest border-1 border-border"
+              showIcon={false}
+            />
+
+            <div className="space-y-1">
+              <ValidatedField
+                control={userForm.control}
+                name="email"
+                label="Email"
+                type="email"
+                className="bg-highest border-1 border-border"
+                showIcon={false}
+              />
+              {changeEmailMutation.isSuccess && user?.emailVerified === true && (
+                <p className="mt-1 text-xs text-neutral-500">
+                  An email has been sent to confirm the change. Follow that link before making
+                  further changes.
+                </p>
+              )}
             </div>
-          </div>
 
-          <div className="flex items-center mb-8">
-            {user?.emailVerified ? (
-              <div className="flex items-center gap-2 mr-auto">
-                <MailCheck className="text-green-500 h-5 w-5" />
-                <div className="text-sm">Email Verified</div>
-              </div>
-            ) : emailSent ? (
-              <div className="flex items-center gap-2 mr-auto">
-                <MailWarning className="text-yellow-500 h-5 w-5" />
-                <div className="text-sm">Check email inbox for link.</div>
-              </div>
-            ) : (
-              <div className="flex items-center mr-auto">
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="text-md flex items-center text-neutral-800 bg-background hover:bg-background hover:no-underline font-light hover:font-normal px-0"
-                  onClick={handleEmailVerification}
-                >
-                  <MailX size={20} className="text-destructive" />
-                  Verify Email
-                </Button>
-              </div>
-            )}
+            <Button
+              type="submit"
+              variant="secondary"
+              className="w-full mb-8 raised-off-page"
+              disabled={updateUserMutation.isPending || changeEmailMutation.isPending}
+            >
+              {updateUserMutation.isPending || changeEmailMutation.isPending
+                ? 'Saving...'
+                : 'Save Changes'}
+            </Button>
+          </form>
+        </Form>
+      </div>
 
-            {isIdentityVerified ? (
-              <div className="flex items-center gap-2 ml-auto">
-                <UserCheck2 className="text-green-500 h-5 w-5" />
-                <div className="text-sm">Identity Verified</div>
-              </div>
-            ) : (
-              <div className="flex items-center ml-auto">
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="text-md flex items-center text-neutral-800 bg-background hover:bg-background hover:no-underline font-light hover:font-normal px-0"
-                  // TODO: swap to real identity flow later
-                  onClick={handleEmailVerification}
-                >
-                  <UserX2 size={20} className="text-destructive" />
-                  Verify Identity
-                </Button>
-              </div>
-            )}
-          </div>
+      <div className="border-b border-neutral-200 pb-6 mb-6">
+        <p className="text-xs text-neutral-500 mb-4 uppercase tracking-widest">Verification</p>
 
-          <Form {...userForm}>
-            <form onSubmit={userForm.handleSubmit(handleUserSubmit)} className="space-y-4">
-              <div className="mb-8">
-                <FormField
-                  control={userForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem className="w-full">
-                      <div className="relative w-full">
-                        <FormControl>
-                          <FloatingLabelInput
-                            label="Email"
-                            type="email"
-                            autoComplete="email"
-                            size="sm"
-                            className="input-floating-label-form"
-                            {...field}
-                          />
-                        </FormControl>
-                        {changeEmailMutation.isSuccess && user?.emailVerified === true ? (
-                          <p className="text-sm font-light">
-                            An email has been sent to confirm the change. Please follow that link
-                            before making further changes.
-                          </p>
-                        ) : null}
-                      </div>
-                    </FormItem>
-                  )}
-                />
-              </div>
+        <div className="space-y-4">
+          <AccountAction
+            icon={EmailIcon}
+            label="Email"
+            description={emailDescription}
+            buttonLabel={emailButtonLabel}
+            onClick={emailButtonOnClick}
+            disabled={emailButtonDisabled}
+            showCheckOnComplete={emailVerified}
+          />
 
-              <div className="mb-4">
-                <FormField
-                  control={userForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem className="w-full">
-                      <div className="relative w-full">
-                        <FormMessage className="absolute right-0 -top-3 -translate-y-1/2 text-xs text-destructive" />
-                      </div>
-                      <FormControl>
-                        <FloatingLabelInput
-                          label="Name"
-                          type="text"
-                          autoComplete="name"
-                          size="sm"
-                          className="input-floating-label-form"
-                          {...field}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full mb-8 text-white raised-off-page bg-primary hover:bg-primary"
-                disabled={updateUserMutation.isPending || changeEmailMutation.isPending}
-              >
-                {updateUserMutation.isPending || changeEmailMutation.isPending
-                  ? 'Saving...'
-                  : 'Save Changes'}
-              </Button>
-            </form>
-          </Form>
+          <AccountAction
+            icon={UserX2}
+            label="Identity"
+            description="Coming soon"
+            buttonLabel="Verify"
+          />
         </div>
-      )}
-    </div>
+      </div>
+
+      <div>
+        <p className="text-xs text-neutral-500 mb-2 uppercase tracking-widest">Dorado Credit</p>
+
+        <div className="flex items-baseline justify-between">
+          <span className="text-xs text-neutral-500">Current balance</span>
+          <span className="text-lg sm:text-xl font-semibold text-neutral-900">
+            <PriceNumberFlow value={user?.dorado_funds ?? 0} />
+          </span>
+        </div>
+      </div>
+    </section>
   )
 }
