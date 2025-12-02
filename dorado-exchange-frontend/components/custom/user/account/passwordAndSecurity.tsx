@@ -98,7 +98,7 @@ export function PasswordAndSecurity() {
           variant="outline"
         >
           <LogOut className="h-4 w-4 mr-2" />
-          Sign Out on All Devices (Coming Soon)
+          Sign Out on All Devices
         </Button>
       </div>
     </section>

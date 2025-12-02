@@ -64,7 +64,7 @@ export default function Page() {
         <Button
           className="bg-primary raised-off-page w-full text-white hover:text-white"
           onClick={() => {
-            router.push('/orders')
+            router.push('/account?tab=sold')
           }}
         >
           Go to Orders

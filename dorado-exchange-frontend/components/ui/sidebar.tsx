@@ -1,10 +1,19 @@
 'use client'
 
-import * as React from 'react'
+import {
+  ComponentType,
+  ReactNode,
+  SVGProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { cn } from '@/lib/utils'
 import { CaretDoubleRightIcon, UserIcon } from '@phosphor-icons/react'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
-export type Icon = React.ComponentType<React.SVGProps<SVGSVGElement> & { size?: number }>
+export type Icon = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
 
 export type SidebarItem = {
   key: string
@@ -22,7 +31,7 @@ export type SidebarLayoutProps = {
   sections: SidebarSection[]
   selectedKey: string
   onSelect: (key: string) => void
-  content?: React.ReactNode
+  content?: ReactNode
 
   headerEnabled?: boolean
   footerEnabled?: boolean
@@ -39,6 +48,52 @@ export type SidebarLayoutProps = {
   defaultOpen?: boolean
   className?: string
   navClass?: string
+}
+
+export function useSidebarQueryParamSelection(
+  sections: SidebarSection[],
+  options?: {
+    paramKey?: string
+    defaultKey?: string
+  }
+) {
+  const { paramKey = 'tab', defaultKey } = options ?? {}
+
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const allKeys = useMemo(() => sections.flatMap((s) => s.items.map((i) => i.key)), [sections])
+
+  const queryValue = searchParams.get(paramKey)
+
+  const initialKey = useMemo(() => {
+    if (queryValue && allKeys.includes(queryValue)) return queryValue
+    if (defaultKey && allKeys.includes(defaultKey)) return defaultKey
+    return allKeys[0] ?? ''
+  }, [queryValue, allKeys, defaultKey])
+
+  const [selectedKey, setSelectedKey] = useState(initialKey)
+
+  useEffect(() => {
+    if (queryValue && allKeys.includes(queryValue) && queryValue !== selectedKey) {
+      setSelectedKey(queryValue)
+    }
+  }, [queryValue, allKeys, selectedKey])
+
+  const handleSelect = useCallback(
+    (key: string) => {
+      setSelectedKey(key)
+
+      const params = new URLSearchParams(searchParams.toString())
+      params.set(paramKey, key)
+
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    },
+    [router, pathname, searchParams, paramKey]
+  )
+
+  return { selectedKey, handleSelect }
 }
 
 export function SidebarLayout({
@@ -59,14 +114,12 @@ export function SidebarLayout({
   className,
   navClass,
 }: SidebarLayoutProps) {
-  const [open, setOpen] = React.useState(defaultOpen)
+  const [open, setOpen] = useState(defaultOpen)
   const isOpen = forcedOpen ?? open
 
   const Nav = (
     <nav
-      className={cn(
-        'h-full shrink-0 bg-card p-2 transition-all duration-300 rounded-lg', navClass
-      )}
+      className={cn('h-full shrink-0 bg-card p-2 transition-all duration-300 rounded-lg', navClass)}
     >
       {headerEnabled && (
         <div className="mb-6 border-b-1 border-border pb-4">
@@ -84,13 +137,18 @@ export function SidebarLayout({
                     className={cn('text-neutral-900', roleIconClassName ?? 'text-white')}
                   />
                 ) : (
-                  <UserIcon size={20} className={cn('text-neutral-900', roleIconClassName ?? 'text-white')} />
+                  <UserIcon
+                    size={20}
+                    className={cn('text-neutral-900', roleIconClassName ?? 'text-white')}
+                  />
                 )}
               </div>
 
               {isOpen && (
                 <div className="leading-tight">
-                  {roleTitle && <div className="text-sm font-semibold text-neutral-900">{roleTitle}</div>}
+                  {roleTitle && (
+                    <div className="text-sm font-semibold text-neutral-900">{roleTitle}</div>
+                  )}
                   {roleSubtitle && <div className="text-xs text-neutral-500">{roleSubtitle}</div>}
                 </div>
               )}
@@ -119,7 +177,9 @@ export function SidebarLayout({
                   }}
                   className={cn(
                     'flex p-2 w-full items-center rounded-md transition-colors gap-3 cursor-pointer',
-                    isSelected ? 'text-primary border-l-3 border-primary' : 'text-neutral-800 hover:text-primary',
+                    isSelected
+                      ? 'text-primary border-l-3 border-primary'
+                      : 'text-neutral-800 hover:text-primary',
                     isOpen ? 'justify-start' : 'justify-center'
                   )}
                 >
@@ -147,7 +207,10 @@ export function SidebarLayout({
             onClick={() => setOpen((o) => !o)}
             className="flex items-center gap-2 my-4 cursor-pointer text-neutral-500 hover:text-neutral-800"
           >
-            <CaretDoubleRightIcon size={16} className={cn('transition-transform', isOpen && 'rotate-180')} />
+            <CaretDoubleRightIcon
+              size={16}
+              className={cn('transition-transform', isOpen && 'rotate-180')}
+            />
             {isOpen && <span className="text-sm font-medium">Hide</span>}
           </button>
         </div>

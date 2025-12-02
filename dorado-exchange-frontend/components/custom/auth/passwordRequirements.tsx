@@ -36,17 +36,17 @@ export function PasswordRequirements<T extends Record<string, any>>({
           transition={{ type: 'tween', duration: 0.25 }}
           className="overflow-hidden w-full"
         >
-          <div className="flex gap-1 mb-2">
+          <div className="flex gap-1 md:gap-2 mb-2">
             {rules.map(({ validate }, i) => {
               const ok = validate(pw)
               return (
-                <div key={i} className="relative flex-1 h-1 bg-destructive rounded overflow-hidden">
+                <div key={i} className="relative flex-1 h-1 bg-destructive">
                   <motion.div
                     initial={{ scaleX: 0 }}
                     animate={{ scaleX: ok ? 1 : 0 }}
                     transition={{ type: 'tween', duration: 0.2 }}
                     style={{ transformOrigin: 'left' }}
-                    className="absolute inset-0 bg-success"
+                    className="absolute inset-0 bg-success border-1 border-success"
                   />
                 </div>
               )
@@ -54,7 +54,7 @@ export function PasswordRequirements<T extends Record<string, any>>({
           </div>
 
           {/* rule list */}
-          <ul className="space-y-1 text-sm">
+          <ul className="space-y-1 text-xs md:text-sm">
             {rules.map(({ label, validate }) => {
               const ok = validate(pw)
               return (

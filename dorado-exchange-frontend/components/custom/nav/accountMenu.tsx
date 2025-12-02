@@ -60,7 +60,7 @@ export default function AccountMenu() {
                 variant="ghost"
                 size="sm"
                 className="w-full justify-start gap-2 p-0 text-neutral-700 hover:text-neutral-900"
-                onClick={() => router.push('/account')}
+                onClick={() => router.push('/account?tab=details')}
               >
                 <UserCircleIcon size={24} />
                 <span className="text-left">View Account</span>
@@ -70,7 +70,7 @@ export default function AccountMenu() {
                 variant="ghost"
                 size="sm"
                 className="w-full justify-start gap-2 p-0 text-neutral-700 hover:text-neutral-900"
-                onClick={() => router.push('/orders')}
+                onClick={() => router.push('/account?tab=sold')}
               >
                 <ListIcon size={24} />
                 <span className="text-left">View Orders</span>
@@ -80,10 +80,10 @@ export default function AccountMenu() {
                 variant="ghost"
                 size="sm"
                 className="w-full justify-start gap-2 p-0 text-neutral-700 hover:text-neutral-900"
-                onClick={() => router.push('/change-password')}
+                onClick={() => router.push('/account?tab=security')}
               >
                 <LockIcon size={24} />
-                <span className="text-left">Change Password</span>
+                <span className="text-left">Security</span>
               </Button>
             </div>
           </PopoverBody>

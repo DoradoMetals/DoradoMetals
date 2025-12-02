@@ -13,7 +13,7 @@ export function SignInAndUpTabs() {
 
   const handleTabChange = (tab: string) => {
     const newUrl = `${pathname}?tab=${tab}`
-    router.replace(newUrl, { scroll: false }) // Update URL without full reload
+    router.replace(newUrl, { scroll: false })
   }
 
   return (

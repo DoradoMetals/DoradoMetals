@@ -1,8 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
-  WalletIcon,
   CaretLeftIcon,
   UserCircleIcon,
   LockIcon,
@@ -10,7 +9,11 @@ import {
   CashRegisterIcon,
   AddressBookIcon,
 } from '@phosphor-icons/react'
-import { SidebarLayout, SidebarSection } from '@/components/ui/sidebar'
+import {
+  SidebarLayout,
+  SidebarSection,
+  useSidebarQueryParamSelection,
+} from '@/components/ui/sidebar'
 import { userRoleOptions } from '@/types/user'
 import { useGetSession } from '@/lib/queries/useAuth'
 import Drawer from '@/components/ui/drawer'
@@ -58,19 +61,16 @@ export default function AccountShell() {
             icon: CashRegisterIcon,
             badge: salesOrders.length,
           },
-          // {
-          //   key: 'ledger',
-          //   label: 'Ledger',
-          //   icon: InvoiceIcon, //wallet icon?
-          // },
         ],
       },
-      
     ],
     [purchaseOrders.length, salesOrders.length]
   )
 
-  const [selectedKey, setSelectedKey] = useState<string>(sections[0].items[0].key)
+  const { selectedKey, handleSelect } = useSidebarQueryParamSelection(sections, {
+    paramKey: 'tab',
+    defaultKey: 'details',
+  })
 
   const currentLabel = useMemo(() => {
     for (const s of sections) {
@@ -119,7 +119,7 @@ export default function AccountShell() {
         <SidebarLayout
           sections={sections}
           selectedKey={selectedKey}
-          onSelect={setSelectedKey}
+          onSelect={handleSelect}
           headerEnabled
           footerEnabled
           roleIcon={RoleIcon}
@@ -144,7 +144,7 @@ export default function AccountShell() {
           sections={sections}
           selectedKey={selectedKey}
           onSelect={(k) => {
-            setSelectedKey(k)
+            handleSelect(k)
             closeDrawer()
           }}
           headerEnabled

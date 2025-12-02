@@ -36,7 +36,7 @@ export default function Home() {
   const router = useRouter()
 
   return (
-    <div className="flex flex-col h-full w-full bg-card items-center justify-center py-2 sm:py-8 gap-5 sm:gap-10 mb-50">
+    <div className="flex flex-col h-full w-full bg-card items-center justify-center py-2 sm:py-8 gap-5 sm:gap-10 pb-20">
       
       {/* Hero */}
       <section

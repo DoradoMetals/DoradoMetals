@@ -44,7 +44,7 @@ export default function Sidebar() {
             <Button
               variant="outline"
               onClick={() => {
-                router.push('/account')
+                router.push('/account?tab=details')
                 closeDrawer()
               }}
               className="w-20 h-18 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
@@ -57,10 +57,10 @@ export default function Sidebar() {
           <div className="flex flex-col items-center">
             <Button
               variant="outline"
-              onClick={() => {
-                router.push('/orders')
-                closeDrawer()
-              }}
+                onClick={() => {
+                  router.push('/account?tab=sold')
+                  closeDrawer()
+                }}
               className="w-20 h-18 flex flex-col items-center justify-center rounded-lg bg-card raised-off-page"
             >
               <ListIcon size={24} className="text-primary" />

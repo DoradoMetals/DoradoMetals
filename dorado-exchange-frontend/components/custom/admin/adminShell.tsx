@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   ClipboardTextIcon,
   CurrencyDollarIcon,
@@ -22,7 +22,11 @@ import { useAdminSalesOrders } from '@/lib/queries/admin/useAdminSalesOrders'
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { useGetInventory } from '@/lib/queries/admin/useAdminProducts'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import { SidebarLayout, SidebarSection } from '@/components/ui/sidebar'
+import {
+  SidebarLayout,
+  SidebarSection,
+  useSidebarQueryParamSelection,
+} from '@/components/ui/sidebar'
 import { userRoleOptions } from '@/types/user'
 import { useGetSession } from '@/lib/queries/useAuth'
 import Drawer from '@/components/ui/drawer'
@@ -94,7 +98,10 @@ export default function AdminShell() {
     [purchaseOrders.length, salesOrders.length]
   )
 
-  const [selectedKey, setSelectedKey] = useState<string>(sections[0].items[0].key)
+  const { selectedKey, handleSelect } = useSidebarQueryParamSelection(sections, {
+    paramKey: 'tab',
+    defaultKey: 'purchase-orders',
+  })
 
   const currentLabel = useMemo(() => {
     for (const s of sections) {
@@ -128,6 +135,8 @@ export default function AdminShell() {
         return <ScrapCards />
       case 'rates':
         return <RatesPage />
+      case 'appointments':
+        return <div className="text-sm text-neutral-700">TODO: Appointments</div>
       default:
         return null
     }
@@ -153,7 +162,7 @@ export default function AdminShell() {
         <SidebarLayout
           sections={sections}
           selectedKey={selectedKey}
-          onSelect={setSelectedKey}
+          onSelect={handleSelect}
           headerEnabled
           footerEnabled
           roleIcon={RoleIcon}
@@ -178,7 +187,7 @@ export default function AdminShell() {
           sections={sections}
           selectedKey={selectedKey}
           onSelect={(k) => {
-            setSelectedKey(k)
+            handleSelect(k)
             closeDrawer()
           }}
           headerEnabled
