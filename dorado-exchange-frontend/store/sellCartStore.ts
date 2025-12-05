@@ -11,7 +11,7 @@ interface SellCartState {
   removeAll: (item: SellCartItem) => void
   clearCart: () => void
   setItems: (items: SellCartItem[]) => void
-  mergeSellCart: (backendItems: SellCartItem[]) => void // ← Add this
+  mergeSellCart: (backendItems: SellCartItem[]) => void
 }
 
 function addWithQuantity(item: SellCartItem): SellCartItem {
@@ -128,7 +128,6 @@ export const sellCartStore = create<SellCartState>()(
         const isScrapMatch = (a: SellCartItem, b: SellCartItem) =>
           a.type === 'scrap' && b.type === 'scrap' && scrapMatches(a.data as Scrap, b.data as Scrap)
 
-        // Merge backend items first
         backendItems.forEach((backendItem) => {
           if (backendItem.type === 'product') {
             mergedItems.push({
@@ -139,7 +138,6 @@ export const sellCartStore = create<SellCartState>()(
               },
             })
           } else {
-            // Only add scrap from backend if it doesn't already exist locally
             const alreadyInLocal = localItems.some((i) => isScrapMatch(i, backendItem))
             if (!alreadyInLocal) {
               mergedItems.push({
@@ -153,7 +151,6 @@ export const sellCartStore = create<SellCartState>()(
           }
         })
 
-        // Add local items not already merged
         localItems.forEach((localItem) => {
           const alreadyMerged = mergedItems.find((merged) => {
             return isProductMatch(merged, localItem) || isScrapMatch(merged, localItem)

@@ -1,4 +1,3 @@
-// store/cartTabStore.ts
 import { create } from 'zustand'
 
 type CartTab = 'buy' | 'sell'

@@ -29,7 +29,7 @@ export const usePurchaseOrderCheckoutStore = create<PurchaseOrderCheckoutState>(
       clear: () => set({ data: {} }),
     }),
     {
-      name: 'purchase-order-checkout', // localStorage key
+      name: 'purchase-order-checkout',
     }
   )
 )
