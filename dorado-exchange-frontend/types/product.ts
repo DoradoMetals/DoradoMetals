@@ -21,7 +21,7 @@ export interface Product {
   slug?: string
   legal_tender?: boolean
   domestic_tender?: boolean
-  sell_display: boolean,
+  sell_display: boolean
   is_generic: boolean
   variant_label?: string
 }
@@ -50,3 +50,39 @@ export const productSchema = z.object({
   is_generic: z.boolean(),
   variant_label: z.string().optional(),
 })
+
+export interface ProductFilters {
+  metal_type?: string
+  filter_category?: string
+  product_type?: string
+}
+
+export interface ProductGroup {
+  default: Product
+  variants: Product[]
+}
+
+export const groupProducts = (products: Product[]): ProductGroup[] => {
+  const groups: Record<string, Product[]> = {}
+  const singles: ProductGroup[] = []
+
+  for (const product of products) {
+    if (product.variant_group !== '') {
+      if (!groups[product.variant_group]) groups[product.variant_group] = []
+      groups[product.variant_group].push(product)
+    } else {
+      singles.push({ default: product, variants: [] })
+    }
+  }
+
+  const grouped: ProductGroup[] = Object.values(groups).flatMap((variants) => {
+    if (variants.length === 1) {
+      return [{ default: variants[0], variants: [] }]
+    }
+
+    const defaultVariant = variants[variants.length - 1]
+    return [{ default: defaultVariant, variants }]
+  })
+
+  return [...singles, ...grouped]
+}

@@ -1,11 +1,11 @@
 import { Button } from '@/components/ui/button'
-import { useTracking } from '@/lib/queries/shipping/useShipments'
 import { cn } from '@/lib/utils'
 import { packageOptions } from '@/types/packaging'
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 import { formatPickupDateTime } from '@/utils/dateFormatting'
 import { Car, CheckCheck, PackageOpen, Printer } from 'lucide-react'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
+import { useTracking } from '@/lib/queries/useShipments'
 
 export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: trackingInfo, isLoading } = useTracking(

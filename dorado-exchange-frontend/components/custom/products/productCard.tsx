@@ -158,7 +158,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
         </div>
       </div>
 
-      <div className="relative h-4/5 bg-card rounded-lg rounded-b-xl -mt-10 flex flex-col justify-end border-2 border-secondary raised-off-page">
+      <div className="relative h-4/5 bg-card rounded-lg rounded-b-xl -mt-10 flex flex-col justify-end border-2 border-primary raised-off-page">
         <div className="flex items-end justify-between w-full px-3 pr-5 pb-2">
           {variants.length > 0 && (
             <RadioGroup
@@ -174,7 +174,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                 triggerContent={
                   <Button
                     variant="ghost"
-                    className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs bg-secondary text-white hover:bg-secondary hover:text-white hover:shadow-sm"
+                    className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs bg-primary text-white hover:bg-primary hover:text-white hover:shadow-sm"
                     onClick={(e) => {
                       e.stopPropagation()
                       setVariantsOpen(true)
@@ -190,7 +190,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                     <FloatingButtonItem key={option.id}>
                       <label
                         htmlFor={option.product_name}
-                        className="h-8 w-10 xs:w-14 sm:w-15 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:border-secondary has-[[data-state=checked]]:text-white text-neutral-900"
+                        className="h-8 w-10 xs:w-14 sm:w-15 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-primary has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:text-white text-neutral-900"
                         onClick={(e) => {
                           e.stopPropagation()
                         }}

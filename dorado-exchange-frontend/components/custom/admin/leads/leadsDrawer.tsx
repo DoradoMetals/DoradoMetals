@@ -11,14 +11,12 @@ import { cn } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { useDeleteLead, useUpdateLead } from '@/lib/queries/useLeads'
 import { useCreateUser, useGetSession } from '@/lib/queries/useAuth'
 import { DisplayToggle } from '@/components/ui/displayToggle'
 import formatPhoneNumber, { normalizePhone } from '@/utils/formatPhoneNumber'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
-import { TrashIcon, UserPlusIcon, XIcon } from '@phosphor-icons/react'
-import { useAdminRoleUsers, useAdminUsers } from '@/lib/queries/admin/useAdminUser'
+import { TrashIcon, UserPlusIcon } from '@phosphor-icons/react'
 import { PopoverSelect } from '@/components/table/popoverSelect'
 import {
   Dialog,
@@ -29,6 +27,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { isValidEmail } from '@/utils/isValid'
+import { useAdminRoleUsers, useAdminUsers, useDeleteLead, useUpdateLead } from '@/lib/queries/admin/useAdmin'
 
 export default function LeadsDrawer({ leads, lead_id }: { leads: Lead[]; lead_id: string }) {
   const { activeDrawer, closeDrawer } = useDrawerStore()

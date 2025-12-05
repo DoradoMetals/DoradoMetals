@@ -28,3 +28,8 @@ export interface ReviewStats {
   publicCount: number
   starCounts: Record<1 | 2 | 3 | 4 | 5, number>
 }
+
+export type UpdateReviewVars = {
+  review: Review
+  user_name: string
+}

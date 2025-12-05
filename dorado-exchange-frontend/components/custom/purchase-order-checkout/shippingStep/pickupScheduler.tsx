@@ -3,7 +3,7 @@
 import { Calendar } from '@/components/ui/calendar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { FedexPickupTimes } from '@/types/shipping'
+import { FedexPickupTimes } from '@/types/fedex'
 import { parseISO } from 'date-fns'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { cn } from '@/lib/utils'

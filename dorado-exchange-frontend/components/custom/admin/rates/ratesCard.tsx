@@ -5,24 +5,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { PencilSimpleIcon, FloppyDiskIcon, XIcon } from '@phosphor-icons/react'
-import { Rate } from '@/types/rates'
+import {
+  Rate,
+  getBoundsForMetal,
+  sortRatesByMin,
+  pctToInt,
+  intToPct,
+  labelFor,
+} from '@/types/rates'
 import { useCreateRate, useDeleteRate, useUpdateRate } from '@/lib/queries/useRates'
 import { DualRangeSlider } from '@/components/ui/dual-range-slider'
-
-type MetalKey = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
-const METAL_BOUNDS: Record<MetalKey, { cap: number; step: number }> = {
-  Gold: { cap: 30, step: 1 },
-  Silver: { cap: 3000, step: 25 },
-  Platinum: { cap: 50, step: 5 },
-  Palladium: { cap: 50, step: 5 },
-}
-function getBoundsForMetal(m: string) {
-  const key = m as MetalKey
-  return METAL_BOUNDS[key] ?? { cap: 100000, step: 1 }
-}
-const labelFor = (v: number | undefined, cap: number) => (v == null || v >= cap ? '∞' : String(v))
-const pcti = (n: number | undefined) => Math.round((n ?? 0) * 100)
-const pctf = (n: number) => Math.max(0, Math.min(100, n)) / 100
 
 export default function RatesCard({
   metal,
@@ -37,18 +29,18 @@ export default function RatesCard({
   const unit = rates[0]?.unit ?? 'troy_oz'
   const { cap, step } = getBoundsForMetal(metal)
 
-  const [items, setItems] = React.useState<Rate[]>(() => sortByMin(rates))
+  const [items, setItems] = React.useState<Rate[]>(() => sortRatesByMin(rates))
   const [dirtyIds, setDirtyIds] = React.useState<Set<string>>(new Set())
 
   React.useEffect(() => {
     if (!editing) return
-    setItems(sortByMin(rates))
+    setItems(sortRatesByMin(rates))
     setDirtyIds(new Set())
   }, [editing])
 
   React.useEffect(() => {
     if (editing) return
-    setItems(sortByMin(rates))
+    setItems(sortRatesByMin(rates))
     setDirtyIds(new Set())
   }, [rates, editing])
 
@@ -59,7 +51,7 @@ export default function RatesCard({
   function patchLocal(id: string, patch: Partial<Rate>) {
     setItems((prev) => {
       const next = prev.map((r) => (r.id === id ? ({ ...r, ...patch } as Rate) : r))
-      return sortByMin(next)
+      return sortRatesByMin(next)
     })
     setDirtyIds((s) => new Set(s).add(id))
   }
@@ -79,7 +71,7 @@ export default function RatesCard({
         metal={metal}
         editing={editing}
         onCancel={() => {
-          setItems(sortByMin(rates))
+          setItems(sortRatesByMin(rates))
           setDirtyIds(new Set())
           setEditing(false)
         }}
@@ -96,8 +88,8 @@ export default function RatesCard({
           cap={cap}
           step={step}
           onRangeChange={(id, min_qty, max_qty) => patchLocal(id, { min_qty, max_qty })}
-          onScrapChange={(id, v) => patchLocal(id, { scrap_pct: pctf(v) })}
-          onBullChange={(id, v) => patchLocal(id, { bullion_pct: pctf(v) })}
+          onScrapChange={(id, v) => patchLocal(id, { scrap_pct: intToPct(v) })}
+          onBullChange={(id, v) => patchLocal(id, { bullion_pct: intToPct(v) })}
           onDelete={(row) => del.mutate(row)}
           onAdd={() => {
             const last = items.at(-1)
@@ -122,11 +114,6 @@ export default function RatesCard({
   )
 }
 
-function sortByMin<T extends { min_qty: number }>(arr: T[]) {
-  return [...arr].sort((a, b) => a.min_qty - b.min_qty)
-}
-
-
 function Header({
   metal,
   editing,
@@ -144,13 +131,23 @@ function Header({
     <div className="flex items-center justify-between mb-4">
       <div className="text-base tracking-wide text-neutral-600">{metal}</div>
       {!editing ? (
-        <Button size="sm" variant="link" onClick={onEdit} className="gap-1 text-primary hover:text-primary text-sm sm:text-base">
-          <PencilSimpleIcon size={20} className='text-primary' />
+        <Button
+          size="sm"
+          variant="link"
+          onClick={onEdit}
+          className="gap-1 text-primary hover:text-primary text-sm sm:text-base"
+        >
+          <PencilSimpleIcon size={20} className="text-primary" />
           Edit
         </Button>
       ) : (
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="link" onClick={onCancel} className="gap-1 text-sm sm:text-base text-neutral-600 hover:text-neutral-900">
+          <Button
+            size="sm"
+            variant="link"
+            onClick={onCancel}
+            className="gap-1 text-sm sm:text-base text-neutral-600 hover:text-neutral-900"
+          >
             <XIcon size={20} />
             Cancel
           </Button>
@@ -168,15 +165,20 @@ function Header({
   )
 }
 
-
 function ReadView({ unit, rows }: { unit: string; rows: Rate[] }) {
   const u = unit === 'troy_oz' ? 'oz' : unit
   return (
     <div className="border rounded-lg p-4 bg-neutral-100/50">
       <div className="flex items-center text-sm text-neutral-700 px-1 mb-4">
-        <div className="basis-0 grow-[2] text-left text-xs text-neutral-600 tracking-widest">Range (oz)</div>
-        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">Scrap</div>
-        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">Bullion</div>
+        <div className="basis-0 grow-[2] text-left text-xs text-neutral-600 tracking-widest">
+          Range (oz)
+        </div>
+        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">
+          Scrap
+        </div>
+        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">
+          Bullion
+        </div>
       </div>
 
       <div className="mt-2 space-y-6">
@@ -197,7 +199,6 @@ function ReadView({ unit, rows }: { unit: string; rows: Rate[] }) {
     </div>
   )
 }
-
 
 function EditView({
   unit,
@@ -227,9 +228,15 @@ function EditView({
   return (
     <div className="border rounded-lg p-4 bg-background">
       <div className="flex items-center text-sm text-neutral-700 px-1 mb-4">
-        <div className="basis-0 grow-[2] text-left text-xs text-neutral-600 tracking-widest">Range (oz)</div>
-        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">Scrap</div>
-        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">Bullion</div>
+        <div className="basis-0 grow-[2] text-left text-xs text-neutral-600 tracking-widest">
+          Range (oz)
+        </div>
+        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">
+          Scrap
+        </div>
+        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">
+          Bullion
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -267,7 +274,7 @@ function EditView({
 
               <div className="basis-0 grow flex items-center justify-center">
                 <PercentBox
-                  value={pcti(r.scrap_pct)}
+                  value={pctToInt(r.scrap_pct)}
                   onChange={(p) => onScrapChange(r.id, p)}
                   isDirty={dirtyIds.has(r.id)}
                 />
@@ -275,7 +282,7 @@ function EditView({
 
               <div className="basis-0 grow flex items-center justify-center">
                 <PercentBox
-                  value={pcti(r.bullion_pct)}
+                  value={pctToInt(r.bullion_pct)}
                   onChange={(p) => onBullChange(r.id, p)}
                   isDirty={dirtyIds.has(r.id)}
                 />
@@ -284,10 +291,24 @@ function EditView({
           )
         })}
       </div>
+
+      <div className="mt-4 flex justify-between items-center">
+        <div className="text-xs text-neutral-500">
+          Units: <span className="font-medium">{u}</span>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1 text-xs sm:text-sm"
+          type="button"
+          onClick={onAdd}
+        >
+          + Add Band
+        </Button>
+      </div>
     </div>
   )
 }
-
 
 function PercentBox({
   value,
@@ -331,8 +352,7 @@ function MergedRangeLabels({
 
   const close = Math.abs(maxPct - minPct) <= thresholdPct
 
-  const clampPct = (p: number, padPct: number) =>
-    Math.max(padPct, Math.min(100 - padPct, p))
+  const clampPct = (p: number, padPct: number) => Math.max(padPct, Math.min(100 - padPct, p))
 
   if (close) {
     const mid = clampPct((minPct + maxPct) / 2, 4)

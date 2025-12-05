@@ -1,7 +1,7 @@
 import { statusConfig } from '@/types/purchase-order'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
 import { SalesOrderDrawerContentProps } from '@/types/sales-orders'
-import { useTracking } from '@/lib/queries/shipping/useShipments'
+import { useTracking } from '@/lib/queries/useShipments'
 
 export default function AdminInTransitSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: trackingInfo, isLoading } = useTracking(

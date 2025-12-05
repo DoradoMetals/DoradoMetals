@@ -1,29 +1,32 @@
-// lib/queries/useImages.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+'use client'
+
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
+import type { Image, ImageUpload, ImageUploadReturn } from '@/types/image'
 import { useGetSession } from './useAuth'
-import type { Image, ImageUpload, ImageUploadReturn} from '@/types/image'
+import { queryKeys } from '../keyFactory'
+import { useApiMutation, useApiQuery } from '../base'
 
 export const useTestImage = () =>
-  useQuery<Image[]>({
-    queryKey: ['test_image'],
-    queryFn: async () => {
-      return await apiRequest<Image[]>('GET', '/images/get_test_image', undefined, {})
-    },
+  useApiQuery<Image[]>({
+    key: queryKeys.testImage(),
+    url: '/images/get_test_image',
   })
 
 export const useImage = (id: string) =>
-  useQuery<string>({
-    queryKey: ['images', id],
-    queryFn: async () => {
-      return await apiRequest<string>('GET', '/images/get_url', undefined, { image_id: id })
-    },
+  useApiQuery<string>({
+    key: queryKeys.image(id),
+    url: '/images/get_url',
+    enabled: !!id,
+    params: () => ({
+      image_id: id,
+    }),
   })
 
 export const useUploadImage = () => {
   const { user } = useGetSession()
-
   const queryClient = useQueryClient()
+
   return useMutation({
     mutationKey: ['image-upload'],
     mutationFn: async (image: ImageUpload) => {
@@ -44,22 +47,22 @@ export const useUploadImage = () => {
       return { id }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['images'], refetchType: 'active' })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.images(),
+        refetchType: 'active',
+      })
     },
   })
 }
 
-export const useDeleteImage = () => {
-  const { user } = useGetSession()
-  const qc = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest('DELETE', '/images/delete', { user_id: user.id, id })
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['images'], refetchType: 'active' })
-    },
+export const useDeleteImage = () =>
+  useApiMutation<void, string, Image[]>({
+    queryKey: queryKeys.images(),
+    method: 'DELETE',
+    url: '/images/delete',
+    listAction: 'delete',
+    body: (id, user) => ({
+      user_id: user!.id,
+      id,
+    }),
   })
-}

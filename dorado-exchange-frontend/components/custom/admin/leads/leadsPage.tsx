@@ -4,7 +4,6 @@ import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { Lead } from '@/types/leads'
-import { useLeads, useCreateLead } from '@/lib/queries/useLeads'
 import { useGetSession } from '@/lib/queries/useAuth'
 import formatPhoneNumber, { normalizePhone } from '@/utils/formatPhoneNumber'
 import { useDrawerStore } from '@/store/drawerStore'
@@ -21,6 +20,7 @@ import { TextColumn, IconColumn } from '@/components/table/columns'
 import { DataTable } from '@/components/table/table'
 import { isValidEmail } from '@/utils/isValid'
 import { CreateConfig } from '@/components/table/addNew'
+import { useCreateLead, useLeads } from '@/lib/queries/admin/useAdmin'
 
 const BoolIcon = ({ value }: { value: boolean }) =>
   value ? (

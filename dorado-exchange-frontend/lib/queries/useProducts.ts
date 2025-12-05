@@ -1,209 +1,83 @@
-import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
-import { Product } from '@/types/product'
-
-interface ProductFilters {
-  metal_type?: string
-  filter_category?: string
-  product_type?: string
-}
-
-export interface ProductGroup {
-  default: Product
-  variants: Product[]
-}
+import type { Product, ProductGroup, ProductFilters } from '@/types/product'
+import { groupProducts } from '@/types/product'
+import { useApiQuery } from '../base'
+import { queryKeys } from '../keyFactory'
 
 export const useProducts = () => {
-  return useQuery<Product[]>({
-    queryKey: ['products'],
-    queryFn: async () => {
-      return await apiRequest<Product[]>('GET', '/products/get_all_products', undefined, {})
-    },
+  return useApiQuery<Product[]>({
+    key: queryKeys.productsRaw(),
+    method: 'GET',
+    url: '/products/get_all_products',
     staleTime: 0,
   })
 }
 
 export const useProductFromSlug = (slug: string) => {
-  return useQuery<ProductGroup[]>({
-    queryKey: ['product_from_slug', slug],
-    queryFn: async () => {
-      const products = await apiRequest<Product[]>('GET', '/products/get_product_from_slug', undefined, {
-        slug,
-      })
-
-      const groups: Record<string, Product[]> = {}
-      const singles: ProductGroup[] = []
-
-      for (const product of products) {
-        if (product.variant_group !== '') {
-          if (!groups[product.variant_group]) groups[product.variant_group] = []
-          groups[product.variant_group].push(product)
-        } else {
-          singles.push({ default: product, variants: [] })
-        }
-      }
-
-      const grouped: ProductGroup[] = Object.values(groups).flatMap((variants) => {
-        if (variants.length === 1) {
-          return [{ default: variants[0], variants: [] }]
-        }
-
-        const defaultVariant = variants[variants.length - 1]
-        return [{ default: defaultVariant, variants }]
-      })
-
-      return [...singles, ...grouped]
-    },
+  return useApiQuery<ProductGroup[]>({
+    key: queryKeys.productFromSlug(slug),
+    enabled: !!slug,
     staleTime: Infinity,
-  })
-}
-
-export const useAllProducts = () => {
-  return useQuery<ProductGroup[]>({
-    queryKey: ['all_products'],
-    queryFn: async () => {
+    requireUser: false,
+    request: async () => {
       const products = await apiRequest<Product[]>(
         'GET',
-        '/products/get_all_products',
+        '/products/get_product_from_slug',
         undefined,
-        {}
+        { slug }
       )
 
-      const groups: Record<string, Product[]> = {}
-      const singles: ProductGroup[] = []
-
-      for (const product of products) {
-        if (product.variant_group !== '') {
-          if (!groups[product.variant_group]) groups[product.variant_group] = []
-          groups[product.variant_group].push(product)
-        } else {
-          singles.push({ default: product, variants: [] })
-        }
-      }
-
-      const grouped: ProductGroup[] = Object.values(groups).flatMap((variants) => {
-        if (variants.length === 1) {
-          return [{ default: variants[0], variants: [] }]
-        }
-
-        const defaultVariant = variants[variants.length - 1]
-        return [{ default: defaultVariant, variants }]
-      })
-
-      return [...singles, ...grouped]
+      return groupProducts(products)
     },
-    staleTime: Infinity,
   })
 }
 
-
 export const useSellProducts = () => {
-  return useQuery<ProductGroup[]>({
-    queryKey: ['sell_products'],
-    queryFn: async () => {
+  return useApiQuery<ProductGroup[]>({
+    key: queryKeys.sellProducts(),
+    staleTime: Infinity,
+    requireUser: false,
+    request: async () => {
       const products = await apiRequest<Product[]>(
         'GET',
         '/products/get_sell_products',
         undefined,
         {}
       )
-
-      const groups: Record<string, Product[]> = {}
-      const singles: ProductGroup[] = []
-
-      for (const product of products) {
-        if (product.variant_group !== '') {
-          if (!groups[product.variant_group]) groups[product.variant_group] = []
-          groups[product.variant_group].push(product)
-        } else {
-          singles.push({ default: product, variants: [] })
-        }
-      }
-
-      const grouped: ProductGroup[] = Object.values(groups).flatMap((variants) => {
-        if (variants.length === 1) {
-          return [{ default: variants[0], variants: [] }]
-        }
-
-        const defaultVariant = variants[variants.length - 1]
-        return [{ default: defaultVariant, variants }]
-      })
-
-      return [...singles, ...grouped]
+      return groupProducts(products)
     },
-    staleTime: Infinity,
   })
 }
 
 export const useHomepageProducts = () => {
-  return useQuery<ProductGroup[]>({
-    queryKey: ['homepage_products'],
-    queryFn: async () => {
+  return useApiQuery<ProductGroup[]>({
+    key: queryKeys.homepageProducts(),
+    staleTime: Infinity,
+    requireUser: false,
+    request: async () => {
       const products = await apiRequest<Product[]>(
         'GET',
         '/products/get_homepage_products',
         undefined
       )
-      const groups: Record<string, Product[]> = {}
-      const singles: ProductGroup[] = []
-
-      for (const product of products) {
-        if (product.variant_group !== '') {
-          if (!groups[product.variant_group]) groups[product.variant_group] = []
-          groups[product.variant_group].push(product)
-        } else {
-          singles.push({ default: product, variants: [] })
-        }
-      }
-
-      const grouped: ProductGroup[] = Object.values(groups).flatMap((variants) => {
-        if (variants.length === 1) {
-          return [{ default: variants[0], variants: [] }]
-        }
-
-        const defaultVariant = variants[variants.length - 1]
-        return [{ default: defaultVariant, variants }]
-      })
-
-      return [...singles, ...grouped]
+      return groupProducts(products)
     },
-    staleTime: 0,
   })
 }
 
 export const useFilteredProducts = (filters: ProductFilters) => {
-  return useQuery<ProductGroup[]>({
-    queryKey: ['products', JSON.stringify(filters)],
-    queryFn: async () => {
+  return useApiQuery<ProductGroup[]>({
+    key: queryKeys.filteredProducts(filters),
+    staleTime: 0,
+    requireUser: false,
+    request: async () => {
       const products = await apiRequest<Product[]>(
         'GET',
         '/products/get_products',
         undefined,
         filters
       )
-      const groups: Record<string, Product[]> = {}
-      const singles: ProductGroup[] = []
-
-      for (const product of products) {
-        if (product.variant_group !== '') {
-          if (!groups[product.variant_group]) groups[product.variant_group] = []
-          groups[product.variant_group].push(product)
-        } else {
-          singles.push({ default: product, variants: [] })
-        }
-      }
-
-      const grouped: ProductGroup[] = Object.values(groups).flatMap((variants) => {
-        if (variants.length === 1) {
-          return [{ default: variants[0], variants: [] }]
-        }
-
-        const defaultVariant = variants[variants.length - 1]
-        return [{ default: defaultVariant, variants }]
-      })
-
-      return [...singles, ...grouped]
+      return groupProducts(products)
     },
-    staleTime: 0,
   })
 }

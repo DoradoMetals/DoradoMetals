@@ -41,7 +41,6 @@ function Calendar({
       focus-visible:outline focus-visible:outline-2 
       focus-visible:outline-ring/70 
 
-      hover:text-foreground
       hover:bg-transparent
       hover:text-primary
 
@@ -51,7 +50,6 @@ function Calendar({
       group-data-[selected]:bg-transparent
       group[data-selected]:text-primary
       group-data-[selected]:group-[.range-middle]:bg-accent 
-      group-data-[selected]:group-[.range-middle]:text-foreground 
       
       group-data-[disabled]:pointer-events-none 
       group-data-[disabled]:cursor-not-allowed 

@@ -1,11 +1,11 @@
 import { Button } from '@/components/ui/button'
-import { useTracking } from '@/lib/queries/shipping/useShipments'
 import { cn } from '@/lib/utils'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import { useDownloadBase64 } from '@/utils/useDownloadLabel'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
-import { useCancelFedExLabel, useCancelFedExPickup } from '@/lib/queries/shipping/useFedex'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
+import { useTracking } from '@/lib/queries/useShipments'
+import { useCancelFedExLabel, useCancelFedExPickup } from '@/lib/queries/admin/useAdminPurchaseOrders'
 
 export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: trackingInfo, isLoading } = useTracking(

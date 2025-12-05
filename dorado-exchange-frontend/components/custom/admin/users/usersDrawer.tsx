@@ -18,10 +18,9 @@ import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
-import { useUpdateCredit } from '@/lib/queries/admin/useAdminUser'
 import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
-import { CreateSalesOrderDrawer } from '../salesOrders/createSalesOrder/createSalesOrderDrawer'
+import { useUpdateCredit } from '@/lib/queries/admin/useAdmin'
 
 export default function AdminUsersDrawer({
   users,
@@ -130,11 +129,12 @@ function DoradoCredit({ user }: { user: AdminUser }) {
       return
     }
 
-    updateCredit.mutate({
-      user_id: user.id,
-      mode,
-      amount,
-    })
+    const updatedUser: AdminUser = {
+      ...user,
+      dorado_funds: newAmount,
+    }
+
+    updateCredit.mutate(updatedUser)
 
     setAmount(0)
     setDisplayAmount('0.00')

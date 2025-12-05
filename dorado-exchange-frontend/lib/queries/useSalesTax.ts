@@ -1,31 +1,17 @@
-import { useQuery } from '@tanstack/react-query'
-import { useGetSession } from './useAuth'
-import { apiRequest } from '@/utils/axiosInstance'
-import { Address } from '@/types/address'
-import { Product } from '@/types/product'
-import { SpotPrice } from '@/types/metal'
+import { useApiQuery } from '../base'
+import { queryKeys } from '../keyFactory'
+import type { SalesTaxInput } from '@/types/tax'
 
-export const useSalesTax = ({
-  address,
-  items,
-  spots,
-}: {
-  address: Address
-  items: Product[]
-  spots: SpotPrice[]
-}) => {
-  const { user } = useGetSession()
-
-  return useQuery<number>({
-    queryKey: ['sales_tax', user, address, items, spots],
-    queryFn: async () => {
-      if (!user?.id) return 0
-      return await apiRequest<number>('POST', '/tax/get_sales_tax', {
-        address: address,
-        items: items,
-        spots: spots,
-      })
-    },
-    enabled: !!user,
+export const useSalesTax = (input: SalesTaxInput) => {
+  return useApiQuery<number>({
+    key: queryKeys.salesTax(input),
+    method: 'POST',
+    url: '/tax/get_sales_tax',
+    enabled: (user) => !!user?.id,
+    body: () => ({
+      address: input.address,
+      items: input.items,
+      spots: input.spots,
+    }),
   })
 }

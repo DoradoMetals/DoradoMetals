@@ -4,11 +4,11 @@ import AdminPurchaseOrderDrawerHeader from './adminPurchaseOrderDrawerHeader'
 import AdminPurchaseOrderDrawerContent from './adminPurchaseOrderDrawerContent'
 import AdminPurchaseOrderDrawerFooter from './adminPurchaseOrderDrawerFooter'
 
-import { useAdminUser } from '@/lib/queries/admin/useAdminUser'
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/components/ui/drawer'
 import { useMemo } from 'react'
+import { useAdminUser } from '@/lib/queries/admin/useAdmin'
 
 export default function AdminPurchaseOrderDrawer({
   order_id,

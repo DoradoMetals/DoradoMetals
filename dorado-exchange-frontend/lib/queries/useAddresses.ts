@@ -1,86 +1,70 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiRequest } from '@/utils/axiosInstance'
+'use client'
+
 import { Address } from '@/types/address'
-import { useGetSession } from './useAuth'
+import { useApiMutation, useApiQuery } from '../base'
+import { queryKeys } from '../keyFactory'
 
-export const useAddress = () => {
-  const { user } = useGetSession()
-
-  return useQuery<Address[]>({
-    queryKey: ['address', user],
-    queryFn: async () => {
-      if (!user?.id) return []
-      return await apiRequest<Address[]>('GET', '/addresses/get_addresses', undefined, {
-        user_id: user.id,
-      })
-    },
-    enabled: !!user,
+export const useAddress = () =>
+  useApiQuery<Address[]>({
+    key: queryKeys.address(),
+    url: '/addresses/get_addresses',
+    requireUser: true,
+    params: (user) => ({
+      user_id: user!.id,
+    }),
   })
-}
 
-export const useUserAddress = (user_id: string) => {
-  return useQuery<Address[]>({
-    queryKey: ['address', user_id],
-    queryFn: async () => {
-      if (!user_id) return []
-      return await apiRequest<Address[]>('GET', '/addresses/get_addresses', undefined, {
-        user_id: user_id,
-      })
-    },
-    enabled: !!user_id,
+export const useUserAddress = (userId: string) =>
+  useApiQuery<Address[]>({
+    key: queryKeys.userAddresses(userId),
+    url: '/addresses/get_addresses',
+    requireAdmin: true,
+    enabled: !!userId,
+    params: () => ({
+      user_id: userId,
+    }),
   })
-}
 
-export const useUpdateAddress = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (address: Address) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<Address>('POST', '/addresses/create_and_update_address', {
-        user_id: user.id,
-        address,
-      })
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['address', user], refetchType: 'active' })
-    },
+export const useUpdateAddress = () =>
+  useApiMutation<Address, Address, Address[]>({
+    queryKey: queryKeys.address(),
+    url: '/addresses/create_and_update_address',
+    requireUser: true,
+    body: (address, user) => ({
+      user_id: user!.id,
+      address,
+    }),
   })
-}
 
-export const useDeleteAddress = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (address: Address) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest('DELETE', '/addresses/delete_address', {
-        user_id: user.id,
-        address,
-      })
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['address', user], refetchType: 'active' })
-    },
+export const useDeleteAddress = () =>
+  useApiMutation<void, Address, Address[]>({
+    queryKey: queryKeys.address(),
+    method: 'DELETE',
+    url: '/addresses/delete_address',
+    requireUser: true,
+    listAction: 'delete',
+    optimisticItemKey: 'id',
+    body: (address, user) => ({
+      user_id: user!.id,
+      address,
+    }),
   })
-}
 
-export const useSetDefaultAddress = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
+export const useSetDefaultAddress = () =>
+  useApiMutation<void, Address, Address[]>({
+    queryKey: queryKeys.address(),
+    url: '/addresses/set_default_address',
+    requireUser: true,
+    body: (address, user) => ({
+      user_id: user!.id,
+      address,
+    }),
+    optimisticUpdater: (list, address) => {
+      const items = list ?? []
 
-  return useMutation({
-    mutationFn: async (address: Address) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest('POST', '/addresses/set_default_address', {
-        user_id: user.id,
-        address,
-      })
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['address', user], refetchType: 'active' })
+      return items.map((a) => ({
+        ...a,
+        is_default: a.id === address.id,
+      }))
     },
   })
-}

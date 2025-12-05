@@ -1,4 +1,4 @@
-import pool from '../db.js';
+import pool from "../db.js";
 
 export async function getUser(user_id) {
   const query = `
@@ -8,7 +8,7 @@ export async function getUser(user_id) {
   `;
   const values = [user_id];
   const result = await pool.query(query, values);
-  return result.rows;
+  return result.rows[0];
 }
 
 export async function getAllUsers() {

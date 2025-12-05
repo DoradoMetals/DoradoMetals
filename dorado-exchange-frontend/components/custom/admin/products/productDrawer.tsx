@@ -8,13 +8,12 @@ import { formatFullDate } from '@/utils/dateFormatting'
 
 import { AdminProduct } from '@/types/admin'
 import { cn } from '@/lib/utils'
-import { FloatingLabelInput } from '@/components/ui/floating-label-input'
-import { useSaveProduct } from '@/lib/queries/admin/useAdminProducts'
 import {
   useAdminMetals,
   useAdminMints,
   useAdminSuppliers,
   useAdminTypes,
+  useSaveProduct,
 } from '@/lib/queries/admin/useAdmin'
 
 import { PopoverSelect } from '@/components/table/popoverSelect'

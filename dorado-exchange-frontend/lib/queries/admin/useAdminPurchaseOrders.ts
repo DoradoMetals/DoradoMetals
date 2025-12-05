@@ -6,6 +6,7 @@ import { SpotPrice } from '@/types/metal'
 import { Product } from '@/types/product'
 import getPurchaseOrderItemPrice from '@/utils/getPurchaseOrderItemPrice'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
+import { FedexCancelPickupInput, FedexPickup } from '@/types/fedex'
 
 export const useAdminPurchaseOrders = () => {
   const { user } = useGetSession()
@@ -175,26 +176,26 @@ export const useLockOrderSpotPrices = () => {
       return await apiRequest<SpotPrice[]>('POST', '/purchase_orders/lock_spots', {
         user_id: user.id,
         spots,
-        purchase_order_id: purchase_order_id,
+        purchase_order_id,
       })
     },
     onMutate: async ({ spots, purchase_order_id }) => {
-      const queryKey = ['purchase_orders_metals', purchase_order_id]
+      const metalsKey = ['purchase_orders_metals', purchase_order_id]
 
-      await queryClient.cancelQueries({ queryKey })
-      const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(queryKey)
+      await queryClient.cancelQueries({ queryKey: metalsKey })
+      const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(metalsKey)
 
-      queryClient.setQueryData<SpotPrice[]>(queryKey, (old = []) =>
+      queryClient.setQueryData<SpotPrice[]>(metalsKey, (old = []) =>
         old.map((s) => {
           const incoming = spots.find((sp) => sp.id === s.id)
           return incoming ? { ...s, bid_spot: incoming.bid_spot } : s
         })
       )
 
-      const orderQueryKey = ['admin_purchase_orders', user]
-      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+      const ordersKey = ['admin_purchase_orders', user]
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(ordersKey)
 
-      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+      queryClient.setQueryData<PurchaseOrder[]>(ordersKey, (old = []) =>
         old.map((order) =>
           order.id !== purchase_order_id
             ? order
@@ -205,26 +206,26 @@ export const useLockOrderSpotPrices = () => {
         )
       )
 
-      return { previousSpotPrices, previousOrders, queryKey, orderQueryKey }
+      return { previousSpotPrices, previousOrders, metalsKey, ordersKey }
     },
     onError: (_err, _vars, context) => {
-      if (context?.previousSpotPrices && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousSpotPrices)
+      if (context?.previousSpotPrices && context.metalsKey) {
+        queryClient.setQueryData(context.metalsKey, context.previousSpotPrices)
       }
-      if (context?.previousOrders && context.orderQueryKey) {
-        queryClient.setQueryData(context.orderQueryKey, context.previousOrders)
+      if (context?.previousOrders && context.ordersKey) {
+        queryClient.setQueryData(context.ordersKey, context.previousOrders)
       }
     },
     onSettled: (_data, _err, _vars, context) => {
-      if (context?.queryKey) {
+      if (context?.metalsKey) {
         queryClient.invalidateQueries({
-          queryKey: context.queryKey,
+          queryKey: context.metalsKey,
           refetchType: 'active',
         })
       }
-      if (context?.orderQueryKey) {
+      if (context?.ordersKey) {
         queryClient.invalidateQueries({
-          queryKey: context.orderQueryKey,
+          queryKey: context.ordersKey,
           refetchType: 'active',
         })
       }
@@ -1289,5 +1290,57 @@ export const useUpdateRefinerFee = () => {
         })
       }
     },
+  })
+}
+
+export const useCancelFedExLabel = (order_id: string) => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: { tracking_number: string; shipment_id: string }) => {
+      return apiRequest('POST', '/shipping/cancel_fedex_label', payload)
+    },
+    onMutate: async () => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
+        old.map((order) =>
+          order.id !== order_id
+            ? order
+            : {
+                ...order,
+                shipment: {
+                  ...order.shipment,
+                  shipping_status: 'Cancelled',
+                },
+              }
+        )
+      )
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousOrders && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousOrders)
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
+      }
+    },
+  })
+}
+
+export const useCancelFedExPickup = () => {
+  return useMutation({
+    mutationFn: (input: FedexCancelPickupInput) =>
+      apiRequest<FedexPickup>('POST', '/shipping/cancel_fedex_pickup', input),
   })
 }

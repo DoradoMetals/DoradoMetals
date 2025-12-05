@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Check, Edit2 } from 'lucide-react'
 import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { Input } from '@/components/ui/input'
-import { useEditScrapPercentages } from '@/lib/queries/admin/useAdminScrap'
+import { useEditScrapPercentages } from '@/lib/queries/admin/useAdmin'
 
 export default function ScrapCards() {
   const { data: spotPrices = [] } = useSpotPrices()
@@ -23,19 +23,15 @@ export default function ScrapCards() {
     return scrapPricePerTroyOz * convertTroyOz(1, weight.unit)
   }
 
-  const handleUpdate = (id: string, scrap_percentage: number) => {
-    editScrapPercentage.mutate({ id: id, scrap_percentage: scrap_percentage })
-  }
-
   const toggleEditing = (id: string) => {
-    setEditingStates(prev => ({
+    setEditingStates((prev) => ({
       ...prev,
       [id]: !prev[id],
     }))
   }
 
   const setWeight = (id: string, weight: WeightOption) => {
-    setWeights(prev => ({
+    setWeights((prev) => ({
       ...prev,
       [id]: weight,
     }))
@@ -79,23 +75,36 @@ export default function ScrapCards() {
                 <div className="flex items-center justify-between w-full">
                   <div className="text-base text-neutral-700">Percentage:</div>
                   {editing ? (
-                    <div className='flex items-center gap-1'>
+                    <div className="flex items-center gap-1">
                       <Input
                         type="number"
                         pattern="[0-9]*"
-                        inputMode='decimal'
+                        inputMode="decimal"
                         className="input-floating-label-form no-spinner text-left w-14 text-lg md:text-lg h-6"
                         defaultValue={spot.scrap_percentage}
-                        onBlur={(e) => handleUpdate(spot.id, Number(e.target.value))}
+                        onBlur={(e) =>
+                          editScrapPercentage.mutate({
+                            ...spot,
+                            scrap_percentage: Number(e.target.value),
+                          })
+                        }
                       />
-                      <Button variant="ghost" className="p-0" onClick={() => toggleEditing(spot.id)}>
-                        <Check size={16} className='text-success' />
+                      <Button
+                        variant="ghost"
+                        className="p-0"
+                        onClick={() => toggleEditing(spot.id)}
+                      >
+                        <Check size={16} className="text-success" />
                       </Button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1">
                       <div className="text-lg text-neutral-800">{spot.scrap_percentage}</div>
-                      <Button variant="ghost" className="p-0" onClick={() => toggleEditing(spot.id)}>
+                      <Button
+                        variant="ghost"
+                        className="p-0"
+                        onClick={() => toggleEditing(spot.id)}
+                      >
                         <Edit2 size={16} stroke={getPrimaryIconStroke()} />
                       </Button>
                     </div>

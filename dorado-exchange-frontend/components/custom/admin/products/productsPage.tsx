@@ -4,13 +4,13 @@ import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { AdminProduct } from '@/types/admin'
-import { useAdminProducts, useCreateProduct } from '@/lib/queries/admin/useAdminProducts'
 import { useDrawerStore } from '@/store/drawerStore'
 import ProductDrawer from './productDrawer'
 import { TextColumn, ChipColumn } from '@/components/table/columns'
 import { DataTable } from '@/components/table/table'
 import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/components/icons/logo'
 import { CreateConfig } from '@/components/table/addNew'
+import { useAdminProducts, useCreateProduct } from '@/lib/queries/admin/useAdmin'
 
 const formatPremium = (mult?: number | null) => {
   if (mult == null) return '-'

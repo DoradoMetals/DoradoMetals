@@ -26,7 +26,7 @@ const categories = [
   },
 ]
 
-export default function AvatarCarousel() {
+export default function MobileProductCarousel() {
   const router = useRouter()
   const pathname = usePathname()
   const { metal_type, filter_category, product_type, setFilters } = useProductFilterStore()

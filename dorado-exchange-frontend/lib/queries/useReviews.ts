@@ -1,107 +1,68 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiRequest } from '@/utils/axiosInstance'
-import { useGetSession } from './useAuth'
-import { NewReview, Review } from '@/types/reviews'
+import { NewReview, Review, UpdateReviewVars } from '@/types/reviews'
+import { useApiMutation, useApiQuery } from '../base'
+import { queryKeys } from '../keyFactory'
 
-export const useReview = (review_id: string) => {
-  return useQuery<Review[]>({
-    queryKey: ['review', review_id],
-    queryFn: async () => {
-      return await apiRequest<Review[]>('GET', '/reviews/get_one', undefined, {
-        review_id: review_id,
-      })
-    },
-    enabled: !!review_id,
+export const useReview = (reviewId: string | null) => {
+  return useApiQuery<Review[]>({
+    key: queryKeys.review(reviewId ?? ''),
+    url: '/reviews/get_one',
+    params: () => (reviewId ? { review_id: reviewId } : undefined),
+    enabled: !!reviewId,
   })
 }
 
 export const useReviews = () => {
-  const { user } = useGetSession()
-
-  return useQuery<Review[]>({
-    queryKey: ['reviews', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return []
-      return await apiRequest<Review[]>('GET', '/reviews/get_all', undefined, {})
-    },
-    enabled: !!user,
-    staleTime: 100000
+  return useApiQuery<Review[]>({
+    key: queryKeys.reviews(),
+    url: '/reviews/get_all',
+    requireAdmin: true,
+    enabled: (user) => !!user?.id,
+    staleTime: 100_000,
   })
 }
 
 export const usePublicReviews = () => {
-  return useQuery<Review[]>({
-    queryKey: ['reviews'],
-    queryFn: async () => {
-      return await apiRequest<Review[]>('GET', '/reviews/get_public', undefined, {})
-    },
+  return useApiQuery<Review[]>({
+    key: queryKeys.publicReviews(),
+    url: '/reviews/get_public',
+    requireUser: false,
   })
 }
 
 export const useCreateReview = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (review: NewReview) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<Review>('POST', '/reviews/create', {
-        review,
-      })
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['reviews', user?.id], refetchType: 'active' })
-    },
+  return useApiMutation<Review, NewReview, Review[]>({
+    queryKey: queryKeys.reviews(),
+    url: '/reviews/create',
+    requireAdmin: true,
+    listAction: 'create',
+    listInsertPosition: 'start',
+    body: (review) => ({ review }),
   })
 }
 
 export const useUpdateReview = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({ review, user_name }: { review: Review; user_name: string }) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<Review>('POST', '/reviews/update', {
-        user_name,
-        review,
-      })
-    },
-    onMutate: async (updated) => {
-      await queryClient.cancelQueries({ queryKey: ['reviews', user?.id] })
-
-      const previous = queryClient.getQueryData<Review[]>(['reviews', user?.id])
-
-      queryClient.setQueryData<Review[]>(['reviews', user?.id], (old = []) =>
-        old.map((review) => (review.id === updated?.review.id ? { ...review, ...updated.review } : review))
-      )
-
-      return { previous }
-    },
-    onError: (_err, _newProduct, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['reviews', user?.id], context.previous)
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['reviews', user?.id], refetchType: 'active' })
-    },
+  return useApiMutation<Review, UpdateReviewVars, Review[]>({
+    queryKey: queryKeys.reviews(),
+    url: '/reviews/update',
+    requireAdmin: true,
+    listAction: 'upsert',
+    optimisticItemKey: 'review',
+    body: (vars) => ({
+      user_name: vars.user_name,
+      review: vars.review,
+    }),
   })
 }
 
 export const useDeleteReview = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (review: Review) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest('DELETE', '/reviews/delete', {
-        review_id: review.id,
-      })
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['reviews', user?.id], refetchType: 'active' })
-    },
+  return useApiMutation<unknown, Review, Review[]>({
+    queryKey: queryKeys.reviews(),
+    method: 'DELETE',
+    url: '/reviews/delete',
+    requireAdmin: true,
+    listAction: 'delete',
+    body: (review) => ({
+      review_id: review.id,
+    }),
   })
 }

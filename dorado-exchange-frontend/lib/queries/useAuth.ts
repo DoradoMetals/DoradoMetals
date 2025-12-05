@@ -24,6 +24,16 @@ import {
   verifyEmail,
 } from '../authClient'
 
+const clearClientState = () => {
+  cartStore.getState().clearCart()
+  sellCartStore.getState().clearCart()
+  localStorage.removeItem('dorado_cart')
+  localStorage.removeItem('dorado_sell_cart')
+  localStorage.removeItem('cartSynced')
+  localStorage.removeItem('purchase-order-checkout')
+  localStorage.removeItem('sales-order-checkout')
+}
+
 const hydrateCarts = async (userId: string) => {
   try {
     const backendCart = await apiRequest<Product[]>('GET', '/cart/get_cart', undefined, {
@@ -182,13 +192,7 @@ export const useSignOut = () => {
       await signOut()
     },
     onSuccess: async () => {
-      cartStore.getState().clearCart()
-      sellCartStore.getState().clearCart()
-      localStorage.removeItem('dorado_cart')
-      localStorage.removeItem('dorado_sell_cart')
-      localStorage.removeItem('cartSynced')
-      localStorage.removeItem('purchase-order-checkout')
-      localStorage.removeItem('sales-order-checkout')
+      clearClientState()
       queryClient.removeQueries()
       router.replace('/')
     },
@@ -308,13 +312,7 @@ export const useImpersonateUser = () => {
 
   return useMutation({
     mutationFn: async ({ user_id }: { user_id: string }) => {
-      cartStore.getState().clearCart()
-      sellCartStore.getState().clearCart()
-      localStorage.removeItem('dorado_cart')
-      localStorage.removeItem('dorado_sell_cart')
-      localStorage.removeItem('cartSynced')
-      localStorage.removeItem('purchase-order-checkout')
-      localStorage.removeItem('sales-order-checkout')
+      clearClientState()
       queryClient.removeQueries()
       const user_impersonating = await admin.impersonateUser({
         userId: user_id,
@@ -340,13 +338,7 @@ export const useStopImpersonation = () => {
 
   return useMutation({
     mutationFn: async () => {
-      cartStore.getState().clearCart()
-      sellCartStore.getState().clearCart()
-      localStorage.removeItem('dorado_cart')
-      localStorage.removeItem('dorado_sell_cart')
-      localStorage.removeItem('cartSynced')
-      localStorage.removeItem('purchase-order-checkout')
-      localStorage.removeItem('sales-order-checkout')
+      clearClientState()
       queryClient.removeQueries()
       await admin.stopImpersonating()
     },

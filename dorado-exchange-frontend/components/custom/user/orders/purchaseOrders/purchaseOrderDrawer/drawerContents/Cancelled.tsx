@@ -5,9 +5,9 @@ import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import { useMemo } from 'react'
 import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
-import { useTracking } from '@/lib/queries/shipping/useShipments'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
+import { useTracking } from '@/lib/queries/useShipments'
 
 export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: spotPrices = [] } = useSpotPrices()

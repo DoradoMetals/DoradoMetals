@@ -1,10 +1,19 @@
-import formatPhoneNumber from "@/utils/formatPhoneNumber"
+import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import { Address } from './address'
+import { Product } from './product'
+import { SpotPrice } from './metal'
 
 export interface StateTaxDetail {
   fips: string
   name: string
   header: string
   bullets: string[]
+}
+
+export type SalesTaxInput = {
+  address: Address
+  items: Product[]
+  spots: SpotPrice[]
 }
 
 export const stateTaxData: Record<string, StateTaxDetail> = {
@@ -316,7 +325,9 @@ export const stateTaxData: Record<string, StateTaxDetail> = {
       'Dorado Metals Exchange is required to collect South Carolina sales tax on the following items:',
     bullets: [
       'All Palladium products.',
-      `South Carolina state law requires us to notify customers that any South Carolina customer over the age of 85 is entitled to a 1% reduction in sales tax for any items purchased for personal use. If you would like to claim this reduction, please place your order over the phone at ${formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}. You must present proof of identity verification to confirm your order.`,
+      `South Carolina state law requires us to notify customers that any South Carolina customer over the age of 85 is entitled to a 1% reduction in sales tax for any items purchased for personal use. If you would like to claim this reduction, please place your order over the phone at ${formatPhoneNumber(
+        process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? ''
+      )}. You must present proof of identity verification to confirm your order.`,
     ],
   },
   '46': {

@@ -2,7 +2,7 @@
 
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
-import { FedexRate } from '@/types/shipping'
+import { FedexRate } from '@/types/fedex'
 import { serviceOptions } from '@/types/service'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'

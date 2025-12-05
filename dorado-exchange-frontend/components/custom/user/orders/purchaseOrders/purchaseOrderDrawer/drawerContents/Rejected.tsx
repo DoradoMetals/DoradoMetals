@@ -30,8 +30,8 @@ import { serviceOptions } from '@/types/service'
 
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { ShieldCheckIcon, ShieldSlashIcon } from '@phosphor-icons/react'
-import { FedexRateInput, formatFedexRatesAddress } from '@/types/shipping'
-import { useFedExRates } from '@/lib/queries/shipping/useFedex'
+import { FedexRateInput, formatFedexRatesAddress } from '@/types/fedex'
+import { useFedExRates } from '@/lib/queries/useFedex'
 import { getReturnDeclaredValue } from '@/utils/getDeclaredValue'
 
 export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {

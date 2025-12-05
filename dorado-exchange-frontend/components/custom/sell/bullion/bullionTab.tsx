@@ -89,7 +89,7 @@ export default function BullionTab() {
               }}
               className={cn(
                 'radio-group-buttons w-full',
-                isSelected ? 'bg-primary text-white' : 'text-neutral-700 !bg-card'
+                isSelected ? 'bg-primary! text-white' : 'text-neutral-700 !bg-card'
               )}
             >
               {label}

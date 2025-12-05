@@ -1,6 +1,5 @@
 'use client'
 
-import { useAdminUser } from '@/lib/queries/admin/useAdminUser'
 import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/components/ui/drawer'
 import { useMemo } from 'react'
@@ -8,6 +7,7 @@ import AdminSalesOrderDrawerHeader from './adminSalesOrderDrawerHeader'
 import AdminSalesOrderDrawerContent from './adminSalesOrderDrawerContent'
 import AdminSalesOrderDrawerFooter from './adminSalesOrderDrawerFooter'
 import { useAdminSalesOrders } from '@/lib/queries/admin/useAdminSalesOrders'
+import { useAdminUser } from '@/lib/queries/admin/useAdmin'
 
 export default function AdminSalesOrderDrawer({
   order_id,

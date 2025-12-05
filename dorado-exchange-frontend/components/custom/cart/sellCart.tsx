@@ -150,7 +150,7 @@ export default function SellCart() {
     return (
       <div
         key={index}
-        className={`flex items-center justify-between w-full pl-5 gap-4 py-4 ${
+        className={`flex items-center justify-between w-full gap-4 py-4 ${
           index !== items.length - 1 ? 'border-b border-neutral-300' : 'border-none'
         }`}
       >
@@ -205,7 +205,7 @@ export default function SellCart() {
         </div>
       </div>
       <Button
-        className="raised-off-page bg-primary hover:bg-primary text-white"
+        className="raised-off-page bg-primary hover:bg-primary text-white w-full"
         onClick={() => {
           user ? router.push('/checkout') : router.push('/authentication')
         }}

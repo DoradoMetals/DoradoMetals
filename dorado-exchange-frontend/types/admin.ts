@@ -43,13 +43,27 @@ export interface AdminMetal {
   bullion_percentage: number,
 }
 
-export interface AdminSuppliers {
-  id: string,
-  name: string,
-  email: string,
-  phone: string,
-  created_at: Date,
-  updated_at: Date,
+export interface Supplier {
+  id: string
+  name: string
+  email: string
+  phone: string
+  created_at: Date
+  updated_at: Date
+  shipping_carrier: string
+  logo: string,
+  is_active: boolean,
+}
+
+export interface Carrier {
+  id: string
+  name: string
+  email: string
+  phone: string
+  created_at: Date
+  updated_at: Date
+  logo: string,
+  is_active: boolean,
 }
 
 export interface AdminMints {
@@ -96,29 +110,4 @@ export interface AdminUser {
   image: string,
   role: string,
   dorado_funds: number,
-}
-
-export interface InventoryProduct {
-  id: string;
-  product_name: string;
-  bid_premium: number;
-  ask_premium: number;
-  product_type: 'Coin' | 'Bar' | string;
-  content: number;
-  quantity: number;
-}
-
-export interface InventoryGroup {
-  total_content: number;
-  coins: number;
-  bars: number;
-  other: number;
-  inventory_list: InventoryProduct[];
-}
-
-export interface AdminProductsInventory {
-  Gold: InventoryGroup;
-  Silver: InventoryGroup;
-  Platinum: InventoryGroup;
-  Palladium: InventoryGroup;
 }

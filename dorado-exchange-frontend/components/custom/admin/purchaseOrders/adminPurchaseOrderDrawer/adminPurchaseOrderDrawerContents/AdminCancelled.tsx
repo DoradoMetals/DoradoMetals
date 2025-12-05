@@ -1,7 +1,7 @@
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
 import { Button } from '@/components/ui/button'
-import { useTracking } from '@/lib/queries/shipping/useShipments'
+import { useTracking } from '@/lib/queries/useShipments'
 import { cn } from '@/lib/utils'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 

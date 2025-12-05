@@ -1,13 +1,12 @@
-import { Address } from "./address";
+import { Address } from './address'
 
-// FEDEX LABEL
 export type FedexLabelAddress = {
-  streetLines: string[];
-  city: string;
-  stateOrProvinceCode: string;
-  postalCode: string;
-  countryCode: string;
-};
+  streetLines: string[]
+  city: string
+  stateOrProvinceCode: string
+  postalCode: string
+  countryCode: string
+}
 
 export function formatFedexLabelAddress(address: Address) {
   return {
@@ -16,7 +15,7 @@ export function formatFedexLabelAddress(address: Address) {
     stateOrProvinceCode: address.state,
     postalCode: address.zip,
     countryCode: address.country_code,
-  };
+  }
 }
 
 export type FedexLabelInput = {
@@ -24,12 +23,12 @@ export type FedexLabelInput = {
   customerName: string
   customerPhone: string
   customerAddress: FedexLabelAddress
-  shippingType: "Inbound" | "Outbound"
+  shippingType: 'Inbound' | 'Outbound'
   pickupType: string
   packageDetails: {
     sequenceNumber: number
-    weight: { units: "LB" | "KG"; value: number }
-    dimensions: { length: number; width: number; height: number; units: "IN" | "CM" }
+    weight: { units: 'LB' | 'KG'; value: number }
+    dimensions: { length: number; width: number; height: number; units: 'IN' | 'CM' }
   }
   serviceType: string
 }
@@ -39,14 +38,13 @@ export type FedexLabelResponse = {
   label_url: string
 }
 
-// FEDEX RATES
 export type FedexRatesAddress = {
-  streetLines: string[];
-  city: string;
-  stateOrProvinceCode: string;
-  postalCode: string;
-  countryCode: string;
-  residential: boolean,
+  streetLines: string[]
+  city: string
+  stateOrProvinceCode: string
+  postalCode: string
+  countryCode: string
+  residential: boolean
 }
 
 export function formatFedexRatesAddress(address: Address) {
@@ -57,37 +55,37 @@ export function formatFedexRatesAddress(address: Address) {
     postalCode: address.zip,
     countryCode: address.country_code,
     residential: address.is_residential,
-  };
+  }
 }
 
 export type FedexRateInput = {
-  shippingType: "Inbound" | "Outbound" | "Return";
-  customerAddress: FedexRatesAddress;
+  shippingType: 'Inbound' | 'Outbound' | 'Return'
+  customerAddress: FedexRatesAddress
   packageDetails: {
-    weight: { units: "LB" | "KG"; value: number };
-    dimensions: { length: number; width: number; height: number; units: "IN" | "CM" };
-  };
-  pickupType: string;
-};
+    weight: { units: 'LB' | 'KG'; value: number }
+    dimensions: { length: number; width: number; height: number; units: 'IN' | 'CM' }
+  }
+  pickupType: string
+}
 
 export type FedexRate = {
-  serviceType: string;
-  packagingType: string;
-  netCharge: number;
-  currency: string;
-  deliveryDay: string;
-  transitTime: Date;
-  serviceDescription: string;
-};
+  serviceType: string
+  packagingType: string
+  netCharge: number
+  currency: string
+  deliveryDay: string
+  transitTime: Date
+  serviceDescription: string
+}
 
 // FEDEX PICKUP TIMES
 export type FedexPickupTimesAddress = {
-  streetLines: string[];
-  city: string;
-  stateOrProvinceCode: string;
-  postalCode: string;
-  countryCode: string;
-  residential: boolean,
+  streetLines: string[]
+  city: string
+  stateOrProvinceCode: string
+  postalCode: string
+  countryCode: string
+  residential: boolean
 }
 
 export function formatFedexPickupTimesAddress(address: Address) {
@@ -98,27 +96,26 @@ export function formatFedexPickupTimesAddress(address: Address) {
     postalCode: address.zip,
     countryCode: address.country_code,
     residential: address.is_residential,
-  };
+  }
 }
 
 export type FedexPickupTimesInput = {
-  customerAddress: FedexPickupTimesAddress;
-  code: string,
-};
+  customerAddress: FedexPickupTimesAddress
+  code: string
+}
 
 export type FedexPickupTimes = {
-  pickupDate: string;
-  times: string[];
-};
+  pickupDate: string
+  times: string[]
+}
 
-// FEDEX PICKUP
 export type FedexPickupAddress = {
-  streetLines: string[];
-  city: string;
-  stateOrProvinceCode: string;
-  postalCode: string;
-  countryCode: string;
-  residential: boolean,
+  streetLines: string[]
+  city: string
+  stateOrProvinceCode: string
+  postalCode: string
+  countryCode: string
+  residential: boolean
 }
 
 export function formatFedexPickupAddress(address: Address) {
@@ -129,35 +126,33 @@ export function formatFedexPickupAddress(address: Address) {
     postalCode: address.zip,
     countryCode: address.country_code,
     residential: address.is_residential,
-  };
+  }
 }
 
 export type FedexPickupInput = {
-  // order_id: string,
-  customerName: string,
-  customerPhone: string,
-  customerAddress: FedexPickupTimesAddress;
-  pickupDate: string,
-  pickupTime: string,
-  code: string,
-  // tracking_number: number,
-};
+  customerName: string
+  customerPhone: string
+  customerAddress: FedexPickupTimesAddress
+  pickupDate: string
+  pickupTime: string
+  code: string
+}
 
 export type FedexPickup = {
-  confirmation: number,
-};
+  confirmation: number
+}
 
 export type FedexCancelPickupInput = {
-  id: string,
-  confirmationCode: number,
-  pickupDate: string,
-  location: string,
+  id: string
+  confirmationCode: number
+  pickupDate: string
+  location: string
 }
 
 export type FedexLocationsInput = {
-  customerAddress: FedexPickupTimesAddress,
-  radiusMiles: number,
-  maxResults: number,
+  customerAddress: FedexPickupTimesAddress
+  radiusMiles: number
+  maxResults: number
 }
 
 export type FedexLocation = {
@@ -175,8 +170,8 @@ export type FedexLocation = {
     countryCode: string
   }
   contact: {
-    companyName: string,
-    phoneNumber: string,
+    companyName: string
+    phoneNumber: string
   }
   operatingHours?: Record<string, string>
   latestExpressDropOffTime?: string
@@ -193,20 +188,3 @@ export type FedexLocationsReturn = {
   }
   locations: FedexLocation[]
 }
-
-export type FedexScanEventItem = {
-  status: string,
-  location: string,
-  scan_time: Date,
-}
-
-export type ShipmentTracking = {
-  id: string,
-  tracking_number: string,
-  shipping_status: string,
-  estimated_delivery: Date,
-  delivered_at: Date,
-  scan_events: FedexScanEventItem[]
-}
-
-

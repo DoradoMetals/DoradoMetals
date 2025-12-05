@@ -20,7 +20,6 @@ import ScrapCards from './scrap/ScrapCards'
 import { UsersPage } from './users/usersPage'
 import { useAdminSalesOrders } from '@/lib/queries/admin/useAdminSalesOrders'
 import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
-import { useGetInventory } from '@/lib/queries/admin/useAdminProducts'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import {
   SidebarLayout,
@@ -42,7 +41,6 @@ import ReviewsPage from './reviews/reviewsPage'
 export default function AdminShell() {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
   const { data: salesOrders = [] } = useAdminSalesOrders()
-  const { data: productsInventory } = useGetInventory()
   const { data: spotPrices = [] } = useSpotPrices()
   const { user } = useGetSession()
 
@@ -140,7 +138,7 @@ export default function AdminShell() {
       default:
         return null
     }
-  }, [selectedKey, productsInventory, spotPrices])
+  }, [selectedKey, spotPrices])
 
   const { activeDrawer, openDrawer, closeDrawer } = useDrawerStore()
 

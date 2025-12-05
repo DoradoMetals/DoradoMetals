@@ -4,7 +4,6 @@ import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { AdminUser } from '@/types/admin'
-import { useAdminUsers } from '@/lib/queries/admin/useAdminUser'
 import { useCreateUser } from '@/lib/queries/useAuth'
 import { userRoleOptions } from '@/types/user'
 
@@ -20,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { isValidEmail } from '@/utils/isValid'
 import { PlusIcon } from '@phosphor-icons/react'
 import { CreateConfig } from '@/components/table/addNew'
+import { useAdminUsers } from '@/lib/queries/admin/useAdmin'
 
 export function UsersPage() {
   const { data: users = [] } = useAdminUsers()
