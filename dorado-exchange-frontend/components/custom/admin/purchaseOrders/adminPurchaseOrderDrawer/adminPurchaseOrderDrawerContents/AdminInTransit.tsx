@@ -5,14 +5,17 @@ import { useDownloadBase64 } from '@/utils/useDownloadLabel'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
 import { useTracking } from '@/lib/queries/useShipments'
-import { useCancelFedExLabel, useCancelFedExPickup } from '@/lib/queries/admin/useAdminPurchaseOrders'
+import {
+  useCancelFedExLabel,
+  useCancelFedExPickup,
+} from '@/lib/queries/admin/useAdminPurchaseOrders'
 
 export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
-  const { data: trackingInfo, isLoading } = useTracking(
-    order.shipment.id,
-    order.shipment.tracking_number,
-    order.shipment.carrier_id
-  )
+  const { data: trackingInfo, isLoading } = useTracking({
+    shipment_id: order.shipment.id,
+    tracking_number: order.shipment.tracking_number,
+    carrier_id: order.shipment.carrier_id,
+  })
 
   const color = statusConfig[order.purchase_order_status]?.text_color
   const baseBg = statusConfig[order.purchase_order_status]?.background_color

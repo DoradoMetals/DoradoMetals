@@ -8,11 +8,11 @@ import TrackingEvents from '@/components/custom/shipments/trackingEvents'
 import { useTracking } from '@/lib/queries/useShipments'
 
 export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
-  const { data: trackingInfo, isLoading } = useTracking(
-    order.shipment.id,
-    order.shipment.tracking_number,
-    order.shipment.carrier_id
-  )
+  const { data: trackingInfo, isLoading } = useTracking({
+    shipment_id: order.shipment.id,
+    tracking_number: order.shipment.tracking_number,
+    carrier_id: order.shipment.carrier_id,
+  })
 
   return (
     <>

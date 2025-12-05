@@ -13,11 +13,11 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
 
-  const { data: trackingInfo, isLoading } = useTracking(
-    order.return_shipment.id,
-    order.return_shipment.tracking_number,
-    order.return_shipment.carrier_id
-  )
+  const { data: trackingInfo, isLoading } = useTracking({
+    shipment_id: order.return_shipment.id,
+    tracking_number: order.return_shipment.tracking_number,
+    carrier_id: order.return_shipment.carrier_id,
+  })
 
   const acceptOffer = useAcceptOffer()
 
@@ -41,7 +41,6 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
         {!order.return_shipping_paid ? (
           <div className="flex flex-col h-full w-full mb-4 gap-6">
             <div className="flex flex-col w-full">
-
               <div className="flex w-full justify-between items-center mb-1">
                 <div className="text-lg text-neutral-800">Shipping Charges:</div>
                 <div className="text-lg text-neutral-800">

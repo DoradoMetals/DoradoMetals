@@ -8,15 +8,13 @@ import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-
 export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const config = statusConfig[order.purchase_order_status]
 
-  const { data: trackingInfo, isLoading } = useTracking(
-    order.return_shipment.id,
-    order.return_shipment.tracking_number,
-    order.return_shipment.carrier_id,
-  )
+  const { data: trackingInfo, isLoading } = useTracking({
+    shipment_id: order.return_shipment.id,
+    tracking_number: order.return_shipment.tracking_number,
+    carrier_id: order.return_shipment.carrier_id,
+  })
 
-  const handleMarkShippingPaid = () => {
-
-  }
+  const handleMarkShippingPaid = () => {}
 
   return (
     <>

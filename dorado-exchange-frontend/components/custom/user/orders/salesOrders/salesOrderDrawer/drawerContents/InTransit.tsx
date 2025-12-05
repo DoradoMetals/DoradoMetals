@@ -3,11 +3,11 @@ import { useTracking } from '@/lib/queries/useShipments'
 import { SalesOrderDrawerContentProps } from '@/types/sales-orders'
 
 export default function InTransitSalesOrder({ order }: SalesOrderDrawerContentProps) {
-  const { data: trackingInfo, isLoading } = useTracking(
-    order.shipment.id,
-    order.shipment.tracking_number,
-    order.shipment.carrier_id
-  )
+  const { data: trackingInfo, isLoading } = useTracking({
+    shipment_id: order.shipment.id,
+    tracking_number: order.shipment.tracking_number,
+    carrier_id: order.shipment.carrier_id,
+  })
 
   return (
     <>
