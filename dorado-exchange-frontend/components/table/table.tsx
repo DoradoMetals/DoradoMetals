@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, InputHTMLAttributes, ReactNode } from 'react'
+import { useState, useEffect, ReactNode } from 'react'
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -26,16 +26,9 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DebouncedInputSearch } from '../ui/debounced-input-search'
-import { ColumnsIcon, RowsPlusTopIcon, XIcon } from '@phosphor-icons/react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { FloatingLabelInput } from '@/components/ui/floating-label-input'
-import { Textarea } from '@/components/ui/textarea'
+import { ColumnsIcon } from '@phosphor-icons/react'
 import { FilterCard, FilterCardsStrip } from './filterCard'
-import { Rating, RatingButton } from '@/components/ui/rating'
 import { AddNew, CreateConfig } from './addNew'
-
-type InputType = InputHTMLAttributes<HTMLInputElement>['type']
-type InputMode = InputHTMLAttributes<HTMLInputElement>['inputMode']
 
 type DataTableProps<TData> = {
   data: TData[]
@@ -119,10 +112,6 @@ export function DataTable<TData>({
   })
 
   const searchColumn = searchColumnId ? table.getColumn(searchColumnId) : null
-
-  const handleFieldChange = (name: string, value: string) => {
-    setCreateValues((prev) => ({ ...prev, [name]: value }))
-  }
 
   const canSubmit =
     createConfig &&

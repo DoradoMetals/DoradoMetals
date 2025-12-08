@@ -12,10 +12,15 @@ import {
   EnvelopeIcon,
   SignOutIcon,
 } from '@phosphor-icons/react'
+import { useState } from 'react'
+import { ActiveDevices } from './activeDevices'
 
 export function PasswordAndSecurity() {
   const { user } = useGetSession()
   const requestPasswordReset = useRequestPasswordReset()
+
+  const [showDevices, setShowDevices] = useState(false)
+  const [showLoginHistory, setShowLoginHistory] = useState(false)
 
   const handlePasswordReset = () => {
     if (!user?.email) return
@@ -84,19 +89,29 @@ export function PasswordAndSecurity() {
       <div className="space-y-4">
         <p className="text-xs text-neutral-500 mb-2 uppercase tracking-widest">Security</p>
 
-        <AccountAction
-          icon={ClockUserIcon}
-          label="Login History"
-          description="Coming soon"
-          buttonLabel="View"
-        />
+        <div className="space-y-2">
+          <AccountAction
+            icon={DevicesIcon}
+            label="Active Devices"
+            description="View and manage active devices."
+            buttonLabel={showDevices ? 'Hide' : 'View'}
+            onClick={() => setShowDevices((prev) => !prev)}
+          />
+          {showDevices && <ActiveDevices />}
+        </div>
 
-        <AccountAction
-          icon={DevicesIcon}
-          label="Devices"
-          description="Coming soon"
-          buttonLabel="View"
-        />
+        <div className="space-y-2">
+          <AccountAction
+            icon={ClockUserIcon}
+            label="Login History"
+            description="View login history."
+            buttonLabel={showLoginHistory ? 'Hide' : 'View'}
+            onClick={() => setShowLoginHistory((prev) => !prev)}
+          />
+          {showLoginHistory && (
+            <p className="text-xs text-neutral-500 mt-2">Login history table coming soon…</p>
+          )}
+        </div>
 
         <Button
           type="button"

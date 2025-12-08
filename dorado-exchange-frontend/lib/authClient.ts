@@ -28,6 +28,10 @@ export const auth = createAuthClient({
 export const {
   useSession,
   getSession,
+  listSessions,
+  revokeSession,
+  revokeOtherSessions,
+  revokeSessions,
   signUp,
   signIn,
   signOut,

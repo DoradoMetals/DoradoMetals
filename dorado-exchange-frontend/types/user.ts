@@ -1,5 +1,16 @@
-import { CheckCircleIcon, CrownIcon, Icon, ShieldIcon, UserCheckIcon, UserIcon } from '@phosphor-icons/react'
+import {
+  CrownIcon,
+  Icon,
+  IconProps,
+  UserCheckIcon,
+  UserIcon,
+  DeviceMobileIcon,
+  DeviceTabletIcon,
+  LaptopIcon,
+  DesktopIcon,
+} from '@phosphor-icons/react'
 import * as z from 'zod'
+import { UAParser } from 'ua-parser-js'
 
 export const userSchema = z.object({
   id: z.string().uuid().optional(),
@@ -40,8 +51,84 @@ export const userRoleOptions: UserRoleOption[] = [
     label: 'User',
     value: 'user',
     icon: UserIcon,
-    colorClass: 'text-neutral-500',
+    colorClass: 'text-orange-500',
   },
 ]
 
+export interface Session {
+  id: string
+  userId: string
+  token: string
+  expiresAt: Date
+  ipAddress?: string | null
+  userAgent?: string | null
+  createdAt: Date
+  updatedAt: Date
+  impersonatedBy?: string | null
+}
 
+export interface ParsedUA {
+  osName: string
+  osVersion: string | null
+  browserName: string
+  browserVersion: string | null
+  deviceType: 'desktop' | 'mobile' | 'tablet' | 'unknown'
+}
+
+const cache = new Map<string, ParsedUA>()
+
+export function parseUserAgent(uaString: string | null | undefined): ParsedUA {
+  if (!uaString) {
+    return {
+      osName: 'Unknown',
+      osVersion: null,
+      browserName: 'Unknown',
+      browserVersion: null,
+      deviceType: 'unknown',
+    }
+  }
+
+  const cached = cache.get(uaString)
+  if (cached) return cached
+
+  const parser = new UAParser(uaString)
+  const browser = parser.getBrowser()
+  const os = parser.getOS()
+  const device = parser.getDevice()
+
+  const result: ParsedUA = {
+    osName: os.name ?? 'Unknown',
+    osVersion: os.version ?? null,
+    browserName: browser.name ?? 'Unknown',
+    browserVersion: browser.version ?? null,
+    deviceType:
+      (device.type as ParsedUA['deviceType']) ??
+      (uaString.includes('Mobile') ? 'mobile' : 'desktop'),
+  }
+
+  cache.set(uaString, result)
+  return result
+}
+
+type DeviceIconResult = {
+  Icon: React.ComponentType<IconProps>
+  label: string
+}
+
+export function getDeviceIcon(ua: ParsedUA): DeviceIconResult {
+  if (ua.deviceType === 'mobile') {
+    return { Icon: DeviceMobileIcon, label: 'Mobile' }
+  }
+
+  if (ua.deviceType === 'tablet') {
+    return { Icon: DeviceTabletIcon, label: 'Tablet' }
+  }
+
+  const os = ua.osName ?? ''
+
+  if (os.includes('Windows')) {
+    return { Icon: DesktopIcon, label: 'Desktop' }
+  }
+
+  return { Icon: LaptopIcon, label: 'Laptop' }
+}

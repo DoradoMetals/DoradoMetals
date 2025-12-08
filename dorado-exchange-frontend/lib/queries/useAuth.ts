@@ -14,8 +14,12 @@ import {
   changeEmail,
   changePassword,
   getSession,
+  listSessions,
   requestPasswordReset,
   resetPassword,
+  revokeOtherSessions,
+  revokeSession,
+  revokeSessions,
   sendVerificationEmail,
   signIn,
   signOut,
@@ -351,6 +355,57 @@ export const useStopImpersonation = () => {
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
       router.replace('/admin')
+    },
+  })
+}
+
+export const useListSessions = () => {
+  const { data, error, isPending, refetch } = useQuery({
+    queryKey: ['sessions'],
+    queryFn: async () => {
+      const { data, error } = await listSessions()
+      if (error) throw new Error(error.message)
+      return data
+    },
+    refetchInterval: 30000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  })
+
+  return {
+    data,
+    error,
+    isPending,
+    refetch,
+  }
+}
+
+export const useRevokeSession = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (token: string) => revokeSession({ token }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'], refetchType: 'active' })
+    },
+  })
+}
+
+export const useRevokeOtherSession = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => revokeOtherSessions(),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'], refetchType: 'active' })
+    },
+  })
+}
+
+export const useRevokeAllSessions = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => revokeSessions(),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'], refetchType: 'active' })
     },
   })
 }
