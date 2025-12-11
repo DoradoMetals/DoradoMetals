@@ -9,6 +9,7 @@ import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Rating, RatingButton } from '@/components/ui/rating'
 import { RowsPlusTopIcon, XIcon } from '@phosphor-icons/react'
+import formatPhoneNumber from '@/utils/formatPhoneNumber'
 
 type InputType = InputHTMLAttributes<HTMLInputElement>['type']
 type InputMode = InputHTMLAttributes<HTMLInputElement>['inputMode']
@@ -37,10 +38,7 @@ type AddNewProps = {
   triggerIcon?: React.ComponentType<{ size?: number; className?: string }>
 }
 
-export function AddNew({
-  createConfig,
-  triggerIcon: TriggerIcon = RowsPlusTopIcon,
-}: AddNewProps) {
+export function AddNew({ createConfig, triggerIcon: TriggerIcon = RowsPlusTopIcon }: AddNewProps) {
   const [open, setOpen] = useState(false)
   const [values, setValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -101,6 +99,11 @@ export function AddNew({
               {createConfig.fields.map((field) => {
                 const value = values[field.name] ?? ''
 
+                const isPhoneField =
+                  field.inputType === 'tel' ||
+                  field.inputMode === 'tel' ||
+                  /phone/i.test(field.name)
+
                 if (field.isRating) {
                   const numeric = Number(value) || 0
 
@@ -111,9 +114,7 @@ export function AddNew({
                       </label>
                       <Rating
                         value={numeric}
-                        onValueChange={(val) =>
-                          handleFieldChange(field.name, String(val ?? 0))
-                        }
+                        onValueChange={(val) => handleFieldChange(field.name, String(val ?? 0))}
                       >
                         {Array.from({ length: 5 }).map((_, i) => (
                           <RatingButton
@@ -130,9 +131,7 @@ export function AddNew({
                 if (field.multiline) {
                   return (
                     <div key={field.name} className="w-full">
-                      <label className="block text-xs text-neutral-600 mb-1">
-                        {field.label}
-                      </label>
+                      <label className="block text-xs text-neutral-600 mb-1">{field.label}</label>
                       <div className="relative w-full">
                         <Textarea
                           className="input-floating-label-form min-h-[80px]"
@@ -167,7 +166,11 @@ export function AddNew({
                       className="input-floating-label-form h-10"
                       maxLength={field.maxLength}
                       value={value}
-                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                      onChange={(e) => {
+                        const raw = e.target.value
+                        const next = isPhoneField ? formatPhoneNumber(raw) : raw
+                        handleFieldChange(field.name, next)
+                      }}
                     />
                     {value !== '' && (
                       <Button

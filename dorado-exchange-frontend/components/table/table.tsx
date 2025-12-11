@@ -1,5 +1,6 @@
 'use client'
-import { useState, useEffect, ReactNode } from 'react'
+
+import { useState, ReactNode } from 'react'
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -66,6 +67,7 @@ export function DataTable<TData>({
   showCardBackground = true,
   filterCards,
   createConfig,
+  createIcon,
   footerRightContent,
 }: DataTableProps<TData>) {
   const [pagination, setPagination] = useState<PaginationState>({
@@ -84,21 +86,6 @@ export function DataTable<TData>({
         })
       : data
 
-  const [createOpen, setCreateOpen] = useState(false)
-  const [createValues, setCreateValues] = useState<Record<string, string>>({})
-
-  useEffect(() => {
-    if (!createConfig) {
-      setCreateValues({})
-      return
-    }
-    const initial: Record<string, string> = {}
-    for (const field of createConfig.fields) {
-      initial[field.name] = ''
-    }
-    setCreateValues(initial)
-  }, [createConfig])
-
   const table = useReactTable({
     data: rowsForTable,
     columns,
@@ -112,27 +99,6 @@ export function DataTable<TData>({
   })
 
   const searchColumn = searchColumnId ? table.getColumn(searchColumnId) : null
-
-  const canSubmit =
-    createConfig &&
-    (createConfig.canSubmit
-      ? createConfig.canSubmit(createValues)
-      : createConfig.fields.every((f) => (createValues[f.name] ?? '').trim().length > 0))
-
-  const handleCreateSubmit = async () => {
-    if (!createConfig || !canSubmit) return
-    try {
-      await createConfig.createNew(createValues)
-      const reset: Record<string, string> = {}
-      for (const field of createConfig.fields) {
-        reset[field.name] = ''
-      }
-      setCreateValues(reset)
-      setCreateOpen(false)
-    } catch (err) {
-      console.error('Create failed', err)
-    }
-  }
 
   return (
     <div
@@ -148,6 +114,7 @@ export function DataTable<TData>({
           onChangeActive={setActiveFilterKey}
         />
       )}
+
       {(searchColumn || enableColumnVisibility || createConfig) && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between w-full">
           <div className="flex flex-col gap-2 w-full">
@@ -155,6 +122,7 @@ export function DataTable<TData>({
               {createConfig && (
                 <AddNew
                   createConfig={createConfig}
+                  triggerIcon={createIcon}
                 />
               )}
 
@@ -238,7 +206,7 @@ export function DataTable<TData>({
       <Table className="w-full">
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
-            <TableRow key={hg.id} className={cn('')}>
+            <TableRow key={hg.id}>
               {hg.headers.map((header) => (
                 <TableHead
                   key={header.id}

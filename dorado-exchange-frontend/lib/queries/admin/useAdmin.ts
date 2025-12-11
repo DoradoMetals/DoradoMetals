@@ -196,7 +196,8 @@ export const useCreateLead = () =>
     queryKey: queryKeys.adminLeads(),
     url: '/leads/create',
     requireAdmin: true,
-    optimistic: false,
+    listAction: 'create',
+    listInsertPosition: 'start',
     body: (lead) => ({
       lead,
     }),
