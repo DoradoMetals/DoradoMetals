@@ -100,19 +100,6 @@ export function PasswordAndSecurity() {
           {showDevices && <ActiveDevices />}
         </div>
 
-        <div className="space-y-2">
-          <AccountAction
-            icon={ClockUserIcon}
-            label="Login History"
-            description="View login history."
-            buttonLabel={showLoginHistory ? 'Hide' : 'View'}
-            onClick={() => setShowLoginHistory((prev) => !prev)}
-          />
-          {showLoginHistory && (
-            <p className="text-xs text-neutral-500 mt-2">Login history table coming soon…</p>
-          )}
-        </div>
-
         <Button
           type="button"
           className="mt-4 w-full border border-destructive text-destructive hover:text-white hover:bg-destructive bg-card hover:shadow-lg flex items-center justify-center gap-2"

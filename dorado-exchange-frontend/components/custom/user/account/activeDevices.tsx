@@ -84,8 +84,8 @@ export function ActiveDevices() {
                 <TableCell className="text-xs md:text-sm text-center">
                   <Button
                     type="button"
-                    variant="ghost"
-                    className="text-xs md:text-sm text-destructive px-1"
+                    variant="link"
+                    className="text-xs text-destructive"
                     onClick={() => revokeSession.mutate(s.token)}
                     disabled={revokeSession.isPending}
                   >
