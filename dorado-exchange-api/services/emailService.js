@@ -30,7 +30,7 @@ export async function sendCreatedEmail({
     subject: 'Your Order Has Been Placed!',
     html: renderPurchaseOrderPlacedEmail({
       firstName: purchaseOrder.user.user_name,
-      url: `${process.env.FRONTEND_URL}/orders`,
+      url: `${process.env.FRONTEND_URL}/account?tab=sold`,
     }),
     attachments: [
       {
