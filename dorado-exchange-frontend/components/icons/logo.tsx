@@ -8,7 +8,7 @@ export const Logo: React.FC<{ size?: number; height?: number; src?: string }> = 
   ...props
 }) => (
   <Image
-    src={src ?? '/branding/full/full.svg'}
+    src={src ?? '/icons/branding/full/full.svg'}
     width={size}
     height={height || size}
     alt="Dorado Metals Exchange Logo"

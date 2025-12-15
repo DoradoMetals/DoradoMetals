@@ -1,4 +1,3 @@
-// auth.js (ESM)
 import 'dotenv/config';
 import { betterAuth } from 'better-auth';
 import { magicLink, admin } from 'better-auth/plugins';

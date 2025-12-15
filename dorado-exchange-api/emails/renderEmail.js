@@ -16,11 +16,13 @@ function renderTemplate(
   const layout = fs.readFileSync(layoutPath, "utf8");
   const content = fs.readFileSync(contentPath, "utf8");
 
+  const safeUrl = url ?? "https://www.doradometals.com";
+
   const finalHtml = layout
     .replace("[BODY]", content)
     .replace(/\[First Name\]/g, firstName)
-    .replace(/href=""/g, `href="${url}"`)
-    .replace(/\[Offer Expiration\]/g, offerExpiration);
+    .replace(/\[URL\]/g, safeUrl)
+    .replace(/\[Offer Expiration\]/g, offerExpiration ?? "");
 
   return finalHtml;
 }
@@ -65,7 +67,12 @@ export function renderOfferAcceptedEmail({ firstName, url }) {
   return renderTemplate("offerAccepted.raw.html", { firstName, url });
 }
 
-export function renderSalesOrderToSupplierEmail({ firstName, url, order, spots }) {
+export function renderSalesOrderToSupplierEmail({
+  firstName,
+  url,
+  order,
+  spots,
+}) {
   const layoutPath = path.join(__dirname, "templates", "baseLayout.raw.html");
   const contentPath = path.join(
     __dirname,

@@ -95,7 +95,7 @@ export default function Footer() {
             </Link>
 
             <Link href="https://occc.texas.gov/" className="px-0">
-              <Image src="/occc.svg" width={148} height={148} alt="Office of Consumer Credit" />
+              <Image src="/icons/providers/occc.svg" width={148} height={148} alt="Office of Consumer Credit" />
             </Link>
           </div>
 
@@ -203,7 +203,7 @@ export default function Footer() {
           </Link>
 
           <Link href="https://occc.texas.gov/" className="px-0">
-            <Image src="/occc.svg" width={100} height={100} alt="Office of Consumer Credit" />
+            <Image src="/icons/providers/occc.svg" width={100} height={100} alt="Office of Consumer Credit" />
           </Link>
         </div>
       </footer>

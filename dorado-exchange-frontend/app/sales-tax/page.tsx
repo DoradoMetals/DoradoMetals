@@ -37,7 +37,7 @@ export default function Page() {
               <div className="flex items-center w-full justify-between border-b border-border py-2">
                 <div className="text-xl text-neutral-800 tracking-wide">{selected?.name}</div>
                 <Image
-                  src={`/flags/${selected.name}.svg`}
+                  src={`/icons/flags/${selected.name}.svg`}
                   height={40}
                   width={40}
                   className="object-cover"
