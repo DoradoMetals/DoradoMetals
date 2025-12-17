@@ -96,8 +96,9 @@ export async function saveProduct(req, res) {
         variant_label = $23,
         quantity = $24,
         image_front = $25,
-        image_back = $26
-      WHERE id = $27
+        image_back = $26,
+        filter_category = $27
+      WHERE id = $28
     `;
 
     const values = [
@@ -127,6 +128,7 @@ export async function saveProduct(req, res) {
       product.quantity,
       product.image_front,
       product.image_back,
+      product.filter_category,
       product.id,
     ];
 
