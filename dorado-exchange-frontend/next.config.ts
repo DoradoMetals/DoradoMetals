@@ -2,9 +2,6 @@ import type { NextConfig } from 'next'
 import { withSentryConfig } from '@sentry/nextjs'
 
 const nextConfig: NextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true, // ✅ Skip ESLint during `next build`
-  },
 }
 
 export default withSentryConfig(nextConfig, {
