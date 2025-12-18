@@ -17,10 +17,11 @@ import {
   Handshake,
   LucideIcon,
 } from 'lucide-react'
-import { Scrap } from './scrap'
+import { MetalOption, Scrap } from './scrap'
 import { Product } from './product'
 import { User } from './user'
 import { insuranceSchema } from './insurance'
+import { Metal } from './metal'
 
 export interface PurchaseOrderItem {
   item_type: string
@@ -75,6 +76,8 @@ export interface PurchaseOrder {
   review_created: boolean
   shipping_fee_actual?: number
   refiner_fee?: number
+  pool_oz_deducted?: number
+  pool_remediation?: number
 }
 
 export const purchaseOrderReturnShipmentSchema = z.object({

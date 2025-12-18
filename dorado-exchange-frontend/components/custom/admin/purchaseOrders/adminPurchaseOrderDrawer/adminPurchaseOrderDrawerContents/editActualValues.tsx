@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
 import {
   useUpdateOrderScrapItem,
+  useUpdatePoolOzDeducted,
+  useUpdatePoolRemediation,
   useUpdateShippingActual,
 } from '@/lib/queries/admin/useAdminPurchaseOrders'
 import {
@@ -19,6 +21,8 @@ import {
 export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
   const updateOrderItem = useUpdateOrderScrapItem()
   const updateShippingFee = useUpdateShippingActual()
+  const updatePoolOz = useUpdatePoolOzDeducted()
+  const updatePoolRemedation = useUpdatePoolRemediation()
 
   const rawScrap = order.order_items.filter((it) => it.item_type === 'scrap' && it.scrap)
   const scrapItems = assignScrapItemNames(rawScrap)
@@ -81,7 +85,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
       <div className="flex flex-col gap-4 w-full mb-4">
         {scrapItems.length > 0 && (
           <div className="flex flex-col gap-4 w-full">
-            <div className="w-full section-label">Update Scrap Actuals</div>
+            <div className="w-full section-label">Scrap Actuals</div>
             <div className="rounded-xl border border-border bg-card raised-off-page overflow-hidden">
               <Table className="font-normal text-neutral-700 overflow-hidden">
                 <TableHeader className="text-xs text-neutral-700 bg-muted/40">
@@ -108,7 +112,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                               defaultValue={
                                 s.purity_actual != null ? (s.purity_actual * 100).toFixed(1).toString() : ''
                               }
-                              placeholder={`${(s.purity ?? 0) * 100}`}
+                               placeholder="Enter Actual Purity"
                               onBlur={(e) => {
                                 const parsed = parsePercentToDecimal(e.target.value)
                                 mutateActuals(item, { purity_actual: parsed })
@@ -127,7 +131,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                             step="0.0001"
                             className={cn('input-floating-label-form no-spinner text-right h-8')}
                             defaultValue={s.post_melt_actual ?? ''}
-                            placeholder={`${s.post_melt ?? ''}`}
+                            placeholder="Enter Actual Post-Melt"
                             onBlur={(e) => {
                               const n = parseNumber(e.target.value)
                               mutateActuals(item, { post_melt_actual: n })
@@ -148,7 +152,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
 
         <div className="separator-inset" />
         <div className="flex flex-col gap-4 w-full">
-          <div className="w-full section-label">Update Shipping Actual</div>
+          <div className="w-full section-label">Shipping Actual</div>
 
           <div className="rounded-xl border border-border bg-card raised-off-page overflow-hidden">
             <div className="flex items-center justify-between w-full px-3 py-2 text-xs tracking-widest text-neutral-600 bg-muted/40">
@@ -183,6 +187,54 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
           </div>
         </div>
         <div className="separator-inset" />
+        <div className="flex flex-col gap-4 w-full">
+          <div className="w-full section-label">Pool</div>
+
+          <div className="rounded-xl border border-border bg-card raised-off-page overflow-hidden">
+            <div className="flex items-center justify-between w-full px-3 py-2 text-xs tracking-widest text-neutral-600 bg-muted/40">
+              <div>Pool Deduction (t oz)</div>
+              <div className="text-right">Pool Remediation ($)</div>
+            </div>
+
+            <div className="divide-y">
+              <div className="flex items-center justify-between w-full items-center px-3 py-2 text-sm gap-2">
+                <div className="truncate">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="-9999"
+                    className={cn('input-floating-label-form no-spinner text-right h-8')}
+                    defaultValue={Number(order.pool_oz_deducted ?? 0).toFixed(3)}
+                    onBlur={(e) =>
+                      updatePoolOz.mutate({
+                        purchase_order_id: order.id,
+                        pool_oz_deducted: Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="-9999"
+                    className={cn('input-floating-label-form no-spinner text-right h-8')}
+                    defaultValue={Number(order.pool_remediation ?? 0).toFixed(2)}
+                    onBlur={(e) =>
+                      updatePoolRemedation.mutate({
+                        purchase_order_id: order.id,
+                        pool_remediation: Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </>
   )

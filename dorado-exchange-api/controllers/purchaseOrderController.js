@@ -372,3 +372,23 @@ export async function updateRefinerFee(req, res, next) {
     return next(err);
   }
 }
+
+export async function updatePoolOzDeducted(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.updatePoolOzDeducted(req.body);
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export async function updatePoolRemediation(req, res, next) {
+  try {
+    const updated = await purchaseOrderService.updatePoolRemediation(req.body);
+    return res.status(200).json({ updated });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+

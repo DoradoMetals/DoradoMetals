@@ -1293,6 +1293,125 @@ export const useUpdateRefinerFee = () => {
   })
 }
 
+export const useUpdatePoolOzDeducted = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      purchase_order_id,
+      pool_oz_deducted,
+    }: {
+      purchase_order_id: string
+      pool_oz_deducted: number
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest('POST', '/purchase_orders/update_pool_oz_deducted', {
+        purchase_order_id,
+        pool_oz_deducted,
+      })
+    },
+
+    onMutate: async ({ purchase_order_id, pool_oz_deducted }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders =
+        queryClient.getQueryData<PurchaseOrder[]>(queryKey) ?? []
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old) => {
+        const list = old ?? []
+        const next = list.map((order): PurchaseOrder =>
+          order.id !== purchase_order_id
+            ? order
+            : { ...order, pool_oz_deducted } as PurchaseOrder
+        )
+        return next
+      })
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.setQueryData<PurchaseOrder[]>(
+          context.queryKey,
+          context.previousOrders ?? []
+        )
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
+    },
+  })
+}
+
+export const useUpdatePoolRemediation = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      purchase_order_id,
+      pool_remediation,
+    }: {
+      purchase_order_id: string
+      pool_remediation: number
+    }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest('POST', '/purchase_orders/update_pool_oz_deducted', {
+        purchase_order_id,
+        pool_remediation,
+      })
+    },
+
+    onMutate: async ({ purchase_order_id, pool_remediation }) => {
+      const queryKey = ['admin_purchase_orders', user]
+      await queryClient.cancelQueries({ queryKey })
+
+      const previousOrders =
+        queryClient.getQueryData<PurchaseOrder[]>(queryKey) ?? []
+
+      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old) => {
+        const list = old ?? []
+        const next = list.map((order): PurchaseOrder =>
+          order.id !== purchase_order_id
+            ? order
+            : { ...order, pool_remediation } as PurchaseOrder
+        )
+        return next
+      })
+
+      return { previousOrders, queryKey }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.setQueryData<PurchaseOrder[]>(
+          context.queryKey,
+          context.previousOrders ?? []
+        )
+      }
+    },
+
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.queryKey) {
+        queryClient.invalidateQueries({
+          queryKey: context.queryKey,
+          refetchType: 'active',
+        })
+      }
+    },
+  })
+}
+
+
 export const useCancelFedExLabel = (order_id: string) => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()

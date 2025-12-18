@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+export type Metal = "Gold" | "Silver" | "Platinum" | "Palladium"
+
 export type SpotPrice = {
   id: string
   purchase_order_id?: string

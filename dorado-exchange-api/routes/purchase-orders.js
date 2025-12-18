@@ -36,6 +36,8 @@ import {
   updateRefinerPremium,
   updateShippingActual,
   updateRefinerFee,
+  updatePoolOzDeducted,
+  updatePoolRemediation,
 } from '../controllers/purchaseOrderController.js';
 
 const router = express.Router();
@@ -78,5 +80,7 @@ router.post('/update_refiner_spot', requireAdmin, updateRefinerSpot);
 router.post('/update_refiner_premium', requireAdmin, updateRefinerPremium);
 router.post('/update_shipping_actual', requireAdmin, updateShippingActual);
 router.post('/update_refiner_fee', requireAdmin, updateRefinerFee);
+router.post('/update_pool_oz_deducted', requireAdmin, updatePoolOzDeducted);
+router.post('/update_pool_remediation', requireAdmin, updatePoolRemediation);
 
 export default router;

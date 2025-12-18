@@ -558,6 +558,12 @@ export async function updateRefinerFee({ purchase_order_id, refiner_fee }) {
   return await purchaseOrderRepo.updateRefinerFee(purchase_order_id, refiner_fee);
 }
 
+export async function updatePoolOzDeducted({ purchase_order_id, pool_oz_deducted }) {
+  return await purchaseOrderRepo.updatePoolOzDeducted(purchase_order_id, pool_oz_deducted);
+}
+export async function updatePoolRemediation({ purchase_order_id, pool_remediation }) {
+  return await purchaseOrderRepo.updatePoolRemediation(purchase_order_id, pool_remediation);
+}
 
 
 

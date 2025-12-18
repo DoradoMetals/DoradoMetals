@@ -871,3 +871,23 @@ export async function updateRefinerFee(purchase_order_id, refiner_fee) {
   const values = [refiner_fee, purchase_order_id];
   return await pool.query(query, values);
 }
+
+export async function updatePoolOzDeducted(purchase_order_id, pool_oz_deducted) {
+  const query = `
+    UPDATE exchange.purchase_orders
+    SET pool_oz_deducted = $1
+    WHERE id = $2
+  `;
+  const values = [pool_oz_deducted, purchase_order_id];
+  return await pool.query(query, values);
+}
+
+export async function updatePoolRemediation(purchase_order_id, pool_remediation) {
+  const query = `
+    UPDATE exchange.purchase_orders
+    SET pool_remediation = $1
+    WHERE id = $2
+  `;
+  const values = [pool_remediation, purchase_order_id];
+  return await pool.query(query, values);
+}
