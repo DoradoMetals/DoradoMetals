@@ -32,7 +32,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { ShieldCheckIcon, ShieldSlashIcon } from '@phosphor-icons/react'
 import { FedexRateInput, formatFedexRatesAddress } from '@/types/fedex'
 import { useFedExRates } from '@/lib/queries/useFedex'
-import { getReturnDeclaredValue } from '@/utils/getDeclaredValue'
+import { getReturnDeclaredValue } from '@/utils/purchaseOrders/getDeclaredValue'
 
 export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: spotPrices = [] } = useSpotPrices()
