@@ -3,7 +3,6 @@
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { MoonIcon, SunIcon } from '@phosphor-icons/react'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export function ThemeSwitcher() {
   const { theme, setTheme } = useTheme()

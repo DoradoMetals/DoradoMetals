@@ -3,7 +3,7 @@ import CountdownRing from '@/components/ui/countdown-ring'
 import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
-import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
+import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import { useMemo } from 'react'
 
 export default function AdminOfferSentPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {

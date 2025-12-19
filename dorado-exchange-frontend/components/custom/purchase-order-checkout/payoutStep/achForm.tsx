@@ -11,7 +11,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { accountTypeOptions } from '@/types/payout'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function ACHForm({
   form,
@@ -77,7 +76,7 @@ export default function ACHForm({
                           )}
                         >
                           <div className="flex flex-col items-center gap-2">
-                            {option.icon && <option.icon size={24} color={getPrimaryIconStroke()} />}
+                            {option.icon && <option.icon size={24} className='text-primary' />}
                             <div className="text-xs sm:text-sm text-neutral-800 font-medium">
                               {option.label}
                             </div>

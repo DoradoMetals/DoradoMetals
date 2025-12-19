@@ -4,7 +4,7 @@ import { useAcceptOffer, usePurchaseOrderMetals } from '@/lib/queries/usePurchas
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import { useMemo } from 'react'
-import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
+import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
 import { useTracking } from '@/lib/queries/useShipments'

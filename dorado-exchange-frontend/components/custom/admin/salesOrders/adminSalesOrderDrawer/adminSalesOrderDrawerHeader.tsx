@@ -4,7 +4,7 @@ import { useSalesOrderMetals } from '@/lib/queries/useSalesOrders'
 
 import { SalesOrderDrawerHeaderProps, statusConfig } from '@/types/sales-orders'
 import { formatFullDate } from '@/utils/dateFormatting'
-import { useFormatSalesOrderNumber } from '@/utils/formatSalesOrderNumber'
+import { useFormatSalesOrderNumber } from '@/utils/salesOrders/formatSalesOrderNumber'
 
 export default function AdminSalesOrderDrawerHeader({ order }: SalesOrderDrawerHeaderProps) {
   const downloadInvoice = useDownloadSalesOrderInvoice()

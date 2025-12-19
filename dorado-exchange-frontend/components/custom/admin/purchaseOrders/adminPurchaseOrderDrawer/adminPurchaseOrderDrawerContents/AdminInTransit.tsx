@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
-import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
+import { useFormatPurchaseOrderNumber } from '@/utils/purchaseOrders/formatPurchaseOrderNumber'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
 import { useTracking } from '@/lib/queries/useShipments'
 import {

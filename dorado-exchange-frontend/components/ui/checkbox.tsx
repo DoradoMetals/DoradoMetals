@@ -5,7 +5,6 @@ import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
 import { CheckIcon } from "@phosphor-icons/react"
 
 import { cn } from "@/lib/utils"
-import getPrimaryIconStroke from "@/utils/getPrimaryIconStroke"
 
 function Checkbox({
   className,

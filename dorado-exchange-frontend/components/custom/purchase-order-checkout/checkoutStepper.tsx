@@ -16,9 +16,8 @@ import { useFedExRates } from '@/lib/queries/useFedex'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
-import { getDeclaredValue } from '@/utils/getDeclaredValue'
-import getFedexRatesInput from '@/utils/getFedexRatesInput'
+import getFedexRatesInput from '@/utils/purchaseOrders/getFedexRatesInput'
+import { getDeclaredValue } from '@/utils/purchaseOrders/getDeclaredValue'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -126,7 +125,7 @@ export default function CheckoutStepper() {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10 lg:mt-30">
         <div className="relative mb-5">
-          <ShoppingCartIcon size={80} strokeWidth={1.5} color={getPrimaryIconStroke()} />
+          <ShoppingCartIcon size={80} strokeWidth={1.5} className='text-primary' />
           <div className="absolute -top-6 right-3.5 border border-borderr text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
             0
           </div>

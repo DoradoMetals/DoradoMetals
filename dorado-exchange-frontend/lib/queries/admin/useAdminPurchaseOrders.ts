@@ -4,8 +4,8 @@ import { useGetSession } from '../useAuth'
 import { PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
 import { SpotPrice } from '@/types/metal'
 import { Product } from '@/types/product'
-import getPurchaseOrderItemPrice from '@/utils/getPurchaseOrderItemPrice'
-import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
+import getPurchaseOrderItemPrice from '@/utils/purchaseOrders/getPurchaseOrderItemPrice'
+import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import { FedexCancelPickupInput, FedexPickup } from '@/types/fedex'
 
 export const useAdminPurchaseOrders = () => {

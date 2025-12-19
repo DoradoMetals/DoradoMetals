@@ -7,7 +7,6 @@ import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStor
 import { sellCartStore } from '@/store/sellCartStore'
 import { packageOptions } from '@/types/packaging'
 import { convertToPounds } from '@/utils/convertTroyOz'
-import { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
 import { useEffect, useMemo } from 'react'
 
 export function PackageSelector() {
@@ -94,7 +93,7 @@ export function PackageSelector() {
             )}
           >
             <div className="flex flex-col items-center gap-2">
-              {pkg.icon && <pkg.icon size={20} color={getCustomPrimaryIconStroke()} />}
+              {pkg.icon && <pkg.icon size={20} className='text-primary' />}
               <div className="text-xs sm:text-sm text-neutral-800 font-medium">{pkg.label}</div>
             </div>
 

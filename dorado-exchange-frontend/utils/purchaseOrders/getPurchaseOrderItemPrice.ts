@@ -1,6 +1,5 @@
 import { SpotPrice } from '@/types/metal'
 import { PurchaseOrderItem } from '@/types/purchase-order'
-import { Scrap } from '@/types/scrap'
 
 export default function getPurchaseOrderItemPrice(
   item: PurchaseOrderItem,

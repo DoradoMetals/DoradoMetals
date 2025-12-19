@@ -3,7 +3,6 @@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
-import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import { salesOrderServiceOptions, SalesOrderTotals } from '@/types/sales-orders'
 
@@ -40,13 +39,7 @@ export default function ServiceSelector({ orderPrices }: { orderPrices: SalesOrd
               )}
             >
               <div className="flex items-center gap-2 text-base font-medium text-neutral-800">
-                {option.icon && (
-                  <option.icon
-                    size={24}
-                    stroke={getCustomPrimaryIconStroke()}
-                    color={getPrimaryIconStroke()}
-                  />
-                )}
+                {option.icon && <option.icon size={24} className="text-primary" />}
                 {option.label}
               </div>
 

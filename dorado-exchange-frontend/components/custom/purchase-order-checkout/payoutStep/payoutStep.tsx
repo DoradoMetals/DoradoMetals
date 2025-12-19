@@ -24,9 +24,8 @@ import EcheckForm from './echeckForm'
 import { cn } from '@/lib/utils'
 import { useEffect } from 'react'
 import { User } from '@/types/user'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
-import { AsteriskIcon, CircleIcon, DotIcon, DotOutlineIcon, MinusIcon } from '@phosphor-icons/react'
+import { CircleIcon } from '@phosphor-icons/react'
 import DoradoAccountForm from './doradoAccountForm'
 
 export default function PayoutStep({ user }: { user?: User }) {
@@ -174,7 +173,7 @@ export default function PayoutStep({ user }: { user?: User }) {
               <div className="flex items-center gap-2 w-full justify-between">
                 <div className="flex flex-col w-full">
                   <div className="flex items-center gap-1">
-                    <option.icon size={24} color={getPrimaryIconStroke()} />
+                    <option.icon size={24} className='text-primary' />
                     <span className="font-medium">{option.label}</span>
                     <div className="text-neutral-700 text-xs flex items-center gap-2 pt-1 pl-4">
                       <span>{option.time_delay}</span>

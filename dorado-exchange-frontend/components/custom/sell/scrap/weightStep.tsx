@@ -6,7 +6,6 @@ import { useFormContext } from 'react-hook-form'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function WeightStep() {
   const form = useFormContext<Scrap>()
@@ -40,15 +39,14 @@ export default function WeightStep() {
                     <div className="absolute top-1 right-1">
                       <CheckCircle
                         size={12}
-                        stroke={getPrimaryIconStroke()}
                         className={cn(
-                          'transition-opacity duration-200',
+                          'text-primary transition-opacity duration-200',
                           isSelected ? 'opacity-100' : 'opacity-0'
                         )}
                       />
                     </div>
                     <div className="flex flex-col items-center gap-2">
-                      <weight.icon size={20} color={getPrimaryIconStroke()} />
+                      <weight.icon size={20} className='text-primary' />
 
                       <div className="text-sm text-neutral-900">{weight.label}</div>
                     </div>

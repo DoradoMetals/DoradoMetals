@@ -1,5 +1,3 @@
-import getPrimaryIconStroke from "@/utils/getPrimaryIconStroke"
-
 export const AnimatedHandshake: React.FC<{
   size?: number
   height?: number
@@ -35,7 +33,7 @@ export const AnimatedScroll: React.FC<{
   className?: string
   stroke?: string
   color?: string
-}> = ({ size = 50, height, className = '', stroke, color, ...props }) => (
+}> = ({ size = 50, height, className = '', stroke, color = '', ...props }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={size}

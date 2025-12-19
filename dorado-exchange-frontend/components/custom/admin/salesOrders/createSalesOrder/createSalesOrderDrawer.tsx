@@ -10,7 +10,6 @@ import Drawer from '@/components/ui/drawer'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 
-import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
 import {
   adminSalesOrderCheckoutSchema,
   adminSalesOrderServiceOptions,
@@ -26,14 +25,14 @@ import Image from 'next/image'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import getProductPrice from '@/utils/getProductPrice'
+import getProductPrice from '@/utils/products/getProductPrice'
 import NumberFlow from '@number-flow/react'
 import { SpotPrice } from '@/types/metal'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Input } from '@/components/ui/input'
 import { LockIcon, LockOpenIcon, QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
-import { calculateSalesOrderPrices } from '@/utils/calculateSalesOrderPrices'
+import { calculateSalesOrderPrices } from '@/utils/salesOrders/calculateSalesOrderPrices'
 import { useSalesTax } from '@/lib/queries/useSalesTax'
 import { useMutationState } from '@tanstack/react-query'
 import { useRetrievePaymentIntent, useUpdatePaymentIntent } from '@/lib/queries/useStripe'
@@ -117,12 +116,12 @@ export function CreateSalesOrderDrawer() {
           {spotsLocked ? (
             <div className="flex gap-1 items-center">
               Unlock Spots
-              <LockOpenIcon size={16} color={getPrimaryIconStroke()} />
+              <LockOpenIcon size={16} className='text-primary' />
             </div>
           ) : (
             <div className="flex gap-1 items-center">
               Lock Spots
-              <LockIcon size={16} color={getPrimaryIconStroke()} />
+              <LockIcon size={16} className='text-primary' />
             </div>
           )}
         </Button>
@@ -391,8 +390,7 @@ function ServiceSelector() {
                 {option.icon && (
                   <option.icon
                     size={24}
-                    stroke={getCustomPrimaryIconStroke()}
-                    color={getPrimaryIconStroke()}
+                    className='text-primary'
                   />
                 )}
                 {option.label}

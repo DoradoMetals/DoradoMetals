@@ -1,12 +1,12 @@
 import { pdfRequest } from '@/utils/axiosInstance'
 import { PurchaseOrder } from '@/types/purchase-order'
-import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
+import { useFormatPurchaseOrderNumber } from '@/utils/purchaseOrders/formatPurchaseOrderNumber'
 import { useMutation } from '@tanstack/react-query'
 import { SpotPrice } from '@/types/metal'
 import { PackageOption } from '@/types/packaging'
 import { PayoutMethod } from '@/types/payout'
 import { SalesOrder } from '@/types/sales-orders'
-import { useFormatSalesOrderNumber } from '@/utils/formatSalesOrderNumber'
+import { useFormatSalesOrderNumber } from '@/utils/salesOrders/formatSalesOrderNumber'
 
 const downloadPackingListRequest = async ({
   purchaseOrder,

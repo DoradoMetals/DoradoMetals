@@ -10,7 +10,7 @@ import { packageOptions } from '@/types/packaging'
 import { payoutOptions } from '@/types/payout'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
 import { formatFullDate } from '@/utils/dateFormatting'
-import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
+import { useFormatPurchaseOrderNumber } from '@/utils/purchaseOrders/formatPurchaseOrderNumber'
 import { DownloadIcon } from '@phosphor-icons/react'
 
 export default function PurchaseOrderDrawerHeader({ order }: PurchaseOrderDrawerHeaderProps) {
