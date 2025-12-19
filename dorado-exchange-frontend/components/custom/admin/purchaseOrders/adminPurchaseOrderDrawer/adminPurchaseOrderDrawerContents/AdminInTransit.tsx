@@ -1,14 +1,13 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
-import { useDownloadBase64 } from '@/utils/useDownloadLabel'
-import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
 import TrackingEvents from '@/components/custom/shipments/trackingEvents'
 import { useTracking } from '@/lib/queries/useShipments'
 import {
   useCancelFedExLabel,
   useCancelFedExPickup,
 } from '@/lib/queries/admin/useAdminPurchaseOrders'
+import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
 
 export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: trackingInfo, isLoading } = useTracking({
@@ -54,7 +53,6 @@ export function PreTransit({
   border?: string
   hoverBg?: string
 }) {
-  const { downloadBase64 } = useDownloadBase64()
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const cancelLabel = useCancelFedExLabel(order.id)
   const cancelPickup = useCancelFedExPickup()
@@ -87,26 +85,6 @@ export function PreTransit({
       <div className=""></div>
 
       <div className="flex flex-col gap-2">
-        <Button
-          variant="outline"
-          className={cn(
-            'border transition-colors bg-transparent hover:text-white w-full',
-            border,
-            hoverBg,
-            color
-          )}
-          disabled={!order.shipment.shipping_label}
-          onClick={() => {
-            if (!order.shipment.shipping_label) return
-            downloadBase64(
-              order.shipment.shipping_label,
-              `order-${formatPurchaseOrderNumber(order.order_number)}.png`,
-              'image/png'
-            )
-          }}
-        >
-          Download Label
-        </Button>
         <Button
           variant="outline"
           className="text-destructive bg-transparent border border-destructive hover:text-white hover:bg-destructive"

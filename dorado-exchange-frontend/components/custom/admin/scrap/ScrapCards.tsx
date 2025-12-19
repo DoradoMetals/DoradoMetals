@@ -7,7 +7,6 @@ import { SpotPrice } from '@/types/metal'
 import { convertTroyOz } from '@/utils/convertTroyOz'
 import { Button } from '@/components/ui/button'
 import { Check, Edit2 } from 'lucide-react'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { Input } from '@/components/ui/input'
 import { useEditScrapPercentages } from '@/lib/queries/admin/useAdmin'
 
@@ -105,7 +104,7 @@ export default function ScrapCards() {
                         className="p-0"
                         onClick={() => toggleEditing(spot.id)}
                       >
-                        <Edit2 size={16} stroke={getPrimaryIconStroke()} />
+                        <Edit2 size={16} className='text-primary' />
                       </Button>
                     </div>
                   )}

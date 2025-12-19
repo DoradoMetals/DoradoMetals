@@ -5,7 +5,6 @@ import { NumberFlowGroup } from '@number-flow/react'
 import { CaretUpIcon, CaretDownIcon, SwapIcon } from '@phosphor-icons/react'
 import MobileSpotTicker from './mobileSpots'
 import PriceNumberFlow from '../products/PriceNumberFlow'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { Button } from '@/components/ui/button'
 import { useSpotTypeStore } from '@/store/spotStore'
 

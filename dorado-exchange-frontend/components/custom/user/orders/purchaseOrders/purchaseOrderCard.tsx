@@ -13,12 +13,12 @@ import { useDrawerStore } from '@/store/drawerStore'
 import { packageOptions } from '@/types/packaging'
 import { payoutOptions } from '@/types/payout'
 import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
-import { formatFullDate } from '@/utils/dateFormatting'
-import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
+import { formatFullDate } from '@/utils/formatting/dateFormatting'
 import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
-import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
+import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import { DownloadIcon } from '@phosphor-icons/react'
 import { OrderCardShell } from '../orderCardShell'
+import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
 
 export default function PurchaseOrderCard({
   order,

@@ -9,12 +9,11 @@ import { sellCartStore } from '@/store/sellCartStore'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import PriceNumberFlow from '../products/PriceNumberFlow'
 import { useRouter } from 'next/navigation'
-import getScrapPrice from '@/utils/getScrapPrice'
+import getScrapPrice from '@/utils/purchaseOrders/getScrapPrice'
 import { getGrossLabel, getPurityLabel, Scrap } from '@/types/scrap'
 import { Product } from '@/types/product'
-import getProductBidPrice from '@/utils/getProductBidPrice'
+import getProductBidPrice from '@/utils/products/getProductBidPrice'
 import { useDrawerStore } from '@/store/drawerStore'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useUser } from '@/lib/authClient'
 import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
 
@@ -51,7 +50,7 @@ export default function SellCart() {
   const emptyCart = (
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
       <div className="relative mb-5">
-        <ShoppingCartSimpleIcon size={80} strokeWidth={1.5} color={getPrimaryIconStroke()} />
+        <ShoppingCartSimpleIcon size={80} strokeWidth={1.5} className='text-primary' />
         <div className="absolute -top-6 right-3.5 border border-border text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
           0
         </div>

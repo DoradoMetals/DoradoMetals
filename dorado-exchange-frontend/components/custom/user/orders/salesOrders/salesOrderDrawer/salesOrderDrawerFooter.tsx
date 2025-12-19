@@ -6,7 +6,7 @@ import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
-import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
 
 import { SalesOrderDrawerFooterProps } from '@/types/sales-orders'
 

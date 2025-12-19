@@ -14,7 +14,7 @@ import { useDrawerStore } from '@/store/drawerStore'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MagnifyingGlassIcon, PhoneIcon, XIcon } from '@phosphor-icons/react'
 import { Input } from '../ui/input'
-import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
 import {
   Breadcrumb,
   BreadcrumbItem,

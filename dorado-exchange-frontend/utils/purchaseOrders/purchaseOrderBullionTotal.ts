@@ -1,6 +1,5 @@
 import { SpotPrice } from '@/types/metal'
 import { PurchaseOrderItem } from '@/types/purchase-order'
-import getProductBidPrice from './getProductBidPrice'
 
 export default function getPurchaseOrderBullionTotal(
   bullionItems: PurchaseOrderItem[],

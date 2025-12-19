@@ -4,7 +4,6 @@ import { AnimatedScroll } from '@/components/icons/animated'
 import { BlurredStagger } from '@/components/ui/blurred-stagger'
 import { Button } from '@/components/ui/button'
 import { Confetti, ConfettiRef } from '@/components/ui/confetti'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
@@ -37,7 +36,7 @@ export default function Page() {
         </div>
 
         <div className="flex w-full justify-center">
-          <AnimatedScroll size={128} className="mb-6 z-1" color={getPrimaryIconStroke()} />
+          <AnimatedScroll size={128} className="mb-6 z-1 text-primary" />
         </div>
         <div className="text-sm text-neutral-700 mb-4">
           <BlurredStagger text="View your order by clicking the button below." delay={3200} />

@@ -10,16 +10,16 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useMemo, useState } from 'react'
 import { cartStore } from '@/store/cartStore'
 import PriceNumberFlow from './PriceNumberFlow'
-import getProductPrice from '@/utils/getProductPrice'
+import getProductPrice from '@/utils/products/getProductPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import getProductBidPrice from '@/utils/getProductBidPrice'
+import getProductBidPrice from '@/utils/products/getProductBidPrice'
 
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { cn } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
-import getProductAskOverUnderSpot from '@/utils/getProductAskOverUnderSpot'
+import getProductAskOverUnderSpot from '@/utils/products/getProductAskOverUnderSpot'
 import {
   CheckCircleIcon,
   CircleIcon,
@@ -30,8 +30,7 @@ import {
 import { sellCartStore } from '@/store/sellCartStore'
 import { Lens } from '@/components/ui/lens'
 import { paymentOptions, salesOrderServiceOptions } from '@/types/sales-orders'
-import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
-import getProductBidOverUnderSpot from '@/utils/getProductBidOverUnderSpot'
+import getProductBidOverUnderSpot from '@/utils/products/getProductBidOverUnderSpot'
 
 type ProductPageProps = {
   product: Product
@@ -433,15 +432,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="separator-inset" />
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <ShieldCheckIcon color={getPrimaryIconStroke()} size={20} />
+                    <ShieldCheckIcon className='text-primary' size={20} />
                     Every shipment is fully insured.
                   </div>
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <ClockIcon color={getPrimaryIconStroke()} size={20} />
+                    <ClockIcon className='text-primary' size={20} />
                     Ships the same day we receive your payment.
                   </div>
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <TagIcon color={getPrimaryIconStroke()} size={20} />
+                    <TagIcon className='text-primary' size={20} />
                     Free shipping for orders over $1000.
                   </div>
                 </div>
@@ -468,7 +467,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       >
                         <div className="flex w-full gap-2 items-center">
                           <div className="flex items-center gap-1">
-                            <Icon color={getPrimaryIconStroke()} size={20} />
+                            <Icon className='text-primary' size={20} />
                             <div className="text-base text-neutral-800">{payment.label}</div>
                           </div>
                           <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1 pl-4">
@@ -865,15 +864,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="separator-inset" />
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <ShieldCheckIcon color={getPrimaryIconStroke()} size={20} />
+                    <ShieldCheckIcon className='text-primary' size={20} />
                     Every shipment is fully insured.
                   </div>
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <ClockIcon color={getPrimaryIconStroke()} size={20} />
+                    <ClockIcon className='text-primary' size={20} />
                     Ships the same day we receive your payment.
                   </div>
                   <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <TagIcon color={getPrimaryIconStroke()} size={20} />
+                    <TagIcon className='text-primary' size={20} />
                     Free shipping for orders over $1000.
                   </div>
                 </div>
@@ -901,7 +900,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       >
                         <div className="flex w-full gap-2 items-center">
                           <div className="flex items-center gap-1">
-                            <Icon color={getPrimaryIconStroke()} size={20} />
+                            <Icon className='text-primary' size={20} />
                             <div className="text-base text-neutral-800">{payment.label}</div>
                           </div>
                           <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1 pl-4">

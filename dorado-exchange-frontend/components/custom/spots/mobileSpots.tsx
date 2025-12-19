@@ -7,7 +7,6 @@ import { CaretUpIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { NumberFlowGroup } from '@number-flow/react'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import PriceNumberFlow from '../products/PriceNumberFlow'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function MobileSpotTicker({ type }: { type: 'Bid' | 'Ask' }) {
   const { data: spots } = useSpotPrices()

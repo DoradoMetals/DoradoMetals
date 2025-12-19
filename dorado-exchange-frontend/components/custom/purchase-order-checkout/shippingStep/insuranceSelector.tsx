@@ -3,8 +3,7 @@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
-import { ShieldCheck, ShieldSlash } from '@phosphor-icons/react'
+import { ShieldCheckIcon, ShieldSlashIcon } from '@phosphor-icons/react'
 
 export function InsuranceSelector() {
   const insured = usePurchaseOrderCheckoutStore((state) => state.data.insurance?.insured)
@@ -23,8 +22,8 @@ export function InsuranceSelector() {
   }
 
   const iconMap = {
-    insured: ShieldCheck,
-    uninsured: ShieldSlash,
+    insured: ShieldCheckIcon,
+    uninsured: ShieldSlashIcon,
   }
 
   return (
@@ -46,7 +45,7 @@ export function InsuranceSelector() {
                 'raised-off-page relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md'
               )}
             >
-              <Icon size={28} color={getPrimaryIconStroke()} />
+              <Icon size={28} className='text-primary' />
 
               <div className="text-xs sm:text-sm text-neutral-800 font-medium capitalize">
                 {option}

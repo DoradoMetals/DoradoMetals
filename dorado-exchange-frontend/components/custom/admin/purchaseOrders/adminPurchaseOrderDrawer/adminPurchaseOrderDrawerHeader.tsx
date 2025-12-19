@@ -9,7 +9,7 @@ import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { packageOptions } from '@/types/packaging'
 import { payoutOptions } from '@/types/payout'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
-import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
+import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
 import { CheckCheck } from 'lucide-react'
 
 export default function PurchaseOrderDrawerHeader({

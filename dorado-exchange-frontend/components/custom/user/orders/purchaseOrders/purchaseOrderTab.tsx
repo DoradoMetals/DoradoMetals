@@ -9,7 +9,6 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CurrencyDollarIcon } from '@phosphor-icons/react'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import PurchaseOrderCard from './purchaseOrderCard'
 import PurchaseOrderDrawer from './purchaseOrderDrawer/purchaseOrderDrawer'
 import { PurchaseOrderStatuses, statusConfig } from '@/types/purchase-order'
@@ -56,7 +55,7 @@ export function PurchaseOrdersContent() {
     return (
       <div className="flex flex-col flex-grow items-center justify-center gap-4 py-20">
         <div className="relative mb-5">
-          <CurrencyDollarIcon size={128} color={getPrimaryIconStroke()} strokeWidth={1.5} />
+          <CurrencyDollarIcon size={128} className='text-primary' strokeWidth={1.5} />
           <div className="absolute -top-6 right-3.5 border border-border text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
             0
           </div>

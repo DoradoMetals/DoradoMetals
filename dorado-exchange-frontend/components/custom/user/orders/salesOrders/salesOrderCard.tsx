@@ -3,15 +3,15 @@
 import { MouseEvent, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { useDrawerStore } from '@/store/drawerStore'
-import { formatFullDate } from '@/utils/dateFormatting'
+import { formatFullDate } from '@/utils/formatting/dateFormatting'
 import { SalesOrder, statusConfig } from '@/types/sales-orders'
-import { useFormatSalesOrderNumber } from '@/utils/formatSalesOrderNumber'
 import { AvatarCircles } from '@/components/ui/avatar-circles'
 import { DownloadIcon } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { useDownloadSalesOrderInvoice } from '@/lib/queries/usePDF'
 import { useSalesOrderMetals } from '@/lib/queries/useSalesOrders'
 import { OrderCardShell } from '../orderCardShell'
+import { useFormatSalesOrderNumber } from '@/utils/formatting/order-numbers'
 
 export default function SalesOrderCard({
   order,

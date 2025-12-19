@@ -9,8 +9,8 @@ import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { packageOptions } from '@/types/packaging'
 import { payoutOptions } from '@/types/payout'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
-import { formatFullDate } from '@/utils/dateFormatting'
-import { useFormatPurchaseOrderNumber } from '@/utils/formatPurchaseOrderNumber'
+import { formatFullDate } from '@/utils/formatting/dateFormatting'
+import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
 import { DownloadIcon } from '@phosphor-icons/react'
 
 export default function PurchaseOrderDrawerHeader({ order }: PurchaseOrderDrawerHeaderProps) {

@@ -1,9 +1,9 @@
 'use client'
 
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
 import { Button } from '@/components/ui/button'
-import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/utils/dateFormatting'
+import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/utils/formatting/dateFormatting'
 import ItemTables from './itemTable'
 import { useCreatePurchaseOrder } from '@/lib/queries/usePurchaseOrders'
 import { purchaseOrderCheckoutSchema } from '@/types/purchase-order'

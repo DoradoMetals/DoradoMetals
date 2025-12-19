@@ -10,7 +10,7 @@ import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 
 import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 import { useMemo, useState } from 'react'
-import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
+import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import CountdownRing from '@/components/ui/countdown-ring'
 import { Textarea } from '@/components/ui/textarea'

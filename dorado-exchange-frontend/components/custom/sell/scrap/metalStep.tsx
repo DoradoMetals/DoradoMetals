@@ -5,7 +5,6 @@ import { CheckCircle } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 
 export default function MetalStep() {
@@ -45,10 +44,9 @@ export default function MetalStep() {
                   <div className="absolute top-1 right-1">
                     <CheckCircle
                       size={12}
-                      stroke={getPrimaryIconStroke()}
                       className={cn(
-                        'transition-opacity duration-200',
-                        isSelected ? 'text-primary opacity-100' : 'opacity-0'
+                        'text-primary transition-opacity duration-200',
+                        isSelected ? 'opacity-100' : 'opacity-0'
                       )}
                     />
                   </div>

@@ -11,7 +11,6 @@ import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import ServiceSelector from './serviceSelector'
 import { SalesOrderTotals } from '@/types/sales-orders'
 import { PlusIcon } from '@phosphor-icons/react'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useGetSession } from '@/lib/queries/useAuth'
 
 interface ShippingSelectProps {
@@ -76,7 +75,7 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
             >
               <div className="flex text-xs items-center gap-1">
                 Add New Address
-                <PlusIcon size={16} color={getPrimaryIconStroke()} />
+                <PlusIcon size={16} className='text-primary' />
               </div>
             </Button>
           </div>

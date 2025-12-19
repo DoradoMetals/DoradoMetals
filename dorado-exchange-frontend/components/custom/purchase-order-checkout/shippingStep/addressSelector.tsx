@@ -1,16 +1,15 @@
 'use client'
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { Address } from '@/types/address'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
 
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { Button } from '@/components/ui/button'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
-import { NotePencil } from '@phosphor-icons/react'
+import { NotePencilIcon } from '@phosphor-icons/react'
 import { useDrawerStore } from '@/store/drawerStore'
 
 interface AddressSelectorProps {
@@ -68,7 +67,7 @@ export function AddressSelector({
                 openDrawer('address')
               }}
             >
-              <NotePencil size={20} color={getPrimaryIconStroke()} />
+              <NotePencilIcon size={20} className='text-primary' />
             </Button>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between w-full gap-1">

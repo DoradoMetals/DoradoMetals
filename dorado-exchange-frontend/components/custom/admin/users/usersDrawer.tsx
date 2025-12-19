@@ -4,7 +4,7 @@ import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/components/ui/drawer'
 import { useMemo, useState } from 'react'
 
-import { formatFullDate } from '@/utils/dateFormatting'
+import { formatFullDate } from '@/utils/formatting/dateFormatting'
 import { AdminUser } from '@/types/admin'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import {
@@ -19,7 +19,6 @@ import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 import { useUpdateCredit } from '@/lib/queries/admin/useAdmin'
 
 export default function AdminUsersDrawer({
@@ -173,7 +172,7 @@ function DoradoCredit({ user }: { user: AdminUser }) {
                   )}
                 >
                   {m.label}
-                  <Icon size={20} color={mode === m.value ? 'white' : getPrimaryIconStroke()} />
+                  <Icon size={20} className={cn(mode === m.value ? 'text-white' : 'text-primary')} />
                 </div>
                 <RadioGroupItem id={m.value} value={m.value} className="sr-only" />
               </label>

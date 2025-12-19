@@ -7,7 +7,6 @@ import { motion } from 'framer-motion'
 import NumberFlow from '@number-flow/react'
 import { cn } from '@/lib/utils'
 import { Slider } from '@/components/ui/slider'
-import getPrimaryIconStroke from '@/utils/getPrimaryIconStroke'
 
 export default function PurityStep() {
   const form = useFormContext<Scrap>()
@@ -61,10 +60,9 @@ export default function PurityStep() {
                   <div className="absolute top-1 right-1">
                   <CheckCircle
                       size={12}
-                      stroke={getPrimaryIconStroke()}
                       className={cn(
-                        'transition-opacity duration-200',
-                        isSelected ? ' opacity-100' : 'opacity-0'
+                        'text-primary transition-opacity duration-200',
+                        isSelected ? 'opacity-100' : 'opacity-0'
                       )}
                     />
                   </div>

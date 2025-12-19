@@ -3,8 +3,8 @@ import { useDownloadSalesOrderInvoice } from '@/lib/queries/usePDF'
 import { useSalesOrderMetals } from '@/lib/queries/useSalesOrders'
 
 import { SalesOrderDrawerHeaderProps, statusConfig } from '@/types/sales-orders'
-import { formatFullDate } from '@/utils/dateFormatting'
-import { useFormatSalesOrderNumber } from '@/utils/formatSalesOrderNumber'
+import { formatFullDate } from '@/utils/formatting/dateFormatting'
+import { useFormatSalesOrderNumber } from '@/utils/formatting/order-numbers'
 import { DownloadIcon } from '@phosphor-icons/react'
 
 export default function SalesOrderDrawerHeader({ order }: SalesOrderDrawerHeaderProps) {

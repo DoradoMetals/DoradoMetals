@@ -18,7 +18,7 @@ import {
 } from '@/lib/queries/usePurchaseOrders'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
-import getPurchaseOrderTotal from '@/utils/purchaseOrderTotal'
+import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import { useMemo, useState } from 'react'
 
 export default function OfferSentPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {

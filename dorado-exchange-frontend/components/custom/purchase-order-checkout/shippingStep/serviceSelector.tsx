@@ -6,8 +6,7 @@ import { FedexRate } from '@/types/fedex'
 import { serviceOptions } from '@/types/service'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import { formatTimeDiff } from '@/utils/dateFormatting'
-import getPrimaryIconStroke, { getCustomPrimaryIconStroke } from '@/utils/getPrimaryIconStroke'
+import { formatTimeDiff } from '@/utils/formatting/dateFormatting'
 
 interface ServiceSelectorProps {
   rates: FedexRate[]
@@ -68,7 +67,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
 
             >
               <div className="flex items-center gap-2 text-sm font-medium text-neutral-800">
-                {option.icon && <option.icon size={24} stroke={getCustomPrimaryIconStroke()} color={getPrimaryIconStroke()} />}
+                {option.icon && <option.icon size={24} className='text-primary' />}
                 {option.serviceDescription}
               </div>
 
