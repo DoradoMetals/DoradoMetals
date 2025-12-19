@@ -12,10 +12,10 @@ import { useDrawerStore } from '@/store/drawerStore'
 import AdminPurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
 import { DataTable } from '@/components/table/table'
 import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/components/table/columns'
-import { useFormatPurchaseOrderNumber } from '@/utils/purchaseOrders/formatPurchaseOrderNumber'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { FileXIcon } from '@phosphor-icons/react'
+import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
 
 const STATUS_FILTERS = ['In Transit', 'Received', 'Payment Processing', 'Completed'] as const
 

@@ -14,7 +14,7 @@ import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { useUpdateReview } from '@/lib/queries/useReviews'
 import type { Review } from '@/types/reviews'
-import { formatFullDate } from '@/utils/dateFormatting'
+import { formatFullDate } from '@/utils/formatting/dateFormatting'
 import { Calendar } from '@/components/ui/calendar'
 
 export default function ReviewsDrawer({

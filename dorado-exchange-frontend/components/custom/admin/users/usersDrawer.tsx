@@ -4,7 +4,7 @@ import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/components/ui/drawer'
 import { useMemo, useState } from 'react'
 
-import { formatFullDate } from '@/utils/dateFormatting'
+import { formatFullDate } from '@/utils/formatting/dateFormatting'
 import { AdminUser } from '@/types/admin'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import {

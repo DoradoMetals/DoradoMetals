@@ -4,7 +4,7 @@ import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/components/ui/drawer'
 import { useMemo } from 'react'
 
-import { formatFullDate } from '@/utils/dateFormatting'
+import { formatFullDate } from '@/utils/formatting/dateFormatting'
 
 import { AdminProduct } from '@/types/admin'
 import { cn } from '@/lib/utils'

@@ -5,7 +5,7 @@ import { Navigation, Pagination } from 'swiper/modules'
 import { useState } from 'react'
 import { Address } from '@/types/address'
 import { Building2, ChevronsLeft, ChevronsRight, House } from 'lucide-react'
-import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 

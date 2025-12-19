@@ -5,8 +5,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { useFedExLocations } from '@/lib/queries/useFedex'
 import { formatFedexPickupAddress } from '@/types/fedex'
-import formatPhoneNumber from '@/utils/formatPhoneNumber'
-import { formatPickupTime } from '@/utils/dateFormatting'
+import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
+import { formatPickupTime } from '@/utils/formatting/dateFormatting'
 
 const containerStyle = {
   width: '100%',

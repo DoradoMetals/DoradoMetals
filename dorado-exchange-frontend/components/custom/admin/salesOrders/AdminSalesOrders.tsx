@@ -10,8 +10,8 @@ import AdminSalesOrderDrawer from './adminSalesOrderDrawer/adminSalesOrderDrawer
 
 import { DataTable } from '@/components/table/table'
 import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/components/table/columns'
-import { useFormatSalesOrderNumber } from '@/utils/salesOrders/formatSalesOrderNumber'
 import { cn } from '@/lib/utils'
+import { useFormatSalesOrderNumber } from '@/utils/formatting/order-numbers'
 
 export default function SalesOrdersPage() {
   const { data: salesOrders = [] } = useAdminSalesOrders()

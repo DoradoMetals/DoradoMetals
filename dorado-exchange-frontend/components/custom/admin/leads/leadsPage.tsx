@@ -5,7 +5,7 @@ import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { Lead } from '@/types/leads'
 import { useGetSession } from '@/lib/queries/useAuth'
-import formatPhoneNumber, { normalizePhone } from '@/utils/formatPhoneNumber'
+import formatPhoneNumber, { normalizePhone } from '@/utils/formatting/formatPhoneNumber'
 import { useDrawerStore } from '@/store/drawerStore'
 import LeadsDrawer from './leadsDrawer'
 import {

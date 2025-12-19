@@ -11,7 +11,7 @@ import { useUpdateAddress } from '@/lib/queries/useAddresses'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import { useState } from 'react'
 import { useDrawerStore } from '@/store/drawerStore'
-import formatPhoneNumber, { normalizePhone } from '@/utils/formatPhoneNumber'
+import formatPhoneNumber, { normalizePhone } from '@/utils/formatting/formatPhoneNumber'
 
 export default function AddressForm({
   address,

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { Address } from '@/types/address'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
 
 import { Button } from '@/components/ui/button'
 import { NotePencilIcon } from '@phosphor-icons/react'

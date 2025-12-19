@@ -9,7 +9,7 @@ import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Rating, RatingButton } from '@/components/ui/rating'
 import { RowsPlusTopIcon, XIcon } from '@phosphor-icons/react'
-import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
 
 type InputType = InputHTMLAttributes<HTMLInputElement>['type']
 type InputMode = InputHTMLAttributes<HTMLInputElement>['inputMode']

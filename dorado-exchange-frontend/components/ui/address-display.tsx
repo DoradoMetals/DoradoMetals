@@ -1,6 +1,6 @@
 import React from 'react'
 import { Address } from '@/types/address'
-import formatPhoneNumber from '@/utils/formatPhoneNumber'
+import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
 
 interface AddressDisplayProps {
   address: Address
