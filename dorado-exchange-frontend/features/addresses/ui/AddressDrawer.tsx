@@ -1,13 +1,13 @@
 'use client'
 
-import { Address } from '@/types/address'
+import { Address } from '@/features/addresses/types'
 import Drawer from '@/components/ui/drawer'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useDrawerStore } from '@/store/drawerStore'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
-import AddressForm from './addressForm'
+import AddressForm from './AddressForm'
 
 interface AddressDrawerProps {
   address: Address

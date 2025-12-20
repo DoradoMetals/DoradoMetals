@@ -1,20 +1,22 @@
 'use client'
 
-import { useState, ReactNode } from 'react'
 import {
   ColumnDef,
   ColumnFiltersState,
-  PaginationState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
+  PaginationState,
   Row,
   useReactTable,
 } from '@tanstack/react-table'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ReactNode, useState } from 'react'
 
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Table,
   TableBody,
@@ -23,13 +25,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Checkbox } from '@/components/ui/checkbox'
-import { DebouncedInputSearch } from '../ui/debounced-input-search'
+import { cn } from '@/lib/utils'
 import { ColumnsIcon } from '@phosphor-icons/react'
-import { FilterCard, FilterCardsStrip } from './filterCard'
+import { DebouncedInputSearch } from '../ui/debounced-input-search'
 import { AddNew, CreateConfig } from './addNew'
+import { FilterCard, FilterCardsStrip } from './filterCard'
 
 type DataTableProps<TData> = {
   data: TData[]

@@ -3,7 +3,7 @@
 import React, { useState, FormEvent } from 'react'
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { StripePaymentElementOptions } from '@stripe/stripe-js'
-import { Address } from '@/types/address'
+import { Address } from '@/features/addresses/types'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import { useCreateSalesOrder } from '@/lib/queries/useSalesOrders'

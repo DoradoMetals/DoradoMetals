@@ -1,5 +1,5 @@
 import * as z from 'zod'
-import { reverseStateMap, stateMap, states } from './states'
+import { reverseStateMap, stateMap, states } from '../../types/states'
 
 const blockedCities = ['Test', 'Fake City', 'Unknown', 'N/A']
 

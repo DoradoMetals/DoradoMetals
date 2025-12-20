@@ -1,7 +1,7 @@
 import pool from "../db.js";
 import { validateAddress } from "./shipping/fedexController.js";
 
-export async function  getAddresses (req, res)  {
+export async function getAddresses(req, res) {
   const { user_id } = req.query;
 
   try {
@@ -16,9 +16,9 @@ export async function  getAddresses (req, res)  {
     console.error("Error fetching addresses:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
-};
+}
 
-export async function createAndUpdateAddress (req, res) {
+export async function createAndUpdateAddress(req, res) {
   const address = req.body.address;
   const user_id = req.body.user_id;
 
@@ -110,9 +110,9 @@ export async function createAndUpdateAddress (req, res) {
 
     res.status(500).json({ error: "Internal Server Error" });
   }
-};
+}
 
-export async function deleteAddress (req, res) {
+export async function deleteAddress(req, res) {
   const { user_id, address } = req.body;
 
   try {
@@ -154,9 +154,9 @@ export async function deleteAddress (req, res) {
     console.error("Error deleting address", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
-};
+}
 
-export async function  setDefaultAddress (req, res) {
+export async function setDefaultAddress(req, res) {
   const user_id = req.body.user_id;
   const address = req.body.address;
 
@@ -177,4 +177,4 @@ export async function  setDefaultAddress (req, res) {
     console.error("Error setting default address", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
-};
+}

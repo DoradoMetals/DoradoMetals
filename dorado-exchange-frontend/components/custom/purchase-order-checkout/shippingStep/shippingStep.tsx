@@ -1,10 +1,9 @@
 'use client'
 
-import { Address } from '@/types/address'
-import { AddressSelector } from './addressSelector'
+import { Address } from '@/features/addresses/types'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { PackageSelector } from './packageSelector'
 import { FedexPickupTimesInput, formatFedexPickupAddress, FedexRate } from '@/types/fedex'
 import { useFedExPickupTimes } from '@/lib/queries/useFedex'
@@ -14,9 +13,10 @@ import { PickupSelector } from './pickupSelector'
 import PickupScheduler from './pickupScheduler'
 import { FedexLocationsMap } from './FedexLocations'
 import { InsuranceSelector } from './insuranceSelector'
-import AddressDrawer from '../../user/addresses/addressDrawer'
 import { useDrawerStore } from '@/store/drawerStore'
 import { useGetSession } from '@/lib/queries/useAuth'
+import AddressDrawer from '@/features/addresses/ui/AddressDrawer'
+import { AddressCarousel } from '@/features/addresses/ui/AddressCarousel'
 
 interface ShippingStepProps {
   addresses: Address[]
@@ -31,7 +31,7 @@ export default function ShippingStep({
   rates,
   isLoading,
 }: ShippingStepProps) {
-  const { user } = useGetSession();
+  const { user } = useGetSession()
   const [draftAddress, setDraftAddress] = useState<Address>(emptyAddress)
   const { openDrawer } = useDrawerStore()
 
@@ -42,6 +42,10 @@ export default function ShippingStep({
   const service = usePurchaseOrderCheckoutStore((state) => state.data.service)
   const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+
+  const sortedAddresses = useMemo(() => {
+    return [...addresses].sort((a, b) => Number(b.is_default) - Number(a.is_default))
+  }, [addresses])
 
   let fedexPickupTimesInput: FedexPickupTimesInput | null = null
   if (address?.is_valid && service) {
@@ -76,7 +80,7 @@ export default function ShippingStep({
             icon={Plus}
             iconSize={16}
             onClick={() => {
-              setDraftAddress({...emptyAddress, user_id: user?.id ?? ''})
+              setDraftAddress({ ...emptyAddress, user_id: user?.id ?? '' })
               openDrawer('address')
             }}
             className="border-primary text-primary hover:text-neutral-900 hover:bg-primary"
@@ -86,36 +90,30 @@ export default function ShippingStep({
         </div>
       ) : (
         <div className="space-y-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="flex ml-auto h-auto min-h-0 font-normal text-neutral-700 border-none hover:bg-background p-0"
-            onClick={() => {
-              setDraftAddress({...emptyAddress, user_id: user?.id ?? ''})
-              openDrawer('address')
-            }}
-          >
-            <div className="flex text-xs items-center gap-1">
-              Add New Address
-              <Plus size={16} className="" />
-            </div>
-          </Button>
           <div className="flex flex-col gap-1">
-            <div className="flex flex-col gap-1">
-              <AddressSelector
-                addresses={addresses}
-                setDraftAddress={setDraftAddress}
-                emptyAddress={emptyAddress}
-              />
-              {address && !address.is_valid && (
-                <div className="text-sm text-destructive rounded-md">
-                  Please provide a valid address to continue checkout.
-                </div>
-              )}
-            </div>
+            <AddressCarousel
+              addresses={sortedAddresses}
+              slidesPerView={1}
+              centeredSlides
+              showNav={sortedAddresses.length > 1}
+              showPagination={sortedAddresses.length > 1}
+              onSelect={(addr) => setData({ address: addr })}
+              mode="customer"
+              onEdit={(addr) => {
+                setDraftAddress(addr)
+                openDrawer('address')
+              }}
+            />
+
+            {address && !address.is_valid && (
+              <div className="text-sm text-destructive rounded-md">
+                Please provide a valid address to continue checkout.
+              </div>
+            )}
           </div>
         </div>
       )}
+
       <div className="separator-inset" />
 
       {address?.is_valid && (
@@ -141,6 +139,7 @@ export default function ShippingStep({
           <div className="separator-inset" />
         </>
       )}
+
       {address?.is_valid &&
         pkg &&
         service &&

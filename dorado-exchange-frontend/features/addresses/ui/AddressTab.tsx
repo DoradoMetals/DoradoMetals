@@ -1,13 +1,13 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { useAddress } from '@/lib/queries/useAddresses'
-import { Address, emptyAddress } from '@/types/address'
+import { useAddress } from '@/features/addresses/queries'
+import { Address, emptyAddress } from '@/features/addresses/types'
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus } from 'lucide-react'
-import { AddressCarousel } from './addressCarousel'
-import AddressDrawer from './addressDrawer'
+import { AddressCarousel } from './AddressCarousel'
+import AddressDrawer from './AddressDrawer'
 import { useDrawerStore } from '@/store/drawerStore'
 import { useGetSession } from '@/lib/queries/useAuth'
 
@@ -85,7 +85,15 @@ export default function AddressTab() {
               </div>
             ) : null}
             <div className="flex flex-col gap-3 justify-center">
-              <AddressCarousel addresses={addresses} setSelectedAddress={setSelectedAddress} />
+              <AddressCarousel
+                addresses={addresses}
+                mode="customer"
+                setSelectedAddress={setSelectedAddress}
+                onEdit={(addr) => {
+                  setSelectedAddress(addr)
+                  openDrawer('address')
+                }}
+              />
             </div>
 
             <AddressDrawer address={selectedAddress} />

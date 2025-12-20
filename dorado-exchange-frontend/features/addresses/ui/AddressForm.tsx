@@ -4,14 +4,14 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
-import { StateSelect } from '../account/stateSelect'
 
-import { Address, addressSchema } from '@/types/address'
-import { useUpdateAddress } from '@/lib/queries/useAddresses'
+import { Address, addressSchema } from '@/features/addresses/types'
+import { useCreateAddress, useUpdateAddress } from '@/features/addresses/queries'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 import { useState } from 'react'
 import { useDrawerStore } from '@/store/drawerStore'
 import formatPhoneNumber, { normalizePhone } from '@/utils/formatting/formatPhoneNumber'
+import { StateSelect } from '@/features/addresses/ui/StateSelect'
 
 export default function AddressForm({
   address,
@@ -21,25 +21,27 @@ export default function AddressForm({
   onSuccess?: (address: Address) => void
 }) {
   const [formError, setFormError] = useState<string | null>(null)
+
+  const createAddressMutation = useCreateAddress()
   const updateAddressMutation = useUpdateAddress()
+  const isSaving = createAddressMutation.isPending || updateAddressMutation.isPending
 
   const { closeDrawer } = useDrawerStore()
 
   const handleAddressSubmit = (values: Address) => {
     setFormError(null)
 
-    updateAddressMutation.mutate(values, {
-      onError: (error: any) => {
-        const message =
-          error?.response?.data?.message || error?.message || 'Failed to update address.'
-        setFormError(message)
+    const mutation = values?.id ? updateAddressMutation : createAddressMutation
+    const fallbackMsg = values?.id ? 'Failed to update address.' : 'Failed to create address.'
 
-        setTimeout(() => {
-          setFormError(null)
-        }, 5000)
+    mutation.mutate(values, {
+      onError: (error: any) => {
+        const message = error?.response?.data?.message || error?.message || fallbackMsg
+        setFormError(message)
+        setTimeout(() => setFormError(null), 5000)
       },
-      onSuccess: (updatedAddressFromServer) => {
-        onSuccess?.(updatedAddressFromServer)
+      onSuccess: (savedAddressFromServer: Address) => {
+        onSuccess?.(savedAddressFromServer)
         closeDrawer()
       },
     })
@@ -251,9 +253,9 @@ export default function AddressForm({
           <Button
             type="submit"
             className="w-full text-white raised-off-page bg-primary hover:bg-primary"
-            disabled={updateAddressMutation.isPending}
+            disabled={isSaving}
           >
-            {updateAddressMutation.isPending ? 'Saving...' : 'Save Changes'}
+            {isSaving ? 'Saving...' : 'Save Changes'}
           </Button>
         </form>
       </Form>

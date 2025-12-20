@@ -1,11 +1,10 @@
 'use client'
 
-import { useUserAddress } from '@/lib/queries/useAddresses'
+import { useUserAddress } from '@/features/addresses/queries'
 import { User } from '@/types/user'
-import { Address, emptyAddress } from '@/types/address'
+import { Address, emptyAddress } from '@/features/addresses/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDrawerStore } from '@/store/drawerStore'
-import { AdminAddressCarousel } from './selectSalesOrderAddress'
 import Drawer from '@/components/ui/drawer'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
@@ -40,6 +39,7 @@ import AdminStripeWrapper from '@/components/custom/stripe/admin/AdminStripeWrap
 import { loadStripe } from '@stripe/stripe-js'
 import { Switch } from '@/components/ui/switch'
 import { useAdminCreateSalesOrder } from '@/lib/queries/admin/useAdminSalesOrders'
+import { AddressCarousel } from '@/features/addresses/ui/AddressCarousel'
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export function CreateSalesOrderDrawer() {
@@ -116,12 +116,12 @@ export function CreateSalesOrderDrawer() {
           {spotsLocked ? (
             <div className="flex gap-1 items-center">
               Unlock Spots
-              <LockOpenIcon size={16} className='text-primary' />
+              <LockOpenIcon size={16} className="text-primary" />
             </div>
           ) : (
             <div className="flex gap-1 items-center">
               Lock Spots
-              <LockIcon size={16} className='text-primary' />
+              <LockIcon size={16} className="text-primary" />
             </div>
           )}
         </Button>
@@ -320,6 +320,8 @@ interface AddressSelectProps {
 }
 
 function AddressSelect({ user, addresses, isLoading }: AddressSelectProps) {
+  const { data, setData } = useAdminSalesOrderCheckoutStore()
+
   return (
     <div className="flex flex-col w-full">
       {isLoading ? (
@@ -340,7 +342,12 @@ function AddressSelect({ user, addresses, isLoading }: AddressSelectProps) {
         <>
           {addresses && addresses.length > 0 ? (
             <div className="flex flex-col gap-3 justify-center w-full">
-              <AdminAddressCarousel addresses={addresses} />
+              <AddressCarousel
+                addresses={addresses}
+                mode="admin"
+                slidesPerView="auto"
+                onSelect={(addr) => setData({ address: addr })}
+              />
             </div>
           ) : user ? (
             <div className="flex items-center justify-center text-base text-neutral-600">
@@ -387,12 +394,7 @@ function ServiceSelector() {
               )}
             >
               <div className="flex items-center gap-2 text-base font-medium text-neutral-800">
-                {option.icon && (
-                  <option.icon
-                    size={24}
-                    className='text-primary'
-                  />
-                )}
+                {option.icon && <option.icon size={24} className="text-primary" />}
                 {option.label}
               </div>
 

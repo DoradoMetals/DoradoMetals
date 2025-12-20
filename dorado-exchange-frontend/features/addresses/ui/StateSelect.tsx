@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { FormItem } from '@/components/ui/form'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandInput, CommandList, CommandItem } from '@/components/ui/command'
-import { Asterisk, Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 import { states, stateMap } from '@/types/states'
 import { FloatingLabelInput } from '@/components/ui/floating-label-input'
 

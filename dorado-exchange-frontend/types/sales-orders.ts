@@ -11,7 +11,7 @@ import {
 } from '@phosphor-icons/react'
 
 import { z } from 'zod'
-import { Address, addressSchema } from './address'
+import { Address, addressSchema } from '../features/addresses/types'
 import { packageSchema } from './packaging'
 import { serviceSchema } from './service'
 import { pickupSchema } from './pickup'

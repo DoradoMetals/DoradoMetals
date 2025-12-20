@@ -1,6 +1,6 @@
 import { Elements } from '@stripe/react-stripe-js'
 import { Appearance, Stripe } from '@stripe/stripe-js'
-import { Address } from '@/types/address'
+import { Address } from '@/features/addresses/types'
 import SalesOrderStripeForm from './SalesOrderStripeForm'
 
 export default function StripeWrapper({
