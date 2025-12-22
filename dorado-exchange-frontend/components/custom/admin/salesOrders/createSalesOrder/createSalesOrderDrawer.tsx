@@ -39,7 +39,8 @@ import AdminStripeWrapper from '@/components/custom/stripe/admin/AdminStripeWrap
 import { loadStripe } from '@stripe/stripe-js'
 import { Switch } from '@/components/ui/switch'
 import { useAdminCreateSalesOrder } from '@/lib/queries/admin/useAdminSalesOrders'
-import { AddressCarousel } from '@/features/addresses/ui/AddressCarousel'
+import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
+
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export function CreateSalesOrderDrawer() {
@@ -132,7 +133,7 @@ export function CreateSalesOrderDrawer() {
 
       <div className="separator-inset" />
       <div className="flex flex-col gap-3">
-        <AddressSelect user={createSalesOrderUser} addresses={addresses} isLoading={isLoading} />
+        <AddressSelector user={createSalesOrderUser} addresses={addresses} isLoading={isLoading} />
         <ServiceSelector />
       </div>
 
@@ -319,7 +320,7 @@ interface AddressSelectProps {
   isLoading: boolean
 }
 
-function AddressSelect({ user, addresses, isLoading }: AddressSelectProps) {
+function AddressSelector({ user, addresses, isLoading }: AddressSelectProps) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
 
   return (
@@ -342,11 +343,10 @@ function AddressSelect({ user, addresses, isLoading }: AddressSelectProps) {
         <>
           {addresses && addresses.length > 0 ? (
             <div className="flex flex-col gap-3 justify-center w-full">
-              <AddressCarousel
+              <AddressSelect
                 addresses={addresses}
-                mode="admin"
-                slidesPerView="auto"
-                onSelect={(addr) => setData({ address: addr })}
+                value={data.address?.id ?? null}
+                onChange={(addr) => setData({ address: addr })}
               />
             </div>
           ) : user ? (

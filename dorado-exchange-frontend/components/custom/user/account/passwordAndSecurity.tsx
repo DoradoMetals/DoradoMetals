@@ -6,7 +6,6 @@ import ChangePasswordForm from '../../auth/changePassword'
 import { AccountAction } from '@/components/ui/account-action'
 import {
   ChatTextIcon,
-  ClockUserIcon,
   DeviceMobileIcon,
   DevicesIcon,
   EnvelopeIcon,
@@ -20,7 +19,6 @@ export function PasswordAndSecurity() {
   const requestPasswordReset = useRequestPasswordReset()
 
   const [showDevices, setShowDevices] = useState(false)
-  const [showLoginHistory, setShowLoginHistory] = useState(false)
 
   const handlePasswordReset = () => {
     if (!user?.email) return

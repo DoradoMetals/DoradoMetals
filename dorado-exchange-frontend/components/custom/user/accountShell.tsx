@@ -22,10 +22,10 @@ import { useDrawerStore } from '@/store/drawerStore'
 import { usePurchaseOrders } from '@/lib/queries/usePurchaseOrders'
 import { useSalesOrders } from '@/lib/queries/useSalesOrders'
 import UserForm from './account/userForm'
-import AddressTab from '../../../features/addresses/ui/AddressTab'
 import { SalesOrdersContent } from './orders/salesOrders/salesOrderTab'
 import { PurchaseOrdersContent } from './orders/purchaseOrders/purchaseOrderTab'
 import { PasswordAndSecurity } from './account/passwordAndSecurity'
+import AddressList from '@/features/addresses/ui/AddressList'
 
 export default function AccountShell() {
   const { data: purchaseOrders = [] } = usePurchaseOrders()
@@ -87,7 +87,7 @@ export default function AccountShell() {
       case 'security':
         return <PasswordAndSecurity />
       case 'addresses':
-        return <AddressTab />
+        return <AddressList />
       case 'sold':
         return <PurchaseOrdersContent />
       case 'bought':

@@ -11,7 +11,7 @@ import { SalesOrderTotals } from '@/types/sales-orders'
 import { PlusIcon } from '@phosphor-icons/react'
 import { useGetSession } from '@/lib/queries/useAuth'
 import AddressDrawer from '@/features/addresses/ui/AddressDrawer'
-import { AddressCarousel } from '@/features/addresses/ui/AddressCarousel'
+import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 
 interface ShippingSelectProps {
   addresses: Address[]
@@ -66,38 +66,16 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between w-full">
-            <div className="text-xs text-neutral-600 uppercase tracking-widest">Shipping To:</div>
-            <Button
-              type="button"
-              variant="outline"
-              className="flex ml-auto h-auto min-h-0 font-normal border-none hover:bg-background p-0 text-primary"
-              onClick={() => {
-                setDraftAddress({ ...emptyAddress, user_id: user?.id ?? '' })
-                openDrawer('address')
-              }}
-            >
-              <div className="flex text-xs items-center gap-1">
-                Add New Address
-                <PlusIcon size={16} className="text-primary" />
-              </div>
-            </Button>
-          </div>
+         
 
           <div className="flex flex-col gap-1 mb-6">
             <div className="flex flex-col gap-1">
-              <AddressCarousel
+              <AddressSelect
                 addresses={sortedAddresses}
-                slidesPerView={1}
-                centeredSlides
-                showNav={sortedAddresses.length > 1}
-                showPagination={sortedAddresses.length > 1}
-                onSelect={(addr) => setData({ address: addr })}
-                mode="customer"
-                onEdit={(addr) => {
-                  setDraftAddress(addr)
-                  openDrawer('address')
-                }}
+                value={address?.id ?? ''}
+                onChange={(addr: Address) => setData({ address: addr })}
+                onAddNew={() => openDrawer('address')}
+                title='SHIPPING TO:'
               />
 
               {address && !address.is_valid && (
@@ -105,10 +83,6 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
                   Please provide a valid address to continue checkout.
                 </div>
               )}
-            </div>
-
-            <div className="text-xs lg:text-sm text-primary">
-              Your card&apos;s billing address must match shipping address.
             </div>
           </div>
         </div>

@@ -16,7 +16,7 @@ import { InsuranceSelector } from './insuranceSelector'
 import { useDrawerStore } from '@/store/drawerStore'
 import { useGetSession } from '@/lib/queries/useAuth'
 import AddressDrawer from '@/features/addresses/ui/AddressDrawer'
-import { AddressCarousel } from '@/features/addresses/ui/AddressCarousel'
+import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 
 interface ShippingStepProps {
   addresses: Address[]
@@ -91,18 +91,11 @@ export default function ShippingStep({
       ) : (
         <div className="space-y-2">
           <div className="flex flex-col gap-1">
-            <AddressCarousel
-              addresses={sortedAddresses}
-              slidesPerView={1}
-              centeredSlides
-              showNav={sortedAddresses.length > 1}
-              showPagination={sortedAddresses.length > 1}
-              onSelect={(addr) => setData({ address: addr })}
-              mode="customer"
-              onEdit={(addr) => {
-                setDraftAddress(addr)
-                openDrawer('address')
-              }}
+            <AddressSelect
+              addresses={addresses}
+              value={address?.id ?? null}
+              onChange={(addr) => setData({ address: addr })}
+              onAddNew={() => openDrawer('address')}
             />
 
             {address && !address.is_valid && (
