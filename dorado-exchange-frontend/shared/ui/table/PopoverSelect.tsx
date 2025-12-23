@@ -13,7 +13,7 @@ import {
 } from '@/shared/ui/base/command'
 import { Button } from '@/shared/ui/base/button'
 import { Check, ChevronDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 type PopoverSelectProps = {
   label?: string

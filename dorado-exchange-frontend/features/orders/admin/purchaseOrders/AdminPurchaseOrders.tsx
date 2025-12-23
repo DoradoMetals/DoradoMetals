@@ -7,12 +7,12 @@ import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
 import {
   useAdminPurchaseOrders,
   usePurgeCancelled,
-} from '@/lib/queries/admin/useAdminPurchaseOrders'
+} from '@/features/orders/admin/purchaseOrders/queries'
 import { useDrawerStore } from '@/store/drawerStore'
 import AdminPurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
 import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/shared/ui/table/Columns'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { Button } from '@/shared/ui/base/button'
 import { FileXIcon } from '@phosphor-icons/react'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
@@ -87,7 +87,7 @@ export default function PurchaseOrdersPage() {
         size: 80,
       }),
 
-           DateColumn<PurchaseOrder>({
+      DateColumn<PurchaseOrder>({
         id: 'created_at',
         header: 'Created On',
         accessorKey: 'created_at',

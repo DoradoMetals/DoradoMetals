@@ -1,7 +1,7 @@
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { Address } from '../features/addresses/types'
 import { Product } from '../features/products/types'
-import { SpotPrice } from './metal'
+import { SpotPrice } from '../features/spots/types'
 
 export interface StateTaxDetail {
   fips: string

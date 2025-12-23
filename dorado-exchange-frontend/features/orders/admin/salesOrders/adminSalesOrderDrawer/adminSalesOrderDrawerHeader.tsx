@@ -1,5 +1,5 @@
 import { Button } from '@/shared/ui/base/button'
-import { useDownloadSalesOrderInvoice } from '@/lib/queries/usePDF'
+import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
 import { useSalesOrderMetals } from '@/lib/queries/useSalesOrders'
 
 import { SalesOrderDrawerHeaderProps, statusConfig } from '@/types/sales-orders'

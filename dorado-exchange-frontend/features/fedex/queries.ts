@@ -1,5 +1,7 @@
 'use client'
 
+import { useApiQuery } from '@/shared/queries/base'
+import { queryKeys } from '@/shared/queries/keyFactory'
 import {
   FedexLocationsInput,
   FedexLocationsReturn,
@@ -8,8 +10,7 @@ import {
   type FedexRate,
   type FedexRateInput,
 } from '@/types/fedex'
-import { useApiQuery } from '../base'
-import { queryKeys } from '../keyFactory'
+
 
 export const useFedExRates = (input: FedexRateInput | null) =>
   useApiQuery<FedexRate[]>({
@@ -43,3 +44,5 @@ export const useFedExLocations = (input: FedexLocationsInput | null) =>
     retry: false,
     body: () => input,
   })
+
+  

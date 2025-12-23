@@ -1,12 +1,12 @@
 'use client'
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { FedexRate } from '@/types/fedex'
 import { serviceOptions } from '@/types/service'
-import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { formatTimeDiff } from '@/shared/utils/formatDates'
+import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 interface ServiceSelectorProps {
   rates: FedexRate[]

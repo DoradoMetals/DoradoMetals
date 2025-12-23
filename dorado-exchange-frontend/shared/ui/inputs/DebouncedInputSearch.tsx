@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react'
 import { Button } from '../base/button'
 import { Input } from '../base/input'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 export function DebouncedInputSearch({
   value: initialValue,

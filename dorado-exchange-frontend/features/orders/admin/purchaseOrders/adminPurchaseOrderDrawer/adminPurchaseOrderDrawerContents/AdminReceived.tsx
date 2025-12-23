@@ -13,11 +13,10 @@ import {
   useUpdateOrderBullionItem,
   useUpdateOrderScrapItem,
   useUpdateOrderSpotPrice,
-} from '@/lib/queries/admin/useAdminPurchaseOrders'
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import { cn } from '@/lib/utils'
-import { SpotPrice } from '@/types/metal'
+} from '@/features/orders/admin/purchaseOrders/queries'
+
+import { cn } from '@/shared/utils/cn'
+import { SpotPrice } from '@/features/spots/types'
 import {
   assignScrapItemNames,
   PurchaseOrderDrawerContentProps,
@@ -38,8 +37,10 @@ import {
 import { Checkbox } from '@/shared/ui/base/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Command, CommandInput, CommandItem, CommandList } from '@/shared/ui/base/command'
-import { useProducts } from '@/lib/queries/useProducts'
 import { Product } from '@/features/products/types'
+import { useSpotPrices } from '@/features/spots/queries'
+import { usePurchaseOrderMetals } from '@/features/orders/users/purchaseOrders/queries'
+import { useProducts } from '@/features/products/queries'
 
 export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: spotPrices = [] } = useSpotPrices()

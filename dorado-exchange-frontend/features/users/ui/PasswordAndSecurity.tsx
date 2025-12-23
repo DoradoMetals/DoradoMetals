@@ -11,8 +11,8 @@ import {
   SignOutIcon,
 } from '@phosphor-icons/react'
 import { useState } from 'react'
-import { ActiveDevices } from './ActiveDevices'
 import ChangePasswordForm from '@/features/auth/ui/ChangePasswordForm'
+import { ActiveDevices } from '@/features/users/ui/ActiveDevices'
 
 export function PasswordAndSecurity() {
   const { user } = useGetSession()

@@ -1,6 +1,6 @@
 // floating-label-textarea.tsx
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/shared/utils/cn"
 import { type FloatingTextareaProps, FloatingTextarea } from "./FloatingTextarea"
 import { FloatingLabel } from "./FloatingLabel"
 

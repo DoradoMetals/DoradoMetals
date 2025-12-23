@@ -1,8 +1,9 @@
 import { apiRequest } from '@/utils/axiosInstance'
 import type { Product, ProductGroup, ProductFilters } from '@/features/products/types'
 import { groupProducts } from '@/features/products/types'
-import { useApiQuery } from '@/lib/base'
-import { queryKeys } from '@/lib/keyFactory'
+import { useApiMutation, useApiQuery } from '@/shared/queries/base'
+import { queryKeys } from '@/shared/queries/keyFactory'
+import { AdminMetal, AdminMints, AdminProduct, AdminTypes, Carrier, Supplier } from '@/types/admin'
 
 export const useProducts = () => {
   return useApiQuery<Product[]>({
@@ -81,3 +82,98 @@ export const useFilteredProducts = (filters: ProductFilters) => {
     },
   })
 }
+
+export const useCreateProduct = () =>
+  useApiMutation<AdminProduct, { name: string }, AdminProduct[]>({
+    queryKey: queryKeys.adminProducts(),
+    method: 'POST',
+    url: '/admin/create_product',
+    requireAdmin: true,
+    listAction: 'create',
+    listInsertPosition: 'start',
+    body: ({ name }, user) => ({
+      name,
+      created_by: user?.name,
+    }),
+  })
+
+export const useSaveProduct = () =>
+  useApiMutation<void, AdminProduct, AdminProduct[]>({
+    queryKey: queryKeys.adminProducts(),
+    method: 'POST',
+    url: '/admin/save_product',
+    requireAdmin: true,
+    listAction: 'upsert',
+    body: (product, user) => ({
+      product,
+      user,
+    }),
+  })
+
+export const useAdminProducts = () =>
+  useApiQuery<AdminProduct[]>({
+    key: queryKeys.adminProducts(),
+    method: 'GET',
+    url: '/admin/get_products',
+    requireAdmin: true,
+    staleTime: 30000,
+    params: (user) => ({
+      user_id: user?.id,
+    }),
+  })
+
+export const useAdminTypes = () =>
+  useApiQuery<AdminTypes[]>({
+    key: queryKeys.adminTypes(),
+    url: '/admin/get_product_types',
+    method: 'GET',
+    requireAdmin: true,
+    params: (user) => ({
+      user_id: user?.id,
+    }),
+  })
+
+export const useAdminMetals = () =>
+  useApiQuery<AdminMetal[]>({
+    key: queryKeys.adminMetals(),
+    url: '/admin/get_metals',
+    method: 'GET',
+    requireAdmin: true,
+    params: (user) => ({
+      user_id: user?.id,
+    }),
+  })
+
+export const useAdminSuppliers = () =>
+  useApiQuery<Supplier[]>({
+    key: queryKeys.adminSuppliers(),
+    url: '/suppliers/get_all',
+    method: 'GET',
+    requireAdmin: true,
+    params: (user) => ({
+      user_id: user?.id,
+    }),
+  })
+
+export const useAdminCarriers = () =>
+  useApiQuery<Carrier[]>({
+    key: queryKeys.adminCarriers(),
+    url: '/carriers/get_all',
+    method: 'GET',
+    requireUser: true,
+    staleTime: 0,
+    params: (user) => ({
+      user_id: user?.id,
+    }),
+  })
+
+export const useAdminMints = () =>
+  useApiQuery<AdminMints[]>({
+    key: queryKeys.adminMints(),
+    url: '/admin/get_mints',
+    method: 'GET',
+    requireAdmin: true,
+    params: (user) => ({
+      user_id: user?.id,
+    }),
+  })

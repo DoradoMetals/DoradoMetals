@@ -7,7 +7,7 @@ import { useMemo, useRef, useState } from 'react'
 import { formatFullDate } from '@/shared/utils/formatDates'
 
 import { Lead } from '@/types/leads'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { Label } from '@/shared/ui/base/label'
 import { Input } from '@/shared/ui/base/input'
 import { Textarea } from '@/shared/ui/base/textarea'
@@ -27,7 +27,8 @@ import {
   DialogTrigger,
 } from '@/shared/ui/base/dialog'
 import { isValidEmail } from '@/utils/isValid'
-import { useAdminRoleUsers, useAdminUsers, useDeleteLead, useUpdateLead } from '@/lib/queries/admin/useAdmin'
+import { useDeleteLead, useUpdateLead } from '@/features/leads/queries'
+import { useAdminRoleUsers, useAdminUsers } from '@/features/users/queries'
 
 export default function LeadsDrawer({ leads, lead_id }: { leads: Lead[]; lead_id: string }) {
   const { activeDrawer, closeDrawer } = useDrawerStore()

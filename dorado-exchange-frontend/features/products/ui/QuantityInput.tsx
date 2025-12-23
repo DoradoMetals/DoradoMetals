@@ -1,6 +1,6 @@
 import { Button } from '@/shared/ui/base/button'
 import { Input } from '@/shared/ui/base/input'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { MinusIcon, PlusIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 

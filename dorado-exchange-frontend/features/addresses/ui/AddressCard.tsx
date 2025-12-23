@@ -6,7 +6,7 @@ import { Building2, House } from 'lucide-react'
 import { Address } from '@/features/addresses/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { Button } from '@/shared/ui/base/button'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { useDeleteAddress, useSetDefaultAddress } from '@/features/addresses/queries'
 
 export type AddressCardVariant = 'default' | 'compact'

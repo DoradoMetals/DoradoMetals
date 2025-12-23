@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { MapPinIcon, XIcon } from '@phosphor-icons/react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { Input } from '@/shared/ui/base/input'
 import { ParsedPlaceSuggestion } from '@/features/addresses/types'
 

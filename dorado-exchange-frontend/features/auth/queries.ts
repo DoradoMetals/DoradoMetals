@@ -4,11 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { cartStore } from '@/store/cartStore'
 import { sellCartStore } from '@/store/sellCartStore'
-import { useSyncCartToBackend } from '../../lib/queries/useCart'
-import { useSyncSellCartToBackend } from '../../lib/queries/useSellCart'
+
 import { apiRequest } from '@/utils/axiosInstance'
 import { Product } from '@/features/products/types'
-import { SellCartItem } from '@/types/sellCart'
+import { SellCartItem } from '@/features/cart/types'
 import {
   admin,
   changeEmail,
@@ -27,6 +26,7 @@ import {
   updateUser,
   verifyEmail,
 } from './authClient'
+import { useSyncCartToBackend, useSyncSellCartToBackend } from '@/features/cart/queries'
 
 const clearClientState = () => {
   cartStore.getState().clearCart()
@@ -406,6 +406,14 @@ export const useRevokeAllSessions = () => {
     mutationFn: async () => revokeSessions(),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'], refetchType: 'active' })
+    },
+  })
+}
+
+export function useVerifyRecaptcha() {
+  return useMutation({
+    mutationFn: async (token: string) => {
+      return await apiRequest('POST', 'recaptcha/verify-recaptcha', { token })
     },
   })
 }

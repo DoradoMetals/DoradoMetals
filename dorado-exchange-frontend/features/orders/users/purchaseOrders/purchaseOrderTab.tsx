@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { Button } from '@/shared/ui/base/button'
 import { ChevronDown } from 'lucide-react'
-import { usePurchaseOrders } from '@/lib/queries/usePurchaseOrders'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/shared/ui/base/pagination'
 import Link from 'next/link'
@@ -14,6 +13,7 @@ import PurchaseOrderDrawer from './purchaseOrderDrawer/purchaseOrderDrawer'
 import { PurchaseOrderStatuses, statusConfig } from '@/types/purchase-order'
 import { useGetSession } from '@/features/auth/queries'
 import { OrderStatusEmptyState, OrderStatusSelector } from '../orderStatusShared'
+import { usePurchaseOrders } from '@/features/orders/users/purchaseOrders/queries'
 
 export function PurchaseOrdersContent() {
   const { user } = useGetSession()

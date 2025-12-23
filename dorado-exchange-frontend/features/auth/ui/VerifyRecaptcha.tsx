@@ -1,5 +1,5 @@
+import { useVerifyRecaptcha } from '@/features/auth/queries'
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3'
-import { useVerifyRecaptcha } from '@/lib/queries/useRecaptcha'
 
 export function verifyRecaptcha(action: string) {
   const { executeRecaptcha } = useGoogleReCaptcha()

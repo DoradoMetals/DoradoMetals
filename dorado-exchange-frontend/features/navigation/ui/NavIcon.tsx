@@ -4,7 +4,7 @@ import type { Variants } from 'motion/react';
 import { motion, useAnimation } from "framer-motion";
 import type { HTMLAttributes } from 'react';
 import { forwardRef, useEffect } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/shared/utils/cn';
 
 export interface MenuIconProps extends HTMLAttributes<HTMLDivElement> {
   size?: number;

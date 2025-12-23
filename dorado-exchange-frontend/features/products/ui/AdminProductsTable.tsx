@@ -5,12 +5,12 @@ import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { AdminProduct } from '@/types/admin'
 import { useDrawerStore } from '@/store/drawerStore'
-import ProductDrawer from './ProductDrawer'
 import { TextColumn, ChipColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
 import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/features/navigation/ui/Logo'
 import { CreateConfig } from '@/shared/ui/table/AddNew'
-import { useAdminProducts, useCreateProduct } from '@/lib/queries/admin/useAdmin'
+import ProductDrawer from '@/features/products/ui/ProductDrawer'
+import { useAdminProducts, useCreateProduct } from '@/features/products/queries'
 
 const formatPremium = (mult?: number | null) => {
   if (mult == null) return '-'

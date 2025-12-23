@@ -6,8 +6,6 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
-  FormMessage,
 } from '@/shared/ui/base/form'
 import { WirePayout } from '@/types/payout'
 import { UseFormReturn } from 'react-hook-form'

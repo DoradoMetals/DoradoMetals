@@ -7,7 +7,7 @@ import { Label } from '@/shared/ui/base/label'
 import { InvalidXIcon, ValidCheckIcon } from '@/shared/ui/form/ValidCheckIcon'
 import { Control, FieldPath, FieldValues } from 'react-hook-form'
 import { Dispatch, SetStateAction } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import ShowPasswordButton from '@/shared/ui/form/ShowPasswordButton'
 
 type ValidatedFieldProps<T extends FieldValues> = {

@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { SalesOrderDrawerContentProps, statusConfig } from '@/types/sales-orders'
 
 export default function AdminCompletedSalesOrder({ order }: SalesOrderDrawerContentProps) {

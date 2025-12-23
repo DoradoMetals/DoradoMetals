@@ -1,7 +1,7 @@
 'use client'
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import { salesOrderServiceOptions, SalesOrderTotals } from '@/types/sales-orders'

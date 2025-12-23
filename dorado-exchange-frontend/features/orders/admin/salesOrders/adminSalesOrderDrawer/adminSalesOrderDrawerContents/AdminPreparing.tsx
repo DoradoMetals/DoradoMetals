@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
-import { cn } from '@/lib/utils'
-import { useSendOrderToSupplier, useUpdateTracking } from '@/lib/queries/admin/useAdminSalesOrders'
+import { cn } from '@/shared/utils/cn'
+import { useSendOrderToSupplier, useUpdateTracking } from '@/features/orders/admin/salesOrders/queries'
 import { SalesOrderDrawerContentProps, statusConfig } from '@/types/sales-orders'
 import { Button } from '@/shared/ui/base/button'
-import { useSalesOrderMetals } from '@/lib/queries/useSalesOrders'
+import { useSalesOrderMetals } from '@/features/orders/users/salesOrders/queries'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { RadioGroupImage } from '@/shared/ui/RadioGroupImage'
-import { useAdminCarriers, useAdminSuppliers } from '@/lib/queries/admin/useAdmin'
 import { Carrier, Supplier } from '@/types/admin'
+import { useAdminCarriers, useAdminSuppliers } from '@/features/products/queries'
 
 export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: suppliers = [] } = useAdminSuppliers()

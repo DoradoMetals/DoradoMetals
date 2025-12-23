@@ -9,7 +9,7 @@ import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { FormField, FormItem } from '@/shared/ui/base/form'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { accountTypeOptions } from '@/types/payout'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { Checkbox } from '@/shared/ui/base/checkbox'
 
 export default function ACHForm({

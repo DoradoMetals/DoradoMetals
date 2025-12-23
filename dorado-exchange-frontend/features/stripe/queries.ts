@@ -1,9 +1,9 @@
-import { SpotPrice } from '@/types/metal'
+import { SpotPrice } from '@/features/spots/types'
 import { User } from '@/types/user'
 import { Product } from '@/features/products/types'
 import { PaymentIntent } from '@/types/payment-intent'
-import { queryKeys } from '../keyFactory'
-import { useApiMutation, useApiQuery } from '../base'
+import { useApiMutation, useApiQuery } from '@/shared/queries/base'
+import { queryKeys } from '@/shared/queries/keyFactory'
 
 export interface IntentParams {
   items: Product[]

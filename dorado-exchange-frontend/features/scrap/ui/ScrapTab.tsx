@@ -9,13 +9,13 @@ import { useEffect, useState } from 'react'
 import { defineStepper } from '@stepperize/react'
 import { sellCartStore } from '@/store/sellCartStore'
 import { useRouter } from 'next/navigation'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getScrapPrice from '@/utils/purchaseOrders/getScrapPrice'
 import { convertTroyOz } from '@/utils/convertTroyOz'
 import ReviewStep from '@/features/scrap/ui/ReviewStep'
 import MetalStep from '@/features/scrap/ui/MetalStep'
 import WeightStep from '@/features/scrap/ui/WeightStep'
 import PurityStep from '@/features/scrap/ui/PurityStep'
+import { useSpotPrices } from '@/features/spots/queries'
 
 
 const { useStepper, utils } = defineStepper(

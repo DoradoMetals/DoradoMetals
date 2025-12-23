@@ -1,7 +1,7 @@
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { Button } from '@/shared/ui/base/button'
 import { useCancelPaymentIntent, useGetSalesOrderPaymentIntent } from '@/lib/queries/useStripe'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { paymentOptions, SalesOrderDrawerContentProps, statusConfig } from '@/types/sales-orders'
 
 export default function AdminPendingSalesOrder({ order }: SalesOrderDrawerContentProps) {

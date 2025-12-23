@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/shared/ui/base/button'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { Icon } from '@phosphor-icons/react'
 
 type Props = {

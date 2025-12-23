@@ -5,7 +5,7 @@ import { CheckCircle } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import { motion } from 'framer-motion'
 import NumberFlow from '@number-flow/react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { Slider } from '@/shared/ui/base/slider'
 
 export default function PurityStep() {

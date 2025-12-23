@@ -3,9 +3,9 @@ import { AnimatedScroll } from '@/features/orders/ui/Animated'
 import { BlurredStagger } from '@/shared/ui/BlurredStagger'
 import { Confetti, ConfettiRef } from '@/features/orders/ui/Confetti'
 import { ShineBorder } from '@/features/orders/ui/ShineBorder'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { useEffect, useRef } from 'react'
-import DisplaySalesOrderProducts from './displayProducts'
+import DisplaySalesOrderProducts from '@/features/orders/users/salesOrders/salesOrderDrawer/drawerContents/displayProducts'
 
 export default function PreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const confettiRef = useRef<ConfettiRef>(null)

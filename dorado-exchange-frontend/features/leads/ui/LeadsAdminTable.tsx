@@ -7,7 +7,6 @@ import { Lead } from '@/types/leads'
 import { useGetSession } from '@/features/auth/queries'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { useDrawerStore } from '@/store/drawerStore'
-import LeadsDrawer from './LeadsDrawer'
 import {
   CheckIcon,
   XIcon,
@@ -20,7 +19,8 @@ import { TextColumn, IconColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
 import { isValidEmail } from '@/utils/isValid'
 import { CreateConfig } from '@/shared/ui/table/AddNew'
-import { useCreateLead, useLeads } from '@/lib/queries/admin/useAdmin'
+import LeadsDrawer from '@/features/leads/ui/LeadsDrawer'
+import { useCreateLead, useLeads } from '@/features/leads/queries'
 
 const BoolIcon = ({ value }: { value: boolean }) =>
   value ? (

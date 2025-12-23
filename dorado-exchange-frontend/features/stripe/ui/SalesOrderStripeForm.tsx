@@ -6,11 +6,11 @@ import type { StripePaymentElementOptions } from '@stripe/stripe-js'
 import { Address } from '@/features/addresses/types'
 import { useGetSession } from '@/features/auth/queries'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
-import { useCreateSalesOrder } from '@/lib/queries/useSalesOrders'
 import { paymentOptions, salesOrderCheckoutSchema } from '@/types/sales-orders'
 import { useRouter } from 'next/navigation'
 import { cartStore } from '@/store/cartStore'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
+import { useSpotPrices } from '@/features/spots/queries'
+import { useCreateSalesOrder } from '@/features/orders/users/salesOrders/queries'
 
 export default function SalesOrderStripeForm({
   address,

@@ -2,10 +2,11 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
-import type { Image, ImageUpload, ImageUploadReturn } from '@/types/image'
-import { useGetSession } from '../../features/auth/queries'
-import { queryKeys } from '../keyFactory'
-import { useApiMutation, useApiQuery } from '../base'
+import type { Image, ImageUpload, ImageUploadReturn } from '@/features/media/types'
+import { useApiMutation, useApiQuery } from '@/shared/queries/base'
+import { queryKeys } from '@/shared/queries/keyFactory'
+import { useGetSession } from '@/features/auth/queries'
+
 
 export const useTestImage = () =>
   useApiQuery<Image[]>({

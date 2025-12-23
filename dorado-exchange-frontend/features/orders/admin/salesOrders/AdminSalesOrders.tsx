@@ -4,13 +4,13 @@ import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { SalesOrder, statusConfig } from '@/types/sales-orders'
-import { useAdminSalesOrders } from '@/lib/queries/admin/useAdminSalesOrders'
+import { useAdminSalesOrders } from '@/features/orders/admin/salesOrders/queries'
 import { useDrawerStore } from '@/store/drawerStore'
 import AdminSalesOrderDrawer from './adminSalesOrderDrawer/adminSalesOrderDrawer'
 
 import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/shared/ui/table/Columns'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { useFormatSalesOrderNumber } from '@/utils/formatting/order-numbers'
 
 export default function SalesOrdersPage() {

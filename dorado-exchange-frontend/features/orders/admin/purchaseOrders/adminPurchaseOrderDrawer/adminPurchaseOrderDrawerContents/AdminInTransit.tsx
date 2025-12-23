@@ -1,13 +1,12 @@
 import { Button } from '@/shared/ui/base/button'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
-import TrackingEvents from '@/features/orders/ui/TrackingEvents'
-import { useTracking } from '@/lib/queries/useShipments'
+import TrackingEvents from '@/features/shipments/ui/TrackingEvents'
+import { useTracking } from '@/features/shipments/queries'
 import {
   useCancelFedExLabel,
   useCancelFedExPickup,
-} from '@/lib/queries/admin/useAdminPurchaseOrders'
-import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
+} from '@/features/orders/admin/purchaseOrders/queries'
 
 export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: trackingInfo, isLoading } = useTracking({
@@ -18,7 +17,6 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
 
   const color = statusConfig[order.purchase_order_status]?.text_color
   const baseBg = statusConfig[order.purchase_order_status]?.background_color
-  const hoverBg = statusConfig[order.purchase_order_status]?.hover_background_color
   const border = statusConfig[order.purchase_order_status]?.border_color
 
   return (
@@ -26,7 +24,7 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
       {order.shipment.shipping_status === 'Label Created' ||
       order.shipment.shipping_status === 'Cancelled' ? (
         <div className="flex flex-col w-full gap-5">
-          <PreTransit order={order} color={color} border={border} hoverBg={hoverBg} />
+          <PreTransit order={order} color={color} />
         </div>
       ) : (
         <TrackingEvents
@@ -45,15 +43,10 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
 export function PreTransit({
   order,
   color,
-  border,
-  hoverBg,
 }: {
   order: PurchaseOrderDrawerContentProps['order']
   color?: string
-  border?: string
-  hoverBg?: string
 }) {
-  const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const cancelLabel = useCancelFedExLabel(order.id)
   const cancelPickup = useCancelFedExPickup()
 

@@ -3,12 +3,10 @@
 import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
-import { useReviews, useCreateReview } from '@/lib/queries/useReviews'
 import { useGetSession } from '@/features/auth/queries'
 import { useDrawerStore } from '@/store/drawerStore'
 
 import type { Review } from '@/types/reviews'
-import ReviewsDrawer from './ReviewsDrawer'
 
 import { DataTable } from '@/shared/ui/table/Table'
 import {
@@ -19,6 +17,8 @@ import {
 } from '@/shared/ui/table/Columns'
 import { EyeSlashIcon, EyeIcon, PlusIcon, StarIcon } from '@phosphor-icons/react'
 import { CreateConfig } from '@/shared/ui/table/AddNew'
+import { useCreateReview, useReviews } from '@/features/reviews/queries'
+import ReviewsDrawer from '@/features/reviews/ui/ReviewsDrawer'
 
 export default function ReviewsPage() {
   const { data: reviews = [] } = useReviews()

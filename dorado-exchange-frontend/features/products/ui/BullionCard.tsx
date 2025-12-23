@@ -8,15 +8,15 @@ import NumberFlow from '@number-flow/react'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { BullionFloatingButton, BullionFloatingButtonItem } from '@/features/products/ui/FloatingButton'
 import { useState } from 'react'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getProductBidPrice from '@/utils/products/getProductBidPrice'
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Popover } from '@radix-ui/react-popover'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import PriceNumberFlow from '../../../shared/ui/PriceNumberFlow'
 import getProductBidOverUnderSpot from '@/utils/products/getProductBidOverUnderSpot'
 import { sellCartStore } from '@/store/sellCartStore'
+import { useSpotPrices } from '@/features/spots/queries'
+import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 type BullionCardProps = {
   product: Product

@@ -1,7 +1,7 @@
 import { AdminSalesOrderCheckout, SalesOrder } from '@/types/sales-orders'
-import { SpotPrice } from '@/types/metal'
-import { useApiMutation, useApiQuery } from '@/lib/base'
-import { queryKeys } from '@/lib/keyFactory'
+import { SpotPrice } from '@/features/spots/types'
+import { useApiMutation, useApiQuery } from '@/shared/queries/base'
+import { queryKeys } from '@/shared/queries/keyFactory'
 
 export const useAdminSalesOrders = () =>
   useApiQuery<SalesOrder[]>({

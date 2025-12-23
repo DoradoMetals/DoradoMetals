@@ -4,7 +4,7 @@ import { Scrap, weightOptions } from '@/types/scrap'
 import { CheckCircle } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import { motion } from 'framer-motion'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 
 export default function WeightStep() {

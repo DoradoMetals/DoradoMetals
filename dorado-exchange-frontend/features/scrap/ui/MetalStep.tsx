@@ -4,8 +4,8 @@ import { metalOptions, purityOptions, Scrap } from '@/types/scrap'
 import { CheckCircle } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import { motion } from 'framer-motion'
-import { cn } from '@/lib/utils'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
+import { cn } from '@/shared/utils/cn'
+import { useSpotPrices } from '@/features/spots/queries'
 
 export default function MetalStep() {
   const form = useFormContext<Scrap>()

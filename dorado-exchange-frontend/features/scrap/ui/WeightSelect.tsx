@@ -3,8 +3,6 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Command, CommandItem, CommandList } from '@/shared/ui/base/command'
 import { Button } from '@/shared/ui/base/button'
-import { cn } from '@/lib/utils'
-import { Check, Scale } from 'lucide-react'
 import { useState } from 'react'
 import { WeightOption, weightOptions } from '@/types/scrap'
 

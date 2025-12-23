@@ -1,12 +1,6 @@
 import { Button } from '@/shared/ui/base/button'
 
-import {
-  useAcceptOffer,
-  useCancelOrder,
-  usePurchaseOrderMetals,
-  useUpdateOfferNotes,
-} from '@/lib/queries/usePurchaseOrders'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
+
 
 import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 import { useMemo, useState } from 'react'
@@ -14,7 +8,7 @@ import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import CountdownRing from '@/features/orders/ui/CountdownRing'
 import { Textarea } from '@/shared/ui/base/textarea'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import {
   Dialog,
   DialogContent,
@@ -31,8 +25,10 @@ import { serviceOptions } from '@/types/service'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { ShieldCheckIcon, ShieldSlashIcon } from '@phosphor-icons/react'
 import { FedexRateInput, formatFedexRatesAddress } from '@/types/fedex'
-import { useFedExRates } from '@/lib/queries/useFedex'
+import { useFedExRates } from '@/features/fedex/queries'
 import { getReturnDeclaredValue } from '@/utils/purchaseOrders/getDeclaredValue'
+import { useSpotPrices } from '@/features/spots/queries'
+import { useAcceptOffer, useCancelOrder, usePurchaseOrderMetals, useUpdateOfferNotes } from '@/features/orders/users/purchaseOrders/queries'
 
 export default function RejectedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: spotPrices = [] } = useSpotPrices()

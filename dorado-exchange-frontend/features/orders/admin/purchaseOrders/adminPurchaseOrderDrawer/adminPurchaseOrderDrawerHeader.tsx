@@ -3,7 +3,7 @@ import {
   useDownloadInvoice,
   useDownloadPackingList,
   useDownloadReturnPackingList,
-} from '@/lib/queries/usePDF'
+} from '@/features/pdfs/queries'
 import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { packageOptions } from '@/types/packaging'

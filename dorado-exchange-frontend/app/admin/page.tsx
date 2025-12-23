@@ -21,9 +21,7 @@ import {
   CaretLeftIcon,
 } from '@phosphor-icons/react'
 
-import { useAdminSalesOrders } from '@/lib/queries/admin/useAdminSalesOrders'
-import { useAdminPurchaseOrders } from '@/lib/queries/admin/useAdminPurchaseOrders'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
+import { useAdminSalesOrders } from '@/features/orders/admin/salesOrders/queries'
 import {
   SidebarLayout,
   SidebarSection,
@@ -32,7 +30,7 @@ import {
 import { userRoleOptions } from '@/types/user'
 import { useGetSession } from '@/features/auth/queries'
 import Drawer from '@/shared/ui/base/drawer'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { useDrawerStore } from '@/store/drawerStore'
 import PurchaseOrdersPage from '@/features/orders/admin/purchaseOrders/AdminPurchaseOrders'
 import SalesOrdersPage from '@/features/orders/admin/salesOrders/AdminSalesOrders'
@@ -44,6 +42,8 @@ import RatesPage from '@/app/rates/page'
 import ReviewsPage from '@/features/reviews/ui/ReviewsAdminTable'
 
 import { Suspense } from 'react'
+import { useSpotPrices } from '@/features/spots/queries';
+import { useAdminPurchaseOrders } from '@/features/orders/admin/purchaseOrders/queries';
 
 export default function Page() {
   return (

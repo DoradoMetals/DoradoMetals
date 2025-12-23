@@ -1,17 +1,16 @@
 'use client'
 
-import { MouseEvent, useMemo } from 'react'
+import { MouseEvent } from 'react'
 import { Button } from '@/shared/ui/base/button'
 import { useDrawerStore } from '@/store/drawerStore'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { SalesOrder, statusConfig } from '@/types/sales-orders'
 import { AvatarCircles } from '@/features/orders/ui/ImageCirclesOverlapped'
 import { DownloadIcon } from '@phosphor-icons/react'
-import { cn } from '@/lib/utils'
-import { useDownloadSalesOrderInvoice } from '@/lib/queries/usePDF'
-import { useSalesOrderMetals } from '@/lib/queries/useSalesOrders'
-import { OrderCardShell } from '../orderCardShell'
+import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
+import { useSalesOrderMetals } from '@/features/orders/users/salesOrders/queries'
 import { useFormatSalesOrderNumber } from '@/utils/formatting/order-numbers'
+import { OrderCardShell } from '@/features/orders/users/orderCardShell'
 
 export default function SalesOrderCard({
   order,

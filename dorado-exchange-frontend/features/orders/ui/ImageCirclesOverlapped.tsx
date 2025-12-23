@@ -1,6 +1,6 @@
 'use client'
 
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import Image from 'next/image'
 
 interface AvatarItem {

@@ -7,7 +7,7 @@ import { PurchaseOrderDrawerProps } from '@/types/purchase-order'
 import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo } from 'react'
-import { usePurchaseOrders } from '@/lib/queries/usePurchaseOrders'
+import { usePurchaseOrders } from '@/features/orders/users/purchaseOrders/queries'
 
 export default function PurchaseOrderDrawer({ order_id, user }: PurchaseOrderDrawerProps) {
   const { data: orders = [] } = usePurchaseOrders()

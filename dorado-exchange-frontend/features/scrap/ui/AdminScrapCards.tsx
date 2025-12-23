@@ -1,14 +1,14 @@
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { metalOptions, WeightOption, weightOptions } from '@/types/scrap'
-import PriceNumberFlow from '../../../shared/ui/PriceNumberFlow'
 import { useState } from 'react'
 import WeightSelect from './WeightSelect'
-import { SpotPrice } from '@/types/metal'
+import { SpotPrice } from '@/features/spots/types'
 import { convertTroyOz } from '@/utils/convertTroyOz'
 import { Button } from '@/shared/ui/base/button'
 import { Check, Edit2 } from 'lucide-react'
 import { Input } from '@/shared/ui/base/input'
-import { useEditScrapPercentages } from '@/lib/queries/admin/useAdmin'
+import { useSpotPrices } from '@/features/spots/queries'
+import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { useEditScrapPercentages } from '@/features/scrap/queries'
 
 export default function ScrapCards() {
   const { data: spotPrices = [] } = useSpotPrices()

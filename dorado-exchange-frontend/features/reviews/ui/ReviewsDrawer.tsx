@@ -8,14 +8,14 @@ import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { FloatingLabelTextarea } from '@/shared/ui/inputs/FloatingLabelTextarea'
 import { DisplayToggle } from '@/shared/ui/DisplayToggle'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 
 import { useGetSession } from '@/features/auth/queries'
-import { useUpdateReview } from '@/lib/queries/useReviews'
 import type { Review } from '@/types/reviews'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { Calendar } from '@/shared/ui/base/calendar'
+import { useUpdateReview } from '@/features/reviews/queries'
 
 export default function ReviewsDrawer({
   reviews,

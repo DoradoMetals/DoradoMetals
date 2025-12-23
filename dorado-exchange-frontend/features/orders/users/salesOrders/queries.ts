@@ -1,7 +1,7 @@
 import { SalesOrder, SalesOrderCheckout } from '@/types/sales-orders'
-import { SpotPrice } from '@/types/metal'
-import { useApiQuery, useApiMutation } from '../base'
-import { queryKeys } from '../keyFactory'
+import { SpotPrice } from '@/features/spots/types'
+import { useApiMutation, useApiQuery } from '@/shared/queries/base'
+import { queryKeys } from '@/shared/queries/keyFactory'
 
 export const useSalesOrders = () => {
   return useApiQuery<SalesOrder[]>({

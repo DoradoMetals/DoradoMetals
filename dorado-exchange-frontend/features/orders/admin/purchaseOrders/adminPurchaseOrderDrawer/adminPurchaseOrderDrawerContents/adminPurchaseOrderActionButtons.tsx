@@ -1,17 +1,11 @@
 import { Button } from '@/shared/ui/base/button'
 import { PurchaseOrderActionButtonsProps, statusConfig } from '@/types/purchase-order'
-import { cn } from '@/lib/utils'
-import {
-  useAcceptOffer,
-  useAddFundsToAccount,
-  useMovePurchaseOrderStatus,
-  useRejectOffer,
-  useSendOffer,
-  useUpdateRejectedOffer,
-} from '@/lib/queries/admin/useAdminPurchaseOrders'
+import { cn } from '@/shared/utils/cn'
 import { useMemo } from 'react'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
+import { useSpotPrices } from '@/features/spots/queries'
+import { usePurchaseOrderMetals } from '@/features/orders/users/purchaseOrders/queries'
+import { useAcceptOffer, useAddFundsToAccount, useMovePurchaseOrderStatus, useRejectOffer, useSendOffer, useUpdateRejectedOffer } from '@/features/orders/admin/purchaseOrders/queries'
+
 
 export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtonsProps) {
   const { data: spotPrices = [] } = useSpotPrices()

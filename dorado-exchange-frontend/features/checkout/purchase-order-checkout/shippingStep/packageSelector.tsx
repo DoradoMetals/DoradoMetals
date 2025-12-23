@@ -2,7 +2,7 @@
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { Switch } from '@/shared/ui/base/switch'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { sellCartStore } from '@/store/sellCartStore'
 import { packageOptions } from '@/types/packaging'

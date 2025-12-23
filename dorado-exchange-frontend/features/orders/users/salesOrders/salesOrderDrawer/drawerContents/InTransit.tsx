@@ -1,5 +1,5 @@
-import TrackingEvents from '@/features/orders/ui/TrackingEvents'
-import { useTracking } from '@/lib/queries/useShipments'
+import TrackingEvents from '@/features/shipments/ui/TrackingEvents'
+import { useTracking } from '@/features/shipments/queries'
 import { SalesOrderDrawerContentProps } from '@/types/sales-orders'
 
 export default function InTransitSalesOrder({ order }: SalesOrderDrawerContentProps) {

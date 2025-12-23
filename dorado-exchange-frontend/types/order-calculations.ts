@@ -1,4 +1,4 @@
-import { Metal } from './metal'
+import { Metal } from '../features/spots/types'
 
 interface LineItems {
   metal: Metal

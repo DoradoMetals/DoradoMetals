@@ -1,5 +1,4 @@
 import { Button } from '@/shared/ui/base/button'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { cartStore } from '@/store/cartStore'
 import { paymentOptions, SalesOrderTotals } from '@/types/sales-orders'
 import getProductPrice from '@/utils/products/getProductPrice'
@@ -10,6 +9,7 @@ import NumberFlow from '@number-flow/react'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import { QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
+import { useSpotPrices } from '@/features/spots/queries'
 
 export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
   const { items, addItem, removeOne, removeAll } = cartStore()

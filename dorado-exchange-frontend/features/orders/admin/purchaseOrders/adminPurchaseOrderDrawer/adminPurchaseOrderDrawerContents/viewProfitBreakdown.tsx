@@ -11,14 +11,14 @@ import {
   TableRow,
 } from '@/shared/ui/base/table'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
-import { usePurchaseOrderRefinerMetals } from '@/lib/queries/admin/useAdminPurchaseOrders'
+import { usePurchaseOrderRefinerMetals } from '@/features/orders/admin/purchaseOrders/queries'
 import { computePurchaseOrderTotals } from '@/utils/purchaseOrders/calculatePurchaseOrderTotals'
 import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
+import { usePurchaseOrderMetals } from '@/features/orders/users/purchaseOrders/queries'
 
 type Party = 'customer' | 'refiner' | 'dorado'
 type Bucket = 'scrap' | 'bullion' | 'total'

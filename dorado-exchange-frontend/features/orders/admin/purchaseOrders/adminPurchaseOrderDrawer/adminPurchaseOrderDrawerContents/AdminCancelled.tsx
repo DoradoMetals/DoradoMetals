@@ -1,8 +1,8 @@
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import TrackingEvents from '@/features/orders/ui/TrackingEvents'
+import TrackingEvents from '@/features/shipments/ui/TrackingEvents'
 import { Button } from '@/shared/ui/base/button'
-import { useTracking } from '@/lib/queries/useShipments'
-import { cn } from '@/lib/utils'
+import { useTracking } from '@/features/shipments/queries'
+import { cn } from '@/shared/utils/cn'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 
 export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {

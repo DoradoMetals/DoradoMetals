@@ -1,6 +1,6 @@
-import { ShipmentTracking, ShipmentTrackingInput } from '@/types/shipments'
-import { useApiQuery } from '../base'
-import { queryKeys } from '../keyFactory'
+import { ShipmentTracking, ShipmentTrackingInput } from '@/features/shipments/types'
+import { useApiQuery } from '@/shared/queries/base'
+import { queryKeys } from '@/shared/queries/keyFactory'
 
 export const useTracking = (input: ShipmentTrackingInput) => {
   return useApiQuery<ShipmentTracking | null>({

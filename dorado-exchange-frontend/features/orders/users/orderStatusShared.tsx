@@ -3,7 +3,7 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Command, CommandItem, CommandList } from '@/shared/ui/base/command'
 import { Button } from '@/shared/ui/base/button'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { FreeMode } from 'swiper/modules'
 

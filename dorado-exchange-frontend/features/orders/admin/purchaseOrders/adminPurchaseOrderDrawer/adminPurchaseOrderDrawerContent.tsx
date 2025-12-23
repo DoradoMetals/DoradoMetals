@@ -1,14 +1,16 @@
-import AdminInTransitPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminInTransit'
-import AdminReceivedPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminReceived'
-import AdminOfferSentPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminOfferSent'
-import AdminAcceptedPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminAccepted'
-import AdminRejectedPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminRejected'
-import AdminPaymentProcessingPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminPaymentProcessing'
-import AdminCancelledPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminCancelled'
-import AdminCompletedPurchaseOrder from './adminPurchaseOrderDrawerContents/AdminCompleted'
+import AdminAcceptedPurchaseOrder from '@/features/orders/admin/purchaseOrders/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminAccepted'
+import AdminCancelledPurchaseOrder from '@/features/orders/admin/purchaseOrders/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminCancelled'
+import AdminCompletedPurchaseOrder from '@/features/orders/admin/purchaseOrders/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminCompleted'
+import AdminInTransitPurchaseOrder from '@/features/orders/admin/purchaseOrders/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminInTransit'
+import AdminOfferSentPurchaseOrder from '@/features/orders/admin/purchaseOrders/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminOfferSent'
+import AdminPaymentProcessingPurchaseOrder from '@/features/orders/admin/purchaseOrders/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminPaymentProcessing'
+import AdminReceivedPurchaseOrder from '@/features/orders/admin/purchaseOrders/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminReceived'
+import AdminRejectedPurchaseOrder from '@/features/orders/admin/purchaseOrders/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminRejected'
 import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 
-export default function AdminPurchaseOrderDrawerContent({ order }: PurchaseOrderDrawerContentProps) {
+export default function AdminPurchaseOrderDrawerContent({
+  order,
+}: PurchaseOrderDrawerContentProps) {
   switch (order.purchase_order_status) {
     case 'In Transit':
       return <AdminInTransitPurchaseOrder order={order} />
@@ -28,9 +30,7 @@ export default function AdminPurchaseOrderDrawerContent({ order }: PurchaseOrder
       return <AdminCompletedPurchaseOrder order={order} />
     default:
       return (
-        <div className="p-4 text-sm text-neutral-800">
-          No content available for this status.
-        </div>
+        <div className="p-4 text-sm text-neutral-800">No content available for this status.</div>
       )
   }
 }

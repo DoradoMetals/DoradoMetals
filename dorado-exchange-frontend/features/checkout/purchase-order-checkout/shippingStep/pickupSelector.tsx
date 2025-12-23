@@ -3,7 +3,7 @@
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { pickupOptions } from '@/types/pickup'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 export function PickupSelector() {
   const selectedPickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)

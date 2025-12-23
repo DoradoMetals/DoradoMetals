@@ -4,9 +4,9 @@ import { useFormContext } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
 import getScrapPrice from '@/utils/purchaseOrders/getScrapPrice'
 import { convertTroyOz } from '@/utils/convertTroyOz'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import { CoinsIcon, PercentIcon, ScalesIcon } from '@phosphor-icons/react'
+import { useSpotPrices } from '@/features/spots/queries'
+import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const form = useFormContext<Scrap>()

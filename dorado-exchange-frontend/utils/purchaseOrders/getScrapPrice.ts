@@ -1,4 +1,4 @@
-import { SpotPrice } from "@/types/metal"
+import { SpotPrice } from "@/features/spots/types"
 
 export default function getScrapPrice(content: number, premium: number, spot?: SpotPrice): number {
   if (!spot || !content || !premium) return 0

@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Controller, type Control, type FieldPath, type FieldValues } from 'react-hook-form'
 
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { Button } from '@/shared/ui/base/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import {

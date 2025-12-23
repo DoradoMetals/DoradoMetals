@@ -1,12 +1,12 @@
 'use client'
 
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { NumberFlowGroup } from '@number-flow/react'
 import { CaretUpIcon, CaretDownIcon, SwapIcon } from '@phosphor-icons/react'
 import { Button } from '@/shared/ui/base/button'
 import { useSpotTypeStore } from '@/store/spotStore'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import MobileSpotTicker from '@/features/spots/ui/MobileSpots'
+import { useSpotPrices } from '@/features/spots/queries'
 
 export default function Spots() {
   const { data: spots } = useSpotPrices()

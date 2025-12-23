@@ -6,7 +6,7 @@ import {
   PurchaseOrderDrawerFooterProps,
   statusConfig,
 } from '@/types/purchase-order'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
@@ -19,7 +19,6 @@ import {
   TableRow,
 } from '@/shared/ui/base/table'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
 import { payoutOptions } from '@/types/payout'
@@ -28,7 +27,8 @@ import getPurchaseOrderScrapTotal from '@/utils/purchaseOrders/purchaseOrderScra
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import getPurchaseOrderBullionPrice from '@/utils/purchaseOrders/getPurchaseOrderBullionPrice'
 import getPurchaseOrderScrapPrice from '@/utils/purchaseOrders/getPurchaseOrderScrapPrice'
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
+import { useSpotPrices } from '@/features/spots/queries'
+import { usePurchaseOrderMetals } from '@/features/orders/users/purchaseOrders/queries'
 
 export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
   const valueLabel = statusConfig[order.purchase_order_status]?.value_label ?? ''

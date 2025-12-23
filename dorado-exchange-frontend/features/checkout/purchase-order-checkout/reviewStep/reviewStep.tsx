@@ -5,11 +5,11 @@ import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { Button } from '@/shared/ui/base/button'
 import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/shared/utils/formatDates'
 import ItemTables from './itemTable'
-import { useCreatePurchaseOrder } from '@/lib/queries/usePurchaseOrders'
 import { purchaseOrderCheckoutSchema } from '@/types/purchase-order'
 import { sellCartStore } from '@/store/sellCartStore'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
+import { useCreatePurchaseOrder } from '@/features/orders/users/purchaseOrders/queries'
 
 export default function ReviewStep() {
   const data = usePurchaseOrderCheckoutStore((state) => state.data)

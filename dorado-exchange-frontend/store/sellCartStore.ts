@@ -1,6 +1,6 @@
 import { Product } from '@/features/products/types'
 import { assignScrapItemNames, Scrap } from '@/types/scrap'
-import { SellCartItem } from '@/types/sellCart'
+import { SellCartItem } from '@/features/cart/types'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 

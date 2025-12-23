@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Label } from "@/shared/ui/base/label";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils/cn";
 import { cva, type VariantProps } from "class-variance-authority";
 
 // ----------------------------------------------------------------------

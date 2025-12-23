@@ -1,6 +1,6 @@
 'use client'
 
-import { useTestImage, useDeleteImage } from '@/lib/queries/useImages'
+import { useTestImage, useDeleteImage } from '@/features/media/queries'
 import { ImageUpload } from '@/features/media/ui/ImageUpload'
 import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
 import { protectedRoutes } from '@/types/routes'

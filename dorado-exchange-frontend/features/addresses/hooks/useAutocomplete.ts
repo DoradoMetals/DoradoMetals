@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useDebouncedValue } from '@/shared/hooks/useDebounce'
-import { usePlacesSuggestions } from '@/features/addresses/lib/queries'
 import { ParsedPlaceSuggestion } from '@/features/addresses/types'
+import { usePlacesSuggestions } from '@/features/addresses/queries'
 
 export function usePlacesAutocompleteController({
   userId,

@@ -3,11 +3,12 @@
 import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo } from 'react'
-import SalesOrderDrawerContent from './salesOrderDrawerContent'
 import { SalesOrderDrawerProps } from '@/types/sales-orders'
-import { useSalesOrders } from '@/lib/queries/useSalesOrders'
-import SalesOrderDrawerHeader from './salesOrderDrawerHeader'
-import SalesOrderDrawerFooter from './salesOrderDrawerFooter'
+import { useSalesOrders } from '@/features/orders/users/salesOrders/queries'
+import SalesOrderDrawerHeader from '@/features/orders/users/salesOrders/salesOrderDrawer/salesOrderDrawerHeader'
+import SalesOrderDrawerContent from '@/features/orders/users/salesOrders/salesOrderDrawer/salesOrderDrawerContent'
+import SalesOrderDrawerFooter from '@/features/orders/users/salesOrders/salesOrderDrawer/salesOrderDrawerFooter'
+
 
 export default function SalesOrderDrawer({ order_id, user }: SalesOrderDrawerProps) {
   const { data: orders = [] } = useSalesOrders()

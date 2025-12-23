@@ -21,7 +21,7 @@ import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStor
 import ACHForm from './achForm'
 import WireForm from './wireForm'
 import EcheckForm from './echeckForm'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { useEffect } from 'react'
 import { User } from '@/types/user'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'

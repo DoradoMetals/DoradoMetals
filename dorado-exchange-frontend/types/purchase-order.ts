@@ -4,8 +4,8 @@ import { packageSchema } from './packaging'
 import { serviceSchema } from './service'
 import { pickupSchema } from './pickup'
 import { Payout, payoutSchema } from './payout'
-import { sellCartItemSchema } from './sellCart'
-import { CarrierPickup, Shipment } from './shipments'
+import { sellCartItemSchema } from '../features/cart/types'
+import { CarrierPickup, Shipment } from '../features/shipments/types'
 import {
   Truck,
   PackageOpen,
@@ -21,7 +21,7 @@ import { MetalOption, Scrap } from './scrap'
 import { Product } from '../features/products/types'
 import { User } from './user'
 import { insuranceSchema } from './insurance'
-import { Metal } from './metal'
+import { Metal } from '../features/spots/types'
 
 export interface PurchaseOrderItem {
   item_type: string

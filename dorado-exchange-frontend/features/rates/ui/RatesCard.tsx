@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Button } from '@/shared/ui/base/button'
 import { Input } from '@/shared/ui/base/input'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { PencilSimpleIcon, FloppyDiskIcon, XIcon } from '@phosphor-icons/react'
 import {
   Rate,
@@ -13,8 +13,8 @@ import {
   intToPct,
   labelFor,
 } from '@/types/rates'
-import { useCreateRate, useDeleteRate, useUpdateRate } from '@/lib/queries/useRates'
 import { DualRangeSlider } from '@/features/rates/ui/DualRangeSlider'
+import { useCreateRate, useDeleteRate, useUpdateRate } from '@/features/rates/queries'
 
 export default function RatesCard({
   metal,

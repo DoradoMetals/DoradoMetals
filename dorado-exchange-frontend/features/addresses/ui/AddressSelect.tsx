@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, Plus } from 'lucide-react'
 import { Address } from '@/features/addresses/types'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { Button } from '@/shared/ui/base/button'
 import { useEffect, useState } from 'react'

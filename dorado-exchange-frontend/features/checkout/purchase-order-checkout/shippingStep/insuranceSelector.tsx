@@ -1,7 +1,7 @@
 'use client'
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { ShieldCheckIcon, ShieldSlashIcon } from '@phosphor-icons/react'
 

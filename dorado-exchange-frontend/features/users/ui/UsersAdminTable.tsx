@@ -8,18 +8,18 @@ import { useCreateUser } from '@/features/auth/queries'
 import { userRoleOptions } from '@/types/user'
 
 import { useDrawerStore } from '@/store/drawerStore'
-import AdminUsersDrawer from './UsersDrawer'
-import { CreateSalesOrderDrawer } from '../../orders/admin/salesOrders/createSalesOrder/createSalesOrderDrawer'
 
 import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn } from '@/shared/ui/table/Columns'
-import PriceNumberFlow from '../../../shared/ui/PriceNumberFlow'
 
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { isValidEmail } from '@/utils/isValid'
 import { PlusIcon } from '@phosphor-icons/react'
 import { CreateConfig } from '@/shared/ui/table/AddNew'
-import { useAdminUsers } from '@/lib/queries/admin/useAdmin'
+import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import AdminUsersDrawer from '@/features/users/ui/UsersDrawer'
+import { CreateSalesOrderDrawer } from '@/features/orders/admin/salesOrders/createSalesOrder/createSalesOrderDrawer'
+import { useAdminUsers } from '@/features/users/queries'
 
 export function UsersPage() {
   const { data: users = [] } = useAdminUsers()

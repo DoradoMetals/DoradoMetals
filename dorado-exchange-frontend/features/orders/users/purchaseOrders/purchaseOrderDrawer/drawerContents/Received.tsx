@@ -1,7 +1,7 @@
 'use client'
 
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 export default function ReceivedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const config = statusConfig[order.purchase_order_status]

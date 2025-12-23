@@ -1,5 +1,5 @@
 import { Product } from '@/features/products/types'
-import { SpotPrice } from '@/types/metal'
+import { SpotPrice } from '@/features/spots/types'
 
 export default function getProductAskOverUnderSpot(product?: Product, spot?: SpotPrice): number {
   if (!product || !spot) return 0

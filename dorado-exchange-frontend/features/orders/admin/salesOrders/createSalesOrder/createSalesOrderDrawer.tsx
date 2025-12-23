@@ -7,7 +7,7 @@ import { Skeleton } from '@/shared/ui/base/skeleton'
 import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 import {
   adminSalesOrderCheckoutSchema,
@@ -26,7 +26,7 @@ import { Minus, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/base/button'
 import getProductPrice from '@/utils/products/getProductPrice'
 import NumberFlow from '@number-flow/react'
-import { SpotPrice } from '@/types/metal'
+import { SpotPrice } from '@/features/spots/types'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Input } from '@/shared/ui/base/input'
 import { LockIcon, LockOpenIcon, QuestionIcon } from '@phosphor-icons/react'
@@ -38,7 +38,7 @@ import { useRetrievePaymentIntent, useUpdatePaymentIntent } from '@/lib/queries/
 import AdminStripeWrapper from '@/components/custom/stripe/admin/AdminStripeWrapper'
 import { loadStripe } from '@stripe/stripe-js'
 import { Switch } from '@/shared/ui/base/switch'
-import { useAdminCreateSalesOrder } from '@/lib/queries/admin/useAdminSalesOrders'
+import { useAdminCreateSalesOrder } from '@/features/orders/admin/salesOrders/queries'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { useGetSession } from '@/features/auth/queries'
 

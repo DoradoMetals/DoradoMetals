@@ -9,7 +9,7 @@ import {
   CommandList,
 } from '@/shared/ui/base/command'
 import { Button } from '@/shared/ui/base/button'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { Filter, Check } from 'lucide-react'
 import { useState, useLayoutEffect } from 'react'
 import { Column } from '@tanstack/react-table'

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { payoutOptions, PayoutMethod } from '@/types/payout'
 import type { IconProps } from '@phosphor-icons/react'
 

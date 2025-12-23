@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { CurrencyDollarIcon, PercentIcon, ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { Input } from '@/shared/ui/base/input'

@@ -1,10 +1,9 @@
-import { cn } from '@/lib/utils'
 import { payoutOptions } from '@/types/payout'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
-import ProfitBreakdown from './viewProfitBreakdown'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import RefinerValues from './editRefinerValues'
-import ActualsEditor from './editActualValues'
+import RefinerValues from '@/features/orders/admin/purchaseOrders/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editRefinerValues'
+import ActualsEditor from '@/features/orders/admin/purchaseOrders/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editActualValues'
+
 
 export default function AdminPaymentProcessingPurchaseOrder({
   order,

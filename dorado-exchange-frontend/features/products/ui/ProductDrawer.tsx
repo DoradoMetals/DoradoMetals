@@ -7,24 +7,24 @@ import { useMemo } from 'react'
 import { formatFullDate } from '@/shared/utils/formatDates'
 
 import { AdminProduct } from '@/types/admin'
-import { cn } from '@/lib/utils'
-import {
-  useAdminMetals,
-  useAdminMints,
-  useAdminSuppliers,
-  useAdminTypes,
-  useSaveProduct,
-} from '@/lib/queries/admin/useAdmin'
+import { cn } from '@/shared/utils/cn'
 
 import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
 import { Textarea } from '@/shared/ui/base/textarea'
 import { Label } from '@/shared/ui/base/label'
-import PremiumControl from './PremiumControl'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import QuantityBar from './QuantityInput'
-import { DisplayToggle } from '../../../shared/ui/DisplayToggle'
-import ShadowOffsetPicker from './ShadowOffset'
 import { Input } from '@/shared/ui/base/input'
+import { useSpotPrices } from '@/features/spots/queries'
+import PremiumControl from '@/features/products/ui/PremiumControl'
+import QuantityBar from '@/features/products/ui/QuantityInput'
+import { DisplayToggle } from '@/shared/ui/DisplayToggle'
+import ShadowOffsetPicker from '@/features/products/ui/ShadowOffset'
+import {
+  useAdminTypes,
+  useSaveProduct,
+  useAdminMetals,
+  useAdminMints,
+  useAdminSuppliers,
+} from '@/features/products/queries'
 
 export default function ProductDrawer({
   products,

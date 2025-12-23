@@ -3,7 +3,7 @@
 import React from 'react'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import Image from 'next/image'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 export interface RadioGroupImageOption {
   id: string

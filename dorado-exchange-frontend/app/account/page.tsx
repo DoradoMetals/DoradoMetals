@@ -20,15 +20,15 @@ import {
 import { userRoleOptions } from '@/types/user'
 import { useGetSession } from '@/features/auth/queries'
 import Drawer from '@/shared/ui/base/drawer'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { useDrawerStore } from '@/store/drawerStore'
-import { usePurchaseOrders } from '@/lib/queries/usePurchaseOrders'
-import { useSalesOrders } from '@/lib/queries/useSalesOrders'
+import { useSalesOrders } from '@/features/orders/users/salesOrders/queries'
 import AddressList from '@/features/addresses/ui/AddressList'
 import { PurchaseOrdersContent } from '@/features/orders/users/purchaseOrders/purchaseOrderTab'
 import { SalesOrdersContent } from '@/features/orders/users/salesOrders/salesOrderTab'
 import UserForm from '@/features/users/ui/UserForm'
 import { PasswordAndSecurity } from '@/features/users/ui/PasswordAndSecurity'
+import { usePurchaseOrders } from '@/features/orders/users/purchaseOrders/queries'
 
 export default function Page() {
   const { user } = useGetSession()

@@ -21,7 +21,7 @@ import {
 } from '../shared/ui/base/breadcrumb'
 import Link from 'next/link'
 import { FloatingNav } from '../features/navigation/ui/FloatingMenu'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { useScrollLock } from '@/utils/useScrollock'
 import { useGetSession, useStopImpersonation } from '@/features/auth/queries'
 import Shell from '@/features/navigation/ui/Shell'

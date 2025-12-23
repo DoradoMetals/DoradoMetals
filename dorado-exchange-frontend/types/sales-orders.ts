@@ -21,8 +21,8 @@ import { LucideIcon } from 'lucide-react'
 import { Product, productSchema } from '../features/products/types'
 import { User, userSchema } from './user'
 import { insuranceSchema } from './insurance'
-import { Shipment } from './shipments'
-import { spotPriceSchema } from './metal'
+import { Shipment } from '../features/shipments/types'
+import { spotPriceSchema } from '../features/spots/types'
 
 export interface SalesOrderItem {
   id: string

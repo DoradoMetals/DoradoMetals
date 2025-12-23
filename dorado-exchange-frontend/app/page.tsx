@@ -17,7 +17,7 @@ import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
 import { usePublicReviews } from '@/lib/queries/useReviews'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useRouter } from 'next/navigation'
 

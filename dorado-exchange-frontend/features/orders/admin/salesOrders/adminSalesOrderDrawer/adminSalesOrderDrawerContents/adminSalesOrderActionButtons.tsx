@@ -1,8 +1,8 @@
 import { Button } from '@/shared/ui/base/button'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 import { SalesOrderActionButtonsProps, statusConfig } from '@/types/sales-orders'
-import { useMoveSalesOrderStatus } from '@/lib/queries/admin/useAdminSalesOrders'
+import { useMoveSalesOrderStatus } from '@/features/orders/admin/salesOrders/queries'
 
 export function SalesOrderActionButtons({ order }: SalesOrderActionButtonsProps) {
   const movePurchaseOrderStatus = useMoveSalesOrderStatus()

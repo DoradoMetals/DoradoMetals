@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from '@tanstack/react-table'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { ReactNode } from 'react'
 
 export type Align = 'left' | 'center' | 'right'

@@ -14,12 +14,12 @@ import {
   useUpdateUser,
 } from '@/features/auth/queries'
 import { Button } from '@/shared/ui/base/button'
-import PriceNumberFlow from '../../../shared/ui/PriceNumberFlow'
 import { Input } from '@/shared/ui/base/input'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
-import { useUpdateCredit } from '@/lib/queries/admin/useAdmin'
+import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { useUpdateCredit } from '@/features/users/queries'
 
 export default function AdminUsersDrawer({
   users,

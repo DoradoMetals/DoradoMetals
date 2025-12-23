@@ -11,15 +11,12 @@ import {
   DialogTrigger,
 } from '@/shared/ui/base/dialog'
 import { Textarea } from '@/shared/ui/base/textarea'
-import {
-  useAcceptOffer,
-  usePurchaseOrderMetals,
-  useRejectOffer,
-} from '@/lib/queries/usePurchaseOrders'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
+
+import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import { useMemo, useState } from 'react'
+import { useSpotPrices } from '@/features/spots/queries'
+import { useAcceptOffer, usePurchaseOrderMetals, useRejectOffer } from '@/features/orders/users/purchaseOrders/queries'
 
 export default function OfferSentPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const [open, setOpen] = useState(false)

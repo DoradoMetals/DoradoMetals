@@ -1,9 +1,10 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useAdminRates } from '@/lib/queries/useRates'
+
 import { Rate } from '@/types/rates'
-import RatesCard from './RatesCard'
+import { useAdminRates } from '@/features/rates/queries'
+import RatesCard from '@/features/rates/ui/RatesCard'
 
 export default function RatesPage() {
   const { data: rates = [], isLoading, isError } = useAdminRates()

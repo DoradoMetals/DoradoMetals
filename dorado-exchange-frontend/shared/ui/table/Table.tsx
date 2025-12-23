@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/base/table'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { ColumnsIcon } from '@phosphor-icons/react'
 import { DebouncedInputSearch } from '../inputs/DebouncedInputSearch'
 import { AddNew, CreateConfig } from './AddNew'

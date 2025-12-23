@@ -5,8 +5,8 @@ import { motion, useAnimationFrame, useMotionValue, useTransform } from 'framer-
 import { wrap } from '@motionone/utils'
 import { CaretUpIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { NumberFlowGroup } from '@number-flow/react'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { useSpotPrices } from '@/features/spots/queries'
 
 export default function MobileSpotTicker({ type }: { type: 'Bid' | 'Ask' }) {
   const { data: spots } = useSpotPrices()

@@ -7,8 +7,8 @@ import {
   PlacesSuggestionsInput,
 } from '@/features/addresses/types'
 import { parsePlacesJsAutocomplete } from '@/features/addresses/utils/places'
-import { useApiMutation, useApiQuery } from '@/lib/base'
-import { queryKeys } from '@/lib/keyFactory'
+import { useApiMutation, useApiQuery } from '@/shared/queries/base'
+import { queryKeys } from '@/shared/queries/keyFactory'
 
 export const useAddress = () =>
   useApiQuery<Address[]>({

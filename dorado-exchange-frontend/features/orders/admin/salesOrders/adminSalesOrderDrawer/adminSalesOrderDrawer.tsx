@@ -6,8 +6,8 @@ import { useMemo } from 'react'
 import AdminSalesOrderDrawerHeader from './adminSalesOrderDrawerHeader'
 import AdminSalesOrderDrawerContent from './adminSalesOrderDrawerContent'
 import AdminSalesOrderDrawerFooter from './adminSalesOrderDrawerFooter'
-import { useAdminSalesOrders } from '@/lib/queries/admin/useAdminSalesOrders'
-import { useAdminUser } from '@/lib/queries/admin/useAdmin'
+import { useAdminSalesOrders } from '@/features/orders/admin/salesOrders/queries'
+import { useAdminUser } from '@/features/users/queries'
 
 export default function AdminSalesOrderDrawer({
   order_id,

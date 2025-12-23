@@ -1,13 +1,13 @@
 import { Button } from '@/shared/ui/base/button'
 
-import { useAcceptOffer, usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 import { useMemo } from 'react'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import TrackingEvents from '@/features/orders/ui/TrackingEvents'
-import { useTracking } from '@/lib/queries/useShipments'
+import TrackingEvents from '@/features/shipments/ui/TrackingEvents'
+import { useTracking } from '@/features/shipments/queries'
+import { useSpotPrices } from '@/features/spots/queries'
+import { useAcceptOffer, usePurchaseOrderMetals } from '@/features/orders/users/purchaseOrders/queries'
 
 export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: spotPrices = [] } = useSpotPrices()

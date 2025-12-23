@@ -1,8 +1,8 @@
-import { useCreateReview } from '@/lib/queries/useReviews'
 import { SalesOrderDrawerContentProps } from '@/types/sales-orders'
 import { useUser } from '@/features/auth/authClient'
-import { useSetReviewCreated } from '@/lib/queries/useSalesOrders'
 import { ReviewBlock } from '@/shared/ui/ReviewInput'
+import { useCreateReview } from '@/features/reviews/queries'
+import { useSetReviewCreated } from '@/features/orders/users/salesOrders/queries'
 
 export default function CompletedSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { user } = useUser()

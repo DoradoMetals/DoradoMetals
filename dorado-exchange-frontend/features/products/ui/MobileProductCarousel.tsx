@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useProductFilterStore } from '@/store/productFilterStore'
 import Image from 'next/image'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 const categories = [
   { name: 'Gold', img: '/product_images/elemetal_products/gold/American Buffalo/FRONT.png' },

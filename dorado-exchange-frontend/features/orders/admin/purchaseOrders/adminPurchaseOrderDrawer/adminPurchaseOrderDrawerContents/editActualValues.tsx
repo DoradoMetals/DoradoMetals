@@ -1,14 +1,14 @@
 'use client'
 
 import { Input } from '@/shared/ui/base/input'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
 import {
   useUpdateOrderScrapItem,
   useUpdatePoolOzDeducted,
   useUpdatePoolRemediation,
   useUpdateShippingActual,
-} from '@/lib/queries/admin/useAdminPurchaseOrders'
+} from '@/features/orders/admin/purchaseOrders/queries'
 import {
   Table,
   TableBody,

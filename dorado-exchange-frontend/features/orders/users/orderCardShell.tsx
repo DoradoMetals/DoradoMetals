@@ -2,7 +2,7 @@
 
 import { ReactNode, KeyboardEvent } from 'react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 type OrderCardShellProps = {
   createdAtLabel: string

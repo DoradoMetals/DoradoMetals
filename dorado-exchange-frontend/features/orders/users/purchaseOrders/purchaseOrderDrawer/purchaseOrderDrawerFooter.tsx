@@ -6,7 +6,7 @@ import {
   PurchaseOrderDrawerFooterProps,
   statusConfig,
 } from '@/types/purchase-order'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 

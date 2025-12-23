@@ -7,7 +7,7 @@ import { Command, CommandList, CommandItem } from '@/shared/ui/base/command'
 import { Input } from '@/shared/ui/base/input'
 import { Button } from '@/shared/ui/base/button'
 import { XIcon } from '@phosphor-icons/react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 export interface SearchableDropdownProps<T> {
   items: T[]

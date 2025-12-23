@@ -1,10 +1,10 @@
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import CountdownRing from '@/features/orders/ui/CountdownRing'
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import { useMemo } from 'react'
+import { useSpotPrices } from '@/features/spots/queries'
+import { usePurchaseOrderMetals } from '@/features/orders/users/purchaseOrders/queries'
 
 export default function AdminOfferSentPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const config = statusConfig[order.purchase_order_status]

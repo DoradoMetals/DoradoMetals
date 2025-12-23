@@ -1,6 +1,7 @@
-import { SpotPrice } from '@/types/metal'
-import { useApiQuery } from '../base'
-import { queryKeys } from '../keyFactory'
+import { SpotPrice } from '@/features/spots/types'
+import { useApiQuery } from '@/shared/queries/base'
+import { queryKeys } from '@/shared/queries/keyFactory'
+
 
 export const useSpotPrices = () => {
   return useApiQuery<SpotPrice[]>({

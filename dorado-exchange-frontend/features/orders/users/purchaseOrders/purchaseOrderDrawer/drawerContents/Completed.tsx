@@ -1,8 +1,8 @@
 import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
-import { useCreateReview } from '@/lib/queries/useReviews'
 import { useUser } from '@/features/auth/authClient'
 import { ReviewBlock } from '@/shared/ui/ReviewInput'
-import { useSetReviewCreated } from '@/lib/queries/usePurchaseOrders'
+import { useCreateReview } from '@/features/reviews/queries'
+import { useSetReviewCreated } from '@/features/orders/users/purchaseOrders/queries'
 
 export default function CompletedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { user } = useUser()

@@ -15,8 +15,8 @@ import {
   useGetSession,
 } from '@/features/auth/queries'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
-import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import { AccountAction } from '@/features/users/ui/AccountAction'
+import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 export default function UserForm() {
   const { user, isPending } = useGetSession()

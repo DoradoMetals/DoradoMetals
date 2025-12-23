@@ -16,12 +16,12 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ClipboardTextIcon } from '@phosphor-icons/react'
 
-import { useSalesOrders } from '@/lib/queries/useSalesOrders'
+import { useSalesOrders } from '@/features/orders/users/salesOrders/queries'
 import SalesOrderCard from './salesOrderCard'
 import { SalesOrderStatuses, statusConfig } from '@/types/sales-orders'
 import SalesOrderDrawer from './salesOrderDrawer/salesOrderDrawer'
 import { useGetSession } from '@/features/auth/queries'
-import { OrderStatusEmptyState, OrderStatusSelector } from '../orderStatusShared'
+import { OrderStatusEmptyState, OrderStatusSelector } from '@/features/orders/users/orderStatusShared'
 
 export function SalesOrdersContent() {
   const { user } = useGetSession()

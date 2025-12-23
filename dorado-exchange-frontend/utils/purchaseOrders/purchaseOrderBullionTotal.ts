@@ -1,4 +1,4 @@
-import { SpotPrice } from '@/types/metal'
+import { SpotPrice } from '@/features/spots/types'
 import { PurchaseOrderItem } from '@/types/purchase-order'
 
 export default function getPurchaseOrderBullionTotal(

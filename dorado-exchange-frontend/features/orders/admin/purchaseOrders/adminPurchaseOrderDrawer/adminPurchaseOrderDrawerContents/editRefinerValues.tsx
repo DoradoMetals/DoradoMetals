@@ -1,17 +1,17 @@
 'use client'
 
 import { Input } from '@/shared/ui/base/input'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import {
   usePurchaseOrderRefinerMetals,
   useUpdateOrderRefinerSpotPrice,
   useUpdateRefinerFee,
   useUpdateRefinerPremium,
-} from '@/lib/queries/admin/useAdminPurchaseOrders'
+} from '@/features/orders/admin/purchaseOrders/queries'
 
 import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
+import { usePurchaseOrderMetals } from '@/features/orders/users/purchaseOrders/queries'
 
 export default function RefinerValues({ order }: { order: PurchaseOrder }) {
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)

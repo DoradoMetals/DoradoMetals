@@ -5,15 +5,14 @@ import { usePathname } from 'next/navigation'
 import { useDrawerStore } from '@/store/drawerStore'
 import { cartStore } from '@/store/cartStore'
 import { sellCartStore } from '@/store/sellCartStore'
-import { useCartAutoSync } from '@/lib/queries/useCart'
-import { useSellCartAutoSync } from '@/lib/queries/useSellCart'
+import { useCartAutoSync } from '@/features/cart/queries'
 
 import { Button } from '@/shared/ui/base/button'
 import { MenuIcon } from '@/features/navigation/ui/NavIcon'
 import { CartIcon } from '@/features/cart/ui/CartIcon'
 
 import { motion } from 'framer-motion'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { useUser } from '@/features/auth/authClient'
 import { protectedRoutes } from '@/types/routes'
 import { MoonIcon, SunIcon } from '@phosphor-icons/react'
@@ -35,7 +34,6 @@ export default function Shell({ visible }: { visible: boolean }) {
 
   const { theme, setTheme } = useTheme()
 
-  useSellCartAutoSync()
   useCartAutoSync()
 
   const menuItems = Object.entries(protectedRoutes)

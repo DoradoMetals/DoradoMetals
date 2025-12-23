@@ -6,19 +6,18 @@ import {
   useDownloadInvoice,
   useDownloadPackingList,
   useDownloadReturnPackingList,
-} from '@/lib/queries/usePDF'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import { cn } from '@/lib/utils'
+} from '@/features/pdfs/queries'
 import { useDrawerStore } from '@/store/drawerStore'
 import { packageOptions } from '@/types/packaging'
 import { payoutOptions } from '@/types/payout'
 import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import { DownloadIcon } from '@phosphor-icons/react'
 import { OrderCardShell } from '../orderCardShell'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
+import { useSpotPrices } from '@/features/spots/queries'
+import { usePurchaseOrderMetals } from '@/features/orders/users/purchaseOrders/queries'
 
 export default function PurchaseOrderCard({
   order,

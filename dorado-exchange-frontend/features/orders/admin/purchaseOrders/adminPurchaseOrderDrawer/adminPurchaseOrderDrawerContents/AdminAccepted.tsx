@@ -1,12 +1,12 @@
 import { Button } from '@/shared/ui/base/button'
 import { Command, CommandItem, CommandList } from '@/shared/ui/base/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
-import { useEditPayoutMethod } from '@/lib/queries/admin/useAdminPurchaseOrders'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { payoutOptions } from '@/types/payout'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import { CaretDownIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
+import { useEditPayoutMethod } from '@/features/orders/admin/purchaseOrders/queries'
 
 export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const config = statusConfig[order.purchase_order_status]

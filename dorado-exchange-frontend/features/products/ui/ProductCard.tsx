@@ -11,7 +11,6 @@ import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/Float
 import { useState } from 'react'
 import { cartStore } from '@/store/cartStore'
 import getProductPrice from '@/utils/products/getProductPrice'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Popover } from '@radix-ui/react-popover'
@@ -21,12 +20,13 @@ import { Navigation, Pagination } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import getProductAskOverUnderSpot from '@/utils/products/getProductAskOverUnderSpot'
 import { useRouter } from 'next/navigation'
 import { ProductShadow } from '@/features/products/ui/ProductShadow'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { useSpotPrices } from '@/features/spots/queries'
 
 type ProductCardProps = {
   product: Product

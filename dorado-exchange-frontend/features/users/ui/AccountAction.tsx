@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Button } from '@/shared/ui/base/button'
 import { Check } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>
 

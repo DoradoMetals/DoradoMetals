@@ -1,5 +1,6 @@
-import { useApiQuery } from '../base'
-import { queryKeys } from '../keyFactory'
+
+import { useApiQuery } from '@/shared/queries/base'
+import { queryKeys } from '@/shared/queries/keyFactory'
 import type { SalesTaxInput } from '@/types/tax'
 
 export const useSalesTax = (input: SalesTaxInput) => {

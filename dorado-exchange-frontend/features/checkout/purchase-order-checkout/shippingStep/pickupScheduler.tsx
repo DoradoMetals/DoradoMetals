@@ -6,7 +6,7 @@ import { Button } from '@/shared/ui/base/button'
 import { FedexPickupTimes } from '@/types/fedex'
 import { parseISO } from 'date-fns'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { formatPickupDate, formatPickupDateShort, formatPickupTime } from '@/shared/utils/formatDates'
 import { useEffect } from 'react'
 

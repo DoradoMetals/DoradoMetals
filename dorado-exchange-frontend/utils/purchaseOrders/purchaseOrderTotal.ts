@@ -1,5 +1,5 @@
 import { PurchaseOrder } from '@/types/purchase-order'
-import { SpotPrice } from '@/types/metal'
+import { SpotPrice } from '@/features/spots/types'
 
 export default function getPurchaseOrderTotal(
   order: PurchaseOrder,

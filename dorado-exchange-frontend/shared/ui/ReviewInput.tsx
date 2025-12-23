@@ -4,7 +4,7 @@ import * as React from 'react'
 import { Button } from '@/shared/ui/base/button'
 import { Textarea } from '@/shared/ui/base/textarea'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 import { SmileyIcon } from '@phosphor-icons/react'
 
 type ReviewBlockProps = {

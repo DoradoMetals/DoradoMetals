@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
 import { FC, ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils/cn'
 
 type Anchor = 'left' | 'right'
 

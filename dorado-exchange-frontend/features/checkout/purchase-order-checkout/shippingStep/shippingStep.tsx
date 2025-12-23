@@ -4,19 +4,21 @@ import { Address } from '@/features/addresses/types'
 import { Button } from '@/shared/ui/base/button'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { PackageSelector } from './packageSelector'
+
 import { FedexPickupTimesInput, formatFedexPickupAddress, FedexRate } from '@/types/fedex'
-import { useFedExPickupTimes } from '@/lib/queries/useFedex'
-import { ServiceSelector } from './serviceSelector'
+import { useFedExPickupTimes } from '@/features/fedex/queries'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import { PickupSelector } from './pickupSelector'
-import PickupScheduler from './pickupScheduler'
-import { FedexLocationsMap } from './FedexLocations'
-import { InsuranceSelector } from './insuranceSelector'
+
 import { useDrawerStore } from '@/store/drawerStore'
 import { useGetSession } from '@/features/auth/queries'
 import  {AddressDrawer} from '@/features/addresses/ui/AddressDrawer'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
+import { InsuranceSelector } from '@/features/checkout/purchase-order-checkout/shippingStep/insuranceSelector'
+import { PackageSelector } from '@/features/checkout/purchase-order-checkout/shippingStep/packageSelector'
+import { ServiceSelector } from '@/features/checkout/purchase-order-checkout/shippingStep/serviceSelector'
+import { PickupSelector } from '@/features/checkout/purchase-order-checkout/shippingStep/pickupSelector'
+import PickupScheduler from '@/features/checkout/purchase-order-checkout/shippingStep/pickupScheduler'
+import { FedexLocationsMap } from '@/features/checkout/purchase-order-checkout/shippingStep/FedexLocations'
 
 interface ShippingStepProps {
   addresses: Address[]

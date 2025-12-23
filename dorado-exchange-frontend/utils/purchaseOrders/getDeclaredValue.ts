@@ -1,6 +1,6 @@
 import { PurchaseOrder } from '@/types/purchase-order'
-import { SpotPrice } from '@/types/metal'
-import { SellCartItem } from '@/types/sellCart'
+import { SpotPrice } from '@/features/spots/types'
+import { SellCartItem } from '@/features/cart/types'
 import getProductBidPrice from '../products/getProductBidPrice'
 import getScrapPrice from './getScrapPrice'
 
