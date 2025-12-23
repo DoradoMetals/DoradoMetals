@@ -8,8 +8,8 @@ import { useDrawerStore } from '@/store/drawerStore'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import ServiceSelector from './serviceSelector'
 import { SalesOrderTotals } from '@/types/sales-orders'
-import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
+import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 
 interface ShippingSelectProps {
   addresses: Address[]
