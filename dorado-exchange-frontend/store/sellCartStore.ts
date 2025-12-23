@@ -1,4 +1,4 @@
-import { Product } from '@/types/product'
+import { Product } from '@/features/products/types'
 import { assignScrapItemNames, Scrap } from '@/types/scrap'
 import { SellCartItem } from '@/types/sellCart'
 import { create } from 'zustand'

@@ -4,8 +4,8 @@ import * as React from 'react'
 import { Controller, type Control, type FieldPath, type FieldValues } from 'react-hook-form'
 
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/shared/ui/base/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import {
   Command,
   CommandEmpty,
@@ -13,11 +13,11 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/ui/command'
-import { Label } from '@/components/ui/label'
+} from '@/shared/ui/base/command'
+import { Label } from '@/shared/ui/base/label'
 
-import { states, reverseStateMap, stateMap } from '@/types/states'
-import { ArrowDownIcon, CaretDownIcon, CheckIcon } from '@phosphor-icons/react'
+import { CaretDownIcon, CheckIcon } from '@phosphor-icons/react'
+import { reverseStateMap, stateMap, states } from '@/features/addresses/types'
 
 type StateItem = { code: string; name: string }
 

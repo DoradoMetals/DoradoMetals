@@ -1,4 +1,4 @@
-import { ProductFilters } from '@/types/product'
+import { ProductFilters } from '@/features/products/types'
 import { FedexLocationsInput, FedexPickupTimesInput, FedexRateInput } from '@/types/fedex'
 import { SalesTaxInput } from '@/types/tax'
 import { ShipmentTrackingInput } from '@/types/shipments'

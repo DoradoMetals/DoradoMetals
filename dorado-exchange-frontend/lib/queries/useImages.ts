@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import type { Image, ImageUpload, ImageUploadReturn } from '@/types/image'
-import { useGetSession } from './useAuth'
+import { useGetSession } from '../../features/auth/queries'
 import { queryKeys } from '../keyFactory'
 import { useApiMutation, useApiQuery } from '../base'
 

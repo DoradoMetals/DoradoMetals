@@ -1,8 +1,7 @@
 'use client'
 
-import ProductCard from '@/components/custom/products/productCard'
-import ProductPageDetails from '@/components/custom/products/productPageDetails'
-import { useProductFromSlug } from '@/lib/queries/useProducts'
+import ProductPageDetails from '@/features/products/ui/ProductPageDetails'
+import { useProductFromSlug } from '@/features/products/queries'
 import { useParams } from 'next/navigation'
 
 export default function ProductPage() {

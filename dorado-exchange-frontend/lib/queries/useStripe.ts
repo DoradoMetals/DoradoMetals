@@ -1,6 +1,6 @@
 import { SpotPrice } from '@/types/metal'
 import { User } from '@/types/user'
-import { Product } from '@/types/product'
+import { Product } from '@/features/products/types'
 import { PaymentIntent } from '@/types/payment-intent'
 import { queryKeys } from '../keyFactory'
 import { useApiMutation, useApiQuery } from '../base'

@@ -1,10 +1,10 @@
 'use client'
 
-import USMap from '@/components/ui/USMap'
+import USMap from '@/features/sales-tax/ui/USMap'
 import Image from 'next/image'
 import { useState } from 'react'
 import { StateTaxDetail, stateTaxData } from '@/types/tax'
-import { SearchableDropdown } from '@/components/ui/input-dropdown-search'
+import { SearchableDropdown } from '@/shared/ui/inputs/InputDropdownSearch'
 
 export default function Page() {
   const [selected, setSelected] = useState<StateTaxDetail | null>(null)

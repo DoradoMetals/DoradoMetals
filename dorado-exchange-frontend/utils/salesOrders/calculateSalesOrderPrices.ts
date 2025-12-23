@@ -1,5 +1,5 @@
 import { SpotPrice } from '@/types/metal'
-import { Product } from '@/types/product'
+import { Product } from '@/features/products/types'
 import { PaymentMethodType, paymentOptions, SalesOrderTotals } from '@/types/sales-orders'
 
 export function calculateCardCharge(orderTotal: number, paymentMethod: string): number {

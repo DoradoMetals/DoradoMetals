@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea } from "@/shared/ui/base/scroll-area"
 import Link from "next/link";
 
 export default function PrivacyPolicy() {

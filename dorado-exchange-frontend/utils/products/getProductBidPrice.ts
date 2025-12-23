@@ -1,5 +1,5 @@
 import { SpotPrice } from '@/types/metal'
-import { Product } from '@/types/product'
+import { Product } from '@/features/products/types'
 
 export default function getProductBidPrice(
   product?: Product,

@@ -1,7 +1,7 @@
 import * as z from 'zod'
 import { ReactNode } from 'react'
 import { ScalesIcon, SketchLogoIcon, BarbellIcon, IconProps, CoinsIcon } from '@phosphor-icons/react'
-import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/components/icons/logo'
+import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/features/navigation/ui/Logo'
 
 export const scrapSchema = z.object({
   id: z.string().uuid(),

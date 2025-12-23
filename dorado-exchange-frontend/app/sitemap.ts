@@ -2,7 +2,7 @@
 import type { MetadataRoute } from 'next'
 import { protectedRoutes } from '@/types/routes'
 import { apiRequest } from '@/utils/axiosInstance'
-import { Product } from '@/types/product'
+import { Product } from '@/features/products/types'
 
 // ⬇️ MUST be a literal
 export const revalidate = 21600 // 6 hours

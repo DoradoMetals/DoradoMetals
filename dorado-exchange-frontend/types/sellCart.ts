@@ -1,4 +1,4 @@
-import { Product, productSchema } from '@/types/product'
+import { Product, productSchema } from '@/features/products/types'
 import { Scrap, scrapSchema } from '@/types/scrap'
 import { z } from 'zod';
 

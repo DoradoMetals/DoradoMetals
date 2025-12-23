@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ProductFilters } from '@/types/product'
+import type { ProductFilters } from '@/features/products/types'
 
 type ProductFilterState = ProductFilters & {
   setFilters: (filters: Partial<ProductFilters>) => void

@@ -18,7 +18,7 @@ import { pickupSchema } from './pickup'
 import { Payout } from './payout'
 import { LucideIcon } from 'lucide-react'
 
-import { Product, productSchema } from './product'
+import { Product, productSchema } from '../features/products/types'
 import { User, userSchema } from './user'
 import { insuranceSchema } from './insurance'
 import { Shipment } from './shipments'

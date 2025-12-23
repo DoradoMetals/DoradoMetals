@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/shared/ui/base/button'
 import { cn } from '@/lib/utils'
 import { Icon } from '@phosphor-icons/react'
 

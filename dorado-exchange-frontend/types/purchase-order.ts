@@ -18,7 +18,7 @@ import {
   LucideIcon,
 } from 'lucide-react'
 import { MetalOption, Scrap } from './scrap'
-import { Product } from './product'
+import { Product } from '../features/products/types'
 import { User } from './user'
 import { insuranceSchema } from './insurance'
 import { Metal } from './metal'

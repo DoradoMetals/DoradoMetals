@@ -1,6 +1,6 @@
 'use client'
 
-import { SignInAndUpTabs } from '@/components/custom/auth/SignInAndUpTabs'
+import { SignInAndUpTabs } from '@/features/auth/ui/SignInAndUpTabs'
 import { Suspense } from 'react'
 
 export default function Page() {

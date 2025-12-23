@@ -1,4 +1,4 @@
-import { Product } from '@/types/product'
+import { Product } from '@/features/products/types'
 import { SpotPrice } from '@/types/metal'
 
 export default function getProductBidOverUnderSpot(product?: Product, spot?: SpotPrice): number {

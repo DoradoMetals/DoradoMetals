@@ -1,7 +1,7 @@
 'use client';
 
-import ProtectedPage from '@/components/custom/auth/protectedPage'
-import CheckoutStepper from '@/components/custom/purchase-order-checkout/checkoutStepper'
+import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
+import CheckoutStepper from '@/features/checkout/purchase-order-checkout/checkoutStepper'
 import { protectedRoutes } from '@/types/routes'
 
 export default function Page() {

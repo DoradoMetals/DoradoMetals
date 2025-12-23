@@ -2,7 +2,7 @@ import { useMutation} from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
 import { sellCartStore } from '@/store/sellCartStore'
 import { useEffect } from 'react'
-import { useUser } from '../authClient'
+import { useUser } from '../../features/auth/authClient'
 
 export const useSyncSellCartToBackend = () => {
    const { user } = useUser();

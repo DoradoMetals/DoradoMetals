@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
-import { useGetSession } from './useAuth'
+import { useGetSession } from '../../features/auth/queries'
 import {
   PurchaseOrder,
   PurchaseOrderCheckout,

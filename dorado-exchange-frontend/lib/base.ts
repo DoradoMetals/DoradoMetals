@@ -9,7 +9,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query'
 import { apiRequest } from '@/utils/axiosInstance'
-import { useGetSession } from '@/lib/queries/useAuth'
+import { useGetSession } from '@/features/auth/queries'
 import { Method } from 'axios'
 
 export function upsertById<T extends { id: string }>(list: T[] | undefined, updated: T): T[] {
