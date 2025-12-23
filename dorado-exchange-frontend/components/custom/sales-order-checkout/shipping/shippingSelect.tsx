@@ -8,10 +8,9 @@ import { useDrawerStore } from '@/store/drawerStore'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import ServiceSelector from './serviceSelector'
 import { SalesOrderTotals } from '@/types/sales-orders'
-import { PlusIcon } from '@phosphor-icons/react'
 import { useGetSession } from '@/lib/queries/useAuth'
-import AddressDrawer from '@/features/addresses/ui/AddressDrawer'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
+import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 
 interface ShippingSelectProps {
   addresses: Address[]
@@ -21,7 +20,6 @@ interface ShippingSelectProps {
 
 export default function ShippingSelect({ addresses, orderPrices }: ShippingSelectProps) {
   const { user } = useGetSession()
-  const [draftAddress, setDraftAddress] = useState<Address>(makeEmptyAddress(user?.id))
   const { openDrawer } = useDrawerStore()
 
   const isEmpty = addresses.length === 0
@@ -36,7 +34,6 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
   return (
     <div className="flex flex-col w-full">
       <AddressDrawer
-        address={draftAddress}
         onSuccess={(savedAddress: Address) => {
           setData({ address: savedAddress })
         }}
@@ -56,7 +53,6 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
             icon={Plus}
             iconSize={16}
             onClick={() => {
-              setDraftAddress({ ...makeEmptyAddress(user?.id), user_id: user?.id ?? '' })
               openDrawer('address')
             }}
             className="border-primary text-primary hover:text-neutral-900 hover:bg-primary"

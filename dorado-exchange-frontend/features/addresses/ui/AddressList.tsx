@@ -6,9 +6,7 @@ import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAddress } from '@/features/addresses/lib/queries'
-import { makeEmptyAddress } from '@/features/addresses/types'
 import { useDrawerStore } from '@/store/drawerStore'
-import { useGetSession } from '@/lib/queries/useAuth'
 import { AddressCard } from './AddressCard'
 import { DebouncedInputSearch } from '@/components/ui/debounced-input-search'
 import { EmptyState } from '@/shared/ui/EmptyState'
@@ -16,7 +14,6 @@ import { MapPinIcon } from '@phosphor-icons/react'
 import { AddressDrawer } from './AddressDrawer'
 
 export default function AddressList() {
-  const { user } = useGetSession()
   const { data: addresses = [], isLoading } = useAddress()
   const openDrawer = useDrawerStore((s) => s.openDrawer)
 
