@@ -15,7 +15,7 @@ import { FedexLocationsMap } from './FedexLocations'
 import { InsuranceSelector } from './insuranceSelector'
 import { useDrawerStore } from '@/store/drawerStore'
 import { useGetSession } from '@/lib/queries/useAuth'
-import AddressDrawer from '@/features/addresses/ui/AddressDrawer'
+import  {AddressDrawer} from '@/features/addresses/ui/AddressDrawer'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 
 interface ShippingStepProps {
@@ -60,7 +60,6 @@ export default function ShippingStep({
   return (
     <div className="space-y-6 w-full">
       <AddressDrawer
-        address={draftAddress}
         onSuccess={(savedAddress: Address) => {
           setData({ address: savedAddress })
         }}

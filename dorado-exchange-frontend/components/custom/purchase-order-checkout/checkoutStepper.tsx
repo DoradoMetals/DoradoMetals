@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button'
 import { defineStepper } from '@stepperize/react'
 import ShippingStep from './shippingStep/shippingStep'
 import PayoutStep from './payoutStep/payoutStep'
-import { useAddress } from '@/features/addresses/queries'
-import { Address, emptyAddress } from '@/features/addresses/types'
+import { useAddress } from '@/features/addresses/lib/queries'
+import { Address, makeEmptyAddress } from '@/features/addresses/types'
 import { useEffect, useMemo, useRef } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import ReviewStep from './reviewStep/reviewStep'
@@ -66,7 +66,7 @@ export default function CheckoutStepper() {
       (!!data.pickup.date && !!data.pickup.time))
 
   const defaultAddress: Address =
-    addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress
+    addresses.find((a) => a.is_default) ?? addresses[0] ??  makeEmptyAddress(user?.id)
 
   useEffect(() => {
     if (!hasInitialized.current && addresses.length > 0) {
@@ -92,7 +92,7 @@ export default function CheckoutStepper() {
   const cartItems = sellCartStore((state) => state.items)
 
   const fedexRatesInput = getFedexRatesInput({
-    address: data.address ?? emptyAddress,
+    address: data.address ??  makeEmptyAddress(user?.id),
     package: data.package,
     shippingType: 'Inbound',
     pickupLabel: data.pickup?.label ?? 'DROPOFF_AT_FEDEX_LOCATION',
@@ -125,7 +125,7 @@ export default function CheckoutStepper() {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10 lg:mt-30">
         <div className="relative mb-5">
-          <ShoppingCartIcon size={80} strokeWidth={1.5} className='text-primary' />
+          <ShoppingCartIcon size={80} strokeWidth={1.5} className="text-primary" />
           <div className="absolute -top-6 right-3.5 border border-borderr text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
             0
           </div>
@@ -178,7 +178,7 @@ export default function CheckoutStepper() {
             shipping: () => (
               <ShippingStep
                 addresses={addresses}
-                emptyAddress={emptyAddress}
+                emptyAddress={makeEmptyAddress(user?.id)}
                 rates={rates}
                 isLoading={ratesLoading}
               />

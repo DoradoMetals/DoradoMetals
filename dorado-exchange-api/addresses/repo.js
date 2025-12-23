@@ -36,15 +36,14 @@ export async function isActive({ addressId, userId }) {
 export async function create({ address, userId }) {
   const q = `
     INSERT INTO exchange.addresses (
-      id, user_id, line_1, line_2, city, state, country, zip, name,
+      user_id, line_1, line_2, city, state, country, zip, name,
       is_default, phone_number, country_code, is_residential
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
     RETURNING *;
   `;
 
   const values = [
-    address.id,
     userId,
     address.line_1,
     address.line_2,

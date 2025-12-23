@@ -1,8 +1,8 @@
 'use client'
 
-import { useUserAddress } from '@/features/addresses/queries'
+import { useUserAddress } from '@/features/addresses/lib/queries'
 import { User } from '@/types/user'
-import { Address, emptyAddress } from '@/features/addresses/types'
+import { Address, makeEmptyAddress } from '@/features/addresses/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/components/ui/drawer'
@@ -40,10 +40,12 @@ import { loadStripe } from '@stripe/stripe-js'
 import { Switch } from '@/components/ui/switch'
 import { useAdminCreateSalesOrder } from '@/lib/queries/admin/useAdminSalesOrders'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
+import { useGetSession } from '@/lib/queries/useAuth'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export function CreateSalesOrderDrawer() {
+  const { user } = useGetSession()
   const { data, setData } = useAdminSalesOrderCheckoutStore()
   const { activeDrawer, closeDrawer, createSalesOrderUser } = useDrawerStore()
 
@@ -55,7 +57,7 @@ export function CreateSalesOrderDrawer() {
   const { data: spotPrices = [] } = useSpotPrices()
 
   const { data: salesTax = 0 } = useSalesTax({
-    address: data.address ?? emptyAddress,
+    address: data.address ??  makeEmptyAddress(user?.id),
     items: data.items ?? [],
     spots: spotPrices,
   })
@@ -94,7 +96,7 @@ export function CreateSalesOrderDrawer() {
     })
   }, [createSalesOrderUser])
 
-  const defaultAddress = addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress
+  const defaultAddress = addresses.find((a) => a.is_default) ?? addresses[0] ??  makeEmptyAddress(user?.id)
 
   useEffect(() => {
     if (addresses.length > 0 && data.address?.id !== defaultAddress.id) {

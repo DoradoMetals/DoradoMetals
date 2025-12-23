@@ -14,7 +14,7 @@ import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { useUpdateReview } from '@/lib/queries/useReviews'
 import type { Review } from '@/types/reviews'
-import { formatFullDate } from '@/utils/formatting/dateFormatting'
+import { formatFullDate } from '@/shared/utils/formatDates'
 import { Calendar } from '@/components/ui/calendar'
 
 export default function ReviewsDrawer({
@@ -200,7 +200,6 @@ function Created({ review }: { review: Review }) {
             const d = new Date(newDate)
             d.setHours(0, 0, 0, 0)
             if (d < minDate || d > maxDate) return
-            console.log(d)
             handleUpdate(d)
           }}
           className="p-2 bg-card w-full raised-off-page rounded-lg"

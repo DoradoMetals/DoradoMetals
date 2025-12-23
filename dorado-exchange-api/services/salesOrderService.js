@@ -10,7 +10,7 @@ import * as supplierRepo from '../repositories/supplierRepo.js';
 import * as taxRepo from '../repositories/taxRepo.js';
 
 import * as emailService from '../services/emailService.js';
-import * as addressService from '../services/addressService.js';
+import * as addressService from "../addresses/service.js";
 import * as taxService from '../services/taxService.js';
 import * as productService from '../services/productService.js';
 

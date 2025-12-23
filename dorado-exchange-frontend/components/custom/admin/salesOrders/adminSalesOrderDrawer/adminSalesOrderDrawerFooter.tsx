@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
-import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
+import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 
 import { SalesOrderDrawerFooterProps, statusConfig } from '@/types/sales-orders'
 import { SalesOrderActionButtons } from './adminSalesOrderDrawerContents/adminSalesOrderActionButtons'

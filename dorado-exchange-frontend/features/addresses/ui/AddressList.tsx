@@ -5,23 +5,24 @@ import { Plus } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useAddress } from '@/features/addresses/queries'
-import { Address, emptyAddress } from '@/features/addresses/types'
+import { useAddress } from '@/features/addresses/lib/queries'
+import { makeEmptyAddress } from '@/features/addresses/types'
 import { useDrawerStore } from '@/store/drawerStore'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { AddressCard } from './AddressCard'
-import AddressDrawer from './AddressDrawer'
 import { DebouncedInputSearch } from '@/components/ui/debounced-input-search'
+import { EmptyState } from '@/shared/ui/EmptyState'
+import { MapPinIcon } from '@phosphor-icons/react'
+import { AddressDrawer } from './AddressDrawer'
 
 export default function AddressList() {
   const { user } = useGetSession()
   const { data: addresses = [], isLoading } = useAddress()
-  const { openDrawer } = useDrawerStore()
+  const openDrawer = useDrawerStore((s) => s.openDrawer)
 
-  const [selectedAddress, setSelectedAddress] = useState<Address>(emptyAddress)
   const [query, setQuery] = useState('')
 
-  const hasAddresses = addresses && addresses.length > 0
+  const hasAddresses = addresses.length > 0
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -36,6 +37,10 @@ export default function AddressList() {
       return text.includes(q)
     })
   }, [addresses, query])
+
+  const handleAdd = () => {
+    openDrawer('address')
+  }
 
   return (
     <div className="flex flex-col">
@@ -55,53 +60,57 @@ export default function AddressList() {
         </div>
       ) : (
         <>
-          {hasAddresses && (
-            <div className="mb-4 flex items-center gap-2">
-              <div className="flex-1">
-                <DebouncedInputSearch
-                  value={query}
-                  onChange={(v) => setQuery(String(v))}
-                  placeholder="Search Addresses..."
-                  inputClassname="bg-card"
-                />
+          {hasAddresses ? (
+            <>
+              <div className="mb-4 flex items-center gap-2">
+                <div className="flex-1">
+                  <DebouncedInputSearch
+                    value={query}
+                    onChange={(v) => setQuery(String(v))}
+                    placeholder="Search Addresses..."
+                    inputClassname="bg-card"
+                  />
+                </div>
+
+                <Button variant="secondary" className="h-9 px-2" onClick={handleAdd}>
+                  <div className="flex items-center gap-1">
+                    <Plus size={16} />
+                    <span className="text-xs md:text-sm">Add New</span>
+                  </div>
+                </Button>
               </div>
 
-              <Button
-                variant="secondary"
-                className="h-9 px-2"
-                onClick={() => {
-                  setSelectedAddress({ ...emptyAddress, user_id: user?.id ?? '' })
-                  openDrawer('address')
-                }}
-              >
-                <div className="flex items-center gap-1">
-                  <Plus size={16} />
-                  <span className="text-xs md:text-sm">Add New</span>
-                </div>
-              </Button>
-            </div>
+              <div className="flex flex-col gap-3">
+                {filtered.map((addr) => (
+                  <div key={addr.id ?? `${addr.user_id}-${addr.line_1}-${addr.zip}-${addr.name}`}>
+                    <AddressCard
+                      address={addr}
+                      icon="auto"
+                      showDefaultBanner
+                      showEdit
+                      showRemove
+                      showSetDefault
+                      onEdit={(a)  => {
+                        openDrawer('address', {address: a})
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <EmptyState
+              icon={MapPinIcon}
+              title="No Addresses Found!"
+              description="Add an address so we can save it to your account."
+              buttonLabel="Add New Address"
+              onClick={handleAdd}
+              buttonVariant="outline"
+              buttonClassName="border-primary text-primary bg-card hover:text-neutral-900 hover:bg-primary hover:text-white hover:border-none"
+            />
           )}
 
-          {hasAddresses && (
-            <div className="flex flex-col gap-3">
-              {filtered.map((addr) => (
-                <AddressCard
-                  key={addr.id}
-                  address={addr}
-                  icon="auto"
-                  showDefaultBanner
-                  showEdit
-                  showRemove
-                  showSetDefault
-                  onEdit={(a) => {
-                    setSelectedAddress(a)
-                    openDrawer('address')
-                  }}
-                />
-              ))}
-            </div>
-          )}
-          <AddressDrawer address={selectedAddress} />
+          <AddressDrawer />
         </>
       )}
     </div>

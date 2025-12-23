@@ -2,6 +2,8 @@
 
 import { FormField, FormItem, FormControl, FormMessage } from '@/components/ui/form'
 import { FloatingLabelInput, FloatingLabelInputProps } from '@/components/ui/floating-label-input'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { InvalidXIcon, ValidCheckIcon } from '@/components/ui/valid-check-icon'
 import { Control, FieldPath, FieldValues } from 'react-hook-form'
 import ShowPasswordButton from '../custom/auth/showPasswordButton'
@@ -16,7 +18,7 @@ type ValidatedFieldProps<T extends FieldValues> = {
   rightAligned?: boolean
   disabled?: boolean
 
-  inputProps?: Partial<FloatingLabelInputProps>
+  inputProps?: Partial<FloatingLabelInputProps> & React.InputHTMLAttributes<HTMLInputElement>
 
   showPasswordButton?: boolean
   showPassword?: boolean
@@ -29,6 +31,8 @@ type ValidatedFieldProps<T extends FieldValues> = {
 
   showOnTouch?: boolean
   showFormError?: boolean
+
+  floating?: boolean
 }
 
 export function ValidatedField<T extends FieldValues>({
@@ -48,6 +52,7 @@ export function ValidatedField<T extends FieldValues>({
   messageClassName = 'absolute right-0 -bottom-5.5 -translate-y-1/2 text-xs text-destructive',
   showOnTouch = false,
   showFormError = true,
+  floating = true,
 }: ValidatedFieldProps<T>) {
   return (
     <FormField
@@ -55,9 +60,10 @@ export function ValidatedField<T extends FieldValues>({
       name={name}
       render={({ field, fieldState }) => {
         const mergedOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-          inputProps.onChange?.(e)
+          ;(inputProps as any).onChange?.(e)
           field.onChange(e)
         }
+
         const allowShowIcon = showIcon && (showOnTouch ? fieldState.isTouched : true)
 
         return (
@@ -69,18 +75,7 @@ export function ValidatedField<T extends FieldValues>({
 
               <FormControl>
                 <div className="relative">
-                  <FloatingLabelInput
-                    {...field}
-                    {...inputProps}
-                    onChange={mergedOnChange}
-                    type={type}
-                    label={label}
-                    className={cn(className, rightAligned ? 'text-right' : 'text-left')}
-                    size={size}
-                    pattern={type === 'number' ? '[0-9]*' : undefined}
-                    disabled={disabled}
-                  />
-                  <div className="absolute inset-y-0 right-0 flex items-center space-x-2 pr-2">
+                  <div className="absolute inset-y-0 right-0 flex items-center space-x-2 pr-2 z-10">
                     {showPasswordButton && showPassword !== undefined && setShowPassword && (
                       <ShowPasswordButton
                         showPassword={showPassword}
@@ -89,6 +84,36 @@ export function ValidatedField<T extends FieldValues>({
                     )}
                     {allowShowIcon && (fieldState.error ? <InvalidXIcon /> : <ValidCheckIcon />)}
                   </div>
+
+                  {floating ? (
+                    <FloatingLabelInput
+                      {...field}
+                      {...(inputProps as Partial<FloatingLabelInputProps>)}
+                      onChange={mergedOnChange}
+                      type={type}
+                      label={label}
+                      className={cn(className, rightAligned ? 'text-right' : 'text-left', 'pr-12')}
+                      size={size}
+                      pattern={type === 'number' ? '[0-9]*' : undefined}
+                      disabled={disabled}
+                    />
+                  ) : (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-neutral-700">{label}</Label>
+                      <Input
+                        {...field}
+                        {...(inputProps as React.InputHTMLAttributes<HTMLInputElement>)}
+                        onChange={mergedOnChange}
+                        type={type}
+                        disabled={disabled}
+                        className={cn(
+                          className,
+                          rightAligned ? 'text-right' : 'text-left',
+                          'pr-12'
+                        )}
+                      />
+                    </div>
+                  )}
                 </div>
               </FormControl>
             </div>

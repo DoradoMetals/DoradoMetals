@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { useAddress } from '@/features/addresses/queries'
+import { useAddress } from '@/features/addresses/lib/queries'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
@@ -18,15 +18,17 @@ import { useCreateSalesOrder } from '@/lib/queries/useSalesOrders'
 import { calculateSalesOrderPrices } from '@/utils/salesOrders/calculateSalesOrderPrices'
 import OrderSummary from './summary/orderSummary'
 import { useSalesTax } from '@/lib/queries/useSalesTax'
-import { emptyAddress } from '@/features/addresses/types'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 import { useGetSession } from '@/lib/queries/useAuth'
 import { useMutationState } from '@tanstack/react-query'
+import { makeEmptyAddress } from '@/features/addresses/types'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function SalesOrderCheckout() {
+  const { user } = useGetSession()
   const [isLoading, setIsLoading] = useState<boolean>(false)
+  const emptyAddress = makeEmptyAddress(user?.id)
 
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -43,7 +45,6 @@ export default function SalesOrderCheckout() {
     spots: spotPrices,
   })
 
-  const { user } = useGetSession()
   const createOrder = useCreateSalesOrder()
   const updatePaymentIntent = useUpdatePaymentIntent()
   const { data: clientSecret } = useRetrievePaymentIntent('sales_order_checkout')

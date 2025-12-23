@@ -1,7 +1,6 @@
-// src/components/ui/SearchableDropdown.tsx
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { InputHTMLAttributes, useEffect, useRef, useState } from 'react'
 import * as fuzzysort from 'fuzzysort'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandList, CommandItem } from '@/components/ui/command'
@@ -18,6 +17,7 @@ export interface SearchableDropdownProps<T> {
   placeholder?: string
   limit?: number
   inputClassname?: string
+  inputProps?: InputHTMLAttributes<HTMLInputElement>
 }
 
 export function SearchableDropdown<T>({
@@ -28,13 +28,13 @@ export function SearchableDropdown<T>({
   placeholder = 'Search…',
   limit = 50,
   inputClassname,
+  inputProps
 }: SearchableDropdownProps<T>) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // prepare for fuzzysort
   const prepared = items.map((item) => ({
     item,
     searchText: getLabel(item),
@@ -91,18 +91,22 @@ export function SearchableDropdown<T>({
             }}
             onKeyDown={handleKeyDown}
             className={inputClassname}
+            {...inputProps}
           />
           {query && (
             <Button
+              type="button"
               variant="ghost"
               onClick={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
                 setQuery('')
                 setOpen(false)
+                inputRef.current?.focus()
               }}
-              className="absolute right-1 top-1/2 -translate-y-1/2 p-0"
-              size="icon"
+              className="absolute right-3 top-1/2 -translate-y-1/2 grid place-items-center h-7 w-7 rounded-md text-neutral-500"
               tabIndex={-1}
+              aria-label="Clear"
             >
               <XIcon size={16} />
             </Button>

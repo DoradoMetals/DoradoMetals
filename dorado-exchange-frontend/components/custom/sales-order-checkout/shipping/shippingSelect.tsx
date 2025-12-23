@@ -1,6 +1,6 @@
 'use client'
 
-import { Address, emptyAddress } from '@/features/addresses/types'
+import { Address, makeEmptyAddress } from '@/features/addresses/types'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -21,7 +21,7 @@ interface ShippingSelectProps {
 
 export default function ShippingSelect({ addresses, orderPrices }: ShippingSelectProps) {
   const { user } = useGetSession()
-  const [draftAddress, setDraftAddress] = useState<Address>(emptyAddress)
+  const [draftAddress, setDraftAddress] = useState<Address>(makeEmptyAddress(user?.id))
   const { openDrawer } = useDrawerStore()
 
   const isEmpty = addresses.length === 0
@@ -56,7 +56,7 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
             icon={Plus}
             iconSize={16}
             onClick={() => {
-              setDraftAddress({ ...emptyAddress, user_id: user?.id ?? '' })
+              setDraftAddress({ ...makeEmptyAddress(user?.id), user_id: user?.id ?? '' })
               openDrawer('address')
             }}
             className="border-primary text-primary hover:text-neutral-900 hover:bg-primary"

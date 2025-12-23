@@ -22,11 +22,11 @@ export const addressSchema = z.object({
       message: 'Invalid city name',
     }),
   state: z
-  .string()
-  .transform((val) => reverseStateMap[val] || val.toUpperCase())
-  .refine((val) => val in stateMap, {
-    message: 'Invalid US state.',
-  }),
+    .string()
+    .transform((val) => reverseStateMap[val] || val.toUpperCase())
+    .refine((val) => val in stateMap, {
+      message: 'Invalid US state.',
+    }),
   country: z.literal('United States', {
     errorMap: () => ({ message: 'Country must be United States' }),
   }),
@@ -50,22 +50,67 @@ export const addressSchema = z.object({
 
 export type Address = z.infer<typeof addressSchema>
 
-export const emptyAddress: Address = {
-  id: crypto.randomUUID(),
-  user_id: '',
-  line_1: '',
-  line_2: '',
-  city: '',
-  state: '',
-  country: 'United States',
-  zip: '',
-  name: '',
-  is_default: false,
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-  phone_number: '',
-  country_code: 'US',
-  is_valid: false,
-  is_residential: false,
+export function makeEmptyAddress(userId?: string): Address {
+  return {
+    user_id: userId ?? '',
+    line_1: '',
+    line_2: '',
+    city: '',
+    state: '',
+    country: 'United States',
+    zip: '',
+    name: '',
+    is_default: false,
+    phone_number: '',
+    country_code: 'US',
+    is_valid: false,
+    is_residential: false,
+  } as Address
 }
 
+export type PlacesAddressComponent = {
+  types: string[]
+  longText?: string
+  shortText?: string
+}
+
+export type PlacesSuggestionsInput = {
+  userId?: string
+  sessionToken: google.maps.places.AutocompleteSessionToken
+  searchText: string
+}
+
+export type PlacesJsPlacePrediction = {
+  placeId?: string
+  text?: { text?: string }
+  structuredFormat?: {
+    mainText?: { text?: string }
+    secondaryText?: { text?: string } | string
+  }
+  toPlace: () => google.maps.places.Place
+
+  types?: string[]
+  distanceMeters?: number
+  description?: string
+  mainText?: { text?: string }
+  secondaryText?: { text?: string }
+}
+
+export type PlacesJsSuggestion = {
+  placePrediction: PlacesJsPlacePrediction
+}
+
+export type PlacesJsAutocompleteResponse = {
+  suggestions?: PlacesJsSuggestion[]
+}
+
+export type ParsedPlaceSuggestion = {
+  kind: 'place'
+  placeId: string
+  main: string
+  secondary: string | undefined
+  fullText: string | undefined
+  types: string[] | undefined
+  distanceMeters: number | undefined
+  raw: PlacesJsPlacePrediction
+}

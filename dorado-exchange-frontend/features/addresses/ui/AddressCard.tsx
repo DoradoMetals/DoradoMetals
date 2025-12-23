@@ -4,10 +4,10 @@ import * as React from 'react'
 import { Building2, House } from 'lucide-react'
 
 import { Address } from '@/features/addresses/types'
-import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
+import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useDeleteAddress, useSetDefaultAddress } from '@/features/addresses/queries'
+import { useDeleteAddress, useSetDefaultAddress } from '@/features/addresses/lib/queries'
 
 export type AddressCardVariant = 'default' | 'compact'
 type IconKind = 'auto' | 'home' | 'office' | 'none'

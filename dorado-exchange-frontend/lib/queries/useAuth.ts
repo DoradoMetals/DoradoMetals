@@ -74,7 +74,7 @@ export const useGetSession = () => {
       if (error) throw new Error(error.message)
       return data
     },
-    refetchInterval: 10000,
+    refetchInterval: 60000,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   })

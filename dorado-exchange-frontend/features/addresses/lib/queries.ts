@@ -1,8 +1,14 @@
 'use client'
 
-import { Address } from '@/features/addresses/types'
+import {
+  Address,
+  ParsedPlaceSuggestion,
+  PlacesJsAutocompleteResponse,
+  PlacesSuggestionsInput,
+} from '@/features/addresses/types'
 import { useApiMutation, useApiQuery } from '@/lib/base'
 import { queryKeys } from '@/lib/keyFactory'
+import { parsePlacesJsAutocomplete } from '../utils/places'
 
 export const useAddress = () =>
   useApiQuery<Address[]>({
@@ -25,7 +31,7 @@ export const useUserAddress = (userId: string) =>
     }),
   })
 
-  export const useCreateAddress = () =>
+export const useCreateAddress = () =>
   useApiMutation<Address, Address, Address[]>({
     queryKey: queryKeys.address(),
     url: '/addresses/create',
@@ -81,3 +87,25 @@ export const useSetDefaultAddress = () =>
       }))
     },
   })
+
+export function usePlacesSuggestions(input: PlacesSuggestionsInput) {
+  const text = input.searchText.trim()
+
+  return useApiQuery<ParsedPlaceSuggestion[]>({
+    key: queryKeys.places({ ...input, searchText: text }),
+    requireUser: true,
+    enabled: input.searchText.length > 2,
+    staleTime: Infinity,
+    retry: false,
+
+    request: async () => {
+      const { AutocompleteSuggestion } = google.maps.places
+      const resp = (await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+        input: text,
+        sessionToken: input.sessionToken,
+        includedRegionCodes: ['us'],
+      })) as PlacesJsAutocompleteResponse
+      return parsePlacesJsAutocomplete(resp.suggestions ?? [])
+    },
+  })
+}

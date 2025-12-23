@@ -1,4 +1,4 @@
-import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
+import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { Address } from '../features/addresses/types'
 import { Product } from './product'
 import { SpotPrice } from './metal'

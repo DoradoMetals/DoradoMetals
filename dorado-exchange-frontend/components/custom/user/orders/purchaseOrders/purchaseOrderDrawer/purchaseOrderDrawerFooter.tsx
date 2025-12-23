@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table'
 import PriceNumberFlow from '@/components/custom/products/PriceNumberFlow'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
+import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { payoutOptions } from '@/types/payout'
 import getPurchaseOrderBullionPrice from '@/utils/purchaseOrders/getPurchaseOrderBullionPrice'
 import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
