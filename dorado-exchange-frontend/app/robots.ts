@@ -1,4 +1,4 @@
-import { nonIndexablePaths } from '@/types/routes'
+import { nonIndexablePaths } from '@/features/routes/types'
 import type { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {

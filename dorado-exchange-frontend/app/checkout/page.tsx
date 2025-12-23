@@ -2,7 +2,7 @@
 
 import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
 import CheckoutStepper from '@/features/checkout/purchase-order-checkout/checkoutStepper'
-import { protectedRoutes } from '@/types/routes'
+import { protectedRoutes } from '@/features/routes/types'
 
 export default function Page() {
   return (

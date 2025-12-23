@@ -1,7 +1,7 @@
 'use client'
 
 import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
-import { protectedRoutes } from '@/types/routes'
+import { protectedRoutes } from '@/features/routes/types'
 import ChangePasswordForm from '@/features/auth/ui/ChangePasswordForm'
 
 export default function Page() {

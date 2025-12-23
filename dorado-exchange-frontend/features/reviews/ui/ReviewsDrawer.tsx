@@ -12,7 +12,7 @@ import { cn } from '@/shared/utils/cn'
 import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 
 import { useGetSession } from '@/features/auth/queries'
-import type { Review } from '@/types/reviews'
+import type { Review } from '@/features/reviews/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { Calendar } from '@/shared/ui/base/calendar'
 import { useUpdateReview } from '@/features/reviews/queries'

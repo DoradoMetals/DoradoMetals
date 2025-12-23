@@ -6,7 +6,7 @@ import { useMemo, useRef, useState } from 'react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
 
-import { Lead } from '@/types/leads'
+import { Lead } from '@/features/leads/types'
 import { cn } from '@/shared/utils/cn'
 import { Label } from '@/shared/ui/base/label'
 import { Input } from '@/shared/ui/base/input'

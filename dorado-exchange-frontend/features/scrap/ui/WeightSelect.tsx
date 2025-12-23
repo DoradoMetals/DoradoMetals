@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popove
 import { Command, CommandItem, CommandList } from '@/shared/ui/base/command'
 import { Button } from '@/shared/ui/base/button'
 import { useState } from 'react'
-import { WeightOption, weightOptions } from '@/types/scrap'
+import { WeightOption, weightOptions } from '@/features/scrap/types'
 
 export default function WeightSelect({
   value,

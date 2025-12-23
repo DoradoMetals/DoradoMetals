@@ -17,7 +17,7 @@ import {
   SidebarSection,
   useSidebarQueryParamSelection,
 } from '@/shared/ui/SidebarLayout'
-import { userRoleOptions } from '@/types/user'
+import { userRoleOptions } from '@/features/users/types'
 import { useGetSession } from '@/features/auth/queries'
 import Drawer from '@/shared/ui/base/drawer'
 import { cn } from '@/shared/utils/cn'

@@ -2,7 +2,7 @@
 
 import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
 import VerifyEmail from '@/features/auth/ui/VerifyEmail'
-import { protectedRoutes } from '@/types/routes'
+import { protectedRoutes } from '@/features/routes/types'
 import { Suspense } from 'react'
 
 export default function Page() {

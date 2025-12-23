@@ -4,12 +4,12 @@ import { paymentOptions, SalesOrderTotals } from '@/types/sales-orders'
 import getProductPrice from '@/utils/products/getProductPrice'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
-import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import NumberFlow from '@number-flow/react'
 import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import { QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
 import { useSpotPrices } from '@/features/spots/queries'
+import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
   const { items, addItem, removeOne, removeAll } = cartStore()

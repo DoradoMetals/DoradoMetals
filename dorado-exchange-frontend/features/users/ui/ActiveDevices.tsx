@@ -9,7 +9,7 @@ import {
 } from '@/shared/ui/base/table'
 import { Button } from '@/shared/ui/base/button'
 import { useListSessions, useRevokeSession } from '@/features/auth/queries'
-import { parseUserAgent, ParsedUA, getDeviceIcon } from '@/types/user'
+import { parseUserAgent, ParsedUA, getDeviceIcon } from '@/features/users/types'
 
 export function ActiveDevices() {
   const { data: sessions = [], isPending } = useListSessions()

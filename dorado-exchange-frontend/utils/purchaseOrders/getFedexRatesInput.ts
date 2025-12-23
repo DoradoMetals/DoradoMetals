@@ -3,7 +3,7 @@ import { Address } from '@/features/addresses/types'
 import { Package } from '@/types/packaging'
 import { PickupType } from '@/types/pickup'
 import { Insurance } from '@/types/insurance'
-import { FedexRateInput, formatFedexRatesAddress } from '@/types/fedex'
+import { FedexRateInput, formatFedexRatesAddress } from '@/features/fedex/types'
 
 interface Props {
   address?: Address

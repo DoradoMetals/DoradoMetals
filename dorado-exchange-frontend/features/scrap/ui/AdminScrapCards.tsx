@@ -1,4 +1,4 @@
-import { metalOptions, WeightOption, weightOptions } from '@/types/scrap'
+import { metalOptions, WeightOption, weightOptions } from '@/features/scrap/types'
 import { useState } from 'react'
 import WeightSelect from './WeightSelect'
 import { SpotPrice } from '@/features/spots/types'

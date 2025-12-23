@@ -1,7 +1,7 @@
 'use client'
 
 import { useUserAddress } from '@/features/addresses/lib/queries'
-import { User } from '@/types/user'
+import { User } from '@/features/users/types'
 import { Address, makeEmptyAddress } from '@/features/addresses/types'
 import { Skeleton } from '@/shared/ui/base/skeleton'
 import { useDrawerStore } from '@/store/drawerStore'

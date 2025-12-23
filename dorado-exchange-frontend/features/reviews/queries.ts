@@ -1,6 +1,6 @@
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keyFactory'
-import { NewReview, Review, UpdateReviewVars } from '@/types/reviews'
+import { NewReview, Review, UpdateReviewVars } from '@/features/reviews/types'
 
 export const useReview = (reviewId: string | null) => {
   return useApiQuery<Review[]>({

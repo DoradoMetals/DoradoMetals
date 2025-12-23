@@ -9,7 +9,7 @@ import {
   type FedexPickupTimesInput,
   type FedexRate,
   type FedexRateInput,
-} from '@/types/fedex'
+} from '@/features/fedex/types'
 
 
 export const useFedExRates = (input: FedexRateInput | null) =>

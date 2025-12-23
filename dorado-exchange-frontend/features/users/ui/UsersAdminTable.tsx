@@ -5,7 +5,7 @@ import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { AdminUser } from '@/types/admin'
 import { useCreateUser } from '@/features/auth/queries'
-import { userRoleOptions } from '@/types/user'
+import { userRoleOptions } from '@/features/users/types'
 
 import { useDrawerStore } from '@/store/drawerStore'
 

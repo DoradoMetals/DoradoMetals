@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 
-import { Rate } from '@/types/rates'
+import { Rate } from '@/features/rates/types'
 import { useAdminRates } from '@/features/rates/queries'
 import RatesCard from '@/features/rates/ui/RatesCard'
 

@@ -5,7 +5,7 @@ import { Button } from '@/shared/ui/base/button'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { FedexPickupTimesInput, formatFedexPickupAddress, FedexRate } from '@/types/fedex'
+import { FedexPickupTimesInput, formatFedexPickupAddress, FedexRate } from '@/features/fedex/types'
 import { useFedExPickupTimes } from '@/features/fedex/queries'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 

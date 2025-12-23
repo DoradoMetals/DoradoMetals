@@ -10,7 +10,7 @@ import { useSignOut } from '@/features/auth/queries'
 import { useDrawerStore } from '@/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { useSpotTypeStore } from '@/store/spotStore'
-import { protectedRoutes } from '@/types/routes'
+import { protectedRoutes } from '@/features/routes/types'
 import { ThemeSwitcher } from '@/features/navigation/ui/ThemeSwitcher'
 
 export default function Sidebar() {

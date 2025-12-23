@@ -6,7 +6,7 @@ import { SpotPrice } from '@/features/spots/types'
 import { Product } from '@/features/products/types'
 import getPurchaseOrderItemPrice from '@/utils/purchaseOrders/getPurchaseOrderItemPrice'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
-import { FedexCancelPickupInput, FedexPickup } from '@/types/fedex'
+import { FedexCancelPickupInput, FedexPickup } from '@/features/fedex/types'
 
 export const useAdminPurchaseOrders = () => {
   const { user } = useGetSession()

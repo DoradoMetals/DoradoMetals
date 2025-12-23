@@ -2,7 +2,7 @@
 
 import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { purityOptions, ScrapInput, scrapSchema, type Scrap } from '@/types/scrap'
+import { purityOptions, ScrapInput, scrapSchema, type Scrap } from '@/features/scrap/types'
 import { Button } from '@/shared/ui/base/button'
 import { Form } from '@/shared/ui/base/form'
 import { useEffect, useState } from 'react'

@@ -1,6 +1,6 @@
 import { useApiMutation, useApiQuery } from "@/shared/queries/base";
 import { queryKeys } from "@/shared/queries/keyFactory";
-import { Lead, NewLead } from "@/types/leads";
+import { Lead, NewLead } from "@/features/leads/types";
 
 export const useLead = (leadId: string) =>
   useApiQuery<Lead[]>({

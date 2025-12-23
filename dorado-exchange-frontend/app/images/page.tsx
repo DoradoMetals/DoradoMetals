@@ -3,7 +3,7 @@
 import { useTestImage, useDeleteImage } from '@/features/media/queries'
 import { ImageUpload } from '@/features/media/ui/ImageUpload'
 import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
-import { protectedRoutes } from '@/types/routes'
+import { protectedRoutes } from '@/features/routes/types'
 
 export default function Page() {
   const { data: imgs = [], isLoading } = useTestImage()

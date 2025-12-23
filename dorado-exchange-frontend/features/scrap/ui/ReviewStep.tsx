@@ -1,4 +1,4 @@
-import { getGrossLabel, getPurityLabel, Scrap } from '@/types/scrap'
+import { getGrossLabel, getPurityLabel, Scrap } from '@/features/scrap/types'
 import { CheckCircle} from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'

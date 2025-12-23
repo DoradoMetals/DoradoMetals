@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { User } from '@/types/user'
+import { User } from '@/features/users/types'
 import { Address } from '@/features/addresses/types'
 
 type DrawerName =

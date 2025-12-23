@@ -19,7 +19,7 @@ import { Payout } from './payout'
 import { LucideIcon } from 'lucide-react'
 
 import { Product, productSchema } from '../features/products/types'
-import { User, userSchema } from './user'
+import { User, userSchema } from '../features/users/types'
 import { insuranceSchema } from './insurance'
 import { Shipment } from '../features/shipments/types'
 import { spotPriceSchema } from '../features/spots/types'

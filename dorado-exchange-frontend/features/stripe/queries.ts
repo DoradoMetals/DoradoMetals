@@ -1,7 +1,7 @@
 import { SpotPrice } from '@/features/spots/types'
-import { User } from '@/types/user'
+import { User } from '@/features/users/types'
 import { Product } from '@/features/products/types'
-import { PaymentIntent } from '@/types/payment-intent'
+import { PaymentIntent } from '@/features/stripe/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keyFactory'
 

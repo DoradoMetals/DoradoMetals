@@ -17,9 +17,9 @@ import {
   Handshake,
   LucideIcon,
 } from 'lucide-react'
-import { MetalOption, Scrap } from './scrap'
+import { MetalOption, Scrap } from '../features/scrap/types'
 import { Product } from '../features/products/types'
-import { User } from './user'
+import { User } from '../features/users/types'
 import { insuranceSchema } from './insurance'
 import { Metal } from '../features/spots/types'
 

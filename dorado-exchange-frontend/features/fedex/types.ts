@@ -1,4 +1,4 @@
-import { Address } from '../features/addresses/types'
+import { Address } from '../addresses/types'
 
 export type FedexLabelAddress = {
   streetLines: string[]

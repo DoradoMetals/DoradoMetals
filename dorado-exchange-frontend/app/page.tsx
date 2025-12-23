@@ -1,10 +1,9 @@
 'use client'
 
 import { Button } from '@/shared/ui/base/button'
-import { useRates } from '@/lib/queries/useRates'
-import { intakeOptions } from '@/types/intake'
+import { intakeOptions } from '@/features/intake/types'
 import { payoutOptions } from '@/types/payout'
-import { Metal, pctLabel, topRatesByMetal } from '@/types/rates'
+import { Metal, pctLabel, topRatesByMetal } from '@/features/rates/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpRightIcon, PhoneIcon } from '@phosphor-icons/react'
 import Image from 'next/image'
@@ -15,11 +14,12 @@ import { Navigation, Pagination } from 'swiper/modules'
 
 import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
-import { usePublicReviews } from '@/lib/queries/useReviews'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
 import { cn } from '@/shared/utils/cn'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useRouter } from 'next/navigation'
+import { useRates } from '@/features/rates/queries'
+import { usePublicReviews } from '@/features/reviews/queries'
 
 export default function Home() {
   const { data: rates = [] } = useRates()
@@ -37,8 +37,6 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-full w-full bg-card items-center justify-center py-2 sm:py-8 gap-5 sm:gap-10 pb-20">
-      
-      {/* Hero */}
       <section
         aria-label="Dorado hero"
         className="w-full flex flex-col items-center justify-center"

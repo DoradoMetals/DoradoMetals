@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/shared/ui/base/form'
 import { Button } from '@/shared/ui/base/button'
 import { MailCheck, MailWarning, MailX, UserX2 } from 'lucide-react'
-import { User, userSchema } from '@/types/user'
+import { User, userSchema } from '@/features/users/types'
 import { Skeleton } from '@/shared/ui/base/skeleton'
 import {
   useUpdateUser,

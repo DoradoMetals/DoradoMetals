@@ -1,11 +1,9 @@
-// app/sitemap.ts
 import type { MetadataRoute } from 'next'
-import { protectedRoutes } from '@/types/routes'
+import { protectedRoutes } from '@/features/routes/types'
 import { apiRequest } from '@/utils/axiosInstance'
 import { Product } from '@/features/products/types'
 
-// ⬇️ MUST be a literal
-export const revalidate = 21600 // 6 hours
+export const revalidate = 21600
 
 type R = (typeof protectedRoutes)[keyof typeof protectedRoutes]
 const isPublic = (r: R) => r.roles.length === 0 || r.roles.every((role) => !role?.trim?.())

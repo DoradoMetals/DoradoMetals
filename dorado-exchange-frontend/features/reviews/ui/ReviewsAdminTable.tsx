@@ -6,7 +6,7 @@ import type { ColumnDef, Row } from '@tanstack/react-table'
 import { useGetSession } from '@/features/auth/queries'
 import { useDrawerStore } from '@/store/drawerStore'
 
-import type { Review } from '@/types/reviews'
+import type { Review } from '@/features/reviews/types'
 
 import { DataTable } from '@/shared/ui/table/Table'
 import {

@@ -1,6 +1,6 @@
 import { FormField, FormItem, FormMessage } from '@/shared/ui/base/form'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { Scrap, weightOptions } from '@/types/scrap'
+import { Scrap, weightOptions } from '@/features/scrap/types'
 import { CheckCircle } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import { motion } from 'framer-motion'

@@ -12,7 +12,7 @@ import {
   pctToInt,
   intToPct,
   labelFor,
-} from '@/types/rates'
+} from '@/features/rates/types'
 import { DualRangeSlider } from '@/features/rates/ui/DualRangeSlider'
 import { useCreateRate, useDeleteRate, useUpdateRate } from '@/features/rates/queries'
 

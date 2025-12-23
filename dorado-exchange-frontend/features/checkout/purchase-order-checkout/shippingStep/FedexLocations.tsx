@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { useFedExLocations } from '@/features/fedex/queries'
-import { formatFedexPickupAddress } from '@/types/fedex'
+import { formatFedexPickupAddress } from '@/features/fedex/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { formatPickupTime } from '@/shared/utils/formatDates'
 import { GoogleMapDisplay, MarkerType } from '@/shared/ui/GoogleMapDisplay'

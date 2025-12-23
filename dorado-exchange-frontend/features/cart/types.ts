@@ -1,5 +1,5 @@
 import { Product, productSchema } from '@/features/products/types'
-import { Scrap, scrapSchema } from '@/types/scrap'
+import { Scrap, scrapSchema } from '@/features/scrap/types'
 import { z } from 'zod';
 
 export type SellCartItem =

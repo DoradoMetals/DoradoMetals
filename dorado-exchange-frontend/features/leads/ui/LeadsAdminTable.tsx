@@ -3,7 +3,7 @@
 import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
-import { Lead } from '@/types/leads'
+import { Lead } from '@/features/leads/types'
 import { useGetSession } from '@/features/auth/queries'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { useDrawerStore } from '@/store/drawerStore'

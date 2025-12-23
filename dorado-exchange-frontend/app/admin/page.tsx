@@ -1,7 +1,7 @@
 'use client'
 
 import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
-import { protectedRoutes } from '@/types/routes'
+import { protectedRoutes } from '@/features/routes/types'
 ;('use client')
 
 import { useMemo } from 'react'
@@ -27,7 +27,7 @@ import {
   SidebarSection,
   useSidebarQueryParamSelection,
 } from '@/shared/ui/SidebarLayout'
-import { userRoleOptions } from '@/types/user'
+import { userRoleOptions } from '@/features/users/types'
 import { useGetSession } from '@/features/auth/queries'
 import Drawer from '@/shared/ui/base/drawer'
 import { cn } from '@/shared/utils/cn'

@@ -3,7 +3,7 @@
 import { Suspense } from 'react'
 import ChangeEmail from '@/features/auth/ui/ChangeEmailSucess'
 import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
-import { protectedRoutes } from '@/types/routes'
+import { protectedRoutes } from '@/features/routes/types'
 
 export default function Page() {
   return (

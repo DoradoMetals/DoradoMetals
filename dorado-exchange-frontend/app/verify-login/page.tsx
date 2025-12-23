@@ -6,7 +6,7 @@ import { magicLink, useUser } from '@/features/auth/authClient'
 import ResetPasswordForm from '@/features/auth/ui/ResetPasswordForm'
 import { Button } from '@/shared/ui/base/button'
 import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
-import { protectedRoutes } from '@/types/routes'
+import { protectedRoutes } from '@/features/routes/types'
 
 export default function Page() {
   const searchParams = useSearchParams()

@@ -1,6 +1,6 @@
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keyFactory'
-import type { Rate } from '@/types/rates'
+import type { Rate } from '@/features/rates/types'
 
 
 export const useRate = (rate_id: string) => {

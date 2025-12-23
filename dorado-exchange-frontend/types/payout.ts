@@ -1,4 +1,3 @@
-// --- payout.ts ---
 import { z } from 'zod'
 import {
   BankIcon,
@@ -6,7 +5,6 @@ import {
   CreditCardIcon,
   GlobeIcon,
   EnvelopeIcon,
-  UserIcon,
   CoinsIcon,
 } from '@phosphor-icons/react'
 
@@ -103,8 +101,6 @@ export interface PayoutMethod {
   paragraph: string
 }
 
-// --- payout.ts ---
-
 export interface PayoutMethod {
   method: PayoutMethodType
   label: string
@@ -112,7 +108,7 @@ export interface PayoutMethod {
   icon: any
   cost: number
   time_delay: string
-  paragraph: string // short summary (card / checkout)
+  paragraph: string
   longIntro: string
   fitHeading: string
   fitBullets: string[]

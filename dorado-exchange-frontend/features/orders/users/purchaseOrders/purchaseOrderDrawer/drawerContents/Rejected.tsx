@@ -24,7 +24,7 @@ import { serviceOptions } from '@/types/service'
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { ShieldCheckIcon, ShieldSlashIcon } from '@phosphor-icons/react'
-import { FedexRateInput, formatFedexRatesAddress } from '@/types/fedex'
+import { FedexRateInput, formatFedexRatesAddress } from '@/features/fedex/types'
 import { useFedExRates } from '@/features/fedex/queries'
 import { getReturnDeclaredValue } from '@/utils/purchaseOrders/getDeclaredValue'
 import { useSpotPrices } from '@/features/spots/queries'
