@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Address } from '@/types/address'
+import { Address } from '@/features/addresses/types'
 import { Package } from '@/types/packaging'
 import { PickupType } from '@/types/pickup'
 import { Insurance } from '@/types/insurance'

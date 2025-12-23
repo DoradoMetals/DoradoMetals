@@ -6,7 +6,7 @@ import { FedexRate } from '@/types/fedex'
 import { serviceOptions } from '@/types/service'
 import PriceNumberFlow from '../../products/PriceNumberFlow'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import { formatTimeDiff } from '@/utils/formatting/dateFormatting'
+import { formatTimeDiff } from '@/shared/utils/formatDates'
 
 interface ServiceSelectorProps {
   rates: FedexRate[]

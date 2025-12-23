@@ -4,7 +4,7 @@ import cors from "cors";
 import pg from "pg";
 
 import productRoutes from "./routes/products.js";
-import addressRoutes from "./routes/addresses.js";
+import addressRoutes from "./addresses/routes.js";
 import cartRoutes from "./routes/carts.js";
 import sellCartRoutes from "./routes/sell-carts.js";
 import adminRoutes from "./routes/admin.js";

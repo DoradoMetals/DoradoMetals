@@ -1,11 +1,10 @@
 'use client'
 
-import { useUserAddress } from '@/lib/queries/useAddresses'
+import { useUserAddress } from '@/features/addresses/lib/queries'
 import { User } from '@/types/user'
-import { Address, emptyAddress } from '@/types/address'
+import { Address, makeEmptyAddress } from '@/features/addresses/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDrawerStore } from '@/store/drawerStore'
-import { AdminAddressCarousel } from './selectSalesOrderAddress'
 import Drawer from '@/components/ui/drawer'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
@@ -40,9 +39,13 @@ import AdminStripeWrapper from '@/components/custom/stripe/admin/AdminStripeWrap
 import { loadStripe } from '@stripe/stripe-js'
 import { Switch } from '@/components/ui/switch'
 import { useAdminCreateSalesOrder } from '@/lib/queries/admin/useAdminSalesOrders'
+import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
+import { useGetSession } from '@/lib/queries/useAuth'
+
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export function CreateSalesOrderDrawer() {
+  const { user } = useGetSession()
   const { data, setData } = useAdminSalesOrderCheckoutStore()
   const { activeDrawer, closeDrawer, createSalesOrderUser } = useDrawerStore()
 
@@ -54,7 +57,7 @@ export function CreateSalesOrderDrawer() {
   const { data: spotPrices = [] } = useSpotPrices()
 
   const { data: salesTax = 0 } = useSalesTax({
-    address: data.address ?? emptyAddress,
+    address: data.address ??  makeEmptyAddress(user?.id),
     items: data.items ?? [],
     spots: spotPrices,
   })
@@ -93,7 +96,7 @@ export function CreateSalesOrderDrawer() {
     })
   }, [createSalesOrderUser])
 
-  const defaultAddress = addresses.find((a) => a.is_default) ?? addresses[0] ?? emptyAddress
+  const defaultAddress = addresses.find((a) => a.is_default) ?? addresses[0] ??  makeEmptyAddress(user?.id)
 
   useEffect(() => {
     if (addresses.length > 0 && data.address?.id !== defaultAddress.id) {
@@ -116,12 +119,12 @@ export function CreateSalesOrderDrawer() {
           {spotsLocked ? (
             <div className="flex gap-1 items-center">
               Unlock Spots
-              <LockOpenIcon size={16} className='text-primary' />
+              <LockOpenIcon size={16} className="text-primary" />
             </div>
           ) : (
             <div className="flex gap-1 items-center">
               Lock Spots
-              <LockIcon size={16} className='text-primary' />
+              <LockIcon size={16} className="text-primary" />
             </div>
           )}
         </Button>
@@ -132,7 +135,7 @@ export function CreateSalesOrderDrawer() {
 
       <div className="separator-inset" />
       <div className="flex flex-col gap-3">
-        <AddressSelect user={createSalesOrderUser} addresses={addresses} isLoading={isLoading} />
+        <AddressSelector user={createSalesOrderUser} addresses={addresses} isLoading={isLoading} />
         <ServiceSelector />
       </div>
 
@@ -319,7 +322,9 @@ interface AddressSelectProps {
   isLoading: boolean
 }
 
-function AddressSelect({ user, addresses, isLoading }: AddressSelectProps) {
+function AddressSelector({ user, addresses, isLoading }: AddressSelectProps) {
+  const { data, setData } = useAdminSalesOrderCheckoutStore()
+
   return (
     <div className="flex flex-col w-full">
       {isLoading ? (
@@ -340,7 +345,11 @@ function AddressSelect({ user, addresses, isLoading }: AddressSelectProps) {
         <>
           {addresses && addresses.length > 0 ? (
             <div className="flex flex-col gap-3 justify-center w-full">
-              <AdminAddressCarousel addresses={addresses} />
+              <AddressSelect
+                addresses={addresses}
+                value={data.address?.id ?? null}
+                onChange={(addr) => setData({ address: addr })}
+              />
             </div>
           ) : user ? (
             <div className="flex items-center justify-center text-base text-neutral-600">
@@ -387,12 +396,7 @@ function ServiceSelector() {
               )}
             >
               <div className="flex items-center gap-2 text-base font-medium text-neutral-800">
-                {option.icon && (
-                  <option.icon
-                    size={24}
-                    className='text-primary'
-                  />
-                )}
+                {option.icon && <option.icon size={24} className="text-primary" />}
                 {option.label}
               </div>
 

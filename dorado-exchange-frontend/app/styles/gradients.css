@@ -58,17 +58,6 @@
   }
 }
 
-.switch-indicator[data-state='checked'] {
-  background: linear-gradient(
-    to left,
-    #ae8625 0%,
-    #f5d67d 25%,
-    #d2ac47 50%,
-    #edc967 75%,
-    #ae8625 100%
-  );
-}
-
 @layer components {
   .liquid-gold {
     position: relative;

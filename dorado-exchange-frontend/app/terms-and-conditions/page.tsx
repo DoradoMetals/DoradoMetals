@@ -1,4 +1,4 @@
-import { formatFullDate } from '@/utils/formatting/dateFormatting'
+import { formatFullDate } from '@/shared/utils/formatDates'
 import Link from 'next/link'
 
 export default function TermsAndConditions() {

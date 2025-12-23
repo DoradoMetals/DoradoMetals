@@ -1,14 +1,21 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { AdminSalesOrderCheckout, SalesOrderCheckout, salesOrderServiceOptions } from '@/types/sales-orders'
-import { emptyAddress } from '@/types/address'
+import {
+  AdminSalesOrderCheckout,
+  SalesOrderCheckout,
+  salesOrderServiceOptions,
+} from '@/types/sales-orders'
+import { makeEmptyAddress } from '@/features/addresses/types'
 
 type PartialAdminCheckout = Partial<AdminSalesOrderCheckout>
 
 interface AdminSalesOrderCheckoutState {
   data: PartialAdminCheckout
   setData: (values: PartialAdminCheckout) => void
-  updateField: <K extends keyof SalesOrderCheckout>(key: K, value: AdminSalesOrderCheckout[K]) => void
+  updateField: <K extends keyof SalesOrderCheckout>(
+    key: K,
+    value: AdminSalesOrderCheckout[K]
+  ) => void
   clear: () => void
 }
 
@@ -16,7 +23,7 @@ export const useAdminSalesOrderCheckoutStore = create<AdminSalesOrderCheckoutSta
   persist(
     (set) => ({
       data: {
-        address: emptyAddress,
+        address: makeEmptyAddress(),
         service: salesOrderServiceOptions.STANDARD,
         using_funds: true,
         payment_method: 'CARD',
@@ -32,7 +39,7 @@ export const useAdminSalesOrderCheckoutStore = create<AdminSalesOrderCheckoutSta
       clear: () =>
         set({
           data: {
-            address: emptyAddress,
+            address: makeEmptyAddress(),
             service: salesOrderServiceOptions.STANDARD,
             using_funds: true,
             payment_method: 'CARD',

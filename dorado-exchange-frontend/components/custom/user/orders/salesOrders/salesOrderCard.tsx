@@ -3,7 +3,7 @@
 import { MouseEvent, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { useDrawerStore } from '@/store/drawerStore'
-import { formatFullDate } from '@/utils/formatting/dateFormatting'
+import { formatFullDate } from '@/shared/utils/formatDates'
 import { SalesOrder, statusConfig } from '@/types/sales-orders'
 import { AvatarCircles } from '@/components/ui/avatar-circles'
 import { DownloadIcon } from '@phosphor-icons/react'

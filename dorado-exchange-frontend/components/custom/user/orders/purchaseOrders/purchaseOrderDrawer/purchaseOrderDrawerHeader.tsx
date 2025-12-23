@@ -9,7 +9,7 @@ import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import { packageOptions } from '@/types/packaging'
 import { payoutOptions } from '@/types/payout'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
-import { formatFullDate } from '@/utils/formatting/dateFormatting'
+import { formatFullDate } from '@/shared/utils/formatDates'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
 import { DownloadIcon } from '@phosphor-icons/react'
 

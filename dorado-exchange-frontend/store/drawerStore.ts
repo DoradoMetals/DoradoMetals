@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { User } from '@/types/user'
+import { Address } from '@/features/addresses/types'
 
-type DrawerType =
+type DrawerName =
   | 'cart'
   | 'sidebar'
   | 'purchaseOrder'
@@ -16,9 +17,15 @@ type DrawerType =
   | 'accountSidebar'
   | null
 
+type DrawerPayloads = {
+  address?: Address | null
+}
+
 interface DrawerState {
-  activeDrawer: DrawerType
-  openDrawer: (type: DrawerType) => void
+  activeDrawer: DrawerName
+  payload: DrawerPayloads
+
+  openDrawer: (name: DrawerName, payload?: DrawerPayloads) => void
   closeDrawer: () => void
 
   createSalesOrderUser: User | null
@@ -27,8 +34,19 @@ interface DrawerState {
 
 export const useDrawerStore = create<DrawerState>((set) => ({
   activeDrawer: null,
-  openDrawer: (type) => set({ activeDrawer: type }),
-  closeDrawer: () => set({ activeDrawer: null }),
+  payload: {},
+
+  openDrawer: (name, payload) =>
+    set({
+      activeDrawer: name,
+      payload: payload ?? {},
+    }),
+
+  closeDrawer: () =>
+    set({
+      activeDrawer: null,
+      payload: {},
+    }),
 
   createSalesOrderUser: null,
   setCreateSalesOrderUser: (user) => set({ createSalesOrderUser: user }),

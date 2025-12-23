@@ -1,7 +1,7 @@
 import stripeClient from "../stripe.js";
 import * as stripeRepo from "../repositories/stripeRepo.js";
 import * as productService from "../services/productService.js";
-import * as addressService from "../services/addressService.js";
+import * as addressService from "../addresses/service.js";
 import * as taxService from "../services/taxService.js";
 import { calculateSalesOrderTotal } from "../utils/price-calculations.js";
 

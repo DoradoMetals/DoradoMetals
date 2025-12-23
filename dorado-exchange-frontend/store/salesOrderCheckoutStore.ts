@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { SalesOrderCheckout, salesOrderServiceOptions } from '@/types/sales-orders'
-import { emptyAddress } from '@/types/address'
+import { makeEmptyAddress } from '@/features/addresses/types'
 
 type PartialCheckout = Partial<SalesOrderCheckout>
 
@@ -16,7 +16,7 @@ export const useSalesOrderCheckoutStore = create<SalesOrderCheckoutState>()(
   persist(
     (set) => ({
       data: {
-        address: emptyAddress,
+        address: makeEmptyAddress(),
         service: salesOrderServiceOptions.STANDARD,
         using_funds: true,
         payment_method: 'CARD',
@@ -32,7 +32,7 @@ export const useSalesOrderCheckoutStore = create<SalesOrderCheckoutState>()(
       clear: () =>
         set({
           data: {
-            address: emptyAddress,
+            address: makeEmptyAddress(),
             service: salesOrderServiceOptions.STANDARD,
             using_funds: true,
             payment_method: 'CARD',

@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { ShipmentTracking } from '@/types/shipments'
-import { formatDateWithTimeInParens } from '@/utils/formatting/dateFormatting'
+import { formatDateWithTimeInParens } from '@/shared/utils/formatDates'
 
 const MASTER_STAGES = ['Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'] as const
 

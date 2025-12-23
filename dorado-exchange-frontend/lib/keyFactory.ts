@@ -2,6 +2,7 @@ import { ProductFilters } from '@/types/product'
 import { FedexLocationsInput, FedexPickupTimesInput, FedexRateInput } from '@/types/fedex'
 import { SalesTaxInput } from '@/types/tax'
 import { ShipmentTrackingInput } from '@/types/shipments'
+import { PlacesSuggestionsInput } from '@/features/addresses/types'
 
 export const queryKeys = {
   // Admin Products and Inventory
@@ -24,6 +25,7 @@ export const queryKeys = {
   // Addresses
   address: () => ['address'] as const,
   userAddresses: (userId: string) => ['address', userId] as const,
+  places: (input: PlacesSuggestionsInput) => ['places', input] as const,
 
   // FedEx
   fedexRates: (input: FedexRateInput | null) => ['fedexRates', input] as const,

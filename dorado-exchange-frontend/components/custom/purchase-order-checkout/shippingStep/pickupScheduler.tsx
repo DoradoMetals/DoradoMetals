@@ -7,7 +7,7 @@ import { FedexPickupTimes } from '@/types/fedex'
 import { parseISO } from 'date-fns'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { cn } from '@/lib/utils'
-import { formatPickupDate, formatPickupDateShort, formatPickupTime } from '@/utils/formatting/dateFormatting'
+import { formatPickupDate, formatPickupDateShort, formatPickupTime } from '@/shared/utils/formatDates'
 import { useEffect } from 'react'
 
 type PickupSchedulerProps = {

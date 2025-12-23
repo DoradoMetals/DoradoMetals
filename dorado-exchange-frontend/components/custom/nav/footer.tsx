@@ -2,7 +2,7 @@
 
 import { FacebookIcon, InstagramIcon, Logo, XIcon } from '@/components/icons/logo'
 import { Button } from '@/components/ui/button'
-import formatPhoneNumber from '@/utils/formatting/formatPhoneNumber'
+import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import Image from 'next/image'
 import Link from 'next/link'
 
