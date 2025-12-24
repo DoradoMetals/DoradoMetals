@@ -1,7 +1,7 @@
 import { PurchaseOrder } from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
 import { SellCartItem } from '@/features/cart/types'
-import getProductBidPrice from '../products/getProductBidPrice'
+import getProductBidPrice from '../../features/products/utils/getProductBidPrice'
 import getScrapPrice from './getScrapPrice'
 
 export function getReturnDeclaredValue(

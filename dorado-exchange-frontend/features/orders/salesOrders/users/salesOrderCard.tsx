@@ -8,7 +8,7 @@ import { SalesOrder, statusConfig } from '@/features/orders/salesOrders/types'
 import { AvatarCircles } from '@/features/orders/ui/ImageCirclesOverlapped'
 import { DownloadIcon } from '@phosphor-icons/react'
 import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
-import { useFormatSalesOrderNumber } from '@/utils/formatting/order-numbers'
+import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { OrderCardShell } from '@/features/orders/ui/orderCardShell'
 import { useSalesOrderMetals } from '@/features/orders/salesOrders/users/queries'
 

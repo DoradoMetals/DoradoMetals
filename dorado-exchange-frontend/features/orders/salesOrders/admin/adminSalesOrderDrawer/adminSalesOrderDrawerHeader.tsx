@@ -3,7 +3,7 @@ import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
 
 import { SalesOrderDrawerHeaderProps, statusConfig } from '@/features/orders/salesOrders/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { useFormatSalesOrderNumber } from '@/utils/formatting/order-numbers'
+import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useSalesOrderMetals } from '@/features/orders/salesOrders/users/queries'
 
 export default function AdminSalesOrderDrawerHeader({ order }: SalesOrderDrawerHeaderProps) {

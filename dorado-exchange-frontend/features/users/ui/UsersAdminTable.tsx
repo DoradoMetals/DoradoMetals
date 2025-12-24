@@ -12,7 +12,7 @@ import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn } from '@/shared/ui/table/Columns'
 
 import { cn } from '@/shared/utils/cn'
-import { isValidEmail } from '@/utils/isValid'
+import { isValidEmail } from '@/shared/utils/isValid'
 import { PlusIcon } from '@phosphor-icons/react'
 import { CreateConfig } from '@/shared/ui/table/AddNew'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'

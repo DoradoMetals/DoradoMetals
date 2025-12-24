@@ -9,15 +9,15 @@ import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 
 import { useMemo, useState } from 'react'
 import { cartStore } from '@/store/cartStore'
-import getProductPrice from '@/utils/products/getProductPrice'
-import getProductBidPrice from '@/utils/products/getProductBidPrice'
+import getProductPrice from '@/features/products/utils/getProductPrice'
+import getProductBidPrice from '@/features/products/utils/getProductBidPrice'
 
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import getProductAskOverUnderSpot from '@/utils/products/getProductAskOverUnderSpot'
+import getProductAskOverUnderSpot from '@/features/products/utils/getProductAskOverUnderSpot'
 import {
   CheckCircleIcon,
   CircleIcon,
@@ -28,7 +28,7 @@ import {
 import { sellCartStore } from '@/store/sellCartStore'
 import { Lens } from '@/shared/ui/base/lens'
 import { paymentOptions, salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
-import getProductBidOverUnderSpot from '@/utils/products/getProductBidOverUnderSpot'
+import getProductBidOverUnderSpot from '@/features/products/utils/getProductBidOverUnderSpot'
 import { useSpotPrices } from '@/features/spots/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 

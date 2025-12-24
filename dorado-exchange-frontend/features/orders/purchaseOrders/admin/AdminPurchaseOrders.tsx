@@ -15,7 +15,7 @@ import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/shared/
 import { cn } from '@/shared/utils/cn'
 import { Button } from '@/shared/ui/base/button'
 import { FileXIcon } from '@phosphor-icons/react'
-import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
+import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 
 const STATUS_FILTERS = ['In Transit', 'Received', 'Payment Processing', 'Completed'] as const
 

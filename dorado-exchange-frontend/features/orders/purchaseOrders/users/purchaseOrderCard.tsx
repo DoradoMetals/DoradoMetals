@@ -14,7 +14,7 @@ import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/ty
 import { formatFullDate } from '@/shared/utils/formatDates'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import { DownloadIcon } from '@phosphor-icons/react'
-import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
+import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useSpotPrices } from '@/features/spots/queries'
 import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
 import { OrderCardShell } from '@/features/orders/ui/orderCardShell'

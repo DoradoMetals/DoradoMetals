@@ -17,7 +17,7 @@ import {
 } from '@phosphor-icons/react'
 import { TextColumn, IconColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
-import { isValidEmail } from '@/utils/isValid'
+import { isValidEmail } from '@/shared/utils/isValid'
 import { CreateConfig } from '@/shared/ui/table/AddNew'
 import LeadsDrawer from '@/features/leads/ui/LeadsDrawer'
 import { useCreateLead, useLeads } from '@/features/leads/queries'

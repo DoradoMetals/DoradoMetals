@@ -7,7 +7,7 @@ import {
 import { packageOptions } from '@/features/packaging/types'
 import { payoutOptions } from '@/features/payouts/types'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/features/orders/purchaseOrders/types'
-import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
+import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { CheckCheck } from 'lucide-react'
 import { useSpotPrices } from '@/features/spots/queries'
 import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'

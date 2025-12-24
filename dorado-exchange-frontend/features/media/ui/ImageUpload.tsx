@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useState, useCallback } from 'react'
 import { cn } from '@/shared/utils/cn'
 import { useUploadImage } from '@/features/media/queries'
-import { useImageUpload } from '@/utils/useImageUpload'
+import { useImageUpload } from '@/shared/hooks/useImageUpload'
 import { CheckCircleIcon, TrashIcon, UploadIcon, XCircleIcon } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 

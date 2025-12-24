@@ -5,7 +5,7 @@ import { SpotPrice } from '@/features/spots/types'
 import { PackageOption } from '@/features/packaging/types'
 import { PayoutMethod } from '@/features/payouts/types'
 import { SalesOrder } from '@/features/orders/salesOrders/types'
-import { useFormatPurchaseOrderNumber, useFormatSalesOrderNumber } from '@/utils/formatting/order-numbers'
+import { useFormatPurchaseOrderNumber, useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 
 const downloadPackingListRequest = async ({
   purchaseOrder,

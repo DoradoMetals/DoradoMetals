@@ -9,7 +9,7 @@ import { useDrawerStore } from '@/store/drawerStore'
 import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/shared/ui/table/Columns'
 import { cn } from '@/shared/utils/cn'
-import { useFormatSalesOrderNumber } from '@/utils/formatting/order-numbers'
+import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useAdminSalesOrders } from '@/features/orders/salesOrders/admin/queries'
 import AdminSalesOrderDrawer from '@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawer'
 

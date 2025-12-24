@@ -1,7 +1,7 @@
 import { Button } from '@/shared/ui/base/button'
 import { cartStore } from '@/store/cartStore'
 import { paymentOptions, SalesOrderTotals } from '@/features/orders/salesOrders/types'
-import getProductPrice from '@/utils/products/getProductPrice'
+import getProductPrice from '@/features/products/utils/getProductPrice'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'

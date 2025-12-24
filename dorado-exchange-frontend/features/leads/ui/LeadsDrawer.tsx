@@ -26,7 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/shared/ui/base/dialog'
-import { isValidEmail } from '@/utils/isValid'
+import { isValidEmail } from '@/shared/utils/isValid'
 import { useDeleteLead, useUpdateLead } from '@/features/leads/queries'
 import { useAdminRoleUsers, useAdminUsers } from '@/features/users/queries'
 

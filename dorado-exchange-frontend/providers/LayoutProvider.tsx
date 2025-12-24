@@ -22,7 +22,7 @@ import {
 import Link from 'next/link'
 import { FloatingNav } from '../features/navigation/ui/FloatingMenu'
 import { cn } from '@/shared/utils/cn'
-import { useScrollLock } from '@/utils/useScrollock'
+import { useScrollLock } from '@/shared/hooks/useScrollock'
 import { useGetSession, useStopImpersonation } from '@/features/auth/queries'
 import Shell from '@/features/navigation/ui/Shell'
 import Footer from '@/features/navigation/ui/Footer'
