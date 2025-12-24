@@ -15,7 +15,7 @@ import {
   PayoutMethodType,
   DoradoPayout,
   doradoAccountSchema,
-} from '@/types/payout'
+} from '@/features/payouts/types'
 
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import ACHForm from './achForm'

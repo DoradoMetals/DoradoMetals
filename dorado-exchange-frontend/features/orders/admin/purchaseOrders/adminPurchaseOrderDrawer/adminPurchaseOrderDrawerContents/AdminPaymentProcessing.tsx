@@ -1,4 +1,4 @@
-import { payoutOptions } from '@/types/payout'
+import { payoutOptions } from '@/features/payouts/types'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import RefinerValues from '@/features/orders/admin/purchaseOrders/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editRefinerValues'

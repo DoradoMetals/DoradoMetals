@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { Form } from '@/shared/ui/base/form'
-import { EcheckPayout } from '@/types/payout'
+import { EcheckPayout } from '@/features/payouts/types'
 import { UseFormReturn } from 'react-hook-form'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'

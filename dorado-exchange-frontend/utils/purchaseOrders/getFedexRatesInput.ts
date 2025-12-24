@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { Address } from '@/features/addresses/types'
-import { Package } from '@/types/packaging'
-import { PickupType } from '@/types/pickup'
-import { Insurance } from '@/types/insurance'
+import { Package } from '@/features/packaging/types'
+import { PickupType } from '@/features/handoff/types'
+import { Insurance } from '@/features/insurance/types'
 import { FedexRateInput, formatFedexRatesAddress } from '@/features/fedex/types'
 
 interface Props {

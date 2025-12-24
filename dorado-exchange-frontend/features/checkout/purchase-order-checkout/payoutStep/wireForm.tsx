@@ -7,7 +7,7 @@ import {
   FormField,
   FormItem,
 } from '@/shared/ui/base/form'
-import { WirePayout } from '@/types/payout'
+import { WirePayout } from '@/features/payouts/types'
 import { UseFormReturn } from 'react-hook-form'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'

@@ -20,17 +20,6 @@ export interface Shipment {
   carrier_id: string
 }
 
-export interface CarrierPickup {
-  id: string
-  user_id: string
-  order_id: string
-  carrier: string
-  pickup_requested_at: string
-  pickup_status: string
-  confirmation_number: number
-  location: string
-}
-
 export type ScanEventItem = {
   status: string,
   location: string,

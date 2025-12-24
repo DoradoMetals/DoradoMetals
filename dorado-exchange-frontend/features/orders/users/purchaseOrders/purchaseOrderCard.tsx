@@ -8,8 +8,8 @@ import {
   useDownloadReturnPackingList,
 } from '@/features/pdfs/queries'
 import { useDrawerStore } from '@/store/drawerStore'
-import { packageOptions } from '@/types/packaging'
-import { payoutOptions } from '@/types/payout'
+import { packageOptions } from '@/features/packaging/types'
+import { payoutOptions } from '@/features/payouts/types'
 import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'

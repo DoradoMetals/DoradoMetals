@@ -21,7 +21,7 @@ import {
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
-import { payoutOptions } from '@/types/payout'
+import { payoutOptions } from '@/features/payouts/types'
 import getPurchaseOrderBullionTotal from '@/utils/purchaseOrders/purchaseOrderBullionTotal'
 import getPurchaseOrderScrapTotal from '@/utils/purchaseOrders/purchaseOrderScrapTotal'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'

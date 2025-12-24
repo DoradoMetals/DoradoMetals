@@ -12,15 +12,15 @@ import {
 
 import { z } from 'zod'
 import { Address, addressSchema } from '../features/addresses/types'
-import { packageSchema } from './packaging'
-import { serviceSchema } from './service'
-import { pickupSchema } from './pickup'
-import { Payout } from './payout'
+import { packageSchema } from '../features/packaging/types'
+import { serviceSchema } from '../features/service/types'
+import { pickupSchema } from '../features/handoff/types'
+import { Payout } from '../features/payouts/types'
 import { LucideIcon } from 'lucide-react'
 
 import { Product, productSchema } from '../features/products/types'
 import { User, userSchema } from '../features/users/types'
-import { insuranceSchema } from './insurance'
+import { insuranceSchema } from '../features/insurance/types'
 import { Shipment } from '../features/shipments/types'
 import { spotPriceSchema } from '../features/spots/types'
 

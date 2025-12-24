@@ -18,9 +18,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/shared/ui/base/dialog'
-import { packageOptions } from '@/types/packaging'
-import { pickupOptions } from '@/types/pickup'
-import { serviceOptions } from '@/types/service'
+import { packageOptions } from '@/features/packaging/types'
+import { pickupOptions } from '@/features/handoff/types'
+import { serviceOptions } from '@/features/service/types'
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { ShieldCheckIcon, ShieldSlashIcon } from '@phosphor-icons/react'

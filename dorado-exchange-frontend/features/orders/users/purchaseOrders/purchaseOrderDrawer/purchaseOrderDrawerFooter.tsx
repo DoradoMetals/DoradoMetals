@@ -21,7 +21,7 @@ import {
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
-import { payoutOptions } from '@/types/payout'
+import { payoutOptions } from '@/features/payouts/types'
 import getPurchaseOrderBullionPrice from '@/utils/purchaseOrders/getPurchaseOrderBullionPrice'
 import { usePurchaseOrderMetals } from '@/lib/queries/usePurchaseOrders'
 import getPurchaseOrderScrapPrice from '@/utils/purchaseOrders/getPurchaseOrderScrapPrice'

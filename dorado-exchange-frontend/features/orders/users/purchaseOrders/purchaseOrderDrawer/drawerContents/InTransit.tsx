@@ -1,6 +1,6 @@
 import { Button } from '@/shared/ui/base/button'
 import { cn } from '@/shared/utils/cn'
-import { packageOptions } from '@/types/packaging'
+import { packageOptions } from '@/features/packaging/types'
 import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 import { formatPickupDateTime } from '@/shared/utils/formatDates'
 import { Car, CheckCheck, PackageOpen, Printer } from 'lucide-react'

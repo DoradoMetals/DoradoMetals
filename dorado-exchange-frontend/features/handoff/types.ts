@@ -1,13 +1,24 @@
 import { z } from 'zod'
-import { Truck, Storefront, IconProps } from '@phosphor-icons/react'
+import { TruckIcon, StorefrontIcon, IconProps } from '@phosphor-icons/react'
 import { format } from 'date-fns'
 
+export interface CarrierPickup {
+  id: string
+  user_id: string
+  order_id: string
+  carrier: string
+  pickup_requested_at: string
+  pickup_status: string
+  confirmation_number: number
+  location: string
+}
+
 export type PickupType = {
-  label: string,
+  label: string
   name: string
   icon: React.ComponentType<IconProps>
-  date: string,
-  time: string,
+  date: string
+  time: string
 }
 
 export const pickupSchema = z.object({
@@ -23,14 +34,14 @@ export const pickupOptions: Record<string, PickupType> = {
   DROPOFF_AT_FEDEX_LOCATION: {
     label: 'DROPOFF_AT_FEDEX_LOCATION',
     name: 'Store Dropoff',
-    icon: Storefront,
+    icon: StorefrontIcon,
     date: format(new Date(), 'yyyy-MM-dd'),
-    time: ''
+    time: '',
   },
   CONTACT_FEDEX_TO_SCHEDULE: {
     label: 'CONTACT_FEDEX_TO_SCHEDULE',
     name: 'Carrier Pickup',
-    icon: Truck,
+    icon: TruckIcon,
     date: format(new Date(), 'yyyy-MM-dd'),
     time: '',
   },

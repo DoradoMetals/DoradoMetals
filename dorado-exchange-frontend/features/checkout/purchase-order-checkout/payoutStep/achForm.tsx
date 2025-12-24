@@ -2,13 +2,13 @@
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { Form, FormControl } from '@/shared/ui/base/form'
-import { AchPayout } from '@/types/payout'
+import { AchPayout } from '@/features/payouts/types'
 import { UseFormReturn } from 'react-hook-form'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { FormField, FormItem } from '@/shared/ui/base/form'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { accountTypeOptions } from '@/types/payout'
+import { accountTypeOptions } from '@/features/payouts/types'
 import { cn } from '@/shared/utils/cn'
 import { Checkbox } from '@/shared/ui/base/checkbox'
 

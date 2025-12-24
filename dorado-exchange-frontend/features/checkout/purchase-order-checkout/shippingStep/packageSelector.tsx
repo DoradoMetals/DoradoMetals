@@ -5,7 +5,7 @@ import { Switch } from '@/shared/ui/base/switch'
 import { cn } from '@/shared/utils/cn'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { sellCartStore } from '@/store/sellCartStore'
-import { packageOptions } from '@/types/packaging'
+import { packageOptions } from '@/features/packaging/types'
 import { convertToPounds } from '@/utils/convertTroyOz'
 import { useEffect, useMemo } from 'react'
 

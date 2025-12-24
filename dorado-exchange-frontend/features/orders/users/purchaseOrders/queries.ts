@@ -9,9 +9,9 @@ import {
 import { SpotPrice } from '@/features/spots/types'
 import getPurchaseOrderItemPrice from '@/utils/purchaseOrders/getPurchaseOrderItemPrice'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
-import { payoutOptions } from '@/types/payout'
+import { payoutOptions } from '@/features/payouts/types'
 import { useSpotPrices } from './useSpotPrices'
-import { packageOptions } from '@/types/packaging'
+import { packageOptions } from '@/features/packaging/types'
 
 export const usePurchaseOrders = () => {
   const { user } = useGetSession()

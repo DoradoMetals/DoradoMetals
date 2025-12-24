@@ -2,7 +2,7 @@
 
 import { Button } from '@/shared/ui/base/button'
 import { intakeOptions } from '@/features/intake/types'
-import { payoutOptions } from '@/types/payout'
+import { payoutOptions } from '@/features/payouts/types'
 import { Metal, pctLabel, topRatesByMetal } from '@/features/rates/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpRightIcon, PhoneIcon } from '@phosphor-icons/react'

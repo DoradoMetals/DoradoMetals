@@ -1,11 +1,5 @@
-import { boolean, z } from 'zod'
-import { Address, addressSchema } from '../features/addresses/types'
-import { packageSchema } from './packaging'
-import { serviceSchema } from './service'
-import { pickupSchema } from './pickup'
-import { Payout, payoutSchema } from './payout'
-import { sellCartItemSchema } from '../features/cart/types'
-import { CarrierPickup, Shipment } from '../features/shipments/types'
+import { z } from 'zod'
+
 import {
   Truck,
   PackageOpen,
@@ -17,11 +11,18 @@ import {
   Handshake,
   LucideIcon,
 } from 'lucide-react'
-import { MetalOption, Scrap } from '../features/scrap/types'
-import { Product } from '../features/products/types'
-import { User } from '../features/users/types'
-import { insuranceSchema } from './insurance'
-import { Metal } from '../features/spots/types'
+
+import { Address, addressSchema } from '@/features/addresses/types'
+import { Shipment } from '@/features/shipments/types'
+import { CarrierPickup, pickupSchema } from '@/features/handoff/types'
+import { Payout, payoutSchema } from '@/features/payouts/types'
+import { packageSchema } from '@/features/packaging/types'
+import { serviceSchema } from '@/features/service/types'
+import { sellCartItemSchema } from '@/features/cart/types'
+import { Scrap } from '@/features/scrap/types'
+import { Product } from '@/features/products/types'
+import { insuranceSchema } from '@/features/insurance/types'
+import { User } from '@/features/users/types'
 
 export interface PurchaseOrderItem {
   item_type: string

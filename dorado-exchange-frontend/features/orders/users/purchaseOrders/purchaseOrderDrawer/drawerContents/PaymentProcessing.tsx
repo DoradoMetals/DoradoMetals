@@ -1,4 +1,4 @@
-import { payoutOptions } from '@/types/payout'
+import { payoutOptions } from '@/features/payouts/types'
 import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
 
 export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {

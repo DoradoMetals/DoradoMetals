@@ -2,7 +2,7 @@
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import { pickupOptions } from '@/types/pickup'
+import { pickupOptions } from '@/features/handoff/types'
 import { cn } from '@/shared/utils/cn'
 
 export function PickupSelector() {

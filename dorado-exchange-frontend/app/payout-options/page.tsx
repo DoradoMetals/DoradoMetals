@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { cn } from '@/shared/utils/cn'
-import { payoutOptions, PayoutMethod } from '@/types/payout'
+import { payoutOptions, PayoutMethod } from '@/features/payouts/types'
 import type { IconProps } from '@phosphor-icons/react'
 
 function HeadingWithIcon({

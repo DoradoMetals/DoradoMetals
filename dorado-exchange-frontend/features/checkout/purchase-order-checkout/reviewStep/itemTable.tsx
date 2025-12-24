@@ -13,7 +13,7 @@ import getScrapPrice from '@/utils/purchaseOrders/getScrapPrice'
 import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getProductBidPrice from '@/utils/products/getProductBidPrice'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
-import { payoutOptions } from '@/types/payout'
+import { payoutOptions } from '@/features/payouts/types'
 
 export default function ReviewItemTables() {
   const { data: spotPrices = [] } = useSpotPrices()
