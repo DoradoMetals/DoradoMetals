@@ -27,7 +27,7 @@ import {
 } from '@phosphor-icons/react'
 import { sellCartStore } from '@/store/sellCartStore'
 import { Lens } from '@/shared/ui/base/lens'
-import { paymentOptions, salesOrderServiceOptions } from '@/types/sales-orders'
+import { paymentOptions, salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
 import getProductBidOverUnderSpot from '@/utils/products/getProductBidOverUnderSpot'
 import { useSpotPrices } from '@/features/spots/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'

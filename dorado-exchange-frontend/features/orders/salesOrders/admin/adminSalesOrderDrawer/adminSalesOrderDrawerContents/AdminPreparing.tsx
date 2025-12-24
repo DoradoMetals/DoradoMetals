@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { cn } from '@/shared/utils/cn'
-import { SalesOrderDrawerContentProps, statusConfig } from '@/types/sales-orders'
+import { SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/salesOrders/types'
 import { Button } from '@/shared/ui/base/button'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { RadioGroupImage } from '@/shared/ui/RadioGroupImage'

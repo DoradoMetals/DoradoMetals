@@ -1,5 +1,5 @@
 import { cn } from '@/shared/utils/cn'
-import { SalesOrderDrawerContentProps, statusConfig } from '@/types/sales-orders'
+import { SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/salesOrders/types'
 
 export default function AdminCompletedSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const config = statusConfig[order.sales_order_status]

@@ -13,7 +13,7 @@ import {
   adminSalesOrderServiceOptions,
   paymentOptions,
   SalesOrderTotals,
-} from '@/types/sales-orders'
+} from '@/features/orders/salesOrders/types'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useAdminSalesOrderCheckoutStore } from '@/store/adminSalesOrderCheckoutStore'
 import { SearchableDropdown } from '@/shared/ui/inputs/InputDropdownSearch'

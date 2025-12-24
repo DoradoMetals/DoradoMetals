@@ -1,7 +1,7 @@
 import { Button } from '@/shared/ui/base/button'
 import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
 
-import { SalesOrderDrawerHeaderProps, statusConfig } from '@/types/sales-orders'
+import { SalesOrderDrawerHeaderProps, statusConfig } from '@/features/orders/salesOrders/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useFormatSalesOrderNumber } from '@/utils/formatting/order-numbers'
 import { useSalesOrderMetals } from '@/features/orders/salesOrders/users/queries'

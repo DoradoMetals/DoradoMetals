@@ -1,4 +1,4 @@
-import { SalesOrderDrawerContentProps, salesOrderServiceOptions } from '@/types/sales-orders'
+import { SalesOrderDrawerContentProps, salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
 import { AnimatedScroll } from '@/features/orders/ui/Animated'
 import { BlurredStagger } from '@/shared/ui/BlurredStagger'
 import { Confetti, ConfettiRef } from '@/features/orders/ui/Confetti'

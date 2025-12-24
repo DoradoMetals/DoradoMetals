@@ -1,6 +1,6 @@
 import { SpotPrice } from '@/features/spots/types'
 import { Product } from '@/features/products/types'
-import { PaymentMethodType, paymentOptions, SalesOrderTotals } from '@/types/sales-orders'
+import { PaymentMethodType, paymentOptions, SalesOrderTotals } from '@/features/orders/salesOrders/types'
 
 export function calculateCardCharge(orderTotal: number, paymentMethod: string): number {
   const surcharge = paymentOptions.find((p) => p.method === paymentMethod)?.surcharge ?? 0.029

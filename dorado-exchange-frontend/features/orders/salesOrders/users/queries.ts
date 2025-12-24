@@ -1,4 +1,4 @@
-import { SalesOrder, SalesOrderCheckout } from '@/types/sales-orders'
+import { SalesOrder, SalesOrderCheckout } from '@/features/orders/salesOrders/types'
 import { SpotPrice } from '@/features/spots/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keyFactory'

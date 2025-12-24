@@ -2,7 +2,7 @@ import AdminCompletedSalesOrder from '@/features/orders/salesOrders/admin/adminS
 import AdminInTransitSalesOrder from '@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawerContents/AdminInTransit'
 import AdminPendingSalesOrder from '@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawerContents/AdminPending'
 import AdminPreparingSalesOrder from '@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawerContents/AdminPreparing'
-import { SalesOrderDrawerContentProps } from '@/types/sales-orders'
+import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 
 
 export default function AdminSalesOrderDrawerContent({ order }: SalesOrderDrawerContentProps) {

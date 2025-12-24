@@ -3,7 +3,7 @@
 import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo } from 'react'
-import { SalesOrderDrawerProps } from '@/types/sales-orders'
+import { SalesOrderDrawerProps } from '@/features/orders/salesOrders/types'
 import { useSalesOrders } from '@/features/orders/salesOrders/users/queries'
 import SalesOrderDrawerHeader from '@/features/orders/salesOrders/users/salesOrderDrawer/salesOrderDrawerHeader'
 import SalesOrderDrawerContent from '@/features/orders/salesOrders/users/salesOrderDrawer/salesOrderDrawerContent'

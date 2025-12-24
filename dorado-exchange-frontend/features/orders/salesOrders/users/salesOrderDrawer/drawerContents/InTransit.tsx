@@ -1,6 +1,6 @@
 import TrackingEvents from '@/features/shipments/ui/TrackingEvents'
 import { useTracking } from '@/features/shipments/queries'
-import { SalesOrderDrawerContentProps } from '@/types/sales-orders'
+import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 
 export default function InTransitSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: trackingInfo, isLoading } = useTracking({

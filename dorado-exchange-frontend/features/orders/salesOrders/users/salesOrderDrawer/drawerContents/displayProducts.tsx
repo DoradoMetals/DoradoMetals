@@ -1,5 +1,5 @@
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { SalesOrderItem } from '@/types/sales-orders'
+import { SalesOrderItem } from '@/features/orders/salesOrders/types'
 import Image from 'next/image'
 
 export default function DisplaySalesOrderProducts({ items }: { items: SalesOrderItem[] }) {

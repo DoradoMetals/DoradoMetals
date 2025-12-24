@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query'
 import { SpotPrice } from '@/features/spots/types'
 import { PackageOption } from '@/features/packaging/types'
 import { PayoutMethod } from '@/features/payouts/types'
-import { SalesOrder } from '@/types/sales-orders'
+import { SalesOrder } from '@/features/orders/salesOrders/types'
 import { useFormatPurchaseOrderNumber, useFormatSalesOrderNumber } from '@/utils/formatting/order-numbers'
 
 const downloadPackingListRequest = async ({

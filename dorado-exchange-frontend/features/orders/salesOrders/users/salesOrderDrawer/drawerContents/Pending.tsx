@@ -1,4 +1,4 @@
-import { SalesOrderDrawerContentProps } from '@/types/sales-orders'
+import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 import DisplaySalesOrderProducts from './displayProducts'
 import { ShineBorder } from '@/features/orders/ui/ShineBorder'
 

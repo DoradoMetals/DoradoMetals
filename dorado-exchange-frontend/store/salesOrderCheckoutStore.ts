@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { SalesOrderCheckout, salesOrderServiceOptions } from '@/types/sales-orders'
+import { SalesOrderCheckout, salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
 import { makeEmptyAddress } from '@/features/addresses/types'
 
 type PartialCheckout = Partial<SalesOrderCheckout>

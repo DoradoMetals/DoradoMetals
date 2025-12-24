@@ -8,7 +8,7 @@ import { useGetSession } from '@/features/auth/queries'
 import {
   adminSalesOrderCheckoutSchema,
   paymentOptions,
-} from '@/types/sales-orders'
+} from '@/features/orders/salesOrders/types'
 
 import { useAdminSalesOrderCheckoutStore } from '@/store/adminSalesOrderCheckoutStore'
 import { useDrawerStore } from '@/store/drawerStore'

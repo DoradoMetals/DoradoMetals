@@ -8,7 +8,7 @@ import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
 import ShippingSelect from './shipping/shippingSelect'
 
 import { loadStripe } from '@stripe/stripe-js'
-import { salesOrderCheckoutSchema } from '@/types/sales-orders'
+import { salesOrderCheckoutSchema } from '@/features/orders/salesOrders/types'
 import { useCreateSalesOrder } from '@/features/orders/users/salesOrders/queries'
 import { calculateSalesOrderPrices } from '@/utils/salesOrders/calculateSalesOrderPrices'
 import { ShoppingCartIcon } from '@phosphor-icons/react'

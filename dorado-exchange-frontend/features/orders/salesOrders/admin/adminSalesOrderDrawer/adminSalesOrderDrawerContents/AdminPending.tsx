@@ -2,7 +2,7 @@ import { useCancelPaymentIntent, useGetSalesOrderPaymentIntent } from '@/feature
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { Button } from '@/shared/ui/base/button'
 import { cn } from '@/shared/utils/cn'
-import { paymentOptions, SalesOrderDrawerContentProps, statusConfig } from '@/types/sales-orders'
+import { paymentOptions, SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/salesOrders/types'
 
 export default function AdminPendingSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: paymentIntent } = useGetSalesOrderPaymentIntent(order.id)

@@ -2,7 +2,7 @@ import { useMoveSalesOrderStatus } from '@/features/orders/salesOrders/admin/que
 import { Button } from '@/shared/ui/base/button'
 import { cn } from '@/shared/utils/cn'
 
-import { SalesOrderActionButtonsProps, statusConfig } from '@/types/sales-orders'
+import { SalesOrderActionButtonsProps, statusConfig } from '@/features/orders/salesOrders/types'
 
 export function SalesOrderActionButtons({ order }: SalesOrderActionButtonsProps) {
   const movePurchaseOrderStatus = useMoveSalesOrderStatus()

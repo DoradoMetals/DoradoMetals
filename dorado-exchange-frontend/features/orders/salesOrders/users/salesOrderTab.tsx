@@ -16,7 +16,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ClipboardTextIcon } from '@phosphor-icons/react'
 
-import { SalesOrderStatuses, statusConfig } from '@/types/sales-orders'
+import { SalesOrderStatuses, statusConfig } from '@/features/orders/salesOrders/types'
 import { useGetSession } from '@/features/auth/queries'
 import { OrderStatusEmptyState, OrderStatusSelector } from '@/features/orders/ui/orderStatusShared'
 import { useSalesOrders } from '@/features/orders/salesOrders/users/queries'

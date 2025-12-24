@@ -1,4 +1,4 @@
-import { SalesOrderDrawerContentProps } from '@/types/sales-orders'
+import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 import { useUser } from '@/features/auth/authClient'
 import { ReviewBlock } from '@/shared/ui/ReviewInput'
 import { useCreateReview } from '@/features/reviews/queries'

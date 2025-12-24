@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableRow } from '@/shared/ui/base/table'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 
-import { SalesOrderDrawerFooterProps } from '@/types/sales-orders'
+import { SalesOrderDrawerFooterProps } from '@/features/orders/salesOrders/types'
 
 export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooterProps) {
   const [open, setOpen] = useState({

@@ -1,6 +1,6 @@
 import { Button } from '@/shared/ui/base/button'
 import { cartStore } from '@/store/cartStore'
-import { paymentOptions, SalesOrderTotals } from '@/types/sales-orders'
+import { paymentOptions, SalesOrderTotals } from '@/features/orders/salesOrders/types'
 import getProductPrice from '@/utils/products/getProductPrice'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'

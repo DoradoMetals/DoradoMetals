@@ -2,7 +2,7 @@ import CompletedSalesOrder from '@/features/orders/salesOrders/users/salesOrderD
 import InTransitSalesOrder from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/InTransit'
 import PendingSalesOrder from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/Pending'
 import PreparingSalesOrder from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/Preparing'
-import { SalesOrderDrawerContentProps } from '@/types/sales-orders'
+import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 
 export default function SalesOrderDrawerContent({ order }: SalesOrderDrawerContentProps) {
   switch (order.sales_order_status) {

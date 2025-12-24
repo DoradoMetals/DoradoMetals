@@ -4,7 +4,7 @@ import {
   AdminSalesOrderCheckout,
   SalesOrderCheckout,
   salesOrderServiceOptions,
-} from '@/types/sales-orders'
+} from '@/features/orders/salesOrders/types'
 import { makeEmptyAddress } from '@/features/addresses/types'
 
 type PartialAdminCheckout = Partial<AdminSalesOrderCheckout>
