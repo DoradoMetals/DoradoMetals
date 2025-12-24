@@ -22,13 +22,14 @@ import { useGetSession } from '@/features/auth/queries'
 import Drawer from '@/shared/ui/base/drawer'
 import { cn } from '@/shared/utils/cn'
 import { useDrawerStore } from '@/store/drawerStore'
-import { useSalesOrders } from '@/features/orders/users/salesOrders/queries'
 import AddressList from '@/features/addresses/ui/AddressList'
-import { PurchaseOrdersContent } from '@/features/orders/users/purchaseOrders/purchaseOrderTab'
-import { SalesOrdersContent } from '@/features/orders/users/salesOrders/salesOrderTab'
 import UserForm from '@/features/users/ui/UserForm'
 import { PasswordAndSecurity } from '@/features/users/ui/PasswordAndSecurity'
-import { usePurchaseOrders } from '@/features/orders/users/purchaseOrders/queries'
+import { usePurchaseOrders } from '@/features/orders/purchaseOrders/users/queries'
+import { useSalesOrders } from '@/features/orders/salesOrders/users/queries'
+import { PurchaseOrdersContent } from '@/features/orders/purchaseOrders/users/purchaseOrderTab'
+import { SalesOrdersContent } from '@/features/orders/salesOrders/users/salesOrderTab'
+
 
 export default function Page() {
   const { user } = useGetSession()

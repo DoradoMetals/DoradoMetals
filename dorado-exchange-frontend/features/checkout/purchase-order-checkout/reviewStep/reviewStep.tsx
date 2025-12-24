@@ -9,7 +9,7 @@ import { purchaseOrderCheckoutSchema } from '@/features/orders/purchaseOrders/ty
 import { sellCartStore } from '@/store/sellCartStore'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
-import { useCreatePurchaseOrder } from '@/features/orders/users/purchaseOrders/queries'
+import { useCreatePurchaseOrder } from '@/features/orders/purchaseOrders/users/queries'
 
 export default function ReviewStep() {
   const data = usePurchaseOrderCheckoutStore((state) => state.data)

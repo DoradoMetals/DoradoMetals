@@ -10,7 +10,7 @@ import { paymentOptions, salesOrderCheckoutSchema } from '@/features/orders/sale
 import { useRouter } from 'next/navigation'
 import { cartStore } from '@/store/cartStore'
 import { useSpotPrices } from '@/features/spots/queries'
-import { useCreateSalesOrder } from '@/features/orders/users/salesOrders/queries'
+import { useCreateSalesOrder } from '@/features/orders/salesOrders/users/queries'
 
 export default function SalesOrderStripeForm({
   address,

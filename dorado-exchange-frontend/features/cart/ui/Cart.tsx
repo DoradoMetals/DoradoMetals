@@ -5,12 +5,12 @@ import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { cartStore } from '@/store/cartStore'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getProductPrice from '@/utils/products/getProductPrice'
-import PriceNumberFlow from '../../../shared/ui/PriceNumberFlow'
 import { useRouter } from 'next/navigation'
 import { useDrawerStore } from '@/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
+import { useSpotPrices } from '@/features/spots/queries'
+import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 export default function Cart() {
   const router = useRouter()

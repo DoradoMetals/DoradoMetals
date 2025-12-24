@@ -1,12 +1,11 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Button } from '@/shared/ui/base/button'
-import { useRates } from '@/lib/queries/useRates'
 import { pctLabel } from '@/features/rates/types'
 import { cn } from '@/shared/utils/cn'
 import { GoldIcon, PalladiumIcon, PlatinumIcon, SilverIcon } from '@/features/navigation/ui/Logo'
 import { CoinsIcon, IconProps, ScalesIcon } from '@phosphor-icons/react'
+import { useRates } from '@/features/rates/queries'
 
 type MetalName = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
 type RateRow = {

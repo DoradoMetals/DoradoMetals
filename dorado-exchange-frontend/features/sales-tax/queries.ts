@@ -1,7 +1,7 @@
 
+import { SalesTaxInput } from '@/features/sales-tax/types'
 import { useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keyFactory'
-import type { SalesTaxInput } from '@/types/tax'
 
 export const useSalesTax = (input: SalesTaxInput) => {
   return useApiQuery<number>({

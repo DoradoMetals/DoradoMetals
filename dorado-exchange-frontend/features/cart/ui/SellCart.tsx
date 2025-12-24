@@ -6,8 +6,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import NumberFlow from '@number-flow/react'
 import { sellCartStore } from '@/store/sellCartStore'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
-import PriceNumberFlow from '../../../shared/ui/PriceNumberFlow'
 import { useRouter } from 'next/navigation'
 import getScrapPrice from '@/utils/purchaseOrders/getScrapPrice'
 import { getGrossLabel, getPurityLabel, Scrap } from '@/features/scrap/types'
@@ -16,6 +14,8 @@ import getProductBidPrice from '@/utils/products/getProductBidPrice'
 import { useDrawerStore } from '@/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
+import { useSpotPrices } from '@/features/spots/queries'
+import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 export default function SellCart() {
   const router = useRouter()

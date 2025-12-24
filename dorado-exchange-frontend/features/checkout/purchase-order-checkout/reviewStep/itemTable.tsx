@@ -8,12 +8,12 @@ import { useReactTable, getCoreRowModel, flexRender, ColumnDef } from '@tanstack
 import { sellCartStore } from '@/store/sellCartStore'
 import { cn } from '@/shared/utils/cn'
 import { SellCartItem } from '@/features/cart/types'
-import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import getScrapPrice from '@/utils/purchaseOrders/getScrapPrice'
-import { useSpotPrices } from '@/lib/queries/useSpotPrices'
 import getProductBidPrice from '@/utils/products/getProductBidPrice'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { payoutOptions } from '@/features/payouts/types'
+import { useSpotPrices } from '@/features/spots/queries'
+import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 export default function ReviewItemTables() {
   const { data: spotPrices = [] } = useSpotPrices()

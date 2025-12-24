@@ -9,7 +9,6 @@ import ShippingSelect from './shipping/shippingSelect'
 
 import { loadStripe } from '@stripe/stripe-js'
 import { salesOrderCheckoutSchema } from '@/features/orders/salesOrders/types'
-import { useCreateSalesOrder } from '@/features/orders/users/salesOrders/queries'
 import { calculateSalesOrderPrices } from '@/utils/salesOrders/calculateSalesOrderPrices'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 import { useGetSession } from '@/features/auth/queries'
@@ -22,6 +21,7 @@ import { useRetrievePaymentIntent, useUpdatePaymentIntent } from '@/features/str
 import PaymentSelect from '@/features/checkout/sales-order-checkout/payment/paymentSelect'
 import StripeWrapper from '@/features/stripe/ui/StripeWrapper'
 import OrderSummary from '@/features/checkout/sales-order-checkout/summary/orderSummary'
+import { useCreateSalesOrder } from '@/features/orders/salesOrders/users/queries'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 

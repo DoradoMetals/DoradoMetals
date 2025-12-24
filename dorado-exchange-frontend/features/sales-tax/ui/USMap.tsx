@@ -5,7 +5,7 @@ import { feature } from 'topojson-client'
 import type { Topology } from 'topojson-specification'
 import { FeatureCollection, Geometry } from 'geojson'
 import { useEffect, useRef } from 'react'
-import { stateTaxData, StateTaxDetail } from '@/types/tax'
+import { stateTaxData, StateTaxDetail } from '@/features/sales-tax/types'
 
 type USMapProps = {
   selected: StateTaxDetail | null

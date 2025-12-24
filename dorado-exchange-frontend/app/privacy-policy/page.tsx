@@ -1,11 +1,10 @@
-import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/shared/ui/base/scroll-area"
 import Link from "next/link";
 
 export default function PrivacyPolicy() {
   return (
     <div className="flex justify-center max-h-screen p-6">
-      <Card className="max-w-3xl w-full p-6 bg-card shadow-md rounded-xl">
+      <div className="max-w-3xl w-full p-6 bg-card shadow-md rounded-xl">
         <h1 className="text-3xl text-neutral-900 font-bold text-center">Privacy Policy</h1>
         <p className="text-sm text-neutral-600 text-center mb-6">Effective Date: 03/08/2025</p>
         
@@ -70,7 +69,7 @@ export default function PrivacyPolicy() {
           <p className="text-sm text-neutral-600">We integrate third-party services such as Google OAuth for authentication.</p>
           <p className="text-sm text-neutral-600">When signing in with Google, you agree to <Link href="https://policies.google.com/privacy" className="text-secondary text-sm">Google’s Privacy Policy</Link>.</p>
         </ScrollArea>
-      </Card>
+      </div>
     </div>
   );
 }
