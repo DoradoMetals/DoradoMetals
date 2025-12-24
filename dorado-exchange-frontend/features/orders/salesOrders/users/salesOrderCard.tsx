@@ -9,7 +9,7 @@ import { AvatarCircles } from '@/features/orders/ui/ImageCirclesOverlapped'
 import { DownloadIcon } from '@phosphor-icons/react'
 import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
-import { OrderCardShell } from '@/features/orders/ui/orderCardShell'
+import { OrderCardShell } from '@/features/orders/ui/OrderCardShell'
 import { useSalesOrderMetals } from '@/features/orders/salesOrders/users/queries'
 
 export default function SalesOrderCard({

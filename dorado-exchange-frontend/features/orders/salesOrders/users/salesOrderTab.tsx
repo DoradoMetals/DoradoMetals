@@ -18,7 +18,7 @@ import { ClipboardTextIcon } from '@phosphor-icons/react'
 
 import { SalesOrderStatuses, statusConfig } from '@/features/orders/salesOrders/types'
 import { useGetSession } from '@/features/auth/queries'
-import { OrderStatusEmptyState, OrderStatusSelector } from '@/features/orders/ui/orderStatusShared'
+import { OrderStatusEmptyState, OrderStatusSelector } from '@/features/orders/ui/OrderStatusShared'
 import { useSalesOrders } from '@/features/orders/salesOrders/users/queries'
 import SalesOrderCard from '@/features/orders/salesOrders/users/salesOrderCard'
 import SalesOrderDrawer from '@/features/orders/salesOrders/users/salesOrderDrawer/salesOrderDrawer'

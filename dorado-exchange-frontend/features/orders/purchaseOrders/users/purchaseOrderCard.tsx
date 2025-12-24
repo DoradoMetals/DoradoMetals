@@ -17,7 +17,7 @@ import { DownloadIcon } from '@phosphor-icons/react'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useSpotPrices } from '@/features/spots/queries'
 import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
-import { OrderCardShell } from '@/features/orders/ui/orderCardShell'
+import { OrderCardShell } from '@/features/orders/ui/OrderCardShell'
 
 export default function PurchaseOrderCard({
   order,

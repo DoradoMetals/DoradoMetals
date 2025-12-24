@@ -13,7 +13,7 @@ import PurchaseOrderDrawer from './purchaseOrderDrawer/purchaseOrderDrawer'
 import { PurchaseOrderStatuses, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { useGetSession } from '@/features/auth/queries'
 import { usePurchaseOrders } from '@/features/orders/purchaseOrders/users/queries'
-import { OrderStatusEmptyState, OrderStatusSelector } from '@/features/orders/ui/orderStatusShared'
+import { OrderStatusEmptyState, OrderStatusSelector } from '@/features/orders/ui/OrderStatusShared'
 
 export function PurchaseOrdersContent() {
   const { user } = useGetSession()
