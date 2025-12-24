@@ -3,26 +3,28 @@
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Form, FormField, FormItem } from '@/components/ui/form'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
+import { Form, FormField, FormItem } from '@/shared/ui/base/form'
+import { Button } from '@/shared/ui/base/button'
+import { Switch } from '@/shared/ui/base/switch'
 
 import { Address, addressSchema, makeEmptyAddress } from '@/features/addresses/types'
-import { useAddress, useCreateAddress, useUpdateAddress } from '@/features/addresses/lib/queries'
-import { useDrawerStore } from '@/store/drawerStore'
-import { useGetSession } from '@/lib/queries/useAuth'
 
-import { ValidatedField } from '@/components/ui/validated_field'
+import { useDrawerStore } from '@/shared/store/drawerStore'
+import { useGetSession } from '@/features/auth/queries'
+
+import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 
-import { AddressSearchInput } from './AutocompleteInput'
-import { usePlacesAutocompleteController } from '../hooks/useAutocomplete'
+
 import { formatAddressSearchText, placeToAddressFields } from '../utils/places'
 import { applyAddressFieldsToForm, clearAddressFields, verifyAddress } from '../utils/form'
 import { GoogleMapDisplay } from '@/shared/ui/GoogleMapDisplay'
-import { useGeocodeAddress } from '../hooks/useGeocoder'
-import { Label } from '@/components/ui/label'
+import { Label } from '@/shared/ui/base/label'
 import { StateComboboxField } from './StateSelect'
+import { useAddress, useCreateAddress, useUpdateAddress } from '@/features/addresses/queries'
+import { useGeocodeAddress } from '@/features/addresses/hooks/useGeocoder'
+import { usePlacesAutocompleteController } from '@/features/addresses/hooks/useAutocomplete'
+import { AddressSearchInput } from '@/features/addresses/ui/AutocompleteInput'
 
 const US_CENTER = { lat: 39.8283, lng: -98.5795 }
 const US_ZOOM = 3

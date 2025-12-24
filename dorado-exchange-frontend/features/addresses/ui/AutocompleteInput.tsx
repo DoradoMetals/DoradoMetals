@@ -1,8 +1,8 @@
 import { useRef } from 'react'
-import { ParsedPlaceSuggestion } from '../types'
 import { MapPinIcon, XIcon } from '@phosphor-icons/react'
-import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
+import { cn } from '@/shared/utils/cn'
+import { Input } from '@/shared/ui/base/input'
+import { ParsedPlaceSuggestion } from '@/features/addresses/types'
 
 export function AddressSearchInput({
   placesReady,

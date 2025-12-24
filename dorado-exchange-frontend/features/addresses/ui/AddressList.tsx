@@ -3,15 +3,15 @@
 import { useState, useMemo } from 'react'
 import { Plus } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { useAddress } from '@/features/addresses/lib/queries'
-import { useDrawerStore } from '@/store/drawerStore'
-import { AddressCard } from './AddressCard'
-import { DebouncedInputSearch } from '@/components/ui/debounced-input-search'
+import { Button } from '@/shared/ui/base/button'
+import { Skeleton } from '@/shared/ui/base/skeleton'
+import { useAddress } from '@/features/addresses/queries'
+import { useDrawerStore } from '@/shared/store/drawerStore'
+import { DebouncedInputSearch } from '@/shared/ui/inputs/DebouncedInputSearch'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { MapPinIcon } from '@phosphor-icons/react'
-import { AddressDrawer } from './AddressDrawer'
+import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
+import { AddressCard } from '@/features/addresses/ui/AddressCard'
 
 export default function AddressList() {
   const { data: addresses = [], isLoading } = useAddress()

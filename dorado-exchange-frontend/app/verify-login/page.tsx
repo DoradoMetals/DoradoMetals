@@ -2,11 +2,11 @@
 
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
-import { magicLink, useUser } from '@/lib/authClient'
-import ResetPasswordForm from '@/components/custom/auth/resetPasswordForm'
-import { Button } from '@/components/ui/button'
-import ProtectedPage from '@/components/custom/auth/protectedPage'
-import { protectedRoutes } from '@/types/routes'
+import { magicLink, useUser } from '@/features/auth/authClient'
+import ResetPasswordForm from '@/features/auth/ui/ResetPasswordForm'
+import { Button } from '@/shared/ui/base/button'
+import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
+import { protectedRoutes } from '@/features/routes/types'
 
 export default function Page() {
   const searchParams = useSearchParams()

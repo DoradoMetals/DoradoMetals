@@ -1,13 +1,14 @@
 'use client'
 
-import Drawer from '@/components/ui/drawer'
+import Drawer from '@/shared/ui/base/drawer'
 import { X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useDrawerStore } from '@/store/drawerStore'
+import { Button } from '@/shared/ui/base/button'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
-import AddressForm from './AddressForm'
-import { Address } from '../types'
+import { Address } from '@/features/addresses/types'
+import AddressForm from '@/features/addresses/ui/AddressForm'
+
 
 interface AddressDrawerProps {
   onSuccess?: (address: Address) => void

@@ -1,8 +1,8 @@
 'use client';
 
-import ProtectedPage from '@/components/custom/auth/protectedPage'
-import VerifyEmail from '@/components/custom/auth/verifyEmail'
-import { protectedRoutes } from '@/types/routes'
+import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
+import VerifyEmail from '@/features/auth/ui/VerifyEmail'
+import { protectedRoutes } from '@/features/routes/types'
 import { Suspense } from 'react'
 
 export default function Page() {

@@ -1,9 +1,9 @@
 'use client'
 
-import { useTestImage, useDeleteImage } from '@/lib/queries/useImages'
-import { ImageUpload } from '@/components/ui/image-upload'
-import ProtectedPage from '@/components/custom/auth/protectedPage'
-import { protectedRoutes } from '@/types/routes'
+import { useTestImage, useDeleteImage } from '@/features/media/queries'
+import { ImageUpload } from '@/features/media/ui/ImageUpload'
+import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
+import { protectedRoutes } from '@/features/routes/types'
 
 export default function Page() {
   const { data: imgs = [], isLoading } = useTestImage()

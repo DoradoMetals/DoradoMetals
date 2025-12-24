@@ -1,8 +1,8 @@
 'use client'
 
-import { useFilteredProducts } from '@/lib/queries/useProducts'
-import ProductCard from '@/components/custom/products/productCard'
-import { useProductFilterStore } from '@/store/productFilterStore'
+import ProductCard from '@/features/products/ui/ProductCard'
+import { useFilteredProducts } from '@/features/products/queries'
+import { useProductFilterStore } from '@/shared/store/productFilterStore'
 
 export default function BuyPage() {
   const { metal_type, filter_category, product_type } = useProductFilterStore()

@@ -3,11 +3,11 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, Plus } from 'lucide-react'
 import { Address } from '@/features/addresses/types'
-import { AddressCard } from './AddressCard'
-import { cn } from '@/lib/utils'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Button } from '@/components/ui/button'
+import { cn } from '@/shared/utils/cn'
+import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
+import { Button } from '@/shared/ui/base/button'
 import { useEffect, useState } from 'react'
+import { AddressCard } from '@/features/addresses/ui/AddressCard'
 
 type Props = {
   addresses: Address[]

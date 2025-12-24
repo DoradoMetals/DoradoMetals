@@ -1,8 +1,8 @@
 'use client'
 
-import ProtectedPage from '@/components/custom/auth/protectedPage'
-import { protectedRoutes } from '@/types/routes'
-import ChangePasswordForm from '@/components/custom/auth/changePassword'
+import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
+import { protectedRoutes } from '@/features/routes/types'
+import ChangePasswordForm from '@/features/auth/ui/ChangePasswordForm'
 
 export default function Page() {
   return (

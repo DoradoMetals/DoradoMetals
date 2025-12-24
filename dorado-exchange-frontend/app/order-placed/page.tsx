@@ -1,9 +1,9 @@
 'use client'
 
-import { AnimatedScroll } from '@/components/icons/animated'
-import { BlurredStagger } from '@/components/ui/blurred-stagger'
-import { Button } from '@/components/ui/button'
-import { Confetti, ConfettiRef } from '@/components/ui/confetti'
+import { AnimatedScroll } from '@/features/orders/ui/Animated'
+import { BlurredStagger } from '@/shared/ui/BlurredStagger'
+import { Button } from '@/shared/ui/base/button'
+import { Confetti, ConfettiRef } from '@/features/orders/ui/Confetti'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'

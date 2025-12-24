@@ -1,13 +1,12 @@
 import type { Metadata } from 'next'
 import { Montserrat, Open_Sans, Poppins } from 'next/font/google'
 import './styles/globals.css'
-import LayoutProvider from '@/components/providers/LayoutProvider' // ✅ Import the Client Component
-import { ThemeProvider } from '@/components/custom/theme/theme-provider'
-import QueryProvider from '@/components/providers/QueryProvider'
-import GoogleMapsProvider from '@/components/providers/GoogleMapsProvider'
+import LayoutProvider from '@/shared/providers/LayoutProvider' // ✅ Import the Client Component
+import { ThemeProvider } from '@/shared/providers/ThemeProvider'
+import QueryProvider from '@/shared/providers/QueryProvider'
+import GoogleMapsProvider from '@/shared/providers/GoogleMapsProvider'
 
-import GlobalGradients from '@/components/ui/gold-gradients'
-import GoogleRecaptchaProvider from '@/components/providers/GoogleRecaptchaProvider'
+import GoogleRecaptchaProvider from '@/shared/providers/GoogleRecaptchaProvider'
 
 export const montserrat = Montserrat({
   subsets: ['latin'],
@@ -44,7 +43,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <GoogleRecaptchaProvider>
             <QueryProvider>
               <GoogleMapsProvider>
-                <GlobalGradients />
                 <LayoutProvider>{children}</LayoutProvider>
               </GoogleMapsProvider>
             </QueryProvider>

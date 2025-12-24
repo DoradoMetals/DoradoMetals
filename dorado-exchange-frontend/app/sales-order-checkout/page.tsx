@@ -1,8 +1,8 @@
 'use client';
 
-import ProtectedPage from '@/components/custom/auth/protectedPage'
-import SalesOrderCheckout from '@/components/custom/sales-order-checkout/salesOrderCheckout'
-import { protectedRoutes } from '@/types/routes'
+import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
+import SalesOrderCheckout from '@/features/checkout/sales-order-checkout/salesOrderCheckout'
+import { protectedRoutes } from '@/features/routes/types'
 
 export default function Page() {
   return (

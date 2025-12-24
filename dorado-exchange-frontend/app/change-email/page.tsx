@@ -1,9 +1,9 @@
 'use client';
 
 import { Suspense } from 'react'
-import ChangeEmail from '@/components/custom/auth/changeEmail'
-import ProtectedPage from '@/components/custom/auth/protectedPage'
-import { protectedRoutes } from '@/types/routes'
+import ChangeEmail from '@/features/auth/ui/ChangeEmailSucess'
+import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
+import { protectedRoutes } from '@/features/routes/types'
 
 export default function Page() {
   return (

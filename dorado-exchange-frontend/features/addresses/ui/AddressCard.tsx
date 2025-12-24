@@ -5,9 +5,9 @@ import { Building2, House } from 'lucide-react'
 
 import { Address } from '@/features/addresses/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { useDeleteAddress, useSetDefaultAddress } from '@/features/addresses/lib/queries'
+import { Button } from '@/shared/ui/base/button'
+import { cn } from '@/shared/utils/cn'
+import { useDeleteAddress, useSetDefaultAddress } from '@/features/addresses/queries'
 
 export type AddressCardVariant = 'default' | 'compact'
 type IconKind = 'auto' | 'home' | 'office' | 'none'
