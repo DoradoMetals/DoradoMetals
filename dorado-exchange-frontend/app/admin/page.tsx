@@ -2,8 +2,6 @@
 
 import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
 import { protectedRoutes } from '@/features/routes/types'
-;('use client')
-
 import { useMemo } from 'react'
 import {
   ClipboardTextIcon,
@@ -40,11 +38,11 @@ import RatesPage from '@/app/rates/page'
 import ReviewsPage from '@/features/reviews/ui/ReviewsAdminTable'
 
 import { Suspense } from 'react'
-import { useSpotPrices } from '@/features/spots/queries';
-import { useAdminPurchaseOrders } from '@/features/orders/purchaseOrders/admin/queries';
-import { useAdminSalesOrders } from '@/features/orders/salesOrders/admin/queries';
-import PurchaseOrdersPage from '@/features/orders/purchaseOrders/admin/AdminPurchaseOrders';
-import SalesOrdersPage from '@/features/orders/salesOrders/admin/AdminSalesOrders';
+import { useSpotPrices } from '@/features/spots/queries'
+import { useAdminPurchaseOrders } from '@/features/orders/purchaseOrders/admin/queries'
+import { useAdminSalesOrders } from '@/features/orders/salesOrders/admin/queries'
+import PurchaseOrdersPage from '@/features/orders/purchaseOrders/admin/AdminPurchaseOrders'
+import SalesOrdersPage from '@/features/orders/salesOrders/admin/AdminSalesOrders'
 
 export default function Page() {
   return (
