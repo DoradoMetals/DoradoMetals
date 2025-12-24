@@ -1,7 +1,7 @@
 'use client'
 
 import { useApiQuery } from '@/shared/queries/base'
-import { queryKeys } from '@/shared/queries/keyFactory'
+import { queryKeys } from '@/shared/queries/keys'
 import {
   FedexLocationsInput,
   FedexLocationsReturn,

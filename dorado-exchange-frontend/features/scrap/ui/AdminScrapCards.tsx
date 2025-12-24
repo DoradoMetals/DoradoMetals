@@ -2,7 +2,7 @@ import { metalOptions, WeightOption, weightOptions } from '@/features/scrap/type
 import { useState } from 'react'
 import WeightSelect from './WeightSelect'
 import { SpotPrice } from '@/features/spots/types'
-import { convertTroyOz } from '@/utils/convertTroyOz'
+import { convertTroyOz } from '@/shared/utils/convertWeights'
 import { Button } from '@/shared/ui/base/button'
 import { Check, Edit2 } from 'lucide-react'
 import { Input } from '@/shared/ui/base/input'

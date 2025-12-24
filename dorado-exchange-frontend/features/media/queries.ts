@@ -1,10 +1,10 @@
 'use client'
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiRequest } from '@/utils/axiosInstance'
+import { apiRequest } from '@/shared/queries/axios'
 import type { Image, ImageUpload, ImageUploadReturn } from '@/features/media/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
-import { queryKeys } from '@/shared/queries/keyFactory'
+import { queryKeys } from '@/shared/queries/keys'
 import { useGetSession } from '@/features/auth/queries'
 
 

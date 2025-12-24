@@ -1,5 +1,5 @@
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
-import { queryKeys } from '@/shared/queries/keyFactory'
+import { queryKeys } from '@/shared/queries/keys'
 import { NewReview, Review, UpdateReviewVars } from '@/features/reviews/types'
 
 export const useReview = (reviewId: string | null) => {

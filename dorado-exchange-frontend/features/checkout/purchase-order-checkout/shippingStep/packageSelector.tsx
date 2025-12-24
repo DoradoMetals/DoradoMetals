@@ -6,7 +6,7 @@ import { cn } from '@/shared/utils/cn'
 import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
 import { sellCartStore } from '@/store/sellCartStore'
 import { packageOptions } from '@/features/packaging/types'
-import { convertToPounds } from '@/utils/convertTroyOz'
+import { convertToPounds } from '@/shared/utils/convertWeights'
 import { useEffect, useMemo } from 'react'
 
 export function PackageSelector() {

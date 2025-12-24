@@ -8,7 +8,7 @@ import {
   type UseQueryOptions,
   type UseQueryResult,
 } from '@tanstack/react-query'
-import { apiRequest } from '@/utils/axiosInstance'
+import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { Method } from 'axios'
 

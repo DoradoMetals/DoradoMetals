@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { cartStore } from '@/store/cartStore'
 import { sellCartStore } from '@/store/sellCartStore'
 
-import { apiRequest } from '@/utils/axiosInstance'
+import { apiRequest } from '@/shared/queries/axios'
 import { Product } from '@/features/products/types'
 import { SellCartItem } from '@/features/cart/types'
 import {

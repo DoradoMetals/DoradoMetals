@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiRequest } from '@/utils/axiosInstance'
+import { apiRequest } from '@/shared/queries/axios'
 import {
   PurchaseOrder,
   PurchaseOrderCheckout,

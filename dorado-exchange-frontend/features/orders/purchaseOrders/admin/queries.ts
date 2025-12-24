@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiRequest } from '@/utils/axiosInstance'
+import { apiRequest } from '@/shared/queries/axios'
 import { PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
 import { Product } from '@/features/products/types'

@@ -1,4 +1,4 @@
-import { pdfRequest } from '@/utils/axiosInstance'
+import { pdfRequest } from '@/shared/queries/axios'
 import { PurchaseOrder } from '@/features/orders/purchaseOrders/types'
 import { useMutation } from '@tanstack/react-query'
 import { SpotPrice } from '@/features/spots/types'

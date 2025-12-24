@@ -1,5 +1,5 @@
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
-import { queryKeys } from '@/shared/queries/keyFactory'
+import { queryKeys } from '@/shared/queries/keys'
 import type { Rate } from '@/features/rates/types'
 
 

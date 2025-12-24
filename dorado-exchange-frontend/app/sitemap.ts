@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { protectedRoutes } from '@/features/routes/types'
-import { apiRequest } from '@/utils/axiosInstance'
+import { apiRequest } from '@/shared/queries/axios'
 import { Product } from '@/features/products/types'
 
 export const revalidate = 21600

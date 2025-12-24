@@ -3,7 +3,7 @@ import { User } from '@/features/users/types'
 import { Product } from '@/features/products/types'
 import { PaymentIntent } from '@/features/stripe/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
-import { queryKeys } from '@/shared/queries/keyFactory'
+import { queryKeys } from '@/shared/queries/keys'
 
 export interface IntentParams {
   items: Product[]

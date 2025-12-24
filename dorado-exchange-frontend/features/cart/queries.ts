@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { apiRequest } from '@/utils/axiosInstance'
+import { apiRequest } from '@/shared/queries/axios'
 import { cartStore } from '@/store/cartStore'
 import { useEffect } from 'react'
 import { useGetSession } from '../auth/queries'

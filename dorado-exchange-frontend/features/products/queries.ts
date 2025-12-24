@@ -1,8 +1,8 @@
-import { apiRequest } from '@/utils/axiosInstance'
+import { apiRequest } from '@/shared/queries/axios'
 import type { Product, ProductGroup, ProductFilters, AdminProduct, AdminTypes, Supplier, Carrier, AdminMints } from '@/features/products/types'
 import { groupProducts } from '@/features/products/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
-import { queryKeys } from '@/shared/queries/keyFactory'
+import { queryKeys } from '@/shared/queries/keys'
 import { AdminMetal } from '@/features/spots/types'
 
 export const useProducts = () => {
