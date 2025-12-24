@@ -8,7 +8,7 @@ import {
   useAdminPurchaseOrders,
   usePurgeCancelled,
 } from '@/features/orders/purchaseOrders/admin/queries'
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import AdminPurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
 import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/shared/ui/table/Columns'

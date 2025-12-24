@@ -9,7 +9,7 @@ import { Switch } from '@/shared/ui/base/switch'
 
 import { Address, addressSchema, makeEmptyAddress } from '@/features/addresses/types'
 
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useGetSession } from '@/features/auth/queries'
 
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'

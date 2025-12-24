@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import Drawer from '@/shared/ui/base/drawer'
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { FloatingLabelTextarea } from '@/shared/ui/inputs/FloatingLabelTextarea'

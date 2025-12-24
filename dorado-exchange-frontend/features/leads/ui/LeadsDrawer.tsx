@@ -1,6 +1,6 @@
 'use client'
 
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo, useRef, useState } from 'react'
 

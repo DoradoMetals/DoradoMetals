@@ -1,7 +1,7 @@
 'use client'
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { pickupOptions } from '@/features/handoff/types'
 import { cn } from '@/shared/utils/cn'
 

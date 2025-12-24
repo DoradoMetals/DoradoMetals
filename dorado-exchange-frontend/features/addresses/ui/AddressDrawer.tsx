@@ -3,7 +3,7 @@
 import Drawer from '@/shared/ui/base/drawer'
 import { X } from 'lucide-react'
 import { Button } from '@/shared/ui/base/button'
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 import { Address } from '@/features/addresses/types'

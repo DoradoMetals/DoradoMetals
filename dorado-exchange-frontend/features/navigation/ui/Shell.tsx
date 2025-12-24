@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useDrawerStore } from '@/store/drawerStore'
-import { cartStore } from '@/store/cartStore'
-import { sellCartStore } from '@/store/sellCartStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
+import { cartStore } from '@/shared/store/cartStore'
+import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useCartAutoSync } from '@/features/cart/queries'
 
 import { Button } from '@/shared/ui/base/button'

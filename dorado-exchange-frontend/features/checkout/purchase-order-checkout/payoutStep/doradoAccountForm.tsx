@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { DoradoPayout } from '@/features/payouts/types'
 import { UseFormReturn } from 'react-hook-form'
-import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 
 export default function DoradoAccountForm({
   form,

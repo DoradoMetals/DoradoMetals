@@ -6,8 +6,8 @@ import {
   PurchaseOrderReturnShipment,
 } from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
-import getPurchaseOrderItemPrice from '@/utils/purchaseOrders/getPurchaseOrderItemPrice'
-import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
+import getPurchaseOrderItemPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderItemPrice'
+import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
 import { payoutOptions } from '@/features/payouts/types'
 import { packageOptions } from '@/features/packaging/types'
 import { useGetSession } from '@/features/auth/queries'

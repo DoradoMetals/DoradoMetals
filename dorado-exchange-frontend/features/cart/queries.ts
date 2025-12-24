@@ -1,9 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
-import { cartStore } from '@/store/cartStore'
+import { cartStore } from '@/shared/store/cartStore'
 import { useEffect } from 'react'
 import { useGetSession } from '../auth/queries'
-import { sellCartStore } from '@/store/sellCartStore'
+import { sellCartStore } from '@/shared/store/sellCartStore'
 
 export const useSyncCartToBackend = () => {
   const { user } = useGetSession()

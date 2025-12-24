@@ -13,7 +13,7 @@ import {
 import { Textarea } from '@/shared/ui/base/textarea'
 
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
-import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
+import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
 import { useMemo, useState } from 'react'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useAcceptOffer, usePurchaseOrderMetals, useRejectOffer } from '@/features/orders/purchaseOrders/users/queries'

@@ -8,7 +8,7 @@ import NumberFlow from '@number-flow/react'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 
 import { useMemo, useState } from 'react'
-import { cartStore } from '@/store/cartStore'
+import { cartStore } from '@/shared/store/cartStore'
 import getProductPrice from '@/features/products/utils/getProductPrice'
 import getProductBidPrice from '@/features/products/utils/getProductBidPrice'
 
@@ -25,7 +25,7 @@ import {
   ShieldCheckIcon,
   TagIcon,
 } from '@phosphor-icons/react'
-import { sellCartStore } from '@/store/sellCartStore'
+import { sellCartStore } from '@/shared/store/sellCartStore'
 import { Lens } from '@/shared/ui/base/lens'
 import { paymentOptions, salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
 import getProductBidOverUnderSpot from '@/features/products/utils/getProductBidOverUnderSpot'

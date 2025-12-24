@@ -16,7 +16,7 @@ import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 import { usePurchaseOrderRefinerMetals } from '@/features/orders/purchaseOrders/admin/queries'
-import { computePurchaseOrderTotals } from '@/utils/purchaseOrders/calculatePurchaseOrderTotals'
+import { computePurchaseOrderTotals } from '@/features/orders/purchaseOrders/utils/calculatePurchaseOrderTotals'
 import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
 

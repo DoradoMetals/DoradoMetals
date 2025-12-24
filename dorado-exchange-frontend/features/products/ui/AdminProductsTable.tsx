@@ -3,7 +3,7 @@
 import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import { TextColumn, ChipColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
 import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/features/navigation/ui/Logo'

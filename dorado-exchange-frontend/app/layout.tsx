@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
 import { Montserrat, Open_Sans, Poppins } from 'next/font/google'
 import './styles/globals.css'
-import LayoutProvider from '@/providers/LayoutProvider' // ✅ Import the Client Component
-import { ThemeProvider } from '@/providers/ThemeProvider'
-import QueryProvider from '@/providers/QueryProvider'
-import GoogleMapsProvider from '@/providers/GoogleMapsProvider'
+import LayoutProvider from '@/shared/providers/LayoutProvider' // ✅ Import the Client Component
+import { ThemeProvider } from '@/shared/providers/ThemeProvider'
+import QueryProvider from '@/shared/providers/QueryProvider'
+import GoogleMapsProvider from '@/shared/providers/GoogleMapsProvider'
 
-import GoogleRecaptchaProvider from '@/providers/GoogleRecaptchaProvider'
+import GoogleRecaptchaProvider from '@/shared/providers/GoogleRecaptchaProvider'
 
 export const montserrat = Montserrat({
   subsets: ['latin'],

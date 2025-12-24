@@ -4,7 +4,7 @@ import AdminPurchaseOrderDrawerHeader from './adminPurchaseOrderDrawerHeader'
 import AdminPurchaseOrderDrawerContent from './adminPurchaseOrderDrawerContent'
 import AdminPurchaseOrderDrawerFooter from './adminPurchaseOrderDrawerFooter'
 
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo } from 'react'
 import { useAdminUser } from '@/features/users/queries'

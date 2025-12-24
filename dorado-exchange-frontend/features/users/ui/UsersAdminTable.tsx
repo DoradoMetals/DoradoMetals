@@ -6,7 +6,7 @@ import type { ColumnDef, Row } from '@tanstack/react-table'
 import { useCreateUser } from '@/features/auth/queries'
 import { AdminUser, userRoleOptions } from '@/features/users/types'
 
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn } from '@/shared/ui/table/Columns'

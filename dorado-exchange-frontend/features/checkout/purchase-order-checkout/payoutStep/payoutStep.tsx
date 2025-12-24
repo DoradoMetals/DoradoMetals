@@ -17,7 +17,7 @@ import {
   doradoAccountSchema,
 } from '@/features/payouts/types'
 
-import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import ACHForm from './achForm'
 import WireForm from './wireForm'
 import EcheckForm from './echeckForm'

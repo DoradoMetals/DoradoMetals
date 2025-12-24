@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { useFedExLocations } from '@/features/fedex/queries'
 import { formatFedexPickupAddress } from '@/features/fedex/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'

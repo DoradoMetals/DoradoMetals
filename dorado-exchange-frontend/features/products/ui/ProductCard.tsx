@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/FloatingButton'
 
 import { useState } from 'react'
-import { cartStore } from '@/store/cartStore'
+import { cartStore } from '@/shared/store/cartStore'
 import getProductPrice from '@/features/products/utils/getProductPrice'
 
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'

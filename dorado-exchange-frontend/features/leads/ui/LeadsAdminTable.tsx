@@ -6,7 +6,7 @@ import type { ColumnDef, Row } from '@tanstack/react-table'
 import { Lead } from '@/features/leads/types'
 import { useGetSession } from '@/features/auth/queries'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import {
   CheckIcon,
   XIcon,

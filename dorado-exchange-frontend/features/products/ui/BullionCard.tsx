@@ -14,7 +14,7 @@ import { Popover } from '@radix-ui/react-popover'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import getProductBidOverUnderSpot from '@/features/products/utils/getProductBidOverUnderSpot'
-import { sellCartStore } from '@/store/sellCartStore'
+import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useSpotPrices } from '@/features/spots/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 

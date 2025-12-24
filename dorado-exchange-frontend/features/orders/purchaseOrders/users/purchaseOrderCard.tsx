@@ -7,12 +7,12 @@ import {
   useDownloadPackingList,
   useDownloadReturnPackingList,
 } from '@/features/pdfs/queries'
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import { packageOptions } from '@/features/packaging/types'
 import { payoutOptions } from '@/features/payouts/types'
 import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
+import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
 import { DownloadIcon } from '@phosphor-icons/react'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useSpotPrices } from '@/features/spots/queries'

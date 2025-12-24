@@ -7,9 +7,9 @@ import { useMemo, useState } from 'react'
 
 import { FedexPickupTimesInput, formatFedexPickupAddress, FedexRate } from '@/features/fedex/types'
 import { useFedExPickupTimes } from '@/features/fedex/queries'
-import { usePurchaseOrderCheckoutStore } from '@/store/purchaseOrderCheckoutStore'
+import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useGetSession } from '@/features/auth/queries'
 import  {AddressDrawer} from '@/features/addresses/ui/AddressDrawer'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'

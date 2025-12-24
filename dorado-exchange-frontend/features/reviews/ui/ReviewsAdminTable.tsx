@@ -4,7 +4,7 @@ import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { useGetSession } from '@/features/auth/queries'
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import type { Review } from '@/features/reviews/types'
 

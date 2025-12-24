@@ -10,8 +10,8 @@ import {
   paymentOptions,
 } from '@/features/orders/salesOrders/types'
 
-import { useAdminSalesOrderCheckoutStore } from '@/store/adminSalesOrderCheckoutStore'
-import { useDrawerStore } from '@/store/drawerStore'
+import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAdminCreateSalesOrder } from '@/features/orders/salesOrders/admin/queries'
 
 export default function AdminStripeForm({

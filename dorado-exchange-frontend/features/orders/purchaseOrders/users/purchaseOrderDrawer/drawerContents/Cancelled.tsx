@@ -2,7 +2,7 @@ import { Button } from '@/shared/ui/base/button'
 
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import { useMemo } from 'react'
-import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
+import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import TrackingEvents from '@/features/shipments/ui/TrackingEvents'
 import { useTracking } from '@/features/shipments/queries'

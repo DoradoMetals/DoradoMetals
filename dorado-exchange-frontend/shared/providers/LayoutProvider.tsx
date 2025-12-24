@@ -1,15 +1,15 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import MobileProductCarousel from '../features/products/ui/MobileProductCarousel'
-import { Button } from '../shared/ui/base/button'
+import MobileProductCarousel from '../../features/products/ui/MobileProductCarousel'
+import { Button } from '../ui/base/button'
 
 import React, { useState } from 'react'
 
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MagnifyingGlassIcon, PhoneIcon, XIcon } from '@phosphor-icons/react'
-import { Input } from '../shared/ui/base/input'
+import { Input } from '../ui/base/input'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import {
   Breadcrumb,
@@ -18,9 +18,9 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from '../shared/ui/base/breadcrumb'
+} from '../ui/base/breadcrumb'
 import Link from 'next/link'
-import { FloatingNav } from '../features/navigation/ui/FloatingMenu'
+import { FloatingNav } from '../../features/navigation/ui/FloatingMenu'
 import { cn } from '@/shared/utils/cn'
 import { useScrollLock } from '@/shared/hooks/useScrollock'
 import { useGetSession, useStopImpersonation } from '@/features/auth/queries'

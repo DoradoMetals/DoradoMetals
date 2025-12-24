@@ -2,8 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { cartStore } from '@/store/cartStore'
-import { sellCartStore } from '@/store/sellCartStore'
+import { cartStore } from '@/shared/store/cartStore'
+import { sellCartStore } from '@/shared/store/sellCartStore'
 
 import { apiRequest } from '@/shared/queries/axios'
 import { Product } from '@/features/products/types'

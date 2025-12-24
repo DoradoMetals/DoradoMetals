@@ -21,12 +21,12 @@ import {
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { payoutOptions } from '@/features/payouts/types'
-import getPurchaseOrderBullionPrice from '@/utils/purchaseOrders/getPurchaseOrderBullionPrice'
+import getPurchaseOrderBullionPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderBullionPrice'
 import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
-import getPurchaseOrderScrapPrice from '@/utils/purchaseOrders/getPurchaseOrderScrapPrice'
-import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
-import getPurchaseOrderScrapTotal from '@/utils/purchaseOrders/purchaseOrderScrapTotal'
-import getPurchaseOrderBullionTotal from '@/utils/purchaseOrders/purchaseOrderBullionTotal'
+import getPurchaseOrderScrapPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderScrapPrice'
+import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
+import getPurchaseOrderScrapTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderScrapTotal'
+import getPurchaseOrderBullionTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderBullionTotal'
 import { useSpotPrices } from '@/features/spots/queries'
 
 export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {

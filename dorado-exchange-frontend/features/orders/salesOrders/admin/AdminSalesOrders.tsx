@@ -4,7 +4,7 @@ import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { SalesOrder, statusConfig } from '@/features/orders/salesOrders/types'
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/shared/ui/table/Columns'

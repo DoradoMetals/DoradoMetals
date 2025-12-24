@@ -30,7 +30,7 @@ import { userRoleOptions } from '@/features/users/types'
 import { useGetSession } from '@/features/auth/queries'
 import Drawer from '@/shared/ui/base/drawer'
 import { cn } from '@/shared/utils/cn'
-import { useDrawerStore } from '@/store/drawerStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import { UsersPage } from '@/features/users/ui/UsersAdminTable'
 import LeadsPage from '@/features/leads/ui/LeadsAdminTable'

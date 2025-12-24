@@ -1,5 +1,5 @@
 import { Switch } from '@/shared/ui/base/switch'
-import { useSalesOrderCheckoutStore } from '@/store/salesOrderCheckoutStore'
+import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import { SalesOrderTotals } from '@/features/orders/salesOrders/types'
 import { useEffect } from 'react'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'

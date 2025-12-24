@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { useProductFilterStore } from '@/store/productFilterStore'
+import { useProductFilterStore } from '@/shared/store/productFilterStore'
 import Image from 'next/image'
 import { cn } from '@/shared/utils/cn'
 
