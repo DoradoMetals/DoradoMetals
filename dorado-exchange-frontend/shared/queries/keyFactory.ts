@@ -1,8 +1,8 @@
 import { ProductFilters } from '@/features/products/types'
 import { FedexLocationsInput, FedexPickupTimesInput, FedexRateInput } from '@/features/fedex/types'
-import { SalesTaxInput } from '@/types/tax'
 import { ShipmentTrackingInput } from '@/features/shipments/types'
 import { PlacesSuggestionsInput } from '@/features/addresses/types'
+import { SalesTaxInput } from '@/features/sales-tax/types'
 
 export const queryKeys = {
   // Admin Products and Inventory

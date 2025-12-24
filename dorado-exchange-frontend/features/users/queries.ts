@@ -1,6 +1,6 @@
+import { AdminUser } from "@/features/users/types"
 import { useApiMutation, useApiQuery } from "@/shared/queries/base"
 import { queryKeys } from "@/shared/queries/keyFactory"
-import { AdminUser } from "@/types/admin"
 
 export const useAdminUser = (user_id: string, options?: { enabled?: boolean }) =>
   useApiQuery<AdminUser>({

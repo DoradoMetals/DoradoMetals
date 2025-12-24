@@ -5,7 +5,6 @@ import Drawer from '@/shared/ui/base/drawer'
 import { useMemo, useState } from 'react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { AdminUser } from '@/types/admin'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import {
   useChangeEmail,
@@ -20,6 +19,7 @@ import { cn } from '@/shared/utils/cn'
 import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useUpdateCredit } from '@/features/users/queries'
+import { AdminUser } from '@/features/users/types'
 
 export default function AdminUsersDrawer({
   users,

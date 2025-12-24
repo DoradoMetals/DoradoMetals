@@ -26,6 +26,78 @@ export interface Product {
   variant_label?: string
 }
 
+export interface AdminProduct {
+  id: string
+  metal: string
+  supplier: string
+  product_name: string
+  product_description: string
+  bid_premium: number
+  ask_premium: number
+  product_type: string
+  created_at: Date
+  updated_at: Date
+  image_front: string
+  image_back: string
+  display: boolean
+  content: number
+  gross: number
+  purity: number
+  mint: string 
+  variant_group: string
+  shadow_offset: number
+  stock: number
+  created_by: string
+  updated_by: string
+  homepage_display: boolean
+  filter_category: string
+  quantity: number
+  slug: string
+  legal_tender: boolean
+  domestic_tender: boolean
+  sell_display: boolean
+  is_generic: boolean
+  variant_label: string
+}
+
+export interface Supplier {
+  id: string
+  name: string
+  email: string
+  phone: string
+  created_at: Date
+  updated_at: Date
+  shipping_carrier: string
+  logo: string,
+  is_active: boolean,
+}
+
+export interface Carrier {
+  id: string
+  name: string
+  email: string
+  phone: string
+  created_at: Date
+  updated_at: Date
+  logo: string,
+  is_active: boolean,
+}
+
+export interface AdminMints {
+  id: string,
+  name: string,
+  type: string,
+  country: string,
+  description: string,
+  website: string,
+  created_at: Date,
+  updated_at: Date,
+}
+
+export interface AdminTypes {
+  name: string,
+}
+
 export const productSchema = z.object({
   id: z.string(),
   product_name: z.string(),

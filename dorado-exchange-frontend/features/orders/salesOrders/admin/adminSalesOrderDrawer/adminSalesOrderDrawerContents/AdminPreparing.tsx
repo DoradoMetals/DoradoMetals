@@ -4,10 +4,10 @@ import { SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/sa
 import { Button } from '@/shared/ui/base/button'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { RadioGroupImage } from '@/shared/ui/RadioGroupImage'
-import { Carrier, Supplier } from '@/types/admin'
 import { useAdminCarriers, useAdminSuppliers } from '@/features/products/queries'
 import { useSalesOrderMetals } from '@/features/orders/salesOrders/users/queries'
 import { useSendOrderToSupplier, useUpdateTracking } from '@/features/orders/salesOrders/admin/queries'
+import { Carrier, Supplier } from '@/features/products/types'
 
 export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: suppliers = [] } = useAdminSuppliers()

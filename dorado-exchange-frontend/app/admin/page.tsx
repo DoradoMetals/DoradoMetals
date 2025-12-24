@@ -21,7 +21,6 @@ import {
   CaretLeftIcon,
 } from '@phosphor-icons/react'
 
-import { useAdminSalesOrders } from '@/features/orders/salesOrders/salesOrders/queries'
 import {
   SidebarLayout,
   SidebarSection,
@@ -32,8 +31,7 @@ import { useGetSession } from '@/features/auth/queries'
 import Drawer from '@/shared/ui/base/drawer'
 import { cn } from '@/shared/utils/cn'
 import { useDrawerStore } from '@/store/drawerStore'
-import PurchaseOrdersPage from '@/features/orders/admin/purchaseOrders/AdminPurchaseOrders'
-import SalesOrdersPage from '@/features/orders/salesOrders/salesOrders/AdminSalesOrders'
+
 import { UsersPage } from '@/features/users/ui/UsersAdminTable'
 import LeadsPage from '@/features/leads/ui/LeadsAdminTable'
 import ProductsPage from '@/features/products/ui/AdminProductsTable'
@@ -43,7 +41,10 @@ import ReviewsPage from '@/features/reviews/ui/ReviewsAdminTable'
 
 import { Suspense } from 'react'
 import { useSpotPrices } from '@/features/spots/queries';
-import { useAdminPurchaseOrders } from '@/features/orders/admin/purchaseOrders/queries';
+import { useAdminPurchaseOrders } from '@/features/orders/purchaseOrders/admin/queries';
+import { useAdminSalesOrders } from '@/features/orders/salesOrders/admin/queries';
+import PurchaseOrdersPage from '@/features/orders/purchaseOrders/admin/AdminPurchaseOrders';
+import SalesOrdersPage from '@/features/orders/salesOrders/admin/AdminSalesOrders';
 
 export default function Page() {
   return (

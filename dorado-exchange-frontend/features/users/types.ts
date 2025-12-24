@@ -132,3 +132,15 @@ export function getDeviceIcon(ua: ParsedUA): DeviceIconResult {
 
   return { Icon: LaptopIcon, label: 'Laptop' }
 }
+
+export interface AdminUser {
+  id: string,
+  email: string,
+  name: string,
+  created_at: string,
+  updated_at: string,
+  email_verified: string,
+  image: string,
+  role: string,
+  dorado_funds: number,
+}

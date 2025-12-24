@@ -3,12 +3,8 @@
 import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo } from 'react'
-
 import { formatFullDate } from '@/shared/utils/formatDates'
-
-import { AdminProduct } from '@/types/admin'
 import { cn } from '@/shared/utils/cn'
-
 import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
 import { Textarea } from '@/shared/ui/base/textarea'
 import { Label } from '@/shared/ui/base/label'
@@ -25,6 +21,7 @@ import {
   useAdminMints,
   useAdminSuppliers,
 } from '@/features/products/queries'
+import { AdminProduct } from '@/features/products/types'
 
 export default function ProductDrawer({
   products,

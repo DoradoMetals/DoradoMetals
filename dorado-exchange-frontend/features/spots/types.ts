@@ -16,6 +16,17 @@ export type SpotPrice = {
   updated_at?: Date
 }
 
+export interface AdminMetal {
+  id: string,
+  type: string,
+  ask_spot: string,
+  bid_spot: string,
+  percent_change: string,
+  dollar_change: string,
+  scrap_percentage: number,
+  bullion_percentage: number,
+}
+
 export const spotPriceSchema = z.object({
   id: z.string(),
   purchase_order_id: z.string().optional(),

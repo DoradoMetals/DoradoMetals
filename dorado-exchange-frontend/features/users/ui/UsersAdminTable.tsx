@@ -3,9 +3,8 @@
 import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
-import { AdminUser } from '@/types/admin'
 import { useCreateUser } from '@/features/auth/queries'
-import { userRoleOptions } from '@/features/users/types'
+import { AdminUser, userRoleOptions } from '@/features/users/types'
 
 import { useDrawerStore } from '@/store/drawerStore'
 
@@ -18,8 +17,8 @@ import { PlusIcon } from '@phosphor-icons/react'
 import { CreateConfig } from '@/shared/ui/table/AddNew'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import AdminUsersDrawer from '@/features/users/ui/UsersDrawer'
-import { CreateSalesOrderDrawer } from '@/features/orders/salesOrders/salesOrders/createSalesOrder/createSalesOrderDrawer'
 import { useAdminUsers } from '@/features/users/queries'
+import { CreateSalesOrderDrawer } from '@/features/orders/salesOrders/admin/createSalesOrder/createSalesOrderDrawer'
 
 export function UsersPage() {
   const { data: users = [] } = useAdminUsers()

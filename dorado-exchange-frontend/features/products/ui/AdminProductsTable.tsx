@@ -3,7 +3,6 @@
 import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
-import { AdminProduct } from '@/types/admin'
 import { useDrawerStore } from '@/store/drawerStore'
 import { TextColumn, ChipColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
@@ -11,6 +10,7 @@ import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/features/na
 import { CreateConfig } from '@/shared/ui/table/AddNew'
 import ProductDrawer from '@/features/products/ui/ProductDrawer'
 import { useAdminProducts, useCreateProduct } from '@/features/products/queries'
+import { AdminProduct } from '@/features/products/types'
 
 const formatPremium = (mult?: number | null) => {
   if (mult == null) return '-'
