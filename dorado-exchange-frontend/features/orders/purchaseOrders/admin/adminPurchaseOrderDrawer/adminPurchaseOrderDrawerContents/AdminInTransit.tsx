@@ -1,6 +1,6 @@
 import { Button } from '@/shared/ui/base/button'
 import { cn } from '@/shared/utils/cn'
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import TrackingEvents from '@/features/shipments/ui/TrackingEvents'
 import { useTracking } from '@/features/shipments/queries'
 import { useCancelFedExLabel, useCancelFedExPickup } from '@/features/orders/purchaseOrders/admin/queries'

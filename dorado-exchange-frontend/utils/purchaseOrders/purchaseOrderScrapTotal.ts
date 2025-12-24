@@ -1,5 +1,5 @@
 import { SpotPrice } from '@/features/spots/types'
-import { PurchaseOrderItem } from '@/types/purchase-order'
+import { PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
 
 export default function getPurchaseOrderScrapTotal(
   scrapItems: PurchaseOrderItem[],

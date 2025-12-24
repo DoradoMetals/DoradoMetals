@@ -3,7 +3,7 @@ import TrackingEvents from '@/features/shipments/ui/TrackingEvents'
 import { Button } from '@/shared/ui/base/button'
 import { useTracking } from '@/features/shipments/queries'
 import { cn } from '@/shared/utils/cn'
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 
 export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const config = statusConfig[order.purchase_order_status]

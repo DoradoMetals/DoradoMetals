@@ -3,7 +3,7 @@
 import PurchaseOrderDrawerContent from './purchaseOrderDrawerContent'
 import PurchaseOrderDrawerHeader from './purchaseOrderDrawerHeader'
 import PurchaseOrderDrawerFooter from './purchaseOrderDrawerFooter'
-import { PurchaseOrderDrawerProps } from '@/types/purchase-order'
+import { PurchaseOrderDrawerProps } from '@/features/orders/purchaseOrders/types'
 import { useDrawerStore } from '@/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo } from 'react'

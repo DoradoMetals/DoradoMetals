@@ -1,5 +1,5 @@
 import { Button } from '@/shared/ui/base/button'
-import { PurchaseOrderActionButtonsProps, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrderActionButtonsProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { cn } from '@/shared/utils/cn'
 import { useMemo } from 'react'
 import { useSpotPrices } from '@/features/spots/queries'

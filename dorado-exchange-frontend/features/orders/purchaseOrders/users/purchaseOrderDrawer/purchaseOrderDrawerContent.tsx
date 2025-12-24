@@ -6,7 +6,7 @@ import OfferSentPurchaseOrder from '@/features/orders/purchaseOrders/users/purch
 import PaymentProcessingPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/PaymentProcessing'
 import ReceivedPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/Received'
 import RejectedPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/Rejected'
-import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 
 
 export default function PurchaseOrderDrawerContent({ order }: PurchaseOrderDrawerContentProps) {

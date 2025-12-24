@@ -10,7 +10,7 @@ import {
 import { useDrawerStore } from '@/store/drawerStore'
 import { packageOptions } from '@/features/packaging/types'
 import { payoutOptions } from '@/features/payouts/types'
-import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import { DownloadIcon } from '@phosphor-icons/react'

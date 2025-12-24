@@ -1,5 +1,5 @@
 import { pdfRequest } from '@/utils/axiosInstance'
-import { PurchaseOrder } from '@/types/purchase-order'
+import { PurchaseOrder } from '@/features/orders/purchaseOrders/types'
 import { useMutation } from '@tanstack/react-query'
 import { SpotPrice } from '@/features/spots/types'
 import { PackageOption } from '@/features/packaging/types'

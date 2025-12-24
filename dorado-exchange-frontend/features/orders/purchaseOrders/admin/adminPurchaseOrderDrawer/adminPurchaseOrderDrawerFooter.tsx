@@ -5,7 +5,7 @@ import {
   assignScrapItemNames,
   PurchaseOrderDrawerFooterProps,
   statusConfig,
-} from '@/types/purchase-order'
+} from '@/features/orders/purchaseOrders/types'
 import { cn } from '@/shared/utils/cn'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'

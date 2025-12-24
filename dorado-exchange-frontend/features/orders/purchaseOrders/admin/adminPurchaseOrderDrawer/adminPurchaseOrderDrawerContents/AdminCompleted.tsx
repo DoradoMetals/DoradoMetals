@@ -1,5 +1,5 @@
 import ProfitBreakdown from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/viewProfitBreakdown'
-import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 
 export default function AdminCompletedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   return (

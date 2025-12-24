@@ -3,7 +3,7 @@
 import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
-import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
 import {
   useAdminPurchaseOrders,
   usePurgeCancelled,

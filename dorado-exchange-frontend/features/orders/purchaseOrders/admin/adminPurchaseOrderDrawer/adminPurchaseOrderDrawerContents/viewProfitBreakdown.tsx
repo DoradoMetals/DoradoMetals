@@ -17,7 +17,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 
 import { usePurchaseOrderRefinerMetals } from '@/features/orders/purchaseOrders/admin/queries'
 import { computePurchaseOrderTotals } from '@/utils/purchaseOrders/calculatePurchaseOrderTotals'
-import { PurchaseOrder, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
 
 type Party = 'customer' | 'refiner' | 'dorado'

@@ -1,6 +1,5 @@
-import { statusConfig } from '@/types/purchase-order'
 import TrackingEvents from '@/features/shipments/ui/TrackingEvents'
-import { SalesOrderDrawerContentProps } from '@/types/sales-orders'
+import { SalesOrderDrawerContentProps, statusConfig } from '@/types/sales-orders'
 import { useTracking } from '@/features/shipments/queries'
 
 export default function AdminInTransitSalesOrder({ order }: SalesOrderDrawerContentProps) {

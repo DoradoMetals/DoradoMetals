@@ -4,7 +4,7 @@ import {
   PurchaseOrder,
   PurchaseOrderCheckout,
   PurchaseOrderReturnShipment,
-} from '@/types/purchase-order'
+} from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
 import getPurchaseOrderItemPrice from '@/utils/purchaseOrders/getPurchaseOrderItemPrice'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'

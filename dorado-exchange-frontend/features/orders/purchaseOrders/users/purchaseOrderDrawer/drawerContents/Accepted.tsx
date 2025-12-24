@@ -1,7 +1,7 @@
 import { AnimatedHandshake } from '@/features/orders/ui/Animated'
 import { BlurredStagger } from '@/shared/ui/BlurredStagger'
 import { Confetti, ConfettiRef } from '@/features/orders/ui/Confetti'
-import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import { useEffect, useRef } from 'react'
 
 export default function AcceptedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {

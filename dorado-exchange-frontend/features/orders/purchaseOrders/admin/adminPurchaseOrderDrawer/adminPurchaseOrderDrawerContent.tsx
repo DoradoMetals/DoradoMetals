@@ -6,7 +6,7 @@ import AdminOfferSentPurchaseOrder from '@/features/orders/purchaseOrders/admin/
 import AdminPaymentProcessingPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminPaymentProcessing'
 import AdminReceivedPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminReceived'
 import AdminRejectedPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminRejected'
-import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 
 export default function AdminPurchaseOrderDrawerContent({
   order,

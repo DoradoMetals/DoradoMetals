@@ -12,7 +12,7 @@ import {
 } from '@/shared/ui/base/dialog'
 import { Textarea } from '@/shared/ui/base/textarea'
 
-import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import { useMemo, useState } from 'react'
 import { useSpotPrices } from '@/features/spots/queries'

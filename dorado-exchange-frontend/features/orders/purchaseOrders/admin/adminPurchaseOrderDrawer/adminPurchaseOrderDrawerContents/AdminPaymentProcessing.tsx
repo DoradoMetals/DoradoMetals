@@ -1,5 +1,5 @@
 import { payoutOptions } from '@/features/payouts/types'
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import RefinerValues from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editRefinerValues'
 import ActualsEditor from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editActualValues'

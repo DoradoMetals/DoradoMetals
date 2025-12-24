@@ -1,5 +1,5 @@
 import { payoutOptions } from '@/features/payouts/types'
-import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 
 export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const payout = payoutOptions.find((p) => p.method === order.payout?.method)

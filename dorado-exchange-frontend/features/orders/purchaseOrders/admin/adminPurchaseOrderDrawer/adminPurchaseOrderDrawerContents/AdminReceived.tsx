@@ -23,7 +23,7 @@ import {
   PurchaseOrderItem,
   statusConfig,
   StatusConfigEntry,
-} from '@/types/purchase-order'
+} from '@/features/orders/purchaseOrders/types'
 import { Lock, Plus, RotateCcw, Unlock } from 'lucide-react'
 import { useState } from 'react'
 import {

@@ -3,7 +3,7 @@ import {
   PurchaseOrder,
   PurchaseOrderItem,
   PurchaseOrderTotals,
-} from '@/types/purchase-order'
+} from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
 
 type MetalName = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'

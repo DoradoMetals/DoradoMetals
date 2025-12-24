@@ -10,7 +10,7 @@ import {
   useUpdateRefinerPremium,
 } from '@/features/orders/purchaseOrders/admin/queries'
 
-import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
+import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
 import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
 
 export default function RefinerValues({ order }: { order: PurchaseOrder }) {

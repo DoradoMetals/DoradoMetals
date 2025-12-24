@@ -1,6 +1,6 @@
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import CountdownRing from '@/features/orders/ui/CountdownRing'
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import getPurchaseOrderTotal from '@/utils/purchaseOrders/purchaseOrderTotal'
 import { useMemo } from 'react'
 import { useSpotPrices } from '@/features/spots/queries'

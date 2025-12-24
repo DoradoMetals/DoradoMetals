@@ -2,7 +2,7 @@
 
 import { Input } from '@/shared/ui/base/input'
 import { cn } from '@/shared/utils/cn'
-import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/types/purchase-order'
+import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
 import {
   useUpdateOrderScrapItem,
   useUpdatePoolOzDeducted,

@@ -1,4 +1,4 @@
-import { PurchaseOrderDrawerContentProps } from '@/types/purchase-order'
+import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import { useUser } from '@/features/auth/authClient'
 import { ReviewBlock } from '@/shared/ui/ReviewInput'
 import { useCreateReview } from '@/features/reviews/queries'

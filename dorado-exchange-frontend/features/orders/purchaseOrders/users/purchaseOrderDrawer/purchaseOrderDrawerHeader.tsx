@@ -6,7 +6,7 @@ import {
 } from '@/features/pdfs/queries'
 import { packageOptions } from '@/features/packaging/types'
 import { payoutOptions } from '@/features/payouts/types'
-import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
 import { DownloadIcon } from '@phosphor-icons/react'

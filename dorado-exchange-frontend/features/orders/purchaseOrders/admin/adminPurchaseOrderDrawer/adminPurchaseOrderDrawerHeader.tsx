@@ -6,7 +6,7 @@ import {
 } from '@/features/pdfs/queries'
 import { packageOptions } from '@/features/packaging/types'
 import { payoutOptions } from '@/features/payouts/types'
-import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/types/purchase-order'
+import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { useFormatPurchaseOrderNumber } from '@/utils/formatting/order-numbers'
 import { CheckCheck } from 'lucide-react'
 import { useSpotPrices } from '@/features/spots/queries'
