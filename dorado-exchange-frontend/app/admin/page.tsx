@@ -21,7 +21,7 @@ import {
   CaretLeftIcon,
 } from '@phosphor-icons/react'
 
-import { useAdminSalesOrders } from '@/features/orders/admin/salesOrders/queries'
+import { useAdminSalesOrders } from '@/features/orders/salesOrders/salesOrders/queries'
 import {
   SidebarLayout,
   SidebarSection,
@@ -33,7 +33,7 @@ import Drawer from '@/shared/ui/base/drawer'
 import { cn } from '@/shared/utils/cn'
 import { useDrawerStore } from '@/store/drawerStore'
 import PurchaseOrdersPage from '@/features/orders/admin/purchaseOrders/AdminPurchaseOrders'
-import SalesOrdersPage from '@/features/orders/admin/salesOrders/AdminSalesOrders'
+import SalesOrdersPage from '@/features/orders/salesOrders/salesOrders/AdminSalesOrders'
 import { UsersPage } from '@/features/users/ui/UsersAdminTable'
 import LeadsPage from '@/features/leads/ui/LeadsAdminTable'
 import ProductsPage from '@/features/products/ui/AdminProductsTable'

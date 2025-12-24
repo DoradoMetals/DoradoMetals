@@ -12,7 +12,7 @@ import {
 
 import { useAdminSalesOrderCheckoutStore } from '@/store/adminSalesOrderCheckoutStore'
 import { useDrawerStore } from '@/store/drawerStore'
-import { useAdminCreateSalesOrder } from '@/features/orders/admin/salesOrders/queries'
+import { useAdminCreateSalesOrder } from '@/features/orders/salesOrders/salesOrders/queries'
 
 export default function AdminStripeForm({
   address,

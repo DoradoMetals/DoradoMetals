@@ -18,7 +18,7 @@ import { PlusIcon } from '@phosphor-icons/react'
 import { CreateConfig } from '@/shared/ui/table/AddNew'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import AdminUsersDrawer from '@/features/users/ui/UsersDrawer'
-import { CreateSalesOrderDrawer } from '@/features/orders/admin/salesOrders/createSalesOrder/createSalesOrderDrawer'
+import { CreateSalesOrderDrawer } from '@/features/orders/salesOrders/salesOrders/createSalesOrder/createSalesOrderDrawer'
 import { useAdminUsers } from '@/features/users/queries'
 
 export function UsersPage() {
