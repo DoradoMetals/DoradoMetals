@@ -1,0 +1,81 @@
+import pool from "#db";
+import { convertTroyOz } from "#shared/utils/convertWeights.js";
+
+export async function updateScrapItem({ item }) {
+  const content =
+    convertTroyOz(
+      item.scrap.post_melt ?? item.scrap.pre_melt,
+      item.scrap.gross_unit
+    ) * item.scrap.purity ?? item.scrap.content;
+
+  const content_actual =
+    convertTroyOz(
+      item.scrap.post_melt_actual ?? item.scrap.pre_melt,
+      item.scrap.gross_unit
+    ) * item.scrap.purity_actual ?? item.scrap.content;
+
+  const query = `
+    UPDATE exchange.scrap
+    SET content = $1, 
+        purity = $2, 
+        pre_melt = $3, 
+        post_melt = $4, 
+        bid_premium = $5, 
+        purity_actual = $6,
+        post_melt_actual = $7,
+        content_actual = $8
+    WHERE id = $9
+    RETURNING *;
+  `;
+
+  const values = [
+    content,
+    item.scrap.purity,
+    item.scrap.pre_melt,
+    item.scrap.post_melt,
+    item.scrap.bid_premium,
+    item.scrap.purity_actual ?? item.scrap.purity,
+    item.scrap.post_melt_actual ?? item.scrap.post_melt,
+    content_actual ?? content,
+    item.scrap.id,
+  ];
+  return await pool.query(query, values);
+}
+
+export async function deleteItems(ids) {
+  const query = `
+    DELETE FROM exchange.scrap
+    WHERE id = ANY($1::uuid[]);
+  `;
+  const values = [ids];
+  return await pool.query(query, values);
+}
+
+export async function createNewItem(item, client) {
+  const metalQuery = `
+    SELECT id FROM exchange.metals
+    WHERE type = $1
+    LIMIT 1
+  `;
+  const metalResult = await client.query(metalQuery, [item.metal]);
+
+  const metal_id = metalResult.rows[0].id;
+
+  const scrapQuery = `
+    INSERT INTO exchange.scrap (
+      metal_id, pre_melt, purity, content, gross_unit, bid_premium
+    )
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING id
+  `;
+  const scrapValues = [
+    metal_id,
+    item.pre_melt ?? 1,
+    item.purity ?? 1,
+    item.content ?? (item.pre_melt ?? 1) * (item.purity ?? 1),
+    item.gross_unit ?? "t oz",
+    item.bid_premium ?? 0.75,
+  ];
+  const scrapResult = await client.query(scrapQuery, scrapValues);
+  return scrapResult.rows[0].id;
+}

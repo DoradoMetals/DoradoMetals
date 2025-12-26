@@ -34,7 +34,6 @@ import { UsersPage } from '@/features/users/ui/UsersAdminTable'
 import LeadsPage from '@/features/leads/ui/LeadsAdminTable'
 import ProductsPage from '@/features/products/ui/AdminProductsTable'
 import ScrapCards from '@/features/scrap/ui/AdminScrapCards'
-import RatesPage from '@/app/rates/page'
 import ReviewsPage from '@/features/reviews/ui/ReviewsAdminTable'
 
 import { Suspense } from 'react'
@@ -43,6 +42,7 @@ import { useAdminPurchaseOrders } from '@/features/orders/purchaseOrders/admin/q
 import { useAdminSalesOrders } from '@/features/orders/salesOrders/admin/queries'
 import PurchaseOrdersPage from '@/features/orders/purchaseOrders/admin/AdminPurchaseOrders'
 import SalesOrdersPage from '@/features/orders/salesOrders/admin/AdminSalesOrders'
+import RatesPage from '@/features/rates/ui/RatesAdminTable'
 
 export default function Page() {
   return (

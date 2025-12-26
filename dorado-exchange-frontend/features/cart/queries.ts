@@ -35,7 +35,7 @@ export const useSyncSellCartToBackend = () => {
         throw new Error('Missing user')
       }
 
-      return await apiRequest('POST', '/sell_cart/sync_sell_cart', {
+      return await apiRequest('POST', '/cart/sync_sell_cart', {
         user_id: user.id,
         cart: items,
       })

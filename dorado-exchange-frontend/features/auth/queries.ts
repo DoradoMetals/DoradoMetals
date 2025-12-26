@@ -51,7 +51,7 @@ const hydrateCarts = async (userId: string) => {
   try {
     const backendSellCart = await apiRequest<SellCartItem[]>(
       'GET',
-      '/sell_cart/get_sell_cart',
+      '/cart/get_sell_cart',
       undefined,
       { user_id: userId }
     )

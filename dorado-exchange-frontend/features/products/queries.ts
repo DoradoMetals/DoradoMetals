@@ -87,7 +87,7 @@ export const useCreateProduct = () =>
   useApiMutation<AdminProduct, { name: string }, AdminProduct[]>({
     queryKey: queryKeys.adminProducts(),
     method: 'POST',
-    url: '/admin/create_product',
+    url: '/products/create_product',
     requireAdmin: true,
     listAction: 'create',
     listInsertPosition: 'start',
@@ -101,7 +101,7 @@ export const useSaveProduct = () =>
   useApiMutation<void, AdminProduct, AdminProduct[]>({
     queryKey: queryKeys.adminProducts(),
     method: 'POST',
-    url: '/admin/save_product',
+    url: '/products/save_product',
     requireAdmin: true,
     listAction: 'upsert',
     body: (product, user) => ({
@@ -114,7 +114,7 @@ export const useAdminProducts = () =>
   useApiQuery<AdminProduct[]>({
     key: queryKeys.adminProducts(),
     method: 'GET',
-    url: '/admin/get_products',
+    url: '/products/get_products',
     requireAdmin: true,
     staleTime: 30000,
     params: (user) => ({
@@ -125,7 +125,7 @@ export const useAdminProducts = () =>
 export const useAdminTypes = () =>
   useApiQuery<AdminTypes[]>({
     key: queryKeys.adminTypes(),
-    url: '/admin/get_product_types',
+    url: '/products/get_product_types',
     method: 'GET',
     requireAdmin: true,
     params: (user) => ({
@@ -136,7 +136,7 @@ export const useAdminTypes = () =>
 export const useAdminMetals = () =>
   useApiQuery<AdminMetal[]>({
     key: queryKeys.adminMetals(),
-    url: '/admin/get_metals',
+    url: '/products/get_metals',
     method: 'GET',
     requireAdmin: true,
     params: (user) => ({
@@ -158,7 +158,7 @@ export const useAdminSuppliers = () =>
 export const useAdminCarriers = () =>
   useApiQuery<Carrier[]>({
     key: queryKeys.adminCarriers(),
-    url: '/carriers/get_all',
+    url: '/products/get_all',
     method: 'GET',
     requireUser: true,
     staleTime: 0,
@@ -170,7 +170,7 @@ export const useAdminCarriers = () =>
 export const useAdminMints = () =>
   useApiQuery<AdminMints[]>({
     key: queryKeys.adminMints(),
-    url: '/admin/get_mints',
+    url: '/products/get_mints',
     method: 'GET',
     requireAdmin: true,
     params: (user) => ({

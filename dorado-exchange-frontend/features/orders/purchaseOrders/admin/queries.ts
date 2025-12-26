@@ -1418,7 +1418,7 @@ export const useCancelFedExLabel = (order_id: string) => {
 
   return useMutation({
     mutationFn: (payload: { tracking_number: string; shipment_id: string }) => {
-      return apiRequest('POST', '/shipping/cancel_fedex_label', payload)
+      return apiRequest('POST', '/fedex/cancel_fedex_label', payload)
     },
     onMutate: async () => {
       const queryKey = ['admin_purchase_orders', user]
@@ -1460,6 +1460,6 @@ export const useCancelFedExLabel = (order_id: string) => {
 export const useCancelFedExPickup = () => {
   return useMutation({
     mutationFn: (input: FedexCancelPickupInput) =>
-      apiRequest<FedexPickup>('POST', '/shipping/cancel_fedex_pickup', input),
+      apiRequest<FedexPickup>('POST', '/fedex/cancel_fedex_pickup', input),
   })
 }
