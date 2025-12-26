@@ -16,7 +16,7 @@ export const useFedExRates = (input: FedexRateInput | null) =>
   useApiQuery<FedexRate[]>({
     key: queryKeys.fedexRates(input),
     method: 'POST',
-    url: '/shipping/get_fedex_rates',
+    url: '/fedex/get_fedex_rates',
     enabled: !!input,
     staleTime: 5 * 60 * 1000,
     retry: false,
@@ -27,7 +27,7 @@ export const useFedExPickupTimes = (input: FedexPickupTimesInput | null) =>
   useApiQuery<FedexPickupTimes[]>({
     key: queryKeys.fedexPickupTimes(input),
     method: 'POST',
-    url: 'shipping/check_fedex_pickup_times',
+    url: 'fedex/check_fedex_pickup_times',
     enabled: !!input,
     staleTime: 5 * 60 * 1000,
     retry: false,
@@ -38,7 +38,7 @@ export const useFedExLocations = (input: FedexLocationsInput | null) =>
   useApiQuery<FedexLocationsReturn>({
     key: queryKeys.fedexLocations(input),
     method: 'POST',
-    url: 'shipping/get_fedex_locations',
+    url: 'fedex/get_fedex_locations',
     enabled: !!input,
     staleTime: 5 * 60 * 1000,
     retry: false,

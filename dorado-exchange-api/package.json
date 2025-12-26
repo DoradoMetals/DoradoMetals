@@ -7,6 +7,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+   "imports": {
+    "#db": "./db.js",
+    "#shared/*": "./shared/*",
+    "#features/*": "./features/*"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

@@ -1,5 +1,5 @@
-import * as repo from "./repo.js";
-import { validateAddress } from "../../controllers/shipping/fedexController.js";
+import * as addressRepo from "#features/addresses/repo.js"
+import { validateAddress } from "#features/fedex/controller.js"
 
 function badRequest(message) {
   const err = new Error(message);
@@ -8,7 +8,7 @@ function badRequest(message) {
 }
 
 export async function list(userId) {
-  return repo.list(userId);
+  return addressRepo.list(userId);
 }
 
 async function validateOrThrow(address) {
@@ -26,9 +26,9 @@ async function validateOrThrow(address) {
 export async function create({ address, userId }) {
   const { is_valid, is_residential } = await validateOrThrow(address);
 
-  const saved = await repo.create({ address, userId });
+  const saved = await addressRepo.create({ address, userId });
 
-  return repo.updateValidation({
+  return addressRepo.updateValidation({
     addressId: saved.id,
     is_valid,
     is_residential,
@@ -36,7 +36,7 @@ export async function create({ address, userId }) {
 }
 
 export async function update({ address, userId }) {
-  const active = await repo.isActive({ addressId: address.id, userId });
+  const active = await addressRepo.isActive({ addressId: address.id, userId });
   if (active) {
     throw badRequest(
       "Address cannot be edited because it is associated with an active order."
@@ -45,10 +45,10 @@ export async function update({ address, userId }) {
 
   const { is_valid, is_residential } = await validateOrThrow(address);
 
-  const saved = await repo.update({ address, userId });
+  const saved = await addressRepo.update({ address, userId });
   if (!saved) throw badRequest("Address not found.");
 
-  return repo.updateValidation({
+  return addressRepo.updateValidation({
     addressId: saved.id,
     is_valid,
     is_residential,
@@ -56,7 +56,7 @@ export async function update({ address, userId }) {
 }
 
 export async function remove({ addressId, userId }) {
-  const active = await repo.isActive({ addressId, userId });
+  const active = await addressRepo.isActive({ addressId, userId });
 
   if (active) {
     throw badRequest(
@@ -64,11 +64,11 @@ export async function remove({ addressId, userId }) {
     );
   }
 
-  await repo.remove({ addressId, userId });
+  await addressRepo.remove({ addressId, userId });
   return "Deleted address.";
 }
 
 export async function setDefault({ userId, addressId }) {
-  await repo.setDefault({ userId, addressId });
+  await addressRepo.setDefault({ userId, addressId });
   return "Set default address.";
 }
