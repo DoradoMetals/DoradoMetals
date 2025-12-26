@@ -1,5 +1,5 @@
 import * as repo from "./repo.js";
-import { validateAddress } from "../controllers/shipping/fedexController.js";
+import { validateAddress } from "../../controllers/shipping/fedexController.js";
 
 function badRequest(message) {
   const err = new Error(message);
