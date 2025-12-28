@@ -5,7 +5,6 @@ import { SpotPrice } from '@/features/spots/types'
 import { Product } from '@/features/products/types'
 import getPurchaseOrderItemPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderItemPrice'
 import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
-import { FedexCancelPickupInput, FedexPickup } from '@/features/fedex/types'
 import { useGetSession } from '@/features/auth/queries'
 
 export const useAdminPurchaseOrders = () => {
@@ -1412,54 +1411,3 @@ export const useUpdatePoolRemediation = () => {
 }
 
 
-export const useCancelFedExLabel = (order_id: string) => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (payload: { tracking_number: string; shipment_id: string }) => {
-      return apiRequest('POST', '/fedex/cancel_fedex_label', payload)
-    },
-    onMutate: async () => {
-      const queryKey = ['admin_purchase_orders', user]
-      await queryClient.cancelQueries({ queryKey })
-
-      const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
-
-      queryClient.setQueryData<PurchaseOrder[]>(queryKey, (old = []) =>
-        old.map((order) =>
-          order.id !== order_id
-            ? order
-            : {
-                ...order,
-                shipment: {
-                  ...order.shipment,
-                  shipping_status: 'Cancelled',
-                },
-              }
-        )
-      )
-
-      return { previousOrders, queryKey }
-    },
-
-    onError: (_err, _vars, context) => {
-      if (context?.previousOrders && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousOrders)
-      }
-    },
-
-    onSettled: (_data, _err, _vars, context) => {
-      if (context?.queryKey) {
-        queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
-      }
-    },
-  })
-}
-
-export const useCancelFedExPickup = () => {
-  return useMutation({
-    mutationFn: (input: FedexCancelPickupInput) =>
-      apiRequest<FedexPickup>('POST', '/fedex/cancel_fedex_pickup', input),
-  })
-}

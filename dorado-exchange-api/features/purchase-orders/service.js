@@ -1,14 +1,14 @@
 import pool from "#db";
 import * as purchaseOrderRepo from "#features/purchase-orders/repo.js";
-import * as shippingRepo from "#features/shipping/repo.js";
 import * as scrapRepo from "#features/scrap/repo.js";
 import * as transactionRepo from "#features/transactions/repo.js";
-
-import { createFedexLabel } from "#features/fedex/controller.js";
-
-import { formatAddressForFedEx } from "#features/fedex/utils/formatAddress.js";
-
 import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.js";
+
+import * as shipmentRepo from "#features/shipping/shipments/repo.js";
+import * as pickupRepo from "#features/shipping/pickups/repo.js";
+import * as shippingOps from "#features/shipping/operations/handler.js";
+
+import { DORADO_ADDRESS } from "#providers/fedex/constants.js";
 
 export async function listOrdersForUser(userId) {
   return purchaseOrderRepo.findAllByUser(userId);
@@ -95,41 +95,72 @@ export async function cancelOrder({ order, return_shipment }) {
       order.id,
       client
     );
-
     await purchaseOrderRepo.clearOrderMetals(order.id, client);
 
-    const labelData = await createFedexLabel(
-      return_shipment.address.name,
-      return_shipment.address.phone_number,
-      formatAddressForFedEx(return_shipment.address),
-      "Return",
+    const shipment = await shipmentRepo.create(
       {
-        weight: return_shipment.package.weight,
-        dimensions: return_shipment.package.dimensions,
-        insured: return_shipment.insurance.declaredValue,
+        purchase_order_id: order.id,
+        // carrier_id: order.carrier.id,
+        carrier_id: "30179428-b311-4873-8d08-382901c581d8",
+        type: "Return",
       },
-      return_shipment.pickup?.label || "DROPOFF_AT_FEDEX_LOCATION",
-      return_shipment.service?.serviceType || "FEDEX_EXPRESS_SAVER",
-      return_shipment.declaredValue
+      client
     );
+
+    const shipper = {
+      contact: {
+        personName: process.env.FEDEX_DORADO_NAME,
+        phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,
+      },
+      address: DORADO_ADDRESS,
+    };
+
+    const recipient = {
+      contact: {
+        personName: return_shipment.address.name,
+        phoneNumber: return_shipment.address.phone_number,
+      },
+      address: return_shipment.address,
+    };
+
+    const labelData = await shippingOps.createLabel(FEDEX_CARRIER_ID, client, {
+      shipper,
+      recipient,
+      serviceType: return_shipment.service?.serviceType,
+      pickupType: return_shipment.pickup?.label,
+      pkg: {
+        weight: return_shipment.package?.weight,
+        dimensions: return_shipment.package?.dimensions,
+      },
+      insurance: {
+        declaredValue: return_shipment.insurance?.declaredValue,
+      },
+    });
+
     const labelBuffer = Buffer.from(labelData.labelFile, "base64");
 
-    const insertedShipment = await purchaseOrderRepo.insertReturnShipment(
-      client,
-      order.id,
+    const updatedShipment = await shipmentService.update(
       {
+        ...shipment,
         tracking_number: labelData.tracking_number,
-        pickup: return_shipment.pickup,
-        package: return_shipment.package,
-        service: return_shipment.service,
-        insurance: return_shipment.insurance,
+        carrier_id: FEDEX_CARRIER_ID,
+        shipping_status: "Label Created",
+        shipping_label: labelBuffer,
+        label_type: "Generated",
+        pickup_type: return_shipment.pickup?.name,
+        package: return_shipment.package?.label,
+        service_type: return_shipment.service?.serviceDescription,
+        net_charge: return_shipment.service?.netCharge,
+        insured: return_shipment.insurance?.insured,
+        declared_value: return_shipment.insurance?.declaredValue?.amount,
+        type: "Return",
       },
-      labelBuffer
+      client
     );
 
     await client.query("COMMIT");
 
-    return { updatedOrder, returnShipment: insertedShipment };
+    return { updatedOrder, returnShipment: updatedShipment };
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -148,78 +179,126 @@ export async function createReview({ order }) {
 
 export async function createPurchaseOrder(purchase_order, user_id) {
   const client = await pool.connect();
+
   try {
     await client.query("BEGIN");
 
-    const orderId = await purchaseOrderRepo.insertOrder(client, {
+    const order_id = await purchaseOrderRepo.insertOrder(client, {
       userId: user_id,
       addressId: purchase_order.address.id,
       status: "In Transit",
     });
-    await purchaseOrderRepo.insertItems(client, orderId, purchase_order.items);
-    await purchaseOrderRepo.insertOrderMetals(client, orderId);
-    await purchaseOrderRepo.insertRefinerMetals(client, orderId);
-    await purchaseOrderRepo.insertPayout(client, orderId, {
+
+    await purchaseOrderRepo.insertItems(client, order_id, purchase_order.items);
+    await purchaseOrderRepo.insertOrderMetals(client, order_id);
+    await purchaseOrderRepo.insertRefinerMetals(client, order_id);
+
+    await purchaseOrderRepo.insertPayout(client, order_id, {
       userId: user_id,
       ...purchase_order.payout,
     });
 
-    const labelData = await createFedexLabel(
-      purchase_order.address.name,
-      purchase_order.address.phone_number,
-      formatAddressForFedEx(purchase_order.address),
-      "Inbound",
+    const shipment = await shipmentRepo.create(
       {
-        weight: purchase_order.package.weight,
-        dimensions: purchase_order.package.dimensions,
-        insured: purchase_order.insurance.insured,
+        purchase_order_id: order_id,
+        // carrier_id: purchase_order.carrier.id,
+        carrier_id: "30179428-b311-4873-8d08-382901c581d8",
+        type: "Inbound",
       },
-      purchase_order.pickup?.label,
-      purchase_order.service?.serviceType,
-      purchase_order.insurance.declaredValue
+      client
+    );
+
+    const shipper = {
+      contact: {
+        personName: purchase_order.address.name,
+        phoneNumber: purchase_order.address.phone_number,
+      },
+      address: purchase_order.address,
+    };
+
+    const recipient = {
+      contact: {
+        personName: process.env.FEDEX_DORADO_NAME,
+        phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,
+      },
+      address: DORADO_ADDRESS,
+    };
+
+    const labelData = await shippingOps.createLabel(
+      // purchase_order.carrier.id,
+      "30179428-b311-4873-8d08-382901c581d8",
+      client,
+      {
+        shipper,
+        recipient,
+        serviceType: purchase_order.service?.serviceType,
+        pickupType: purchase_order.pickup?.label,
+        pkg: {
+          weight: purchase_order.package?.weight,
+          dimensions: purchase_order.package?.dimensions,
+        },
+        insurance: {
+          declaredValue: purchase_order.insurance?.declaredValue,
+        },
+      }
     );
 
     const buffer = Buffer.from(labelData.labelFile, "base64");
-    await shippingRepo.insertShipment(
-      orderId,
-      null,
-      labelData.tracking_number,
-      "30179428-b311-4873-8d08-382901c581d8",
-      "Label Created",
-      buffer,
-      "Generated",
-      purchase_order.pickup.name,
-      purchase_order.package.label,
-      purchase_order.service.serviceDescription,
-      purchase_order.service.netCharge,
-      purchase_order.insurance.insured,
-      purchase_order.insurance.declaredValue.amount,
-      "Inbound",
+
+    await shipmentRepo.update(
+      {
+        ...shipment,
+        tracking_number: labelData.tracking_number,
+        carrier_id: "30179428-b311-4873-8d08-382901c581d8",
+        shipping_status: "Label Created",
+        shipping_label: buffer,
+        label_type: "Generated",
+        pickup_type: purchase_order.pickup?.name ?? null,
+        package: purchase_order.package?.label ?? null,
+        service_type: purchase_order.service?.serviceDescription ?? null,
+        net_charge: purchase_order.service?.netCharge ?? null,
+        insured: purchase_order.insurance?.insured ?? false,
+        declared_value: purchase_order.insurance?.declaredValue?.amount ?? null,
+        type: "Inbound",
+      },
       client
     );
 
     if (purchase_order.pickup?.name === "Carrier Pickup") {
-      const { confirmationNumber, location } = await scheduleFedexPickup(
-        purchase_order.address.name,
-        purchase_order.address.phone_number,
-        formatAddressForFedEx(purchase_order.address),
-        purchase_order.pickup.date,
-        purchase_order.pickup.time,
-        purchase_order.service.code,
-        labelData.tracking_number
+      const pickupResult = await shippingOps.createPickup(
+        FEDEX_CARRIER_ID,
+        client,
+        {
+          pickupContact: {
+            personName: addr.name,
+            phoneNumber: addr.phone_number,
+          },
+          pickupAddress: purchase_order.address,
+          pickupDate: purchase_order.pickup.date,
+          pickupTime: purchase_order.pickup.time,
+          carrierCode: purchase_order.service?.code ?? "FDXE",
+          trackingNumber: labelData.tracking_number,
+        }
       );
-      await shippingRepo.insertPickup(client, orderId, user_id, {
-        confirmationNumber,
-        location,
-        date: purchase_order.pickup.date,
-        time: purchase_order.pickup.time,
-      });
+
+      await pickupRepo.create(
+        {
+          user_id,
+          order_id: order_id,
+          carrier: "FedEx",
+          date: purchase_order.pickup.date,
+          time: purchase_order.pickup.time,
+          pickup_status: "scheduled",
+          confirmation_number: pickupResult.confirmationNumber,
+          location: pickupResult.location,
+        },
+        client
+      );
     }
 
     await client.query("COMMIT");
 
-    const order = await getById(orderId);
-    return order;
+    return await purchaseOrderRepo.findById(order_id);
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -228,7 +307,7 @@ export async function createPurchaseOrder(purchase_order, user_id) {
   }
 }
 
-export async function sendOffer({ order, order_status, user_name }) {
+export async function sendOffer({ order, user_name }) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");

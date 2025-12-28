@@ -3,15 +3,19 @@
 import { Calendar } from '@/shared/ui/base/calendar'
 import { ScrollArea } from '@/shared/ui/base/scroll-area'
 import { Button } from '@/shared/ui/base/button'
-import { FedexPickupTimes } from '@/features/fedex/types'
+import type { ShippingPickupTimes } from '@/features/shipping/types'
 import { parseISO } from 'date-fns'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { cn } from '@/shared/utils/cn'
-import { formatPickupDate, formatPickupDateShort, formatPickupTime } from '@/shared/utils/formatDates'
+import {
+  formatPickupDate,
+  formatPickupDateShort,
+  formatPickupTime,
+} from '@/shared/utils/formatDates'
 import { useEffect } from 'react'
 
 type PickupSchedulerProps = {
-  times: FedexPickupTimes[]
+  times: ShippingPickupTimes[]
 }
 
 export default function PickupScheduler({ times }: PickupSchedulerProps) {
@@ -22,18 +26,20 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
 
   const nextAvailable = times.find((t) => t.times.length > 0)
 
-  const hasValidPickupDate = pickup?.date && times.some((t) => t.pickupDate === pickup.date)
+  const hasValidPickupDate = !!pickup?.date && times.some((t) => t.pickupDate === pickup.date)
 
   const selectedDateStr = hasValidPickupDate
-    ? pickup?.date
-    : nextAvailable?.pickupDate ?? times[0].pickupDate
+    ? pickup!.date
+    : nextAvailable?.pickupDate ?? times?.[0]?.pickupDate
 
   const selectedDay = times.find((t) => t.pickupDate === selectedDateStr)
   const availableSlots = selectedDay?.times ?? []
-  const latestAvailableDate = times.length ? times[times.length - 1].pickupDate : today
+
+  const latestAvailableDate = times.length ? times[times.length - 1].pickupDate : undefined
 
   useEffect(() => {
-    if (!pickup?.date && selectedDateStr) {
+    if (!selectedDateStr) return
+    if (!pickup?.date) {
       setData({
         pickup: {
           name: pickup?.name ?? '',
@@ -43,7 +49,10 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
         },
       })
     }
-  }, [pickup?.date, selectedDateStr])
+  }, [pickup?.date, selectedDateStr, setData])
+
+  // If we have no times at all, render nothing (or swap to a nicer empty state)
+  if (!times?.length || !selectedDateStr) return null
 
   return (
     <div>
@@ -53,25 +62,26 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
             <div className="flex items-center justify-center">
               <Calendar
                 mode="single"
-                selected={parseISO(selectedDateStr ?? new Date().toISOString().split('T')[0])}
+                selected={parseISO(selectedDateStr)}
                 onSelect={(newDate) => {
-                  if (newDate) {
-                    const iso = newDate.toISOString().split('T')[0]
-                    setData({
-                      pickup: {
-                        ...pickup,
-                        label: pickup?.label ?? '',
-                        date: iso,
-                        time: undefined,
-                      },
-                    })
-                  }
+                  if (!newDate) return
+                  const iso = newDate.toISOString().split('T')[0]
+                  setData({
+                    pickup: {
+                      ...pickup,
+                      label: pickup?.label ?? '',
+                      date: iso,
+                      time: undefined,
+                    },
+                  })
                 }}
                 className="p-2 sm:pe-5 bg-card"
                 disabled={[
                   {
                     before: parseISO(new Date(today).toISOString().split('T')[0]),
-                    after: parseISO(new Date(latestAvailableDate).toISOString().split('T')[0]),
+                    ...(latestAvailableDate
+                      ? { after: parseISO(new Date(latestAvailableDate).toISOString().split('T')[0]) }
+                      : {}),
                   },
                   (date) => {
                     const iso = date.toISOString().split('T')[0]

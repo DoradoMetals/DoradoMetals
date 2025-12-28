@@ -1,5 +1,4 @@
-import * as addressRepo from "#features/addresses/repo.js"
-import { validateAddress } from "#features/fedex/controller.js"
+import * as addressRepo from "#features/addresses/repo.js";
 
 function badRequest(message) {
   const err = new Error(message);
@@ -11,28 +10,8 @@ export async function list(userId) {
   return addressRepo.list(userId);
 }
 
-async function validateOrThrow(address) {
-  const result = await validateAddress(address);
-
-  if (!result || result.is_valid !== true) {
-    throw badRequest(
-      "We couldn't verify this address. Please check it, or use a different address."
-    );
-  }
-
-  return result;
-}
-
 export async function create({ address, userId }) {
-  const { is_valid, is_residential } = await validateOrThrow(address);
-
-  const saved = await addressRepo.create({ address, userId });
-
-  return addressRepo.updateValidation({
-    addressId: saved.id,
-    is_valid,
-    is_residential,
-  });
+  return addressRepo.create({ address, userId });
 }
 
 export async function update({ address, userId }) {
@@ -43,16 +22,10 @@ export async function update({ address, userId }) {
     );
   }
 
-  const { is_valid, is_residential } = await validateOrThrow(address);
-
   const saved = await addressRepo.update({ address, userId });
   if (!saved) throw badRequest("Address not found.");
 
-  return addressRepo.updateValidation({
-    addressId: saved.id,
-    is_valid,
-    is_residential,
-  });
+  return saved;
 }
 
 export async function remove({ addressId, userId }) {

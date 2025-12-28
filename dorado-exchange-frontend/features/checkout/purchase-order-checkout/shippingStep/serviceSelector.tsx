@@ -2,14 +2,14 @@
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { cn } from '@/shared/utils/cn'
-import { FedexRate } from '@/features/fedex/types'
 import { serviceOptions } from '@/features/service/types'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { formatTimeDiff } from '@/shared/utils/formatDates'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { ShippingRate } from '@/features/shipping/types'
 
 interface ServiceSelectorProps {
-  rates: FedexRate[]
+  rates: ShippingRate[]
   isLoading: boolean
 }
 

@@ -5,7 +5,7 @@ import { fromNodeHeaders } from "better-auth/node";
 import * as salesOrderRepo from "#features/sales-orders/repo.js";
 import * as stripeRepo from "#features/stripe/repo.js";
 import * as transactionsRepo from "#features/transactions/repo.js";
-import * as shippingRepo from "#features/shipping/repo.js";
+import * as shipmentRepo from "#features/shipping/shipments/repo.js";
 import * as supplierRepo from "#features/suppliers/repo.js";
 import * as taxRepo from "#features/sales-tax/repo.js";
 
@@ -210,7 +210,7 @@ export async function sendOrderToSupplier({ order, spots, supplier_id }) {
       client
     );
 
-    await shippingRepo.insertShipment(
+    await shipmentRepo.insertShipment(
       null,
       sales_order.id,
       null,
@@ -246,8 +246,8 @@ export async function updateTracking({
   tracking_number,
   carrier_id,
 }) {
-  await shippingRepo.insertTracking(shipment_id, tracking_number, carrier_id);
-  return await salesOrderRepo.updateTracking(order_id);
+  await shipmentRepo.insertTrackingNumber(shipment_id, tracking_number, carrier_id);
+  return await salesOrderRepo.updateTrackingStatus(order_id);
 }
 
 export async function createReview({ order }) {

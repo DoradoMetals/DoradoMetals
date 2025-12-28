@@ -443,50 +443,6 @@ export async function clearOrderMetals(orderId, client) {
   return client.query(query, [orderId]);
 }
 
-export async function insertReturnShipment(
-  client,
-  orderId,
-  shipment,
-  labelBuffer,
-) {
-  const query = `
-    INSERT INTO exchange.return_shipments (
-      order_id,
-      tracking_number,
-      carrier,
-      shipping_status,
-      shipping_label,
-      label_type,
-      pickup_type,
-      package,
-      service_type,
-      net_charge,
-      insured,
-      declared_value
-    )
-    VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
-    )
-    RETURNING *;
-  `;
-  const vals = [
-    orderId,
-    shipment.tracking_number,
-    "FedEx",
-    "Label Created",
-    labelBuffer,
-    "Generated",
-    shipment.pickup?.label || "DROPOFF_AT_FEDEX_LOCATION",
-    shipment.package.dimensions,
-    shipment.service?.serviceDescription || "Express Saver",
-    shipment.service.netCharge,
-    shipment.insurance.insured,
-    shipment.insurance.declaredValue.amount,
-  ];
-  const { rows } = await client.query(query, vals);
-  return rows[0];
-}
-
 export async function updateOfferNotes(order, offer_notes) {
   const query = `
     UPDATE exchange.purchase_orders

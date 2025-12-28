@@ -1,4 +1,4 @@
-import * as recaptchaService from "#features/recaptcha/service.js"
+import * as recaptcha from "#providers/recaptcha/recaptcha.js"
 
 export async function verifyRecaptcha (req, res, next) {
   try {
@@ -6,7 +6,7 @@ export async function verifyRecaptcha (req, res, next) {
     if (!token) {
       return res.status(400).json({ error: "Missing captcha token" });
     }
-    const isHuman = await recaptchaService.verifyToken(token);
+    const isHuman = await recaptcha.verifyToken(token);
     return res.json(isHuman);
   } catch (err) {
     next(err);

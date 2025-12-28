@@ -4,19 +4,23 @@ import { Button } from '@/shared/ui/base/button'
 import { defineStepper } from '@stepperize/react'
 import ShippingStep from './shippingStep/shippingStep'
 import PayoutStep from './payoutStep/payoutStep'
+import ReviewStep from '@/features/checkout/purchase-order-checkout/reviewStep/reviewStep'
+
 import { Address, makeEmptyAddress } from '@/features/addresses/types'
 import { useEffect, useMemo, useRef } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useRouter } from 'next/navigation'
-import { useFedExRates } from '@/features/fedex/queries'
 import { useGetSession } from '@/features/auth/queries'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
-import getFedexRatesInput from '@/features/fedex/utils/getFedexRatesInput'
-import { getDeclaredValue } from '@/features/checkout/utils/getDeclaredValue'
+
 import { useAddress } from '@/features/addresses/queries'
 import { useSpotPrices } from '@/features/spots/queries'
-import ReviewStep from '@/features/checkout/purchase-order-checkout/reviewStep/reviewStep'
+import { getDeclaredValue } from '@/features/checkout/utils/getDeclaredValue'
+
+// ✅ new shipping hooks + util
+import { useShippingRates } from '@/features/shipping/queries'
+import { useGetRatesInput } from '@/features/shipping/utils/getRatesInput'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -42,19 +46,20 @@ export default function CheckoutStepper() {
     return getDeclaredValue(items, spotPrices)
   }, [items, spotPrices])
 
+  // keep store insurance declaredValue in sync
   useEffect(() => {
-    if (data.insurance?.insured) {
-      setData({
-        insurance: {
-          insured: true,
-          declaredValue: {
-            amount: declaredValue,
-            currency: 'USD',
-          },
+    if (!data.insurance?.insured) return
+
+    setData({
+      insurance: {
+        insured: true,
+        declaredValue: {
+          amount: declaredValue ?? 0,
+          currency: 'USD',
         },
-      })
-    }
-  }, [data.insurance?.insured, declaredValue])
+      },
+    })
+  }, [data.insurance?.insured, declaredValue, setData])
 
   const isShippingStepComplete =
     !!data.address?.is_valid &&
@@ -65,60 +70,73 @@ export default function CheckoutStepper() {
       (!!data.pickup.date && !!data.pickup.time))
 
   const defaultAddress: Address =
-    addresses.find((a) => a.is_default) ?? addresses[0] ??  makeEmptyAddress(user?.id)
+    addresses.find((a) => a.is_default) ?? addresses[0] ?? makeEmptyAddress(user?.id)
 
   useEffect(() => {
-    if (!hasInitialized.current && addresses.length > 0) {
-      setData({
-        address: defaultAddress,
-        confirmation: false,
-        fedexPackageToggle: false,
-        insurance: {
-          insured: true,
-          declaredValue: {
-            amount: declaredValue ?? 0,
-            currency: 'USD',
-          },
+    if (hasInitialized.current) return
+    if (addresses.length === 0) return
+
+    setData({
+      address: defaultAddress,
+      confirmation: false,
+      fedexPackageToggle: false,
+      insurance: {
+        insured: true,
+        declaredValue: {
+          amount: declaredValue ?? 0,
+          currency: 'USD',
         },
-      })
-      hasInitialized.current = true
-    }
-  }, [addresses])
+      },
+    })
+
+    hasInitialized.current = true
+  }, [addresses.length, defaultAddress, declaredValue, setData])
 
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
 
   const cartItems = sellCartStore((state) => state.items)
 
-  const fedexRatesInput = getFedexRatesInput({
-    address: data.address ??  makeEmptyAddress(user?.id),
+  // ✅ build the new /shipping/get_rates input (null when not ready)
+  const ratesInput = useGetRatesInput({
+    carrier_id: "30179428-b311-4873-8d08-382901c581d8",
+    address: data.address ?? makeEmptyAddress(user?.id),
     package: data.package,
     shippingType: 'Inbound',
     pickupLabel: data.pickup?.label ?? 'DROPOFF_AT_FEDEX_LOCATION',
     insurance: data.insurance,
   })
 
-  const { data: rates = [], isLoading: ratesLoading } = useFedExRates(fedexRatesInput)
+  // ✅ new shipping rates query
+  const { data: rates = [], isLoading: ratesLoading } = useShippingRates(
+    // if your hook expects ShippingRatesInput (not null), guard it:
+    (ratesInput as any) // remove this cast if your useApiQuery supports null input nicely
+  )
 
+  // ✅ keep selected service netCharge fresh when rates change
   useEffect(() => {
     const currentServiceType = data.service?.serviceType
-    const freshRate = rates.find((r) => r.serviceType === currentServiceType)
+    if (!currentServiceType) return
 
-    if (currentServiceType && freshRate && freshRate.netCharge !== data.service?.netCharge) {
+    const freshRate = rates.find((r) => r.serviceType === currentServiceType)
+    if (!freshRate) return
+
+    if (freshRate.netCharge !== data.service?.netCharge) {
       setData({
         service: {
-          code: data.service?.code ?? '',
-          serviceType: data.service?.serviceType ?? '',
-          serviceDescription: data.service?.serviceDescription ?? '',
-          icon: data.service?.icon,
+          ...data.service,
+          // align to your new ShippingRate shape
+          serviceType: freshRate.serviceType,
+          serviceDescription: freshRate.serviceDescription,
           netCharge: freshRate.netCharge,
           currency: freshRate.currency,
-          transitTime: freshRate.transitTime ?? new Date(),
           deliveryDay: freshRate.deliveryDay ?? '',
-        },
+          transitTime: freshRate.transitTime ?? '',
+          packagingType: freshRate.packagingType,
+        } as any,
       })
     }
-  }, [rates, data.service?.serviceType])
+  }, [rates, data.service?.serviceType, data.service?.netCharge, setData])
 
   if (cartItems.length === 0) {
     return (
@@ -137,9 +155,7 @@ export default function CheckoutStepper() {
 
         <Button
           variant="secondary"
-          onClick={() => {
-            router.push('/sell')
-          }}
+          onClick={() => router.push('/sell')}
           className="raised-off-page bg-primary text-white hover:text-white px-10"
         >
           Start Shopping
@@ -161,6 +177,7 @@ export default function CheckoutStepper() {
               </div>
             </div>
           </div>
+
           <div className="flex lg:hidden">
             <div className="flex items-center gap-3">
               <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
@@ -185,6 +202,7 @@ export default function CheckoutStepper() {
             payout: () => <PayoutStep user={user} />,
             review: () => <ReviewStep />,
           })}
+
           <div className="flex justify-between gap-4 mt-4">
             {stepper.current.id !== 'shipping' && (
               <Button

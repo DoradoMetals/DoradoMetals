@@ -11,18 +11,18 @@ import {
 } from '@phosphor-icons/react'
 
 import { z } from 'zod'
-import { Address, addressSchema } from '../../addresses/types'
-import { packageSchema } from '../../packaging/types'
-import { serviceSchema } from '../../service/types'
-import { pickupSchema } from '../../handoff/types'
-import { Payout } from '../../payouts/types'
-import { LucideIcon } from 'lucide-react'
 
-import { Product, productSchema } from '../../products/types'
-import { User, userSchema } from '../../users/types'
-import { insuranceSchema } from '../../insurance/types'
-import { Shipment } from '../../shipments/types'
-import { spotPriceSchema } from '../../spots/types'
+import { LucideIcon } from 'lucide-react'
+import { Product, productSchema } from '@/features/products/types'
+import { Address, addressSchema } from '@/features/addresses/types'
+import { Payout } from '@/features/payouts/types'
+import { Shipment } from '@/features/shipping/types'
+import { packageSchema } from '@/features/packaging/types'
+import { pickupSchema } from '@/features/handoff/types'
+import { serviceSchema } from '@/features/service/types'
+import { insuranceSchema } from '@/features/insurance/types'
+import { User, userSchema } from '@/features/users/types'
+import { spotPriceSchema } from '@/features/spots/types'
 
 export interface SalesOrderItem {
   id: string
@@ -105,7 +105,7 @@ export type StatusConfig = Record<string, StatusConfigEntry>
 export const statusConfig: StatusConfig = {
   Pending: {
     background_color: 'bg-rose-600',
-    muted_bg: "bg-rose-600/20",
+    muted_bg: 'bg-rose-600/20',
     hover_background_color: 'hover:bg-rose-600',
     muted_color: 'hover:bg-rose-600/20',
     text_color: 'text-rose-600',
@@ -117,7 +117,7 @@ export const statusConfig: StatusConfig = {
   },
   Preparing: {
     background_color: 'bg-amber-500',
-    muted_bg: "bg-amber-500/20",
+    muted_bg: 'bg-amber-500/20',
     hover_background_color: 'hover:bg-amber-500',
     muted_color: 'hover:bg-amber-500/20',
     text_color: 'text-amber-500',
@@ -129,7 +129,7 @@ export const statusConfig: StatusConfig = {
   },
   'In Transit': {
     background_color: 'bg-cyan-600',
-    muted_bg: "bg-cyan-600/20",
+    muted_bg: 'bg-cyan-600/20',
     hover_background_color: 'hover:bg-cyan-600',
     muted_color: 'hover:bg-cyan-600/20',
     text_color: 'text-cyan-600',
@@ -141,7 +141,7 @@ export const statusConfig: StatusConfig = {
   },
   Completed: {
     background_color: 'bg-green-700',
-    muted_bg: "bg-green-700/20",
+    muted_bg: 'bg-green-700/20',
     hover_background_color: 'hover:bg-green-700',
     muted_color: 'hover:bg-green-700/20',
     text_color: 'text-green-700',

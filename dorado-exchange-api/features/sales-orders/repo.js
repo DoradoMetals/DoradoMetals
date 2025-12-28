@@ -324,7 +324,7 @@ export async function updateStatus(order, order_status, user_name) {
   return rows[0];
 }
 
-export async function updateTracking(orderId) {
+export async function updateTrackingStatus(orderId) {
   const query = `
     UPDATE exchange.sales_orders
     SET tracking_updated = true
