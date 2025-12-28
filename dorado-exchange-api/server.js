@@ -7,8 +7,6 @@ import productRoutes from "#features/products/routes.js";
 import addressRoutes from "#features/addresses/routes.js";
 import purchaseOrderRoutes from "#features/purchase-orders/routes.js";
 import cartRoutes from "#features/carts/routes.js";
-import fedexRoutes from "#features/fedex/routes.js";
-import shippingRoutes from "#features/shipping/routes.js";
 import pdfRoutes from "#features/pdf/routes.js";
 import reviewRoutes from "#features/reviews/routes.js";
 import emailRoutes from "#features/emails/routes.js";
@@ -18,17 +16,19 @@ import transactionRoutes from "#features/transactions/routes.js";
 import salesOrderRoutes from "#features/sales-orders/routes.js";
 import supplierRoutes from "#features/suppliers/routes.js";
 import taxRoutes from "#features/sales-tax/routes.js";
-import carriersRoutes from "#features/carriers/routes.js";
+import carriersRoutes from "#features/shipping/carriers/routes.js";
 import recaptchaRoutes from "#features/recaptcha/routes.js";
 import userRoutes from "#features/users/routes.js";
 import imageRoutes from "#features/media/routes.js";
 import leadRoutes from "#features/leads/routes.js";
 import rateRoutes from "#features/rates/routes.js";
+import shippingRoutes from "#features/shipping/operations/routes.js";
 
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "#features/auth/client.js";
 import { setupScheduler } from "#shared/cron/scheduler.js";
 import { handleStripeWebhook } from "#features/stripe/controller.js";
+import errorHandler from "#shared/middleware/errorHandler.js";
 
 const { types } = pg;
 types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
@@ -60,7 +60,6 @@ app.use("/api/addresses", addressRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/shipping", shippingRoutes);
 app.use("/api/spots", spotRoutes);
-app.use("/api/fedex", fedexRoutes);
 app.use("/api/purchase_orders", purchaseOrderRoutes);
 app.use("/api/pdf", pdfRoutes);
 app.use("/api/reviews", reviewRoutes);
@@ -75,16 +74,14 @@ app.use("/api/users", userRoutes);
 app.use("/api/images", imageRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/rates", rateRoutes);
+app.use("/api/shipping", shippingRoutes);
 
 setupScheduler();
 
-app.use((req, res, next) => next());
-
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: "Internal Server Error" });
+app.use((req, res) => {
+  res.status(404).json({ error: "Not Found" });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+app.use(errorHandler);
+
+app.listen(PORT, () => {});

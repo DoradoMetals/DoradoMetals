@@ -1,29 +1,31 @@
 'use client'
 
-import { Address } from '@/features/addresses/types'
+import type { Address } from '@/features/addresses/types'
 import { Button } from '@/shared/ui/base/button'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { FedexPickupTimesInput, formatFedexPickupAddress, FedexRate } from '@/features/fedex/types'
-import { useFedExPickupTimes } from '@/features/fedex/queries'
-import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
+import type { ShippingPickupTimesInput, ShippingRate } from '@/features/shipping/types'
+import { useShippingPickupTimes } from '@/features/shipping/queries'
 
+import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useGetSession } from '@/features/auth/queries'
-import  {AddressDrawer} from '@/features/addresses/ui/AddressDrawer'
+
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
+
 import { InsuranceSelector } from '@/features/checkout/purchase-order-checkout/shippingStep/insuranceSelector'
 import { PackageSelector } from '@/features/checkout/purchase-order-checkout/shippingStep/packageSelector'
 import { ServiceSelector } from '@/features/checkout/purchase-order-checkout/shippingStep/serviceSelector'
 import { PickupSelector } from '@/features/checkout/purchase-order-checkout/shippingStep/pickupSelector'
 import PickupScheduler from '@/features/checkout/purchase-order-checkout/shippingStep/pickupScheduler'
-import { FedexLocationsMap } from '@/features/checkout/purchase-order-checkout/shippingStep/FedexLocations'
+import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
+import { StoreLocationsMap } from '@/features/checkout/purchase-order-checkout/shippingStep/StoreLocations'
 
 interface ShippingStepProps {
   addresses: Address[]
   emptyAddress: Address
-  rates: FedexRate[]
+  rates: ShippingRate[]
   isLoading: boolean
 }
 
@@ -49,15 +51,17 @@ export default function ShippingStep({
     return [...addresses].sort((a, b) => Number(b.is_default) - Number(a.is_default))
   }, [addresses])
 
-  let fedexPickupTimesInput: FedexPickupTimesInput | null = null
-  if (address?.is_valid && service) {
-    fedexPickupTimesInput = {
-      customerAddress: formatFedexPickupAddress(address),
+  let pickupTimesInput: ShippingPickupTimesInput | null = null
+  if (address?.is_valid && service?.code) {
+    pickupTimesInput = {
+      carrier_id: '30179428-b311-4873-8d08-382901c581d8',
+      pickupAddress: address,
       code: service.code,
+      readyDate: new Date().toISOString().split('T')[0],
     }
   }
 
-  const { data: times = [] } = useFedExPickupTimes(fedexPickupTimesInput)
+  const { data: times = [] } = useShippingPickupTimes(pickupTimesInput as any)
 
   return (
     <div className="space-y-6 w-full">
@@ -93,7 +97,7 @@ export default function ShippingStep({
         <div className="space-y-2">
           <div className="flex flex-col gap-1">
             <AddressSelect
-              addresses={addresses}
+              addresses={sortedAddresses}
               value={address?.id ?? null}
               onChange={(addr) => setData({ address: addr })}
               onAddNew={() => openDrawer('address')}
@@ -120,6 +124,15 @@ export default function ShippingStep({
         </>
       )}
 
+      {/* Pickup FIRST (only needs address + pkg) */}
+      {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
+        <>
+          <PickupSelector />
+          <div className="separator-inset" />
+        </>
+      )}
+
+      {/* Service AFTER pickup (needs address + pkg; service gets set here) */}
       {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
         <>
           <ServiceSelector rates={rates} isLoading={isLoading} />
@@ -127,13 +140,7 @@ export default function ShippingStep({
         </>
       )}
 
-      {address?.is_valid && pkg && service && (
-        <>
-          <PickupSelector />
-          <div className="separator-inset" />
-        </>
-      )}
-
+      {/* downstream UI that truly needs service + pickup */}
       {address?.is_valid &&
         pkg &&
         service &&
@@ -148,7 +155,7 @@ export default function ShippingStep({
                 <div className="text-sm text-muted-foreground py-4">No pickup times available.</div>
               )
             ) : (
-              <FedexLocationsMap />
+              <StoreLocationsMap />
             )}
           </div>
         )}

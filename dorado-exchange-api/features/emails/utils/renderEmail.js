@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.js"
+import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.js";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -10,21 +10,21 @@ function renderTemplate(
   contentFile,
   { firstName = "there", url, offerExpiration }
 ) {
-  const layoutPath = path.join(__dirname, "templates", "baseLayout.raw.html");
-  const contentPath = path.join(__dirname, "templates", contentFile);
+  const templatesDir = path.join(__dirname, "..", "templates"); // <-- key change
+
+  const layoutPath = path.join(templatesDir, "baseLayout.raw.html");
+  const contentPath = path.join(templatesDir, contentFile);
 
   const layout = fs.readFileSync(layoutPath, "utf8");
   const content = fs.readFileSync(contentPath, "utf8");
 
   const safeUrl = url ?? "https://www.doradometals.com";
 
-  const finalHtml = layout
+  return layout
     .replace("[BODY]", content)
     .replace(/\[First Name\]/g, firstName)
     .replace(/\[URL\]/g, safeUrl)
     .replace(/\[Offer Expiration\]/g, offerExpiration ?? "");
-
-  return finalHtml;
 }
 
 export function renderAccountCreatedEmail({ firstName, url }) {
@@ -73,12 +73,9 @@ export function renderSalesOrderToSupplierEmail({
   order,
   spots,
 }) {
-  const layoutPath = path.join(__dirname, "templates", "baseLayout.raw.html");
-  const contentPath = path.join(
-    __dirname,
-    "templates",
-    "salesOrderToSupplier.raw.html"
-  );
+  const templatesDir = path.join(__dirname, "..", "templates");
+  const layoutPath = path.join(templatesDir, "baseLayout.raw.html");
+  const contentPath = path.join(templatesDir, "salesOrderToSupplier.raw.html");
   let layout = fs.readFileSync(layoutPath, "utf8");
   let content = fs.readFileSync(contentPath, "utf8");
 

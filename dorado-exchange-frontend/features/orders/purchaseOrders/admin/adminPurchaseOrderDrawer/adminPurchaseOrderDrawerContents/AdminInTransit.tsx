@@ -1,10 +1,15 @@
 import { Button } from '@/shared/ui/base/button'
 import { cn } from '@/shared/utils/cn'
-import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
-import TrackingEvents from '@/features/shipments/ui/TrackingEvents'
-import { useTracking } from '@/features/shipments/queries'
-import { useCancelFedExLabel, useCancelFedExPickup } from '@/features/orders/purchaseOrders/admin/queries'
-
+import {
+  PurchaseOrderDrawerContentProps,
+  statusConfig,
+} from '@/features/orders/purchaseOrders/types'
+import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
+import {
+  useShippingCancelLabel,
+  useShippingCancelPickup,
+  useTracking,
+} from '@/features/shipping/queries'
 
 export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: trackingInfo, isLoading } = useTracking({
@@ -45,8 +50,8 @@ export function PreTransit({
   order: PurchaseOrderDrawerContentProps['order']
   color?: string
 }) {
-  const cancelLabel = useCancelFedExLabel(order.id)
-  const cancelPickup = useCancelFedExPickup()
+  const cancelLabel = useShippingCancelLabel()
+  const cancelPickup = useShippingCancelPickup()
 
   return (
     <div className="flex flex-col w-full gap-5">
@@ -58,10 +63,9 @@ export function PreTransit({
             className={cn('bg-transparent hover:bg-transparent', color)}
             onClick={() => {
               cancelPickup.mutate({
-                id: order.carrier_pickup?.id!,
-                confirmationCode: order.carrier_pickup?.confirmation_number!,
-                pickupDate: order.carrier_pickup?.pickup_requested_at!,
-                location: order.carrier_pickup?.location!,
+                carrier_id: order.shipment.carrier_id,
+                pickup_id: order?.carrier_pickup?.id ?? '',
+                confirmation_code: order?.carrier_pickup?.confirmation_number,
               })
             }}
           >
@@ -86,8 +90,9 @@ export function PreTransit({
           }
           onClick={() =>
             cancelLabel.mutate({
-              tracking_number: order.shipment.tracking_number,
+              carrier_id: order.shipment.carrier_id,
               shipment_id: order.shipment.id,
+              tracking_number: order.shipment.tracking_number,
             })
           }
         >

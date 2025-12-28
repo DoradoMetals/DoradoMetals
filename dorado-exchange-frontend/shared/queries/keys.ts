@@ -1,6 +1,13 @@
 import { ProductFilters } from '@/features/products/types'
-import { FedexLocationsInput, FedexPickupTimesInput, FedexRateInput } from '@/features/fedex/types'
-import { ShipmentTrackingInput } from '@/features/shipments/types'
+import {
+  ShipmentTrackingInput,
+  ShippingCancelLabelInput,
+  ShippingCancelPickupInput,
+  ShippingLocationsInput,
+  ShippingPickupTimesInput,
+  ShippingRatesInput,
+  ShippingValidateAddressInput,
+} from '@/features/shipping/types'
 import { PlacesSuggestionsInput } from '@/features/addresses/types'
 import { SalesTaxInput } from '@/features/sales-tax/types'
 
@@ -27,10 +34,15 @@ export const queryKeys = {
   userAddresses: (userId: string) => ['address', userId] as const,
   places: (input: PlacesSuggestionsInput) => ['places', input] as const,
 
-  // FedEx
-  fedexRates: (input: FedexRateInput | null) => ['fedexRates', input] as const,
-  fedexPickupTimes: (input: FedexPickupTimesInput | null) => ['fedexPickupTimes', input] as const,
-  fedexLocations: (input: FedexLocationsInput | null) => ['fedexLocations', input] as const,
+  // Shipping
+  shippingRates: (input: ShippingRatesInput) => ['shipping', 'rates', input] as const,
+  shippingPickupTimes: (input: ShippingPickupTimesInput) =>
+    ['shipping', 'pickup-times', input] as const,
+  shippingLocations: (input: ShippingLocationsInput) => ['shipping', 'locations', input] as const,
+  shippingValidateAddress: (input: ShippingValidateAddressInput) =>
+    ['shipping', 'validate-address', input] as const,
+  shippingCancelLabel: () => ['shipping', 'cancel-label'] as const,
+  shippingCancelPickup: () => ['shipping', 'cancel-pickup'] as const,
 
   // Images
   images: () => ['images'] as const,

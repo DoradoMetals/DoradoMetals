@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 
 import { Address, addressSchema } from '@/features/addresses/types'
-import { Shipment } from '@/features/shipments/types'
 import { CarrierPickup, pickupSchema } from '@/features/handoff/types'
 import { Payout, payoutSchema } from '@/features/payouts/types'
 import { packageSchema } from '@/features/packaging/types'
@@ -23,6 +22,7 @@ import { Scrap } from '@/features/scrap/types'
 import { Product } from '@/features/products/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User } from '@/features/users/types'
+import { Shipment } from '@/features/shipping/types'
 
 export interface PurchaseOrderItem {
   item_type: string

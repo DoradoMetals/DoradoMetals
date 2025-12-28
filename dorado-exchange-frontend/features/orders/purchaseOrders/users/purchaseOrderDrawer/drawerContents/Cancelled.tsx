@@ -4,8 +4,8 @@ import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrder
 import { useMemo } from 'react'
 import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import TrackingEvents from '@/features/shipments/ui/TrackingEvents'
-import { useTracking } from '@/features/shipments/queries'
+import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
+import { useTracking } from '@/features/shipping/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useAcceptOffer, usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
 
