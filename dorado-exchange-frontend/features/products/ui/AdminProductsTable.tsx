@@ -4,7 +4,7 @@ import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { TextColumn, ChipColumn } from '@/shared/ui/table/Columns'
+import { TextColumn, ChipColumn, ImageColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
 import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/features/navigation/ui/Logo'
 import { CreateConfig } from '@/shared/ui/table/AddNew'
@@ -82,6 +82,18 @@ export default function ProductsPage() {
   )
 
   const columns: ColumnDef<AdminProduct>[] = [
+    ImageColumn<AdminProduct>({
+      id: 'image_front',
+      header: 'Obverse',
+      accessorKey: 'image_front',
+      align: 'left',
+      enableHiding: true,
+      height: 50,
+      width: 50,
+      rounded: 'md',
+      getAlt: ({ row }) => `${row.product_name}`,
+      size: 50,
+    }),
     TextColumn<AdminProduct>({
       id: 'product_name',
       header: 'Name',

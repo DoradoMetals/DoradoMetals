@@ -13,7 +13,6 @@ import { useSpotPrices } from '@/features/spots/queries'
 import PremiumControl from '@/features/products/ui/PremiumControl'
 import QuantityBar from '@/features/products/ui/QuantityInput'
 import { DisplayToggle } from '@/shared/ui/DisplayToggle'
-import ShadowOffsetPicker from '@/features/products/ui/ShadowOffset'
 import {
   useAdminTypes,
   useSaveProduct,
@@ -22,6 +21,7 @@ import {
   useAdminSuppliers,
 } from '@/features/products/queries'
 import { AdminProduct } from '@/features/products/types'
+import DotSelect from '@/shared/ui/DotSelect'
 
 export default function ProductDrawer({
   products,
@@ -63,8 +63,11 @@ function Header({ product }: { product: AdminProduct }) {
 
   return (
     <div className="flex flex-col w-full gap-8">
-      <div className="flex w-full items-end justify-between">
-        <div className="text-xl text-neutral-900">{product.product_name}</div>
+      <div className="flex w-full items-center justify-between">
+        <div className="flex items-center gap-1">
+          <img src={product.image_front ?? ''} alt={`product image`} height={50} width={50} />
+          <div className="text-xl text-neutral-900">{product.product_name}</div>
+        </div>
         <div
           className={cn(
             'px-2 py-1 border-1 rounded-lg flex justify-center items-center font-semibold text-base',
@@ -110,7 +113,7 @@ function Details({ product }: { product: AdminProduct }) {
           id="product_name"
           placeholder="Enter name..."
           type="text"
-          className="input-floating-label-form"
+          className="bg-highest border-border"
           defaultValue={product.product_name ?? ''}
           onBlur={(e) => handleUpdate(product.id, { product_name: e.target.value })}
         />
@@ -121,14 +124,14 @@ function Details({ product }: { product: AdminProduct }) {
           value={product.metal}
           options={metals?.map((m) => m.type)}
           onChange={(val) => handleUpdate(product.id, { metal: val })}
-          triggerClass="raised-off-page"
+          triggerClass="raised-off-page bg-highest"
         />
         <PopoverSelect
           label="Product Type"
           value={product.product_type}
           options={types?.map((item) => item.name)}
           onChange={(val) => handleUpdate(product.id, { product_type: val })}
-          triggerClass="raised-off-page"
+          triggerClass="raised-off-page bg-highest"
         />
       </div>
       <PopoverSelect
@@ -136,14 +139,14 @@ function Details({ product }: { product: AdminProduct }) {
         value={product.supplier}
         options={suppliers?.map((item) => item.name)}
         onChange={(val) => handleUpdate(product.id, { supplier: val })}
-        triggerClass="raised-off-page"
+        triggerClass="raised-off-page bg-highest"
       />
       <PopoverSelect
         label="Mint"
         value={product.mint}
         options={mints?.map((item) => item.name)}
         onChange={(val) => handleUpdate(product.id, { mint: val })}
-        triggerClass="raised-off-page"
+        triggerClass="raised-off-page bg-highest"
       />
 
       <div className="flex flex-col w-full gap-1">
@@ -154,7 +157,7 @@ function Details({ product }: { product: AdminProduct }) {
           rows={20}
           id="description"
           placeholder="Enter product description..."
-          className="input-floating-label-form min-w-70"
+          className="bg-highest border-border min-w-70"
           defaultValue={product.product_description}
           onBlur={(e) => handleUpdate(product.id, { product_description: e.target.value })}
         />
@@ -224,7 +227,7 @@ function Specifications({ product }: { product: AdminProduct }) {
           inputMode="decimal"
           placeholder="Enter content..."
           type="number"
-          className="input-floating-label-form text-left no-spinner"
+          className="bg-highest border-border text-left no-spinner"
           defaultValue={product.content ?? ''}
           onBlur={(e) => {
             const n = e.currentTarget.valueAsNumber
@@ -246,7 +249,7 @@ function Specifications({ product }: { product: AdminProduct }) {
             placeholder="Enter purity..."
             inputMode="decimal"
             type="number"
-            className="input-floating-label-form text-left no-spinner"
+            className="bg-highest border-border text-left no-spinner"
             defaultValue={product.purity ?? ''}
             onBlur={(e) => {
               const n = e.currentTarget.valueAsNumber
@@ -266,7 +269,7 @@ function Specifications({ product }: { product: AdminProduct }) {
             placeholder="Enter gross..."
             inputMode="decimal"
             type="number"
-            className="input-floating-label-form text-left no-spinner"
+            className="bg-highest border-border text-left no-spinner"
             defaultValue={product.gross ?? ''}
             onBlur={(e) => {
               const n = e.currentTarget.valueAsNumber
@@ -326,7 +329,9 @@ function Dev({ product }: { product: AdminProduct }) {
     <div className="flex flex-col gap-4">
       <div className="section-label">Dev</div>
 
-      <ShadowOffsetPicker
+      <DotSelect
+        label="Shadow Offset"
+        count={10}
         value={product.shadow_offset ?? 0}
         onChange={(n) => handleUpdate({ shadow_offset: n })}
       />
@@ -340,7 +345,7 @@ function Dev({ product }: { product: AdminProduct }) {
           id="variant_group"
           placeholder="Enter variant group..."
           type="text"
-          className="input-floating-label-form"
+          className="bg-highest border-border"
           defaultValue={product.variant_group ?? ''}
           onBlur={(e) => handleUpdate({ variant_group: e.target.value })}
         />
@@ -355,7 +360,7 @@ function Dev({ product }: { product: AdminProduct }) {
           id="variant_label"
           placeholder="Enter variant label..."
           type="text"
-          className="input-floating-label-form"
+          className="bg-highest border-border"
           defaultValue={product.variant_label ?? ''}
           onBlur={(e) => handleUpdate({ variant_label: e.target.value })}
         />
@@ -370,7 +375,7 @@ function Dev({ product }: { product: AdminProduct }) {
           id="filter_category"
           placeholder="Enter category..."
           type="text"
-          className="input-floating-label-form"
+          className="bg-highest border-border"
           defaultValue={product.filter_category ?? ''}
           onBlur={(e) => handleUpdate({ filter_category: e.target.value })}
         />
@@ -385,7 +390,7 @@ function Dev({ product }: { product: AdminProduct }) {
           id="slug"
           placeholder="Enter slug..."
           type="text"
-          className="input-floating-label-form"
+          className="bg-highest border-border"
           defaultValue={product.slug ?? ''}
           onBlur={(e) => handleUpdate({ slug: e.target.value })}
         />
@@ -413,7 +418,7 @@ function Images({ product }: { product: AdminProduct }) {
         <Input
           id="image_front"
           type="text"
-          className="input-floating-label-form"
+          className="bg-highest border-border"
           defaultValue={product.image_front ?? ''}
           onBlur={(e) => handleUpdate({ image_front: e.target.value })}
         />
@@ -426,7 +431,7 @@ function Images({ product }: { product: AdminProduct }) {
         <Input
           id="image_back"
           type="text"
-          className="input-floating-label-form"
+          className="bg-highest border-border"
           defaultValue={product.image_back ?? ''}
           onBlur={(e) => handleUpdate({ image_back: e.target.value })}
         />

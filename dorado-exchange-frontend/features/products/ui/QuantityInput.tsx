@@ -45,14 +45,14 @@ export default function QuantityBar({
     <div className={cn('flex flex-col w-full gap-1', className)}>
       <div className="text-xs font-medium text-neutral-700 pl-1">{label}</div>
 
-      <div className="flex items-stretch w-full border rounded-lg overflow-hidden raised-off-page bg-card">
+      <div className="flex gap-2 w-full">
         <Button
           type="button"
           variant="ghost"
           size="icon"
           onClick={dec}
           disabled={!canDec}
-          className="h-10 w-10 rounded-none border-r border-border disabled:opacity-40 disabled:cursor-not-allowed bg-neutral-200 hover:bg-neutral-300"
+          className="h-10 w-10 rounded-md disabled:opacity-40 disabled:cursor-not-allowed bg-neutral-200 hover:bg-neutral-300 raised-off-page"
           aria-label="Decrease quantity"
         >
           <MinusIcon size={16} />
@@ -64,6 +64,7 @@ export default function QuantityBar({
           type="text"
           aria-label="Quantity"
           value={text}
+
           onChange={(e) => {
             const cleaned = e.target.value.replace(/[^\d]/g, '')
             setText(cleaned)
@@ -82,10 +83,9 @@ export default function QuantityBar({
             }
           }}
           className={cn(
-            'flex-1 h-10 text-center',
-            'bg-transparent outline-none focus:outline-none',
+            'flex-1 h-10 text-center bg-highest border-border',
+            'outline-none focus:outline-none',
             'focus-visible:ring-0 focus-visible:outline-none',
-            'border-0'
           )}
         />
 
@@ -94,7 +94,7 @@ export default function QuantityBar({
           variant="ghost"
           size="icon"
           onClick={inc}
-          className="h-10 w-10 rounded-none border-l border-border bg-neutral-200 hover:bg-neutral-300"
+          className="h-10 w-10 rounded-md disabled:opacity-40 disabled:cursor-not-allowed bg-neutral-200 hover:bg-neutral-300 raised-off-page"
           aria-label="Increase quantity"
         >
           <PlusIcon size={16} />

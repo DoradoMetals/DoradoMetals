@@ -44,6 +44,14 @@ export const queryKeys = {
   shippingCancelLabel: () => ['shipping', 'cancel-label'] as const,
   shippingCancelPickup: () => ['shipping', 'cancel-pickup'] as const,
 
+  // Carriers
+  carrier: (carrier_id: string) => ['carrier', carrier_id] as const,
+  carriers: () => ['carriers'] as const,
+  carrierService: (service_id: string) => ['carrierService', service_id] as const,
+  carrierServices: () => ['carrierServices'] as const,
+  carrierServicesByCarrier: (carrier_id: string) =>
+    ['carrierServices', 'carrier', carrier_id] as const,
+
   // Images
   images: () => ['images'] as const,
   image: (id: string) => ['images', id] as const,

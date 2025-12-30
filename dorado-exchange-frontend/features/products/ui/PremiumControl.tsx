@@ -120,7 +120,7 @@ export default function PremiumControl({
           <Input
             inputMode="decimal"
             type="text"
-            className="input-floating-label-form h-10 text-center"
+            className="bg-highest border-border h-10 text-center"
             value={display}
             onChange={(e) => {
               const cleaned = e.target.value
@@ -206,14 +206,14 @@ function RadioPill({
     intent === 'success'
       ? active
         ? 'bg-success/20 text-success border-success'
-        : 'bg-card text-neutral-800 border-border'
+        : 'bg-highest text-neutral-800 border-border'
       : intent === 'destructive'
       ? active
         ? 'bg-destructive/20 text-destructive border-destructive'
-        : 'bg-card text-neutral-800 border-border'
+        : 'bg-highest text-neutral-800 border-border'
       : active
-      ? 'bg-card text-neutral-900 border-primary'
-      : 'bg-card text-neutral-800 border-border'
+      ? 'bg-highest text-neutral-900 border-primary'
+      : 'bg-highest text-neutral-800 border-border'
 
   return (
     <label

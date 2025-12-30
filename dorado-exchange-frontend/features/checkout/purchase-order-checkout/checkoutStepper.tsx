@@ -18,7 +18,6 @@ import { useAddress } from '@/features/addresses/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { getDeclaredValue } from '@/features/checkout/utils/getDeclaredValue'
 
-// ✅ new shipping hooks + util
 import { useShippingRates } from '@/features/shipping/queries'
 import { useGetRatesInput } from '@/features/shipping/utils/getRatesInput'
 
@@ -46,7 +45,6 @@ export default function CheckoutStepper() {
     return getDeclaredValue(items, spotPrices)
   }, [items, spotPrices])
 
-  // keep store insurance declaredValue in sync
   useEffect(() => {
     if (!data.insurance?.insured) return
 
@@ -97,7 +95,6 @@ export default function CheckoutStepper() {
 
   const cartItems = sellCartStore((state) => state.items)
 
-  // ✅ build the new /shipping/get_rates input (null when not ready)
   const ratesInput = useGetRatesInput({
     carrier_id: "30179428-b311-4873-8d08-382901c581d8",
     address: data.address ?? makeEmptyAddress(user?.id),
@@ -107,13 +104,10 @@ export default function CheckoutStepper() {
     insurance: data.insurance,
   })
 
-  // ✅ new shipping rates query
   const { data: rates = [], isLoading: ratesLoading } = useShippingRates(
-    // if your hook expects ShippingRatesInput (not null), guard it:
-    (ratesInput as any) // remove this cast if your useApiQuery supports null input nicely
+    (ratesInput as any)
   )
 
-  // ✅ keep selected service netCharge fresh when rates change
   useEffect(() => {
     const currentServiceType = data.service?.serviceType
     if (!currentServiceType) return
@@ -125,7 +119,6 @@ export default function CheckoutStepper() {
       setData({
         service: {
           ...data.service,
-          // align to your new ShippingRate shape
           serviceType: freshRate.serviceType,
           serviceDescription: freshRate.serviceDescription,
           netCharge: freshRate.netCharge,

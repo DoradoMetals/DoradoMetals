@@ -2,6 +2,7 @@ import express from "express";
 
 import {
   createProduct,
+  getAllAdminProducts,
   getAllMetals,
   getAllMints,
   getAllProducts,
@@ -22,8 +23,8 @@ router.get("/get_sell_products", getSellProducts);
 router.get("/get_homepage_products", getHomepageProducts);
 router.get("/get_products", getFilteredProducts);
 router.get("/get_product_from_slug", getProductFromSlug);
-router.get("/get_products", requireAdmin, getAllProducts);
 
+router.get("/get_admin_products", requireAdmin, getAllAdminProducts);
 router.get("/get_metals", requireAdmin, getAllMetals);
 router.get("/get_mints", requireAdmin, getAllMints);
 router.get("/get_product_types", requireAdmin, getAllTypes);

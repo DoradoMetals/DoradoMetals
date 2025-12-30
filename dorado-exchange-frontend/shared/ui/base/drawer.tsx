@@ -25,7 +25,7 @@ const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right', classNam
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-50 bg-black/50"
+            className="fixed inset-0 z-50"
             onClick={() => setOpen(false)}
           />
 
@@ -35,7 +35,7 @@ const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right', classNam
             exit={{ x: anchor === 'right' ? '100%' : '-100%' }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className={cn(
-              'drawer-layout backdrop-blur-xs',
+              'drawer-layout',
               anchor === 'right' ? 'right-0' : 'left-0',
               className
             )}

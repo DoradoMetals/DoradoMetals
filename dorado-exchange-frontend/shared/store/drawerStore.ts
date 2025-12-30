@@ -15,6 +15,8 @@ type DrawerName =
   | 'reviews'
   | 'adminSidebar'
   | 'accountSidebar'
+  | 'carriers'
+  | 'carrierServices'
   | null
 
 type DrawerPayloads = {

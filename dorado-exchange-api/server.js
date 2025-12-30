@@ -23,6 +23,7 @@ import imageRoutes from "#features/media/routes.js";
 import leadRoutes from "#features/leads/routes.js";
 import rateRoutes from "#features/rates/routes.js";
 import shippingRoutes from "#features/shipping/operations/routes.js";
+import carrierServiceRoutes from "#features/shipping/services/routes.js";
 
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "#features/auth/client.js";
@@ -68,13 +69,14 @@ app.use("/api/transactions", transactionRoutes);
 app.use("/api/sales_orders", salesOrderRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/tax", taxRoutes);
-app.use("/api/carriers", carriersRoutes);
 app.use("/api/recaptcha", recaptchaRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/images", imageRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/rates", rateRoutes);
 app.use("/api/shipping", shippingRoutes);
+app.use("/api/carriers", carriersRoutes);
+app.use("/api/carrier_services", carrierServiceRoutes);
 
 setupScheduler();
 

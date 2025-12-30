@@ -1,5 +1,5 @@
 import { apiRequest } from '@/shared/queries/axios'
-import type { Product, ProductGroup, ProductFilters, AdminProduct, AdminTypes, Supplier, Carrier, AdminMints } from '@/features/products/types'
+import type { Product, ProductGroup, ProductFilters, AdminProduct, AdminTypes, Supplier, AdminMints } from '@/features/products/types'
 import { groupProducts } from '@/features/products/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
@@ -114,7 +114,7 @@ export const useAdminProducts = () =>
   useApiQuery<AdminProduct[]>({
     key: queryKeys.adminProducts(),
     method: 'GET',
-    url: '/products/get_products',
+    url: '/products/get_admin_products',
     requireAdmin: true,
     staleTime: 30000,
     params: (user) => ({
@@ -150,18 +150,6 @@ export const useAdminSuppliers = () =>
     url: '/suppliers/get_all',
     method: 'GET',
     requireAdmin: true,
-    params: (user) => ({
-      user_id: user?.id,
-    }),
-  })
-
-export const useAdminCarriers = () =>
-  useApiQuery<Carrier[]>({
-    key: queryKeys.adminCarriers(),
-    url: '/products/get_all',
-    method: 'GET',
-    requireUser: true,
-    staleTime: 0,
     params: (user) => ({
       user_id: user?.id,
     }),

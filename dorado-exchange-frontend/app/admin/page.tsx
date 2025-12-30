@@ -17,6 +17,8 @@ import {
   ChartLineUpIcon,
   GearIcon,
   CaretLeftIcon,
+  ShippingContainerIcon,
+  TruckIcon,
 } from '@phosphor-icons/react'
 
 import {
@@ -43,6 +45,8 @@ import { useAdminSalesOrders } from '@/features/orders/salesOrders/admin/queries
 import PurchaseOrdersPage from '@/features/orders/purchaseOrders/admin/AdminPurchaseOrders'
 import SalesOrdersPage from '@/features/orders/salesOrders/admin/AdminSalesOrders'
 import RatesPage from '@/features/rates/ui/RatesAdminTable'
+import CarriersPage from '@/features/carriers/ui/CarriersAdminTable'
+import CarrierServicesPage from '@/features/carriers/ui/CarrierServicesAdminTable'
 
 export default function Page() {
   return (
@@ -110,6 +114,13 @@ function AdminShell() {
           { key: 'rates', label: 'Rates', icon: PercentIcon },
         ],
       },
+      {
+        label: 'Shipping',
+        items: [
+          { key: 'carriers', label: 'Carriers', icon: ShippingContainerIcon },
+          { key: 'carrier_services', label: 'Services', icon: TruckIcon },
+        ],
+      },
     ],
     [purchaseOrders.length, salesOrders.length]
   )
@@ -153,6 +164,10 @@ function AdminShell() {
         return <RatesPage />
       case 'appointments':
         return <div className="text-sm text-neutral-700">TODO: Appointments</div>
+      case 'carriers':
+        return <CarriersPage />
+      case 'carrier_services':
+        return <CarrierServicesPage />
       default:
         return null
     }

@@ -5,19 +5,16 @@ import { cn } from '@/shared/utils/cn'
 
 export type FilterCardBase = {
   key: number | string
-  Icon: React.ComponentType<{ size?: number; className?: string }>
+  IconNode?: React.ReactNode
+  Icon?: React.ComponentType<{ size?: number; className?: string }>
   header: string
   label: string
-
   buttonBaseClassName?: string
   buttonActiveClassName?: string
-
   iconBaseClassName?: string
   iconActiveClassName?: string
-
   headerBaseClassName?: string
   headerActiveClassName?: string
-
   labelBaseClassName?: string
   labelActiveClassName?: string
 }
@@ -43,7 +40,7 @@ export function FilterCardsStrip({ cards, activeKey, onChangeActive }: FilterCar
   const defaultLabelActiveClass = 'text-neutral-900'
 
   return (
-    <div className="flex flex-col gap-2 items-center justify-center md:flex-row w-full md:justify-between md:gap-4">
+    <div className="flex flex-col gap-2 items-center justify-center md:flex-row w-full md:justify-between md:gap-4 min-h-32 max-h-32">
       {cards.map((card) => {
         const {
           key,
@@ -95,7 +92,13 @@ export function FilterCardsStrip({ cards, activeKey, onChangeActive }: FilterCar
             className={buttonClass}
           >
             <div className="flex items-start sm:items-center justify-between w-full">
-              <Icon size={36} className={iconClass} />
+              <div className={iconClass}>
+                {card.IconNode ? (
+                  card.IconNode
+                ) : card.Icon ? (
+                  <card.Icon size={36} className={iconClass} />
+                ) : null}
+              </div>
 
               <div className="flex flex-col items-end">
                 <div className={headerClass}>{header}</div>

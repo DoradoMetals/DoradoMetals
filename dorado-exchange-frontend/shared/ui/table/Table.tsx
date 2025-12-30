@@ -52,6 +52,10 @@ type DataTableProps<TData> = {
 
   createConfig?: CreateConfig
   footerRightContent?: ReactNode
+  hidePagination?: boolean
+  searchClass?: string
+  shadowClass?: string
+  showHeaders?: boolean
 }
 
 export function DataTable<TData>({
@@ -69,6 +73,10 @@ export function DataTable<TData>({
   createConfig,
   createIcon,
   footerRightContent,
+  hidePagination = false,
+  searchClass = 'bg-highest',
+  shadowClass = 'raised-off-page',
+  showHeaders = true,
 }: DataTableProps<TData>) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -103,8 +111,9 @@ export function DataTable<TData>({
   return (
     <div
       className={cn(
-        'space-y-4 w-full h-full bg-card raised-off-page p-4 rounded-lg mb-4',
-        wrapperClassName
+        'space-y-4 w-full h-full bg-card p-4 rounded-lg mb-4',
+        wrapperClassName,
+        shadowClass
       )}
     >
       {filterCards && filterCards.length > 0 && (
@@ -119,18 +128,13 @@ export function DataTable<TData>({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between w-full">
           <div className="flex flex-col gap-2 w-full">
             <div className="flex w-full gap-2">
-              {createConfig && (
-                <AddNew
-                  createConfig={createConfig}
-                  triggerIcon={createIcon}
-                />
-              )}
+              {createConfig && <AddNew createConfig={createConfig} triggerIcon={createIcon} />}
 
               {searchColumn && (
                 <div className="w-full">
                   <DebouncedInputSearch
                     type="text"
-                    className="bg-highest"
+                    className={searchClass}
                     placeholder={searchPlaceholder}
                     value={String(searchColumn.getFilterValue() ?? '')}
                     onChange={(value) => {
@@ -204,22 +208,24 @@ export function DataTable<TData>({
       )}
 
       <Table className="w-full">
-        <TableHeader>
-          {table.getHeaderGroups().map((hg) => (
-            <TableRow key={hg.id}>
-              {hg.headers.map((header) => (
-                <TableHead
-                  key={header.id}
-                  className="align-middle h-10 text-xs font-normal text-neutral-600 tracking-wide"
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(header.column.columnDef.header, header.getContext())}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
+        {showHeaders && (
+          <TableHeader>
+            {table.getHeaderGroups().map((hg) => (
+              <TableRow key={hg.id}>
+                {hg.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    className="align-middle h-10 text-xs font-normal text-neutral-600 tracking-wide"
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+        )}
 
         <TableBody className={showCardBackground ? 'bg-card' : undefined}>
           {table.getRowModel().rows.map((row) => {
@@ -241,37 +247,39 @@ export function DataTable<TData>({
         </TableBody>
       </Table>
 
-      <div className="flex items-center gap-4">
-        <div className="flex-1" />
+      {!hidePagination && (
+        <div className="flex items-center gap-4">
+          <div className="flex-1" />
 
-        <div className="flex items-center justify-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={!table.getCanPreviousPage()}
-            onClick={() => table.previousPage()}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center justify-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={!table.getCanPreviousPage()}
+              onClick={() => table.previousPage()}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
 
-          <span className="text-sm text-muted-foreground">
-            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
-          </span>
+            <span className="text-sm text-muted-foreground">
+              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
+            </span>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={!table.getCanNextPage()}
-            onClick={() => table.nextPage()}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={!table.getCanNextPage()}
+              onClick={() => table.nextPage()}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex-1 flex justify-end">{footerRightContent}</div>
         </div>
-
-        <div className="flex-1 flex justify-end">{footerRightContent}</div>
-      </div>
+      )}
     </div>
   )
 }

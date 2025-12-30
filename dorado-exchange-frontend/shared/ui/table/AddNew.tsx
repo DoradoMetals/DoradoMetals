@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, InputHTMLAttributes } from 'react'
-import type React from 'react'
+import { useState, InputHTMLAttributes, ComponentType, ReactNode } from 'react'
 
 import { Button } from '@/shared/ui/base/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/base/dialog'
@@ -23,6 +22,11 @@ export type CreateFieldConfig = {
   maxLength?: number
   multiline?: boolean
   isRating?: boolean
+  render?: (args: {
+    value: string
+    values: Record<string, string>
+    setValue: (name: string, value: string) => void
+  }) => ReactNode
 }
 
 export type CreateConfig = {
@@ -35,7 +39,7 @@ export type CreateConfig = {
 
 type AddNewProps = {
   createConfig: CreateConfig
-  triggerIcon?: React.ComponentType<{ size?: number; className?: string }>
+  triggerIcon?: ComponentType<{ size?: number; className?: string }>
 }
 
 export function AddNew({ createConfig, triggerIcon: TriggerIcon = RowsPlusTopIcon }: AddNewProps) {
@@ -104,6 +108,19 @@ export function AddNew({ createConfig, triggerIcon: TriggerIcon = RowsPlusTopIco
                   field.inputMode === 'tel' ||
                   /phone/i.test(field.name)
 
+                if (field.render) {
+                  return (
+                    <div key={field.name} className="w-full">
+                      <label className="block text-xs text-neutral-600 mb-1">{field.label}</label>
+                      {field.render({
+                        value,
+                        values,
+                        setValue: handleFieldChange,
+                      })}
+                    </div>
+                  )
+                }
+
                 if (field.isRating) {
                   const numeric = Number(value) || 0
 
@@ -134,7 +151,7 @@ export function AddNew({ createConfig, triggerIcon: TriggerIcon = RowsPlusTopIco
                       <label className="block text-xs text-neutral-600 mb-1">{field.label}</label>
                       <div className="relative w-full">
                         <Textarea
-                          className="input-floating-label-form min-h-[80px]"
+                          className="bg-highest border-border min-h-[80px]"
                           value={value}
                           onChange={(e) => handleFieldChange(field.name, e.target.value)}
                           maxLength={field.maxLength}
@@ -163,7 +180,7 @@ export function AddNew({ createConfig, triggerIcon: TriggerIcon = RowsPlusTopIco
                       inputMode={field.inputMode}
                       autoComplete={field.autoComplete}
                       size="sm"
-                      className="input-floating-label-form h-10"
+                      className="bg-highest border-border  h-10"
                       maxLength={field.maxLength}
                       value={value}
                       onChange={(e) => {
@@ -189,7 +206,7 @@ export function AddNew({ createConfig, triggerIcon: TriggerIcon = RowsPlusTopIco
 
               <Button
                 variant="default"
-                className="bg-primary raised-off-page text-white hover:text-white p-4 w-full"
+                className="bg-primary text-white hover:text-white p-4 w-full"
                 disabled={!canSubmit}
                 onClick={handleSubmit}
               >
