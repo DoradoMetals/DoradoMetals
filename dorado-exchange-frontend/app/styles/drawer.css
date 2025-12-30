@@ -10,6 +10,6 @@
     h-full
     w-full sm:w-1/2 md:w-1/2 lg:w-2/5 xl:w-1/4
     max-w-full sm:max-w-1/2 md:max-w-1/2 lg:max-w-2/5 xl:max-w-1/4
-    shadow-lg
+    shadow-2xl
     will-change-transform;
 }

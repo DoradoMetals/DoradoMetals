@@ -4,14 +4,16 @@ import { SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/sa
 import { Button } from '@/shared/ui/base/button'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { RadioGroupImage } from '@/shared/ui/RadioGroupImage'
-import { useAdminCarriers, useAdminSuppliers } from '@/features/products/queries'
+import { useAdminSuppliers } from '@/features/products/queries'
 import { useSalesOrderMetals } from '@/features/orders/salesOrders/users/queries'
 import { useSendOrderToSupplier, useUpdateTracking } from '@/features/orders/salesOrders/admin/queries'
-import { Carrier, Supplier } from '@/features/products/types'
+import { Supplier } from '@/features/products/types'
+import { useCarriers } from '@/features/carriers/queries'
+import { Carrier } from '@/features/carriers/types'
 
 export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: suppliers = [] } = useAdminSuppliers()
-  const { data: carriers = [] } = useAdminCarriers()
+  const { data: carriers = [] } = useCarriers()
   const { data: orderSpots = [] } = useSalesOrderMetals(order.id)
 
   const updateTracking = useUpdateTracking()

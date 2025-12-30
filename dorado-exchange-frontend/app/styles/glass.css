@@ -1,0 +1,21 @@
+.glass-panel {
+  @apply bg-highest/65 backdrop-blur-sm border border-highest/10 shadow-2xl;
+}
+
+.on-glass {
+  @apply bg-transparent
+      border-1 border-neutral-400
+      text-neutral-900;
+}
+
+.success-on-glass {
+  @apply bg-success/10 border border-success shadow-2xl text-success;
+}
+
+.destructive-on-glass {
+  @apply bg-destructive/10  border border-destructive shadow-2xl text-destructive;
+}
+
+.glass-divider {
+  @apply w-full h-[2px] bg-border
+}

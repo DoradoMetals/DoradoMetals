@@ -7,6 +7,7 @@ import { cn } from '@/shared/utils/cn'
 
 export interface RadioGroupImageOption {
   id: string
+  name?: string
   logo: string
   is_active?: boolean
 }
@@ -17,6 +18,10 @@ interface RadioGroupImageProps<T extends RadioGroupImageOption> {
   onValueChange: (id: string) => void
   className?: string
   disabled?: boolean
+  buttonClass?: string
+  imageClass?: string
+  imageContainerClass?: string
+  showName?: boolean
 }
 
 export function RadioGroupImage<T extends RadioGroupImageOption>({
@@ -25,6 +30,10 @@ export function RadioGroupImage<T extends RadioGroupImageOption>({
   onValueChange,
   className,
   disabled,
+  buttonClass = "border-1 border-border bg-background has-[[data-state=checked]]:bg-highest",
+  imageClass,
+  imageContainerClass = 'h-[5rem]',
+  showName = true,
 }: RadioGroupImageProps<T>) {
   return (
     <RadioGroup
@@ -38,19 +47,27 @@ export function RadioGroupImage<T extends RadioGroupImageOption>({
           key={item.id}
           htmlFor={item.id}
           className={cn(
-            'raised-off-page relative peer flex flex-col items-center justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md',
+            'relative flex flex-col items-center justify-center w-full gap-2 rounded-lg px-4 py-3 cursor-pointer transition-colors ',
+            buttonClass,
             !item.is_active && 'opacity-30 pointer-events-none',
-            disabled && 'opacity-30 pointer-events-none',
+            disabled && 'opacity-30 pointer-events-none'
           )}
         >
-          <div className="w-full h-[5rem]">
+          <div
+            className={cn('relative flex items-center justify-center w-full', imageContainerClass)}
+          >
             <Image
               src={item.logo}
               fill
-              alt={item.logo}
-              className="pointer-events-none cursor-auto object-contain focus:outline-none drop-shadow-lg p-4"
+              alt={`${item?.name ?? ''} logo`}
+              className={cn('pointer-events-none object-contain p-1', imageClass)}
             />
           </div>
+
+          {showName && (
+            <div className="text-sm md:text-base text-neutral-700">{item.name ?? ''}</div>
+          )}
+
           <RadioGroupItem id={item.id} value={item.id} className="sr-only" />
         </label>
       ))}
