@@ -142,8 +142,7 @@ function Visibility({ review }: { review: Review }) {
         className="w-full"
         onLabel="Public"
         offLabel="Hidden"
-        onIntent="success"
-        offIntent="destructive"
+
       />
 
       <div className="text-xs text-neutral-600">Toggle to hide/show this review on your site.</div>

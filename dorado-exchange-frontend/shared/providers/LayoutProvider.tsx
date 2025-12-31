@@ -66,7 +66,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
           {isAnyDrawerOpen && (
             <motion.div
               initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-              animate={{ opacity: 1, backdropFilter: 'blur(1px)' }}
+              animate={{ opacity: 1, backdropFilter: 'blur(2px)' }}
               exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
               transition={{
                 opacity: { duration: 0.3, ease: 'easeInOut' },
@@ -76,7 +76,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
                   damping: 20,
                 },
               }}
-              className="z-10 fixed sm:inset-0 sm:z-65 sm:bg-black/10 sm:pointer-events-none sm:will-change-[opacity,backdrop-filter]"
+              className="z-10 fixed sm:inset-0 sm:z-65 sm:bg-black/15 sm:pointer-events-none sm:will-change-[opacity,backdrop-filter]"
             />
           )}
         </AnimatePresence>
