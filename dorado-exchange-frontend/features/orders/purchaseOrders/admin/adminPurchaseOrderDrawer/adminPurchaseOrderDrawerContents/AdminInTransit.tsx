@@ -21,7 +21,7 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
   const color = statusConfig[order.purchase_order_status]?.text_color
   const baseBg = statusConfig[order.purchase_order_status]?.background_color
   const border = statusConfig[order.purchase_order_status]?.border_color
-
+  console.log(order.shipment)
   return (
     <>
       {order.shipment.shipping_status === 'Label Created' ||

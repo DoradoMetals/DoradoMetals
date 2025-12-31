@@ -134,9 +134,9 @@ export async function getLocations({
   return parseLocations(data);
 }
 
-export async function getTracking(tracking_number) {
+export async function getTracking(input) {
   const token = await endpoints.fetchTrackingToken();
-  const payload = payloads.trackingPayload(tracking_number);
+  const payload = payloads.trackingPayload(input.tracking_number);
 
   const data = await endpoints.fedexPost({
     token,

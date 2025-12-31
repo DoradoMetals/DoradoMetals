@@ -40,10 +40,14 @@ export async function checkPickup(req, res, next) {
 
 export async function getTracking(req, res, next) {
   try {
+    const { shipment_id } = req.body
+    const result = await operationsService.getTracking(shipment_id)
+    return res.json(result)
   } catch (err) {
     next(err);
   }
 }
+
 export async function getLocations(req, res, next) {
   try {
     const { carrier_id, address, radius_miles, max_results } = req.body;

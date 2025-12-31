@@ -161,6 +161,6 @@ export function getLocationsInput(input) {
 
 export function getTrackingInput(input) {
   return {
-    tracking_number: input?.tracking_number ?? input?.trackingNumber,
+    tracking_number: input?.tracking_number
   };
 }

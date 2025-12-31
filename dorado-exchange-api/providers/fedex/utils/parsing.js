@@ -1,3 +1,5 @@
+import { FEDEX_TRACKING_STATUS_MAP } from "#providers/fedex/constants.js";
+
 export function parseTracking(data) {
   const trackingOutput =
     data?.output?.completeTrackResults?.[0]?.trackResults?.[0];

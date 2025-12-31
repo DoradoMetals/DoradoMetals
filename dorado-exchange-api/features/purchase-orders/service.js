@@ -8,7 +8,7 @@ import * as shipmentRepo from "#features/shipping/shipments/repo.js";
 import * as pickupRepo from "#features/shipping/pickups/repo.js";
 import * as shippingOps from "#features/shipping/operations/handler.js";
 
-import { DORADO_ADDRESS } from "#providers/fedex/constants.js";
+import { DORADO_ADDRESS, FEDEX_STORE_ADDRESS } from "#providers/fedex/constants.js";
 
 export async function listOrdersForUser(userId) {
   return purchaseOrderRepo.findAllByUser(userId);
@@ -221,7 +221,7 @@ export async function createPurchaseOrder(purchase_order, user_id) {
         personName: process.env.FEDEX_DORADO_NAME,
         phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,
       },
-      address: DORADO_ADDRESS,
+      address: FEDEX_STORE_ADDRESS,
     };
 
     const labelData = await shippingOps.createLabel(

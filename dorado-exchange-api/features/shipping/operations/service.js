@@ -11,7 +11,7 @@ export async function cancelLabel({ shipment_id, carrier_id }) {
     await client.query("BEGIN");
 
     const shipment = await shipmentRepo.getById(shipment_id, client);
-    console.log(shipment)
+    console.log(shipment);
 
     await shippingHandler.cancelLabel(carrier_id, client, {
       trackingNumber: shipment.tracking_number,
@@ -35,17 +35,13 @@ export async function cancelLabel({ shipment_id, carrier_id }) {
   }
 }
 
-export async function getTracking({ shipment_id }) {
+export async function getTracking(shipment_id) {
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
     const shipment = await shipmentRepo.getById(shipment_id, client);
-    if (!shipment.tracking_number) {
-      await client.query("ROLLBACK");
-      return await trackingRepo.getEvents(shipment_id, client);
-    }
 
     const trackingInfo = await shippingHandler.getTracking(
       shipment.carrier_id,
@@ -60,7 +56,7 @@ export async function getTracking({ shipment_id }) {
 
     await shipmentRepo.update(
       {
-        id: shipment_id,
+        ...shipment,
         shipping_status: trackingInfo.latestStatus ?? shipment.shipping_status,
         estimated_delivery:
           trackingInfo.estimatedDeliveryTime === "TBD"
