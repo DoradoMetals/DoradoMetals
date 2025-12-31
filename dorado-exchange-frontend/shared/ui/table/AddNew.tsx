@@ -15,6 +15,7 @@ import { Textarea } from '@/shared/ui/base/textarea'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
 import { RowsPlusTopIcon, XIcon } from '@phosphor-icons/react'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
+import { cn } from '@/shared/utils/cn'
 
 type InputType = InputHTMLAttributes<HTMLInputElement>['type']
 type InputMode = InputHTMLAttributes<HTMLInputElement>['inputMode']
@@ -46,9 +47,14 @@ export type CreateConfig = {
 type AddNewProps = {
   createConfig: CreateConfig
   triggerIcon?: ComponentType<{ size?: number; className?: string }>
+  triggerClass?: string
 }
 
-export function AddNew({ createConfig, triggerIcon: TriggerIcon = RowsPlusTopIcon }: AddNewProps) {
+export function AddNew({
+  createConfig,
+  triggerIcon: TriggerIcon = RowsPlusTopIcon,
+  triggerClass = 'bg-highest hover:bg-highest border-1 border-border',
+}: AddNewProps) {
   const [open, setOpen] = useState(false)
   const [values, setValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -90,7 +96,7 @@ export function AddNew({ createConfig, triggerIcon: TriggerIcon = RowsPlusTopIco
       <Button
         variant="ghost"
         size="sm"
-        className="text-neutral-800 bg-highest hover:bg-highest border-1 border-border h-10"
+        className={cn("text-neutral-800 h-10", triggerClass)}
         onClick={() => setOpen(true)}
       >
         <TriggerIcon size={28} />
@@ -98,7 +104,7 @@ export function AddNew({ createConfig, triggerIcon: TriggerIcon = RowsPlusTopIco
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogOverlay>
-          <DialogContent className='glass-panel'>
+          <DialogContent className="glass-panel">
             <DialogHeader>
               <DialogTitle className="tracking-widest text-xs text-neutral-600 uppercase mr-auto mb-2">
                 {createConfig.title}

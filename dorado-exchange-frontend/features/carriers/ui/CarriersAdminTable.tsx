@@ -106,9 +106,13 @@ export default function CarriersPage() {
         searchColumnId="name"
         searchPlaceholder="Search carriers..."
         enableColumnVisibility
+        wrapperClassName='glass-card'
+        shadowClass=''
+        showCardBackground={false}
         onRowClick={handleRowClick}
         getRowClassName={() => 'hover:bg-background hover:cursor-pointer'}
         createConfig={createConfig}
+
       />
 
       {activeCarrier && <CarriersDrawer carrier_id={activeCarrier} carriers={carriers} />}

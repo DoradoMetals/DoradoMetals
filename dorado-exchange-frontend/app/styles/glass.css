@@ -1,5 +1,9 @@
 .glass-panel {
-  @apply bg-highest/65 backdrop-blur-sm border border-highest/10 shadow-2xl;
+  @apply bg-highest/65 backdrop-blur-sm border border-neutral-900/20 shadow-2xl;
+}
+
+.glass-card {
+  @apply bg-highest/65 backdrop-blur-sm border border-neutral-900/20 shadow-md;
 }
 
 .on-glass {

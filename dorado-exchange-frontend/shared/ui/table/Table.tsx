@@ -37,25 +37,22 @@ type DataTableProps<TData> = {
   initialPageSize?: number
   searchColumnId?: string
   searchPlaceholder?: string
-
   createIcon?: React.ComponentType<{ size?: number; className?: string }>
-
   enableColumnVisibility?: boolean
-
   onRowClick?: (row: Row<TData>) => void
-  getRowClassName?: (row: Row<TData>) => string | undefined
-
-  wrapperClassName?: string
   showCardBackground?: boolean
-
   filterCards?: FilterCard<TData>[]
-
   createConfig?: CreateConfig
   footerRightContent?: ReactNode
   hidePagination?: boolean
+  showHeaders?: boolean
+
+  wrapperClassName?: string
+  getRowClassName?: (row: Row<TData>) => string | undefined
   searchClass?: string
   shadowClass?: string
-  showHeaders?: boolean
+  columnTriggerClass?: string
+  addButtonClass?: string
 }
 
 export function DataTable<TData>({
@@ -64,19 +61,22 @@ export function DataTable<TData>({
   initialPageSize = 10,
   searchColumnId,
   searchPlaceholder = 'Search...',
-  enableColumnVisibility = false,
   onRowClick,
-  getRowClassName,
-  wrapperClassName,
-  showCardBackground = true,
   filterCards,
   createConfig,
   createIcon,
   footerRightContent,
   hidePagination = false,
+  enableColumnVisibility = false,
+  showHeaders = true,
+  getRowClassName,
+
+  showCardBackground = true,
+  wrapperClassName = 'bg-card',
   searchClass = 'bg-highest',
   shadowClass = 'raised-off-page',
-  showHeaders = true,
+  columnTriggerClass = "bg-highest hover:bg-highest border-1 border-border",
+  addButtonClass,
 }: DataTableProps<TData>) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -110,11 +110,7 @@ export function DataTable<TData>({
 
   return (
     <div
-      className={cn(
-        'space-y-4 w-full h-full bg-card p-4 rounded-lg mb-4',
-        wrapperClassName,
-        shadowClass
-      )}
+      className={cn('space-y-4 w-full h-full p-4 rounded-lg mb-4', shadowClass, wrapperClassName)}
     >
       {filterCards && filterCards.length > 0 && (
         <FilterCardsStrip
@@ -128,13 +124,13 @@ export function DataTable<TData>({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between w-full">
           <div className="flex flex-col gap-2 w-full">
             <div className="flex w-full gap-2">
-              {createConfig && <AddNew createConfig={createConfig} triggerIcon={createIcon} />}
+              {createConfig && <AddNew createConfig={createConfig} triggerIcon={createIcon} triggerClass={addButtonClass} />}
 
               {searchColumn && (
                 <div className="w-full">
                   <DebouncedInputSearch
                     type="text"
-                    className={searchClass}
+                    inputClassname={searchClass}
                     placeholder={searchPlaceholder}
                     value={String(searchColumn.getFilterValue() ?? '')}
                     onChange={(value) => {
@@ -154,7 +150,7 @@ export function DataTable<TData>({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-neutral-800 bg-highest hover:bg-highest border-1 border-border h-10"
+                      className={cn("text-neutral-800 h-10", columnTriggerClass)}
                     >
                       <ColumnsIcon size={28} />
                     </Button>

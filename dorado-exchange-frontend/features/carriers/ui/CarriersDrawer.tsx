@@ -293,7 +293,7 @@ function Services({ carrier }: { carrier: Carrier }) {
         initialPageSize={8}
         showCardBackground={false}
         hidePagination={true}
-        searchClass="bg-transparent"
+        searchClass="on-glass"
         shadowClass="shadow-none"
         wrapperClassName="p-1 on-glass"
         showHeaders={false}

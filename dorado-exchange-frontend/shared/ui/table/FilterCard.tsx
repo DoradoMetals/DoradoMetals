@@ -40,7 +40,7 @@ export function FilterCardsStrip({ cards, activeKey, onChangeActive }: FilterCar
   const defaultLabelActiveClass = 'text-neutral-900'
 
   return (
-    <div className="flex flex-col gap-2 items-center justify-center md:flex-row w-full md:justify-between md:gap-4 min-h-32 max-h-32">
+    <div className="flex flex-col gap-2 items-center justify-center md:flex-row w-full md:justify-between md:gap-4">
       {cards.map((card) => {
         const {
           key,

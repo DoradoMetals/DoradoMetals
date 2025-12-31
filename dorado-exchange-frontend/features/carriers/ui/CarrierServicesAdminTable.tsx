@@ -1,6 +1,5 @@
 'use client'
 
-import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
@@ -16,6 +15,7 @@ import {
 import type { Carrier, CarrierService } from '@/features/carriers/types'
 import { RadioGroupImage } from '@/shared/ui/RadioGroupImage'
 import CarrierServiceDrawer from '@/features/carriers/ui/CarrierServicesDrawer'
+import { useMemo, useState } from 'react'
 
 export default function CarrierServicesPage() {
   const { data: carriers = [] } = useCarriers()
@@ -23,15 +23,15 @@ export default function CarrierServicesPage() {
   const createService = useCreateCarrierService()
 
   const { openDrawer } = useDrawerStore()
-  const [activeService, setActiveService] = React.useState<string | null>(null)
+  const [activeService, setActiveService] = useState<string | null>(null)
 
-  const carrierById = React.useMemo(() => {
+  const carrierById = useMemo(() => {
     const map = new Map<string, Carrier>()
     for (const c of carriers) map.set(c.id, c)
     return map
   }, [carriers])
 
-  const carrierFilterCards = React.useMemo(() => {
+  const carrierFilterCards = useMemo(() => {
     const counts = new Map<string, number>()
     for (const s of services) {
       counts.set(s.carrier_id, (counts.get(s.carrier_id) ?? 0) + 1)
@@ -49,7 +49,7 @@ export default function CarrierServicesPage() {
         predicate: (row: CarrierService) => row.carrier_id === c.id,
 
         IconNode: logo ? (
-          <div className="relative flex h-16 pl-3">
+          <div className="relative flex h-10 md:h-16 pl-3">
             <img
               src={logo}
               alt={`${c.name} logo`}
@@ -188,9 +188,14 @@ export default function CarrierServicesPage() {
         searchPlaceholder="Search services..."
         enableColumnVisibility
         onRowClick={handleRowClick}
-        getRowClassName={() => 'hover:bg-background hover:cursor-pointer'}
+        getRowClassName={() => 'hover:bg-transparent hover:cursor-pointer'}
         filterCards={carrierFilterCards}
         createConfig={createConfig}
+        showCardBackground={false}
+        searchClass='on-glass'
+        wrapperClassName="glass-card"
+        columnTriggerClass="on-glass"
+        addButtonClass="on-glass"
       />
 
       {activeService && (
