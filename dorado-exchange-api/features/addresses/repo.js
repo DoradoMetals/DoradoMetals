@@ -11,6 +11,17 @@ export async function list(userId) {
   return rows;
 }
 
+export async function getFromId(address_id) {
+  const q = `
+    SELECT *
+    FROM exchange.addresses
+    WHERE id = $1
+    ORDER BY is_default DESC;
+  `;
+  const { rows } = await pool.query(q, [address_id]);
+  return rows;
+}
+
 export async function isActive({ addressId, userId }) {
   const q = `
     SELECT EXISTS (

@@ -10,7 +10,7 @@ import * as supplierRepo from "#features/suppliers/repo.js";
 import * as taxRepo from "#features/sales-tax/repo.js";
 
 import * as emailService from "#features/emails/service.js";
-import * as addressService from "#features/addresses/service.js";
+import * as addressRepo from "#features/addresses/repo.js";
 import * as taxService from "#features/sales-tax/service.js";
 import * as productService from "#features/products/service.js";
 
@@ -39,7 +39,7 @@ export async function createSalesOrder(
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(headers),
   });
-  const address = await addressService.getAddressFromId(sales_order.address.id);
+  const address = await addressRepo.getFromId(sales_order.address.id);
   const serverItems = await productService.getItemsFromServer(
     sales_order.items
   );
@@ -115,7 +115,7 @@ export async function adminCreateSalesOrder({
   spot_prices,
   user,
 }) {
-  const address = await addressService.getAddressFromId(sales_order.address.id);
+  const address = await addressRepo.getFromId(sales_order.address.id);
   const serverItems = await productService.getItemsFromServer(
     sales_order.items
   );
@@ -246,7 +246,11 @@ export async function updateTracking({
   tracking_number,
   carrier_id,
 }) {
-  await shipmentRepo.insertTrackingNumber(shipment_id, tracking_number, carrier_id);
+  await shipmentRepo.insertTrackingNumber(
+    shipment_id,
+    tracking_number,
+    carrier_id
+  );
   return await salesOrderRepo.updateTrackingStatus(order_id);
 }
 
