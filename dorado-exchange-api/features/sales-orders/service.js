@@ -210,23 +210,7 @@ export async function sendOrderToSupplier({ order, spots, supplier_id }) {
       client
     );
 
-    await shipmentRepo.insertShipment(
-      null,
-      sales_order.id,
-      null,
-      null,
-      "Label Created",
-      null,
-      "Generated",
-      "DropShip",
-      "Small Box",
-      sales_order.shipping_service,
-      sales_order.shipping_cost,
-      true,
-      sales_order.item_total,
-      "Outbound",
-      client
-    );
+    await shipmentRepo.create(null, sales_order.id, null, 'Outbound')
 
     await salesOrderRepo.updateOrderSent(sales_order.id, client);
 
