@@ -256,7 +256,7 @@ export async function insertOrder(client, { user, status, sales_order, orderPric
     )
     RETURNING id;
   `;
-  values = [
+  const values = [
     user.id,
     sales_order.address.id,
     status,
