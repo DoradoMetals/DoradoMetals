@@ -63,21 +63,6 @@ export function createLabelInput(input) {
   } = input ?? {};
 
   const totalDeclaredValue = insurance?.declaredValue ?? null;
-
-  const wantsHoldAtLocation = options?.holdAtLocation === true;
-  const wantsEmailNotifications = options?.emailNotifications !== false;
-
-  const specialServices = wantsHoldAtLocation
-    ? {
-        specialServiceTypes: ["HOLD_AT_LOCATION"],
-        holdAtLocationDetail: options?.holdAtLocationDetail,
-      }
-    : undefined;
-
-  const emailNotificationDetail = wantsEmailNotifications
-    ? options?.emailNotificationDetail
-    : undefined;
-
   return {
     shipper: {
       contact: toFedexContact(shipper?.contact),
@@ -95,12 +80,7 @@ export function createLabelInput(input) {
     },
     totalDeclaredValue,
     label: label ?? { imageType: "PNG", labelStockType: "PAPER_4X6" },
-    specialServices,
-    emailNotificationDetail,
-    options: {
-      holdAtLocation: options?.holdAtLocation === true,
-      emailNotifications: options?.emailNotifications !== false,
-    },
+    options,
   };
 }
 
