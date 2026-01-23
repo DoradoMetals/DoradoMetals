@@ -14,11 +14,11 @@ import { TextColumn, DateColumn } from '@/shared/ui/table/Columns'
 import { cn } from '@/shared/utils/cn'
 import { isValidEmail } from '@/shared/utils/isValid'
 import { PlusIcon } from '@phosphor-icons/react'
-import { CreateConfig } from '@/shared/ui/table/AddNew'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import AdminUsersDrawer from '@/features/users/ui/UsersDrawer'
 import { useAdminUsers } from '@/features/users/queries'
 import { CreateSalesOrderDrawer } from '@/features/orders/salesOrders/admin/createSalesOrder/createSalesOrderDrawer'
+import { CreateConfig } from '@/shared/ui/table/CreateDialog'
 
 export function UsersPage() {
   const { data: users = [] } = useAdminUsers()

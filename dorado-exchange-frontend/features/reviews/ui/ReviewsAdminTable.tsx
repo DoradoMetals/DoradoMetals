@@ -16,9 +16,9 @@ import {
   RatingColumn,
 } from '@/shared/ui/table/Columns'
 import { EyeSlashIcon, EyeIcon, PlusIcon, StarIcon } from '@phosphor-icons/react'
-import { CreateConfig } from '@/shared/ui/table/AddNew'
 import { useCreateReview, useReviews } from '@/features/reviews/queries'
 import ReviewsDrawer from '@/features/reviews/ui/ReviewsDrawer'
+import { CreateConfig } from '@/shared/ui/table/CreateDialog'
 
 export default function ReviewsPage() {
   const { data: reviews = [] } = useReviews()

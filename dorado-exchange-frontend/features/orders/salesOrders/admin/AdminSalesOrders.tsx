@@ -103,7 +103,6 @@ export default function SalesOrdersPage() {
       <DataTable<SalesOrder>
         data={salesOrders}
         columns={columns}
-        initialPageSize={12}
         searchColumnId="order_number"
         searchPlaceholder="Search orders..."
         enableColumnVisibility={true}

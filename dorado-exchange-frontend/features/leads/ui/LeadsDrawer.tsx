@@ -41,7 +41,7 @@ export default function LeadsDrawer({ leads, lead_id }: { leads: Lead[]; lead_id
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background">
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="glass-panel">
       <Header lead={lead} />
       <div className="separator-inset" />
       <Details lead={lead} />

@@ -29,7 +29,7 @@ export default function AdminSalesOrderDrawer({
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background">
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
       <AdminSalesOrderDrawerHeader
         setIsOrderActive={closeDrawer}
         order={order}

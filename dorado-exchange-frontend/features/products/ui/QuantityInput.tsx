@@ -10,14 +10,31 @@ export default function QuantityBar({
   onChange,
   min = 0,
   step = 1,
+
+  // styling hooks
   className,
+  wrapperClassName,
+  labelClassName,
+  controlsClassName,
+  inputClassName,
+  buttonClassName,
+  decButtonClassName,
+  incButtonClassName,
 }: {
   label?: string
   value: number
   onChange: (next: number) => void
   min?: number
   step?: number
-  className?: string
+
+  className?: string // backwards compat (maps to wrapper)
+  wrapperClassName?: string
+  labelClassName?: string
+  controlsClassName?: string
+  inputClassName?: string
+  buttonClassName?: string
+  decButtonClassName?: string
+  incButtonClassName?: string
 }) {
   const [text, setText] = useState<string>(String(value))
 
@@ -42,17 +59,25 @@ export default function QuantityBar({
   }
 
   return (
-    <div className={cn('flex flex-col w-full gap-1', className)}>
-      <div className="text-xs font-medium text-neutral-700 pl-1">{label}</div>
+    <div className={cn('flex flex-col w-full gap-1', className, wrapperClassName)}>
+      <div className={cn('text-xs font-medium text-neutral-700 pl-1', labelClassName)}>
+        {label}
+      </div>
 
-      <div className="flex gap-2 w-full">
+      <div className={cn('flex gap-2 w-full', controlsClassName)}>
         <Button
           type="button"
           variant="ghost"
           size="icon"
           onClick={dec}
           disabled={!canDec}
-          className="h-10 w-10 rounded-md disabled:opacity-40 disabled:cursor-not-allowed bg-neutral-200 hover:bg-neutral-300 raised-off-page"
+          className={cn(
+            'h-10 w-10 rounded-md disabled:opacity-40 disabled:cursor-not-allowed',
+            // default (old) look
+            'bg-neutral-200 hover:bg-neutral-300 raised-off-page',
+            buttonClassName,
+            decButtonClassName
+          )}
           aria-label="Decrease quantity"
         >
           <MinusIcon size={16} />
@@ -62,9 +87,8 @@ export default function QuantityBar({
           inputMode="numeric"
           pattern="[0-9]*"
           type="text"
-          aria-label="Quantity"
+          aria-label={label}
           value={text}
-
           onChange={(e) => {
             const cleaned = e.target.value.replace(/[^\d]/g, '')
             setText(cleaned)
@@ -86,6 +110,7 @@ export default function QuantityBar({
             'flex-1 h-10 text-center bg-highest border-border',
             'outline-none focus:outline-none',
             'focus-visible:ring-0 focus-visible:outline-none',
+            inputClassName
           )}
         />
 
@@ -94,7 +119,13 @@ export default function QuantityBar({
           variant="ghost"
           size="icon"
           onClick={inc}
-          className="h-10 w-10 rounded-md disabled:opacity-40 disabled:cursor-not-allowed bg-neutral-200 hover:bg-neutral-300 raised-off-page"
+          className={cn(
+            'h-10 w-10 rounded-md disabled:opacity-40 disabled:cursor-not-allowed',
+            // default (old) look
+            'bg-neutral-200 hover:bg-neutral-300 raised-off-page',
+            buttonClassName,
+            incButtonClassName
+          )}
           aria-label="Increase quantity"
         >
           <PlusIcon size={16} />

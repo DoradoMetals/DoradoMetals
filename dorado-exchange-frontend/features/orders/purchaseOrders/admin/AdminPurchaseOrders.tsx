@@ -132,7 +132,7 @@ export default function PurchaseOrdersPage() {
       <DataTable<PurchaseOrder>
         data={purchaseOrders}
         columns={columns}
-        initialPageSize={12}
+        hidePagination
         searchColumnId="order_number"
         searchPlaceholder="Search orders..."
         enableColumnVisibility={true}

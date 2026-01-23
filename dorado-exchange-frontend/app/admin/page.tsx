@@ -19,6 +19,7 @@ import {
   CaretLeftIcon,
   ShippingContainerIcon,
   TruckIcon,
+  MegaphoneIcon,
 } from '@phosphor-icons/react'
 
 import {
@@ -47,6 +48,7 @@ import SalesOrdersPage from '@/features/orders/salesOrders/admin/AdminSalesOrder
 import RatesPage from '@/features/rates/ui/RatesAdminTable'
 import CarriersPage from '@/features/carriers/ui/CarriersAdminTable'
 import CarrierServicesPage from '@/features/carriers/ui/CarrierServicesAdminTable'
+import AuctionsPage from '@/features/auctions/ui/AuctionsTable'
 
 export default function Page() {
   return (
@@ -121,6 +123,7 @@ function AdminShell() {
           { key: 'carrier_services', label: 'Services', icon: TruckIcon },
         ],
       },
+      { label: 'Auctions', items: [{ key: 'auctions', label: 'Auctions', icon: MegaphoneIcon }] },
     ],
     [purchaseOrders.length, salesOrders.length]
   )
@@ -168,6 +171,8 @@ function AdminShell() {
         return <CarriersPage />
       case 'carrier_services':
         return <CarrierServicesPage />
+      case 'auctions':
+        return <AuctionsPage />
       default:
         return null
     }
@@ -200,7 +205,7 @@ function AdminShell() {
           roleTitle="Dorado Admin"
           roleSubtitle={roleMeta.label ?? 'Admin'}
           content={<div className="mx-auto w-full max-w-7xl px-3">{content}</div>}
-          navClass="raised-off-page"
+          navClass="glass-panel"
         />
       </div>
 

@@ -24,6 +24,8 @@ import leadRoutes from "#features/leads/routes.js";
 import rateRoutes from "#features/rates/routes.js";
 import shippingRoutes from "#features/shipping/operations/routes.js";
 import carrierServiceRoutes from "#features/shipping/services/routes.js";
+import auctionRoutes from "#features/auctions/routes.js";
+import auctionItemRoutes from "#features/auctions/items/routes.js";
 
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "#features/auth/client.js";
@@ -77,6 +79,8 @@ app.use("/api/rates", rateRoutes);
 app.use("/api/shipping", shippingRoutes);
 app.use("/api/carriers", carriersRoutes);
 app.use("/api/carrier_services", carrierServiceRoutes);
+app.use("/api/auctions", auctionRoutes)
+app.use("/api/auctions/items", auctionItemRoutes)
 
 setupScheduler();
 

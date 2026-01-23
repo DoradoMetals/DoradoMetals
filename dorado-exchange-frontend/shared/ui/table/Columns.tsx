@@ -4,6 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
 import { cn } from '@/shared/utils/cn'
 import { ReactNode } from 'react'
+import { Checkbox } from '@/shared/ui/base/checkbox'
 
 export type Align = 'left' | 'center' | 'right'
 
@@ -39,6 +40,8 @@ type BaseColumnOptions<TData> = {
 
   hideOnSmall?: boolean
 
+  enableGrouping?: boolean
+
   size?: number
   minSize?: number
   maxSize?: number
@@ -64,6 +67,7 @@ function createColumn<TData>({
   className,
   headerClassName,
   cellClassName,
+  enableGrouping = false,
   hideOnSmall,
   size,
   minSize,
@@ -76,6 +80,7 @@ function createColumn<TData>({
     id,
     accessorKey,
     enableHiding,
+    enableGrouping,
     enableColumnFilter,
     filterFn: filterFnOverride ?? (enableColumnFilter ? 'includesString' : undefined),
     header: () => (
@@ -116,17 +121,22 @@ type TextColumnOptions<TData> = BaseColumnOptions<TData> & {
   header: string
   textClassName?: string
   formatValue?: (value: unknown, row: TData) => ReactNode
+
+  // ✅ add this
+  filterFnOverride?: ColumnDef<TData>['filterFn']
 }
 
 export function TextColumn<TData>({
   header,
   textClassName = 'text-xs sm:text-sm text-neutral-900 block truncate whitespace-nowrap',
   formatValue,
+  filterFnOverride, // ✅ add this
   ...base
 }: TextColumnOptions<TData>): ColumnDef<TData> {
   return createColumn<TData>({
     ...base,
     headerContent: header,
+    filterFnOverride,
     renderCellContent: ({ value, row }) => {
       const v = formatValue ? formatValue(value, row) : (value as ReactNode)
       return <span className={textClassName}>{v}</span>
@@ -395,4 +405,30 @@ export function ImageColumn<TData>({
       )
     },
   })
+}
+
+export function SelectionColumn<TData>(): ColumnDef<TData, unknown> {
+  return {
+    id: '__select',
+    size: 36,
+    enableSorting: false,
+    enableHiding: false,
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected()}
+        onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
+        aria-label="Select all rows on page"
+        className="cursor-pointer on-glass"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        disabled={!row.getCanSelect()}
+        onCheckedChange={(v) => row.toggleSelected(!!v)}
+        aria-label="Select row"
+        className="cursor-pointer on-glass"
+      />
+    ),
+  }
 }

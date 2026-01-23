@@ -13,7 +13,7 @@ interface Props {
   className?: string
 }
 
-const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right', className }) => {
+const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right', className="glass-panel" }) => {
   if (typeof document === 'undefined') return null
 
   return createPortal(

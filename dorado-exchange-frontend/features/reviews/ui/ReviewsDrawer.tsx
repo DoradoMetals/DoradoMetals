@@ -31,7 +31,7 @@ export default function ReviewsDrawer({
   if (!review) return null
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background">
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
       <Header review={review} />
       <div className="separator-inset" />
       <EditFields review={review} />

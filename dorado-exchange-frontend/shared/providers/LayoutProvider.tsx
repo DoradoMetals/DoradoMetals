@@ -108,7 +108,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
         )}
 
         <div className="flex justify-center relative flex-grow min-w-0">
-          <div className={cn('w-full lg:mb-30', pathname === '/' ? '' : 'max-w-7xl')}>
+          <div className={cn('w-full', pathname === '/' ? '' : 'max-w-7xl')}>
             {showMobileCarousel && <MobileProductCarousel />}
             {children}
           </div>

@@ -40,7 +40,7 @@ export default function ProductDrawer({
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background">
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
       <Header product={product} />
       <div className="separator-inset" />
       <Details product={product} />

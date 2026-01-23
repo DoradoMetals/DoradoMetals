@@ -12,6 +12,11 @@ import { PlacesSuggestionsInput } from '@/features/addresses/types'
 import { SalesTaxInput } from '@/features/sales-tax/types'
 
 export const queryKeys = {
+  //Auctions
+  auctions: () => ['auctions'] as const,
+  auction: (id: string) => ['auctions', id] as const,
+  auctionItems: (auctionId: string) => ['auctions', auctionId, 'items'] as const,
+
   // Admin Products and Inventory
   adminProducts: () => ['adminProducts'] as const,
   adminMetals: () => ['adminMetals'] as const,

@@ -38,7 +38,7 @@ export default function AdminUsersDrawer({
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background">
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
       <div className="flex items-center justify-between w-full">
         <div className="text-xl text-neutral-900">{user.name}</div>
         <div className="text-base text-neutral-800">{formatFullDate(user.created_at)}</div>

@@ -20,6 +20,14 @@
   @apply bg-destructive/10  border border-destructive shadow-2xl text-destructive;
 }
 
+.primary-on-glass {
+  @apply bg-primary/10  border border-primary shadow-2xl text-primary;
+}
+
+.secondary-on-glass {
+  @apply bg-secondary/10  border border-secondary shadow-2xl text-secondary;
+}
+
 .glass-divider {
   @apply w-full h-[2px] bg-border
 }
