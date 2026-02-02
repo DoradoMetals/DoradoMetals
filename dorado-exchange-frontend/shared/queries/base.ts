@@ -99,8 +99,14 @@ type ApiMutationConfig<TData, TVars, TList> = {
   requireAdmin?: boolean
 
   optimistic?: boolean
-  optimisticUpdater?: (list: TList | undefined, vars: TVars) => TList
+  optimisticUpdater?: (
+    list: TList | undefined,
+    vars: TVars,
+    helpers: { queryClient: ReturnType<typeof useQueryClient> }
+  ) => TList
   invalidateOnSettled?: boolean
+  invalidateRefetchType?: 'active' | 'inactive' | 'all' | 'none'
+  invalidateKeys?: QueryKey[]
   listAction?: 'create' | 'delete' | 'upsert'
   listInsertPosition?: 'start' | 'end'
   optimisticItemKey?: string
@@ -125,6 +131,8 @@ export function useApiMutation<TData = unknown, TVars = void, TList = unknown>(
     optimistic = true,
     optimisticUpdater,
     invalidateOnSettled = true,
+    invalidateRefetchType = 'active',
+    invalidateKeys,
     listAction,
     listInsertPosition = 'end',
     optimisticItemKey,
@@ -158,7 +166,7 @@ export function useApiMutation<TData = unknown, TVars = void, TList = unknown>(
         optimisticItemKey != null ? (vars as any)[optimisticItemKey] : (vars as any)
 
       if (optimisticUpdater) {
-        next = optimisticUpdater(previous, vars)
+        next = optimisticUpdater(previous, vars, { queryClient })
       } else if (listAction && Array.isArray(previous)) {
         const baseList = previous as unknown as any[]
 
@@ -202,8 +210,12 @@ export function useApiMutation<TData = unknown, TVars = void, TList = unknown>(
     },
 
     onSettled(_data, _error, _vars, _ctx) {
-      if (queryKey && invalidateOnSettled) {
-        queryClient.invalidateQueries({ queryKey, refetchType: 'active' })
+      if (!invalidateOnSettled) return
+
+      const keys = [...(invalidateKeys ?? []), ...(queryKey ? [queryKey] : [])]
+
+      for (const k of keys) {
+        queryClient.invalidateQueries({ queryKey: k, refetchType: invalidateRefetchType })
       }
     },
 

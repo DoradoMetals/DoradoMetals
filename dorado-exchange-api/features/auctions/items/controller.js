@@ -81,3 +81,48 @@ export async function reorder(req, res, next) {
     return next(err);
   }
 }
+
+export async function setCurrentLot(req, res, next) {
+  try {
+    const saved = await itemsService.setCurrentLot(req.body);
+    return res.status(200).json(saved);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export async function nextCurrentLot(req, res, next) {
+  try {
+    const saved = await itemsService.nextCurrentLot(req.body);
+    return res.status(200).json(saved);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export async function prevCurrentLot(req, res, next) {
+  try {
+    const saved = await itemsService.prevCurrentLot(req.body);
+    return res.status(200).json(saved);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export async function ensureCurrentLot(req, res, next) {
+  try {
+    const saved = await itemsService.ensureCurrentLot(req.body);
+    return res.status(200).json(saved);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export async function getCurrentLot(req, res, next) {
+  try {
+    const row = await itemsService.getCurrentLot(req.query);
+    return res.status(200).json(row);
+  } catch (err) {
+    return next(err);
+  }
+}

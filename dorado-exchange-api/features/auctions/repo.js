@@ -64,5 +64,3 @@ export async function remove(auction_id) {
   const res = await pool.query(q, [auction_id]);
   return res.rowCount > 0;
 }
-
-

@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import MobileProductCarousel from '../../features/products/ui/MobileProductCarousel'
 import { Button } from '../ui/base/button'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -40,6 +40,8 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
   const stopImpersonation = useStopImpersonation()
 
   const [visible, setVisible] = useState(true)
+
+  const isAuction = pathname === '/auctions' ? true : false
 
   useScrollLock(isAnyDrawerOpen)
 
@@ -80,7 +82,8 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
             />
           )}
         </AnimatePresence>
-        <Shell visible={visible} />
+
+        {!isAuction && <Shell visible={visible} />}
 
         {/* <BreadcrumbBar visible={visible} setVisible={setVisible} /> */}
 
@@ -108,15 +111,13 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
         )}
 
         <div className="flex justify-center relative flex-grow min-w-0">
-          <div className={cn('w-full', pathname === '/' ? '' : 'max-w-7xl')}>
+          <div className={cn('w-full', pathname === '/' ? '' : !isAuction ? 'max-w-7xl' : '')}>
             {showMobileCarousel && <MobileProductCarousel />}
             {children}
           </div>
         </div>
 
-        <div className="mt-auto">
-          <Footer />
-        </div>
+        <div className="mt-auto">{!isAuction && <Footer />}</div>
       </div>
     </>
   )

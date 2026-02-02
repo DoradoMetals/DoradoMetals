@@ -10,6 +10,11 @@ import {
   move,
   reorder,
   removeMany,
+  setCurrentLot,
+  nextCurrentLot,
+  prevCurrentLot,
+  ensureCurrentLot,
+  getCurrentLot,
 } from "#features/auctions/items/controller.js";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.js";
@@ -25,5 +30,11 @@ router.delete("/delete", requireAdmin, remove);
 router.post("/move", requireAdmin, move);
 router.post("/reorder", requireAdmin, reorder);
 router.post("/delete_many", requireAdmin, removeMany);
+
+router.post("/current/set", requireAdmin, setCurrentLot);
+router.post("/current/next", requireAdmin, nextCurrentLot);
+router.post("/current/prev", requireAdmin, prevCurrentLot);
+router.post("/current/ensure", requireAdmin, ensureCurrentLot);
+router.get("/current/get", requireAdmin, getCurrentLot);
 
 export default router;

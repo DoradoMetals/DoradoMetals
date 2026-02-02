@@ -265,3 +265,214 @@ export async function reorderByAuction(auction_id, client) {
 
   return await query(q, [auction_id], client);
 }
+
+
+
+export async function setCurrentLot({ auction_id, item_id }, client) {
+  const q = `
+    WITH
+    locked AS (
+      SELECT id
+      FROM exchange.auctions
+      WHERE id = $1
+      FOR UPDATE
+    ),
+    target AS (
+      SELECT ai.id
+      FROM exchange.auction_items ai
+      WHERE ai.auction_id = $1
+        AND ai.id = $2::uuid
+      LIMIT 1
+    )
+    UPDATE exchange.auctions a
+    SET current_item_id = CASE
+      WHEN $2::text IS NULL OR $2::text = '' THEN NULL
+      WHEN EXISTS (SELECT 1 FROM target) THEN (SELECT id FROM target)
+      ELSE a.current_item_id
+    END
+    WHERE a.id = $1
+    RETURNING a.id, a.current_item_id;
+  `;
+
+  const item = item_id ?? null;
+  const { rows } = await query(q, [auction_id, item], client);
+  return rows[0] || null;
+}
+
+
+export async function nextCurrentLot({ auction_id }, client) {
+  const q = `
+    WITH
+    a AS (
+      SELECT id, current_item_id
+      FROM exchange.auctions
+      WHERE id = $1
+      FOR UPDATE
+    ),
+    ordered AS (
+      SELECT
+        ai.id,
+        row_number() OVER (ORDER BY ai.number ASC, ai.id ASC) AS rn
+      FROM exchange.auction_items ai
+      WHERE ai.auction_id = $1
+    ),
+    cur AS (
+      SELECT o.rn
+      FROM ordered o
+      JOIN a ON a.current_item_id = o.id
+      LIMIT 1
+    ),
+    pick AS (
+      SELECT o.id
+      FROM ordered o
+      WHERE o.rn = CASE
+        WHEN (SELECT current_item_id FROM a) IS NULL THEN 1
+        WHEN (SELECT rn FROM cur) IS NULL THEN 1
+        ELSE LEAST((SELECT rn FROM cur) + 1, (SELECT MAX(rn) FROM ordered))
+      END
+      LIMIT 1
+    )
+    UPDATE exchange.auctions au
+    SET current_item_id = (SELECT id FROM pick)
+    WHERE au.id = $1
+    RETURNING au.id, au.current_item_id;
+  `;
+
+  const { rows } = await query(q, [auction_id], client);
+  return rows[0] || null;
+}
+
+
+export async function prevCurrentLot({ auction_id }, client) {
+  const q = `
+    WITH
+    a AS (
+      SELECT id, current_item_id
+      FROM exchange.auctions
+      WHERE id = $1
+      FOR UPDATE
+    ),
+    ordered AS (
+      SELECT
+        ai.id,
+        row_number() OVER (ORDER BY ai.number ASC, ai.id ASC) AS rn
+      FROM exchange.auction_items ai
+      WHERE ai.auction_id = $1
+    ),
+    cur AS (
+      SELECT o.rn
+      FROM ordered o
+      JOIN a ON a.current_item_id = o.id
+      LIMIT 1
+    ),
+    pick AS (
+      SELECT o.id
+      FROM ordered o
+      WHERE o.rn = CASE
+        WHEN (SELECT current_item_id FROM a) IS NULL THEN 1
+        WHEN (SELECT rn FROM cur) IS NULL THEN 1
+        ELSE GREATEST((SELECT rn FROM cur) - 1, 1)
+      END
+      LIMIT 1
+    )
+    UPDATE exchange.auctions au
+    SET current_item_id = (SELECT id FROM pick)
+    WHERE au.id = $1
+    RETURNING au.id, au.current_item_id;
+  `;
+
+  const { rows } = await query(q, [auction_id], client);
+  return rows[0] || null;
+}
+
+
+export async function ensureCurrentLot({ auction_id }, client) {
+  const q = `
+    WITH
+    a AS (
+      SELECT id, current_item_id
+      FROM exchange.auctions
+      WHERE id = $1
+      FOR UPDATE
+    ),
+    exists_cur AS (
+      SELECT 1
+      FROM exchange.auction_items ai
+      JOIN a ON ai.id = a.current_item_id
+      WHERE ai.auction_id = $1
+      LIMIT 1
+    ),
+    first_item AS (
+      SELECT ai.id
+      FROM exchange.auction_items ai
+      WHERE ai.auction_id = $1
+      ORDER BY ai.number ASC, ai.id ASC
+      LIMIT 1
+    )
+    UPDATE exchange.auctions au
+    SET current_item_id = CASE
+      WHEN (SELECT current_item_id FROM a) IS NULL THEN (SELECT id FROM first_item)
+      WHEN EXISTS (SELECT 1 FROM exists_cur) THEN (SELECT current_item_id FROM a)
+      ELSE (SELECT id FROM first_item)
+    END
+    WHERE au.id = $1
+    RETURNING au.id, au.current_item_id;
+  `;
+  const { rows } = await query(q, [auction_id], client);
+  return rows[0] || null;
+}
+
+export async function getCurrentLotByAuction(auction_id, client) {
+  const q = `
+    WITH
+    a AS (
+      SELECT id AS auction_id, current_item_id
+      FROM exchange.auctions
+      WHERE id = $1
+      LIMIT 1
+    ),
+    ordered AS (
+      SELECT
+        ai.id,
+        ai.number,
+        row_number() OVER (ORDER BY ai.number ASC, ai.id ASC) AS rn
+      FROM exchange.auction_items ai
+      WHERE ai.auction_id = $1
+    ),
+    cur AS (
+      SELECT o.rn
+      FROM ordered o
+      JOIN a ON a.current_item_id = o.id
+      LIMIT 1
+    ),
+    neigh AS (
+      SELECT
+        (SELECT id FROM ordered WHERE rn = (SELECT rn FROM cur) - 1) AS prev_item_id,
+        (SELECT id FROM ordered WHERE rn = (SELECT rn FROM cur) + 1) AS next_item_id
+    )
+    SELECT
+      a.auction_id,
+      a.current_item_id,
+      neigh.prev_item_id,
+      neigh.next_item_id,
+
+      ai.*,
+      to_jsonb(p) ||
+      jsonb_build_object(
+        'mint_name', mi.name,
+        'metal_type', me.type
+      ) AS bullion
+    FROM a
+    LEFT JOIN neigh ON true
+    LEFT JOIN exchange.auction_items ai ON ai.id = a.current_item_id
+    LEFT JOIN exchange.products p ON p.id = ai.bullion_id
+    LEFT JOIN exchange.metals me ON me.id = p.metal_id
+    LEFT JOIN exchange.mints  mi ON mi.id = p.mint_id;
+  `;
+
+  const { rows } = await query(q, [auction_id], client);
+  const row = rows[0] || null;
+
+  // If current_item_id is null, ai.* fields will be null — that's fine.
+  return row;
+}

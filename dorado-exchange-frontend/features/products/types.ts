@@ -24,6 +24,8 @@ export interface Product {
   sell_display: boolean
   is_generic: boolean
   variant_label?: string
+  thickness?: string
+  diameter?: string
 }
 
 export interface AdminProduct {
@@ -58,6 +60,9 @@ export interface AdminProduct {
   sell_display: boolean
   is_generic: boolean
   variant_label: string
+  thickness?: string
+  diameter?: string
+  metal_type?: string
 }
 
 export interface Supplier {

@@ -1,22 +1,18 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { cn } from '@/shared/utils/cn'
-import { formatFullDate } from '@/shared/utils/formatDates'
-
-import { Button } from '@/shared/ui/base/button'
 import { DataTable } from '@/shared/ui/table/Table'
-import { TextColumn, ChipColumn, IconColumn, SelectionColumn } from '@/shared/ui/table/Columns'
+import { TextColumn, ChipColumn, SelectionColumn } from '@/shared/ui/table/Columns'
 
 import {
   AUCTION_STATUSES,
   AUCTION_STATUS_META,
   coerceAuctionStatus,
-  getAuctionStatusMeta,
   Auction,
   AuctionItem,
   AuctionStatus,
@@ -25,13 +21,13 @@ import {
 import {
   useAuctionItems,
   useUpdateAuction,
-  useCreateAuctionItem,
   useUpdateAuctionItem,
-  useDeleteAuctionItem,
   useCreateAuctionLots,
-  useMoveAuctionItem,
-  useReorderAuctionItems,
   useDeleteAuctionItems,
+  useAuctionCurrentLot,
+  useNextAuctionCurrentLot,
+  usePrevAuctionCurrentLot,
+  useSetAuctionCurrentLot,
 } from '@/features/auctions/queries'
 import SchedulePicker from '@/features/auctions/ui/SchedulePicker'
 import { useAdminProducts } from '@/features/products/queries'
@@ -43,6 +39,7 @@ import { calcStartingBidPerLot } from '@/features/auctions/utils/calc'
 import { DisplayToggle } from '@/shared/ui/DisplayToggle'
 import { CreateConfig } from '@/shared/ui/table/CreateDialog'
 import { GroupColumnSpec } from '@/shared/ui/table/RowGroups'
+import { LotCard } from '@/features/auctions/ui/LotCard'
 
 export default function AuctionsDrawer({
   auctions,
@@ -68,6 +65,8 @@ export default function AuctionsDrawer({
       <div className="glass-divider" />
       <div className="space-y-8">
         <StatusSection auction={auction} />
+        <div className="glass-divider" />
+        <CurrentLotControls auction={auction} />
         <div className="glass-divider" />
         <Items auction={auction} />
         <div className="glass-divider" />
@@ -156,6 +155,90 @@ function StatPill({ label, children }: { label: string; children: React.ReactNod
     <div className="flex flex-col gap-1 w-full">
       <div className="text-xs text-neutral-700">{label}</div>
       <div className={cn('text-2xl text-neutral-900')}>{children}</div>
+    </div>
+  )
+}
+
+
+
+function LotSlotPlaceholder() {
+  return (
+    <div aria-hidden className="w-full rounded-2xl p-3 opacity-0 pointer-events-none select-none">
+      <div className="h-1" />
+    </div>
+  )
+}
+
+function CurrentLotControls({ auction }: { auction: Auction }) {
+  const { data } = useAuctionCurrentLot(auction.id)
+  const { data: items = [] } = useAuctionItems(auction.id)
+
+  const next = useNextAuctionCurrentLot(auction.id)
+  const prev = usePrevAuctionCurrentLot(auction.id)
+  const setCurrent = useSetAuctionCurrentLot(auction.id)
+
+  const isBusy = next.isPending || prev.isPending || setCurrent.isPending
+
+  const currentId = data?.current_item_id ?? null
+  const prevId = data?.prev_item_id ?? null
+  const nextId = data?.next_item_id ?? null
+
+  const prevItem = prevId ? items.find((x) => x.id === prevId) : null
+  const nextItem = nextId ? items.find((x) => x.id === nextId) : null
+
+  const currentItem =
+    (currentId
+      ? {
+          id: currentId,
+          number: data?.number ?? null,
+          bullion_id: (data as any)?.bullion_id ?? null,
+          bullion: (data as any)?.bullion ?? null,
+          starting_bid: (data as any)?.starting_bid ?? null,
+        }
+      : null) ?? (currentId ? items.find((x) => x.id === currentId) : null)
+
+  return (
+    <div className="space-y-3">
+      <div className="section-label">Current Lot</div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {prevItem ? (
+          <LotCard
+            kind='past'
+            label="Previous"
+            item={prevItem}
+            disabled={isBusy}
+            onClick={async () => {
+              if (isBusy) return
+              await prev.mutateAsync()
+            }}
+          />
+        ) : (
+          <LotSlotPlaceholder />
+        )}
+
+        <LotCard
+          kind='current'
+          label="Current"
+          item={currentItem}
+          disabled={isBusy || !currentItem}
+        />
+
+        {nextItem ? (
+          <LotCard
+            kind='future'
+            label="Next"
+            item={nextItem}
+            disabled={isBusy}
+            onClick={async () => {
+              if (isBusy) return
+              await next.mutateAsync()
+            }}
+          />
+        ) : (
+          <LotSlotPlaceholder />
+        )}
+      </div>
     </div>
   )
 }

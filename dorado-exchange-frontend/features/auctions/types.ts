@@ -10,7 +10,7 @@ export type Auction = {
   status: AuctionStatus
   scheduled_date: string | null
   number: number
-
+  current_item_id: string
   created_by: string | null
   updated_by: string | null
   created_at: string
@@ -98,4 +98,26 @@ export function coerceAuctionStatus(v: unknown): AuctionStatus {
 
 export function getAuctionStatusMeta(status?: unknown) {
   return AUCTION_STATUS_META[coerceAuctionStatus(status)]
+}
+
+export type AuctionCurrentLot = {
+  id: string
+  current_item_id: string | null
+}
+
+export type AuctionCurrentLotState = {
+  auction_id: string
+  current_item_id: string | null
+  prev_item_id: string | null
+  next_item_id: string | null
+  id: string | null
+  bullion_id: string | null
+  number: number | null
+  sold: boolean | null
+  starting_bid: string | null
+  ending_bid: string | null
+  quantity: string | null
+  buyer_email: string | null
+  buyer_name: string | null
+  bullion: any | null
 }
