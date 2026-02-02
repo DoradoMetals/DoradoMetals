@@ -1,8 +1,6 @@
 import { ProductFilters } from '@/features/products/types'
 import {
   ShipmentTrackingInput,
-  ShippingCancelLabelInput,
-  ShippingCancelPickupInput,
   ShippingLocationsInput,
   ShippingPickupTimesInput,
   ShippingRatesInput,
@@ -12,6 +10,12 @@ import { PlacesSuggestionsInput } from '@/features/addresses/types'
 import { SalesTaxInput } from '@/features/sales-tax/types'
 
 export const queryKeys = {
+  //Auctions
+  auctions: () => ['auctions'] as const,
+  auction: (id: string) => ['auctions', id] as const,
+  auctionItems: (auctionId: string) => ['auctions', auctionId, 'items'] as const,
+  auctionCurrentLot: (auction_id: string) => ['auctions', 'current_lot', auction_id],
+
   // Admin Products and Inventory
   adminProducts: () => ['adminProducts'] as const,
   adminMetals: () => ['adminMetals'] as const,

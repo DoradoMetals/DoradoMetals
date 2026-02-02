@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/shared/utils/cn'
+import { Button } from '@/shared/ui/base/button'
 
 function SegBtn({
   checked,
@@ -13,22 +14,26 @@ function SegBtn({
   className?: string
 }) {
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={checked}
-      onClick={onClick}
-      className={cn(
-        'cursor-pointer h-10 w-full px-4 text-sm font-medium transition-colors',
-        className
-      )}
-    >
-      {children}
-    </button>
+    <div className="h-11">
+      <button
+        type="button"
+        role="radio"
+        aria-checked={checked}
+        onClick={onClick}
+        className={cn(
+          'cursor-pointer w-full h-10 px-4 text-sm font-medium transition-colors',
+          'inline-flex items-center justify-center',
+          'leading-none',
+          className
+        )}
+      >
+        {children}
+      </button>
+    </div>
   )
 }
 
-export function  DisplayToggle({
+export function DisplayToggle({
   label,
   value,
   onChange,

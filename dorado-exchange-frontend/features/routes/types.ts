@@ -220,6 +220,16 @@ export const protectedRoutes: Record<string, RouteConfig> = {
     footerDisplay: false,
     seoIndex: false,
   },
+  auctions: {
+    path: '/auctions',
+    roles: ['admin'],
+    desktopLabel: 'Auctions',
+    mobileLabel: 'Auctions',
+    desktopDisplay: true,
+    mobileDisplay: true,
+    footerDisplay: false,
+    seoIndex: false,
+  }
 }
 
 type R = (typeof protectedRoutes)[keyof typeof protectedRoutes]

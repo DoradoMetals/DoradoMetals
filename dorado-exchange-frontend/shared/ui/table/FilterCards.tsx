@@ -30,7 +30,7 @@ type FilterCardsStripProps = {
   onChangeActive: (key: string | number | null) => void
 }
 
-export function FilterCardsStrip({ cards, activeKey, onChangeActive }: FilterCardsStripProps) {
+export function FilterCards({ cards, activeKey, onChangeActive }: FilterCardsStripProps) {
   if (!cards || cards.length === 0) return null
 
   const defaultButtonActiveClass = 'bg-primary/25 text-neutral-900 border-primary'

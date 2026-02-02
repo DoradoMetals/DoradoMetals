@@ -7,10 +7,10 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { TextColumn, ChipColumn, ImageColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
 import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/features/navigation/ui/Logo'
-import { CreateConfig } from '@/shared/ui/table/AddNew'
 import ProductDrawer from '@/features/products/ui/ProductDrawer'
 import { useAdminProducts, useCreateProduct } from '@/features/products/queries'
 import { AdminProduct } from '@/features/products/types'
+import { CreateConfig } from '@/shared/ui/table/CreateDialog'
 
 const formatPremium = (mult?: number | null) => {
   if (mult == null) return '-'
@@ -179,7 +179,6 @@ export default function ProductsPage() {
       <DataTable<AdminProduct>
         data={products}
         columns={columns}
-        initialPageSize={12}
         searchColumnId="product_name"
         searchPlaceholder="Search products..."
         enableColumnVisibility

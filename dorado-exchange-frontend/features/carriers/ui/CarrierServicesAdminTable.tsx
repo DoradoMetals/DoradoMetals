@@ -5,7 +5,6 @@ import type { ColumnDef, Row } from '@tanstack/react-table'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { TextColumn, ChipColumn, ImageColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
-import { CreateConfig } from '@/shared/ui/table/AddNew'
 
 import {
   useCarriers,
@@ -16,6 +15,7 @@ import type { Carrier, CarrierService } from '@/features/carriers/types'
 import { RadioGroupImage } from '@/shared/ui/RadioGroupImage'
 import CarrierServiceDrawer from '@/features/carriers/ui/CarrierServicesDrawer'
 import { useMemo, useState } from 'react'
+import { CreateConfig } from '@/shared/ui/table/CreateDialog'
 
 export default function CarrierServicesPage() {
   const { data: carriers = [] } = useCarriers()

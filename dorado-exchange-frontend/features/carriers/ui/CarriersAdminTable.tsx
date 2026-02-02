@@ -6,12 +6,12 @@ import { ColumnDef, Row } from '@tanstack/react-table'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { TextColumn, ChipColumn, ImageColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
-import { CreateConfig } from '@/shared/ui/table/AddNew'
 
 import { useCarriers, useCreateCarrier } from '@/features/carriers/queries'
 import { Carrier } from '@/features/carriers/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import CarriersDrawer from '@/features/carriers/ui/CarriersDrawer'
+import { CreateConfig } from '@/shared/ui/table/CreateDialog'
 
 export default function CarriersPage() {
   const { data: carriers = [] } = useCarriers()

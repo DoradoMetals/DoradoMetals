@@ -116,10 +116,9 @@ export function SidebarLayout({
 }: SidebarLayoutProps) {
   const [open, setOpen] = useState(defaultOpen)
   const isOpen = forcedOpen ?? open
-
   const Nav = (
     <nav
-      className={cn('h-full shrink-0 bg-card p-2 transition-all duration-300 rounded-lg', navClass)}
+      className={cn('max-h-[75vh] overflow-y-auto shrink-0 bg-card p-2 transition-all duration-300 rounded-lg', navClass)}
     >
       {headerEnabled && (
         <div className="mb-6 border-b-1 border-border pb-4">

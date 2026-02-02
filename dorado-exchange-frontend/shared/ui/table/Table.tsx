@@ -3,43 +3,38 @@
 import {
   ColumnDef,
   ColumnFiltersState,
-  flexRender,
   getCoreRowModel,
+  getExpandedRowModel,
   getFilteredRowModel,
+  getGroupedRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   PaginationState,
   Row,
+  RowSelectionState,
   useReactTable,
 } from '@tanstack/react-table'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { ReactNode, useState } from 'react'
+import { ReactNode, useMemo, useState } from 'react'
 
-import { Button } from '@/shared/ui/base/button'
-import { Checkbox } from '@/shared/ui/base/checkbox'
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/ui/base/table'
 import { cn } from '@/shared/utils/cn'
-import { ColumnsIcon } from '@phosphor-icons/react'
-import { DebouncedInputSearch } from '../inputs/DebouncedInputSearch'
-import { AddNew, CreateConfig } from './AddNew'
-import { FilterCard, FilterCardsStrip } from './FilterCard'
+import { TableBase } from '@/shared/ui/table/Base'
+import { TablePagination } from '@/shared/ui/table/Pagination'
+import { TableToolbar } from '@/shared/ui/table/Toolbar'
+import { FilterCard } from '@/shared/ui/table/FilterCards'
+import { CreateConfig } from '@/shared/ui/table/CreateDialog'
+import { GroupColumnSpec } from '@/shared/ui/table/RowGroups'
 
 type DataTableProps<TData> = {
   data: TData[]
   columns: ColumnDef<TData, any>[]
   initialPageSize?: number
+
   searchColumnId?: string
   searchPlaceholder?: string
   createIcon?: React.ComponentType<{ size?: number; className?: string }>
   enableColumnVisibility?: boolean
   onRowClick?: (row: Row<TData>) => void
+
   showCardBackground?: boolean
   filterCards?: FilterCard<TData>[]
   createConfig?: CreateConfig
@@ -53,6 +48,32 @@ type DataTableProps<TData> = {
   shadowClass?: string
   columnTriggerClass?: string
   addButtonClass?: string
+
+  enableRowSelection?: boolean
+  getRowId?: (originalRow: TData, index: number, parent?: any) => string
+  onRowSelectionChange?: (rowSelection: RowSelectionState) => void
+
+  showSelectionBar?: boolean
+  selectionReplaceTopRow?: boolean
+
+  selectionShowClear?: boolean
+  selectionShowDelete?: boolean
+  selectionShowExport?: boolean
+
+  onSelectionDelete?: (selectedRowIds: string[]) => void | Promise<void>
+  onSelectionExport?: (selectedRowIds: string[]) => void | Promise<void>
+
+  selectionBarClassName?: string
+  selectionActionButtonClassName?: string
+  selectionDeleteButtonClassName?: string
+  selectionExportButtonClassName?: string
+  selectionClearButtonClassName?: string
+
+  enableGrouping?: boolean
+  initialGrouping?: string[]
+  groupedColumnMode?: false | 'reorder' | 'remove'
+  groupSpec?: GroupColumnSpec<TData>[]
+  groupLabelText?: (row: Row<TData>) => ReactNode
 }
 
 export function DataTable<TData>({
@@ -66,216 +87,139 @@ export function DataTable<TData>({
   createConfig,
   createIcon,
   footerRightContent,
-  hidePagination = false,
+  hidePagination = true,
   enableColumnVisibility = false,
   showHeaders = true,
   getRowClassName,
 
-  showCardBackground = true,
-  wrapperClassName = 'bg-card',
-  searchClass = 'bg-highest',
-  shadowClass = 'raised-off-page',
-  columnTriggerClass = "bg-highest hover:bg-highest border-1 border-border",
+  wrapperClassName = 'glass-panel',
+  searchClass = 'on-glass',
+  shadowClass = '',
+  columnTriggerClass = 'on-glass',
   addButtonClass,
+
+  enableRowSelection = false,
+  getRowId,
+  onRowSelectionChange,
+  showSelectionBar = false,
+  selectionReplaceTopRow = false,
+
+  selectionShowClear = true,
+  selectionShowDelete = false,
+  selectionShowExport = false,
+
+  onSelectionDelete,
+  onSelectionExport,
+
+  selectionBarClassName,
+  selectionActionButtonClassName,
+  selectionDeleteButtonClassName,
+  selectionExportButtonClassName,
+  selectionClearButtonClassName,
+
+  enableGrouping = false,
+  initialGrouping = [],
+  groupedColumnMode = 'reorder',
+  groupSpec,
+  groupLabelText,
 }: DataTableProps<TData>) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: initialPageSize,
   })
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-
   const [activeFilterKey, setActiveFilterKey] = useState<number | string | null>(null)
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
-  const rowsForTable =
-    filterCards && activeFilterKey != null
-      ? data.filter((row) => {
-          const card = filterCards.find((c) => c.key === activeFilterKey)
-          return card ? card.predicate(row) : true
-        })
-      : data
+  const [grouping, setGrouping] = useState<string[]>(initialGrouping)
+  const [expanded, setExpanded] = useState({})
+
+  const rowsForTable = useMemo(() => {
+    if (!filterCards?.length || activeFilterKey == null) return data
+    const card = filterCards.find((c) => c.key === activeFilterKey)
+    return card ? data.filter((row) => card.predicate(row)) : data
+  }, [data, filterCards, activeFilterKey])
 
   const table = useReactTable({
     data: rowsForTable,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    state: { pagination, columnFilters },
-    onPaginationChange: setPagination,
+    getSortedRowModel: getSortedRowModel(),
+    ...(hidePagination ? {} : { getPaginationRowModel: getPaginationRowModel() }),
+    ...(enableGrouping ? { getGroupedRowModel: getGroupedRowModel() } : {}),
+    ...(enableGrouping ? { getExpandedRowModel: getExpandedRowModel() } : {}),
+    state: {
+      ...(hidePagination ? {} : { pagination }),
+      columnFilters,
+      rowSelection,
+      ...(enableGrouping ? { grouping, expanded } : {}),
+    },
+    onPaginationChange: hidePagination ? undefined : setPagination,
     onColumnFiltersChange: setColumnFilters,
+    onRowSelectionChange: (updater) => {
+      setRowSelection((prev) => {
+        const next = typeof updater === 'function' ? updater(prev) : updater
+        onRowSelectionChange?.(next)
+        return next
+      })
+    },
+    enableRowSelection,
+    getRowId,
     autoResetPageIndex: false,
+    onGroupingChange: enableGrouping ? setGrouping : undefined,
+    onExpandedChange: enableGrouping ? setExpanded : undefined,
+    groupedColumnMode: enableGrouping ? groupedColumnMode : false,
   })
 
-  const searchColumn = searchColumnId ? table.getColumn(searchColumnId) : null
+  const searchColumn = searchColumnId ? (table.getColumn(searchColumnId) ?? null) : null
 
   return (
     <div
-      className={cn('space-y-4 w-full h-full p-4 rounded-lg mb-4', shadowClass, wrapperClassName)}
+      className={cn(
+        'min-h-[75vh] max-h-[75vh] space-y-4 p-4 rounded-lg glass-panel',
+        shadowClass,
+        wrapperClassName
+      )}
     >
-      {filterCards && filterCards.length > 0 && (
-        <FilterCardsStrip
-          cards={filterCards}
-          activeKey={activeFilterKey}
-          onChangeActive={setActiveFilterKey}
-        />
-      )}
+      <TableToolbar
+        table={table}
+        filterCards={filterCards}
+        activeFilterKey={activeFilterKey}
+        onChangeActiveFilterKey={setActiveFilterKey}
+        createConfig={createConfig}
+        createIcon={createIcon}
+        addButtonClass={addButtonClass}
+        searchColumn={searchColumn}
+        searchPlaceholder={searchPlaceholder}
+        searchClass={searchClass}
+        enableColumnVisibility={enableColumnVisibility}
+        columnTriggerClass={columnTriggerClass}
+        onSearchChange={() => setPagination((prev) => ({ ...prev, pageIndex: 0 }))}
+        showSelectionBar={showSelectionBar}
+        selectionReplaceTopRow={selectionReplaceTopRow}
+        selectionShowClear={selectionShowClear}
+        selectionShowDelete={selectionShowDelete}
+        selectionShowExport={selectionShowExport}
+        onSelectionDelete={onSelectionDelete}
+        onSelectionExport={onSelectionExport}
+        selectionBarClassName={selectionBarClassName}
+        selectionActionButtonClassName={selectionActionButtonClassName}
+        selectionDeleteButtonClassName={selectionDeleteButtonClassName}
+        selectionExportButtonClassName={selectionExportButtonClassName}
+        selectionClearButtonClassName={selectionClearButtonClassName}
+      />
 
-      {(searchColumn || enableColumnVisibility || createConfig) && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between w-full">
-          <div className="flex flex-col gap-2 w-full">
-            <div className="flex w-full gap-2">
-              {createConfig && <AddNew createConfig={createConfig} triggerIcon={createIcon} triggerClass={addButtonClass} />}
+      <TableBase
+        table={table}
+        showHeaders={showHeaders}
+        onRowClick={onRowClick}
+        getRowClassName={getRowClassName}
+        groupSpec={groupSpec}
+        groupLabelText={groupLabelText}
+      />
 
-              {searchColumn && (
-                <div className="w-full">
-                  <DebouncedInputSearch
-                    type="text"
-                    inputClassname={searchClass}
-                    placeholder={searchPlaceholder}
-                    value={String(searchColumn.getFilterValue() ?? '')}
-                    onChange={(value) => {
-                      searchColumn.setFilterValue(value)
-                      setPagination((prev) => ({
-                        ...prev,
-                        pageIndex: 0,
-                      }))
-                    }}
-                  />
-                </div>
-              )}
-
-              {enableColumnVisibility && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={cn("text-neutral-800 h-10", columnTriggerClass)}
-                    >
-                      <ColumnsIcon size={28} />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-fit space-y-2 bg-highest rounded-lg"
-                    align="center"
-                    side="bottom"
-                  >
-                    <div className="flex justify-center text-xs text-neutral-600 p-2 bg-neutral-100/70 rounded-t-lg font-light">
-                      Toggle Displayed
-                    </div>
-                    <div className="flex flex-col gap-2 px-2">
-                      {table.getAllLeafColumns().map((column) => (
-                        <div
-                          key={column.id}
-                          className="flex items-center gap-4 w-full border-b-1 border-border pb-2"
-                        >
-                          <Checkbox
-                            id={`col-${column.id}`}
-                            checked={column.getIsVisible()}
-                            onCheckedChange={() => column.toggleVisibility()}
-                            className="text-primary cursor-pointer data-[state=checked]:text-primary data-[state=checked]:bg-highest data-[state=checked]:border-border bg-highest border-border border-1"
-                          />
-                          <label
-                            htmlFor={`col-${column.id}`}
-                            className="text-xs cursor-pointer text-left text-neutral-800 tracking-wide font-normal"
-                          >
-                            {typeof column.columnDef.header === 'function'
-                              ? column.id
-                                  .split('_')
-                                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                                  .join(' ')
-                              : column.columnDef.header}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-1 justify-center text-xs text-neutral-600 py-1 px-2 rounded-b-lg pb-2 font-light">
-                      <span className="text-neutral-900">
-                        {table.getAllLeafColumns().filter((col) => !col.getIsVisible()).length}
-                      </span>
-                      <span>hidden</span>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <Table className="w-full">
-        {showHeaders && (
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id}>
-                {hg.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className="align-middle h-10 text-xs font-normal text-neutral-600 tracking-wide"
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-        )}
-
-        <TableBody className={showCardBackground ? 'bg-card' : undefined}>
-          {table.getRowModel().rows.map((row) => {
-            const rowCls = getRowClassName?.(row)
-            return (
-              <TableRow
-                key={row.id}
-                className={cn('items-center hover:cursor-pointer', rowCls)}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="align-middle py-4">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
-
-      {!hidePagination && (
-        <div className="flex items-center gap-4">
-          <div className="flex-1" />
-
-          <div className="flex items-center justify-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={!table.getCanPreviousPage()}
-              onClick={() => table.previousPage()}
-              className="h-8 w-8 p-0"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-
-            <span className="text-sm text-muted-foreground">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
-            </span>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={!table.getCanNextPage()}
-              onClick={() => table.nextPage()}
-              className="h-8 w-8 p-0"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="flex-1 flex justify-end">{footerRightContent}</div>
-        </div>
-      )}
+      {!hidePagination && <TablePagination table={table} footerRightContent={footerRightContent} />}
     </div>
   )
 }

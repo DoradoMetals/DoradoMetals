@@ -48,7 +48,7 @@ function Calendar({
       group-[[data-selected]:not(.range-middle)]:duration-150 
       
       group-data-[selected]:bg-transparent
-      group[data-selected]:text-primary
+      group-data-[selected]:text-primary
       group-data-[selected]:group-[.range-middle]:bg-accent 
       
       group-data-[disabled]:pointer-events-none 

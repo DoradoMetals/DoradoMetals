@@ -30,7 +30,7 @@ export default function AdminPurchaseOrderDrawer({
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="bg-background">
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
       <AdminPurchaseOrderDrawerHeader
         setIsOrderActive={closeDrawer}
         order={order}
