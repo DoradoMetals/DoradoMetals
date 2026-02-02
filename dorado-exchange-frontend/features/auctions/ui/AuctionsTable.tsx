@@ -6,11 +6,11 @@ import { ColumnDef, Row } from '@tanstack/react-table'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { TextColumn, ChipColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
-import { CreateConfig } from '@/shared/ui/table/Create'
 
 import { useAllAuctionItems, useAuctions, useCreateAuction } from '@/features/auctions/queries'
 import { getAuctionStatusMeta, type Auction, type AuctionItem } from '@/features/auctions/types'
 import AuctionsDrawer from '@/features/auctions/ui/AuctionsDrawer'
+import { CreateConfig } from '@/shared/ui/table/CreateDialog'
 
 function formatDateTime(value: any) {
   if (!value) return ''
