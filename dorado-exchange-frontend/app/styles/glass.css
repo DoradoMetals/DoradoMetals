@@ -13,19 +13,19 @@
 }
 
 .success-on-glass {
-  @apply bg-success/10 border border-success shadow-2xl text-success;
+  @apply bg-success/10 border border-success shadow-lg text-success;
 }
 
 .destructive-on-glass {
-  @apply bg-destructive/10  border border-destructive shadow-2xl text-destructive;
+  @apply bg-destructive/10  border border-destructive shadow-lg text-destructive;
 }
 
 .primary-on-glass {
-  @apply bg-primary/10  border border-primary shadow-2xl text-primary;
+  @apply bg-primary/10  border border-primary shadow-lg text-primary;
 }
 
 .secondary-on-glass {
-  @apply bg-secondary/10  border border-secondary shadow-2xl text-secondary;
+  @apply bg-secondary/10  border border-secondary shadow-lg text-secondary;
 }
 
 .glass-divider {

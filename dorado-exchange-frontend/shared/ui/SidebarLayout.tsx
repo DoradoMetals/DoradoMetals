@@ -118,7 +118,7 @@ export function SidebarLayout({
   const isOpen = forcedOpen ?? open
   const Nav = (
     <nav
-      className={cn('max-h-[75vh] overflow-y-auto shrink-0 bg-card p-2 transition-all duration-300 rounded-lg', navClass)}
+      className={cn('max-h-[75vh] overflow-y-auto shrink-0 bg-card p-2 transition-all duration-300 rounded-lg custom-scrollbar', navClass)}
     >
       {headerEnabled && (
         <div className="mb-6 border-b-1 border-border pb-4">
@@ -224,7 +224,7 @@ export function SidebarLayout({
   return (
     <div className={cn('flex h-full w-full items-start justify-start gap-6 py-6', className)}>
       <div className="hidden md:block">{Nav}</div>
-      <main className="flex-1 overflow-auto">{content}</main>
+      <main className="flex-1">{content}</main>
     </div>
   )
 }

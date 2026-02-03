@@ -15,7 +15,7 @@ type AddNewTriggerProps = {
 export function AddNewTrigger({
   onOpen,
   icon: Icon = RowsPlusTopIcon,
-  className = 'bg-highest hover:bg-highest border-1 border-border',
+  className = 'on-glass',
 }: AddNewTriggerProps) {
   return (
     <Button

@@ -33,7 +33,7 @@ type FilterCardsStripProps = {
 export function FilterCards({ cards, activeKey, onChangeActive }: FilterCardsStripProps) {
   if (!cards || cards.length === 0) return null
 
-  const defaultButtonActiveClass = 'bg-primary/25 text-neutral-900 border-primary'
+  const defaultButtonActiveClass = 'primary-on-glass'
   const defaultIconBaseClass = 'text-primary'
   const defaultIconActiveClass = 'text-primary'
   const defaultHeaderActiveClass = 'text-neutral-900'
@@ -66,7 +66,7 @@ export function FilterCards({ cards, activeKey, onChangeActive }: FilterCardsStr
         const effectiveLabelActive = labelActiveClassName ?? defaultLabelActiveClass
 
         const buttonClass = cn(
-          'cursor-pointer bg-card border-1 border-border rounded-lg p-2 w-full h-auto bg-highest',
+          'cursor-pointer on-glass rounded-lg p-2 w-full h-auto',
           buttonBaseClassName,
           isActive && effectiveButtonActive
         )

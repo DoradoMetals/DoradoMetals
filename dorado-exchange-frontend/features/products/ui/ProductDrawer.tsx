@@ -42,17 +42,17 @@ export default function ProductDrawer({
   return (
     <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
       <Header product={product} />
-      <div className="separator-inset" />
+      <div className="glass-divider" />
       <Details product={product} />
-      <div className="separator-inset" />
+      <div className="glass-divider" />
       <Inventory product={product} />
-      <div className="separator-inset" />
+      <div className="glass-divider" />
       <Specifications product={product} />
-      <div className="separator-inset" />
+      <div className="glass-divider" />
       <Displays product={product} />
-      <div className="separator-inset" />
+      <div className="glass-divider" />
       <Dev product={product} />
-      <div className="separator-inset" />
+      <div className="glass-divider" />
       <Images product={product} />
     </Drawer>
   )
@@ -71,9 +71,7 @@ function Header({ product }: { product: AdminProduct }) {
         <div
           className={cn(
             'px-2 py-1 border-1 rounded-lg flex justify-center items-center font-semibold text-base',
-            activeProduct
-              ? 'bg-success/20 text-success border-success'
-              : 'bg-destructive/20 text-destructive border-destructive'
+            activeProduct ? 'success-on-glass' : 'destructive-on-glass'
           )}
         >
           {activeProduct ? 'Active' : 'Inactive'}
@@ -113,7 +111,7 @@ function Details({ product }: { product: AdminProduct }) {
           id="product_name"
           placeholder="Enter name..."
           type="text"
-          className="bg-highest border-border"
+          className="on-glass"
           defaultValue={product.product_name ?? ''}
           onBlur={(e) => handleUpdate(product.id, { product_name: e.target.value })}
         />
@@ -124,14 +122,16 @@ function Details({ product }: { product: AdminProduct }) {
           value={product.metal}
           options={metals?.map((m) => m.type)}
           onChange={(val) => handleUpdate(product.id, { metal: val })}
-          triggerClass="raised-off-page bg-highest"
+          triggerClass="on-glass"
+          includeSearch={false}
         />
         <PopoverSelect
           label="Product Type"
           value={product.product_type}
           options={types?.map((item) => item.name)}
           onChange={(val) => handleUpdate(product.id, { product_type: val })}
-          triggerClass="raised-off-page bg-highest"
+          triggerClass="on-glass"
+          includeSearch={false}
         />
       </div>
       <PopoverSelect
@@ -139,14 +139,14 @@ function Details({ product }: { product: AdminProduct }) {
         value={product.supplier}
         options={suppliers?.map((item) => item.name)}
         onChange={(val) => handleUpdate(product.id, { supplier: val })}
-        triggerClass="raised-off-page bg-highest"
+        triggerClass="on-glass"
       />
       <PopoverSelect
         label="Mint"
         value={product.mint}
         options={mints?.map((item) => item.name)}
         onChange={(val) => handleUpdate(product.id, { mint: val })}
-        triggerClass="raised-off-page bg-highest"
+        triggerClass="on-glass"
       />
 
       <div className="flex flex-col w-full gap-1">
@@ -157,7 +157,7 @@ function Details({ product }: { product: AdminProduct }) {
           rows={20}
           id="description"
           placeholder="Enter product description..."
-          className="bg-highest border-border min-w-70"
+          className="on-glass min-w-70"
           defaultValue={product.product_description}
           onBlur={(e) => handleUpdate(product.id, { product_description: e.target.value })}
         />
@@ -227,7 +227,7 @@ function Specifications({ product }: { product: AdminProduct }) {
           inputMode="decimal"
           placeholder="Enter content..."
           type="number"
-          className="bg-highest border-border text-left no-spinner"
+          className="on-glass text-left no-spinner"
           defaultValue={product.content ?? ''}
           onBlur={(e) => {
             const n = e.currentTarget.valueAsNumber
@@ -249,7 +249,7 @@ function Specifications({ product }: { product: AdminProduct }) {
             placeholder="Enter purity..."
             inputMode="decimal"
             type="number"
-            className="bg-highest border-border text-left no-spinner"
+            className="on-glass text-left no-spinner"
             defaultValue={product.purity ?? ''}
             onBlur={(e) => {
               const n = e.currentTarget.valueAsNumber
@@ -269,7 +269,7 @@ function Specifications({ product }: { product: AdminProduct }) {
             placeholder="Enter gross..."
             inputMode="decimal"
             type="number"
-            className="bg-highest border-border text-left no-spinner"
+            className="on-glass text-left no-spinner"
             defaultValue={product.gross ?? ''}
             onBlur={(e) => {
               const n = e.currentTarget.valueAsNumber
@@ -300,18 +300,36 @@ function Displays({ product }: { product: AdminProduct }) {
           value={!!product.display}
           onChange={(v) => handleUpdate({ display: v })}
           className="w-full"
+          onLabel="Yes"
+          offLabel="No"
+          onClass="success-on-glass rounded-l-lg"
+          offClass="destructive-on-glass rounded-r-lg"
+          inactiveClass="on-glass"
+          groupClassName="rounded-none"
         />
         <DisplayToggle
           label="Sell"
           value={!!product.sell_display}
           onChange={(v) => handleUpdate({ sell_display: v })}
           className="w-full"
+          onLabel="Yes"
+          offLabel="No"
+          onClass="success-on-glass rounded-l-lg"
+          offClass="destructive-on-glass rounded-r-lg"
+          inactiveClass="on-glass"
+          groupClassName="rounded-none"
         />
         <DisplayToggle
           label="Featured"
           value={!!product.homepage_display}
           onChange={(v) => handleUpdate({ homepage_display: v })}
           className="w-full"
+          onLabel="Yes"
+          offLabel="No"
+          onClass="success-on-glass rounded-l-lg"
+          offClass="destructive-on-glass rounded-r-lg"
+          inactiveClass="on-glass"
+          groupClassName="rounded-none"
         />
       </div>
     </div>
@@ -334,6 +352,8 @@ function Dev({ product }: { product: AdminProduct }) {
         count={10}
         value={product.shadow_offset ?? 0}
         onChange={(n) => handleUpdate({ shadow_offset: n })}
+        buttonClass="on-glass rounded-lg"
+        checkedClass='primary-on-glass rounded-lg'
       />
 
       <div className="flex flex-col gap-1">
@@ -345,7 +365,7 @@ function Dev({ product }: { product: AdminProduct }) {
           id="variant_group"
           placeholder="Enter variant group..."
           type="text"
-          className="bg-highest border-border"
+          className="on-glass"
           defaultValue={product.variant_group ?? ''}
           onBlur={(e) => handleUpdate({ variant_group: e.target.value })}
         />
@@ -360,7 +380,7 @@ function Dev({ product }: { product: AdminProduct }) {
           id="variant_label"
           placeholder="Enter variant label..."
           type="text"
-          className="bg-highest border-border"
+          className="on-glass"
           defaultValue={product.variant_label ?? ''}
           onBlur={(e) => handleUpdate({ variant_label: e.target.value })}
         />
@@ -375,7 +395,7 @@ function Dev({ product }: { product: AdminProduct }) {
           id="filter_category"
           placeholder="Enter category..."
           type="text"
-          className="bg-highest border-border"
+          className="on-glass"
           defaultValue={product.filter_category ?? ''}
           onBlur={(e) => handleUpdate({ filter_category: e.target.value })}
         />
@@ -390,7 +410,7 @@ function Dev({ product }: { product: AdminProduct }) {
           id="slug"
           placeholder="Enter slug..."
           type="text"
-          className="bg-highest border-border"
+          className="on-glass"
           defaultValue={product.slug ?? ''}
           onBlur={(e) => handleUpdate({ slug: e.target.value })}
         />
@@ -418,7 +438,7 @@ function Images({ product }: { product: AdminProduct }) {
         <Input
           id="image_front"
           type="text"
-          className="bg-highest border-border"
+          className="on-glass"
           defaultValue={product.image_front ?? ''}
           onBlur={(e) => handleUpdate({ image_front: e.target.value })}
         />
@@ -431,7 +451,7 @@ function Images({ product }: { product: AdminProduct }) {
         <Input
           id="image_back"
           type="text"
-          className="bg-highest border-border"
+          className="on-glass"
           defaultValue={product.image_back ?? ''}
           onBlur={(e) => handleUpdate({ image_back: e.target.value })}
         />
