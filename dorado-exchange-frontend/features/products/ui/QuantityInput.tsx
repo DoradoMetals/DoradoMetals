@@ -10,14 +10,12 @@ export default function QuantityBar({
   onChange,
   min = 0,
   step = 1,
-
-  // styling hooks
   className,
   wrapperClassName,
   labelClassName,
   controlsClassName,
-  inputClassName,
-  buttonClassName,
+  inputClassName = 'on-glass',
+  buttonClassName = 'on-glass hover:on-glass',
   decButtonClassName,
   incButtonClassName,
 }: {
@@ -27,7 +25,7 @@ export default function QuantityBar({
   min?: number
   step?: number
 
-  className?: string // backwards compat (maps to wrapper)
+  className?: string
   wrapperClassName?: string
   labelClassName?: string
   controlsClassName?: string
@@ -73,8 +71,7 @@ export default function QuantityBar({
           disabled={!canDec}
           className={cn(
             'h-10 w-10 rounded-md disabled:opacity-40 disabled:cursor-not-allowed',
-            // default (old) look
-            'bg-neutral-200 hover:bg-neutral-300 raised-off-page',
+            'raised-off-page',
             buttonClassName,
             decButtonClassName
           )}
@@ -107,7 +104,7 @@ export default function QuantityBar({
             }
           }}
           className={cn(
-            'flex-1 h-10 text-center bg-highest border-border',
+            'flex-1 h-10 text-center',
             'outline-none focus:outline-none',
             'focus-visible:ring-0 focus-visible:outline-none',
             inputClassName
@@ -121,8 +118,7 @@ export default function QuantityBar({
           onClick={inc}
           className={cn(
             'h-10 w-10 rounded-md disabled:opacity-40 disabled:cursor-not-allowed',
-            // default (old) look
-            'bg-neutral-200 hover:bg-neutral-300 raised-off-page',
+            'raised-off-page',
             buttonClassName,
             incButtonClassName
           )}

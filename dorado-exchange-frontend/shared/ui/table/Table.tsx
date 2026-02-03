@@ -92,7 +92,7 @@ export function DataTable<TData>({
   showHeaders = true,
   getRowClassName,
 
-  wrapperClassName = 'glass-panel',
+  wrapperClassName = 'glass-card',
   searchClass = 'on-glass',
   shadowClass = '',
   columnTriggerClass = 'on-glass',
@@ -177,7 +177,7 @@ export function DataTable<TData>({
   return (
     <div
       className={cn(
-        'min-h-[75vh] max-h-[75vh] space-y-4 p-4 rounded-lg glass-panel',
+        'min-h-[75vh] max-h-[75vh] space-y-4 p-4 rounded-lg custom-scrollbar',
         shadowClass,
         wrapperClassName
       )}

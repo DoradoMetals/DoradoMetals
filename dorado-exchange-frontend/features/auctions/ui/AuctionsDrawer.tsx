@@ -31,7 +31,6 @@ import {
 } from '@/features/auctions/queries'
 import SchedulePicker from '@/features/auctions/ui/SchedulePicker'
 import { useAdminProducts } from '@/features/products/queries'
-import { BullionSearchSelect } from '@/features/auctions/ui/BullionSearchSelect'
 import { useSpotPrices } from '@/features/spots/queries'
 import QuantityBar from '@/features/products/ui/QuantityInput'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -40,6 +39,7 @@ import { DisplayToggle } from '@/shared/ui/DisplayToggle'
 import { CreateConfig } from '@/shared/ui/table/CreateDialog'
 import { GroupColumnSpec } from '@/shared/ui/table/RowGroups'
 import { LotCard } from '@/features/auctions/ui/LotCard'
+import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
 
 export default function AuctionsDrawer({
   auctions,
@@ -159,8 +159,6 @@ function StatPill({ label, children }: { label: string; children: React.ReactNod
   )
 }
 
-
-
 function LotSlotPlaceholder() {
   return (
     <div aria-hidden className="w-full rounded-2xl p-3 opacity-0 pointer-events-none select-none">
@@ -204,7 +202,7 @@ function CurrentLotControls({ auction }: { auction: Auction }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {prevItem ? (
           <LotCard
-            kind='past'
+            kind="past"
             label="Previous"
             item={prevItem}
             disabled={isBusy}
@@ -218,7 +216,7 @@ function CurrentLotControls({ auction }: { auction: Auction }) {
         )}
 
         <LotCard
-          kind='current'
+          kind="current"
           label="Current"
           item={currentItem}
           disabled={isBusy || !currentItem}
@@ -226,7 +224,7 @@ function CurrentLotControls({ auction }: { auction: Auction }) {
 
         {nextItem ? (
           <LotCard
-            kind='future'
+            kind="future"
             label="Next"
             item={nextItem}
             disabled={isBusy}
@@ -272,10 +270,13 @@ function Items({ auction }: { auction: Auction }) {
         name: 'bullion_id',
         label: 'Bullion',
         render: ({ value, setValue }) => (
-          <BullionSearchSelect
-            value={value || null}
-            products={bullion}
-            onChange={(id) => setValue('bullion_id', id)}
+          <PopoverSelect
+            value={bullion.find((p) => p.id === value)?.product_name ?? null}
+            options={bullion.map((p) => p.product_name)}
+            onChange={(name) => {
+              const p = bullion.find((x) => x.product_name === name)
+              if (p) setValue('bullion_id', p.id)
+            }}
             placeholder="Search bullion..."
           />
         ),
@@ -293,8 +294,6 @@ function Items({ auction }: { auction: Auction }) {
                 min={1}
                 step={1}
                 onChange={(n) => setValue('quantity_per_lot', String(n))}
-                inputClassName="on-glass"
-                buttonClassName="on-glass hover:on-glass"
               />
             </div>
 
@@ -305,8 +304,6 @@ function Items({ auction }: { auction: Auction }) {
                 min={1}
                 step={1}
                 onChange={(n) => setValue('lot_count', String(n))}
-                inputClassName="on-glass"
-                buttonClassName="on-glass hover:on-glass"
               />
             </div>
           </div>

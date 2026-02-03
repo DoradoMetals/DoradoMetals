@@ -115,11 +115,25 @@ export default function ProductsPage() {
     }),
     ChipColumn<AdminProduct>({
       id: 'display',
-      header: 'Active',
+      header: '',
       accessorKey: 'display',
       align: 'center',
-      enableHiding: true,
       size: 110,
+      headerFilter: {
+        options: ['All', 'Active', 'Inactive'],
+        widthClass: 'w-30',
+        triggerClass: 'flex w-full justify-center items-center gap-2 border-none',
+        includeSearch: false,
+      },
+      filterFnOverride: (row, _columnId, filterValue) => {
+        if (!filterValue) return true
+        const p = row.original as AdminProduct
+        const active = !!(p.display || p.sell_display)
+        if (filterValue === 'Active') return active
+        if (filterValue === 'Inactive') return !active
+        return true
+      },
+
       getChip: ({ row }) => {
         const product = row as AdminProduct
         const active = !!(product.display || product.sell_display)
@@ -131,6 +145,7 @@ export default function ProductsPage() {
         }
       },
     }),
+
     TextColumn<AdminProduct>({
       id: 'bid_premium',
       header: 'Bid',

@@ -1,10 +1,11 @@
 'use client'
 
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, HeaderContext } from '@tanstack/react-table'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
 import { cn } from '@/shared/utils/cn'
 import { ReactNode } from 'react'
 import { Checkbox } from '@/shared/ui/base/checkbox'
+import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
 
 export type Align = 'left' | 'center' | 'right'
 
@@ -23,28 +24,35 @@ function cellAlignClass(align: Align) {
 /* -------------------------------------------------------------------------- */
 /* Base + shared helpers                                                      */
 /* -------------------------------------------------------------------------- */
+type HeaderFilterConfig = {
+  options: string[]
+  placeholder?: string
+  label?: string
+  widthClass?: string
+  triggerClass?: string
+  popoverClass?: string
+  includeSearch?: boolean
+  mapLabelToFilterValue?: (label: string) => unknown
+  mapFilterValueToLabel?: (value: unknown) => string
+}
 
 type BaseColumnOptions<TData> = {
   id: string
   accessorKey: string
-
   header?: string
   align?: Align
-
   enableHiding?: boolean
   enableColumnFilter?: boolean
-
   className?: string
   headerClassName?: string
   cellClassName?: string
-
   hideOnSmall?: boolean
-
   enableGrouping?: boolean
-
+  headerFilter?: HeaderFilterConfig
   size?: number
   minSize?: number
   maxSize?: number
+  filterFnOverride?: ColumnDef<TData>['filterFn']
 }
 
 type CellRenderArgs<TData> = {
@@ -54,8 +62,8 @@ type CellRenderArgs<TData> = {
 
 type CreateColumnOptions<TData> = BaseColumnOptions<TData> & {
   headerContent: ReactNode
+  headerRight?: (ctx: HeaderContext<TData, unknown>) => ReactNode
   renderCellContent: (args: CellRenderArgs<TData>) => ReactNode
-  filterFnOverride?: ColumnDef<TData>['filterFn']
 }
 
 function createColumn<TData>({
@@ -75,6 +83,8 @@ function createColumn<TData>({
   headerContent,
   renderCellContent,
   filterFnOverride,
+  headerRight,
+  headerFilter,
 }: CreateColumnOptions<TData>): ColumnDef<TData> {
   return {
     id,
@@ -83,13 +93,60 @@ function createColumn<TData>({
     enableGrouping,
     enableColumnFilter,
     filterFn: filterFnOverride ?? (enableColumnFilter ? 'includesString' : undefined),
-    header: () => (
-      <span
-        className={cn(headerAlignClass(align), hideOnSmall && 'hidden sm:flex', headerClassName)}
-      >
-        {headerContent}
-      </span>
-    ),
+
+    header: (ctx) => {
+      const right =
+        headerRight ??
+        (headerFilter
+          ? ({ column }: HeaderContext<TData, unknown>) => {
+              const raw = column.getFilterValue()
+
+              const valueLabel =
+                raw == null
+                  ? 'All'
+                  : (headerFilter.mapFilterValueToLabel?.(raw) ??
+                    headerFilter.options.find((opt) => {
+                      const mapped = headerFilter.mapLabelToFilterValue?.(opt) ?? opt
+                      return mapped === raw
+                    }) ??
+                    String(raw))
+
+              return (
+                <div className={cn(headerFilter.widthClass ?? 'w-[120px]')}>
+                  <PopoverSelect
+                    label={headerFilter.label}
+                    value={valueLabel}
+                    options={headerFilter.options}
+                    placeholder={headerFilter.placeholder ?? 'All'}
+                    triggerClass={cn('h-8 px-2', headerFilter.triggerClass)}
+                    popoverClass={headerFilter.popoverClass}
+                    includeSearch={headerFilter.includeSearch ?? true}
+                    onChange={(label) => {
+                      if (label === 'All') {
+                        column.setFilterValue(undefined)
+                        return
+                      }
+                      const v = headerFilter.mapLabelToFilterValue?.(label) ?? label
+                      column.setFilterValue(v)
+                    }}
+                  />
+                </div>
+              )
+            }
+          : undefined)
+
+      return (
+        <span
+          className={cn(headerAlignClass(align), hideOnSmall && 'hidden sm:flex', headerClassName)}
+        >
+          <span className="inline-flex items-center gap-2">
+            {headerContent}
+            {right?.(ctx)}
+          </span>
+        </span>
+      )
+    },
+
     cell: (ctx) => {
       const value = ctx.getValue()
       const row = ctx.row.original as TData
@@ -107,6 +164,7 @@ function createColumn<TData>({
         </div>
       )
     },
+
     size,
     minSize,
     maxSize,
@@ -121,22 +179,17 @@ type TextColumnOptions<TData> = BaseColumnOptions<TData> & {
   header: string
   textClassName?: string
   formatValue?: (value: unknown, row: TData) => ReactNode
-
-  // ✅ add this
-  filterFnOverride?: ColumnDef<TData>['filterFn']
 }
 
 export function TextColumn<TData>({
   header,
   textClassName = 'text-xs sm:text-sm text-neutral-900 block truncate whitespace-nowrap',
   formatValue,
-  filterFnOverride, // ✅ add this
   ...base
 }: TextColumnOptions<TData>): ColumnDef<TData> {
   return createColumn<TData>({
     ...base,
     headerContent: header,
-    filterFnOverride,
     renderCellContent: ({ value, row }) => {
       const v = formatValue ? formatValue(value, row) : (value as ReactNode)
       return <span className={textClassName}>{v}</span>
@@ -244,17 +297,12 @@ type ChipColumnOptions<TData> = BaseColumnOptions<TData> & {
   }
 }
 
-export function ChipColumn<TData>({
-  header,
-  getChip,
-  ...base
-}: ChipColumnOptions<TData>): ColumnDef<TData> {
+export function ChipColumn<TData>({ header, getChip, ...base }: ChipColumnOptions<TData>) {
   return createColumn<TData>({
     ...base,
     headerContent: header,
     renderCellContent: ({ value, row }) => {
       const chip = getChip({ value, row })
-
       return (
         <span
           className={cn(

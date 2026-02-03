@@ -35,7 +35,7 @@ const Drawer: FC<Props> = ({ open, setOpen, children, anchor = 'right', classNam
             exit={{ x: anchor === 'right' ? '100%' : '-100%' }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className={cn(
-              'drawer-layout',
+              'drawer-layout custom-scrollbar',
               anchor === 'right' ? 'right-0' : 'left-0',
               className
             )}
