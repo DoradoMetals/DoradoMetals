@@ -1,9 +1,14 @@
 'use client'
 
-import * as React from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/shared/utils/cn'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { CurrencyDollarIcon, PercentIcon, ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
+import {
+  CurrencyDollarIcon,
+  PercentIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+} from '@phosphor-icons/react'
 import { Input } from '@/shared/ui/base/input'
 
 type Unit = 'dollar' | 'percent'
@@ -16,6 +21,7 @@ export interface PremiumControlProps {
   spotPerOz: number
   contentOz: number
   className?: string
+  inputClassName?: string
 }
 
 const clamp = (n: number, min = 0, max = Number.POSITIVE_INFINITY) =>
@@ -26,6 +32,32 @@ const round = (n: number, dp = 4) => {
   return Math.round(n * f) / f
 }
 
+function parseNum(s: string) {
+  if (s.trim() === '') return NaN
+  const n = Number(s.replace(/,/g, ''))
+  return isFinite(n) ? n : NaN
+}
+
+function formatByUnit(percentAbs: number, dollarAbs: number, u: Unit) {
+  const n = u === 'percent' ? percentAbs : dollarAbs
+  return Number.isFinite(n) ? n.toFixed(2) : ''
+}
+
+function percentAbsFromInput(input: string, unit: Unit, spotPerOz: number, contentOz: number) {
+  const raw = parseNum(input)
+  if (isNaN(raw)) return 0
+
+  if (unit === 'percent') return clamp(raw, 0, 1000)
+
+  const denom = spotPerOz * contentOz
+  const pct = denom > 0 ? (raw / denom) * 100 : 0
+  return clamp(pct, 0, 1000)
+}
+
+function multiplierFrom(percentAbs: number, direction: Direction) {
+  return direction === 'over' ? 1 + percentAbs / 100 : 1 - percentAbs / 100
+}
+
 export default function PremiumControl({
   label,
   value,
@@ -33,57 +65,34 @@ export default function PremiumControl({
   spotPerOz,
   contentOz,
   className,
+  inputClassName,
 }: PremiumControlProps) {
   const initialDirection: Direction = value >= 1 ? 'over' : 'under'
   const initialPercentAbs = Math.abs(value - 1) * 100
   const initialDollarAbs = (initialPercentAbs / 100) * spotPerOz * contentOz
 
-  const [unit, setUnit] = React.useState<Unit>('percent')
-  const [direction, setDirection] = React.useState<Direction>(initialDirection)
-  const [input, setInput] = React.useState<string>(() =>
+  const [unit, setUnit] = useState<Unit>('percent')
+  const [direction, setDirection] = useState<Direction>(initialDirection)
+  const [input, setInput] = useState<string>(() =>
     formatByUnit(initialPercentAbs, initialDollarAbs, 'percent')
   )
 
-  React.useEffect(() => {
-    const percentAbs = getPercentAbsFromCurrentInput()
-    const dollarAbs = (percentAbs / 100) * spotPerOz * contentOz
-    setInput(formatByUnit(percentAbs, dollarAbs, unit))
+  useEffect(() => {
+    const pct = percentAbsFromInput(input, unit, spotPerOz, contentOz)
+    const dollars = (pct / 100) * spotPerOz * contentOz
+    setInput(formatByUnit(pct, dollars, unit))
   }, [unit, spotPerOz, contentOz])
 
-  React.useEffect(() => {
-    const percentAbs = getPercentAbsFromCurrentInput()
-    const multiplier = direction === 'over' ? 1 + percentAbs / 100 : 1 - percentAbs / 100
-
-    onChange(round(multiplier))
-  }, [input, direction])
-
-  function parseNum(s: string) {
-    if (s.trim() === '') return NaN
-    const n = Number(s.replace(/,/g, ''))
-    return isFinite(n) ? n : NaN
-  }
-
-  function getPercentAbsFromCurrentInput(): number {
-    const raw = parseNum(input)
-    if (isNaN(raw)) return 0
-
-    if (unit === 'percent') {
-      return clamp(raw, 0, 1000)
-    }
-    const denom = spotPerOz * contentOz
-    const pct = denom > 0 ? (raw / denom) * 100 : 0
-    return clamp(pct, 0, 1000)
-  }
-
-  function formatByUnit(percentAbs: number, dollarAbs: number, u: Unit) {
-    const n = u === 'percent' ? percentAbs : dollarAbs
-    return Number.isFinite(n) ? n.toFixed(2) : ''
-  }
-
-  const display = React.useMemo(
+  const display = useMemo(
     () => (input === '' ? '' : unit === 'dollar' ? `$${input}` : `${input}%`),
     [unit, input]
   )
+
+  function commit(nextInput: string, nextDirection: Direction) {
+    const pct = percentAbsFromInput(nextInput, unit, spotPerOz, contentOz)
+    onChange(round(multiplierFrom(pct, nextDirection)))
+  }
+
   return (
     <div className={cn('flex flex-col w-full gap-1', className)}>
       <div className="text-xs font-medium text-neutral-700 pl-1">{label}</div>
@@ -91,26 +100,27 @@ export default function PremiumControl({
       <div className="flex items-center gap-2">
         <RadioGroup
           value={unit}
-          onValueChange={(v) => setUnit(v as Unit)}
-          className="flex items-center gap-0 raised-off-page rounded-lg"
+          onValueChange={(v) => {
+            setUnit(v as Unit)
+          }}
+          className="flex items-center gap-0 rounded-lg p-0"
         >
           <RadioPill
             id={`${label}-unit-dollar`}
             value="dollar"
             groupValue={unit}
-            className="border-0 rounded-none rounded-l-lg"
-            ariaLabel="Dollar input"
-            activeClassName="bg-primary text-white"
+            activeClass="primary-on-glass rounded-l-lg"
+            inactiveClass="rounded-l-lg on-glass"
           >
             <CurrencyDollarIcon size={18} />
           </RadioPill>
+
           <RadioPill
             id={`${label}-unit-percent`}
             value="percent"
             groupValue={unit}
-            className="rounded-none rounded-r-lg"
-            ariaLabel="Percent input"
-            activeClassName="bg-primary text-white"
+            activeClass="primary-on-glass rounded-r-lg"
+            inactiveClass="rounded-r-lg on-glass"
           >
             <PercentIcon size={18} />
           </RadioPill>
@@ -120,7 +130,7 @@ export default function PremiumControl({
           <Input
             inputMode="decimal"
             type="text"
-            className="bg-highest border-border h-10 text-center"
+            className={cn('h-10 text-center hover:on-glass', inputClassName)}
             value={display}
             onChange={(e) => {
               const cleaned = e.target.value
@@ -128,6 +138,7 @@ export default function PremiumControl({
                 .replace(/[^\d.]/g, '')
                 .replace(/(\..*)\./g, '$1')
               setInput(cleaned)
+              commit(cleaned, direction)
             }}
             onFocus={(e) => {
               requestAnimationFrame(() => {
@@ -143,9 +154,11 @@ export default function PremiumControl({
               })
             }}
             onBlur={() => {
-              const pct = getPercentAbsFromCurrentInput()
+              const pct = percentAbsFromInput(input, unit, spotPerOz, contentOz)
               const dollars = (pct / 100) * spotPerOz * contentOz
-              setInput(formatByUnit(pct, dollars, unit))
+              const formatted = formatByUnit(pct, dollars, unit)
+              setInput(formatted)
+              commit(formatted, direction)
             }}
             placeholder={unit === 'dollar' ? '$' : '%'}
           />
@@ -153,26 +166,30 @@ export default function PremiumControl({
 
         <RadioGroup
           value={direction}
-          onValueChange={(v) => setDirection(v as Direction)}
-          className="flex items-center gap-0 raised-off-page rounded-lg"
+          onValueChange={(v) => {
+            const next = v as Direction
+            setDirection(next)
+            commit(input, next)
+          }}
+          className="flex items-center gap-0 rounded-lg p-0"
         >
           <RadioPill
             id={`${label}-dir-over`}
             value="over"
             groupValue={direction}
-            ariaLabel="Over spot"
-            intent="success"
-            className="border-0 rounded-none rounded-l-lg"
+            activeClass="rounded-l-lg success-on-glass"
+            inactiveClass="rounded-l-lg on-glass"
           >
             <ArrowUpIcon size={18} />
           </RadioPill>
+
+
           <RadioPill
             id={`${label}-dir-under`}
             value="under"
             groupValue={direction}
-            ariaLabel="Under spot"
-            intent="destructive"
-            className="border-0 rounded-none rounded-r-lg"
+            activeClass="rounded-r-lg destructive-on-glass"
+            inactiveClass="rounded-r-lg on-glass"
           >
             <ArrowDownIcon size={18} />
           </RadioPill>
@@ -187,44 +204,23 @@ function RadioPill({
   value,
   groupValue,
   children,
-  className,
-  ariaLabel,
-  intent,
-  activeClassName,
+  activeClass,
+  inactiveClass,
 }: {
   id: string
   value: string
   groupValue: string
-  children: React.ReactNode
-  className?: string
-  ariaLabel?: string
-  intent?: 'success' | 'destructive'
-  activeClassName?: string
+  children: any
+  activeClass: string
+  inactiveClass: string
 }) {
   const active = groupValue === value
-  const intentClasses =
-    intent === 'success'
-      ? active
-        ? 'bg-success/20 text-success border-success'
-        : 'bg-highest text-neutral-800 border-border'
-      : intent === 'destructive'
-      ? active
-        ? 'bg-destructive/20 text-destructive border-destructive'
-        : 'bg-highest text-neutral-800 border-border'
-      : active
-      ? 'bg-highest text-neutral-900 border-primary'
-      : 'bg-highest text-neutral-800 border-border'
-
   return (
     <label
       htmlFor={id}
-      aria-label={ariaLabel}
       className={cn(
-        'h-10 px-2 inline-flex items-center justify-center border rounded-lg cursor-pointer select-none',
-        'min-w-10',
-        intentClasses,
-        active && activeClassName,
-        className
+        'h-10 px-2 min-w-10 flex items-center justify-center cursor-pointer select-none transition-colors',
+        active ? activeClass : inactiveClass
       )}
     >
       <RadioGroupItem id={id} value={value} className="sr-only" />

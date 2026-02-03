@@ -183,7 +183,7 @@ function AdminShell() {
   return (
     <div className="w-full h-full">
       <div className="md:hidden">
-        <div className="mx-auto w-full max-w-7xl px-3 py-2 flex items-center justify-between">
+        <div className="mx-auto w-full max-w-7xl py-2 flex items-center justify-between">
           <button
             onClick={() => openDrawer('adminSidebar')}
             className="flex items-center gap-2 text-neutral-800 hover:text-primary"
@@ -204,13 +204,13 @@ function AdminShell() {
           roleIcon={RoleIcon}
           roleTitle="Dorado Admin"
           roleSubtitle={roleMeta.label ?? 'Admin'}
-          content={<div className="mx-auto w-full max-w-7xl px-3">{content}</div>}
-          navClass="glass-panel"
+          content={content}
+          navClass="glass-card"
         />
       </div>
 
       <div className="md:hidden">
-        <main className="mx-auto w-full max-w-7xl px-3 py-4">{content}</main>
+        {content}
       </div>
 
       <Drawer

@@ -142,7 +142,7 @@ export default function AuctionsPage() {
     canSubmit: () => !createAuction.isPending,
   }
 
-  const handleRowClick = (row: Row<Auction>) => {
+  const handleRowClick = (row: Row<AuctionWithStats>) => {
     setActiveAuction(row.original.id)
     openDrawer('auctions')
   }
