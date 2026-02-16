@@ -16,8 +16,8 @@ export default function AuctionBanner({ type }: { type: 'Bid' | 'Ask' }) {
   if (!spots) return null
 
   return (
-    <div className="flex flex-col items-center gap-0 ml-auto w-full border-y-1 bg-black/75 backdrop-blur-sm shadow-xl">
-      <div className="flex items-center w-full bg-primary/65 p-2 border-b-1">
+    <div className="flex flex-col items-center gap-0 ml-auto w-full shadow-xl bg-white/25 backdrop-blur-sm border-y-1 border-white/65">
+      {/* <div className="flex items-center w-full bg-primary/65 p-2 border-b-1">
         <div className="border-r-1 pr-2">
           <Image src={'/icons/branding/symbol/white/symbol.png'} height={100} width={100} alt="DME" />
         </div>
@@ -25,7 +25,7 @@ export default function AuctionBanner({ type }: { type: 'Bid' | 'Ask' }) {
         <div className="w-full pl-4">
           <ContactBar />
         </div>
-      </div>
+      </div> */}
 
       <div className="p-2">
         <SpotBar spots={spots} type={type} />
@@ -89,7 +89,7 @@ function SpotBar({ spots, type }: { spots: SpotPrice[]; type: 'Bid' | 'Ask' }) {
 
           return (
             <div key={`${spot.id}-${i}`} className="flex items-center gap-2">
-              <span className="text-lg text-white/80 uppercase tracking-wide">{spot.type}</span>
+              <span className="text-lg text-white/95 uppercase tracking-wide">{spot.type}</span>
               <NumberFlowGroup>
                 <div className="text-3xl flex font-bold items-center text-white tabular-nums">
                   <PriceNumberFlow value={type === 'Bid' ? spot.bid_spot : spot.ask_spot} />
