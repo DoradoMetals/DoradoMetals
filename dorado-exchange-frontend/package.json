@@ -8,6 +8,14 @@
     "start": "next start",
     "lint": "next lint"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@sentry/cli",
+      "@tailwindcss/oxide",
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
   "dependencies": {
     "@better-auth/stripe": "^1.4.9",
     "@dnd-kit/core": "^6.3.1",
