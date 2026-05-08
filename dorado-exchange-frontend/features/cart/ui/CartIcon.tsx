@@ -20,7 +20,7 @@ const iconVariants = {
     rotate: 45,
     scale: 0.9,
     transition: {
-      type: 'spring',
+      type: 'spring' as const,
       stiffness: 260,
       damping: 20,
     },
