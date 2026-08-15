@@ -1,115 +1,21 @@
-import query from "#shared/db/query.js";
+// Selects which schema the rates feature reads and writes. Same pattern as
+// leads: see api/features/leads/repo.js for the reasoning.
+//
+//   RATES_SOURCE=exchange   (default) reads and writes exchange.rates
+//   RATES_SOURCE=core                 reads and writes core.rates
+//
+// Gate on `pnpm --filter @dorado/api diff:rates` before flipping.
+import * as exchange from "#features/rates/repo.exchange.js";
+import * as core from "#features/rates/repo.core.js";
 
-export async function getRate(id) {
-  const sql = `
-    SELECT
-      r.id,
-      r.metal_id,
-      m.type AS metal,
-      r.unit,
-      r.min_qty,
-      r.max_qty,
-      r.scrap_pct,
-      r.bullion_pct,
-      r.created_at,
-      r.updated_at,
-      r.created_by,
-      r.updated_by
-    FROM exchange.rates r
-    JOIN exchange.metals m ON m.id = r.metal_id
-    WHERE r.id = $1
-  `;
-  const { rows } = await query(sql, [id]);
-  return rows[0];
-}
+const SOURCE = process.env.RATES_SOURCE === "core" ? "core" : "exchange";
+const impl = SOURCE === "core" ? core : exchange;
 
-export async function getAllRates() {
-  const sql = `
-    SELECT
-      r.id,
-      m.type AS metal,
-      r.unit,
-      r.min_qty,
-      r.max_qty,
-      r.scrap_pct,
-      r.bullion_pct
-    FROM exchange.rates r
-    JOIN exchange.metals m ON m.id = r.metal_id
-    ORDER BY m.type, r.min_qty
-  `;
-  const { rows } = await query(sql, []);
-  return rows;
-}
+export const activeSource = SOURCE;
 
-export async function getAdminRates() {
-  const sql = `
-    SELECT
-      r.id,
-      r.metal_id,
-      m.type AS metal,
-      r.unit,
-      r.min_qty,
-      r.max_qty,
-      r.scrap_pct,
-      r.bullion_pct,
-      r.created_at,
-      r.updated_at,
-      r.created_by,
-      r.updated_by
-    FROM exchange.rates r
-    JOIN exchange.metals m ON m.id = r.metal_id
-    ORDER BY m.type, r.min_qty
-  `;
-  const { rows } = await query(sql, []);
-  return rows;
-}
-
-export async function createRate(rate, user_name = "Dorado Admin") {
-  const sql = `
-    INSERT INTO exchange.rates
-      (id, metal_id, min_qty, max_qty, scrap_pct, bullion_pct, created_by, updated_by)
-    VALUES
-      (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $6)
-    RETURNING *;
-  `;
-  const values = [
-    rate.metal_id,
-    rate.min_qty,
-    rate.max_qty ?? null,
-    rate.scrap_pct,
-    rate.bullion_pct,
-    user_name ?? "Dorado Admin",
-  ];
-  const { rows } = await query(sql, values);
-  return rows[0];
-}
-
-export async function updateRate(rate, user_name) {
-  const sql = `
-    UPDATE exchange.rates
-    SET
-      min_qty = $1,
-      max_qty = $2,
-      scrap_pct = $3,
-      bullion_pct = $4,
-      updated_at = now(),
-      updated_by = $5
-    WHERE id = $6
-    RETURNING *;
-  `;
-  const values = [
-    rate.min_qty ?? 0,
-    rate.max_qty ?? null,
-    rate.scrap_pct ?? 0,
-    rate.bullion_pct ?? 0,
-    user_name ?? 'Dorado Admin',
-    rate.id,
-  ];
-  const { rows } = await query(sql, values);
-  return rows[0];
-}
-
-export async function deleteRate(id) {
-  await query(`DELETE FROM exchange.rates WHERE id = $1`, [id]);
-  return { success: true };
-}
+export const getRate = impl.getRate;
+export const getAllRates = impl.getAllRates;
+export const getAdminRates = impl.getAdminRates;
+export const createRate = impl.createRate;
+export const updateRate = impl.updateRate;
+export const deleteRate = impl.deleteRate;

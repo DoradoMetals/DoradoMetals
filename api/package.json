@@ -14,7 +14,8 @@
     "audit:nullability": "node scripts/audit-nullability.mjs",
     "validate:wire": "node scripts/validate-wire.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "diff:leads": "node scripts/diff-leads.mjs"
+    "diff:leads": "node scripts/diff-leads.mjs",
+    "diff": "node scripts/diff-source.mjs"
   },
   "imports": {
     "#db": "./db.js",
