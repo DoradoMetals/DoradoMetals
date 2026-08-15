@@ -26,6 +26,9 @@ jobs:
 
       # Catches the two defect shapes that have reached production:
       # an executor passed in the params slot, and an un-awaited query().
+      - name: contracts - build
+        run: pnpm --filter @dorado/contracts build
+
       - name: api - database call checks
         run: pnpm --filter @dorado/api lint:db
 
