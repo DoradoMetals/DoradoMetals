@@ -32,6 +32,9 @@ jobs:
       - name: api - database call checks
         run: pnpm --filter @dorado/api lint:db
 
+      - name: api - typecheck
+        run: pnpm --filter @dorado/api typecheck
+
       - name: api - tests
         run: pnpm --filter @dorado/api test
 

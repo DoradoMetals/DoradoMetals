@@ -12,7 +12,8 @@
     "migrate": "node scripts/migrate.mjs",
     "migrate:status": "node scripts/migrate.mjs --status",
     "audit:nullability": "node scripts/audit-nullability.mjs",
-    "validate:wire": "node scripts/validate-wire.mjs"
+    "validate:wire": "node scripts/validate-wire.mjs",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "imports": {
     "#db": "./db.js",
@@ -41,5 +42,13 @@
     "stripe": "^18.5.0",
     "@dorado/contracts": "workspace:*",
     "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^22.10.2",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/pg": "^8.11.10",
+    "@types/nodemailer": "^6.4.17"
   }
 }
