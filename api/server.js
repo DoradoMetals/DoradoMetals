@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import pg from "pg";
 
 import productRoutes from "#features/products/routes.js";
 import addressRoutes from "#features/addresses/routes.js";
@@ -31,9 +30,6 @@ import { auth } from "#features/auth/client.js";
 import { setupScheduler } from "#shared/cron/scheduler.js";
 import { handleStripeWebhook } from "#features/stripe/controller.js";
 import errorHandler from "#shared/middleware/errorHandler.js";
-
-const { types } = pg;
-types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
 
 const app = express();
 const PORT = process.env.PORT || 5000;

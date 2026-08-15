@@ -10,3 +10,5 @@ docker-compose.override.yml
 node_modules
 dist
 .DS_Store
+# contracts generator reads DATABASE_URL from a local copy
+packages/contracts/.env
