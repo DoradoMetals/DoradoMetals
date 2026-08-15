@@ -3,6 +3,7 @@ import { apiRequest } from '@/shared/queries/axios'
 import { PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
 import { Product } from '@/features/products/types'
+import { PayoutDetails } from '@/features/payouts/types'
 import getPurchaseOrderItemPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderItemPrice'
 import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
 import { useGetSession } from '@/features/auth/queries'
@@ -1411,3 +1412,20 @@ export const useUpdatePoolRemediation = () => {
 }
 
 
+
+// Full bank details for one payout. These are deliberately absent from the
+// order payloads - the orders list would otherwise carry every customer's
+// routing and account number - so they are fetched per order, on demand, only
+// where an admin actually needs them to execute a transfer.
+export const usePayoutDetails = (order_id: string | undefined, enabled: boolean) => {
+  return useQuery<PayoutDetails>({
+    queryKey: ['payout_details', order_id],
+    queryFn: async () =>
+      await apiRequest<PayoutDetails>('POST', '/purchase_orders/get_payout_details', {
+        order_id,
+      }),
+    enabled: !!order_id && enabled,
+    staleTime: 0,
+    gcTime: 0,
+  })
+}

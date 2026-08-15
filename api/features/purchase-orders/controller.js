@@ -196,3 +196,8 @@ export const updatePoolRemediation = asyncHandler(async (req, res) => {
   const updated = await purchaseOrderService.updatePoolRemediation(req.body);
   return res.status(200).json({ updated });
 });
+
+export const getPayoutDetails = asyncHandler(async (req, res) => {
+  const details = await purchaseOrderService.getPayoutDetails(req.body);
+  return res.status(200).json(details);
+});

@@ -30,6 +30,27 @@ const shipmentJson = (alias) => `
         'carrier_id', ${alias}.carrier_id
       )`;
 
+// Payouts hold bank routing and account numbers. to_jsonb(pay) splatted the
+// whole row into every order response, so the admin orders table shipped every
+// customer's bank credentials to the browser on each load. Only the last four
+// digits travel with an order now; the full values are read one order at a time
+// through the admin-only payout-details endpoint.
+const payoutJson = `
+      jsonb_build_object(
+        'id', pay.id,
+        'user_id', pay.user_id,
+        'order_id', pay.order_id,
+        'method', pay.method,
+        'account_holder_name', pay.account_holder_name,
+        'bank_name', pay.bank_name,
+        'account_type', pay.account_type,
+        'account_last4', right(pay.account_number, 4),
+        'routing_last4', right(pay.routing_number, 4),
+        'email_to', pay.email_to,
+        'cost', pay.cost,
+        'created_at', pay.created_at
+      )`;
+
 // The post-melt assay figures are admin-only, so customer-facing lookups omit
 // them. Only the admin getAll() query passes withActuals.
 const scrapJson = (withActuals) => `
@@ -87,7 +108,7 @@ function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
       ${shipmentJson("ship")} AS shipment,
       ${shipmentJson("ret")} AS return_shipment,
       to_jsonb(cp) AS carrier_pickup,
-      to_jsonb(pay) AS payout,
+      ${payoutJson} AS payout,
       jsonb_build_object(
         'user_id', u.id,
         'user_name', u.name,
@@ -658,4 +679,18 @@ export async function updatePoolRemediation(purchase_order_id, pool_remediation)
   `;
   const values = [pool_remediation, purchase_order_id];
   return await query(sql, values);
+}
+// Full bank details for a single payout. Deliberately separate from the order
+// queries so the numbers are fetched deliberately, one order at a time, by an
+// admin executing a transfer - rather than riding along with every order list.
+export async function findPayoutDetails(order_id, executor) {
+  const sql = `
+    SELECT id, order_id, method, account_holder_name, bank_name,
+           account_type, routing_number, account_number, email_to
+    FROM exchange.payouts
+    WHERE order_id = $1
+    LIMIT 1
+  `;
+  const { rows } = await query(sql, [order_id], executor);
+  return rows[0] ?? null;
 }

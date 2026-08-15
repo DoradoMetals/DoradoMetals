@@ -1,4 +1,7 @@
+'use client'
+
 import { payoutOptions } from '@/features/payouts/types'
+import { usePayoutDetails } from '@/features/orders/purchaseOrders/admin/queries'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import RefinerValues from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editRefinerValues'
@@ -10,6 +13,17 @@ export default function AdminPaymentProcessingPurchaseOrder({
   const config = statusConfig[order.purchase_order_status]
   const payout = payoutOptions.find((p) => p.method === order.payout?.method)
   const Icon = payout?.icon
+
+  // Bank details are not carried by the order payload. Fetch them only for the
+  // two methods that need them, and only while this drawer is open.
+  const needsBankDetails =
+    order.payout?.method === 'ACH' || order.payout?.method === 'WIRE'
+  const { data: bank, isLoading: bankLoading } = usePayoutDetails(
+    order.id,
+    needsBankDetails
+  )
+  const show = (value: string | null | undefined) =>
+    bankLoading ? 'loading…' : (value ?? '—')
 
   return (
     <div className="flex flex-col items-center w-full gap-4 h-full">
@@ -40,8 +54,8 @@ export default function AdminPaymentProcessingPurchaseOrder({
                     <p>{order.payout.account_holder_name}</p>
                     <p>{order.payout.account_type}</p>
                     <p>{order.payout.bank_name}</p>
-                    <p>{order.payout.routing_number}</p>
-                    <p>{order.payout.account_number}</p>
+                    <p>{show(bank?.routing_number)}</p>
+                    <p>{show(bank?.account_number)}</p>
                   </div>
                 </div>
               </div>
@@ -57,8 +71,8 @@ export default function AdminPaymentProcessingPurchaseOrder({
                   </div>
                   <div className="flex flex-col text-right">
                     <p>{order.payout.account_holder_name}</p>
-                    <p>{order.payout.routing_number}</p>
-                    <p>{order.payout.account_number}</p>
+                    <p>{show(bank?.routing_number)}</p>
+                    <p>{show(bank?.account_number)}</p>
                   </div>
                 </div>
               </div>

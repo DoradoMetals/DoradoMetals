@@ -582,3 +582,9 @@ export async function updatePoolRemediation({
     pool_remediation
   );
 }
+
+// Full bank details for one payout. Admin-only, and deliberately a separate
+// call so the numbers are not carried by every order response.
+export async function getPayoutDetails({ order_id }) {
+  return purchaseOrderRepo.findPayoutDetails(order_id);
+}

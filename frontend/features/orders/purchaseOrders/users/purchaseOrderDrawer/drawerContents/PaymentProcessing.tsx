@@ -28,8 +28,8 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
                   </div>
                   <div className="flex flex-col text-right">
                     <p>{order.payout.account_holder_name}</p>
-                    <p>{order.payout.routing_number}</p>
-                    <p>{order.payout.account_number}</p>
+                    <p>••••{order.payout.routing_last4}</p>
+                    <p>••••{order.payout.account_last4}</p>
                   </div>
                 </div>
               </div>
@@ -45,8 +45,8 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
                   </div>
                   <div className="flex flex-col text-right">
                     <p>{order.payout.account_holder_name}</p>
-                    <p>{order.payout.routing_number}</p>
-                    <p>{order.payout.account_number}</p>
+                    <p>••••{order.payout.routing_last4}</p>
+                    <p>••••{order.payout.account_last4}</p>
                   </div>
                 </div>
               </div>

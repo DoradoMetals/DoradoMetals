@@ -34,6 +34,7 @@ import {
   updateRefinerFee,
   updatePoolOzDeducted,
   updatePoolRemediation,
+  getPayoutDetails,
 } from "#features/purchase-orders/controller.js";
 
 import { 
@@ -79,5 +80,8 @@ router.post('/update_shipping_actual', requireAdmin, updateShippingActual);
 router.post('/update_refiner_fee', requireAdmin, updateRefinerFee);
 router.post('/update_pool_oz_deducted', requireAdmin, updatePoolOzDeducted);
 router.post('/update_pool_remediation', requireAdmin, updatePoolRemediation);
+
+// Full bank details, admin only. Kept off the order payloads on purpose.
+router.post('/get_payout_details', requireAdmin, getPayoutDetails);
 
 export default router;

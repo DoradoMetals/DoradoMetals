@@ -8,6 +8,9 @@ import {
   CoinsIcon,
 } from '@phosphor-icons/react'
 
+// The payout as it arrives on an order. Full routing and account numbers are
+// deliberately absent - see PayoutDetails at the bottom of this file for the
+// admin-only endpoint that returns them one order at a time.
 export interface Payout {
   id: string
   user_id: string
@@ -16,8 +19,8 @@ export interface Payout {
   account_holder_name: string
   bank_name?: string
   account_type?: string
-  routing_number?: string
-  account_number?: string
+  routing_last4?: string | null
+  account_last4?: string | null
   created_at: Date
   email_to?: string
   cost: number
@@ -220,3 +223,17 @@ export const accountTypeOptions = [
     icon: PiggyBankIcon,
   },
 ]
+
+// Returned only by /purchase_orders/get_payout_details (admin only). Order
+// payloads carry account_last4 / routing_last4 instead.
+export type PayoutDetails = {
+  id: string
+  order_id: string
+  method: string
+  account_holder_name: string | null
+  bank_name: string | null
+  account_type: string | null
+  routing_number: string | null
+  account_number: string | null
+  email_to: string | null
+}
