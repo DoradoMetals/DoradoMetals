@@ -8,7 +8,10 @@
     "dev": "node --watch server.js",
     "start": "node server.js",
     "test": "node --test",
-    "lint:db": "node scripts/lint-db-calls.mjs"
+    "lint:db": "node scripts/lint-db-calls.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "migrate:status": "node scripts/migrate.mjs --status",
+    "audit:nullability": "node scripts/audit-nullability.mjs"
   },
   "imports": {
     "#db": "./db.js",

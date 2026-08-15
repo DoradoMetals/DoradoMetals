@@ -22,6 +22,64 @@ const LOCK_KEY = 8451723; // arbitrary, just has to be stable
 
 const sha = (s) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
 
+// Splits a migration into individual statements.
+//
+// Needed only for no-transaction migrations: node-postgres sends a
+// multi-statement string as a single simple query, and Postgres wraps those in
+// an implicit transaction block - which is exactly what CREATE INDEX
+// CONCURRENTLY refuses to run inside. Sending one statement per round trip
+// avoids the implicit block.
+//
+// Aware of line comments, single-quoted strings and dollar-quoted bodies, so a
+// semicolon inside any of those does not split a statement.
+function splitStatements(sql) {
+  const out = [];
+  let cur = "";
+  let i = 0;
+
+  while (i < sql.length) {
+    const two = sql.slice(i, i + 2);
+
+    if (two === "--") {
+      const nl = sql.indexOf("\n", i);
+      i = nl === -1 ? sql.length : nl;
+      continue;
+    }
+    if (two === "/*") {
+      const end = sql.indexOf("*/", i);
+      i = end === -1 ? sql.length : end + 2;
+      continue;
+    }
+    if (sql[i] === "'") {
+      const end = sql.indexOf("'", i + 1);
+      const stop = end === -1 ? sql.length : end + 1;
+      cur += sql.slice(i, stop);
+      i = stop;
+      continue;
+    }
+    const dollar = /^\$[A-Za-z_]*\$/.exec(sql.slice(i));
+    if (dollar) {
+      const tag = dollar[0];
+      const end = sql.indexOf(tag, i + tag.length);
+      const stop = end === -1 ? sql.length : end + tag.length;
+      cur += sql.slice(i, stop);
+      i = stop;
+      continue;
+    }
+    if (sql[i] === ";") {
+      if (cur.trim()) out.push(cur.trim());
+      cur = "";
+      i++;
+      continue;
+    }
+    cur += sql[i];
+    i++;
+  }
+
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+
 function migrationFiles() {
   if (!fs.existsSync(MIGRATIONS_DIR)) return [];
   return fs
@@ -124,7 +182,11 @@ async function main() {
 
         if (!noTx) await client.query("BEGIN");
         try {
-          await client.query(f.sql);
+          if (noTx) {
+            for (const stmt of splitStatements(f.sql)) await client.query(stmt);
+          } else {
+            await client.query(f.sql);
+          }
           await client.query(
             `INSERT INTO exchange.schema_migrations (name, checksum) VALUES ($1, $2)`,
             [f.name, f.checksum]
