@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { PayoutsRow } from "../generated/tables.js";
+import { PayoutsRow } from "../generated/exchange.js";
 
 // How a payout appears on an order. Routing and account numbers are absent by
 // design: carrying them here meant the admin orders list shipped every

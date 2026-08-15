@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { AddressesRow } from "../generated/tables.js";
+import { AddressesRow } from "../generated/exchange.js";
 
 // What GET /addresses returns. The addresses endpoints select whole rows, so
 // the wire shape is the table shape - no nesting, no renames. Stated by

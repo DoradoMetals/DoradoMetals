@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { LeadsRow } from "../generated/tables.js";
+import { LeadsRow } from "../generated/exchange.js";
 
 export const LeadWire = LeadsRow;
 export type LeadWire = z.infer<typeof LeadWire>;

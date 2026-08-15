@@ -13,5 +13,10 @@
 // Form schemas belong to the frontend, not this package: they layer UI
 // messages and input coercion on top of a wire schema, and the wire schema
 // must stay free of both.
-export * from "./generated/tables.js";
+export * from "./generated/exchange.js";
+
+// The domain-namespaced schemas the migration is moving toward. Namespaced
+// because table names collide with exchange by design - core.LeadsRow and the
+// exchange LeadsRow are the same concept at two points in the migration.
+export * as core from "./generated/core.js";
 export * from "./wire/index.js";

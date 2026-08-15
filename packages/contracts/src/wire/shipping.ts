@@ -5,7 +5,7 @@ import {
   ShipmentsRow,
   CarrierPickupsRow,
   TrackingEventsRow,
-} from "../generated/tables.js";
+} from "../generated/exchange.js";
 
 export const CarrierWire = CarriersRow;
 export type CarrierWire = z.infer<typeof CarrierWire>;

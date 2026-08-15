@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { RatesRow } from "../generated/tables.js";
+import { RatesRow } from "../generated/exchange.js";
 
 // GET /rates. The query joins metals and returns the metal's name in place of
 // its id, and drops the audit columns.

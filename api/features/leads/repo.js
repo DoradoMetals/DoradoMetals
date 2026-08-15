@@ -1,88 +1,31 @@
-import query from "#shared/db/query.js";
+// Selects which schema the leads feature reads and writes.
+//
+// The database holds two: the live `exchange` schema, and the
+// domain-namespaced schemas a migration is moving toward. Leads is the first
+// feature to move, and it moves behind this switch rather than behind a deploy:
+//
+//   LEADS_SOURCE=exchange   (default) reads and writes exchange.leads
+//   LEADS_SOURCE=core                 reads and writes core.leads
+//
+// Nothing above this file knows the difference - the service, controller and
+// routes are untouched, and both implementations satisfy the same contract.
+// Rolling back is an environment variable, not a revert and redeploy.
+//
+// Before flipping to core, run migration 003 to bring core.leads up to date,
+// and `pnpm --filter @dorado/api diff:leads` to confirm the two return
+// identical responses. Once core has been serving for long enough to trust,
+// repo.exchange.js and this switch both go away.
+import * as exchange from "#features/leads/repo.exchange.js";
+import * as core from "#features/leads/repo.core.js";
 
-export async function getLead(id) {
-  const sql = `
-    SELECT *
-    FROM exchange.leads
-    WHERE id = $1
-  `;
-  const values = [id];
-  const result = await query(sql, values);
-  return result.rows[0];
-}
+const SOURCE = process.env.LEADS_SOURCE === "core" ? "core" : "exchange";
 
-export async function getAllLeads() {
-  const sql = `
-    SELECT *
-    FROM exchange.leads
-    ORDER BY created_at DESC
-  `;
-  const result = await query(sql, []);
-  return result.rows;
-}
+const impl = SOURCE === "core" ? core : exchange;
 
-export async function createLead(lead) {
-  const sql = `
-    INSERT INTO exchange.leads
-      (name, phone, email, created_by, updated_by, priority, notes, last_contacted)
-    VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'Medium'), $7, NOW())
-    RETURNING *;
-  `;
-  const values = [
-    lead.name,
-    lead.phone,
-    lead.email,
-    lead.created_by,
-    lead.updated_by,
-    lead.priority,
-    lead.notes ?? null,
-  ];
-  const result = await query(sql, values);
-  return result.rows[0];
-}
+export const activeSource = SOURCE;
 
-export async function updateLead(lead, user_name) {
-  const sql = `
-    UPDATE exchange.leads
-    SET name = $1,
-        phone = $2,
-        email = $3,
-        updated_at = NOW(),
-        updated_by = $4,
-        last_contacted = $5,
-        converted = $6,
-        contacted = $7,
-        responded = $8,
-        contact = $9,
-        notes = $10,
-        priority = $11
-    WHERE id = $12
-    RETURNING *;
-  `;
-
-  const values = [
-    lead.name,
-    lead.phone,
-    lead.email,
-    user_name,
-    lead.last_contacted,
-    lead.converted,
-    lead.contacted,
-    lead.responded,
-    lead.contact,
-    lead.notes,
-    lead.priority,
-    lead.id,
-  ];
-
-  const result = await query(sql, values);
-  return result.rows[0];
-}
-
-export async function deleteLead(id) {
-  const sql = `
-    DELETE FROM exchange.leads WHERE id = $1
-  `;
-  const values = [id];
-  return await query(sql, values);
-}
+export const getLead = impl.getLead;
+export const getAllLeads = impl.getAllLeads;
+export const createLead = impl.createLead;
+export const updateLead = impl.updateLead;
+export const deleteLead = impl.deleteLead;

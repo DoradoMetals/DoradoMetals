@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { UsersRow } from "../generated/tables.js";
+import { UsersRow } from "../generated/exchange.js";
 
 // The user endpoints alias better-auth's camelCase columns to snake_case and
 // omit the Stripe and ban columns. This is one of the few places where the wire
