@@ -20,7 +20,7 @@ const PAIRS = [
   ["exchange.rates", "rates.rates"],
   ["exchange.metals", "metals.metals"],
   ["exchange.products", "products.bullion"],
-  ["exchange.mints", "products.mints"],
+  ["exchange.mints", "products.mints_exchange_compat"],
   ["exchange.images", "media.images"],
   ["exchange.addresses", "orders.addresses"],
   ["exchange.purchase_orders", "orders.orders"],

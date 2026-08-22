@@ -87,6 +87,11 @@ const FEATURES = {
     ],
     context: async (m) => ({ id: (await m.getAll())[0]?.id }),
   },
+  mints: {
+    exchange: () => import("#features/mints/repo.exchange.js"),
+    next: () => import("#features/mints/repo.next.js"),
+    reads: [["getAllMints", (m) => m.getAllMints()]],
+  },
   products: {
     exchange: () => import("#features/products/repo.exchange.js"),
     next: () => import("#features/products/repo.next.js"),
@@ -132,7 +137,9 @@ for (const name of names) {
   }
 
   const [ex, co] = [await feature.exchange(), await feature.next()];
-  const ctx = await feature.context(ex);
+  // context is optional: a feature whose reads take no arguments - mints, say -
+  // has nothing to look up first.
+  const ctx = feature.context ? await feature.context(ex) : {};
 
   for (const [label, run] of feature.reads) {
     const [a, b] = [await run(ex, ctx), await run(co, ctx)];

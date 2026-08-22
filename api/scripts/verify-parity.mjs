@@ -46,6 +46,10 @@ const PAIRS = [
   // row keeping the original id, so it is compared against a view reassembling
   // the exchange shape.
   ["exchange.carriers", "shipping.carriers_exchange_compat"],
+  // A mint keeps its own row but its description and website move to the
+  // organization it is, so it is compared against a view reassembling the
+  // exchange shape. The view also converts timestamptz back to naive UTC.
+  ["exchange.mints", "products.mints_exchange_compat"],
   [
     "exchange.images",
     "media.images",
