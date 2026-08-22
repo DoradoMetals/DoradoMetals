@@ -644,6 +644,18 @@ for that.
 
 ## Testing
 
+**The money paths are covered.** Every repo function that moves money, prices
+something, or deletes a row now has tests against real Postgres, each inside a
+rolled-back transaction: rates, transactions (the checkout balance), carts,
+sales tax, scrap, spots, products, orders, and the admin balance edit. What
+remains untested is mostly read-only or belongs to a blocked feature —
+`features/stripe/repo.js` (which should be tested for shape only, never by
+calling Stripe) and `features/reviews/repo.exchange.js`.
+
+**No swallowed errors remain.** A sweep of every `catch` in `features/` and
+`shared/` found none that is empty or that neither rethrows, logs, nor responds.
+The one that hid the August checkout outage for months was the last of them.
+
 - The frontend now has vitest and 53 tests, covering rate resolution (mirrored
   1:1 from the API and previously tested on only one side), weight conversion
   (mirrored *three* ways), the scrap price, the declared value on a shipping
