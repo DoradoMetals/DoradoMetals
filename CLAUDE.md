@@ -10,6 +10,17 @@ The one rule that outranks everything else here. A bug is recoverable — deploy
 fix. Lost customer data is not: there is no undo, and no amount of correct code
 afterwards brings back an order, a payout record, or a lead.
 
+The invariant that makes the migration safe: **`exchange` holds every row the
+business has, and nothing may overwrite, truncate or delete any of it.**
+Migrations may read from it and add to it. New schemas are what get written.
+`pnpm --filter @dorado/api lint:migrations` enforces this statically and runs in
+CI; a genuinely intended destructive change needs an explicit
+`-- allow-destructive:` marker saying why it is safe and what backup exists.
+
+That invariant covers the whole migration up until a feature is promoted past
+`dual`. After that, new rows live only in the new schema, and `exchange` being
+intact no longer protects them.
+
 This applies from the moment anything touches the database. Concretely:
 
 - **Never `DROP` or `DELETE` without explicit confirmation**, and verify nothing

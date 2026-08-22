@@ -32,6 +32,11 @@ jobs:
       - name: api - database call checks
         run: pnpm --filter @dorado/api lint:db
 
+      # exchange holds every row the business has. Migrations may read from it
+      # and add to it, never overwrite, truncate or delete.
+      - name: api - migration safety
+        run: pnpm --filter @dorado/api lint:migrations
+
       - name: api - typecheck
         run: pnpm --filter @dorado/api typecheck
 
