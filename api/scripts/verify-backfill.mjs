@@ -113,6 +113,51 @@ const TABLES = [
            markup_max_pct, tax_rate, weight_min, weight_max, is_domestic, is_legal_tender`,
   },
   { name: "tax.sales_tax", key: "id", cols: "id, state, reached_nexus, amount_owed, last_remitted" },
+
+  // orders. The ids that are not carried over from exchange - offers,
+  // transactions, spots and the address link all get fresh ones - are compared
+  // through the order they belong to instead.
+  {
+    name: "orders.orders",
+    key: "direction, number",
+    // refinery_id is not compared. Every purchase order in dev points at
+    // Elemetal, but exchange has no column saying so, so a rebuild leaves it
+    // null rather than asserting it of orders it knows nothing about. Needs a
+    // decision - see FOLLOWUPS.
+    cols: `id, user_id, direction::text, status, number, notes,
+           review_created, created_by, updated_by, created_at, updated_at`,
+  },
+  {
+    name: "orders.offers",
+    key: "order_id",
+    cols: `order_id, status, offer_status, notes, spots_locked, offer_expiration,
+           num_rejections, offer_amount, created_by, updated_by, created_at, updated_at`,
+  },
+  {
+    name: "orders.transactions",
+    key: "order_id",
+    cols: `order_id, total, items, shipping, surcharge, sales_tax, funds,
+           refiner_fee, created_by, updated_by, created_at, updated_at`,
+  },
+  {
+    name: "orders.items",
+    key: "id",
+    // purity is not compared. A bullion line records what the product weighed
+    // when it was ordered, and three products have been edited since; the
+    // historical value is not in exchange, so a rebuild can only take the
+    // current one.
+    cols: `id, order_id, bullion_id, metal_id, pre_melt, post_melt, content,
+           premium, quantity, confirmed, sales_tax_charged, unit`,
+  },
+  { name: "orders.spots", key: "order_id, metal_id", cols: "order_id, metal_id, ask, bid" },
+  {
+    name: "orders.addresses",
+    key: "order_id",
+    // The address is a snapshot with a fresh id, so what is compared is the
+    // address it holds, not which row holds it.
+    cols: `order_id, (SELECT a.line_1 || '|' || a.city || '|' || a.state || '|' || a.zip
+                      FROM $S$places.addresses a WHERE a.id = t.address_id)`,
+  },
 ];
 
 const client = await pool.connect();
@@ -143,9 +188,26 @@ try {
     { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }
   );
 
-  const backfill = rename(
-    fs.readFileSync(path.join(import.meta.dirname, "..", "migrations", "029_genesis_backfill.sql"), "utf8")
-  );
+  // Every backfill after the genesis baseline, in filename order. Picked up by
+  // name so a new one is covered by this check the moment it is added, rather
+  // than the day someone remembers to list it here. Corrections are not
+  // included: they repair drift in dev's copy, and a database built from
+  // exchange has none of it to repair.
+  const dir = path.join(import.meta.dirname, "..", "migrations");
+  const backfillFiles = fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".sql") && f.includes("backfill") && f.slice(0, 3) > "028")
+    .sort();
+
+  if (!backfillFiles.length) {
+    console.error("no backfill migrations found");
+    process.exit(1);
+  }
+  console.log(`backfills: ${backfillFiles.join(", ")}`);
+
+  const backfill = backfillFiles
+    .map((f) => rename(fs.readFileSync(path.join(dir, f), "utf8")))
+    .join("\n;\n");
 
   await client.query("BEGIN");
 

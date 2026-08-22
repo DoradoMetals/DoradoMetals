@@ -40,6 +40,22 @@ derived and must be written as literals:
 Worth doing as one seed migration, taking the values from dev. Until then a
 production database would have the tables and none of these rows.
 
+### A purchase order's refiner is not recorded in exchange
+
+`orders.orders.refinery_id` is set on all sixteen purchase orders in dev, all to
+Elemetal. `exchange.purchase_orders` has no supplier column, and
+`exchange.refiner_metals` has none either, so there is nothing to derive it
+from - it is a fact someone knew in January and wrote down.
+
+The backfill leaves it null for purchases rather than asserting Elemetal of
+every purchase order on production because it happened to be true of sixteen in
+dev. Sales orders are fine: they carry `supplier_id` and it maps straight
+across.
+
+Needs a decision. If every purchase order really does go to one refiner, say so
+and the backfill can set it; if not, it is only recoverable from whatever
+records exist outside the database.
+
 ### reviews.user_id cannot be reconstructed
 
 `exchange.reviews` records a name and no user reference. dev's `reviews.user_id`
