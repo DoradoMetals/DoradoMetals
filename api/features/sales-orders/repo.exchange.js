@@ -199,7 +199,7 @@ export async function insertOrderMetals(orderId, spot_prices, client) {
   );
 }
 
-export async function updateStatus(order, order_status, user_name) {
+export async function updateStatus(order, order_status, user_name, executor) {
   const sql = `
     UPDATE exchange.sales_orders
     SET
@@ -211,18 +211,18 @@ export async function updateStatus(order, order_status, user_name) {
   `;
 
   const values = [order_status, user_name, order.id];
-  const { rows } = await query(sql, values);
+  const { rows } = await query(sql, values, executor);
   return rows[0];
 }
 
-export async function updateTrackingStatus(orderId) {
+export async function updateTrackingStatus(orderId, executor) {
   const sql = `
     UPDATE exchange.sales_orders
     SET tracking_updated = true
     WHERE id = $1
     RETURNING *;
   `;
-  const { rows } = await query(sql, [orderId]);
+  const { rows } = await query(sql, [orderId], executor);
   return rows;
 }
 
@@ -249,7 +249,7 @@ export async function attachSupplierToOrder(id, supplier_id, client) {
   , client);
 }
 
-export async function createReview({order}) {
+export async function createReview({ order }, executor) {
   const sql = `
     UPDATE exchange.sales_orders
     SET review_created = true
@@ -257,6 +257,6 @@ export async function createReview({order}) {
     RETURNING *;
   `;
   const values = [order.id];
-  const { rows } = await query(sql, values);
+  const { rows } = await query(sql, values, executor);
   return rows[0];
 }
