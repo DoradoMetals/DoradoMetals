@@ -8,7 +8,11 @@
 //      broke checkout: a rolled-back sell-cart sync left scrap rows unwritten,
 //      so order creation hit a foreign key violation.
 //
-//   2. A query that is never awaited.
+//   2. Direct use of pool.query, which bypasses the shared executor. Those
+//      calls cannot be handed a client, so they can never join a caller's
+//      transaction - the reason several multi-step operations were not atomic.
+//
+//   3. A query that is never awaited.
 //        const result = query(sql, values)   <- result is a Promise
 //      result.rows is undefined, so the next line throws reading '0'. Silent
 //      for months behind a swallowed catch.
@@ -25,7 +29,7 @@ function sourceFiles(dir) {
     if (entry.name === "node_modules") continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) out.push(...sourceFiles(full));
-    else if (entry.name.endsWith(".js")) out.push(full);
+    else if (entry.name.endsWith(".js") || entry.name.endsWith(".ts")) out.push(full);
   }
   return out;
 }
@@ -77,6 +81,13 @@ const problems = [];
 for (const file of sourceFiles(path.join(ROOT, "features"))) {
   const src = fs.readFileSync(file, "utf8");
   const rel = path.relative(ROOT, file);
+  // Direct pool.query bypasses the shared executor entirely.
+  for (const m of src.matchAll(/\bpool\.query\(/g)) {
+    problems.push(
+      `${rel}:${lineOf(src, m.index)}  pool.query bypasses the shared executor - use query(sql, params, client)`
+    );
+  }
+
   const re = /\bquery\(/g;
   let m;
 
