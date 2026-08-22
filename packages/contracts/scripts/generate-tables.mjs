@@ -62,15 +62,22 @@ await client.connect();
 const target = new URL(process.env.DATABASE_URL);
 console.log(`reading from ${target.pathname.slice(1)} @ ${target.hostname}`);
 
-// Enum types are cluster-wide, so they are collected once and shared.
+// Enums are keyed by schema AND name, never by name alone. Two schemas can
+// hold different types with the same name - this database has orders.direction
+// (purchase, sale) and shipping.direction (Inbound, Outbound, Return) - and
+// collapsing them by name produces one enum with the union of both, which would
+// accept values that are invalid everywhere they are used.
 const { rows: enumRows } = await client.query(`
-  SELECT t.typname, e.enumlabel
+  SELECT n.nspname AS schema, t.typname AS name, e.enumlabel AS label
   FROM pg_type t
+  JOIN pg_namespace n ON n.oid = t.typnamespace
   JOIN pg_enum e ON e.enumtypid = t.oid
-  ORDER BY t.typname, e.enumsortorder
+  ORDER BY n.nspname, t.typname, e.enumsortorder
 `);
 const enums = {};
-for (const r of enumRows) (enums[r.typname] ??= new Set()).add(r.enumlabel);
+for (const r of enumRows) {
+  (enums[`${r.schema}.${r.name}`] ??= new Set()).add(r.label);
+}
 
 fs.mkdirSync(OUTDIR, { recursive: true });
 const unmapped = new Set();
@@ -89,7 +96,7 @@ for (const schema of SCHEMAS) {
   }
 
   const { rows: columns } = await client.query(
-    `SELECT table_name, column_name, data_type, udt_name, is_nullable
+    `SELECT table_name, column_name, data_type, udt_schema, udt_name, is_nullable
      FROM information_schema.columns
      WHERE table_schema = $1
      ORDER BY table_name, ordinal_position`,
@@ -110,19 +117,19 @@ import { z } from "zod/v4";
   // Only emit the enums this schema actually uses, so each file stands alone.
   const used = new Set(
     columns
-      .filter((c) => c.data_type === "USER-DEFINED" && enums[c.udt_name])
-      .map((c) => c.udt_name)
+      .filter((c) => c.data_type === "USER-DEFINED" && enums[`${c.udt_schema}.${c.udt_name}`])
+      .map((c) => `${c.udt_schema}.${c.udt_name}`)
   );
-  for (const name of used) {
-    const values = [...enums[name]].map((l) => JSON.stringify(l)).join(", ");
-    parts.push(`export const ${pascal(name)} = z.enum([${values}]);`);
+  for (const qualified of used) {
+    const values = [...enums[qualified]].map((l) => JSON.stringify(l)).join(", ");
+    parts.push(`export const ${pascal(qualified.split(".")[1])} = z.enum([${values}]);`);
   }
   if (used.size) parts.push("");
 
   for (const { table_name } of tables) {
     const lines = (byTable[table_name] ?? []).map((c) => {
       let zod;
-      if (c.data_type === "USER-DEFINED" && enums[c.udt_name]) {
+      if (c.data_type === "USER-DEFINED" && enums[`${c.udt_schema}.${c.udt_name}`]) {
         zod = pascal(c.udt_name);
       } else if (c.data_type === "ARRAY") {
         zod = `z.array(${TYPE_MAP[c.udt_name.replace(/^_/, "")] ?? "z.unknown()"})`;

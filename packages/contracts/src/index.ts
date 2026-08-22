@@ -19,4 +19,6 @@ export * from "./generated/exchange.js";
 // because table names collide with exchange by design - core.LeadsRow and the
 // exchange LeadsRow are the same concept at two points in the migration.
 export * as core from "./generated/core.js";
+export * as orders from "./generated/orders.js";
+export * as shipping from "./generated/shipping.js";
 export * from "./wire/index.js";
