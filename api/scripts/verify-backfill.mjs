@@ -204,6 +204,40 @@ const TABLES = [
   },
 ];
 
+// Tables in the new schema that are deliberately not rebuilt from exchange,
+// with the reason. Everything else that holds rows must be registered in TABLES
+// above, or the from-empty check silently does not cover it.
+//
+// This list exists because `addresses` was migrated - repo split, dual-write,
+// tests, clean read diff - and nothing ever copied its data. On a database
+// built from exchange every customer's saved address list would have been
+// empty. Nothing noticed, because against dev the rows were already there from
+// January. A registration is what makes the check cover a table; without one it
+// passes by not looking.
+const NOT_REBUILT = {
+  "auth.users": "backfilled by 029 but compared per-column there, not row-wise",
+  "auth.employees": "seed data, no exchange source",
+  "auth.account": "better-auth owns these tables; auth is not migrated",
+  "auth.sessions": "same",
+  "auth.verification": "same",
+  "payments.details": "payments is a different model; not migrated",
+  "payments.methods": "seed data, no exchange source",
+  "payments.intents": "payments is a different model; not migrated",
+  "payments.attempts": "same",
+  "payments.settlements": "same",
+  "fulfillments.fulfillments": "not migrated yet",
+  "fulfillments.methods": "seed data, no exchange source",
+  "fulfillments.shipments": "not migrated yet",
+  "places.locations": "seed data, no exchange source",
+  "places.location_hours": "seed data, no exchange source",
+  "refiners.refiners": "compared through refiners.exchange_compat",
+  "refiners.items": "refiners is not migrated",
+  "refiners.spots": "refiners is not migrated",
+  "shipping.services": "seed data",
+  "shipping.packages": "seed data",
+  "organizations.organizations": "registered under its own entry",
+};
+
 const client = await pool.connect();
 let failures = 0;
 const note = (m) => {
@@ -293,6 +327,27 @@ try {
     if (live.length === built.length && !missing.length && !extra.length) {
       console.log(`  ok    ${t.name.padEnd(30)} ${built.length} rows`);
     }
+  }
+
+  // Every populated table in the new schema must be either registered above or
+  // explicitly declared as not rebuilt. A table that is neither is the
+  // addresses bug again: migrated in code, never copied, and nothing checking.
+  const { rows: populated } = await client.query(
+    `SELECT n.nspname || '.' || c.relname AS name
+     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE c.relkind = 'r' AND n.nspname = ANY($1)
+     ORDER BY 1`,
+    [SCHEMAS]
+  );
+  const registered = new Set(TABLES.map((t) => t.name));
+  for (const { name } of populated) {
+    const { rows: [{ n }] } = await client.query(`SELECT count(*)::int n FROM ${name}`);
+    if (n === 0) continue;
+    if (registered.has(name) || NOT_REBUILT[name]) continue;
+    note(
+      `${name} holds ${n} rows, is not registered in TABLES, and is not declared in NOT_REBUILT - ` +
+        `so nothing checks that it can be rebuilt from exchange`
+    );
   }
 
   // Re-running must add nothing and change nothing. A backfill that is not

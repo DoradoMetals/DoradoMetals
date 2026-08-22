@@ -586,6 +586,23 @@ switched to until it is repaired, and repairing it is only worth doing once the
 service and package questions are answered, since those change what a shipment
 row is.
 
+### Every other migrated feature was checked, and only addresses was missing
+
+After 050 fixed it, all thirteen migrated features were audited for the same
+gap. Every table their `repo.next` reads is registered in `verify-backfill`'s
+TABLES list, so addresses was the only one.
+
+The audit is now permanent rather than a one-off. `verify:backfill` asserts that
+**every populated table in the new schema is either registered in TABLES or
+declared in NOT_REBUILT with a reason** — seed data, a table compared through a
+compat view, or a feature that is not migrated. A table that is neither is the
+addresses bug again: migrated in code, never copied, and nothing checking.
+
+Proved it can fail before trusting it: unregistering `leads.leads` produces
+`leads.leads holds 39 rows, is not registered in TABLES, and is not declared in
+NOT_REBUILT`. A check that has never been seen to fail is not evidence of
+anything.
+
 ### addresses was migrated and never backfilled — fixed by 050
 
 The addresses feature had a repo split, a dual-write, tests and a verified read
