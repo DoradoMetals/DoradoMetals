@@ -136,15 +136,27 @@ describe_orphans: {
   // checkout does is not something to do on a hunch. See FOLLOWUPS.
   test("with nothing referencing scrap at all, it deletes every row", async () => {
     await inRollback(async (c) => {
-      const before = (await c.query("SELECT count(*)::int n FROM exchange.scrap")).rows[0].n;
-      assert.ok(before > 0, "no scrap to test with");
+      // Scoped to the rows that exist when this transaction starts, rather than
+      // to a count of the table. `node --test` runs files in parallel and
+      // features/purchase-orders/service.test.js commits scrap fixtures - the
+      // services open their own transactions, so it has to - and a row that
+      // appears mid-test is referenced, not an orphan, so a bare count is
+      // flaky. The claim being made is the same: everything unreferenced goes.
+      const { rows: before } = await c.query("SELECT id FROM exchange.scrap");
+      assert.ok(before.length > 0, "no scrap to test with");
 
       await c.query("DELETE FROM exchange.sell_cart_items");
       await c.query("DELETE FROM exchange.purchase_order_items");
       await repo.deleteOrphanScrap(c);
 
-      const after = (await c.query("SELECT count(*)::int n FROM exchange.scrap")).rows[0].n;
-      assert.equal(after, 0, "the guard this test documents has been added - update the test");
+      const { rows: survivors } = await c.query(
+        "SELECT id FROM exchange.scrap WHERE id = ANY($1::uuid[])",
+        [before.map((r) => r.id)]
+      );
+      assert.deepEqual(
+        survivors, [],
+        "the guard this test documents has been added - update the test"
+      );
     });
   });
 }

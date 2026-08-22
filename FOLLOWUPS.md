@@ -379,6 +379,21 @@ falling back to `content` asserts an assay that never happened, and leaving it
 null says the parcel has not been melted yet. That is a question about the
 business, not about JavaScript. A test pins the current behaviour either way.
 
+### createPaymentIntent writes twice around a network call
+
+`stripe/service.js::createPaymentIntent` creates a Stripe customer, writes
+`stripeCustomerId` to the user, then creates a payment intent and writes that —
+three steps, two of them database writes, with a network call between them.
+
+It is not wrapped in a transaction and mostly cannot be: a Stripe customer
+cannot be rolled back, so holding a database transaction open across the call
+would only widen the window in which it is held. The failure mode is a Stripe
+customer created without `stripeCustomerId` being saved, which the next call
+recovers from by creating a second customer — untidy rather than harmful.
+
+Left alone deliberately, unlike the two purchase-order services that were
+wrapped, because those are pure database work and this is not.
+
 ### Deleting scrap silently orphans an order line
 
 `purchase_order_items.scrap_id` is `ON DELETE SET NULL`, so `scrapRepo.deleteItems`

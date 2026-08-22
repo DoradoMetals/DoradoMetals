@@ -35,8 +35,15 @@ async function inRollback(fn) {
   }
 }
 
+// Joined to orders.orders on purpose. `node --test` runs test files in
+// parallel, and features/purchase-orders/service.test.js commits real purchase
+// orders as fixtures - the services open their own transactions, so it has to.
+// Picking simply the newest purchase order could select one of those mid-run,
+// and it would have no mirrored rows to assert against.
 const anOrder = async (c) =>
-  (await c.query("SELECT id FROM exchange.purchase_orders ORDER BY order_number DESC LIMIT 1")).rows[0].id;
+  (await c.query(`SELECT p.id FROM exchange.purchase_orders p
+     JOIN orders.orders o ON o.id = p.id
+     ORDER BY p.order_number DESC LIMIT 1`)).rows[0].id;
 
 test("a status change lands in both schemas", async () => {
   await inRollback(async (c) => {
@@ -165,7 +172,9 @@ test("rolling back a dual write undoes both sides", async () => {
   const other = await pool.connect();
   try {
     const id = (await other.query(
-      "SELECT id FROM exchange.purchase_orders ORDER BY order_number DESC LIMIT 1"
+      `SELECT p.id FROM exchange.purchase_orders p
+     JOIN orders.orders o ON o.id = p.id
+     ORDER BY p.order_number DESC LIMIT 1`
     )).rows[0].id;
     const before = (await other.query("SELECT status FROM orders.orders WHERE id = $1", [id])).rows[0].status;
 

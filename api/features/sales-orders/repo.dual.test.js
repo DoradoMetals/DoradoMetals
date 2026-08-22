@@ -35,8 +35,12 @@ async function inRollback(fn) {
   }
 }
 
+// Joined to orders.orders for the same reason as the purchase-order tests:
+// test files run in parallel and another file commits order fixtures.
 const anOrder = async (c) =>
-  (await c.query("SELECT id FROM exchange.sales_orders ORDER BY order_number DESC LIMIT 1")).rows[0].id;
+  (await c.query(`SELECT s.id FROM exchange.sales_orders s
+     JOIN orders.orders o ON o.id = s.id
+     ORDER BY s.order_number DESC LIMIT 1`)).rows[0].id;
 
 test("a status change lands in both schemas", async () => {
   await inRollback(async (c) => {
@@ -161,7 +165,9 @@ test("rolling back a dual write undoes both sides", async () => {
   const other = await pool.connect();
   try {
     const id = (await other.query(
-      "SELECT id FROM exchange.sales_orders ORDER BY order_number DESC LIMIT 1"
+      `SELECT s.id FROM exchange.sales_orders s
+     JOIN orders.orders o ON o.id = s.id
+     ORDER BY s.order_number DESC LIMIT 1`
     )).rows[0].id;
     const before = (await other.query("SELECT status FROM orders.orders WHERE id = $1", [id])).rows[0].status;
 

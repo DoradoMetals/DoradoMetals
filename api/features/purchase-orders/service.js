@@ -361,25 +361,45 @@ export async function toggleOrderItemStatus({
   });
 }
 
+// Both writes feed the same number - a scrap line is priced at
+// content * spot * premium - so applying one without the other quotes a price
+// from a mix of the old figures and the new. One transaction.
 export async function updateScrapItem({ item }) {
-  await scrapRepo.updateScrapItem({ item });
-  return await purchaseOrderRepo.updatePremium(item.id, item.premium);
+  return withTransaction(async (client) => {
+    await scrapRepo.updateScrapItem({ item }, client);
+    return await purchaseOrderRepo.updatePremium(item.id, item.premium, client);
+  });
 }
 
+// Deleting a line is two deletes and a re-tier, and they have to be one
+// transaction.
+//
+// exchange.purchase_order_items.scrap_id is ON DELETE SET NULL, so if the scrap
+// delete commits and the item delete then fails, the scrap rows are gone -
+// weights, purity, and the assay figures recording what was actually recovered
+// from the customer's parcel - while the order lines survive pointing at
+// nothing. The composed order query reports those as item_type 'unknown', and
+// what they used to say exists nowhere else.
+//
+// Undefined is filtered as well as null: `item.scrap?.id` is undefined on a
+// bullion line, not null, so the original filter let it through and asked the
+// database to delete a row with no id.
 export async function deleteOrderItems({ items }) {
   const ids = items.map((item) => item.id);
   const scrapIds = items
     .map((item) => item.scrap?.id)
-    .filter((id) => id !== null);
+    .filter((id) => id != null);
   const orderId = items[0]?.purchase_order_id ?? null;
 
-  await scrapRepo.deleteItems(scrapIds);
-  const result = await purchaseOrderRepo.deleteOrderItems(ids);
+  return withTransaction(async (client) => {
+    if (scrapIds.length) await scrapRepo.deleteItems(scrapIds, client);
+    const result = await purchaseOrderRepo.deleteOrderItems(ids, client);
 
-  // Removing scrap changes the per-metal totals, so re-tier the survivors.
-  if (orderId) await retierOrderScrapPremiums(orderId);
+    // Removing scrap changes the per-metal totals, so re-tier the survivors.
+    if (orderId) await retierOrderScrapPremiums(orderId, client);
 
-  return result;
+    return result;
+  });
 }
 
 // Re-resolve every scrap item's premium on an order from the rates table,
