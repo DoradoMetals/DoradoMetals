@@ -49,6 +49,15 @@ const FEATURES = {
     ],
     context: async () => ({}),
   },
+  spots: {
+    exchange: () => import("#features/spots/repo.exchange.js"),
+    next: () => import("#features/spots/repo.next.js"),
+    reads: [
+      ["getAll", (m) => m.getAll()],
+      ["getAllMetals", (m) => m.getAllMetals()],
+    ],
+    context: async () => ({}),
+  },
   rates: {
     exchange: () => import("#features/rates/repo.exchange.js"),
     next: () => import("#features/rates/repo.next.js"),

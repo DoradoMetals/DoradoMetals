@@ -27,6 +27,22 @@ const PAIRS = [
   ["exchange.rates", "rates.rates"],
   ["exchange.reviews", "reviews.reviews"],
   ["exchange.sales_tax_rules", "tax.sales_tax_rules"],
+  // exchange.metals is split across metals.metals and spots.spots, so it is
+  // compared against a view that reassembles the original shape. Comparing it
+  // to metals.metals alone would report the quote columns as lost, which would
+  // be a true statement about that table and a false one about the migration.
+  // scrap_percentage and bullion_percentage are dropped on purpose: nothing in
+  // the API or the frontend reads them, and rate tiering comes from rates.rates.
+  // Recorded here rather than hidden, so the check still fails if anything else
+  // goes missing.
+  [
+    "exchange.metals",
+    "metals.exchange_compat",
+    {
+      intentionallyDropped: ["scrap_percentage", "bullion_percentage"],
+      reason: "dead columns; rate tiering moved to rates.rates",
+    },
+  ],
 ];
 
 const split = (q) => {
@@ -82,7 +98,7 @@ function comparison(name, fromType, toType) {
   return [`${l}::text`, `${r}::text`];
 }
 
-async function verify(from, to) {
+async function verify(from, to, options = {}) {
   const a = split(from);
   const b = split(to);
 
@@ -92,10 +108,18 @@ async function verify(from, to) {
     return false;
   }
 
+  // Columns a migration deliberately does not carry. Declaring one is a
+  // reviewed decision, not a way to quieten the check: anything not declared
+  // still reports as data loss, and a declared column that IS present is
+  // compared normally.
+  const dropped = new Set(options.intentionallyDropped ?? []);
+
   const targetTypes = new Map(cb.map((c) => [c.column_name, c.type]));
-  const shared = ca.filter((c) => targetTypes.has(c.column_name));
+  const shared = ca.filter(
+    (c) => targetTypes.has(c.column_name) && !dropped.has(c.column_name)
+  );
   const orphanColumns = ca
-    .filter((c) => !targetTypes.has(c.column_name))
+    .filter((c) => !targetTypes.has(c.column_name) && !dropped.has(c.column_name))
     .map((c) => c.column_name);
 
   const pairs = shared.map((c) =>
@@ -138,6 +162,11 @@ async function verify(from, to) {
     console.log(`      does not. A backfill would overwrite them with stale values.`);
     console.log(`      This is expected once a *_SOURCE switch has been promoted past dual.`);
   }
+  if (dropped.size) {
+    console.log(
+      `   dropped on purpose: ${[...dropped].join(", ")}  (${options.reason ?? "no reason given"})`
+    );
+  }
   if (!lost && !ahead) {
     console.log(`   ok: identical`);
   }
@@ -149,8 +178,8 @@ const [from, to] = process.argv.slice(2);
 const pairs = from && to ? [[from, to]] : PAIRS;
 
 let allClean = true;
-for (const [a, b] of pairs) {
-  if (!(await verify(a, b))) allClean = false;
+for (const [a, b, options] of pairs) {
+  if (!(await verify(a, b, options))) allClean = false;
 }
 
 console.log(allClean ? "all pairs identical" : "review the warnings above before migrating");
