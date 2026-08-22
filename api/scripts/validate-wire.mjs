@@ -8,7 +8,7 @@
 // Read-only.
 //
 //   pnpm --filter @dorado/api validate:wire
-import "dotenv/config";
+import "#env";
 import pool from "#db";
 import * as c from "@dorado/contracts";
 

@@ -6,7 +6,7 @@
 // against production and paste the output.
 //
 //   DATABASE_URL='<prod url>' node api/scripts/audit-nullability.mjs
-import "dotenv/config";
+import "#env";
 import pg from "pg";
 
 const client = new pg.Client({

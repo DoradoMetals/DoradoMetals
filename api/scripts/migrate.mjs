@@ -11,7 +11,7 @@
 // database exactly as it was. A session advisory lock stops two processes
 // (or two deploys) applying concurrently. Applied files are checksummed, so
 // editing one after it has run is reported rather than silently ignored.
-import "dotenv/config";
+import "#env";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -19,6 +19,9 @@ import pg from "pg";
 
 const MIGRATIONS_DIR = path.join(import.meta.dirname, "..", "migrations");
 const LOCK_KEY = 8451723; // arbitrary, just has to be stable
+
+// The only database this runner will write to without being told otherwise.
+const DEFAULT_DB = "dorado_db_dev";
 
 const sha = (s) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
 
@@ -110,7 +113,15 @@ async function applied(client) {
 }
 
 async function main() {
-  const mode = process.argv[2] === "--status" ? "status" : "apply";
+  const arg = process.argv[2];
+  const mode =
+    arg === "--status" ? "status" : arg === "--reconcile" ? "reconcile" : "apply";
+  const reconcileTarget = mode === "reconcile" ? process.argv[3] : null;
+
+  if (mode === "reconcile" && !reconcileTarget) {
+    console.error("usage: migrate.mjs --reconcile <migration-file.sql>");
+    process.exit(1);
+  }
 
   if (!process.env.DATABASE_URL) {
     console.error("DATABASE_URL is not set");
@@ -120,7 +131,26 @@ async function main() {
   // Print where we are pointed. Applying to the wrong database is the one
   // mistake this tool must never make quietly.
   const target = new URL(process.env.DATABASE_URL);
-  console.log(`database: ${target.pathname.slice(1)} @ ${target.hostname}`);
+  const database = target.pathname.slice(1);
+  console.log(`database: ${database} @ ${target.hostname}`);
+
+  // Naming the database out loud is not the same as refusing to touch the wrong
+  // one. Anything other than dev has to be asked for by name:
+  //
+  //   MIGRATE_ALLOW_DB=dorado_db pnpm --filter @dorado/api migrate
+  //
+  // Applying to production is a deliberate act that happens once the pg_dump
+  // has been taken, not something a stray shell should be able to do. `status`
+  // is read-only and runs anywhere.
+  const allowed = process.env.MIGRATE_ALLOW_DB ?? DEFAULT_DB;
+  if (mode !== "status" && database !== allowed) {
+    console.error(
+      `refusing to apply migrations to "${database}" - this runner expects "${allowed}".\n` +
+        `If that is genuinely the target, say so explicitly:\n` +
+        `  MIGRATE_ALLOW_DB=${database} pnpm --filter @dorado/api migrate`
+    );
+    process.exit(1);
+  }
 
   const client = new pg.Client({
     connectionString: process.env.DATABASE_URL,
@@ -143,6 +173,42 @@ async function main() {
     }
 
     const pending = files.filter((f) => !done.has(f.name));
+
+    // Re-records the checksum of an already-applied migration.
+    //
+    // Migrations are immutable, and the checksum is what enforces that. But
+    // editing a comment in one leaves a warning that is permanent and, being
+    // permanent, gets ignored - which is worse than the mistake it reports. So
+    // there is a way to clear it, deliberately, one file at a time, that says
+    // out loud what it is doing.
+    //
+    // It does not verify that the SQL is unchanged - it cannot; that is the
+    // point of the checksum. Reconciling is a statement by whoever runs it that
+    // they have compared the applied object against the file and found them to
+    // match. Use it for comment edits, not for anything that would change what
+    // the migration builds. If the SQL changed, write a new migration.
+    if (mode === "reconcile") {
+      const f = files.find((x) => x.name === reconcileTarget);
+      if (!f) {
+        console.error(`no such migration: ${reconcileTarget}`);
+        process.exit(1);
+      }
+      const row = done.get(f.name);
+      if (!row) {
+        console.error(`${f.name} has not been applied here; nothing to reconcile`);
+        process.exit(1);
+      }
+      if (row.checksum === f.checksum) {
+        console.log(`${f.name} already matches; nothing to do`);
+        return;
+      }
+      await client.query(
+        `UPDATE exchange.schema_migrations SET checksum = $2 WHERE name = $1`,
+        [f.name, f.checksum]
+      );
+      console.log(`reconciled ${f.name}: ${row.checksum} -> ${f.checksum}`);
+      return;
+    }
 
     if (mode === "status") {
       for (const f of files) {

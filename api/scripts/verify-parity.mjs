@@ -19,7 +19,7 @@
 //
 //   node scripts/verify-parity.mjs                     all known pairs
 //   node scripts/verify-parity.mjs exchange.leads leads.leads
-import "dotenv/config";
+import "#env";
 import pool from "#db";
 
 const PAIRS = [

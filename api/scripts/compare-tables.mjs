@@ -10,7 +10,7 @@
 //
 //   node scripts/compare-tables.mjs exchange.leads leads.leads
 //   node scripts/compare-tables.mjs            (compares a built-in list)
-import "dotenv/config";
+import "#env";
 import pool from "#db";
 
 // The mapping as far as it is known. Extend as features are moved.

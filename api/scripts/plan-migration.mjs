@@ -19,7 +19,7 @@
 //
 //   node scripts/plan-migration.mjs products
 //   node scripts/plan-migration.mjs orders shipping
-import "dotenv/config";
+import "#env";
 import fs from "node:fs";
 import path from "node:path";
 import pool from "#db";

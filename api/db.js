@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import "#env";
 import pg from 'pg';
 
 const { Pool, types } = pg;

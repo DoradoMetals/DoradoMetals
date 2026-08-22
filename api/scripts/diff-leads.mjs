@@ -9,7 +9,7 @@
 // a transaction that is always rolled back, so running this changes nothing.
 //
 //   pnpm --filter @dorado/api diff:leads
-import "dotenv/config";
+import "#env";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as exchange from "#features/leads/repo.exchange.js";

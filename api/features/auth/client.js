@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import "#env";
 import { betterAuth } from 'better-auth';
 import { magicLink, admin } from 'better-auth/plugins';
 import { stripe as stripePlugin } from '@better-auth/stripe';

@@ -11,7 +11,7 @@
 //
 //   pnpm --filter @dorado/api diff            all features
 //   pnpm --filter @dorado/api diff leads      one feature
-import "dotenv/config";
+import "#env";
 import pool from "#db";
 
 // Each entry names the read operations whose output must match. Extend as

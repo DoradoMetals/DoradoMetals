@@ -21,6 +21,7 @@
     "plan": "node scripts/plan-migration.mjs"
   },
   "imports": {
+    "#env": "./env.js",
     "#db": "./db.js",
     "#shared/*": "./shared/*",
     "#features/*": "./features/*",
