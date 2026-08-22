@@ -40,6 +40,33 @@ derived and must be written as literals:
 Worth doing as one seed migration, taking the values from dev. Until then a
 production database would have the tables and none of these rows.
 
+### 35 populated columns still have no home, and they are now known in advance
+
+`pnpm --filter @dorado/api audit:coverage` reports, for every source table,
+which populated columns have no destination in the schema it maps onto. It was
+written because orders turned out to be missing twenty-one columns of live data,
+found one repo function at a time, after the row counts had matched and the
+shapes looked plausible.
+
+The eleven migrated features are clean. What remains, to be fixed *before* each
+feature's repo is split rather than during it:
+
+- **shipping — 13 columns.** `exchange.shipments` has essentially nothing mapped:
+  shipping_status, service_type, type, carrier_id, package, pickup_type,
+  net_charge, shipping_label, estimated_delivery, created_at and both order id
+  columns, all populated. Plus `tracking_events.scan_time`, 72 of 72. The
+  shipping tables are the emptiest sketch of the lot.
+- **payments — 18 columns.** `payment_intents` is almost entirely unmapped
+  (payment_intent_id, payment_status, type, user_id, amounts, and the card and
+  bank descriptors), and `payouts` is missing order_id, method,
+  account_holder_name and cost.
+- **refiners — 4 columns**, the same four added to orders.spots by 035:
+  scrap_percentage, bullion_percentage, created_at, updated_at. Migration 035
+  already added them to `refiners.spots`; they are listed here because the
+  refiners feature has not been backfilled yet, so its table is still empty.
+
+The audit only proves a mapping *exists*, not that it is right. It is a floor.
+
 ### sales_orders.shipping_service was left behind deliberately
 
 The one column of the twenty-one that migration 033 did not give a home. It

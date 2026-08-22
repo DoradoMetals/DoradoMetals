@@ -180,13 +180,23 @@ ON CONFLICT (id) DO NOTHING;
 -- exchange.order_metals names the metal as text and carries a column for each
 -- kind of order; here the metal is a foreign key and there is one order id.
 --
+-- The rate tier applied when the order was priced comes across with them:
+-- unlike the equivalent columns on exchange.metals, which rates.rates
+-- supersedes, these record what was actually used and nothing else holds it.
+--
 -- percent_change and dollar_change do not come across. They are 100% null in
 -- exchange and read by findMetalsByOrderId, which is why they have not been
--- dropped there - but there is nothing to carry.
+-- dropped there - but there is nothing to carry, and the read can project null
+-- without a column to hold it.
 
-INSERT INTO orders.spots (order_id, metal_id, ask, bid)
+INSERT INTO orders.spots (
+  order_id, metal_id, ask, bid,
+  scrap_percentage, bullion_percentage, created_at, updated_at
+)
 SELECT
-  coalesce(m.purchase_order_id, m.sales_order_id), mt.id, m.ask_spot, m.bid_spot
+  coalesce(m.purchase_order_id, m.sales_order_id), mt.id, m.ask_spot, m.bid_spot,
+  m.scrap_percentage, m.bullion_percentage,
+  m.created_at AT TIME ZONE 'UTC', m.updated_at AT TIME ZONE 'UTC'
 FROM exchange.order_metals m
 JOIN metals.metals mt ON mt.name = m.type
 WHERE coalesce(m.purchase_order_id, m.sales_order_id) IS NOT NULL

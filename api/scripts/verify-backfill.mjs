@@ -156,7 +156,12 @@ const TABLES = [
            price, refiner_premium, bid_premium, purity_actual, post_melt_actual,
            content_actual`,
   },
-  { name: "orders.spots", key: "order_id, metal_id", cols: "order_id, metal_id, ask, bid" },
+  {
+    name: "orders.spots",
+    key: "order_id, metal_id",
+    cols: `order_id, metal_id, ask, bid, scrap_percentage, bullion_percentage,
+           created_at, updated_at`,
+  },
   {
     name: "orders.addresses",
     key: "order_id",

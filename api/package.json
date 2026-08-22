@@ -21,7 +21,8 @@
     "plan": "node scripts/plan-migration.mjs",
     "verify:genesis": "TZ=UTC node scripts/verify-genesis.mjs",
     "dump:schema": "node scripts/dump-schema.mjs",
-    "verify:backfill": "TZ=UTC node scripts/verify-backfill.mjs"
+    "verify:backfill": "TZ=UTC node scripts/verify-backfill.mjs",
+    "audit:coverage": "TZ=UTC node scripts/audit-coverage.mjs"
   },
   "imports": {
     "#env": "./env.js",
