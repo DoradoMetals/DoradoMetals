@@ -32,14 +32,6 @@ export const getAllAdminProducts = asyncHandler(async (req, res) => {
   res.status(200).json(await productService.getAllAdminProducts());
 });
 
-export const getAllMetals = asyncHandler(async (req, res) => {
-  res.status(200).json(await productService.getAllMetals());
-});
-
-export const getAllMints = asyncHandler(async (req, res) => {
-  res.status(200).json(await productService.getAllMints());
-});
-
 export const getAllTypes = asyncHandler(async (req, res) => {
   res.status(200).json(await productService.getAllTypes());
 });

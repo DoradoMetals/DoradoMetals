@@ -106,24 +106,6 @@ export async function getAdminProductById(id, executor) {
   return rows[0];
 }
 
-export async function getAllMetals(executor) {
-  const { rows } = await query(
-    `SELECT * FROM exchange.metals ORDER BY type ASC`,
-    [],
-    executor
-  );
-  return rows;
-}
-
-export async function getAllMints(executor) {
-  const { rows } = await query(
-    `SELECT * FROM exchange.mints ORDER BY name ASC`,
-    [],
-    executor
-  );
-  return rows;
-}
-
 export async function getAllTypes(executor) {
   const { rows } = await query(
     `SELECT DISTINCT product_type AS name FROM exchange.products`,

@@ -3,8 +3,6 @@ import express from "express";
 import {
   createProduct,
   getAllAdminProducts,
-  getAllMetals,
-  getAllMints,
   getAllProducts,
   getAllTypes,
   getFilteredProducts,
@@ -13,6 +11,13 @@ import {
   getSellProducts,
   saveProduct,
 } from "#features/products/controller.js";
+
+// Mints are owned by #features/mints. The route stays here because the
+// frontend calls /products/get_mints; only the implementation moved.
+import { getAllMints } from "#features/mints/controller.js";
+// Metals are owned by #features/spots, which owns exchange.metals. Route stays
+// because the frontend calls /products/get_metals.
+import { getAllMetals } from "#features/spots/controller.js";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.js";
 

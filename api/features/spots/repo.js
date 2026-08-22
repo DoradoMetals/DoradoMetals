@@ -56,3 +56,15 @@ export async function updateQuotes(quotesByMetal, client) {
 
   return query(q, params, client);
 }
+
+// Full metal rows, as the admin product editor needs them.
+//
+// exchange.metals holds both the metal's identity and its current spot prices,
+// so this feature owns the table. In the new schema those separate -
+// metals.metals is (id, name) and spots.spots holds the quotes - and this
+// splits out into a metals feature at that point.
+export async function getAllMetals(client) {
+  const q = `SELECT * FROM exchange.metals ORDER BY type ASC`;
+  const { rows } = await query(q, [], client);
+  return rows;
+}

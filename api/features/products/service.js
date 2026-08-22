@@ -16,8 +16,6 @@ export const getProductFromSlug = (slug) => productRepo.getProductFromSlug(slug)
 export const getHomepageProducts = () => productRepo.getHomepageProducts();
 export const getFilteredProducts = (filters) => productRepo.getFilteredProducts(filters);
 export const getAllAdminProducts = () => productRepo.getAllAdminProducts();
-export const getAllMetals = () => productRepo.getAllMetals();
-export const getAllMints = () => productRepo.getAllMints();
 export const getAllTypes = () => productRepo.getAllTypes();
 
 export async function saveProduct({ product, user }) {

@@ -35,3 +35,5 @@ export async function updateSpotPrices() {
   await spotRepo.updateQuotes(quotes);
   return quotes;
 }
+
+export const getAllMetals = () => spotRepo.getAllMetals();
