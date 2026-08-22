@@ -51,7 +51,7 @@ export async function getTestImages() {
 
 export async function listImagesByUser(userId) {
   const { rows } = await query(
-    'SELECT * FROM exchange.images WHERE user_id = $1 ORDER BY created_at DESC',
+    'SELECT * FROM exchange.images WHERE user_id = $1 ORDER BY created_at DESC, id DESC',
     [userId]
   );
   return rows;

@@ -5,7 +5,7 @@ export async function list(userId) {
     SELECT *
     FROM exchange.addresses
     WHERE user_id = $1
-    ORDER BY is_default DESC;
+    ORDER BY is_default DESC, id ASC;
   `;
   const { rows } = await query(q, [userId]);
   return rows;
@@ -16,7 +16,7 @@ export async function getFromId(address_id) {
     SELECT *
     FROM exchange.addresses
     WHERE id = $1
-    ORDER BY is_default DESC;
+    ORDER BY is_default DESC, id ASC;
   `;
   const { rows } = await query(q, [address_id]);
   return rows;

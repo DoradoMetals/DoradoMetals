@@ -7,7 +7,7 @@ import query from "#shared/db/query.js";
 
 export async function getAllMints(executor) {
   const { rows } = await query(
-    `SELECT * FROM exchange.mints ORDER BY name ASC`,
+    `SELECT * FROM exchange.mints ORDER BY name ASC, id ASC`,
     [],
     executor
   );

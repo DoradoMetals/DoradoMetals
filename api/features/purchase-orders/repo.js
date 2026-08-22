@@ -128,7 +128,7 @@ function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
     LEFT JOIN exchange.users u ON u.id = po.user_id
     ${where}
     GROUP BY po.id, addr.id, ship.id, ret.id, cp.id, pay.id, u.id
-    ORDER BY po.created_at DESC${limit};
+    ORDER BY po.created_at DESC, po.id DESC${limit};
   `;
 }
 
@@ -167,7 +167,7 @@ export async function findMetalsByOrderId(orderId) {
       updated_at
     FROM exchange.order_metals
     WHERE purchase_order_id = $1
-    ORDER BY type ASC;
+    ORDER BY type ASC, id ASC;
   `;
   const { rows } = await query(sql, [orderId]);
   return rows;
@@ -574,7 +574,7 @@ export async function findRefinerMetalsByOrderId(orderId) {
       updated_at
     FROM exchange.refiner_metals
     WHERE purchase_order_id = $1
-    ORDER BY type ASC;
+    ORDER BY type ASC, id ASC;
   `;
   const { rows } = await query(sql, [orderId]);
   return rows;

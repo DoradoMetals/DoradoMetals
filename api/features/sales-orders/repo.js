@@ -63,7 +63,7 @@ function buildOrderQuery({ where = "", limit = "" } = {}) {
     LEFT JOIN exchange.shipments ship ON ship.sales_order_id = so.id
     ${where}
     GROUP BY so.id, addr.id, u.id, ship.id
-    ORDER BY so.created_at DESC${limit};
+    ORDER BY so.created_at DESC, so.id DESC${limit};
   `;
 }
 
@@ -102,7 +102,7 @@ export async function findMetalsByOrderId(orderId) {
       updated_at
     FROM exchange.order_metals
     WHERE sales_order_id = $1
-    ORDER BY type ASC;
+    ORDER BY type ASC, id ASC;
   `;
   const { rows } = await query(sql, [orderId]);
   return rows;

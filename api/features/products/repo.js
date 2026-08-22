@@ -89,7 +89,7 @@ export async function getFilteredProducts(
   }
 
   const { rows } = await query(
-    `${STOREFRONT} WHERE ${conditions.join(" AND ")} ORDER BY product.product_name ASC`,
+    `${STOREFRONT} WHERE ${conditions.join(" AND ")} ORDER BY product.product_name ASC, product.id ASC`,
     values,
     executor
   );
@@ -97,7 +97,7 @@ export async function getFilteredProducts(
 }
 
 export async function getAllAdminProducts(executor) {
-  const { rows } = await query(`${ADMIN} ORDER BY product_name ASC`, [], executor);
+  const { rows } = await query(`${ADMIN} ORDER BY product_name ASC, p.id ASC`, [], executor);
   return rows;
 }
 

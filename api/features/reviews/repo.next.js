@@ -24,7 +24,7 @@ export async function getAllReviews(executor) {
   const sql = `
     SELECT id, review_text, created_at, updated_at, rating, created_by, updated_by, name, hidden
     FROM reviews.reviews
-    ORDER BY created_at DESC
+    ORDER BY created_at DESC, id DESC
   `;
   const result = await query(sql, [], executor);
   return result.rows
@@ -35,7 +35,7 @@ export async function getPublicReviews(executor) {
     SELECT id, review_text, created_at, updated_at, rating, created_by, updated_by, name, hidden
     FROM reviews.reviews
     WHERE hidden = false
-    ORDER BY created_at DESC
+    ORDER BY created_at DESC, id DESC
     LIMIT 10
   `;
   const result = await query(sql, [], executor);

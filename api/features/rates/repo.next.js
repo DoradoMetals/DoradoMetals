@@ -38,7 +38,7 @@ export async function getAllRates(executor) {
       r.bullion_pct
     FROM rates.rates r
     JOIN metals.metals m ON m.id = r.metal_id
-    ORDER BY m.name, r.min_qty
+    ORDER BY m.name, r.min_qty, r.id
   `;
   const { rows } = await query(sql, [], executor);
   return rows;
@@ -61,7 +61,7 @@ export async function getAdminRates(executor) {
       r.updated_by
     FROM rates.rates r
     JOIN metals.metals m ON m.id = r.metal_id
-    ORDER BY m.name, r.min_qty
+    ORDER BY m.name, r.min_qty, r.id
   `;
   const { rows } = await query(sql, [], executor);
   return rows;

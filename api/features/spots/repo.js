@@ -13,7 +13,8 @@ export async function getAll(client) {
         WHEN 'Platinum' THEN 3
         WHEN 'Palladium' THEN 4
         ELSE 5
-      END
+      END,
+      id
   `;
   const { rows } = await query(q, [], client);
   return rows;
@@ -64,7 +65,7 @@ export async function updateQuotes(quotesByMetal, client) {
 // metals.metals is (id, name) and spots.spots holds the quotes - and this
 // splits out into a metals feature at that point.
 export async function getAllMetals(client) {
-  const q = `SELECT * FROM exchange.metals ORDER BY type ASC`;
+  const q = `SELECT * FROM exchange.metals ORDER BY type ASC, id ASC`;
   const { rows } = await query(q, [], client);
   return rows;
 }

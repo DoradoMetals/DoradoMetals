@@ -15,7 +15,7 @@ export async function getAllUsers() {
   const sql = `
     SELECT curr_user.id, curr_user.email, curr_user.name, curr_user."createdAt" AS created_at, curr_user."updatedAt" AS updated_at, curr_user."emailVerified" AS email_verified, curr_user.image, curr_user.role, curr_user.dorado_funds
     FROM exchange.users curr_user
-    ORDER BY curr_user.role
+    ORDER BY curr_user.role, curr_user.id
   `;
   const values = [];
   const result = await query(sql, values);
@@ -27,7 +27,7 @@ export async function getAdminUsers() {
     SELECT curr_user.id, curr_user.email, curr_user.name, curr_user."createdAt" AS created_at, curr_user."updatedAt" AS updated_at, curr_user."emailVerified" AS email_verified, curr_user.image, curr_user.role, curr_user.dorado_funds
     FROM exchange.users curr_user
     WHERE role = 'admin'
-    ORDER BY curr_user.name DESC
+    ORDER BY curr_user.name DESC, curr_user.id DESC
   `;
   const values = [];
   const result = await query(sql, values);
