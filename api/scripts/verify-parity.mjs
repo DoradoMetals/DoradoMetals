@@ -42,6 +42,10 @@ const PAIRS = [
   // carries the original supplier id. Compared against a view reassembling the
   // exchange shape, since no single table holds it.
   ["exchange.suppliers", "refiners.exchange_compat"],
+  // A carrier becomes an organization of type CARRIER plus a shipping.carriers
+  // row keeping the original id, so it is compared against a view reassembling
+  // the exchange shape.
+  ["exchange.carriers", "shipping.carriers_exchange_compat"],
   [
     "exchange.images",
     "media.images",

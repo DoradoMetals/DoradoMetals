@@ -77,6 +77,16 @@ const FEATURES = {
     ],
     context: async (m) => ({ id: (await m.getAllSuppliers())[0]?.id }),
   },
+  carriers: {
+    exchange: () => import("#features/shipping/carriers/repo.exchange.js"),
+    next: () => import("#features/shipping/carriers/repo.next.js"),
+    reads: [
+      ["getAll", (m) => m.getAll()],
+      ["getById(first)", async (m, ctx) => (ctx.id ? m.getById(ctx.id) : null)],
+      ["getNameById(first)", async (m, ctx) => (ctx.id ? m.getNameById(ctx.id) : null)],
+    ],
+    context: async (m) => ({ id: (await m.getAll())[0]?.id }),
+  },
   rates: {
     exchange: () => import("#features/rates/repo.exchange.js"),
     next: () => import("#features/rates/repo.next.js"),

@@ -1,94 +1,36 @@
-import query from "#shared/db/query.js";
+// Selects which schema the carriers feature reads and writes.
+// Same three-phase pattern as leads - see api/features/leads/repo.js.
+//
+//   CARRIERS_SOURCE=exchange   (default) read exchange, write exchange
+//   CARRIERS_SOURCE=dual                 read new,      write BOTH
+//   CARRIERS_SOURCE=next                 read new,      write new
+//
+// A carrier is two rows in the new layout: an organization of type CARRIER with
+// the name and contact details, and a shipping.carriers row with the logo,
+// carrying the original carrier id.
+//
+// That id has to survive: FEDEX_CARRIER_ID in providers/fedex/constants.js is a
+// literal uuid and exchange.shipments.carrier_id references it, so a carrier
+// that changed id would break label creation.
+//
+// Gate on `pnpm --filter @dorado/api diff carriers` before promoting.
+import * as exchange from "#features/shipping/carriers/repo.exchange.js";
+import * as next from "#features/shipping/carriers/repo.next.js";
+import * as dual from "#features/shipping/carriers/repo.dual.js";
 
-export async function getAll(client) {
-  const q = `
-    SELECT *
-    FROM exchange.carriers
-    ORDER BY name ASC
-  `;
-  const { rows } = await query(q, [], client);
-  return rows ?? [];
-}
+const SOURCES = { exchange, dual, next };
 
-export async function getById(id, client) {
-  const q = `
-    SELECT *
-    FROM exchange.carriers
-    WHERE id = $1
-    LIMIT 1
-  `;
-  const { rows } = await query(q, [id], client);
-  return rows[0] ?? null;
-}
+const SOURCE = Object.hasOwn(SOURCES, process.env.CARRIERS_SOURCE ?? "")
+  ? process.env.CARRIERS_SOURCE
+  : "exchange";
 
-export async function create(carrier, client) {
-  const q = `
-    INSERT INTO exchange.carriers (
-      name,
-      email,
-      phone,
-      logo,
-      is_active
-    )
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING *;
-  `;
+const impl = SOURCES[SOURCE];
 
-  const vals = [
-    carrier.name,
-    carrier.email,
-    carrier.phone,
-    carrier.logo,
-    carrier.is_active,
-  ];
+export const activeSource = SOURCE;
 
-  const { rows } = await query(q, vals, client);
-  return rows[0] ?? null;
-}
-
-export async function update(carrier, client) {
-  const q = `
-    UPDATE exchange.carriers
-    SET
-      name = $1,
-      email = $2,
-      phone = $3,
-      logo = $4,
-      is_active = $5,
-      updated_at = NOW()
-    WHERE id = $6
-    RETURNING *;
-  `;
-
-  const vals = [
-    carrier.name,
-    carrier.email,
-    carrier.phone,
-    carrier.logo,
-    carrier.is_active,
-    carrier.id,
-  ];
-
-  const { rows } = await query(q, vals, client);
-  return rows[0] ?? null;
-}
-
-export async function remove(id, client) {
-  const q = `
-    DELETE FROM exchange.carriers
-    WHERE id = $1
-  `;
-  await query(q, [id], client);
-  return true;
-}
-
-export async function getNameById(id, client) {
-  const q = `
-    SELECT name
-    FROM exchange.carriers
-    WHERE id = $1
-    LIMIT 1
-  `;
-  const { rows } = await query(q, [id], client);
-  return rows[0]?.name ?? "";
-}
+export const getAll = impl.getAll;
+export const getById = impl.getById;
+export const getNameById = impl.getNameById;
+export const create = impl.create;
+export const update = impl.update;
+export const remove = impl.remove;
