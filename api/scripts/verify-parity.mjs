@@ -26,6 +26,7 @@ const PAIRS = [
   ["exchange.leads", "core.leads"],
   ["exchange.rates", "core.rates"],
   ["exchange.reviews", "core.reviews"],
+  ["exchange.sales_tax_rules", "tax.sales_tax_rules"],
 ];
 
 const split = (q) => {
@@ -35,11 +36,50 @@ const split = (q) => {
 
 async function columnsOf(schema, table) {
   const { rows } = await pool.query(
-    `SELECT column_name FROM information_schema.columns
+    `SELECT column_name, data_type, udt_schema, udt_name
+     FROM information_schema.columns
      WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position`,
     [schema, table]
   );
-  return rows.map((r) => r.column_name);
+  // information_schema reports every enum as USER-DEFINED, so data_type alone
+  // cannot tell two different enums apart. The real identity is the qualified
+  // udt name - exchange.sales_tax_metal_category and tax.sales_tax_metal_category
+  // are distinct types that Postgres refuses to compare.
+  return rows.map((r) => ({
+    column_name: r.column_name,
+    type:
+      r.data_type === "USER-DEFINED" ? `${r.udt_schema}.${r.udt_name}` : r.data_type,
+  }));
+}
+
+// Builds the pair of expressions used to compare one column across the two
+// schemas. The same column is not always the same *type* on both sides, and
+// the comparison has to account for that without becoming so loose that it
+// stops catching real differences:
+//
+//   identical types      compare directly - exact, including numeric scale
+//   naive vs aware time  read the naive side as UTC, then compare instants.
+//                        exchange stores naive timestamps that are UTC in fact,
+//                        so this compares the moments rather than the rendering
+//   anything else        compare as text. Two enums of different types cannot
+//                        be compared at all in Postgres, which is the case for
+//                        exchange.sales_tax_rules and tax.sales_tax_rules
+//
+// Casting everything to text unconditionally would be wrong: timestamp and
+// timestamptz render differently for the same instant, and numeric renders its
+// stored scale, so it would report differences that are not there.
+function comparison(name, fromType, toType) {
+  const l = `e."${name}"`;
+  const r = `t."${name}"`;
+
+  if (fromType === toType) return [l, r];
+
+  const naive = "timestamp without time zone";
+  const aware = "timestamp with time zone";
+  if (fromType === naive && toType === aware) return [`${l} AT TIME ZONE 'UTC'`, r];
+  if (fromType === aware && toType === naive) return [l, `${r} AT TIME ZONE 'UTC'`];
+
+  return [`${l}::text`, `${r}::text`];
 }
 
 async function verify(from, to) {
@@ -52,10 +92,17 @@ async function verify(from, to) {
     return false;
   }
 
-  const shared = ca.filter((c) => cb.includes(c));
-  const orphanColumns = ca.filter((c) => !cb.includes(c));
-  const left = shared.map((c) => `e."${c}"`).join(",");
-  const right = shared.map((c) => `t."${c}"`).join(",");
+  const targetTypes = new Map(cb.map((c) => [c.column_name, c.type]));
+  const shared = ca.filter((c) => targetTypes.has(c.column_name));
+  const orphanColumns = ca
+    .filter((c) => !targetTypes.has(c.column_name))
+    .map((c) => c.column_name);
+
+  const pairs = shared.map((c) =>
+    comparison(c.column_name, c.type, targetTypes.get(c.column_name))
+  );
+  const left = pairs.map(([l]) => l).join(",");
+  const right = pairs.map(([, r]) => r).join(",");
 
   const { rows } = await pool.query(`
     SELECT
