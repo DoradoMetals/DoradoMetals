@@ -299,6 +299,20 @@ is the more dangerous answer, because a scrap line in an unanticipated unit is
 silently worth nothing and nothing about the result says it failed. Nothing
 calls the SQL function today, so this is latent rather than live.
 
+**`formatPhoneNumber` and `normalizePhone` disagree on a leading 1.**
+`normalizePhone` strips it only when there are eleven digits — a country code.
+`formatPhoneNumber` strips it whenever the string starts with 1, so ten digits
+beginning with 1 lose their first digit and render as nine: `1234567890` becomes
+`(234) 567-890`. No real US number hits this, because NANP area codes cannot
+begin with 0 or 1. Both functions are applied to the same values and only one is
+right about the rule, so it is pinned rather than left to be discovered.
+
+**`getProductPrice` throws on a missing product where its three siblings return
+zero.** `getProductBidPrice`, `getProductBidOverUnderSpot` and
+`getProductAskOverUnderSpot` all guard both arguments; `getProductPrice` guards
+only the spot and its signature says the product is required. The inconsistency
+invites the assumption that all four are safe to call with partial data.
+
 **Dates rendered in the browser can disagree with dates rendered by the API.**
 The API pins `TZ=UTC`; the browser formats in the customer's zone. An instant
 just before midnight UTC is the previous day for anyone in the Americas. This is
