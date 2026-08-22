@@ -17,7 +17,8 @@
     "diff:leads": "node scripts/diff-leads.mjs",
     "diff": "node scripts/diff-source.mjs",
     "verify:parity": "node scripts/verify-parity.mjs",
-    "lint:migrations": "node scripts/lint-migrations.mjs"
+    "lint:migrations": "node scripts/lint-migrations.mjs",
+    "plan": "node scripts/plan-migration.mjs"
   },
   "imports": {
     "#db": "./db.js",
