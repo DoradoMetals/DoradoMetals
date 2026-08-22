@@ -281,6 +281,30 @@ exposure. Either way this is a decision to take before payments moves.
 backfilled, but dual-write only mirrors the text columns, so new rows get null.
 Ties into the session-actor fix above — do them together.
 
+### Two behaviours the frontend tests pin rather than fix
+
+Both are recorded because they are defensible as they stand, and both would be
+easy to change by accident.
+
+**A missing premium means opposite things for scrap and for a product.** In
+`getReturnDeclaredValue`, a scrap line with no premium anywhere falls back to
+`1` and is declared at full spot; a product line falls back to `0` and is
+declared at nothing. Neither is obviously wrong - scrap is bought at a discount
+that defaults to none, and a product without a premium has no price - but they
+are different rules and the difference is invisible at the call site.
+
+**An unknown weight unit is worth zero, in both JS copies.** `convertTroyOz`
+returns 0 for a unit it does not recognise; the SQL function returns NULL. Zero
+is the more dangerous answer, because a scrap line in an unanticipated unit is
+silently worth nothing and nothing about the result says it failed. Nothing
+calls the SQL function today, so this is latent rather than live.
+
+**Dates rendered in the browser can disagree with dates rendered by the API.**
+The API pins `TZ=UTC`; the browser formats in the customer's zone. An instant
+just before midnight UTC is the previous day for anyone in the Americas. This is
+normally what you want from a UI, but it means two dates on the same screen can
+differ by a day depending on which side rendered them.
+
 ### Latent defects in `exchange`, not worth fixing there
 
 Recorded because the same mistakes should not be carried into the new schema:
@@ -450,10 +474,11 @@ done. "Wait for CI" should be enabled once the workflow has run on master.
 
 ## Testing
 
-- The frontend now has vitest and a first 21 tests, covering rate resolution
-  (mirrored 1:1 from the API, and previously tested on only one side), the
-  client-side scrap naming, and the address id checkout posts back. That is a
-  start on 42k lines, not coverage.
+- The frontend now has vitest and 53 tests, covering rate resolution (mirrored
+  1:1 from the API and previously tested on only one side), weight conversion
+  (mirrored *three* ways), the scrap price, the declared value on a shipping
+  label, the client-side scrap naming, date formatting, and the address id
+  checkout posts back. That is a start on 42k lines, not coverage.
 - No browser or e2e harness, deliberately. Anything that renders a component
   needs a DOM implementation and a testing library, which is a decision rather
   than a config change.

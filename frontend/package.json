@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "TZ=UTC vitest run"
   },
   "dependencies": {
     "@better-auth/stripe": "^1.4.9",
