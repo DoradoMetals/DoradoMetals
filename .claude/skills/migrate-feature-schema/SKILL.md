@@ -5,6 +5,33 @@ description: Move one API feature from the legacy `exchange` Postgres schema to 
 
 # Migrating a feature to the new schema
 
+## Before anything else: do not lose data
+
+This outranks every other consideration in this skill. A bug is recoverable by
+deploying a fix. Lost customer data is not.
+
+Every step below is arranged so the old schema stays authoritative and complete
+until someone deliberately decides otherwise. Do not shortcut that ordering to
+save time.
+
+The check that enforces it:
+
+```bash
+pnpm --filter @dorado/api verify:parity            # all known pairs
+pnpm --filter @dorado/api verify:parity exchange.leads core.leads
+```
+
+Run it **before and after every migration**, and again before promoting a
+switch. It compares every shared column across every row and reports three
+things: rows missing from the target, values that differ, and rows the target
+holds that the source does not. It exits non-zero on any of them.
+
+That third one is the subtle one. Once a feature is promoted past `dual`, the
+new schema starts receiving writes the old one never sees — so **re-running a
+backfill at that point overwrites live rows with stale values**. `verify:parity`
+refuses in that state, and it is the only thing standing between a routine
+re-run and real loss.
+
 ## Background you need
 
 This database holds **two schema designs at once**:

@@ -15,7 +15,8 @@
     "validate:wire": "node scripts/validate-wire.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "diff:leads": "node scripts/diff-leads.mjs",
-    "diff": "node scripts/diff-source.mjs"
+    "diff": "node scripts/diff-source.mjs",
+    "verify:parity": "node scripts/verify-parity.mjs"
   },
   "imports": {
     "#db": "./db.js",

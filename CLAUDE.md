@@ -4,6 +4,32 @@ A precious-metals exchange: customers sell scrap and bullion to the business
 (purchase orders) and buy from it (sales orders). Real money, real bank details,
 real FedEx labels.
 
+## Do not lose data
+
+The one rule that outranks everything else here. A bug is recoverable — deploy a
+fix. Lost customer data is not: there is no undo, and no amount of correct code
+afterwards brings back an order, a payout record, or a lead.
+
+This applies from the moment anything touches the database. Concretely:
+
+- **Never `DROP` or `DELETE` without explicit confirmation**, and verify nothing
+  references the target first. `order_metals.percent_change` and `scrap.gem_id`
+  are 100% NULL and still read and written by live code.
+- **Never apply a migration to production.** Migrations run against whatever
+  `DATABASE_URL` points at, which is dev. Production is the user's to run.
+- **Run `pnpm --filter @dorado/api verify:parity` before and after** any
+  migration touching a table pair. It proves nothing was dropped, nothing was
+  corrupted, and — importantly — whether the target holds rows the source does
+  not, which means a backfill would overwrite them.
+- **A backfill is only safe while the old schema is authoritative.** Once a
+  `*_SOURCE` switch is promoted past `dual`, re-running one overwrites new rows
+  with stale values. `verify:parity` refuses in that state.
+- **Go through `dual` and stay there.** Reading and writing the new schema
+  directly is a one-way door: the old schema stops receiving writes, and
+  flipping back drops everything written in between.
+- **When unsure, stop and ask.** A blocked migration costs an evening. A lost
+  table costs the business.
+
 ## Layout
 
 pnpm workspace, Node 24, deployed on Railway from `master` with auto-deploy.
