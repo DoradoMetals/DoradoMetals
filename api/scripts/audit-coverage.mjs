@@ -82,6 +82,19 @@ const RENAMES = {
   "exchange.order_metals": { type: "metal_id", ask_spot: "ask", bid_spot: "bid", purchase_order_id: "order_id", sales_order_id: "order_id" },
   "exchange.refiner_metals": { type: "metal_id", ask_spot: "ask", bid_spot: "bid", purchase_order_id: "order_id", sales_order_id: "order_id" },
   "exchange.addresses": { user_id: "-", name: "-", is_default: "-" },
+  // A shipment keeps its id but loses its direct link to the order: that moves
+  // to fulfillments.fulfillments.order_id, one row per order. Verified against
+  // the data - all 17 copied shipments agree on the renamed columns.
+  "exchange.shipments": {
+    estimated_delivery: "est_delivery",
+    shipping_label: "label",
+    net_charge: "cost",
+    type: "direction",
+    purchase_order_id: "-",
+    sales_order_id: "-",
+  },
+  "exchange.tracking_events": { scan_time: "time" },
+  "exchange.carrier_pickups": { order_id: "-", carrier: "-", pickup_requested_at: "requested_at", pickup_status: "status" },
 };
 
 // Columns deliberately not carried across, with the reason. Distinct from a
@@ -92,6 +105,15 @@ const DELIBERATE = {
   "exchange.metals.scrap_percentage":
     "rate tiering moved to rates.rates, which supersedes a single percentage per metal",
   "exchange.metals.bullion_percentage": "same",
+};
+
+// Columns whose destination exists but is itself blocked on a decision. They
+// are real gaps, not decisions taken, so they are reported - but reported as
+// blocked, because adding a column for them now would prejudge the answer.
+const BLOCKED = {
+  "exchange.shipments.service_type": "routes through shipping.services",
+  "exchange.shipments.package": "routes through shipping.packages",
+  "exchange.shipments.carrier_id": "reachable only via shipping.services",
 };
 
 const q = async (sql, params = []) => (await pool.query(sql, params)).rows;
@@ -148,8 +170,13 @@ for (const [feature, sources] of Object.entries(features)) {
       );
       if (n === 0) continue;
 
+      const blocked = BLOCKED[`${source}.${col}`];
       gaps++;
-      lines.push(`   ${source}.${col}`.padEnd(52) + `${n} of ${total} rows populated`);
+      lines.push(
+        `   ${source}.${col}`.padEnd(52) +
+          `${n} of ${total} rows populated` +
+          (blocked ? `   BLOCKED - ${blocked}` : "")
+      );
     }
   }
 

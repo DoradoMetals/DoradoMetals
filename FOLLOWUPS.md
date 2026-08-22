@@ -225,6 +225,50 @@ strings as equal, so the placeholder actively defeats a constraint that would
 otherwise be free. Found while scoping the refiner uniqueness in migration 020;
 left alone because those rows belong to the shipping migration.
 
+### BLOCKED: shipping.shipments is blocked behind services, and its copy is short
+
+Audited in full. The structure is right and the copy is not.
+
+**Which table is authoritative.** `shipping.shipments` and
+`fulfillments.shipments` both exist and both hold rows, which looks like two
+rival copies and is not. `shipping.shipments` keeps exchange's ids - all 17 of
+them - and is the shipment. `fulfillments.shipments` shares no ids with
+exchange at all; it is a link table joining a fulfillment to a shipment, with
+the pickup and delivery locations. A shipment no longer points at its order
+either: `fulfillments.fulfillments` does, one row per order.
+
+**Seven of the thirteen reported gaps were renames** nobody had recorded -
+est_delivery, label, cost, direction, tracking's `time`, and the two order id
+columns being relocated rather than lost. All are now declared in
+`scripts/audit-coverage.mjs`, verified against the data.
+
+**Three real gaps are closed** by migration 046: shipping_status, pickup_type
+and created_at, all populated on 23 of 23 rows.
+
+**Three are blocked**, and they are what stops the feature:
+`service_type`, `package` and `carrier_id` all route through
+`shipping.services` and `shipping.packages`, which need the two decisions
+below. `audit:coverage shipping` now prints them as BLOCKED rather than as
+plain gaps.
+
+**The copy is also incomplete, independently of the decisions:**
+
+- 6 of exchange's 23 shipments were never copied (5 Inbound, 1 Outbound)
+- the 6 tracking events missing from `shipping.tracking` all belong to those
+  same 6 shipments, so it is one gap rather than two
+- `shipping.tracking` holds **9 rows that do not exist in exchange at all** and
+  are not duplicates of anything there. Where they came from is unknown. They
+  must be understood before any backfill, because the guard that protects every
+  other backfill reads exactly this condition as "exchange is no longer
+  authoritative"
+- 3 shipments have `cost = 0` where exchange has `net_charge = NULL` - the same
+  null-defaulted-to-zero mistake found on orders.items.quantity
+
+None of that is destructive - exchange holds all 23 - but the target cannot be
+switched to until it is repaired, and repairing it is only worth doing once the
+service and package questions are answered, since those change what a shipment
+row is.
+
 ### BLOCKED: shipping.services needs a product decision before it can move
 
 `shipping.services` is not a copy of `exchange.carrier_services` — it is a
