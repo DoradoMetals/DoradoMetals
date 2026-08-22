@@ -87,6 +87,34 @@ const FEATURES = {
     ],
     context: async (m) => ({ id: (await m.getAll())[0]?.id }),
   },
+  "purchase-orders": {
+    exchange: () => import("#features/purchase-orders/repo.exchange.js"),
+    next: () => import("#features/purchase-orders/repo.next.js"),
+    // Values this migration deliberately changed. Keyed by read, because an
+    // `id` means something different in each one.
+    //
+    // A scrap line's id was the scrap row's; there is no scrap row now, so it
+    // is the line's instead. A spot row's id was order_metals'; orders.spots
+    // generates its own, and nothing keys on it - updateSpot matches on
+    // (purchase_order_id, type), which is why it was safe to regenerate.
+    // Neither is read by anything; both are declared rather than hidden.
+    ignore: {
+      "*": ["order_items[].scrap.id"],
+      "findMetalsByOrderId(first)": ["id"],
+    },
+    reads: [
+      ["getAll", (m) => m.getAll()],
+      ["findById(first)", (m, ctx) => (ctx.id ? m.findById(ctx.id) : [])],
+      ["findAllByUser(first)", (m, ctx) => (ctx.userId ? m.findAllByUser(ctx.userId) : [])],
+      ["findMetalsByOrderId(first)", (m, ctx) => (ctx.id ? m.findMetalsByOrderId(ctx.id) : [])],
+      ["findOrderScrapItems(first)", (m, ctx) => (ctx.id ? m.findOrderScrapItems(ctx.id) : [])],
+      ["findExpiredOffers", (m) => m.findExpiredOffers()],
+    ],
+    context: async (m) => {
+      const [first] = await m.getAll();
+      return { id: first?.id, userId: first?.user_id };
+    },
+  },
   mints: {
     exchange: () => import("#features/mints/repo.exchange.js"),
     next: () => import("#features/mints/repo.next.js"),
@@ -141,8 +169,33 @@ for (const name of names) {
   // has nothing to look up first.
   const ctx = feature.context ? await feature.context(ex) : {};
 
+  // Values a migration deliberately changed, declared per feature. Dropped from
+  // both sides before comparing, so the gate keeps meaning something instead of
+  // being a wall of known noise. `order_items[].scrap.id` reads as: for each
+  // element of order_items, delete scrap.id.
+  const drop = (value, pathParts) => {
+    if (value == null || !pathParts.length) return;
+    const [head, ...rest] = pathParts;
+    if (head.endsWith("[]")) {
+      const arr = value[head.slice(0, -2)];
+      if (Array.isArray(arr)) for (const el of arr) drop(el, rest);
+      return;
+    }
+    if (!rest.length) delete value[head];
+    else drop(value[head], rest);
+  };
+  const strip = (rows, label) => {
+    const paths = [...(feature.ignore?.["*"] ?? []), ...(feature.ignore?.[label] ?? [])];
+    if (!paths.length || rows == null) return rows;
+    const copy = structuredClone(rows);
+    for (const row of Array.isArray(copy) ? copy : [copy]) {
+      for (const path of paths) drop(row, path.split("."));
+    }
+    return copy;
+  };
+
   for (const [label, run] of feature.reads) {
-    const [a, b] = [await run(ex, ctx), await run(co, ctx)];
+    const [a, b] = [strip(await run(ex, ctx), label), strip(await run(co, ctx), label)];
     const size = Array.isArray(a) ? `${a.length} vs ${b?.length}` : "1";
     if (norm(a) === norm(b)) {
       pass++;

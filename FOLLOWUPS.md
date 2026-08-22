@@ -67,6 +67,19 @@ feature's repo is split rather than during it:
 
 The audit only proves a mapping *exists*, not that it is right. It is a floor.
 
+### The order address id is the address-book id, not the snapshot's
+
+`orders.addresses` points at a snapshot in `places.addresses` and also records
+`source_address_id`, the address-book row it was copied from. The order read
+returns the source id, because the frontend posts `address.id` back at checkout
+and the API resolves it with `addressService.getAddressFromId`, which reads
+`exchange.addresses`. A snapshot id does not resolve there.
+
+That is right for now and wrong eventually. Once the addresses feature moves and
+`getAddressFromId` reads `places.addresses`, the snapshot id should become the
+one returned - it is the address the order was actually placed against, frozen.
+Revisit when places is migrated; there is a test pinning the current behaviour.
+
 ### sales_orders.shipping_service was left behind deliberately
 
 The one column of the twenty-one that migration 033 did not give a home. It

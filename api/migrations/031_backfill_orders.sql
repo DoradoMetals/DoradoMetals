@@ -131,12 +131,10 @@ WHERE NOT EXISTS (SELECT 1 FROM orders.transactions t WHERE t.order_id = s.id);
 -- and metal are flattened into the item - exchange.scrap exists only to hold
 -- them and is not an entity anyone refers to.
 --
--- Four purchase order items have no quantity in exchange, where the column is
--- nullable; orders.items requires one and defaults it to 1, which is what the
--- January copy recorded for exactly those four. A scrap line without a quantity
--- is one lot, so that default is written explicitly here rather than left to
--- the column, because a null arriving in a NOT NULL column fails before ON
--- CONFLICT ever gets a chance to skip the row.
+-- Four purchase order items have no quantity in exchange, and it is carried
+-- across as null rather than defaulted. orders.items originally declared the
+-- column NOT NULL, which forced a coalesce here and made the order read return
+-- 1 where the API has always returned null; 039 relaxed it for that reason.
 --
 -- Where it is a product, the weights come from the product itself. Those are a
 -- snapshot: the item recorded what the product weighed when it was ordered, and
@@ -153,7 +151,7 @@ SELECT
   coalesce(s.metal_id, pr.metal_id),
   coalesce(s.pre_melt, pr.gross), coalesce(s.post_melt, pr.content),
   coalesce(s.purity, pr.purity), coalesce(s.content, pr.content),
-  poi.premium, coalesce(poi.quantity, 1), coalesce(poi.confirmed, false), 0,
+  poi.premium, poi.quantity, coalesce(poi.confirmed, false), 0,
   coalesce(s.gross_unit, 't oz')
 FROM exchange.purchase_order_items poi
 LEFT JOIN exchange.scrap s ON s.id = poi.scrap_id
@@ -240,6 +238,6 @@ snapshot AS (
   JOIN exchange.addresses a ON a.id = n.source_id
   RETURNING id
 )
-INSERT INTO orders.addresses (id, address_id, order_id)
-SELECT gen_random_uuid(), n.snapshot_id, n.order_id
+INSERT INTO orders.addresses (id, address_id, order_id, source_address_id)
+SELECT gen_random_uuid(), n.snapshot_id, n.order_id, n.source_id
 FROM needed n;
