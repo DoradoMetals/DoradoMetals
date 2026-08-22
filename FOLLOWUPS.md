@@ -3,33 +3,51 @@
 Things found and deliberately deferred, with enough context to pick up cold.
 Ordered roughly by how much they'd cost if left.
 
-## The migration chain can now run on production, but the tables arrive empty
+## Production: the schema and eleven features' data can now get there
 
-The structural half of this is fixed. `000_genesis_schema.sql` creates all 16
-schemas, 45 tables, 4 views, 4 enum types and 1 function from nothing, and is
-verified by `pnpm --filter @dorado/api verify:genesis`, which builds the whole
-thing under renamed schemas inside a rolled-back transaction and compares it
-column by column, constraint by constraint, against dev.
+`000_genesis_schema.sql` creates all 16 schemas, 45 tables, 4 views, 4 enum
+types and 1 function from nothing. `029_genesis_backfill.sql` fills the tables
+belonging to the eleven migrated features from exchange.
 
-It is generated, not hand-written - `pnpm --filter @dorado/api dump:schema`
-regenerates it from the dev catalog. Edit the generator, not the SQL.
+Both are verified by building into renamed schemas inside a rolled-back
+transaction: `verify:genesis` compares the structure against dev column by
+column, `verify:backfill` runs the backfill into empty tables and compares the
+rows, re-runs it to prove idempotency, and checks that it refuses once the new
+schema holds a row exchange does not.
 
-**What is still missing is the data.** Genesis creates empty tables. On
-production the new schema will exist and hold nothing, and the per-feature
-backfills (003, 010, 025, 028) are all inside the baseline range, so they are
-recorded rather than run. Nothing populates the new tables from exchange.
+Genesis is generated - `pnpm --filter @dorado/api dump:schema`. Edit the
+generator, never the SQL.
 
-That backfill is the remaining work, and it is the harder half: it is the same
-transformation the per-feature migrations have been doing one at a time -
-splitting suppliers and carriers into organizations, moving mint descriptions,
-renaming product columns, flattening scrap into order items - expressed once,
-as a single ordered pass over exchange. It must be idempotent, and it must be
-safe to run while `*_SOURCE` switches are still on `exchange`.
+### What is still not populated
 
-Note the ordering constraint: the backfill can only run *before* any switch is
-promoted past `dual`. Afterwards the new schema holds rows exchange does not,
-and a backfill would overwrite them. `verify:parity` already refuses in that
-state; the backfill must too.
+**The other features' tables.** orders, payments, fulfillments,
+shipping.shipments/tracking/pickups, places, and the refiners item/spot tables.
+Their features still read exchange so empty costs nothing, but each needs
+transformation work checked against a read-for-read diff first. They should be
+backfilled as each feature is migrated, not in a batch.
+
+**The seed data, which has no source in exchange at all.** These are new facts
+about the business rather than a reshaping of old ones, so they cannot be
+derived and must be written as literals:
+
+- the DORADO organization (the business itself) and `places.locations` /
+  `places.location_hours`, which reference it
+- `fulfillments.methods` (11 rows), `payments.methods` (10)
+- `shipping.services` (8) and `shipping.packages` (9) - also blocked on the
+  product decision below
+- `auth.employees` (2)
+
+Worth doing as one seed migration, taking the values from dev. Until then a
+production database would have the tables and none of these rows.
+
+### reviews.user_id cannot be reconstructed
+
+`exchange.reviews` records a name and no user reference. dev's `reviews.user_id`
+was filled in January by matching that name, but exchange.users now holds two
+accounts named Jacob Johnson and every review in dev is under that name, so the
+match is ambiguous and the backfill leaves it null rather than guessing. If the
+link matters, it needs a deliberate decision about which account is the
+reviewer - it is not recoverable from the data.
 
 ## Security
 
