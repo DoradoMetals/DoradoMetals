@@ -4,9 +4,15 @@
 // can apply the write here and its mirror into core atomically.
 import query from "#shared/db/query.js";
 
+// The columns are listed rather than selected with *, so that a column added to
+// exchange.reviews shows up as a difference against repo.next.js rather than
+// silently widening what the API returns.
+
 export async function getReview(id, executor) {
   const sql = `
-    SELECT *
+    SELECT
+     id, review_text, created_at, updated_at, rating, created_by,
+     updated_by, name, hidden
     FROM exchange.reviews
     WHERE id = $1
   `;
@@ -17,7 +23,9 @@ export async function getReview(id, executor) {
 
 export async function getAllReviews(executor) {
   const sql = `
-    SELECT *
+    SELECT
+     id, review_text, created_at, updated_at, rating, created_by,
+     updated_by, name, hidden
     FROM exchange.reviews
     ORDER BY created_at DESC, id DESC
   `;
@@ -27,7 +35,9 @@ export async function getAllReviews(executor) {
 
 export async function getPublicReviews(executor) {
   const sql = `
-    SELECT *
+    SELECT
+     id, review_text, created_at, updated_at, rating, created_by,
+     updated_by, name, hidden
     FROM exchange.reviews
     WHERE hidden = false
     ORDER BY created_at DESC, id DESC

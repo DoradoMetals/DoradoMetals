@@ -113,7 +113,11 @@ export async function updateRate(rate, user_name, executor) {
 }
 
 export async function deleteRate(id, executor) {
-  await query(`DELETE FROM rates.rates WHERE id = $1`, [id]);
+  // The executor is passed on, not merely accepted. It was declared and then
+  // dropped, so a delete ran on the pool while its caller sat in a transaction
+  // - and under dual-write that means a rate deleted from both schemas even
+  // when the surrounding operation rolls back.
+  await query(`DELETE FROM rates.rates WHERE id = $1`, [id], executor);
   return { success: true };
 }
 

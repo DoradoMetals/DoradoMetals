@@ -14,7 +14,7 @@
 // Never edit src/generated/*.ts by hand.
 //
 //   pnpm --filter @dorado/contracts generate
-//   CONTRACT_SCHEMAS=exchange,core pnpm --filter @dorado/contracts generate
+//   CONTRACT_SCHEMAS=exchange,orders pnpm --filter @dorado/contracts generate
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";

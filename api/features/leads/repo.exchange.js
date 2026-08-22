@@ -5,9 +5,16 @@
 // here and its mirror into core atomically.
 import query from "#shared/db/query.js";
 
+// The columns are listed rather than selected with *, so that a column added to
+// exchange.leads shows up as a difference against repo.next.ts rather than
+// silently widening what the API returns.
+
 export async function getLead(id, executor) {
   const sql = `
-    SELECT *
+    SELECT
+     id, name, phone, email, created_at, updated_at, last_contacted,
+     converted, contacted, responded, created_by, updated_by, notes, contact,
+     priority
     FROM exchange.leads
     WHERE id = $1
   `;
@@ -18,7 +25,10 @@ export async function getLead(id, executor) {
 
 export async function getAllLeads(executor) {
   const sql = `
-    SELECT *
+    SELECT
+     id, name, phone, email, created_at, updated_at, last_contacted,
+     converted, contacted, responded, created_by, updated_by, notes, contact,
+     priority
     FROM exchange.leads
     ORDER BY created_at DESC, id DESC
   `;

@@ -281,6 +281,36 @@ exposure. Either way this is a decision to take before payments moves.
 backfilled, but dual-write only mirrors the text columns, so new rows get null.
 Ties into the session-actor fix above — do them together.
 
+### Writes that accept an executor and never use it
+
+Found by auditing every write in every repo rather than by a failure. One was
+live and is fixed; the rest are latent and will bite whoever migrates those
+features.
+
+**Fixed:** `deleteRate` in both `features/rates/repo.exchange.js` and
+`repo.next.js` declared an `executor` parameter and never passed it to
+`query()`. The dual layer threaded it correctly, so under
+`RATES_SOURCE=dual` a delete would have run on the pool on *both* sides —
+committing immediately, outside the caller's transaction, leaving a rate deleted
+from both schemas even when the surrounding operation rolled back. There is now
+a test.
+
+**Still outstanding**, all in features that are blocked or unmigrated, so none
+is currently reachable through a dual-write path — but each must be threaded
+before its feature moves:
+
+- `features/purchase-orders/repo.exchange.js`: `changePayoutMethod`,
+  `purgeCancelled`, `updateRefinerSpot` (these belong to payments and refiners)
+- `features/scrap/repo.js`: `updateScrapItem`, `deleteItems`
+- `features/stripe/repo.js`: `createPaymentIntent`, `updatePaymentIntent`,
+  `updateMethod`, `attachCustomerToUser`
+- `features/users/repo.js`: `adjustUserCredit` — admin-only and a single
+  statement, so atomic on its own today
+
+Checked and *fine*: `features/transactions/repo.js` `addFunds` and `removeFunds`
+both take a client, so the checkout path that moves a customer's balance is
+already transaction-safe.
+
 ### Two behaviours the frontend tests pin rather than fix
 
 Both are recorded because they are defensible as they stand, and both would be
@@ -464,10 +494,16 @@ fed from the same source and is blocked behind the same questions.
 
 ## Operations
 
-### No production backup has been taken
+### No production backup has been taken, and now there is more to back up
 
 The agreed plan is a manual `pg_dump` before the **first** production migration
-run. That has not happened yet, and nothing has been applied to production.
+run. That has not happened, and nothing has been applied to production.
+
+It matters more than it did. The chain is now 48 migrations that create sixteen
+schemas, fill them from `exchange` and seed what `exchange` never held. All of
+it is additive and `lint:migrations` proves no migration writes destructively to
+`exchange` — but the dump is what makes that provable rather than argued, and it
+is a one-liner.
 
 ### Docker images have never been built
 
@@ -485,6 +521,10 @@ docker build -f frontend/Dockerfile .
 Root Directory `/` on both services, `RAILWAY_DOCKERFILE_PATH` of
 `api/Dockerfile` and `frontend/Dockerfile`, Watch Paths per service. Confirmed
 done. "Wait for CI" should be enabled once the workflow has run on master.
+
+Worth revisiting now that `pnpm check` takes about two and a half minutes and
+runs frontend tests as well: whatever timeout "Wait for CI" uses needs to allow
+for that.
 
 ## Testing
 
