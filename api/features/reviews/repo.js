@@ -1,89 +1,29 @@
-import query from "#shared/db/query.js";
+// Selects which schema the reviews feature reads and writes.
+// Same three-phase pattern as leads - see api/features/leads/repo.js.
+//
+//   REVIEWS_SOURCE=exchange   (default) read exchange, write exchange
+//   REVIEWS_SOURCE=dual                 read core,     write BOTH
+//   REVIEWS_SOURCE=core                 read core,     write core
+//
+// Go through dual and stay there. It is the only reversible setting.
+// Gate on `pnpm --filter @dorado/api diff reviews` before promoting.
+import * as exchange from "#features/reviews/repo.exchange.js";
+import * as core from "#features/reviews/repo.core.js";
+import * as dual from "#features/reviews/repo.dual.js";
 
-export async function getReview(id) {
-  const sql = `
-    SELECT *
-    FROM exchange.reviews
-    WHERE id = $1
-  `;
-  const values = [id];
-  const result = await query(sql, values);
-  return result.rows[0];
-}
+const SOURCES = { exchange, dual, core };
 
-export async function getAllReviews() {
-  const sql = `
-    SELECT *
-    FROM exchange.reviews
-    ORDER BY created_at DESC
-  `;
-  const result = await query(sql, []);
-  return result.rows
-}
+const SOURCE = Object.hasOwn(SOURCES, process.env.REVIEWS_SOURCE ?? "")
+  ? process.env.REVIEWS_SOURCE
+  : "exchange";
 
-export async function getPublicReviews() {
-  const sql = `
-    SELECT *
-    FROM exchange.reviews
-    WHERE hidden = false
-    ORDER BY created_at DESC
-    LIMIT 10
-  `;
-  const result = await query(sql, []);
-  return result.rows
-}
+const impl = SOURCES[SOURCE];
 
+export const activeSource = SOURCE;
 
-export async function createReview(review) {
-  const sql = `
-    INSERT INTO exchange.reviews (review_text, rating, created_by, updated_by, name, hidden)
-    VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING *;
-  `;
-  const values = [
-    review.review_text,
-    review.rating,
-    review.created_by,
-    review.updated_by,
-    review.name,
-    review.hidden,
-  ];
-  const result = await query(sql, values);
-  return result.rows[0];
-}
-
-export async function updateReview(review, user_name) {
-  const sql = `
-    UPDATE exchange.reviews
-    SET review_text = $1,
-        rating = $2,
-        updated_at = NOW(),
-        updated_by = $3,
-        name = $4,
-        hidden = $5,
-        created_at = $6
-    WHERE id = $7
-    RETURNING *;
-  `;
-
-  const values = [
-    review.review_text,
-    review.rating,
-    user_name,
-    review.name,
-    review.hidden,
-    review.created_at,
-    review.id,
-  ];
-
-  const result = await query(sql, values);
-  return result.rows[0];
-}
-
-export async function deleteReview(id) {
-  const sql = `
-    DELETE FROM exchange.reviews WHERE id = $1
-  `;
-  const values = [id];
-  return await query(sql, values);
-}
+export const getReview = impl.getReview;
+export const getAllReviews = impl.getAllReviews;
+export const getPublicReviews = impl.getPublicReviews;
+export const createReview = impl.createReview;
+export const updateReview = impl.updateReview;
+export const deleteReview = impl.deleteReview;

@@ -25,6 +25,7 @@ import pool from "#db";
 const PAIRS = [
   ["exchange.leads", "core.leads"],
   ["exchange.rates", "core.rates"],
+  ["exchange.reviews", "core.reviews"],
 ];
 
 const split = (q) => {

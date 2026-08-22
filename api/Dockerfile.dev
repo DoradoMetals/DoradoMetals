@@ -27,6 +27,12 @@ RUN apt-get update && apt-get install -y \
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
+# Pin the container clock to UTC. exchange stores naive timestamps, which
+# node-postgres parses in the process timezone - so the same row reads back
+# differently depending on TZ. Production happens to be UTC already, which is
+# why nothing has noticed; this makes it deliberate rather than incidental.
+ENV TZ=UTC
+
 RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
 
 WORKDIR /repo

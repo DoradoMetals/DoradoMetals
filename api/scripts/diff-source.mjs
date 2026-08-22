@@ -26,6 +26,16 @@ const FEATURES = {
     ],
     context: async (m) => ({ id: (await m.getAllLeads())[0]?.id }),
   },
+  reviews: {
+    exchange: () => import("#features/reviews/repo.exchange.js"),
+    core: () => import("#features/reviews/repo.core.js"),
+    reads: [
+      ["getAllReviews", (m) => m.getAllReviews()],
+      ["getPublicReviews", (m) => m.getPublicReviews()],
+      ["getReview(first)", async (m, ctx) => (ctx.id ? m.getReview(ctx.id) : null)],
+    ],
+    context: async (m) => ({ id: (await m.getAllReviews())[0]?.id }),
+  },
   rates: {
     exchange: () => import("#features/rates/repo.exchange.js"),
     core: () => import("#features/rates/repo.core.js"),
