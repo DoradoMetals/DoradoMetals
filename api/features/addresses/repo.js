@@ -1,144 +1,39 @@
-import query from "#shared/db/query.js";
+// Selects which schema the addresses feature uses.
+//
+//   ADDRESSES_SOURCE=exchange   (default) read exchange, write exchange
+//   ADDRESSES_SOURCE=dual                 read places, write BOTH
+//   ADDRESSES_SOURCE=next                 read and write places
+//
+// `next` is deliberately absent from the switch: writing only to the new schema
+// is the one-way door and should be a separate change.
+//
+// This feature is what resolves the address id an order returns. The order
+// reads hand back the address-book id rather than the snapshot's precisely so
+// getFromId can find it, and because the address book kept its exchange ids
+// that still holds when this is promoted. Once it is, the order reads could
+// return the snapshot id instead - which is the better answer, since the
+// snapshot is what that order was actually sent to - but that is a separate
+// change with its own tests. See FOLLOWUPS.
+//
+// Gate on `pnpm --filter @dorado/api diff addresses` before promoting.
+import * as exchange from "#features/addresses/repo.exchange.js";
+import * as dual from "#features/addresses/repo.dual.js";
 
-export async function list(userId) {
-  const q = `
-    SELECT *
-    FROM exchange.addresses
-    WHERE user_id = $1
-    ORDER BY is_default DESC, id ASC;
-  `;
-  const { rows } = await query(q, [userId]);
-  return rows;
-}
+const SOURCES = { exchange, dual };
 
-export async function getFromId(address_id) {
-  const q = `
-    SELECT *
-    FROM exchange.addresses
-    WHERE id = $1
-    ORDER BY is_default DESC, id ASC;
-  `;
-  const { rows } = await query(q, [address_id]);
-  return rows;
-}
+const SOURCE = Object.hasOwn(SOURCES, process.env.ADDRESSES_SOURCE ?? "")
+  ? process.env.ADDRESSES_SOURCE
+  : "exchange";
 
-export async function isActive({ addressId, userId }) {
-  const q = `
-    SELECT EXISTS (
-      SELECT 1
-      FROM exchange.purchase_orders
-      WHERE address_id = $1
-        AND user_id = $2
-        AND purchase_order_status != 'Completed'
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM exchange.sales_orders
-      WHERE address_id = $1
-        AND user_id = $2
-        AND sales_order_status != 'Completed'
-    ) AS locked;
-  `;
+const impl = SOURCES[SOURCE];
 
-  const { rows } = await query(q, [addressId, userId]);
-  return rows[0]?.locked === true;
-}
+export const activeSource = SOURCE;
 
-export async function create({ address, userId }) {
-  const q = `
-    INSERT INTO exchange.addresses (
-      user_id, line_1, line_2, city, state, country, zip, name,
-      is_default, phone_number, is_valid, country_code, is_residential
-    )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-    RETURNING *;
-  `;
-
-  const values = [
-    userId,
-    address.line_1,
-    address.line_2,
-    address.city,
-    address.state,
-    address.country,
-    address.zip,
-    address.name,
-    address.is_default,
-    address.phone_number,
-    true,
-    address.country_code,
-    false,
-  ];
-
-  const { rows } = await query(q, values);
-  return rows[0];
-}
-
-export async function update({ address, userId }) {
-  const q = `
-    UPDATE exchange.addresses
-    SET
-      line_1 = $3,
-      line_2 = $4,
-      city = $5,
-      state = $6,
-      country = $7,
-      zip = $8,
-      name = $9,
-      is_default = $10,
-      phone_number = $11,
-      country_code = $12,
-      is_residential = $13
-    WHERE id = $1 AND user_id = $2
-    RETURNING *;
-  `;
-
-  const values = [
-    address.id,
-    userId,
-    address.line_1,
-    address.line_2,
-    address.city,
-    address.state,
-    address.country,
-    address.zip,
-    address.name,
-    address.is_default,
-    address.phone_number,
-    address.country_code,
-    false,
-  ];
-
-  const { rows } = await query(q, values);
-  return rows[0];
-}
-
-export async function updateValidation({ addressId, is_valid, is_residential }) {
-  const q = `
-    UPDATE exchange.addresses
-    SET is_valid = $1, is_residential = $2
-    WHERE id = $3
-    RETURNING *;
-  `;
-  const { rows } = await query(q, [is_valid, is_residential, addressId]);
-  return rows[0];
-}
-
-export async function remove({ addressId, userId }) {
-  const q = `
-    DELETE FROM exchange.addresses
-    WHERE id = $1 AND user_id = $2;
-  `;
-  await query(q, [addressId, userId]);
-  return true;
-}
-
-export async function setDefault({ userId, addressId }) {
-  const q = `
-    UPDATE exchange.addresses
-    SET is_default = CASE WHEN id = $2 THEN TRUE ELSE FALSE END
-    WHERE user_id = $1;
-  `;
-  await query(q, [userId, addressId]);
-  return true;
-}
+export const list = impl.list;
+export const getFromId = impl.getFromId;
+export const isActive = impl.isActive;
+export const create = impl.create;
+export const update = impl.update;
+export const updateValidation = impl.updateValidation;
+export const remove = impl.remove;
+export const setDefault = impl.setDefault;

@@ -87,6 +87,23 @@ const FEATURES = {
     ],
     context: async (m) => ({ id: (await m.getAll())[0]?.id }),
   },
+  addresses: {
+    exchange: () => import("#features/addresses/repo.exchange.js"),
+    next: () => import("#features/addresses/repo.next.js"),
+    reads: [
+      ["list(first user)", (m, ctx) => (ctx.userId ? m.list(ctx.userId) : [])],
+      ["getFromId(first)", (m, ctx) => (ctx.id ? m.getFromId(ctx.id) : [])],
+      ["isActive(first)", (m, ctx) => (ctx.id ? m.isActive({ addressId: ctx.id, userId: ctx.userId }) : [])],
+    ],
+    // No read returns every address - list is per user - so the starting point
+    // comes from the table rather than from the repo.
+    context: async () => {
+      const { rows } = await pool.query(
+        "SELECT id, user_id FROM exchange.addresses WHERE user_id IS NOT NULL ORDER BY id LIMIT 1"
+      );
+      return { id: rows[0]?.id, userId: rows[0]?.user_id };
+    },
+  },
   "sales-orders": {
     exchange: () => import("#features/sales-orders/repo.exchange.js"),
     next: () => import("#features/sales-orders/repo.next.js"),

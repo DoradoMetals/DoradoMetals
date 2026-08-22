@@ -95,6 +95,24 @@ feature's repo is split rather than during it:
 
 The audit only proves a mapping *exists*, not that it is right. It is a floor.
 
+### When addresses is promoted, orders should return the snapshot id
+
+The order reads return `orders.addresses.source_address_id` - the address-book
+row an order was placed against - rather than the snapshot's id, because the
+frontend posts it back at checkout and `getAddressFromId` resolved it against
+`exchange.addresses`. Tests in both order features pin that.
+
+Under `ADDRESSES_SOURCE=dual` that still works, and not by luck: the address
+book kept its exchange ids, so the same id resolves in `places.addresses`. But
+once addresses is promoted, the better answer is for the order to return the
+*snapshot* id. The snapshot is the address that order was actually sent to,
+frozen at the time; the address-book row is whatever the customer has edited it
+into since.
+
+Deliberately not done in the same change as the addresses split - it alters
+what two order reads return, and those have their own tests. Do it as its own
+commit, with the order diffs re-run.
+
 ### The order address id is the address-book id, not the snapshot's
 
 `orders.addresses` points at a snapshot in `places.addresses` and also records

@@ -37,6 +37,7 @@ const FEATURES = {
   carriers: { "exchange.carriers": ["shipping.carriers", "organizations.organizations"] },
   mints: { "exchange.mints": ["products.mints", "organizations.organizations"] },
   products: { "exchange.products": ["products.bullion"] },
+  addresses: { "exchange.addresses": ["places.addresses", "places.user_addresses"] },
   orders: {
     "exchange.purchase_orders": ["orders.orders", "orders.offers", "orders.transactions"],
     "exchange.sales_orders": ["orders.orders", "orders.transactions"],
@@ -81,7 +82,17 @@ const RENAMES = {
   "exchange.scrap": { gross_unit: "unit", gem_id: "-" },
   "exchange.order_metals": { type: "metal_id", ask_spot: "ask", bid_spot: "bid", purchase_order_id: "order_id", sales_order_id: "order_id" },
   "exchange.refiner_metals": { type: "metal_id", ask_spot: "ask", bid_spot: "bid", purchase_order_id: "order_id", sales_order_id: "order_id" },
-  "exchange.addresses": { user_id: "-", name: "-", is_default: "-" },
+  // An address splits in two: the postal address itself, which has no owner,
+  // and places.user_addresses, which is a person's relationship to it. That is
+  // why an order can snapshot an address without copying whose it was. These
+  // three were previously declared dropped, which was wrong - they relocated.
+  // is_default became two columns, since a shipping default and a billing
+  // default are not the same fact.
+  "exchange.addresses": {
+    user_id: "user_id",
+    name: "label",
+    is_default: "default_shipping",
+  },
   // A shipment keeps its id but loses its direct link to the order: that moves
   // to fulfillments.fulfillments.order_id, one row per order. Verified against
   // the data - all 17 copied shipments agree on the renamed columns.
