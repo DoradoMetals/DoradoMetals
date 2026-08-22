@@ -352,6 +352,46 @@ trap for anyone writing a cast — an `exchange.`-qualified one simply fails, an
 a `tax.`-qualified one fails in the other direction. The repo tests state which
 is which.
 
+### content_actual is written as zero when there is no assay
+
+`updateScrapItem` computes `content_actual` as
+
+```js
+convertTroyOz(post_melt_actual ?? pre_melt, gross_unit) * purity_actual ?? content
+```
+
+which parses as `(convert(...) * purity_actual) ?? content`, because `*` binds
+tighter than `??`. The intended fallback to `content` can therefore never fire:
+`??` catches only null and undefined, and a multiplication returns neither.
+
+Multiplying by a null `purity_actual` gives **0**, so an admin editing a scrap
+row that has no assay yet lands `purity_actual = purity` (correct, that fallback
+is a plain `??`) alongside `content_actual = 0`, which disagrees with it. 49 of
+production's 105 scrap rows have a null `purity_actual`, so they are all in that
+state waiting for an edit.
+
+The same expression yields **NaN** if a figure is `undefined` rather than null,
+and Postgres stores NaN in a `numeric` column without complaint. Production has
+none today.
+
+Not fixed, because the fix depends on what the row should claim: `content_actual`
+falling back to `content` asserts an assay that never happened, and leaving it
+null says the parcel has not been melted yet. That is a question about the
+business, not about JavaScript. A test pins the current behaviour either way.
+
+### Deleting scrap silently orphans an order line
+
+`purchase_order_items.scrap_id` is `ON DELETE SET NULL`, so `scrapRepo.deleteItems`
+succeeds on scrap belonging to an order. The line survives with neither a
+`scrap_id` nor a `product_id` — which the composed order query reports as
+`item_type: 'unknown'` — and the weights, purity and assay figures are gone.
+That is the record of what a customer sent and what was recovered from it, and
+it exists nowhere else.
+
+Production has no such line today: 81 scrap-backed and 7 product-backed of 88.
+Latent rather than live, and pinned by a test. A guard would change what an
+admin delete does, which is why one was not added.
+
 ### The customer balance can go negative
 
 `removeFunds` does not check the balance before subtracting, so a checkout that
