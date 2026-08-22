@@ -311,6 +311,35 @@ Also re-verified against production, since both govern live decisions:
   reading them rather than on their being empty — which is still true: the only
   reference in the codebase is a comment in `spots/repo.exchange.js` saying so
 
+### deleteOrphanScrap runs on every cart sync and is not scoped to the customer
+
+`syncSellCart` ends with `cartRepo.deleteOrphanScrap(client)`, and that function
+deletes **every** row in `exchange.scrap` not referenced by a `sell_cart_items`
+or a `purchase_order_items` row — across the whole table, not the syncing
+customer's. It runs each time anyone changes their sell cart.
+
+That is its intended job, and in practice it is safe today: every path that
+creates a scrap row attaches it to a cart item or an order item inside the same
+transaction, so another customer's scrap is never visibly unreferenced.
+
+What is worth knowing is the blast radius. `NOT IN` over two subqueries that
+return nothing is true for every row, so if `sell_cart_items` and
+`purchase_order_items` were ever both empty — a bad migration, a failed restore,
+a truncate someone meant to scope — **the next cart sync would empty the scrap
+table**. On production that is 105 rows carrying `purity_actual`,
+`post_melt_actual` and `content_actual`: the record of what a customer's parcel
+actually turned out to weigh once melted, which exists nowhere else. There is a
+test asserting the current behaviour, so a guard added later will fail it
+loudly rather than silently.
+
+`lint:migrations` protects `exchange` from destructive *migrations*. Nothing
+protects it from application code doing an unbounded `DELETE`, and this is the
+only one that does.
+
+Two cheap options if it is worth hardening: refuse when both reference sets are
+empty, or scope the delete to the scrap ids the sync itself orphaned. Both change
+checkout behaviour, so neither was done on a hunch.
+
 ### The customer balance can go negative
 
 `removeFunds` does not check the balance before subtracting, so a checkout that
