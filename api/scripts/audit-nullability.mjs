@@ -9,14 +9,27 @@
 import "#env";
 import pg from "pg";
 
+// This audit exists because dev row counts prove nothing - dev holds tens of
+// rows where production holds thousands, and a column that is 100% null in dev
+// is routinely populated in production. Defaulting to DATABASE_URL therefore
+// had it answering the question it was built to avoid, and printing a report
+// that looks authoritative either way.
+//
+// It reads the read-only production role now, and says which database it used.
+// Override with DATABASE_URL only if you mean it.
+const connectionString =
+  process.env.AUDIT_DATABASE_URL ??
+  process.env.PROD_READONLY_DATABASE_URL ??
+  process.env.DATABASE_URL;
+
 const client = new pg.Client({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   ssl: { rejectUnauthorized: false },
 });
 
 await client.connect();
 
-const target = new URL(process.env.DATABASE_URL);
+const target = new URL(connectionString);
 console.log(`# nullability audit: ${target.pathname.slice(1)} @ ${target.hostname}`);
 console.log(`# generated ${new Date().toISOString()}`);
 console.log();

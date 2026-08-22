@@ -246,32 +246,36 @@ across 23 API files pass `user_name` today.
 Until this is done, the new `created_by_id` columns are a trustworthy column
 filled from an untrusted source.
 
-### Bank details are unencrypted at rest - and in dev, there are none
+### Bank details are unencrypted at rest, and production has real ones
 
-`exchange.payouts.routing_number` and `.account_number` are plaintext `text`,
-written straight from `req.body` by `insertPayout`. Order responses carry only
-last-4, with full values behind an admin-only endpoint, but the storage is
-unchanged.
+**Confirmed against production, 2026-08-22.** Dev suggested these columns were
+vestigial. They are not.
 
-**In dev, both columns are null on all 16 rows.** Every payout is either ECHECK
-(10) or DORADO_ACCOUNT (6) - neither of which involves ACH or wire details.
-`payments.details` in the new schema likewise holds no routing or account
-number on any of its 16 rows.
-
-If production looks the same, the answer is to drop the columns rather than
-build encryption, which is the cheaper and safer fix by a wide margin. That
-cannot be concluded from dev - dev holds tens of rows and proves nothing about
-production - so it needs the query below run against prod, which is blocked on
-the `claude_ro` role failing authentication.
-
-```sql
-SELECT method, count(*), count(routing_number), count(account_number)
-FROM exchange.payouts GROUP BY method;
+```
+ECHECK            41 payouts,  0 routing,  0 account
+ACH               10 payouts,  7 routing,  7 account
+WIRE               8 payouts,  7 routing,  7 account
+DORADO_ACCOUNT     2 payouts,  0 routing,  0 account
+                  61 total
 ```
 
-If production *does* hold real bank details, the migration must not copy them:
-that would put the same plaintext secrets in two places and double the
-exposure. Either way this is a decision to take before payments moves.
+Fourteen payouts carry a real routing and account number in plaintext `text`,
+written straight from `req.body` by `insertPayout`. Dev has sixty-one fewer
+payouts and zero bank details, which is why the earlier note here suggested
+dropping the columns rather than encrypting them. That was wrong, and it is
+exactly the trap CLAUDE.md warns about: dev row counts prove nothing.
+
+So encryption at rest is real work, not a delete:
+
+- **The migration must not copy them.** `payments.details` has
+  `routing_number` and `account_number` columns and holds nothing in either.
+  Backfilling them would put the same fourteen secrets in a second table and
+  double the exposure. Whatever the payments migration does, it should encrypt
+  on the way across or leave them where they are.
+- Order responses already carry last-4 only, with full values behind an
+  admin-only endpoint. That part is sound and there is a test asserting it.
+- `pgcrypto` is the obvious mechanism, but key management is the actual
+  decision: a key in the same environment as the database buys very little.
 
 ## Schema
 

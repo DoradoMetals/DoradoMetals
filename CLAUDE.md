@@ -165,14 +165,11 @@ honest.
 
 Full detail in FOLLOWUPS.md; these are the ones that block other work.
 
-- **`claude_ro` fails authentication on production.** The most expensive
-  blocker: it prevents the nullability audit *and* the query that would settle
-  whether the plaintext bank columns hold anything. Needs
-  `ALTER ROLE claude_ro PASSWORD ...`.
-- **Bank details are unencrypted at rest — but in dev there are none.**
-  `exchange.payouts.routing_number` and `.account_number` are null on all 16
-  rows; every payout is ECHECK or DORADO_ACCOUNT. If production matches, the fix
-  is to drop the columns rather than build encryption.
+- **Bank details are unencrypted at rest, and production has fourteen of
+  them.** Confirmed against production: of 61 payouts, the 10 ACH and 8 WIRE
+  rows carry real routing and account numbers in plaintext. Dev has none, which
+  made them look vestigial — they are not. The payments migration must not copy
+  them into `payments.details`, which would double the exposure.
 - **Five features blocked on decisions**: shipping (two product questions about
   services and packages), payments (a different model, not a reshaping),
   refiners and purchase-order `refinery_id` (which refiner — nothing in
