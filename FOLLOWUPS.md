@@ -621,20 +621,52 @@ been verified. Both order features, products, mints and the rest were caught by
 `verify:backfill` registrations; addresses slipped through because nothing
 registered it.
 
+### fulfillments had to come before the shipping repo split
+
+Worth recording as an ordering constraint rather than a surprise. All three
+shipment reads are `SELECT *` from `exchange.shipments`, so the wire shape
+includes `purchase_order_id` and `sales_order_id` — and `shipping.shipments` has
+neither. `fulfillments.fulfillments.order_id` carries the order link, one row
+per order, so a `repo.next` for shipments cannot return the shape it must until
+fulfillments holds data. `getByOrder` in particular could not work at all.
+
+052 backfills it: 23 fulfillments and 23 links, up from 17 and 16. Every order
+with a shipment now has one, which closes the 6 that were missing — they were
+the 6 whose shipments 049 had just restored, exactly as expected.
+
+The mapping is derived rather than decided. Production holds two `pickup_type`
+values and each corresponds exactly to a direction: 'Store Dropoff' on all 61
+inbound, 'DropShip' on all 9 outbound. Status follows `shipping_status` —
+Delivered becomes COMPLETED, anything else PENDING — which is what January's
+sixteen rows already said.
+
+Locations resolve by **type** rather than name: an inbound parcel is received at
+the FEDEX_OFFICE location, an outbound one ships from the REFINER_OFFICE.
+Renaming a location therefore cannot break the mapping.
+
+One dev row contradicts itself and is excluded from the comparison: order
+`1f3e9efe` is marked APPOINTMENT/SCHEDULED while having a DropShip shipment, and
+only one fulfillment per order is allowed. A rebuild derives DROPSHIP from the
+shipment, which is what the shipment says happened.
+
 ### A shipment's business location is not recorded in exchange
 
 `shipping.shipments` requires a shipper and a recipient address, and
 `exchange.shipments` has no address column at all. One side is derivable — the
 customer's address, through the order — and 050 fills it.
 
-The other is a business location, and the pattern in dev is clean but unproven:
-all 11 inbound shipments name FedEx Office – Farmers Branch, all 6 outbound name
-Elemetal. That is a rule inferred from seventeen rows about a production table
-holding seventy, so 048 relaxes the constraint rather than asserting it.
+The other is a business location — and it turns out the new schema records that
+somewhere else. `fulfillments.shipments` carries `recipient_location_id` and
+`shipper_location_id`, and 052 fills them: FEDEX_OFFICE for an inbound parcel,
+REFINER_OFFICE for an outbound one.
 
-Re-adding the constraint is one statement once there is a rule someone has
-confirmed. Until then a shipment knows where the customer is and not which of
-our locations handled it.
+So the shipment's own business-side address staying null is arguably correct
+rather than merely cautious: the location that handled it is a fact about the
+fulfillment, not about the label. 048 relaxing the constraint looks like the
+right call for a better reason than the one it was made for.
+
+Re-adding the constraint would now mean copying the location's address onto the
+shipment, which duplicates what the fulfillment already says. Probably leave it.
 
 ### shipping.services and shipping.packages are seeded, not derived
 

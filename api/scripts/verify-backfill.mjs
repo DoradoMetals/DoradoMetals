@@ -120,6 +120,36 @@ const TABLES = [
            (SELECT pk.label FROM $S$shipping.packages pk WHERE pk.id = t.package_id)`,
   },
   {
+    name: "fulfillments.fulfillments",
+    key: "order_id",
+    // The id is generated, so what is compared is the order, the method by name
+    // and direction, and the status.
+    //
+    // Timestamps are not compared. dev's are when January wrote the row - all
+    // 2026-01-13 - where a rebuild takes the shipment's, which is when the
+    // fulfillment actually happened. The rebuild's answer is the better one and
+    // it is not the one dev holds.
+    //
+    // One order is excluded. dev marks 1f3e9efe as APPOINTMENT/SCHEDULED while
+    // that same order has a DropShip shipment, and fulfillments_order_uniq
+    // allows only one fulfillment per order - so the two statements contradict
+    // each other. A rebuild derives DROPSHIP from the shipment, which is what
+    // the shipment says happened. dev's row is a January artifact, and the one
+    // fulfillment with no shipment link.
+    where: "t.order_id <> '1f3e9efe-21a5-4dc4-a7a5-89a2dcf0f3b8'",
+    cols: `order_id, status,
+           (SELECT m.type || '/' || m.direction FROM $S$fulfillments.methods m WHERE m.id = t.method_id)`,
+  },
+  {
+    name: "fulfillments.shipments",
+    key: "shipment_id",
+    // Locations compared by type rather than id: the mapping keys on the type,
+    // so that is what has to survive a rebuild.
+    cols: `shipment_id,
+           (SELECT l.type FROM $S$places.locations l WHERE l.id = t.recipient_location_id),
+           (SELECT l.type FROM $S$places.locations l WHERE l.id = t.shipper_location_id)`,
+  },
+  {
     name: "shipping.tracking",
     key: "id",
     // dev holds 9 events with no counterpart in dev's exchange.tracking_events,
@@ -225,9 +255,7 @@ const NOT_REBUILT = {
   "payments.intents": "payments is a different model; not migrated",
   "payments.attempts": "same",
   "payments.settlements": "same",
-  "fulfillments.fulfillments": "not migrated yet",
   "fulfillments.methods": "seed data, no exchange source",
-  "fulfillments.shipments": "not migrated yet",
   "places.locations": "seed data, no exchange source",
   "places.location_hours": "seed data, no exchange source",
   "refiners.refiners": "compared through refiners.exchange_compat",
