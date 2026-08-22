@@ -74,6 +74,17 @@ Dev holds tens of rows, so dev null counts prove nothing. Needs
 in `19c7a532`. They hold data (1 and 10 rows in dev) and nothing references
 them. Needs a yes/no before dropping, and a `pg_dump` first.
 
+### products.bullion.quantity left nullable
+
+exchange.products declares `quantity` NOT NULL; `products.bullion` leaves it
+nullable and migration 024 did not tighten it, unlike supplier_id, image_front,
+image_back and stock which it did.
+
+The others are restorations — nothing treats them as optional and a product
+without a front image cannot render. `quantity` is a judgement: a
+not-yet-stocked product could reasonably lack one, and exchange's NOT NULL may
+be incidental rather than intended. Worth a decision rather than a default.
+
 ### Empty-string emails on carrier organizations
 
 Two CARRIER rows in `organizations.organizations` hold `''` rather than NULL for
