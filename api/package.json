@@ -52,5 +52,8 @@
     "@types/cors": "^2.8.17",
     "@types/pg": "^8.11.10",
     "@types/nodemailer": "^6.4.17"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

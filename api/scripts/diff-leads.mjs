@@ -13,7 +13,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as exchange from "#features/leads/repo.exchange.js";
-import * as core from "#features/leads/repo.core.js";
+import * as core from "#features/leads/repo.core.ts";
 
 const norm = (v) => JSON.stringify(v, Object.keys(v ?? {}).sort());
 const sortRows = (rows) =>

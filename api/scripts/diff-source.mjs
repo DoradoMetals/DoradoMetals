@@ -19,7 +19,7 @@ import pool from "#db";
 const FEATURES = {
   leads: {
     exchange: () => import("#features/leads/repo.exchange.js"),
-    core: () => import("#features/leads/repo.core.js"),
+    core: () => import("#features/leads/repo.core.ts"),
     reads: [
       ["getAllLeads", (m) => m.getAllLeads()],
       ["getLead(first)", async (m, ctx) => (ctx.id ? m.getLead(ctx.id) : null)],

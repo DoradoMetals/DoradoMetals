@@ -65,6 +65,7 @@ export const LeadsRow = z.object({
   "updated_by": z.string().nullable(),
   "notes": z.string().nullable(),
   "contact": z.string().nullable(),
+  "priority": z.string().nullable(),
 });
 export type LeadsRow = z.infer<typeof LeadsRow>;
 

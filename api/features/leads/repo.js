@@ -16,7 +16,7 @@
 // identical responses. Once core has been serving for long enough to trust,
 // repo.exchange.js and this switch both go away.
 import * as exchange from "#features/leads/repo.exchange.js";
-import * as core from "#features/leads/repo.core.js";
+import * as core from "#features/leads/repo.core.ts";
 
 const SOURCE = process.env.LEADS_SOURCE === "core" ? "core" : "exchange";
 
