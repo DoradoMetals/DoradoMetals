@@ -52,11 +52,6 @@ const TABLES = [
     name: "organizations.organizations",
     key: "type, name",
     cols: "type, name, email, phone, website, description, enabled, created_at, updated_at",
-    // The business's own organization has no source in exchange - it is seed
-    // data, not a reshaping of anything - so the backfill does not produce it
-    // and this comparison does not expect it. It is carried with the rest of
-    // the seed data, alongside places.locations, which is what references it.
-    where: "type <> 'DORADO'",
   },
   {
     name: "refiners.refiners",
@@ -200,15 +195,24 @@ try {
     { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }
   );
 
-  // Every backfill after the genesis baseline, in filename order. Picked up by
-  // name so a new one is covered by this check the moment it is added, rather
+  // Every backfill and seed after the genesis baseline, in filename order.
+  // Picked up by name so a new one is covered the moment it is added, rather
   // than the day someone remembers to list it here. Corrections are not
   // included: they repair drift in dev's copy, and a database built from
   // exchange has none of it to repair.
+  //
+  // The seed is included because it is the other half of what a fresh database
+  // needs: the backfills bring across what exchange holds, and the seed brings
+  // what it never did.
   const dir = path.join(import.meta.dirname, "..", "migrations");
   const backfillFiles = fs
     .readdirSync(dir)
-    .filter((f) => f.endsWith(".sql") && f.includes("backfill") && f.slice(0, 3) > "028")
+    .filter(
+      (f) =>
+        f.endsWith(".sql") &&
+        (f.includes("backfill") || f.includes("seed")) &&
+        f.slice(0, 3) > "028"
+    )
     .sort();
 
   if (!backfillFiles.length) {

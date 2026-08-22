@@ -141,6 +141,47 @@ If the shipping migration concludes they are the same, this is the column to
 drop. That was the deliberate choice: dropping a duplicate later is a much
 easier conversation than recovering a column that was never carried across.
 
+### BLOCKED: auth cannot be dual-written, because better-auth owns the writes
+
+`features/auth/client.js` configures better-auth with
+`modelName: 'exchange.users'`, `'exchange.session'`, `'exchange.account'` and
+`'exchange.verification'`, and better-auth writes those tables through its own
+pool - not through `#db`, not through the shared executor, not through any repo.
+
+So there is no dual-write to build. Migrating auth means changing those four
+`modelName` values, which is an atomic cutover of live authentication with no
+reversible middle state. Everything else in this migration goes through `dual`
+precisely to avoid that shape of change; auth cannot.
+
+Worth noting separately: better-auth's pool bypasses the NUMERIC and INT8 type
+parsers registered in `api/db.js`, so anything it reads comes back with
+different types than the rest of the codebase would give.
+
+`auth.users` is already backfilled by 029 and `auth.employees` by the seed, so
+the data is there whenever the cutover happens. The 2 sessions and 2 accounts
+the new schema has that exchange does not belong to test users created directly
+in January.
+
+### BLOCKED: refiners needs the same answer as a purchase order's refiner
+
+`refiners.spots` (124 rows) and `refiners.items` (40) both carry a NOT NULL
+`refiner_id`, and every row in both points at Elemetal.
+`exchange.refiner_metals` and `exchange.purchase_order_items` have no refiner
+column at all, so there is nothing to derive it from - it is the same fact
+someone knew in January that `orders.orders.refinery_id` needs, and the same
+decision answers both.
+
+Unlike the orders case, null is not an option here: the column is NOT NULL, so
+a backfill must assert *some* refiner for every row.
+
+The columns are otherwise fine - `audit:coverage refiners` is clean, since
+migration 035 added the four it was missing. It is only the identity that is
+unknown.
+
+Moving refiners also means giving it its own feature folder: its five repo
+functions currently live in `features/purchase-orders/`, which is exactly the
+mixing that should not happen.
+
 ### A purchase order's refiner is not recorded in exchange
 
 `orders.orders.refinery_id` is set on all sixteen purchase orders in dev, all to
