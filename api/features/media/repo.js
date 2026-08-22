@@ -3,7 +3,11 @@
 //
 //   MEDIA_SOURCE=exchange   (default) read exchange, write exchange
 //   MEDIA_SOURCE=dual                 read media,    write BOTH
-//   MEDIA_SOURCE=next                 read media,    write media
+//
+// There is deliberately no `next`. Writing only to the new schema is the
+// one-way door - exchange stops receiving writes and flipping back drops
+// everything written in between - and CLAUDE.md says to go through dual and
+// stay there. Adding it back should be a deliberate, separate change.
 //
 // media.images names one column `checksum` where exchange calls it
 // `checksum_sha256`. The reads alias it back, so the wire shape is identical
@@ -11,10 +15,9 @@
 //
 // Gate on `pnpm --filter @dorado/api diff media` before promoting.
 import * as exchange from "#features/media/repo.exchange.js";
-import * as next from "#features/media/repo.next.js";
 import * as dual from "#features/media/repo.dual.js";
 
-const SOURCES = { exchange, dual, next };
+const SOURCES = { exchange, dual };
 
 const SOURCE = Object.hasOwn(SOURCES, process.env.MEDIA_SOURCE ?? "")
   ? process.env.MEDIA_SOURCE

@@ -3,14 +3,17 @@
 //
 //   RATES_SOURCE=exchange   (default) read exchange, write exchange
 //   RATES_SOURCE=dual                 read new,      write BOTH
-//   RATES_SOURCE=next                 read new,      write new
+//
+// There is deliberately no `next`. Writing only to the new schema is the
+// one-way door - exchange stops receiving writes and flipping back drops
+// everything written in between - and CLAUDE.md says to go through dual and
+// stay there. Adding it back should be a deliberate, separate change.
 //
 // Gate on `pnpm --filter @dorado/api diff:rates` before flipping.
 import * as exchange from "#features/rates/repo.exchange.js";
-import * as next from "#features/rates/repo.next.js";
 import * as dual from "#features/rates/repo.dual.js";
 
-const SOURCES = { exchange, dual, next };
+const SOURCES = { exchange, dual };
 
 const SOURCE = Object.hasOwn(SOURCES, process.env.RATES_SOURCE ?? "")
   ? process.env.RATES_SOURCE

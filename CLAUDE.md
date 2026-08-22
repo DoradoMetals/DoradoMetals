@@ -56,11 +56,30 @@ packages/contracts/  @dorado/contracts  zod schemas shared by both
 ## Two things to know before touching the database
 
 **There are two schema designs in the same database.** `exchange` is one flat
-schema serving all traffic. `core`, `orders`, `payments`, `fulfillments`,
-`shipping`, `refiners`, `tax`, `places`, `auth` are domain-namespaced, built in
-a January 2026 refactor abandoned at 3 of 24 features, and are being migrated to
-one feature at a time. `leads` and `rates` are done. Use the
-`migrate-feature-schema` skill.
+schema serving all traffic. Sixteen domain-namespaced schemas — `orders`,
+`payments`, `fulfillments`, `shipping`, `refiners`, `tax`, `places`, `auth`,
+`products`, `organizations`, `metals`, `spots`, `media`, `leads`, `rates`,
+`reviews` — were built in a January 2026 refactor abandoned at 3 of 24 features,
+and are being migrated to one at a time. Use the `migrate-feature-schema` skill.
+
+**Thirteen features are migrated and none is promoted.** leads, rates, reviews,
+sales-tax, spots+metals, media, suppliers, carriers, products, mints,
+purchase-orders, sales-orders, addresses. Each sits behind a `*_SOURCE`
+environment switch defaulting to `exchange`, so nothing has changed for live
+traffic. Promotion is deliberate and is the user's call.
+
+**The remaining five are blocked on decisions, not on effort** — shipping,
+payments, refiners, auth and fulfillments. Each is written up in FOLLOWUPS.md
+with what specifically is unknown. They are not simply the later features; they
+are the ones where the January work made a design decision nobody has confirmed
+since.
+
+**Production can be built from nothing.** `000_genesis_schema.sql` creates every
+schema, table, view, enum and function; the backfills derive the data from
+`exchange`; `047_seed_reference_data.sql` supplies what `exchange` never held
+(the business's own organization, locations, opening hours, payment and
+fulfillment methods, employees). Verified by building it all into renamed
+schemas inside a rolled-back transaction — see Verification below.
 
 **Dev and production are the same Postgres instance**, different databases —
 `dorado_db_dev` and `dorado_db`. `DATABASE_URL` in `api/.env` is dev.
@@ -97,8 +116,27 @@ server otherwise gets strings, and `price + fee` concatenates.
 
 ## Verification
 
-`pnpm check` before committing. Several validators need a database and are not
-in CI. See the `verify-changes` skill for what each catches.
+`pnpm check` before committing — it takes over two minutes now, so background it
+rather than letting a timeout kill it. Several validators need a database and
+are not in CI. See the `verify-changes` skill for what each catches.
+
+The ones that have actually caught things:
+
+- `verify:genesis` — builds the whole schema into renamed schemas inside a
+  rolled-back transaction and compares it against dev, column by column.
+- `verify:backfill` — runs every backfill and seed into those empty tables and
+  compares the rows against dev, then re-runs to prove idempotency, then checks
+  the guard refuses once the new schema holds rows `exchange` does not.
+- `verify:parity` — source table against target, type-aware.
+- `diff` — every migrated read, old implementation against new.
+- `audit:coverage` — **every populated column in `exchange` that has nowhere to
+  go.** Run this before splitting any repo. Orders had matching row counts and
+  was missing 21 columns of live data; row counts are not evidence.
+
+A reported gap is often a rename or a relocation rather than a loss — seven of
+shipping's thirteen were, and three of addresses'. Check before adding a column,
+and declare the mapping in `scripts/audit-coverage.mjs` so the report stays
+honest.
 
 ## Standing constraints
 
@@ -115,11 +153,22 @@ in CI. See the `verify-changes` skill for what each catches.
 
 ## Open threads
 
-- Production read role `claude_ro` fails authentication — needs
-  `ALTER ROLE claude_ro PASSWORD ...` before the nullability audit can run.
-- Bank details are unencrypted at rest.
-- 22 features still on `exchange`. `orders` is the big one: `orders.orders`
-  unifies purchase and sales orders behind a `direction` discriminator, which is
-  what eventually collapses the duplicated tables and composed queries.
+Full detail in FOLLOWUPS.md; these are the ones that block other work.
+
+- **`claude_ro` fails authentication on production.** The most expensive
+  blocker: it prevents the nullability audit *and* the query that would settle
+  whether the plaintext bank columns hold anything. Needs
+  `ALTER ROLE claude_ro PASSWORD ...`.
+- **Bank details are unencrypted at rest — but in dev there are none.**
+  `exchange.payouts.routing_number` and `.account_number` are null on all 16
+  rows; every payout is ECHECK or DORADO_ACCOUNT. If production matches, the fix
+  is to drop the columns rather than build encryption.
+- **Five features blocked on decisions**: shipping (two product questions about
+  services and packages), payments (a different model, not a reshaping),
+  refiners and purchase-order `refinery_id` (which refiner — nothing in
+  `exchange` records it), auth (better-auth writes `exchange` directly, so there
+  is no reversible middle state), fulfillments (blocked behind shipping).
+- **No production migration has been run, and no `pg_dump` taken.** The dump
+  comes first.
 - Frontend has no tests.
 - Docker images are unverified — no daemon in the dev environment.

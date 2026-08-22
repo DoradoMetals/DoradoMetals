@@ -3,7 +3,11 @@
 //
 //   PRODUCTS_SOURCE=exchange   (default) read exchange, write exchange
 //   PRODUCTS_SOURCE=dual                 read new,      write BOTH
-//   PRODUCTS_SOURCE=next                 read new,      write new
+//
+// There is deliberately no `next`. Writing only to the new schema is the
+// one-way door - exchange stops receiving writes and flipping back drops
+// everything written in between - and CLAUDE.md says to go through dual and
+// stay there. Adding it back should be a deliberate, separate change.
 //
 // products.bullion names three columns differently - name, description and type
 // where exchange has product_name, product_description and product_type - and
@@ -14,10 +18,9 @@
 //
 // Gate on `pnpm --filter @dorado/api diff products` before promoting.
 import * as exchange from "#features/products/repo.exchange.js";
-import * as next from "#features/products/repo.next.js";
 import * as dual from "#features/products/repo.dual.js";
 
-const SOURCES = { exchange, dual, next };
+const SOURCES = { exchange, dual };
 
 const SOURCE = Object.hasOwn(SOURCES, process.env.PRODUCTS_SOURCE ?? "")
   ? process.env.PRODUCTS_SOURCE

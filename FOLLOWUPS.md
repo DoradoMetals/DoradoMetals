@@ -141,6 +141,26 @@ If the shipping migration concludes they are the same, this is the column to
 drop. That was the deliberate choice: dropping a duplicate later is a much
 easier conversation than recovering a column that was never carried across.
 
+### BLOCKED: fulfillments is blocked behind shipping, exactly
+
+A fulfillment is derived from a shipment, and the dependency is one-to-one:
+
+- all 17 orders that have a fulfillment have a shipment in `exchange`
+- the 6 orders that have a shipment but *no* fulfillment are precisely the 6
+  whose shipments were never copied into `shipping.shipments`
+- all 16 `fulfillments.shipments` links resolve, because they can only point at
+  shipments that were copied
+
+So the missing fulfillments are not a separate gap; they are the shipping gap
+seen from the other side, and they close when shipping does.
+
+The method mapping is clean and worth recording: `exchange.shipments.pickup_type`
+'Store Dropoff' becomes CARRIER DROPOFF, 'DropShip' becomes DROPSHIP.
+
+One row needs its own look: there are 17 fulfillments and 16 shipment links, and
+the odd one has method APPOINTMENT — but `fulfillments.directs` and
+`fulfillments.pickups` are both empty, so nothing backs it.
+
 ### BLOCKED: auth cannot be dual-written, because better-auth owns the writes
 
 `features/auth/client.js` configures better-auth with

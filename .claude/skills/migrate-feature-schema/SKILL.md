@@ -150,3 +150,77 @@ Cover at minimum: the defaults an insert relies on, read-back after write, updat
 - Drop a table or column without explicit confirmation, and verify nothing references it first — `order_metals.percent_change` and `scrap.gem_id` are 100% NULL but still selected and inserted by live code.
 - Change the wire shape. If a response changes, the frontend breaks; that is a separate, deliberate piece of work.
 - Add `NOT NULL` based on dev row counts. Dev holds tens of rows. That needs the production audit.
+
+## What this migration has taught, the hard way
+
+Each of these cost real debugging. They are in rough order of how much.
+
+### Audit the target before writing any code
+
+Run `pnpm --filter @dorado/api audit:coverage <feature>` first. It reports every
+populated column in `exchange` with nowhere to go in the schema it maps onto.
+
+**Row counts matching is not evidence the target is complete.** `orders` had
+matching counts on every table and was missing 21 columns of live data —
+including the assay figures recording what a parcel of scrap actually turned out
+to weigh. That was found one repo function at a time before the audit existed.
+
+**A reported gap is often a rename or a relocation.** Seven of shipping's
+thirteen were renames nobody had recorded; three of addresses' had moved to a
+different table. Check the data before adding a column, and declare the mapping
+in `scripts/audit-coverage.mjs` so the next person is not misled.
+
+**Two tables holding rows is not two rival copies.** `shipping.shipments` and
+`fulfillments.shipments` looked like duplicates; the second is a link table.
+Check which one shares ids with `exchange` before deciding what is authoritative.
+
+### Thread the executor, in both directions
+
+Every `exchange` write must *accept* an executor as its last parameter and pass
+it to `query(sql, values, executor)`. Seventeen did not, across the two order
+features. Passing one to a function that ignores it means the write runs on the
+pool while its mirror sits in a transaction — so a rollback leaves the two
+schemas disagreeing, which is the exact failure dual-write exists to prevent.
+
+Every dual wrapper must take an executor and pass it to `both(executor, ...)`.
+Twelve of mine called `both(undefined, ...)` and opened their own transaction.
+
+This is the same wrong-argument-slot mistake that took checkout down in August.
+
+### Mirror by re-deriving, not by replaying
+
+Do not write a mirror per write. Have each write declare which part of the
+entity it disturbed, and rebuild that part from `exchange` with the same
+`INSERT ... SELECT` the backfill uses. One definition of what the entity looks
+like in the new schema, exercised by every write rather than only at migration
+time. Twenty-nine order writes would otherwise have been twenty-nine chances to
+map a column wrong.
+
+### Never let a JS `Date` carry a timestamp
+
+node-postgres parses `timestamptz` into a JS `Date`, which holds milliseconds.
+Dev's timestamps carry microseconds. Anything that round-trips through JS
+truncates them — migration 015 exists to undo exactly that, and the seed
+generator reintroduced it months later. Read as text and cast back; Postgres
+renders its own values exactly.
+
+### Check the real unique index before writing `ON CONFLICT`
+
+`places.user_addresses` is keyed `(user_id, address_id)`, not `address_id` —
+deliberately, because two people sharing an address is what separating the
+address from the person makes possible. Assuming otherwise cost a hung test run.
+`orders.spots` and `orders.offers` had no uniqueness at all despite their data
+satisfying it; the mirror needed it added first.
+
+### Test against what could pass vacuously
+
+An isolation test that writes a value the row already held proves nothing. Use a
+sentinel, and assert the write *happened* before asserting it is invisible
+elsewhere. Check isolation from a **second connection**, never `pool.query` —
+`lint:db` requires this too.
+
+### Keep `next` out of the switch
+
+`dual` is reversible; `next` is not. A switch should offer `exchange` and `dual`
+only, until promotion past dual is a deliberate, separate decision. There is a
+test asserting no switch offers both.

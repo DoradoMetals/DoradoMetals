@@ -24,10 +24,9 @@
 // Nothing above this file knows the difference - service, controller and routes
 // are untouched, and all three implementations satisfy the same contract.
 import * as exchange from "#features/leads/repo.exchange.js";
-import * as next from "#features/leads/repo.next.ts";
 import * as dual from "#features/leads/repo.dual.ts";
 
-const SOURCES = { exchange, dual, next };
+const SOURCES = { exchange, dual };
 
 // Anything unrecognised falls back to the schema currently serving traffic.
 const SOURCE = Object.hasOwn(SOURCES, process.env.LEADS_SOURCE ?? "")

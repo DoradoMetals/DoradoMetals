@@ -3,6 +3,11 @@
 //
 //   SALES_TAX_SOURCE=exchange   (default) read exchange, write exchange
 //   SALES_TAX_SOURCE=dual                 read new,      write BOTH
+//
+// There is deliberately no `next`. Writing only to the new schema is the
+// one-way door - exchange stops receiving writes and flipping back drops
+// everything written in between - and CLAUDE.md says to go through dual and
+// stay there. Adding it back should be a deliberate, separate change.
 //   SALES_TAX_SOURCE=core                 read new,      write new
 //
 // The target schema here is `tax`, not `core`. The token means "the new
@@ -11,10 +16,9 @@
 //
 // Gate on `pnpm --filter @dorado/api diff sales-tax` before promoting.
 import * as exchange from "#features/sales-tax/repo.exchange.js";
-import * as next from "#features/sales-tax/repo.next.js";
 import * as dual from "#features/sales-tax/repo.dual.js";
 
-const SOURCES = { exchange, dual, next };
+const SOURCES = { exchange, dual };
 
 const SOURCE = Object.hasOwn(SOURCES, process.env.SALES_TAX_SOURCE ?? "")
   ? process.env.SALES_TAX_SOURCE
