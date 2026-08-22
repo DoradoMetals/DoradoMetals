@@ -170,11 +170,13 @@ Full detail in FOLLOWUPS.md; these are the ones that block other work.
   rows carry real routing and account numbers in plaintext. Dev has none, which
   made them look vestigial — they are not. The payments migration must not copy
   them into `payments.details`, which would double the exposure.
-- **Five features blocked on decisions**: shipping (two product questions about
-  services and packages), payments (a different model, not a reshaping),
-  refiners and purchase-order `refinery_id` (which refiner — nothing in
-  `exchange` records it), auth (better-auth writes `exchange` directly, so there
-  is no reversible middle state), fulfillments (blocked behind shipping).
+- **Two features genuinely blocked**: payments (a different model, not a
+  reshaping — migrating means deleting rows in the new schema) and auth
+  (better-auth writes `exchange` directly via `modelName`, so there is no
+  reversible middle state). Shipping, fulfillments and refiners were listed here
+  as blocked and are not: the shipping questions were answered by production
+  data, and refiners only needs `refinery_id` left null, which loses nothing
+  because `exchange` never recorded it.
 - **No production migration has been run, and no `pg_dump` taken.** The dump
   comes first.
 - Docker images are unverified — no daemon in the dev environment.

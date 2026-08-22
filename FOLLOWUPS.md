@@ -586,42 +586,51 @@ switched to until it is repaired, and repairing it is only worth doing once the
 service and package questions are answered, since those change what a shipment
 row is.
 
-### BLOCKED: shipping.services needs a product decision before it can move
+### shipping.services is NOT blocked — that entry was wrong
 
-`shipping.services` is not a copy of `exchange.carrier_services` — it is a
-correction of it, and migrating either way changes what the API returns.
+Recorded here for a while as needing two product decisions. Both were
+artifacts of reasoning from dev, and production answers them.
 
-What the data says:
+Dev's `exchange.carrier_services` holds 2 rows. **Production holds 8**, and they
+are the same eight as `shipping.services` — identical as sets on
+(carrier, service name):
 
-- `exchange.carrier_services` holds **2** rows: Express Saver and Overnight,
-  both FedEx.
-- `exchange.shipments.service_type` stores the service *name as text*, and the
-  values in use are Express Saver (16), **Standard** (6) and **Free** (1) —
-  two of which do not exist in `carrier_services` at all.
-- `shipping.services` holds **8**: Free, Overnight, Standard per carrier for
-  FedEx and UPS, plus Express Saver and Priority Overnight for FedEx. The
-  apparent duplicates are per-carrier, which is correct.
-- The frontend hardcodes both spellings: `salesOrders/types.ts` uses
-  `'Overnight'`, `service/types.ts` uses `serviceDescription: 'Priority
-  Overnight'`.
+```
+FedEx / Express Saver      UPS / Free
+FedEx / Free               UPS / Overnight
+FedEx / Overnight          UPS / Standard
+FedEx / Priority Overnight
+FedEx / Standard
+```
 
-So the old table was never the source of truth — the real service list lives in
-the frontend, and `carrier_services` drifted into holding a fragment of it.
+So:
 
-**Two decisions needed:**
+- **"Should `GET /carrier_services` start returning 8 instead of 2?"** It already
+  returns 8 in production. Nothing changes.
+- **"Is `2fb26257…` called Overnight or Priority Overnight?"** Production has
+  *both*, as separate FedEx services. There is no rename and no conflict.
 
-1. Should `GET /carrier_services` start returning 8 rows instead of 2? It is
-   additive and arguably a fix, but it is a visible change to whatever lists
-   services.
-2. The id `2fb26257-65a3-4922-98d2-a9726a9b5167` is named `Overnight` in
-   exchange and `Priority Overnight` in shipping. Same row, two names. Which is
-   correct? FedEx's actual product is Priority Overnight, so the new name looks
-   right — but `exchange.shipments.service_type` matches on the name, so
-   renaming affects how existing shipments resolve.
+The one real difference is that the ids do not match — no id is shared between
+the two tables. So the migration maps by `(carrier, name)` rather than by id,
+which is exactly what the organizations backfill already does for suppliers,
+carriers and mints.
 
-Until both are answered, migrating services would either discard the more
-complete list or silently change displayed service names. `shipping.packages` is
-fed from the same source and is blocked behind the same questions.
+Every `service_type` value used on production shipments — Express Saver (54),
+Priority Overnight (7), Standard (7), Free (1), Overnight (1) — exists in
+`carrier_services`. The earlier note claiming two of them did not was also
+reading dev.
+
+**Consequence: shipping.shipments is unblocked too**, since `service_type`,
+`package` and `carrier_id` were only blocked behind this. What remains for
+shipments is repair work, not decisions: 6 of production's shipments were never
+copied, 3 have `cost = 0` where exchange has `NULL`, and `shipping.tracking`
+holds 9 rows with no counterpart in exchange that still need explaining. And
+fulfillments is blocked only behind shipments.
+
+This is the second conclusion in this file that dev data got wrong, after the
+bank details. Anything reasoned from dev row counts should be re-checked against
+production before being believed — `audit:coverage:prod` and
+`PROD_READONLY_DATABASE_URL` make that cheap now.
 
 ## Operations
 
