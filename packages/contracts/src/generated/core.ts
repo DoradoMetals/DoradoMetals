@@ -33,6 +33,8 @@ export const BullionRow = z.object({
   "updated_by": z.string(),
   "created_at": z.string(),
   "updated_at": z.string(),
+  "created_by_id": z.string().uuid().nullable(),
+  "updated_by_id": z.string().uuid().nullable(),
 });
 export type BullionRow = z.infer<typeof BullionRow>;
 
@@ -66,6 +68,8 @@ export const LeadsRow = z.object({
   "notes": z.string().nullable(),
   "contact": z.string().nullable(),
   "priority": z.string().nullable(),
+  "created_by_id": z.string().uuid().nullable(),
+  "updated_by_id": z.string().uuid().nullable(),
 });
 export type LeadsRow = z.infer<typeof LeadsRow>;
 
@@ -101,6 +105,8 @@ export const OrganizationsRow = z.object({
   "updated_at": z.string(),
   "created_by": z.string().nullable(),
   "updated_by": z.string().nullable(),
+  "created_by_id": z.string().uuid().nullable(),
+  "updated_by_id": z.string().uuid().nullable(),
 });
 export type OrganizationsRow = z.infer<typeof OrganizationsRow>;
 
@@ -116,6 +122,8 @@ export const RatesRow = z.object({
   "updated_at": z.string(),
   "created_by": z.string().nullable(),
   "updated_by": z.string().nullable(),
+  "created_by_id": z.string().uuid().nullable(),
+  "updated_by_id": z.string().uuid().nullable(),
 });
 export type RatesRow = z.infer<typeof RatesRow>;
 
@@ -125,12 +133,14 @@ export const ReviewsRow = z.object({
   "order_id": z.string().uuid().nullable(),
   "name": z.string().nullable(),
   "review_text": z.string().nullable(),
-  "rating": z.string().nullable(),
+  "rating": z.number().nullable(),
   "hidden": z.boolean(),
   "created_at": z.string(),
   "updated_at": z.string(),
   "created_by": z.string().nullable(),
   "updated_by": z.string().nullable(),
+  "created_by_id": z.string().uuid().nullable(),
+  "updated_by_id": z.string().uuid().nullable(),
 });
 export type ReviewsRow = z.infer<typeof ReviewsRow>;
 

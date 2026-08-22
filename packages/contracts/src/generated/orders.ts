@@ -44,6 +44,8 @@ export const OffersRow = z.object({
   "updated_by": z.string().nullable(),
   "created_at": z.string().nullable(),
   "updated_at": z.string().nullable(),
+  "created_by_id": z.string().uuid().nullable(),
+  "updated_by_id": z.string().uuid().nullable(),
 });
 export type OffersRow = z.infer<typeof OffersRow>;
 
@@ -60,6 +62,8 @@ export const OrdersRow = z.object({
   "updated_by": z.string().nullable(),
   "created_at": z.string().nullable(),
   "updated_at": z.string().nullable(),
+  "created_by_id": z.string().uuid().nullable(),
+  "updated_by_id": z.string().uuid().nullable(),
 });
 export type OrdersRow = z.infer<typeof OrdersRow>;
 
@@ -86,6 +90,8 @@ export const TransactionsRow = z.object({
   "created_at": z.string().nullable(),
   "updated_at": z.string().nullable(),
   "refiner_fee": z.number().nullable(),
+  "created_by_id": z.string().uuid().nullable(),
+  "updated_by_id": z.string().uuid().nullable(),
 });
 export type TransactionsRow = z.infer<typeof TransactionsRow>;
 

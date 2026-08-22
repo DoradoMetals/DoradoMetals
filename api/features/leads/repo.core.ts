@@ -7,6 +7,10 @@
 // contract, so it is whatever the database actually says rather than a
 // hand-written guess that drifts.
 //
+// Reads project explicit columns rather than SELECT *: core.leads carries
+// created_by_id and updated_by_id, which exchange has no equivalent for, and
+// they must not appear on the wire while both schemas are serving.
+//
 // Node runs this directly by stripping types - there is no build step. Type
 // checking is separate and happens in CI via tsc --noEmit.
 import query from "#shared/db/query.js";
@@ -29,7 +33,8 @@ export async function getLead(
   executor?: Executor
 ): Promise<LeadRow | undefined> {
   const sql = `
-    SELECT *
+    SELECT id, name, phone, email, created_at, updated_at, last_contacted,
+           converted, contacted, responded, created_by, updated_by, notes, contact, priority
     FROM core.leads
     WHERE id = $1
   `;
@@ -39,7 +44,8 @@ export async function getLead(
 
 export async function getAllLeads(executor?: Executor): Promise<LeadRow[]> {
   const sql = `
-    SELECT *
+    SELECT id, name, phone, email, created_at, updated_at, last_contacted,
+           converted, contacted, responded, created_by, updated_by, notes, contact, priority
     FROM core.leads
     ORDER BY created_at DESC
   `;
@@ -55,7 +61,8 @@ export async function createLead(
     INSERT INTO core.leads
       (name, phone, email, created_by, updated_by, priority, notes, last_contacted)
     VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'Medium'), $7, NOW())
-    RETURNING *;
+    RETURNING id, name, phone, email, created_at, updated_at, last_contacted,
+           converted, contacted, responded, created_by, updated_by, notes, contact, priority;
   `;
   const values = [
     lead.name,
@@ -90,7 +97,8 @@ export async function updateLead(
         notes = $10,
         priority = $11
     WHERE id = $12
-    RETURNING *;
+    RETURNING id, name, phone, email, created_at, updated_at, last_contacted,
+           converted, contacted, responded, created_by, updated_by, notes, contact, priority;
   `;
   const values = [
     lead.name,
@@ -149,7 +157,8 @@ export async function mirrorLead(
       notes = EXCLUDED.notes,
       contact = EXCLUDED.contact,
       priority = EXCLUDED.priority
-    RETURNING *;
+    RETURNING id, name, phone, email, created_at, updated_at, last_contacted,
+           converted, contacted, responded, created_by, updated_by, notes, contact, priority;
   `;
   const values = [
     lead.id, lead.name, lead.phone, lead.email, lead.created_at, lead.updated_at,
