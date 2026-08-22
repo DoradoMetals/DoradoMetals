@@ -3,6 +3,32 @@
 Things found and deliberately deferred, with enough context to pick up cold.
 Ordered roughly by how much they'd cost if left.
 
+## The migration chain cannot run on production
+
+**This is the largest open problem, and it is structural.**
+
+No migration creates the new schema. All 28 of them ALTER, backfill or
+constrain tables that already exist, and they exist only in dev - the January
+`api_overhaul` work built them there by hand, directly, with no DDL recorded
+anywhere in the repo. Migration 002 opens with `ALTER TABLE core.leads`, and on
+a database that never had the January branch applied to it that is an immediate
+abort.
+
+So the current position is: dev has a schema nothing can reproduce, and
+production has a migration chain it cannot run. Everything migrated so far -
+eleven features, all verified, all switched off - sits on top of that.
+
+What it needs is a genesis migration, sorting before 002, that creates every new
+schema and table as DDL, followed by a backfill that populates them from
+exchange. `000_` sorts ahead of `001_`, and the runner applies pending files in
+filename order regardless of what has already run, so adding it now is a no-op
+on dev (guarded with IF NOT EXISTS) and correct on a fresh database. The DDL can
+be dumped from dev; the backfill is the harder half, because it is the same
+transformation work the per-feature migrations have been doing one at a time.
+
+Until this exists, none of the migration work can reach production, and the
+`pg_dump` below is not yet the thing standing in the way.
+
 ## Security
 
 ### The audit trail is forgeable — and the fix is server-only
@@ -73,6 +99,21 @@ Dev holds tens of rows, so dev null counts prove nothing. Needs
 `auctions` and `auction_items` tables remain after the auction code was removed
 in `19c7a532`. They hold data (1 and 10 rows in dev) and nothing references
 them. Needs a yes/no before dropping, and a `pg_dump` first.
+
+### The January copy dropped rows, and the count is not zero
+
+Two gaps found while auditing orders, both closed by migration 028:
+
+- one `purchase_order_item` (order 239, Received) never reached `orders.items`
+- two purchase orders (241 and 242, both In Transit) carried an `address_id`
+  that never became an `orders.addresses` row
+
+Neither was visible from the schema - only from counting rows against the
+source. Nothing was lost from `exchange`; the target was short. The lesson for
+the remaining features is that shape parity is not row parity, and the copy
+should be assumed incomplete until counted. The genesis backfill above makes
+this moot for production, which will be populated from exchange directly rather
+than inheriting January's copy.
 
 ### products.bullion.quantity left nullable
 
