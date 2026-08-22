@@ -87,6 +87,23 @@ const FEATURES = {
     ],
     context: async (m) => ({ id: (await m.getAll())[0]?.id }),
   },
+  "sales-orders": {
+    exchange: () => import("#features/sales-orders/repo.exchange.js"),
+    next: () => import("#features/sales-orders/repo.next.js"),
+    // Same as purchase-orders: orders.spots generates its own id where
+    // order_metals had one, and nothing keys on it.
+    ignore: { "findMetalsByOrderId(first)": ["id"] },
+    reads: [
+      ["getAll", (m) => m.getAll()],
+      ["findById(first)", (m, ctx) => (ctx.id ? m.findById(ctx.id) : [])],
+      ["findAllByUser(first)", (m, ctx) => (ctx.userId ? m.findAllByUser(ctx.userId) : [])],
+      ["findMetalsByOrderId(first)", (m, ctx) => (ctx.id ? m.findMetalsByOrderId(ctx.id) : [])],
+    ],
+    context: async (m) => {
+      const [first] = await m.getAll();
+      return { id: first?.id, userId: first?.user_id };
+    },
+  },
   "purchase-orders": {
     exchange: () => import("#features/purchase-orders/repo.exchange.js"),
     next: () => import("#features/purchase-orders/repo.next.js"),

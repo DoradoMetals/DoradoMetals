@@ -108,12 +108,12 @@ WHERE NOT EXISTS (SELECT 1 FROM orders.offers o WHERE o.order_id = p.id);
 -- exchange.sales_orders and is zero throughout, so it takes its default.
 
 INSERT INTO orders.transactions (
-  order_id, total, items, shipping, surcharge, sales_tax, funds,
-  refiner_fee, created_by, updated_by, created_at, updated_at
+  order_id, total, items, shipping, shipping_service, surcharge, sales_tax,
+  funds, refiner_fee, created_by, updated_by, created_at, updated_at
 )
 SELECT
-  s.id, s.order_total, s.item_total, s.shipping_cost, s.charges_amount,
-  s.sales_tax, s.pre_charges_amount, 0, s.created_by, s.updated_by,
+  s.id, s.order_total, s.item_total, s.shipping_cost, s.shipping_service,
+  s.charges_amount, s.sales_tax, s.pre_charges_amount, 0, s.created_by, s.updated_by,
   s.created_at AT TIME ZONE 'UTC', s.updated_at AT TIME ZONE 'UTC'
 FROM exchange.sales_orders s
 WHERE NOT EXISTS (SELECT 1 FROM orders.transactions t WHERE t.order_id = s.id);

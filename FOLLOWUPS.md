@@ -80,17 +80,20 @@ That is right for now and wrong eventually. Once the addresses feature moves and
 one returned - it is the address the order was actually placed against, frozen.
 Revisit when places is migrated; there is a test pinning the current behaviour.
 
-### sales_orders.shipping_service was left behind deliberately
+### shipping_service now exists twice, and may want to exist once
 
-The one column of the twenty-one that migration 033 did not give a home. It
-names a carrier service, and `shipping.shipments` already has `service_type`
-for what looks like the same thing - but `exchange.shipments.service_type` holds
-values that `exchange.carrier_services` does not contain, which is the same
-tangle that blocks `shipping.services` below. Deciding whether the order's
-service and the shipment's service are one field belongs with the shipping
-migration, so it waits for that.
+`orders.transactions.shipping_service` was added by 041 because the sales order
+read returns it and the wire shape may not change. It sits beside the shipping
+cost, which is where exchange kept it.
 
-Populated on all 15 sales orders, so it cannot simply be dropped.
+`shipping.shipments.service_type` holds what looks like the same thing. Whether
+they are one field is still open and still tangled up with the
+`shipping.services` question below - `exchange.shipments.service_type` contains
+values `carrier_services` does not.
+
+If the shipping migration concludes they are the same, this is the column to
+drop. That was the deliberate choice: dropping a duplicate later is a much
+easier conversation than recovering a column that was never carried across.
 
 ### A purchase order's refiner is not recorded in exchange
 
