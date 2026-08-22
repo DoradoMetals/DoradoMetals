@@ -89,6 +89,16 @@ Schema changes go through `api/migrations/*.sql`, applied by
 `pnpm --filter @dorado/api migrate`. Never apply to production — leave that to
 the user.
 
+## Tests
+
+The API's tests run against real Postgres, each inside a transaction that is
+rolled back, and need `TZ=UTC` — `pnpm --filter @dorado/api test`.
+
+The frontend uses vitest, `pnpm --filter @dorado/frontend test`, and is unit
+tests only: pure functions, and the shapes the API contract depends on. There is
+deliberately no browser or e2e harness — that is a larger decision than a config
+file. Both run under `pnpm check`.
+
 ## Conventions
 
 **Every query goes through the shared executor**, never `pool.query` directly:
@@ -170,5 +180,4 @@ Full detail in FOLLOWUPS.md; these are the ones that block other work.
   is no reversible middle state), fulfillments (blocked behind shipping).
 - **No production migration has been run, and no `pg_dump` taken.** The dump
   comes first.
-- Frontend has no tests.
 - Docker images are unverified — no daemon in the dev environment.

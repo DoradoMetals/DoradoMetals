@@ -2,7 +2,7 @@
  * Rate resolution for quantity-tiered pricing (server-side source of truth).
  *
  * Mirror of the frontend helper at
- * `apps/frontend/features/rates/utils/resolveRate.ts`.
+ * `frontend/features/rates/utils/resolveRate.ts`.
  * Keep the two in sync.
  *
  * Rates are banded per metal by [min_qty, max_qty] (max_qty null = open-ended)

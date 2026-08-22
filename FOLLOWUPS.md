@@ -450,6 +450,16 @@ done. "Wait for CI" should be enabled once the workflow has run on master.
 
 ## Testing
 
-- The frontend has **no tests at all** — 42k lines, zero.
-- Repo tests exist only for `leads`. ~150 other repo functions are untested.
+- The frontend now has vitest and a first 21 tests, covering rate resolution
+  (mirrored 1:1 from the API, and previously tested on only one side), the
+  client-side scrap naming, and the address id checkout posts back. That is a
+  start on 42k lines, not coverage.
+- No browser or e2e harness, deliberately. Anything that renders a component
+  needs a DOM implementation and a testing library, which is a decision rather
+  than a config change.
+- API repo tests now cover leads, suppliers, products, mints, purchase-orders,
+  sales-orders and addresses. Most other repo functions are still untested.
 - Nothing tests routes, middleware or auth end to end.
+- `api/features/rates/utils/resolveRate.js` still points at
+  `apps/frontend/features/rates/utils/resolveRate.ts` in its header comment —
+  a path that stopped existing when the workspace was flattened to `frontend/`.
