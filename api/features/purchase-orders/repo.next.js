@@ -261,3 +261,232 @@ export async function findExpiredOffers() {
   const { rows } = await query(sql);
   return rows;
 }
+
+// ---------------------------------------------------------------- mirroring
+//
+// The dual-write phase copies a purchase order across after exchange has been
+// written to. Rather than a bespoke mirror per write - there are 38 of them,
+// and each would be a chance to map a column wrong - the whole order is
+// re-derived from exchange. The mirror is the same INSERT...SELECT the backfill
+// uses, so there is one definition of what a purchase order looks like in the
+// new schema, exercised on every write rather than only at migration time.
+//
+// Re-syncing the whole order costs more than updating one column and is worth
+// it: a write that touches purchase_order_status alone still leaves the offer
+// and the transaction correct, and no caller has to know which of the three
+// tables its column landed in.
+//
+// Everything is server-side. Nothing round-trips through JS, because a JS Date
+// truncates microseconds - the bug migration 015 had to undo.
+//
+// Every function takes the caller's executor so the mirror joins the same
+// transaction as the write it follows. If it opened its own, a rolled-back
+// write would leave a mirrored row behind, which is the exact divergence
+// dual-write exists to prevent.
+
+export async function mirrorOrder(orderId, executor) {
+  await query(
+    `INSERT INTO orders.orders (
+       id, user_id, refinery_id, direction, status, number, notes,
+       review_created, order_sent, tracking_updated,
+       created_by, updated_by, created_at, updated_at
+     )
+     SELECT
+       p.id, p.user_id, NULL, 'purchase', p.purchase_order_status, p.order_number,
+       p.notes, p.review_created, NULL, NULL, p.created_by, p.updated_by,
+       p.created_at AT TIME ZONE 'UTC', p.updated_at AT TIME ZONE 'UTC'
+     FROM exchange.purchase_orders p
+     WHERE p.id = $1
+     ON CONFLICT (id) DO UPDATE SET
+       user_id = EXCLUDED.user_id, status = EXCLUDED.status,
+       number = EXCLUDED.number, notes = EXCLUDED.notes,
+       review_created = EXCLUDED.review_created,
+       created_by = EXCLUDED.created_by, updated_by = EXCLUDED.updated_by,
+       created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at`,
+    [orderId],
+    executor
+  );
+
+  await query(
+    `INSERT INTO orders.offers (
+       order_id, offer_status, notes, spots_locked, offer_expiration,
+       offer_sent_at, num_rejections, offer_amount,
+       created_by, updated_by, created_at, updated_at
+     )
+     SELECT
+       p.id, p.offer_status, p.offer_notes, p.spots_locked, p.offer_expires_at,
+       p.offer_sent_at, p.num_rejections, p.total_price,
+       p.created_by, p.updated_by,
+       p.created_at AT TIME ZONE 'UTC', p.updated_at AT TIME ZONE 'UTC'
+     FROM exchange.purchase_orders p
+     WHERE p.id = $1
+     ON CONFLICT (order_id) DO UPDATE SET
+       offer_status = EXCLUDED.offer_status, notes = EXCLUDED.notes,
+       spots_locked = EXCLUDED.spots_locked,
+       offer_expiration = EXCLUDED.offer_expiration,
+       offer_sent_at = EXCLUDED.offer_sent_at,
+       num_rejections = EXCLUDED.num_rejections,
+       offer_amount = EXCLUDED.offer_amount,
+       updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at`,
+    [orderId],
+    executor
+  );
+
+  await query(
+    `INSERT INTO orders.transactions (
+       order_id, total, refiner_fee, waive_shipping_fee, waive_payout_fee,
+       shipping_paid, shipping_fee_actual, pool_remediation, pool_oz_deducted,
+       created_by, updated_by, created_at, updated_at
+     )
+     SELECT
+       p.id, p.total_price, p.refiner_fee, p.waive_shipping_fee,
+       p.waive_payout_fee, p.shipping_paid, p.shipping_fee_actual,
+       p.pool_remediation, p.pool_oz_deducted, p.created_by, p.updated_by,
+       p.created_at AT TIME ZONE 'UTC', p.updated_at AT TIME ZONE 'UTC'
+     FROM exchange.purchase_orders p
+     WHERE p.id = $1
+     ON CONFLICT (order_id) DO UPDATE SET
+       total = EXCLUDED.total, refiner_fee = EXCLUDED.refiner_fee,
+       waive_shipping_fee = EXCLUDED.waive_shipping_fee,
+       waive_payout_fee = EXCLUDED.waive_payout_fee,
+       shipping_paid = EXCLUDED.shipping_paid,
+       shipping_fee_actual = EXCLUDED.shipping_fee_actual,
+       pool_remediation = EXCLUDED.pool_remediation,
+       pool_oz_deducted = EXCLUDED.pool_oz_deducted,
+       updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at`,
+    [orderId],
+    executor
+  );
+}
+
+// Line items, including removals. A write that deletes an item from exchange
+// has to delete it here too, or the new schema keeps a line the customer is no
+// longer being paid for - which is why this deletes what exchange no longer has
+// rather than only upserting what it does.
+export async function mirrorItems(orderId, executor) {
+  await query(
+    `INSERT INTO orders.items (
+       id, order_id, bullion_id, metal_id, pre_melt, post_melt, purity, content,
+       premium, quantity, confirmed, sales_tax_charged, unit,
+       price, refiner_premium, bid_premium,
+       purity_actual, post_melt_actual, content_actual
+     )
+     SELECT
+       poi.id, poi.purchase_order_id, poi.product_id,
+       coalesce(s.metal_id, pr.metal_id),
+       coalesce(s.pre_melt, pr.gross), coalesce(s.post_melt, pr.content),
+       coalesce(s.purity, pr.purity), coalesce(s.content, pr.content),
+       poi.premium, poi.quantity, coalesce(poi.confirmed, false), 0,
+       coalesce(s.gross_unit, 't oz'),
+       poi.price, poi.refiner_premium, s.bid_premium,
+       s.purity_actual, s.post_melt_actual, s.content_actual
+     FROM exchange.purchase_order_items poi
+     LEFT JOIN exchange.scrap s ON s.id = poi.scrap_id
+     LEFT JOIN exchange.products pr ON pr.id = poi.product_id
+     WHERE poi.purchase_order_id = $1
+     ON CONFLICT (id) DO UPDATE SET
+       bullion_id = EXCLUDED.bullion_id, metal_id = EXCLUDED.metal_id,
+       pre_melt = EXCLUDED.pre_melt, post_melt = EXCLUDED.post_melt,
+       purity = EXCLUDED.purity, content = EXCLUDED.content,
+       premium = EXCLUDED.premium, quantity = EXCLUDED.quantity,
+       confirmed = EXCLUDED.confirmed, unit = EXCLUDED.unit,
+       price = EXCLUDED.price, refiner_premium = EXCLUDED.refiner_premium,
+       bid_premium = EXCLUDED.bid_premium,
+       purity_actual = EXCLUDED.purity_actual,
+       post_melt_actual = EXCLUDED.post_melt_actual,
+       content_actual = EXCLUDED.content_actual`,
+    [orderId],
+    executor
+  );
+
+  await query(
+    `DELETE FROM orders.items i
+     WHERE i.order_id = $1
+       AND NOT EXISTS (
+         SELECT 1 FROM exchange.purchase_order_items poi WHERE poi.id = i.id
+       )`,
+    [orderId],
+    executor
+  );
+}
+
+// Spot quotes, keyed by order and metal rather than by id - orders.spots
+// generates its own, and exchange names the metal as text.
+export async function mirrorSpots(orderId, executor) {
+  await query(
+    `INSERT INTO orders.spots (
+       order_id, metal_id, ask, bid,
+       scrap_percentage, bullion_percentage, created_at, updated_at
+     )
+     SELECT
+       coalesce(m.purchase_order_id, m.sales_order_id), mt.id,
+       m.ask_spot, m.bid_spot, m.scrap_percentage, m.bullion_percentage,
+       m.created_at AT TIME ZONE 'UTC', m.updated_at AT TIME ZONE 'UTC'
+     FROM exchange.order_metals m
+     JOIN metals.metals mt ON mt.name = m.type
+     WHERE coalesce(m.purchase_order_id, m.sales_order_id) = $1
+     ON CONFLICT (metal_id, order_id) DO UPDATE SET
+       ask = EXCLUDED.ask, bid = EXCLUDED.bid,
+       scrap_percentage = EXCLUDED.scrap_percentage,
+       bullion_percentage = EXCLUDED.bullion_percentage,
+       updated_at = EXCLUDED.updated_at`,
+    [orderId],
+    executor
+  );
+
+  await query(
+    `DELETE FROM orders.spots sp
+     WHERE sp.order_id = $1
+       AND NOT EXISTS (
+         SELECT 1 FROM exchange.order_metals m
+         JOIN metals.metals mt ON mt.name = m.type
+         WHERE coalesce(m.purchase_order_id, m.sales_order_id) = sp.order_id
+           AND mt.id = sp.metal_id
+       )`,
+    [orderId],
+    executor
+  );
+}
+
+// The address snapshot for an order, taken when the order is created. Kept
+// beside the other mirrors because a new purchase order needs one and nothing
+// else creates it.
+export async function mirrorAddress(orderId, executor) {
+  await query(
+    `WITH needed AS MATERIALIZED (
+       SELECT p.id AS order_id, a.id AS source_id, gen_random_uuid() AS snapshot_id
+       FROM exchange.purchase_orders p
+       JOIN exchange.addresses a ON a.id = p.address_id
+       WHERE p.id = $1
+         AND NOT EXISTS (SELECT 1 FROM orders.addresses oa WHERE oa.order_id = p.id)
+     ),
+     snapshot AS (
+       INSERT INTO places.addresses (
+         id, line_1, line_2, city, state, country, zip,
+         country_code, phone_number, created_at, updated_at, is_valid, is_residential
+       )
+       SELECT
+         n.snapshot_id, a.line_1, a.line_2, a.city, a.state, a.country, a.zip,
+         a.country_code, a.phone_number, a.created_at, a.updated_at,
+         a.is_valid, coalesce(a.is_residential, false)
+       FROM needed n JOIN exchange.addresses a ON a.id = n.source_id
+       RETURNING id
+     )
+     INSERT INTO orders.addresses (id, address_id, order_id, source_address_id)
+     SELECT gen_random_uuid(), n.snapshot_id, n.order_id, n.source_id FROM needed n`,
+    [orderId],
+    executor
+  );
+}
+
+// The order id a line item belongs to, for the writes that are handed an item
+// id and nothing else. Read from exchange, which is still authoritative.
+export async function orderIdForItems(itemIds, executor) {
+  const { rows } = await query(
+    `SELECT DISTINCT purchase_order_id AS id
+     FROM exchange.purchase_order_items WHERE id = ANY($1::uuid[])`,
+    [itemIds],
+    executor
+  );
+  return rows.map((r) => r.id);
+}

@@ -261,7 +261,7 @@ export async function clearOrderMetals(orderId, client) {
   return query(sql, [orderId], client);
 }
 
-export async function updateOfferNotes(order, offer_notes) {
+export async function updateOfferNotes(order, offer_notes, executor) {
   const sql = `
     UPDATE exchange.purchase_orders
     SET offer_notes = $1
@@ -269,12 +269,12 @@ export async function updateOfferNotes(order, offer_notes) {
     RETURNING *;
   `;
   const values = [offer_notes, order.id];
-  const { rows } = await query(sql, values);
+  const { rows } = await query(sql, values, executor);
 
   return rows[0];
 }
 
-export async function createReview({order}) {
+export async function createReview({ order }, executor) {
   const sql = `
     UPDATE exchange.purchase_orders
     SET review_created = true
@@ -282,7 +282,7 @@ export async function createReview({order}) {
     RETURNING *;
   `;
   const values = [order.id];
-  const { rows } = await query(sql, values);
+  const { rows } = await query(sql, values, executor);
   return rows[0];
 }
 
@@ -398,7 +398,7 @@ export async function updateOffer(
   return rows[0];
 }
 
-export async function updateStatus(order, order_status, user_name) {
+export async function updateStatus(order, order_status, user_name, executor) {
   const sql = `
     UPDATE exchange.purchase_orders
     SET
@@ -410,7 +410,7 @@ export async function updateStatus(order, order_status, user_name) {
   `;
 
   const values = [order_status, user_name, order.id];
-  const { rows } = await query(sql, values);
+  const { rows } = await query(sql, values, executor);
   return rows[0];
 }
 
@@ -424,7 +424,7 @@ export async function toggleSpots(locked, order_id, client) {
   return await query(sql, values, client);
 }
 
-export async function updateSpot({ spot, updated_spot }) {
+export async function updateSpot({ spot, updated_spot }, executor) {
   const sql = `
     UPDATE exchange.order_metals
     SET bid_spot = $1 
@@ -433,10 +433,10 @@ export async function updateSpot({ spot, updated_spot }) {
     RETURNING *;
   `;
   const values = [updated_spot, spot.purchase_order_id, spot.type];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
-export async function toggleOrderItemStatus({ item_status, ids, purchase_order_id }) {
+export async function toggleOrderItemStatus({ item_status, ids, purchase_order_id }, executor) {
   const sql = `
     UPDATE exchange.purchase_order_items
     SET confirmed = $1
@@ -445,17 +445,17 @@ export async function toggleOrderItemStatus({ item_status, ids, purchase_order_i
     RETURNING *;
   `;
   const values = [item_status, purchase_order_id, ids];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
-export async function deleteOrderItems(ids) {
+export async function deleteOrderItems(ids, executor) {
   const sql = `
     DELETE FROM exchange.purchase_order_items
     WHERE id = ANY($1::uuid[])
     RETURNING *;
   `;
   const values = [ids];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
 export async function createOrderItem(item, purchase_order_id, scrap_id, client) {
@@ -470,7 +470,7 @@ export async function createOrderItem(item, purchase_order_id, scrap_id, client)
   return await query(sql, values, client);
 }
 
-export async function updateBullion(item) {
+export async function updateBullion(item, executor) {
   const sql = `
     UPDATE exchange.purchase_order_items
     SET quantity = $1, premium = $2
@@ -479,7 +479,7 @@ export async function updateBullion(item) {
   `;
 
   const values = [item.quantity, item.premium, item.id];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
 export async function findExpiredOffers() {
@@ -504,7 +504,7 @@ export async function getCurrentSpotPrices(client) {
   return rows;
 }
 
-export async function editShippingCharge(order_id, shipping_charge) {
+export async function editShippingCharge(order_id, shipping_charge, executor) {
   const sql = `
   UPDATE exchange.shipments
   SET net_charge = $1
@@ -512,10 +512,10 @@ export async function editShippingCharge(order_id, shipping_charge) {
   RETURNING *;
   `;
   const values = [shipping_charge, order_id];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
-export async function editPayoutCharge(order_id, shipping_charge) {
+export async function editPayoutCharge(order_id, shipping_charge, executor) {
   const sql = `
   UPDATE exchange.payouts
   SET cost = $1
@@ -523,7 +523,7 @@ export async function editPayoutCharge(order_id, shipping_charge) {
   RETURNING *;
   `;
   const values = [shipping_charge, order_id];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
 export async function changePayoutMethod(order_id, method) {
@@ -634,54 +634,54 @@ export async function findOrderScrapItems(orderId, executor) {
   return rows;
 }
 
-export async function updateRefinerPremium(item_id, refiner_premium) {
+export async function updateRefinerPremium(item_id, refiner_premium, executor) {
   const sql = `
     UPDATE exchange.purchase_order_items
     SET refiner_premium = $1
     WHERE id = $2
   `;
   const values = [refiner_premium, item_id];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
-export async function updateShippingActual(purchase_order_id, shipping_fee_actual) {
+export async function updateShippingActual(purchase_order_id, shipping_fee_actual, executor) {
   const sql = `
     UPDATE exchange.purchase_orders
     SET shipping_fee_actual = $1
     WHERE id = $2
   `;
   const values = [shipping_fee_actual, purchase_order_id];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
-export async function updateRefinerFee(purchase_order_id, refiner_fee) {
+export async function updateRefinerFee(purchase_order_id, refiner_fee, executor) {
   const sql = `
     UPDATE exchange.purchase_orders
     SET refiner_fee = $1
     WHERE id = $2
   `;
   const values = [refiner_fee, purchase_order_id];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
-export async function updatePoolOzDeducted(purchase_order_id, pool_oz_deducted) {
+export async function updatePoolOzDeducted(purchase_order_id, pool_oz_deducted, executor) {
   const sql = `
     UPDATE exchange.purchase_orders
     SET pool_oz_deducted = $1
     WHERE id = $2
   `;
   const values = [pool_oz_deducted, purchase_order_id];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
-export async function updatePoolRemediation(purchase_order_id, pool_remediation) {
+export async function updatePoolRemediation(purchase_order_id, pool_remediation, executor) {
   const sql = `
     UPDATE exchange.purchase_orders
     SET pool_remediation = $1
     WHERE id = $2
   `;
   const values = [pool_remediation, purchase_order_id];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 // Full bank details for a single payout. Deliberately separate from the order
 // queries so the numbers are fetched deliberately, one order at a time, by an
