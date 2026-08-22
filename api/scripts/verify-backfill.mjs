@@ -108,6 +108,43 @@ const TABLES = [
            markup_max_pct, tax_rate, weight_min, weight_max, is_domestic, is_legal_tender`,
   },
   { name: "tax.sales_tax", key: "id", cols: "id, state, reached_nexus, amount_owed, last_remitted" },
+  {
+    name: "shipping.shipments",
+    key: "id",
+    // The service and package are referenced by id here and named as text in
+    // exchange, so they are compared through their names instead.
+    cols: `id, tracking_number, delivered_at, shipped_at, est_delivery, label_type,
+           direction::text, insured, declared_value, cost, shipping_status,
+           pickup_type, created_at,
+           (SELECT sv.name FROM $S$shipping.services sv WHERE sv.id = t.carrier_service_id),
+           (SELECT pk.label FROM $S$shipping.packages pk WHERE pk.id = t.package_id)`,
+  },
+  {
+    name: "shipping.tracking",
+    key: "id",
+    // dev holds 9 events with no counterpart in dev's exchange.tracking_events,
+    // belonging to 3 shipments. Neither the events nor those shipments exist in
+    // production, and production holds 525 events against dev's 72 - they are
+    // artifacts of the January work against a dev database. A rebuild from
+    // exchange cannot produce them and should not, so they are excluded rather
+    // than treated as a gap.
+    where: "EXISTS (SELECT 1 FROM exchange.tracking_events e WHERE e.id = t.id)",
+    cols: "id, shipment_id, status, location, time",
+  },
+  {
+    name: "places.addresses",
+    key: "id",
+    // Only the address book. Snapshots are created by the orders backfill with
+    // fresh ids, and the shop addresses come from the seed.
+    where: "EXISTS (SELECT 1 FROM exchange.addresses e WHERE e.id = t.id)",
+    cols: `id, line_1, line_2, city, state, country, zip, country_code,
+           phone_number, created_at, updated_at, is_valid, is_residential`,
+  },
+  {
+    name: "places.user_addresses",
+    key: "user_id, address_id",
+    cols: "user_id, address_id, label, default_shipping, default_billing",
+  },
 
   // orders. The ids that are not carried over from exchange - offers,
   // transactions, spots and the address link all get fresh ones - are compared

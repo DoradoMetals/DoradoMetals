@@ -586,6 +586,39 @@ switched to until it is repaired, and repairing it is only worth doing once the
 service and package questions are answered, since those change what a shipment
 row is.
 
+### addresses was migrated and never backfilled — fixed by 050
+
+The addresses feature had a repo split, a dual-write, tests and a verified read
+diff, and nothing ever copied the data. On a database built from `exchange`,
+`places.addresses` would have held only per-order snapshots and the three shop
+addresses, so every customer's saved address list would have come back empty.
+
+Found by the shipping backfill, which references `places.addresses` for the
+customer side of a shipment and had nothing to point at. Against dev nothing
+looked wrong, because the rows were already there from January — the from-empty
+check is the only thing that could have caught it, and did.
+
+Worth taking as a general lesson: a feature is not migrated when its repo is
+split. It is migrated when its data can be rebuilt from exchange and that has
+been verified. Both order features, products, mints and the rest were caught by
+`verify:backfill` registrations; addresses slipped through because nothing
+registered it.
+
+### A shipment's business location is not recorded in exchange
+
+`shipping.shipments` requires a shipper and a recipient address, and
+`exchange.shipments` has no address column at all. One side is derivable — the
+customer's address, through the order — and 050 fills it.
+
+The other is a business location, and the pattern in dev is clean but unproven:
+all 11 inbound shipments name FedEx Office – Farmers Branch, all 6 outbound name
+Elemetal. That is a rule inferred from seventeen rows about a production table
+holding seventy, so 048 relaxes the constraint rather than asserting it.
+
+Re-adding the constraint is one statement once there is a rule someone has
+confirmed. Until then a shipment knows where the customer is and not which of
+our locations handled it.
+
 ### shipping.services and shipping.packages are seeded, not derived
 
 Decided rather than asked, under Jacob's standing delegation, and reversible:

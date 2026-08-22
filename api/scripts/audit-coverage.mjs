@@ -121,10 +121,17 @@ const RENAMES = {
     shipping_label: "label",
     net_charge: "cost",
     type: "direction",
+    service_type: "carrier_service_id",
+    package: "package_id",
+    carrier_id: "-",
     purchase_order_id: "-",
     sales_order_id: "-",
   },
   "exchange.tracking_events": { scan_time: "time" },
+  // Resolved now that shipping.services and shipping.packages are seeded. A
+  // shipment names its service and its box as text; the new schema references
+  // them, resolved by (carrier, name) and (carrier, label). The carrier itself
+  // is then reachable through the service, so it needs no column of its own.
   // payments is not a reshaping of exchange - it is a different model with no
   // shared ids and a different granularity, so these are not renames and are
   // deliberately not declared as such. Left reported so the gap stays visible.
@@ -144,11 +151,7 @@ const DELIBERATE = {
 // Columns whose destination exists but is itself blocked on a decision. They
 // are real gaps, not decisions taken, so they are reported - but reported as
 // blocked, because adding a column for them now would prejudge the answer.
-const BLOCKED = {
-  "exchange.shipments.service_type": "routes through shipping.services",
-  "exchange.shipments.package": "routes through shipping.packages",
-  "exchange.shipments.carrier_id": "reachable only via shipping.services",
-};
+const BLOCKED = {};
 
 const q = async (sql, params = []) => (await pool.query(sql, params)).rows;
 
