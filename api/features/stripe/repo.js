@@ -1,6 +1,10 @@
 import query from "#shared/db/query.js";
 
-export async function retrievePaymentIntent(type, session, user_id) {
+// Takes an executor like every other function here. Without one this read runs
+// on the pool, so it cannot see an intent created earlier in the caller's
+// transaction - and reusing an intent is exactly the decision that wants a
+// consistent view of what has just been written.
+export async function retrievePaymentIntent(type, session, user_id, executor) {
   const sql = `
     SELECT *
     FROM exchange.payment_intents
@@ -16,7 +20,7 @@ export async function retrievePaymentIntent(type, session, user_id) {
     type === 'admin' ? user_id : session.user.id,
     type,
   ];
-  const { rows } = await query(sql, values);
+  const { rows } = await query(sql, values, executor);
   return rows[0];
 }
 
@@ -113,13 +117,13 @@ export async function attachCustomerToUser(customerId, userId, executor) {
   await query(sql, values, executor);
 }
 
-export async function getPaymentIntentFromSalesOrderId(sales_order_id) {
+export async function getPaymentIntentFromSalesOrderId(sales_order_id, executor) {
   const sql = `
     SELECT *
     FROM exchange.payment_intents
     WHERE sales_order_id = $1
   `;
   const values = [sales_order_id];
-  const result = await query(sql, values);
+  const result = await query(sql, values, executor);
   return result.rows[0];
 }
