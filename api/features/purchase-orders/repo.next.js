@@ -246,7 +246,7 @@ export async function findOrderScrapItems(orderId, executor) {
 
 // Offers past their expiry. exchange returns the whole purchase order row, so
 // the same columns are rebuilt here.
-export async function findExpiredOffers() {
+export async function findExpiredOffers(executor) {
   const sql = `
     SELECT ${ORDER_COLUMNS}
     FROM orders.orders o
@@ -258,7 +258,7 @@ export async function findExpiredOffers() {
       AND f.offer_expiration IS NOT NULL
       AND f.offer_expiration < NOW();
   `;
-  const { rows } = await query(sql);
+  const { rows } = await query(sql, [], executor);
   return rows;
 }
 

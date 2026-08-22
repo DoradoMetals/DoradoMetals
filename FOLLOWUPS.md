@@ -285,6 +285,39 @@ So encryption at rest is real work, not a delete:
 backfilled, but dual-write only mirrors the text columns, so new rows get null.
 Ties into the session-actor fix above — do them together.
 
+### Production is now readable, and it moved two conclusions
+
+`claude_ro` works. `PROD_READONLY_DATABASE_URL` connects, read-only, for audits.
+Two things followed immediately, both recorded in their own entries: production
+holds fourteen plaintext bank details where dev holds none, and
+`audit:nullability` had been reading dev all along.
+
+`audit:coverage --prod` now counts population against production while taking
+the schema shape from dev, because the new schema exists nowhere else. That
+closed a real hole: the audit skips any column that is null on every row, and
+run against dev it was excusing every column dev happens not to use.
+
+Checked, and it had not bitten — **no column is populated on production that dev
+missed**. Two go the other way: `payment_intents.bank_account_type` and
+`.routing` are dev-only test data. Production reports 22 gaps against dev's 24.
+
+Also re-verified against production, since both govern live decisions:
+
+- `order_metals.percent_change` and `.dollar_change` are null on all 284 rows,
+  so the orders read projecting NULL for them is correct rather than lucky
+- `scrap.gem_id` is null on all 105
+- `exchange.metals.scrap_percentage` and `.bullion_percentage` **are** populated
+  on production, so the `DELIBERATE` waiver in audit-coverage rests on nothing
+  reading them rather than on their being empty — which is still true: the only
+  reference in the codebase is a comment in `spots/repo.exchange.js` saying so
+
+### The customer balance can go negative
+
+`removeFunds` does not check the balance before subtracting, so a checkout that
+spends more than a customer holds leaves them negative rather than failing.
+Whether the guard belongs in the repo, the service or a database constraint is a
+real decision; it is pinned as current behaviour by a test rather than changed.
+
 ### Writes that accept an executor and never use it
 
 Found by auditing every write in every repo rather than by a failure. One was
@@ -299,17 +332,15 @@ committing immediately, outside the caller's transaction, leaving a rate deleted
 from both schemas even when the surrounding operation rolled back. There is now
 a test.
 
-**Still outstanding**, all in features that are blocked or unmigrated, so none
-is currently reachable through a dual-write path — but each must be threaded
-before its feature moves:
+**Now done.** All ten remaining writes take an executor as their last parameter
+and thread it into `query()`: `changePayoutMethod`, `purgeCancelled` and
+`updateRefinerSpot` in purchase-orders; `updateScrapItem` and `deleteItems` in
+scrap; `createPaymentIntent`, `updatePaymentIntent`, `updateMethod` and
+`attachCustomerToUser` in stripe; `adjustUserCredit` in users. Call sites are
+unchanged — the parameter is optional and `undefined` still means "use the
+pool", which is the behaviour they had.
 
-- `features/purchase-orders/repo.exchange.js`: `changePayoutMethod`,
-  `purgeCancelled`, `updateRefinerSpot` (these belong to payments and refiners)
-- `features/scrap/repo.js`: `updateScrapItem`, `deleteItems`
-- `features/stripe/repo.js`: `createPaymentIntent`, `updatePaymentIntent`,
-  `updateMethod`, `attachCustomerToUser`
-- `features/users/repo.js`: `adjustUserCredit` — admin-only and a single
-  statement, so atomic on its own today
+Every write in every repo now accepts an executor and passes it on.
 
 Checked and *fine*: `features/transactions/repo.js` `addFunds` and `removeFunds`
 both take a client, so the checkout path that moves a customer's balance is

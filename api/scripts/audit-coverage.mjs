@@ -20,7 +20,27 @@
 //   node scripts/audit-coverage.mjs            every feature
 //   node scripts/audit-coverage.mjs orders     one
 import "#env";
+import pg from "pg";
 import pool from "#db";
+
+// Shape comes from dev, because the new schema exists nowhere else. Population
+// comes from production when --prod is passed, because dev's row counts prove
+// nothing about which columns actually hold data.
+//
+// That distinction is not academic. This audit skips any column that is null on
+// every row, on the grounds that an empty column is a question for whoever owns
+// the feature rather than a blocker. Run against dev, that silently excused
+// every column dev happens not to use - and dev had no bank details at all
+// where production has fourteen. A column populated only in production was
+// invisible to this tool until now.
+const useProd = process.argv.includes("--prod");
+const prod = useProd
+  ? new pg.Client({
+      connectionString: process.env.PROD_READONLY_DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    })
+  : null;
+if (prod) await prod.connect();
 
 // source table -> the tables its columns are allowed to land in
 const FEATURES = {
@@ -132,7 +152,8 @@ const BLOCKED = {
 
 const q = async (sql, params = []) => (await pool.query(sql, params)).rows;
 
-const only = process.argv[2];
+// The feature name is the first argument that is not a flag.
+const only = process.argv.slice(2).find((a) => !a.startsWith("--"));
 const features = only ? { [only]: FEATURES[only] } : FEATURES;
 if (only && !FEATURES[only]) {
   console.error(`unknown feature: ${only}\nknown: ${Object.keys(FEATURES).join(", ")}`);
@@ -176,12 +197,11 @@ for (const [feature, sources] of Object.entries(features)) {
       if (available.has(mapped ?? col)) continue;
       if (DELIBERATE[`${source}.${col}`]) continue;
 
-      // Only report it if it actually holds something. A column that is null
-      // on every row is a question for whoever owns the feature, not a
-      // blocker for the migration.
-      const [{ n, total }] = await q(
-        `SELECT count(*) FILTER (WHERE "${col}" IS NOT NULL)::int n, count(*)::int total FROM "${ss}"."${st}"`
-      );
+      // Only report it if it actually holds something. A column that is null on
+      // every row is a question for whoever owns the feature, not a blocker for
+      // the migration - but "every row" has to mean production's rows.
+      const countSql = `SELECT count(*) FILTER (WHERE "${col}" IS NOT NULL)::int n, count(*)::int total FROM "${ss}"."${st}"`;
+      const [{ n, total }] = prod ? (await prod.query(countSql)).rows : await q(countSql);
       if (n === 0) continue;
 
       const blocked = BLOCKED[`${source}.${col}`];
@@ -202,9 +222,16 @@ for (const [feature, sources] of Object.entries(features)) {
 
 console.log(
   gaps
-    ? `\n${gaps} populated column(s) with no home in the new schema`
-    : "\nevery populated column has somewhere to go"
+    ? `\n${gaps} populated column(s) with no home in the new schema` +
+        `  (population counted against ${useProd ? "PRODUCTION" : "dev"})`
+    : `\nevery populated column has somewhere to go` +
+        `  (population counted against ${useProd ? "PRODUCTION" : "dev"})`
 );
 
+if (!useProd) {
+  console.log("re-run with --prod to count against production, where dev's nulls prove nothing");
+}
+
+if (prod) await prod.end();
 await pool.end();
 process.exit(0);

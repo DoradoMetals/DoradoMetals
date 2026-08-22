@@ -20,7 +20,7 @@ export async function retrievePaymentIntent(type, session, user_id) {
   return rows[0];
 }
 
-export async function createPaymentIntent(payment_intent, type, user_id, session) {
+export async function createPaymentIntent(payment_intent, type, user_id, session, executor) {
   const sql = `
     INSERT INTO exchange.payment_intents (
       session_id,
@@ -40,10 +40,10 @@ export async function createPaymentIntent(payment_intent, type, user_id, session
     payment_intent.status,
     payment_intent.id,
   ];
-  await query(sql, values);
+  await query(sql, values, executor);
 }
 
-export async function updatePaymentIntent(payment_intent) {
+export async function updatePaymentIntent(payment_intent, executor) {
   const sql = `
     UPDATE exchange.payment_intents
     SET payment_status = $1,
@@ -62,10 +62,10 @@ export async function updatePaymentIntent(payment_intent) {
     payment_intent.payment_method,
     payment_intent.id,
   ];
-  await query(sql, values);
+  await query(sql, values, executor);
 }
 
-export async function updateMethod({ paymentMethod }) {
+export async function updateMethod({ paymentMethod }, executor) {
   const sql = `
     UPDATE exchange.payment_intents
     SET method_type = $1,
@@ -85,7 +85,7 @@ export async function updateMethod({ paymentMethod }) {
     paymentMethod?.us_bank_account?.account_type,
     paymentMethod?.id,
   ];
-  await query(sql, values);
+  await query(sql, values, executor);
 }
 
 export async function attachOrder(
@@ -103,14 +103,14 @@ export async function attachOrder(
   await query(sql, values, client);
 }
 
-export async function attachCustomerToUser(customerId, userId) {
+export async function attachCustomerToUser(customerId, userId, executor) {
   const sql = `
     UPDATE exchange.users
     SET "stripeCustomerId" = $1
     WHERE id = $2
   `;
   const values = [customerId, userId];
-  await query(sql, values);
+  await query(sql, values, executor);
 }
 
 export async function getPaymentIntentFromSalesOrderId(sales_order_id) {

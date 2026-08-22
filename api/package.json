@@ -23,7 +23,8 @@
     "dump:schema": "node scripts/dump-schema.mjs",
     "verify:backfill": "TZ=UTC node scripts/verify-backfill.mjs",
     "audit:coverage": "TZ=UTC node scripts/audit-coverage.mjs",
-    "dump:seed": "node scripts/dump-seed.mjs"
+    "dump:seed": "node scripts/dump-seed.mjs",
+    "audit:coverage:prod": "TZ=UTC node scripts/audit-coverage.mjs --prod"
   },
   "imports": {
     "#env": "./env.js",

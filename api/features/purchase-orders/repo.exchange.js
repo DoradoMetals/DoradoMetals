@@ -526,7 +526,7 @@ export async function editPayoutCharge(order_id, shipping_charge, executor) {
   return await query(sql, values, executor);
 }
 
-export async function changePayoutMethod(order_id, method) {
+export async function changePayoutMethod(order_id, method, executor) {
   const sql = `
   UPDATE exchange.payouts
   SET method = $1
@@ -534,15 +534,15 @@ export async function changePayoutMethod(order_id, method) {
   RETURNING *;
   `;
   const values = [method, order_id];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
-export async function purgeCancelled() {
+export async function purgeCancelled(executor) {
   const sql = `
     DELETE FROM exchange.purchase_orders
     WHERE purchase_order_status = 'Cancelled'
   `
-  return await query(sql, [])
+  return await query(sql, [], executor)
 }
 
 export async function updateRefinerMetals(orderId, spotPrices, client) {
@@ -597,7 +597,7 @@ export async function insertRefinerMetals(
   }
 }
 
-export async function updateRefinerSpot({ spot, updated_spot }) {
+export async function updateRefinerSpot({ spot, updated_spot }, executor) {
 
   const sql = `
     UPDATE exchange.refiner_metals
@@ -607,7 +607,7 @@ export async function updateRefinerSpot({ spot, updated_spot }) {
     RETURNING *;
   `;
   const values = [updated_spot, spot.purchase_order_id, spot.type];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
 export async function updatePremium(item_id, premium, executor) {

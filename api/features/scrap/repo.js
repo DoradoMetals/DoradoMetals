@@ -1,7 +1,7 @@
 import query from "#shared/db/query.js";
 import { convertTroyOz } from "#shared/utils/convertWeights.js";
 
-export async function updateScrapItem({ item }) {
+export async function updateScrapItem({ item }, executor) {
   const content =
     convertTroyOz(
       item.scrap.post_melt ?? item.scrap.pre_melt,
@@ -39,16 +39,16 @@ export async function updateScrapItem({ item }) {
     content_actual ?? content,
     item.scrap.id,
   ];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
-export async function deleteItems(ids) {
+export async function deleteItems(ids, executor) {
   const sql = `
     DELETE FROM exchange.scrap
     WHERE id = ANY($1::uuid[]);
   `;
   const values = [ids];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
 
 export async function createNewItem(item, client) {

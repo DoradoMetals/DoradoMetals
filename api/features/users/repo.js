@@ -34,7 +34,7 @@ export async function getAdminUsers() {
   return result.rows;
 }
 
-export async function adjustUserCredit(user_id, mode, amount) {
+export async function adjustUserCredit(user_id, mode, amount, executor) {
   const sql = `
     UPDATE exchange.users
     SET dorado_funds = CASE
@@ -45,5 +45,5 @@ export async function adjustUserCredit(user_id, mode, amount) {
     WHERE id = $3
   `;
   const values = [amount, mode, user_id];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }
