@@ -35,6 +35,17 @@ const PAIRS = [
   // the API or the frontend reads them, and rate tiering comes from rates.rates.
   // Recorded here rather than hidden, so the check still fails if anything else
   // goes missing.
+  // checksum_sha256 is called checksum in the new schema. Declared as dropped so
+  // the check does not report a rename as a loss; the value is verified by the
+  // media diff, which aliases it back and compares the rows.
+  [
+    "exchange.images",
+    "media.images",
+    {
+      intentionallyDropped: ["checksum_sha256"],
+      reason: "renamed to checksum; value compared by the media diff",
+    },
+  ],
   [
     "exchange.metals",
     "metals.exchange_compat",

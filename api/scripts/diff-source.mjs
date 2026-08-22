@@ -58,6 +58,16 @@ const FEATURES = {
     ],
     context: async () => ({}),
   },
+  media: {
+    exchange: () => import("#features/media/repo.exchange.js"),
+    next: () => import("#features/media/repo.next.js"),
+    reads: [
+      ["getTestImages", (m) => m.getTestImages()],
+      ["getImageById(first)", async (m, ctx) => (ctx.id ? m.getImageById(ctx.id) : null)],
+      ["listImagesByUser(first)", async (m, ctx) => (ctx.user ? m.listImagesByUser(ctx.user) : [])],
+    ],
+    context: async (m) => { const r = (await m.getTestImages())[0]; return { id: r?.id, user: r?.user_id }; },
+  },
   rates: {
     exchange: () => import("#features/rates/repo.exchange.js"),
     next: () => import("#features/rates/repo.next.js"),
