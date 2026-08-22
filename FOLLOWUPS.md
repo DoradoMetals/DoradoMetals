@@ -74,6 +74,14 @@ Dev holds tens of rows, so dev null counts prove nothing. Needs
 in `19c7a532`. They hold data (1 and 10 rows in dev) and nothing references
 them. Needs a yes/no before dropping, and a `pg_dump` first.
 
+### Empty-string emails on carrier organizations
+
+Two CARRIER rows in `organizations.organizations` hold `''` rather than NULL for
+email. Postgres treats every NULL as distinct for uniqueness but two empty
+strings as equal, so the placeholder actively defeats a constraint that would
+otherwise be free. Found while scoping the refiner uniqueness in migration 020;
+left alone because those rows belong to the shipping migration.
+
 ## Operations
 
 ### No production backup has been taken

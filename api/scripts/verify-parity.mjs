@@ -38,6 +38,10 @@ const PAIRS = [
   // checksum_sha256 is called checksum in the new schema. Declared as dropped so
   // the check does not report a rename as a loss; the value is verified by the
   // media diff, which aliases it back and compares the rows.
+  // A supplier becomes an organization of type REFINER plus a refiners row that
+  // carries the original supplier id. Compared against a view reassembling the
+  // exchange shape, since no single table holds it.
+  ["exchange.suppliers", "refiners.exchange_compat"],
   [
     "exchange.images",
     "media.images",

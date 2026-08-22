@@ -68,6 +68,15 @@ const FEATURES = {
     ],
     context: async (m) => { const r = (await m.getTestImages())[0]; return { id: r?.id, user: r?.user_id }; },
   },
+  suppliers: {
+    exchange: () => import("#features/suppliers/repo.exchange.js"),
+    next: () => import("#features/suppliers/repo.next.js"),
+    reads: [
+      ["getAllSuppliers", (m) => m.getAllSuppliers()],
+      ["getSupplierFromId(first)", async (m, ctx) => (ctx.id ? m.getSupplierFromId(ctx.id) : null)],
+    ],
+    context: async (m) => ({ id: (await m.getAllSuppliers())[0]?.id }),
+  },
   rates: {
     exchange: () => import("#features/rates/repo.exchange.js"),
     next: () => import("#features/rates/repo.next.js"),
