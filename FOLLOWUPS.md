@@ -3,31 +3,33 @@
 Things found and deliberately deferred, with enough context to pick up cold.
 Ordered roughly by how much they'd cost if left.
 
-## The migration chain cannot run on production
+## The migration chain can now run on production, but the tables arrive empty
 
-**This is the largest open problem, and it is structural.**
+The structural half of this is fixed. `000_genesis_schema.sql` creates all 16
+schemas, 45 tables, 4 views, 4 enum types and 1 function from nothing, and is
+verified by `pnpm --filter @dorado/api verify:genesis`, which builds the whole
+thing under renamed schemas inside a rolled-back transaction and compares it
+column by column, constraint by constraint, against dev.
 
-No migration creates the new schema. All 28 of them ALTER, backfill or
-constrain tables that already exist, and they exist only in dev - the January
-`api_overhaul` work built them there by hand, directly, with no DDL recorded
-anywhere in the repo. Migration 002 opens with `ALTER TABLE core.leads`, and on
-a database that never had the January branch applied to it that is an immediate
-abort.
+It is generated, not hand-written - `pnpm --filter @dorado/api dump:schema`
+regenerates it from the dev catalog. Edit the generator, not the SQL.
 
-So the current position is: dev has a schema nothing can reproduce, and
-production has a migration chain it cannot run. Everything migrated so far -
-eleven features, all verified, all switched off - sits on top of that.
+**What is still missing is the data.** Genesis creates empty tables. On
+production the new schema will exist and hold nothing, and the per-feature
+backfills (003, 010, 025, 028) are all inside the baseline range, so they are
+recorded rather than run. Nothing populates the new tables from exchange.
 
-What it needs is a genesis migration, sorting before 002, that creates every new
-schema and table as DDL, followed by a backfill that populates them from
-exchange. `000_` sorts ahead of `001_`, and the runner applies pending files in
-filename order regardless of what has already run, so adding it now is a no-op
-on dev (guarded with IF NOT EXISTS) and correct on a fresh database. The DDL can
-be dumped from dev; the backfill is the harder half, because it is the same
-transformation work the per-feature migrations have been doing one at a time.
+That backfill is the remaining work, and it is the harder half: it is the same
+transformation the per-feature migrations have been doing one at a time -
+splitting suppliers and carriers into organizations, moving mint descriptions,
+renaming product columns, flattening scrap into order items - expressed once,
+as a single ordered pass over exchange. It must be idempotent, and it must be
+safe to run while `*_SOURCE` switches are still on `exchange`.
 
-Until this exists, none of the migration work can reach production, and the
-`pg_dump` below is not yet the thing standing in the way.
+Note the ordering constraint: the backfill can only run *before* any switch is
+promoted past `dual`. Afterwards the new schema holds rows exchange does not,
+and a backfill would overwrite them. `verify:parity` already refuses in that
+state; the backfill must too.
 
 ## Security
 

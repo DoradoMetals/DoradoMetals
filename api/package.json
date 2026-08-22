@@ -18,7 +18,9 @@
     "diff": "TZ=UTC node scripts/diff-source.mjs",
     "verify:parity": "TZ=UTC node scripts/verify-parity.mjs",
     "lint:migrations": "node scripts/lint-migrations.mjs",
-    "plan": "node scripts/plan-migration.mjs"
+    "plan": "node scripts/plan-migration.mjs",
+    "verify:genesis": "TZ=UTC node scripts/verify-genesis.mjs",
+    "dump:schema": "node scripts/dump-schema.mjs"
   },
   "imports": {
     "#env": "./env.js",

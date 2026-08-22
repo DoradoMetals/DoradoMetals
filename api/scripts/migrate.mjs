@@ -16,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import pg from "pg";
+import { parseBaseline, coveredBy } from "./lib/baseline.mjs";
 
 const MIGRATIONS_DIR = path.join(import.meta.dirname, "..", "migrations");
 const LOCK_KEY = 8451723; // arbitrary, just has to be stable
@@ -237,7 +238,22 @@ async function main() {
     }
 
     try {
+      // A baseline migration reproduces the schema as of some later migration,
+      // so the ones it subsumes must be recorded rather than run. 000 creates
+      // every table in the shape dev has now, which is the shape it reached
+      // after 028 - re-running 002 through 028 on top of that would fail on the
+      // first ALTER TABLE ADD CONSTRAINT, which has no IF NOT EXISTS.
+      //
+      // Declared in the file itself as `-- baseline: 028`. On a database that
+      // has already applied those migrations - dev - the stamp is a no-op and
+      // nothing is skipped, because there is nothing left pending to skip.
+      const skip = new Set();
+
       for (const f of pending) {
+        if (skip.has(f.name)) {
+          console.log(`skipping ${f.name} (covered by a baseline)`);
+          continue;
+        }
         // CREATE INDEX CONCURRENTLY cannot run inside a transaction, and it is
         // how indexes get added to a live table without blocking writes. Such a
         // migration opts out with a leading `-- no-transaction` line, and gives
@@ -257,6 +273,22 @@ async function main() {
             `INSERT INTO exchange.schema_migrations (name, checksum) VALUES ($1, $2)`,
             [f.name, f.checksum]
           );
+          const baseline = parseBaseline(f.sql);
+          if (baseline) {
+            const { from, through } = baseline;
+            const covered = coveredBy(baseline, f.name, files, done);
+            for (const x of covered) {
+              await client.query(
+                `INSERT INTO exchange.schema_migrations (name, checksum) VALUES ($1, $2)
+                 ON CONFLICT (name) DO NOTHING`,
+                [x.name, x.checksum]
+              );
+              skip.add(x.name);
+            }
+            if (covered.length) {
+              process.stdout.write(`(baseline ${from}-${through}: recorded ${covered.length}) `);
+            }
+          }
           if (!noTx) await client.query("COMMIT");
           console.log("ok");
         } catch (err) {
