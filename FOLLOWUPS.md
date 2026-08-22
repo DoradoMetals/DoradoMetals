@@ -40,6 +40,34 @@ derived and must be written as literals:
 Worth doing as one seed migration, taking the values from dev. Until then a
 production database would have the tables and none of these rows.
 
+### BLOCKED: payments is a different model, not a reshaped one
+
+Audited. The new payments schema is not a copy of exchange with the columns
+rearranged - it is a different design, populated in January with data that does
+not correspond to what exchange holds.
+
+- **No id is shared.** None of payments.details, .methods, .intents, .attempts
+  or .settlements shares a single id with exchange.payouts or
+  exchange.payment_intents.
+- **The granularity differs.** exchange.payment_intents holds 21 rows across 8
+  distinct orders - several Stripe attempts per order. payments.intents holds
+  28, roughly one per order, with attempts and settlements hanging off them
+  one to one. Only 2 of the 28 attempts carry a provider_ref matching a real
+  Stripe payment_intent_id.
+- So the 28 rows are not a reference to copy from. Migrating means designing
+  the transformation from scratch - 21 Stripe intents across 8 orders becoming
+  intents, attempts and settlements - and then *replacing* what is there, which
+  means deleting rows in the new schema. That is a decision, not a mechanical
+  step.
+
+The model itself looks better than exchange's: separating what was intended,
+what was attempted and what settled is the right shape for payment data. But
+the mapping is a design question about money, and the existing rows would have
+to go.
+
+payments.methods (10 rows) is seed data with no exchange source, and belongs
+with the seed migration below.
+
 ### 35 populated columns still have no home, and they are now known in advance
 
 `pnpm --filter @dorado/api audit:coverage` reports, for every source table,
@@ -139,21 +167,32 @@ across 23 API files pass `user_name` today.
 Until this is done, the new `created_by_id` columns are a trustworthy column
 filled from an untrusted source.
 
-### Bank details are unencrypted at rest
+### Bank details are unencrypted at rest - and in dev, there are none
 
 `exchange.payouts.routing_number` and `.account_number` are plaintext `text`,
-written straight from `req.body` by `insertPayout`. Order responses no longer
-carry them — only last-4, with full values behind an admin-only endpoint — but
-the storage is unchanged.
+written straight from `req.body` by `insertPayout`. Order responses carry only
+last-4, with full values behind an admin-only endpoint, but the storage is
+unchanged.
 
-Deferred by Jacob. Worth checking whether prod actually holds any: if ACH and
-Wire have never been used, these columns are vestigial and the answer is to drop
-them rather than build encryption.
+**In dev, both columns are null on all 16 rows.** Every payout is either ECHECK
+(10) or DORADO_ACCOUNT (6) - neither of which involves ACH or wire details.
+`payments.details` in the new schema likewise holds no routing or account
+number on any of its 16 rows.
+
+If production looks the same, the answer is to drop the columns rather than
+build encryption, which is the cheaper and safer fix by a wide margin. That
+cannot be concluded from dev - dev holds tens of rows and proves nothing about
+production - so it needs the query below run against prod, which is blocked on
+the `claude_ro` role failing authentication.
 
 ```sql
 SELECT method, count(*), count(routing_number), count(account_number)
 FROM exchange.payouts GROUP BY method;
 ```
+
+If production *does* hold real bank details, the migration must not copy them:
+that would put the same plaintext secrets in two places and double the
+exposure. Either way this is a decision to take before payments moves.
 
 ## Schema
 

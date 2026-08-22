@@ -94,6 +94,9 @@ const RENAMES = {
     sales_order_id: "-",
   },
   "exchange.tracking_events": { scan_time: "time" },
+  // payments is not a reshaping of exchange - it is a different model with no
+  // shared ids and a different granularity, so these are not renames and are
+  // deliberately not declared as such. Left reported so the gap stays visible.
   "exchange.carrier_pickups": { order_id: "-", carrier: "-", pickup_requested_at: "requested_at", pickup_status: "status" },
 };
 
