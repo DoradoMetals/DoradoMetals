@@ -586,6 +586,30 @@ switched to until it is repaired, and repairing it is only worth doing once the
 service and package questions are answered, since those change what a shipment
 row is.
 
+### shipping.services and shipping.packages are seeded, not derived
+
+Decided rather than asked, under Jacob's standing delegation, and reversible:
+both are now in `047_seed_reference_data.sql` as literals.
+
+They *could* be derived from `exchange.carrier_services`, which on production
+holds the same eight (carrier, name) pairs. They are not, for two reasons. No id
+is shared between the two tables, so deriving would re-key every service and
+orphan anything already pointing at one. And dev's `carrier_services` holds two
+of the eight, so the same migration would produce different results depending on
+which database it ran against — which is exactly the class of mistake that put
+the wrong conclusion in this file twice.
+
+Seeding gives every database the eight services and six package sizes the
+application expects. `shipping.carriers` keeps its exchange ids and those ids
+are identical in dev and production, so the carrier references in the seed are
+stable.
+
+The shipments backfill therefore resolves `service_type` to a service by
+(carrier, name) and `package` to a package by (carrier, label), rather than by
+id. Every production value has a match: Express Saver, Priority Overnight,
+Standard, Free and Overnight for services; Small Box, Medium Box and Large Box
+for packages.
+
 ### shipping.services is NOT blocked — that entry was wrong
 
 Recorded here for a while as needing two product decisions. Both were

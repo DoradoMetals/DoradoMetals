@@ -27,6 +27,20 @@ const TABLES = [
   ["places", "addresses", "id IN (SELECT address_id FROM places.locations WHERE address_id IS NOT NULL)"],
   ["places", "locations", null],
   ["places", "location_hours", null],
+  // The carrier service catalogue and the box sizes. Both reference
+  // shipping.carriers, which keeps its exchange ids, and those ids are the same
+  // in dev and production - so these can be written as literals like the rest of
+  // the reference data.
+  //
+  // exchange.carrier_services does hold the same eight (carrier, name) pairs on
+  // production, so these could in principle be derived from it. They are not,
+  // for two reasons: no id is shared, so deriving would re-key them and orphan
+  // anything already pointing at a service; and dev's copy of
+  // carrier_services holds only two of the eight, so a derivation would produce
+  // different results depending on which database it ran against. Seeding from
+  // dev gives every database exactly what the application expects.
+  ["shipping", "services", null],
+  ["shipping", "packages", null],
   ["fulfillments", "methods", null],
   ["payments", "methods", null],
   ["auth", "employees", null],
