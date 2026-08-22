@@ -54,6 +54,18 @@ const PAIRS = [
       reason: "renamed to checksum; value compared by the media diff",
     },
   ],
+  // Three columns are renamed rather than lost: exchange qualified them with a
+  // `product_` prefix that is redundant once the table is called bullion. The
+  // repo aliases them back, so the wire shape is unchanged and the values are
+  // compared row by row by the products diff.
+  [
+    "exchange.products",
+    "products.bullion",
+    {
+      intentionallyDropped: ["product_name", "product_description", "product_type"],
+      reason: "renamed to name/description/type; values compared by the products diff",
+    },
+  ],
   [
     "exchange.metals",
     "metals.exchange_compat",

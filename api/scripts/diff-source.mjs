@@ -87,6 +87,20 @@ const FEATURES = {
     ],
     context: async (m) => ({ id: (await m.getAll())[0]?.id }),
   },
+  products: {
+    exchange: () => import("#features/products/repo.exchange.js"),
+    next: () => import("#features/products/repo.next.js"),
+    reads: [
+      ["getAllProducts", (m) => m.getAllProducts()],
+      ["getSellProducts", (m) => m.getSellProducts()],
+      ["getHomepageProducts", (m) => m.getHomepageProducts()],
+      ["getAllAdminProducts", (m) => m.getAllAdminProducts()],
+      ["getAllTypes", (m) => m.getAllTypes()],
+      ["getFilteredProducts(Gold)", (m) => m.getFilteredProducts({ metal_type: "Gold" })],
+      ["getProductFromSlug(first)", async (m, ctx) => (ctx.slug ? m.getProductFromSlug(ctx.slug) : [])],
+    ],
+    context: async (m) => ({ slug: (await m.getAllProducts())[0]?.slug }),
+  },
   rates: {
     exchange: () => import("#features/rates/repo.exchange.js"),
     next: () => import("#features/rates/repo.next.js"),
