@@ -340,6 +340,18 @@ Two cheap options if it is worth hardening: refuse when both reference sets are
 empty, or scope the delete to the scrap ids the sync itself orphaned. Both change
 checkout behaviour, so neither was done on a hunch.
 
+### The sales tax enums live in `public`, not `exchange`
+
+`exchange.sales_tax_rules.metal_category` and `.product_type` are typed by enums
+in the **public** schema, not in `exchange`. The January refactor created
+same-named enums in `tax`, which is why the genesis backfill casts through text
+to move values between them.
+
+Nothing is wrong with it, but three same-named types across three schemas is a
+trap for anyone writing a cast — an `exchange.`-qualified one simply fails, and
+a `tax.`-qualified one fails in the other direction. The repo tests state which
+is which.
+
 ### The customer balance can go negative
 
 `removeFunds` does not check the balance before subtracting, so a checkout that
