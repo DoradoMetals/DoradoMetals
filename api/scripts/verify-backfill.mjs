@@ -125,19 +125,24 @@ const TABLES = [
     // null rather than asserting it of orders it knows nothing about. Needs a
     // decision - see FOLLOWUPS.
     cols: `id, user_id, direction::text, status, number, notes,
-           review_created, created_by, updated_by, created_at, updated_at`,
+           review_created, order_sent, tracking_updated,
+           created_by, updated_by, created_at, updated_at`,
   },
   {
     name: "orders.offers",
     key: "order_id",
     cols: `order_id, status, offer_status, notes, spots_locked, offer_expiration,
-           num_rejections, offer_amount, created_by, updated_by, created_at, updated_at`,
+           offer_sent_at, num_rejections, offer_amount, created_by, updated_by,
+           created_at, updated_at`,
   },
   {
     name: "orders.transactions",
     key: "order_id",
     cols: `order_id, total, items, shipping, surcharge, sales_tax, funds,
-           refiner_fee, created_by, updated_by, created_at, updated_at`,
+           refiner_fee, base_total, post_charges_amount, subject_to_charges_amount,
+           used_funds, waive_shipping_fee, waive_payout_fee, shipping_paid,
+           shipping_fee_actual, pool_remediation, pool_oz_deducted,
+           created_by, updated_by, created_at, updated_at`,
   },
   {
     name: "orders.items",
@@ -147,7 +152,9 @@ const TABLES = [
     // historical value is not in exchange, so a rebuild can only take the
     // current one.
     cols: `id, order_id, bullion_id, metal_id, pre_melt, post_melt, content,
-           premium, quantity, confirmed, sales_tax_charged, unit`,
+           premium, quantity, confirmed, sales_tax_charged, unit,
+           price, refiner_premium, bid_premium, purity_actual, post_melt_actual,
+           content_actual`,
   },
   { name: "orders.spots", key: "order_id, metal_id", cols: "order_id, metal_id, ask, bid" },
   {

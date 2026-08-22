@@ -68,7 +68,7 @@ const say = (s = "") => out.push(s);
 // ceiling: 001 indexes foreign keys on exchange, which a production database
 // still needs, so it is deliberately outside the baseline. Bump the upper bound
 // when regenerating.
-const BASELINE = "002-028";
+const BASELINE = "002-034";
 
 say(`-- baseline: ${BASELINE}
 --

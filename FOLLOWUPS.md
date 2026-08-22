@@ -40,6 +40,18 @@ derived and must be written as literals:
 Worth doing as one seed migration, taking the values from dev. Until then a
 production database would have the tables and none of these rows.
 
+### sales_orders.shipping_service was left behind deliberately
+
+The one column of the twenty-one that migration 033 did not give a home. It
+names a carrier service, and `shipping.shipments` already has `service_type`
+for what looks like the same thing - but `exchange.shipments.service_type` holds
+values that `exchange.carrier_services` does not contain, which is the same
+tangle that blocks `shipping.services` below. Deciding whether the order's
+service and the shipment's service are one field belongs with the shipping
+migration, so it waits for that.
+
+Populated on all 15 sales orders, so it cannot simply be dropped.
+
 ### A purchase order's refiner is not recorded in exchange
 
 `orders.orders.refinery_id` is set on all sixteen purchase orders in dev, all to
