@@ -82,6 +82,43 @@ strings as equal, so the placeholder actively defeats a constraint that would
 otherwise be free. Found while scoping the refiner uniqueness in migration 020;
 left alone because those rows belong to the shipping migration.
 
+### BLOCKED: shipping.services needs a product decision before it can move
+
+`shipping.services` is not a copy of `exchange.carrier_services` — it is a
+correction of it, and migrating either way changes what the API returns.
+
+What the data says:
+
+- `exchange.carrier_services` holds **2** rows: Express Saver and Overnight,
+  both FedEx.
+- `exchange.shipments.service_type` stores the service *name as text*, and the
+  values in use are Express Saver (16), **Standard** (6) and **Free** (1) —
+  two of which do not exist in `carrier_services` at all.
+- `shipping.services` holds **8**: Free, Overnight, Standard per carrier for
+  FedEx and UPS, plus Express Saver and Priority Overnight for FedEx. The
+  apparent duplicates are per-carrier, which is correct.
+- The frontend hardcodes both spellings: `salesOrders/types.ts` uses
+  `'Overnight'`, `service/types.ts` uses `serviceDescription: 'Priority
+  Overnight'`.
+
+So the old table was never the source of truth — the real service list lives in
+the frontend, and `carrier_services` drifted into holding a fragment of it.
+
+**Two decisions needed:**
+
+1. Should `GET /carrier_services` start returning 8 rows instead of 2? It is
+   additive and arguably a fix, but it is a visible change to whatever lists
+   services.
+2. The id `2fb26257-65a3-4922-98d2-a9726a9b5167` is named `Overnight` in
+   exchange and `Priority Overnight` in shipping. Same row, two names. Which is
+   correct? FedEx's actual product is Priority Overnight, so the new name looks
+   right — but `exchange.shipments.service_type` matches on the name, so
+   renaming affects how existing shipments resolve.
+
+Until both are answered, migrating services would either discard the more
+complete list or silently change displayed service names. `shipping.packages` is
+fed from the same source and is blocked behind the same questions.
+
 ## Operations
 
 ### No production backup has been taken
