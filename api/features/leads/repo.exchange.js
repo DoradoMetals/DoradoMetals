@@ -1,27 +1,32 @@
+// Leads read from exchange.leads, the schema currently serving traffic.
+//
+// Every function takes an optional trailing executor so a caller can pull it
+// into a transaction - which is what lets the dual-write phase apply the write
+// here and its mirror into core atomically.
 import query from "#shared/db/query.js";
 
-export async function getLead(id) {
+export async function getLead(id, executor) {
   const sql = `
     SELECT *
     FROM exchange.leads
     WHERE id = $1
   `;
   const values = [id];
-  const result = await query(sql, values);
+  const result = await query(sql, values, executor);
   return result.rows[0];
 }
 
-export async function getAllLeads() {
+export async function getAllLeads(executor) {
   const sql = `
     SELECT *
     FROM exchange.leads
     ORDER BY created_at DESC
   `;
-  const result = await query(sql, []);
+  const result = await query(sql, [], executor);
   return result.rows;
 }
 
-export async function createLead(lead) {
+export async function createLead(lead, executor) {
   const sql = `
     INSERT INTO exchange.leads
       (name, phone, email, created_by, updated_by, priority, notes, last_contacted)
@@ -37,11 +42,11 @@ export async function createLead(lead) {
     lead.priority,
     lead.notes ?? null,
   ];
-  const result = await query(sql, values);
+  const result = await query(sql, values, executor);
   return result.rows[0];
 }
 
-export async function updateLead(lead, user_name) {
+export async function updateLead(lead, user_name, executor) {
   const sql = `
     UPDATE exchange.leads
     SET name = $1,
@@ -75,14 +80,14 @@ export async function updateLead(lead, user_name) {
     lead.id,
   ];
 
-  const result = await query(sql, values);
+  const result = await query(sql, values, executor);
   return result.rows[0];
 }
 
-export async function deleteLead(id) {
+export async function deleteLead(id, executor) {
   const sql = `
     DELETE FROM exchange.leads WHERE id = $1
   `;
   const values = [id];
-  return await query(sql, values);
+  return await query(sql, values, executor);
 }

@@ -13,7 +13,7 @@ import query from "#shared/db/query.js";
 import type { core } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 
-type LeadRow = core.LeadsRow;
+export type LeadRow = core.LeadsRow;
 
 // Repos take an optional executor so a caller can pull them into its
 // transaction; without one they run on the pool.
@@ -115,4 +115,47 @@ export async function deleteLead(id: string, executor?: Executor) {
     DELETE FROM core.leads WHERE id = $1
   `;
   return await query(sql, [id], executor);
+}
+
+// Writes a row verbatim, id included, creating or overwriting.
+//
+// Used by the dual-write phase: rather than inserting into both schemas
+// independently - which would generate two different ids and let column
+// defaults drift apart - exchange performs the write and the row it returns is
+// mirrored here. The two tables are then identical by construction rather than
+// by inspection.
+export async function mirrorLead(
+  lead: LeadRow,
+  executor?: Executor
+): Promise<LeadRow> {
+  const sql = `
+    INSERT INTO core.leads (
+      id, name, phone, email, created_at, updated_at, last_contacted,
+      converted, contacted, responded, created_by, updated_by, notes, contact, priority
+    )
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name,
+      phone = EXCLUDED.phone,
+      email = EXCLUDED.email,
+      created_at = EXCLUDED.created_at,
+      updated_at = EXCLUDED.updated_at,
+      last_contacted = EXCLUDED.last_contacted,
+      converted = EXCLUDED.converted,
+      contacted = EXCLUDED.contacted,
+      responded = EXCLUDED.responded,
+      created_by = EXCLUDED.created_by,
+      updated_by = EXCLUDED.updated_by,
+      notes = EXCLUDED.notes,
+      contact = EXCLUDED.contact,
+      priority = EXCLUDED.priority
+    RETURNING *;
+  `;
+  const values = [
+    lead.id, lead.name, lead.phone, lead.email, lead.created_at, lead.updated_at,
+    lead.last_contacted, lead.converted, lead.contacted, lead.responded,
+    lead.created_by, lead.updated_by, lead.notes, lead.contact, lead.priority,
+  ];
+  const result = await query<LeadRow>(sql, values, executor);
+  return result.rows[0];
 }

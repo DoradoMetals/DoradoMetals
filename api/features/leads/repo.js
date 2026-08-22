@@ -1,26 +1,40 @@
 // Selects which schema the leads feature reads and writes.
 //
 // The database holds two: the live `exchange` schema, and the
-// domain-namespaced schemas a migration is moving toward. Leads is the first
-// feature to move, and it moves behind this switch rather than behind a deploy:
+// domain-namespaced schemas a migration is moving toward. Leads moves behind
+// this switch rather than behind a deploy:
 //
-//   LEADS_SOURCE=exchange   (default) reads and writes exchange.leads
-//   LEADS_SOURCE=core                 reads and writes core.leads
+//   LEADS_SOURCE=exchange   (default) read exchange, write exchange
+//   LEADS_SOURCE=dual                 read core,     write BOTH
+//   LEADS_SOURCE=core                 read core,     write core
 //
-// Nothing above this file knows the difference - the service, controller and
-// routes are untouched, and both implementations satisfy the same contract.
-// Rolling back is an environment variable, not a revert and redeploy.
+// Go through `dual` and stay there. It is the only setting that is reversible:
+// exchange keeps receiving every write, so falling back to it loses nothing.
+// Going straight to `core` is a one-way door - exchange stops being updated the
+// moment it is flipped, and flipping back silently drops everything written in
+// between.
 //
-// Before flipping to core, run migration 003 to bring core.leads up to date,
-// and `pnpm --filter @dorado/api diff:leads` to confirm the two return
-// identical responses. Once core has been serving for long enough to trust,
-// repo.exchange.js and this switch both go away.
+// Promotion sequence:
+//   1. run migrations, then `pnpm --filter @dorado/api diff leads` until clean
+//   2. LEADS_SOURCE=dual, and leave it for long enough to trust
+//   3. re-run the diff periodically; it should stay clean while dual is live
+//   4. LEADS_SOURCE=core once you are willing to stop maintaining exchange
+//   5. drop exchange.leads, delete repo.exchange.js and this switch
+//
+// Nothing above this file knows the difference - service, controller and routes
+// are untouched, and all three implementations satisfy the same contract.
 import * as exchange from "#features/leads/repo.exchange.js";
 import * as core from "#features/leads/repo.core.ts";
+import * as dual from "#features/leads/repo.dual.ts";
 
-const SOURCE = process.env.LEADS_SOURCE === "core" ? "core" : "exchange";
+const SOURCES = { exchange, dual, core };
 
-const impl = SOURCE === "core" ? core : exchange;
+// Anything unrecognised falls back to the schema currently serving traffic.
+const SOURCE = Object.hasOwn(SOURCES, process.env.LEADS_SOURCE ?? "")
+  ? process.env.LEADS_SOURCE
+  : "exchange";
+
+const impl = SOURCES[SOURCE];
 
 export const activeSource = SOURCE;
 
