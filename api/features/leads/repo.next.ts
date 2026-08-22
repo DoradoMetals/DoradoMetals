@@ -1,4 +1,4 @@
-// Leads read from core.leads, the domain-namespaced schema the API is moving
+// Leads read from leads.leads, the domain-namespaced schema the API is moving
 // to. Which of the two implementations is used is decided by repo.js.
 //
 // This is the first file converted to TypeScript. The pattern is that a feature
@@ -7,17 +7,17 @@
 // contract, so it is whatever the database actually says rather than a
 // hand-written guess that drifts.
 //
-// Reads project explicit columns rather than SELECT *: core.leads carries
+// Reads project explicit columns rather than SELECT *: leads.leads carries
 // created_by_id and updated_by_id, which exchange has no equivalent for, and
 // they must not appear on the wire while both schemas are serving.
 //
 // Node runs this directly by stripping types - there is no build step. Type
 // checking is separate and happens in CI via tsc --noEmit.
 import query from "#shared/db/query.js";
-import type { core } from "@dorado/contracts";
+import type { leads } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 
-export type LeadRow = core.LeadsRow;
+export type LeadRow = leads.LeadsRow;
 
 // Repos take an optional executor so a caller can pull them into its
 // transaction; without one they run on the pool.
@@ -35,7 +35,7 @@ export async function getLead(
   const sql = `
     SELECT id, name, phone, email, created_at, updated_at, last_contacted,
            converted, contacted, responded, created_by, updated_by, notes, contact, priority
-    FROM core.leads
+    FROM leads.leads
     WHERE id = $1
   `;
   const result = await query<LeadRow>(sql, [id], executor);
@@ -46,8 +46,8 @@ export async function getAllLeads(executor?: Executor): Promise<LeadRow[]> {
   const sql = `
     SELECT id, name, phone, email, created_at, updated_at, last_contacted,
            converted, contacted, responded, created_by, updated_by, notes, contact, priority
-    FROM core.leads
-    ORDER BY created_at DESC
+    FROM leads.leads
+    ORDER BY created_at DESC, id DESC
   `;
   const result = await query<LeadRow>(sql, [], executor);
   return result.rows;
@@ -58,7 +58,7 @@ export async function createLead(
   executor?: Executor
 ): Promise<LeadRow> {
   const sql = `
-    INSERT INTO core.leads
+    INSERT INTO leads.leads
       (name, phone, email, created_by, updated_by, priority, notes, last_contacted)
     VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'Medium'), $7, NOW())
     RETURNING id, name, phone, email, created_at, updated_at, last_contacted,
@@ -83,7 +83,7 @@ export async function updateLead(
   executor?: Executor
 ): Promise<LeadRow> {
   const sql = `
-    UPDATE core.leads
+    UPDATE leads.leads
     SET name = $1,
         phone = $2,
         email = $3,
@@ -120,51 +120,38 @@ export async function updateLead(
 
 export async function deleteLead(id: string, executor?: Executor) {
   const sql = `
-    DELETE FROM core.leads WHERE id = $1
+    DELETE FROM leads.leads WHERE id = $1
   `;
   return await query(sql, [id], executor);
 }
 
-// Writes a row verbatim, id included, creating or overwriting.
+// Copies a row from exchange.leads, id included, creating or overwriting.
 //
-// Used by the dual-write phase: rather than inserting into both schemas
-// independently - which would generate two different ids and let column
-// defaults drift apart - exchange performs the write and the row it returns is
-// mirrored here. The two tables are then identical by construction rather than
-// by inspection.
+// The copy happens server-side rather than by handing this function a row that
+// has already been through JavaScript. pg materialises a timestamp as a JS
+// Date, which has millisecond precision, so a read-then-write round trip
+// silently truncates the microseconds Postgres stores. That is how the January
+// bulk copy lost sub-millisecond precision on every timestamp it moved.
 export async function mirrorLead(
-  lead: LeadRow,
+  id: string,
   executor?: Executor
 ): Promise<LeadRow> {
+  const cols = `id, name, phone, email, created_at, updated_at, last_contacted,
+                converted, contacted, responded, created_by, updated_by,
+                notes, contact, priority`;
   const sql = `
-    INSERT INTO core.leads (
-      id, name, phone, email, created_at, updated_at, last_contacted,
-      converted, contacted, responded, created_by, updated_by, notes, contact, priority
-    )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+    INSERT INTO leads.leads (${cols})
+    SELECT ${cols} FROM exchange.leads WHERE id = $1
     ON CONFLICT (id) DO UPDATE SET
-      name = EXCLUDED.name,
-      phone = EXCLUDED.phone,
-      email = EXCLUDED.email,
-      created_at = EXCLUDED.created_at,
-      updated_at = EXCLUDED.updated_at,
-      last_contacted = EXCLUDED.last_contacted,
-      converted = EXCLUDED.converted,
-      contacted = EXCLUDED.contacted,
-      responded = EXCLUDED.responded,
-      created_by = EXCLUDED.created_by,
-      updated_by = EXCLUDED.updated_by,
-      notes = EXCLUDED.notes,
-      contact = EXCLUDED.contact,
+      name = EXCLUDED.name, phone = EXCLUDED.phone, email = EXCLUDED.email,
+      created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at,
+      last_contacted = EXCLUDED.last_contacted, converted = EXCLUDED.converted,
+      contacted = EXCLUDED.contacted, responded = EXCLUDED.responded,
+      created_by = EXCLUDED.created_by, updated_by = EXCLUDED.updated_by,
+      notes = EXCLUDED.notes, contact = EXCLUDED.contact,
       priority = EXCLUDED.priority
-    RETURNING id, name, phone, email, created_at, updated_at, last_contacted,
-           converted, contacted, responded, created_by, updated_by, notes, contact, priority;
+    RETURNING ${cols};
   `;
-  const values = [
-    lead.id, lead.name, lead.phone, lead.email, lead.created_at, lead.updated_at,
-    lead.last_contacted, lead.converted, lead.contacted, lead.responded,
-    lead.created_by, lead.updated_by, lead.notes, lead.contact, lead.priority,
-  ];
-  const result = await query<LeadRow>(sql, values, executor);
+  const result = await query<LeadRow>(sql, [id], executor);
   return result.rows[0];
 }

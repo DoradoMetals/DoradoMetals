@@ -27,6 +27,13 @@
 -- Cross-schema foreign keys are unaffected; Postgres tracks them by object, not
 -- by name.
 --
+-- core also holds a function, convert_to_troy_oz, which moves to metals: weight
+-- conversion is metals-domain. It has no callers - no column default, no
+-- generated column, and nothing in the API - and it duplicates
+-- shared/utils/convertWeights.js, which differs in that the SQL returns NULL on
+-- an unknown unit where the JS returns 0. Moved rather than dropped, because
+-- deleting something on the way past is how you find out later that it mattered.
+--
 -- The DROP is RESTRICT, so it fails rather than cascades if anything was left
 -- behind. exchange is untouched.
 
@@ -48,5 +55,7 @@ ALTER TABLE core.bullion       SET SCHEMA products;
 ALTER TABLE core.images        SET SCHEMA media;
 ALTER TABLE core.organizations SET SCHEMA organizations;
 ALTER TABLE core.metals        SET SCHEMA metals;
+
+ALTER FUNCTION core.convert_to_troy_oz(numeric, text) SET SCHEMA metals;
 
 DROP SCHEMA core RESTRICT;

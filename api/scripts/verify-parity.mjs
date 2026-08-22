@@ -18,14 +18,14 @@
 // Read-only. Safe against production.
 //
 //   node scripts/verify-parity.mjs                     all known pairs
-//   node scripts/verify-parity.mjs exchange.leads core.leads
+//   node scripts/verify-parity.mjs exchange.leads leads.leads
 import "dotenv/config";
 import pool from "#db";
 
 const PAIRS = [
-  ["exchange.leads", "core.leads"],
-  ["exchange.rates", "core.rates"],
-  ["exchange.reviews", "core.reviews"],
+  ["exchange.leads", "leads.leads"],
+  ["exchange.rates", "rates.rates"],
+  ["exchange.reviews", "reviews.reviews"],
   ["exchange.sales_tax_rules", "tax.sales_tax_rules"],
 ];
 

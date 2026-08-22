@@ -11,10 +11,10 @@
 //
 // Gate on `pnpm --filter @dorado/api diff sales-tax` before promoting.
 import * as exchange from "#features/sales-tax/repo.exchange.js";
-import * as core from "#features/sales-tax/repo.core.js";
+import * as next from "#features/sales-tax/repo.next.js";
 import * as dual from "#features/sales-tax/repo.dual.js";
 
-const SOURCES = { exchange, dual, core };
+const SOURCES = { exchange, dual, next };
 
 const SOURCE = Object.hasOwn(SOURCES, process.env.SALES_TAX_SOURCE ?? "")
   ? process.env.SALES_TAX_SOURCE

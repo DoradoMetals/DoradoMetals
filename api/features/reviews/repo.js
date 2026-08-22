@@ -8,10 +8,10 @@
 // Go through dual and stay there. It is the only reversible setting.
 // Gate on `pnpm --filter @dorado/api diff reviews` before promoting.
 import * as exchange from "#features/reviews/repo.exchange.js";
-import * as core from "#features/reviews/repo.core.js";
+import * as next from "#features/reviews/repo.next.js";
 import * as dual from "#features/reviews/repo.dual.js";
 
-const SOURCES = { exchange, dual, core };
+const SOURCES = { exchange, dual, next };
 
 const SOURCE = Object.hasOwn(SOURCES, process.env.REVIEWS_SOURCE ?? "")
   ? process.env.REVIEWS_SOURCE

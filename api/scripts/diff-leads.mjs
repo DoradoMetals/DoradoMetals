@@ -1,4 +1,4 @@
-// Proves the core.leads implementation is interchangeable with the exchange one.
+// Proves the leads.leads implementation is interchangeable with the exchange one.
 //
 // This is the gate for flipping LEADS_SOURCE, and the template for every other
 // feature that moves schema. It does not test the new code against expectations
@@ -13,7 +13,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as exchange from "#features/leads/repo.exchange.js";
-import * as core from "#features/leads/repo.core.ts";
+import * as next from "#features/leads/repo.next.ts";
 
 const norm = (v) => JSON.stringify(v, Object.keys(v ?? {}).sort());
 const sortRows = (rows) =>
@@ -37,12 +37,12 @@ function compare(name, a, b) {
 // ---- reads -----------------------------------------------------------------
 
 const exAll = await exchange.getAllLeads();
-const coAll = await core.getAllLeads();
-compare(`getAllLeads (${exAll.length} vs ${coAll.length} rows)`, exAll, coAll);
+const nextAll = await next.getAllLeads();
+compare(`getAllLeads (${exAll.length} vs ${nextAll.length} rows)`, exAll, nextAll);
 
 if (exAll.length) {
   const id = exAll[0].id;
-  compare("getLead(id)", await exchange.getLead(id), await core.getLead(id));
+  compare("getLead(id)", await exchange.getLead(id), await next.getLead(id));
 }
 
 // ---- writes ----------------------------------------------------------------
@@ -74,8 +74,8 @@ try {
   // run on the pool. The surrounding transaction still covers them because the
   // inserts are undone explicitly below.
   const exCreated = await exchange.createLead(draft);
-  const coCreated = await core.createLead(draft);
-  compare("createLead", stripVolatile(exCreated), stripVolatile(coCreated));
+  const nextCreated = await next.createLead(draft);
+  compare("createLead", stripVolatile(exCreated), stripVolatile(nextCreated));
 
   const edit = (base) => ({
     ...base,
@@ -88,13 +88,13 @@ try {
     priority: "Low",
   });
   const exUpdated = await exchange.updateLead(edit(exCreated), "diff");
-  const coUpdated = await core.updateLead(edit(coCreated), "diff");
-  compare("updateLead", stripVolatile(exUpdated), stripVolatile(coUpdated));
+  const nextUpdated = await next.updateLead(edit(nextCreated), "diff");
+  compare("updateLead", stripVolatile(exUpdated), stripVolatile(nextUpdated));
 
   // Undo the two inserts. Done explicitly rather than relying on the
   // transaction, because the repos run on the pool rather than this client.
   await pool.query("DELETE FROM exchange.leads WHERE id = $1", [exCreated.id]);
-  await pool.query("DELETE FROM core.leads WHERE id = $1", [coCreated.id]);
+  await pool.query("DELETE FROM leads.leads WHERE id = $1", [nextCreated.id]);
 
   await client.query("ROLLBACK");
 } finally {

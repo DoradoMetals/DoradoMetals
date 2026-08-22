@@ -13,7 +13,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import * as leads from "#features/leads/repo.core.ts";
+import * as leads from "#features/leads/repo.next.ts";
 import type { PoolClient } from "pg";
 
 let client: PoolClient;
@@ -133,7 +133,7 @@ test("deleteLead removes the row", async () => {
 test("getAllLeads is ordered newest first", async () => {
   await inRollback(async (c) => {
     const rows = await leads.getAllLeads(c);
-    const dates = rows.map((r) => new Date(r.created_at).getTime());
+    const dates = rows.map((r: leads.LeadRow) => new Date(r.created_at).getTime());
     assert.deepEqual(dates, [...dates].sort((a, b) => b - a));
   });
 });

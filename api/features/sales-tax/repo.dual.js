@@ -11,15 +11,15 @@
 // absolute - so a single missed write is permanent, not self-correcting.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/sales-tax/repo.exchange.js";
-import * as core from "#features/sales-tax/repo.core.js";
+import * as next from "#features/sales-tax/repo.next.js";
 
-export const getSalesTax = core.getSalesTax;
-export const isNexus = core.isNexus;
+export const getSalesTax = next.getSalesTax;
+export const isNexus = next.isNexus;
 
 export async function updateStateSalesTax(amount, state, executor) {
   const run = async (c) => {
     await exchange.updateStateSalesTax(amount, state, c);
-    await core.updateStateSalesTax(amount, state, c);
+    await next.updateStateSalesTax(amount, state, c);
   };
   return executor ? run(executor) : withTransaction(run);
 }

@@ -20,7 +20,16 @@ import fs from "node:fs";
 import path from "node:path";
 import pg from "pg";
 
-const SCHEMAS = (process.env.CONTRACT_SCHEMAS ?? "exchange")
+// Every schema the API reads. exchange is the one still serving traffic; the
+// rest are the per-feature schemas it is migrating to.
+const DEFAULT_SCHEMAS = [
+  "exchange",
+  "leads", "reviews", "rates", "spots", "products",
+  "media", "organizations", "metals",
+  "orders", "shipping", "tax", "payments", "fulfillments", "places",
+].join(",");
+
+const SCHEMAS = (process.env.CONTRACT_SCHEMAS ?? DEFAULT_SCHEMAS)
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
@@ -43,6 +52,8 @@ const TYPE_MAP = {
   "double precision": "z.number()",
   real: "z.number()",
   date: "z.string()",
+  "time without time zone": "z.string()",
+  "time with time zone": "z.string()",
   "timestamp with time zone": "z.string()",
   "timestamp without time zone": "z.string()",
   jsonb: "z.unknown()",

@@ -19,7 +19,7 @@ import pool from "#db";
 const FEATURES = {
   leads: {
     exchange: () => import("#features/leads/repo.exchange.js"),
-    core: () => import("#features/leads/repo.core.ts"),
+    next: () => import("#features/leads/repo.next.ts"),
     reads: [
       ["getAllLeads", (m) => m.getAllLeads()],
       ["getLead(first)", async (m, ctx) => (ctx.id ? m.getLead(ctx.id) : null)],
@@ -28,7 +28,7 @@ const FEATURES = {
   },
   reviews: {
     exchange: () => import("#features/reviews/repo.exchange.js"),
-    core: () => import("#features/reviews/repo.core.js"),
+    next: () => import("#features/reviews/repo.next.js"),
     reads: [
       ["getAllReviews", (m) => m.getAllReviews()],
       ["getPublicReviews", (m) => m.getPublicReviews()],
@@ -38,7 +38,7 @@ const FEATURES = {
   },
   'sales-tax': {
     exchange: () => import("#features/sales-tax/repo.exchange.js"),
-    core: () => import("#features/sales-tax/repo.core.js"),
+    next: () => import("#features/sales-tax/repo.next.js"),
     reads: [
       ["isNexus(TX)", (m) => m.isNexus("TX")],
       ["isNexus(CA)", (m) => m.isNexus("CA")],
@@ -51,7 +51,7 @@ const FEATURES = {
   },
   rates: {
     exchange: () => import("#features/rates/repo.exchange.js"),
-    core: () => import("#features/rates/repo.core.js"),
+    next: () => import("#features/rates/repo.next.js"),
     reads: [
       ["getAllRates", (m) => m.getAllRates()],
       ["getAdminRates", (m) => m.getAdminRates()],
@@ -79,7 +79,7 @@ for (const name of names) {
     continue;
   }
 
-  const [ex, co] = [await feature.exchange(), await feature.core()];
+  const [ex, co] = [await feature.exchange(), await feature.next()];
   const ctx = await feature.context(ex);
 
   for (const [label, run] of feature.reads) {

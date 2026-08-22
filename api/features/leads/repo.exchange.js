@@ -20,7 +20,7 @@ export async function getAllLeads(executor) {
   const sql = `
     SELECT *
     FROM exchange.leads
-    ORDER BY created_at DESC
+    ORDER BY created_at DESC, id DESC
   `;
   const result = await query(sql, [], executor);
   return result.rows;

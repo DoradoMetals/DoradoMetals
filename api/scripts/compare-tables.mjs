@@ -8,19 +8,19 @@
 //
 // Read-only.
 //
-//   node scripts/compare-tables.mjs exchange.leads core.leads
+//   node scripts/compare-tables.mjs exchange.leads leads.leads
 //   node scripts/compare-tables.mjs            (compares a built-in list)
 import "dotenv/config";
 import pool from "#db";
 
 // The mapping as far as it is known. Extend as features are moved.
 const PAIRS = [
-  ["exchange.leads", "core.leads"],
-  ["exchange.reviews", "core.reviews"],
-  ["exchange.rates", "core.rates"],
-  ["exchange.metals", "core.metals"],
-  ["exchange.mints", "core.mints"],
-  ["exchange.images", "core.images"],
+  ["exchange.leads", "leads.leads"],
+  ["exchange.reviews", "reviews.reviews"],
+  ["exchange.rates", "rates.rates"],
+  ["exchange.metals", "metals.metals"],
+  ["exchange.mints", "products.mints"],
+  ["exchange.images", "media.images"],
   ["exchange.addresses", "orders.addresses"],
   ["exchange.purchase_orders", "orders.orders"],
   ["exchange.shipments", "shipping.shipments"],
