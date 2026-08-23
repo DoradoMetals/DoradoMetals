@@ -396,6 +396,48 @@ Found 2026-08-22, once `claude_ro` was granted `USAGE` on the new schemas.
 Until that grant, production's new schemas were unreadable and this was
 invisible.
 
+### URGENT: a customer sent 100 ozt in December 2025 and has never been paid
+
+Purchase order **299**. Settled 2026-08-23 by reading the tracking events, which
+resolve the question an earlier version of this note said the data could not.
+
+- The user signed up **2025-12-29** and placed order 299 the next day. It is
+  their only order, ever.
+- They dropped the package at FedEx in **Crossville, TN** on 2025-12-30 14:06.
+- FedEx carried it Cookeville → Memphis → Dallas → Irving, with a delivery
+  exception on 2026-01-02 14:44.
+- **Delivered, Irving TX, 2026-01-02 20:49.** Fifteen scans in total.
+- The order reads `status: Received`, the item `confirmed: true`, pre-melt
+  **100.000**, post-melt 100.000, purity 0.000, content 0.000 — received and
+  weighed, never assayed.
+- `exchange.payouts` for that user: **0**. `orders.transactions`: **0**.
+- In `exchange` the user has no purchase orders, no sales orders, no payouts and
+  no shipments. The live application has never had any record of them.
+
+user `a678721b-ceac-428a-b17e-7d609afe6fb8`, shipment `5453a8b3-78c1-4e19-a874-52a16a3b8fad`.
+
+**This is a business action, not a code change.** Someone is owed for 100 troy
+ounces of material delivered nearly eight months ago.
+
+**Orders 298 and 303 are clean.** Each has exactly one tracking event — `Label
+Created` — and nothing after it. Those customers generated a label and never
+shipped. Nothing is owed and nothing arrived.
+
+**Why this was invisible.** The order exists only in `orders.orders`, written
+during the November–January migration attempt. The application reads `exchange`.
+When that attempt was set aside, the order went with it.
+
+**Why the "these are just migration artifacts" reading is wrong for this one.**
+The attempt copied *from* `exchange`, and a copy cannot produce a row `exchange`
+does not have. Nor can it invent fifteen FedEx scans across four cities. The
+order numbers are also interleaved with the live sequence — 298 and 299 sit
+between exchange's #297 and #302, and 303 between #302 and #304 — so they drew
+numbers from the same counter the live app uses.
+
+Everything *else* in the new-schema tables does fit the artifact reading:
+`exchange` received orders continuously through the window (5 in October, 10 in
+November, 5 in December, 3 in January), so the app never stopped writing to it.
+
 ### FOR JACOB: three production purchase orders exist only in the new schema
 
 Not a code question. Three purchase orders live in `orders.orders` on production
