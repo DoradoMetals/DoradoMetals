@@ -27,27 +27,25 @@ export const findAllByUser = next.findAllByUser;
 export const findById = next.findById;
 export const getAll = next.getAll;
 export const findMetalsByOrderId = next.findMetalsByOrderId;
+export const findRefinerMetalsByOrderId = next.findRefinerMetalsByOrderId;
 export const findOrderScrapItems = next.findOrderScrapItems;
 export const findExpiredOffers = next.findExpiredOffers;
 
-// Writes belonging to features that have not moved. exchange.shipments,
-// exchange.payouts and exchange.refiner_metals are still the only copies of
-// what these touch, so there is nothing to mirror them into yet. They move with
-// shipping, payments and refiners.
+// Writes belonging to features that have not moved. exchange.shipments and
+// exchange.payouts are still the only copies of what these touch, so there is
+// nothing to mirror them into yet. They move with shipping and payments.
+//
+// exchange.refiner_metals used to be on this list and is not any more: 070
+// derives refiners.spots from it, the same way orders.spots is derived from
+// order_metals, so the refiner writes below are mirrored like any other.
 export const editShippingCharge = exchange.editShippingCharge;
 export const editPayoutCharge = exchange.editPayoutCharge;
 export const insertPayout = exchange.insertPayout;
 export const changePayoutMethod = exchange.changePayoutMethod;
 export const findPayoutDetails = exchange.findPayoutDetails;
-export const findRefinerMetalsByOrderId = exchange.findRefinerMetalsByOrderId;
-export const insertRefinerMetals = exchange.insertRefinerMetals;
-export const updateRefinerSpot = exchange.updateRefinerSpot;
-export const updateRefinerMetals = exchange.updateRefinerMetals;
 export const getCurrentSpotPrices = exchange.getCurrentSpotPrices;
 export const purgeCancelled = exchange.purgeCancelled;
 
-// Join the caller's transaction if there is one, so the write and its mirror
-// stay atomic with whatever else the caller is doing.
 // Join the caller's transaction if there is one, so the write and its mirror
 // stay atomic with whatever else the caller is doing. Every wrapper below takes
 // an executor even where the exchange function historically did not: without
@@ -63,6 +61,7 @@ const sync = async (c, orderId, parts) => {
   if (parts.includes("order")) await next.mirrorOrder(orderId, c);
   if (parts.includes("items")) await next.mirrorItems(orderId, c);
   if (parts.includes("spots")) await next.mirrorSpots(orderId, c);
+  if (parts.includes("refinerSpots")) await next.mirrorRefinerSpots(orderId, c);
 };
 
 // --------------------------------------------------------- order-level writes
@@ -241,6 +240,30 @@ export const clearOrderMetals = (orderId, client) =>
   both(client, async (c) => {
     const r = await exchange.clearOrderMetals(orderId, c);
     await sync(c, orderId, ["spots"]);
+    return r;
+  });
+
+// The refiner's spot for an order. Mirrored the same way, into refiners.spots.
+export const updateRefinerMetals = (orderId, spotPrices, client) =>
+  both(client, async (c) => {
+    const r = await exchange.updateRefinerMetals(orderId, spotPrices, c);
+    await sync(c, orderId, ["refinerSpots"]);
+    return r;
+  });
+
+// Keyed off the spot's own order id, because that is what the caller has.
+export const updateRefinerSpot = ({ spot, updated_spot }, executor) =>
+  both(executor, async (c) => {
+    const r = await exchange.updateRefinerSpot({ spot, updated_spot }, c);
+    await sync(c, spot.purchase_order_id, ["refinerSpots"]);
+    return r;
+  });
+
+// Creates the four metal rows a new order starts with.
+export const insertRefinerMetals = (client, orderId, metals) =>
+  both(client, async (c) => {
+    const r = await exchange.insertRefinerMetals(c, orderId, metals);
+    await sync(c, orderId, ["refinerSpots"]);
     return r;
   });
 

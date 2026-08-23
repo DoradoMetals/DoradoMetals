@@ -278,6 +278,8 @@ const FEATURES = {
     next: () => import("#features/sales-orders/repo.next.js"),
     // Same as purchase-orders: orders.spots generates its own id where
     // order_metals had one, and nothing keys on it.
+    // orders.spots generates its own ids where exchange.order_metals has its
+    // own; refiners.spots keeps the source id, so it is compared.
     ignore: { "findMetalsByOrderId(first)": ["id"] },
     reads: [
       ["getAll", (m) => m.getAll()],
@@ -310,6 +312,9 @@ const FEATURES = {
       ["findById(first)", (m, ctx) => (ctx.id ? m.findById(ctx.id) : [])],
       ["findAllByUser(first)", (m, ctx) => (ctx.userId ? m.findAllByUser(ctx.userId) : [])],
       ["findMetalsByOrderId(first)", (m, ctx) => (ctx.id ? m.findMetalsByOrderId(ctx.id) : [])],
+      // The refiner's spot for the order. Unlike orders.spots, refiners.spots
+      // keeps the source id, so this one is compared including the id.
+      ["findRefinerMetalsByOrderId(first)", (m, ctx) => (ctx.id ? m.findRefinerMetalsByOrderId(ctx.id) : [])],
       ["findOrderScrapItems(first)", (m, ctx) => (ctx.id ? m.findOrderScrapItems(ctx.id) : [])],
       ["findExpiredOffers", (m) => m.findExpiredOffers()],
     ],

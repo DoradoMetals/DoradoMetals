@@ -237,6 +237,36 @@ export async function findMetalsByOrderId(orderId) {
   return rows;
 }
 
+
+// The refiner's spot for an order.
+//
+// Same transformation as findMetalsByOrderId above - the metal is a foreign key
+// here and text in exchange, and percent_change and dollar_change have no
+// column by design, so they are projected as null to keep the shape.
+//
+// refiners.spots keeps its source id, unlike orders.spots which generates its
+// own, because exchange.refiner_metals rows have nothing else to key on.
+export async function findRefinerMetalsByOrderId(orderId) {
+  const sql = `
+    SELECT
+      sp.id,
+      sp.order_id AS purchase_order_id,
+      m.name AS type,
+      sp.ask AS ask_spot,
+      sp.bid AS bid_spot,
+      NULL::numeric AS percent_change,
+      NULL::numeric AS dollar_change,
+      sp.created_at,
+      sp.updated_at
+    FROM refiners.spots sp
+    JOIN metals.metals m ON m.id = sp.metal_id
+    WHERE sp.order_id = $1
+    ORDER BY m.name ASC, sp.id ASC;
+  `;
+  const { rows } = await query(sql, [orderId]);
+  return rows;
+}
+
 // Scrap lines on an order, with what is needed to re-tier their premiums.
 export async function findOrderScrapItems(orderId, executor) {
   const sql = `
@@ -475,6 +505,46 @@ export async function mirrorSpots(orderId, executor) {
          JOIN metals.metals mt ON mt.name = m.type
          WHERE coalesce(m.purchase_order_id, m.sales_order_id) = sp.order_id
            AND mt.id = sp.metal_id
+       )`,
+    [orderId],
+    executor
+  );
+}
+
+// The refiner's spots for an order, re-derived from exchange.
+//
+// Keyed on the source id rather than on (order, metal): exchange.refiner_metals
+// rows carry one and the backfill keeps it, so a row can be matched directly.
+// refiner_id and pool_oz_deducted are not touched - exchange has no source for
+// either, and a mirror must not overwrite what is already there with a null.
+export async function mirrorRefinerSpots(orderId, executor) {
+  await query(
+    `INSERT INTO refiners.spots (
+       id, order_id, metal_id, ask, bid,
+       scrap_percentage, bullion_percentage, created_at, updated_at
+     )
+     SELECT
+       m.id, coalesce(m.purchase_order_id, m.sales_order_id), mt.id,
+       m.ask_spot, m.bid_spot, m.scrap_percentage, m.bullion_percentage,
+       m.created_at, m.updated_at
+     FROM exchange.refiner_metals m
+     JOIN metals.metals mt ON mt.name = m.type
+     WHERE coalesce(m.purchase_order_id, m.sales_order_id) = $1
+     ON CONFLICT (id) DO UPDATE SET
+       order_id = EXCLUDED.order_id, metal_id = EXCLUDED.metal_id,
+       ask = EXCLUDED.ask, bid = EXCLUDED.bid,
+       scrap_percentage = EXCLUDED.scrap_percentage,
+       bullion_percentage = EXCLUDED.bullion_percentage,
+       updated_at = EXCLUDED.updated_at`,
+    [orderId],
+    executor
+  );
+
+  await query(
+    `DELETE FROM refiners.spots sp
+     WHERE sp.order_id = $1
+       AND NOT EXISTS (
+         SELECT 1 FROM exchange.refiner_metals m WHERE m.id = sp.id
        )`,
     [orderId],
     executor

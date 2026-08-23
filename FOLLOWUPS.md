@@ -370,6 +370,41 @@ Also: **there are eighteen new schemas, not the sixteen CLAUDE.md lists.**
 map — so neither audit had been checking a feature that was already built. Now
 declared; it added zero coverage gaps and two more type comparisons.
 
+### RESOLVED: refiner spots are migrated
+
+`exchange.refiner_metals` (276 production rows) was the last thing on a purchase
+order for which `exchange` was the only copy, and it was never blocked — it was
+simply undone. 070 derives `refiners.spots` from it by the same transformation
+that turned `order_metals` into `orders.spots`:
+
+| `exchange.refiner_metals` | `refiners.spots` |
+|---|---|
+| `purchase_order_id` / `sales_order_id` | `order_id` |
+| `type` | `metal_id` |
+| `ask_spot` / `bid_spot` | `ask` / `bid` |
+| `percent_change`, `dollar_change` | dropped — null on every row, nothing writes them |
+
+Two columns have no source in `exchange` and stay null: `refiner_id`, which was
+never recorded (same fact already settled for `orders.orders.refinery_id`), and
+`pool_oz_deducted`, which lives on the order. Both are excluded from the backfill
+comparison for that reason, and `refiner_id` had to have its `NOT NULL` relaxed
+first — the same step 064 took for `refiners.items`.
+
+Production's 232 `refiners.spots` rows share **zero** ids with
+`exchange.refiner_metals`: January residue, removed by rule 062 before the
+derivation runs.
+
+All four writes are mirrored now rather than passing through to `exchange` —
+`updateRefinerMetals`, `updateRefinerSpot`, `insertRefinerMetals` — and
+`findRefinerMetalsByOrderId` reads the new schema like every other read on
+`dual`. The mirror keys on the source id rather than on `(order, metal)`,
+because `refiners.spots` keeps it where `orders.spots` generates its own.
+
+`diff` is 56 operations, up from 55, with the refiner read compared including
+its id. Four tests, both failure modes proved: dropping the mirror from the
+write fails one, and having the mirror null a `refiner_id` it cannot derive
+fails another.
+
 ### READY TO EXECUTE, AFTER PROMOTION: drop orders.items.price
 
 Jacob wants this column gone, and it can go — the algebra works. It is deferred

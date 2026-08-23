@@ -1057,7 +1057,7 @@ ALTER TABLE refiners.refiners ADD COLUMN IF NOT EXISTS organization_id uuid;
 CREATE TABLE IF NOT EXISTS refiners.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   metal_id uuid NOT NULL,
-  refiner_id uuid NOT NULL,
+  refiner_id uuid,
   order_id uuid NOT NULL,
   pool_oz_deducted numeric,
   ask numeric,

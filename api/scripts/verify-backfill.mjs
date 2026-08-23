@@ -63,6 +63,13 @@ const TABLES = [
     cols: "type, name, email, phone, website, description, enabled, created_at, updated_at",
   },
   {
+    name: "refiners.spots",
+    key: "id",
+    // refiner_id and pool_oz_deducted are excluded: exchange has no source for
+    // either. The first was never recorded, and the second lives on the order.
+    cols: "id, order_id, metal_id, ask, bid, scrap_percentage, bullion_percentage",
+  },
+  {
     name: "refiners.items",
     key: "order_item_id",
     // refiner_id is excluded on purpose: exchange has never recorded which
@@ -284,7 +291,6 @@ const NOT_REBUILT = {
   "places.location_hours": "seed data, no exchange source",
   "refiners.refiners": "compared through refiners.exchange_compat",
 
-  "refiners.spots": "refiners is not migrated",
   // A cart is transient. Jacob: "It's not data that we NEED to keep." On dual
   // the next sync rewrites it in both schemas, so there is nothing to derive
   // and nothing a rebuild should produce.
