@@ -396,47 +396,53 @@ Found 2026-08-22, once `claude_ro` was granted `USAGE` on the new schemas.
 Until that grant, production's new schemas were unreadable and this was
 invisible.
 
-### URGENT: a customer sent 100 ozt in December 2025 and has never been paid
+### RETRACTED: the three new-schema-only orders are cancelled orders, not unpaid ones
 
-Purchase order **299**. Settled 2026-08-23 by reading the tracking events, which
-resolve the question an earlier version of this note said the data could not.
+An earlier version of this file said purchase order 299 was a customer owed for
+100 troy ounces delivered on 2026-01-02 and never paid. **That was wrong.** It is
+recorded here rather than deleted, because it was stated forcefully and acted on.
 
-- The user signed up **2025-12-29** and placed order 299 the next day. It is
-  their only order, ever.
-- They dropped the package at FedEx in **Crossville, TN** on 2025-12-30 14:06.
-- FedEx carried it Cookeville → Memphis → Dallas → Irving, with a delivery
-  exception on 2026-01-02 14:44.
-- **Delivered, Irving TX, 2026-01-02 20:49.** Fifteen scans in total.
-- The order reads `status: Received`, the item `confirmed: true`, pre-melt
-  **100.000**, post-melt 100.000, purity 0.000, content 0.000 — received and
-  weighed, never assayed.
-- `exchange.payouts` for that user: **0**. `orders.transactions`: **0**.
-- In `exchange` the user has no purchase orders, no sales orders, no payouts and
-  no shipments. The live application has never had any record of them.
+What was right: the tracking is real. A package was dropped at FedEx in
+Crossville TN on 2025-12-30, moved Cookeville → Memphis → Dallas → Irving, and
+was delivered to Irving TX on 2026-01-02. Fifteen scans. That is a real
+shipment and it really arrived.
 
-user `a678721b-ceac-428a-b17e-7d609afe6fb8`, shipment `5453a8b3-78c1-4e19-a874-52a16a3b8fad`.
+What was wrong: concluding from `exchange` not having the order that `exchange`
+had *never* had it. Orders 298 and 299 carry exactly the profile of order 297,
+which is still in `exchange` — one address snapshot, one item, four spots, one
+offer. Those snapshots are created by the migration **reading `exchange`**, so
+all three orders were in `exchange` when it ran and were deleted from it
+afterwards. Their shipments and tracking rows went with them, which is why
+`shipping.shipments` holds three rows `exchange.shipments` does not.
 
-**This is a business action, not a code change.** Someone is owed for 100 troy
-ounces of material delivered nearly eight months ago.
+Jacob's account, which fits every field better than mine did: the business
+occasionally receives fake metal, and those orders are cancelled and deleted.
 
-**Orders 298 and 303 are clean.** Each has exactly one tracking event — `Label
-Created` — and nothing after it. Those customers generated a label and never
-shipped. Nothing is owed and nothing arrived.
+| field | read as "unpaid customer" | read as "rejected as fake" |
+|---|---|---|
+| `purity 0.000`, `content 0.000` | never assayed | assayed, worth nothing |
+| `confirmed: true` | — | someone did check it |
+| `status: Received` | arrived, unprocessed | arrived, processed, rejected |
+| no payout, no transaction | customer unpaid | nothing to pay for |
+| absent from `exchange` | never written there | cancelled and deleted |
 
-**Why this was invisible.** The order exists only in `orders.orders`, written
-during the November–January migration attempt. The application reads `exchange`.
-When that attempt was set aside, the order went with it.
+**The general rule this violated.** A row missing from `exchange` has two
+explanations — it was never there, or it was deleted — and only one of them was
+considered. The same mistake as the "orphan duplicate" addresses earlier the
+same evening: reading one table and inferring history from its current contents.
+`exchange` is authoritative for what exists *now*; it is not a log of what
+existed.
 
-**Why the "these are just migration artifacts" reading is wrong for this one.**
-The attempt copied *from* `exchange`, and a copy cannot produce a row `exchange`
-does not have. Nor can it invent fifteen FedEx scans across four cities. The
-order numbers are also interleaved with the live sequence — 298 and 299 sit
-between exchange's #297 and #302, and 303 between #302 and #304 — so they drew
-numbers from the same counter the live app uses.
+**What this means for the backfill guards.** Nothing changes. `audit:guards`
+still reports that two would refuse, and they still should: re-deriving
+`orders.orders` from `exchange` would delete rows that record cancelled
+business. Whether those rows are kept or dropped before promotion is a decision,
+but it is a bookkeeping decision rather than an urgent one.
 
-Everything *else* in the new-schema tables does fit the artifact reading:
-`exchange` received orders continuously through the window (5 in October, 10 in
-November, 5 in December, 3 in January), so the app never stopped writing to it.
+**Worth one check on Jacob's side, and only one.** The retraction rests on the
+orders having been deleted from `exchange` deliberately. If any of 298, 299 or
+303 was *not* a deliberate cancellation, the original reading would apply to it.
+That is a memory question, not a data one.
 
 ### FOR JACOB: three production purchase orders exist only in the new schema
 
