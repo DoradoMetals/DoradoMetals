@@ -27,7 +27,11 @@ export async function checkPickup(carrier_id, client, input) {
 
 export async function createPickup(carrier_id, client, input) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);
-  return await provider.schedulePickup(builders.createPickup(input));
+  // provider.createPickup, not schedulePickup - fedex.js has never exported a
+  // function by that name, so this threw "provider.schedulePickup is not a
+  // function" before any FedEx request was built or sent. Every other method
+  // here matches its export exactly; this one did not.
+  return await provider.createPickup(builders.createPickup(input));
 }
 
 export async function cancelPickup(carrier_id, client, input) {

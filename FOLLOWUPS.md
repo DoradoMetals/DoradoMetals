@@ -444,6 +444,75 @@ number, a fulfillment link and tracking events. They do not overlap dev's
 Someone should establish what they are before promotion — they are the only
 rows found so far that exist solely in the new schema and look real.
 
+### Carrier pickup has never worked, at any point in the chain
+
+Six defects, found over two sessions, all in the path that books a FedEx pickup
+for a purchase order. Listed in the order they fire:
+
+1. `handler.createPickup` called `provider.schedulePickup(...)`. `fedex.js`
+   exports `createPickup` and has never exported `schedulePickup`, so this threw
+   `provider.schedulePickup is not a function` **before any FedEx request was
+   built or sent**. Eight of the nine dispatch lines named their export
+   correctly; the ninth did not.
+2. `payloads.js` called `normalizeTime`, `formatFedexFullDateTime` and
+   `addHours` without importing any of them. All three exist in
+   `providers/fedex/utils/formatting.js`; only `formatFedexTime` was imported.
+   `ReferenceError` on the first line that used one.
+3. `cancelPickupInput` read `confirmation_number` and `pickup_requested_at`
+   while its only caller passes `confirmationCode` and `pickupDate`. Both
+   arrived `undefined`, so FedEx was asked to cancel a pickup without being told
+   which one. This is the only one of the six that did not throw.
+4. `pickups/repo.js` inserted a `shipment_id` column `exchange.carrier_pickups`
+   does not have — `42703` on every write, which is why the table is empty in
+   dev and production.
+5. `cancelPickup` set `status`, and the repo reads `pickup_status`, so
+   cancelling wrote the row's existing status straight back.
+6. It set `"cancelled"`, and a CHECK constraint allows only
+   `pending / scheduled / completed / canceled`. One `l`.
+
+**A correction to what was written earlier.** The first version of this note said
+the throw happened *after* `shippingOps.createPickup` had booked a real pickup
+with FedEx, leaving orphaned bookings nobody had a record of. That was wrong.
+Defect 1 fires first, before the payload is built and before any request is
+sent, so **no FedEx pickup was ever booked through this path**. There is nothing
+orphaned at FedEx to reconcile.
+
+All six are fixed. `features/shipping/operations/adapters/fedex.test.js` and
+`resolver.test.js` cover the chain, including a test that reads the dispatch
+lines back out of `handler.js` and asserts every method exists on every
+registered provider — which is what defect 1 was, and what TypeScript cannot
+catch because `provider` is a namespace import resolved at runtime.
+
+### Two more ReferenceErrors, found by turning on checkJs
+
+`pnpm --filter @dorado/api typecheck:sweep` runs `tsc` with `--checkJs` and
+`--noImplicitAny false`. The first flag checks the JavaScript; the second
+suppresses 1,631 "parameter implicitly has an any type" complaints that are
+noise rather than signal. What was left was 107 errors, of which five were
+`TS2304` — an identifier that does not exist, which is a guaranteed
+`ReferenceError`:
+
+- `features/scrap/service.js` — `deleteItems({ ids })` called
+  `scrapRepo.deleteItems(orderId)`. `orderId` was never defined.
+- `features/suppliers/service.js` — `getSupplierFromId(ids)` called
+  `supplierRepo.getSupplierFromId(id)`. `id` was never defined.
+- the three missing imports in `providers/fedex/payloads.js` above.
+
+All fixed; `TS2304` is now zero. The remaining ~55 are known-benign categories
+and are listed here so a future sweep can tell new signal from old noise:
+
+| code | count | what it is |
+|---|---|---|
+| TS2345 | 16 | argument shapes inferred from the widest call site — e.g. `renderTemplate` defaults `offerExpiration`, so callers omitting it are fine |
+| TS2339 | 13 | `err.status` / `err.statusCode` on `Error`, the usual JS idiom for attaching an HTTP status |
+| TS2307 | 8 | `better-auth` ships no type declarations |
+| TS18046 | 6 | `err` is `unknown` in a `catch` |
+| others | 12 | inference noise on destructured defaults |
+
+`checkJs` is deliberately **not** enabled in `tsconfig.json`. Turning it on would
+fail `pnpm check` on those 55, and annotating them away is churn with no
+behaviour change. The sweep is a tool to run deliberately, not a gate.
+
 ## Security
 
 ### The audit trail is forgeable — and the fix is server-only

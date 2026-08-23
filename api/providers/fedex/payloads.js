@@ -2,7 +2,16 @@ import {
   DEFAULT_EMAIL_NOTIFICATION_DETAIL,
   DEFAULT_HOLD_AT_LOCATION_DETAIL,
 } from "#providers/fedex/constants.js";
-import { formatFedexTime } from "#providers/fedex/utils/formatting.js";
+// schedulePickupPayload calls normalizeTime, formatFedexFullDateTime and
+// addHours. All three live in this module and none of them was imported, so
+// building a pickup payload threw ReferenceError on the first line that used
+// one.
+import {
+  formatFedexTime,
+  normalizeTime,
+  formatFedexFullDateTime,
+  addHours,
+} from "#providers/fedex/utils/formatting.js";
 
 export function validateAddressPayload(address) {
   return {

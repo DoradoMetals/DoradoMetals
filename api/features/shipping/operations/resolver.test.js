@@ -16,6 +16,8 @@
 // produce a name that resolves, which is the thing promotion could break.
 import test, { after, before, describe } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import pool from "#db";
 import { PROVIDERS } from "#features/shipping/operations/registry.js";
 import { BUILDERS } from "#features/shipping/operations/builders.js";
@@ -110,5 +112,57 @@ describe("every registered provider is usable", () => {
   // halfway and fails at the call site.
   test("PROVIDERS and BUILDERS cover the same carriers", () => {
     assert.deepEqual(Object.keys(PROVIDERS).sort(), Object.keys(BUILDERS).sort());
+  });
+});
+
+// Every method the handler dispatches has to exist on the provider it reaches.
+//
+// This is what `provider.schedulePickup(...)` was: fedex.js exports
+// createPickup and has never exported schedulePickup, so booking a carrier
+// pickup threw "provider.schedulePickup is not a function" before any FedEx
+// request was built or sent. Eight of the nine dispatch lines named their
+// export correctly and the ninth did not, which is exactly the kind of thing
+// nobody re-reads.
+//
+// TypeScript cannot catch it either - `provider` is a namespace import resolved
+// at runtime out of PROVIDERS, so there is nothing to check the property
+// against. Reading the dispatch lines back out of the file is the only way to
+// tie the two halves together.
+describe("the handler dispatches only methods its providers have", () => {
+  const handler = fs.readFileSync(
+    path.join(import.meta.dirname, "handler.js"), "utf8"
+  );
+
+  const dispatched = (object) =>
+    [...handler.matchAll(new RegExp(`\\b${object}\\.([A-Za-z0-9_]+)\\(`, "g"))]
+      .map((m) => m[1]);
+
+  test("the dispatch lines were found at all", () => {
+    // If this file is ever restructured, the regex above stops matching and
+    // every assertion below passes vacuously.
+    assert.ok(dispatched("provider").length >= 9, "found no provider dispatch lines to check");
+    assert.ok(dispatched("builders").length >= 9, "found no builder dispatch lines to check");
+  });
+
+  test("every provider implements every method the handler calls", () => {
+    for (const [name, provider] of Object.entries(PROVIDERS)) {
+      for (const method of dispatched("provider")) {
+        assert.equal(
+          typeof provider[method], "function",
+          `handler calls provider.${method}(), which ${name} does not export`
+        );
+      }
+    }
+  });
+
+  test("every carrier has a builder for every method the handler calls", () => {
+    for (const [name, builders] of Object.entries(BUILDERS)) {
+      for (const method of dispatched("builders")) {
+        assert.equal(
+          typeof builders[method], "function",
+          `handler calls builders.${method}(), which ${name} does not register`
+        );
+      }
+    }
   });
 });
