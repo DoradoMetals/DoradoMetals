@@ -41,6 +41,15 @@ const rename = (sql) =>
 // the rows it links are the right ones. Anything referencing an organization
 // is checked through its type and name rather than its id, for the same reason.
 const TABLES = [
+  {
+    // Seeded by 055 from a Stripe export rather than derived from exchange -
+    // exchange has no record of most of this, which is the whole reason the
+    // table exists. imported_at is excluded: it defaults to now() and so
+    // differs between the real table and the rebuilt one by construction.
+    name: "payments.stripe_charges",
+    key: "payment_intent_id",
+    cols: "payment_intent_id, charge_id, created_at, amount, amount_refunded, fee, currency, captured, status, refunded_at, payment_source_type, stripe_customer_id, livemode",
+  },
   { name: "metals.metals", key: "id", cols: "id, name" },
   { name: "spots.spots", key: "metal_id", cols: "metal_id, ask, bid, percent_change, dollar_change" },
   {

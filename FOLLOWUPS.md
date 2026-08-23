@@ -40,6 +40,57 @@ derived and must be written as literals:
 Worth doing as one seed migration, taking the values from dev. Until then a
 production database would have the tables and none of these rows.
 
+### Payments: half unblocked, and the ledger is wrong independent of any migration
+
+The Stripe export landed 2026-08-22 and settled the question of where the truth
+lives. It is not `exchange.payment_intents`.
+
+`pnpm --filter @dorado/api audit:payments` compares production's intents against
+Stripe. **Seven of the eight settled payments are not recorded as succeeded:**
+
+| intent | Stripe | database |
+|---|---|---|
+| pi_3SfQTS… | Paid $255.17 | `succeeded` |
+| pi_3TuK5t… | Paid $10.00 | `requires_payment_method` |
+| pi_3RvkIT… | Paid $51.78 | `requires_payment_method` |
+| pi_3RcYBY… | Paid $64.70 | `requires_payment_method` |
+| pi_3RgCh9… | Refunded $1248.37 | no row |
+| pi_3RcYBR… | Refunded $434.00 | no row |
+| pi_3RcVdp… | Paid $114.80 | no row |
+| pi_3RcV9l… | Paid $0.50 | no row |
+
+$2,179.32 charged and $1,682.37 refunded across those eight. The export holds 45
+intents; 20 of them have no row in `exchange` at all. Only 2 of production's 25
+intents link to an order, and none to a purchase order.
+
+**This is the current system being wrong, not the migration.** It went unnoticed
+because the order lifecycle never consults this table — orders complete
+regardless — but it means the application cannot answer "was this order paid
+for" from its own data. Worth fixing on its own merits.
+
+**What was built.** `payments.stripe_charges` (migration 054), seeded by 055
+from the export via `scripts/dump-stripe-reconciliation.mjs`. The reconciliation
+arrives as its own table rather than as a correction applied to `exchange`,
+because correcting `exchange` would mean an `UPDATE` against the one schema that
+must stay untouched, and because a visible disagreement can be audited where a
+silent fix cannot. Reversible: `DROP TABLE payments.stripe_charges` loses
+nothing that is not in the Stripe dashboard.
+
+It deliberately holds no personal data — no cardholder name, billing address or
+card last4 — so the reconciliation is reproducible from the repo without the
+export's personal data entering git. The CSVs themselves are gitignored.
+
+Timestamps are emitted as `::timestamp AT TIME ZONE 'UTC'` rather than cast
+straight to `timestamptz`, which would have read them in whatever timezone the
+person applying the migration happened to have. Verified by reading the same row
+from three session timezones.
+
+**What is still not done.** Deriving `payments.intents` / `.attempts` /
+`.settlements` from `exchange` joined to this table. That means designing the
+transformation and replacing the 70 placeholder rows production already holds,
+which is a decision about money rather than a mechanical step. `payments.details`
+stays untouched until the encryption question is answered — see below.
+
 ### BLOCKED: payments is a different model, not a reshaped one
 
 Audited. The new payments schema is not a copy of exchange with the columns

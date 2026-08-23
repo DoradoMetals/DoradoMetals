@@ -777,6 +777,37 @@ ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS provider text;
 ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS provider_ref text;
 ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS settled_at timestamp with time zone;
 
+CREATE TABLE IF NOT EXISTS payments.stripe_charges (
+  payment_intent_id text NOT NULL,
+  charge_id text,
+  created_at timestamp with time zone NOT NULL,
+  amount numeric NOT NULL,
+  amount_refunded numeric,
+  fee numeric,
+  currency text,
+  captured boolean,
+  status text NOT NULL,
+  refunded_at timestamp with time zone,
+  payment_source_type text,
+  stripe_customer_id text,
+  livemode boolean,
+  imported_at timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS payment_intent_id text;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS charge_id text;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS created_at timestamp with time zone;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS amount numeric;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS amount_refunded numeric;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS fee numeric;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS currency text;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS captured boolean;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS status text;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS refunded_at timestamp with time zone;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS payment_source_type text;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS stripe_customer_id text;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS livemode boolean;
+ALTER TABLE payments.stripe_charges ADD COLUMN IF NOT EXISTS imported_at timestamp with time zone DEFAULT now();
+
 CREATE TABLE IF NOT EXISTS places.addresses (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   line_1 text,
@@ -1669,6 +1700,16 @@ DO $$ BEGIN
     WHERE con.conname = 'settlements_pkey' AND c.relname = 'settlements' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.settlements ADD CONSTRAINT settlements_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'stripe_charges_pkey' AND c.relname = 'stripe_charges' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.stripe_charges ADD CONSTRAINT stripe_charges_pkey PRIMARY KEY (payment_intent_id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2981,6 +3022,8 @@ CREATE INDEX IF NOT EXISTS methods_provider_idx ON payments.methods USING btree 
 CREATE INDEX IF NOT EXISTS methods_type_idx ON payments.methods USING btree (type);
 CREATE INDEX IF NOT EXISTS settlements_attempt_idx ON payments.settlements USING btree (attempt_id);
 CREATE INDEX IF NOT EXISTS settlements_provider_idx ON payments.settlements USING btree (provider, provider_ref);
+CREATE INDEX IF NOT EXISTS stripe_charges_customer_idx ON payments.stripe_charges USING btree (stripe_customer_id);
+CREATE INDEX IF NOT EXISTS stripe_charges_settled_idx ON payments.stripe_charges USING btree (status) WHERE (charge_id IS NOT NULL);
 CREATE INDEX IF NOT EXISTS location_hours_lookup_idx ON places.location_hours USING btree (location_id, weekday);
 CREATE UNIQUE INDEX IF NOT EXISTS location_hours_slot_uniq ON places.location_hours USING btree (location_id, weekday, sort_order);
 CREATE INDEX IF NOT EXISTS idx_places_locations_image_id ON places.locations USING btree (image_id);
