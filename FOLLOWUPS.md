@@ -460,12 +460,31 @@ Divergence runs both ways: exchange also holds rows the new schema lacks —
 14 addresses, 29 shipments, 14 users, 116 tracking events — which is what the
 backfills are for.
 
-**The 60 orphan addresses are re-keyed duplicates, not lost data.** 59 of the
-60 match an existing `exchange.addresses` row on `(line_1, city, zip)`; the
-January work copied them with fresh ids rather than preserving the originals.
-None is linked to a user through `places.user_addresses`, and only one is used
-by a shipment. They are junk rather than a loss, and cleaning them up is a
-deliberate decision for after promotion, not part of the migration.
+**CORRECTION — the 60 orphan addresses are not duplicates and must not be
+deleted.** An earlier version of this note called them "re-keyed duplicates" and
+"junk to clean up after promotion", on the evidence that 59 of the 60 match an
+`exchange.addresses` row on `(line_1, city, zip)`. That evidence was real and
+the conclusion drawn from it was wrong.
+
+They are **order address snapshots**. `orders.addresses` holds exactly 59 rows,
+and all 59 point at one of these — none points at an `exchange.addresses` row.
+A snapshot is *supposed* to carry the same values under a fresh id: that is what
+makes it a record of where an order was actually sent, rather than a pointer to
+an address book entry the customer may since have edited or deleted. The value
+match that looked like duplication is the snapshot doing its job.
+
+The 60th, `1d37f973…`, is not a customer address at all — it is a
+`places.locations` row, one of the business's own addresses, and it is on a
+shipment.
+
+So **zero of the 60 are safe to delete**, and a cleanup migration would have
+destroyed the delivery address of every order in the new schema. 050's guard
+already said as much in a comment — *"Snapshots are excluded from that check,
+they are created by the orders backfill and have no counterpart by design"* —
+which was there to be read before the count was interpreted.
+
+What made this look like a duplicate was reading `places.addresses` alone.
+Nothing about a row is legible without asking what points at it.
 
 **The 3 orphan shipments are not artifacts.** All three carry a tracking
 number, a fulfillment link and tracking events. They do not overlap dev's

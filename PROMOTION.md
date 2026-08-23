@@ -204,13 +204,20 @@ every call until it was fixed. `diff pickups` compares two empty sets and proves
 only that neither implementation errors. Promote it when a real pickup has been
 recorded and checked, not before.
 
-### `ADDRESSES_SOURCE` — production has 60 orphan rows
+### `ADDRESSES_SOURCE` — the 60 extra rows are snapshots, not duplicates
 
-`places.addresses` holds 118 rows against `exchange`'s 72, and 60 of them have
-no counterpart. They are re-keyed duplicates rather than lost data — 59 of the
-60 match an `exchange` row on `(line_1, city, zip)` — created by the January work
-copying addresses with fresh ids. None is linked to a user. They are junk to
-clean up deliberately after promotion, not a blocker for it.
+`places.addresses` holds 118 rows against `exchange`'s 72, and 60 have no
+counterpart in `exchange`. **Do not delete them.**
+
+59 are order address snapshots: `orders.addresses` has exactly 59 rows and every
+one points at one of these. A snapshot carries the same values under a fresh id
+on purpose — it records where an order was actually sent, so that editing or
+deleting an address book entry later cannot rewrite history. The 60th is a
+`places.locations` row, one of the business's own addresses, and it is on a
+shipment.
+
+They match `exchange` rows on `(line_1, city, zip)`, which is what a snapshot
+looks like and not what a duplicate looks like. Nothing here needs cleaning up.
 
 ### `PURCHASE_ORDERS_SOURCE` / `SALES_ORDERS_SOURCE` — blocked on the three orders
 
