@@ -74,6 +74,10 @@ with what specifically is unknown. They are not simply the later features; they
 are the ones where the January work made a design decision nobody has confirmed
 since.
 
+**Promotion is documented in `PROMOTION.md`** — the order of operations, what
+each of the seventeen switches moves, and how to roll each one back. Written
+against production as it actually is rather than against dev.
+
 **Production can be built from nothing.** `000_genesis_schema.sql` creates every
 schema, table, view, enum and function; the backfills derive the data from
 `exchange`; `047_seed_reference_data.sql` supplies what `exchange` never held
