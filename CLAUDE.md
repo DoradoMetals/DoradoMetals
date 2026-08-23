@@ -131,6 +131,13 @@ lint:db` now catches it.
 return withTransaction(async (client) => { ... });
 ```
 
+**Nothing irreversible goes inside one.** A transaction can be rolled back; an
+email, a Stripe charge and a FedEx label cannot. Do the database work, commit,
+then act on the outside world. `sendOrderToSupplier` emailed a refiner their
+copy of a sales order as the first statement of a transaction that went on to
+fail — leaving them shipping metal against an order nothing recorded.
+`shared/db/transaction-side-effects.test.js` fails the build if one comes back.
+
 **Types come from generated contracts**, never hand-written. After any schema
 change, regenerate — see the `verify-changes` skill.
 
