@@ -110,6 +110,8 @@ test("a quote of zero is applied rather than treated as missing", async () => {
 // has to change when a metal is added.
 test("only the four metals the code knows about are repriced", async () => {
   await inRollback(async (c) => {
+    // Raw exchange query: the column really is `type` here. The repos rename it
+    // to `name`, exchange.metals does not.
     const { rows } = await c.query("SELECT type FROM exchange.metals ORDER BY type");
     const inTable = rows.map((r) => r.type).sort();
     assert.deepEqual(
@@ -141,7 +143,7 @@ test("all four move together or not at all", async () => {
 
 test("getAll returns the metals in a fixed order, most valuable first", async () => {
   await inRollback(async (c) => {
-    const types = (await repo.getAll(c)).map((r) => r.type);
+    const types = (await repo.getAll(c)).map((r) => r.name);
     assert.deepEqual(types, ["Gold", "Silver", "Platinum", "Palladium"]);
   });
 });
@@ -158,12 +160,12 @@ test("getAll and getAllMetals return the same columns", async () => {
 });
 
 // Spots are NUMERIC. Without the parsers registered in db.js they arrive as
-// strings and `bid_spot * premium` concatenates instead of multiplying.
+// strings and `bid * premium` concatenates instead of multiplying.
 test("spot prices are numbers, not strings", async () => {
   await inRollback(async (c) => {
     for (const row of await repo.getAll(c)) {
-      assert.equal(typeof row.ask_spot, "number", `${row.type} ask_spot was ${typeof row.ask_spot}`);
-      assert.equal(typeof row.bid_spot, "number");
+      assert.equal(typeof row.ask, "number", `${row.name} ask was ${typeof row.ask}`);
+      assert.equal(typeof row.bid, "number");
     }
   });
 });

@@ -4,7 +4,7 @@ export const METALS = ["Gold", "Silver", "Platinum", "Palladium"];
 
 export async function getAll(client) {
   const q = `
-    SELECT id, type, ask_spot, bid_spot, percent_change, dollar_change
+    SELECT id, type AS name, ask_spot AS ask, bid_spot AS bid, percent_change, dollar_change
     FROM exchange.metals
     ORDER BY
       CASE type
@@ -72,7 +72,7 @@ export async function getAllMetals(client) {
   // implementations returning the same shape, and stops two dead columns being
   // shipped on every admin page load.
   const q = `
-    SELECT id, type, ask_spot, bid_spot, percent_change, dollar_change
+    SELECT id, type AS name, ask_spot AS ask, bid_spot AS bid, percent_change, dollar_change
     FROM exchange.metals
     ORDER BY type ASC, id ASC
   `;

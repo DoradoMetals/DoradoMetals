@@ -24,6 +24,7 @@ import { closeBrowser } from "#features/pdf/render/browser.js";
 import * as poRepo from "#features/purchase-orders/repo.js";
 import * as soRepo from "#features/sales-orders/repo.js";
 import * as spotsRepo from "#features/spots/repo.js";
+import { toLegacy as spotsToLegacy } from "#features/spots/wire.js";
 import { formatPurchaseOrderNumber, formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.js";
 
 let orders;
@@ -37,7 +38,15 @@ before(async () => {
   );
   orders = await poRepo.getAll();
   salesOrders = await soRepo.getAll();
-  spots = await spotsRepo.getAll();
+  // Legacy-shaped on purpose. The PDF and email paths take spot prices from the
+  // request body, and the frontend sends them in the shape /spots/spot_prices
+  // returns today - type / ask_spot / bid_spot. The repo now returns the new
+  // names, so this converts them the way the adapter does on the way out, which
+  // is what production actually hands these functions.
+  //
+  // When SPOTS_WIRE flips and order spots move with it, this goes and
+  // calculations.js reads the new names instead.
+  spots = spotsToLegacy(await spotsRepo.getAll());
 });
 
 after(async () => {

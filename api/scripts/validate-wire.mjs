@@ -67,6 +67,7 @@ const { toLegacyShape } = await import("#features/products/wire.js");
 const mediaWire = await import("#features/media/wire.js");
 const suppliersWire = await import("#features/suppliers/wire.js");
 const carriersWire = await import("#features/shipping/carriers/wire.js");
+const spotsWire = await import("#features/spots/wire.js");
 
 add("GET /reviews (public)", c.ReviewWire, () => reviews.getPublicReviews());
 await bothWays("GET /carriers", c.CarrierWireNext, "shipping/carriers", (m) => m.getAll());
@@ -74,7 +75,10 @@ await bothWays("GET /carriers (legacy wire)", c.CarrierWire, "shipping/carriers"
   carriersWire.toLegacy(await m.getAll())
 );
 await bothWays("GET /carrier_services", c.CarrierServiceWire, "shipping/services", (m) => m.getAll());
-await bothWays("GET /spots/spot_prices", c.SpotPriceWire, "spots", (m) => m.getAll());
+await bothWays("GET /spots/spot_prices", c.SpotPriceWireNext, "spots", (m) => m.getAll());
+await bothWays("GET /spots/spot_prices (legacy wire)", c.SpotPriceWire, "spots", async (m) =>
+  spotsWire.toLegacy(await m.getAll())
+);
 await bothWays("GET /rates", c.RateWire, "rates", (m) => m.getAllRates());
 await bothWays("GET /reviews (admin)", c.ReviewWire, "reviews", (m) => m.getAllReviews());
 await bothWays("GET /leads", c.LeadWire, "leads", (m) => m.getAllLeads());

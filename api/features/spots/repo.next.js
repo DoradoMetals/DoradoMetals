@@ -24,7 +24,7 @@ const ORDER = `
 
 export async function getAll(client) {
   const q = `
-    SELECT m.id, m.name AS type, s.ask AS ask_spot, s.bid AS bid_spot,
+    SELECT m.id, m.name, s.ask, s.bid,
            s.percent_change, s.dollar_change
     FROM metals.metals m
     JOIN spots.spots s ON s.metal_id = m.id
@@ -80,7 +80,7 @@ export async function updateQuotes(quotesByMetal, client) {
 // joined in to keep the returned shape identical.
 export async function getAllMetals(client) {
   const q = `
-    SELECT m.id, m.name AS type, s.ask AS ask_spot, s.bid AS bid_spot,
+    SELECT m.id, m.name, s.ask, s.bid,
            s.percent_change, s.dollar_change
     FROM metals.metals m
     LEFT JOIN spots.spots s ON s.metal_id = m.id

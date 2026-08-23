@@ -34,19 +34,24 @@ test("getAll returns one quote per metal", async () => {
     const rows = await spots.getAll(c);
     assert.equal(rows.length, spots.METALS.length);
     assert.deepEqual(
-      [...new Set(rows.map((r) => r.type))].sort(),
+      [...new Set(rows.map((r) => r.name))].sort(),
       [...spots.METALS].sort()
     );
   });
 });
 
-// The wire shape is exchange.metals': `type` for the name, ask_spot/bid_spot
+// The repo returns the new schema's names now - metals.metals calls it `name`,
+// spots.spots calls the quote columns `ask` and `bid` - and
+// features/spots/wire.js renames them back for the frontend behind SPOTS_WIRE.
+// The legacy half is asserted below.
+//
+// It used to be: exchange.metals' `type` for the name, ask_spot/bid_spot
 // for the quote. The split schemas must not leak their own column names.
-test("getAll preserves the exchange wire shape", async () => {
+test("getAll returns the new schema's names", async () => {
   await inRollback(async (c) => {
     const [row] = await spots.getAll(c);
     assert.deepEqual(Object.keys(row).sort(), [
-      "ask_spot", "bid_spot", "dollar_change", "id", "percent_change", "type",
+      "ask", "bid", "dollar_change", "id", "name", "percent_change",
     ]);
   });
 });
@@ -54,7 +59,7 @@ test("getAll preserves the exchange wire shape", async () => {
 test("getAll orders Gold, Silver, Platinum, Palladium", async () => {
   await inRollback(async (c) => {
     const rows = await spots.getAll(c);
-    assert.deepEqual(rows.map((r) => r.type), [
+    assert.deepEqual(rows.map((r) => r.name), [
       "Gold", "Silver", "Platinum", "Palladium",
     ]);
   });
@@ -72,9 +77,9 @@ test("updateQuotes writes a full set of quotes", async () => {
       c
     );
     const rows = await spots.getAll(c);
-    const gold = rows.find((r) => r.type === "Gold");
-    assert.equal(gold.ask_spot, 1);
-    assert.equal(gold.bid_spot, 2);
+    const gold = rows.find((r) => r.name === "Gold");
+    assert.equal(gold.ask, 1);
+    assert.equal(gold.bid, 2);
     assert.equal(gold.percent_change, 3);
     assert.equal(gold.dollar_change, 4);
   });
@@ -84,14 +89,14 @@ test("updateQuotes writes a full set of quotes", async () => {
 // every item in that metal cost nothing, so the previous quote must survive.
 test("a metal missing from the feed keeps its previous quote", async () => {
   await inRollback(async (c) => {
-    const before = (await spots.getAll(c)).find((r) => r.type === "Platinum");
+    const before = (await spots.getAll(c)).find((r) => r.name === "Platinum");
     await spots.updateQuotes(
       { Gold: { ask: 1, bid: 2, percentChange: 0, dollarChange: 0 } },
       c
     );
-    const after = (await spots.getAll(c)).find((r) => r.type === "Platinum");
-    assert.equal(after.ask_spot, before.ask_spot);
-    assert.equal(after.bid_spot, before.bid_spot);
+    const after = (await spots.getAll(c)).find((r) => r.name === "Platinum");
+    assert.equal(after.ask, before.ask);
+    assert.equal(after.bid, before.bid);
   });
 });
 
@@ -126,6 +131,6 @@ test("getAllMetals returns every metal even without a quote", async () => {
     await c.query("DELETE FROM spots.spots");
     const rows = await spots.getAllMetals(c);
     assert.equal(rows.length, spots.METALS.length);
-    assert.equal(rows[0].ask_spot, null);
+    assert.equal(rows[0].ask, null);
   });
 });
