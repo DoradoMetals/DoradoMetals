@@ -78,3 +78,138 @@ export async function getByOrder(id, client) {
   );
   return rows[0] ?? null;
 }
+
+// ---------------------------------------------------------------- mirroring
+//
+// The dual-write phase re-derives a shipment from exchange after it has been
+// written there, rather than applying the same change twice. Same reasoning as
+// the orders mirrors: one definition of what a shipment looks like in the new
+// schema, exercised by every write instead of only at migration time.
+//
+// A shipment is three rows here. The shipment itself, the fulfillment that says
+// which order it belongs to, and the link between them that records which of
+// our locations handled it. Creating a shipment in exchange therefore has to
+// create or find all three, which is what 052 does at migration time and this
+// repeats per write.
+//
+// Everything is server-side, and every function takes the caller's executor so
+// the mirror joins the same transaction as the write it follows.
+
+export async function mirrorShipment(id, executor) {
+  await query(
+    `INSERT INTO shipping.shipments (
+       id, carrier_service_id, package_id, tracking_number,
+       shipper_address_id, recipient_address_id,
+       delivered_at, shipped_at, est_delivery, label_type, label,
+       direction, insured, declared_value, cost,
+       shipping_status, pickup_type, created_at
+     )
+     SELECT
+       e.id,
+       (SELECT s.id FROM shipping.services s
+         WHERE s.carrier_id = e.carrier_id AND s.name = e.service_type),
+       (SELECT p.id FROM shipping.packages p
+         WHERE p.carrier_id = e.carrier_id AND p.label = e.package),
+       e.tracking_number,
+       CASE WHEN e.type = 'Inbound'  THEN addr.id END,
+       CASE WHEN e.type = 'Outbound' THEN addr.id END,
+       e.delivered_at, e.shipped_at, e.estimated_delivery,
+       e.label_type, e.shipping_label,
+       e.type::text::shipping.direction,
+       coalesce(e.insured, false), e.declared_value, e.net_charge,
+       e.shipping_status, e.pickup_type, e.created_at
+     FROM exchange.shipments e
+     LEFT JOIN LATERAL (
+       SELECT a.id FROM exchange.addresses a
+       WHERE a.id = coalesce(
+         (SELECT p.address_id FROM exchange.purchase_orders p WHERE p.id = e.purchase_order_id),
+         (SELECT so.address_id FROM exchange.sales_orders so WHERE so.id = e.sales_order_id))
+         AND EXISTS (SELECT 1 FROM places.addresses pa WHERE pa.id = a.id)
+     ) AS addr ON true
+     WHERE e.id = $1
+     ON CONFLICT (id) DO UPDATE SET
+       carrier_service_id = EXCLUDED.carrier_service_id,
+       package_id = EXCLUDED.package_id,
+       tracking_number = EXCLUDED.tracking_number,
+       shipper_address_id = coalesce(EXCLUDED.shipper_address_id, shipping.shipments.shipper_address_id),
+       recipient_address_id = coalesce(EXCLUDED.recipient_address_id, shipping.shipments.recipient_address_id),
+       delivered_at = EXCLUDED.delivered_at, shipped_at = EXCLUDED.shipped_at,
+       est_delivery = EXCLUDED.est_delivery, label_type = EXCLUDED.label_type,
+       label = EXCLUDED.label, direction = EXCLUDED.direction,
+       insured = EXCLUDED.insured, declared_value = EXCLUDED.declared_value,
+       cost = EXCLUDED.cost, shipping_status = EXCLUDED.shipping_status,
+       pickup_type = EXCLUDED.pickup_type, created_at = EXCLUDED.created_at`,
+    [id],
+    executor
+  );
+
+  // The fulfillment, which is what carries the order link. One per order, so
+  // a second shipment on the same order finds the existing one rather than
+  // making another.
+  await query(
+    `INSERT INTO fulfillments.fulfillments (order_id, method_id, status, created_at, updated_at)
+     SELECT
+       coalesce(e.purchase_order_id, e.sales_order_id),
+       m.id,
+       CASE WHEN e.shipping_status = 'Delivered' THEN 'COMPLETED' ELSE 'PENDING' END,
+       e.created_at, e.created_at
+     FROM exchange.shipments e
+     JOIN fulfillments.methods m
+       ON m.type = CASE e.pickup_type
+                     WHEN 'Store Dropoff' THEN 'CARRIER DROPOFF'
+                     WHEN 'DropShip'      THEN 'DROPSHIP'
+                   END
+      AND m.direction = (CASE WHEN e.purchase_order_id IS NOT NULL
+                              THEN 'purchase' ELSE 'sale' END)::orders.direction
+     WHERE e.id = $1
+       AND coalesce(e.purchase_order_id, e.sales_order_id) IS NOT NULL
+       AND EXISTS (SELECT 1 FROM orders.orders o
+                    WHERE o.id = coalesce(e.purchase_order_id, e.sales_order_id))
+     ON CONFLICT (order_id) DO UPDATE SET
+       status = EXCLUDED.status, updated_at = EXCLUDED.updated_at`,
+    [id],
+    executor
+  );
+
+  await query(
+    `INSERT INTO fulfillments.shipments (
+       fulfillment_id, shipment_id, recipient_location_id, shipper_location_id
+     )
+     SELECT
+       f.id, e.id,
+       CASE WHEN e.type = 'Inbound'
+            THEN (SELECT l.id FROM places.locations l WHERE l.type = 'FEDEX_OFFICE' LIMIT 1) END,
+       CASE WHEN e.type = 'Outbound'
+            THEN (SELECT l.id FROM places.locations l WHERE l.type = 'REFINER_OFFICE' LIMIT 1) END
+     FROM exchange.shipments e
+     JOIN fulfillments.fulfillments f
+       ON f.order_id = coalesce(e.purchase_order_id, e.sales_order_id)
+     WHERE e.id = $1
+     ON CONFLICT (shipment_id) DO UPDATE SET
+       fulfillment_id = EXCLUDED.fulfillment_id,
+       recipient_location_id = coalesce(EXCLUDED.recipient_location_id, fulfillments.shipments.recipient_location_id),
+       shipper_location_id = coalesce(EXCLUDED.shipper_location_id, fulfillments.shipments.shipper_location_id)`,
+    [id],
+    executor
+  );
+}
+
+// Removes what exchange no longer has. The links go first, then the shipment:
+// fulfillments.shipments references it, and the fulfillment itself is left
+// alone because an order can be fulfilled without a surviving shipment record.
+export async function removeShipment(id, executor) {
+  await query(
+    `DELETE FROM fulfillments.shipments fs
+     WHERE fs.shipment_id = $1
+       AND NOT EXISTS (SELECT 1 FROM exchange.shipments e WHERE e.id = fs.shipment_id)`,
+    [id],
+    executor
+  );
+  await query(
+    `DELETE FROM shipping.shipments s
+     WHERE s.id = $1
+       AND NOT EXISTS (SELECT 1 FROM exchange.shipments e WHERE e.id = s.id)`,
+    [id],
+    executor
+  );
+}

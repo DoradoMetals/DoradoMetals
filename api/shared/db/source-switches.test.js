@@ -14,15 +14,25 @@ import path from "node:path";
 
 const FEATURES = path.join(import.meta.dirname, "..", "..", "features");
 
-const switches = fs
-  .readdirSync(FEATURES)
-  .map((name) => ({ name, file: path.join(FEATURES, name, "repo.js") }))
-  .filter((f) => fs.existsSync(f.file))
-  .map((f) => ({ ...f, source: fs.readFileSync(f.file, "utf8") }))
-  .filter((f) => /process\.env\.[A-Z_]+_SOURCE/.test(f.source));
+// Walked recursively rather than one level deep. shipping is organised as
+// sub-features - shipping/shipments, shipping/tracking, shipping/carriers -
+// each with its own repo.js and its own switch, and a one-level scan missed
+// every one of them. carriers had been offering all three states unnoticed
+// because of it.
+const findSwitches = (dir) =>
+  fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return findSwitches(full);
+    if (entry.name !== "repo.js") return [];
+    const source = fs.readFileSync(full, "utf8");
+    if (!/process\.env\.[A-Z_]+_SOURCE/.test(source)) return [];
+    return [{ name: path.relative(FEATURES, full), file: full, source }];
+  });
+
+const switches = findSwitches(FEATURES);
 
 test("every feature that has a switch defaults to exchange", () => {
-  assert.ok(switches.length >= 12, `only found ${switches.length} switches`);
+  assert.ok(switches.length >= 15, `only found ${switches.length} switches`);
 
   for (const { name, source } of switches) {
     // The default is the fallback in `process.env.X_SOURCE ?? ""` ternaries:

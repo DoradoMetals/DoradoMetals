@@ -3,7 +3,9 @@
 //
 //   CARRIERS_SOURCE=exchange   (default) read exchange, write exchange
 //   CARRIERS_SOURCE=dual                 read new,      write BOTH
-//   CARRIERS_SOURCE=next                 read new,      write new
+//
+// There is deliberately no `next`. Writing only to the new schema is the
+// one-way door, and CLAUDE.md says to go through dual and stay there.
 //
 // A carrier is two rows in the new layout: an organization of type CARRIER with
 // the name and contact details, and a shipping.carriers row with the logo,
@@ -15,10 +17,9 @@
 //
 // Gate on `pnpm --filter @dorado/api diff carriers` before promoting.
 import * as exchange from "#features/shipping/carriers/repo.exchange.js";
-import * as next from "#features/shipping/carriers/repo.next.js";
 import * as dual from "#features/shipping/carriers/repo.dual.js";
 
-const SOURCES = { exchange, dual, next };
+const SOURCES = { exchange, dual };
 
 const SOURCE = Object.hasOwn(SOURCES, process.env.CARRIERS_SOURCE ?? "")
   ? process.env.CARRIERS_SOURCE
