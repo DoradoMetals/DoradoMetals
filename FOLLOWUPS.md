@@ -825,6 +825,43 @@ across 23 API files pass `user_name` today.
 Until this is done, the new `created_by_id` columns are a trustworthy column
 filled from an untrusted source.
 
+### FOR JACOB: error responses were returning Postgres errors and server paths
+
+Found by pointing the new endpoint tests at a guarded GET as an admin.
+`GET /api/stripe/retrieve_payment_intent` answered, verbatim:
+
+```json
+{"success": false,
+ "error": {"message": "invalid input syntax for type uuid: \"not-a-uuid\"",
+           "where": "/home/jtj60/dorado-exchange/api/features/stripe/repo.js:23"}}
+```
+
+Two separate disclosures. `message` is `err.message` for *any* unexpected error,
+and a Postgres error carries the column, the type, the constraint name and — on
+a unique violation — the value that collided, which is customer data. `where` is
+the absolute path of the source file on the server.
+
+**`where` is gated on `NODE_ENV !== "production"`. `message` was gated on
+nothing**, so production returned it regardless.
+
+Fixed: an error raised deliberately keeps its message, because it was written to
+be read and its status says so — `features/addresses`, `features/carts` and
+`features/purchase-orders` are the four places that do this. Everything else
+gets `"Server error"`. The real message is still printed in full to the log,
+unchanged. Six tests, all proved to fail against the old behaviour first.
+
+The frontend was never reading it: `AddressForm.tsx:102` looks at
+`error.response.data.message`, and the API returns `data.error.message`, so it
+has always fallen through to axios's own text. Nothing user-visible changes.
+
+**One thing only you can check.** `NODE_ENV` is read in exactly two places, both
+in `errorHandler.js`, and is set **nowhere in this repo** — not in `.env`, not in
+a Railway config, not in a Dockerfile, and there is no Dockerfile. If it is not
+set to `production` in Railway's own variables, then production has been
+returning `where` too, and every error response has carried the absolute path of
+a source file on the server. Worth checking in the Railway dashboard, and worth
+setting explicitly either way rather than relying on it being absent.
+
 ### Bank details are unencrypted at rest, and production has real ones
 
 **Confirmed against production, 2026-08-22.** Dev suggested these columns were

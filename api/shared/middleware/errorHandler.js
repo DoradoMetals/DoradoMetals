@@ -299,13 +299,34 @@ export default function errorHandler(err, req, res, _next) {
     err.status ||
     500;
 
+  // What goes back to the client is not what goes to the log.
+  //
+  // safe.message is err.message, and for anything unexpected that is the
+  // underlying error verbatim - a Postgres error carries the column, the type,
+  // the constraint name and, on a unique violation, the conflicting value. That
+  // was being returned to callers, and `where` put the absolute server path
+  // next to it: GET /api/stripe/retrieve_payment_intent answered
+  //
+  //   {"success":false,"error":{
+  //      "message":"invalid input syntax for type uuid: \"not-a-uuid\"",
+  //      "where":"/home/jtj60/dorado-exchange/api/features/stripe/repo.js:23"}}
+  //
+  // Only `where` was gated on NODE_ENV, so production still returned the
+  // message. An error raised deliberately is different: it was written to be
+  // read, and its status says so. Those keep their message; everything else
+  // gets a generic one. The real message is still printed in full above.
+  const deliberate = Number.isInteger(err?.statusCode ?? err?.status)
+    && status >= 400 && status < 500;
+
   res.status(status).json({
     success: false,
     error: {
       message:
         safe.kind === "axios"
           ? "Upstream carrier request failed"
-          : safe.message || "Server error",
+          : deliberate
+            ? safe.message || "Server error"
+            : "Server error",
       ...(safe.kind === "axios"
         ? {
             carrier_status: safe.status,
