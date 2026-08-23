@@ -63,6 +63,11 @@ const TABLES = [
     cols: "type, name, email, phone, website, description, enabled, created_at, updated_at",
   },
   {
+    name: "payments.ledger",
+    key: "id",
+    cols: "id, user_id, type, order_id, amount, occurred_at",
+  },
+  {
     name: "refiners.refiners",
     key: "id",
     cols: "id, logo, (SELECT o.type || '/' || o.name FROM $S$organizations.organizations o WHERE o.id = t.organization_id)",

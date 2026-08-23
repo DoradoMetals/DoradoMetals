@@ -47,6 +47,10 @@ export const FEATURES = {
   },
   refiners: { "exchange.refiner_metals": ["refiners.spots", "refiners.items"] },
   users: { "exchange.users": ["auth.users"], "exchange.session": ["auth.sessions"] },
+  // The customer credit ledger. Had no target until 060 - January never built
+  // one, and because no feature declared it, every audit walked past seventeen
+  // production rows totalling $66,999.32.
+  transactions: { "exchange.account_transactions": ["payments.ledger"] },
 };
 
 // Columns that moved under a different name. Recorded here so a rename is not
@@ -97,6 +101,11 @@ export const RENAMES = {
     sales_order_id: "-",
   },
   "exchange.tracking_events": { scan_time: "time" },
+  "exchange.account_transactions": {
+    transaction_type: "type",
+    purchase_order_id: "order_id",
+    sales_order_id: "order_id",
+  },
   "exchange.carrier_services": {
     supports_pickup: "supports_pickups",
     supports_dropoff: "supports_dropoffs",

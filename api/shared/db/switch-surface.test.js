@@ -50,6 +50,18 @@ const exportsOf = (src) => {
   const names = new Set();
   for (const m of src.matchAll(/export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/g)) names.add(m[1]);
   for (const m of src.matchAll(/export\s+const\s+([A-Za-z0-9_]+)/g)) names.add(m[1]);
+  // `export { addFunds, removeFunds };` and `export { a as b } from "..."`.
+  //
+  // Missing this form reported transactions' repo.next as not exporting
+  // addFunds when it plainly does. A false positive rather than a false
+  // negative, so it failed safe - but a check nobody can trust to be right is
+  // one people start editing around.
+  for (const block of src.matchAll(/export\s*\{([^}]*)\}/g)) {
+    for (const spec of block[1].split(",")) {
+      const name = spec.trim().split(/\s+as\s+/).pop()?.trim();
+      if (name && /^[A-Za-z0-9_]+$/.test(name)) names.add(name);
+    }
+  }
   return names;
 };
 

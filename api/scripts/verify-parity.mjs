@@ -24,6 +24,18 @@ import pool from "#db";
 
 const PAIRS = [
   ["exchange.leads", "leads.leads"],
+  // transaction_type becomes type, and the two order columns collapse into one
+  // order_id resolved through orders.orders.direction - the same reshaping
+  // orders.spots got. repo.next.js projects all three back, so the wire shape
+  // is unchanged, and the transactions diff compares the values row by row.
+  [
+    "exchange.account_transactions",
+    "payments.ledger",
+    {
+      intentionallyDropped: ["transaction_type", "purchase_order_id", "sales_order_id"],
+      reason: "renamed to type/order_id; values compared by the transactions diff",
+    },
+  ],
   ["exchange.rates", "rates.rates"],
   ["exchange.reviews", "reviews.reviews"],
   ["exchange.sales_tax_rules", "tax.sales_tax_rules"],

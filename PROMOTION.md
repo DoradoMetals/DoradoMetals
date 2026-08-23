@@ -162,6 +162,7 @@ reversible.
 | `PICKUPS_SOURCE` | carrier pickups |
 | `SHIPPING_SHIPMENTS_SOURCE` | shipments |
 | `SHIPPING_TRACKING_SOURCE` | tracking events |
+| `TRANSACTIONS_SOURCE` | the customer credit ledger |
 
 **Rollback:** set back to `exchange`, redeploy. Safe because `exchange` never
 stopped being written to. Rows written to the new schema while `dual` was on are
@@ -196,6 +197,29 @@ has a foreign key with no `ON DELETE`, so removing a service that shipments stil
 reference is refused. `exchange` allowed it. That endpoint has never worked
 anyway — the controller passed the whole request body where the repo wanted an
 id — so there is no prior behaviour being changed.
+
+### `TRANSACTIONS_SOURCE` — the target did not exist until August 2026
+
+Every other switch moves data into a table January already built. This one moves
+it into `payments.ledger`, created by migration 060, because
+`exchange.account_transactions` had no target at all — no feature declared it,
+so every audit walked past seventeen production rows totalling $66,999.32.
+
+Two consequences when promoting it:
+
+- **`payments.ledger` is empty in production until 061 runs.** It is not a
+  January table, so unlike `orders.*` or `refiners.*` there is no residue to
+  reconcile and no guard that will refuse. Confirm 060 and 061 both applied
+  before flipping anything.
+- **`addFunds` and `removeFunds` are unaffected by this switch.** The balance
+  itself is `exchange.users.dorado_funds` and stays there in every state; 056's
+  trigger mirrors it to `auth.users`. Only the ledger entries move. If the
+  balance ever needs to move, that is `USERS_SOURCE`, not this one.
+
+The order reference is dropped rather than the entry when an order is not itself
+in the new schema — the foreign key would refuse the row otherwise. One
+production entry already has no order at all, because `exchange`'s foreign keys
+are `ON DELETE SET NULL` and it outlived the order it explained.
 
 ### `PICKUPS_SOURCE` — nothing to compare
 

@@ -699,6 +699,25 @@ ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS updated_by text;
 ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
+CREATE TABLE IF NOT EXISTS payments.ledger (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  user_id uuid NOT NULL,
+  type text NOT NULL,
+  order_id uuid,
+  amount numeric NOT NULL,
+  occurred_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS type text;
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS amount numeric;
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS occurred_at timestamp with time zone;
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+
 CREATE TABLE IF NOT EXISTS payments.methods (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   image_id uuid,
@@ -1657,6 +1676,26 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'ledger_amount_check' AND c.relname = 'ledger' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.ledger ADD CONSTRAINT ledger_amount_check CHECK ((amount >= (0)::numeric));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'ledger_pkey' AND c.relname = 'ledger' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.ledger ADD CONSTRAINT ledger_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'methods_amount_range_chk' AND c.relname = 'methods' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.methods ADD CONSTRAINT methods_amount_range_chk CHECK (((max_amount IS NULL) OR (min_amount IS NULL) OR (max_amount >= min_amount)));
@@ -2507,6 +2546,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'ledger_order_id_fkey' AND c.relname = 'ledger' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.ledger ADD CONSTRAINT ledger_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders.orders(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'methods_created_by_id_fkey' AND c.relname = 'methods' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.methods ADD CONSTRAINT methods_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
@@ -3015,6 +3064,8 @@ CREATE INDEX IF NOT EXISTS idx_payments_intents_details_id ON payments.intents U
 CREATE INDEX IF NOT EXISTS intents_method_idx ON payments.intents USING btree (method_id);
 CREATE INDEX IF NOT EXISTS intents_order_idx ON payments.intents USING btree (order_id);
 CREATE INDEX IF NOT EXISTS intents_status_idx ON payments.intents USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_ledger_order_id ON payments.ledger USING btree (order_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_user_id ON payments.ledger USING btree (user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_methods_image_id ON payments.methods USING btree (image_id);
 CREATE UNIQUE INDEX IF NOT EXISTS methods_direction_type_uniq ON payments.methods USING btree (direction, type);
 CREATE INDEX IF NOT EXISTS methods_display_sort_idx ON payments.methods USING btree (display, enabled, sort_order);

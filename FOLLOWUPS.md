@@ -91,6 +91,32 @@ genesis. `verify-genesis.mjs` built its comparison schema from
 reached it. The check now compares the committed file too, and that was proved
 to fail before being trusted.
 
+### The credit ledger is migrated, and its one endpoint is broken three ways
+
+`exchange.account_transactions` now has a target — `payments.ledger`, migration
+060, behind `TRANSACTIONS_SOURCE`. Backfilled, parity clean, six-way diff clean,
+six new tests.
+
+Separately, `GET /api/transactions/get_transactions` is broken and nothing has
+noticed because **the frontend never calls it**:
+
+1. the controller reads `req.body.user_id` on a **GET**, so `user_id` is
+   `undefined` and the query matches nothing;
+2. `getTransactionHistory` returns `result.rows[0]` — one row — despite being
+   named history and being the only way to read the ledger;
+3. it had no `ORDER BY`, so *which* row that was came back in physical order.
+
+Only (3) was fixed, in both implementations, because without a deterministic
+order the diff between them means nothing. (1) and (2) are left alone
+deliberately: fixing them changes the response shape, and a schema migration is
+the wrong place to do that. They are trivial to fix as a separate change — the
+question is only what the endpoint should return, which nobody has needed to
+answer yet.
+
+Worth noting `addFunds` and `removeFunds` were already correct and already
+transactional; the existing tests cover the property that matters, which is that
+a balance movement and its ledger entry commit together.
+
 ### FOR JACOB: seven populated exchange tables that no feature claims
 
 `audit:coverage` walked the feature map, so it could only ever report on tables
