@@ -122,10 +122,21 @@ export function createPickupInput(input) {
   };
 }
 
+// Accepts either the provider's names or the database's.
+//
+// It only read the database's, and its one caller - operationsService.cancelPickup -
+// passes the provider's, having already mapped them off the pickup row. So
+// confirmationCode and pickupDate both arrived undefined and FedEx was asked to
+// cancel a pickup without being told which one. `location` was the only field
+// that survived, because it happens to be spelled the same either way.
+//
+// Both spellings are accepted rather than one corrected, because that is
+// already the convention in this file - see cancelLabelInput, which takes
+// trackingNumber or tracking_number.
 export function cancelPickupInput(input) {
   return {
-    confirmationCode: input?.confirmation_number,
-    pickupDate: input?.pickup_requested_at,
+    confirmationCode: input?.confirmationCode ?? input?.confirmation_number,
+    pickupDate: input?.pickupDate ?? input?.pickup_requested_at,
     location: input?.location,
   };
 }
