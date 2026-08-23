@@ -399,12 +399,12 @@ CREATE TABLE IF NOT EXISTS orders.items (
   order_id uuid NOT NULL,
   bullion_id uuid,
   metal_id uuid NOT NULL,
-  pre_melt numeric(20,3),
-  post_melt numeric(20,3),
-  purity numeric(4,3),
-  content numeric(20,3),
-  premium numeric(20,6),
-  quantity numeric(20,3) DEFAULT 1,
+  pre_melt numeric,
+  post_melt numeric,
+  purity numeric,
+  content numeric,
+  premium numeric,
+  quantity numeric DEFAULT 1,
   confirmed boolean DEFAULT false NOT NULL,
   sales_tax_charged numeric DEFAULT 0 NOT NULL,
   unit text,
@@ -419,12 +419,12 @@ ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uui
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS order_id uuid;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS bullion_id uuid;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS metal_id uuid;
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS pre_melt numeric(20,3);
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS post_melt numeric(20,3);
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS purity numeric(4,3);
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS content numeric(20,3);
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS premium numeric(20,6);
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS quantity numeric(20,3) DEFAULT 1;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS pre_melt numeric;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS post_melt numeric;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS purity numeric;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS content numeric;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS premium numeric;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS quantity numeric DEFAULT 1;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS confirmed boolean DEFAULT false;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS sales_tax_charged numeric DEFAULT 0;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS unit text;

@@ -17,6 +17,7 @@
 // Exits non-zero on any difference.
 import "#env";
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import pool from "#db";
 
@@ -189,7 +190,41 @@ try {
   console.log(
     `\nbuilt ${counts.rows[0].tables} tables and ${counts.rows[0].views} views from an empty schema`
   );
-  console.log(failures ? `\n${failures} difference(s)` : "\nidentical to dev");
+
+  // Everything above proves the *generator* reproduces dev, because that is
+  // what it built from. It says nothing about the file, and the file is what
+  // builds production.
+  //
+  // They drifted apart the moment 058 widened orders.items: dev was correct,
+  // dump-schema.mjs emitted the correct types, this check said "identical to
+  // dev", and 000_genesis_schema.sql still declared purity numeric(4,3). A
+  // production built from it would have rounded .9999 to 1.000 exactly as
+  // before, with every check green.
+  const committed = fs.readFileSync(
+    path.join(import.meta.dirname, "..", "migrations", "000_genesis_schema.sql"),
+    "utf8"
+  );
+  const regenerated = execFileSync(
+    process.execPath,
+    [path.join(import.meta.dirname, "dump-schema.mjs"), "--stdout"],
+    { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }
+  );
+  if (committed !== regenerated) {
+    const a = committed.split("\n");
+    const b = regenerated.split("\n");
+    const drift = [
+      ...a.filter((l) => !b.includes(l)).map((l) => `  committed: ${l}`),
+      ...b.filter((l) => !a.includes(l)).map((l) => `  dev has:   ${l}`),
+    ];
+    note(
+      `000_genesis_schema.sql is stale - it does not match what dev now is.\n` +
+        drift.slice(0, 20).join("\n") +
+        (drift.length > 20 ? `\n  ... and ${drift.length - 20} more` : "") +
+        `\n  run: pnpm --filter @dorado/api dump:schema`
+    );
+  }
+
+  console.log(failures ? `\n${failures} difference(s)` : "\nidentical to dev, and the committed genesis matches");
 } finally {
   // Nothing this script did survives, whether it passed, failed or threw.
   await client.query("ROLLBACK");

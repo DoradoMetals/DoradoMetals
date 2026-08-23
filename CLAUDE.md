@@ -137,7 +137,10 @@ are not in CI. See the `verify-changes` skill for what each catches.
 The ones that have actually caught things:
 
 - `verify:genesis` — builds the whole schema into renamed schemas inside a
-  rolled-back transaction and compares it against dev, column by column.
+  rolled-back transaction and compares it against dev, column by column, **and
+  checks the committed `000_genesis_schema.sql` still matches what dev is.** It
+  built from a live regeneration for months, so it proved the generator worked
+  and never once read the file production is actually built from.
 - `verify:backfill` — runs every backfill and seed into those empty tables and
   compares the rows against dev, then re-runs to prove idempotency, then checks
   the guard refuses once the new schema holds rows `exchange` does not.
@@ -150,11 +153,21 @@ The ones that have actually caught things:
 - `audit:coverage` — **every populated column in `exchange` that has nowhere to
   go.** Run this before splitting any repo. Orders had matching row counts and
   was missing 21 columns of live data; row counts are not evidence.
+- `audit:precision` — **every column whose value the target's type would
+  change.** Casts each source value into the type of the column it lands in and
+  counts what differs. `orders.items` declared `purity numeric(4,3)` against an
+  unconstrained source, so `.9999` fine gold was stored as `1.000`. Coverage
+  passed — the column existed. Parity never looked — orders is a merge, not a
+  pair. Run it with `--prod`: dev held three of these and production eighteen.
 
 A reported gap is often a rename or a relocation rather than a loss — seven of
 shipping's thirteen were, and three of addresses'. Check before adding a column,
-and declare the mapping in `scripts/audit-coverage.mjs` so the report stays
-honest.
+and declare the mapping in `scripts/lib/feature-map.mjs` so the report stays
+honest. That map now also drives `audit:precision`, and it carries a second
+kind of entry: `FLOWS`, for values a backfill moves into a table that does not
+own them. `orders.items` takes its weights from `exchange.products` via a
+`coalesce`, which is a value flow and not an ownership mapping — and that
+omission is exactly how the rounding went unseen.
 
 ## Standing constraints
 

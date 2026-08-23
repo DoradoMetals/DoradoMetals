@@ -27,6 +27,8 @@
     "audit:coverage": "TZ=UTC node scripts/audit-coverage.mjs",
     "dump:seed": "node scripts/dump-seed.mjs",
     "audit:coverage:prod": "TZ=UTC node scripts/audit-coverage.mjs --prod",
+    "audit:precision": "TZ=UTC node scripts/audit-precision.mjs",
+    "audit:precision:prod": "TZ=UTC node scripts/audit-precision.mjs --prod",
     "audit:guards": "TZ=UTC node scripts/audit-guards.mjs",
     "audit:payments": "TZ=UTC node scripts/audit-payments.mjs",
     "dump:stripe": "node scripts/dump-stripe-reconciliation.mjs"

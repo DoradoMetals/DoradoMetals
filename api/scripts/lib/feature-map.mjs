@@ -1,0 +1,146 @@
+// How each feature's exchange tables map onto the new schema.
+//
+// Extracted from audit-coverage.mjs so audit-precision.mjs can share it. The
+// two audits ask different questions of the same map: coverage asks whether a
+// column has anywhere to go, precision asks whether what it lands in can hold
+// the value without changing it. Keeping one map means a feature declared for
+// one audit is automatically covered by the other.
+
+// source table -> the tables its columns are allowed to land in
+export const FEATURES = {
+  leads: { "exchange.leads": ["leads.leads"] },
+  rates: { "exchange.rates": ["rates.rates"] },
+  reviews: { "exchange.reviews": ["reviews.reviews"] },
+  tax: {
+    "exchange.sales_tax_rules": ["tax.sales_tax_rules"],
+    "exchange.state_sales_tax": ["tax.sales_tax"],
+  },
+  metals: { "exchange.metals": ["metals.metals", "spots.spots"] },
+  media: { "exchange.images": ["media.images"] },
+  suppliers: { "exchange.suppliers": ["refiners.refiners", "organizations.organizations"] },
+  carriers: { "exchange.carriers": ["shipping.carriers", "organizations.organizations"] },
+  mints: { "exchange.mints": ["products.mints", "organizations.organizations"] },
+  products: { "exchange.products": ["products.bullion"] },
+  addresses: { "exchange.addresses": ["places.addresses", "places.user_addresses"] },
+  orders: {
+    "exchange.purchase_orders": ["orders.orders", "orders.offers", "orders.transactions"],
+    "exchange.sales_orders": ["orders.orders", "orders.transactions"],
+    "exchange.purchase_order_items": ["orders.items"],
+    "exchange.sales_order_items": ["orders.items"],
+    "exchange.scrap": ["orders.items"],
+    "exchange.order_metals": ["orders.spots"],
+    "exchange.addresses": ["places.addresses", "orders.addresses"],
+  },
+  shipping: {
+    "exchange.shipments": ["shipping.shipments", "fulfillments.shipments"],
+    "exchange.tracking_events": ["shipping.tracking"],
+    "exchange.carrier_pickups": ["shipping.pickups", "fulfillments.pickups"],
+  },
+  payments: {
+    "exchange.payouts": ["payments.details", "payments.methods"],
+    "exchange.payment_intents": ["payments.intents", "payments.attempts", "payments.settlements"],
+  },
+  refiners: { "exchange.refiner_metals": ["refiners.spots", "refiners.items"] },
+  users: { "exchange.users": ["auth.users"], "exchange.session": ["auth.sessions"] },
+};
+
+// Columns that moved under a different name. Recorded here so a rename is not
+// reported as a loss - and so the renames are written down somewhere.
+export const RENAMES = {
+  "exchange.products": { product_name: "name", product_description: "description", product_type: "type" },
+  "exchange.images": { checksum_sha256: "checksum" },
+  "exchange.metals": { type: "name", ask_spot: "ask", bid_spot: "bid" },
+  "exchange.suppliers": { is_active: "enabled" },
+  "exchange.carriers": { is_active: "enabled" },
+  "exchange.purchase_orders": {
+    purchase_order_status: "status", order_number: "number", offer_notes: "notes",
+    total_price: "offer_amount", offer_expires_at: "offer_expiration", address_id: "-",
+  },
+  "exchange.sales_orders": {
+    sales_order_status: "status", order_number: "number", supplier_id: "refinery_id",
+    order_total: "total", item_total: "items", shipping_cost: "shipping",
+    charges_amount: "surcharge", pre_charges_amount: "funds", address_id: "-",
+  },
+  "exchange.purchase_order_items": { purchase_order_id: "order_id", product_id: "bullion_id", scrap_id: "-" },
+  "exchange.sales_order_items": { sales_order_id: "order_id", product_id: "bullion_id", sales_tax_rate: "sales_tax_charged" },
+  "exchange.scrap": { gross_unit: "unit", gem_id: "-" },
+  "exchange.order_metals": { type: "metal_id", ask_spot: "ask", bid_spot: "bid", purchase_order_id: "order_id", sales_order_id: "order_id" },
+  "exchange.refiner_metals": { type: "metal_id", ask_spot: "ask", bid_spot: "bid", purchase_order_id: "order_id", sales_order_id: "order_id" },
+  // An address splits in two: the postal address itself, which has no owner,
+  // and places.user_addresses, which is a person's relationship to it. That is
+  // why an order can snapshot an address without copying whose it was. These
+  // three were previously declared dropped, which was wrong - they relocated.
+  // is_default became two columns, since a shipping default and a billing
+  // default are not the same fact.
+  "exchange.addresses": {
+    user_id: "user_id",
+    name: "label",
+    is_default: "default_shipping",
+  },
+  // A shipment keeps its id but loses its direct link to the order: that moves
+  // to fulfillments.fulfillments.order_id, one row per order. Verified against
+  // the data - all 17 copied shipments agree on the renamed columns.
+  "exchange.shipments": {
+    estimated_delivery: "est_delivery",
+    shipping_label: "label",
+    net_charge: "cost",
+    type: "direction",
+    service_type: "carrier_service_id",
+    package: "package_id",
+    carrier_id: "-",
+    purchase_order_id: "-",
+    sales_order_id: "-",
+  },
+  "exchange.tracking_events": { scan_time: "time" },
+  // Resolved now that shipping.services and shipping.packages are seeded. A
+  // shipment names its service and its box as text; the new schema references
+  // them, resolved by (carrier, name) and (carrier, label). The carrier itself
+  // is then reachable through the service, so it needs no column of its own.
+  // payments is not a reshaping of exchange - it is a different model with no
+  // shared ids and a different granularity, so these are not renames and are
+  // deliberately not declared as such. Left reported so the gap stays visible.
+  "exchange.carrier_pickups": { order_id: "-", carrier: "-", pickup_requested_at: "requested_at", pickup_status: "status" },
+};
+
+// Columns deliberately not carried across, with the reason. Distinct from a
+// rename: these hold data that was reviewed and judged not worth moving. Listed
+// so the report shows real gaps rather than decisions already taken - a report
+// that cries wolf is one people stop reading.
+export const DELIBERATE = {
+  "exchange.metals.scrap_percentage":
+    "rate tiering moved to rates.rates, which supersedes a single percentage per metal",
+  "exchange.metals.bullion_percentage": "same",
+};
+
+// Columns whose destination exists but is itself blocked on a decision. They
+// are real gaps, not decisions taken, so they are reported - but reported as
+// blocked, because adding a column for them now would prejudge the answer.
+export const BLOCKED = {};
+
+// Value flows the backfills perform that are not ownership mappings.
+//
+// FEATURES answers "where does this table's data live now", which is what
+// coverage needs. It is the wrong question for precision, because a value can
+// land in a table that does not own it. orders.items takes its weights and
+// assay from whichever of exchange.scrap or exchange.products the line points
+// at - `coalesce(s.purity, pr.purity)` in 031_backfill_orders.sql - and a
+// product plainly does not become an order line, so exchange.products is not
+// listed under orders in FEATURES and never will be.
+//
+// That omission is exactly how the .9999 rounding survived every check: the
+// scrap side declares purity numeric(4,3) and orders.items matched it, so the
+// only pair anyone compared agreed. The product side, which is unconstrained,
+// was never compared to anything.
+//
+//   source table -> target table -> { source column: target column(s) }
+export const FLOWS = {
+  orders: {
+    "exchange.products": {
+      "orders.items": {
+        gross: "pre_melt",
+        content: ["post_melt", "content"],
+        purity: "purity",
+      },
+    },
+  },
+};
