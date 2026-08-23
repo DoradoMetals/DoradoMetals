@@ -370,6 +370,54 @@ Also: **there are eighteen new schemas, not the sixteen CLAUDE.md lists.**
 map — so neither audit had been checking a feature that was already built. Now
 declared; it added zero coverage gaps and two more type comparisons.
 
+### RESOLVED: auctions is retired; carts become checkout
+
+Jacob, 2026-08-23: "Carts is fine to remove as well, simply because we don't
+care enough about it. It's not data that we NEED to keep. Auctions are going
+away, fine to just delete the table/feature in this migration." Then, correcting
+my reading: "Carts are going to become checkout in the migration."
+
+**Auctions: done.** 067 drops the `auctions` schema. Both its tables were empty
+in dev and production, nothing referenced them from outside the schema, and
+there is no auctions feature in the API at all — no routes, no service, no repo.
+The only mention anywhere in the codebase was a generated column type in
+contracts, which regenerates.
+
+**`exchange.auctions` and `exchange.auction_items` are deliberately left
+alone** — one draft auction and two items in production. Dropping tables from
+`exchange` is the one irreversible step in this project, the `pg_dump` is the
+sole copy, and three rows cost nothing to keep. Removing them from `exchange` is
+a separate dated decision, best taken after promotion alongside the plaintext
+bank columns. They are declared in `audit-coverage`'s `NOT_A_FEATURE` so the
+report stays honest rather than silent.
+
+**Carts: not removed — migrated.** The tables and the feature stay exactly as
+they are, because `features/carts` is live: the frontend syncs the cart to the
+backend on sign-in (`frontend/features/auth/queries.ts:43`) and calls
+`/cart/sync_cart`, `/cart/sync_sell_cart`, `/cart/get_cart` and
+`/cart/get_sell_cart`. Dropping those tables would break sign-in and the store.
+"Not data we NEED to keep" applies to the *rows*, which are transient.
+
+The target shape is worth writing down, because January's `checkout.checkouts`
+is not a cart:
+
+| | |
+|---|---|
+| `exchange.carts` | `id, user_id` |
+| `exchange.sell_carts` | `id, user_id` |
+| `checkout.checkouts` | `id, user_id, direction, payment_method_id, payment_details_id, fulfillment_method_id, appointment_location_id, pickup_address_id, shipper_address_id, recipient_address_id, carrier_service_id, package_id, appointment_time` |
+
+That is a **checkout session**, not a basket — it carries the payment method,
+the fulfilment method, the addresses, the carrier service and an appointment
+time. So the mapping is one table with a `direction` discriminator, exactly like
+`orders.orders`: `carts` → `sale`, `sell_carts` → `purchase`, and both item
+tables → `checkout.items`, which has the same flattened shape as `orders.items`.
+
+**Open for Jacob:** that reading of `direction` is mine, not his. If a checkout
+session is meant to be created at checkout time rather than being the cart
+itself, the mapping is different and the cart wants its own table. Worth one
+sentence from him before the repo is split.
+
 ### RESOLVED: the orders.items columns, and what happened to each
 
 Jacob's call, 2026-08-23: rebuild. Done — `orders.items` is 15 columns, down

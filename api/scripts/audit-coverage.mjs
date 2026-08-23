@@ -143,6 +143,12 @@ for (const [feature, sources] of Object.entries(features)) {
 // has not been.
 const NOT_A_FEATURE = {
   schema_migrations: "the migration ledger itself; it stays in exchange by design",
+  // Jacob, 2026-08-23: auctions are going away. 067 removed the schema from the
+  // new design. The exchange tables are left alone - one draft auction and two
+  // items - because dropping from exchange is the one irreversible step and
+  // gains nothing. See FOLLOWUPS.
+  auctions: "retired, not migrated; the new-schema tables are gone (067)",
+  auction_items: "same",
   account: "better-auth's, and auth owns its own cutover - see FOLLOWUPS",
   session: "same",
   verification: "same",

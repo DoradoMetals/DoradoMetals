@@ -1,0 +1,28 @@
+-- Auctions do not come across.
+--
+-- Jacob, 2026-08-23: "Auctions are going away, fine to just delete the
+-- table/feature in this migration."
+--
+-- Both tables in the auctions schema are empty, in dev and in production, and
+-- nothing references them from outside the schema - the only foreign keys are
+-- between themselves and one to products.bullion. There is no auctions feature
+-- in the API: no routes, no service, no repo, and the sole mention anywhere in
+-- the codebase is a generated column type in contracts, which regenerates.
+--
+-- What is NOT dropped here is exchange.auctions and exchange.auction_items.
+-- Production holds one auction, status 'draft', and two items. Dropping tables
+-- from exchange is the only irreversible step in this whole project, the
+-- pg_dump is the sole copy, and there is nothing to gain from doing it now -
+-- three rows cost nothing to leave alone. Retiring the feature from the new
+-- schema is what this migration is for; removing it from exchange is a separate,
+-- dated decision, best taken after promotion alongside the plaintext bank
+-- columns. Recorded in FOLLOWUPS.
+--
+-- Destructive to the new schema only, and to empty tables. exchange is untouched.
+
+-- CASCADE because the two tables reference each other, so neither can be
+-- dropped first. It is scoped to the schema and safe here for the reason above:
+-- no foreign key points INTO auctions from anywhere else. The one key that
+-- crosses schemas goes the other way, auctions.items -> products.bullion, so
+-- products is not touched.
+DROP SCHEMA IF EXISTS auctions CASCADE;
