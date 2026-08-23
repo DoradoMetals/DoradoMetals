@@ -134,6 +134,50 @@ shared `calculateTotalPrice`; `generatePackingList` reduced the items inline
 with different premium handling. That is the whole reason the two documents
 disagreed. The duplicate is gone.
 
+### The refiner was emailed before the order was recorded
+
+`sendOrderToSupplier` sent the refiner their copy of the order — with the
+invoice PDF attached — as the **first** statement inside a `withTransaction`
+block, followed by three writes: attaching the supplier, creating the outbound
+shipment, and marking the order sent.
+
+If any of those three failed, the transaction rolled back and the email had
+already gone. For a sales order that means the refiner ships metal to the
+customer, against an order with no supplier attached, no outbound shipment, and
+no record of ever having been sent.
+
+Both orderings can fail and they are not equally bad. The record now commits
+first and the email goes second, so the worst case is an order marked sent whose
+email did not arrive — nobody acts on that, and an admin can resend. The other
+way round, metal leaves the building against a record that was rolled back.
+
+This is a behaviour change worth knowing about: a failed send no longer rolls
+back the order. That is the point.
+
+### features/emails now has a seam, and tests
+
+`sendEmail` built its transport at module load from the environment, so calling
+it sent real mail and importing it opened an SMTP connection — in tests and
+one-off scripts too. It is now built lazily on first use, the same way
+`render/browser.js` launches Chromium, and takes an optional `transport` the way
+a repo call takes an `executor`.
+
+`transport` is a separate positional parameter rather than a field on the input
+object, deliberately: the controllers hand `req.body` straight to the service, so
+a field would be reachable from the request.
+
+Five tests, all proved to fail first — misrouting the refiner's copy to the
+customer fails one, swallowing a transport error fails another. They assert the
+things that would be invisible otherwise: that the attachment is named for the
+order it belongs to, that it really is PDF bytes, that a send failure propagates
+rather than being reported as success, and that nothing goes out when the
+document cannot be built.
+
+Also fixed: `sendCreatedEmail` passed `payoutDetails` on to
+`generatePackingList`, which does not accept it — the packing list reads the fee
+off `purchaseOrder.payout.cost`. It is still accepted as an input because the
+frontend sends it, and dropping a field from a request body is a wire change.
+
 ### Building the PDF and printing it are now separate
 
 Each generator ended in `return renderPdf(htmlContent)`, so the only way to

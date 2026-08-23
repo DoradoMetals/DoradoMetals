@@ -177,13 +177,19 @@ export async function sendOrderToSupplier({ order, spots, supplier_id }) {
   const sales_order = await getById(order.id);
   const supplier = await supplierRepo.getSupplierFromId(supplier_id);
 
+  // The record first, the email second.
+  //
+  // The send used to be the first statement inside this transaction, so if any
+  // of the three writes below failed the transaction rolled back and the
+  // refiner had already been sent the order and its invoice. For a sales order
+  // that means they ship metal to the customer - against an order with no
+  // supplier attached, no outbound shipment and no record of having been sent.
+  //
+  // Both orderings can fail; they are not equally bad. This way the worst case
+  // is an order marked sent whose email did not arrive, which nobody acts on
+  // and an admin can resend. The other way round, metal leaves the building
+  // against a record that was rolled back.
   await withTransaction(async (client) => {
-    await emailService.sendSalesOrderToSupplier(
-      sales_order,
-      spots,
-      supplier.email
-    );
-
     await salesOrderRepo.attachSupplierToOrder(
       sales_order.id,
       supplier_id,
@@ -197,6 +203,12 @@ export async function sendOrderToSupplier({ order, spots, supplier_id }) {
 
     await salesOrderRepo.updateOrderSent(sales_order.id, client);
   });
+
+  await emailService.sendSalesOrderToSupplier(
+    sales_order,
+    spots,
+    supplier.email
+  );
 
   return await getById(sales_order.id);
 }

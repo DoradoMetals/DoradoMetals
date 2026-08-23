@@ -12,17 +12,23 @@ import {
   formatSalesOrderNumber,
 } from "#shared/utils/formatOrderNumbers.js";
 
-export async function sendCreatedEmail({
-  purchaseOrder,
-  spotPrices,
-  packageDetails,
-  payoutDetails,
-}) {
+// `transport` is a separate parameter, not a field on the input object: the
+// controller passes req.body as the input, so a field would be reachable from
+// the request. In production nothing passes one and the shared transport is
+// used. See utils/sendEmail.js.
+//
+// payoutDetails used to be passed on to generatePackingList, which does not
+// accept it - the packing list reads the fee off purchaseOrder.payout.cost. It
+// is still accepted here because the frontend sends it, and dropping a field
+// from a request body is a wire change.
+export async function sendCreatedEmail(
+  { purchaseOrder, spotPrices, packageDetails },
+  transport
+) {
   const pdfBuffer = await pdfService.generatePackingList({
     purchaseOrder,
     spotPrices,
     packageDetails,
-    payoutDetails,
   });
 
   await sendEmail({
@@ -41,15 +47,13 @@ export async function sendCreatedEmail({
         contentType: "application/pdf",
       },
     ],
-  });
+  }, transport);
 }
 
-export async function sendAcceptedEmail({
-  order,
-  order_spots,
-  spot_prices,
-  email,
-}) {
+export async function sendAcceptedEmail(
+  { order, order_spots, spot_prices, email },
+  transport
+) {
   let pdfBuffer;
   try {
     pdfBuffer = await pdfService.generateInvoice({
@@ -81,10 +85,10 @@ export async function sendAcceptedEmail({
         contentType: "application/pdf",
       },
     ],
-  });
+  }, transport);
 }
 
-export async function sendSalesOrderToSupplier(order, spots, email) {
+export async function sendSalesOrderToSupplier(order, spots, email, transport) {
   let pdfBuffer;
   try {
     pdfBuffer = await pdfService.generateSalesOrderInvoice({
@@ -115,5 +119,5 @@ export async function sendSalesOrderToSupplier(order, spots, email) {
         contentType: "application/pdf",
       },
     ],
-  });
+  }, transport);
 }
