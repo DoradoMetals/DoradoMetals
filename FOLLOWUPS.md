@@ -134,6 +134,25 @@ shared `calculateTotalPrice`; `generatePackingList` reduced the items inline
 with different premium handling. That is the whole reason the two documents
 disagreed. The duplicate is gone.
 
+### Products and orders were the two features nothing validated
+
+Both now have contracts, and `validate:wire` went from **23 shapes to 36**, all
+checked against both implementations.
+
+Products is the one the frontend leans on hardest — every price on the site
+derives from those numbers — and it had nothing. The contract is deliberately
+not the `products.bullion` row: the read joins the mint and the metal and
+projects a flat shape, so `mint_name` and `metal_type` are joined in and
+`metal_id`, `mint_id`, `supplier_id`, `stock`, `quantity`, `display` and the
+audit columns are not returned at all. Three columns are renamed by the new
+schema and `repo.next` aliases them back, which is precisely why checking both
+implementations matters: dropping that alias fails `[next]` on both product
+shapes while `[exchange]` still passes.
+
+`getAllProducts` and `getSellProducts` are both registered rather than assuming
+one covers the other — a sell-only product has no slug, so the sell read returns
+rows the catalogue read does not.
+
 ### Orders had no wire contract, and were the only feature checked one way
 
 `validate:wire` covered 23 shapes. Orders was not one of them: three nested

@@ -95,6 +95,14 @@ await bothWays("GET /addresses", c.AddressWire, "addresses", (m) =>
 await bothWays("GET /images", c.ImageWire, "media", (m) => m.getTestImages());
 add("GET /users", c.UserWire, () => users.getAllUsers());
 
+// The catalogue. The other feature that had no contract, and one the frontend
+// leans on hardest - every price on the site is derived from these numbers.
+// getSellProducts returns rows getAllProducts does not, because a sell-only
+// product has no slug, so both are checked rather than assuming one covers the
+// other.
+await bothWays("GET /products", c.ProductWire, "products", (m) => m.getAllProducts());
+await bothWays("GET /products (sell)", c.ProductWire, "products", (m) => m.getSellProducts());
+
 // Orders. The largest surface here and, until now, the only feature checked
 // against exchange alone - everything else goes through bothWays and proves
 // repo.next returns the same shape. That is the wrong way round: orders is the
