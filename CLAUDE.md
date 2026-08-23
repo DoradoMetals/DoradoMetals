@@ -56,11 +56,21 @@ packages/contracts/  @dorado/contracts  zod schemas shared by both
 ## Two things to know before touching the database
 
 **There are two schema designs in the same database.** `exchange` is one flat
-schema serving all traffic. Sixteen domain-namespaced schemas — `orders`,
+schema serving all traffic. **Eighteen** domain-namespaced schemas — `orders`,
 `payments`, `fulfillments`, `shipping`, `refiners`, `tax`, `places`, `auth`,
 `products`, `organizations`, `metals`, `spots`, `media`, `leads`, `rates`,
-`reviews` — were built in a January 2026 refactor abandoned at 3 of 24 features,
-and are being migrated to one at a time. Use the `migrate-feature-schema` skill.
+`reviews`, `checkout`, `auctions` — were built in a January 2026 refactor
+abandoned at 3 of 24 features, and are being migrated to one at a time. Use the
+`migrate-feature-schema` skill.
+
+`checkout` and `auctions` were missing from this list until August 2026, and
+with them the carts. `exchange.carts`, `cart_items`, `sell_carts`,
+`sell_cart_items`, `auctions` and `auction_items` all hold production rows —
+`sell_carts` has 65 — and none was counted among the features. Neither was
+`exchange.account_transactions`: **a customer credit ledger, 17 rows, 8
+customers, $66,999.32, with no destination in any of the eighteen.**
+`audit:coverage` now reports every exchange table no feature claims, so this
+cannot go unnoticed again.
 
 **Thirteen features are migrated and none is promoted.** leads, rates, reviews,
 sales-tax, spots+metals, media, suppliers, carriers, products, mints,

@@ -33,6 +33,11 @@ export const FEATURES = {
   },
   shipping: {
     "exchange.shipments": ["shipping.shipments", "fulfillments.shipments"],
+    // Migrated behind SERVICES_SOURCE this session and never declared here, so
+    // neither audit had been looking at it. Three columns are pluralised or
+    // shortened by the new schema; repo.next.js aliases them back, which is why
+    // the wire shape is unchanged.
+    "exchange.carrier_services": ["shipping.services"],
     "exchange.tracking_events": ["shipping.tracking"],
     "exchange.carrier_pickups": ["shipping.pickups", "fulfillments.pickups"],
   },
@@ -92,6 +97,11 @@ export const RENAMES = {
     sales_order_id: "-",
   },
   "exchange.tracking_events": { scan_time: "time" },
+  "exchange.carrier_services": {
+    supports_pickup: "supports_pickups",
+    supports_dropoff: "supports_dropoffs",
+    max_weight_lbs: "max_weight_lb",
+  },
   // Resolved now that shipping.services and shipping.packages are seeded. A
   // shipment names its service and its box as text; the new schema references
   // them, resolved by (carrier, name) and (carrier, label). The carrier itself

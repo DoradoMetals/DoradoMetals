@@ -46,6 +46,22 @@ import { FEATURES, RENAMES, DELIBERATE, BLOCKED } from "./lib/feature-map.mjs";
 
 const q = async (sql, params = []) => (await pool.query(sql, params)).rows;
 
+// Shape questions go to dev; "how many rows" goes to whichever database is
+// under audit, for the same reason the column population counts do.
+// Returns null when the table does not exist in the database under audit.
+// Production and dev do not hold exactly the same set of exchange tables, and a
+// table only dev has is not a reason for the whole audit to abort.
+const countIn = async (table) => {
+  const client = prod ?? pool;
+  try {
+    const { rows } = await client.query(`SELECT count(*)::int AS n FROM ${table}`);
+    return rows[0].n;
+  } catch (err) {
+    if (err.code === "42P01") return null;
+    throw err;
+  }
+};
+
 // The feature name is the first argument that is not a flag.
 const only = process.argv.slice(2).find((a) => !a.startsWith("--"));
 const features = only ? { [only]: FEATURES[only] } : FEATURES;
@@ -114,6 +130,57 @@ for (const [feature, sources] of Object.entries(features)) {
   }
 }
 
+// Whole tables no feature claims.
+//
+// Everything above walks the feature map, so it can only report on tables
+// somebody already thought about. A table missing from the map entirely is
+// invisible to it - and eleven populated ones were, including
+// exchange.account_transactions: a customer credit ledger, seventeen rows
+// across eight customers totalling $66,999.32 in production, tied to purchase
+// and sales orders, with no destination anywhere in the new schema.
+//
+// The map is the source of truth for what has been decided. This reports what
+// has not been.
+const NOT_A_FEATURE = {
+  schema_migrations: "the migration ledger itself; it stays in exchange by design",
+  account: "better-auth's, and auth owns its own cutover - see FOLLOWUPS",
+  session: "same",
+  verification: "same",
+};
+
+const declaredSources = new Set(
+  Object.values(FEATURES).flatMap((f) => Object.keys(f))
+);
+const allTables = await q(
+  `SELECT c.relname AS name FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'exchange' AND c.relkind = 'r' ORDER BY 1`
+);
+
+const undeclared = [];
+for (const { name } of allTables) {
+  if (declaredSources.has(`exchange.${name}`)) continue;
+  const n = await countIn(`exchange."${name}"`);
+  if (n === null) {
+    undeclared.push({ name, n: null, why: `not present in ${useProd ? "production" : "dev"}` });
+    continue;
+  }
+  if (n === 0) continue;
+  undeclared.push({ name, n, why: NOT_A_FEATURE[name] });
+}
+
+const unexplained = undeclared.filter((t) => !t.why);
+if (undeclared.length) {
+  console.log(`\n=== tables no feature claims ===`);
+  for (const t of undeclared) {
+    console.log(
+      `   exchange.${t.name}`.padEnd(52) +
+        `${t.n === null ? "-" : t.n} rows` +
+        (t.why ? `   (${t.why})` : `   UNDECLARED`)
+    );
+  }
+}
+
 console.log(
   gaps
     ? `\n${gaps} populated column(s) with no home in the new schema` +
@@ -121,6 +188,13 @@ console.log(
     : `\nevery populated column has somewhere to go` +
         `  (population counted against ${useProd ? "PRODUCTION" : "dev"})`
 );
+
+if (unexplained.length) {
+  console.log(
+    `${unexplained.length} populated table(s) that no feature declares at all: ` +
+      unexplained.map((t) => t.name).join(", ")
+  );
+}
 
 if (!useProd) {
   console.log("re-run with --prod to count against production, where dev's nulls prove nothing");

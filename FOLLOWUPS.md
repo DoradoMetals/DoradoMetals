@@ -40,6 +40,125 @@ derived and must be written as literals:
 Worth doing as one seed migration, taking the values from dev. Until then a
 production database would have the tables and none of these rows.
 
+### orders.items was rounding .9999 fine gold to 1.000 — fixed, and the class of bug now has a check
+
+Jacob noticed `orders.items` had far too many columns. Chasing that found a live
+data-corruption bug underneath it, which is worth recording separately from the
+column question because they are different problems.
+
+`exchange.products` declares `content`, `gross`, `purity`, `premium` and
+`quantity` as unconstrained `numeric`. `orders.items` declared `purity
+numeric(4,3)` and the weights `numeric(20,3)`. The backfill feeds it from
+whichever of scrap or the product a line points at — `coalesce(s.purity,
+pr.purity)` in 031 — so everything arriving from the product side was rounded as
+it was stored. A .9999 fine gold coin was recorded at a purity of 1.000, which
+does not exist. **Three order lines in dev were already wrong; eighteen products
+in production would do the same on their next order**, plus seven `gross` and
+four `content`.
+
+Three checks looked straight at this and none could see it:
+
+- `verify:parity` does not cover orders at all. `orders.items` is a merge of two
+  exchange tables, not a one-to-one pair, so there is no pair to compare.
+- `audit:coverage` found a target column of the right name and passed. It asks
+  whether a column has somewhere to go, never whether what it lands in can hold
+  the value.
+- the scrap side agrees exactly — `exchange.scrap` declares the same narrow
+  types — so the one pair anyone had reason to compare was already fine. The
+  product side is a *value flow* rather than an ownership mapping, so it
+  appeared in no map at all.
+
+`audit:precision` now casts every source value into the type of the column it
+lands in and counts what changes. It shares `audit:coverage`'s map, extracted to
+`scripts/lib/feature-map.mjs`, and adds a `FLOWS` map for values that land in a
+table which does not own them. Proved it fails on the known case before trusting
+it. 058 widens the columns; 059 re-stores every row so dev carries the same
+scale a fresh build produces.
+
+`checkout.items` had the identical declaration and is still empty; widened too,
+so the same bug is not waiting there.
+
+### verify:genesis never read the file it verifies
+
+Separate defect, found because the fix above did not reach the committed
+genesis. `verify-genesis.mjs` built its comparison schema from
+`dump-schema.mjs --stdout` — a live regeneration from dev — so it proved the
+*generator* reproduces dev and never once read `000_genesis_schema.sql`. After
+058, dev was correct, the generator emitted the correct types, the check said
+"identical to dev", and the committed file still declared `numeric(4,3)`.
+
+**Production is built from the committed file.** None of the widening would have
+reached it. The check now compares the committed file too, and that was proved
+to fail before being trusted.
+
+### FOR JACOB: seven populated exchange tables that no feature claims
+
+`audit:coverage` walked the feature map, so it could only ever report on tables
+somebody had already thought about. A table missing from the map was invisible.
+It now reports them, and there are seven:
+
+| table | dev | production |
+|---|---|---|
+| `account_transactions` | 19 | **17** |
+| `carts` / `cart_items` | 8 / 4 | 16 / 3 |
+| `sell_carts` / `sell_cart_items` | 8 / 2 | **65 / 27** |
+| `auctions` / `auction_items` | 1 / 10 | 1 / 2 |
+
+`exchange.account_transactions` is the one that matters: **17 rows, 8 customers,
+$66,999.32, dated June 2025 to January 2026, tied to purchase and sales orders.**
+A customer credit ledger. It has no destination in any of the eighteen new
+schemas, and `features/users`'s `adjustUserCredit` is presumably what writes it.
+If `exchange` were ever retired it would go with it.
+
+The carts and auctions have targets — `checkout.carts` / `checkout.items` and
+`auctions.items` exist and are empty — they were simply never migrated and never
+counted among the seventeen features. `sell_carts` at 65 production rows is not
+negligible.
+
+Also: **there are eighteen new schemas, not the sixteen CLAUDE.md lists.**
+`auctions` and `checkout` are absent from that list.
+
+`exchange.carrier_services` was an eighth. It turned out to be fully covered by
+`shipping.services`, which was migrated this session and never declared in the
+map — so neither audit had been checking a feature that was already built. Now
+declared; it added zero coverage gaps and two more type comparisons.
+
+### FOR JACOB: the orders.items columns, and the one fork I did not take
+
+The six extra columns on `orders.items` came from migration 033, mine, not from
+January. Findings on each:
+
+- **`price` stays.** All 20 production lines that cannot be re-derived from
+  `content × bid_spot × premium` are scrap lines, and `exchange.scrap.content` is
+  `numeric(20,3)` *at source* — the precision was lost in exchange long ago, and
+  `price` is the only surviving record of it. Product lines all reproduce
+  exactly. 62 of 82 reproduce; the 20 that do not are exactly the scrap ones.
+- **`bid_premium` is vestigial.** 0.75 on 17 of 20 populated rows — the hardcoded
+  default in `features/scrap/repo.js:77` — and 0.75 on all four rows where it
+  disagrees with `premium`. But the app maintains it on its own write path, and
+  collapsing it into `premium` would change four returned values, which `diff`
+  would correctly flag. That is a product decision, not a schema one.
+- **`refiner_premium`, `purity_actual`, `post_melt_actual`, `content_actual`
+  belong on `refiners.items`**, as Jacob said — that is what `order_item_id` is
+  for. Production's January rows already implement it correctly: `purity` equals
+  `purity_actual` on all 38 rows that have one, and `premium` equals
+  `refiner_premium` on 61 of 62. Dev's copy is the stale one.
+
+**The fork I did not take.** No migration has ever inserted into
+`refiners.items` — its 40 dev rows and 80 production rows are January residue,
+which is exactly why `audit:coverage` reports those four columns as homeless: in
+this migration they genuinely are. Completing the relocation means moving
+`refiners.items` out of `verify-backfill`'s `NOT_REBUILT`, which forces a
+keep-or-delete decision on those rows. `refiner_id` is `NOT NULL`, a single
+constant across all 80 production rows, and `exchange` never records which
+refiner a line went to — the same situation CLAUDE.md already resolved for
+`refinery_id` by leaving it null.
+
+So the decision is: **do the January `refiners.items` rows get rebuilt from
+exchange, or preserved?** Nothing is lost either way — every value except the
+constant `refiner_id` is derivable from `exchange` — but it is the same class of
+judgement that produced two retractions in this session, so it is yours.
+
 ### Payments: half unblocked, and the ledger is wrong independent of any migration
 
 The Stripe export landed 2026-08-22 and settled the question of where the truth
