@@ -81,7 +81,7 @@ const TABLES = [
   {
     name: "payments.intents",
     key: "id",
-    cols: "id, order_id, method_id, amount_expected, status",
+    cols: "id, order_id, method_id, amount_expected, status, session_id, user_id, type",
   },
   {
     name: "payments.attempts",

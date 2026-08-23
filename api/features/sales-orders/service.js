@@ -3,7 +3,7 @@ import { auth } from "#features/auth/client.js";
 import { fromNodeHeaders } from "better-auth/node";
 
 import * as salesOrderRepo from "#features/sales-orders/repo.js";
-import * as stripeRepo from "#features/stripe/repo.js";
+import * as stripeRepo from "#features/payments/repo.js";
 import * as transactionsRepo from "#features/transactions/repo.js";
 import * as shipmentRepo from "#features/shipping/shipments/repo.js";
 import * as supplierRepo from "#features/suppliers/repo.js";

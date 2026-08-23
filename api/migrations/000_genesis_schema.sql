@@ -678,7 +678,10 @@ CREATE TABLE IF NOT EXISTS payments.intents (
   created_by text,
   updated_by text,
   created_by_id uuid,
-  updated_by_id uuid
+  updated_by_id uuid,
+  session_id uuid,
+  user_id uuid,
+  type text
 );
 ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS order_id uuid;
@@ -692,6 +695,9 @@ ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS created_by text;
 ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS updated_by text;
 ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS session_id uuid;
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS type text;
 
 CREATE TABLE IF NOT EXISTS payments.ledger (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -3054,6 +3060,7 @@ CREATE INDEX IF NOT EXISTS attempts_status_idx ON payments.attempts USING btree 
 CREATE INDEX IF NOT EXISTS details_method_idx ON payments.details USING btree (method_id);
 CREATE INDEX IF NOT EXISTS details_user_idx ON payments.details USING btree (user_id);
 CREATE INDEX IF NOT EXISTS details_user_method_idx ON payments.details USING btree (user_id, method_id);
+CREATE INDEX IF NOT EXISTS idx_intents_session_user_type ON payments.intents USING btree (session_id, user_id, type);
 CREATE INDEX IF NOT EXISTS idx_payments_intents_details_id ON payments.intents USING btree (details_id);
 CREATE INDEX IF NOT EXISTS intents_method_idx ON payments.intents USING btree (method_id);
 CREATE INDEX IF NOT EXISTS intents_order_idx ON payments.intents USING btree (order_id);

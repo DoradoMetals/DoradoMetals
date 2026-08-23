@@ -1,5 +1,5 @@
-import stripeClient from "#features/stripe/client.js";
-import * as stripeRepo from "#features/stripe/repo.js";
+import stripeClient from "#providers/stripe/client.js";
+import * as stripeRepo from "#features/payments/repo.js";
 import * as productService from "#features/products/service.js";
 import * as addressService from "#features/addresses/service.js";
 import * as taxService from "#features/sales-tax/service.js";

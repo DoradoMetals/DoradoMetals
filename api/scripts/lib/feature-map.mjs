@@ -144,9 +144,14 @@ export const RENAMES = {
     amount: "amount_expected",
     amount_received: "settled_amount",
     method_type: "method_id",
-    user_id: "-",
-    session_id: "-",
-    type: "-",
+    // These three were declared dropped by 074 and that was wrong: they are what
+    // retrievePaymentIntent keys on when it decides whether to reuse a Stripe
+    // intent. 075 gave them columns. Declaring a column dropped because nothing
+    // obvious reads it is only safe once something has looked at the CODE, not
+    // just the data.
+    user_id: "user_id",
+    session_id: "session_id",
+    type: "type",
     routing: "-",
     bank_account_type: "-",
     amount_capturable: "-",

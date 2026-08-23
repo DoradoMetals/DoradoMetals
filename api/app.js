@@ -19,7 +19,7 @@ import checkoutRoutes from "#features/checkout/routes.js";
 import pdfRoutes from "#features/pdf/routes.js";
 import reviewRoutes from "#features/reviews/routes.js";
 import emailRoutes from "#features/emails/routes.js";
-import stripeRoutes from "#features/stripe/routes.js";
+import paymentRoutes from "#features/payments/routes.js";
 import spotRoutes from "#features/spots/routes.js";
 import transactionRoutes from "#features/transactions/routes.js";
 import salesOrderRoutes from "#features/sales-orders/routes.js";
@@ -37,7 +37,7 @@ import carrierServiceRoutes from "#features/shipping/services/routes.js";
 
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "#features/auth/client.js";
-import { handleStripeWebhook } from "#features/stripe/controller.js";
+import { handleStripeWebhook } from "#features/payments/controller.js";
 import errorHandler from "#shared/middleware/errorHandler.js";
 
 const app = express();
@@ -60,7 +60,10 @@ app.all("/api/auth/*", toNodeHandler(auth));
 
 app.use(express.json());
 
-app.use("/api/stripe", stripeRoutes);
+// The route stays /api/stripe: the frontend calls it, and renaming a module
+// is not a reason to change the API. The feature is payments; the path is
+// history, and it moves when the frontend does.
+app.use("/api/stripe", paymentRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/addresses", addressRoutes);
 // The route stays /api/cart: the frontend calls it and renaming the module is

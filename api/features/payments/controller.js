@@ -1,6 +1,6 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import stripeClient from "#features/stripe/client.js"
-import * as stripeService from "#features/stripe/service.js"
+import stripeClient from "#providers/stripe/client.js"
+import * as stripeService from "#features/payments/service.js"
 
 export const handleStripeWebhook = asyncHandler(async (req, res) => {
   const sig = req.headers["stripe-signature"];

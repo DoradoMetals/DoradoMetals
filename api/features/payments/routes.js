@@ -4,7 +4,7 @@ import {
   updatePaymentIntent,
   getPaymentIntentFromSalesOrderId,
   cancelPaymentIntent,
-} from "#features/stripe/controller.js";
+} from "#features/payments/controller.js";
 
 import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.js";
 
