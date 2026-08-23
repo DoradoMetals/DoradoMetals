@@ -6,7 +6,7 @@ import query from "#shared/db/query.js";
 
 const FIELDS = `
     id, user_id, bucket, mime_type, size_bytes, width, height,
-    checksum_sha256, metadata, created_at, path, filename
+    checksum_sha256 AS checksum, metadata, created_at, path, filename
 `;
 
 export async function insertImage(

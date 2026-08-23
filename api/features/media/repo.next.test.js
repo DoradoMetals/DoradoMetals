@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as media from "#features/media/repo.next.js";
+import { toLegacy } from "#features/media/wire.js";
 
 let client;
 let userId;
@@ -50,12 +51,28 @@ test("insertImage returns the inserted row", async () => {
 });
 
 // media.images names the column `checksum`; exchange calls it checksum_sha256.
+// The repos return the new name now - features/media/wire.js converts down for
+// the frontend, behind MEDIA_WIRE - so this asserts the new name, and the
+// adapter half is asserted below it.
 // The reads alias it back so nothing above the repo sees the rename.
-test("reads expose checksum under the exchange column name", async () => {
+test("reads expose media.images' own column name", async () => {
   await inRollback(async (c) => {
     const img = await media.insertImage(draft(), c);
-    assert.ok("checksum_sha256" in img);
-    assert.equal("checksum" in img, false);
+    assert.ok("checksum" in img, "the repo should return the new name");
+    assert.equal("checksum_sha256" in img, false, "the legacy name should not be here");
+  });
+});
+
+test("the adapter converts it back to the name the frontend reads", async () => {
+  await inRollback(async (c) => {
+    const img = await media.insertImage(draft(), c);
+    const legacy = toLegacy(img);
+    assert.ok("checksum_sha256" in legacy);
+    assert.equal("checksum" in legacy, false, "the new name survived the conversion");
+    // A rename and nothing else.
+    for (const k of Object.keys(img).filter((k) => k !== "checksum")) {
+      assert.deepEqual(legacy[k], img[k], `${k} changed`);
+    }
   });
 });
 

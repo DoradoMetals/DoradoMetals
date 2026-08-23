@@ -64,6 +64,7 @@ const services = await import("#features/shipping/services/repo.js");
 const users = await import("#features/users/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
 const { toLegacyShape } = await import("#features/products/wire.js");
+const mediaWire = await import("#features/media/wire.js");
 
 add("GET /reviews (public)", c.ReviewWire, () => reviews.getPublicReviews());
 await bothWays("GET /carriers", c.CarrierWire, "shipping/carriers", (m) => m.getAll());
@@ -93,7 +94,12 @@ await bothWays("GET /addresses", c.AddressWire, "addresses", (m) =>
 
 // The other renaming read: media.images stores `checksum` and the wire calls it
 // `checksum_sha`.
-await bothWays("GET /images", c.ImageWire, "media", (m) => m.getTestImages());
+// Both shapes, as with products: the repos return media.images' own name and
+// the adapter converts down to what the frontend reads.
+await bothWays("GET /images", c.ImageWireNext, "media", (m) => m.getTestImages());
+await bothWays("GET /images (legacy wire)", c.ImageWire, "media", async (m) =>
+  mediaWire.toLegacy(await m.getTestImages())
+);
 add("GET /users", c.UserWire, () => users.getAllUsers());
 
 // The catalogue. The other feature that had no contract, and one the frontend
