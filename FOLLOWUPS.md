@@ -85,6 +85,35 @@ straight to `timestamptz`, which would have read them in whatever timezone the
 person applying the migration happened to have. Verified by reading the same row
 from three session timezones.
 
+**Who the seven belong to.** `audit:payments` now walks each settled charge back
+to a user through `exchange.users.stripeCustomerId`, and from there to their
+sales orders. Six of the eight resolve to a user; three tie to a specific order:
+
+| charge | amount | user | order |
+|---|---|---|---|
+| pi_3SfQTS… | $255.17 | `0c1dbd9f…` | #62 — exact |
+| pi_3RcYBY… | $64.70 | `3a4fffbb…` | #55 — exact |
+| pi_3RgCh9… | $1248.37 refunded | `148b2cc0…` | #58 ($1248.58) — within 1%, wants confirming |
+| pi_3RvkIT… | $51.78 | `289f6d31…` | their only order is #61 at $3534.53 — not a match |
+| pi_3TuK5t… | $10.00 | `422b1c08…` | no sales orders at all |
+| pi_3RcYBR… | $434.00 refunded | `3ad23094…` | no sales orders at all |
+| pi_3RcVdp… | $114.80 | — | no exchange user carries `cus_SXaL4qR7SGg8OD` |
+| pi_3RcV9l… | $0.50 | — | no exchange user carries `cus_SXaKVDtOlduH4J` |
+
+The last two are the two earliest charges on the account, both 21 June 2025, and
+per the export they belong to the same person as the `jaketjohnson97` customer —
+i.e. Jacob's own, almost certainly setting the integration up. They are the
+least interesting of the eight.
+
+The one worth a look is **pi_3RvkIT… at $51.78**, an ACH payment whose user's
+only order is $3534.53. Either a partial payment, or a charge against something
+the orders table does not describe.
+
+Amount matching is tiered deliberately: within a cent is a match, within one
+percent is reported as likely and flagged for a human, and anything beyond that
+is not claimed. A flat one-cent tolerance would have missed order #58, and a
+loose one would have claimed #61.
+
 **What is still not done.** Deriving `payments.intents` / `.attempts` /
 `.settlements` from `exchange` joined to this table. That means designing the
 transformation and replacing the 70 placeholder rows production already holds,

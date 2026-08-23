@@ -84,9 +84,89 @@ try {
     if (!agrees) console.log(`          ${amountNote}`);
   }
 
+  // ------------------------------------------------------------------ who paid
+  //
+  // A settled payment nobody can name is not actionable. exchange.users carries
+  // the Stripe customer id, so the charge can be walked back to a user, and
+  // from there to their orders - which is as far as the data goes, because only
+  // 2 of 25 intents carry an order id at all.
+  //
+  // Only user ids and order numbers are printed. Names, emails and addresses
+  // are all reachable from here and none of them is needed to act on this.
+  const customerIds = [...new Set(charges.map((c) => c.stripe_customer_id).filter(Boolean))];
+  const { rows: users } = await prod.query(
+    `SELECT id, "stripeCustomerId" AS cus FROM exchange.users WHERE "stripeCustomerId" = ANY($1)`,
+    [customerIds]
+  );
+  const userByCustomer = new Map(users.map((u) => [u.cus, u.id]));
+
+  console.log("\nwho paid, and for what:\n");
+
+  let unattributed = 0;
+  for (const c of settled) {
+    const userId = userByCustomer.get(c.stripe_customer_id) ?? null;
+    const short = (id) => `${id.slice(0, 8)}…`;
+
+    if (!userId) {
+      unattributed++;
+      console.log(`  ${c.payment_intent_id}  $${c.amount}`);
+      console.log(`          no exchange user carries ${c.stripe_customer_id}`);
+      continue;
+    }
+
+    const { rows: orders } = await prod.query(
+      `SELECT order_number, order_total, sales_order_status
+       FROM exchange.sales_orders WHERE user_id = $1 ORDER BY created_at`,
+      [userId]
+    );
+
+    // Two tiers, because the amounts do not line up exactly and pretending
+    // otherwise would either miss real matches or invent them.
+    //
+    // Stripe rounds to the cent; an order total does not. Order #58 is
+    // $1248.58 against a $1248.37 charge - 21 cents apart on twelve hundred
+    // dollars, which is a partial refund or a fee, not a different order. A
+    // flat one-cent tolerance calls that unmatched. Meanwhile $51.78 against a
+    // $3534.53 order is 98% off and is genuinely unrelated.
+    //
+    // So: within a cent is a match, within one percent is a likely match said
+    // out loud as likely, and anything else is not a match.
+    const near = (o) =>
+      o.order_total == null ? Infinity
+      : Math.abs(Number(o.order_total) - Number(c.amount)) / Math.max(Number(c.amount), 0.01);
+
+    const ranked = [...orders].sort((a, b) => near(a) - near(b));
+    const best = ranked[0];
+    const exact = best && near(best) * Number(c.amount) < 0.01;
+    const likely = best && !exact && near(best) < 0.01;
+    const match = exact || likely ? best : null;
+
+    console.log(`  ${c.payment_intent_id}  $${c.amount}  ${c.status}`);
+    if (match) {
+      const how = exact ? "->" : "~~>";
+      console.log(
+        `          user ${short(userId)}  ${how}  order #${match.order_number} ` +
+        `($${Number(match.order_total).toFixed(2)}, ${match.sales_order_status})` +
+        (likely ? `  [within 1%, not exact]` : "")
+      );
+    } else if (orders.length) {
+      unattributed++;
+      console.log(`          user ${short(userId)}  ->  ${orders.length} order(s), none matching this amount:`);
+      console.log(`          ${orders.map((o) => `#${o.order_number} $${Number(o.order_total ?? 0).toFixed(2)}`).join(", ")}`);
+    } else {
+      unattributed++;
+      console.log(`          user ${short(userId)}  ->  no sales orders at all`);
+    }
+  }
+
+  console.log(
+    `\n${settled.length - unattributed} of ${settled.length} settled payment(s) can be tied to a specific order.\n` +
+    `\`->\` is an exact amount match, \`~~>\` is within one percent and wants a human to confirm it.`
+  );
+
   // Orders are what a payment is *for*, and most intents are not attached to one.
   const linked = intents.filter((r) => r.sales_order_id || r.purchase_order_id).length;
-  console.log(`\nof production's ${intents.length} intents, ${linked} link to an order`);
+  console.log(`of production's ${intents.length} intents, ${linked} link to an order`);
 
   const unknown = charges.filter((c) => !byId.has(c.payment_intent_id)).length;
   console.log(`${unknown} intent(s) in the Stripe export have no row in exchange at all`);
