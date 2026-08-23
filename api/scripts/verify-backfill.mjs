@@ -285,6 +285,11 @@ const NOT_REBUILT = {
   "refiners.refiners": "compared through refiners.exchange_compat",
 
   "refiners.spots": "refiners is not migrated",
+  // A cart is transient. Jacob: "It's not data that we NEED to keep." On dual
+  // the next sync rewrites it in both schemas, so there is nothing to derive
+  // and nothing a rebuild should produce.
+  "checkout.checkouts": "cart contents are transient and deliberately not carried across",
+  "checkout.items": "same",
   "shipping.services": "seed data",
   "shipping.packages": "seed data",
   "organizations.organizations": "registered under its own entry",

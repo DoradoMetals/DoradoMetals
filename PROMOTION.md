@@ -163,6 +163,7 @@ reversible.
 | `SHIPPING_SHIPMENTS_SOURCE` | shipments |
 | `SHIPPING_TRACKING_SOURCE` | tracking events |
 | `TRANSACTIONS_SOURCE` | the customer credit ledger |
+| `CHECKOUT_SOURCE` | the cart, which is a checkout session |
 
 **Rollback:** set back to `exchange`, redeploy. Safe because `exchange` never
 stopped being written to. Rows written to the new schema while `dual` was on are

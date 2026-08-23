@@ -1,4 +1,9 @@
-// The cart repo, against real Postgres.
+// The exchange implementation of the checkout session, against real Postgres.
+//
+// These test exchange's own idiom - ensureCart's upsert, the scrap row a sell
+// cart line points at, and the orphan sweep - none of which the new schema has,
+// because there scrap and bullion are one table and a line carries its own
+// values. So they belong to repo.exchange rather than to the switch.
 //
 // This is the feature that took checkout down in August: two functions were
 // missing an `await`, and the failure hid behind a swallowed catch for months.
@@ -11,7 +16,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import * as repo from "#features/checkout/repo.js";
+import * as repo from "#features/checkout/repo.exchange.js";
 
 let client;
 
@@ -28,9 +33,20 @@ after(async () => {
   await pool.end();
 });
 
+
+// The scrap sweep needs the table to itself.
+//
+// deleteOrphanScrap deletes from exchange.scrap after the caller has changed
+// exchange.sell_cart_items, and `node --test` runs files in parallel - so this
+// file and repo.dual.test.js took locks on the same two tables in opposite
+// orders and deadlocked. A transaction-scoped advisory lock serialises the
+// tests that touch the sweep, across files, and is released by the rollback.
+const SCRAP_SWEEP_LOCK = 4207;
+
 async function inRollback(fn) {
   await client.query("BEGIN");
   try {
+    await client.query("SELECT pg_advisory_xact_lock($1)", [SCRAP_SWEEP_LOCK]);
     await fn(client);
   } finally {
     await client.query("ROLLBACK");

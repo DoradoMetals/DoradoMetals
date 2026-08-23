@@ -445,32 +445,51 @@ a separate dated decision, best taken after promotion alongside the plaintext
 bank columns. They are declared in `audit-coverage`'s `NOT_A_FEATURE` so the
 report stays honest rather than silent.
 
-**Carts: not removed — migrated.** The tables and the feature stay exactly as
-they are, because `features/carts` is live: the frontend syncs the cart to the
-backend on sign-in (`frontend/features/auth/queries.ts:43`) and calls
-`/cart/sync_cart`, `/cart/sync_sell_cart`, `/cart/get_cart` and
-`/cart/get_sell_cart`. Dropping those tables would break sign-in and the store.
-"Not data we NEED to keep" applies to the *rows*, which are transient.
+**Carts: not removed — migrated, and now split.** The tables and the feature
+stay, because `features/carts` was live: the frontend syncs the cart on sign-in
+(`frontend/features/auth/queries.ts:43`). "Not data we NEED to keep" applies to
+the *rows*, which are transient and deliberately not backfilled.
 
-The target shape is worth writing down, because January's `checkout.checkouts`
-is not a cart:
+It is `features/checkout` now, behind `CHECKOUT_SOURCE`. The route stays
+`/api/cart` — the frontend calls it, and renaming a module is not a reason to
+change the API.
 
-| | |
-|---|---|
-| `exchange.carts` | `id, user_id` |
-| `exchange.sell_carts` | `id, user_id` |
-| `checkout.checkouts` | `id, user_id, direction, payment_method_id, payment_details_id, fulfillment_method_id, appointment_location_id, pickup_address_id, shipper_address_id, recipient_address_id, carrier_service_id, package_id, appointment_time` |
+Two shape differences drove the design:
 
-That is a **checkout session**, not a basket — it carries the payment method,
-the fulfilment method, the addresses, the carrier service and an appointment
-time. So the mapping is one table with a `direction` discriminator, exactly like
-`orders.orders`: `carts` → `sale`, `sell_carts` → `purchase`, and both item
-tables → `checkout.items`, which has the same flattened shape as `orders.items`.
+- **The two directions become one table.** `exchange` has `carts` and
+  `sell_carts`, each `UNIQUE (user_id)`; `checkout.checkouts` has one row per
+  `(user_id, direction)`, taking the same values `orders.orders` uses. 068 adds
+  that index, or `ensureCart`'s upsert has no arbiter.
+- **Scrap and bullion are one table.** `exchange` puts a piece of scrap in
+  `exchange.scrap` and points a `sell_cart_item` at it; `checkout.items` carries
+  the values inline and `bullion_id IS NULL` is what makes a line scrap — the
+  same shape `orders.items` and `refiners.items` use. 069 adds the `content` and
+  `unit` columns January left off, both populated on every production scrap row
+  a sell cart references.
 
-**Open for Jacob:** that reading of `direction` is mine, not his. If a checkout
-session is meant to be created at checkout time rather than being the cart
-itself, the mapping is different and the cart wants its own table. Worth one
-sentence from him before the repo is split.
+That second difference is why the repo interface had to change. `exchange` hands
+out a scrap *id*; a dual write needs the *values*. So the boundary is
+`replaceCart` / `replaceSellCart` — "make this cart equal this list" — and each
+implementation does it in its own idiom. There is no shared id to mirror on, and
+none is needed: nothing outside the feature refers to a cart by id.
+
+`deleteOrphanScrap`, `scrapExists` and `insertScrapFromCartItem` have no
+new-schema equivalent by design, and stay in `repo.exchange`.
+
+**No diff entry.** The new schema is deliberately empty until `dual` writes
+populate it, so comparing reads would compare four rows against none. The dual
+tests cover equivalence instead, and both failure modes were proved: writing the
+sell cart under the wrong direction fails two, and skipping the clear before a
+replace fails one.
+
+**A deadlock, found and fixed.** `repo.dual.test.js` and
+`repo.exchange.test.js` took locks on `exchange.sell_cart_items` and
+`exchange.scrap` in opposite orders — the exchange test deletes both wholesale
+to prove the orphan sweep, the dual test inserts into them through the real sync
+path — and `node --test` runs files in parallel. It passed in isolation and
+deadlocked in the full run. Both now take a transaction-scoped advisory lock
+before touching the sweep, released by the rollback. Confirmed with two
+consecutive full runs.
 
 ### RESOLVED: the orders.items columns, and what happened to each
 

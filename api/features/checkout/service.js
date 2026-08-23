@@ -7,12 +7,8 @@ export async function getCart(user_id) {
 
 export async function syncCart(user_id, items) {
   return withTransaction(async (client) => {
-    const cart_id = await cartRepo.ensureCart(user_id, client);
-
-    await cartRepo.clearCart(cart_id, client);
-    await cartRepo.addItems(items, cart_id, client);
-
-    return 'Cart Synced';
+    await cartRepo.replaceCart(user_id, items, client);
+    return "Cart Synced";
   });
 }
 
@@ -60,38 +56,7 @@ export async function syncSellCart(user_id, cart) {
   }
 
   return withTransaction(async (client) => {
-    const cartId = await cartRepo.ensureSellCart(user_id, client);
-
-    await cartRepo.clearSellCartItems(cartId, client);
-
-    for (const item of cart) {
-      const quantity = item?.quantity || 1;
-
-      if (item?.type === "product") {
-        const productName = item?.product_name;
-        if (!productName) continue;
-
-        const productId = await cartRepo.findProductIdByName(productName, client);
-        if (!productId) continue;
-
-        await cartRepo.addSellCartProductItem(cartId, productId, quantity, client);
-      }
-
-      if (item?.type === "scrap") {
-        const scrapId = item?.data?.id || null;
-        if (!scrapId) continue;
-
-        const exists = await cartRepo.scrapExists(scrapId, client);
-        if (!exists) {
-          await cartRepo.insertScrapFromCartItem(scrapId, item.data, client);
-        }
-
-        await cartRepo.addSellCartScrapItem(cartId, scrapId, quantity, client);
-      }
-    }
-
-    await cartRepo.deleteOrphanScrap(client);
-
+    await cartRepo.replaceSellCart(user_id, cart, client);
     return "Sell Cart Synced";
   });
 }

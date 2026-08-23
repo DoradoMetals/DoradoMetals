@@ -51,6 +51,15 @@ export const FEATURES = {
   // one, and because no feature declared it, every audit walked past seventeen
   // production rows totalling $66,999.32.
   transactions: { "exchange.account_transactions": ["payments.ledger"] },
+  // A cart IS a checkout session. exchange keeps the two directions in separate
+  // tables; checkout.checkouts has one row per (user_id, direction). A scrap
+  // line's values move onto the item rather than living in exchange.scrap.
+  checkout: {
+    "exchange.carts": ["checkout.checkouts"],
+    "exchange.cart_items": ["checkout.items"],
+    "exchange.sell_carts": ["checkout.checkouts"],
+    "exchange.sell_cart_items": ["checkout.items"],
+  },
 };
 
 // Columns that moved under a different name. Recorded here so a rename is not
@@ -121,6 +130,17 @@ export const RENAMES = {
     purchase_order_id: "order_id",
     sales_order_id: "order_id",
   },
+  "exchange.cart_items": { cart_id: "checkout_id", product_id: "bullion_id" },
+  "exchange.sell_cart_items": {
+    cart_id: "checkout_id",
+    product_id: "bullion_id",
+    // The line points at a scrap row in exchange; here the values are on the
+    // item, so there is no id to carry. gross_unit is unpopulated on every
+    // production row - the unit that matters is the scrap row's, declared as a
+    // flow below.
+    scrap_id: "-",
+    gross_unit: "unit",
+  },
   "exchange.carrier_services": {
     supports_pickup: "supports_pickups",
     supports_dropoff: "supports_dropoffs",
@@ -168,6 +188,21 @@ export const BLOCKED = {};
 //
 //   source table -> target table -> { source column: target column(s) }
 export const FLOWS = {
+  // A sell cart line's weights and assay come from the scrap row it points at,
+  // which is not an ownership mapping - a piece of scrap does not become a
+  // checkout - but the values really do land there.
+  checkout: {
+    "exchange.scrap": {
+      "checkout.items": {
+        pre_melt: "pre_melt",
+        post_melt: "post_melt",
+        purity: "purity",
+        content: "content",
+        gross_unit: "unit",
+        bid_premium: "premium",
+      },
+    },
+  },
   orders: {
     "exchange.products": {
       "orders.items": {
