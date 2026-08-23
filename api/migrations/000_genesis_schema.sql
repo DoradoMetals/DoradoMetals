@@ -3081,6 +3081,52 @@ AS $function$
   END;
 $function$;
 
+CREATE OR REPLACE FUNCTION auth.mirror_user_from_exchange()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  INSERT INTO auth.users (
+    id, email, name, "createdAt", "updatedAt", "emailVerified",
+    image, role, "stripeCustomerId", dorado_funds, banned, "banReason", "banExpires"
+  )
+  VALUES (
+    NEW.id, NEW.email, NEW.name, NEW."createdAt", NEW."updatedAt", NEW."emailVerified",
+    NEW.image, NEW.role, NEW."stripeCustomerId", NEW.dorado_funds, NEW.banned, NEW."banReason", NEW."banExpires"
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email             = EXCLUDED.email,
+    name              = EXCLUDED.name,
+    "createdAt"       = EXCLUDED."createdAt",
+    "updatedAt"       = EXCLUDED."updatedAt",
+    "emailVerified"   = EXCLUDED."emailVerified",
+    image             = EXCLUDED.image,
+    role              = EXCLUDED.role,
+    "stripeCustomerId" = EXCLUDED."stripeCustomerId",
+    dorado_funds      = EXCLUDED.dorado_funds,
+    banned            = EXCLUDED.banned,
+    "banReason"       = EXCLUDED."banReason",
+    "banExpires"      = EXCLUDED."banExpires";
+
+  RETURN NEW;
+
+-- A failed mirror must never break a signup.
+--
+-- This trigger runs inside better-auth's transaction. If it raised, the user's
+-- registration would fail - and while USERS_SOURCE is `exchange`, which is the
+-- default and where it stays until someone promotes it, auth.users is not read
+-- by anything at all. A stale mirror costs nothing; a broken signup costs a
+-- customer. The warning goes to the Postgres log so the failure is findable.
+--
+-- Once promoted this trade-off inverts, and re-running the 029 backfill
+-- reconciles anything the mirror dropped.
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'auth.users mirror failed for user %: %', NEW.id, SQLERRM;
+  RETURN NEW;
+END;
+$function$;
+
 -- Views --------------------------------------------------------------
 --
 -- The compat views, which reassemble an exchange-shaped row from the

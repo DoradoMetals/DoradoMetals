@@ -1,49 +1,39 @@
-import query from "#shared/db/query.js";
+// Selects which schema the users feature reads.
+//
+//   USERS_SOURCE=exchange   (default) read exchange.users
+//   USERS_SOURCE=dual                 read auth.users, writes unchanged
+//
+// This is the auth migration, or as much of it as can be done reversibly.
+//
+// better-auth owns exchange.users, exchange.session, exchange.account and
+// exchange.verification, and writes all four through its own pool. That was
+// read as "auth cannot be migrated", and for session, account and verification
+// it still is - those move in one atomic cutover whenever that is decided, and
+// the worst case is everyone being logged out.
+//
+// users is different, because our own code reads it: getUser, getAllUsers and
+// getAdminUsers serve the admin screens and have nothing to do with
+// better-auth. Those reads can move behind a switch like any other feature, so
+// long as auth.users is kept honest - which migration 056 does with a trigger,
+// below the level better-auth operates at.
+//
+// There is deliberately no `next`, for the usual reason: it would be a one-way
+// door. There is also no dual *write*, because there is no write of ours to
+// duplicate.
+import * as exchange from "#features/users/repo.exchange.js";
+import * as dual from "#features/users/repo.dual.js";
 
-export async function getUser(user_id) {
-  const sql = `
-    SELECT curr_user.id, curr_user.email, curr_user.name, curr_user."createdAt" AS created_at, curr_user."updatedAt" AS updated_at, curr_user."emailVerified" AS email_verified, curr_user.image, curr_user.role
-    FROM exchange.users curr_user
-    WHERE id = $1
-  `;
-  const values = [user_id];
-  const result = await query(sql, values);
-  return result.rows[0];
-}
+const SOURCES = { exchange, dual };
 
-export async function getAllUsers() {
-  const sql = `
-    SELECT curr_user.id, curr_user.email, curr_user.name, curr_user."createdAt" AS created_at, curr_user."updatedAt" AS updated_at, curr_user."emailVerified" AS email_verified, curr_user.image, curr_user.role, curr_user.dorado_funds
-    FROM exchange.users curr_user
-    ORDER BY curr_user.role, curr_user.id
-  `;
-  const values = [];
-  const result = await query(sql, values);
-  return result.rows;
-}
+const SOURCE = Object.hasOwn(SOURCES, process.env.USERS_SOURCE ?? "")
+  ? process.env.USERS_SOURCE
+  : "exchange";
 
-export async function getAdminUsers() {
-  const sql = `
-    SELECT curr_user.id, curr_user.email, curr_user.name, curr_user."createdAt" AS created_at, curr_user."updatedAt" AS updated_at, curr_user."emailVerified" AS email_verified, curr_user.image, curr_user.role, curr_user.dorado_funds
-    FROM exchange.users curr_user
-    WHERE role = 'admin'
-    ORDER BY curr_user.name DESC, curr_user.id DESC
-  `;
-  const values = [];
-  const result = await query(sql, values);
-  return result.rows;
-}
+const impl = SOURCES[SOURCE];
 
-export async function adjustUserCredit(user_id, mode, amount, executor) {
-  const sql = `
-    UPDATE exchange.users
-    SET dorado_funds = CASE
-      WHEN $2 = 'add' THEN COALESCE(dorado_funds, 0) + $1
-      WHEN $2 = 'subtract' THEN COALESCE(dorado_funds, 0) - $1
-      WHEN $2 = 'edit' THEN $1
-    END
-    WHERE id = $3
-  `;
-  const values = [amount, mode, user_id];
-  return await query(sql, values, executor);
-}
+export const activeSource = SOURCE;
+
+export const getUser = impl.getUser;
+export const getAllUsers = impl.getAllUsers;
+export const getAdminUsers = impl.getAdminUsers;
+export const adjustUserCredit = impl.adjustUserCredit;
