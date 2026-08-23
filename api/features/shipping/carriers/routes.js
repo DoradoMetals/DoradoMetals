@@ -13,7 +13,16 @@ import {
   requireUser,
 } from "#shared/middleware/authMiddleware.js";
 
+import * as carriersWire from "#features/shipping/carriers/wire.js";
+import { wireShape } from "#shared/wire/middleware.js";
+
 const router = express.Router();
+
+// The wire adapter, mounted once for the whole feature rather than called by
+// hand in every handler - writes arrive as { carrier }. Controllers return the internal shape
+// and know nothing about the frontend not having caught up. Deleting the
+// adapter is deleting this line.
+router.use(wireShape(carriersWire, { body: "carrier" }));
 
 router.get("/get", requireUser, getAll);
 

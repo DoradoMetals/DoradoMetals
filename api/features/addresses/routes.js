@@ -9,8 +9,16 @@ import {
 } from "#features/addresses/controller.js";
 
 import { requireUser } from "#shared/middleware/authMiddleware.js";
+import * as addressesWire from "#features/addresses/wire.js";
+import { wireShape } from "#shared/wire/middleware.js";
 
 const router = express.Router();
+
+// The wire adapter, mounted once for the whole feature rather than called by
+// hand in every handler - writes arrive as { address, user_id }. Controllers return the internal shape
+// and know nothing about the frontend not having caught up. Deleting the
+// adapter is deleting this line.
+router.use(wireShape(addressesWire, { body: "address" }));
 
 router.get("/get", requireUser, getAll);
 router.post("/create", requireUser, create);

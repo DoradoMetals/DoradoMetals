@@ -10,7 +10,7 @@ import pool from "#db";
 import * as next from "#features/products/repo.next.js";
 import * as exchange from "#features/products/repo.exchange.js";
 import * as dual from "#features/products/repo.dual.js";
-import { toLegacyShape } from "#features/products/wire.js";
+import { toLegacy } from "#features/products/wire.js";
 
 let client;
 
@@ -57,7 +57,7 @@ test("the repo returns the new names, not the exchange ones", async () => {
 test("the adapter converts them back to the names the frontend reads", async () => {
   await inRollback(async (c) => {
     const [row] = await next.getAllProducts(c);
-    const legacy = toLegacyShape(row);
+    const legacy = toLegacy(row);
     for (const k of ["product_name", "product_description", "product_type"]) {
       assert.ok(k in legacy, `${k} missing from the legacy shape`);
       assert.notEqual(legacy[k], null);

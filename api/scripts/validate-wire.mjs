@@ -63,7 +63,7 @@ const carriers = await import("#features/shipping/carriers/repo.js");
 const services = await import("#features/shipping/services/repo.js");
 const users = await import("#features/users/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
-const { toLegacyShape } = await import("#features/products/wire.js");
+const productsWire = await import("#features/products/wire.js");
 const mediaWire = await import("#features/media/wire.js");
 const suppliersWire = await import("#features/suppliers/wire.js");
 const carriersWire = await import("#features/shipping/carriers/wire.js");
@@ -139,7 +139,7 @@ add("GET /users", c.UserWire, () => users.getAllUsers());
 await bothWays("GET /products", c.BullionWire, "products", (m) => m.getAllProducts());
 await bothWays("GET /products (sell)", c.BullionWire, "products", (m) => m.getSellProducts());
 await bothWays("GET /products (legacy wire)", c.ProductWire, "products", async (m) =>
-  (await m.getAllProducts()).map(toLegacyShape)
+  productsWire.toLegacy(await m.getAllProducts())
 );
 
 // Orders. The largest surface here and, until now, the only feature checked

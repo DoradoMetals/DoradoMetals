@@ -53,12 +53,25 @@ function inventory() {
     for (const layer of stack) {
       if (layer.route) {
         const method = Object.keys(layer.route.methods)[0].toUpperCase();
+        const key = `${method} ${prefix + layer.route.path}`;
         found.push({
           method,
           path: prefix + layer.route.path,
-          key: `${method} ${prefix + layer.route.path}`,
-          // One handler means the controller and nothing before it.
-          guarded: layer.route.stack.length > 1,
+          key,
+          // Whether a route is expected to reject an anonymous request is not
+          // something to infer from how many handlers it has. It used to count
+          // them - more than one meant "has middleware, so it must be guarded" -
+          // and that broke the moment a PUBLIC route grew a second middleware
+          // for an unrelated reason: the wire adapter. The route was public,
+          // answered anonymously as it should, and the test called it a hole.
+          //
+          // The real property is the list below. A route is expected to reject
+          // anonymous callers unless it has been deliberately declared public,
+          // and that declaration is the thing worth maintaining.
+          guarded: !PUBLIC.has(key) && !NOT_OURS.has(key),
+          // Kept for the first test, which checks the declaration against
+          // reality: a route with no middleware at all cannot be guarded.
+          hasMiddleware: layer.route.stack.length > 1,
         });
       } else if (layer.name === "router" && layer.handle?.stack) {
         const mount = layer.regexp.source
@@ -85,7 +98,7 @@ before(() => {
 
 test("every endpoint is either guarded or deliberately public", () => {
   const unguarded = endpoints
-    .filter((e) => !e.guarded && !PUBLIC.has(e.key) && !NOT_OURS.has(e.key))
+    .filter((e) => !e.hasMiddleware && !PUBLIC.has(e.key) && !NOT_OURS.has(e.key))
     .map((e) => e.key);
 
   assert.deepEqual(
@@ -108,7 +121,7 @@ test("the public list has no entries that are not routes", () => {
 // request. 401 or 403 - never 200, and never 500, which would mean the guard
 // threw rather than declined.
 test("no guarded endpoint answers an anonymous request", async () => {
-  const guarded = endpoints.filter((e) => e.guarded && !NOT_OURS.has(e.key));
+  const guarded = endpoints.filter((e) => e.guarded);
   assert.ok(guarded.length > 90, `only ${guarded.length} guarded endpoints to check`);
 
   const served = [];

@@ -26,7 +26,7 @@ const LEGACY_NAMES = {
   type: "product_type",
 };
 
-function toLegacy(row) {
+function toLegacy_(row) {
   if (!row || typeof row !== "object") return row;
   const out = {};
   for (const [key, value] of Object.entries(row)) {
@@ -37,7 +37,7 @@ function toLegacy(row) {
 
 const identity = (row) => row;
 
-const SHAPES = { legacy: toLegacy, next: identity };
+const SHAPES = { legacy: toLegacy_, next: identity };
 
 const SHAPE = Object.hasOwn(SHAPES, process.env.PRODUCTS_WIRE ?? "")
   ? process.env.PRODUCTS_WIRE
@@ -47,13 +47,16 @@ export const activeShape = SHAPE;
 
 // Applied at the edge, to whatever the controller is about to send: a row, a
 // list of them, or null.
-export const toProductWire = (data) =>
-  Array.isArray(data) ? data.map(SHAPES[SHAPE]) : SHAPES[SHAPE](data);
+const overList = (fn) => (data) => (Array.isArray(data) ? data.map(fn) : fn(data));
+
+// Named toWire/fromWire like every other adapter, so shared/wire/middleware.js
+// can mount it without knowing which feature it belongs to.
+export const toWire = overList(SHAPES[SHAPE]);
+export const toLegacy = overList(toLegacy_);
 
 // Exported for the contract check, which has to parse both shapes regardless of
 // which one the switch currently selects - the same reason validate:wire tests
 // repo.next even while the switch says exchange.
-export const toLegacyShape = toLegacy;
 
 
 // The other direction: a request body still speaks the legacy names, and the
@@ -65,7 +68,7 @@ const NEW_NAMES = Object.fromEntries(
   Object.entries(LEGACY_NAMES).map(([next, legacy]) => [legacy, next])
 );
 
-export function fromProductWire(row) {
+function fromLegacy_(row) {
   if (!row || typeof row !== "object") return row;
   const out = {};
   for (const [key, value] of Object.entries(row)) {
@@ -73,3 +76,6 @@ export function fromProductWire(row) {
   }
   return out;
 }
+
+export const fromWire = overList(fromLegacy_);
+export const fromLegacy = overList(fromLegacy_);
