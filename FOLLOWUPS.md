@@ -316,6 +316,52 @@ Found 2026-08-22, once `claude_ro` was granted `USAGE` on the new schemas.
 Until that grant, production's new schemas were unreadable and this was
 invisible.
 
+### FOR JACOB: three production purchase orders exist only in the new schema
+
+Not a code question. Three purchase orders live in `orders.orders` on production
+and in neither `exchange.purchase_orders` nor `exchange.sales_orders`, which
+means **the live application cannot see them** — it reads `exchange`.
+
+| number | created | status | pre-melt | purity | content |
+|---|---|---|---|---|---|
+| 298 | 2025-12-24 | In Transit | 141.096 | 0.925 | 130.514 |
+| 299 | 2025-12-30 | Received | 100.000 | 0.000 | 0.000 |
+| 303 | 2026-01-12 | In Transit | 130.000 | 0.925 | 120.250 |
+
+ids `5f211253-…`, `a678721b-…`, `e91da7f0-…`.
+
+What is known:
+
+- All three users **exist in `exchange.users`** and each has an address there.
+- None of the three users has **any** purchase order in `exchange` — these are
+  their only ones.
+- Each order has one scrap item, one fulfillment, and one `payments.intents` row.
+- Order 303 has a shipment with a tracking number and a tracking event.
+- No `exchange.payouts` row for any of the three users.
+- All three were created between 2025-12-24 and 2026-01-12 — the window the
+  January refactor was being worked on.
+- `exchange`'s purchase order numbering has 87 gaps between 192 and 339, so a
+  gap on its own proves nothing. 298, 299 and 303 sit in those gaps.
+
+Two readings, and the data does not settle it:
+
+- **Real.** Three customers submitted scrap, two consignments are marked in
+  transit and one received, and nobody has been paid because the orders
+  disappeared from the live system when the January work was abandoned. 141 and
+  130 troy ounces of sterling are not trivial amounts.
+- **Test.** They were created during development against real accounts. Order
+  299 having purity 0.000 and content 0.000 fits an incomplete test entry, and
+  none of the three users has any other order.
+
+**Someone who was there has to say which.** If they are real, three customers
+are owed an answer and possibly money, and that is independent of any migration.
+If they are test rows, they should be deleted from the new schema before
+promotion — deliberately, with the reason recorded.
+
+Until that is answered, `pnpm --filter @dorado/api audit:guards` reports that
+two backfill guards would refuse on production, which is the guard working
+correctly: re-deriving those tables from `exchange` would overwrite these rows.
+
 ### Production's new schemas already hold rows exchange has never seen
 
 The backfill guard refuses when the target holds rows the source does not.

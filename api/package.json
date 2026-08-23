@@ -25,7 +25,8 @@
     "verify:backfill": "TZ=UTC node scripts/verify-backfill.mjs",
     "audit:coverage": "TZ=UTC node scripts/audit-coverage.mjs",
     "dump:seed": "node scripts/dump-seed.mjs",
-    "audit:coverage:prod": "TZ=UTC node scripts/audit-coverage.mjs --prod"
+    "audit:coverage:prod": "TZ=UTC node scripts/audit-coverage.mjs --prod",
+    "audit:guards": "TZ=UTC node scripts/audit-guards.mjs"
   },
   "imports": {
     "#env": "./env.js",
