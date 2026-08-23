@@ -166,7 +166,11 @@ The ones that have actually caught things:
 - `validate:wire` — real responses parsed through the wire contracts, **for
   both implementations**, not just whichever the switch currently selects. The
   contract only matters if it survives promotion, and until this checked
-  `repo.next` too it had only ever proven `exchange`.
+  `repo.next` too it had only ever proven `exchange`. Orders were the last
+  feature with no contract at all and the last checked one way; they now go
+  through `bothWays` like everything else. Contracts describe the wire, so
+  timestamps are strings — the comparison runs on
+  `JSON.parse(JSON.stringify(row))`.
 - `audit:coverage` — **every populated column in `exchange` that has nowhere to
   go.** Run this before splitting any repo. Orders had matching row counts and
   was missing 21 columns of live data; row counts are not evidence.

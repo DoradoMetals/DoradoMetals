@@ -95,11 +95,33 @@ await bothWays("GET /addresses", c.AddressWire, "addresses", (m) =>
 await bothWays("GET /images", c.ImageWire, "media", (m) => m.getTestImages());
 add("GET /users", c.UserWire, () => users.getAllUsers());
 
-// Nested shapes, taken off a real order.
+// Orders. The largest surface here and, until now, the only feature checked
+// against exchange alone - everything else goes through bothWays and proves
+// repo.next returns the same shape. That is the wrong way round: orders is the
+// feature whose promotion carries the most risk.
+//
+// `diff` already proves the two implementations agree with each other. What it
+// cannot prove is that either of them still matches what the frontend expects,
+// because if both drift together it stays green. The contract is the
+// independent statement, and it is what has to survive promotion.
 const orders = await po.getAll();
+await bothWays("GET /purchase_orders (admin)", c.PurchaseOrderWire, "purchase-orders", (m) => m.getAll());
+await bothWays("GET /sales_orders (admin)", c.SalesOrderWire, "sales-orders", (m) => m.getAll());
+
+// The items, flattened out of those orders, so a bad line is reported as a bad
+// line rather than as one failing order among sixteen.
+await bothWays("purchase order items", c.PurchaseOrderItemWire, "purchase-orders", async (m) =>
+  (await m.getAll()).flatMap((o) => o.order_items ?? [])
+);
+await bothWays("sales order items", c.SalesOrderItemWire, "sales-orders", async (m) =>
+  (await m.getAll()).flatMap((o) => o.order_items ?? [])
+);
+
+// Nested shapes, taken off a real order.
 add("order.payout", c.PayoutOnOrder, () => orders.map((o) => o.payout).filter((p) => p?.id));
 add("order.shipment", c.ShipmentOnOrder, () => orders.map((o) => o.shipment).filter((s) => s?.id));
 add("order.user", c.UserOnOrder, () => orders.map((o) => o.user).filter((u) => u?.user_id));
+add("order.address", c.AddressOnOrder, () => orders.map((o) => o.address).filter(Boolean));
 
 let pass = 0;
 const failures = [];

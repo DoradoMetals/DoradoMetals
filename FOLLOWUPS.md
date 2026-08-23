@@ -134,6 +134,46 @@ shared `calculateTotalPrice`; `generatePackingList` reduced the items inline
 with different premium handling. That is the whole reason the two documents
 disagreed. The duplicate is gone.
 
+### Orders had no wire contract, and were the only feature checked one way
+
+`validate:wire` covered 23 shapes. Orders was not one of them: three nested
+pieces of an order were checked — payout, shipment, user — and the order around
+them was not, nor were its items. It was also the only feature registered with
+`add` rather than `bothWays`, so `repo.next` was never validated at all.
+
+That is the wrong way round. Orders is the largest surface here and the feature
+whose promotion carries the most risk, and `diff` cannot cover the gap: it
+proves the two implementations agree **with each other**, so if both drift from
+what the frontend expects it stays green. A contract is the independent
+statement of what the shape has to be.
+
+`wire/orders.ts` now declares `PurchaseOrderWire`, `SalesOrderWire`, both item
+shapes, the scrap and product summaries carried on an item, and the address as
+it appears on an order. Registered with `bothWays`, plus the items flattened out
+so a bad line is reported as a bad line rather than as one failing order among
+sixteen. **32 shapes match, 0 diverge**, up from 23.
+
+Three things writing it established:
+
+- **Timestamps are strings on the wire, not Dates.** `validate-wire` compares
+  `JSON.parse(JSON.stringify(row))` because that is what the frontend actually
+  receives, and serialisation turns every Date into an ISO string. The first
+  draft declared `z.date()` and failed on all 16 orders.
+- **An order with no shipment carries an empty shipment object, not `null`.**
+  The repo builds one with every field null, so "no shipment" on the wire is
+  `{ id: null, … }`. That is why every existing check filters on `s?.id` before
+  validating one. `ShipmentSlotOnOrder` and `PayoutSlotOnOrder` relax only the
+  id; everything else was already nullable.
+- **Nullability had to come from production, not dev.** Almost everything on
+  `exchange.purchase_orders` is nullable — including `created_at`, `updated_at`
+  and `user_id` — and only `pool_remediation` and `pool_oz_deducted` are not. A
+  contract written from dev's values would have passed here and failed on the
+  first real order.
+
+Proved before being trusted, and in the direction that matters: renaming
+`total_price` in `repo.next.js` alone gives `31 match, 1 diverge`, failing
+`[next]` while `[exchange]` still passes.
+
 ### The refiner was emailed before the order was recorded
 
 `sendOrderToSupplier` sent the refiner their copy of the order — with the
