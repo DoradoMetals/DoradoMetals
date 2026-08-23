@@ -20,6 +20,7 @@
     "lint:migrations": "node scripts/lint-migrations.mjs",
     "plan": "node scripts/plan-migration.mjs",
     "verify:genesis": "TZ=UTC node scripts/verify-genesis.mjs",
+    "verify:genesis:production": "TZ=UTC node scripts/verify-genesis-production.mjs",
     "dump:schema": "node scripts/dump-schema.mjs",
     "verify:backfill": "TZ=UTC node scripts/verify-backfill.mjs",
     "audit:coverage": "TZ=UTC node scripts/audit-coverage.mjs",

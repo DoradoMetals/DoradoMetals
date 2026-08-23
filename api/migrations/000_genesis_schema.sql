@@ -111,6 +111,19 @@ CREATE TABLE IF NOT EXISTS auth.account (
   "createdAt" timestamp without time zone DEFAULT now() NOT NULL,
   "updatedAt" timestamp without time zone DEFAULT now() NOT NULL
 );
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS "userId" uuid;
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS "accountId" text;
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS "providerId" text;
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS "accessToken" text;
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS "refreshToken" text;
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS "accessTokenExpiresAt" timestamp without time zone;
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS "refreshTokenExpiresAt" timestamp without time zone;
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS scope text;
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS "idToken" text;
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS password text;
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS "createdAt" timestamp without time zone DEFAULT now();
+ALTER TABLE auth.account ADD COLUMN IF NOT EXISTS "updatedAt" timestamp without time zone DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS auth.employees (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -122,6 +135,14 @@ CREATE TABLE IF NOT EXISTS auth.employees (
   created_by text,
   updated_by text
 );
+ALTER TABLE auth.employees ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE auth.employees ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE auth.employees ADD COLUMN IF NOT EXISTS role text;
+ALTER TABLE auth.employees ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;
+ALTER TABLE auth.employees ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE auth.employees ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE auth.employees ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE auth.employees ADD COLUMN IF NOT EXISTS updated_by text;
 
 CREATE TABLE IF NOT EXISTS auth.sessions (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -134,6 +155,15 @@ CREATE TABLE IF NOT EXISTS auth.sessions (
   "userAgent" text,
   "impersonatedBy" uuid
 );
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "userId" uuid;
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS token text;
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "expiresAt" timestamp without time zone;
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "createdAt" timestamp without time zone DEFAULT now();
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "updatedAt" timestamp without time zone DEFAULT now();
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "ipAddress" text;
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "userAgent" text;
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS "impersonatedBy" uuid;
 
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -151,6 +181,20 @@ CREATE TABLE IF NOT EXISTS auth.users (
   "banExpires" timestamp without time zone,
   phone_number text
 );
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "createdAt" timestamp without time zone DEFAULT now();
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "updatedAt" timestamp without time zone DEFAULT now();
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "emailVerified" boolean DEFAULT false;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS image text;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS role text;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "stripeCustomerId" text;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS dorado_funds numeric;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS banned boolean;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "banReason" text;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "banExpires" timestamp without time zone;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS phone_number text;
 
 CREATE TABLE IF NOT EXISTS auth.verification (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -160,6 +204,12 @@ CREATE TABLE IF NOT EXISTS auth.verification (
   "createdAt" timestamp without time zone DEFAULT now() NOT NULL,
   "updatedAt" timestamp without time zone DEFAULT now() NOT NULL
 );
+ALTER TABLE auth.verification ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE auth.verification ADD COLUMN IF NOT EXISTS identifier text;
+ALTER TABLE auth.verification ADD COLUMN IF NOT EXISTS value text;
+ALTER TABLE auth.verification ADD COLUMN IF NOT EXISTS "expiresAt" timestamp without time zone;
+ALTER TABLE auth.verification ADD COLUMN IF NOT EXISTS "createdAt" timestamp without time zone DEFAULT now();
+ALTER TABLE auth.verification ADD COLUMN IF NOT EXISTS "updatedAt" timestamp without time zone DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS fulfillments.directs (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -170,6 +220,13 @@ CREATE TABLE IF NOT EXISTS fulfillments.directs (
   start_time timestamp with time zone,
   end_time timestamp with time zone
 );
+ALTER TABLE fulfillments.directs ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE fulfillments.directs ADD COLUMN IF NOT EXISTS fulfillment_id uuid;
+ALTER TABLE fulfillments.directs ADD COLUMN IF NOT EXISTS location_id uuid;
+ALTER TABLE fulfillments.directs ADD COLUMN IF NOT EXISTS assigned_employee_id uuid;
+ALTER TABLE fulfillments.directs ADD COLUMN IF NOT EXISTS is_appointment boolean DEFAULT false;
+ALTER TABLE fulfillments.directs ADD COLUMN IF NOT EXISTS start_time timestamp with time zone;
+ALTER TABLE fulfillments.directs ADD COLUMN IF NOT EXISTS end_time timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS fulfillments.fulfillments (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -183,6 +240,16 @@ CREATE TABLE IF NOT EXISTS fulfillments.fulfillments (
   created_by_id uuid,
   updated_by_id uuid
 );
+ALTER TABLE fulfillments.fulfillments ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE fulfillments.fulfillments ADD COLUMN IF NOT EXISTS method_id uuid;
+ALTER TABLE fulfillments.fulfillments ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE fulfillments.fulfillments ADD COLUMN IF NOT EXISTS status text DEFAULT 'PENDING'::text;
+ALTER TABLE fulfillments.fulfillments ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE fulfillments.fulfillments ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE fulfillments.fulfillments ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE fulfillments.fulfillments ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE fulfillments.fulfillments ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE fulfillments.fulfillments ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS fulfillments.methods (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -201,6 +268,21 @@ CREATE TABLE IF NOT EXISTS fulfillments.methods (
   created_by_id uuid,
   updated_by_id uuid
 );
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS type text;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS direction orders.direction;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS category text DEFAULT 'OTHER'::text;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS hidden boolean DEFAULT false;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS admin_label text;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS is_default boolean DEFAULT false;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS fulfillments.pickups (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -210,6 +292,12 @@ CREATE TABLE IF NOT EXISTS fulfillments.pickups (
   start_time timestamp with time zone,
   end_time timestamp with time zone
 );
+ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS fulfillment_id uuid;
+ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS pickup_address_id uuid;
+ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS assigned_employee_id uuid;
+ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS start_time timestamp with time zone;
+ALTER TABLE fulfillments.pickups ADD COLUMN IF NOT EXISTS end_time timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS fulfillments.shipments (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -218,6 +306,11 @@ CREATE TABLE IF NOT EXISTS fulfillments.shipments (
   shipper_location_id uuid,
   shipment_id uuid NOT NULL
 );
+ALTER TABLE fulfillments.shipments ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE fulfillments.shipments ADD COLUMN IF NOT EXISTS fulfillment_id uuid;
+ALTER TABLE fulfillments.shipments ADD COLUMN IF NOT EXISTS recipient_location_id uuid;
+ALTER TABLE fulfillments.shipments ADD COLUMN IF NOT EXISTS shipper_location_id uuid;
+ALTER TABLE fulfillments.shipments ADD COLUMN IF NOT EXISTS shipment_id uuid;
 
 CREATE TABLE IF NOT EXISTS leads.leads (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -238,6 +331,23 @@ CREATE TABLE IF NOT EXISTS leads.leads (
   created_by_id uuid,
   updated_by_id uuid
 );
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS phone text;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS last_contacted timestamp with time zone;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS converted boolean DEFAULT false;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS contacted boolean DEFAULT false;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS responded boolean DEFAULT false;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS notes text;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS contact text DEFAULT 'Jacob Johnson'::text;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS priority text DEFAULT 'Medium'::text;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS media.images (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -253,11 +363,25 @@ CREATE TABLE IF NOT EXISTS media.images (
   user_id uuid,
   created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS bucket text;
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS mime_type text;
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS size_bytes integer;
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS width integer;
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS height integer;
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS checksum bytea;
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS path text;
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS filename text;
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE media.images ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS metals.metals (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   name text NOT NULL
 );
+ALTER TABLE metals.metals ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE metals.metals ADD COLUMN IF NOT EXISTS name text;
 
 CREATE TABLE IF NOT EXISTS orders.addresses (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -265,6 +389,10 @@ CREATE TABLE IF NOT EXISTS orders.addresses (
   order_id uuid NOT NULL,
   source_address_id uuid
 );
+ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS address_id uuid;
+ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE orders.addresses ADD COLUMN IF NOT EXISTS source_address_id uuid;
 
 CREATE TABLE IF NOT EXISTS orders.items (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -287,6 +415,25 @@ CREATE TABLE IF NOT EXISTS orders.items (
   post_melt_actual numeric,
   content_actual numeric
 );
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS bullion_id uuid;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS pre_melt numeric(20,3);
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS post_melt numeric(20,3);
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS purity numeric(4,3);
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS content numeric(20,3);
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS premium numeric(20,6);
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS quantity numeric(20,3) DEFAULT 1;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS confirmed boolean DEFAULT false;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS sales_tax_charged numeric DEFAULT 0;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS unit text;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS price numeric;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS refiner_premium numeric;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS bid_premium numeric;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS purity_actual numeric;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS post_melt_actual numeric;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS content_actual numeric;
 
 CREATE TABLE IF NOT EXISTS orders.offers (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -306,6 +453,22 @@ CREATE TABLE IF NOT EXISTS orders.offers (
   updated_by_id uuid,
   offer_sent_at timestamp with time zone
 );
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS status text;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS offer_status text;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS notes text;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS spots_locked boolean;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS offer_expiration timestamp with time zone;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS num_rejections numeric;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS offer_amount numeric;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS offer_sent_at timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS orders.orders (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -325,6 +488,22 @@ CREATE TABLE IF NOT EXISTS orders.orders (
   order_sent boolean,
   tracking_updated boolean
 );
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS refinery_id uuid;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS direction orders.direction;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS status text;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS number bigint;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS notes text;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS review_created boolean;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS order_sent boolean;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS tracking_updated boolean;
 
 CREATE TABLE IF NOT EXISTS orders.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -337,6 +516,15 @@ CREATE TABLE IF NOT EXISTS orders.spots (
   created_at timestamp with time zone,
   updated_at timestamp with time zone
 );
+ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS ask numeric;
+ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS bid numeric;
+ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS scrap_percentage numeric;
+ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS bullion_percentage numeric;
+ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS created_at timestamp with time zone;
+ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS orders.transactions (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -366,6 +554,32 @@ CREATE TABLE IF NOT EXISTS orders.transactions (
   pool_oz_deducted numeric,
   shipping_service text
 );
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS total numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS items numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS shipping numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS surcharge numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS sales_tax numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS funds numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS refiner_fee numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS base_total numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS post_charges_amount numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS subject_to_charges_amount numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS used_funds boolean;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS waive_shipping_fee boolean;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS waive_payout_fee boolean;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS shipping_paid boolean;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS shipping_fee_actual numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS pool_remediation numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS pool_oz_deducted numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS shipping_service text;
 
 CREATE TABLE IF NOT EXISTS organizations.organizations (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -384,6 +598,21 @@ CREATE TABLE IF NOT EXISTS organizations.organizations (
   created_by_id uuid,
   updated_by_id uuid
 );
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS image_id uuid;
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS type text;
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS phone text;
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS website text;
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS description text;
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS payments.attempts (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -396,6 +625,15 @@ CREATE TABLE IF NOT EXISTS payments.attempts (
   error_code text,
   error_message text
 );
+ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS intent_id uuid;
+ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS method_id uuid;
+ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS provider text;
+ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS provider_ref text;
+ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS amount numeric;
+ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS status text DEFAULT 'CREATED'::text;
+ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS error_code text;
+ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS error_message text;
 
 CREATE TABLE IF NOT EXISTS payments.details (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -416,6 +654,23 @@ CREATE TABLE IF NOT EXISTS payments.details (
   created_by_id uuid,
   updated_by_id uuid
 );
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS method_id uuid;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS account_holder text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS bank_name text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS account_type text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS routing_number text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS account_number text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS last_four text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS card_brand text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS email_to text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS payments.intents (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -431,6 +686,18 @@ CREATE TABLE IF NOT EXISTS payments.intents (
   created_by_id uuid,
   updated_by_id uuid
 );
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS method_id uuid;
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS details_id uuid;
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS amount_expected numeric;
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS status text DEFAULT 'CREATED'::text;
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS payments.methods (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -464,6 +731,36 @@ CREATE TABLE IF NOT EXISTS payments.methods (
   created_by_id uuid,
   updated_by_id uuid
 );
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS image_id uuid;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS direction orders.direction;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS type text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS currency text DEFAULT 'USD'::text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS min_amount numeric;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS max_amount numeric;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS supports_partial boolean DEFAULT false;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS supports_split boolean DEFAULT false;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS provider text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS provider_value text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS flat_fee numeric;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS surcharge_percent numeric;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS time_delay text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS surcharge_label text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS short_description text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS long_description text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS fit_description text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS fit_header text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS fit_bullets text[];
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS sort_order integer DEFAULT 0;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS display boolean DEFAULT true;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS payments.settlements (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -473,6 +770,12 @@ CREATE TABLE IF NOT EXISTS payments.settlements (
   provider_ref text,
   settled_at timestamp with time zone
 );
+ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS attempt_id uuid;
+ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS settled_amount numeric;
+ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS provider text;
+ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS provider_ref text;
+ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS settled_at timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS places.addresses (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -489,6 +792,19 @@ CREATE TABLE IF NOT EXISTS places.addresses (
   is_valid boolean,
   is_residential boolean DEFAULT false NOT NULL
 );
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS line_1 text;
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS line_2 text;
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS city text;
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS state text;
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS country text DEFAULT 'United States'::text;
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS zip text;
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS country_code text DEFAULT 'US'::text;
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS phone_number text;
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS is_valid boolean;
+ALTER TABLE places.addresses ADD COLUMN IF NOT EXISTS is_residential boolean DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS places.location_hours (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -499,6 +815,13 @@ CREATE TABLE IF NOT EXISTS places.location_hours (
   sort_order smallint DEFAULT 0 NOT NULL,
   notes text
 );
+ALTER TABLE places.location_hours ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE places.location_hours ADD COLUMN IF NOT EXISTS location_id uuid;
+ALTER TABLE places.location_hours ADD COLUMN IF NOT EXISTS weekday smallint;
+ALTER TABLE places.location_hours ADD COLUMN IF NOT EXISTS open_time time without time zone;
+ALTER TABLE places.location_hours ADD COLUMN IF NOT EXISTS close_time time without time zone;
+ALTER TABLE places.location_hours ADD COLUMN IF NOT EXISTS sort_order smallint DEFAULT 0;
+ALTER TABLE places.location_hours ADD COLUMN IF NOT EXISTS notes text;
 
 CREATE TABLE IF NOT EXISTS places.locations (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -511,6 +834,15 @@ CREATE TABLE IF NOT EXISTS places.locations (
   label_company_name text,
   label_phone_number text
 );
+ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS address_id uuid;
+ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS image_id uuid;
+ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS organization_id uuid;
+ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS type text;
+ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;
+ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS label_company_name text;
+ALTER TABLE places.locations ADD COLUMN IF NOT EXISTS label_phone_number text;
 
 CREATE TABLE IF NOT EXISTS places.user_addresses (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -520,6 +852,12 @@ CREATE TABLE IF NOT EXISTS places.user_addresses (
   default_shipping boolean DEFAULT false NOT NULL,
   default_billing boolean DEFAULT false NOT NULL
 );
+ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS address_id uuid;
+ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS default_shipping boolean DEFAULT false;
+ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS default_billing boolean DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS products.bullion (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -556,6 +894,39 @@ CREATE TABLE IF NOT EXISTS products.bullion (
   stock numeric NOT NULL,
   quantity numeric
 );
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS mint_id uuid;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS name text DEFAULT ''::text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS description text DEFAULT 'Product Description'::text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS bid_premium numeric DEFAULT 0;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS ask_premium numeric DEFAULT 0;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS type text DEFAULT 'Coin'::text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS display boolean DEFAULT true;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS homepage_display boolean DEFAULT false;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS sell_display boolean DEFAULT false;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS legal_tender boolean DEFAULT false;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS domestic_tender boolean DEFAULT false;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS is_generic boolean DEFAULT false;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS content numeric DEFAULT 1.000;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS gross numeric DEFAULT 1.000;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS purity numeric DEFAULT 0.999;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS variant_group text DEFAULT ''::text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS variant_label text DEFAULT ''::text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS shadow_offset integer DEFAULT 0;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS slug text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS filter_category text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS image_front text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS image_back text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS created_by text DEFAULT ''::text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS updated_by text DEFAULT ''::text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS supplier_id uuid;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS stock numeric;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS quantity numeric;
 
 CREATE TABLE IF NOT EXISTS products.mints (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -567,6 +938,14 @@ CREATE TABLE IF NOT EXISTS products.mints (
   image_id uuid,
   organization_id uuid NOT NULL
 );
+ALTER TABLE products.mints ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE products.mints ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE products.mints ADD COLUMN IF NOT EXISTS type text;
+ALTER TABLE products.mints ADD COLUMN IF NOT EXISTS country text;
+ALTER TABLE products.mints ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE products.mints ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE products.mints ADD COLUMN IF NOT EXISTS image_id uuid;
+ALTER TABLE products.mints ADD COLUMN IF NOT EXISTS organization_id uuid;
 
 CREATE TABLE IF NOT EXISTS rates.rates (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -583,6 +962,19 @@ CREATE TABLE IF NOT EXISTS rates.rates (
   created_by_id uuid,
   updated_by_id uuid
 );
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS unit text DEFAULT 'troy_oz'::text;
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS min_qty numeric;
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS max_qty numeric;
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS scrap_pct numeric;
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS bullion_pct numeric;
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS created_by text DEFAULT 'Dorado Admin'::text;
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS updated_by text DEFAULT 'Dorado Admin'::text;
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS refiners.items (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -598,12 +990,27 @@ CREATE TABLE IF NOT EXISTS refiners.items (
   quantity numeric DEFAULT 1 NOT NULL,
   unit text
 );
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS order_item_id uuid;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS refiner_id uuid;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS bullion_id uuid;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS pre_melt numeric;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS post_melt numeric;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS purity numeric;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS content numeric;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS premium numeric;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS quantity numeric DEFAULT 1;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS unit text;
 
 CREATE TABLE IF NOT EXISTS refiners.refiners (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   logo text,
   organization_id uuid NOT NULL
 );
+ALTER TABLE refiners.refiners ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE refiners.refiners ADD COLUMN IF NOT EXISTS logo text;
+ALTER TABLE refiners.refiners ADD COLUMN IF NOT EXISTS organization_id uuid;
 
 CREATE TABLE IF NOT EXISTS refiners.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -618,6 +1025,17 @@ CREATE TABLE IF NOT EXISTS refiners.spots (
   created_at timestamp with time zone,
   updated_at timestamp with time zone
 );
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS refiner_id uuid;
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS pool_oz_deducted numeric;
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS ask numeric;
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS bid numeric;
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS scrap_percentage numeric;
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS bullion_percentage numeric;
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS created_at timestamp with time zone;
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS reviews.reviews (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -634,12 +1052,28 @@ CREATE TABLE IF NOT EXISTS reviews.reviews (
   created_by_id uuid,
   updated_by_id uuid
 );
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS review_text text;
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS rating numeric;
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS hidden boolean DEFAULT true;
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE reviews.reviews ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS shipping.carriers (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   organization_id uuid,
   logo text
 );
+ALTER TABLE shipping.carriers ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE shipping.carriers ADD COLUMN IF NOT EXISTS organization_id uuid;
+ALTER TABLE shipping.carriers ADD COLUMN IF NOT EXISTS logo text;
 
 CREATE TABLE IF NOT EXISTS shipping.packages (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -655,6 +1089,18 @@ CREATE TABLE IF NOT EXISTS shipping.packages (
   label text DEFAULT ''::text NOT NULL,
   is_carrier_packaging boolean DEFAULT false NOT NULL
 );
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS carrier_id uuid;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS image_id uuid;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS created_by uuid;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS updated_by uuid;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS length text;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS width text;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS height text;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS label text DEFAULT ''::text;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS is_carrier_packaging boolean DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS shipping.pickups (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -664,6 +1110,12 @@ CREATE TABLE IF NOT EXISTS shipping.pickups (
   confirmation_number text,
   location text
 );
+ALTER TABLE shipping.pickups ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE shipping.pickups ADD COLUMN IF NOT EXISTS shipment_id uuid;
+ALTER TABLE shipping.pickups ADD COLUMN IF NOT EXISTS requested_at timestamp with time zone;
+ALTER TABLE shipping.pickups ADD COLUMN IF NOT EXISTS status text;
+ALTER TABLE shipping.pickups ADD COLUMN IF NOT EXISTS confirmation_number text;
+ALTER TABLE shipping.pickups ADD COLUMN IF NOT EXISTS location text;
 
 CREATE TABLE IF NOT EXISTS shipping.services (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -694,6 +1146,33 @@ CREATE TABLE IF NOT EXISTS shipping.services (
   created_by_id uuid,
   updated_by_id uuid
 );
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS carrier_id uuid;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS description text;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS code text;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS provider_code text;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS supports_pickups boolean DEFAULT false;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS supports_dropoffs boolean DEFAULT false;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS supports_returns boolean DEFAULT false;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS supports_insurance boolean DEFAULT false;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS is_international boolean DEFAULT false;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS is_residential boolean DEFAULT false;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS max_weight_lb numeric;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS max_length_in numeric;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS max_width_in numeric;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS max_height_in numeric;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS max_declared_value numeric;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS min_transit_days integer;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS max_transit_days integer;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS display_order integer;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS created_by text;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS updated_by text;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS created_by_id uuid;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
 CREATE TABLE IF NOT EXISTS shipping.shipments (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -716,6 +1195,25 @@ CREATE TABLE IF NOT EXISTS shipping.shipments (
   pickup_type text,
   created_at timestamp with time zone
 );
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS carrier_service_id uuid;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS package_id uuid;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS recipient_address_id uuid;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS shipper_address_id uuid;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS tracking_number text;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS delivered_at timestamp with time zone;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS shipped_at timestamp with time zone;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS est_delivery timestamp with time zone;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS label_type text;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS label bytea;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS direction shipping.direction DEFAULT 'Inbound'::shipping.direction;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS insured boolean DEFAULT false;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS declared_value numeric;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS cost numeric;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS actual_cost numeric;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS shipping_status text;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS pickup_type text;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS created_at timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS shipping.tracking (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -724,6 +1222,11 @@ CREATE TABLE IF NOT EXISTS shipping.tracking (
   location text,
   time timestamp with time zone
 );
+ALTER TABLE shipping.tracking ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE shipping.tracking ADD COLUMN IF NOT EXISTS shipment_id uuid;
+ALTER TABLE shipping.tracking ADD COLUMN IF NOT EXISTS status text;
+ALTER TABLE shipping.tracking ADD COLUMN IF NOT EXISTS location text;
+ALTER TABLE shipping.tracking ADD COLUMN IF NOT EXISTS time timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS spots.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -734,6 +1237,13 @@ CREATE TABLE IF NOT EXISTS spots.spots (
   dollar_change numeric,
   updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS ask numeric;
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS bid numeric;
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS percent_change numeric;
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS dollar_change numeric;
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS tax.sales_tax (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -742,6 +1252,11 @@ CREATE TABLE IF NOT EXISTS tax.sales_tax (
   amount_owed numeric(16,2) DEFAULT 0 NOT NULL,
   last_remitted date
 );
+ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS state character(2);
+ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS reached_nexus boolean DEFAULT false;
+ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS amount_owed numeric(16,2) DEFAULT 0;
+ALTER TABLE tax.sales_tax ADD COLUMN IF NOT EXISTS last_remitted date;
 
 CREATE TABLE IF NOT EXISTS tax.sales_tax_rules (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -762,6 +1277,23 @@ CREATE TABLE IF NOT EXISTS tax.sales_tax_rules (
   is_domestic boolean,
   is_legal_tender boolean
 );
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS state_code character(2);
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS metal_category tax.sales_tax_metal_category DEFAULT 'All'::tax.sales_tax_metal_category;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS product_type tax.sales_tax_product_type DEFAULT 'All'::tax.sales_tax_product_type;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS min_price numeric DEFAULT 0;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS max_price numeric DEFAULT '1000000000000'::bigint;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS purity_min numeric DEFAULT 0;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS purity_max numeric DEFAULT 1;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS aggregate_min numeric DEFAULT 0;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS aggregate_max numeric DEFAULT '1000000000000'::bigint;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS markup_min_pct numeric DEFAULT 0;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS markup_max_pct numeric DEFAULT 1000000;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS tax_rate numeric;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS weight_min numeric DEFAULT 0;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS weight_max numeric DEFAULT '1000000000000'::bigint;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS is_domestic boolean;
+ALTER TABLE tax.sales_tax_rules ADD COLUMN IF NOT EXISTS is_legal_tender boolean;
 
 -- Constraints --------------------------------------------------------
 --
@@ -2403,6 +2935,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS fulfillment_methods_one_default_per_bucket_uni
 CREATE INDEX IF NOT EXISTS idx_fulfillment_pickups_assigned_to ON fulfillments.pickups USING btree (assigned_employee_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_pickups_fulfillment_id ON fulfillments.pickups USING btree (fulfillment_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_pickups_pickup_address_id ON fulfillments.pickups USING btree (pickup_address_id);
+CREATE UNIQUE INDEX IF NOT EXISTS fulfillment_shipments_one_per_shipment ON fulfillments.shipments USING btree (shipment_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_shipments_fulfillment_id ON fulfillments.shipments USING btree (fulfillment_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_shipments_recipient_location_id ON fulfillments.shipments USING btree (recipient_location_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_shipments_shipment_id ON fulfillments.shipments USING btree (shipment_id);
@@ -2479,6 +3012,7 @@ CREATE INDEX IF NOT EXISTS packages_carrier_idx ON shipping.packages USING btree
 CREATE INDEX IF NOT EXISTS idx_shipping_pickups_shipment_id ON shipping.pickups USING btree (shipment_id);
 CREATE INDEX IF NOT EXISTS carrier_services_active_idx ON shipping.services USING btree (carrier_id, is_active);
 CREATE INDEX IF NOT EXISTS carrier_services_carrier_idx ON shipping.services USING btree (carrier_id);
+CREATE UNIQUE INDEX IF NOT EXISTS services_carrier_name_key ON shipping.services USING btree (carrier_id, name);
 CREATE INDEX IF NOT EXISTS idx_shipping_shipments_package_id ON shipping.shipments USING btree (package_id);
 CREATE INDEX IF NOT EXISTS idx_shipping_shipments_recipient_address_id ON shipping.shipments USING btree (recipient_address_id);
 CREATE INDEX IF NOT EXISTS idx_shipping_shipments_shipper_address_id ON shipping.shipments USING btree (shipper_address_id);

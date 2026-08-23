@@ -281,7 +281,27 @@ and compares against dev. Building from nothing is exactly the case where
 `IF NOT EXISTS` is invisible. Production is the one starting state that has
 never been tested: partially built, older, and non-empty.
 
-**What is needed before any production migration:**
+**FIXED 2026-08-22, for the schema half.** `dump-schema.mjs` now emits an
+`ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for every column alongside the
+`CREATE TABLE IF NOT EXISTS`, so genesis reconciles an existing table instead of
+skipping it. `NOT NULL` is deliberately left off those: adding it to a table
+that already holds rows fails if any are null, and nullability is decided from
+the production audit, not from dev.
+
+`pnpm --filter @dorado/api verify:genesis:production` is the check. It reads
+production's real shape read-only, builds genesis into scratch schemas in dev,
+winds them back to production's shape, runs genesis again, and compares against
+dev — all inside a rolled-back transaction. It failed before the change and
+passes after.
+
+Worth recording what the failure actually was, because it was better than
+feared: genesis did not silently skip the columns, it **aborted** on the first
+`ADD CONSTRAINT` naming a column production's older table lacks. Postgres has no
+`IF NOT EXISTS` for `ADD CONSTRAINT`, and the runner wraps each migration in a
+transaction — so production would have rolled back untouched rather than ending
+up half-built. The migration could not run, rather than running wrongly.
+
+**Still needed before any production migration:**
 
 - A verification that starts from production's real shape rather than from
   empty. The shape can be read read-only and reproduced in dev inside a

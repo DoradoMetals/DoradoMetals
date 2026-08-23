@@ -185,6 +185,36 @@ for (const t of tables) {
   say(`CREATE TABLE IF NOT EXISTS ${id(sch(t.schema))}.${id(t.name)} (`);
   say(lines.join(",\n"));
   say(`);`);
+
+  // Reconcile a table that already exists in an older shape.
+  //
+  // CREATE TABLE IF NOT EXISTS is the right guard for a table that is not there
+  // and the wrong one for a table that is. Production holds nine of these
+  // schemas, built in January and never migrated, fifty columns behind dev -
+  // and genesis, meeting them, would skip every one and then abort on the first
+  // ADD CONSTRAINT naming a column those tables do not have. Postgres has no
+  // IF NOT EXISTS for ADD CONSTRAINT.
+  //
+  // So every column is also emitted as an ADD COLUMN IF NOT EXISTS. On dev and
+  // on an empty database these are no-ops; on production they are what brings a
+  // January table up to the shape the constraints below expect.
+  //
+  // NOT NULL is deliberately left off. Adding it to a table that already holds
+  // rows fails if any of them are null, and CLAUDE.md is explicit that
+  // nullability is decided from the production audit rather than from dev.
+  // A column added here without it can be tightened later, deliberately;
+  // a migration that aborts halfway cannot.
+  //
+  // Verified by scripts/verify-genesis-production.mjs, which builds this into
+  // scratch schemas, winds them back to production's real shape, and runs it
+  // again.
+  for (const c of cols) {
+    if (c.identity) continue; // an identity column cannot be added this way
+    let add = `ALTER TABLE ${id(sch(t.schema))}.${id(t.name)} ` +
+              `ADD COLUMN IF NOT EXISTS ${id(c.name)} ${qualify(c.type)}`;
+    if (c.default_expr) add += ` DEFAULT ${qualify(c.default_expr)}`;
+    say(`${add};`);
+  }
   say();
 }
 
