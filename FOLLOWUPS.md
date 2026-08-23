@@ -91,6 +91,58 @@ genesis. `verify-genesis.mjs` built its comparison schema from
 reached it. The check now compares the committed file too, and that was proved
 to fail before being trusted.
 
+### The HTTP layer now has tests, and the guard inventory is clean
+
+Nothing tested the routes or the controllers until now, which is where this
+session's bugs actually lived — `servicesRepo.remove(req.body)` passing a whole
+body where an id was wanted, and the transactions controller reading
+`req.body.user_id` on a GET. Neither is visible from a repo test, because
+neither is in a repo.
+
+`server.js` built the app, started the cron scheduler and bound the port all at
+module load, and never exported the app, so nothing *could* test it. The app is
+now `api/app.js` and `server.js` is twelve lines that start things. Behaviour is
+unchanged; the scheduler and `listen` still happen in exactly one place.
+
+The inventory it produced, which is worth having written down:
+
+| | |
+|---|---|
+| endpoints | **124** |
+| guarded | 111 |
+| deliberately public | 13 |
+| unaccounted for | **0** |
+
+By guard: 73 `requireAdmin`, 35 `requireUser`, 1 `requireAuth`, plus better-auth's
+own mount and the Stripe webhook, which authenticate by their own means.
+
+The 13 public ones are the catalogue, spot prices, rates, public reviews,
+recaptcha, and the cart — a cart belongs to a browser rather than an account, so
+a signed-out visitor has one.
+
+Two properties are asserted, and both were proved to fail before being trusted:
+
+- **every endpoint is guarded or on an explicit public list.** Removing
+  `requireUser` from one route fails it, naming the route.
+- **no guarded endpoint answers an anonymous request.** This is the one that
+  matters: a route can *look* guarded — middleware present, handler count above
+  one — and still serve anybody. Replacing a guard with a pass-through
+  middleware fails it with `GET /api/transactions/get_transactions -> 200`.
+
+All 111 anonymous requests run in about 150ms, because better-auth short-circuits
+without a cookie, so this is cheap enough to keep in the normal suite.
+
+**What is not covered yet:** the 111 guarded endpoints are only tested to the
+point of refusing anonymous requests. What they *return* to a real session is
+untested, and that is the more interesting half — it is where the wire shapes of
+the migrated features would be proved end to end rather than at the repo
+boundary. The seam for it is mocking `#features/auth/client.js`'s
+`auth.api.getSession`, which needs `--experimental-test-module-mocks` on the test
+command. Deliberately left as a separate step.
+
+Also removed: `app.use("/api/shipping", shippingRoutes)` was registered twice,
+identically. Express never reached the second one.
+
 ### The credit ledger is migrated, and its one endpoint is broken three ways
 
 `exchange.account_transactions` now has a target — `payments.ledger`, migration

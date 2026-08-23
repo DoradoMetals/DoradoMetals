@@ -36,6 +36,7 @@
   "imports": {
     "#env": "./env.js",
     "#db": "./db.js",
+    "#app": "./app.js",
     "#shared/*": "./shared/*",
     "#features/*": "./features/*",
     "#providers/*": "./providers/*"
@@ -45,6 +46,7 @@
   "license": "ISC",
   "dependencies": {
     "@better-auth/stripe": "^1.4.9",
+    "@dorado/contracts": "workspace:*",
     "axios": "^1.12.2",
     "better-auth": "^1.4.9",
     "chalk": "^5.6.2",
@@ -59,16 +61,16 @@
     "pg": "^8.16.3",
     "puppeteer": "^24.21.0",
     "stripe": "^18.5.0",
-    "@dorado/contracts": "workspace:*",
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "@types/node": "^22.10.2",
-    "@types/express": "^4.17.21",
     "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.2",
+    "@types/nodemailer": "^6.4.17",
     "@types/pg": "^8.11.10",
-    "@types/nodemailer": "^6.4.17"
+    "supertest": "^7.2.2",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=24"
