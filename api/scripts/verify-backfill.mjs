@@ -79,6 +79,21 @@ const TABLES = [
     cols: "order_item_id, bullion_id, metal_id, pre_melt, post_melt, purity, content, premium, quantity, unit",
   },
   {
+    name: "payments.intents",
+    key: "id",
+    cols: "id, order_id, method_id, amount_expected, status",
+  },
+  {
+    name: "payments.attempts",
+    key: "id",
+    cols: "id, intent_id, method_id, provider, provider_ref, amount, status",
+  },
+  {
+    name: "payments.settlements",
+    key: "id",
+    cols: "id, attempt_id, settled_amount, provider, provider_ref",
+  },
+  {
     name: "payments.details",
     key: "id",
     // routing_number and account_number are excluded because the backfill

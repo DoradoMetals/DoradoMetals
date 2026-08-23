@@ -611,10 +611,10 @@ ALTER TABLE organizations.organizations ADD COLUMN IF NOT EXISTS updated_by_id u
 CREATE TABLE IF NOT EXISTS payments.attempts (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   intent_id uuid NOT NULL,
-  method_id uuid NOT NULL,
+  method_id uuid,
   provider text,
   provider_ref text,
-  amount numeric NOT NULL,
+  amount numeric,
   status text DEFAULT 'CREATED'::text NOT NULL,
   error_code text,
   error_message text
@@ -669,9 +669,9 @@ ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 CREATE TABLE IF NOT EXISTS payments.intents (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   order_id uuid,
-  method_id uuid NOT NULL,
+  method_id uuid,
   details_id uuid,
-  amount_expected numeric NOT NULL,
+  amount_expected numeric,
   status text DEFAULT 'CREATED'::text NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,

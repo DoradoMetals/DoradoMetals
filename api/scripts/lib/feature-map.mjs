@@ -43,7 +43,9 @@ export const FEATURES = {
   },
   payments: {
     "exchange.payouts": ["payments.details", "payments.methods", "orders.transactions"],
-    "exchange.payment_intents": ["payments.intents", "payments.attempts", "payments.settlements"],
+    "exchange.payment_intents": [
+      "payments.intents", "payments.attempts", "payments.settlements", "payments.details",
+    ],
   },
   refiners: { "exchange.refiner_metals": ["refiners.spots", "refiners.items"] },
   users: { "exchange.users": ["auth.users"], "exchange.session": ["auth.sessions"] },
@@ -132,6 +134,23 @@ export const RENAMES = {
   },
   // A payout is a bank account plus a per-order fee, and they separate: the
   // account becomes payments.details, the fee joins the order's other fees.
+  // exchange keeps one row per Stripe intent with the status inline; the new
+  // schema separates what was asked for from what was tried and what moved.
+  "exchange.payment_intents": {
+    purchase_order_id: "order_id",
+    sales_order_id: "order_id",
+    payment_status: "status",
+    payment_intent_id: "provider_ref",
+    amount: "amount_expected",
+    amount_received: "settled_amount",
+    method_type: "method_id",
+    user_id: "-",
+    session_id: "-",
+    type: "-",
+    routing: "-",
+    bank_account_type: "-",
+    amount_capturable: "-",
+  },
   "exchange.payouts": {
     account_holder_name: "account_holder",
     method: "method_id",
