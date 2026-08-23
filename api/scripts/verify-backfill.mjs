@@ -63,6 +63,15 @@ const TABLES = [
     cols: "type, name, email, phone, website, description, enabled, created_at, updated_at",
   },
   {
+    name: "refiners.items",
+    key: "order_item_id",
+    // refiner_id is excluded on purpose: exchange has never recorded which
+    // refiner a line went to, so it cannot be derived. It is preserved where a
+    // row already carries one and left null otherwise - the same decision
+    // already taken for orders.orders.refinery_id.
+    cols: "order_item_id, bullion_id, metal_id, pre_melt, post_melt, purity, content, premium, quantity, unit",
+  },
+  {
     name: "payments.ledger",
     key: "id",
     cols: "id, user_id, type, order_id, amount, occurred_at",
@@ -227,10 +236,11 @@ const TABLES = [
     // when it was ordered, and three products have been edited since; the
     // historical value is not in exchange, so a rebuild can only take the
     // current one.
+    // The four assay columns moved to refiners.items in 065 and are compared
+    // there. What is left is what the customer declared plus the price.
     cols: `id, order_id, bullion_id, metal_id, pre_melt, post_melt, content,
            premium, quantity, confirmed, sales_tax_charged, unit,
-           price, refiner_premium, bid_premium, purity_actual, post_melt_actual,
-           content_actual`,
+           price, bid_premium`,
   },
   {
     name: "orders.spots",
@@ -273,7 +283,7 @@ const NOT_REBUILT = {
   "places.locations": "seed data, no exchange source",
   "places.location_hours": "seed data, no exchange source",
   "refiners.refiners": "compared through refiners.exchange_compat",
-  "refiners.items": "refiners is not migrated",
+
   "refiners.spots": "refiners is not migrated",
   "shipping.services": "seed data",
   "shipping.packages": "seed data",

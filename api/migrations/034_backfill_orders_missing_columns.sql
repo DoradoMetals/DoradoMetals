@@ -98,24 +98,24 @@ WHERE p.id = t.order_id
     OR t.pool_remediation IS DISTINCT FROM p.pool_remediation
     OR t.pool_oz_deducted IS DISTINCT FROM p.pool_oz_deducted);
 
--- Per-line pricing and the assay figures.
+-- Per-line pricing, and the scrap row's own premium.
+--
+-- The assay figures used to be set here too - refiner_premium, purity_actual,
+-- post_melt_actual and content_actual - and 065 removed those columns from
+-- orders.items. They belong on the refiner's line, which 066 derives.
+--
+-- bid_premium stays. An earlier edit dropped it along with the four, which
+-- verify:backfill caught immediately: a rebuild produced null where dev held
+-- 0.75 on twenty rows.
 
 UPDATE orders.items i
 SET price = poi.price,
-    refiner_premium = poi.refiner_premium,
-    bid_premium = s.bid_premium,
-    purity_actual = s.purity_actual,
-    post_melt_actual = s.post_melt_actual,
-    content_actual = s.content_actual
+    bid_premium = s.bid_premium
 FROM exchange.purchase_order_items poi
 LEFT JOIN exchange.scrap s ON s.id = poi.scrap_id
 WHERE poi.id = i.id
   AND (i.price IS DISTINCT FROM poi.price
-    OR i.refiner_premium IS DISTINCT FROM poi.refiner_premium
-    OR i.bid_premium IS DISTINCT FROM s.bid_premium
-    OR i.purity_actual IS DISTINCT FROM s.purity_actual
-    OR i.post_melt_actual IS DISTINCT FROM s.post_melt_actual
-    OR i.content_actual IS DISTINCT FROM s.content_actual);
+    OR i.bid_premium IS DISTINCT FROM s.bid_premium);
 
 UPDATE orders.items i
 SET price = soi.price

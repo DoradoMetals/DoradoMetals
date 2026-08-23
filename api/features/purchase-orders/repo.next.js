@@ -89,9 +89,9 @@ const scrapJson = (withActuals) => {
           'bid_premium', ${scrapOnly("i.bid_premium")}${
             withActuals
               ? `,
-          'purity_actual', ${scrapOnly("i.purity_actual")},
-          'post_melt_actual', ${scrapOnly("i.post_melt_actual")},
-          'content_actual', ${scrapOnly("i.content_actual")}`
+          'purity_actual', ${scrapOnly("ri.purity")},
+          'post_melt_actual', ${scrapOnly("ri.post_melt")},
+          'content_actual', ${scrapOnly("ri.content")}`
               : ""
           }
         )`;
@@ -139,7 +139,7 @@ function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
         'quantity', i.quantity,
         'confirmed', i.confirmed,
         'premium', i.premium,
-        'refiner_premium', i.refiner_premium,
+        'refiner_premium', ri.premium,
         'item_type', CASE
           WHEN i.bullion_id IS NULL THEN 'scrap'
           ELSE 'product'
@@ -173,6 +173,11 @@ function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
     LEFT JOIN orders.offers f ON f.order_id = o.id
     LEFT JOIN orders.transactions t ON t.order_id = o.id
     LEFT JOIN orders.items i ON i.order_id = o.id
+    -- The refiner's counterpart to the line: what the refinery reported once the
+    -- scrap was melted, as against what the customer declared. 064 made this one
+    -- row per purchase-order line, so the join is one-to-one and the values are
+    -- null until a refiner reports.
+    LEFT JOIN refiners.items ri ON ri.order_item_id = i.id
     LEFT JOIN metals.metals im ON im.id = i.metal_id
     LEFT JOIN products.bullion b ON b.id = i.bullion_id
     LEFT JOIN metals.metals bm ON bm.id = b.metal_id
@@ -368,8 +373,7 @@ export async function mirrorItems(orderId, executor) {
     `INSERT INTO orders.items (
        id, order_id, bullion_id, metal_id, pre_melt, post_melt, purity, content,
        premium, quantity, confirmed, sales_tax_charged, unit,
-       price, refiner_premium, bid_premium,
-       purity_actual, post_melt_actual, content_actual
+       price, bid_premium
      )
      SELECT
        poi.id, poi.purchase_order_id, poi.product_id,
@@ -378,8 +382,7 @@ export async function mirrorItems(orderId, executor) {
        coalesce(s.purity, pr.purity), coalesce(s.content, pr.content),
        poi.premium, poi.quantity, coalesce(poi.confirmed, false), 0,
        coalesce(s.gross_unit, 't oz'),
-       poi.price, poi.refiner_premium, s.bid_premium,
-       s.purity_actual, s.post_melt_actual, s.content_actual
+       poi.price, s.bid_premium
      FROM exchange.purchase_order_items poi
      LEFT JOIN exchange.scrap s ON s.id = poi.scrap_id
      LEFT JOIN exchange.products pr ON pr.id = poi.product_id
@@ -390,11 +393,41 @@ export async function mirrorItems(orderId, executor) {
        purity = EXCLUDED.purity, content = EXCLUDED.content,
        premium = EXCLUDED.premium, quantity = EXCLUDED.quantity,
        confirmed = EXCLUDED.confirmed, unit = EXCLUDED.unit,
-       price = EXCLUDED.price, refiner_premium = EXCLUDED.refiner_premium,
-       bid_premium = EXCLUDED.bid_premium,
-       purity_actual = EXCLUDED.purity_actual,
-       post_melt_actual = EXCLUDED.post_melt_actual,
-       content_actual = EXCLUDED.content_actual`,
+       price = EXCLUDED.price,
+       bid_premium = EXCLUDED.bid_premium`,
+    [orderId],
+    executor
+  );
+
+  // The refiner's counterpart. What the refinery reported once the scrap was
+  // melted lives on its own line now rather than as four `_actual` columns on
+  // the order item - see migration 064. One row per purchase-order line, null
+  // until the refiner reports.
+  //
+  // refiner_id is left alone on conflict: exchange has never recorded which
+  // refiner a line went to, so a mirror must not overwrite what is already
+  // there with a null.
+  await query(
+    `INSERT INTO refiners.items (
+       order_item_id, refiner_id, bullion_id, metal_id,
+       pre_melt, post_melt, purity, content, premium, quantity, unit
+     )
+     SELECT
+       poi.id, NULL, poi.product_id, coalesce(s.metal_id, pr.metal_id),
+       s.pre_melt, s.post_melt_actual, s.purity_actual, s.content_actual,
+       poi.refiner_premium, coalesce(poi.quantity, 1), s.gross_unit
+     FROM exchange.purchase_order_items poi
+     LEFT JOIN exchange.scrap s ON s.id = poi.scrap_id
+     LEFT JOIN exchange.products pr ON pr.id = poi.product_id
+     WHERE poi.purchase_order_id = $1
+       AND coalesce(s.metal_id, pr.metal_id) IS NOT NULL
+       AND EXISTS (SELECT 1 FROM orders.items i WHERE i.id = poi.id)
+     ON CONFLICT (order_item_id) DO UPDATE SET
+       bullion_id = EXCLUDED.bullion_id, metal_id = EXCLUDED.metal_id,
+       pre_melt = EXCLUDED.pre_melt, post_melt = EXCLUDED.post_melt,
+       purity = EXCLUDED.purity, content = EXCLUDED.content,
+       premium = EXCLUDED.premium, quantity = EXCLUDED.quantity,
+       unit = EXCLUDED.unit`,
     [orderId],
     executor
   );

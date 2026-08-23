@@ -25,9 +25,9 @@ export const FEATURES = {
   orders: {
     "exchange.purchase_orders": ["orders.orders", "orders.offers", "orders.transactions"],
     "exchange.sales_orders": ["orders.orders", "orders.transactions"],
-    "exchange.purchase_order_items": ["orders.items"],
+    "exchange.purchase_order_items": ["orders.items", "refiners.items"],
     "exchange.sales_order_items": ["orders.items"],
-    "exchange.scrap": ["orders.items"],
+    "exchange.scrap": ["orders.items", "refiners.items"],
     "exchange.order_metals": ["orders.spots"],
     "exchange.addresses": ["places.addresses", "orders.addresses"],
   },
@@ -70,9 +70,24 @@ export const RENAMES = {
     order_total: "total", item_total: "items", shipping_cost: "shipping",
     charges_amount: "surcharge", pre_charges_amount: "funds", address_id: "-",
   },
-  "exchange.purchase_order_items": { purchase_order_id: "order_id", product_id: "bullion_id", scrap_id: "-" },
+  "exchange.purchase_order_items": {
+    purchase_order_id: "order_id",
+    product_id: "bullion_id",
+    scrap_id: "-",
+    // -> refiners.items.premium, the refiner's own premium for the line.
+    refiner_premium: "premium",
+  },
   "exchange.sales_order_items": { sales_order_id: "order_id", product_id: "bullion_id", sales_tax_rate: "sales_tax_charged" },
-  "exchange.scrap": { gross_unit: "unit", gem_id: "-" },
+  // The assay moved to the refiner's line in 065: what the refinery reported
+  // once the scrap was melted is refiners.items, and orders.items keeps only
+  // what the customer declared. bid_premium stays on the item.
+  "exchange.scrap": {
+    gross_unit: "unit",
+    gem_id: "-",
+    purity_actual: "purity",
+    post_melt_actual: "post_melt",
+    content_actual: "content",
+  },
   "exchange.order_metals": { type: "metal_id", ask_spot: "ask", bid_spot: "bid", purchase_order_id: "order_id", sales_order_id: "order_id" },
   "exchange.refiner_metals": { type: "metal_id", ask_spot: "ask", bid_spot: "bid", purchase_order_id: "order_id", sales_order_id: "order_id" },
   // An address splits in two: the postal address itself, which has no owner,

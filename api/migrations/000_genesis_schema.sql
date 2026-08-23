@@ -409,11 +409,7 @@ CREATE TABLE IF NOT EXISTS orders.items (
   sales_tax_charged numeric DEFAULT 0 NOT NULL,
   unit text,
   price numeric,
-  refiner_premium numeric,
-  bid_premium numeric,
-  purity_actual numeric,
-  post_melt_actual numeric,
-  content_actual numeric
+  bid_premium numeric
 );
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS order_id uuid;
@@ -429,11 +425,7 @@ ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS confirmed boolean DEFAULT fals
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS sales_tax_charged numeric DEFAULT 0;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS unit text;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS price numeric;
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS refiner_premium numeric;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS bid_premium numeric;
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS purity_actual numeric;
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS post_melt_actual numeric;
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS content_actual numeric;
 
 CREATE TABLE IF NOT EXISTS orders.offers (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1029,7 +1021,7 @@ ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 CREATE TABLE IF NOT EXISTS refiners.items (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   order_item_id uuid NOT NULL,
-  refiner_id uuid NOT NULL,
+  refiner_id uuid,
   bullion_id uuid,
   metal_id uuid NOT NULL,
   pre_melt numeric,
@@ -3093,6 +3085,7 @@ CREATE INDEX IF NOT EXISTS idx_refiner_items_metal_id ON refiners.items USING bt
 CREATE INDEX IF NOT EXISTS idx_refiner_items_order_id ON refiners.items USING btree (order_item_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_items_refiner_id ON refiners.items USING btree (refiner_id);
 CREATE INDEX IF NOT EXISTS refiners_items_order_item_id_ix ON refiners.items USING btree (order_item_id);
+CREATE UNIQUE INDEX IF NOT EXISTS refiners_items_order_item_id_key ON refiners.items USING btree (order_item_id);
 CREATE UNIQUE INDEX IF NOT EXISTS refiners_organization_uniq ON refiners.refiners USING btree (organization_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_metal ON refiners.spots USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_order ON refiners.spots USING btree (order_id);
