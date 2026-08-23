@@ -11,9 +11,14 @@ import query from "#shared/db/query.js";
 export async function list(userId) {
   const q = `
     SELECT
-     id, user_id, line_1, line_2, city, state, country, zip,
-     created_at, updated_at, name, is_default, phone_number, is_valid,
-     country_code, is_residential
+     id, line_1, line_2, city, state, country, zip,
+     created_at, updated_at, phone_number, is_valid,
+     country_code, is_residential,
+     jsonb_build_object(
+       'user_id', user_id,
+       'label', name,
+       'default_shipping', is_default
+     ) AS user_address
     FROM exchange.addresses
     WHERE user_id = $1
     ORDER BY is_default DESC, id ASC;
@@ -25,9 +30,14 @@ export async function list(userId) {
 export async function getFromId(address_id) {
   const q = `
     SELECT
-     id, user_id, line_1, line_2, city, state, country, zip,
-     created_at, updated_at, name, is_default, phone_number, is_valid,
-     country_code, is_residential
+     id, line_1, line_2, city, state, country, zip,
+     created_at, updated_at, phone_number, is_valid,
+     country_code, is_residential,
+     jsonb_build_object(
+       'user_id', user_id,
+       'label', name,
+       'default_shipping', is_default
+     ) AS user_address
     FROM exchange.addresses
     WHERE id = $1
     ORDER BY is_default DESC, id ASC;
@@ -76,8 +86,8 @@ export async function create({ address, userId }, executor) {
     address.state,
     address.country,
     address.zip,
-    address.name,
-    address.is_default,
+    address.user_address?.label,
+    address.user_address?.default_shipping,
     address.phone_number,
     true,
     address.country_code,
@@ -116,8 +126,8 @@ export async function update({ address, userId }, executor) {
     address.state,
     address.country,
     address.zip,
-    address.name,
-    address.is_default,
+    address.user_address?.label,
+    address.user_address?.default_shipping,
     address.phone_number,
     address.country_code,
     false,

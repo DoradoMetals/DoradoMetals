@@ -68,6 +68,7 @@ const mediaWire = await import("#features/media/wire.js");
 const suppliersWire = await import("#features/suppliers/wire.js");
 const carriersWire = await import("#features/shipping/carriers/wire.js");
 const spotsWire = await import("#features/spots/wire.js");
+const addressesWire = await import("#features/addresses/wire.js");
 
 add("GET /reviews (public)", c.ReviewWire, () => reviews.getPublicReviews());
 await bothWays("GET /carriers", c.CarrierWireNext, "shipping/carriers", (m) => m.getAll());
@@ -103,8 +104,11 @@ const { rows: withAddresses } = await pool.query(
    GROUP BY user_id ORDER BY count(*) DESC LIMIT 1`
 );
 const addressUser = withAddresses[0]?.user_id;
-await bothWays("GET /addresses", c.AddressWire, "addresses", (m) =>
+await bothWays("GET /addresses", c.AddressWireNext, "addresses", (m) =>
   addressUser ? m.list(addressUser) : []
+);
+await bothWays("GET /addresses (legacy wire)", c.AddressWire, "addresses", async (m) =>
+  addressesWire.toLegacy(addressUser ? await m.list(addressUser) : [])
 );
 
 // The other renaming read: media.images stores `checksum` and the wire calls it

@@ -17,9 +17,19 @@
 import query from "#shared/db/query.js";
 
 // The columns exchange.addresses had, from the two tables now holding them.
+// A postal address and a person's relationship to it are different things, and
+// the response says so. That separation is not cosmetic: it is why an order can
+// snapshot an address without copying whose it was, and why removing an address
+// from a book deletes the link rather than the address.
+//
+// The address keeps the id, because the id is the handle - remove() and update()
+// key on it, and exchange returned it. The person's side - what they called it,
+// whether it is their default - is theirs, not the address's.
+//
+// features/addresses/wire.js flattens it back for the frontend behind
+// ADDRESSES_WIRE, which is a transformation rather than a rename.
 const ADDRESS_COLUMNS = `
       a.id,
-      ua.user_id,
       a.line_1,
       a.line_2,
       a.city,
@@ -28,12 +38,15 @@ const ADDRESS_COLUMNS = `
       a.zip,
       a.created_at,
       a.updated_at,
-      ua.label AS name,
-      ua.default_shipping AS is_default,
       a.phone_number,
       a.is_valid,
       a.country_code,
-      a.is_residential`;
+      a.is_residential,
+      jsonb_build_object(
+        'user_id', ua.user_id,
+        'label', ua.label,
+        'default_shipping', ua.default_shipping
+      ) AS user_address`;
 
 // Inner join: an address with no user_addresses row is a snapshot taken for an
 // order, not something in anyone's address book, and exchange's list would

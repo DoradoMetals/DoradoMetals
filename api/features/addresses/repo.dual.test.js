@@ -45,8 +45,11 @@ test("creating an address writes both halves", async () => {
       userId: user_id,
       address: {
         line_1: "1 Test Way", line_2: "", city: "Dallas", state: "TX",
-        country: "United States", zip: "75201", name: "Work",
-        is_default: false, phone_number: "5550000000", country_code: "US",
+        country: "United States", zip: "75201",
+        phone_number: "5550000000", country_code: "US",
+        // The repos take the nested shape: what one person calls an address and
+        // whether it is their default belongs to them, not to the address.
+        user_address: { label: "Work", default_shipping: false },
       },
     }, c);
 
