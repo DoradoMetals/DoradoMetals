@@ -1,5 +1,5 @@
 import withTransaction from "#shared/db/withTransaction.js";
-import * as cartRepo from "#features/carts/repo.js"
+import * as cartRepo from "#features/checkout/repo.js"
 
 export async function getCart(user_id) {
   return await cartRepo.getCart(user_id);

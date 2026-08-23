@@ -15,7 +15,7 @@ import cors from "cors";
 import productRoutes from "#features/products/routes.js";
 import addressRoutes from "#features/addresses/routes.js";
 import purchaseOrderRoutes from "#features/purchase-orders/routes.js";
-import cartRoutes from "#features/carts/routes.js";
+import checkoutRoutes from "#features/checkout/routes.js";
 import pdfRoutes from "#features/pdf/routes.js";
 import reviewRoutes from "#features/reviews/routes.js";
 import emailRoutes from "#features/emails/routes.js";
@@ -63,7 +63,9 @@ app.use(express.json());
 app.use("/api/stripe", stripeRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/addresses", addressRoutes);
-app.use("/api/cart", cartRoutes);
+// The route stays /api/cart: the frontend calls it and renaming the module is
+// not a reason to change the API. The feature is checkout; the path is history.
+app.use("/api/cart", checkoutRoutes);
 app.use("/api/shipping", shippingRoutes);
 app.use("/api/spots", spotRoutes);
 app.use("/api/purchase_orders", purchaseOrderRoutes);

@@ -92,7 +92,7 @@ test("a constraint violation does not return the value that collided", () => {
 });
 
 // An error raised on purpose was written to be read. features/addresses,
-// features/carts and features/purchase-orders all do this.
+// features/checkout and features/purchase-orders all do this.
 test("a deliberately raised 4xx keeps its message", () => {
   const err = new Error("Address is not valid");
   err.statusCode = 400;

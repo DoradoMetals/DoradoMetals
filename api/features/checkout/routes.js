@@ -5,7 +5,7 @@ import {
   syncCart,
   getSellCart,
   syncSellCart,
-} from "#features/carts/controller.js";
+} from "#features/checkout/controller.js";
 
 const router = express.Router();
 

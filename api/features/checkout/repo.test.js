@@ -11,7 +11,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import * as repo from "#features/carts/repo.js";
+import * as repo from "#features/checkout/repo.js";
 
 let client;
 

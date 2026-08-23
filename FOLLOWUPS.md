@@ -370,6 +370,60 @@ Also: **there are eighteen new schemas, not the sixteen CLAUDE.md lists.**
 map — so neither audit had been checking a feature that was already built. Now
 declared; it added zero coverage gaps and two more type comparisons.
 
+### READY TO EXECUTE, AFTER PROMOTION: drop orders.items.price
+
+Jacob wants this column gone, and it can go — the algebra works. It is deferred
+only on ordering, not on doubt, and the proof is already done.
+
+**The recovery.** `exchange.scrap.content` is `numeric(20,3)` and a line's price
+was computed from the content *before* it was rounded, so the price still
+carries the precision the content lost:
+
+```
+content = price / (bid_spot × premium)
+```
+
+Verified against production: of **74** scrap lines with both a price and a
+locked spot, **all 74** recover a content that rounds back to exactly what
+`exchange` stored, and **all 74** reproduce the price to the cent from the
+recovered value. Nothing was ever repriced after the fact. The migration guards
+on that round-trip, so a line only takes the recovered value if it reproduces
+what `exchange` holds.
+
+**Why it waits.** Recovering the content makes `repo.next` return a more precise
+value than `repo.exchange` — which turns `diff` red on `purchase-orders.getAll`
+and `findAllByUser`. Confirmed by applying it: 55 operations identical became 53.
+Dropping `price` adds a second divergence, on the lines where `exchange` has
+deliberately cleared it.
+
+So doing this now means **weakening the check that gates promotion, on money
+fields, immediately before promotion.** After promotion there is only one
+implementation, `diff` has nothing to compare, and the same change costs nothing
+and breaks nothing. Same destination, better order.
+
+**What to do, when the time comes:**
+
+1. `UPDATE orders.items SET content = poi.price / (sp.bid * i.premium)` guarded
+   on `round(recovered, 3) = round(content, 3)`, spot from `orders.spots`
+   (the *locked* spot — `exchange.order_metals` — not a live quote).
+2. `ALTER TABLE orders.items DROP COLUMN price`.
+3. `repo.next` derives it: `i.content * sp.bid * i.premium`, joining
+   `orders.spots` on `(order_id, metal_id)`.
+
+**One thing that genuinely goes.** `price` is null on 12 dev lines and 6
+production lines, and null means "this quote has been invalidated" —
+`clearItemPrices` sets it in `reissueOffer`. Deriving cannot reproduce that,
+because the locked spot deliberately stays frozen (Jacob: unfreezing is an admin
+action, never automatic). Two production lines would show a withdrawn quote.
+Jacob has decided that does not matter, twice, and it is his call — recorded
+here so the behaviour change is not a surprise later.
+
+The offer workflow itself is a separate question. Jacob is happy to drop it
+entirely; the scope is 5 endpoints, 7 service functions, the `expireStaleOffers`
+cron job, 18 frontend files, and 61 of 61 production purchase orders carrying an
+offer status with 5 currently Pending. Worth doing as its own piece of work, not
+folded into a schema migration.
+
 ### RESOLVED: auctions is retired; carts become checkout
 
 Jacob, 2026-08-23: "Carts is fine to remove as well, simply because we don't
