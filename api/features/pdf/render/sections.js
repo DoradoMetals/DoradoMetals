@@ -205,6 +205,15 @@ export function renderInvoiceShippingAndPayout(purchaseOrder, { payoutCost }) {
   `;
 }
 
+// An order with no address still has to render.
+//
+// Every one of these was `purchaseOrder.address.name` and threw on a null
+// address, so the packing list was a 500 rather than a document. Five of dev's
+// sixteen purchase orders have no address_id - Completed, Accepted and Payment
+// Processing, not junk - and production has one.
+//
+// A blank line on a document is recoverable; a 500 when an admin asks for a
+// packing list is not, and it gives no hint of what is wrong.
 export function renderPackingShippingSection(
   purchaseOrder,
   { isReturn = false, includePayoutFee = false, payoutFee = 0 } = {}
@@ -212,60 +221,60 @@ export function renderPackingShippingSection(
   const fromIsCustomer = !isReturn;
 
   const fromName = fromIsCustomer
-    ? purchaseOrder.address.name
+    ? (purchaseOrder.address?.name ?? "")
     : process.env.FEDEX_DORADO_NAME;
 
   const fromLine1 = fromIsCustomer
-    ? purchaseOrder.address.line_1
+    ? (purchaseOrder.address?.line_1 ?? "")
     : process.env.FEDEX_RETURN_ADDRESS_LINE_1;
 
   const fromLine2 = fromIsCustomer
-    ? purchaseOrder.address.line_2 || ""
+    ? purchaseOrder.address?.line_2 || ""
     : process.env.FEDEX_RETURN_ADDRESS_LINE_2 || "";
 
   const fromCity = fromIsCustomer
-    ? purchaseOrder.address.city
+    ? (purchaseOrder.address?.city ?? "")
     : process.env.FEDEX_RETURN_CITY;
 
   const fromState = fromIsCustomer
-    ? purchaseOrder.address.state
+    ? (purchaseOrder.address?.state ?? "")
     : process.env.FEDEX_RETURN_STATE;
 
   const fromZip = fromIsCustomer
-    ? purchaseOrder.address.zip
+    ? (purchaseOrder.address?.zip ?? "")
     : process.env.FEDEX_RETURN_ZIP;
 
   const fromPhone = fromIsCustomer
-    ? purchaseOrder.address.phone_number
+    ? (purchaseOrder.address?.phone_number ?? "")
     : process.env.FEDEX_DORADO_PHONE_NUMBER;
 
   const toName = fromIsCustomer
     ? process.env.FEDEX_DORADO_NAME
-    : purchaseOrder.address.name;
+    : (purchaseOrder.address?.name ?? "");
 
   const toLine1 = fromIsCustomer
     ? process.env.FEDEX_RETURN_ADDRESS_LINE_1
-    : purchaseOrder.address.line_1;
+    : (purchaseOrder.address?.line_1 ?? "");
 
   const toLine2 = fromIsCustomer
     ? process.env.FEDEX_RETURN_ADDRESS_LINE_2 || ""
-    : purchaseOrder.address.line_2 || "";
+    : purchaseOrder.address?.line_2 || "";
 
   const toCity = fromIsCustomer
     ? process.env.FEDEX_RETURN_CITY
-    : purchaseOrder.address.city;
+    : (purchaseOrder.address?.city ?? "");
 
   const toState = fromIsCustomer
     ? process.env.FEDEX_RETURN_STATE
-    : purchaseOrder.address.state;
+    : (purchaseOrder.address?.state ?? "");
 
   const toZip = fromIsCustomer
     ? process.env.FEDEX_RETURN_ZIP
-    : purchaseOrder.address.zip;
+    : (purchaseOrder.address?.zip ?? "");
 
   const toPhone = fromIsCustomer
     ? process.env.FEDEX_DORADO_PHONE_NUMBER
-    : purchaseOrder.address.phone_number;
+    : (purchaseOrder.address?.phone_number ?? "");
 
   const shipment = isReturn
     ? purchaseOrder.return_shipment

@@ -91,6 +91,72 @@ genesis. `verify-genesis.mjs` built its comparison schema from
 reached it. The check now compares the committed file too, and that was proved
 to fail before being trusted.
 
+### The invoice valued an ounce of gold at zero
+
+The PDF service had no tests at all — 746 lines generating the documents a
+customer actually receives. Writing them found two bugs and one duplicate.
+
+**The scrap premium fallback was missing from every scrap branch.** Every
+product branch reads `item.premium ?? item?.product?.bid_premium ?? 0`. No scrap
+branch did — `calculateTotalPrice`, `calculateReturnDeclaredValue`,
+`calculateItemPrice` and `getScrapTotal` all read `item.premium` alone, so a
+scrap line with a null premium was worth nothing.
+
+Found by comparing the two PDFs for the same order. Dev purchase order 239 holds
+one troy ounce of gold with a null premium and a scrap `bid_premium` of 0.75:
+
+| | |
+|---|---|
+| invoice (`calculateTotalPrice`) | **$4,744.11** |
+| packing list (its own copy of the sum) | **$7,980.22** |
+| the gold | $3,236.11 |
+
+`calculateReturnDeclaredValue` is the worse one — that is the declared value on a
+return shipment, so the same ounce would have gone back in the post uninsured.
+
+**No production order changes.** Of 81 production scrap lines, zero have a null
+premium; of 88 purchase-order items, all 88 have one. This can only ever have
+understated, never overstated, and it has never fired on real data. It was one
+null away.
+
+**The packing list crashed for any order with no address.** Every address field
+was dereferenced unguarded — `purchaseOrder.address.name` and thirteen more, plus
+five on the sales order invoice. Five of dev's sixteen purchase orders have no
+`address_id` (Completed, Accepted, Payment Processing — not junk), and
+**production has one**. Asking for that document returned a 500. Now the fields
+render blank; a blank line is recoverable, a 500 gives nobody a hint.
+
+Guarding them the obvious way put the literal string `undefined` on the page in
+five places, which the test caught immediately. They default to blank.
+
+**The packing list had its own copy of the total.** `generateInvoice` used the
+shared `calculateTotalPrice`; `generatePackingList` reduced the items inline
+with different premium handling. That is the whole reason the two documents
+disagreed. The duplicate is gone.
+
+### Building the PDF and printing it are now separate
+
+Each generator ended in `return renderPdf(htmlContent)`, so the only way to
+exercise the layout was to start Chromium and get bytes back — which proves a
+document came out and nothing about what is in it.
+
+`buildPackingListHtml`, `buildInvoiceHtml`, `buildReturnPackingListHtml` and
+`buildSalesOrderInvoiceHtml` now return the HTML; the four `generate*` functions
+are one line each and keep their names and signatures, so nothing that calls
+them changed.
+
+Sweeping every order in dev went from **65 seconds to 14 milliseconds**, and the
+address bug was in the building, not the printing. Three tests still go through
+real Chromium so the rendering itself stays covered.
+
+**Still untested: `features/emails/service.js`.** It is 119 lines of
+orchestration around `sendEmail`, which sends real mail, and `sendEmail` is a
+plain function export rather than a method on an object — so there is no seam to
+stub it the way `auth.api.getSession` allowed for the endpoint tests. Worth a
+small refactor to make it injectable. One thing already visible without tests:
+`sendCreatedEmail` passes `payoutDetails` to `generatePackingList`, which does
+not accept it — a dead argument.
+
 ### The HTTP layer now has tests, and the guard inventory is clean
 
 Nothing tested the routes or the controllers until now, which is where this

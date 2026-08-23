@@ -7,7 +7,7 @@ import {
 
 import { renderPdf } from "#features/pdf/render/browser.js";
 import { renderShell } from "#features/pdf/render/layout.js";
-import { formatCurrency, getItemPrice } from "#features/pdf/render/format.js";
+import { formatCurrency } from "#features/pdf/render/format.js";
 import {
   renderInvoiceHeader,
   renderInvoiceShippingAndPayout,
@@ -19,50 +19,19 @@ import {
   buildInvoiceBullionRows,
 } from "#features/pdf/render/sections.js";
 
-export async function generatePackingList({
+export function buildPackingListHtml({
   purchaseOrder,
   spotPrices = [],
   packageDetails,
 }) {
-  const payoutFee = purchaseOrder.payout.cost;
-
-  const total =
-    purchaseOrder.order_items.reduce((acc, item) => {
-      if (item.item_type === "product") {
-        const product = item.product;
-        const spot = spotPrices.find((s) => s.type === product?.metal_type);
-
-        const price =
-          item.price ??
-          getItemPrice(
-            product.content,
-            item.premium ?? item.product.bid_premium,
-            spot?.bid_spot
-          );
-        const quantity = item.quantity ?? 1;
-
-        return acc + price * quantity;
-      }
-
-      if (item.item_type === "scrap") {
-        const scrap = item.scrap;
-        const spot = spotPrices.find((s) => s.type === scrap?.metal);
-
-        const price =
-          item.price ??
-          getItemPrice(
-            scrap.content,
-            item.premium ?? item.scrap.bid_premium,
-            spot?.bid_spot
-          );
-
-        return acc + price;
-      }
-
-      return acc;
-    }, 0) -
-    (purchaseOrder.shipment?.shipping_charge ?? 0) -
-    payoutFee;
+  // The same sum the invoice uses, rather than a second copy of it.
+  //
+  // This had its own inline reduce, and the two drifted: it fell back to the
+  // scrap row's own premium where calculateTotalPrice did not, so purchase
+  // order 239 came out at $7,980.22 here and $4,744.11 on the invoice - both
+  // documents going to the same customer. The fallback was the correct half;
+  // calculations.js now has it, and this calls it.
+  const total = calculateTotalPrice(purchaseOrder, spotPrices);
 
   const scrapRows = buildPackingScrapRows(
     purchaseOrder.order_items,
@@ -247,14 +216,14 @@ export async function generatePackingList({
     bodyHtml: mainPageBody,
   });
 
-  return renderPdf(htmlContent);
+  return htmlContent;
 }
 
 /* ------------------------------------------------------------------ */
 /* generateReturnPackingList (reuses same helpers)                    */
 /* ------------------------------------------------------------------ */
 
-export async function generateReturnPackingList({
+export function buildReturnPackingListHtml({
   purchaseOrder,
   spotPrices = [],
 }) {
@@ -338,10 +307,10 @@ export async function generateReturnPackingList({
     bodyHtml,
   });
 
-  return renderPdf(htmlContent);
+  return htmlContent;
 }
 
-export async function generateInvoice({
+export function buildInvoiceHtml({
   purchaseOrder,
   spotPrices = [],
   orderSpots = [],
@@ -486,10 +455,10 @@ export async function generateInvoice({
     bodyHtml,
   });
 
-  return renderPdf(htmlContent);
+  return htmlContent;
 }
 
-export async function generateSalesOrderInvoice({ salesOrder, spots = [] }) {
+export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
   const doneStatus = ["Preparing", "In Transit", "Completed"];
 
   const bullionItems = salesOrder.order_items
@@ -564,23 +533,23 @@ export async function generateSalesOrderInvoice({ salesOrder, spots = [] }) {
         <div class="detail-content">
           <div class="detail-row">
             <span class="detail-label">Street 1:</span>
-            <span class="detail-value">${salesOrder.address.line_1}</span>
+            <span class="detail-value">${(salesOrder.address?.line_1 ?? "")}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Street 2:</span>
-            <span class="detail-value">${salesOrder.address.line_2}</span>
+            <span class="detail-value">${(salesOrder.address?.line_2 ?? "")}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">City:</span>
-            <span class="detail-value">${salesOrder.address.city}</span>
+            <span class="detail-value">${(salesOrder.address?.city ?? "")}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">State:</span>
-            <span class="detail-value">${salesOrder.address.state}</span>
+            <span class="detail-value">${(salesOrder.address?.state ?? "")}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Zip Code:</span>
-            <span class="detail-value">${salesOrder.address.zip}</span>
+            <span class="detail-value">${(salesOrder.address?.zip ?? "")}</span>
           </div>
         </div>
       </div>
@@ -742,5 +711,33 @@ export async function generateSalesOrderInvoice({ salesOrder, spots = [] }) {
     bodyHtml,
   });
 
-  return renderPdf(htmlContent);
+  return htmlContent;
+}
+
+
+// Building the document and printing it are separate.
+//
+// Each generator used to end in `return renderPdf(htmlContent)`, so the only
+// way to exercise 746 lines of layout was to start Chromium and get back a
+// PDF - which meant checking that a document came out, never what was in it.
+// Rendering every order in dev took 65 seconds; building the same HTML takes
+// milliseconds, and the HTML is where all of the logic actually is.
+//
+// The generators keep their names and signatures. Nothing that calls them
+// changes.
+
+export async function generatePackingList(input) {
+  return renderPdf(buildPackingListHtml(input));
+}
+
+export async function generateReturnPackingList(input) {
+  return renderPdf(buildReturnPackingListHtml(input));
+}
+
+export async function generateInvoice(input) {
+  return renderPdf(buildInvoiceHtml(input));
+}
+
+export async function generateSalesOrderInvoice(input) {
+  return renderPdf(buildSalesOrderInvoiceHtml(input));
 }
