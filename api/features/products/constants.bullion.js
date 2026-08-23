@@ -2,9 +2,10 @@
 // exchange.products: name, description and type where exchange has
 // product_name, product_description and product_type.
 //
-// Each list aliases them back, so a caller reading either implementation sees
-// the exchange names. The rename is a property of the new schema, not something
-// consumers have to learn about mid-migration.
+// These lists used to alias them back to the exchange names. They no longer do:
+// the new shape is the internal truth now, and features/products/wire.js
+// converts down to the legacy names on the way out, behind PRODUCTS_WIRE. The
+// exchange field lists alias UP to meet these.
 //
 // BULLION_PRODUCT_FIELDS is fully qualified with the `product.` alias. The
 // exchange query writes `SELECT product.${PRODUCT_FIELDS}`, which qualifies only
@@ -17,14 +18,14 @@
 
 export const BULLION_PRODUCT_FIELDS = `
   product.id,
-  product.name AS product_name,
-  product.description AS product_description,
+  product.name,
+  product.description,
   product.content,
   product.purity,
   product.gross,
   product.bid_premium,
   product.ask_premium,
-  product.type AS product_type,
+  product.type,
   product.image_front,
   product.image_back,
   product.variant_group,
@@ -39,14 +40,14 @@ export const BULLION_PRODUCT_FIELDS = `
 
 export const BULLION_PRODUCT_FIELDS_WITH_ALIAS = `
   p.id,
-  p.name AS product_name,
-  p.description AS product_description,
+  p.name,
+  p.description,
   p.content,
   p.purity,
   p.gross,
   p.bid_premium,
   p.ask_premium,
-  p.type AS product_type,
+  p.type,
   p.image_front,
   p.image_back,
   p.variant_group,
@@ -61,11 +62,11 @@ export const BULLION_PRODUCT_FIELDS_WITH_ALIAS = `
 
 export const BULLION_ADMIN_PRODUCT_FIELDS = `
   id,
-  name AS product_name,
-  description AS product_description,
+  name,
+  description,
   bid_premium,
   ask_premium,
-  type AS product_type,
+  type,
   created_at,
   updated_at,
   image_front,
@@ -92,11 +93,11 @@ export const BULLION_ADMIN_PRODUCT_FIELDS = `
 
 export const BULLION_ADMIN_PRODUCT_FIELDS_WITH_ALIAS = `
   p.id,
-  p.name AS product_name,
-  p.description AS product_description,
+  p.name,
+  p.description,
   p.bid_premium,
   p.ask_premium,
-  p.type AS product_type,
+  p.type,
   p.created_at,
   p.updated_at,
   p.image_front,

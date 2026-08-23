@@ -10,6 +10,7 @@ import pool from "#db";
 import * as next from "#features/products/repo.next.js";
 import * as exchange from "#features/products/repo.exchange.js";
 import * as dual from "#features/products/repo.dual.js";
+import { toLegacyShape } from "#features/products/wire.js";
 
 let client;
 
@@ -32,18 +33,53 @@ async function inRollback(fn) {
 }
 
 // The three renamed columns are the whole risk of this migration: bullion calls
-// them name, description and type. Anything downstream still reads the old
-// names, so the aliases have to survive every read.
-test("the renamed columns come back under their exchange names", async () => {
+// them name, description and type where exchange calls them product_name,
+// product_description and product_type.
+//
+// The direction of that rename inverted when the wire adapter went in. The repos
+// now return the NEW names - that is the internal truth - and
+// features/products/wire.js converts down to the old ones on the way out, behind
+// PRODUCTS_WIRE. Both halves are asserted here, because getting either backwards
+// is how the frontend breaks.
+test("the repo returns the new names, not the exchange ones", async () => {
   await inRollback(async (c) => {
     const [row] = await next.getAllProducts(c);
-    for (const k of ["product_name", "product_description", "product_type"]) {
+    for (const k of ["name", "description", "type"]) {
       assert.ok(k in row, `${k} missing`);
       assert.notEqual(row[k], null);
     }
-    for (const k of ["name", "description", "type"]) {
-      assert.equal(k in row, false, `${k} leaked through unaliased`);
+    for (const k of ["product_name", "product_description", "product_type"]) {
+      assert.equal(k in row, false, `${k} is the legacy name and should not be here`);
     }
+  });
+});
+
+test("the adapter converts them back to the names the frontend reads", async () => {
+  await inRollback(async (c) => {
+    const [row] = await next.getAllProducts(c);
+    const legacy = toLegacyShape(row);
+    for (const k of ["product_name", "product_description", "product_type"]) {
+      assert.ok(k in legacy, `${k} missing from the legacy shape`);
+      assert.notEqual(legacy[k], null);
+    }
+    for (const k of ["name", "description", "type"]) {
+      assert.equal(k in legacy, false, `${k} survived the conversion`);
+    }
+    // A rename and nothing else: every other field is untouched.
+    const others = Object.keys(row).filter((k) => !["name", "description", "type"].includes(k));
+    for (const k of others) assert.deepEqual(legacy[k], row[k], `${k} changed`);
+  });
+});
+
+// Both implementations now take the new shape on the way in, so a write made
+// through either lands the same value.
+test("a write takes the new names on the way in", async () => {
+  await inRollback(async (c) => {
+    const [p] = await exchange.getAllAdminProducts(c);
+    await dual.updateProduct({ ...p, name: "Input Shape Probe" }, "test", c);
+    const { rows: [e] } = await c.query(
+      "SELECT product_name FROM exchange.products WHERE id = $1", [p.id]);
+    assert.equal(e.product_name, "Input Shape Probe");
   });
 });
 
@@ -150,7 +186,7 @@ test("mirrorProduct is an upsert, not an insert", async () => {
 test("dual-write leaves both tables holding the same product", async () => {
   await inRollback(async (c) => {
     const [p] = await exchange.getAllAdminProducts(c);
-    await dual.updateProduct({ ...p, product_name: "Parity Probe" }, "test", c);
+    await dual.updateProduct({ ...p, name: "Parity Probe" }, "test", c);
     const { rows: [e] } = await c.query(
       "SELECT product_name FROM exchange.products WHERE id = $1", [p.id]);
     const { rows: [b] } = await c.query(

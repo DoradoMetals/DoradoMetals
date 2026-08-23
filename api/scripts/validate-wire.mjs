@@ -63,6 +63,7 @@ const carriers = await import("#features/shipping/carriers/repo.js");
 const services = await import("#features/shipping/services/repo.js");
 const users = await import("#features/users/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
+const { toLegacyShape } = await import("#features/products/wire.js");
 
 add("GET /reviews (public)", c.ReviewWire, () => reviews.getPublicReviews());
 await bothWays("GET /carriers", c.CarrierWire, "shipping/carriers", (m) => m.getAll());
@@ -100,8 +101,21 @@ add("GET /users", c.UserWire, () => users.getAllUsers());
 // getSellProducts returns rows getAllProducts does not, because a sell-only
 // product has no slug, so both are checked rather than assuming one covers the
 // other.
-await bothWays("GET /products", c.ProductWire, "products", (m) => m.getAllProducts());
-await bothWays("GET /products (sell)", c.ProductWire, "products", (m) => m.getSellProducts());
+// Two shapes now, and both are checked.
+//
+// The repos return BullionWire - products.bullion's own names - because that is
+// the internal truth from here on. features/products/wire.js converts it down
+// to ProductWire, which is what the frontend reads, and PRODUCTS_WIRE decides
+// which one leaves the API.
+//
+// Checking the adapter's OUTPUT against the legacy contract is the point: it is
+// what proves the frontend still gets exactly what it got before, and it keeps
+// working as a regression test right up until the adapter is deleted.
+await bothWays("GET /products", c.BullionWire, "products", (m) => m.getAllProducts());
+await bothWays("GET /products (sell)", c.BullionWire, "products", (m) => m.getSellProducts());
+await bothWays("GET /products (legacy wire)", c.ProductWire, "products", async (m) =>
+  (await m.getAllProducts()).map(toLegacyShape)
+);
 
 // Orders. The largest surface here and, until now, the only feature checked
 // against exchange alone - everything else goes through bothWays and proves

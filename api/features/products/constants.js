@@ -1,13 +1,20 @@
+// Field lists for exchange.products.
+//
+// These alias UP to the new schema's names - name, description and type -
+// because the new shape is the internal truth now and both implementations
+// have to speak it. features/products/wire.js converts back down to
+// product_name and friends on the way out, behind PRODUCTS_WIRE, and that
+// adapter is deleted when the frontend stops reading the old names.
 export const PRODUCT_FIELDS = `
   id,
-  product_name,
-  product_description,
+  product_name AS name,
+  product_description AS description,
   content,
   purity,
   gross,
   bid_premium,
   ask_premium,
-  product_type,
+  product_type AS type,
   image_front,
   image_back,
   variant_group,
@@ -22,14 +29,14 @@ export const PRODUCT_FIELDS = `
 
 export const PRODUCT_FIELDS_WITH_ALIAS = `
   p.id,
-  p.product_name,
-  p.product_description,
+  p.product_name AS name,
+  p.product_description AS description,
   p.content,
   p.purity,
   p.gross,
   p.bid_premium,
   p.ask_premium,
-  p.product_type,
+  p.product_type AS type,
   p.image_front,
   p.image_back,
   p.variant_group,
@@ -44,11 +51,11 @@ export const PRODUCT_FIELDS_WITH_ALIAS = `
 
 export const ADMIN_PRODUCT_FIELDS = `
   id,
-  product_name,
-  product_description,
+  product_name AS name,
+  product_description AS description,
   bid_premium,
   ask_premium,
-  product_type,
+  product_type AS type,
   created_at,
   updated_at,
   image_front,
@@ -75,11 +82,11 @@ export const ADMIN_PRODUCT_FIELDS = `
 
 export const ADMIN_PRODUCT_FIELDS_WITH_ALIAS = `
   p.id,
-  p.product_name,
-  p.product_description,
+  p.product_name AS name,
+  p.product_description AS description,
   p.bid_premium,
   p.ask_premium,
-  p.product_type,
+  p.product_type AS type,
   p.created_at,
   p.updated_at,
   p.image_front,

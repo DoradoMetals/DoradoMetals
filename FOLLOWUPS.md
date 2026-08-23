@@ -370,6 +370,61 @@ Also: **there are eighteen new schemas, not the sixteen CLAUDE.md lists.**
 map — so neither audit had been checking a feature that was already built. Now
 declared; it added zero coverage gaps and two more type comparisons.
 
+### The wire adapter: two axes, and which way it points
+
+Jacob, 2026-08-23: "We will need to support the current frontend... we're gonna
+need some data transforms coming in and out on switches that we can toggle as we
+update the frontend."
+
+Two switches per feature now, deliberately not conflated:
+
+| switch | question |
+|---|---|
+| `*_SOURCE` | which schema the data is read from |
+| `*_WIRE` | which shape it leaves the API in |
+
+A feature can be on `dual` and `legacy`, or `exchange` and `next` — they answer
+different questions and get flipped for different reasons, the first when the
+data is ready and the second when the frontend is.
+
+**The direction is the part that matters.** Both repos return the NEW shape and
+the adapter converts DOWN to legacy on the way out. Doing it the other way —
+repos returning legacy, something converting up — makes the legacy shape the
+internal truth and leaves nothing to delete at the end. This way the adapter is a
+shim with an expiry date, exactly like `repo.exchange`.
+
+Proved on products first, because its aliasing already *was* a legacy adapter
+written in SQL. `constants.js` now aliases exchange's `product_name` UP to
+`name`; `constants.bullion.js` stops aliasing down; `wire.js` renames on the way
+out and back on the way in.
+
+Three things it turned up:
+
+- **The input side was already inconsistent.** `repo.next.updateProduct` read
+  `product.name` but `product.product_description`, and `repo.exchange` read all
+  three legacy names. Both take the new shape now, with `fromProductWire` applied
+  at the controller.
+- **`ProductWire` is derived from `BullionWire` rather than restated**, so the
+  two cannot drift — a column added to the catalogue appears in both and the only
+  difference stays the three renames.
+- **The adapter's output is checked against the legacy contract**, not just the
+  repos' output against the new one. That is what proves the frontend still gets
+  exactly what it got before, and it keeps working as a regression test right up
+  until the adapter is deleted. `validate:wire` is 38 shapes, up from 36.
+
+### RESOLVED: refiner items are one row per line, filled in later
+
+Not a data question after all. Jacob, 2026-08-23: "They're going to be built from
+order items at the same time as order items are created, so they'll have those
+defaults (which are ultimately coming from checkout_items) and then we're going
+to allow updating the refiner items in an admin screen later."
+
+So the derivation 064/066 already produce is right: a row per purchase-order
+line, carrying what was sent, with the assay columns null until a refiner
+reports. The 18 of 25 rows holding only a `pre_melt` are lines awaiting assay,
+not gaps. Bullion lines keep an empty row because they are lines like any other.
+What remains is API work — the admin screen that fills them in.
+
 ### RESOLVED: refiner spots are migrated
 
 `exchange.refiner_metals` (276 production rows) was the last thing on a purchase

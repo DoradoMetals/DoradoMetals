@@ -19,11 +19,14 @@ import { z } from "zod/v4";
 // Nullability comes from the source columns in production. Only eight are
 // nullable there, and `slug` is the one that matters: it is null on sell-only
 // products, which is why getSellProducts returns rows getAllProducts does not.
-export const ProductWire = z.object({
+// The shape the repos return: products.bullion's own names. This is the
+// internal truth from here on - both implementations produce it, exchange by
+// aliasing product_name up to name.
+export const BullionWire = z.object({
   id: z.string().uuid(),
-  product_name: z.string(),
-  product_description: z.string(),
-  product_type: z.string(),
+  name: z.string(),
+  description: z.string(),
+  type: z.string(),
   slug: z.string().nullable(),
 
   // Joined in, not columns on the product.
@@ -50,5 +53,23 @@ export const ProductWire = z.object({
   legal_tender: z.boolean().nullable(),
   domestic_tender: z.boolean().nullable(),
   sell_display: z.boolean().nullable(),
+});
+export type BullionWire = z.infer<typeof BullionWire>;
+
+// The shape the frontend still reads. Produced by features/products/wire.js on
+// the way out, behind PRODUCTS_WIRE=legacy, and deleted when the frontend stops
+// reading these names.
+//
+// Derived from BullionWire rather than restated, so the two cannot drift: a
+// column added to the catalogue appears in both, and the only difference
+// between them stays the three renames.
+export const ProductWire = BullionWire.omit({
+  name: true,
+  description: true,
+  type: true,
+}).extend({
+  product_name: z.string(),
+  product_description: z.string(),
+  product_type: z.string(),
 });
 export type ProductWire = z.infer<typeof ProductWire>;

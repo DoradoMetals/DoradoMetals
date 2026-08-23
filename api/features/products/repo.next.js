@@ -88,7 +88,7 @@ export async function getFilteredProducts(
   }
   if (product_type) {
     values.push(product_type);
-    conditions.push(`product.product_type = $${values.length}`);
+    conditions.push(`product.type = $${values.length}`);
   }
 
   const { rows } = await query(
@@ -155,10 +155,10 @@ export async function updateProduct(product, user_name, executor) {
     product.metal,
     product.supplier,
     product.name,
-    product.product_description,
+    product.description,
     product.bid_premium,
     product.ask_premium,
-    product.product_type,
+    product.type,
     product.display,
     product.content,
     product.gross,
