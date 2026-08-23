@@ -98,9 +98,22 @@ compares the values. It is the gate for promotion, per-feature.
 `validate:wire` is the other half: it parses real responses through the wire
 contracts for **both** implementations. `diff` proves the two agree with each
 other; `validate:wire` proves the one you are about to promote still matches the
-shape the frontend was written against. Three carrier-service fields are
-aliases that exist only to hold that shape, and dropping one would render every
-toggle in the admin drawer as off without erroring.
+shape the frontend was written against.
+
+That matters most for the three features whose migrated read *renames* columns,
+where the alias is the only thing holding the wire shape:
+
+| feature | new schema | wire |
+|---|---|---|
+| carrier services | `supports_pickups`, `supports_dropoffs`, `max_weight_lb` | `supports_pickup`, `supports_dropoff`, `max_weight_lbs` |
+| addresses | `label`, `default_shipping` | `name`, `is_default` |
+| media | `checksum` | `checksum_sha256` |
+
+Each alias looks like a typo worth tidying and is not. Dropping the carrier one
+renders every toggle in the admin drawer as off without erroring, because they
+are bound with `!!service.supports_pickup`. All three are now covered for both
+implementations, and each was verified by removing the alias and watching the
+check fail.
 
 ### 4. Promote features one at a time
 

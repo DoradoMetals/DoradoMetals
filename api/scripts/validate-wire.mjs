@@ -73,6 +73,26 @@ await bothWays("GET /reviews (admin)", c.ReviewWire, "reviews", (m) => m.getAllR
 await bothWays("GET /leads", c.LeadWire, "leads", (m) => m.getAllLeads());
 await bothWays("GET /suppliers", c.SupplierWire, "suppliers", (m) => m.getAllSuppliers());
 await bothWays("GET /carrier_pickups", c.CarrierPickupWire, "shipping/pickups", (m) => m.getAll());
+
+// Addresses were not checked here at all, and they are one of the two features
+// whose migrated read renames columns: places.user_addresses calls them
+// `label` and `default_shipping`, and the wire calls them `name` and
+// `is_default`. Those aliases are the whole reason the address book renders.
+//
+// list() is per user rather than global, so it needs a user with addresses -
+// taken from exchange, which both implementations key on.
+const { rows: withAddresses } = await pool.query(
+  `SELECT user_id FROM exchange.addresses WHERE user_id IS NOT NULL
+   GROUP BY user_id ORDER BY count(*) DESC LIMIT 1`
+);
+const addressUser = withAddresses[0]?.user_id;
+await bothWays("GET /addresses", c.AddressWire, "addresses", (m) =>
+  addressUser ? m.list(addressUser) : []
+);
+
+// The other renaming read: media.images stores `checksum` and the wire calls it
+// `checksum_sha`.
+await bothWays("GET /images", c.ImageWire, "media", (m) => m.getTestImages());
 add("GET /users", c.UserWire, () => users.getAllUsers());
 
 // Nested shapes, taken off a real order.
