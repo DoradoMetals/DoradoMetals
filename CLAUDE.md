@@ -143,6 +143,10 @@ The ones that have actually caught things:
   the guard refuses once the new schema holds rows `exchange` does not.
 - `verify:parity` — source table against target, type-aware.
 - `diff` — every migrated read, old implementation against new.
+- `validate:wire` — real responses parsed through the wire contracts, **for
+  both implementations**, not just whichever the switch currently selects. The
+  contract only matters if it survives promotion, and until this checked
+  `repo.next` too it had only ever proven `exchange`.
 - `audit:coverage` — **every populated column in `exchange` that has nowhere to
   go.** Run this before splitting any repo. Orders had matching row counts and
   was missing 21 columns of live data; row counts are not evidence.

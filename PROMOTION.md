@@ -88,11 +88,19 @@ non-authoritative. That refusal is the guard working.
 ```
 pnpm --filter @dorado/api verify:parity
 pnpm --filter @dorado/api diff
+pnpm --filter @dorado/api validate:wire
 pnpm --filter @dorado/api audit:coverage:prod
 ```
 
 `diff` runs every migrated read twice, old implementation against new, and
-compares. It is the gate for promotion, per-feature.
+compares the values. It is the gate for promotion, per-feature.
+
+`validate:wire` is the other half: it parses real responses through the wire
+contracts for **both** implementations. `diff` proves the two agree with each
+other; `validate:wire` proves the one you are about to promote still matches the
+shape the frontend was written against. Three carrier-service fields are
+aliases that exist only to hold that shape, and dropping one would render every
+toggle in the admin drawer as off without erroring.
 
 ### 4. Promote features one at a time
 

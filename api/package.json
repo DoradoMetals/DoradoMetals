@@ -12,7 +12,7 @@
     "migrate": "node scripts/migrate.mjs",
     "migrate:status": "node scripts/migrate.mjs --status",
     "audit:nullability": "node scripts/audit-nullability.mjs",
-    "validate:wire": "node scripts/validate-wire.mjs",
+    "validate:wire": "TZ=UTC node scripts/validate-wire.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "diff:leads": "TZ=UTC node scripts/diff-leads.mjs",
     "diff": "TZ=UTC node scripts/diff-source.mjs",
