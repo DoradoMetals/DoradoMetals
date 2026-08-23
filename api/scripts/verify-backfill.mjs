@@ -79,6 +79,16 @@ const TABLES = [
     cols: "order_item_id, bullion_id, metal_id, pre_melt, post_melt, purity, content, premium, quantity, unit",
   },
   {
+    name: "payments.details",
+    key: "id",
+    // routing_number and account_number are excluded because the backfill
+    // deliberately does not write them - they are encrypted separately by
+    // scripts/encrypt-payout-details.mjs. Comparing them would assert that a
+    // rebuild reproduces plaintext bank details, which is the opposite of what
+    // this migration is for.
+    cols: "id, user_id, method_id, account_holder, bank_name, account_type, email_to",
+  },
+  {
     name: "payments.ledger",
     key: "id",
     cols: "id, user_id, type, order_id, amount, occurred_at",

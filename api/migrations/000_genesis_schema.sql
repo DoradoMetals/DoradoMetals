@@ -544,7 +544,8 @@ CREATE TABLE IF NOT EXISTS orders.transactions (
   shipping_fee_actual numeric,
   pool_remediation numeric,
   pool_oz_deducted numeric,
-  shipping_service text
+  shipping_service text,
+  payout_fee numeric
 );
 ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS order_id uuid;
@@ -572,6 +573,7 @@ ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS shipping_fee_actual num
 ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS pool_remediation numeric;
 ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS pool_oz_deducted numeric;
 ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS shipping_service text;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS payout_fee numeric;
 
 CREATE TABLE IF NOT EXISTS organizations.organizations (
   id uuid DEFAULT gen_random_uuid() NOT NULL,

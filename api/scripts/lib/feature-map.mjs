@@ -42,7 +42,7 @@ export const FEATURES = {
     "exchange.carrier_pickups": ["shipping.pickups", "fulfillments.pickups"],
   },
   payments: {
-    "exchange.payouts": ["payments.details", "payments.methods"],
+    "exchange.payouts": ["payments.details", "payments.methods", "orders.transactions"],
     "exchange.payment_intents": ["payments.intents", "payments.attempts", "payments.settlements"],
   },
   refiners: { "exchange.refiner_metals": ["refiners.spots", "refiners.items"] },
@@ -129,6 +129,14 @@ export const RENAMES = {
     transaction_type: "type",
     purchase_order_id: "order_id",
     sales_order_id: "order_id",
+  },
+  // A payout is a bank account plus a per-order fee, and they separate: the
+  // account becomes payments.details, the fee joins the order's other fees.
+  "exchange.payouts": {
+    account_holder_name: "account_holder",
+    method: "method_id",
+    cost: "payout_fee",
+    order_id: "-",
   },
   "exchange.cart_items": { cart_id: "checkout_id", product_id: "bullion_id" },
   "exchange.sell_cart_items": {
