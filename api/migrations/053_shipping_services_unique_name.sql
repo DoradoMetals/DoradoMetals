@@ -1,0 +1,32 @@
+-- shipping.services: make (carrier_id, name) unique.
+--
+-- (carrier_id, name) is already the de facto identity of a carrier service
+-- across the two schemas, and nothing enforced it.
+--
+-- The id is NOT that identity. exchange.carrier_services and shipping.services
+-- disagree about ids by construction: 047 seeds the new table with ids taken
+-- from a dev snapshot, production's exchange rows carry different ones, and in
+-- dev one id (2fb26257) is 'Overnight' in exchange and 'Priority Overnight' in
+-- shipping.services. Nothing references exchange.carrier_services.id - there is
+-- no foreign key to it in dev or in production - so the divergence has been
+-- harmless and invisible.
+--
+-- What does the resolving is the name. 049's mirrorShipment already reads
+--
+--   (SELECT s.id FROM shipping.services s
+--     WHERE s.carrier_id = e.carrier_id AND s.name = e.service_type)
+--
+-- to turn exchange.shipments.service_type (text) into a foreign key. That
+-- subselect returns an arbitrary row if the pair is ever duplicated, and today
+-- nothing stops a duplicate: shipping.services has a unique index on id alone,
+-- and exchange's only other unique is (carrier_id, code) where code is NULL on
+-- every production row, so it never fires.
+--
+-- Verified before adding: all 23 dev shipments resolve to a service whose name
+-- and carrier match exchange exactly, and both tables hold distinct
+-- (carrier_id, name) pairs today - 2 of 2 in exchange, 8 of 8 in shipping.
+--
+-- Additive and reversible: DROP INDEX shipping.services_carrier_name_key.
+-- Touches nothing in exchange.
+CREATE UNIQUE INDEX IF NOT EXISTS services_carrier_name_key
+  ON shipping.services (carrier_id, name);

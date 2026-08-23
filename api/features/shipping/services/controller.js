@@ -30,7 +30,10 @@ export const update = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
+// The frontend sends { id }, and the repo takes an id. Passing the whole body
+// made every delete die on `invalid input syntax for type uuid`, so this
+// endpoint has never once succeeded.
 export const remove = asyncHandler(async (req, res) => {
-  await servicesRepo.remove(req.body);
+  await servicesRepo.remove(req.body.id);
   return res.status(200).json(true);
 });

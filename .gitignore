@@ -12,3 +12,10 @@ dist
 .DS_Store
 # contracts generator reads DATABASE_URL from a local copy
 packages/contracts/.env
+
+# Stripe exports, kept at the repo root for the payments reconciliation work.
+# They carry customer names, billing addresses and card last4 - PII that must
+# not enter git history. No bank details, but treat them as if they had.
+/unified_customers.csv
+/unified_payments.csv
+/*stripe*.csv

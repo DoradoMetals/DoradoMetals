@@ -102,10 +102,14 @@ export async function cancelPickup({ pickup_id, carrier_id }) {
       location: pickup.location,
     });
 
+    // Two things were wrong here. The repo reads pickup_status, so `status`
+    // wrote the row's existing status straight back; and exchange.carrier_pickups
+    // has a CHECK constraint allowing only pending / scheduled / completed /
+    // canceled - one l - so "cancelled" is refused outright.
     return await pickupRepo.update(
       {
         ...pickup,
-        status: "cancelled",
+        pickup_status: "canceled",
       },
       client
     );
