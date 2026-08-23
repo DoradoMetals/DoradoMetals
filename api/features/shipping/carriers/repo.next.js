@@ -6,19 +6,24 @@
 // providers/fedex/constants.js is a literal uuid, and exchange.shipments.carrier_id
 // references it - so if the id moved, label creation would break.
 //
-// The wire shape is exchange.carriers': flat, with is_active rather than
-// enabled. The join and the rename stop here.
+// The shape keeps the two apart: a carrier has an organization, and the response
+// says so rather than flattening its fields to the top level.
+// features/shipping/carriers/wire.js flattens it back for the frontend behind
+// CARRIERS_WIRE, which is a transformation rather than a rename.
 import query from "#shared/db/query.js";
 
 const FIELDS = `
     c.id,
-    o.name,
-    o.email,
-    o.phone,
     c.logo,
-    o.enabled AS is_active,
     o.created_at,
-    o.updated_at
+    o.updated_at,
+    jsonb_build_object(
+      'id', o.id,
+      'name', o.name,
+      'email', o.email,
+      'phone', o.phone,
+      'enabled', o.enabled
+    ) AS organization
 `;
 
 const FROM = `
@@ -62,7 +67,8 @@ export async function create(carrier, client) {
     `INSERT INTO organizations.organizations (type, name, email, phone, enabled)
      VALUES ('CARRIER', $1, $2, $3, $4)
      RETURNING id`,
-    [carrier.name, carrier.email, carrier.phone, carrier.is_active],
+    [carrier.organization?.name, carrier.organization?.email,
+     carrier.organization?.phone, carrier.organization?.enabled],
     client
   );
 
@@ -83,7 +89,8 @@ export async function update(carrier, client) {
      SET name = $1, email = $2, phone = $3, enabled = $4, updated_at = NOW()
      FROM shipping.carriers c
      WHERE c.organization_id = o.id AND c.id = $5`,
-    [carrier.name, carrier.email, carrier.phone, carrier.is_active, carrier.id],
+    [carrier.organization?.name, carrier.organization?.email,
+     carrier.organization?.phone, carrier.organization?.enabled, carrier.id],
     client
   );
 

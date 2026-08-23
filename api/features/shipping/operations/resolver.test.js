@@ -47,7 +47,10 @@ describe("the carrier name every provider lookup depends on", () => {
     for (const [label, repo] of [["exchange", exchangeCarriers], ["next", nextCarriers]]) {
       const carrier = await repo.getById(FEDEX_CARRIER_ID, client);
       assert.ok(carrier, `${label}: FEDEX_CARRIER_ID resolves to no carrier at all`);
-      assert.equal(normalize(carrier.name), "fedex", `${label}: the name is "${carrier.name}"`);
+      // A carrier's name is its organization's now - see the comment in
+      // resolver.js. Both implementations return it in the same place.
+      const name = carrier.organization?.name ?? (carrier.organization?.name ?? carrier.name);
+      assert.equal(normalize(name), "fedex", `${label}: the name is "${name}"`);
     }
   });
 
@@ -57,10 +60,12 @@ describe("the carrier name every provider lookup depends on", () => {
 
     for (const carrier of fromExchange) {
       const counterpart = fromNext.find((c) => c.id === carrier.id);
-      assert.ok(counterpart, `${carrier.name} is missing from the new schema`);
+      assert.ok(counterpart, `${(carrier.organization?.name ?? carrier.name)} is missing from the new schema`);
+      const theirs = counterpart.organization?.name ?? counterpart.name;
+      const ours = carrier.organization?.name ?? carrier.name;
       assert.equal(
-        counterpart.name, carrier.name,
-        `carrier ${carrier.id} is "${carrier.name}" in exchange and "${counterpart.name}" in the new schema`
+        theirs, ours,
+        `carrier ${carrier.id} is "${ours}" in exchange and "${theirs}" in the new schema`
       );
     }
   });
@@ -71,10 +76,10 @@ describe("the carrier name every provider lookup depends on", () => {
   test("every carrier either resolves to a provider or is one we have not built", async () => {
     const unimplemented = new Set(["ups", "usps"]);
     for (const carrier of await exchangeCarriers.getAll(client)) {
-      const code = normalize(carrier.name);
+      const code = normalize((carrier.organization?.name ?? carrier.name));
       if (unimplemented.has(code)) continue;
-      assert.ok(PROVIDERS[code], `carrier "${carrier.name}" has no provider registered`);
-      assert.ok(BUILDERS[code], `carrier "${carrier.name}" has no builders registered`);
+      assert.ok(PROVIDERS[code], `carrier "${(carrier.organization?.name ?? carrier.name)}" has no provider registered`);
+      assert.ok(BUILDERS[code], `carrier "${(carrier.organization?.name ?? carrier.name)}" has no builders registered`);
     }
   });
 });
@@ -98,11 +103,15 @@ describe("resolveCarrier", () => {
   // the next line reads .name off it, so the error is a TypeError about null
   // rather than the "Unsupported carrier" message written two lines below.
   // Worth tidying, but it is a behaviour change rather than a test.
-  test("an unknown carrier id throws, though not with the intended message", async () => {
+  // This used to pin known-rough behaviour: resolveCarrier read carrier.name off
+  // an undefined carrier and threw a TypeError, which told the caller nothing.
+  // Reading the name off the organization made it optional-chained, so an
+  // unknown id now produces the error the code always meant to - accidentally
+  // fixed by the reshape, and worth keeping.
+  test("an unknown carrier id throws a message that says what went wrong", async () => {
     await assert.rejects(
       () => resolveCarrier("00000000-0000-4000-8000-000000000000", client),
-      (err) => err instanceof TypeError,
-      "this test is pinning known-rough behaviour, not endorsing it"
+      /Unsupported carrier/
     );
   });
 });

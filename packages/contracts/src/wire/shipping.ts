@@ -7,6 +7,26 @@ import {
   TrackingEventsRow,
 } from "../generated/exchange.js";
 
+// The repos return a carrier and the organization it is, kept apart - the same
+// shape as SupplierWireNext, because a carrier and a refiner are the same kind
+// of thing in the new design: an organization with a role.
+export const CarrierWireNext = z.object({
+  id: z.string().uuid(),
+  logo: z.string().nullable(),
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable(),
+  organization: z.object({
+    id: z.string().uuid().optional(),
+    name: z.string().nullable(),
+    email: z.string().nullable(),
+    phone: z.string().nullable(),
+    enabled: z.boolean().nullable(),
+  }),
+});
+export type CarrierWireNext = z.infer<typeof CarrierWireNext>;
+
+// Flattened for the frontend by features/shipping/carriers/wire.js, behind
+// CARRIERS_WIRE=legacy.
 export const CarrierWire = CarriersRow;
 export type CarrierWire = z.infer<typeof CarrierWire>;
 

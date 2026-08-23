@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as next from "#features/shipping/carriers/repo.next.js";
+import { toLegacy, fromLegacy } from "#features/shipping/carriers/wire.js";
 import * as exchange from "#features/shipping/carriers/repo.exchange.js";
 
 let client;
@@ -30,28 +31,58 @@ async function inRollback(fn) {
   }
 }
 
+// The repos take the nested shape now; a request arrives flat and the adapter
+// nests it at the edge.
 const draft = (over = {}) => ({
-  name: `probe-${randomUUID().slice(0, 8)}`,
-  email: "probe@example.test",
-  phone: "5550000",
   logo: "/carriers/probe.png",
-  is_active: true,
+  organization: {
+    name: `probe-${randomUUID().slice(0, 8)}`,
+    email: "probe@example.test",
+    phone: "5550000",
+    enabled: true,
+  },
   ...over,
 });
 
-test("getAll returns the exchange wire shape", async () => {
+// A carrier is a shipping.carriers row and the organization it is, and the
+// response keeps them apart - separation of concerns. The flat shape the
+// frontend reads is produced by the adapter, not by the repo, and both halves
+// are asserted because getting either backwards breaks the frontend.
+test("getAll keeps the organization as its own object", async () => {
   await inRollback(async (c) => {
     const [row] = await next.getAll(c);
     assert.deepEqual(Object.keys(row).sort(), [
-      "created_at", "email", "id", "is_active", "logo", "name", "phone", "updated_at",
+      "created_at", "id", "logo", "organization", "updated_at",
+    ]);
+    assert.deepEqual(Object.keys(row.organization).sort(), [
+      "email", "enabled", "id", "name", "phone",
     ]);
   });
 });
 
-test("enabled is exposed as is_active", async () => {
+test("the adapter flattens it to the shape the frontend reads", async () => {
   await inRollback(async (c) => {
-    const rows = await next.getAll(c);
-    assert.ok(rows.every((r) => typeof r.is_active === "boolean"));
+    const [row] = await next.getAll(c);
+    const legacy = toLegacy(row);
+    assert.deepEqual(Object.keys(legacy).sort(), [
+      "created_at", "email", "id", "is_active", "logo", "name", "phone", "updated_at",
+    ]);
+    assert.equal(legacy.is_active, row.organization.enabled);
+    assert.equal(legacy.name, row.organization.name);
+    assert.equal("organization" in legacy, false, "the nested object survived flattening");
+  });
+});
+
+// Round trip: flattening and nesting again must not lose anything the frontend
+// sends, because a write arrives flat and the repos take the nested shape.
+test("flatten and nest round trip", async () => {
+  await inRollback(async (c) => {
+    const [row] = await next.getAll(c);
+    const back = fromLegacy(toLegacy(row));
+    assert.equal(back.organization.name, row.organization.name);
+    assert.equal(back.organization.enabled, row.organization.enabled);
+    assert.equal(back.id, row.id);
+    assert.equal(back.logo, row.logo);
   });
 });
 
@@ -62,7 +93,7 @@ test("the FedEx carrier keeps its original id", async () => {
   await inRollback(async (c) => {
     const fedex = await next.getById("30179428-b311-4873-8d08-382901c581d8", c);
     assert.ok(fedex, "FEDEX_CARRIER_ID must still resolve");
-    assert.equal(fedex.name, "FedEx");
+    assert.equal(fedex.organization.name, "FedEx");
   });
 });
 
@@ -86,11 +117,15 @@ test("update changes both the organization and the carrier row", async () => {
   await inRollback(async (c) => {
     const made = await next.create(draft(), c);
     const updated = await next.update(
-      { ...made, name: "renamed", is_active: false, logo: "/carriers/new.png" },
+      {
+        ...made,
+        organization: { ...made.organization, name: "renamed", enabled: false },
+        logo: "/carriers/new.png",
+      },
       c
     );
-    assert.equal(updated.name, "renamed");
-    assert.equal(updated.is_active, false);
+    assert.equal(updated.organization.name, "renamed");
+    assert.equal(updated.organization.enabled, false);
     assert.equal(updated.logo, "/carriers/new.png");
     assert.equal(updated.id, made.id);
   });
@@ -138,9 +173,19 @@ test("only carrier organizations are returned", async () => {
   });
 });
 
+// Everything except the organization's own id, which exchange has no equivalent
+// for: an organization is a new concept and the migration issued its id. The
+// carrier's id is compared and matters more - FEDEX_CARRIER_ID is a literal
+// uuid that exchange.shipments.carrier_id references.
+const withoutOrgId = (rows) =>
+  rows.map(({ organization, ...rest }) => ({
+    ...rest,
+    organization: { ...organization, id: undefined },
+  }));
+
 test("both implementations agree", async () => {
   await inRollback(async (c) => {
-    assert.deepEqual(await next.getAll(c), await exchange.getAll(c));
+    assert.deepEqual(withoutOrgId(await next.getAll(c)), withoutOrgId(await exchange.getAll(c)));
   });
 });
 

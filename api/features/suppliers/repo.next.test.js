@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as next from "#features/suppliers/repo.next.js";
+import { toLegacy } from "#features/suppliers/wire.js";
 import * as exchange from "#features/suppliers/repo.exchange.js";
 
 let client;
@@ -30,22 +31,30 @@ async function inRollback(fn) {
   }
 }
 
-test("getAllSuppliers returns the exchange wire shape", async () => {
+// A supplier is a refiner and the organization it is, kept apart - the flat
+// shape the frontend reads is produced by the adapter, not the repo.
+test("getAllSuppliers keeps the organization as its own object", async () => {
   await inRollback(async (c) => {
     const [row] = await next.getAllSuppliers(c);
     assert.deepEqual(Object.keys(row).sort(), [
-      "created_at", "email", "id", "is_active", "logo", "name", "phone", "updated_at",
+      "created_at", "id", "logo", "organization", "updated_at",
     ]);
   });
 });
 
-// enabled is the organization's column name; the repo aliases it so nothing
-// above has to know a supplier is now two rows.
-test("enabled is exposed as is_active", async () => {
+// `enabled` is the organization's column name and stays that way in the repo.
+// The frontend reads `is_active`, and features/suppliers/wire.js is what turns
+// one into the other - so both halves are asserted.
+test("the adapter flattens it to the shape the frontend reads", async () => {
   await inRollback(async (c) => {
     const rows = await next.getAllSuppliers(c);
-    assert.ok(rows.every((r) => typeof r.is_active === "boolean"));
-    assert.equal(rows.some((r) => r.is_active === false), true);
+    assert.ok(rows.every((r) => typeof r.organization.enabled === "boolean"));
+
+    const legacy = toLegacy(rows);
+    assert.ok(legacy.every((r) => typeof r.is_active === "boolean"));
+    assert.equal(legacy.some((r) => r.is_active === false), true);
+    assert.equal("organization" in legacy[0], false, "the nested object survived flattening");
+    assert.equal(legacy[0].name, rows[0].organization.name);
   });
 });
 
@@ -100,11 +109,20 @@ test("only refiner organizations are returned", async () => {
   });
 });
 
+// Everything except the organization's own id, which exchange has no equivalent
+// for - the migration issued it. The supplier's id is compared and is what
+// products.supplier_id references.
+const withoutOrgId = (rows) =>
+  rows.map(({ organization, ...rest }) => ({
+    ...rest,
+    organization: { ...organization, id: undefined },
+  }));
+
 test("both implementations agree", async () => {
   await inRollback(async (c) => {
     assert.deepEqual(
-      await next.getAllSuppliers(c),
-      await exchange.getAllSuppliers(c)
+      withoutOrgId(await next.getAllSuppliers(c)),
+      withoutOrgId(await exchange.getAllSuppliers(c))
     );
   });
 });

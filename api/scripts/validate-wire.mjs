@@ -65,15 +65,26 @@ const users = await import("#features/users/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
 const { toLegacyShape } = await import("#features/products/wire.js");
 const mediaWire = await import("#features/media/wire.js");
+const suppliersWire = await import("#features/suppliers/wire.js");
+const carriersWire = await import("#features/shipping/carriers/wire.js");
 
 add("GET /reviews (public)", c.ReviewWire, () => reviews.getPublicReviews());
-await bothWays("GET /carriers", c.CarrierWire, "shipping/carriers", (m) => m.getAll());
+await bothWays("GET /carriers", c.CarrierWireNext, "shipping/carriers", (m) => m.getAll());
+await bothWays("GET /carriers (legacy wire)", c.CarrierWire, "shipping/carriers", async (m) =>
+  carriersWire.toLegacy(await m.getAll())
+);
 await bothWays("GET /carrier_services", c.CarrierServiceWire, "shipping/services", (m) => m.getAll());
 await bothWays("GET /spots/spot_prices", c.SpotPriceWire, "spots", (m) => m.getAll());
 await bothWays("GET /rates", c.RateWire, "rates", (m) => m.getAllRates());
 await bothWays("GET /reviews (admin)", c.ReviewWire, "reviews", (m) => m.getAllReviews());
 await bothWays("GET /leads", c.LeadWire, "leads", (m) => m.getAllLeads());
-await bothWays("GET /suppliers", c.SupplierWire, "suppliers", (m) => m.getAllSuppliers());
+// Both shapes. The repos return the nested one; the adapter flattens it to what
+// the frontend reads, and checking the adapter's OUTPUT is what proves the
+// frontend still gets exactly what it got before.
+await bothWays("GET /suppliers", c.SupplierWireNext, "suppliers", (m) => m.getAllSuppliers());
+await bothWays("GET /suppliers (legacy wire)", c.SupplierWire, "suppliers", async (m) =>
+  suppliersWire.toLegacy(await m.getAllSuppliers())
+);
 await bothWays("GET /carrier_pickups", c.CarrierPickupWire, "shipping/pickups", (m) => m.getAll());
 
 // Addresses were not checked here at all, and they are one of the two features

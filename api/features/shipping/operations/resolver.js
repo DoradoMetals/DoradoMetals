@@ -8,9 +8,13 @@ function normalizeCarrierCode(name) {
     .toLowerCase();
 }
 
+// The carrier's name is the organization's, not the carrier row's - a carrier is
+// an organization with a role, and the repos return the two apart. The fallback
+// to carrier.name is for a caller still holding a flattened one; it goes when
+// CARRIERS_WIRE does.
 export async function resolveCarrier(carrier_id, client) {
   const carrier = await carriersRepo.getById(carrier_id, client);
-  const code = normalizeCarrierCode(carrier.name);
+  const code = normalizeCarrierCode(carrier?.organization?.name ?? carrier?.name);
 
   const provider = PROVIDERS[code];
   const builders = BUILDERS[code];

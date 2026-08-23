@@ -4,7 +4,18 @@
 // return the same shape.
 import query from "#shared/db/query.js";
 
-const FIELDS = `id, name, email, phone, logo, is_active, created_at, updated_at`;
+// Composed into the new shape: a carrier and the organization it is. exchange
+// holds both in one flat row, so this builds the nested object out of it and the
+// two implementations return the same thing.
+const FIELDS = `
+  id, logo, created_at, updated_at,
+  jsonb_build_object(
+    'name', name,
+    'email', email,
+    'phone', phone,
+    'enabled', is_active
+  ) AS organization
+`;
 
 export async function getAll(client) {
   const q = `SELECT ${FIELDS} FROM exchange.carriers ORDER BY name ASC, id ASC`;
@@ -32,11 +43,11 @@ export async function create(carrier, client) {
   `;
 
   const vals = [
-    carrier.name,
-    carrier.email,
-    carrier.phone,
+    carrier.organization?.name,
+    carrier.organization?.email,
+    carrier.organization?.phone,
     carrier.logo,
-    carrier.is_active,
+    carrier.organization?.enabled,
   ];
 
   const { rows } = await query(q, vals, client);
@@ -58,11 +69,11 @@ export async function update(carrier, client) {
   `;
 
   const vals = [
-    carrier.name,
-    carrier.email,
-    carrier.phone,
+    carrier.organization?.name,
+    carrier.organization?.email,
+    carrier.organization?.phone,
     carrier.logo,
-    carrier.is_active,
+    carrier.organization?.enabled,
     carrier.id,
   ];
 

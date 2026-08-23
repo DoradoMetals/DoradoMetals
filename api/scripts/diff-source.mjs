@@ -71,6 +71,11 @@ const FEATURES = {
   suppliers: {
     exchange: () => import("#features/suppliers/repo.exchange.js"),
     next: () => import("#features/suppliers/repo.next.js"),
+    // The organization's own id. exchange has no equivalent - an organization is
+    // a new concept and the migration issued its id - so exchange composes the
+    // nested shape without one. The supplier's id is unchanged and is what
+    // everything references; this is the organization behind it.
+    ignore: { "*": ["organization.id"] },
     reads: [
       ["getAllSuppliers", (m) => m.getAllSuppliers()],
       ["getSupplierFromId(first)", async (m, ctx) => (ctx.id ? m.getSupplierFromId(ctx.id) : null)],
@@ -80,6 +85,10 @@ const FEATURES = {
   carriers: {
     exchange: () => import("#features/shipping/carriers/repo.exchange.js"),
     next: () => import("#features/shipping/carriers/repo.next.js"),
+    // The organization's own id, which exchange has no equivalent for - the
+    // migration issued it. Same as suppliers. The carrier's id is unchanged,
+    // which matters more here: FEDEX_CARRIER_ID is a literal uuid.
+    ignore: { "*": ["organization.id"] },
     reads: [
       ["getAll", (m) => m.getAll()],
       ["getById(first)", async (m, ctx) => (ctx.id ? m.getById(ctx.id) : null)],

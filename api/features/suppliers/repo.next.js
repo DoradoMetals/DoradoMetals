@@ -5,19 +5,26 @@
 // That id is what makes this safe - exchange.products.supplier_id points at it,
 // so nothing referencing a supplier has to change.
 //
-// The wire shape is exchange.suppliers': flat, with is_active rather than
-// enabled. The join and the renames stop here.
+// The shape keeps the two apart: a refiner has an organization, and the response
+// says so rather than flattening its fields to the top level. Separation of
+// concerns - the organization is a different thing that happens to be joined in.
+//
+// features/suppliers/wire.js flattens it back for the frontend behind
+// SUPPLIERS_WIRE, which is a transformation rather than a rename.
 import query from "#shared/db/query.js";
 
 const FIELDS = `
     r.id,
-    o.name,
-    o.email,
-    o.phone,
+    r.logo,
     o.created_at,
     o.updated_at,
-    r.logo,
-    o.enabled AS is_active
+    jsonb_build_object(
+      'id', o.id,
+      'name', o.name,
+      'email', o.email,
+      'phone', o.phone,
+      'enabled', o.enabled
+    ) AS organization
 `;
 
 const FROM = `
