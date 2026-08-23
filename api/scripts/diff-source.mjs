@@ -87,6 +87,36 @@ const FEATURES = {
     ],
     context: async (m) => ({ id: (await m.getAll())[0]?.id }),
   },
+  "shipping-shipments": {
+    exchange: () => import("#features/shipping/shipments/repo.exchange.js"),
+    next: () => import("#features/shipping/shipments/repo.next.js"),
+    reads: [
+      ["getAll", (m) => m.getAll()],
+      ["getById(first)", (m, ctx) => (ctx.id ? m.getById(ctx.id) : [])],
+      ["getByOrder(first)", (m, ctx) => (ctx.orderId ? m.getByOrder(ctx.orderId) : [])],
+    ],
+    context: async (m) => {
+      const all = await m.getAll();
+      const withOrder = all.find((s) => s.purchase_order_id || s.sales_order_id) ?? all[0];
+      return { id: withOrder?.id, orderId: withOrder?.purchase_order_id ?? withOrder?.sales_order_id };
+    },
+  },
+  "shipping-tracking": {
+    exchange: () => import("#features/shipping/tracking/repo.exchange.js"),
+    next: () => import("#features/shipping/tracking/repo.next.js"),
+    reads: [["getEvents(first)", (m, ctx) => (ctx.id ? m.getEvents(ctx.id) : [])]],
+    // Deliberately a shipment whose events exist in exchange. Three shipments
+    // in dev carry tracking rows that exist only in the new schema - artifacts
+    // of the January work, absent from production entirely - so comparing one
+    // of those would report a difference that cannot exist anywhere real.
+    context: async () => {
+      const { rows } = await pool.query(
+        `SELECT shipment_id AS id FROM exchange.tracking_events
+         GROUP BY shipment_id ORDER BY count(*) DESC LIMIT 1`
+      );
+      return { id: rows[0]?.id };
+    },
+  },
   addresses: {
     exchange: () => import("#features/addresses/repo.exchange.js"),
     next: () => import("#features/addresses/repo.next.js"),
