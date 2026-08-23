@@ -370,41 +370,51 @@ Also: **there are eighteen new schemas, not the sixteen CLAUDE.md lists.**
 map — so neither audit had been checking a feature that was already built. Now
 declared; it added zero coverage gaps and two more type comparisons.
 
-### FOR JACOB: the orders.items columns, and the one fork I did not take
+### RESOLVED: the orders.items columns, and what happened to each
 
-The six extra columns on `orders.items` came from migration 033, mine, not from
-January. Findings on each:
+Jacob's call, 2026-08-23: rebuild. Done — `orders.items` is 15 columns, down
+from 19.
 
-- **`price` stays.** All 20 production lines that cannot be re-derived from
-  `content × bid_spot × premium` are scrap lines, and `exchange.scrap.content` is
-  `numeric(20,3)` *at source* — the precision was lost in exchange long ago, and
-  `price` is the only surviving record of it. Product lines all reproduce
-  exactly. 62 of 82 reproduce; the 20 that do not are exactly the scrap ones.
-- **`bid_premium` is vestigial.** 0.75 on 17 of 20 populated rows — the hardcoded
-  default in `features/scrap/repo.js:77` — and 0.75 on all four rows where it
-  disagrees with `premium`. But the app maintains it on its own write path, and
-  collapsing it into `premium` would change four returned values, which `diff`
-  would correctly flag. That is a product decision, not a schema one.
-- **`refiner_premium`, `purity_actual`, `post_melt_actual`, `content_actual`
-  belong on `refiners.items`**, as Jacob said — that is what `order_item_id` is
-  for. Production's January rows already implement it correctly: `purity` equals
-  `purity_actual` on all 38 rows that have one, and `premium` equals
-  `refiner_premium` on 61 of 62. Dev's copy is the stale one.
+Four moved to the refiner's line, which is what `refiners.items.order_item_id`
+is for:
 
-**The fork I did not take.** No migration has ever inserted into
-`refiners.items` — its 40 dev rows and 80 production rows are January residue,
-which is exactly why `audit:coverage` reports those four columns as homeless: in
-this migration they genuinely are. Completing the relocation means moving
-`refiners.items` out of `verify-backfill`'s `NOT_REBUILT`, which forces a
-keep-or-delete decision on those rows. `refiner_id` is `NOT NULL`, a single
-constant across all 80 production rows, and `exchange` never records which
-refiner a line went to — the same situation CLAUDE.md already resolved for
-`refinery_id` by leaving it null.
+| was on `orders.items` | now |
+|---|---|
+| `refiner_premium` | `refiners.items.premium` |
+| `purity_actual` | `refiners.items.purity` |
+| `post_melt_actual` | `refiners.items.post_melt` |
+| `content_actual` | `refiners.items.content` |
 
-So the decision is: **do the January `refiners.items` rows get rebuilt from
-exchange, or preserved?** Nothing is lost either way — every value except the
-constant `refiner_id` is derivable from `exchange` — but it is the same class of
-judgement that produced two retractions in this session, so it is yours.
+What was missing all along is that **no migration had ever written
+`refiners.items`** — its rows were January's, and what they held was a copy of
+the *quoted* values rather than what the refiner reported. So the four columns
+genuinely had nowhere to go, which is exactly what `audit:coverage` kept saying.
+064 rebuilds it from `exchange` as one row per purchase-order line holding the
+assay; 066 states the same derivation as a backfill so a database built from
+nothing gets it too; 065 drops the columns and adds the unique index on
+`order_item_id` that the one-to-one join and the mirror's `ON CONFLICT` both
+need — there was only a plain index, which would have thrown at runtime.
+
+`refiner_id` is the one column `exchange` has never held. Preserved where a row
+already carries one, null for anything derived, excluded from the backfill
+comparison — the same decision already recorded for `orders.orders.refinery_id`.
+
+Two of the six stay:
+
+- **`price`** cannot be re-derived. Of 82 priced purchase lines in production, 62
+  reproduce from `content × bid_spot × premium` and 20 do not — all 20 scrap,
+  because `exchange.scrap.content` is `numeric(20,3)` *at source*. The precision
+  was lost in `exchange` years ago and `price` is the only record of it.
+- **`bid_premium`** stays because dropping it changes what the API returns. It is
+  0.75 on 17 of 20 populated rows — the hardcoded default in
+  `features/scrap/repo.js` — and on all four rows where it disagrees with
+  `premium`. It does look vestigial, but the app maintains it on its own write
+  path and collapsing it into `premium` changes four returned values. **Still
+  open, and a product decision rather than a schema one.**
+
+The wire shape is unchanged: `repo.next.js` projects all four back off the joined
+refiner line, `diff` reports 55 operations identical, and `validate:wire` checks
+both implementations against `PurchaseOrderWire`.
 
 ### Payments: half unblocked, and the ledger is wrong independent of any migration
 
