@@ -425,6 +425,59 @@ reports. The 18 of 25 rows holding only a `pre_melt` are lines awaiting assay,
 not gaps. Bullion lines keep an empty row because they are lines like any other.
 What remains is API work — the admin screen that fills them in.
 
+### IN PROGRESS: the orders collapse
+
+The last and biggest piece. `features/orders` now exists with the half that
+could be pinned down exactly, and nothing calls it yet - the legacy path in
+`features/purchase-orders/service.js` is untouched and still serves traffic.
+
+**What is done.** `features/orders/intake.js` takes the block the frontend posts
+and turns it into a description of what the customer asked for, in the new
+schema's vocabulary. It is pure: it resolves nothing, reads nothing and writes
+nothing, so all fifteen tests run without a database and every mapping that
+would fail quietly is pinned. Four of them were proved by breaking the code -
+swapping shipper and recipient, `||` instead of `??` on the premium, allowing an
+unknown handoff through, dropping the carrier pickup's date - each failing
+exactly one test.
+
+The mappings that matter, and why they are where they are:
+
+- The handoff names map to the same fulfillment methods
+  `052_backfill_fulfillments.sql` used, which were verified against all 70
+  production shipments. If the two drift, an order placed today and an order
+  migrated from January stop being comparable.
+- The customer is the **shipper** on a purchase and the **recipient** on a sale.
+  Getting this backwards prints a label sending the parcel to the person who
+  already has the metal.
+- A default premium of `0.75`, because that is what `insertItems` has always
+  written for a line without one. It is not a placeholder - changing it reprices
+  every order placed through the new path.
+- An unrecognised handoff is **refused**, not defaulted. Filing an option the
+  frontend grew as a dropoff records a choice the customer never made.
+- The payout is carried through untouched rather than reshaped, because it holds
+  a routing number and an account number and where those live is still open (see
+  the bank details entry below). Moving them inside a refactor would bury that
+  decision.
+
+**What is left**, roughly in order:
+
+1. Resolving the description's names to ids - fulfillment method by
+   (type, direction), carrier service by (carrier, name), package by label,
+   location by type - and persisting it as a `checkout.checkouts` row plus
+   `checkout.items`. That is the "and THEN into an order" half.
+2. Creating the order from the checkout, reusing
+   `fulfillmentService.choose`/`chooseDefault`/`schedulePickup`, all of which
+   take an executor so the whole thing is one transaction.
+3. Comparing the two paths on the same input - the same gate `diff` gives every
+   other feature.
+4. Collapsing the two read features into one `features/orders`, which is 4,600
+   lines and wants doing after the write path is proven, not before.
+
+**A constraint worth knowing before touching this.** Order creation now calls
+FedEx *before* the transaction (see the entry below), so any test that exercises
+the real creation path creates a real, billable label. Whatever proves the two
+paths agree has to stub the provider.
+
 ### FOR JACOB: a FedEx label could be created for an order that then vanished
 
 Found while starting the orders collapse, by reading `createPurchaseOrder`
