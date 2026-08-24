@@ -425,6 +425,40 @@ reports. The 18 of 25 rows holding only a `pre_melt` are lines awaiting assay,
 not gaps. Bullion lines keep an empty row because they are lines like any other.
 What remains is API work — the admin screen that fills them in.
 
+### FOR JACOB: three production intents can be handed back for reuse after being paid
+
+Found by splitting payments, not by looking for it.
+
+`retrievePaymentIntent` hands back an unresolved Stripe intent so a customer can
+resume a checkout. It decides "unresolved" from `exchange.payment_intents
+.payment_status`, which is only as fresh as the last webhook that was processed —
+and that column is demonstrably stale: `exchange` records **1 of 25** production
+intents as succeeded while Stripe shows **8** that took money.
+
+Three of them are reusable by that filter *and already paid*:
+
+| intent | `exchange` says | Stripe says | amount |
+|---|---|---|---|
+| `pi_3RvkIT…` | `requires_payment_method` | Paid | $51.78 |
+| `pi_3RcYBY…` | `requires_payment_method` | Paid | $64.70 |
+| `pi_3TuK5t…` | `requires_payment_method` | Paid | $10.00 |
+
+**The customer is not double-charged** — Stripe rejects confirming an intent that
+has already succeeded — so the symptom is a checkout that fails at the last step
+for no visible reason, not lost money. Worth knowing which it is before anyone
+panics.
+
+The new schema does not have this problem: 074 derives status from Stripe, so
+those three are excluded from reuse. That difference is asserted as a test rather
+than hidden in a `diff` ignore — "a paid intent is never offered for reuse" —
+because it is the migration doing something better, not the two implementations
+disagreeing by accident.
+
+Fixing it on `exchange` is a separate question and yours: either the webhook
+that sets `payment_status` is not firing, or it is firing and failing quietly.
+Worth checking the Stripe dashboard's webhook delivery log before assuming the
+code is wrong.
+
 ### RESOLVED: refiner spots are migrated
 
 `exchange.refiner_metals` (276 production rows) was the last thing on a purchase

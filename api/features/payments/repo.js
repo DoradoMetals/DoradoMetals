@@ -1,129 +1,40 @@
-import query from "#shared/db/query.js";
+// Selects which schema payments reads and writes.
+//
+//   PAYMENTS_SOURCE=exchange  (default) exchange.payment_intents
+//   PAYMENTS_SOURCE=dual                writes both, reads exchange
+//
+// exchange keeps one row per Stripe intent with the status, the amounts and the
+// instrument all inline. The new schema separates them: payments.intents is what
+// was asked for, payments.attempts is what was tried and carries the provider's
+// reference, payments.settlements is what actually moved, and payments.details
+// is the instrument.
+//
+// There is deliberately no `next`. This feature writes, and writing only to the
+// new schema is the one-way door. repo.next.js exists so the diff can compare
+// the two before anything is promoted.
+//
+// Three migrations exist because writing this split found the schema could not
+// express what the code does: 075/076 added session_id, user_id and type, which
+// retrievePaymentIntent keys on, and 077/078 gave payments.details a
+// provider_ref, which is what updateMethod keys on. Both had been declared
+// "no home" by an audit that reads data and cannot read callers.
+import * as exchange from "#features/payments/repo.exchange.js";
+import * as dual from "#features/payments/repo.dual.js";
 
-// Takes an executor like every other function here. Without one this read runs
-// on the pool, so it cannot see an intent created earlier in the caller's
-// transaction - and reusing an intent is exactly the decision that wants a
-// consistent view of what has just been written.
-export async function retrievePaymentIntent(type, session, user_id, executor) {
-  const sql = `
-    SELECT *
-    FROM exchange.payment_intents
-    WHERE session_id = $1
-    AND user_id = $2
-    AND type = $3
-    AND payment_status != 'succeeded'
-    AND payment_status != 'processing'
-    AND payment_status != 'canceled'
-  `;
-  const values = [
-    session.session.id,
-    type === 'admin' ? user_id : session.user.id,
-    type,
-  ];
-  const { rows } = await query(sql, values, executor);
-  return rows[0];
-}
+const SOURCES = { exchange, dual };
 
-export async function createPaymentIntent(payment_intent, type, user_id, session, executor) {
-  const sql = `
-    INSERT INTO exchange.payment_intents (
-      session_id,
-      user_id,
-      type,
-      payment_status,
-      payment_intent_id
-    )
-    VALUES (
-      $1, $2, $3, $4, $5
-    )
-  `;
-  const values = [
-    session.session.id,
-    type === 'admin' ? user_id : session.user.id,
-    type,
-    payment_intent.status,
-    payment_intent.id,
-  ];
-  await query(sql, values, executor);
-}
+const SOURCE = Object.hasOwn(SOURCES, process.env.PAYMENTS_SOURCE ?? "")
+  ? process.env.PAYMENTS_SOURCE
+  : "exchange";
 
-export async function updatePaymentIntent(payment_intent, executor) {
-  const sql = `
-    UPDATE exchange.payment_intents
-    SET payment_status = $1,
-        updated_at = NOW(),
-        amount = $2,
-        amount_received = $3,
-        amount_capturable = $4,
-        method_id = $5
-    WHERE payment_intent_id = $6
-  `;
-  const values = [
-    payment_intent.status,
-    payment_intent.amount,
-    payment_intent.amount_received,
-    payment_intent.amount_capturable,
-    payment_intent.payment_method,
-    payment_intent.id,
-  ];
-  await query(sql, values, executor);
-}
+const impl = SOURCES[SOURCE];
 
-export async function updateMethod({ paymentMethod }, executor) {
-  const sql = `
-    UPDATE exchange.payment_intents
-    SET method_type = $1,
-        routing = $2,
-        last_four = $3,
-        card_brand = $4,
-        bank_name = $5,
-        bank_account_type = $6
-    WHERE method_id = $7
-  `;
-  const values = [
-    paymentMethod.type,
-    paymentMethod?.us_bank_account?.routing_number,
-    paymentMethod?.us_bank_account?.last4 ?? paymentMethod?.card?.last4,
-    paymentMethod?.card?.brand,
-    paymentMethod?.us_bank_account?.bank_name,
-    paymentMethod?.us_bank_account?.account_type,
-    paymentMethod?.id,
-  ];
-  await query(sql, values, executor);
-}
+export const activeSource = SOURCE;
 
-export async function attachOrder(
-  payment_intent_id,
-  purchase_order_id,
-  sales_order_id,
-  client
-) {
-  const sql = `
-    UPDATE exchange.payment_intents
-    SET sales_order_id = $1, purchase_order_id = $2
-    WHERE payment_intent_id = $3
-  `;
-  const values = [sales_order_id, purchase_order_id, payment_intent_id];
-  await query(sql, values, client);
-}
-
-export async function attachCustomerToUser(customerId, userId, executor) {
-  const sql = `
-    UPDATE exchange.users
-    SET "stripeCustomerId" = $1
-    WHERE id = $2
-  `;
-  const values = [customerId, userId];
-  await query(sql, values, executor);
-}
-
-export async function getPaymentIntentFromSalesOrderId(sales_order_id, executor) {
-  const sql = `
-    SELECT *
-    FROM exchange.payment_intents
-    WHERE sales_order_id = $1
-  `;
-  const values = [sales_order_id];
-  const result = await query(sql, values, executor);
-  return result.rows[0];
-}
+export const retrievePaymentIntent = impl.retrievePaymentIntent;
+export const createPaymentIntent = impl.createPaymentIntent;
+export const updatePaymentIntent = impl.updatePaymentIntent;
+export const updateMethod = impl.updateMethod;
+export const attachOrder = impl.attachOrder;
+export const attachCustomerToUser = impl.attachCustomerToUser;
+export const getPaymentIntentFromSalesOrderId = impl.getPaymentIntentFromSalesOrderId;
