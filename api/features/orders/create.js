@@ -14,6 +14,8 @@
 // transaction opens, which is the shape createPurchaseOrder was rebuilt into.
 import query from "#shared/db/query.js";
 import * as fulfillmentService from "#features/fulfillments/service.js";
+import * as ratesRepo from "#features/rates/repo.js";
+import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.js";
 
 // THE ORDER NUMBER COMES FROM EXCHANGE, and that is deliberate.
 //
@@ -124,6 +126,56 @@ async function copyItems(order_id, checkout_id, executor) {
   return items.length;
 }
 
+// THE PREMIUM IS THE BUSINESS'S, NOT THE BROWSER'S.
+//
+// The block the frontend posts carries a bid_premium per line, and taking it at
+// face value means the price a customer is paid comes from their own client.
+// The legacy path has always overwritten it - "Source of truth: (re)price every
+// scrap item's premium from the rates table" - and the new path did not, which
+// is exactly what comparing the two on the same input surfaced: 0.80 submitted
+// against 0.87 owed, on the same order.
+//
+// Same rule as retierOrderScrapPremiums in features/purchase-orders/service.js,
+// against orders.items instead of exchange.purchase_order_items, and using the
+// same rates helpers so the tiering itself has one definition. Scrap only:
+// bullion keeps its own per-product premium, which is what bullion_id IS NULL
+// distinguishes.
+//
+// A no-op when there are no rate bands, which is the same thing the legacy
+// helper does - an order placed with no rates configured keeps what it was
+// given rather than being repriced to nothing.
+async function retierScrapPremiums(order_id, executor) {
+  const rates = await ratesRepo.getAllRates();
+  if (!rates?.length) return;
+
+  const { rows: scrap } = await query(
+    `SELECT i.id, m.name AS metal, i.content
+       FROM orders.items i
+       JOIN metals.metals m ON m.id = i.metal_id
+      WHERE i.order_id = $1 AND i.bullion_id IS NULL`,
+    [order_id],
+    executor
+  );
+  if (!scrap.length) return;
+
+  const totals = sumContentByMetal(
+    scrap,
+    (i) => i.metal,
+    (i) => Number(i.content) || 0
+  );
+
+  for (const line of scrap) {
+    const total = totals[String(line.metal ?? "").toLowerCase()] ?? 0;
+    const pct = getRatePct(rates, line.metal, total, "scrap");
+    if (pct == null) continue;
+    await query(
+      `UPDATE orders.items SET premium = $2 WHERE id = $1`,
+      [line.id, pct],
+      executor
+    );
+  }
+}
+
 // One quote per metal, frozen at the moment the order is placed. exchange calls
 // this order_metals and writes a row per metal whether or not the order has any
 // of it; this writes one per metal the order actually contains, because a spot
@@ -172,6 +224,7 @@ export async function createFromCheckout(
   const order_id = created[0].id;
 
   await copyItems(order_id, checkout_id, executor);
+  await retierScrapPremiums(order_id, executor);
   await freezeSpots(order_id, executor);
 
   // Whichever address the checkout recorded is the one the order is about. A

@@ -84,7 +84,11 @@ test("a checkout becomes an order with its items and its fulfillment", async () 
     assert.equal(items.length, 1);
     assert.equal(Number(items[0].purity), 0.9999, "the rounding 058 fixed must not come back");
     assert.equal(Number(items[0].content), 9.4991);
-    assert.equal(Number(items[0].premium), 0.8);
+    // NOT the 0.8 the block carried. The premium a customer is paid comes from
+    // the rates table, not from their browser - retierScrapPremiums overwrites
+    // whatever was submitted, exactly as the legacy path always has.
+    assert.notEqual(Number(items[0].premium), 0.8, "the browser's premium survived");
+    assert.ok(Number(items[0].premium) > 0, "the line was left with no premium at all");
     assert.ok(items[0].metal_id, "orders.items.metal_id is NOT NULL");
 
     const { rows: f } = await c.query(

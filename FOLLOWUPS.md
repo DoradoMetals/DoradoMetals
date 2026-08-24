@@ -425,6 +425,34 @@ reports. The 18 of 25 rows holding only a `pre_melt` are lines awaiting assay,
 not gaps. Bullion lines keep an empty row because they are lines like any other.
 What remains is API work — the admin screen that fills them in.
 
+### FOR JACOB: `exchange.scrap` rounds to three decimals, at the source
+
+Found by placing the same order through both creation paths and comparing what
+each left behind.
+
+`exchange.scrap` constrains `pre_melt`, `post_melt`, `content` and `purity` to
+`numeric(_,3)`. Migration 058 widened `orders.items` after `audit:precision`
+caught `.9999` fine gold being stored as `1.000` — but that was the
+**destination**. The source still rounds, so a scrap line entered today loses
+its fourth decimal before anything migrates it.
+
+**Production holds two scrap rows at purity exactly `1.000`**, which is a purity
+no metal has. They were almost certainly entered as `.9999` and rounded up.
+Content is `pre_melt x purity`, so those lines are overstated by about 0.01% —
+in the customer's favour, so it costs the business rather than them. Four more
+rows sit at `0.999`.
+
+**Not fixed, deliberately.** Widening it is `ALTER COLUMN ... TYPE` against
+`exchange`, which `lint:migrations` classifies as destructive and which needs an
+explicit marker saying what backup exists. No `pg_dump` of production has been
+taken. It is also worth deciding at the same time whether the two existing rows
+get corrected, because widening the column does not bring the lost digit back.
+
+The difference is asserted as a test rather than filtered out of the comparison
+— `features/orders/parity.test.js`, "exchange rounds a scrap line to three
+decimals and the new schema does not" — and it checks the column scales, so it
+will tell you to delete it if the column is ever widened.
+
 ### IN PROGRESS: the orders collapse
 
 The last and biggest piece. `features/orders` now exists with the half that

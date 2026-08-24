@@ -204,6 +204,92 @@ export async function createReview({ order }) {
   return purchaseOrderRepo.createReview({ order });
 }
 
+// The database half of placing a purchase order, on its own.
+//
+// Extracted so that exactly one description of what an order IS exists, and
+// both the live path and the comparison against features/orders can call it.
+// A test that re-listed these calls by hand would be testing a copy of the
+// implementation, and would go on passing after the real one changed.
+//
+// Everything external has already happened by the time this runs - the label
+// and the courier are created before the transaction opens - so this is purely
+// rows, and it can be run inside a rolled-back transaction with no FedEx
+// request being made at all. That is what makes the two paths comparable
+// without stubbing a provider.
+export async function recordPurchaseOrder(
+  client,
+  { purchase_order, user_id, label = {}, pickupResult = null }
+) {
+  const order_id = await purchaseOrderRepo.insertOrder(client, {
+    userId: user_id,
+    addressId: purchase_order.address.id,
+    status: "In Transit",
+  });
+
+  await purchaseOrderRepo.insertItems(client, order_id, purchase_order.items);
+
+  // Source of truth: (re)price every scrap item's premium from the rates
+  // table, tiered by the total scrap content of each metal on the order.
+  // Products keep their own per-product bid_premium. Same helper the admin
+  // add-item path uses, so both stay consistent.
+  await retierOrderScrapPremiums(order_id, client);
+
+  await purchaseOrderRepo.insertOrderMetals(client, order_id);
+  await purchaseOrderRepo.insertRefinerMetals(client, order_id);
+
+  await purchaseOrderRepo.insertPayout(client, order_id, {
+    userId: user_id,
+    ...purchase_order.payout,
+  });
+
+  const shipment = await shipmentRepo.create(
+    {
+      purchase_order_id: order_id,
+      // carrier_id: purchase_order.carrier.id,
+      carrier_id: FEDEX_CARRIER_ID,
+      type: "Inbound",
+    },
+    client
+  );
+
+  await shipmentRepo.update(
+    {
+      ...shipment,
+      tracking_number: label.tracking_number ?? null,
+      carrier_id: FEDEX_CARRIER_ID,
+      shipping_status: "Label Created",
+      shipping_label: label.buffer ?? null,
+      label_type: "Generated",
+      pickup_type: purchase_order.pickup?.name ?? null,
+      package: purchase_order.package?.label ?? null,
+      service_type: purchase_order.service?.serviceDescription ?? null,
+      net_charge: purchase_order.service?.netCharge ?? null,
+      insured: purchase_order.insurance?.insured ?? false,
+      declared_value: purchase_order.insurance?.declaredValue?.amount ?? null,
+      type: "Inbound",
+    },
+    client
+  );
+
+  if (pickupResult) {
+    await pickupRepo.create(
+      {
+        user_id,
+        order_id: order_id,
+        carrier: "FedEx",
+        date: purchase_order.pickup.date,
+        time: purchase_order.pickup.time,
+        pickup_status: "scheduled",
+        confirmation_number: pickupResult.confirmationNumber,
+        location: pickupResult.location,
+      },
+      client
+    );
+  }
+
+  return order_id;
+}
+
 // Placing a purchase order: the record, the label, and the courier.
 //
 // THE LABEL AND THE PICKUP USED TO BE CREATED INSIDE THE TRANSACTION. A failure
@@ -284,76 +370,14 @@ export async function createPurchaseOrder(purchase_order, user_id) {
 
   let order_id;
   try {
-    order_id = await withTransaction(async (client) => {
-      const order_id = await purchaseOrderRepo.insertOrder(client, {
-        userId: user_id,
-        addressId: purchase_order.address.id,
-        status: "In Transit",
-      });
-
-      await purchaseOrderRepo.insertItems(client, order_id, purchase_order.items);
-
-      // Source of truth: (re)price every scrap item's premium from the rates
-      // table, tiered by the total scrap content of each metal on the order.
-      // Products keep their own per-product bid_premium. Same helper the admin
-      // add-item path uses, so both stay consistent.
-      await retierOrderScrapPremiums(order_id, client);
-
-      await purchaseOrderRepo.insertOrderMetals(client, order_id);
-      await purchaseOrderRepo.insertRefinerMetals(client, order_id);
-
-      await purchaseOrderRepo.insertPayout(client, order_id, {
-        userId: user_id,
-        ...purchase_order.payout,
-      });
-
-      const shipment = await shipmentRepo.create(
-        {
-          purchase_order_id: order_id,
-          // carrier_id: purchase_order.carrier.id,
-          carrier_id: FEDEX_CARRIER_ID,
-          type: "Inbound",
-        },
-        client
-      );
-
-      await shipmentRepo.update(
-        {
-          ...shipment,
-          tracking_number: labelData.tracking_number,
-          carrier_id: FEDEX_CARRIER_ID,
-          shipping_status: "Label Created",
-          shipping_label: buffer,
-          label_type: "Generated",
-          pickup_type: purchase_order.pickup?.name ?? null,
-          package: purchase_order.package?.label ?? null,
-          service_type: purchase_order.service?.serviceDescription ?? null,
-          net_charge: purchase_order.service?.netCharge ?? null,
-          insured: purchase_order.insurance?.insured ?? false,
-          declared_value: purchase_order.insurance?.declaredValue?.amount ?? null,
-          type: "Inbound",
-        },
-        client
-      );
-
-      if (pickupResult) {
-        await pickupRepo.create(
-          {
-            user_id,
-            order_id: order_id,
-            carrier: "FedEx",
-            date: purchase_order.pickup.date,
-            time: purchase_order.pickup.time,
-            pickup_status: "scheduled",
-            confirmation_number: pickupResult.confirmationNumber,
-            location: pickupResult.location,
-          },
-          client
-        );
-      }
-
-      return order_id;
-    });
+    order_id = await withTransaction((client) =>
+      recordPurchaseOrder(client, {
+        purchase_order,
+        user_id,
+        label: { tracking_number: labelData.tracking_number, buffer },
+        pickupResult,
+      })
+    );
   } catch (err) {
     await undoPickup(
       pickupResult && {
