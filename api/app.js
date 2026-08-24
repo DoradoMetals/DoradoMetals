@@ -34,6 +34,7 @@ import leadRoutes from "#features/leads/routes.js";
 import rateRoutes from "#features/rates/routes.js";
 import shippingRoutes from "#features/shipping/operations/routes.js";
 import carrierServiceRoutes from "#features/shipping/services/routes.js";
+import fulfillmentRoutes from "#features/fulfillments/routes.js";
 
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "#features/auth/client.js";
@@ -87,6 +88,7 @@ app.use("/api/leads", leadRoutes);
 app.use("/api/rates", rateRoutes);
 app.use("/api/carriers", carriersRoutes);
 app.use("/api/carrier_services", carrierServiceRoutes);
+app.use("/api/fulfillments", fulfillmentRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Not Found" });

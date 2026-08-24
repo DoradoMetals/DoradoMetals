@@ -121,6 +121,36 @@ await bothWays("GET /images (legacy wire)", c.ImageWire, "media", async (m) =>
 );
 add("GET /users", c.UserWire, () => users.getAllUsers());
 
+// Fulfillments have no repo.exchange, so bothWays has nothing to compare - the
+// feature is new capability rather than migrated data, and the only shape it
+// has ever had is the one below. That also means these are the endpoints where
+// a contract is worth the most: nothing else is checking them.
+const fulfillments = await import("#features/fulfillments/repo.js");
+const fulfillmentMethods = await import("#features/fulfillments/methods/repo.js");
+
+add("GET /fulfillments/methods (purchase)", c.FulfillmentMethodWire, () =>
+  fulfillmentMethods.getAvailable("purchase")
+);
+add("GET /fulfillments/methods (sale)", c.FulfillmentMethodWire, () =>
+  fulfillmentMethods.getAvailable("sale")
+);
+add("GET /fulfillments/methods/all", c.FulfillmentMethodWire, () =>
+  fulfillmentMethods.getAll()
+);
+
+// Every fulfillment dev holds, read the way the route reads one. The SHIPMENT
+// rows are what exercise the nested detail; pickups and directs are empty
+// everywhere until somebody books one, which is why the two booking shapes are
+// asserted by the repo tests instead.
+add("GET /fulfillments/get_for_order", c.FulfillmentWire, async () => {
+  const { rows } = await pool.query(`SELECT order_id FROM fulfillments.fulfillments`);
+  const out = [];
+  for (const r of rows) out.push(await fulfillments.getByOrder(r.order_id));
+  return out.filter(Boolean);
+});
+
+add("GET /fulfillments/schedule", c.FulfillmentWire, () => fulfillments.getScheduled());
+
 // The catalogue. The other feature that had no contract, and one the frontend
 // leans on hardest - every price on the site is derived from these numbers.
 // getSellProducts returns rows getAllProducts does not, because a sell-only

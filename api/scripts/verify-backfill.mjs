@@ -312,6 +312,14 @@ const NOT_REBUILT = {
   "payments.attempts": "same",
   "payments.settlements": "same",
   "fulfillments.methods": "seed data, no exchange source",
+
+  // exchange never recorded a customer collecting in person or us driving out
+  // to them - shipments.pickup_type held two values, both of them parcels - so
+  // a rebuild from exchange cannot produce one of these and should not try.
+  // They are new capability, tested by features/fulfillments/repo.test.js
+  // rather than by a rebuild.
+  "fulfillments.pickups": "no exchange source: exchange never recorded an in-person pickup",
+  "fulfillments.directs": "no exchange source: exchange never recorded a walk-in or appointment",
   "places.locations": "seed data, no exchange source",
   "places.location_hours": "seed data, no exchange source",
   "refiners.refiners": "compared through refiners.exchange_compat",
