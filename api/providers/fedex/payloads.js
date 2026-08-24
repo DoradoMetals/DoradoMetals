@@ -2,6 +2,10 @@ import {
   DEFAULT_EMAIL_NOTIFICATION_DETAIL,
   DEFAULT_HOLD_AT_LOCATION_DETAIL,
 } from "#providers/fedex/constants.js";
+// The account number follows FEDEX_ENV: the sandbox is a different FedEx
+// account, so a payload built for it has to name that one or every request is
+// refused with a permissions error rather than anything that says "wrong env".
+import { accountNumber } from "#providers/fedex/endpoints.js";
 // schedulePickupPayload calls normalizeTime, formatFedexFullDateTime and
 // addHours. All three live in this module and none of them was imported, so
 // building a pickup payload threw ReferenceError on the first line that used
@@ -41,7 +45,7 @@ export function rateQuotePayload({
   carrierCodes = ["FDXE"],
 }) {
   return {
-    accountNumber: { value: process.env.FEDEX_ACCOUNT_NUMBER },
+    accountNumber: { value: accountNumber() },
     rateRequestControlParameters: { returnTransitTimes: true },
     requestedShipment: {
       shipDateStamp: new Date().toISOString().split("T")[0],
@@ -62,7 +66,7 @@ export function rateQuotePayload({
         paymentType: "SENDER",
         payor: {
           responsibleParty: {
-            accountNumber: { value: process.env.FEDEX_ACCOUNT_NUMBER },
+            accountNumber: { value: accountNumber() },
           },
         },
       },
@@ -100,7 +104,7 @@ export function createShipmentPayload({
       : emailNotificationDetail;
 
   return {
-    accountNumber: { value: process.env.FEDEX_ACCOUNT_NUMBER },
+    accountNumber: { value: accountNumber() },
     labelResponseOptions: "LABEL",
     requestedShipment: {
       shipper,
@@ -119,7 +123,7 @@ export function createShipmentPayload({
         paymentType: "SENDER",
         payor: {
           responsibleParty: {
-            accountNumber: { value: process.env.FEDEX_ACCOUNT_NUMBER },
+            accountNumber: { value: accountNumber() },
           },
         },
       },
@@ -132,7 +136,7 @@ export function createShipmentPayload({
 
 export function cancelShipmentPayload(trackingNumber) {
   return {
-    accountNumber: { value: process.env.FEDEX_ACCOUNT_NUMBER },
+    accountNumber: { value: accountNumber() },
     trackingNumber,
   };
 }
@@ -146,7 +150,7 @@ export function pickupAvailabilityPayload({ pickupAddress, code, readyDate }) {
     carriers: [code],
     countryRelationship: "DOMESTIC",
     numberOfBusinessDays: 3,
-    associatedAccountNumber: process.env.FEDEX_ACCOUNT_NUMBER,
+    associatedAccountNumber: accountNumber(),
     packageReadyTime,
   };
 }
@@ -168,7 +172,7 @@ export function schedulePickupPayload({
   const customerCloseTime = formatFedexTime(closeDate);
 
   return {
-    associatedAccountNumber: { value: process.env.FEDEX_ACCOUNT_NUMBER },
+    associatedAccountNumber: { value: accountNumber() },
     originDetail: {
       pickupLocation: {
         contact: pickupContact,
@@ -189,7 +193,7 @@ export function cancelPickupPayload({
   location,
 }) {
   return {
-    associatedAccountNumber: { value: process.env.FEDEX_ACCOUNT_NUMBER },
+    associatedAccountNumber: { value: accountNumber() },
     pickupConfirmationCode: confirmationCode,
     scheduledDate: pickupDate,
     location,
