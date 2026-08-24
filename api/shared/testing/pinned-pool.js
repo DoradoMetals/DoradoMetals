@@ -82,11 +82,16 @@ function nestable(client) {
 //
 // `lock` takes an advisory lock first, and a replay test that writes wants one.
 // A pinned transaction is held open for the whole of a request rather than for
-// a single statement, so it holds row locks far longer than a repo test does -
-// and the API tests run in parallel. Without a lock the orders tests went from
-// 2 seconds to 12 waiting on exchange.addresses. They still passed, which is
-// the point: this is the difference between slow and eventually deadlocked, and
-// only one of those shows up as a failure.
+// a single statement, so it holds row locks far longer than a repo test does,
+// and the API tests run in parallel. Two files writing the same tables without
+// agreeing an order is the deadlock that passes in isolation and hangs in the
+// full run, which has already happened twice in this codebase.
+//
+// It is NOT a speed fix, and it was briefly mistaken for one. The orders tests
+// slowed from 2 seconds to 12 when features/orders/parity.test.js arrived, and
+// adding a lock here changed nothing - that contention is between
+// parity.test.js and create.test.js, which both hold 4213 and both place whole
+// orders. The serialisation is the lock working, not failing.
 //
 // Use the same number as the repo tests that touch the same tables: 4211 for
 // fulfillments, 4213 for orders and checkout.
