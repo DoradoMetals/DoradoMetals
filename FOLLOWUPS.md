@@ -425,6 +425,62 @@ reports. The 18 of 25 rows holding only a `pre_melt` are lines awaiting assay,
 not gaps. Bullion lines keep an empty row because they are lines like any other.
 What remains is API work — the admin screen that fills them in.
 
+### FOR JACOB: a FedEx label could be created for an order that then vanished
+
+Found while starting the orders collapse, by reading `createPurchaseOrder`
+rather than by a check firing - and the check that exists to catch exactly this
+was reporting the codebase clean.
+
+`shippingOps.createLabel` was called **inside** the transaction that creates a
+purchase order, at two sites, and `shippingOps.createPickup` at a third. Any
+failure after them rolled the order back while FedEx kept the label and the
+courier booking. Two more sites did the same for cancelling.
+
+The pickup path made it concrete rather than theoretical. `pickupRepo.create`
+named a `shipment_id` column `exchange.carrier_pickups` has never had, so it
+threw on **every** call until it was fixed in August 2026 - which means choosing
+"Carrier Pickup" on a purchase order reliably produced: a label generated, and
+then no order at all. `exchange.carrier_pickups` holds zero rows in production,
+which is the evidence.
+
+**Correcting something written earlier in this migration.** The comment at the
+top of `features/shipping/pickups/repo.exchange.js` said the rollback left "a
+pickup scheduled that nothing recorded". That overstates it: `createPickup` in
+the handler called `provider.schedulePickup`, which `fedex.js` has never
+exported, so it threw before any request reached FedEx. No courier was ever
+orphaned. **The label was**, and that is the part that was real.
+
+**Why the guard missed it.** `transaction-side-effects.test.js` matched
+`provider.x(` and `fedex*.x(` by name. The calls are spelled
+`shippingOps.createLabel(` - the same FedEx request through an intermediate
+module - so the check passed. It now resolves *modules*: any namespace imported
+from `#providers/*`, the shipping operations handler, or the email service is
+external whatever the local binding is called. Proved by restoring the buggy
+file: the new check reports 5 sites, the old one reports 0.
+
+Read-only operations are exempted by name (`getTracking`, `getRates`,
+`validateAddress`, ...), because rolling back after asking FedEx a question
+leaves nothing behind. Holding a transaction open across a network call is still
+not free - the row locks are held for as long as the carrier takes - but that is
+a performance question and folding it into this rule would make the list a place
+to argue rather than a place to check.
+
+**How it is fixed, and what stayed the same.** Cancels are idempotent, so they
+simply moved outside the transaction: a retry cancels an already-cancelled
+label. Creates are not, so `createPurchaseOrder` and `cancelOrder` now create
+the label (and the courier) **before** the transaction and undo it if the
+transaction fails - the saga shape, with cancelling as the compensating action.
+
+That ordering was chosen deliberately over the other one. "Commit the order,
+then create the label" would mean a label failure leaves an order the customer
+was told had failed, and their retry makes a second one. This way a label
+failure is still "nothing happened", which is exactly what happens today.
+
+If the compensating cancel itself fails there is genuinely an orphaned label,
+and it is logged as `ORPHANED SHIPPING LABEL <tracking>` rather than thrown -
+the original error is the one that explains what went wrong. **Worth grepping
+the Railway logs for that string after this deploys.**
+
 ### FOR JACOB: production has no record of $126.48 it was paid
 
 One finding with two faces, both from splitting payments rather than from

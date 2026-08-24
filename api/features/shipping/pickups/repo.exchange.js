@@ -11,11 +11,19 @@
 // fine, so nothing surfaced it: getByOrder filters on order_id, which exists.
 //
 // That mattered more than an empty table suggests. purchase-orders/service.js
-// calls create() inside the same transaction that writes the shipping label,
-// and only after shippingOps.createPickup has booked a real pickup with FedEx.
-// The throw rolled the label write back while FedEx kept the booking, so
-// choosing "Carrier Pickup" on a purchase order failed the submission and left
-// a pickup scheduled that nothing recorded.
+// called create() inside the same transaction that writes the shipping label,
+// so choosing "Carrier Pickup" on a purchase order threw after the label had
+// been generated, and the rollback discarded the order while FedEx kept the
+// label.
+//
+// CORRECTING AN EARLIER CLAIM HERE: this comment used to say the rollback also
+// left a pickup scheduled with FedEx. It did not. The handler's createPickup
+// called provider.schedulePickup, which fedex.js has never exported, so it
+// threw before any request was sent - no courier was ever booked. The orphaned
+// LABEL was real; the orphaned pickup was not.
+//
+// Both are now moot: the label and the pickup are created before the
+// transaction and undone if it fails. See features/purchase-orders/service.js.
 //
 // The columns below are the ones the table actually has. The caller passes the
 // pickup date and time separately, as FedEx wants them, and they are combined

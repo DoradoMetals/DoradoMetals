@@ -16,6 +16,47 @@ import {
   FEDEX_CARRIER_ID,
 } from "#providers/fedex/constants.js";
 
+// Compensation for an external action a failed transaction has orphaned.
+//
+// The rule in CLAUDE.md is "do the database work, commit, then act on the
+// outside world", and for creation that ordering is not available: a label has
+// to exist before the shipment row can record its tracking number. So the label
+// is created first and undone if the database work fails - the saga shape, with
+// cancelling as the compensating action.
+//
+// It never masks the original error. If the compensation itself fails there is
+// genuinely an orphaned label, and that is worth a loud line in the log rather
+// than a second exception nobody can act on: the first error is the one that
+// explains what went wrong.
+async function undoLabel(trackingNumber) {
+  if (!trackingNumber) return;
+  try {
+    await shippingOps.cancelLabel(FEDEX_CARRIER_ID, undefined, { trackingNumber });
+  } catch (err) {
+    console.error(
+      `ORPHANED SHIPPING LABEL ${trackingNumber}: the order it belonged to was ` +
+        `rolled back and cancelling the label failed too - ${err.message}`
+    );
+  }
+}
+
+async function undoPickup(pickup) {
+  if (!pickup?.confirmationNumber) return;
+  try {
+    await shippingOps.cancelPickup(FEDEX_CARRIER_ID, undefined, {
+      confirmationCode: pickup.confirmationNumber,
+      pickupDate: pickup.pickupDate,
+      location: pickup.location,
+    });
+  } catch (err) {
+    console.error(
+      `ORPHANED CARRIER PICKUP ${pickup.confirmationNumber}: the order it ` +
+        `belonged to was rolled back and cancelling the pickup failed too - ` +
+        `${err.message}`
+    );
+  }
+}
+
 export async function listOrdersForUser(userId) {
   return purchaseOrderRepo.findAllByUser(userId);
 }
@@ -63,77 +104,96 @@ export async function rejectOffer({ orderId, offerNotes }) {
   );
 }
 
+// Cancelling an order generates a return label, and a return label is a real
+// billable thing FedEx cannot be asked to forget.
+//
+// It used to be created in the middle of the transaction that cancels the
+// order, so any failure after it - the shipment insert, the shipment update -
+// rolled the record back and left the label in existence with nothing pointing
+// at it. Nobody would ever have found it.
+//
+// The label is now created BEFORE the transaction and cancelled if the
+// transaction fails, which is the only ordering that keeps the customer-visible
+// behaviour identical. A label failure still means no cancellation happened at
+// all, exactly as before; what changes is that a database failure no longer
+// leaves a label behind. Cancelling is idempotent, so the compensation is safe
+// to attempt and safe to repeat.
 export async function cancelOrder({ order, return_shipment }) {
-  return withTransaction(async (client) => {
-    const updatedOrder = await purchaseOrderRepo.cancelOrderById(
-      order.id,
-      client
-    );
-    await purchaseOrderRepo.clearOrderMetals(order.id, client);
+  const shipper = {
+    contact: {
+      personName: process.env.FEDEX_DORADO_NAME,
+      phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,
+    },
+    address: DORADO_ADDRESS,
+  };
 
-    const shipment = await shipmentRepo.create(
-      {
-        purchase_order_id: order.id,
-        // carrier_id: order.carrier.id,
-        carrier_id: FEDEX_CARRIER_ID,
-        type: "Return",
-      },
-      client
-    );
+  const recipient = {
+    contact: {
+      personName: return_shipment.address.name,
+      phoneNumber: return_shipment.address.phone_number,
+    },
+    address: return_shipment.address,
+  };
 
-    const shipper = {
-      contact: {
-        personName: process.env.FEDEX_DORADO_NAME,
-        phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,
-      },
-      address: DORADO_ADDRESS,
-    };
-
-    const recipient = {
-      contact: {
-        personName: return_shipment.address.name,
-        phoneNumber: return_shipment.address.phone_number,
-      },
-      address: return_shipment.address,
-    };
-
-    const labelData = await shippingOps.createLabel(FEDEX_CARRIER_ID, client, {
-      shipper,
-      recipient,
-      serviceType: return_shipment.service?.serviceType,
-      pickupType: return_shipment.pickup?.label,
-      pkg: {
-        weight: return_shipment.package?.weight,
-        dimensions: return_shipment.package?.dimensions,
-      },
-      insurance: {
-        declaredValue: return_shipment.insurance?.declaredValue,
-      },
-    });
-
-    const labelBuffer = Buffer.from(labelData.labelFile, "base64");
-
-    const updatedShipment = await shipmentRepo.update(
-      {
-        ...shipment,
-        tracking_number: labelData.tracking_number,
-        carrier_id: FEDEX_CARRIER_ID,
-        shipping_status: "Label Created",
-        shipping_label: labelBuffer,
-        label_type: "Generated",
-        pickup_type: return_shipment.pickup?.name,
-        package: return_shipment.package?.label,
-        service_type: return_shipment.service?.serviceDescription,
-        net_charge: return_shipment.service?.netCharge,
-        insured: return_shipment.insurance?.insured,
-        declared_value: return_shipment.insurance?.declaredValue?.amount,
-        type: "Return",
-      },
-      client
-    );
-
-    return { updatedOrder, returnShipment: updatedShipment };
+  const labelData = await shippingOps.createLabel(FEDEX_CARRIER_ID, undefined, {
+    shipper,
+    recipient,
+    serviceType: return_shipment.service?.serviceType,
+    pickupType: return_shipment.pickup?.label,
+    pkg: {
+      weight: return_shipment.package?.weight,
+      dimensions: return_shipment.package?.dimensions,
+    },
+    insurance: {
+      declaredValue: return_shipment.insurance?.declaredValue,
+    },
   });
+
+  const labelBuffer = Buffer.from(labelData.labelFile, "base64");
+
+  try {
+    return await withTransaction(async (client) => {
+      const updatedOrder = await purchaseOrderRepo.cancelOrderById(
+        order.id,
+        client
+      );
+      await purchaseOrderRepo.clearOrderMetals(order.id, client);
+
+      const shipment = await shipmentRepo.create(
+        {
+          purchase_order_id: order.id,
+          // carrier_id: order.carrier.id,
+          carrier_id: FEDEX_CARRIER_ID,
+          type: "Return",
+        },
+        client
+      );
+
+      const updatedShipment = await shipmentRepo.update(
+        {
+          ...shipment,
+          tracking_number: labelData.tracking_number,
+          carrier_id: FEDEX_CARRIER_ID,
+          shipping_status: "Label Created",
+          shipping_label: labelBuffer,
+          label_type: "Generated",
+          pickup_type: return_shipment.pickup?.name,
+          package: return_shipment.package?.label,
+          service_type: return_shipment.service?.serviceDescription,
+          net_charge: return_shipment.service?.netCharge,
+          insured: return_shipment.insurance?.insured,
+          declared_value: return_shipment.insurance?.declaredValue?.amount,
+          type: "Return",
+        },
+        client
+      );
+
+      return { updatedOrder, returnShipment: updatedShipment };
+    });
+  } catch (err) {
+    await undoLabel(labelData.tracking_number);
+    throw err;
+  }
 }
 
 export async function updateOfferNotes({ order, offer_notes }) {
@@ -144,130 +204,166 @@ export async function createReview({ order }) {
   return purchaseOrderRepo.createReview({ order });
 }
 
+// Placing a purchase order: the record, the label, and the courier.
+//
+// THE LABEL AND THE PICKUP USED TO BE CREATED INSIDE THE TRANSACTION. A failure
+// in anything after them - the shipment update, the pickup insert - rolled the
+// whole order back while FedEx kept both. The pickup insert in particular threw
+// on every call until August 2026 because it named a column the table does not
+// have, so choosing "Carrier Pickup" reliably produced exactly that: no order,
+// and a label already generated.
+//
+// The ordering that fixes it without changing what a customer sees is to do the
+// external work FIRST and undo it if the database work fails. The alternative -
+// commit the order, then create the label - would mean a label failure leaves
+// an order the customer was told had failed, and a retry makes a second one.
+// This way a label failure is still "nothing happened", exactly as before.
+//
+// Neither the label nor the pickup depends on anything the transaction writes.
+// Both are built entirely out of the request, which is what makes this legal.
 export async function createPurchaseOrder(purchase_order, user_id) {
-  const order_id = await withTransaction(async (client) => {
-    const order_id = await purchaseOrderRepo.insertOrder(client, {
-      userId: user_id,
-      addressId: purchase_order.address.id,
-      status: "In Transit",
-    });
+  const shipper = {
+    contact: {
+      personName: purchase_order.address.name,
+      phoneNumber: purchase_order.address.phone_number,
+    },
+    address: purchase_order.address,
+  };
 
-    await purchaseOrderRepo.insertItems(client, order_id, purchase_order.items);
+  const recipient = {
+    contact: {
+      personName: process.env.FEDEX_DORADO_NAME,
+      phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,
+    },
+    address: FEDEX_STORE_ADDRESS,
+  };
 
-    // Source of truth: (re)price every scrap item's premium from the rates
-    // table, tiered by the total scrap content of each metal on the order.
-    // Products keep their own per-product bid_premium. Same helper the admin
-    // add-item path uses, so both stay consistent.
-    await retierOrderScrapPremiums(order_id, client);
-
-    await purchaseOrderRepo.insertOrderMetals(client, order_id);
-    await purchaseOrderRepo.insertRefinerMetals(client, order_id);
-
-    await purchaseOrderRepo.insertPayout(client, order_id, {
-      userId: user_id,
-      ...purchase_order.payout,
-    });
-
-    const shipment = await shipmentRepo.create(
-      {
-        purchase_order_id: order_id,
-        // carrier_id: purchase_order.carrier.id,
-        carrier_id: FEDEX_CARRIER_ID,
-        type: "Inbound",
+  const labelData = await shippingOps.createLabel(
+    // purchase_order.carrier.id,
+    FEDEX_CARRIER_ID,
+    undefined,
+    {
+      shipper,
+      recipient,
+      serviceType: purchase_order.service?.serviceType,
+      pickupType: purchase_order.pickup?.label,
+      pkg: {
+        weight: purchase_order.package?.weight,
+        dimensions: purchase_order.package?.dimensions,
       },
-      client
-    );
-
-    const shipper = {
-      contact: {
-        personName: purchase_order.address.name,
-        phoneNumber: purchase_order.address.phone_number,
+      insurance: {
+        declaredValue: purchase_order.insurance?.declaredValue,
       },
-      address: purchase_order.address,
-    };
+    }
+  );
 
-    const recipient = {
-      contact: {
-        personName: process.env.FEDEX_DORADO_NAME,
-        phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,
-      },
-      address: FEDEX_STORE_ADDRESS,
-    };
+  const buffer = Buffer.from(labelData.labelFile, "base64");
 
-    const labelData = await shippingOps.createLabel(
-      // purchase_order.carrier.id,
-      FEDEX_CARRIER_ID,
-      client,
-      {
-        shipper,
-        recipient,
-        serviceType: purchase_order.service?.serviceType,
-        pickupType: purchase_order.pickup?.label,
-        pkg: {
-          weight: purchase_order.package?.weight,
-          dimensions: purchase_order.package?.dimensions,
+  // The courier, if one was asked for. It needs the tracking number, so it
+  // cannot happen before the label - and if it fails, the label it was for is
+  // undone before the error goes back, so the customer's retry is clean.
+  let pickupResult = null;
+  if (purchase_order.pickup?.name === "Carrier Pickup") {
+    try {
+      pickupResult = await shippingOps.createPickup(FEDEX_CARRIER_ID, undefined, {
+        pickupContact: {
+          personName: purchase_order.address.name,
+          phoneNumber: purchase_order.address.phone_number,
         },
-        insurance: {
-          declaredValue: purchase_order.insurance?.declaredValue,
-        },
-      }
-    );
+        pickupAddress: purchase_order.address,
+        pickupDate: purchase_order.pickup.date,
+        pickupTime: purchase_order.pickup.time,
+        carrierCode: purchase_order.service?.code ?? "FDXE",
+        trackingNumber: labelData.tracking_number,
+      });
+    } catch (err) {
+      await undoLabel(labelData.tracking_number);
+      throw err;
+    }
+  }
 
-    const buffer = Buffer.from(labelData.labelFile, "base64");
+  let order_id;
+  try {
+    order_id = await withTransaction(async (client) => {
+      const order_id = await purchaseOrderRepo.insertOrder(client, {
+        userId: user_id,
+        addressId: purchase_order.address.id,
+        status: "In Transit",
+      });
 
-    await shipmentRepo.update(
-      {
-        ...shipment,
-        tracking_number: labelData.tracking_number,
-        carrier_id: FEDEX_CARRIER_ID,
-        shipping_status: "Label Created",
-        shipping_label: buffer,
-        label_type: "Generated",
-        pickup_type: purchase_order.pickup?.name ?? null,
-        package: purchase_order.package?.label ?? null,
-        service_type: purchase_order.service?.serviceDescription ?? null,
-        net_charge: purchase_order.service?.netCharge ?? null,
-        insured: purchase_order.insurance?.insured ?? false,
-        declared_value: purchase_order.insurance?.declaredValue?.amount ?? null,
-        type: "Inbound",
-      },
-      client
-    );
+      await purchaseOrderRepo.insertItems(client, order_id, purchase_order.items);
 
-    if (purchase_order.pickup?.name === "Carrier Pickup") {
-      const pickupResult = await shippingOps.createPickup(
-        FEDEX_CARRIER_ID,
-        client,
+      // Source of truth: (re)price every scrap item's premium from the rates
+      // table, tiered by the total scrap content of each metal on the order.
+      // Products keep their own per-product bid_premium. Same helper the admin
+      // add-item path uses, so both stay consistent.
+      await retierOrderScrapPremiums(order_id, client);
+
+      await purchaseOrderRepo.insertOrderMetals(client, order_id);
+      await purchaseOrderRepo.insertRefinerMetals(client, order_id);
+
+      await purchaseOrderRepo.insertPayout(client, order_id, {
+        userId: user_id,
+        ...purchase_order.payout,
+      });
+
+      const shipment = await shipmentRepo.create(
         {
-          pickupContact: {
-            personName: purchase_order.address.name,
-            phoneNumber: purchase_order.address.phone_number,
-          },
-          pickupAddress: purchase_order.address,
-          pickupDate: purchase_order.pickup.date,
-          pickupTime: purchase_order.pickup.time,
-          carrierCode: purchase_order.service?.code ?? "FDXE",
-          trackingNumber: labelData.tracking_number,
-        }
-      );
-
-      await pickupRepo.create(
-        {
-          user_id,
-          order_id: order_id,
-          carrier: "FedEx",
-          date: purchase_order.pickup.date,
-          time: purchase_order.pickup.time,
-          pickup_status: "scheduled",
-          confirmation_number: pickupResult.confirmationNumber,
-          location: pickupResult.location,
+          purchase_order_id: order_id,
+          // carrier_id: purchase_order.carrier.id,
+          carrier_id: FEDEX_CARRIER_ID,
+          type: "Inbound",
         },
         client
       );
-    }
 
-    return order_id;
-  });
+      await shipmentRepo.update(
+        {
+          ...shipment,
+          tracking_number: labelData.tracking_number,
+          carrier_id: FEDEX_CARRIER_ID,
+          shipping_status: "Label Created",
+          shipping_label: buffer,
+          label_type: "Generated",
+          pickup_type: purchase_order.pickup?.name ?? null,
+          package: purchase_order.package?.label ?? null,
+          service_type: purchase_order.service?.serviceDescription ?? null,
+          net_charge: purchase_order.service?.netCharge ?? null,
+          insured: purchase_order.insurance?.insured ?? false,
+          declared_value: purchase_order.insurance?.declaredValue?.amount ?? null,
+          type: "Inbound",
+        },
+        client
+      );
+
+      if (pickupResult) {
+        await pickupRepo.create(
+          {
+            user_id,
+            order_id: order_id,
+            carrier: "FedEx",
+            date: purchase_order.pickup.date,
+            time: purchase_order.pickup.time,
+            pickup_status: "scheduled",
+            confirmation_number: pickupResult.confirmationNumber,
+            location: pickupResult.location,
+          },
+          client
+        );
+      }
+
+      return order_id;
+    });
+  } catch (err) {
+    await undoPickup(
+      pickupResult && {
+        ...pickupResult,
+        pickupDate: purchase_order.pickup?.date,
+      }
+    );
+    await undoLabel(labelData.tracking_number);
+    throw err;
+  }
 
   return await purchaseOrderRepo.findById(order_id);
 }
