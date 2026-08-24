@@ -459,18 +459,46 @@ The mappings that matter, and why they are where they are:
   the bank details entry below). Moving them inside a refactor would bury that
   decision.
 
+**Also done: resolving and recording.** `features/orders/intake.repo.js` turns
+the names into ids and writes them onto the checkout. Thirteen more tests, four
+guards proved by breaking them.
+
+Two facts about the reference data that this had to be built around, both
+checked rather than assumed:
+
+- **`shipping.packages` has three labels that exist twice** - Small, Medium and
+  Large Box, once for FedEx and once for UPS. Resolving on the label alone
+  returns whichever row Postgres hands back first, which is a coin toss that
+  looks like it worked. The carrier is part of the lookup.
+- **No schema records which carrier service enum was used.**
+  `shipping.services.code` and `.provider_code` are NULL on every row in dev and
+  in production, and so are `exchange.carrier_services`'. The frontend names a
+  service three ways - `serviceType` (`FEDEX_EXPRESS_SAVER`),
+  `serviceDescription` (`Express Saver`) and `code` (`FDXE`) - and only the
+  description matches anything stored. So resolution depends on a display string
+  matching exactly, and **renaming a service in the admin table silently stops
+  new orders resolving it.** Storing the provider code would fix it; that is a
+  schema change rather than a migration one, and it is yours to call.
+
+**The checkout is the cart**, which turned out to be the useful realisation.
+`checkout.checkouts` is UNIQUE on (user_id, direction) and `features/checkout`
+already writes one per user per direction as the cart syncs. Placing an order
+does not create a checkout - it completes the one that is already there, filling
+in the columns the cart never touches. Those columns have been empty since
+January; this is the first code that writes any of them.
+
+The submitted items replace whatever the cart held, deliberately: a second tab,
+a stale page or a failed sync would otherwise place an order for a different set
+of lines than the one on screen.
+
 **What is left**, roughly in order:
 
-1. Resolving the description's names to ids - fulfillment method by
-   (type, direction), carrier service by (carrier, name), package by label,
-   location by type - and persisting it as a `checkout.checkouts` row plus
-   `checkout.items`. That is the "and THEN into an order" half.
-2. Creating the order from the checkout, reusing
+1. Creating the order from the checkout, reusing
    `fulfillmentService.choose`/`chooseDefault`/`schedulePickup`, all of which
    take an executor so the whole thing is one transaction.
-3. Comparing the two paths on the same input - the same gate `diff` gives every
+2. Comparing the two paths on the same input - the same gate `diff` gives every
    other feature.
-4. Collapsing the two read features into one `features/orders`, which is 4,600
+3. Collapsing the two read features into one `features/orders`, which is 4,600
    lines and wants doing after the write path is proven, not before.
 
 **A constraint worth knowing before touching this.** Order creation now calls
