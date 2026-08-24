@@ -491,14 +491,47 @@ The submitted items replace whatever the cart held, deliberately: a second tab,
 a stale page or a failed sync would otherwise place an order for a different set
 of lines than the one on screen.
 
+**Also done: the order itself.** `features/orders/create.js` turns a completed
+checkout into an order, its items, its address snapshot, its frozen spots and
+its fulfillment - one transaction, everything threading an executor. Ten more
+tests, three guards proved by breaking them. The whole chain now runs end to
+end: block -> decomposed -> resolved -> recorded -> order.
+
+Three things worth knowing about it:
+
+- **The order number comes from `exchange`'s sequence, and has to.**
+  `orders.orders.number` has a `UNIQUE (direction, number)` and **no default** -
+  the sequences live in `exchange` and the new schema was never given its own.
+  While `exchange` is authoritative the two share one numbering space, so
+  drawing from its sequence is what keeps them in step; an independent counter
+  would hand out numbers `exchange` then hands out again. `nextval` advances a
+  sequence and writes no row, so this is not a destructive write.
+  **At promotion this has to change**: the new schema needs its own sequence,
+  seeded from `max(number) + 1` per direction. That is a migration to write when
+  `ORDERS_SOURCE` moves - seeding it now would fix a starting point that keeps
+  moving. Noted in PROMOTION.md.
+- **The address is copied, not referenced.** `orders.addresses` holds a snapshot
+  plus a pointer back to the book row, the same shape
+  `031_backfill_orders.sql` produced - so editing an address afterwards cannot
+  rewrite where a parcel was sent, and a migrated order and a new one are
+  indistinguishable. Asserted by editing the book row and checking the order's
+  copy did not move.
+- **An item whose metal will not resolve fails the order.** `orders.items
+  .metal_id` is NOT NULL, and an order silently missing a line is worse than an
+  order that failed to be placed: the customer's metal arrives and nothing
+  recorded that it was coming.
+
+Spots are frozen per metal the order actually contains, which is a deliberate
+difference from `exchange`: `order_metals` writes a row for all four metals
+whether or not the order has any, and a spot for a metal nobody sold means
+nothing.
+
 **What is left**, roughly in order:
 
-1. Creating the order from the checkout, reusing
-   `fulfillmentService.choose`/`chooseDefault`/`schedulePickup`, all of which
-   take an executor so the whole thing is one transaction.
-2. Comparing the two paths on the same input - the same gate `diff` gives every
-   other feature.
-3. Collapsing the two read features into one `features/orders`, which is 4,600
+1. Comparing the two paths on the same input - the same gate `diff` gives every
+   other feature. This is where the payout goes too: the new path does not write
+   one yet, because where a routing number lives is still open.
+2. Collapsing the two read features into one `features/orders`, which is 4,600
    lines and wants doing after the write path is proven, not before.
 
 **A constraint worth knowing before touching this.** Order creation now calls

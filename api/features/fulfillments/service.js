@@ -63,6 +63,21 @@ export async function choose({ order_id, method_id, direction, created_by_id }, 
   );
 }
 
+// A method that has already been decided, by id.
+//
+// choose() is the CUSTOMER's path and checks the id against the same query that
+// produced the menu, which is what makes the menu mean something. This is the
+// path for a method that was already validated - recorded on a checkout at
+// intake, or picked by an admin who is allowed the hidden ones. Skipping the
+// menu check here is the difference between the two, and it is why they are two
+// functions rather than a flag.
+export async function chooseById({ order_id, method_id, created_by_id }, executor) {
+  return await fulfillmentsRepo.create(
+    { order_id, method_id, created_by_id },
+    executor
+  );
+}
+
 // The default for a direction and category, for the flows that do not ask.
 // A sale with nothing chosen is a DROPSHIP; a purchase with nothing chosen is a
 // CARRIER DROPOFF. Both come from the seed rather than from a constant here, so

@@ -295,6 +295,22 @@ old value to carry over — but if you have a note anywhere saying
 `SUPPLIERS_SOURCE`, it is this. The HTTP route is still `/api/suppliers`,
 because the frontend calls it.
 
+### `ORDERS_SOURCE` — the new schema has no order-number sequence
+
+`orders.orders.number` has a `UNIQUE (direction, number)` and no default. Both
+sequences — `exchange.purchase_orders_order_number_seq` and its sales twin —
+live in `exchange`, and January never created replacements.
+
+That is fine while `exchange` is authoritative: the two schemas share one
+numbering space, and the new creation path draws from `exchange`'s sequence
+precisely so they cannot collide.
+
+**It stops being fine at promotion.** Before `ORDERS_SOURCE` moves past `dual`,
+the new schema needs its own sequences, seeded from `max(number) + 1` per
+direction and owned by `orders.orders.number`. Deliberately not written yet:
+seeding it today fixes a starting point that keeps moving every time an order is
+placed.
+
 ### `PICKUPS_SOURCE` — nothing to compare
 
 Both tables are empty in dev and production, because the write path threw on
