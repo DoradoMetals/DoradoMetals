@@ -8,7 +8,7 @@ import {
 } from "../generated/exchange.js";
 
 // The repos return a carrier and the organization it is, kept apart - the same
-// shape as SupplierWireNext, because a carrier and a refiner are the same kind
+// shape as RefinerWireNext, because a carrier and a refiner are the same kind
 // of thing in the new design: an organization with a role.
 export const CarrierWireNext = z.object({
   id: z.string().uuid(),

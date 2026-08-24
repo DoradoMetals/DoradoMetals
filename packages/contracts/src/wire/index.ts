@@ -10,6 +10,6 @@ export * from "./rates.js";
 export * from "./reviews.js";
 export * from "./shipping.js";
 export * from "./spots.js";
-export * from "./suppliers.js";
+export * from "./refiners.js";
 export * from "./transactions.js";
 export * from "./users.js";

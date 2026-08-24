@@ -6,7 +6,7 @@ import * as salesOrderRepo from "#features/sales-orders/repo.js";
 import * as stripeRepo from "#features/payments/repo.js";
 import * as transactionsRepo from "#features/transactions/repo.js";
 import * as shipmentRepo from "#features/shipping/shipments/repo.js";
-import * as supplierRepo from "#features/suppliers/repo.js";
+import * as refinerRepo from "#features/refiners/repo.js";
 import * as taxRepo from "#features/sales-tax/repo.js";
 
 import * as emailService from "#features/emails/service.js";
@@ -175,7 +175,7 @@ export async function updateStatus({ order, order_status, user_name }) {
 
 export async function sendOrderToSupplier({ order, spots, supplier_id }) {
   const sales_order = await getById(order.id);
-  const supplier = await supplierRepo.getSupplierFromId(supplier_id);
+  const supplier = await refinerRepo.getRefinerFromId(supplier_id);
 
   // The record first, the email second.
   //

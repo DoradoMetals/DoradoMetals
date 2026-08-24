@@ -7,8 +7,8 @@
 // new schema holds them in two rows and joins them back. Both produce the same
 // thing, which is what lets diff compare them.
 //
-// features/suppliers/wire.js flattens it back for the frontend, behind
-// SUPPLIERS_WIRE, and that is a transformation rather than a rename - which is
+// features/refiners/wire.js flattens it back for the frontend, behind
+// REFINERS_WIRE, and that is a transformation rather than a rename - which is
 // why this feature does not use shared/wire/rename.js.
 import query from "#shared/db/query.js";
 
@@ -22,13 +22,13 @@ const FIELDS = `
   ) AS organization
 `;
 
-export async function getAllSuppliers(executor) {
+export async function getAllRefiners(executor) {
   const sql = `SELECT ${FIELDS} FROM exchange.suppliers ORDER BY name ASC, id ASC`;
   const result = await query(sql, [], executor);
   return result.rows;
 }
 
-export async function getSupplierFromId(id, executor) {
+export async function getRefinerFromId(id, executor) {
   const sql = `SELECT ${FIELDS} FROM exchange.suppliers WHERE id = $1`;
   const result = await query(sql, [id], executor);
   return result.rows[0];

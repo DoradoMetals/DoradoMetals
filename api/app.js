@@ -23,7 +23,7 @@ import paymentRoutes from "#features/payments/routes.js";
 import spotRoutes from "#features/spots/routes.js";
 import transactionRoutes from "#features/transactions/routes.js";
 import salesOrderRoutes from "#features/sales-orders/routes.js";
-import supplierRoutes from "#features/suppliers/routes.js";
+import refinerRoutes from "#features/refiners/routes.js";
 import taxRoutes from "#features/sales-tax/routes.js";
 import carriersRoutes from "#features/shipping/carriers/routes.js";
 import recaptchaRoutes from "#features/recaptcha/routes.js";
@@ -78,7 +78,11 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/emails", emailRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/sales_orders", salesOrderRoutes);
-app.use("/api/suppliers", supplierRoutes);
+// The route stays /api/suppliers: the frontend calls it
+// (frontend/features/products/queries.ts) and renaming a module is not a
+// reason to change the API. The feature is refiners; the path is history, and
+// it moves when the frontend does.
+app.use("/api/suppliers", refinerRoutes);
 app.use("/api/tax", taxRoutes);
 app.use("/api/recaptcha", recaptchaRoutes);
 app.use("/api/users", userRoutes);

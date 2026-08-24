@@ -114,19 +114,19 @@ const FEATURES = {
     ],
     context: async (m) => { const r = (await m.getTestImages())[0]; return { id: r?.id, user: r?.user_id }; },
   },
-  suppliers: {
-    exchange: () => import("#features/suppliers/repo.exchange.js"),
-    next: () => import("#features/suppliers/repo.next.js"),
+  refiners: {
+    exchange: () => import("#features/refiners/repo.exchange.js"),
+    next: () => import("#features/refiners/repo.next.js"),
     // The organization's own id. exchange has no equivalent - an organization is
     // a new concept and the migration issued its id - so exchange composes the
     // nested shape without one. The supplier's id is unchanged and is what
     // everything references; this is the organization behind it.
     ignore: { "*": ["organization.id"] },
     reads: [
-      ["getAllSuppliers", (m) => m.getAllSuppliers()],
-      ["getSupplierFromId(first)", async (m, ctx) => (ctx.id ? m.getSupplierFromId(ctx.id) : null)],
+      ["getAllRefiners", (m) => m.getAllRefiners()],
+      ["getRefinerFromId(first)", async (m, ctx) => (ctx.id ? m.getRefinerFromId(ctx.id) : null)],
     ],
-    context: async (m) => ({ id: (await m.getAllSuppliers())[0]?.id }),
+    context: async (m) => ({ id: (await m.getAllRefiners())[0]?.id }),
   },
   carriers: {
     exchange: () => import("#features/shipping/carriers/repo.exchange.js"),

@@ -2,8 +2,8 @@
 // them apart. The frontend still expects one flat object with the
 // organization's fields at the top level and `is_active` rather than `enabled`.
 //
-//   SUPPLIERS_WIRE=legacy  (default) flat, is_active
-//   SUPPLIERS_WIRE=next              nested organization, enabled
+//   REFINERS_WIRE=legacy  (default) flat, is_active
+//   REFINERS_WIRE=next              nested organization, enabled
 //
 // This is a transformation, not a rename, so it does not use
 // shared/wire/rename.js. Flattening loses which fields belong to the
@@ -39,8 +39,8 @@ function nest(row) {
 
 const identity = (row) => row;
 const SHAPES = { legacy: flatten, next: identity };
-const SHAPE = Object.hasOwn(SHAPES, process.env.SUPPLIERS_WIRE ?? "")
-  ? process.env.SUPPLIERS_WIRE
+const SHAPE = Object.hasOwn(SHAPES, process.env.REFINERS_WIRE ?? "")
+  ? process.env.REFINERS_WIRE
   : "legacy";
 
 export const activeShape = SHAPE;

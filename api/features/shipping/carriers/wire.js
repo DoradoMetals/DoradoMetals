@@ -6,7 +6,7 @@
 //   CARRIERS_WIRE=next              nested organization, enabled
 //
 // A transformation rather than a rename, so it does not use
-// shared/wire/rename.js - the same shape as features/suppliers/wire.js, because
+// shared/wire/rename.js - the same shape as features/refiners/wire.js, because
 // a carrier and a refiner are the same kind of thing in the new design: an
 // organization with a role.
 const overList = (fn) => (data) => (Array.isArray(data) ? data.map(fn) : fn(data));

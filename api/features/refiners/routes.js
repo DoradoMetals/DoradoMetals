@@ -1,9 +1,9 @@
 import express from "express";
 
-import { getAllSuppliers } from "#features/suppliers/controller.js";
+import { getAllRefiners } from "#features/refiners/controller.js";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.js";
-import * as suppliersWire from "#features/suppliers/wire.js";
+import * as refinersWire from "#features/refiners/wire.js";
 import { wireShape } from "#shared/wire/middleware.js";
 
 const router = express.Router();
@@ -12,8 +12,8 @@ const router = express.Router();
 // hand in every handler - no writes take this entity, so only the response is converted. Controllers return the internal shape
 // and know nothing about the frontend not having caught up. Deleting the
 // adapter is deleting this line.
-router.use(wireShape(suppliersWire, { body: false }));
+router.use(wireShape(refinersWire, { body: false }));
 
-router.get("/get_all", requireAdmin, getAllSuppliers);
+router.get("/get_all", requireAdmin, getAllRefiners);
 
 export default router;

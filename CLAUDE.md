@@ -72,20 +72,28 @@ customers, $66,999.32, with no destination in any of the eighteen.**
 `audit:coverage` now reports every exchange table no feature claims, so this
 cannot go unnoticed again.
 
-**Thirteen features are migrated and none is promoted.** leads, rates, reviews,
-sales-tax, spots+metals, media, suppliers, carriers, products, mints,
-purchase-orders, sales-orders, addresses. Each sits behind a `*_SOURCE`
-environment switch defaulting to `exchange`, so nothing has changed for live
-traffic. Promotion is deliberate and is the user's call.
+**Every feature with data to migrate now has one, and none is promoted.** There
+are **twenty-one** `*_SOURCE` switches, all defaulting to `exchange`, so nothing
+has changed for live traffic: leads, rates, reviews, sales-tax, spots+metals,
+media, refiners, carriers, services, pickups, shipments, tracking, products,
+mints, purchase-orders, sales-orders, addresses, transactions, checkout, users,
+payments. Promotion is deliberate and is the user's call.
 
-**The remaining five are blocked on decisions, not on effort** — shipping,
-payments, refiners, auth and fulfillments. Each is written up in FOLLOWUPS.md
-with what specifically is unknown. They are not simply the later features; they
-are the ones where the January work made a design decision nobody has confirmed
-since.
+**Two things are not a `*_SOURCE` switch and never will be.** `fulfillments`
+(methods, pickups, directs) is capability `exchange` never recorded — there is
+no source to read from, so a switch would have one state. `auth` is an atomic
+cutover: better-auth writes `exchange` directly through its own pool via
+`modelName`, so there is no reversible middle state to sit in.
+
+**The shape a response leaves in is a second, independent axis.** Seven `*_WIRE`
+switches — products, media, spots, refiners, carriers, addresses, payments — all
+defaulting to `legacy`. `*_SOURCE` moves when the data is ready; `*_WIRE` moves
+when the frontend is. Both repos return the new shape internally, and
+`shared/wire/middleware.js` converts down at the edge, mounted as one line per
+feature. Conflating the two axes is the mistake to avoid.
 
 **Promotion is documented in `PROMOTION.md`** — the order of operations, what
-each of the seventeen switches moves, and how to roll each one back. Written
+each of the twenty-eight switches moves, and how to roll each one back. Written
 against production as it actually is rather than against dev.
 
 **Production can be built from nothing.** `000_genesis_schema.sql` creates every
@@ -212,13 +220,19 @@ Full detail in FOLLOWUPS.md; these are the ones that block other work.
   rows carry real routing and account numbers in plaintext. Dev has none, which
   made them look vestigial — they are not. The payments migration must not copy
   them into `payments.details`, which would double the exposure.
-- **Two features genuinely blocked**: payments (a different model, not a
-  reshaping — migrating means deleting rows in the new schema) and auth
-  (better-auth writes `exchange` directly via `modelName`, so there is no
-  reversible middle state). Shipping, fulfillments and refiners were listed here
-  as blocked and are not: the shipping questions were answered by production
-  data, and refiners only needs `refinery_id` left null, which loses nothing
-  because `exchange` never recorded it.
+- **One feature genuinely blocked**: auth. better-auth writes `exchange`
+  directly via `modelName` through its own pool, so there is no reversible
+  middle state to sit in. Payments was listed here as blocked and is not — it is
+  a different model rather than a reshaping, and splitting it turned out to be
+  possible without deleting anything: 062 had already reconciled the new schema
+  to `exchange`, and 074 derives the rest from the Stripe export.
+- **Production has no record of $126.48 it was paid.** Three Stripe intents were
+  captured and `exchange.payment_intents` records `amount_received` as null or 0
+  while still saying `requires_payment_method`; two further charges have no row
+  at all. Nothing is lost — Stripe has the money and Stripe is right — but the
+  webhook that updates `exchange` is not reliably landing, and the visible
+  symptom is a checkout that fails at the last step because the API offers back
+  an intent Stripe will not confirm. `audit:payments` prints the list.
 - **No production migration has been run, and no `pg_dump` taken.** The dump
   comes first.
 - Docker images are unverified — no daemon in the dev environment.

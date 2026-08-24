@@ -124,7 +124,18 @@ switch flipped alongside three others tells you nothing when something breaks.
 
 ## The switches
 
-All seventeen default to `exchange`. None has been changed.
+There are two independent axes and conflating them is the mistake to avoid.
+
+- **`*_SOURCE`** — which schema the data is read from and written to.
+  Twenty-one of them. All default to `exchange`. None has been changed.
+- **`*_WIRE`** — which *shape* the data leaves the API in. Seven of them. All
+  default to `legacy`. None has been changed.
+
+A feature can be on `dual` and `legacy`, or on `exchange` and `next`. The first
+axis moves when the data is ready; the second moves when the frontend is. They
+are deliberately not one switch, because "the new schema is serving reads" and
+"the frontend understands the new shape" become true at different times and
+each has to be reversible without the other.
 
 ### Read-only features — `exchange` → `next`
 
@@ -134,7 +145,7 @@ nothing to write to the old schema that the new one would miss.
 | Switch | Reads that move |
 |---|---|
 | `MINTS_SOURCE` | `getAllMints` |
-| `SUPPLIERS_SOURCE` | `getAllSuppliers`, `getSupplierFromId` |
+| `REFINERS_SOURCE` | `getAllRefiners`, `getRefinerFromId` |
 
 **Rollback:** set back to `exchange`, redeploy. Instant and total — no writes
 happened anywhere new.
@@ -164,6 +175,8 @@ reversible.
 | `SHIPPING_TRACKING_SOURCE` | tracking events |
 | `TRANSACTIONS_SOURCE` | the customer credit ledger |
 | `CHECKOUT_SOURCE` | the cart, which is a checkout session |
+| `USERS_SOURCE` | users |
+| `PAYMENTS_SOURCE` | Stripe intents, attempts and settlements |
 
 **Rollback:** set back to `exchange`, redeploy. Safe because `exchange` never
 stopped being written to. Rows written to the new schema while `dual` was on are
@@ -174,6 +187,36 @@ for that entity.
 new schema is the one-way door: `exchange` stops receiving writes, and flipping
 back loses everything written in between. `shared/db/source-switches.test.js`
 fails the build if a switch ever offers both `dual` and `next`.
+
+---
+
+## The wire switches
+
+`*_WIRE=legacy` (the default) is the shape the frontend reads today.
+`*_WIRE=next` is the honest shape the repos actually return. The adapter is
+mounted as one line of middleware per feature — `router.use(wireShape(...))` —
+so removing it is deleting that line, not editing every handler.
+
+**Flip one of these only after the frontend for that feature has been changed to
+read the new shape.** Unlike `*_SOURCE`, this has nothing to do with the
+database and everything to do with what is deployed at `FRONTEND_URL`.
+Rollback is instant and total in both directions: no data is written differently.
+
+| Switch | What changes in the response |
+|---|---|
+| `PRODUCTS_WIRE` | field names only |
+| `MEDIA_WIRE` | field names only |
+| `SPOTS_WIRE` | field names only |
+| `REFINERS_WIRE` | the organization becomes its own object; `is_active` → `enabled` |
+| `CARRIERS_WIRE` | the same, for carriers |
+| `ADDRESSES_WIRE` | the postal address separates from the person's relationship to it (`user_address`) |
+| `PAYMENTS_WIRE` | `attempt` and `details` become their own objects; amounts move from cents to dollars |
+
+`PAYMENTS_WIRE` is the one with a unit change in it. exchange stores money in
+**cents** because that table was written straight from Stripe's objects; the new
+schema stores **dollars** like everything else. The adapter multiplies by 100 on
+the way down, and a frontend reading `next` must divide. Nothing else on this
+list changes a value, only names and nesting.
 
 ---
 
@@ -221,6 +264,36 @@ The order reference is dropped rather than the entry when an order is not itself
 in the new schema — the foreign key would refuse the row otherwise. One
 production entry already has no order at all, because `exchange`'s foreign keys
 are `ON DELETE SET NULL` and it outlived the order it explained.
+
+### `PAYMENTS_SOURCE` — the new schema disagrees with production, and it is right
+
+The two implementations differ on two fields and neither is a migration bug.
+
+`exchange.payment_intents.payment_status` and `.amount_received` are written by
+the Stripe webhook, and the webhook is not reliably landing. Three production
+intents were paid and exchange has no record of the money — $51.78, $64.70 and
+$10.00, $126.48 in total, all three still saying `requires_payment_method`. The
+new schema derives both from the Stripe export (migration 074), so it knows.
+
+Promoting therefore **changes what the admin sales-order drawer shows** for those
+three: a status of `succeeded` where it currently says `requires_payment_method`.
+That is the correct value, and it will look like a change caused by the flip.
+
+It also fixes a live bug: `retrievePaymentIntent` offers an unresolved intent
+back so a customer can resume a checkout, and those three are currently offered
+despite being paid. Stripe refuses to confirm an already-succeeded intent, so the
+symptom is a checkout that fails at the last step, not a double charge.
+
+`pnpm --filter @dorado/api audit:payments` prints the list. Worth checking the
+Stripe dashboard's webhook delivery log before or after — the flip stops the
+symptom, it does not fix whatever is dropping the webhook.
+
+### `REFINERS_SOURCE` — it used to be called `SUPPLIERS_SOURCE`
+
+Renamed with the module, in August 2026. Nothing had ever set it, so there is no
+old value to carry over — but if you have a note anywhere saying
+`SUPPLIERS_SOURCE`, it is this. The HTTP route is still `/api/suppliers`,
+because the frontend calls it.
 
 ### `PICKUPS_SOURCE` — nothing to compare
 

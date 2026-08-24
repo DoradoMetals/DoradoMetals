@@ -1,4 +1,4 @@
-// Suppliers read from the new layout, where a supplier is two rows: an
+// Refiners read from the new layout, where a refiner is two rows: an
 // organization of type REFINER holding the contact details, and a refiners row
 // holding the logo and carrying the original supplier id.
 //
@@ -9,8 +9,8 @@
 // says so rather than flattening its fields to the top level. Separation of
 // concerns - the organization is a different thing that happens to be joined in.
 //
-// features/suppliers/wire.js flattens it back for the frontend behind
-// SUPPLIERS_WIRE, which is a transformation rather than a rename.
+// features/refiners/wire.js flattens it back for the frontend behind
+// REFINERS_WIRE, which is a transformation rather than a rename.
 import query from "#shared/db/query.js";
 
 const FIELDS = `
@@ -32,7 +32,7 @@ const FROM = `
     JOIN organizations.organizations o ON o.id = r.organization_id
 `;
 
-export async function getAllSuppliers(executor) {
+export async function getAllRefiners(executor) {
   const { rows } = await query(
     `SELECT ${FIELDS} ${FROM} ORDER BY o.name ASC, r.id ASC`,
     [],
@@ -41,7 +41,7 @@ export async function getAllSuppliers(executor) {
   return rows;
 }
 
-export async function getSupplierFromId(id, executor) {
+export async function getRefinerFromId(id, executor) {
   const { rows } = await query(
     `SELECT ${FIELDS} ${FROM} WHERE r.id = $1`,
     [id],

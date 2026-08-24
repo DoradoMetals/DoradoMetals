@@ -1,15 +1,15 @@
-// Supplier repo tests against real Postgres.
+// Refiner repo tests against real Postgres.
 //
-// Suppliers are read-only through the API, so these are about the shape the
+// Refiners are read-only through the API, so these are about the shape the
 // join produces rather than write behaviour. Each test runs inside a
 // transaction that is rolled back.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import * as next from "#features/suppliers/repo.next.js";
-import { toLegacy } from "#features/suppliers/wire.js";
-import * as exchange from "#features/suppliers/repo.exchange.js";
+import * as next from "#features/refiners/repo.next.js";
+import { toLegacy } from "#features/refiners/wire.js";
+import * as exchange from "#features/refiners/repo.exchange.js";
 
 let client;
 
@@ -33,9 +33,9 @@ async function inRollback(fn) {
 
 // A supplier is a refiner and the organization it is, kept apart - the flat
 // shape the frontend reads is produced by the adapter, not the repo.
-test("getAllSuppliers keeps the organization as its own object", async () => {
+test("getAllRefiners keeps the organization as its own object", async () => {
   await inRollback(async (c) => {
-    const [row] = await next.getAllSuppliers(c);
+    const [row] = await next.getAllRefiners(c);
     assert.deepEqual(Object.keys(row).sort(), [
       "created_at", "id", "logo", "organization", "updated_at",
     ]);
@@ -43,11 +43,11 @@ test("getAllSuppliers keeps the organization as its own object", async () => {
 });
 
 // `enabled` is the organization's column name and stays that way in the repo.
-// The frontend reads `is_active`, and features/suppliers/wire.js is what turns
+// The frontend reads `is_active`, and features/refiners/wire.js is what turns
 // one into the other - so both halves are asserted.
 test("the adapter flattens it to the shape the frontend reads", async () => {
   await inRollback(async (c) => {
-    const rows = await next.getAllSuppliers(c);
+    const rows = await next.getAllRefiners(c);
     assert.ok(rows.every((r) => typeof r.organization.enabled === "boolean"));
 
     const legacy = toLegacy(rows);
@@ -63,7 +63,7 @@ test("the adapter flattens it to the shape the frontend reads", async () => {
 // product would lose its supplier.
 test("the id is the original supplier id, not the organization id", async () => {
   await inRollback(async (c) => {
-    for (const s of await next.getAllSuppliers(c)) {
+    for (const s of await next.getAllRefiners(c)) {
       const { rows } = await c.query(
         "SELECT organization_id FROM refiners.refiners WHERE id = $1",
         [s.id]
@@ -74,24 +74,24 @@ test("the id is the original supplier id, not the organization id", async () => 
   });
 });
 
-test("getSupplierFromId reads back the same row getAllSuppliers returns", async () => {
+test("getRefinerFromId reads back the same row getAllRefiners returns", async () => {
   await inRollback(async (c) => {
-    const [first] = await next.getAllSuppliers(c);
-    assert.deepEqual(await next.getSupplierFromId(first.id, c), first);
+    const [first] = await next.getAllRefiners(c);
+    assert.deepEqual(await next.getRefinerFromId(first.id, c), first);
   });
 });
 
-test("getSupplierFromId returns undefined for an unknown id", async () => {
+test("getRefinerFromId returns undefined for an unknown id", async () => {
   await inRollback(async (c) => {
-    assert.equal(await next.getSupplierFromId(randomUUID(), c), undefined);
+    assert.equal(await next.getRefinerFromId(randomUUID(), c), undefined);
   });
 });
 
-// Only REFINER organizations are suppliers. Mints and carriers live in the same
+// Only REFINER organizations are refiners. Mints and carriers live in the same
 // table, and a join that forgot the refiners row would return all of them.
 test("only refiner organizations are returned", async () => {
   await inRollback(async (c) => {
-    const rows = await next.getAllSuppliers(c);
+    const rows = await next.getAllRefiners(c);
     const { rows: totals } = await c.query(
       "SELECT count(*)::int AS n FROM organizations.organizations"
     );
@@ -121,8 +121,8 @@ const withoutOrgId = (rows) =>
 test("both implementations agree", async () => {
   await inRollback(async (c) => {
     assert.deepEqual(
-      withoutOrgId(await next.getAllSuppliers(c)),
-      withoutOrgId(await exchange.getAllSuppliers(c))
+      withoutOrgId(await next.getAllRefiners(c)),
+      withoutOrgId(await exchange.getAllRefiners(c))
     );
   });
 });

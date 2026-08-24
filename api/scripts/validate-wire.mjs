@@ -36,6 +36,26 @@ const add = (name, schema, load, many = true) =>
 // hardcoded `.js` threw - a check reporting success for a file it could not
 // see. If a repo.next exists and will not load, that is a failure, not a skip.
 const bothWays = async (name, schema, dir, read) => {
+  // A directory with NEITHER implementation is a wrong name, not a feature that
+  // happens to have none - and the per-impl `continue` below would swallow it
+  // silently, taking the endpoint out of the run with nothing to show for it.
+  // Renaming features/suppliers to features/refiners did exactly that: the count
+  // went from 57 shapes to 53 and every remaining line still said ok.
+  const anyImpl = ["exchange", "next"].some((impl) =>
+    [".js", ".ts"].some((e) =>
+      fs.existsSync(path.join(import.meta.dirname, "..", "features", dir, `repo.${impl}${e}`))
+    )
+  );
+  if (!anyImpl) {
+    add(`${name} [${dir}]`, schema, () => {
+      throw new Error(
+        `features/${dir} has no repo.exchange and no repo.next - the directory ` +
+          `name is wrong, so this endpoint was being skipped rather than checked`
+      );
+    });
+    return;
+  }
+
   for (const impl of ["exchange", "next"]) {
     const base = path.join(import.meta.dirname, "..", "features", dir, `repo.${impl}`);
     const ext = [".js", ".ts"].find((e) => fs.existsSync(base + e));
@@ -58,14 +78,14 @@ const spots = await import("#features/spots/repo.js");
 const rates = await import("#features/rates/repo.js");
 const reviews = await import("#features/reviews/repo.js");
 const leads = await import("#features/leads/repo.js");
-const suppliers = await import("#features/suppliers/repo.js");
+const refiners = await import("#features/refiners/repo.js");
 const carriers = await import("#features/shipping/carriers/repo.js");
 const services = await import("#features/shipping/services/repo.js");
 const users = await import("#features/users/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
 const productsWire = await import("#features/products/wire.js");
 const mediaWire = await import("#features/media/wire.js");
-const suppliersWire = await import("#features/suppliers/wire.js");
+const refinersWire = await import("#features/refiners/wire.js");
 const carriersWire = await import("#features/shipping/carriers/wire.js");
 const spotsWire = await import("#features/spots/wire.js");
 const addressesWire = await import("#features/addresses/wire.js");
@@ -86,9 +106,9 @@ await bothWays("GET /leads", c.LeadWire, "leads", (m) => m.getAllLeads());
 // Both shapes. The repos return the nested one; the adapter flattens it to what
 // the frontend reads, and checking the adapter's OUTPUT is what proves the
 // frontend still gets exactly what it got before.
-await bothWays("GET /suppliers", c.SupplierWireNext, "suppliers", (m) => m.getAllSuppliers());
-await bothWays("GET /suppliers (legacy wire)", c.SupplierWire, "suppliers", async (m) =>
-  suppliersWire.toLegacy(await m.getAllSuppliers())
+await bothWays("GET /suppliers", c.RefinerWireNext, "refiners", (m) => m.getAllRefiners());
+await bothWays("GET /suppliers (legacy wire)", c.RefinerWire, "refiners", async (m) =>
+  refinersWire.toLegacy(await m.getAllRefiners())
 );
 await bothWays("GET /carrier_pickups", c.CarrierPickupWire, "shipping/pickups", (m) => m.getAll());
 
