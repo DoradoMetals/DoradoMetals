@@ -425,7 +425,53 @@ reports. The 18 of 25 rows holding only a `pre_melt` are lines awaiting assay,
 not gaps. Bullion lines keep an empty row because they are lines like any other.
 What remains is API work — the admin screen that fills them in.
 
-### FOR JACOB: three production intents can be handed back for reuse after being paid
+### FOR JACOB: production has no record of $126.48 it was paid
+
+One finding with two faces, both from splitting payments rather than from
+looking for it. **Nothing is lost and nobody was double-charged** - Stripe has
+the money and Stripe's records are correct. What is wrong is that production's
+own records do not say so.
+
+`exchange.payment_intents` is updated by the Stripe webhook, and the webhook is
+not reliably landing. Three intents show it:
+
+| intent | Stripe | `exchange.payment_status` | `exchange.amount_received` |
+|---|---|---|---|
+| `pi_3RvkIT…` | Paid $51.78 | `requires_payment_method` | `0` |
+| `pi_3RcYBY…` | Paid $64.70 | `requires_payment_method` | `null` |
+| `pi_3TuK5t…` | Paid $10.00 | `requires_payment_method` | `null` |
+
+$126.48 across 3 of the 8 settled charges. A fourth, `pi_3SfQTS…` at $255.17,
+is recorded correctly - so the webhook works sometimes, which points at delivery
+or at a handler failing quietly rather than at the code never having worked.
+
+**The consequence a customer sees.** `retrievePaymentIntent` decides an intent
+is reusable from `payment_status`, so all three are offered back to resume a
+checkout. Stripe refuses to confirm an intent that has already succeeded, so the
+customer gets a checkout that fails at the last step for no visible reason.
+Annoying, not expensive - worth knowing which before anyone panics.
+
+Two more charges - $114.80 and $0.50 - have **no row in
+`exchange.payment_intents` at all**, so they were never recorded rather than
+recorded wrongly.
+
+**The new schema does not have this problem.** 074 derives status and
+settlements from the Stripe export rather than from whatever the webhook last
+managed to write, so all three are excluded from reuse and all three have a
+settlement. Both differences are asserted as tests - "a paid intent is never
+offered for reuse" and "the new schema knows about money exchange has no record
+of" - rather than hidden in a `diff` ignore, because they are the migration
+being right and not the two implementations disagreeing by accident.
+
+**What to check when you are up**: the Stripe dashboard's webhook delivery log.
+Either the deliveries are failing, or they are arriving and the handler is
+throwing after the response. `pnpm --filter @dorado/api audit:payments` now
+prints this list, so it is checkable rather than remembered.
+
+### RESOLVED: three production intents can be handed back for reuse after being paid
+
+Superseded by the entry above, which is the same finding with the money side
+measured. Kept only so the trail is legible.
 
 Found by splitting payments, not by looking for it.
 

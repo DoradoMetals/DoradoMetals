@@ -151,6 +151,31 @@ add("GET /fulfillments/get_for_order", c.FulfillmentWire, async () => {
 
 add("GET /fulfillments/schedule", c.FulfillmentWire, () => fulfillments.getScheduled());
 
+// The one payments response that is a repo row rather than a Stripe object or a
+// client_secret. Both implementations, both shapes.
+const paymentsWire = await import("#features/payments/wire.js");
+const salesOrderIds = async () => {
+  const { rows } = await pool.query(
+    `SELECT sales_order_id FROM exchange.payment_intents WHERE sales_order_id IS NOT NULL`
+  );
+  return rows.map((r) => r.sales_order_id);
+};
+const intents = async (m) => {
+  const out = [];
+  for (const id of await salesOrderIds()) {
+    const row = await m.getPaymentIntentFromSalesOrderId(id);
+    if (row) out.push(row);
+  }
+  return out;
+};
+await bothWays("GET /stripe/get_sales_order_payment_intent", c.PaymentIntentWireNext, "payments", intents);
+await bothWays(
+  "GET /stripe/get_sales_order_payment_intent (legacy wire)",
+  c.PaymentIntentWire,
+  "payments",
+  async (m) => paymentsWire.toLegacy(await intents(m))
+);
+
 // The catalogue. The other feature that had no contract, and one the frontend
 // leans on hardest - every price on the site is derived from these numbers.
 // getSellProducts returns rows getAllProducts does not, because a sell-only

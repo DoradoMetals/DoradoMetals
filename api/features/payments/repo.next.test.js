@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as next from "#features/payments/repo.next.js";
 import * as exchange from "#features/payments/repo.exchange.js";
+import { toLegacy, fromLegacy } from "#features/payments/wire.js";
 
 let client;
 
@@ -75,10 +76,19 @@ test("amounts round trip through cents and dollars", async () => {
     );
     assert.equal(Number(stored.amount_expected), 434, "dollars are not cents/100");
 
+    // The read now returns the new schema's unit, because the internal shape is
+    // the new schema's - the cents the frontend expects are put back by the
+    // adapter at the edge, and that half is asserted in "the adapter converts
+    // dollars back to cents and back again".
     const read = await next.retrievePaymentIntent(
       "sales_order_checkout", aSession(user.id), user.id, c
     );
-    assert.equal(Number(read.amount), 43400, "the read did not convert back to cents");
+    assert.equal(Number(read.amount_expected), 434, "the read did not stay in dollars");
+    assert.equal(
+      Number(toLegacy(read).amount),
+      43400,
+      "the adapter did not put the cents back for the legacy wire"
+    );
   });
 });
 
@@ -175,5 +185,187 @@ test("both implementations find the same Stripe intent", async () => {
     if (!a || !b) return;
     assert.equal(b.payment_intent_id, a.payment_intent_id, "they resumed different intents");
     assert.equal(Number(b.amount), Number(a.amount), "they disagree about the amount");
+  });
+});
+
+// ------------------------------------------------------------------ the wire
+//
+// The repos return the new shape on both sides. These are about the shim that
+// converts it back, and about the two ways it could be catastrophic rather than
+// merely wrong: money by a factor of a hundred, and an object that is not ours
+// being rewritten on its way out.
+
+test("the adapter converts the new shape back to the names the frontend reads", async () => {
+  await inRollback(async (c) => {
+    const rows = await c.query(
+      `SELECT id FROM exchange.payment_intents WHERE method_id IS NOT NULL LIMIT 1`
+    );
+    assert.ok(rows.rows.length, "dev has no intent with an instrument recorded");
+
+    const internal = await exchange.getPaymentIntentFromSalesOrderId(
+      (
+        await c.query(
+          `SELECT sales_order_id FROM exchange.payment_intents
+            WHERE sales_order_id IS NOT NULL LIMIT 1`
+        )
+      ).rows[0].sales_order_id,
+      c
+    );
+    assert.ok(internal, "dev has no intent against a sales order");
+
+    const legacy = toLegacy(internal);
+    // Exactly the names AdminPending.tsx destructures.
+    assert.equal(legacy.payment_status, internal.status);
+    assert.equal(legacy.payment_intent_id, internal.attempt.provider_ref);
+    assert.equal(legacy.sales_order_id, internal.order_id);
+    assert.equal(legacy.purchase_order_id, null);
+    assert.ok(!("attempt" in legacy), "the nested shape leaked to the legacy wire");
+    assert.ok(!("status" in legacy), "the nested shape leaked to the legacy wire");
+  });
+});
+
+// A hundredfold error, in both directions. exchange stores cents; the internal
+// shape is dollars.
+test("the adapter converts dollars back to cents and back again", () => {
+  const internal = {
+    id: "x",
+    status: "succeeded",
+    order_id: "o",
+    direction: "sale",
+    amount_expected: 434,
+    amount_received: 434,
+    amount_capturable: null,
+    attempt: { provider: "stripe", provider_ref: "pi_x", status: "succeeded" },
+    details: null,
+  };
+
+  const legacy = toLegacy(internal);
+  assert.equal(legacy.amount, 43400, "dollars must become cents on the legacy wire");
+  assert.equal(legacy.amount_received, 43400);
+  assert.equal(legacy.amount_capturable, null);
+
+  const back = fromLegacy(legacy);
+  assert.equal(back.amount_expected, 434, "cents must become dollars coming back");
+  assert.equal(back.amount_received, 434);
+  assert.equal(back.attempt.provider_ref, "pi_x");
+  assert.equal(back.order_id, "o");
+  assert.equal(back.direction, "sale");
+});
+
+// exchange has two order columns and the new schema has one. Which one it came
+// out of has to survive the round trip or the adapter files a sale under
+// purchases.
+test("the order id goes back into the column it came from", () => {
+  const sale = toLegacy({ order_id: "o", direction: "sale", attempt: {} });
+  assert.equal(sale.sales_order_id, "o");
+  assert.equal(sale.purchase_order_id, null);
+
+  const purchase = toLegacy({ order_id: "o", direction: "purchase", attempt: {} });
+  assert.equal(purchase.purchase_order_id, "o");
+  assert.equal(purchase.sales_order_id, null);
+
+  const none = toLegacy({ order_id: null, direction: null, attempt: {} });
+  assert.equal(none.sales_order_id, null);
+  assert.equal(none.purchase_order_id, null);
+});
+
+// The reason isOurs exists. cancel_payment_intent answers with Stripe's own
+// object through the same res.json the middleware wraps.
+test("a Stripe object passes through the adapter untouched", () => {
+  const stripeIntent = {
+    id: "pi_3RcYBRCuc07t1nZa1YgtxcS5",
+    object: "payment_intent",
+    status: "canceled",
+    amount: 43400,
+    client_secret: "pi_3RcYBR_secret_xyz",
+    payment_method: "pm_1abc",
+  };
+  assert.deepEqual(
+    toLegacy(stripeIntent),
+    stripeIntent,
+    "the adapter rewrote a Stripe response into a half-null version of itself"
+  );
+
+  // And the strings the other two routes answer with.
+  assert.equal(toLegacy("pi_3RcYBR_secret_xyz"), "pi_3RcYBR_secret_xyz");
+  assert.equal(toLegacy(null), null);
+});
+
+// A bank routing number must not be on the wire, whichever shape it is in.
+test("no payments response carries a routing number", async () => {
+  await inRollback(async (c) => {
+    const { rows } = await c.query(
+      `SELECT sales_order_id FROM exchange.payment_intents
+        WHERE sales_order_id IS NOT NULL LIMIT 1`
+    );
+    const internal = await exchange.getPaymentIntentFromSalesOrderId(
+      rows[0].sales_order_id,
+      c
+    );
+    for (const shape of [internal, toLegacy(internal)]) {
+      const flat = JSON.stringify(shape);
+      assert.ok(!/"routing"/.test(flat), `a routing key reached the wire: ${flat}`);
+    }
+  });
+});
+
+test("both implementations return the same keys", async () => {
+  await inRollback(async (c) => {
+    const { rows } = await c.query(
+      `SELECT e.sales_order_id
+         FROM exchange.payment_intents e
+         JOIN payments.attempts a ON a.provider_ref = e.payment_intent_id
+        WHERE e.sales_order_id IS NOT NULL LIMIT 1`
+    );
+    if (!rows.length) return; // nothing the two schemas both hold
+
+    const a = await exchange.getPaymentIntentFromSalesOrderId(rows[0].sales_order_id, c);
+    const b = await next.getPaymentIntentFromSalesOrderId(rows[0].sales_order_id, c);
+    if (!a || !b) return;
+
+    assert.deepEqual(
+      Object.keys(a).sort(),
+      Object.keys(b).sort(),
+      "the two implementations no longer return the same shape"
+    );
+    assert.deepEqual(Object.keys(a.attempt).sort(), Object.keys(b.attempt).sort());
+  });
+});
+
+// The sharper half of the same finding as "a paid intent is never offered for
+// reuse". exchange's amount_received is written by the webhook, and for three
+// production intents the webhook never landed: Stripe captured $51.78, $64.70
+// and $10.00 and exchange records amount_received as null or 0 while still
+// saying requires_payment_method.
+//
+// The new schema has a settlement for each, because 074 derives them from the
+// Stripe export rather than from whatever the webhook last managed to write.
+// Asserted here rather than ignored in the diff, because it is the migration
+// being more correct and not the two implementations disagreeing by accident.
+test("the new schema knows about money exchange has no record of", async () => {
+  await inRollback(async (c) => {
+    const { rows } = await c.query(
+      `SELECT e.sales_order_id, e.payment_intent_id, e.amount_received
+         FROM exchange.payment_intents e
+         JOIN payments.attempts a  ON a.provider_ref = e.payment_intent_id
+         JOIN payments.settlements s ON s.attempt_id = a.id
+        WHERE e.sales_order_id IS NOT NULL
+          AND coalesce(e.amount_received, 0) = 0
+          AND s.settled_amount > 0
+        LIMIT 1`
+    );
+    if (!rows.length) return; // dev does not hold one of the three
+
+    const legacy = await exchange.getPaymentIntentFromSalesOrderId(rows[0].sales_order_id, c);
+    const migrated = await next.getPaymentIntentFromSalesOrderId(rows[0].sales_order_id, c);
+
+    assert.ok(
+      legacy.amount_received == null || Number(legacy.amount_received) === 0,
+      "exchange was expected to have no record of this payment"
+    );
+    assert.ok(
+      Number(migrated.amount_received) > 0,
+      "the new schema lost the settlement this test exists to prove it keeps"
+    );
   });
 });

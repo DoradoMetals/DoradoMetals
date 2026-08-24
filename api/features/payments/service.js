@@ -13,9 +13,12 @@ export async function retrievePaymentIntent(type, user_id, headers) {
     headers: fromNodeHeaders(headers),
   });
 
+  // The repos return the new shape on both sides now, so the provider's id for
+  // the intent is on the attempt: an intent is what was asked for and an attempt
+  // is what was tried, and only the attempt has a reference from a provider.
   const vals = await stripeRepo.retrievePaymentIntent(type, session, user_id);
-  if (vals?.payment_intent_id) {
-    return await stripe.retrieveIntent(vals.payment_intent_id);
+  if (vals?.attempt?.provider_ref) {
+    return await stripe.retrieveIntent(vals.attempt.provider_ref);
   } else {
     return await createPaymentIntent(type, user_id, session);
   }
@@ -38,8 +41,8 @@ export async function createPaymentIntent(type, user_id, session) {
     session,
     user_id
   );
-  if (existing?.payment_intent_id) {
-    return await stripe.retrieveIntent(existing.payment_intent_id);
+  if (existing?.attempt?.provider_ref) {
+    return await stripe.retrieveIntent(existing.attempt.provider_ref);
   }
 
   // The placeholder amount is the feature's decision, not Stripe's: an intent is
@@ -94,15 +97,15 @@ export async function updatePaymentIntent(
 
   const amount = Math.max(rawAmount, 1000);
   if (
-    retrieved_intent?.payment_intent_id &&
+    retrieved_intent?.attempt?.provider_ref &&
     [
       "requires_payment_method",
       "requires_confirmation",
       "requires_action",
-    ].includes(retrieved_intent?.payment_status)
+    ].includes(retrieved_intent?.status)
   ) {
     const paymentIntent = await stripe.updateIntent(
-      retrieved_intent.payment_intent_id,
+      retrieved_intent.attempt.provider_ref,
       { amount }
     );
 

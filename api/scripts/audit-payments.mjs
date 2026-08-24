@@ -49,7 +49,7 @@ try {
   }
 
   const { rows: intents } = await prod.query(
-    `SELECT payment_intent_id, payment_status, amount, type,
+    `SELECT payment_intent_id, payment_status, amount, amount_received, type,
             sales_order_id, purchase_order_id, user_id
      FROM exchange.payment_intents`
   );
@@ -82,6 +82,48 @@ try {
       `  database ${db === null ? "(no row at all)" : db}`
     );
     if (!agrees) console.log(`          ${amountNote}`);
+  }
+
+  // -------------------------------------------------- money nothing recorded
+  //
+  // The status comparison above asks whether exchange agrees with Stripe about
+  // what happened. This asks the sharper question: whether exchange records
+  // that the money ARRIVED. amount_received is written by the webhook, and a
+  // stale status and a blank amount_received are the same failure seen twice.
+  //
+  // Worth being precise about what this is and is not. Stripe has the money;
+  // nothing is lost. What is wrong is that production's own records do not say
+  // so, which is why an intent that has already been paid is still offered back
+  // to a customer to pay again - Stripe refuses to confirm it, so the customer
+  // gets a checkout that fails at the last step rather than a double charge.
+  console.log("\nmoney Stripe captured that exchange has no record of receiving:\n");
+
+  let unrecorded = 0;
+  let unrecordedTotal = 0;
+  for (const c of settled) {
+    const row = byId.get(c.payment_intent_id);
+    if (!row) continue;
+    const received = Number(row.amount_received ?? 0);
+    if (received > 0) continue;
+    unrecorded++;
+    unrecordedTotal += Number(c.amount);
+    console.log(
+      `  ${c.payment_intent_id}  Stripe $${c.amount}  ` +
+      `exchange amount_received=${row.amount_received ?? "null"} status=${row.payment_status}`
+    );
+  }
+  if (!unrecorded) {
+    console.log("  none - every settled charge is recorded as received");
+  } else {
+    console.log(
+      `\n  ${unrecorded} of ${settled.length} settled charges, $${unrecordedTotal.toFixed(2)} in total.`
+    );
+    console.log(
+      "  The new schema has a settlement for each: 074 derives them from this"
+    );
+    console.log(
+      "  export rather than from whatever the webhook last managed to write."
+    );
   }
 
   // ------------------------------------------------------------------ who paid

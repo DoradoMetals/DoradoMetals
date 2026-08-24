@@ -1,4 +1,75 @@
+// Payments read from the exchange schema, which currently serves traffic.
+//
+// Projected explicitly rather than SELECT *, and composed into the same nested
+// shape repo.next returns, so the two implementations agree whatever the switch
+// says. That is the pattern carriers and addresses follow: the internal shape is
+// the new one on both sides, and features/payments/wire.js flattens it back for
+// the frontend behind PAYMENTS_WIRE.
+//
+// exchange keeps the intent, the attempt and the instrument in one row. The
+// separation is real - an intent can be attempted more than once, and the same
+// card can pay for several - so the shape says so and this builds it out of the
+// flat row.
+//
+// MONEY UNITS. exchange stores CENTS, because that is Stripe's unit and this
+// table was written straight from Stripe's objects. The new schema stores
+// DOLLARS like everything else in it. The nested shape is the new schema's, so
+// every amount here is divided by 100 on the way out and the adapter multiplies
+// it back for the legacy wire. Getting that backwards is a hundredfold error and
+// it is asserted in both directions.
+//
+// `routing` is deliberately NOT returned. It is a customer's bank routing
+// number, it is null on every row in dev and in production, and nothing in the
+// frontend reads it - the field existed only because this read was SELECT *.
+// CLAUDE.md: never log or return bank details.
 import query from "#shared/db/query.js";
+
+// The shape both implementations return. The amounts are numeric columns, so
+// the division is exact rather than integer division.
+const FIELDS = `
+    id,
+    session_id,
+    user_id,
+    type,
+    payment_status                    AS status,
+    coalesce(sales_order_id, purchase_order_id) AS order_id,
+    -- Which of exchange's two order columns held it. orders.orders is one table
+    -- with a direction, so the new shape has one order_id - and without this the
+    -- adapter could not put it back in the right column on the way down.
+    -- Production has 2 intents against a sales order and none against a purchase
+    -- order, so this is exercised on one side only; the other is still the
+    -- difference between correct and lucky.
+    CASE WHEN sales_order_id IS NOT NULL THEN 'sale'
+         WHEN purchase_order_id IS NOT NULL THEN 'purchase' END AS direction,
+    (amount::numeric / 100)           AS amount_expected,
+    (amount_received::numeric / 100)  AS amount_received,
+    (amount_capturable::numeric / 100) AS amount_capturable,
+    created_at,
+    updated_at,
+    jsonb_build_object(
+      'provider',     'stripe',
+      'provider_ref', payment_intent_id,
+      'status',       payment_status
+    ) AS attempt,
+    CASE WHEN method_id IS NULL THEN NULL ELSE jsonb_build_object(
+      'provider',     'stripe',
+      'provider_ref', method_id,
+      -- Normalised to the new schema's vocabulary rather than Stripe's, by the
+      -- same mapping repo.next's updateMethod writes - otherwise the two
+      -- implementations would disagree here and diff would report it. The
+      -- adapter maps it back to Stripe's spelling for the legacy wire.
+      -- dev holds card and us_bank_account; production holds card and null.
+      'type',         CASE method_type
+                        WHEN 'us_bank_account' THEN 'ACH'
+                        WHEN 'card' THEN 'CARD'
+                        ELSE upper(method_type)
+                      END,
+      'last_four',    last_four,
+      'card_brand',   card_brand,
+      'bank_name',    bank_name,
+      'account_type', bank_account_type
+    ) END AS details
+`;
 
 // Takes an executor like every other function here. Without one this read runs
 // on the pool, so it cannot see an intent created earlier in the caller's
@@ -6,7 +77,7 @@ import query from "#shared/db/query.js";
 // consistent view of what has just been written.
 export async function retrievePaymentIntent(type, session, user_id, executor) {
   const sql = `
-    SELECT *
+    SELECT ${FIELDS}
     FROM exchange.payment_intents
     WHERE session_id = $1
     AND user_id = $2
@@ -119,7 +190,7 @@ export async function attachCustomerToUser(customerId, userId, executor) {
 
 export async function getPaymentIntentFromSalesOrderId(sales_order_id, executor) {
   const sql = `
-    SELECT *
+    SELECT ${FIELDS}
     FROM exchange.payment_intents
     WHERE sales_order_id = $1
   `;

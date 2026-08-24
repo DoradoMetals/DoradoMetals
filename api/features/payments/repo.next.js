@@ -6,39 +6,67 @@
 // id lives on the attempt as provider_ref, because it is a reference issued by a
 // provider and a second processor would issue its own.
 //
-// This projects the exchange field names - payment_status, payment_intent_id -
-// so the split is drop-in and diff can compare the two implementations. That is
-// how every other feature started, and the inversion to the new names behind a
-// PAYMENTS_WIRE adapter is the next step, not this one. Doing both at once would
-// mean nothing could tell a migration bug from a reshaping bug.
+// This returns the new shape, and repo.exchange composes the same one out of its
+// flat row, so the internal shape does not depend on which switch is selected.
+// features/payments/wire.js flattens it back for the frontend behind
+// PAYMENTS_WIRE - the frontend reads payment_status and payment_intent_id today
+// and stops when it is migrated, not before.
+//
+// The split was landed projecting the exchange names first, deliberately, so
+// `diff` could compare the two implementations without a reshape in the way.
+// This is the second step: nothing could have told a migration bug from a
+// reshaping bug if they had happened together.
 //
 // MONEY UNITS. exchange.payment_intents.amount is in CENTS; payments.intents
 // .amount_expected is in DOLLARS, because everything else in the new schema is.
-// Every read multiplies back and every write divides. Getting this backwards is
-// a hundredfold error, so it is written out rather than implied.
+// The new shape is the new schema's, so this needs no conversion and every WRITE
+// still divides, because a write arrives from Stripe in cents. Getting this
+// backwards is a hundredfold error, so it is written out rather than implied.
 import query from "#shared/db/query.js";
 
+// amount_received comes off the settlement rather than the intent, because that
+// is the whole point of settlements: an intent records what was asked for and a
+// settlement records what actually moved. exchange keeps both on the one row.
+//
+// amount_capturable has no column here and is null. It is a Stripe field about
+// an authorisation that has not been captured, nothing reads it, and inventing a
+// column to hold a number the provider already knows would be storing a copy of
+// somebody else's state.
 const FIELDS = `
       i.id,
       i.session_id,
       i.user_id,
       i.type,
-      i.status              AS payment_status,
-      a.provider_ref        AS payment_intent_id,
+      i.status,
       i.order_id,
-      (i.amount_expected * 100)::numeric AS amount,
-      d.provider_ref        AS method_id,
-      d.last_four,
-      d.card_brand,
-      d.bank_name,
-      d.account_type        AS bank_account_type,
+      o.direction,
+      i.amount_expected,
+      st.settled_amount AS amount_received,
+      NULL::numeric     AS amount_capturable,
       i.created_at,
-      i.updated_at`;
+      i.updated_at,
+      jsonb_build_object(
+        'provider',     a.provider,
+        'provider_ref', a.provider_ref,
+        'status',       a.status
+      ) AS attempt,
+      CASE WHEN d.id IS NULL THEN NULL ELSE jsonb_build_object(
+        'provider',     d.provider,
+        'provider_ref', d.provider_ref,
+        'type',         pm.type,
+        'last_four',    d.last_four,
+        'card_brand',   d.card_brand,
+        'bank_name',    d.bank_name,
+        'account_type', d.account_type
+      ) END AS details`;
 
 const FROM = `
     FROM payments.intents i
-    LEFT JOIN payments.attempts a ON a.intent_id = i.id
-    LEFT JOIN payments.details  d ON d.id = i.details_id`;
+    LEFT JOIN payments.attempts    a  ON a.intent_id = i.id
+    LEFT JOIN payments.settlements st ON st.attempt_id = a.id
+    LEFT JOIN payments.details     d  ON d.id = i.details_id
+    LEFT JOIN payments.methods     pm ON pm.id = d.method_id
+    LEFT JOIN orders.orders        o  ON o.id = i.order_id`;
 
 // An intent is reusable while it has not resolved. Keyed on the trio 075 added:
 // without session_id, user_id and type this question cannot be asked here at

@@ -26,6 +26,52 @@ const FEATURES = {
     ],
     context: async (m) => ({ id: (await m.getAllLeads())[0]?.id }),
   },
+  // Payments is the one feature where the two implementations are EXPECTED to
+  // disagree about a status, and the disagreement is the migration being right.
+  // exchange's payment_status is only as fresh as the last webhook processed and
+  // is demonstrably stale - it records 1 of 25 production intents as succeeded
+  // where Stripe shows 8 that took money - while 074 derives status from Stripe.
+  //
+  // amount_received diverges for the same reason and it is the sharper version
+  // of it: for three production intents Stripe captured the money - $51.78,
+  // $64.70 and $10.00, $126.48 in total - and exchange.payment_intents records
+  // amount_received as null or 0 while still saying requires_payment_method.
+  // The new schema has a settlement for each, because 074 derives them from the
+  // Stripe export rather than from whatever the webhook last managed to write.
+  //
+  // So what is compared is the SHAPE and the identifiers, not the status or the
+  // money received: both must find the same intent, against the same order, with
+  // the same instrument and the same amount expected. The two differences are
+  // asserted as tests instead - "a paid intent is never offered for reuse" and
+  // "the new schema knows about money exchange has no record of" - because a
+  // diff ignore would hide the improvement along with the noise.
+  payments: {
+    exchange: () => import("#features/payments/repo.exchange.js"),
+    next: () => import("#features/payments/repo.next.js"),
+    reads: [
+      [
+        "getPaymentIntentFromSalesOrderId(first)",
+        async (m, ctx) => {
+          if (!ctx.sales_order_id) return null;
+          const row = await m.getPaymentIntentFromSalesOrderId(ctx.sales_order_id);
+          if (!row) return null;
+          const { status, amount_received, attempt, created_at, updated_at, ...rest } = row;
+          const { status: _s, ...attemptRest } = attempt ?? {};
+          return { ...rest, attempt: attemptRest };
+        },
+      ],
+    ],
+    context: async () => {
+      const { rows } = await pool.query(
+        `SELECT e.sales_order_id
+           FROM exchange.payment_intents e
+           JOIN payments.attempts a ON a.provider_ref = e.payment_intent_id
+          WHERE e.sales_order_id IS NOT NULL
+          LIMIT 1`
+      );
+      return { sales_order_id: rows[0]?.sales_order_id ?? null };
+    },
+  },
   reviews: {
     exchange: () => import("#features/reviews/repo.exchange.js"),
     next: () => import("#features/reviews/repo.next.js"),

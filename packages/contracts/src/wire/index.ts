@@ -3,6 +3,7 @@ export * from "./fulfillments.js";
 export * from "./leads.js";
 export * from "./media.js";
 export * from "./orders.js";
+export * from "./payments.js";
 export * from "./payouts.js";
 export * from "./products.js";
 export * from "./rates.js";
