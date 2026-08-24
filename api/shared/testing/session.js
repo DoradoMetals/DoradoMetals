@@ -1,0 +1,67 @@
+// Answering a guarded request without committing anything.
+//
+// Every interesting endpoint is behind requireUser or requireAdmin, and both
+// resolve a session through better-auth - which builds its OWN Pool in
+// features/auth/client.js and therefore cannot see the transaction
+// shared/testing/pinned-pool.js holds open. A session would have to be really
+// committed for a guarded route to answer.
+//
+// THE SEAM IS THE SESSION SOURCE, NOT THE MIDDLEWARE. Stubbing
+// authMiddleware.js would make every request succeed and the tests would stop
+// saying anything about who is allowed to do what - a replay test that passes
+// as an anonymous caller has proved nothing. Replacing what
+// auth.api.getSession returns leaves requireAuth, the role ladder and every
+// 401/403 exactly as they are, so an admin route asked for by a `user` still
+// refuses.
+//
+// What this does NOT test is that a real cookie resolves to a real session.
+// That is better-auth's job, and shared/http/endpoints.test.js already proves
+// every guarded endpoint refuses an anonymous request against the real thing.
+// The two files cover different halves on purpose.
+//
+// Done by patching one property rather than by mocking the module.
+// authMiddleware.js imports the auth client once and calls
+// `auth.api.getSession(...)` per request, so the lookup happens at call time
+// and replacing the function is enough. node:test's mock.module would also
+// work in principle and does not exist in this Node build - and it would have
+// needed to run before #app was imported, which is a sharper edge than this
+// needs.
+import { auth } from "#features/auth/client.js";
+
+let current = null;
+let real = null;
+
+export async function mockSessions() {
+  if (real) return;
+  real = auth.api.getSession.bind(auth.api);
+  // better-auth returns null for a caller with no session and requireAuth turns
+  // that into a 401, so defaulting to null is what keeps a request that did not
+  // ask to be somebody anonymous rather than accidentally privileged.
+  auth.api.getSession = async () => current;
+}
+
+// Puts the real one back, for a process that goes on to do something else.
+export function restoreSessions() {
+  if (!real) return;
+  auth.api.getSession = real;
+  real = null;
+}
+
+// Everything inside fn runs as this user. Restored afterwards even on a throw,
+// so one test cannot leak its identity into the next.
+export async function as(user, fn) {
+  const previous = current;
+  current = user
+    ? {
+        user: { id: user.id, role: user.role ?? "user", email: user.email ?? null, name: user.name ?? null },
+        session: { id: user.session_id ?? "00000000-0000-0000-0000-000000000000", userId: user.id },
+      }
+    : null;
+  try {
+    return await fn();
+  } finally {
+    current = previous;
+  }
+}
+
+export const anonymous = (fn) => as(null, fn);

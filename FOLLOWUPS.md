@@ -453,6 +453,38 @@ The difference is asserted as a test rather than filtered out of the comparison
 decimals and the new schema does not" — and it checks the column scales, so it
 will tell you to delete it if the column is ever widened.
 
+### RESOLVED: a new address came back to the browser with no name
+
+Found by `features/addresses/replay.test.js` on its first run, which is what an
+HTTP-level test is for: no repo test could see it, because the repo returned the
+right row and the damage happened in middleware afterwards.
+
+`create`, `update` and `setDefault` ended in `RETURNING *` - `exchange`'s flat
+row - while every read returned the nested shape. So the wire adapter, whose job
+is flattening the nested shape down for the frontend, ran `flatten()` on
+something already flat, found no `user_address` to lift from, and set `name` and
+`is_default` to NULL.
+
+The address went into the database correctly. It came back nameless. And the
+frontend inserts the create response at the top of its list optimistically
+(`listInsertPosition: 'start'`), so a customer saw their new address appear
+blank and then fix itself on the next refetch.
+
+Every function in `repo.exchange.js` now returns the same shape, reads and
+writes alike. That is not tidiness - the adapter's contract is "I convert the
+internal shape down", and a function returning something else silently breaks
+it.
+
+**The other three reshaping adapters were checked and are clean.** `carriers`
+already returns `RETURNING ${FIELDS}` - the same nested projection its reads
+use. `refiners` is read-only. `payments` has no write that returns a row over
+the wire. The renaming adapters - products, media, spots - cannot hit this at
+all, because a rename passes unmatched keys through rather than nulling them.
+
+So the bug was unique to addresses, but the *class* is not, and it is the thing
+to look for first whenever a feature gains a reshaping adapter: does every
+function in the repo return the shape the adapter expects, writes included.
+
 ### IN PROGRESS: the orders collapse
 
 The last and biggest piece. `features/orders` now exists with the half that

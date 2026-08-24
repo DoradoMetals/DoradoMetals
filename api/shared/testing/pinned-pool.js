@@ -79,12 +79,24 @@ function nestable(client) {
 }
 
 // Runs fn with every pooled query pinned to one rolled-back transaction.
-export async function inPinnedTransaction(fn) {
+//
+// `lock` takes an advisory lock first, and a replay test that writes wants one.
+// A pinned transaction is held open for the whole of a request rather than for
+// a single statement, so it holds row locks far longer than a repo test does -
+// and the API tests run in parallel. Without a lock the orders tests went from
+// 2 seconds to 12 waiting on exchange.addresses. They still passed, which is
+// the point: this is the difference between slow and eventually deadlocked, and
+// only one of those shows up as a failure.
+//
+// Use the same number as the repo tests that touch the same tables: 4211 for
+// fulfillments, 4213 for orders and checkout.
+export async function inPinnedTransaction(fn, { lock } = {}) {
   const client = await REAL.connect();
   const pinned = nestable(client);
   depth = 0;
 
   await client.query("BEGIN");
+  if (lock) await client.query("SELECT pg_advisory_xact_lock($1)", [lock]);
   pool.connect = async () => pinned;
   pool.query = (sql, params) => pinned.query(sql, params);
 
@@ -94,6 +106,23 @@ export async function inPinnedTransaction(fn) {
     pool.connect = REAL.connect;
     pool.query = REAL.query;
     await client.query("ROLLBACK");
+    client.release();
+  }
+}
+
+// Reads committed data on a connection the pin never touches.
+//
+// A replay test needs a real user and a real address before it can pretend to
+// be anybody, and those have to be read outside the transaction - they are
+// fixtures, not something the test wrote. lint:db forbids pool.query for good
+// reason, so this is the one place that reaches past it, named so it is obvious
+// when it is being used.
+export async function outside(sql, params = []) {
+  const client = await REAL.connect();
+  try {
+    const { rows } = await client.query(sql, params);
+    return rows;
+  } finally {
     client.release();
   }
 }
