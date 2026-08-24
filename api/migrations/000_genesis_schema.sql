@@ -646,7 +646,9 @@ CREATE TABLE IF NOT EXISTS payments.details (
   created_by text,
   updated_by text,
   created_by_id uuid,
-  updated_by_id uuid
+  updated_by_id uuid,
+  provider text,
+  provider_ref text
 );
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS user_id uuid;
@@ -665,6 +667,8 @@ ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS created_by text;
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS updated_by text;
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS provider text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS provider_ref text;
 
 CREATE TABLE IF NOT EXISTS payments.intents (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -3058,6 +3062,7 @@ CREATE INDEX IF NOT EXISTS attempts_method_idx ON payments.attempts USING btree 
 CREATE INDEX IF NOT EXISTS attempts_provider_idx ON payments.attempts USING btree (provider, provider_ref);
 CREATE INDEX IF NOT EXISTS attempts_status_idx ON payments.attempts USING btree (status);
 CREATE INDEX IF NOT EXISTS details_method_idx ON payments.details USING btree (method_id);
+CREATE UNIQUE INDEX IF NOT EXISTS details_provider_ref_key ON payments.details USING btree (provider, provider_ref) WHERE (provider_ref IS NOT NULL);
 CREATE INDEX IF NOT EXISTS details_user_idx ON payments.details USING btree (user_id);
 CREATE INDEX IF NOT EXISTS details_user_method_idx ON payments.details USING btree (user_id, method_id);
 CREATE INDEX IF NOT EXISTS idx_intents_session_user_type ON payments.intents USING btree (session_id, user_id, type);

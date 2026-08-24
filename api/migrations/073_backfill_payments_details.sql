@@ -32,9 +32,14 @@ DECLARE
   offender text;
 BEGIN
   SELECT string_agg(t, ', ') INTO offender FROM (
+    -- A details row comes from one of two places: a payout, which keeps its id,
+    -- or a payer's card, which 078 derives from the intent that used it. The
+    -- guard has to know about both, or it refuses its own successor's work on
+    -- the second run.
     SELECT 'payments.details' t WHERE EXISTS (
       SELECT 1 FROM payments.details d
-      WHERE NOT EXISTS (SELECT 1 FROM exchange.payouts p WHERE p.id = d.id))
+      WHERE NOT EXISTS (SELECT 1 FROM exchange.payouts p WHERE p.id = d.id)
+        AND NOT EXISTS (SELECT 1 FROM exchange.payment_intents e WHERE e.id = d.id))
   ) x;
 
   IF offender IS NOT NULL THEN

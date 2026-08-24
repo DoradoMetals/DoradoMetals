@@ -144,6 +144,15 @@ export const RENAMES = {
     amount: "amount_expected",
     amount_received: "settled_amount",
     method_type: "method_id",
+    // The Stripe PaymentMethod id - pm_... - which is NOT payments.intents'
+    // method_id. That one is a foreign key saying which kind of payment this is;
+    // this is the provider's reference for the instrument used. 077 gave it a
+    // home on payments.details, which updateMethod keys on.
+    method_id: "provider_ref",
+    last_four: "last_four",
+    card_brand: "card_brand",
+    bank_name: "bank_name",
+    bank_account_type: "account_type",
     // These three were declared dropped by 074 and that was wrong: they are what
     // retrievePaymentIntent keys on when it decides whether to reuse a Stripe
     // intent. 075 gave them columns. Declaring a column dropped because nothing
@@ -152,6 +161,10 @@ export const RENAMES = {
     user_id: "user_id",
     session_id: "session_id",
     type: "type",
+    // Populated on ZERO production rows. The column exists and updateMethod
+    // writes it, but no customer routing number has ever been stored there - so
+    // there is nothing to carry, and if there ever were it would want the same
+    // encryption treatment as exchange.payouts rather than a plain copy.
     routing: "-",
     bank_account_type: "-",
     amount_capturable: "-",
