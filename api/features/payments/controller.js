@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import stripeClient from "#providers/stripe/client.js"
+import * as stripe from "#providers/stripe/stripe.js"
 import * as stripeService from "#features/payments/service.js"
 
 export const handleStripeWebhook = asyncHandler(async (req, res) => {
@@ -7,11 +7,7 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
   let event;
 
   try {
-    event = stripeClient.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    event = stripe.verifyWebhook(req.body, sig);
   } catch (err) {
     console.error(
       "❌ Stripe webhook signature verification failed:",
@@ -25,7 +21,7 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       await stripeService.updateIntentFromWebhook({
         paymentIntent: event.data.object,
       });
-      const paymentMethod = await stripeClient.paymentMethods.retrieve(
+      const paymentMethod = await stripe.retrievePaymentMethod(
         event.data.object.payment_method
       );
 
@@ -37,7 +33,7 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       await stripeService.updateIntentFromWebhook({
         paymentIntent: event.data.object,
       });
-      const paymentMethod = await stripeClient.paymentMethods.retrieve(
+      const paymentMethod = await stripe.retrievePaymentMethod(
         event.data.object.payment_method
       );
 

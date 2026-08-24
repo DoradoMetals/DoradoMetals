@@ -1,4 +1,4 @@
-import stripeClient from "#providers/stripe/client.js";
+import * as stripe from "#providers/stripe/stripe.js";
 import * as stripeRepo from "#features/payments/repo.js";
 import * as productService from "#features/products/service.js";
 import * as addressService from "#features/addresses/service.js";
@@ -15,7 +15,7 @@ export async function retrievePaymentIntent(type, user_id, headers) {
 
   const vals = await stripeRepo.retrievePaymentIntent(type, session, user_id);
   if (vals?.payment_intent_id) {
-    return await stripeClient.paymentIntents.retrieve(vals.payment_intent_id);
+    return await stripe.retrieveIntent(vals.payment_intent_id);
   } else {
     return await createPaymentIntent(type, user_id, session);
   }
@@ -25,9 +25,9 @@ export async function createPaymentIntent(type, user_id, session) {
   let customerId = session?.user?.stripeCustomerId;
 
   if (!customerId) {
-    const { id } = await stripeClient.customers.create({
-      name: session.user?.name ?? "",
-      email: session.user?.email ?? "",
+    const { id } = await stripe.createCustomer({
+      name: session.user?.name,
+      email: session.user?.email,
     });
     customerId = id;
     await stripeRepo.attachCustomerToUser(customerId, session?.user?.id);
@@ -39,18 +39,12 @@ export async function createPaymentIntent(type, user_id, session) {
     user_id
   );
   if (existing?.payment_intent_id) {
-    return await stripeClient.paymentIntents.retrieve(
-      existing.payment_intent_id
-    );
+    return await stripe.retrieveIntent(existing.payment_intent_id);
   }
 
-  const paymentIntent = await stripeClient.paymentIntents.create({
-    amount: 1000,
-    currency: "usd",
-    customer: customerId,
-    capture_method: "automatic",
-    automatic_payment_methods: { enabled: true },
-  });
+  // The placeholder amount is the feature's decision, not Stripe's: an intent is
+  // opened before the cart is priced and updated when it is.
+  const paymentIntent = await stripe.createIntent({ amount: 1000, customerId });
 
   await stripeRepo.createPaymentIntent(paymentIntent, type, user_id, session);
   return paymentIntent;
@@ -107,11 +101,9 @@ export async function updatePaymentIntent(
       "requires_action",
     ].includes(retrieved_intent?.payment_status)
   ) {
-    const paymentIntent = await stripeClient.paymentIntents.update(
+    const paymentIntent = await stripe.updateIntent(
       retrieved_intent.payment_intent_id,
-      {
-        amount: amount,
-      }
+      { amount }
     );
 
     await stripeRepo.updatePaymentIntent(paymentIntent);
@@ -124,9 +116,7 @@ export async function updatePaymentIntent(
 
 export async function capturePaymentIntent(payment_intent_id) {
   try {
-    const paymentIntent = await stripeClient.paymentIntents.capture(
-      payment_intent_id
-    );
+    const paymentIntent = await stripe.captureIntent(payment_intent_id);
     return paymentIntent;
   } catch (err) {
     throw err;
@@ -135,9 +125,7 @@ export async function capturePaymentIntent(payment_intent_id) {
 
 export async function cancelPaymentIntent({ payment_intent_id }) {
   try {
-    const paymentIntent = await stripeClient.paymentIntents.cancel(
-      payment_intent_id
-    );
+    const paymentIntent = await stripe.cancelIntent(payment_intent_id);
     return paymentIntent;
   } catch (err) {
     throw err;
