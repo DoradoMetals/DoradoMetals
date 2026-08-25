@@ -182,6 +182,14 @@ The ones that have actually caught things:
 - `audit:coverage` — **every populated column in `exchange` that has nowhere to
   go.** Run this before splitting any repo. Orders had matching row counts and
   was missing 21 columns of live data; row counts are not evidence.
+- `compare:databases` — **two databases, table by table, row counts and content
+  hashes, plus every sequence.** Written for the step where `test` is restored
+  from a production dump: `pg_restore` reports errors it recovered from and can
+  exit 0 having quietly dropped a table's data, so "it restored" is not
+  evidence. Refuses when both URLs resolve to the same database, because a
+  comparison of something with itself always passes, and fails when it compared
+  no tables at all. Checked against a real difference — prod against dev reports
+  91 differences across 76 tables.
 - `audit:test-leaks` — **fingerprints every `exchange` table, runs the suite,
   and compares.** A test that calls a service does not contain it: the service
   opens its own transaction on its own pool connection and commits, while the

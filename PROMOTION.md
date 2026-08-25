@@ -59,6 +59,44 @@ sitting.
 
 Not optional and not automatable from here — production credentials are yours.
 
+### 1b. Restore the dump into `test`, and prove it
+
+The dump from step 1 is also the rehearsal target. Restoring it into a third
+database on the same instance gives a copy of production with the same Postgres
+version, extensions and settings — which is what makes a rehearsal mean
+anything. A local Docker Postgres could be a different minor version and pass
+where production would not.
+
+Two things that are easy to get wrong and expensive to discover late:
+
+- **Dump as `dorado` or `postgres`, never `claude_ro`.** A read-only role
+  produces a dump that looks complete and silently omits what it could not read.
+  Confirmed on this instance: `claude_ro` gets `permission denied for sequence
+  purchase_orders_order_number_seq`, and a database restored without sequences
+  hands out order numbers that are already in use.
+- **No `--no-owner`.** Keeping production's ownership makes `test` a higher
+  fidelity target: the migrations run there as the same role they will run as in
+  production.
+
+Then prove it rather than assume it:
+
+```
+pnpm --filter @dorado/api compare:databases \
+  --source DUMP_SOURCE_DATABASE_URL --target TEST_DATABASE_URL
+```
+
+Every table in every schema, compared by row count **and** by an md5 over its
+contents, plus every sequence. It refuses to run if both URLs resolve to the
+same database, because a comparison of something with itself passes perfectly
+and proves nothing — and it exits non-zero if it compared no tables at all.
+
+Point the source at `dorado`: `claude_ro` cannot read sequence values, and the
+report fills with nulls that are permission errors rather than differences. The
+script says so when it sees one, but it is easier not to.
+
+The full runbook, with a verification gate on every step, is the restore
+runbook artifact.
+
 ### 2. Apply the migrations
 
 ```

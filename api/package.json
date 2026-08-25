@@ -32,6 +32,7 @@
     "audit:guards": "TZ=UTC node scripts/audit-guards.mjs",
     "audit:payments": "TZ=UTC node scripts/audit-payments.mjs",
     "audit:test-leaks": "TZ=UTC node scripts/audit-test-leaks.mjs",
+    "compare:databases": "TZ=UTC node scripts/compare-databases.mjs",
     "audit:test-leaks:self-test": "TZ=UTC node scripts/audit-test-leaks.mjs --self-test",
     "dump:stripe": "node scripts/dump-stripe-reconciliation.mjs"
   },
