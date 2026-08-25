@@ -42,7 +42,7 @@ const SELF_TEST = process.argv.includes("--self-test");
 //
 // So: name the databases it is safe to run against, and refuse anything else,
 // including a name nobody has taught it yet.
-const SAFE = new Set(["dorado_db_dev", "dev", "test", "dorado_db_test"]);
+const SAFE = new Set(["dev", "test"]);
 
 const url = process.env.DATABASE_URL;
 if (!url) {

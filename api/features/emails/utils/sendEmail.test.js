@@ -41,14 +41,23 @@ const composed = async (content) => {
     html: "<p>body</p>",
     attachments: [{ filename: "t.pdf", content, contentType: "application/pdf" }],
   });
-  // Two things differ between any two messages by design and are not the
-  // subject here: the Message-ID, and the MIME boundary - which appears both in
+  // THREE things differ between any two messages by design, and the third cost
+  // a flaky failure: the Message-ID, the MIME boundary - which appears both in
   // the Content-Type header and as the part separator, in two different dash
-  // forms. Normalising them is what leaves the comparison about the attachment.
+  // forms - and the DATE, which is the wall clock at compose time.
+  //
+  // The date was missed because it does not look random the way a uuid does.
+  // It is: these two messages are built one after the other, and the pair
+  // straddles a second boundary whenever the tick lands between them. The test
+  // passed on every run until it did not.
+  //
+  // Normalising all three is what leaves the comparison about the attachment,
+  // which is the only thing this test is for.
   return info.message
     .toString()
     .replace(/_NmP-[0-9a-f]+-Part_\d+/g, "BOUNDARY")
-    .replace(/^Message-ID: .*$/m, "Message-ID: NORMALISED");
+    .replace(/^Message-ID: .*$/m, "Message-ID: NORMALISED")
+    .replace(/^Date: .*$/m, "Date: NORMALISED");
 };
 
 test("a Uint8Array attachment composes to the same bytes as a Buffer", async () => {

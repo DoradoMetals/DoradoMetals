@@ -3,8 +3,8 @@
 // `import "dotenv/config"` reads .env relative to the current working
 // directory, which quietly made the working directory decide which database a
 // script talks to. There is a .env at the repo root as well as this one, and
-// they point at different databases - the root at dorado_db, this at
-// dorado_db_dev - so `node api/scripts/compare-tables.mjs` run from the repo
+// they point at different databases - the root at prod, this at
+// dev - so `node api/scripts/compare-tables.mjs` run from the repo
 // root connected to production and reported the new schema as missing, while
 // the same command run from api/ worked. A confusing read was the harmless
 // version of that; the runner applying 27 migrations to the wrong database was

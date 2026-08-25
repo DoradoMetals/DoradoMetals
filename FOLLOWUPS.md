@@ -1534,8 +1534,8 @@ names `template1`, which is a nuisance. What it points at is not.
 
 ```
 recorded  actual  mismatched
-dorado_db        2.36    2.41    yes
-dorado_db_dev    2.36    2.41    yes
+prod             2.36    2.41    yes
+dev              2.36    2.41    yes
 postgres         2.36    2.41    yes
 template1        2.36    2.41    yes
 ```
@@ -1560,8 +1560,8 @@ behaves differently on the two is not necessarily a migration bug.
 **The remedy, at 19 MB, is seconds:**
 
 ```sql
-REINDEX DATABASE dorado_db;
-ALTER DATABASE dorado_db REFRESH COLLATION VERSION;
+REINDEX DATABASE prod;
+ALTER DATABASE prod REFRESH COLLATION VERSION;
 ```
 
 Not run — it is a write to production. Worth doing after the dump is verified,

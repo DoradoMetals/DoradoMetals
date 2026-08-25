@@ -104,7 +104,7 @@ fulfillment methods, employees). Verified by building it all into renamed
 schemas inside a rolled-back transaction — see Verification below.
 
 **Dev and production are the same Postgres instance**, different databases —
-`dorado_db_dev` and `dorado_db`. `DATABASE_URL` in `api/.env` is dev.
+`dev` and `prod`. `DATABASE_URL` in `api/.env` is dev.
 `PROD_READONLY_DATABASE_URL` is read-only production, for audits only.
 
 Schema changes go through `api/migrations/*.sql`, applied by

@@ -71,7 +71,7 @@ ALTER DATABASE template1 REFRESH COLLATION VERSION;
 ```
 
 That updates the recorded version only; `template1` is empty so nothing needs
-rebuilding. The same mismatch on `dorado_db` is a real problem rather than a
+rebuilding. The same mismatch on `prod` is a real problem rather than a
 nuisance and is written up in FOLLOWUPS.md — production has 41 indexes on text
 columns whose sort order the OS no longer agrees with. The dump is unaffected
 either way, because `pg_dump` reads table data sequentially rather than through
@@ -116,10 +116,10 @@ runbook artifact.
 ### 2. Apply the migrations
 
 ```
-MIGRATE_ALLOW_DB=dorado_db pnpm --filter @dorado/api migrate
+MIGRATE_ALLOW_DB=prod pnpm --filter @dorado/api migrate
 ```
 
-The runner refuses any database other than `dorado_db_dev` unless named
+The runner refuses any database other than `dev` unless named
 explicitly, which is what `MIGRATE_ALLOW_DB` is for. It prints the target
 database before doing anything — read that line.
 

@@ -21,17 +21,17 @@ import { parseBaseline, coveredBy } from "./lib/baseline.mjs";
 const MIGRATIONS_DIR = path.join(import.meta.dirname, "..", "migrations");
 const LOCK_KEY = 8451723; // arbitrary, just has to be stable
 
-// The databases this runner will write to without being told otherwise.
+// The only database this runner will write to without being told otherwise.
 //
-// TWO NAMES BECAUSE THE RENAME IS IN FLIGHT. dorado_db_dev is becoming `dev`,
-// and a runner that knows only one of them breaks on whichever side of the
-// rename it is not on. Accepting both means there is no window where `pnpm
-// migrate` refuses the developer's own database.
+// An allowlist, not a denylist. It asks "is this a database I know" rather than
+// "is this production", so a database nobody has taught it about is refused
+// rather than silently accepted - which is what kept `test` safe during the
+// migration rehearsal, and what survives a rename.
 //
-// It stays an allowlist. Production is not on it under either name, and neither
-// is `test` - both must be asked for with MIGRATE_ALLOW_DB, by name. Drop the
-// old entry once the rename has settled.
-const DEFAULT_DBS = ["dorado_db_dev", "dev"];
+// It briefly held both `dorado_db_dev` and `dev` while the rename was in
+// flight. The rename has landed, so the old name is gone: an allowlist entry
+// for a database that no longer exists is only a way to be surprised later.
+const DEFAULT_DBS = ["dev"];
 
 const sha = (s) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
 
@@ -147,7 +147,7 @@ async function main() {
   // Naming the database out loud is not the same as refusing to touch the wrong
   // one. Anything other than dev has to be asked for by name:
   //
-  //   MIGRATE_ALLOW_DB=dorado_db pnpm --filter @dorado/api migrate
+  //   MIGRATE_ALLOW_DB=prod pnpm --filter @dorado/api migrate
   //
   // Applying to production is a deliberate act that happens once the pg_dump
   // has been taken, not something a stray shell should be able to do. `status`
