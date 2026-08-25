@@ -6,7 +6,7 @@ import {
   renderSalesOrderToSupplierEmail,
 } from "#features/emails/utils/renderEmail.ts";
 
-import { sendEmail } from "#features/emails/utils/sendEmail.js";
+import { sendEmail } from "#features/emails/utils/sendEmail.ts";
 import {
   formatPurchaseOrderNumber,
   formatSalesOrderNumber,
@@ -15,7 +15,7 @@ import {
 // `transport` is a separate parameter, not a field on the input object: the
 // controller passes req.body as the input, so a field would be reachable from
 // the request. In production nothing passes one and the shared transport is
-// used. See utils/sendEmail.js.
+// used. See utils/sendEmail.ts.
 //
 // payoutDetails used to be passed on to generatePackingList, which does not
 // accept it - the packing list reads the fee off purchaseOrder.payout.cost. It

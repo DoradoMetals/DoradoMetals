@@ -1126,6 +1126,55 @@ The wire shape is unchanged: `repo.next.js` projects all four back off the joine
 refiner line, `diff` reports 55 operations identical, and `validate:wire` checks
 both implementations against `PurchaseOrderWire`.
 
+### RESOLVED: the test for the tracking bug committed the tracking bug
+
+Recorded because the mistake is more instructive than the fix, and because dev
+still carries the damage by Jacob's decision.
+
+The first version of `features/shipping/operations/tracking.test.js` opened its
+own `withTransaction` and asserted through that client. The service under test
+opens its own transaction too, on its own connection from the pool — so its
+writes went to a **different** transaction and committed, while mine rolled
+back. It deleted the real FedEx history of five dev shipments (17, 14, 13, 12
+and 12 events) and replaced each with the two fabricated events the test
+supplies.
+
+That is exactly the bug the file exists to prevent, committed by the test for
+it, in the same session. It passed on the first run and failed on the second,
+with `actual` and `expected` identical — the fixture had by then been overwritten
+with the values the test writes, so `notDeepEqual(after, before)` had nothing
+left to distinguish.
+
+**`shared/testing/pinned-pool.js` is what this needed and it already existed.**
+It replaces `pool.connect` and `pool.query` for the duration, so the service's
+own `withTransaction` gets the same client and its BEGIN/COMMIT become
+savepoints inside one outer transaction that is discarded. The file now uses it,
+and carries a fourth test — "nothing this file did survived the transaction" —
+which is the only one that notices if the pin ever stops working, because every
+other assertion reads its own writes and passes either way.
+
+Two assertions were also rewritten from coincidences into properties: the events
+are compared **by identity** rather than by count, with the two fabricated
+events given different locations so ordering is actually checked; and the
+shipment is compared field by field rather than by `notDeepEqual` against a
+fixture that could already hold those values.
+
+**Production was never touched** — the test runs against `DATABASE_URL`, which
+is dev, and a read confirmed zero contaminated rows in production. All 67 events
+are still there.
+
+**Not repaired, by Jacob's decision.** Production is intact and authoritative;
+dev is not. Repairing would mean a `DELETE` against `exchange.tracking_events`
+to remove the fabricated rows, which is not worth doing for a database whose
+only role is fixtures. So five dev shipments carry two events each where they
+used to carry twelve to seventeen, and any test needing a rich tracking fixture
+should know that.
+
+The escape check is measured against a baseline taken before the tests run
+rather than against zero, for that reason. It is not a weakening — "this file
+added nothing" is the property, and the absolute form only worked while the
+table happened to be clean.
+
 ### RESOLVED: a tracking refresh that recognised nothing deleted the shipment's history
 
 The worst thing found so far, and it has already happened seven times in

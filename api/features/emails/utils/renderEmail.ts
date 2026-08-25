@@ -2,7 +2,7 @@
 //
 // The templates are files on disk with [PLACEHOLDER] markers; these functions
 // read them and substitute. Nothing here talks to a transport - see
-// utils/sendEmail.js for that seam.
+// utils/sendEmail.ts for that seam.
 import fs from "fs";
 import path from "path";
 import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
