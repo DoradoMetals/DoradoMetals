@@ -159,3 +159,129 @@ test("public reads return JSON", async () => {
     }
   }
 });
+
+// Every handler a controller exports is either routed or declared dead.
+//
+// features/sales-orders/controller.js exports getSalesOrderById and cancelOrder
+// and neither has a route. That is harmless until somebody reads one, assumes
+// it is reachable, and builds on it - or until a route is deleted and its
+// handler is left behind looking live.
+//
+// A handler with no route is not automatically wrong: handleStripeWebhook is
+// mounted directly on the app rather than through a feature router, and a
+// controller may reasonably export a helper. So this is a declaration, not a
+// prohibition: unrouted exports go on the list below with a reason, and the
+// list failing when it goes stale is what keeps it honest.
+//
+// IT SEARCHES EVERY routes.js, NOT THE SIBLING ONE. The first version looked
+// only next to the controller and reported features/mints/controller.js as
+// entirely unrouted - which would have meant a migrated feature with a switch
+// in PROMOTION.md was unreachable over HTTP. It is not: getAllMints is routed
+// from features/products/routes.js, deliberately, because the frontend asks
+// products for its mints. A check that assumes a convention reports a
+// legitimate exception to the convention as a bug.
+//
+// Static - reads the files, and compares against the routes the walk above
+// found in the real app.
+import fs from "node:fs";
+import path from "node:path";
+
+const FEATURES = path.join(import.meta.dirname, "..", "..", "features");
+
+// Exported from a controller and deliberately not routed.
+const UNROUTED = {
+  "sales-orders/controller.js": {
+    getSalesOrderById: "no route; the frontend reads orders through get_all and get_sales_orders",
+    cancelOrder: "no route; cancelling a sale is not a customer action and admins use update_status",
+  },
+  "purchase-orders/controller.js": {
+    getPurchaseOrderById: "no route; the frontend reads orders through get_purchase_orders and get_all_purchase_orders",
+  },
+  "payments/controller.js": {
+    handleStripeWebhook: "mounted directly on the app in app.js, before express.json",
+  },
+};
+
+const controllers = (dir, out = []) => {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) controllers(full, out);
+    else if (e.name === "controller.js") out.push(full);
+  }
+  return out;
+};
+
+// Every routes.js in the tree, because a handler may legitimately be routed
+// from another feature's router.
+const routeFiles = (dir, out = []) => {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) routeFiles(full, out);
+    else if (e.name === "routes.js") out.push(full);
+  }
+  return out;
+};
+
+const exportedHandlers = (src) => {
+  const names = new Set();
+  for (const m of src.matchAll(/export\s+const\s+([A-Za-z0-9_]+)\s*=\s*asyncHandler/g)) {
+    names.add(m[1]);
+  }
+  return names;
+};
+
+test("every exported controller handler is routed, or declared unrouted", () => {
+  const orphans = [];
+  const stale = [];
+  const allRoutes = routeFiles(FEATURES).map((f) => fs.readFileSync(f, "utf8"));
+  assert.ok(allRoutes.length > 10, `only ${allRoutes.length} routes.js found - the walk is wrong`);
+
+  for (const file of controllers(FEATURES)) {
+    const rel = path.relative(FEATURES, file);
+    const src = fs.readFileSync(file, "utf8");
+    const declared = UNROUTED[rel] ?? {};
+
+    for (const name of exportedHandlers(src)) {
+      const routed = allRoutes.some((r) => new RegExp(`\\b${name}\\b`).test(r));
+      if (!routed && !declared[name]) orphans.push(`${rel}: ${name}`);
+    }
+
+    for (const name of Object.keys(declared)) {
+      if (!exportedHandlers(src).has(name)) stale.push(`${rel}: ${name}`);
+    }
+  }
+
+  assert.deepEqual(
+    orphans,
+    [],
+    "these handlers are exported and never routed - wire them or add them to " +
+      "UNROUTED with the reason"
+  );
+  assert.deepEqual(stale, [], "UNROUTED names handlers that no longer exist");
+});
+
+// Proved rather than assumed, in both directions: a handler that is neither
+// routed nor declared must be reported, and a declaration for a handler that no
+// longer exists must be reported too. Both run against synthetic input rather
+// than by breaking a real file, so this costs nothing and cannot leave debris.
+test("the unrouted check can actually fail", () => {
+  const handlers = exportedHandlers(`
+    export const wired = asyncHandler(async () => {});
+    export const orphaned = asyncHandler(async () => {});
+  `);
+  assert.deepEqual([...handlers].sort(), ["orphaned", "wired"]);
+
+  const routes = ['router.get("/x", wired);'];
+  const unrouted = [...handlers].filter(
+    (name) => !routes.some((r) => new RegExp(`\\b${name}\\b`).test(r))
+  );
+  assert.deepEqual(unrouted, ["orphaned"], "an unrouted handler was not spotted");
+
+  // And a name routed from a DIFFERENT file counts as routed, which is the
+  // thing the first version of this check got wrong.
+  const elsewhere = ['router.get("/y", orphaned);'];
+  const stillUnrouted = [...handlers].filter(
+    (name) => ![...routes, ...elsewhere].some((r) => new RegExp(`\\b${name}\\b`).test(r))
+  );
+  assert.deepEqual(stillUnrouted, [], "a handler routed from another feature was called an orphan");
+});
