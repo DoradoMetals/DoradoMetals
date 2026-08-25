@@ -21,8 +21,17 @@ import { parseBaseline, coveredBy } from "./lib/baseline.mjs";
 const MIGRATIONS_DIR = path.join(import.meta.dirname, "..", "migrations");
 const LOCK_KEY = 8451723; // arbitrary, just has to be stable
 
-// The only database this runner will write to without being told otherwise.
-const DEFAULT_DB = "dorado_db_dev";
+// The databases this runner will write to without being told otherwise.
+//
+// TWO NAMES BECAUSE THE RENAME IS IN FLIGHT. dorado_db_dev is becoming `dev`,
+// and a runner that knows only one of them breaks on whichever side of the
+// rename it is not on. Accepting both means there is no window where `pnpm
+// migrate` refuses the developer's own database.
+//
+// It stays an allowlist. Production is not on it under either name, and neither
+// is `test` - both must be asked for with MIGRATE_ALLOW_DB, by name. Drop the
+// old entry once the rename has settled.
+const DEFAULT_DBS = ["dorado_db_dev", "dev"];
 
 const sha = (s) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
 
@@ -143,10 +152,13 @@ async function main() {
   // Applying to production is a deliberate act that happens once the pg_dump
   // has been taken, not something a stray shell should be able to do. `status`
   // is read-only and runs anywhere.
-  const allowed = process.env.MIGRATE_ALLOW_DB ?? DEFAULT_DB;
-  if (mode !== "status" && database !== allowed) {
+  const allowed = process.env.MIGRATE_ALLOW_DB
+    ? [process.env.MIGRATE_ALLOW_DB]
+    : DEFAULT_DBS;
+  if (mode !== "status" && !allowed.includes(database)) {
     console.error(
-      `refusing to apply migrations to "${database}" - this runner expects "${allowed}".\n` +
+      `refusing to apply migrations to "${database}" - this runner expects ` +
+        `${allowed.map((d) => `"${d}"`).join(" or ")}.\n` +
         `If that is genuinely the target, say so explicitly:\n` +
         `  MIGRATE_ALLOW_DB=${database} pnpm --filter @dorado/api migrate`
     );

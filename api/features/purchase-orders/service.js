@@ -8,7 +8,7 @@ import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate
 
 import * as shipmentRepo from "#features/shipping/shipments/repo.js";
 import * as pickupRepo from "#features/shipping/pickups/repo.js";
-import * as shippingOps from "#features/shipping/operations/handler.js";
+import * as shippingOps from "#features/shipping/operations/handler.ts";
 
 import {
   DORADO_ADDRESS,

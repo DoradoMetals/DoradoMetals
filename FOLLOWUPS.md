@@ -1402,6 +1402,49 @@ So nothing here needs changing before the repos are deleted. What it needs is
 deleting deliberately at that point, rather than being left to fail — a check
 that fails for the right reason is still a broken build.
 
+### PLANNED, NOT WRITTEN: drop the tables nothing will use, auctions included
+
+Jacob's instruction, 2026-08-25: a later migration should remove unused tables,
+and auctions belongs in that set. Recorded rather than written, because dropping
+a table is the one change on this project that cannot be undone by deploying a
+fix.
+
+**What auctions actually is**, checked against production rather than assumed:
+
+| table | rows |
+|---|---|
+| `exchange.auctions` | 1 |
+| `exchange.auction_items` | 2 |
+| `auctions.auctions` | 0 |
+| `auctions.items` | 0 |
+
+No live code references auctions anywhere — not a route, not a repo, not a
+service. The new schema's copies are empty. This is consistent with the earlier
+decision recorded here that auctions is retired and carts become checkout.
+
+**Three rows is still three rows.** "Unused" is an argument for dropping it, not
+evidence that nothing is lost. The dump is what makes it recoverable, and the
+dump has to be taken *after* the last write anyone cares about.
+
+**Preconditions, all of which must hold before this migration is written:**
+
+1. Every feature promoted past `dual`, so nothing reads `exchange` any more. A
+   table is only droppable once something has read the code that reads it, and
+   while a `*_SOURCE` sits at `exchange` or `dual` that code is live.
+2. A `pg_dump` taken after promotion — not the 2026-08-25 one, which predates
+   all of it.
+3. `lint:migrations` will refuse it without an explicit `-- allow-destructive:`
+   marker saying why it is safe and which backup covers it. That is the
+   mechanism; do not weaken it to let this through.
+4. Each table checked for what references it, the same way `061b` enumerated
+   foreign keys rather than discovering them one rollback at a time.
+
+**Candidates beyond auctions** should be derived from `audit:coverage`, which
+already reports every populated `exchange` table no feature claims, rather than
+from memory. Two known traps: `order_metals.percent_change` and `scrap.gem_id`
+are 100% NULL and still read and written by live code, so "empty" is not the
+test — "unreferenced" is.
+
 ### FOR JACOB: the rehearsal says the migrations apply to production and leave it empty
 
 The test database was restored from the production dump and all 85 migrations

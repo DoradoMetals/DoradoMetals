@@ -138,12 +138,34 @@ describe("every registered provider is usable", () => {
 // against. Reading the dispatch lines back out of the file is the only way to
 // tie the two halves together.
 describe("the handler dispatches only methods its providers have", () => {
-  const handler = fs.readFileSync(
-    path.join(import.meta.dirname, "handler.js"), "utf8"
-  );
+  // READ LAZILY, INSIDE THE TESTS, AND BY EXTENSION-AGNOSTIC LOOKUP.
+  //
+  // This used to readFileSync("handler.js") in the describe body. Converting
+  // the handler to TypeScript renamed the file, the read threw ENOENT, and the
+  // three tests below stopped existing - while the suite stayed GREEN.
+  //
+  // That is worth stating plainly, because it is a hole in the gate this whole
+  // project leans on: `node --test` prints a ✖ and the ENOENT for a describe
+  // whose body throws, and then reports `fail 0` and EXITS 0. `pnpm check`
+  // passed. The only visible symptom was the total dropping from 500 to 497.
+  //
+  // So the read happens inside a test, where a failure is counted, and it looks
+  // for either extension - the handler may be .ts today and something else
+  // later, and this test is about what it dispatches, not what it is written
+  // in.
+  const readHandler = () => {
+    for (const name of ["handler.ts", "handler.js"]) {
+      const full = path.join(import.meta.dirname, name);
+      if (fs.existsSync(full)) return fs.readFileSync(full, "utf8");
+    }
+    throw new Error(
+      "no handler.ts or handler.js beside this test - if the handler moved, " +
+        "this check has lost its subject and must be pointed at the new one"
+    );
+  };
 
   const dispatched = (object) =>
-    [...handler.matchAll(new RegExp(`\\b${object}\\.([A-Za-z0-9_]+)\\(`, "g"))]
+    [...readHandler().matchAll(new RegExp(`\\b${object}\\.([A-Za-z0-9_]+)\\(`, "g"))]
       .map((m) => m[1]);
 
   test("the dispatch lines were found at all", () => {
