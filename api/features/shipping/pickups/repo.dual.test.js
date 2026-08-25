@@ -120,13 +120,34 @@ test("a pickup is mirrored onto the order's shipment", async () => {
 // shipment to point at - that is the failure mode that broke purchase orders.
 test("a pickup whose order has no shipment mirrors nothing and does not throw", async () => {
   await inRollback(async (c) => {
+    // MAKES its own shipment-less order rather than hunting for one, and both
+    // halves of that matter.
+    //
+    // VACUOUS: dev has zero orders with no shipment, so the search returned
+    // nothing and the test returned early - passing without exercising a line
+    // of the thing it is named for.
+    //
+    // FLAKY: in a full run it found one anyway and then failed the foreign key
+    // on insert, which means the row it selected was not there by the time it
+    // wrote. What made a row appear and vanish between two statements on one
+    // connection is not explained here, and this does not pretend to explain
+    // it - it removes the search, which is the part that could race.
+    //
+    // The shipments are deleted inside the transaction that is rolled back,
+    // the same way features/orders/create.test.js frees an order of its
+    // fulfillment. Nothing survives the test.
     const { rows } = await c.query(
-      `SELECT o.id FROM exchange.purchase_orders o
-       WHERE NOT EXISTS (SELECT 1 FROM exchange.shipments s WHERE s.purchase_order_id = o.id)
-       LIMIT 1`
+      `SELECT o.id FROM exchange.purchase_orders o ORDER BY o.created_at ASC, o.id ASC LIMIT 1`
     );
     const order_id = rows[0]?.id ?? null;
-    if (!order_id) return;
+    assert.ok(order_id, "dev has no purchase order at all");
+
+    await c.query(`DELETE FROM exchange.shipments WHERE purchase_order_id = $1`, [order_id]);
+    const { rows: left } = await c.query(
+      `SELECT count(*)::int AS n FROM exchange.shipments WHERE purchase_order_id = $1`,
+      [order_id]
+    );
+    assert.equal(left[0].n, 0, "the order still has a shipment, so this proves nothing");
 
     const created = await dual.create(aPickup({ order_id }), c);
     assert.ok(created?.id, "the exchange write did not happen");

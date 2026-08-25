@@ -40,6 +40,24 @@ export const LOCKS = {
   ADDRESSES: 4214,
 };
 
+// WHICH FILES TAKE WHICH, kept here because registering a lock is not the same
+// as covering the tables it protects. SCRAP_SWEEP was registered because the
+// checkout tests already used it, and features/scrap/repo.test.js - which
+// deletes exchange.scrap and exchange.purchase_order_items - was taking no lock
+// at all. It deadlocked in a full run after passing in every earlier one, which
+// is exactly the failure these exist to prevent and exactly how it presents.
+//
+//   SCRAP_SWEEP   checkout/repo.dual, checkout/repo.exchange, scrap/repo
+//   ORDERS        orders/create, orders/parity, orders/intake.repo,
+//                 purchase-orders/replay, purchase-orders/ownership,
+//                 sales-orders/replay, checkout/replay, fulfillments/replay,
+//                 scrap/repo
+//   ADDRESSES     addresses/replay, orders/create, orders/parity
+//   FULFILLMENTS  fulfillments/repo, fulfillments/replay
+//
+// A file writing a table in a group and not taking its lock is the bug. That is
+// worth checking mechanically rather than maintaining a list by hand, and the
+// list above is the thing such a check would replace.
 export async function takeLocks(client, locks) {
   const wanted = (Array.isArray(locks) ? locks : [locks]).filter(Boolean);
   for (const id of [...new Set(wanted)].sort((a, b) => a - b)) {

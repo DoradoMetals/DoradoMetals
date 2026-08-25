@@ -10,6 +10,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.js";
 import * as repo from "#features/scrap/repo.js";
 
 let client;
@@ -29,6 +30,14 @@ after(async () => {
 
 async function inRollback(fn) {
   await client.query("BEGIN");
+  // TWO GROUPS, because this file writes tables from both and used to take
+  // neither. It deletes exchange.scrap - which the checkout tests hold
+  // SCRAP_SWEEP for - and exchange.purchase_order_items, which the orders tests
+  // touch under ORDERS. With no lock at all it was a third party writing both,
+  // and it deadlocked in a full run having passed in every earlier one.
+  //
+  // takeLocks sorts, so the two are always acquired in the same order.
+  await takeLocks(client, [LOCKS.SCRAP_SWEEP, LOCKS.ORDERS]);
   try {
     await fn(client);
   } finally {
