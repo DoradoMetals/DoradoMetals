@@ -3,7 +3,7 @@ import {
   calculateSalesTax,
   calculateItemTotals,
   calculateItemAsk,
-} from "#features/sales-orders/utils/calculations.js";
+} from "#features/sales-orders/utils/calculations.ts";
 
 export async function attachSalesTaxToItems(state_code, items, spots) {
   const item_total = calculateItemTotals(items, spots);

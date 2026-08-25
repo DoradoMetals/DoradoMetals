@@ -81,7 +81,7 @@ export type ProductOnOrderItem = z.infer<typeof ProductOnOrderItem>;
 
 // item_type is not a column. The repo derives it from which of scrap_id or
 // product_id the row carries, and the pricing code branches on it - see
-// features/purchase-orders/utils/calculations.js.
+// features/purchase-orders/utils/calculations.ts.
 export const PurchaseOrderItemWire = z.object({
   id: z.string().uuid(),
   purchase_order_id: z.string().uuid().nullable(),

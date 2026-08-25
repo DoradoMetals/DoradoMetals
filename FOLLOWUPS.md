@@ -1126,6 +1126,59 @@ The wire shape is unchanged: `repo.next.js` projects all four back off the joine
 refiner line, `diff` reports 55 operations identical, and `validate:wire` checks
 both implementations against `PurchaseOrderWire`.
 
+### FOR JACOB: the card surcharge is set by a number the browser sends
+
+Found while converting `features/sales-orders/utils/calculations.js` to
+TypeScript — reading the callers to work out what an "item" actually is, which
+meant reading the frontend's own copy of the same sum.
+
+The server charges the surcharge from the `payment_method` string in the request
+body. `calculateCardCharge` is the whole rule:
+
+```js
+if (payment_method === "ACH") return order_total * 0.005;
+else                          return order_total * 0.029;
+```
+
+Two things follow from that, neither caused by the migration.
+
+**1. CREDIT and WIRE are surcharged 2.9%, and the checkout calls them "No
+Fee".** `paymentOptions` in `frontend/features/orders/salesOrders/types.ts` gives
+CREDIT and WIRE `surcharge: 0` and the label "No Fee"; the server's `else`
+branch charges them like a card. The only thing preventing it is client-side:
+`paymentSelect.tsx` flips the method back to `CARD` when
+`beginningFunds < baseTotal`, so a CREDIT order always covers itself and
+`subject_to_charges_amount` lands on 0, where no surcharge is taken.
+
+Production has never reached it. All 8 sales orders that applied funds were
+covered in full — every one has `subject_to_charges_amount = 0` and
+`charges_amount = 0`. A partially-funded CREDIT order would be the first, and
+would be recorded with a fee the customer was shown as free.
+
+**2. Nothing reconciles the declared method against the one actually used.** The
+intent is created with `automatic_payment_methods: { enabled: true }`
+(`providers/stripe/stripe.js`), so Stripe accepts whatever the customer picks in
+the element. Declaring `ACH` and paying by card is surcharged at 0.5% and costs
+Stripe's card rate — the business absorbs the 2.4%. Production has exactly one
+collected sales order and it is a card paying the card rate, so this has not
+happened, but nothing stops it.
+
+**Not fixed, deliberately.** Both change what the server computes for money, and
+this was a type conversion. Deciding them needs an answer from you: whether
+CREDIT and WIRE should be free (the UI's claim), and whether the surcharge
+should be derived from the confirmed Stripe payment method rather than the
+request. The file now carries both, at the function they concern, so whoever
+touches this sum next reads them first.
+
+**Also observed, and not actionable.** Sales order 62 — production's only
+collected sale — stores `charges_amount = 0` while its `order_total` of $255.17
+includes $7.19 of surcharge, which Stripe did collect (intent `succeeded`,
+25517 cents). Its total is also rounded to the cent where every other order
+carries full float precision, so it was written by an older version of this code
+in December 2025; only one insert path into `exchange.sales_orders` exists now
+and it stores `orderPrices.charges_amount`. The money was collected correctly.
+The business's own record of the fee it charged is what is wrong, on one order.
+
 ### Payments: half unblocked, and the ledger is wrong independent of any migration
 
 The Stripe export landed 2026-08-22 and settled the question of where the truth

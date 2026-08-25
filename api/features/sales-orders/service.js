@@ -14,7 +14,7 @@ import * as addressRepo from "#features/addresses/repo.js";
 import * as taxService from "#features/sales-tax/service.js";
 import * as productService from "#features/products/service.js";
 
-import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.js";
+import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";
 
 export async function getById(orderId) {
   return salesOrderRepo.findById(orderId);

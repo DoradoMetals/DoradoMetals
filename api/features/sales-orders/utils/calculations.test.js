@@ -7,7 +7,7 @@ import {
   getShippingCharge,
   calculateSalesTax,
   calculateSalesOrderTotal,
-} from "#features/sales-orders/utils/calculations.js";
+} from "#features/sales-orders/utils/calculations.ts";
 
 const spots = [
   { type: "Gold", ask_spot: 4000 },

@@ -2,7 +2,7 @@
 //
 // See repo.js for how this and repo.next.js are selected between.
 import query from "#shared/db/query.js";
-import { calculateItemAsk } from '#features/sales-orders/utils/calculations.js';
+import { calculateItemAsk } from '#features/sales-orders/utils/calculations.ts';
 
 // The three lookups below differ only in how they select rows. They were
 // previously three identical 65-line copies of the same query.

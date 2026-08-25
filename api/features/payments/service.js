@@ -3,7 +3,7 @@ import * as stripeRepo from "#features/payments/repo.js";
 import * as productService from "#features/products/service.js";
 import * as addressService from "#features/addresses/service.js";
 import * as taxService from "#features/sales-tax/service.js";
-import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.js";
+import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";
 
 import { auth } from "#features/auth/client.js";
 import { fromNodeHeaders } from "better-auth/node";
