@@ -29,8 +29,9 @@ import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/test
 await mockSessions();
 const { default: app } = await import("#app");
 
-// Shares exchange.purchase_orders and orders.orders with the dual-write tests.
-const ORDER_LOCK = 4213;
+import { LOCKS } from "#shared/testing/locks.js";
+// Orders only - this file writes no address.
+const ORDER_LOCK = LOCKS.ORDERS;
 
 let admin;
 let customer;

@@ -9,6 +9,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.js";
 import { decompose } from "#features/orders/intake.js";
 import * as intake from "#features/orders/intake.repo.js";
 import { createFromCheckout } from "#features/orders/create.js";
@@ -28,7 +29,10 @@ async function inRollback(fn) {
   await client.query("BEGIN");
   // Shares checkout.checkouts with intake.repo.test.js and features/checkout,
   // and orders.orders with several others. One lock, taken first.
-  await client.query("SELECT pg_advisory_xact_lock(4213)");
+  // Placing an order writes orders.*, checkout.* AND snapshots into
+  // places.addresses, so this file takes both groups. takeLocks sorts them, so
+  // the ascending-order rule cannot be got wrong here.
+  await takeLocks(client, [LOCKS.ORDERS, LOCKS.ADDRESSES]);
   try {
     await fn(client);
   } finally {

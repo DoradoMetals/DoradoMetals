@@ -8,6 +8,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.js";
 import { decompose } from "#features/orders/intake.js";
 import * as intake from "#features/orders/intake.repo.js";
 
@@ -27,7 +28,9 @@ async function inRollback(fn) {
   // checkout.checkouts is UNIQUE (user_id, direction) and features/checkout's
   // own tests write the same rows for the same borrowed users. One lock, taken
   // first, or the two files deadlock in the full run and pass in isolation.
-  await client.query("SELECT pg_advisory_xact_lock(4213)");
+  // checkout only - this file records choices and items, and never places
+  // an order or writes an address.
+  await takeLocks(client, LOCKS.ORDERS);
   try {
     await fn(client);
   } finally {

@@ -31,6 +31,7 @@
 // commit releases a savepoint, a nested rollback rolls back to it, and the
 // outer transaction is still there to be discarded at the end.
 import pool from "#db";
+import { takeLocks } from "#shared/testing/locks.js";
 
 const REAL = {
   connect: pool.connect.bind(pool),
@@ -93,15 +94,16 @@ function nestable(client) {
 // parity.test.js and create.test.js, which both hold 4213 and both place whole
 // orders. The serialisation is the lock working, not failing.
 //
-// Use the same number as the repo tests that touch the same tables: 4211 for
-// fulfillments, 4213 for orders and checkout.
+// Takes a number or an array. The numbers and what each covers live in
+// shared/testing/locks.js; a file touching two groups passes both, and they are
+// acquired in ascending order for it.
 export async function inPinnedTransaction(fn, { lock } = {}) {
   const client = await REAL.connect();
   const pinned = nestable(client);
   depth = 0;
 
   await client.query("BEGIN");
-  if (lock) await client.query("SELECT pg_advisory_xact_lock($1)", [lock]);
+  if (lock) await takeLocks(client, lock);
   pool.connect = async () => pinned;
   pool.query = (sql, params) => pinned.query(sql, params);
 

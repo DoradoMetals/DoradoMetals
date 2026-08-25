@@ -20,6 +20,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.js";
 import { decompose } from "#features/orders/intake.js";
 import * as intake from "#features/orders/intake.repo.js";
 import { createFromCheckout } from "#features/orders/create.js";
@@ -38,7 +39,8 @@ after(async () => {
 
 async function inRollback(fn) {
   await client.query("BEGIN");
-  await client.query("SELECT pg_advisory_xact_lock(4213)");
+  // Both creation paths write orders and snapshot an address, so both groups.
+  await takeLocks(client, [LOCKS.ORDERS, LOCKS.ADDRESSES]);
   try {
     await fn(client);
   } finally {

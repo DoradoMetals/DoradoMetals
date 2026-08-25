@@ -34,10 +34,12 @@ const { default: app } = await import("#app");
 let customer;
 const created = [];
 
-// Shared with features/orders, which snapshots addresses while placing an
-// order. A pinned transaction holds its row locks for a whole request, so
-// without this the orders tests sit behind it.
-const ADDRESS_LOCK = 4213;
+// Addresses have their own lock group. This file writes exchange.addresses and
+// places.addresses and touches no order, so sharing a number with the orders
+// tests made it wait behind whole order placements for nothing - 656ms alone
+// became 12.7 seconds in the suite.
+import { LOCKS } from "#shared/testing/locks.js";
+const ADDRESS_LOCK = LOCKS.ADDRESSES;
 
 before(async () => {
   // Read outside the pin: this is a fixture that has to already exist, not

@@ -11,6 +11,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.js";
 import * as repo from "#features/fulfillments/repo.js";
 import * as methods from "#features/fulfillments/methods/repo.js";
 import * as service from "#features/fulfillments/service.js";
@@ -31,7 +32,7 @@ async function inRollback(fn) {
   // fulfillments_order_uniq means two tests borrowing the same order deadlock
   // rather than fail, and they pass in isolation while hanging in the full run.
   // One lock, taken first, in the one file that writes these tables.
-  await client.query("SELECT pg_advisory_xact_lock(4211)");
+  await takeLocks(client, LOCKS.FULFILLMENTS);
   try {
     await fn(client);
   } finally {

@@ -23,7 +23,9 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
 await mockSessions();
 const { default: app } = await import("#app");
 
-const ORDER_LOCK = 4213;
+import { LOCKS } from "#shared/testing/locks.js";
+// Orders only - this file writes no address.
+const ORDER_LOCK = LOCKS.ORDERS;
 
 let victim;
 let stranger;
