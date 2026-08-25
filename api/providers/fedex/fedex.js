@@ -8,7 +8,7 @@ import {
   parseScheduledPickup,
   parseTracking,
   parseCreateShipment,
-} from "#providers/fedex/utils/parsing.js";
+} from "#providers/fedex/utils/parsing.ts";
 
 export async function validateAddress(address) {
   const token = await endpoints.fetchAccessToken();

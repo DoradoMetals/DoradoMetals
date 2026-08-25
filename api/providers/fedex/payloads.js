@@ -15,7 +15,7 @@ import {
   normalizeTime,
   formatFedexFullDateTime,
   addHours,
-} from "#providers/fedex/utils/formatting.js";
+} from "#providers/fedex/utils/formatting.ts";
 
 export function validateAddressPayload(address) {
   return {

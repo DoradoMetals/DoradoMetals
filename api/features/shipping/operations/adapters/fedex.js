@@ -1,4 +1,4 @@
-import { formatAddressForFedEx } from "#providers/fedex/utils/formatting.js";
+import { formatAddressForFedEx } from "#providers/fedex/utils/formatting.ts";
 
 function toFedexContact(contact) {
   const c = contact ?? {};
