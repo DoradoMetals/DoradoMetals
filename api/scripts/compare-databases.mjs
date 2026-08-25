@@ -111,6 +111,12 @@ async function fingerprint(db, qualified) {
 }
 
 const differences = [];
+
+// Kept apart from `differences` deliberately. A table that could not be READ is
+// a setup problem - a role without privileges, usually - and a table whose rows
+// differ is a restore problem. Reporting them in one list made the first look
+// like the second.
+const unreadable = [];
 let compared = 0;
 
 try {
@@ -140,7 +146,7 @@ try {
     try {
       [a, b] = await Promise.all([fingerprint(source, t), fingerprint(target, t)]);
     } catch (err) {
-      differences.push(`${t} could not be compared: ${err.message}`);
+      unreadable.push(`${t}: ${err.message}`);
       continue;
     }
 
@@ -167,12 +173,51 @@ try {
       // A null on either side usually means the reading role lacks privileges
       // on the sequence rather than a real difference - say which it is, since
       // that is a confusing five minutes otherwise.
-      const unreadable = s.last_value === null || t.last_value === null;
+      const looksLikePermissions = s.last_value === null || t.last_value === null;
       differences.push(
         `sequence ${seqKey(s)}: source ${s.last_value}, target ${t.last_value}` +
-          (unreadable ? "  (a null here is usually a permissions problem, not a difference)" : "")
+          (looksLikePermissions
+            ? "  (a null here is usually a permissions problem, not a difference)"
+            : "")
       );
     }
+  }
+
+  // THE EVIDENCE COMES OUT FIRST, ALWAYS. The first version of this printed
+  // "compared 0 tables" and nothing else when every table failed to read -
+  // which is precisely the run where the reason matters and precisely the run
+  // where it was withheld. A check that fires correctly and hides why is only
+  // half a check.
+  if (unreadable.length) {
+    console.error(`${unreadable.length} table(s) could not be read:\n`);
+    for (const u of unreadable.slice(0, 20)) console.error(`  ${u}`);
+    if (unreadable.length > 20) console.error(`  ... and ${unreadable.length - 20} more`);
+
+    // Every failure being a permission error has one overwhelmingly likely
+    // cause, and saying so beats making someone work it out.
+    if (unreadable.every((u) => /permission denied/i.test(u))) {
+      console.error(
+        `\nEvery one is a permission error, so this is about roles rather than data.\n` +
+          `The usual cause is restoring with --no-owner: the objects end up owned by\n` +
+          `the restoring role, and the role in the connection string has no grants.\n` +
+          `It also means the migrations will fail here, because they ALTER tables they\n` +
+          `do not own, and it will look like a migration bug rather than a restore flag.\n\n` +
+          `Drop the target and restore again WITHOUT --no-owner. The dump records the\n` +
+          `real owner, so restoring as a superuser reproduces production's ownership\n` +
+          `exactly and no grants are needed afterwards.\n\n` +
+          `Do NOT reach for REASSIGN OWNED BY <superuser> TO <role> - it tries to\n` +
+          `reassign the system catalogs too and Postgres refuses:\n` +
+          `  "cannot reassign ownership of objects owned by role postgres because\n` +
+          `   they are required by the database system"`
+      );
+    }
+    console.error("");
+  }
+
+  if (differences.length) {
+    console.error(`${differences.length} difference(s) across ${compared} tables compared:\n`);
+    for (const d of differences) console.error(`  ${d}`);
+    console.error("");
   }
 
   // NON-VACUITY. A run that compared nothing - wrong database, empty target, a
@@ -180,15 +225,13 @@ try {
   if (compared === 0) {
     console.error("compared 0 tables. That is a failure, not a match.");
     process.exitCode = 1;
-  } else if (differences.length === 0) {
+  } else if (differences.length || unreadable.length) {
+    process.exitCode = 1;
+  } else {
     console.log(
       `identical: ${compared} tables and ${sourceSeqs.length} sequences match, ` +
         `row for row and byte for byte`
     );
-  } else {
-    console.error(`${differences.length} difference(s) across ${compared} tables compared:\n`);
-    for (const d of differences) console.error(`  ${d}`);
-    process.exitCode = 1;
   }
 } finally {
   await source.end();

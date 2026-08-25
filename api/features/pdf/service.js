@@ -7,7 +7,7 @@ import {
 
 import { renderPdf } from "#features/pdf/render/browser.js";
 import { renderShell } from "#features/pdf/render/layout.js";
-import { formatCurrency } from "#features/pdf/render/format.js";
+import { formatCurrency } from "#features/pdf/render/format.ts";
 import {
   renderInvoiceHeader,
   renderInvoiceShippingAndPayout,

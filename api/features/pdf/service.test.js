@@ -21,7 +21,7 @@ import * as soRepo from "#features/sales-orders/repo.js";
 import * as spotsRepo from "#features/spots/repo.js";
 import { toLegacy as spotsToLegacy } from "#features/spots/wire.js";
 import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.ts";
-import { formatCurrency } from "#features/pdf/render/format.js";
+import { formatCurrency } from "#features/pdf/render/format.ts";
 
 let orders;
 let salesOrders;

@@ -1,4 +1,4 @@
-import { resolveCarrier } from "#features/shipping/operations/resolver.js";
+import { resolveCarrier } from "#features/shipping/operations/resolver.ts";
 
 export async function validateAddress(carrier_id, client, { address }) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);

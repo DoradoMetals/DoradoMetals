@@ -5,7 +5,7 @@ import {
   formatCurrency,
   getItemPrice,
   getPayoutDelay,
-} from "#features/pdf/render/format.js";
+} from "#features/pdf/render/format.ts";
 
 export function renderInvoiceHeader(purchaseOrder, total, spots = []) {
   const orderPlaced = new Date(purchaseOrder.created_at).toLocaleDateString(
