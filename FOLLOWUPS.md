@@ -1371,6 +1371,84 @@ reverted:
   missing field is not specific to the box. All 16 orders x 3 documents are
   clean.
 
+### The comparison tooling fails loudly when its subject goes, and that is now tested
+
+Asked because deleting `repo.exchange.js` is the end state of this migration,
+and four checks exist only to compare it against `repo.next.js`. A check that
+silently passes once it can no longer find what it compares is worse than no
+check — the same failure I shipped in `audit:test-leaks`' first guard.
+
+**Checked by removing the subject, not by reading.** `features/reviews/repo.exchange.js`
+was moved aside and `pnpm --filter @dorado/api diff reviews` run:
+
+```
+ERR_MODULE_NOT_FOUND
+url: 'file:///…/api/features/reviews/repo.exchange.js'
+EXIT=1
+```
+
+Non-zero, and it names the exact file. `scripts/diff-source.mjs` resolves each
+feature with a bare `await feature.exchange()` and has **no try/catch around the
+dynamic import** — which is the right shape, and worth stating because the
+instinct to wrap it would silently convert this into a pass. The file was
+restored and the repo verified to load.
+
+The other three fail loudly by construction, for a different reason: they read
+`exchange` **tables** through SQL rather than importing repos, so they fail on a
+missing relation. `validate:wire` was already fixed to fail on a feature
+directory holding neither implementation.
+
+So nothing here needs changing before the repos are deleted. What it needs is
+deleting deliberately at that point, rather than being left to fail — a check
+that fails for the right reason is still a broken build.
+
+### FOR JACOB: every database has a collation version mismatch, and production has 41 text indexes
+
+Found when `CREATE DATABASE test` refused during the restore runbook. The error
+names `template1`, which is a nuisance. What it points at is not.
+
+```
+recorded  actual  mismatched
+dorado_db        2.36    2.41    yes
+dorado_db_dev    2.36    2.41    yes
+postgres         2.36    2.41    yes
+template1        2.36    2.41    yes
+```
+
+Railway patched the container's glibc from 2.36 to 2.41 underneath the running
+databases. Collation defines string sort order, so **every index built under
+2.36 is physically ordered by rules 2.41 no longer agrees with**. Production has
+**41 indexes on text or varchar columns**.
+
+The failure mode is not a crash. An index scan can silently miss rows that
+exist, and a UNIQUE index can stop enforcing uniqueness — which on this schema
+means a duplicate could already have been accepted where the constraint was
+supposed to refuse it.
+
+**The dump is not affected**, which is the important reassurance: `pg_dump`
+reads table data with a sequential scan rather than through indexes, so it is
+complete whatever state the indexes are in. And `pg_restore` builds every index
+from scratch under the current glibc, so **`test` will have correct indexes even
+if `prod` does not** — which is worth knowing, because it means a query that
+behaves differently on the two is not necessarily a migration bug.
+
+**The remedy, at 19 MB, is seconds:**
+
+```sql
+REINDEX DATABASE dorado_db;
+ALTER DATABASE dorado_db REFRESH COLLATION VERSION;
+```
+
+Not run — it is a write to production. Worth doing after the dump is verified,
+and worth doing before trusting any UNIQUE constraint the migration relies on.
+
+`ALTER DATABASE template1 REFRESH COLLATION VERSION` is the one-line unblock for
+`CREATE DATABASE`; template1 is empty so there is nothing to rebuild there.
+
+**How long this has been true is unknown.** Nothing records when the image was
+patched, and nothing would have reported it — the mismatch only surfaces when
+something asks, which is why it took a `CREATE DATABASE` to find it.
+
 ### FOR JACOB: the card surcharge is set by a number the browser sends
 
 Found while converting `features/sales-orders/utils/calculations.js` to

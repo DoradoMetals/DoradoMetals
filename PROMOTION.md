@@ -61,6 +61,22 @@ Not optional and not automatable from here — production credentials are yours.
 
 ### 1b. Restore the dump into `test`, and prove it
 
+**`CREATE DATABASE` will refuse before you get this far.** Every database on the
+instance has a collation version mismatch — recorded 2.36, actual 2.41, because
+the container's glibc was patched underneath them — and `CREATE DATABASE` copies
+`template1`, which carries it. One line clears it:
+
+```sql
+ALTER DATABASE template1 REFRESH COLLATION VERSION;
+```
+
+That updates the recorded version only; `template1` is empty so nothing needs
+rebuilding. The same mismatch on `dorado_db` is a real problem rather than a
+nuisance and is written up in FOLLOWUPS.md — production has 41 indexes on text
+columns whose sort order the OS no longer agrees with. The dump is unaffected
+either way, because `pg_dump` reads table data sequentially rather than through
+indexes.
+
 The dump from step 1 is also the rehearsal target. Restoring it into a third
 database on the same instance gives a copy of production with the same Postgres
 version, extensions and settings — which is what makes a rehearsal mean
