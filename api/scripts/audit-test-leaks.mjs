@@ -31,16 +31,40 @@ import { spawn } from "node:child_process";
 const SELF_TEST = process.argv.includes("--self-test");
 
 // The suite runs against DATABASE_URL, so that is what has to be measured - and
-// it must not be production. There is one Postgres instance with two databases,
-// dorado_db_dev and dorado_db, and the difference is one word in a URL.
+// it must not be production. One Postgres instance holds all of them.
+//
+// AN ALLOWLIST, NOT A DENYLIST, and the first version of this was the wrong one.
+// It refused when the name matched production and allowed everything else, so
+// the moment the databases are renamed - prod / dev / test, which is the plan -
+// it would have stopped recognising production and silently permitted a full
+// test run against it. A check that cannot identify its subject has to refuse,
+// not shrug.
+//
+// So: name the databases it is safe to run against, and refuse anything else,
+// including a name nobody has taught it yet.
+const SAFE = new Set(["dorado_db_dev", "dev", "test", "dorado_db_test"]);
+
 const url = process.env.DATABASE_URL;
 if (!url) {
   console.error("DATABASE_URL is not set");
   process.exit(1);
 }
-if (/\/dorado_db(\?|$)/.test(url)) {
+
+const dbName = (() => {
+  try {
+    return decodeURIComponent(new URL(url).pathname.replace(/^\//, ""));
+  } catch {
+    return "";
+  }
+})();
+
+if (!SAFE.has(dbName)) {
   console.error(
-    "DATABASE_URL points at production. This script runs the test suite; refusing."
+    `DATABASE_URL points at "${dbName || "a database this script cannot identify"}".\n` +
+      `This script runs the whole test suite, so it only runs against a database\n` +
+      `named one of: ${[...SAFE].join(", ")}.\n` +
+      `If a database was renamed, add the new name to SAFE in this file - do not\n` +
+      `widen the check to "anything that is not production".`
   );
   process.exit(1);
 }

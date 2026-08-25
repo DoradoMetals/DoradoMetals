@@ -1188,6 +1188,15 @@ which overwrote `shipping_status` and `estimated_delivery` in place. Each table
 is reduced to an md5 over its rows ordered by their own text, so physical order
 does not matter and any column of any row does.
 
+**The guard on it was a denylist, and that was wrong.** The first version
+refused when `DATABASE_URL` matched production and allowed everything else — so
+the moment the databases are renamed to `prod` / `dev` / `test`, which is the
+plan, it would have stopped recognising production and silently permitted a full
+test run against it. It is an allowlist now: it names the databases it is safe
+to run against and refuses anything else, including a name nobody has taught it
+yet. Renaming a database now makes it fail loudly rather than quietly stop
+protecting.
+
 `--self-test` proves the detector can see a change without leaving one behind:
 it updates a single row inside a transaction, checks the fingerprint moves,
 rolls back, and checks it moves back. An UPDATE rather than an INSERT
