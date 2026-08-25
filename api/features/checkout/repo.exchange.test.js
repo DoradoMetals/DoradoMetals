@@ -16,7 +16,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import { LOCKS } from "#shared/testing/locks.js";
+import { LOCKS, takeLocks } from "#shared/testing/locks.js";
 import * as repo from "#features/checkout/repo.exchange.js";
 
 let client;
@@ -42,12 +42,11 @@ after(async () => {
 // file and repo.dual.test.js took locks on the same two tables in opposite
 // orders and deadlocked. A transaction-scoped advisory lock serialises the
 // tests that touch the sweep, across files, and is released by the rollback.
-const SCRAP_SWEEP_LOCK = LOCKS.SCRAP_SWEEP;
 
 async function inRollback(fn) {
   await client.query("BEGIN");
   try {
-    await client.query("SELECT pg_advisory_xact_lock($1)", [SCRAP_SWEEP_LOCK]);
+    await takeLocks(client, [LOCKS.SCRAP_SWEEP, LOCKS.ORDERS]);
     await fn(client);
   } finally {
     await client.query("ROLLBACK");

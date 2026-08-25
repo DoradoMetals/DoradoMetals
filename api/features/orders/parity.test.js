@@ -40,7 +40,7 @@ after(async () => {
 async function inRollback(fn) {
   await client.query("BEGIN");
   // Both creation paths write orders and snapshot an address, so both groups.
-  await takeLocks(client, [LOCKS.ORDERS, LOCKS.ADDRESSES]);
+  await takeLocks(client, [LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.SCRAP_SWEEP]);
   try {
     await fn(client);
   } finally {

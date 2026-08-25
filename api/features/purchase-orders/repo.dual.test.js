@@ -8,6 +8,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.js";
 import * as dual from "#features/purchase-orders/repo.dual.js";
 import * as next from "#features/purchase-orders/repo.next.js";
 
@@ -28,6 +29,7 @@ after(async () => {
 
 async function inRollback(fn) {
   await client.query("BEGIN");
+  await takeLocks(client, [LOCKS.ADDRESSES, LOCKS.ORDERS]);
   try {
     await fn(client);
   } finally {

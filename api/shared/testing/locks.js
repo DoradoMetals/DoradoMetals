@@ -40,24 +40,40 @@ export const LOCKS = {
   ADDRESSES: 4214,
 };
 
-// WHICH FILES TAKE WHICH, kept here because registering a lock is not the same
-// as covering the tables it protects. SCRAP_SWEEP was registered because the
-// checkout tests already used it, and features/scrap/repo.test.js - which
-// deletes exchange.scrap and exchange.purchase_order_items - was taking no lock
-// at all. It deadlocked in a full run after passing in every earlier one, which
-// is exactly the failure these exist to prevent and exactly how it presents.
+// COVERAGE IS THE HARD PART, and a mechanical check for it was attempted and
+// not shipped. What follows is what was learned, because the next person will
+// have the same idea.
 //
-//   SCRAP_SWEEP   checkout/repo.dual, checkout/repo.exchange, scrap/repo
-//   ORDERS        orders/create, orders/parity, orders/intake.repo,
-//                 purchase-orders/replay, purchase-orders/ownership,
-//                 sales-orders/replay, checkout/replay, fulfillments/replay,
-//                 scrap/repo
-//   ADDRESSES     addresses/replay, orders/create, orders/parity
-//   FULFILLMENTS  fulfillments/repo, fulfillments/replay
+// The failure that prompted it: features/scrap/repo.test.js wrote
+// exchange.scrap and exchange.purchase_order_items while taking no lock, and
+// deadlocked in a full run after passing in every earlier one. SCRAP_SWEEP had
+// been REGISTERED here because the checkout tests already used it, and nothing
+// ever asked which OTHER files write the tables it protects. Registering a lock
+// is not covering it.
 //
-// A file writing a table in a group and not taking its lock is the bug. That is
-// worth checking mechanically rather than maintaining a list by hand, and the
-// list above is the thing such a check would replace.
+// The check would have to answer "which tables does this test write", and the
+// writes happen through repos the test imports rather than in the test. Scanning
+// the test plus its imports finds the writes but cannot tell a test that CALLS
+// them from one that merely imports the module: features/pdf/service.test.js
+// and features/purchase-orders/repo.next.test.js came up as needing locks and
+// write nothing at all. Narrowing it by counting "write-shaped" call names was
+// worse - the heuristic matched `assert.rejects(` in the emails tests.
+//
+// A check with false positives gets suppressed, so it was not shipped. Doing it
+// properly means observing what a transaction actually touched - pg_locks for
+// the backend at ROLLBACK time, compared against the advisory locks it holds -
+// which is precise, and needs every test file to go through one shared helper
+// rather than each defining its own inRollback. That is the version worth
+// building; this note exists so it is built rather than re-attempted as a grep.
+//
+// WHAT WAS DONE INSTEAD: the analysis was run once by hand, its twelve hits
+// were checked one at a time, and the eight real ones were given their locks -
+// addresses/repo.dual, checkout/repo.dual, checkout/repo.exchange,
+// orders/parity, purchase-orders/repo.dual, purchase-orders/repo.refiner-spots,
+// purchase-orders/service, sales-orders/repo.dual. Four were false positives
+// and were left alone. orders/parity was one of the eight, and it creates
+// exchange.scrap - so the file written to prove the two order paths agree was
+// itself missing a lock.
 export async function takeLocks(client, locks) {
   const wanted = (Array.isArray(locks) ? locks : [locks]).filter(Boolean);
   for (const id of [...new Set(wanted)].sort((a, b) => a - b)) {
