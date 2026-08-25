@@ -334,6 +334,16 @@ the wrong place to do that. They are trivial to fix as a separate change — the
 question is only what the endpoint should return, which nobody has needed to
 answer yet.
 
+**One thing to get right when (1) is fixed, added later.** The obvious repair is
+to move `user_id` from the body to the query string. Do not: that is the same
+shape as the ownership hole found in the order routes — a user id taken from the
+request rather than from the session, on an endpoint guarded only by
+`requireUser`. It would let any signed-in customer read any other customer's
+credit ledger, which is the $66,999.32 one. Take the id from `req.user.id` as
+`getSalesOrders` does, or guard it the way `shared/middleware/ownership.js`
+guards an order. The endpoint currently returns nothing at all, so there is no
+hurry and no exposure today.
+
 Worth noting `addFunds` and `removeFunds` were already correct and already
 transactional; the existing tests cover the property that matters, which is that
 a balance movement and its ledger entry commit together.
