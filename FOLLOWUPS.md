@@ -453,6 +453,52 @@ The difference is asserted as a test rather than filtered out of the comparison
 decimals and the new schema does not" — and it checks the column scales, so it
 will tell you to delete it if the column is ever widened.
 
+### FOR JACOB: any signed-in customer could act on any other customer's order
+
+**This is in the live API, not in the migration.** Found by writing an HTTP
+replay test that asked the obvious question and getting the wrong answer four
+times.
+
+Every customer-facing purchase-order route takes its order out of the request
+**body** - `const { order } = req.body` - and none of them consulted
+`req.user`. `requireUser` asks whether somebody is signed in; it never asks who.
+Demonstrated with real requests before anything was changed:
+
+| Endpoint | As a stranger |
+|---|---|
+| `get_purchase_order_metals` | **200** - another customer's frozen spot prices |
+| `reject_offer` | **200** - another customer's offer rejected |
+| `update_offer_notes` | **200** - notes written on another customer's order |
+| `cancel_order` | reached the code that **buys a FedEx return label** |
+
+`accept_offer` is the same shape and was covered by the same fix; it was not
+exercised directly because accepting an offer moves money.
+
+The `cancel_order` call returned 500 only because the test sent an empty
+`return_shipment`. It passed every guard and reached the label-purchasing path.
+With a valid body it would have cancelled a stranger's order, bought a return
+label at the business's expense, and put their metal in the post.
+
+Order ids are uuids rather than sequential, so nobody stumbles into this. It is
+still the difference between "you cannot" and "you probably will not guess".
+
+**Fixed** by `shared/middleware/ownership.js` - `requireOwnOrder`, mounted next
+to `requireUser` on the six purchase-order routes and the two sales-order routes
+that take an order from the body. Admins pass through. A missing order is a 403
+rather than a 404, because "does not exist" and "is not yours" should be the
+same answer to somebody who should not know the difference. It queries
+`exchange.purchase_orders`, `exchange.sales_orders` and `orders.orders`, so it
+answers the same way whichever `ORDERS_SOURCE` is serving.
+
+`features/purchase-orders/ownership.test.js` demonstrated the hole and now
+demonstrates the fix, including that the owner and an admin are still allowed -
+otherwise it would have been secured by being broken.
+
+**Worth your attention because it is deployed.** Nothing here suggests it has
+been exploited - it would need somebody to have another customer's order id -
+but it is the one finding in this whole migration that is live rather than
+latent.
+
 ### RESOLVED: a new address came back to the browser with no name
 
 Found by `features/addresses/replay.test.js` on its first run, which is what an

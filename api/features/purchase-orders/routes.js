@@ -41,18 +41,23 @@ import {
   requireUser, 
   requireAdmin 
 } from "#shared/middleware/authMiddleware.js";
+// requireUser asks whether somebody is signed in; this asks whether the order
+// is theirs. Every route below that takes an order out of the request body
+// needs both, and until this existed a customer could act on any order whose id
+// they had - including cancelling it, which buys a FedEx return label.
+import { requireOwnOrder } from "#shared/middleware/ownership.js";
 
 const router = express.Router();
 
 // user
 router.get('/get_purchase_orders', requireUser, getPurchaseOrders);
-router.post('/get_purchase_order_metals', requireUser, getPurchaseOrderMetals);
+router.post('/get_purchase_order_metals', requireUser, requireOwnOrder, getPurchaseOrderMetals);
 router.post('/create_purchase_order', requireUser, createPurchaseOrder);
-router.post('/accept_offer', requireUser, acceptOffer);
-router.post('/reject_offer', requireUser, rejectOffer);
-router.post('/update_offer_notes', requireUser, updateOfferNotes);
-router.post('/cancel_order', requireUser, cancelOrder);
-router.post('/create_review', requireUser, createReview);
+router.post('/accept_offer', requireUser, requireOwnOrder, acceptOffer);
+router.post('/reject_offer', requireUser, requireOwnOrder, rejectOffer);
+router.post('/update_offer_notes', requireUser, requireOwnOrder, updateOfferNotes);
+router.post('/cancel_order', requireUser, requireOwnOrder, cancelOrder);
+router.post('/create_review', requireUser, requireOwnOrder, createReview);
 
 // admin
 router.get('/get_all_purchase_orders', requireAdmin, getAllPurchaseOrders);
