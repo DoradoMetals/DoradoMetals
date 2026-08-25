@@ -19,29 +19,11 @@
 // Those features have not been migrated; when they are, these joins move with
 // them and nothing else here changes.
 import query from "#shared/db/query.js";
+// The fragments both directions read identically. They were duplicated field
+// for field between this file and sales-orders/repo.next.js; the duplication
+// was checked programmatically before being removed, not by eye.
+import { shipmentJson, userJson } from "#features/orders/fragments.js";
 
-const shipmentJson = (alias) => `
-      jsonb_build_object(
-        'id', ${alias}.id,
-        'purchase_order_id', ${alias}.purchase_order_id,
-        'sales_order_id', ${alias}.sales_order_id,
-        'tracking_number', ${alias}.tracking_number,
-        'shipping_status', ${alias}.shipping_status,
-        'estimated_delivery', ${alias}.estimated_delivery,
-        'shipped_at', ${alias}.shipped_at,
-        'delivered_at', ${alias}.delivered_at,
-        'created_at', ${alias}.created_at,
-        'label_type', ${alias}.label_type,
-        'pickup_type', ${alias}.pickup_type,
-        'package', ${alias}.package,
-        'shipping_label', encode(${alias}.shipping_label, 'base64'),
-        'shipping_charge', ${alias}.net_charge,
-        'shipping_service', ${alias}.service_type,
-        'insured', ${alias}.insured,
-        'declared_value', ${alias}.declared_value,
-        'type', ${alias}.type,
-        'carrier_id', ${alias}.carrier_id
-      )`;
 
 // Only the last four digits of a bank account travel with an order. Unchanged
 // from the exchange implementation, and it must stay that way.
@@ -164,11 +146,7 @@ function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
       ${shipmentJson("ret")} AS return_shipment,
       to_jsonb(cp) AS carrier_pickup,
       ${payoutJson} AS payout,
-      jsonb_build_object(
-        'user_id', u.id,
-        'user_name', u.name,
-        'user_email', u.email
-      ) AS "user"
+      ${userJson()} AS "user"
     FROM orders.orders o
     LEFT JOIN orders.offers f ON f.order_id = o.id
     LEFT JOIN orders.transactions t ON t.order_id = o.id

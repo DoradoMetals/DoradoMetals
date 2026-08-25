@@ -12,6 +12,9 @@
 // back at checkout and the API resolves it against exchange.addresses.
 // Shipments and users are still read from exchange, unmigrated.
 import query from "#shared/db/query.js";
+// See features/orders/fragments.js: the shipment and user objects are
+// identical in both directions and are now written once.
+import { shipmentJson, userJson } from "#features/orders/fragments.js";
 
 // The columns exchange.sales_orders had, rebuilt from the tables they were
 // split across. Listed rather than selected with *, so a column appearing on
@@ -69,32 +72,8 @@ function buildOrderQuery({ where = "", limit = "" } = {}) {
         )
       )) AS order_items,
       to_jsonb(addr) AS address,
-      jsonb_build_object(
-        'user_id', u.id,
-        'user_name', u.name,
-        'user_email', u.email
-      ) AS "user",
-      jsonb_build_object(
-        'id', ship.id,
-        'purchase_order_id', ship.purchase_order_id,
-        'sales_order_id', ship.sales_order_id,
-        'tracking_number', ship.tracking_number,
-        'shipping_status', ship.shipping_status,
-        'estimated_delivery', ship.estimated_delivery,
-        'shipped_at', ship.shipped_at,
-        'delivered_at', ship.delivered_at,
-        'created_at', ship.created_at,
-        'label_type', ship.label_type,
-        'pickup_type', ship.pickup_type,
-        'package', ship.package,
-        'shipping_label', encode(ship.shipping_label, 'base64'),
-        'shipping_charge', ship.net_charge,
-        'shipping_service', ship.service_type,
-        'insured', ship.insured,
-        'declared_value', ship.declared_value,
-        'type', ship.type,
-        'carrier_id', ship.carrier_id
-      ) AS shipment
+      ${userJson()} AS "user",
+      ${shipmentJson("ship")} AS shipment
     FROM orders.orders o
     LEFT JOIN orders.transactions t ON t.order_id = o.id
     LEFT JOIN orders.items i ON i.order_id = o.id
