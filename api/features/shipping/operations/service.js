@@ -31,17 +31,48 @@ export async function cancelLabel({ shipment_id, carrier_id }) {
   });
 }
 
-export async function getTracking(shipment_id) {
+// `fetchTracking` is a separate parameter, not a field on an input object, for
+// the reason sendEmail's transport is: the controller destructures shipment_id
+// out of req.body and passes that alone, so a field would be reachable from the
+// request. Nothing in production passes one. A test passes a function returning
+// the parsed shape, which is what lets the guard below be checked without
+// calling FedEx - and FEDEX_ENV=sandbox is for a human smoke test, never a test
+// dependency.
+export async function getTracking(shipment_id, fetchTracking) {
   return withTransaction(async (client) => {
     const shipment = await shipmentRepo.getById(shipment_id, client);
 
-    const trackingInfo = await shippingHandler.getTracking(
-      shipment.carrier_id,
-      client,
-      {
-        tracking_number: shipment.tracking_number,
-      }
-    );
+    const trackingInfo = fetchTracking
+      ? await fetchTracking(shipment, client)
+      : await shippingHandler.getTracking(shipment.carrier_id, client, {
+          tracking_number: shipment.tracking_number,
+        });
+
+    // A REFRESH THAT RECOGNISED NOTHING IS NOT NEWS, AND USED TO BE TREATED AS
+    // NEWS THAT EVERYTHING IS GONE.
+    //
+    // removeEvents is an unconditional DELETE and insertEvents returns 0
+    // without inserting when there is nothing to insert, so a response whose
+    // scan events are all of types FEDEX_TRACKING_STATUS_MAP does not name -
+    // or which carries none at all - deleted the shipment's whole tracking
+    // history and put nothing back. The update below then overwrote the status
+    // with parseTracking's own "Status Unknown" placeholder (a string, so the
+    // `??` never caught it), nulled the estimate via its "TBD" placeholder, and
+    // nulled delivered_at.
+    //
+    // IT HAS ALREADY HAPPENED. Production has four shipments sitting at
+    // "Status Unknown" with zero tracking events, and three at "Delivered" with
+    // zero. "Delivered" and "Status Unknown" can only ever come from this
+    // function - everything else writes "Label Created" or "Cancelled" - so
+    // those three had scan events at the moment they were marked delivered and
+    // have none now.
+    //
+    // Nothing here is authoritative: FedEx is, and a later refresh that does
+    // recognise something replaces the lot. Keeping what is known beats
+    // replacing it with a placeholder.
+    if (!trackingInfo.scanEvents?.length) {
+      return await trackingRepo.getEvents(shipment_id, client);
+    }
 
     await trackingRepo.removeEvents(shipment_id, client);
     await trackingRepo.insertEvents(trackingInfo, shipment_id, client);

@@ -1126,6 +1126,74 @@ The wire shape is unchanged: `repo.next.js` projects all four back off the joine
 refiner line, `diff` reports 55 operations identical, and `validate:wire` checks
 both implementations against `PurchaseOrderWire`.
 
+### RESOLVED: a tracking refresh that recognised nothing deleted the shipment's history
+
+The worst thing found so far, and it has already happened seven times in
+production.
+
+`getTracking` removed every tracking event for a shipment and re-inserted what
+FedEx had just returned:
+
+```js
+await trackingRepo.removeEvents(shipment_id, client);   // unconditional DELETE
+await trackingRepo.insertEvents(trackingInfo, shipment_id, client);
+```
+
+`insertEvents` returns 0 without inserting when there is nothing to insert. So a
+response whose scan events are all of types `FEDEX_TRACKING_STATUS_MAP` does not
+name — or which carries none at all — **deleted the shipment's whole tracking
+history and put nothing back.** The update that follows then wrote
+`parseTracking`'s own placeholders over the row: `"Status Unknown"` as the
+status, which the `?? shipment.shipping_status` never caught because it is a
+string rather than null; `null` for the estimate, via the `"TBD"` placeholder;
+and `null` for `delivered_at`.
+
+**Production, read-only:**
+
+| status | shipments | with zero tracking events |
+|---|---|---|
+| Delivered | 42 | **3** |
+| Label Created | 16 | 7 |
+| Cancelled | 8 | 1 |
+| **Status Unknown** | **4** | **4** |
+
+`"Delivered"` and `"Status Unknown"` can only ever come from this function —
+every other writer of `shipping_status` sets `"Label Created"` or `"Cancelled"`,
+and `"Delivered"` is derived from a scan event. So the three delivered shipments
+with zero events **had** events at the moment they were marked delivered, and
+have none now. The four at `"Status Unknown"` are the downgrade itself.
+
+FedEx still holds all of it, so nothing is unrecoverable — but this is a
+`DELETE` against live rows firing on a routine refresh, which is the shape the
+first rule in CLAUDE.md is about.
+
+**A trap worth recording.** `parseTracking` reads
+`data?.output?.completeTrackResults?.[0]?.trackResults?.[0]` with optional
+chaining and then dereferences `trackingOutput.estimatedDeliveryTimeWindow`
+**unguarded**, so an empty or error response throws. That looks like the obvious
+next bug to fix, and fixing it first would have made this one worse: the throw
+happens *before* `removeEvents`, inside the transaction, so it was the only
+thing preventing the delete. Adding `?.` there without fixing the service would
+have converted a loud, harmless 500 into a silent deletion. It is left throwing
+deliberately, and now says so — a FedEx outage should be loud.
+
+**Fixed** by returning early when the parse recognised nothing, before any
+write. Two tests, and the first was checked against the real bug: removing the
+guard made it fail on "an empty tracking response deleted the shipment's
+history".
+
+- a refresh that recognises nothing leaves the events, the status, the estimate
+  and the delivery date exactly as they were;
+- a refresh that *does* recognise something still replaces all of it — because a
+  guard that refused every write would pass the first test, and because it is
+  what proves the first test's assertions can see a change at all.
+
+`getTracking` gained an optional `fetchTracking` seam, the same shape as
+`sendEmail`'s transport and a repo's executor: a separate parameter, not a field
+on an input object, because the controller passes data out of `req.body`.
+Nothing in production passes one. It is what lets this be tested without calling
+FedEx — `FEDEX_ENV=sandbox` is for a human smoke test, never a test dependency.
+
 ### RESOLVED: three throws in the refiner's copy of a sales order, all after the point of no return
 
 Found by typing `features/emails/utils/renderEmail.js`, then by removing the fix
