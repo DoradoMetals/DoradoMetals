@@ -1126,6 +1126,64 @@ The wire shape is unchanged: `repo.next.js` projects all four back off the joine
 refiner line, `diff` reports 55 operations identical, and `validate:wire` checks
 both implementations against `PurchaseOrderWire`.
 
+### RESOLVED: three throws in the refiner's copy of a sales order, all after the point of no return
+
+Found by typing `features/emails/utils/renderEmail.js`, then by removing the fix
+to check its test could fail.
+
+`sendOrderToSupplier` attaches the supplier, creates the outbound shipment and
+sets `order_sent` in one transaction, and sends the refiner their copy only
+afterwards. That ordering is deliberate and already documented in the service:
+the email used to be the first statement inside the transaction, so a later
+failure rolled back the record and left a refiner shipping metal against an
+order nothing recorded. The accepted worst case of the current ordering is *an
+order marked sent whose email did not arrive.*
+
+That is only acceptable while it is visible. Three separate TypeErrors made it
+invisible — the order says it went, the refiner was never told, and the admin
+sees a 500 with no indication that the record was already written.
+
+**1. `addr.line_1` on an order with no address.** `SalesOrderWire` declares
+`address: AddressOnOrder.nullable()` and production means it: **sales order 55
+has `address_id` NULL, a supplier attached and `order_sent` true.** The invoice
+PDF for that order does not read the address at all, so the document builds and
+the render is what falls over.
+
+**2. `s.ask_spot.toFixed(2)` on a spot with no ask.** Nullable on the wire.
+Production's four metals all have one, and the spots come from the request body
+rather than the database, so nothing guarantees it.
+
+**3. `spots.find((s) => s.type === "Gold").ask_spot` in the sales order
+invoice**, and the same for silver, platinum and palladium. The four metals are
+named in the template; `spots` arrives in the request body; an omitted or
+partial set throws. This one was found by deleting the fix for (1) to confirm
+its test went red — it went red on this instead.
+
+**Fixed three ways.**
+
+- The service refuses an order with no address **before** the transaction, so
+  the whole call is a no-op: no supplier attached, no shipment created,
+  `order_sent` untouched, and an error naming the order and the reason.
+- The renderer and the invoice render a dash for any value the wire calls
+  nullable, rather than throwing or inventing one. `$0.00` against a line of
+  gold is worse than a dash, because a refiner would believe it.
+- `sendOrderToSupplier` now takes an optional `transport`, threaded to
+  `sendSalesOrderToSupplier`, the same seam `sendEmail` already has. A separate
+  parameter rather than a field on the input object, because the controller
+  hands `req.body` straight in. Nothing in production passes one; it is what
+  lets the guard be tested without mail leaving the building.
+
+Every fix was checked against the real bug by restoring it and watching the test
+fail with the exact TypeError, then pass again. The guard test also proves its
+own assertions are not blind: a second test performs the three writes the
+transaction would have performed and asserts the same helper reports all three,
+so "nothing was written" cannot pass by being unable to see a write.
+
+Left alone, deliberately: `item.quantity * item.price` on a supplier line still
+multiplies two nullable numbers, showing $0.00 rather than crashing. Production
+has no null price or quantity across its 14 sales order items, and changing what
+it prints is a display decision rather than a fix for a throw.
+
 ### RESOLVED: the packing list drew a box with NaN for every coordinate
 
 Found by giving `generateBoxSVG` parameter types, which is the whole argument

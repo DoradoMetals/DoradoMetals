@@ -173,9 +173,32 @@ export async function updateStatus({ order, order_status, user_name }) {
   return await salesOrderRepo.updateStatus(order, order_status, user_name);
 }
 
-export async function sendOrderToSupplier({ order, spots, supplier_id }) {
+// `transport` is a separate parameter, not a field on the input object, for the
+// reason features/emails/service.js gives: the controller hands req.body
+// straight to this function, so a field would be reachable from the request.
+// Nothing in production passes one; a test passes a recorder, which is what
+// makes the guard below testable without mail leaving the building.
+export async function sendOrderToSupplier({ order, spots, supplier_id }, transport) {
   const sales_order = await getById(order.id);
   const supplier = await refinerRepo.getRefinerFromId(supplier_id);
+
+  // An order with no address cannot be sent to a refiner: the whole point of
+  // the message is telling them where to ship the metal.
+  //
+  // This was found by typing renderEmail. SalesOrderWire declares
+  // `address: AddressOnOrder.nullable()` and production means it - sales order
+  // 55 has address_id NULL - so the renderer threw a TypeError on
+  // `addr.line_1`. It threw *after* the transaction below, which is where the
+  // comment on that transaction says the acceptable failure lives: an order
+  // marked sent whose email did not arrive. That is only acceptable when it is
+  // visible. A refuse here makes it visible, and makes it a no-op: nothing is
+  // attached, no shipment is created, order_sent stays false, and the admin
+  // gets a message saying which order and why.
+  if (!sales_order.address) {
+    throw new Error(
+      `Sales order ${sales_order.order_number} has no address, so it cannot be sent to a supplier`
+    );
+  }
 
   // The record first, the email second.
   //
@@ -207,7 +230,8 @@ export async function sendOrderToSupplier({ order, spots, supplier_id }) {
   await emailService.sendSalesOrderToSupplier(
     sales_order,
     spots,
-    supplier.email
+    supplier.email,
+    transport
   );
 
   return await getById(sales_order.id);

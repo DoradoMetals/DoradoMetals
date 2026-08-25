@@ -476,6 +476,25 @@ export function buildInvoiceHtml({
   return htmlContent;
 }
 
+// The invoice's spot table names its four metals, and `spots` arrives in the
+// request body rather than from the database, so a missing one is a request
+// away. `spots.find(...).ask_spot.toLocaleString(...)` threw a TypeError on
+// each of them - and this invoice is the attachment on the refiner's copy of a
+// sales order, built after the transaction that marks the order sent, so the
+// throw was silent in exactly the way the packing list's NaN box and the
+// supplier email's null address were.
+//
+// Found by removing the guard in features/sales-orders/service.js to check that
+// its test could fail: it failed on this instead.
+//
+// Same rule as those two: render what is known and a dash for what is not.
+const askSpot = (spots, metal) => {
+  const value = spots.find((s) => s.type === metal)?.ask_spot;
+  return value == null
+    ? "&mdash;"
+    : value.toLocaleString("en-US", { style: "currency", currency: "USD" });
+};
+
 export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
   const doneStatus = ["Preparing", "In Transit", "Completed"];
 
@@ -577,39 +596,19 @@ export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
         <div class="detail-content">
           <div class="detail-row">
             <span class="detail-label">Gold:</span>
-            <span class="detail-value">${spots
-              .find((s) => s.type === "Gold")
-              .ask_spot.toLocaleString("en-US", {
-                style: "currency",
-                currency: "USD",
-              })}</span>
+            <span class="detail-value">${askSpot(spots, "Gold")}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Silver:</span>
-            <span class="detail-value">${spots
-              .find((s) => s.type === "Silver")
-              .ask_spot.toLocaleString("en-US", {
-                style: "currency",
-                currency: "USD",
-              })}</span>
+            <span class="detail-value">${askSpot(spots, "Silver")}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Platinum:</span>
-            <span class="detail-value">${spots
-              .find((s) => s.type === "Platinum")
-              .ask_spot.toLocaleString("en-US", {
-                style: "currency",
-                currency: "USD",
-              })}</span>
+            <span class="detail-value">${askSpot(spots, "Platinum")}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Palladium:</span>
-            <span class="detail-value">${spots
-              .find((s) => s.type === "Palladium")
-              .ask_spot.toLocaleString("en-US", {
-                style: "currency",
-                currency: "USD",
-              })}</span>
+            <span class="detail-value">${askSpot(spots, "Palladium")}</span>
           </div>
         </div>
       </div>

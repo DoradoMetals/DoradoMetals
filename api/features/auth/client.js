@@ -12,7 +12,7 @@ import {
   renderChangeEmail,
   renderResetPasswordEmail,
   renderCreateAccountEmail,
-} from '#features/emails/utils/renderEmail.js';
+} from '#features/emails/utils/renderEmail.ts';
 
 export const auth = betterAuth({
   database: new Pool({

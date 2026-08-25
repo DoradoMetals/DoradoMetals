@@ -184,6 +184,31 @@ test("a packing list with no package details draws no box, rather than a broken 
   assert.ok(withBox.includes("Length: 9 in"), "the dimensions are not printed");
 });
 
+// The sales order invoice names four metals in its spot table and read
+// `spots.find(...).ask_spot` on each with no guard. `spots` comes from the
+// request body, so an omitted or partial one threw a TypeError - and this
+// invoice is the attachment on the refiner's copy of a sales order, built after
+// the transaction that marks the order sent. Found by removing the address
+// guard in features/sales-orders/service.js to prove its test could fail: it
+// failed here instead.
+test("a sales order invoice builds with no spot prices at all", () => {
+  const order = salesOrders[0];
+  assert.ok(order, "dev has no sales order");
+
+  const html = pdf.buildSalesOrderInvoiceHtml({ salesOrder: order, spots: [] });
+  assert.ok(html.length > 500, "no document was produced");
+  assert.ok(!html.includes("NaN"), "the invoice contains NaN");
+  assert.ok(html.includes("&mdash;"), "a missing spot rendered as nothing at all");
+
+  // A partial set is the more likely shape: one metal quoted, three not.
+  const partial = pdf.buildSalesOrderInvoiceHtml({
+    salesOrder: order,
+    spots: [{ type: "Gold", ask_spot: 4000 }],
+  });
+  assert.ok(partial.includes("$4,000.00"), "the quoted metal is missing");
+  assert.ok(partial.includes("&mdash;"), "the unquoted metals rendered as nothing at all");
+});
+
 // The invoice and the packing list must agree on what the order is worth. They
 // did not: the packing list had its own copy of the sum that fell back to the
 // scrap row's premium, and purchase order 239 came out $3,236.11 apart.

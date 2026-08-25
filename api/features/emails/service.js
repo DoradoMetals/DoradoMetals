@@ -4,7 +4,7 @@ import {
   renderPurchaseOrderPlacedEmail,
   renderOfferAcceptedEmail,
   renderSalesOrderToSupplierEmail,
-} from "#features/emails/utils/renderEmail.js";
+} from "#features/emails/utils/renderEmail.ts";
 
 import { sendEmail } from "#features/emails/utils/sendEmail.js";
 import {
