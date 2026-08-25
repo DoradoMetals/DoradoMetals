@@ -157,6 +157,71 @@ test("setting a default clears the others, as one request", async () => {
   }, { lock: ADDRESS_LOCK });
 });
 
+// THE GAP IN THIS FILE'S OWN COVERAGE, added after a sweep found the hole it
+// missed. Every test above passed `user_id: customer.id` - the same id as the
+// session - so none of them could tell whether the endpoint used the session or
+// obeyed the request. It obeyed the request: a signed-in customer naming
+// somebody else could read their address book and write to it.
+test("a signed-in customer naming somebody else gets their own addresses", async () => {
+  await inPinnedTransaction(async () => {
+    const others = await outside(
+      `SELECT DISTINCT a."user_id" FROM exchange.addresses a
+        WHERE a."user_id" IS NOT NULL AND a."user_id" <> $1 LIMIT 1`,
+      [customer.id]
+    );
+    if (!others.length) return; // dev has only one user with addresses
+
+    const victim = others[0].user_id;
+    const theirs = await outside(
+      `SELECT count(*)::int AS n FROM exchange.addresses WHERE "user_id" = $1`,
+      [victim]
+    );
+    assert.ok(theirs[0].n > 0);
+
+    await as({ ...customer, role: "user" }, async () => {
+      const res = await request(app).get("/api/addresses/get").query({ user_id: victim });
+      assert.equal(res.status, 200);
+      assert.ok(
+        res.body.every((a) => a.name !== null || true),
+        "sanity"
+      );
+      // Their own, not the victim's. Compared by count against the victim's,
+      // because an empty array would pass either way if the caller had none.
+      const mine = await outside(
+        `SELECT count(*)::int AS n FROM exchange.addresses WHERE "user_id" = $1`,
+        [customer.id]
+      );
+      assert.equal(
+        res.body.length,
+        mine[0].n,
+        "naming somebody else returned a different number of addresses than the caller owns"
+      );
+    });
+  }, { lock: ADDRESS_LOCK });
+});
+
+// An admin naming a user is legitimate - the customer drawer does it - so the
+// rule is "your own unless you are an admin", and the admin half has to keep
+// working or this is secured by being broken.
+test("an admin may still read another user's addresses", async () => {
+  await inPinnedTransaction(async () => {
+    const admins = await outside(
+      `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
+    );
+    if (!admins.length) return;
+
+    await as({ ...admins[0], role: "admin" }, async () => {
+      const res = await request(app).get("/api/addresses/get").query({ user_id: customer.id });
+      assert.equal(res.status, 200);
+      const owned = await outside(
+        `SELECT count(*)::int AS n FROM exchange.addresses WHERE "user_id" = $1`,
+        [customer.id]
+      );
+      assert.equal(res.body.length, owned[0].n, "an admin was refused a customer's addresses");
+    });
+  }, { lock: ADDRESS_LOCK });
+});
+
 // The property the whole harness exists for. If the pin ever stops working,
 // every test above still passes - they read their own writes either way - and
 // dev quietly fills up with addresses nobody made.

@@ -463,6 +463,50 @@ The difference is asserted as a test rather than filtered out of the comparison
 decimals and the new schema does not" — and it checks the column scales, so it
 will tell you to delete it if the column is ever widened.
 
+### FOR JACOB: two more of the same, found by sweeping instead of stumbling
+
+After three holes of the same shape, the whole API was swept mechanically -
+every route, what its handler reads from the request, and whether anything
+compares it to `req.user`. Two more, both live.
+
+**Addresses: any signed-in customer could read and write anybody's address
+book.** All five routes took `user_id` from the request behind `requireUser` and
+nothing asked whose it was:
+
+- `GET /api/addresses/get?user_id=…` — that customer's addresses
+- `create` / `update` / `delete` / `set_default` with `user_id` — writes into
+  their book
+
+Addresses are names, street addresses and phone numbers, so this is the widest
+PII of the five findings. An admin naming a user IS legitimate — the customer
+drawer does it via `useUserAddress(userId)` — so the rule is "your own, unless
+you are an admin", the same shape `shared/middleware/ownership.js` uses.
+
+**Payments: `type=admin` was a parameter, not a privilege.** The repos read
+`type === "admin" ? user_id : session.user.id`, and
+`GET /api/stripe/retrieve_payment_intent` is `requireUser`. A signed-in customer
+passing `type=admin` with somebody else's `user_id` got their payment intent —
+and the response is the Stripe object's **`client_secret`**, which is what
+confirms a payment from a browser. The type still selects the flow, because an
+admin placing an order for a customer is real; it just cannot be claimed by
+asking for it.
+
+**A gap in my own testing, worth recording.** `features/addresses/replay.test.js`
+already existed and passed. Every test in it sent `user_id: customer.id` — the
+same id as the session — so none could tell whether the endpoint used the session
+or obeyed the request. It obeyed the request. A replay test that only ever plays
+back the happy path proves the endpoint works, not that it is safe. The file now
+has a stranger and an admin, and restoring the old behaviour fails the stranger
+test alone.
+
+**What the sweep cleared.** Every `requireAdmin` route reading an id is fine —
+admins are trusted with all of it. The shipping reads (`get_tracking`,
+`check_pickup`, `get_locations`, `validate_address`) take carrier and shipment
+ids rather than user ids and expose carrier reference data or a tracking status;
+noted, not changed. `create_purchase_order` takes `user_id` from the body and is
+worth a look when the orders collapse reaches its write path — it is not fixed
+here because that path is mid-rebuild and changing it twice would be worse.
+
 ### FOR JACOB: any signed-in user could destroy any image file in storage
 
 **Live in the deployed API.** The third of three, and the only destructive one.

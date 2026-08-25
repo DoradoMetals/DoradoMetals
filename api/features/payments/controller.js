@@ -118,7 +118,20 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
   res.json({ received: true });
 });
 
+// TYPE=ADMIN IS A PRIVILEGE, NOT A PARAMETER.
+//
+// The repos read `type === "admin" ? user_id : session.user.id`, so `type`
+// decided whose intent was fetched - and this route is requireUser. A signed-in
+// customer could pass type=admin with somebody else's user_id and get their
+// payment intent back, and the response is the Stripe object's client_secret,
+// which is what confirms a payment from a browser.
+//
+// The type still selects the flow, because an admin placing an order on a
+// customer's behalf is a real thing. It just cannot be claimed by asking.
 export const retrievePaymentIntent = asyncHandler(async (req, res) => {
+  if (req.query.type === "admin" && req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Forbidden" });
+  }
   const paymentIntent = await stripeService.retrievePaymentIntent(
     req.query.type,
     req.query.user_id,
