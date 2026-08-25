@@ -35,6 +35,8 @@
     "compare:databases": "TZ=UTC node scripts/compare-databases.mjs",
     "backup": "node scripts/backup.mjs",
     "backup:list": "node scripts/backup.mjs --list",
+    "refresh:test": "node scripts/refresh-from-backup.mjs --target test",
+    "refresh:dev": "node scripts/refresh-from-backup.mjs --target dev",
     "audit:test-leaks:self-test": "TZ=UTC node scripts/audit-test-leaks.mjs --self-test",
     "dump:stripe": "node scripts/dump-stripe-reconciliation.mjs"
   },
