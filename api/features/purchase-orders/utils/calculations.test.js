@@ -6,7 +6,7 @@ import {
   calculateReturnDeclaredValue,
   getBullionTotal,
   getScrapTotal,
-} from "#features/purchase-orders/utils/calculations.js";
+} from "#features/purchase-orders/utils/calculations.ts";
 
 const spots = [
   { type: "Gold", bid_spot: 4000 },

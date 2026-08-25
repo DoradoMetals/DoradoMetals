@@ -20,7 +20,7 @@ import * as poRepo from "#features/purchase-orders/repo.js";
 import * as soRepo from "#features/sales-orders/repo.js";
 import * as spotsRepo from "#features/spots/repo.js";
 import { toLegacy as spotsToLegacy } from "#features/spots/wire.js";
-import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.js";
+import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.ts";
 import { formatCurrency } from "#features/pdf/render/format.js";
 
 let orders;

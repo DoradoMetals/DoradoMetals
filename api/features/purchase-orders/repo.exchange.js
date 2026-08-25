@@ -2,7 +2,7 @@
 //
 // See repo.js for how this and repo.next.js are selected between.
 import query from "#shared/db/query.js";
-import { calculateItemPrice } from '#features/purchase-orders/utils/calculations.js';
+import { calculateItemPrice } from '#features/purchase-orders/utils/calculations.ts';
 
 // The three order lookups below differ only in how they select rows, so the
 // projection and joins are built once here. They previously existed as three

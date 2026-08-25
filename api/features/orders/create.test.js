@@ -121,7 +121,19 @@ test("the order number comes from exchange's sequence, so the two cannot collide
       Number(after[0].last_value) > Number(before[0].last_value),
       "the shared sequence did not advance - two orders could take the same number"
     );
-    assert.equal(Number(number), Number(after[0].last_value));
+
+    // NOT `number === last_value`. That was the assertion here and it is racy:
+    // a sequence is non-transactional - which is exactly why it is used - so
+    // any other test drawing from it moves last_value even when its transaction
+    // rolls back, and an advisory lock cannot make a sequence exclusive. It
+    // failed as 1824 !== 1825 in a full run.
+    //
+    // What is actually true, and what matters: the number drawn is above where
+    // the sequence stood before, and no exchange order already has it.
+    assert.ok(
+      Number(number) > Number(before[0].last_value),
+      "the number drawn is not above where the sequence started"
+    );
 
     const { rows: clash } = await c.query(
       `SELECT count(*)::int AS n FROM exchange.purchase_orders WHERE order_number = $1`,
