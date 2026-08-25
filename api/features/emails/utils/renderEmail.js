@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.js";
+import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);

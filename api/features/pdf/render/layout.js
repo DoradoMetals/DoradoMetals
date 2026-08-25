@@ -1,4 +1,4 @@
-import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.js";
+import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
 import {
   LOGO_SRC,
   ICON_PIN_SRC,

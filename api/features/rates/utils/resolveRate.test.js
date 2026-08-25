@@ -4,7 +4,7 @@ import {
   getRateBand,
   getRatePct,
   sumContentByMetal,
-} from "#features/rates/utils/resolveRate.js";
+} from "#features/rates/utils/resolveRate.ts";
 
 // Bands are per metal over [min_qty, max_qty], max_qty null meaning open-ended.
 const rates = [

@@ -9,9 +9,17 @@
  * and priced on the TOTAL quantity of a metal across the whole order.
  * `scrap_pct` / `bullion_pct` are fractions (0–1) that plug into
  * `bid_spot * premium`.
+ *
+ * TYPESCRIPT. The band type is RateWire from the contracts package rather than
+ * a hand-written interface, because that is what the endpoint actually returns
+ * and CLAUDE.md says types come from the generated contracts. A local interface
+ * would be a second description of the same rows, free to drift.
+ *
+ * Node strips types at run time; checking is `tsc --noEmit`, in pnpm check.
  */
+import type { RateWire } from "@dorado/contracts";
 
-const normMetal = (m) => String(m ?? '').trim().toLowerCase();
+const normMetal = (m: unknown): string => String(m ?? "").trim().toLowerCase();
 
 /**
  * Pick the band for a metal given the total quantity of that metal.
@@ -19,7 +27,11 @@ const normMetal = (m) => String(m ?? '').trim().toLowerCase();
  * - below the lowest band → the lowest band
  * - above the highest band → the highest band
  */
-export function getRateBand(rates, metal, totalQty) {
+export function getRateBand(
+  rates: RateWire[] | null | undefined,
+  metal: unknown,
+  totalQty: number
+): RateWire | null {
   const bands = (rates ?? [])
     .filter((r) => normMetal(r.metal) === normMetal(metal))
     .sort((a, b) => a.min_qty - b.min_qty);
@@ -38,19 +50,34 @@ export function getRateBand(rates, metal, totalQty) {
 /**
  * Resolve the premium fraction (0–1) for a metal at a given order-total qty.
  * Returns undefined when no band exists (caller decides the fallback).
- * `material` is 'scrap' | 'bullion'.
  */
-export function getRatePct(rates, metal, totalQty, material) {
+export function getRatePct(
+  rates: RateWire[] | null | undefined,
+  metal: unknown,
+  totalQty: number,
+  material: "scrap" | "bullion"
+): number | undefined {
   if (!rates || rates.length === 0) return undefined;
   const band = getRateBand(rates, metal, totalQty);
   if (!band) return undefined;
-  const pct = material === 'scrap' ? band.scrap_pct : band.bullion_pct;
+  const pct = material === "scrap" ? band.scrap_pct : band.bullion_pct;
   return pct == null ? undefined : Number(pct);
 }
 
-/** Sum content per metal (lowercased metal key → total content). */
-export function sumContentByMetal(items, getMetal, getContent) {
-  const totals = {};
+/**
+ * Sum content per metal (lowercased metal key → total content).
+ *
+ * Generic in the item, because callers pass order items, cart lines and scrap
+ * rows and the only thing this needs is the two accessors. Typing it as a
+ * concrete row would force a cast at every call site, which is the same as
+ * `any` with extra steps.
+ */
+export function sumContentByMetal<T>(
+  items: T[] | null | undefined,
+  getMetal: (item: T) => unknown,
+  getContent: (item: T) => unknown
+): Record<string, number> {
+  const totals: Record<string, number> = {};
   for (const it of items ?? []) {
     const metal = getMetal(it);
     if (!metal) continue;

@@ -15,7 +15,7 @@
 import query from "#shared/db/query.js";
 import * as fulfillmentService from "#features/fulfillments/service.js";
 import * as ratesRepo from "#features/rates/repo.js";
-import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.js";
+import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 
 // THE ORDER NUMBER COMES FROM EXCHANGE, and that is deliberate.
 //

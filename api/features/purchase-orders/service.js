@@ -4,7 +4,7 @@ import * as scrapRepo from "#features/scrap/repo.js";
 import * as transactionRepo from "#features/transactions/repo.js";
 import * as ratesRepo from "#features/rates/repo.js";
 import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.js";
-import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.js";
+import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 
 import * as shipmentRepo from "#features/shipping/shipments/repo.js";
 import * as pickupRepo from "#features/shipping/pickups/repo.js";

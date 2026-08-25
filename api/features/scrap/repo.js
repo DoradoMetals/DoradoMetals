@@ -1,5 +1,5 @@
 import query from "#shared/db/query.js";
-import { convertTroyOz } from "#shared/utils/convertWeights.js";
+import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 
 export async function updateScrapItem({ item }, executor) {
   const content =

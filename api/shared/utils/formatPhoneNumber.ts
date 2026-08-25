@@ -1,4 +1,9 @@
-export function formatPhoneNumber(value) {
+// A US phone number as (XXX) XXX-XXXX, built up as it is typed.
+//
+// Partial input is a supported case, not an edge one: this runs on every
+// keystroke, so three digits gives "(555" rather than nothing. The parameter is
+// optional because callers pass a possibly-absent field straight in.
+export function formatPhoneNumber(value?: string | null): string {
   if (!value) return "";
 
   const digits = value.replace(/\D/g, "");

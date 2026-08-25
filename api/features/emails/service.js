@@ -10,7 +10,7 @@ import { sendEmail } from "#features/emails/utils/sendEmail.js";
 import {
   formatPurchaseOrderNumber,
   formatSalesOrderNumber,
-} from "#shared/utils/formatOrderNumbers.js";
+} from "#shared/utils/formatOrderNumbers.ts";
 
 // `transport` is a separate parameter, not a field on the input object: the
 // controller passes req.body as the input, so a field would be reachable from
