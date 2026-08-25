@@ -463,6 +463,50 @@ The difference is asserted as a test rather than filtered out of the comparison
 decimals and the new schema does not" — and it checks the column scales, so it
 will tell you to delete it if the column is ever widened.
 
+### FOR JACOB: anyone could read and overwrite any customer's cart, with no account at all
+
+**Live in the deployed API, and unauthenticated — no session, no cookie,
+nothing.** The most exposed thing found in this migration.
+
+All four cart endpoints took the user id out of the request — `req.query.user_id`
+on the reads, `req.body.user_id` on the writes — and none of them had a guard:
+
+| Endpoint | As a complete stranger |
+|---|---|
+| `GET /api/cart/get_sell_cart?user_id=…` | **200**, that customer's sell-cart items |
+| `POST /api/cart/sync_sell_cart` | replaces that customer's sell cart |
+| `POST /api/cart/sync_cart` | replaces their buy cart |
+| `GET /api/cart/get_cart?user_id=…` | 200 (returns only `{success:true}`) |
+
+Demonstrated rather than deduced: a request with no session returned another
+customer's cart, 200, two items. `exchange.sell_carts` holds **65 rows in
+production**.
+
+A sell cart is what somebody has assembled to sell — scrap with weights, purity
+and premiums. Reading it says what they are about to sell and roughly what it is
+worth. Overwriting it is vandalism rather than theft: the customer sees the cart
+on screen before submitting, and the order is built from the block they submit
+rather than from the cart.
+
+**They were declared PUBLIC deliberately, and the reason was wrong.** The list in
+`shared/http/endpoints.test.js` said "a cart belongs to a browser, not an
+account — a signed-out visitor has one". That is true of the browser-local store
+— zustand plus localStorage — and not of these endpoints:
+`frontend/features/cart/queries.ts` throws `Missing user` before calling either
+sync, and `hydrateCarts` only runs with a session's user id. **Nothing has ever
+called them anonymously.** The declaration described the feature and not the
+endpoint, which is exactly how a deliberate exception outlives its reason.
+
+**Fixed**: all four now require a session and take the id from `req.user.id`,
+ignoring the request's. Transparent to the frontend, which was already sending
+its own id while signed in. `features/checkout/replay.test.js` holds it shut in
+both directions — anonymous is refused, a signed-in caller naming somebody else
+gets their own cart, and the owner can still read and sync theirs.
+
+**Worth your attention because it is deployed**, and unlike the order-ownership
+hole this one needed no account at all. Nothing suggests it was exploited — it
+still needs a customer's uuid — but it is the widest thing found.
+
 ### FOR JACOB: any signed-in customer could act on any other customer's order
 
 **This is in the live API, not in the migration.** Found by writing an HTTP

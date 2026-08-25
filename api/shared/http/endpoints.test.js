@@ -35,11 +35,12 @@ const PUBLIC = new Set([
   "GET /api/reviews/get_public",
   "GET /api/spots/spot_prices",
   "POST /api/recaptcha/verify-recaptcha",
-  // A cart belongs to a browser, not an account - a signed-out visitor has one.
-  "GET /api/cart/get_cart",
-  "GET /api/cart/get_sell_cart",
-  "POST /api/cart/sync_cart",
-  "POST /api/cart/sync_sell_cart",
+  // The four cart endpoints used to be here, with the reason "a cart belongs to
+  // a browser, not an account - a signed-out visitor has one". That is true of
+  // the browser-local store and was NOT true of these endpoints: they took a
+  // user id out of the request and were unauthenticated, so an anonymous caller
+  // could read and replace anybody's cart. Demonstrated with a real request
+  // before being fixed. They are guarded now and take the id from the session.
 ]);
 
 // better-auth and the Stripe webhook are mounted on the app rather than through
