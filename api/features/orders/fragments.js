@@ -61,9 +61,26 @@ export const userJson = (alias = "u") => `
 // this, which is why it is only noted here.
 export const addressJson = (alias = "addr") => `to_jsonb(${alias})`;
 
-// The joins that reach the three objects above, given orders.orders aliased o.
-// Shipments and users are still read from exchange, unmigrated.
-export const commonJoins = `
+// The joins both directions make, given orders.orders aliased o.
+//
+// Every one is a LEFT JOIN on an independent condition, so the ORDER of these
+// lines carries no meaning to Postgres - but the DEPENDENCIES do, and they are
+// why this list is in the order it is: oa before addr, i before b before bm.
+// A direction adds its own joins after these, and anything depending on `i`
+// still finds it.
+//
+// Shipments and users are still read from exchange, unmigrated - which is why
+// two of these cross schemas and will move when auth and shipping do.
+export const sharedJoins = `
+    LEFT JOIN orders.transactions t ON t.order_id = o.id
+    LEFT JOIN orders.items i ON i.order_id = o.id
+    LEFT JOIN products.bullion b ON b.id = i.bullion_id
+    LEFT JOIN metals.metals bm ON bm.id = b.metal_id
     LEFT JOIN orders.addresses oa ON oa.order_id = o.id
     LEFT JOIN exchange.addresses addr ON addr.id = oa.source_address_id
     LEFT JOIN exchange.users u ON u.id = o.user_id`;
+
+// One order, newest first, with the id breaking the tie - o.created_at is not
+// unique and a read whose ORDER BY is not unique returns physical order, which
+// makes two implementations look like they disagree when they do not.
+export const newestFirst = "ORDER BY o.created_at DESC, o.id DESC";

@@ -14,7 +14,12 @@
 import query from "#shared/db/query.js";
 // See features/orders/fragments.js: the shipment and user objects are
 // identical in both directions and are now written once.
-import { shipmentJson, userJson } from "#features/orders/fragments.js";
+import {
+  shipmentJson,
+  userJson,
+  sharedJoins,
+  newestFirst,
+} from "#features/orders/fragments.js";
 
 // The columns exchange.sales_orders had, rebuilt from the tables they were
 // split across. Listed rather than selected with *, so a column appearing on
@@ -75,17 +80,11 @@ function buildOrderQuery({ where = "", limit = "" } = {}) {
       ${userJson()} AS "user",
       ${shipmentJson("ship")} AS shipment
     FROM orders.orders o
-    LEFT JOIN orders.transactions t ON t.order_id = o.id
-    LEFT JOIN orders.items i ON i.order_id = o.id
-    LEFT JOIN products.bullion b ON b.id = i.bullion_id
-    LEFT JOIN metals.metals bm ON bm.id = b.metal_id
-    LEFT JOIN orders.addresses oa ON oa.order_id = o.id
-    LEFT JOIN exchange.addresses addr ON addr.id = oa.source_address_id
-    LEFT JOIN exchange.users u ON u.id = o.user_id
+    ${sharedJoins}
     LEFT JOIN exchange.shipments ship ON ship.sales_order_id = o.id
     WHERE o.direction = 'sale'${where ? ` AND ${where}` : ""}
     GROUP BY o.id, t.id, oa.source_address_id, addr.id, u.id, ship.id
-    ORDER BY o.created_at DESC, o.id DESC${limit};
+    ${newestFirst}${limit};
   `;
 }
 

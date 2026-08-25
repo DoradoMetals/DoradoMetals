@@ -22,7 +22,12 @@ import query from "#shared/db/query.js";
 // The fragments both directions read identically. They were duplicated field
 // for field between this file and sales-orders/repo.next.js; the duplication
 // was checked programmatically before being removed, not by eye.
-import { shipmentJson, userJson } from "#features/orders/fragments.js";
+import {
+  shipmentJson,
+  userJson,
+  sharedJoins,
+  newestFirst,
+} from "#features/orders/fragments.js";
 
 
 // Only the last four digits of a bank account travel with an order. Unchanged
@@ -148,27 +153,21 @@ function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
       ${payoutJson} AS payout,
       ${userJson()} AS "user"
     FROM orders.orders o
+    ${sharedJoins}
     LEFT JOIN orders.offers f ON f.order_id = o.id
-    LEFT JOIN orders.transactions t ON t.order_id = o.id
-    LEFT JOIN orders.items i ON i.order_id = o.id
     -- The refiner's counterpart to the line: what the refinery reported once the
     -- scrap was melted, as against what the customer declared. 064 made this one
     -- row per purchase-order line, so the join is one-to-one and the values are
     -- null until a refiner reports.
     LEFT JOIN refiners.items ri ON ri.order_item_id = i.id
     LEFT JOIN metals.metals im ON im.id = i.metal_id
-    LEFT JOIN products.bullion b ON b.id = i.bullion_id
-    LEFT JOIN metals.metals bm ON bm.id = b.metal_id
-    LEFT JOIN orders.addresses oa ON oa.order_id = o.id
-    LEFT JOIN exchange.addresses addr ON addr.id = oa.source_address_id
     LEFT JOIN exchange.shipments ship ON ship.purchase_order_id = o.id AND ship.type = 'Inbound'
     LEFT JOIN exchange.shipments ret ON ret.purchase_order_id = o.id AND ret.type = 'Return'
     LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = o.id
     LEFT JOIN exchange.payouts pay ON pay.order_id = o.id
-    LEFT JOIN exchange.users u ON u.id = o.user_id
     WHERE o.direction = 'purchase'${where ? ` AND ${where}` : ""}
     GROUP BY o.id, f.id, t.id, oa.source_address_id, addr.id, ship.id, ret.id, cp.id, pay.id, u.id
-    ORDER BY o.created_at DESC, o.id DESC${limit};
+    ${newestFirst}${limit};
   `;
 }
 
@@ -259,6 +258,11 @@ export async function findOrderScrapItems(orderId, executor) {
 
 // Offers past their expiry. exchange returns the whole purchase order row, so
 // the same columns are rebuilt here.
+//
+// DELIBERATELY NOT sharedJoins, and this is not an oversight to tidy up. This
+// query has no GROUP BY, so joining orders.items would multiply the row by the
+// number of lines on the order and the scheduler would expire the same offer
+// several times. It needs three joins and takes three.
 export async function findExpiredOffers(executor) {
   const sql = `
     SELECT ${ORDER_COLUMNS}
