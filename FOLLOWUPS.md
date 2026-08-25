@@ -1126,6 +1126,44 @@ The wire shape is unchanged: `repo.next.js` projects all four back off the joine
 refiner line, `diff` reports 55 operations identical, and `validate:wire` checks
 both implementations against `PurchaseOrderWire`.
 
+### RESOLVED: the packing list drew a box with NaN for every coordinate
+
+Found by giving `generateBoxSVG` parameter types, which is the whole argument
+for converting these files.
+
+`features/pdf/service.js` falls back to `{ length: "-", width: "-", height: "-" }`
+when a request arrives without `packageDetails`. As printed text that is
+correct — "Length: - in" is how you say you do not know. As arithmetic it is
+not: every coordinate in the SVG is `dimension * scale`, so the whole drawing
+came out `NaN`. The document carried `width="NaN"`, `height="NaN"`,
+`viewBox="NaN NaN NaN NaN"` and 68 NaNs in total, on the packing list a customer
+receives with their order.
+
+Nothing threw, so nothing noticed — including four tests in
+`features/pdf/service.test.js` that had been building packing lists without
+`packageDetails` since the file was written.
+
+**How reachable.** `packageDetails` comes from the request body of
+`/emails/purchase_order_created`. The frontend always sends one — it falls back
+to `packageOptions[0]` — so a normal order is fine. Anything that posts without
+it is not.
+
+**Fixed** by not drawing a box when there are no dimensions. The coercion is
+`.map(Number)` and `.every(Number.isFinite)` rather than a `typeof` check, so
+nothing that previously drew a box stops: `null` and `""` both multiplied to 0
+before and still do. Only the NaN case changes, and it changes to no box.
+
+Two tests, and the first was checked against the real bug — restoring the old
+call made it fail on "the packing list contains NaN" and pass again when
+reverted:
+
+- a packing list with no package details draws no box, and one with dimensions
+  still does, so the assertion cannot pass by never drawing a box at all;
+- the sweep over every dev order now asserts no document contains `NaN`, across
+  the packing list, the invoice and the return packing list — arithmetic on a
+  missing field is not specific to the box. All 16 orders x 3 documents are
+  clean.
+
 ### FOR JACOB: the card surcharge is set by a number the browser sends
 
 Found while converting `features/sales-orders/utils/calculations.js` to

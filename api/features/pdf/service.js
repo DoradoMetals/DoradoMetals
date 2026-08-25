@@ -1,4 +1,4 @@
-import { generateBoxSVG } from "#features/pdf/utils/generateBoxSVG.js";
+import { generateBoxSVG } from "#features/pdf/utils/generateBoxSVG.ts";
 import {
   calculateTotalPrice,
   getBullionTotal,
@@ -54,12 +54,30 @@ export function buildPackingListHtml({
     purchaseOrder.shipment?.pickup_type !== "Store Dropoff" &&
     purchaseOrder.carrier_pickup !== null;
 
-  const svgBox = generateBoxSVG(
+  // The fallback above is display text - "Length: - in" reads correctly on the
+  // page. The box is geometry, and `"-" * scale` is NaN, so passing the same
+  // fallback into generateBoxSVG produced an SVG whose width, height, viewBox
+  // and every polygon were the string NaN: 68 of them, on the packing list a
+  // customer receives, whenever a request arrived without packageDetails. Found
+  // by giving generateBoxSVG a type.
+  //
+  // Coerced rather than type-checked so that nothing which used to draw a box
+  // stops drawing one: `null` and `""` both multiplied to 0 before and still
+  // do. Only the NaN case changes, and it changes to no box at all.
+  const boxDimensions = [
     dimensions.length,
     dimensions.width,
     dimensions.height,
-    selectedPackage
-  );
+  ].map(Number);
+
+  const svgBox = boxDimensions.every(Number.isFinite)
+    ? generateBoxSVG(
+        boxDimensions[0],
+        boxDimensions[1],
+        boxDimensions[2],
+        selectedPackage
+      )
+    : "";
 
   const pickupInstruction = isCarrierPickup
     ? `

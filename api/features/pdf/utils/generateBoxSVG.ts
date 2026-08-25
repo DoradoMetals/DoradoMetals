@@ -1,4 +1,17 @@
-export function generateBoxSVG(length, width, height, label) {
+// The cardboard box drawn on a packing list, as an inline SVG.
+//
+// Dimensions are inches and must be numbers: every coordinate below is
+// `dimension * scale`, so a non-numeric one propagates NaN through the whole
+// document - width, height, viewBox and every polygon. features/pdf/service.js
+// used to hand it the string "-" whenever a request arrived without
+// packageDetails, and got back 68 NaNs. Typing them is what found that; the
+// caller now decides not to draw a box rather than drawing a broken one.
+export function generateBoxSVG(
+  length: number,
+  width: number,
+  height: number,
+  label: string
+): string {
   const isFedExBox = label.startsWith("FedEx");
 
   const scale = 10;
@@ -27,7 +40,7 @@ export function generateBoxSVG(length, width, height, label) {
   const seamStart = [(E[0] + F[0]) / 2, (E[1] + F[1]) / 2];
   const seamEnd = [(H[0] + G[0]) / 2, (H[1] + G[1]) / 2];
 
-  const pts = (arr) => arr.map(([x, y]) => `${x},${y}`).join(" ");
+  const pts = (arr: number[][]) => arr.map(([x, y]) => `${x},${y}`).join(" ");
 
   const allX = [A, B, C, D, E, F, G, H].map((p) => p[0]);
   const allY = [A, B, C, D, E, F, G, H].map((p) => p[1]);
@@ -74,7 +87,7 @@ export function generateBoxSVG(length, width, height, label) {
     L1[1] + labelHeight * unitDepth[1],
   ];
 
-  const scribbleLines = [];
+  const scribbleLines: string[] = [];
   const lineCount = 5;
   const spacing = labelHeight / (lineCount + 1);
 

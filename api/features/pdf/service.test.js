@@ -41,7 +41,7 @@ before(async () => {
   // is what production actually hands these functions.
   //
   // When SPOTS_WIRE flips and order spots move with it, this goes and
-  // calculations.js reads the new names instead.
+  // calculations.ts reads the new names instead.
   spots = spotsToLegacy(await spotsRepo.getAll());
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
   assert.ok(spots.length > 0, "dev has no spot prices");
@@ -126,6 +126,14 @@ test("every purchase order in dev builds both documents", () => {
         if (typeof html !== "string" || html.length < 500) {
           failures.push(`order ${order.order_number}: ${name} built ${html?.length ?? 0} chars`);
         }
+        // NaN reaches the page as the literal text "NaN" and renders as one:
+        // an SVG attribute, a weight, a price. Nothing throws, so the sweep
+        // above passed on 68 of them for months. Checked across all three
+        // documents rather than only the box, because arithmetic on a missing
+        // field is not specific to the box.
+        if (typeof html === "string" && html.includes("NaN")) {
+          failures.push(`order ${order.order_number}: ${name} contains NaN`);
+        }
       } catch (err) {
         failures.push(`order ${order.order_number}: ${name} threw - ${err.message}`);
       }
@@ -144,6 +152,36 @@ test("an order with no address still builds, with the address left blank", () =>
   const html = pdf.buildPackingListHtml({ purchaseOrder: order, spotPrices: spots });
   assert.ok(html.includes("<html") || html.includes("<!DOCTYPE"), "did not build a document");
   assert.ok(!html.includes("undefined"), "an unset address field reached the page as 'undefined'");
+});
+
+// The box drawn on the packing list is geometry built from the package
+// dimensions, and `packageDetails` comes from the request body. When it is
+// absent, service.js falls back to `{ length: "-", width: "-", height: "-" }` -
+// correct as the printed text "Length: - in", and NaN as arithmetic. Every
+// coordinate is `dimension * scale`, so the customer's packing list carried an
+// SVG with `width="NaN"`, `height="NaN"`, `viewBox="NaN NaN NaN NaN"` and 68
+// NaNs in total. Found by giving generateBoxSVG a type; every test in this file
+// that omits packageDetails had been rendering it for months.
+test("a packing list with no package details draws no box, rather than a broken one", () => {
+  const order = orders[0];
+
+  const html = pdf.buildPackingListHtml({ purchaseOrder: order, spotPrices: spots });
+  assert.ok(!html.includes("NaN"), "the packing list contains NaN");
+  assert.ok(!html.includes("<svg"), "a box was drawn from dimensions that do not exist");
+
+  // And the box is still drawn when there is a package, so the two assertions
+  // above cannot pass by never drawing one at all.
+  const withBox = pdf.buildPackingListHtml({
+    purchaseOrder: order,
+    spotPrices: spots,
+    packageDetails: {
+      label: "Small Box",
+      dimensions: { length: 9, width: 6, height: 2, units: "IN" },
+    },
+  });
+  assert.ok(withBox.includes("<svg"), "no box was drawn for a real package");
+  assert.ok(!withBox.includes("NaN"), "a real package produced NaN coordinates");
+  assert.ok(withBox.includes("Length: 9 in"), "the dimensions are not printed");
 });
 
 // The invoice and the packing list must agree on what the order is worth. They
