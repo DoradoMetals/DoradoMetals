@@ -2,12 +2,19 @@ import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as mediaService from "#features/media/service.js"
 
 export const uploadImage = asyncHandler(async (req, res) => {
-  const result = await mediaService.uploadImage(req.body);
+  const result = await mediaService.uploadImage({ ...req.body, user_id: req.user.id });
   return res.status(200).json(result);
 });
 
 export const getUrl = asyncHandler(async (req, res) => {
-  const result = await mediaService.getUrl(req.query);
+  // The id is the caller's to name; whose image it is, is not. getUrlFor
+  // returns null for an image that is not theirs, and "does not exist" and "is
+  // not yours" are deliberately the same answer.
+  const result = await mediaService.getUrlFor({
+    image_id: req.query.image_id,
+    user_id: req.user.id,
+  });
+  if (!result) return res.status(404).json({ error: "Not Found" });
   return res.status(200).json(result);
 });
 
@@ -17,6 +24,12 @@ export const getTestImages = asyncHandler(async (req, res) => {
 });
 
 export const deleteImage = asyncHandler(async (req, res) => {
-  const result = await mediaService.deleteImage(req.body);
+  // user_id from the session, not the body. The body's was only ever used in
+  // the scoped DELETE, which ran after the file had already been removed.
+  const result = await mediaService.deleteImage({
+    id: req.body.id,
+    user_id: req.user.id,
+  });
+  if (!result) return res.status(404).json({ error: "Not Found" });
   return res.status(200).json(result);
 });

@@ -463,6 +463,51 @@ The difference is asserted as a test rather than filtered out of the comparison
 decimals and the new schema does not" — and it checks the column scales, so it
 will tell you to delete it if the column is ever widened.
 
+### FOR JACOB: any signed-in user could destroy any image file in storage
+
+**Live in the deployed API.** The third of three, and the only destructive one.
+
+`features/media/service.js` `deleteImage` read the image by id **with no
+ownership check**, removed the object from MinIO **unconditionally**, and only
+then ran a `DELETE` that *is* scoped to the user:
+
+```
+const img = await mediaRepo.getImageById(id);                    // unscoped
+await minio.removeObject(img?.bucket, img?.path + img?.filename); // irreversible
+await mediaRepo.deleteImage(user_id, id);                        // scoped, matches nothing
+return { success: true };
+```
+
+So a signed-in caller posting somebody else's image id destroyed the real file,
+left the database row behind pointing at nothing, and got `{ success: true }`.
+Two faults at once: **the ownership check was in the step that ran last**, and
+**the irreversible step ran first**, before anything had been authorised.
+
+`getUrl` had the read half of the same problem — an `image_id` from the query
+string behind `requireUser`, returning a **presigned download URL** for it. A
+presigned GET is the file.
+
+**Blast radius today is small**: 3 images in production, one owner. The shape is
+what matters, and it is the same shape as the order and cart holes — an id taken
+from the request with nothing asking whose it is.
+
+**A passing test made it look covered.** `features/media/repo.next.test.js` has
+"deleteImage will not delete another user's image", and it passes: it exercises
+the **repo**, whose `DELETE` is correctly scoped. The bug was one layer up in the
+service. *A test can prove the right property about the wrong layer and read as
+coverage.*
+
+**Fixed**: ownership is established first, the database work happens next, and
+the object is removed last — which is the order CLAUDE.md gives and the reason it
+gives it. If the removal now fails, the row is gone and the file is orphaned,
+which a sweep can find; the old order left a live row pointing at a deleted file.
+`user_id` comes from the session rather than the body. A missing image and
+somebody else's image return the same 404.
+
+`features/media/ownership.test.js` holds it, deliberately below HTTP and without
+touching storage: it gives the service a stranger's id and asserts it returns
+null having done nothing. Removing the guard fails all four.
+
 ### FOR JACOB: anyone could read and overwrite any customer's cart, with no account at all
 
 **Live in the deployed API, and unauthenticated — no session, no cookie,
