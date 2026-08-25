@@ -1175,6 +1175,29 @@ rather than against zero, for that reason. It is not a weakening — "this file
 added nothing" is the property, and the absolute form only worked while the
 table happened to be clean.
 
+**And the class is now checked mechanically.** `pnpm --filter @dorado/api
+audit:test-leaks` fingerprints every `exchange` table, runs the suite, and
+compares. Nothing else could have caught this: every assertion in the offending
+file passed, because a test reads its own writes whether or not they are
+contained, and the only way to know is to look at the database from outside
+afterwards.
+
+It hashes **contents**, not row counts. A count would have caught the deleted
+events — 17 became 2 — and would have missed the other half of the same bug,
+which overwrote `shipping_status` and `estimated_delivery` in place. Each table
+is reduced to an md5 over its rows ordered by their own text, so physical order
+does not matter and any column of any row does.
+
+`--self-test` proves the detector can see a change without leaving one behind:
+it updates a single row inside a transaction, checks the fingerprint moves,
+rolls back, and checks it moves back. An UPDATE rather than an INSERT
+deliberately, since the row count does not change and only the content hash can
+notice. It also refuses to run at all if `DATABASE_URL` points at production —
+it runs the test suite, and the two databases differ by one word in a URL.
+
+The full suite currently leaves **nothing** behind: 39 tables, no change. So the
+tracking test was the only leak.
+
 ### RESOLVED: a tracking refresh that recognised nothing deleted the shipment's history
 
 The worst thing found so far, and it has already happened seven times in

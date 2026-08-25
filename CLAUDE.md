@@ -182,6 +182,16 @@ The ones that have actually caught things:
 - `audit:coverage` — **every populated column in `exchange` that has nowhere to
   go.** Run this before splitting any repo. Orders had matching row counts and
   was missing 21 columns of live data; row counts are not evidence.
+- `audit:test-leaks` — **fingerprints every `exchange` table, runs the suite,
+  and compares.** A test that calls a service does not contain it: the service
+  opens its own transaction on its own pool connection and commits, while the
+  test's rolls back. That is how `tracking.test.js` came to delete the real FedEx
+  history of five dev shipments — the bug it was written to prevent, committed by
+  the test for it. Every assertion passed, because a test reads its own writes
+  either way. Content-hashed rather than counted, because the same bug also
+  overwrote two columns in place, which a row count cannot see.
+  `--self-test` proves the detector works by updating one row inside a
+  transaction it rolls back.
 - `audit:precision` — **every column whose value the target's type would
   change.** Casts each source value into the type of the column it lands in and
   counts what differs. `orders.items` declared `purity numeric(4,3)` against an

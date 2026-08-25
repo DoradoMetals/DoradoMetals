@@ -31,6 +31,8 @@
     "audit:precision:prod": "TZ=UTC node scripts/audit-precision.mjs --prod",
     "audit:guards": "TZ=UTC node scripts/audit-guards.mjs",
     "audit:payments": "TZ=UTC node scripts/audit-payments.mjs",
+    "audit:test-leaks": "TZ=UTC node scripts/audit-test-leaks.mjs",
+    "audit:test-leaks:self-test": "TZ=UTC node scripts/audit-test-leaks.mjs --self-test",
     "dump:stripe": "node scripts/dump-stripe-reconciliation.mjs"
   },
   "imports": {
