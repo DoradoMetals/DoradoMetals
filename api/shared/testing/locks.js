@@ -5,9 +5,17 @@
 // this codebase. A lock per table group is how they agree an order.
 //
 // ONE LOCK FOR EVERYTHING IS ALSO WRONG, and that is what this replaces. Six
-// files were taking 4213, so the whole suite serialised through its slowest
-// path: an addresses replay test that runs in 656ms alone took 12.7 seconds in
-// the suite. It was correct and needlessly slow, and slow suites stop being run.
+// files were taking 4213, so files that share no tables still queued behind
+// each other: an addresses replay test running in 656ms alone took 12.7 seconds
+// in the suite. Partitioning brought that one back to 602ms.
+//
+// IT BARELY MOVED THE TOTAL, and that is worth knowing before anyone spends
+// more time here. The suite went 123s to 118s, because its wall clock is set by
+// features/orders/create.test.js and parity.test.js, which place whole orders,
+// hold both groups, and legitimately serialise with each other - 11 to 14
+// seconds per test with nothing to remove. The win was per-file latency and
+// correctness, not throughput. Making the suite meaningfully faster means
+// making those two files place fewer orders, not adjusting locks.
 //
 // TAKE THEM IN ASCENDING ORDER. A file needing two must acquire the lower
 // number first, every time, or partitioning reintroduces the deadlock it was
