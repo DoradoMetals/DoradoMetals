@@ -123,11 +123,49 @@ The runner refuses any database other than `dorado_db_dev` unless named
 explicitly, which is what `MIGRATE_ALLOW_DB` is for. It prints the target
 database before doing anything — read that line.
 
-What happens: `000` creates the seven missing schemas, and reconciles the nine
-existing ones with `ADD COLUMN IF NOT EXISTS` (532 of them). Its
-`-- baseline: 002-049` marker records those migrations as applied rather than
-replaying them, which is correct once `000` has brought the shape up to date.
-Then `050` onward run normally.
+**REHEARSED ON 2026-08-25, AND THE RESULT CHANGES THIS STEP.** A copy of
+production was restored into `test` and all 85 migrations run against it. They
+apply — exit 0, nothing pending — **and leave nine of eleven table pairs with
+zero rows.** Nothing errors. `verify:parity` is the only thing that notices, and
+it is clean on dev, so nothing here would have flagged it.
+
+    leads.leads                        233 -> 0      payments.ledger     17 -> 17
+    products.bullion                    95 -> 0      tax.sales_tax_rules 88 -> 88
+    rates.rates                         16 -> 0
+    products.mints_exchange_compat      10 -> 0
+    reviews.reviews                      6 -> 0
+    metals / media / refiners / carriers 21 -> 0
+
+This paragraph used to say the `-- baseline: 002-049` marker "records those
+migrations as applied rather than replaying them, which is correct once `000`
+has brought the shape up to date". **That is false, and the rehearsal is how we
+know.** `000` brings the *shape* up to date. It does not bring the *data*,
+because several baselined migrations populate as well as alter.
+
+`013_split_core_into_feature_schemas` is the one that matters. Production has
+`core` with 9 tables and no `leads`, `rates`, `reviews`, `media`, `products`,
+`metals`, `spots` or `organizations` schema at all. `000` creates those empty,
+`013` would fill them from `core`, the baseline records `013` as done, and they
+stay empty. The two pairs that survive are backfilled by migrations *past* the
+baseline.
+
+**So do not run this step yet.** It needs the baseline question answered first —
+three options are in FOLLOWUPS.md under "the rehearsal says the migrations apply
+to production and leave it empty". The likeliest is the model CLAUDE.md already
+describes: genesis for schema, backfills for data, with the runner taught that a
+baseline covers schema migrations only.
+
+**What the rehearsal also fixed.** Five migrations that would each have stopped
+the run partway, with fifty-odd already applied: `057a`, `059a`, `061a`, `061b`
+and `077a`. Every one sorts *before* the migration it unblocks, because the
+runner stops at the first failure and never reaches a later file. With them in
+place the chain runs to completion.
+
+**And what it proved about the runner**, which is worth knowing on the night: it
+refuses a database it does not recognise until `MIGRATE_ALLOW_DB` names it; a
+failing migration rolls back cleanly and leaves nothing half-built; and
+migrations are immutable, checksummed, with `--reconcile` for comment-only
+edits.
 
 **Rollback:** restore the dump. Migrations are forward-only by design; there are
 no down-migrations and adding them would be a false comfort, because a down for
