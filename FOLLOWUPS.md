@@ -1402,6 +1402,88 @@ So nothing here needs changing before the repos are deleted. What it needs is
 deleting deliberately at that point, rather than being left to fail — a check
 that fails for the right reason is still a broken build.
 
+### FOR JACOB: the rehearsal says the migrations apply to production and leave it empty
+
+The test database was restored from the production dump and all 85 migrations
+run against it. **They apply. Exit 0, nothing pending — and nine of eleven table
+pairs end up with zero rows.** The run reports success. Only `verify:parity`
+notices, and on dev it is clean, so nothing would have flagged this before
+production.
+
+**The mechanism.** `000_genesis_schema.sql` declares `-- baseline: 002-049`,
+which *records* those migrations as applied without running them. That is honest
+for dev, which really did run them. It is false for production twice over:
+
+- Production's domain schemas were built in the abandoned January 2026 refactor,
+  so anything a baselined migration *changed* never happened there. That is what
+  broke 058: migration 039 relaxes `orders.items.quantity`, the baseline skips
+  it, and production's column is still `NOT NULL` against 13 null rows.
+- Worse, anything a baselined migration *populated* never happened either.
+  **`013_split_core_into_feature_schemas` is inside the range.** Production has
+  `core` with 9 tables and no `leads`, `rates`, `reviews`, `media`, `products`,
+  `metals`, `spots` or `organizations` schema at all. Genesis creates those
+  empty; 013 would fill them from `core`; the baseline skips it; they stay
+  empty.
+
+| target | source rows | after migrating |
+|---|---|---|
+| `leads.leads` | 233 | **0** |
+| `products.bullion` | 95 | **0** |
+| `rates.rates` | 16 | **0** |
+| `products.mints_exchange_compat` | 10 | **0** |
+| `reviews.reviews` | 6 | **0** |
+| `metals`, `media`, `refiners`, `carriers` compat | 21 | **0** |
+| `payments.ledger` | 17 | 17 |
+| `tax.sales_tax_rules` | 88 | 88 |
+
+The two that survive are backfilled by migrations **past** the baseline. Every
+empty one is backfilled by a migration inside it.
+
+**What this means for promotion.** Applying these migrations to production as
+they stand would produce a database whose per-feature schemas exist, contain
+nothing, and are wired to `*_SOURCE` switches that cannot be promoted. Nothing
+would error at any point.
+
+**Not fixed here, because it is a decision about the chain rather than a bug in
+a file.** Three shapes it could take:
+
+1. **Narrow the baseline** to the schema-only migrations and let every backfill
+   run. Correct in principle; needs each of 002–049 classified, and the ones
+   that ALTER without `IF NOT EXISTS` will fail against genesis's finished
+   schema, exactly as 060 did.
+2. **Regenerate genesis against production's actual January state** and derive
+   forward from there, so the baseline describes something true of both
+   databases.
+3. **Run the backfills separately** after migrating, which is what
+   `verify:backfill` already does and what CLAUDE.md describes as the model —
+   genesis for schema, backfills for data. The migrate runner is the piece that
+   does not know this.
+
+(3) is closest to how the project already thinks and probably the smallest
+change: teach the runner that a baseline covers schema migrations only, or mark
+the backfills so the baseline never records them.
+
+**Five blockers were found and fixed on the way**, each of which would have
+stopped a production migration partway with 50-odd already applied:
+
+| migration | failure | fix |
+|---|---|---|
+| 058 | `quantity` NOT NULL, baseline skipped 039 | `057a` relax |
+| 060 | genesis already created `ledger_amount_check` | `059a` conditional drop |
+| 062 | January payment intents referenced deleted orders | `061a` |
+| 062 | two more FKs 062 never knew about | `061b` |
+| 078 | two intents with a method id and no type | `077a` relax |
+
+`061b` came from enumerating every foreign key to `orders.orders` and counting
+residue in each, rather than discovering them one rollback at a time. Two were
+outstanding: `refiners.spots` (which the run hit) and
+`fulfillments.fulfillments` with its three children (which would have been next).
+
+**Also proven, and worth knowing before production night:** the runner refuses a
+database it does not recognise until named explicitly; a failing migration rolls
+back cleanly and leaves nothing half-built; and every fix has to sort *before*
+the migration it unblocks, because the runner stops at the first failure.
+
 ### FOR JACOB: every database has a collation version mismatch, and production has 41 text indexes
 
 Found when `CREATE DATABASE test` refused during the restore runbook. The error

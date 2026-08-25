@@ -3,7 +3,7 @@
 // Parallel to PROVIDERS in registry.ts and keyed the same way: resolveCarrier
 // looks both up with one key, so a carrier present in one and missing from the
 // other is a startup-time error rather than a silent half-configuration.
-import * as fedexAdapters from "#features/shipping/operations/adapters/fedex.js";
+import * as fedexAdapters from "#features/shipping/operations/adapters/fedex.ts";
 
 export const BUILDERS = {
   fedex: {

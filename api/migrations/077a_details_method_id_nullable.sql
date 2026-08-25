@@ -1,0 +1,58 @@
+-- payments.details.method_id is an opinion two production rows disagree with.
+--
+-- FOUND BY REHEARSING AGAINST A RESTORED COPY OF PRODUCTION. 078 failed with:
+--
+--   null value in column "method_id" of relation "details"
+--   violates not-null constraint
+--
+-- WHY. 078 copies the payer's instrument off exchange.payment_intents and
+-- resolves which KIND of payment it was by mapping method_type onto
+-- payments.methods:
+--
+--   LEFT JOIN payments.methods m
+--     ON m.direction = 'sale'
+--    AND m.type = CASE e.method_type
+--                   WHEN 'us_bank_account' THEN 'ACH'
+--                   WHEN 'card' THEN 'CARD'
+--                   ELSE upper(e.method_type)
+--                 END
+--   WHERE e.method_id IS NOT NULL
+--
+-- Production has three intents carrying a Stripe method id. One is the
+-- succeeded card - Visa, 9811, USAA - and maps to CARD cleanly. The other two
+-- have method_type NULL, so the CASE yields NULL, the LEFT JOIN matches
+-- nothing, and m.id arrives null against a NOT NULL column. Dev has no intent
+-- in that state, which is why 078 has always passed there.
+--
+-- WHAT THOSE TWO ROWS ACTUALLY ARE. Both sit at `requires_confirmation` and
+-- carry no instrument detail at all - no last_four, no card_brand, no
+-- bank_name, no account type, no routing. A Stripe payment-method id and
+-- nothing else. They are almost certainly part of the webhook problem already
+-- written up: intents Stripe knows about that exchange never finished updating.
+--
+-- WHY RELAX RATHER THAN SKIP THEM. Adding `AND e.method_type IS NOT NULL` to
+-- 078 would be the other fix, and it would throw away the one fact those rows
+-- have. 078 writes `provider = 'stripe', provider_ref = e.method_id`, so
+-- carrying them across preserves the link back to Stripe for exactly the two
+-- intents someone will want to chase. Skipping them loses that; a null
+-- method_id only says "we do not know which kind", which is true.
+--
+-- This is the rule the project already follows three times over - 039 for
+-- orders.items.quantity, 074 for two payments columns, 064 and 070 for the
+-- refiner ids. A NOT NULL on a new-schema column that exchange has no source
+-- for is an opinion about what the data should look like, and real rows
+-- disagreeing with it is the answer. Tightening it later is a deliberate change;
+-- it is not something a backfill should force on the way past.
+--
+-- WHY NOT EDIT 078. It is applied on dev and migrations are immutable here -
+-- the runner checksums them. And a fix has to sort BEFORE the migration it
+-- unblocks, because the runner stops at the first failure and never reaches a
+-- later file.
+--
+-- The column keeps whatever default it has; only rows that genuinely cannot be
+-- classified carry null. Idempotent - DROP NOT NULL on an already-nullable
+-- column does nothing, so dev applies this and changes nothing.
+--
+-- exchange is untouched.
+
+ALTER TABLE payments.details ALTER COLUMN method_id DROP NOT NULL;

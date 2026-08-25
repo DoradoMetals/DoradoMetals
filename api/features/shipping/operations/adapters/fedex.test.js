@@ -10,7 +10,7 @@
 // handler is given, and what the provider receives.
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";
-import * as fedex from "#features/shipping/operations/adapters/fedex.js";
+import * as fedex from "#features/shipping/operations/adapters/fedex.ts";
 
 // The shape formatAddressForFedEx produces, so a pre-formatted address can be
 // told apart from one still needing conversion.

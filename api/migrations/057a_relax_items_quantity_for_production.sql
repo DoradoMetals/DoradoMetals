@@ -1,0 +1,50 @@
+-- 039 never reached production, and 058 is where that shows up.
+--
+-- FOUND BY REHEARSING THE MIGRATIONS AGAINST A RESTORED COPY OF PRODUCTION.
+-- 058 failed there with:
+--
+--   null value in column "quantity" of relation "items"
+--   violates not-null constraint
+--
+-- and it would have failed the same way on production, at the 58th of 80, with
+-- 57 already applied.
+--
+-- WHY. 000_genesis_schema.sql declares `-- baseline: 002-049`, which RECORDS
+-- those migrations as applied rather than running them. On dev that is honest -
+-- dev really did run them. On production it is not: the domain schemas were
+-- built in the abandoned January 2026 refactor, before 039 existed, so
+-- production's orders.items.quantity is still NOT NULL while dev's is nullable.
+-- The baseline then skips 039 and the constraint survives.
+--
+-- 058 copies quantity from exchange verbatim, which is correct. Production has
+-- 13 purchase order items with a null quantity (dev has 4), so the copy hits
+-- the constraint that should no longer be there.
+--
+-- WHY NOT FIX 058 INSTEAD. Two reasons.
+--
+-- The obvious edit is `coalesce(poi.quantity, 1)`, and that is precisely what
+-- 039 exists to prevent: it makes the order read return 1 where the API has
+-- always returned null, which is a wire change during a schema migration. 039's
+-- own header says so. 058 is right; the schema it writes into is wrong.
+--
+-- And migrations are immutable here - the runner checksums them and warns
+-- permanently if an applied one changes. 058 is already applied on dev.
+--
+-- WHY THE ODD NUMBER. A migration numbered after 058 would never be reached:
+-- the runner stops at the first failure. This has to sort before it, and plain
+-- filename order puts 057a between 057_ and 058_.
+--
+-- IDEMPOTENT AND A NO-OP WHERE 039 LANDED. DROP NOT NULL on a column that is
+-- already nullable does nothing, so dev applies this and changes nothing.
+--
+-- THE WIDER GAP, which this does not close. Nine columns are NOT NULL on
+-- production and nullable on dev. Seven come from migrations 064, 070 and 074,
+-- which are past the baseline and will run. Two - shipping.services.created_at
+-- and updated_at - are relaxed by no migration at all and are unexplained; both
+-- carry defaults, so nothing writes null to them today. This one column is the
+-- only one the baseline actually swallows, which is why it is the only one that
+-- broke.
+--
+-- exchange is untouched.
+
+ALTER TABLE orders.items ALTER COLUMN quantity DROP NOT NULL;
