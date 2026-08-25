@@ -80,6 +80,32 @@ export const sharedJoins = `
     LEFT JOIN exchange.addresses addr ON addr.id = oa.source_address_id
     LEFT JOIN exchange.users u ON u.id = o.user_id`;
 
+// THE COLUMN LISTS ARE DELIBERATELY NOT SHARED, and this is the note that
+// stops somebody trying it a third time.
+//
+// Comparing the two ORDER_COLUMNS lists programmatically says it should work:
+// ten of the twenty-five match on alias AND expression - id, user_id,
+// address_id, notes, created_at, updated_at, created_by, updated_by,
+// order_number, review_created - and ZERO share an alias while meaning
+// different things, which is the dangerous case and it is absent.
+//
+// It was extracted, and `diff` caught it: 3 operations diverged on each
+// direction. Not a lost column - a MOVED one. Putting the shared ten first
+// changes the order of the keys in the JSON, and the comparison serialises the
+// row. `sales_order_status` was still there; it had shifted from fourth to
+// eleventh.
+//
+// Two ways out, and only one of them is honest. The comparison could be made
+// order-insensitive - key order is not something a frontend depends on - but
+// weakening the gate so a refactor can pass is how gates die. Or the columns
+// could be interleaved back into their original positions, which defeats the
+// extraction.
+//
+// So it was reverted. Ten short lines of duplication, against a reordered
+// response and a weaker diff. The fragments below are shared because they are
+// self-contained values; a SELECT list is an ordered thing and sharing part of
+// one is not free.
+
 // One order, newest first, with the id breaking the tie - o.created_at is not
 // unique and a read whose ORDER BY is not unique returns physical order, which
 // makes two implementations look like they disagree when they do not.
