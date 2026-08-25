@@ -286,3 +286,89 @@ test("the unrouted check can actually fail", () => {
   );
   assert.deepEqual(stillUnrouted, [], "a handler routed from another feature was called an orphan");
 });
+
+// No public endpoint may name a user.
+//
+// THIS IS THE CART BUG, TURNED INTO A CHECK. Those four were on PUBLIC with the
+// reason "a cart belongs to a browser, not an account - a signed-out visitor has
+// one". True of the browser-local store, false of the endpoints: they read
+// req.query.user_id and req.body.user_id, so anyone could read and overwrite
+// anybody's cart. The reason described the feature and not the endpoint, and it
+// was checkable prose that nobody checked.
+//
+// The property that would have caught it is narrow and mechanical: an endpoint
+// answering anonymous callers must not take a user id out of the request. There
+// is no session to compare it against, so it can only be obeyed.
+//
+// The remaining nine entries were audited by hand when this was written and all
+// nine are legitimately public - five product reads over the catalogue, the rate
+// bands, the public reviews (hidden = false, limit 10), spot prices, and the
+// recaptcha verifier. Two had admin siblings and were checked against them:
+// getAllRates omits the audit columns getAdminRates returns, and
+// getPublicReviews filters. This exists so the tenth entry is checked by
+// something other than somebody remembering to.
+test("no public endpoint reads a user id from the request", () => {
+  const handlerFor = (key) => {
+    const [method, full] = key.split(" ");
+    const tail = full.replace(/^\/api\/[^/]+/, "");
+    for (const file of routeFiles(FEATURES)) {
+      const src = fs.readFileSync(file, "utf8");
+      const line = src
+        .split("\n")
+        .find(
+          (l) =>
+            l.includes(`router.${method.toLowerCase()}(`) &&
+            (l.includes(`"${tail}"`) || l.includes(`'${tail}'`))
+        );
+      if (!line) continue;
+      const name = line.match(/,\s*([A-Za-z0-9_]+)\s*\)\s*;?\s*$/)?.[1];
+      if (name) return { name, dir: path.dirname(file) };
+    }
+    return null;
+  };
+
+  const bodyOf = (dir, name) => {
+    const file = path.join(dir, "controller.js");
+    if (!fs.existsSync(file)) return null;
+    const src = fs.readFileSync(file, "utf8");
+    const start = src.indexOf(`export const ${name} =`);
+    if (start === -1) return null;
+    const next = src.indexOf("\nexport const ", start + 1);
+    return src.slice(start, next === -1 ? undefined : next);
+  };
+
+  const offenders = [];
+  const unresolved = [];
+
+  for (const key of PUBLIC) {
+    const found = handlerFor(key);
+    if (!found) {
+      unresolved.push(key);
+      continue;
+    }
+    const body = bodyOf(found.dir, found.name);
+    if (body === null) {
+      unresolved.push(`${key} (${found.name})`);
+      continue;
+    }
+    if (/\buser_id\b|\buserId\b/.test(body)) {
+      offenders.push(`${key} -> ${found.name}`);
+    }
+  }
+
+  // A route this cannot resolve is a failure, not a pass. Otherwise renaming a
+  // handler or reformatting a routes file would quietly empty the check - the
+  // same way validate:wire lost four endpoints to a directory rename.
+  assert.deepEqual(
+    unresolved,
+    [],
+    "could not find the handler for these public routes, so they went unchecked"
+  );
+
+  assert.deepEqual(
+    offenders,
+    [],
+    "these answer anonymous callers AND take a user id from the request - there " +
+      "is no session to check it against, so it can only be obeyed"
+  );
+});
