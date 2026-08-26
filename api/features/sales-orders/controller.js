@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as salesOrderService from "#features/sales-orders/service.js"
+import * as salesOrderService from "#features/sales-orders/service.ts"
 
 export const getSalesOrderById = asyncHandler(async (req, res) => {
   const orderId = req.params.id;

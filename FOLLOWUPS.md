@@ -732,7 +732,19 @@ reason, and the Texas order would have been zero anyway.
 
 **Fixed two ways.** The call sites now use `addressService.getAddressFromId`,
 and `features/addresses/repo.d.ts` types the facade so `getFromId(...).state` is
-a **compile error** rather than a silent zero — for every caller, permanently.
+a **compile error** rather than a silent zero — *for TypeScript callers*.
+
+**Correction to the first version of this note**, which said "for every caller,
+permanently". That is wrong. `checkJs` is `false`, so a `.js` caller is never
+type-checked and the declaration does nothing for it — and
+`features/sales-orders/service.js`, the file that had the bug, is JavaScript. I
+proved the declaration worked by probing with a `.ts` file, which is exactly the
+probe that could not tell the difference. A `.js` probe with the same bug
+compiles clean.
+
+What guards that call site today is the narrow fix plus `lint:row-vs-list`,
+which is syntactic and does read `.js`. The declaration becomes the guard when
+the caller is converted — which is now a reason to convert it.
 The repo facade resolves its implementation with `SOURCES[SOURCE]`, and a
 dynamic index erases the type to `any`, which is why nothing caught this.
 `features/sales-orders/address-state.test.js` proves both halves; the rule and

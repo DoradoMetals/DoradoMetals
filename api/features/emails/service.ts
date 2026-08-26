@@ -8,6 +8,7 @@ import {
   renderOfferAcceptedEmail,
   renderSalesOrderToSupplierEmail,
 } from "#features/emails/utils/renderEmail.ts";
+import type { SalesOrderForRender } from "#features/emails/utils/renderEmail.ts";
 
 import { sendEmail } from "#features/emails/utils/sendEmail.ts";
 import {
@@ -133,14 +134,27 @@ export async function sendAcceptedEmail(
   }, transport);
 }
 
-// `order` IS TYPED AS THE CONTRACT, NOT AS THE PDF'S RENDER SHAPE, and the two
-// consumers below are why. generateSalesOrderInvoice takes RenderableOrder,
-// which is deliberately loose - it is what a template needs, not what a sales
-// order is. renderSalesOrderToSupplierEmail declares SalesOrderWire, the full
-// contract. One object is handed to both, and SalesOrderWire is the stronger
-// true statement about it, so that is what the parameter says.
+// `order` IS NEARLY THE CONTRACT, AND THE GAP IS THE TIMESTAMPS.
+//
+// This said SalesOrderWire, with a comment calling it "the stronger true
+// statement" about the object. It was not true. The caller is
+// sales-orders/service.ts, which passes what getById returned - a database row,
+// where pg has already parsed created_at and updated_at into Date objects,
+// while the contract describes the wire and says string. Converting the caller
+// to TypeScript is what surfaced it; the JavaScript version could pass anything.
+//
+// Checked before widening rather than after, because a type that contradicts
+// working code is usually the type. features/pdf/render/sections.ts already
+// declares `created_at?: string | number | Date | null` and calls `new Date(...)`
+// on it, so both renderers have always handled a Date. Nothing at runtime
+// changes; SalesOrderForRender just says what is actually passed.
+//
+// The rest of the old comment still holds: generateSalesOrderInvoice takes
+// RenderableOrder, which is deliberately loose - what a template needs, not
+// what a sales order is - and one object is handed to both consumers.
+
 export async function sendSalesOrderToSupplier(
-  order: SalesOrderWire,
+  order: SalesOrderForRender,
   spots: SpotPriceWire[],
   email: string,
   transport?: Transport

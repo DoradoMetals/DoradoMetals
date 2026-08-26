@@ -17,19 +17,36 @@ import * as productService from "#features/products/service.ts";
 
 import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";
 
-export async function getById(orderId) {
+import type { SalesOrderRow, OrderMetalRow } from "#features/sales-orders/repo.next.ts";
+import type { PaymentSession } from "#features/payments/service.ts";
+import type { IncomingHttpHeaders } from "node:http";
+import type { Transport } from "#features/emails/utils/sendEmail.ts";
+import type { SpotPriceWire } from "@dorado/contracts";
+
+// The order as the browser sends it. This is req.body, so every field is
+// whatever arrived - which is the point of re-fetching the items and the
+// address by id, and of pricing against the server's spots rather than these.
+export type SalesOrderInput = {
+  address: { id: string };
+  items: { id: string; quantity: number }[];
+  using_funds?: boolean | null;
+  service: { value?: string | null };
+  payment_method?: string | null;
+};
+
+export async function getById(orderId: string): Promise<SalesOrderRow | undefined> {
   return salesOrderRepo.findById(orderId);
 }
 
-export async function listOrdersForUser(userId) {
+export async function listOrdersForUser(userId: string): Promise<SalesOrderRow[]> {
   return salesOrderRepo.findAllByUser(userId);
 }
 
-export async function getAll() {
+export async function getAll(): Promise<SalesOrderRow[]> {
   return salesOrderRepo.getAll();
 }
 
-export async function getMetalsForOrder(orderId) {
+export async function getMetalsForOrder(orderId: string): Promise<OrderMetalRow[]> {
   return salesOrderRepo.findMetalsByOrderId(orderId);
 }
 
@@ -62,11 +79,40 @@ export async function getMetalsForOrder(orderId) {
 // "fixed" into something quieter.
 //
 // features/sales-orders/address-state.test.js proves both halves.
-export async function createSalesOrder({ sales_order, payment_intent_id }, headers) {
-  const session = await auth.api.getSession({
+export async function createSalesOrder(
+  { sales_order, payment_intent_id }: { sales_order: SalesOrderInput; payment_intent_id: string },
+  headers: IncomingHttpHeaders
+): Promise<SalesOrderRow | undefined> {
+  // BOTH OF THESE WERE READ UNGUARDED, AND BOTH ARE 500s WHEN THEY ARE ABSENT.
+  //
+  // The session is used four times below - insertOrder, removeFunds and the
+  // ledger entry all take session.user.id. requireUser has already run, so this
+  // fires only when auth.api.getSession, a second and independent lookup,
+  // disagrees with it. 401 rather than the TypeError's 500: a missing session
+  // is an authentication fact, not a server fault.
+  //
+  // The address is looked up by id from the body, so an id that does not exist
+  // - or belongs to somebody else - returned undefined and threw on
+  // `address.state`. 400: the request named an address the server cannot find.
+  const session = (await auth.api.getSession({
     headers: fromNodeHeaders(headers),
-  });
+  })) as PaymentSession | null;
+  if (!session?.user?.id) {
+    const err: Error & { statusCode?: number } = new Error(
+      "no session - an order cannot be placed without one"
+    );
+    err.statusCode = 401;
+    throw err;
+  }
+
   const address = await addressService.getAddressFromId(sales_order.address.id);
+  if (!address) {
+    const err: Error & { statusCode?: number } = new Error(
+      `no address ${sales_order.address.id}`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
   const serverItems = await productService.getItemsFromServer(
     sales_order.items
   );
@@ -133,8 +179,19 @@ export async function adminCreateSalesOrder({
   sales_order,
   payment_intent_id,
   user,
-}) {
+}: {
+  sales_order: SalesOrderInput;
+  payment_intent_id: string;
+  user: { id: string; dorado_funds?: number | null };
+}): Promise<SalesOrderRow | undefined> {
   const address = await addressService.getAddressFromId(sales_order.address.id);
+  if (!address) {
+    const err: Error & { statusCode?: number } = new Error(
+      `no address ${sales_order.address.id}`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
   const serverItems = await productService.getItemsFromServer(
     sales_order.items
   );
@@ -200,7 +257,15 @@ export async function adminCreateSalesOrder({
   return await getById(orderId);
 }
 
-export async function updateStatus({ order, order_status, user_name }) {
+export async function updateStatus({
+  order,
+  order_status,
+  user_name,
+}: {
+  order: SalesOrderRow;
+  order_status: string;
+  user_name: string;
+}): Promise<SalesOrderRow | undefined> {
   return await salesOrderRepo.updateStatus(order, order_status, user_name);
 }
 
@@ -209,8 +274,26 @@ export async function updateStatus({ order, order_status, user_name }) {
 // straight to this function, so a field would be reachable from the request.
 // Nothing in production passes one; a test passes a recorder, which is what
 // makes the guard below testable without mail leaving the building.
-export async function sendOrderToSupplier({ order, spots, supplier_id }, transport) {
+export async function sendOrderToSupplier(
+  { order, spots, supplier_id }: { order: { id: string }; spots: SpotPriceWire[]; supplier_id: string },
+  transport?: Transport
+): Promise<SalesOrderRow | undefined> {
   const sales_order = await getById(order.id);
+
+  // AN ORDER THAT DOES NOT EXIST MUST NOT REACH A REFINER.
+  //
+  // getById returns undefined for an id with no row, and everything below reads
+  // fields off it - so the old code threw a TypeError and answered 500. That is
+  // the harmless version. The reason this is a guard and not a tidy-up is what
+  // sits further down: this function attaches a supplier, creates an outbound
+  // shipment and emails a refiner their copy of the order. A 404 here is the
+  // difference between refusing and starting that sequence against nothing.
+  if (!sales_order) {
+    const err: Error & { statusCode?: number } = new Error(`no sales order ${order.id}`);
+    err.statusCode = 404;
+    throw err;
+  }
+
   const supplier = await refinerRepo.getRefinerFromId(supplier_id);
 
   // An order with no address cannot be sent to a refiner: the whole point of
@@ -273,7 +356,12 @@ export async function updateTracking({
   shipment_id,
   tracking_number,
   carrier_id,
-}) {
+}: {
+  order_id: string;
+  shipment_id: string;
+  tracking_number: string;
+  carrier_id: string;
+}): Promise<unknown> {
   // THIS AWAITED shipmentRepo.insertTrackingNumber, WHICH DOES NOT EXIST.
   //
   // The shipments repo exports getAll, getById, getByOrder, create, update and
@@ -290,7 +378,7 @@ export async function updateTracking({
   // and its dual-write, which a bespoke UPDATE here would have bypassed.
   const shipment = await shipmentRepo.getById(shipment_id);
   if (!shipment) {
-    const err = new Error(`no shipment ${shipment_id}`);
+    const err: Error & { statusCode?: number } = new Error(`no shipment ${shipment_id}`);
     err.statusCode = 404;
     throw err;
   }
@@ -303,6 +391,6 @@ export async function updateTracking({
   return await salesOrderRepo.updateTrackingStatus(order_id);
 }
 
-export async function createReview({ order }) {
+export async function createReview({ order }: { order: SalesOrderRow }): Promise<unknown> {
   return salesOrderRepo.createReview({ order });
 }

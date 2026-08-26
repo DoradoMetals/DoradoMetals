@@ -16,9 +16,18 @@ import type { AddressRow } from "./repo.next.ts";
  * features/sales-orders/address-state.test.js proves it.
  *
  * `getFromId` returning `AddressRow[]` is what makes that a compile error
- * rather than a silent zero, for every caller, permanently. The narrower fix -
- * calling addressService.getAddressFromId, which returns `rows[0]` - is also
- * applied, but it only protects the two call sites that use it.
+ * rather than a silent zero - FOR TYPESCRIPT CALLERS. I first wrote "for every
+ * caller, permanently", and that is wrong: tsconfig sets `checkJs: false`, so a
+ * .js caller is never checked and this file does nothing for it. The caller
+ * that actually had the bug, features/sales-orders/service.js, is JavaScript.
+ * Proved by probing with a .js file rather than the .ts one I used first, which
+ * is what made the claim look true.
+ *
+ * So the guard on that call site today is the narrower fix - calling
+ * addressService.getAddressFromId, which returns `rows[0]` - plus
+ * scripts/lint-row-vs-list.mjs, which is syntactic and does read .js. THIS FILE
+ * BECOMES THE GUARD WHEN THE CALLER IS CONVERTED, which is the argument for
+ * converting it.
  *
  * PROVED RATHER THAN ASSUMED, because an unresolved import in a declaration
  * file is not an error - every type it names silently becomes `any`, and

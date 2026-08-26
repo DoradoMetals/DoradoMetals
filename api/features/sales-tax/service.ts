@@ -12,8 +12,15 @@ import type { SpotPriceWire } from "@dorado/contracts";
 // constraining it here would be a claim about the request that nothing checks.
 export type TaxableItem = Record<string, unknown>;
 
+// `state_code` IS NULLABLE BECAUSE ADDRESSES ARE. exchange.addresses.state is
+// nullable and production uses it - sales order 1f3e9efe has an address with no
+// state. A null state matches no rule and the query COALESCEs the rate to 0,
+// which is the behaviour that already existed; the type now says so instead of
+// the caller having to pass a lie. It is NOT the same thing as the 4e5b97e0
+// defect, where an undefined state came from reading `.state` off a list - that
+// was a mistake, this is a real address that genuinely has no state.
 export async function attachSalesTaxToItems(
-  state_code: string,
+  state_code: string | null,
   items: TaxableItem[],
   spots: SpotPriceWire[]
 ): Promise<(TaxableItem & { sales_tax_rate: number })[]> {

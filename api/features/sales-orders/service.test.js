@@ -36,7 +36,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
 import query from "#shared/db/query.js";
-import * as service from "#features/sales-orders/service.js";
+import * as service from "#features/sales-orders/service.ts";
 import * as salesOrderRepo from "#features/sales-orders/repo.js";
 import * as shipmentRepo from "#features/shipping/shipments/repo.js";
 import { closeBrowser } from "#features/pdf/render/browser.ts";

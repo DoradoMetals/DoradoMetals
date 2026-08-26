@@ -81,10 +81,20 @@ export function renderOfferAcceptedEmail({ firstName, url }: TemplateVars): stri
   return renderTemplate("offerAccepted.raw.html", { firstName, url });
 }
 
+// TIMESTAMPS ARE Date HERE, NOT string. Contracts describe the wire, so
+// SalesOrderWire says `created_at: string` - but what reaches this renderer is
+// what getById returned, a database row whose timestamps pg has already parsed.
+// The template only ever formats them, and features/pdf/render/sections.ts
+// declares `string | number | Date | null` for exactly this reason.
+export type SalesOrderForRender = Omit<SalesOrderWire, "created_at" | "updated_at"> & {
+  created_at?: string | Date | null;
+  updated_at?: string | Date | null;
+};
+
 type SupplierEmailInput = {
   firstName?: string | null;
   url?: string | null;
-  order: SalesOrderWire;
+  order: SalesOrderForRender;
   spots: SpotPriceWire[];
 };
 
