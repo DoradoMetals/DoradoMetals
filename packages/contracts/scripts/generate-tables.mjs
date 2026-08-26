@@ -57,7 +57,11 @@ const SCHEMAS = (process.env.CONTRACT_SCHEMAS ?? DEFAULT_SCHEMAS)
   .map((s) => s.trim())
   .filter(Boolean);
 
-const OUTDIR = path.join(import.meta.dirname, "..", "src", "generated");
+// Overridable so a freshness check can generate somewhere else and compare,
+// rather than overwriting the committed files to find out whether they differ.
+const OUTDIR =
+  process.env.CONTRACT_OUTDIR ??
+  path.join(import.meta.dirname, "..", "src", "generated");
 
 // Contracts describe what crosses the wire, not what the driver hands back.
 // Timestamps are therefore strings: they are ISO-8601 by the time they have

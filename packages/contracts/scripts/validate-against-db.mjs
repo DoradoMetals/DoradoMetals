@@ -10,8 +10,19 @@
 // Read-only. Safe to point at production.
 //
 //   pnpm --filter @dorado/contracts validate
-import "dotenv/config";
+// READS api/.env, NOT ITS OWN COPY - the same fix generate-tables.mjs already
+// carries. `import "dotenv/config"` loads .env relative to the CURRENT WORKING
+// DIRECTORY, and this package still has one naming `dorado_db_dev`, the name
+// the databases had before they were renamed to prod/dev/test. So this script
+// failed immediately for anybody who ran it, and nobody did: it is in no gate.
+import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import pg from "pg";
+
+dotenv.config({
+  path: path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "api", ".env"),
+});
 
 // Register the same NUMERIC parser the API uses, so this validates the types
 // the application actually sees rather than pg defaults.

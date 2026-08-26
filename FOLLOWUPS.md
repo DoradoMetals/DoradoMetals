@@ -4506,3 +4506,59 @@ disciplines — `userJson` returning exactly three fields, `to_jsonb(addr)` bein
 an unbounded whole-row projection — are now covered by the undeclared-field
 refusal added to `validate:wire`, since `order.user` and `order.address` are
 both among its 61 shapes. A widened projection there fails that gate.
+
+## A second copy of every secret, and the sibling script that still reads it
+
+`packages/contracts/scripts/generate-tables.mjs` carries a long comment about a
+bug it already fixed: the package had **its own `.env`**, holding a second copy
+of the database password and a connection string naming `dorado_db_dev` — the
+name the databases had before they were renamed to `prod`/`dev`/`test`. The
+generator was repointed at `api/.env`, and the comment closes with "one source
+of truth, and one fewer copy of the credentials on disk."
+
+**The file was never deleted, and its sibling still reads it.**
+
+`packages/contracts/scripts/validate-against-db.mjs` still did
+`import "dotenv/config"`, which resolves relative to the **current working
+directory** — so it picked up the stale copy and died on
+`database "dorado_db_dev" does not exist`. It had been failing for anybody who
+ran it, and nobody had: **it is in no gate.** Repointed at `api/.env`, the same
+fix the generator carries. It now runs and passes — **36 of 36 tables with data
+validate cleanly.**
+
+**`packages/contracts/.env` is still on disk and holds 50 variables** — among
+them `BETTER_AUTH_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, the
+FedEx client secrets, `GOOGLE_CLIENT_SECRET`, `MINIO_SECRET_KEY`,
+`RECAPTCHA_SECRET_KEY`, `SPOT_API_KEY`, `EMAIL_PASSWORD`, and both database
+URLs. It is gitignored and **not tracked**, so it is not in the repository's
+history — this is a duplicate on the machine, not a leak into git.
+
+**Compared safely — variable names and value hashes, never values:** it holds
+**nothing `api/.env` lacks**. All 50 of its variables are also in `api/.env`;
+only `DATABASE_URL` and `PROD_READONLY_DATABASE_URL` differ, and both of its
+versions are the stale ones. `api/.env` has four more it does not.
+
+**So deleting it loses nothing — but it is an untracked credentials file, so it
+is not mine to delete. That is D37**, and it matters for a job already on the
+list: rotating the leaked FedEx credentials and the database password means
+updating *both* copies, or the stale one keeps the old values sitting around.
+
+### The committed contracts are now checked for freshness
+
+CLAUDE.md says types come from generated contracts and "after any schema
+change, regenerate" — an instruction with **no enforcement**. `pnpm check` ran
+`contracts build`, which compiles whatever is committed and says nothing about
+whether it still matches the schema.
+
+`verify:fresh` regenerates into a temporary directory and compares, so it never
+writes to `src/generated` and a failure leaves the tree untouched. **All 18
+files match the database today.** It refuses below 10 generated files, so a
+generator that half-ran cannot pass.
+
+Both this and the existing `validate` now run in `pnpm check`. The stale-`.env`
+bug is exactly why an unrun gate is worth little: `validate` had been broken
+long enough for the databases to be renamed underneath it.
+
+Mutation-checked: editing a committed contract fails with `leads.ts: differs
+from what the database produces`; removing one fails with `rates.ts: generated
+but not committed`. Both exit 1.

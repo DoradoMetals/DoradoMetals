@@ -18,7 +18,8 @@
     "generate": "node scripts/generate-tables.mjs",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "validate": "node scripts/validate-against-db.mjs"
+    "validate": "node scripts/validate-against-db.mjs",
+    "verify:fresh": "node scripts/verify-fresh.mjs"
   },
   "dependencies": {
     "zod": "3.25.76"
