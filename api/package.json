@@ -12,6 +12,7 @@
     "lint:imports": "node scripts/lint-imports.mjs",
     "lint:namespace-calls": "node scripts/lint-namespace-calls.mjs",
     "lint:row-vs-list": "node scripts/lint-row-vs-list.mjs",
+    "audit:routes": "node scripts/route-guards.mjs --list",
     "migrate": "node scripts/migrate.mjs",
     "migrate:status": "node scripts/migrate.mjs --status",
     "audit:nullability": "node scripts/audit-nullability.mjs",

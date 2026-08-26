@@ -1,0 +1,137 @@
+// Every admin route refuses a customer and refuses an anonymous caller.
+//
+// WHY THIS FILE EXISTS. 00a0853b found that get_payout_details - the endpoint
+// that returns plaintext routing and account numbers - had a test that drove it
+// AS an admin and asserted the response shape, and nothing that asserted the
+// guard. That proves the handler works and says nothing about who can reach it.
+// Writing that assertion by hand for one endpoint fixes one endpoint. There are
+// seventy-eight.
+//
+// The list is not maintained here. scripts/route-guards.mjs reads every
+// routes.js and resolves each mount from app.js - the prefix is not derivable
+// from the folder name, features/refiners mounts at /api/suppliers - so a route
+// added tomorrow is covered tomorrow without anyone remembering to add it.
+//
+// WHAT IS DELIBERATELY EXCLUDED, AND WHY. DELETE /api/purchase_orders/purge_cancelled
+// is `DELETE FROM exchange.purchase_orders` with no id. CLAUDE.md excludes it
+// from testing and that is not negotiable for a test whose whole premise is
+// "drive this without being allowed to". If its guard were missing, the test
+// that discovered so would be the thing that emptied the table.
+//
+// SAFETY OF THE REST. Every request carries an empty body, so a route whose
+// guard was missing would run with no id and update nothing. That is a
+// mitigation, not a guarantee - which is why the exclusion above is by name
+// rather than by hoping.
+//
+// NO RESPONSE BODY IS PRINTED OR INTERPOLATED, on any path including the
+// failure messages. Several of these routes return payouts.
+//
+// WHAT THE SWEEP ALONE CANNOT CATCH, AND WHY THE INVENTORY IS HERE.
+//
+// The sweep derives its list of admin routes from the same routes.js it is
+// checking. So DELETING a guard does not fail it - the route simply stops being
+// an admin route and stops being tested. I found that out by removing
+// requireAdmin from GET /api/leads/get_all and watching the suite pass, which
+// is the same tautology as a coverage metric built out of the thing it
+// measures.
+//
+// The mechanism is sound - with that guard removed, a customer session really
+// does get 200 from that route, measured directly - so the sweep does catch a
+// guard that is PRESENT BUT INEFFECTIVE.
+//
+// admin-routes.json is what catches the other case: a committed inventory of
+// which routes are admin-guarded. Remove a guard and the set no longer matches.
+// Adding an admin route means updating that file, which is a deliberate act
+// with a diff attached, and that is the point.
+import test, { after, before } from "node:test";
+import assert from "node:assert/strict";
+import request from "supertest";
+import pool from "#db";
+import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.js";
+import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
+import { adminRoutes } from "../../scripts/route-guards.mjs";
+import { readFileSync } from "node:fs";
+
+const INVENTORY = JSON.parse(
+  readFileSync(new URL("./admin-routes.json", import.meta.url), "utf8")
+);
+
+await mockSessions();
+const { default: app } = await import("#app");
+
+const EXCLUDED = new Set(["/api/purchase_orders/purge_cancelled"]);
+
+const routes = adminRoutes.filter((r) => r.url && !EXCLUDED.has(r.url));
+
+let customer;
+
+before(async () => {
+  customer = (
+    await outside(
+      `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
+    )
+  )[0];
+  assert.ok(customer, "dev has no non-admin user - every assertion below would prove nothing");
+
+  // If the scanner ever stops resolving routes, this suite would silently
+  // assert nothing at all and still report green.
+  assert.ok(
+    routes.length >= 70,
+    `only ${routes.length} admin routes resolved - the scanner is not working`
+  );
+});
+
+after(async () => {
+  restoreSessions();
+  await pool.end();
+});
+
+const send = (verb, url) => {
+  const req = request(app);
+  const method = verb.toLowerCase();
+  return req[method](url).send({});
+};
+
+test("every admin route refuses a signed-in customer", async () => {
+  const reached = [];
+  await inPinnedTransaction(async () => {
+    await as({ ...customer, role: "user" }, async () => {
+      for (const r of routes) {
+        const res = await send(r.verb, r.url);
+        if (![401, 403].includes(res.status)) reached.push(`${r.verb} ${r.url} -> ${res.status}`);
+      }
+    });
+  });
+  assert.deepEqual(reached, [], `a customer was not refused by ${reached.length} route(s)`);
+});
+
+test("every admin route refuses an anonymous caller", async () => {
+  const reached = [];
+  await inPinnedTransaction(async () => {
+    await anonymous(async () => {
+      for (const r of routes) {
+        const res = await send(r.verb, r.url);
+        if (![401, 403].includes(res.status)) reached.push(`${r.verb} ${r.url} -> ${res.status}`);
+      }
+    });
+  });
+  assert.deepEqual(reached, [], `an anonymous caller was not refused by ${reached.length} route(s)`);
+});
+
+test("the set of admin-guarded routes is the one that was reviewed", () => {
+  const current = adminRoutes.map((r) => `${r.verb} ${r.url}`).sort();
+
+  const lost = INVENTORY.filter((r) => !current.includes(r));
+  const added = current.filter((r) => !INVENTORY.includes(r));
+
+  assert.deepEqual(
+    lost,
+    [],
+    `${lost.length} route(s) no longer carry requireAdmin - if that is deliberate, update admin-routes.json in the same change`
+  );
+  assert.deepEqual(
+    added,
+    [],
+    `${added.length} new admin route(s) - add them to admin-routes.json so the sweep covers them`
+  );
+});
