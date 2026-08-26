@@ -7,7 +7,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import * as next from "#features/products/repo.next.js";
+import * as next from "#features/products/repo.next.ts";
 import * as exchange from "#features/products/repo.exchange.js";
 import * as dual from "#features/products/repo.dual.js";
 import { toLegacy } from "#features/products/wire.ts";

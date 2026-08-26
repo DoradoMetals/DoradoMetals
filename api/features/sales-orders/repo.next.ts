@@ -12,6 +12,8 @@
 // back at checkout and the API resolves it against exchange.addresses.
 // Shipments and users are still read from exchange, unmigrated.
 import query from "#shared/db/query.js";
+import type { SalesOrderWire } from "@dorado/contracts";
+import type { PoolClient } from "pg";
 // See features/orders/fragments.js: the shipment and user objects are
 // identical in both directions and are now written once.
 import {
@@ -20,6 +22,43 @@ import {
   sharedJoins,
   newestFirst,
 } from "#features/orders/fragments.js";
+
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// The order row is SalesOrderWire, which validate:wire already parses real rows
+// through for BOTH implementations - so it is the description of this shape
+// that has been checked against the database rather than read off the SQL.
+//
+// Its two timestamps are overridden. A contract describes the WIRE, where a
+// timestamp is a string because JSON made it one; pg returns a Date. The rest
+// of the shape - the money, the nested address, shipment, user and items - is
+// taken exactly as declared.
+export type SalesOrderRow = Omit<SalesOrderWire, "created_at" | "updated_at"> & {
+  created_at: Date | null;
+  updated_at: Date | null;
+};
+
+// The per-metal spot row an order carries. There is deliberately no contract
+// for this one - it is not returned by any route on its own, only alongside an
+// order - so it is spelled out here.
+//
+// percent_change and dollar_change have NO column in the new schema and are
+// projected as NULL to keep the shape. They are null on every row in exchange
+// too, and nothing writes them; CLAUDE.md lists percent_change among the
+// columns that are 100% NULL and still referenced by live code.
+export type OrderMetalRow = {
+  id: string;
+  sales_order_id: string | null;
+  type: string;
+  ask_spot: number | null;
+  bid_spot: number | null;
+  percent_change: number | null;
+  dollar_change: number | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+};
 
 // The columns exchange.sales_orders had, rebuilt from the tables they were
 // split across. Listed rather than selected with *, so a column appearing on
@@ -52,7 +91,7 @@ const ORDER_COLUMNS = `
       t.sales_tax,
       o.refinery_id AS supplier_id`;
 
-function buildOrderQuery({ where = "", limit = "" } = {}) {
+function buildOrderQuery({ where = "", limit = "" }: { where?: string; limit?: string } = {}): string {
   return `
     SELECT
       ${ORDER_COLUMNS},
@@ -88,27 +127,28 @@ function buildOrderQuery({ where = "", limit = "" } = {}) {
   `;
 }
 
-export async function findById(id) {
-  const { rows } = await query(
+// `|| null` rather than `?? null`, matching repo.exchange.js exactly.
+export async function findById(id: string): Promise<SalesOrderRow | null> {
+  const { rows } = await query<SalesOrderRow>(
     buildOrderQuery({ where: "o.id = $1", limit: "\n    LIMIT 1" }),
     [id]
   );
   return rows[0] || null;
 }
 
-export async function findAllByUser(userId) {
-  const { rows } = await query(buildOrderQuery({ where: "o.user_id = $1" }), [userId]);
+export async function findAllByUser(userId: string): Promise<SalesOrderRow[]> {
+  const { rows } = await query<SalesOrderRow>(buildOrderQuery({ where: "o.user_id = $1" }), [userId]);
   return rows;
 }
 
-export async function getAll() {
-  const { rows } = await query(buildOrderQuery(), []);
+export async function getAll(): Promise<SalesOrderRow[]> {
+  const { rows } = await query<SalesOrderRow>(buildOrderQuery(), []);
   return rows;
 }
 
 // percent_change and dollar_change have no column by design - null on every row
 // in exchange, and nothing writes them - so they are projected to keep the shape.
-export async function findMetalsByOrderId(orderId) {
+export async function findMetalsByOrderId(orderId: string): Promise<OrderMetalRow[]> {
   const sql = `
     SELECT
       sp.id,
@@ -125,7 +165,7 @@ export async function findMetalsByOrderId(orderId) {
     WHERE sp.order_id = $1
     ORDER BY m.name ASC, sp.id ASC;
   `;
-  const { rows } = await query(sql, [orderId]);
+  const { rows } = await query<OrderMetalRow>(sql, [orderId]);
   return rows;
 }
 
@@ -142,7 +182,7 @@ export async function findMetalsByOrderId(orderId) {
 // Every function takes the caller's executor so the mirror joins the same
 // transaction as the write it follows.
 
-export async function mirrorOrder(orderId, executor) {
+export async function mirrorOrder(orderId: string, executor?: Executor): Promise<void> {
   await query(
     `INSERT INTO orders.orders (
        id, user_id, refinery_id, direction, status, number, notes,
@@ -203,7 +243,7 @@ export async function mirrorOrder(orderId, executor) {
 // the product rather than from a scrap row, and confirmed stays false -
 // exchange.sales_order_items has no such column because nothing is confirmed on
 // the way out.
-export async function mirrorItems(orderId, executor) {
+export async function mirrorItems(orderId: string, executor?: Executor): Promise<void> {
   await query(
     `INSERT INTO orders.items (
        id, order_id, bullion_id, metal_id, pre_melt, post_melt, purity, content,
@@ -239,7 +279,7 @@ export async function mirrorItems(orderId, executor) {
 
 // Spot quotes, keyed by order and metal. exchange.order_metals serves both
 // kinds of order and names the metal as text.
-export async function mirrorSpots(orderId, executor) {
+export async function mirrorSpots(orderId: string, executor?: Executor): Promise<void> {
   await query(
     `INSERT INTO orders.spots (
        order_id, metal_id, ask, bid,
@@ -263,7 +303,7 @@ export async function mirrorSpots(orderId, executor) {
 }
 
 // The address snapshot, taken when the order is created.
-export async function mirrorAddress(orderId, executor) {
+export async function mirrorAddress(orderId: string, executor?: Executor): Promise<void> {
   await query(
     `WITH needed AS MATERIALIZED (
        SELECT s.id AS order_id, a.id AS source_id, gen_random_uuid() AS snapshot_id

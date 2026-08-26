@@ -9,7 +9,7 @@
 //
 // So the collapse is not "one response". It is: the parts that ARE the same
 // stop being written twice. These three were duplicated field for field between
-// features/purchase-orders/repo.next.js and features/sales-orders/repo.next.js,
+// features/purchase-orders/repo.next.ts and features/sales-orders/repo.next.ts,
 // checked programmatically rather than by eye before being moved here.
 //
 // Nothing about which direction is being read appears below. That is the test

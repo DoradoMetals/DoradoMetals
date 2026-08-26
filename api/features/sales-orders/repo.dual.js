@@ -17,7 +17,7 @@
 // the purchase order side before the tests caught it.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/sales-orders/repo.exchange.js";
-import * as next from "#features/sales-orders/repo.next.js";
+import * as next from "#features/sales-orders/repo.next.ts";
 
 // Reads come from the new schema: exercising it is the point of this phase.
 export const findById = next.findById;

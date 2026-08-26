@@ -17,10 +17,87 @@
 //
 // Every function takes an optional trailing executor.
 import query from "#shared/db/query.js";
+import type { BullionWire } from "@dorado/contracts";
+import type { products } from "@dorado/contracts";
+import type { PoolClient, QueryResult } from "pg";
 import {
   BULLION_ADMIN_PRODUCT_FIELDS_WITH_ALIAS as ADMIN_PRODUCT_FIELDS_WITH_ALIAS,
   BULLION_PRODUCT_FIELDS as PRODUCT_FIELDS,
 } from "#features/products/constants.bullion.js";
+
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// THE STOREFRONT ROW IS BullionWire, not a hand-written restatement of the
+// projection. validate:wire already parses real rows through it for BOTH
+// implementations, so it is the one description of this shape that has been
+// checked against the database - and BULLION_PRODUCT_FIELDS plus the two joined
+// names is exactly what it declares. No timestamps, so nothing to override:
+// the storefront deliberately does not return them.
+export type StorefrontProductRow = BullionWire;
+
+// The admin row has no wire contract, so it is composed from the table plus the
+// three names joined in. created_at and updated_at ARE returned here, and pg
+// hands back a Date where a contract would say string - the storefront row
+// dodges that only by not selecting them.
+export type AdminProductRow = Pick<
+  products.BullionRow,
+  | "id"
+  | "name"
+  | "description"
+  | "bid_premium"
+  | "ask_premium"
+  | "type"
+  | "image_front"
+  | "image_back"
+  | "display"
+  | "content"
+  | "gross"
+  | "purity"
+  | "variant_group"
+  | "shadow_offset"
+  | "stock"
+  | "created_by"
+  | "updated_by"
+  | "homepage_display"
+  | "filter_category"
+  | "quantity"
+  | "slug"
+  | "legal_tender"
+  | "domestic_tender"
+  | "sell_display"
+  | "is_generic"
+  | "variant_label"
+> & {
+  created_at: Date | null;
+  updated_at: Date | null;
+  // Joined: the label columns, not the ids. `supplier` comes through
+  // refiners.exchange_compat, which reassembles what exchange.suppliers was.
+  metal: string;
+  supplier: string;
+  mint: string;
+};
+
+// What the admin form sends. This arrives as req.body, so it is the shape the
+// UPDATE reads rather than anything the database guarantees - and three of its
+// fields are NAMES that the query resolves back to ids.
+export type ProductInput = Partial<
+  Omit<AdminProductRow, "created_at" | "updated_at" | "metal" | "supplier" | "mint">
+> & {
+  id?: string;
+  metal?: string;
+  supplier?: string;
+  mint?: string;
+};
+
+// The optional filters the storefront combines. Absent means "do not filter",
+// which is why every one is optional rather than nullable.
+export type ProductFilters = {
+  metal_type?: string;
+  filter_category?: string;
+  product_type?: string;
+};
 
 // The four storefront lookups differ only in how they filter. The projection
 // and joins are stated once so they cannot drift apart the way the order
@@ -40,18 +117,31 @@ const ADMIN = `
     JOIN products.mints mint ON mint.id = p.mint_id
 `;
 
-export async function getAllProducts(executor) {
-  const { rows } = await query(`${STOREFRONT} WHERE product.display = true ORDER BY product.id ASC`, [], executor);
+export async function getAllProducts(executor?: Executor): Promise<StorefrontProductRow[]> {
+  const { rows } = await query<StorefrontProductRow>(
+    `${STOREFRONT} WHERE product.display = true ORDER BY product.id ASC`,
+    [],
+    executor
+  );
   return rows;
 }
 
-export async function getSellProducts(executor) {
-  const { rows } = await query(`${STOREFRONT} WHERE product.sell_display = true ORDER BY product.id ASC`, [], executor);
+export async function getSellProducts(executor?: Executor): Promise<StorefrontProductRow[]> {
+  const { rows } = await query<StorefrontProductRow>(
+    `${STOREFRONT} WHERE product.sell_display = true ORDER BY product.id ASC`,
+    [],
+    executor
+  );
   return rows;
 }
 
-export async function getProductFromSlug(slug, executor) {
-  const { rows } = await query(
+// Returns a LIST even though a slug identifies one product, matching
+// repo.exchange.js - the controller takes [0].
+export async function getProductFromSlug(
+  slug: string,
+  executor?: Executor
+): Promise<StorefrontProductRow[]> {
+  const { rows } = await query<StorefrontProductRow>(
     `${STOREFRONT} WHERE product.display = true AND product.slug = $1`,
     [slug],
     executor
@@ -59,8 +149,8 @@ export async function getProductFromSlug(slug, executor) {
   return rows;
 }
 
-export async function getHomepageProducts(executor) {
-  const { rows } = await query(
+export async function getHomepageProducts(executor?: Executor): Promise<StorefrontProductRow[]> {
+  const { rows } = await query<StorefrontProductRow>(
     `${STOREFRONT} WHERE product.display = true AND product.homepage_display = true ORDER BY product.id ASC`,
     [],
     executor
@@ -72,11 +162,11 @@ export async function getHomepageProducts(executor) {
 // written out. Values are still bound as parameters - the only thing
 // interpolated is the placeholder number.
 export async function getFilteredProducts(
-  { metal_type, filter_category, product_type } = {},
-  executor
-) {
+  { metal_type, filter_category, product_type }: ProductFilters = {},
+  executor?: Executor
+): Promise<StorefrontProductRow[]> {
   const conditions = ["product.display = true"];
-  const values = [];
+  const values: string[] = [];
 
   if (metal_type) {
     values.push(metal_type);
@@ -91,7 +181,7 @@ export async function getFilteredProducts(
     conditions.push(`product.type = $${values.length}`);
   }
 
-  const { rows } = await query(
+  const { rows } = await query<StorefrontProductRow>(
     `${STOREFRONT} WHERE ${conditions.join(" AND ")} ORDER BY product.name ASC, product.id ASC`,
     values,
     executor
@@ -99,18 +189,21 @@ export async function getFilteredProducts(
   return rows;
 }
 
-export async function getAllAdminProducts(executor) {
-  const { rows } = await query(`${ADMIN} ORDER BY p.name ASC, p.id ASC`, [], executor);
+export async function getAllAdminProducts(executor?: Executor): Promise<AdminProductRow[]> {
+  const { rows } = await query<AdminProductRow>(`${ADMIN} ORDER BY p.name ASC, p.id ASC`, [], executor);
   return rows;
 }
 
-export async function getAdminProductById(id, executor) {
-  const { rows } = await query(`${ADMIN} WHERE p.id = $1`, [id], executor);
+export async function getAdminProductById(
+  id: string,
+  executor?: Executor
+): Promise<AdminProductRow | undefined> {
+  const { rows } = await query<AdminProductRow>(`${ADMIN} WHERE p.id = $1`, [id], executor);
   return rows[0];
 }
 
-export async function getAllTypes(executor) {
-  const { rows } = await query(
+export async function getAllTypes(executor?: Executor): Promise<{ name: string }[]> {
+  const { rows } = await query<{ name: string }>(
     `SELECT DISTINCT type AS name FROM products.bullion`,
     [],
     executor
@@ -118,7 +211,11 @@ export async function getAllTypes(executor) {
   return rows;
 }
 
-export async function updateProduct(product, user_name, executor) {
+export async function updateProduct(
+  product: ProductInput,
+  user_name: string,
+  executor?: Executor
+): Promise<QueryResult> {
   const sql = `
     UPDATE products.bullion SET
       metal_id = (SELECT id FROM metals.metals WHERE name = $1),
@@ -184,8 +281,13 @@ export async function updateProduct(product, user_name, executor) {
   return await query(sql, values, executor);
 }
 
-export async function insertProduct({ created_by, name }, executor) {
-  const { rows } = await query(
+// Returns the new id, not the row - repo.exchange.js does the same, and the
+// service selects the product back afterwards.
+export async function insertProduct(
+  { created_by, name }: { created_by: string; name: string },
+  executor?: Executor
+): Promise<products.BullionRow["id"]> {
+  const { rows } = await query<Pick<products.BullionRow, "id">>(
     `INSERT INTO products.bullion (created_by, updated_by, name)
      VALUES ($1, $1, $2)
      RETURNING id`,
@@ -195,8 +297,15 @@ export async function insertProduct({ created_by, name }, executor) {
   return rows[0].id;
 }
 
-export async function getItemsFromIds(ids, executor) {
-  const { rows } = await query(`${STOREFRONT} WHERE product.id = ANY($1)`, [ids], executor);
+export async function getItemsFromIds(
+  ids: string[],
+  executor?: Executor
+): Promise<StorefrontProductRow[]> {
+  const { rows } = await query<StorefrontProductRow>(
+    `${STOREFRONT} WHERE product.id = ANY($1)`,
+    [ids],
+    executor
+  );
   return rows;
 }
 
@@ -206,7 +315,10 @@ export async function getItemsFromIds(ids, executor) {
 //
 // The three renamed columns are mapped here rather than aliased: this is the
 // write direction, so it targets the physical names.
-export async function mirrorProduct(id, executor) {
+export async function mirrorProduct(
+  id: string,
+  executor?: Executor
+): Promise<Pick<products.BullionRow, "id"> | undefined> {
   const sql = `
     INSERT INTO products.bullion (
       id, metal_id, mint_id, supplier_id, name, description, type,
@@ -244,6 +356,6 @@ export async function mirrorProduct(id, executor) {
       created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at
     RETURNING id;
   `;
-  const { rows } = await query(sql, [id], executor);
+  const { rows } = await query<Pick<products.BullionRow, "id">>(sql, [id], executor);
   return rows[0];
 }

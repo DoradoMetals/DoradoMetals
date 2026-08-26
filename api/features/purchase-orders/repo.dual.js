@@ -20,7 +20,7 @@
 // exists to prevent.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/purchase-orders/repo.exchange.js";
-import * as next from "#features/purchase-orders/repo.next.js";
+import * as next from "#features/purchase-orders/repo.next.ts";
 
 // Reads come from the new schema: exercising it is the point of this phase.
 export const findAllByUser = next.findAllByUser;

@@ -19,8 +19,68 @@
 // Those features have not been migrated; when they are, these joins move with
 // them and nothing else here changes.
 import query from "#shared/db/query.js";
+import type { PurchaseOrderWire } from "@dorado/contracts";
+import type { PoolClient } from "pg";
+
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// The order row is PurchaseOrderWire - validate:wire already parses real rows
+// through it for BOTH implementations, so it is the description of this shape
+// that has been checked against the database rather than read off the SQL.
+//
+// The two timestamps are overridden: a contract describes the WIRE, where a
+// timestamp is a string because JSON made it one, and pg returns a Date.
+export type PurchaseOrderRow = Omit<
+  PurchaseOrderWire,
+  "created_at" | "updated_at"
+> & {
+  created_at: Date | null;
+  updated_at: Date | null;
+};
+
+// findExpiredOffers returns ORDER_COLUMNS ALONE - no address, no payout, no
+// shipment, no user, no items. That is deliberate and load-bearing: the query
+// has no GROUP BY, so joining the lines would multiply the row by their number
+// and the scheduler would expire one offer several times. Expressed as the
+// order row minus its nested objects, so a column added to ORDER_COLUMNS
+// appears in both and the only difference between them stays the joins.
+export type ExpiredOfferRow = Omit<
+  PurchaseOrderRow,
+  "address" | "payout" | "shipment" | "return_shipment" | "carrier_pickup" | "user" | "order_items"
+>;
+
+// The per-metal spot row an order carries, from orders.spots or refiners.spots.
+// No contract: it is never returned by a route on its own, only alongside an
+// order.
+//
+// percent_change and dollar_change have NO column in the new schema and are
+// projected as NULL to keep the shape. They are null on every row in exchange
+// too, and nothing writes them - CLAUDE.md lists percent_change among the
+// columns that are 100% NULL and still referenced by live code, which is
+// exactly why they are projected rather than dropped.
+export type OrderMetalRow = {
+  id: string;
+  purchase_order_id: string | null;
+  type: string;
+  ask_spot: number | null;
+  bid_spot: number | null;
+  percent_change: number | null;
+  dollar_change: number | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+};
+
+// A scrap line and what is needed to re-tier its premium. A line is scrap when
+// it has no bullion, so there is no product to name.
+export type OrderScrapItemRow = {
+  id: string;
+  metal: string;
+  content: number | null;
+};
 // The fragments both directions read identically. They were duplicated field
-// for field between this file and sales-orders/repo.next.js; the duplication
+// for field between this file and sales-orders/repo.next.ts; the duplication
 // was checked programmatically before being removed, not by eye.
 import {
   shipmentJson,
@@ -62,8 +122,8 @@ const payoutJson = `
 // row's id; there is no scrap row now, so it returns the line's. Nothing reads
 // it - the admin table keys on the item - but it is a different value, and it
 // is declared in the diff rather than hidden.
-const scrapJson = (withActuals) => {
-  const scrapOnly = (expr) => `CASE WHEN i.bullion_id IS NULL THEN ${expr} END`;
+const scrapJson = (withActuals: boolean): string => {
+  const scrapOnly = (expr: string) => `CASE WHEN i.bullion_id IS NULL THEN ${expr} END`;
   return `
         jsonb_build_object(
           'id', ${scrapOnly("i.id")},
@@ -115,7 +175,10 @@ const ORDER_COLUMNS = `
       t.pool_remediation,
       t.pool_oz_deducted`;
 
-function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
+function buildOrderQuery(
+  { where = "", limit = "", withActuals = false }:
+    { where?: string; limit?: string; withActuals?: boolean } = {}
+): string {
   return `
     SELECT
       ${ORDER_COLUMNS},
@@ -171,21 +234,22 @@ function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
   `;
 }
 
-export async function findAllByUser(userId) {
-  const { rows } = await query(buildOrderQuery({ where: "o.user_id = $1" }), [userId]);
+export async function findAllByUser(userId: string): Promise<PurchaseOrderRow[]> {
+  const { rows } = await query<PurchaseOrderRow>(buildOrderQuery({ where: "o.user_id = $1" }), [userId]);
   return rows;
 }
 
-export async function findById(id) {
-  const { rows } = await query(
+// `|| null` rather than `?? null`, matching repo.exchange.js exactly.
+export async function findById(id: string): Promise<PurchaseOrderRow | null> {
+  const { rows } = await query<PurchaseOrderRow>(
     buildOrderQuery({ where: "o.id = $1", limit: "\n    LIMIT 1" }),
     [id]
   );
   return rows[0] || null;
 }
 
-export async function getAll() {
-  const { rows } = await query(buildOrderQuery({ withActuals: true }), []);
+export async function getAll(): Promise<PurchaseOrderRow[]> {
+  const { rows } = await query<PurchaseOrderRow>(buildOrderQuery({ withActuals: true }), []);
   return rows;
 }
 
@@ -193,7 +257,7 @@ export async function getAll() {
 // its name. percent_change and dollar_change have no column by design - they
 // are null on every row in exchange and nothing writes them - so they are
 // projected as null to keep the shape.
-export async function findMetalsByOrderId(orderId) {
+export async function findMetalsByOrderId(orderId: string): Promise<OrderMetalRow[]> {
   const sql = `
     SELECT
       sp.id,
@@ -210,7 +274,7 @@ export async function findMetalsByOrderId(orderId) {
     WHERE sp.order_id = $1
     ORDER BY m.name ASC, sp.id ASC;
   `;
-  const { rows } = await query(sql, [orderId]);
+  const { rows } = await query<OrderMetalRow>(sql, [orderId]);
   return rows;
 }
 
@@ -223,7 +287,7 @@ export async function findMetalsByOrderId(orderId) {
 //
 // refiners.spots keeps its source id, unlike orders.spots which generates its
 // own, because exchange.refiner_metals rows have nothing else to key on.
-export async function findRefinerMetalsByOrderId(orderId) {
+export async function findRefinerMetalsByOrderId(orderId: string): Promise<OrderMetalRow[]> {
   const sql = `
     SELECT
       sp.id,
@@ -240,19 +304,22 @@ export async function findRefinerMetalsByOrderId(orderId) {
     WHERE sp.order_id = $1
     ORDER BY m.name ASC, sp.id ASC;
   `;
-  const { rows } = await query(sql, [orderId]);
+  const { rows } = await query<OrderMetalRow>(sql, [orderId]);
   return rows;
 }
 
 // Scrap lines on an order, with what is needed to re-tier their premiums.
-export async function findOrderScrapItems(orderId, executor) {
+export async function findOrderScrapItems(
+  orderId: string,
+  executor?: Executor
+): Promise<OrderScrapItemRow[]> {
   const sql = `
     SELECT i.id, m.name AS metal, i.content
     FROM orders.items i
     JOIN metals.metals m ON m.id = i.metal_id
     WHERE i.order_id = $1 AND i.bullion_id IS NULL
   `;
-  const { rows } = await query(sql, [orderId], executor);
+  const { rows } = await query<OrderScrapItemRow>(sql, [orderId], executor);
   return rows;
 }
 
@@ -263,7 +330,10 @@ export async function findOrderScrapItems(orderId, executor) {
 // query has no GROUP BY, so joining orders.items would multiply the row by the
 // number of lines on the order and the scheduler would expire the same offer
 // several times. It needs three joins and takes three.
-export async function findExpiredOffers(executor) {
+// Takes an optional executor where repo.exchange.js's takes none. Harmless -
+// the scheduler calls it with no argument either way - and it is what lets a
+// test pull this into its transaction.
+export async function findExpiredOffers(executor?: Executor): Promise<ExpiredOfferRow[]> {
   const sql = `
     SELECT ${ORDER_COLUMNS}
     FROM orders.orders o
@@ -275,7 +345,7 @@ export async function findExpiredOffers(executor) {
       AND f.offer_expiration IS NOT NULL
       AND f.offer_expiration < NOW();
   `;
-  const { rows } = await query(sql, [], executor);
+  const { rows } = await query<ExpiredOfferRow>(sql, [], executor);
   return rows;
 }
 
@@ -301,7 +371,7 @@ export async function findExpiredOffers(executor) {
 // write would leave a mirrored row behind, which is the exact divergence
 // dual-write exists to prevent.
 
-export async function mirrorOrder(orderId, executor) {
+export async function mirrorOrder(orderId: string, executor?: Executor): Promise<void> {
   await query(
     `INSERT INTO orders.orders (
        id, user_id, refinery_id, direction, status, number, notes,
@@ -380,7 +450,7 @@ export async function mirrorOrder(orderId, executor) {
 // has to delete it here too, or the new schema keeps a line the customer is no
 // longer being paid for - which is why this deletes what exchange no longer has
 // rather than only upserting what it does.
-export async function mirrorItems(orderId, executor) {
+export async function mirrorItems(orderId: string, executor?: Executor): Promise<void> {
   await query(
     `INSERT INTO orders.items (
        id, order_id, bullion_id, metal_id, pre_melt, post_melt, purity, content,
@@ -457,7 +527,7 @@ export async function mirrorItems(orderId, executor) {
 
 // Spot quotes, keyed by order and metal rather than by id - orders.spots
 // generates its own, and exchange names the metal as text.
-export async function mirrorSpots(orderId, executor) {
+export async function mirrorSpots(orderId: string, executor?: Executor): Promise<void> {
   await query(
     `INSERT INTO orders.spots (
        order_id, metal_id, ask, bid,
@@ -499,7 +569,7 @@ export async function mirrorSpots(orderId, executor) {
 // rows carry one and the backfill keeps it, so a row can be matched directly.
 // refiner_id and pool_oz_deducted are not touched - exchange has no source for
 // either, and a mirror must not overwrite what is already there with a null.
-export async function mirrorRefinerSpots(orderId, executor) {
+export async function mirrorRefinerSpots(orderId: string, executor?: Executor): Promise<void> {
   await query(
     `INSERT INTO refiners.spots (
        id, order_id, metal_id, ask, bid,
@@ -536,7 +606,7 @@ export async function mirrorRefinerSpots(orderId, executor) {
 // The address snapshot for an order, taken when the order is created. Kept
 // beside the other mirrors because a new purchase order needs one and nothing
 // else creates it.
-export async function mirrorAddress(orderId, executor) {
+export async function mirrorAddress(orderId: string, executor?: Executor): Promise<void> {
   await query(
     `WITH needed AS MATERIALIZED (
        SELECT p.id AS order_id, a.id AS source_id, gen_random_uuid() AS snapshot_id
@@ -566,8 +636,13 @@ export async function mirrorAddress(orderId, executor) {
 
 // The order id a line item belongs to, for the writes that are handed an item
 // id and nothing else. Read from exchange, which is still authoritative.
-export async function orderIdForItems(itemIds, executor) {
-  const { rows } = await query(
+// Returns the ORDER IDS, plural and de-duplicated, not one id - several items
+// can be handed in at once and they may belong to different orders.
+export async function orderIdForItems(
+  itemIds: string[],
+  executor?: Executor
+): Promise<string[]> {
+  const { rows } = await query<{ id: string }>(
     `SELECT DISTINCT purchase_order_id AS id
      FROM exchange.purchase_order_items WHERE id = ANY($1::uuid[])`,
     [itemIds],

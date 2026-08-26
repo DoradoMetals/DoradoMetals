@@ -6,9 +6,9 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import * as next from "#features/sales-orders/repo.next.js";
+import * as next from "#features/sales-orders/repo.next.ts";
 import * as exchange from "#features/sales-orders/repo.exchange.js";
-import * as purchase from "#features/purchase-orders/repo.next.js";
+import * as purchase from "#features/purchase-orders/repo.next.ts";
 
 let client;
 

@@ -330,7 +330,7 @@ const FEATURES = {
   },
   "sales-orders": {
     exchange: () => import("#features/sales-orders/repo.exchange.js"),
-    next: () => import("#features/sales-orders/repo.next.js"),
+    next: () => import("#features/sales-orders/repo.next.ts"),
     // Same as purchase-orders: orders.spots generates its own id where
     // order_metals had one, and nothing keys on it.
     // orders.spots generates its own ids where exchange.order_metals has its
@@ -349,7 +349,7 @@ const FEATURES = {
   },
   "purchase-orders": {
     exchange: () => import("#features/purchase-orders/repo.exchange.js"),
-    next: () => import("#features/purchase-orders/repo.next.js"),
+    next: () => import("#features/purchase-orders/repo.next.ts"),
     // Values this migration deliberately changed. Keyed by read, because an
     // `id` means something different in each one.
     //
@@ -385,7 +385,7 @@ const FEATURES = {
   },
   products: {
     exchange: () => import("#features/products/repo.exchange.js"),
-    next: () => import("#features/products/repo.next.js"),
+    next: () => import("#features/products/repo.next.ts"),
     reads: [
       ["getAllProducts", (m) => m.getAllProducts()],
       ["getSellProducts", (m) => m.getSellProducts()],

@@ -9,7 +9,7 @@
 // misprices orders rather than merely displaying something odd.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/products/repo.exchange.js";
-import * as next from "#features/products/repo.next.js";
+import * as next from "#features/products/repo.next.ts";
 
 export const getAllProducts = next.getAllProducts;
 export const getSellProducts = next.getSellProducts;
