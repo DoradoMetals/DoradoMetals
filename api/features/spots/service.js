@@ -1,8 +1,41 @@
 import axios from "axios";
 import * as spotRepo from "#features/spots/repo.js";
+import { toLegacy as spotsToLegacy } from "#features/spots/wire.ts";
 
 export async function getSpotPrices() {
   return spotRepo.getAll();
+}
+
+// THE PRICE OF METAL COMES FROM HERE, AND ONLY FROM HERE.
+//
+// Every money figure on an order is content * (spot.ask_spot * ask_premium),
+// so whatever supplies `spots` decides what a customer pays. That used to be
+// the REQUEST BODY, in three places: get_sales_tax, createSalesOrder and
+// updatePaymentIntent - and in the last of those the result becomes the amount
+// Stripe is told to charge.
+//
+// Measured before the fix, same order, same server-fetched items, only the
+// body's spots differing:
+//
+//   ask_spot 3400 (honest)   ->  $3,673.53
+//   ask_spot 1               ->  $26.81
+//
+// An ounce of gold for $26.81. Items were already re-fetched server-side, so a
+// product could not be faked - only the metal price was taken on trust.
+//
+// SHAPED FOR THE CALCULATIONS, DELIBERATELY. calculateItemAsk reads
+// `s.type` and `s.ask_spot`, which is the LEGACY wire shape; the repo returns
+// the new one (`name` / `ask` / `bid`). toLegacy converts down, and it does so
+// unconditionally rather than following SPOTS_WIRE - that is the difference
+// between toLegacy and toWire, and it is why this keeps working when the switch
+// flips. When the calculations move to the new names, this is the one place to
+// change.
+//
+// FRESH ON EVERY CALL, no caching. exchange.metals is updated by
+// updateSpotPrices on a cron, so a read is a read of the latest quote and the
+// customer is priced at what the business holds right now.
+export async function getPricingSpots(client) {
+  return spotsToLegacy(await spotRepo.getAll(client));
 }
 
 // Pulls the upstream quote feed and writes it to exchange.metals. Called by the

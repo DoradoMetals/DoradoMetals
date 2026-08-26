@@ -3,6 +3,7 @@ import * as stripeRepo from "#features/payments/repo.js";
 import * as productService from "#features/products/service.js";
 import * as addressService from "#features/addresses/service.js";
 import * as taxService from "#features/sales-tax/service.js";
+import * as spotsService from "#features/spots/service.js";
 import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";
 
 import { auth } from "#features/auth/client.js";
@@ -57,7 +58,8 @@ export async function updatePaymentIntent(
   {
     items,
     using_funds,
-    spots,
+    // `spots` is deliberately NOT accepted. The frontend still sends it; it is
+    // ignored rather than overwritten, so nothing here can read it by accident.
     shipping_service,
     payment_method,
     user,
@@ -78,6 +80,24 @@ export async function updatePaymentIntent(
 
   const address = await addressService.getAddressFromId(address_id);
   const server_items = await productService.getItemsFromServer(items);
+
+  // THE CHARGE AMOUNT IS PRICED FROM THE SERVER'S SPOTS, NOT THE CALLER'S.
+  //
+  // This is the one that reached money. `spots` arrived in the request body,
+  // fed calculateSalesOrderTotal, and the result became `amount` on the Stripe
+  // intent a few lines below. Measured before the fix, identical order and
+  // identical server-fetched items, only the body's spots differing:
+  //
+  //   ask_spot 3400 (honest)  ->  $3,673.53  ->  Stripe told 367353
+  //   ask_spot 1              ->     $26.81  ->  Stripe told 2681
+  //
+  // The floor of Math.max(rawAmount, 1000) meant the bottom was $10.00.
+  //
+  // Fetched fresh on every update rather than cached, which is what makes an
+  // intent that is revised mid-checkout carry the current price rather than the
+  // one from whenever the session started.
+  const spots = await spotsService.getPricingSpots();
+
   const items_with_tax = await taxService.attachSalesTaxToItems(
     address?.state ?? "TX",
     server_items,

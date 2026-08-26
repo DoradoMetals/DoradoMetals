@@ -528,7 +528,45 @@ orders had matching row counts and was missing 21 columns. A report that cries
 wolf is one people stop reading, and this one needs to be believed on the day it
 finds something real.
 
-### FOR JACOB, THE URGENT ONE: the customer sets the spot price they are charged at
+### RESOLVED: the customer set the spot price they were charged at
+
+**Fixed.** `spots` no longer comes from the request. `features/spots/service.js`
+gains `getPricingSpots()`, and all three call sites use it — `get_sales_tax`,
+`createSalesOrder` (and the admin variant), and `updatePaymentIntent`, where the
+result becomes the amount Stripe is told to charge. The parameter is *removed*
+from each signature rather than accepted-and-overwritten, so nothing can read it
+by accident.
+
+Fetched fresh on every call, no caching: `exchange.metals` is already refreshed
+by `updateSpotPrices` on a cron, so an intent revised mid-checkout carries the
+current price rather than one from whenever the session started.
+
+**Jacob decided against a quote lock**, and the reasoning is better than the one
+I offered. I proposed holding a quoted price for ten minutes as "best practice".
+It is not, for a dealer: a held price is a **free option** for the customer — if
+spot moves in their favour they take it, if it moves against them they walk.
+The business can only lose on it. Server-authoritative pricing at the moment of
+confirm is the correct end state, not a stepping stone to one.
+
+The consequence to be aware of: if spot moves between the customer loading the
+page and confirming, the charge is the newer price. That is the intended
+behaviour now rather than a defect.
+
+**The test took three attempts and each failure was mine**, which is worth
+recording because the same trap will catch the next person:
+
+1. The first fixture picked `AK` — the first `state_code` in the table, which
+   taxes nothing. Both halves returned 0, they compared equal, and **the test
+   passed against the reverted code**.
+2. The second picked a state that does charge, but the item was missing
+   `purity`, `gross` and `domestic_tender`. `getSalesTax` filters on all three,
+   so it matched no rule and was taxed at zero — which looks exactly like a
+   state that does not collect.
+3. The third asserts the honest request is taxed **more than zero** before
+   comparing anything, so a vacuous fixture now fails loudly instead of passing
+   quietly. Verified by reverting the service and confirming the test fails.
+
+
 
 **Not fixed. It needs a decision that is yours, and the fix runs through a wire
 shape that is mid-migration.** This is live in production today.

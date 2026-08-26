@@ -12,6 +12,7 @@ import * as taxRepo from "#features/sales-tax/repo.js";
 import * as emailService from "#features/emails/service.js";
 import * as addressRepo from "#features/addresses/repo.js";
 import * as taxService from "#features/sales-tax/service.js";
+import * as spotsService from "#features/spots/service.js";
 import * as productService from "#features/products/service.js";
 
 import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";
@@ -32,10 +33,21 @@ export async function getMetalsForOrder(orderId) {
   return salesOrderRepo.findMetalsByOrderId(orderId);
 }
 
-export async function createSalesOrder(
-  { sales_order, payment_intent_id, spot_prices },
-  headers
-) {
+// SPOT PRICES COME FROM THE SERVER, NOT FROM THE BODY.
+//
+// `spot_prices` used to arrive in the request and decide what the order was
+// worth. Items were already re-fetched with getItemsFromServer and the address
+// loaded by id, so the product could not be faked - but the price of the metal
+// could, and it is the larger number. An order priced with ask_spot 1 recorded
+// a total of $26.81 for an ounce of gold, and the payment intent agreed with
+// it, so nothing downstream looked wrong.
+//
+// The order is now priced at what the business holds at the moment it is
+// placed. That is a real behaviour change and worth knowing: if spot moves
+// between the customer loading the page and confirming, the recorded total is
+// the newer one. A quote held for a few minutes is the proper answer and is
+// written up in FOLLOWUPS; it needs a table, and the schema is mid-migration.
+export async function createSalesOrder({ sales_order, payment_intent_id }, headers) {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(headers),
   });
@@ -43,6 +55,7 @@ export async function createSalesOrder(
   const serverItems = await productService.getItemsFromServer(
     sales_order.items
   );
+  const spot_prices = await spotsService.getPricingSpots();
   const items = await taxService.attachSalesTaxToItems(
     address.state,
     serverItems,
@@ -104,13 +117,16 @@ export async function createSalesOrder(
 export async function adminCreateSalesOrder({
   sales_order,
   payment_intent_id,
-  spot_prices,
   user,
 }) {
   const address = await addressRepo.getFromId(sales_order.address.id);
   const serverItems = await productService.getItemsFromServer(
     sales_order.items
   );
+  // Server-sourced here too. An admin placing an order on a customer's behalf
+  // is still an order, and the same argument applies - more so, since this path
+  // has no Stripe confirmation to disagree with it.
+  const spot_prices = await spotsService.getPricingSpots();
   const items = await taxService.attachSalesTaxToItems(
     address.state,
     serverItems,
