@@ -48,8 +48,13 @@ pnpm workspace, Node 24, deployed on Railway from `master` with auto-deploy.
 ```
 api/                 @dorado/api        Express, ESM, mostly JavaScript
 frontend/            @dorado/frontend   Next.js, TypeScript, strict
-packages/contracts/  @dorado/contracts  zod schemas shared by both
+packages/contracts/  @dorado/contracts  zod schemas, imported by api only
 ```
+
+The frontend does **not** import `@dorado/contracts` and does not depend on
+it — its API types are hand-written and checked against nothing, so a wire
+rename is invisible to `tsc` on both sides. That is what
+`audit:wire-readiness` exists to measure; see FOLLOWUPS.md.
 
 `api` uses subpath imports — `#features/*`, `#shared/*`, `#providers/*`, `#db`.
 
@@ -200,6 +205,16 @@ The ones that have actually caught things:
   overwrote two columns in place, which a row count cannot see.
   `--self-test` proves the detector works by updating one row inside a
   transaction it rolls back.
+- `audit:wire-readiness` — **the other half of the promotion rule.** `*_WIRE`
+  moves "when the frontend is ready", and nothing measured that. It counts the
+  legacy field names the frontend still reads: `MEDIA_WIRE` is clear,
+  `PRODUCTS_WIRE` (124 uses) and `SPOTS_WIRE` (83) would break it today. The
+  frontend imports `@dorado/contracts` nowhere, so `tsc` cannot see a rename
+  from either side. Four adapters are structural and one rename (`type`) is too
+  common to count globally — those report `?`, never `yes`, because a scan that
+  cannot see something must not call it clean. `--self-test` proves the file
+  floor fires; the first version walked zero files and called every switch
+  ready.
 - `audit:precision` — **every column whose value the target's type would
   change.** Casts each source value into the type of the column it lands in and
   counts what differs. `orders.items` declared `purity numeric(4,3)` against an

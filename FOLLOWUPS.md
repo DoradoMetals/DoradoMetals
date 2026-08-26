@@ -3935,3 +3935,124 @@ placed order and no confirmation, silently.
 allowlist, so a third such call — or either of these moving — fails rather than
 passing quietly. It does not object to the design; that is **D31**, and it is
 Jacob's call.
+
+## Two *_WIRE switches would break the frontend if flipped today
+
+CLAUDE.md sets the rule: "`*_SOURCE` moves when the data is ready; `*_WIRE`
+moves when the frontend is." The first half has `verify:parity`,
+`audit:coverage`, `audit:precision` and now `audit:constraints`. The second
+half had nothing. `pnpm --filter @dorado/api audit:wire-readiness` measures it.
+
+A wire adapter renames fields on the way out: while `PRODUCTS_WIRE` is
+`legacy`, `products.name` leaves the API as `product_name`. Flip it and the old
+name stops arriving. So "is the frontend ready" is a question with an answer —
+does the frontend still read the legacy names?
+
+Three of the seven adapters are simple renames and can be counted:
+
+| switch | verdict | legacy names the frontend still reads |
+| --- | --- | --- |
+| `MEDIA_WIRE` | **clear** | `checksum_sha256` → `checksum`: 0 |
+| `PRODUCTS_WIRE` | **would break** | `product_name` 98, `product_type` 19, `product_description` 7 — **124** across 24 files |
+| `SPOTS_WIRE` | **would break** | `bid_spot` 66, `ask_spot` 17 — **83** across 27 files |
+
+Counts are occurrences, not lines — a direct `grep -c` reports fewer because it
+counts lines that match. Do not report the two numbers as a disagreement.
+
+**What this cannot answer, stated rather than counted as clean.** The other
+four adapters — `ADDRESSES_WIRE`, `CARRIERS_WIRE`, `PAYMENTS_WIRE`,
+`REFINERS_WIRE` — are structural `lift.ts` adapters that flatten or nest rather
+than rename, so there is no name to look for. And `SPOTS_WIRE` also renames
+legacy `type` to `name`; "type" is too common a word in TypeScript to
+attribute, so it is reported as unmeasurable. Those five report `?`, never
+`yes`. Read the adapter and the components by hand before moving any of them.
+
+`type` is narrowed rather than shrugged at: the script scopes the count to
+files that import `features/spots/types` and reports **31 `.type` accesses
+across 12 files**. Reading those by hand is what found the following, and it is
+the most serious consequence of any switch on this list.
+
+**The `type` rename is the dangerous one, and it fails silently to $0.** The
+frontend matches a metal's spot price by `spotPrices.find((s) => s.type ===
+item.scrap.metal)` — 43 sites, including every purchase-order total. Flip
+`SPOTS_WIRE` and `s.type` is `undefined` on every row, so every one of those
+finds returns `undefined`. `getPurchaseOrderScrapPrice` then does:
+
+```ts
+const bid_spot = orderSpot?.bid_spot ?? globalSpot?.bid_spot ?? 0
+const price = item.price ?? (item.scrap.content ?? 0) * (bid_spot * premium)
+```
+
+The `?? 0` is a deliberate fallback and it swallows exactly this case: the
+price becomes `item.price ?? 0`. Where no explicit price is set, a customer's
+scrap is valued at **zero** — on a purchase order, which is money the business
+pays them — with no error, no empty state and no failed request. `ask_spot` and
+`bid_spot` at least disappear loudly; `type` disappears quietly and takes the
+prices with it.
+
+**Why nothing caught this earlier, and why nothing else will.** The frontend
+does not import `@dorado/contracts` — not once, and it is not a dependency of
+`frontend/package.json`; only `api/package.json` declares it. CLAUDE.md's
+layout section calls contracts "zod schemas shared by both", and that is not
+what the repo does: every type the frontend holds for API data is hand-written
+and checked against nothing. A wire rename is therefore invisible to `tsc` on
+both sides — the API is self-consistent, and the frontend agrees with itself
+about a shape the API would no longer send. `validate:wire` proves the
+contracts match the API's own output in both directions; it has no view of the
+consumer at all.
+
+**The floor is the point of the script.** Its first version walked zero files —
+it was run from `api/` and looked for `api/frontend` — and reported every
+switch clear, which is the answer that would have got a switch flipped. It now
+resolves the frontend from its own location (verified identical from `api/`,
+the repo root and `/tmp`) and refuses below 100 files, because a scan that
+reads nothing agrees with whatever you hoped.
+
+### The frontend has its own zod schemas, and they are stricter than the contract
+
+The frontend does not import `@dorado/contracts`, but it is not untyped — it
+keeps **15 of its own `z.object` schema files** describing the same wire
+shapes. Two independent zod definitions of one wire, and nothing compares them.
+
+Most are used only for type inference, where a mismatch is silent. Five are
+used to `.parse()` for real, and all five parse **outgoing** checkout payloads
+rather than API responses — which is what makes one of them interesting:
+
+```ts
+// features/orders/salesOrders/types.ts
+export const adminSalesOrderCheckoutSchema = z.object({
+  ...
+  order_metals: z.array(spotPriceSchema),   // required
+})
+```
+
+`createSalesOrderDrawer.tsx` fills `order_metals` straight from the API's spot
+prices (`setData({ order_metals: spotPrices })`) and then calls
+`adminSalesOrderCheckoutSchema.parse(checkoutPayload)`. So an API response is
+parsed by a frontend schema after all, one hop removed. `.parse()` takes
+`unknown` and the store is a `Partial<>`, so `tsc` cannot see any of this.
+
+The two schemas disagree about null:
+
+| field | contract (`SpotPriceWire`) | frontend (`spotPriceSchema`) | prod column |
+| --- | --- | --- | --- |
+| `ask_spot` | `z.number().nullable()` | `z.number()` | `NOT NULL` |
+| `bid_spot` | `z.number().nullable()` | `z.number()` | **nullable** |
+| `percent_change` | `z.number().nullable()` | `z.number()` | **nullable** |
+| `dollar_change` | `z.number().nullable()` | `z.number()` | **nullable** |
+
+**Not live — verified.** Production has 4 metals rows and zero nulls in all
+four columns, so the parse succeeds today. But three of the columns permit
+null, and the contract says so; a single null in any of them — one partial spot
+update from the provider — makes `.parse()` throw a `ZodError` and blocks
+**admin sales-order creation**, with no server-side fault to find.
+
+`spotPriceSchema` also declares `created_at`/`updated_at` as `z.date()`, which
+would reject the strings JSON carries. That one is inert because `MetalsRow`
+has no timestamp columns, so the fields are absent and both are `.optional()`.
+It is worth knowing they are one schema change away from mattering.
+
+Both of these exist because the consumer's schema was written by hand against
+an assumption rather than derived from the contract. Making the frontend depend
+on `@dorado/contracts` would collapse this whole class, and is the obvious fix
+— but it changes a build boundary, so it is Jacob's call, not a night edit.
