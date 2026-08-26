@@ -5,7 +5,15 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function dataUriFromAssets(relPath, mime) {
+// Read SYNCHRONOUSLY at module load, on purpose. These are five small SVGs and
+// they are inlined as data URIs so a rendered PDF depends on nothing external -
+// no filesystem access mid-render, no network. Making it async would move the
+// read into the render path for no benefit.
+//
+// The one asset NOT inlined is the Poppins font, which layout.ts @imports from
+// Google. That is written up in FOLLOWUPS: it is the single outbound request a
+// packing list makes, and if it fails the document silently changes typeface.
+function dataUriFromAssets(relPath: string, mime: string): string {
   const absPath = path.join(__dirname, "..", "..", "..", "shared", "assets", relPath);
   const file = fs.readFileSync(absPath);
   return `data:${mime};base64,${file.toString("base64")}`;

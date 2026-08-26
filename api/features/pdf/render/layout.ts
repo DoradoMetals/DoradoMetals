@@ -5,9 +5,9 @@ import {
   ICON_PHONE_SRC,
   ICON_URL_SRC,
   ICON_EMAIL_SRC,
-} from "#features/pdf/render/assets.js";
+} from "#features/pdf/render/assets.ts";
 
-function renderHeader() {
+function renderHeader(): string {
   const phone = formatPhoneNumber(process.env.FEDEX_DORADO_PHONE_NUMBER);
 
   return `
@@ -46,7 +46,16 @@ function renderHeader() {
   `;
 }
 
-export function renderShell({ title, subtitle, bodyHtml }) {
+export interface ShellInput {
+  title: string;
+  /** Optional - the caller passes a falsy value when there is no subtitle, and
+   *  the template omits the element rather than rendering an empty one. */
+  subtitle?: string | null;
+  /** Already-rendered HTML for the body. Interpolated as-is. */
+  bodyHtml: string;
+}
+
+export function renderShell({ title, subtitle, bodyHtml }: ShellInput): string {
   return `
     <html>
       <head>
