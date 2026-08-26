@@ -3773,3 +3773,29 @@ decision rather than something discovered afterwards.
 
 Run it per feature (`audit:constraints orders`) when working on one. The floor
 that refuses a run comparing fewer than 50 pairs applies only to a full run.
+
+### And 8 unique indexes without an exact counterpart
+
+The same audit now reads `pg_index` as well. 15 unique indexes in `exchange`
+outside primary keys; **8 have no exact counterpart**, and they are not all the
+same kind of thing:
+
+- **`exchange.state_sales_tax(state)` → `tax.sales_tax` has nothing.** This is
+  the one to look at. Today a state appears once. After promotion two rows for
+  the same state are accepted, and which rate a sale is charged becomes whichever
+  the query returns first. It is money, and it is silent.
+- **`exchange.cart_items(cart_id, product_id)` → `checkout.items` has nothing.**
+  The same product can appear twice in one cart.
+- **`exchange.purchase_orders(order_number)` → `orders.orders(direction, number)`.**
+  Strictly weaker — a composite does not make either column unique alone — but
+  correct for a table that merged both directions, and *stricter* than today for
+  sales orders, which have no unique on their number at all.
+- **`exchange.rates(metal_id, unit, min_qty, max_qty)` → an expression index on
+  `(metal_id, unit, min_qty, COALESCE(max_qty, -1))`.** An improvement: NULLs do
+  not compare equal in a unique index, so the original never deduplicated an
+  open-ended tier.
+
+Read `pg_index`, not `pg_constraint`, if you extend this. A bare `CREATE UNIQUE
+INDEX` is not a constraint row, and my first two attempts queried `pg_constraint`
+and both reported zero single-column uniques outside primary keys — for a schema
+with a `users.email`. Two wrong answers that agreed with each other.

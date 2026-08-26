@@ -98,7 +98,6 @@ for (const [feature, sources] of Object.entries(features)) {
   }
 }
 
-await pool.end();
 
 console.log(
   `${sourceNotNull} NOT NULL column(s) in the source schema, ` +
@@ -117,24 +116,122 @@ if (!only && checked < 50) {
   process.exit(1);
 }
 
+
 if (!lost.length) {
   console.log("every one of them is NOT NULL on the other side too");
-  process.exit(0);
+} else {
+  console.log(`\n${lost.length} constraint(s) that promotion would drop:\n`);
+  const byFeature = {};
+  for (const l of lost) (byFeature[l.feature] ??= []).push(l);
+  for (const [feature, items] of Object.entries(byFeature)) {
+    console.log(`  ${feature}`);
+    for (const i of items) {
+      console.log(`    ${i.from}  (${i.type}, NOT NULL)`);
+      console.log(`      -> ${i.to} is NULLABLE${i.target_default ? ` default ${i.target_default}` : ""}`);
+    }
+    console.log("");
+  }
+  console.log(
+    "Each is a guard that exists today and would not after the switch moves.\n" +
+      "That is not automatically wrong - some columns are deliberately optional in\n" +
+      "the new model - but each one should be a decision rather than an accident."
+  );
 }
 
-console.log(`\n${lost.length} constraint(s) that promotion would drop:\n`);
-const byFeature = {};
-for (const l of lost) (byFeature[l.feature] ??= []).push(l);
-for (const [feature, items] of Object.entries(byFeature)) {
-  console.log(`  ${feature}`);
-  for (const i of items) {
-    console.log(`    ${i.from}  (${i.type}, NOT NULL)`);
-    console.log(`      -> ${i.to} is NULLABLE${i.target_default ? ` default ${i.target_default}` : ""}`);
+// ---------------------------------------------------------------------------
+// UNIQUENESS, which is the other kind of guard a promotion can drop.
+//
+// READ FROM pg_index, NOT pg_constraint. A bare `CREATE UNIQUE INDEX` is not a
+// constraint row, and exchange has plenty. My first two attempts at this
+// queried pg_constraint and both reported ZERO single-column uniques outside
+// primary keys - which is absurd for a schema with a users table, and it took
+// counting the indexes directly to notice. Two wrong answers that agreed with
+// each other.
+//
+// Reported rather than judged. A source unique on (number) whose target is
+// unique on (direction, number) is WEAKER in the strict sense - the composite
+// does not enforce uniqueness of number alone - but for a table that merged
+// purchase and sales orders it is the correct meaning. So this prints what each
+// side has and leaves the reading to whoever is promoting that feature.
+// The ::text[] cast below matters. array_agg of a `name` column yields a
+// name[], for which node-postgres has no array parser - it arrives as the raw
+// string "{a,b}" and every array method on it throws. (Written here rather
+// than in the SQL because a backtick inside a template literal ends it, which
+// is how the first attempt at this comment broke the file.)
+const uniquesOf = async (table) => {
+  const [schema, name] = table.split(".");
+  const { rows } = await pool.query(
+    `SELECT i.indexrelid,
+            bool_or(k.attnum = 0) AS has_expression,
+            array_agg(a.attname::text ORDER BY k.ord) AS cols
+       FROM pg_index i
+       JOIN pg_class c ON c.oid = i.indrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       CROSS JOIN LATERAL unnest(i.indkey::int[]) WITH ORDINALITY k(attnum, ord)
+       LEFT JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
+      WHERE n.nspname = $1 AND c.relname = $2 AND i.indisunique
+      GROUP BY i.indexrelid`,
+    [schema, name]
+  );
+  return rows.map((r) => ({
+    cols: (r.cols ?? []).filter(Boolean),
+    expression: r.has_expression,
+  }));
+};
+
+const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+
+let uniqueChecked = 0;
+const uniqueLost = [];
+
+for (const [feature, sources] of Object.entries(features)) {
+  for (const [source, targets] of Object.entries(sources)) {
+    const renames = RENAMES[source] ?? {};
+    for (const u of await uniquesOf(source)) {
+      // A surrogate primary key is not the guard anybody relies on.
+      if (u.expression || !u.cols.length || (u.cols.length === 1 && u.cols[0] === "id")) continue;
+      const mapped = u.cols.map((c) => renames[c] ?? c);
+      if (mapped.includes("-")) continue;
+      uniqueChecked += 1;
+
+      const alternatives = [];
+      let matched = false;
+      for (const target of targets) {
+        for (const t of await uniquesOf(target)) {
+          if (t.expression) { alternatives.push(`${target}(${t.cols.join(", ")} + expression)`); continue; }
+          if (sameSet(mapped, t.cols)) { matched = true; break; }
+          if (mapped.every((c) => t.cols.includes(c))) alternatives.push(`${target}(${t.cols.join(", ")})`);
+        }
+        if (matched) break;
+      }
+      if (!matched) {
+        uniqueLost.push({
+          feature,
+          from: `${source}(${u.cols.join(", ")})`,
+          to: mapped.join(", "),
+          targets: targets.join(", "),
+          alternatives,
+        });
+      }
+    }
   }
-  console.log("");
 }
-console.log(
-  "Each is a guard that exists today and would not after the switch moves.\n" +
-    "That is not automatically wrong - some columns are deliberately optional in\n" +
-    "the new model - but each one should be a decision rather than an accident."
-);
+
+console.log(`\n${uniqueChecked} unique index(es) in the source schema, excluding primary keys and expressions`);
+if (!uniqueLost.length) {
+  console.log("every one has an exact counterpart in the new schema");
+} else {
+  console.log(`${uniqueLost.length} without an exact counterpart:\n`);
+  for (const u of uniqueLost) {
+    console.log(`  ${u.feature}`);
+    console.log(`    ${u.from}`);
+    console.log(`      -> nothing in ${u.targets} is unique on (${u.to})`);
+    if (u.alternatives.length) {
+      console.log(`      the target does have: ${[...new Set(u.alternatives)].join("; ")}`);
+      console.log(`      WIDER is not the same as equal - a unique on (a, b) does not make a unique`);
+    }
+    console.log("");
+  }
+}
+
+await pool.end();
