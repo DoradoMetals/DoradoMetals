@@ -10,6 +10,35 @@
 import "#env";
 import Stripe from "stripe";
 
-const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
+// A TEST RUN MAY USE A TEST KEY. IT MAY NEVER USE A LIVE ONE.
+//
+// The same rule as providers/fedex: the hazard is the live account, not the
+// provider. With a live key, a test that reaches createIntent charges a real
+// card and a test that reaches captureIntent takes real money.
+//
+// Stripe makes this easy to check because it says so in the key itself -
+// sk_test_ against sk_live_ - so this is a stronger guard than the FedEx one,
+// which has to trust an environment variable to describe the endpoint.
+//
+// There is deliberately no override. A flag permitting a live key in a suite is
+// a flag someone sets to make a red build go green, and the thing it unblocks
+// is charging customers.
+//
+// The key is read but never logged. Only its prefix is ever mentioned.
+const key = process.env.STRIPE_SECRET_KEY ?? "";
+
+const looksLikeATestRun =
+  process.env.NODE_ENV === "test" ||
+  process.execArgv.some((a) => a.startsWith("--test"));
+
+if (looksLikeATestRun && key.startsWith("sk_live")) {
+  throw new Error(
+    "refusing to build a Stripe client with a LIVE key during a test run.\n" +
+      "A test reaching this would charge a real card. Use a test key " +
+      "(sk_test_...) in the environment the suite runs in."
+  );
+}
+
+const stripeClient = new Stripe(key);
 
 export default stripeClient;

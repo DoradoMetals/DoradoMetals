@@ -38,7 +38,33 @@ type Message = {
 // this reason.
 let shared: Transport | null = null;
 
+// A TEST RUN MUST NOT BE ABLE TO SEND REAL MAIL.
+//
+// .env carries live SMTP credentials, and the addresses this application sends
+// to are real customers and real refiners. A replay suite that reaches
+// sendEmail without passing a transport would post an order to Elemetal.
+//
+// Relying on every test remembering to pass a recorder is the same shape as a
+// test that is only safe because the code under test throws first - it holds
+// until someone writes the one that forgets. So the shared transport refuses to
+// exist during a test run instead.
+//
+// Detected two ways, because either alone can be defeated: NODE_ENV, which the
+// test scripts set deliberately, and node's own --test-* flags in execArgv,
+// which catch `node --test some.test.js` run by hand.
+const looksLikeATestRun =
+  process.env.NODE_ENV === "test" ||
+  process.execArgv.some((a) => a.startsWith("--test"));
+
 function sharedTransport(): Transport {
+  if (looksLikeATestRun) {
+    throw new Error(
+      "refusing to build the real mail transport during a test run.\n" +
+        "Pass a transport: sendEmail(message, recorder). Nothing in a test may " +
+        "reach a customer or a refiner."
+    );
+  }
+
   if (shared) return shared;
 
   const transporter = nodemailer.createTransport({

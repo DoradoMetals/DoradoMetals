@@ -59,7 +59,44 @@ async function fetchOAuthToken({ clientId, clientSecret }) {
   return response.data.access_token;
 }
 
+// A TEST RUN MAY REACH THE SANDBOX. IT MAY NEVER REACH LIVE.
+//
+// FEDEX_ENV defaults to `production`, so an unguarded call from a test buys a
+// real label against the real account - money, and a shipment somebody expects
+// to receive. The hazard is the LIVE API, not FedEx as such, so the guard
+// refuses on that rather than on testing.
+//
+//   FEDEX_ENV=sandbox     tests may call it freely
+//   FEDEX_ENV=production  refused during a test run, always, no override
+//
+// There is deliberately no escape hatch for hitting live from a suite. A flag
+// that permits it is a flag someone sets at 2am to make a red build go green.
+//
+// Every outbound FedEx request goes through fetchAccessToken,
+// fetchTrackingToken, fedexPost or fedexPut, so this is the whole surface.
+//
+// A separate question this does NOT answer: whether the sandbox is dependable
+// enough to sit inside the automated suite. It has not been, historically. That
+// is an argument for stubbing in the fast suite and pointing integration tests
+// at the sandbox, and it is a scheduling decision rather than a safety one -
+// which is exactly why it is not enforced here.
+const looksLikeATestRun =
+  process.env.NODE_ENV === "test" ||
+  process.execArgv.some((a) => a.startsWith("--test"));
+
+function refuseInTests(what) {
+  if (!looksLikeATestRun) return;
+  if ((process.env.FEDEX_ENV ?? "production") === "sandbox") return;
+  throw new Error(
+    `refusing to call the LIVE FedEx API (${what}) during a test run.\n` +
+      `FEDEX_ENV is "${process.env.FEDEX_ENV ?? "production"}" - this would be a ` +
+      `real request against the real account, buying a real label.\n` +
+      `Set FEDEX_ENV=sandbox, or stub the provider.`
+  );
+}
+
 export async function fetchAccessToken() {
+  refuseInTests("fetchAccessToken");
   return fetchOAuthToken({
     clientId: sandbox() ? process.env.FEDEX_SANDBOX_CLIENT_ID : process.env.FEDEX_CLIENT_ID,
     clientSecret: sandbox()
@@ -69,6 +106,7 @@ export async function fetchAccessToken() {
 }
 
 export async function fetchTrackingToken() {
+  refuseInTests("fetchTrackingToken");
   return fetchOAuthToken({
     clientId: sandbox()
       ? process.env.FEDEX_TRACKING_SANDBOX_CLIENT_ID
@@ -87,11 +125,13 @@ function authHeaders(token) {
 }
 
 export async function fedexPost({ token, path, payload }) {
+  refuseInTests(`POST ${path}`);
   const res = await axios.post(base() + path, payload, { headers: authHeaders(token) });
   return res.data;
 }
 
 export async function fedexPut({ token, path, payload }) {
+  refuseInTests(`PUT ${path}`);
   const res = await axios.put(base() + path, payload, { headers: authHeaders(token) });
   return res.data;
 }
