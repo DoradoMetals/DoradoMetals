@@ -102,7 +102,7 @@ test("updating an intent's amount is what Stripe then charges for", async () => 
   assert.equal(fetched.amount, 367353, "the amount did not persist");
 });
 
-// features/payments/service.js only updates an intent whose status is one of
+// features/payments/service.ts only updates an intent whose status is one of
 // requires_payment_method / requires_confirmation / requires_action. This pins
 // that a fresh intent stays updatable, because if Stripe ever changed that the
 // checkout flow would silently start creating a new intent per revision.

@@ -19,7 +19,7 @@
 // four payment routes, three answer with something that is not a repo row -
 // retrieve and update send Stripe's client_secret, cancel sends Stripe's own
 // object - so get_sales_order_payment_intent is the only response this converts.
-// The rest of the reshape matters internally, to features/payments/service.js,
+// The rest of the reshape matters internally, to features/payments/service.ts,
 // which is why the repos changed shape rather than only the wire.
 //
 // MONEY UNITS, and this is the one that would be expensive to get wrong.

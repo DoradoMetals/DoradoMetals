@@ -1,7 +1,7 @@
 // Every `ns.member` reached through an `import * as ns` must actually exist on
 // that module.
 //
-// WHY THIS EXISTS. features/payments/service.js awaited
+// WHY THIS EXISTS. features/payments/service.ts awaited
 // addressService.getAddressFromId for EIGHT MONTHS. Nothing defined it - it was
 // lost in be03eed3, the December 2025 feature slicing - and
 // POST /api/stripe/update_payment_intent answered 500 on every call as a

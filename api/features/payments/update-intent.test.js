@@ -2,7 +2,7 @@
 // without Stripe.
 //
 // WHY THIS FILE EXISTS. The route answered 500 on every call for eight months.
-// features/payments/service.js awaited addressService.getAddressFromId, a
+// features/payments/service.ts awaited addressService.getAddressFromId, a
 // function that has not existed since be03eed3 - the December 2025 feature
 // slicing - and `import * as` makes a missing export `undefined` rather than an
 // import error, so nothing failed until the line ran.
