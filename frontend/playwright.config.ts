@@ -75,7 +75,7 @@ export default defineConfig({
   // payments - belong in shared/tests rather than being filed under whichever
   // feature they happen to start in.
   testDir: ".",
-  testMatch: "**/tests/*.e2e.ts",
+  testMatch: ["**/tests/*.e2e.ts", "**/tests/**/*.e2e.ts", "**/tests/auth.setup.ts"],
   testIgnore: ["**/node_modules/**", "**/.next/**"],
   // A failing E2E test is usually a real failure, but a flaky one wastes more
   // time than it saves. One retry locally, two in CI, and `retries` is the knob
@@ -92,7 +92,33 @@ export default defineConfig({
     screenshot: "only-on-failure",
     ...(chrome ? { launchOptions: { executablePath: chrome } } : { channel: "chromium" }),
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    // Runs first and once: signs the e2e accounts in and saves their sessions.
+    { name: "setup", testMatch: /auth\.setup\.ts$/ },
+
+    // Public pages. No session, because most of the app must work without one -
+    // and a suite that is signed in everywhere cannot notice when something
+    // public quietly starts requiring auth.
+    {
+      name: "public",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: [/\/authed\//, /auth\.setup\.ts$/],
+    },
+
+    // Signed in, one project per role, reusing the saved state.
+    {
+      name: "customer",
+      use: { ...devices["Desktop Chrome"], storageState: "playwright/.auth/customer.json" },
+      dependencies: ["setup"],
+      testMatch: /\/authed\/.*customer.*\.e2e\.ts$/,
+    },
+    {
+      name: "admin",
+      use: { ...devices["Desktop Chrome"], storageState: "playwright/.auth/admin.json" },
+      dependencies: ["setup"],
+      testMatch: /\/authed\/.*admin.*\.e2e\.ts$/,
+    },
+  ],
 
   // Boots `next dev` unless something is already listening. Not `next build &&
   // next start`: a build takes minutes and these tests are about behaviour
