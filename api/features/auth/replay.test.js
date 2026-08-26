@@ -27,7 +27,7 @@
 // requireAuth also calls auth.api.getSession directly, so mockSessions does not
 // apply here either - the 401 below is better-auth genuinely finding no session,
 // which is a stronger assertion than a patched one.
-import test, { after } from "node:test";
+import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -36,6 +36,19 @@ import { outside } from "#shared/testing/pinned-pool.js";
 const { default: app } = await import("#app");
 
 let passwordRowsBefore;
+
+// READ IN A before() HOOK, which is the only ordering node guarantees.
+//
+// The first version assigned this in a trailing top-level statement, after the
+// test() registrations, on the theory that module evaluation completes before
+// any test runs. It passed when the file was run on its own and FAILED under
+// the full suite - `10 !== undefined`, because the count had not been taken
+// yet. The theory was wrong, and being wrong only some of the time is worse
+// than being wrong always: it read as a working test for one run.
+before(async () => {
+  passwordRowsBefore = (await outside(`SELECT count(*)::int AS n FROM exchange.account`))[0].n;
+  assert.equal(typeof passwordRowsBefore, "number", "the baseline count was not taken");
+});
 
 after(async () => {
   await pool.end();
@@ -84,13 +97,3 @@ test("this suite created no account credential", async () => {
       "so anything this file writes is COMMITTED to dev"
   );
 });
-
-// exchange.account, singular - better-auth's modelName is 'exchange.account'.
-// The first version counted exchange.accounts, which does not exist, and the
-// error surfaced as "asynchronous activity after the test ended" rather than as
-// a clean failure. Third time this session that a table or column name was
-// assumed instead of checked; the fix each time was to go and look.
-//
-// Read first, asserted last. Declared here rather than in a before() hook so
-// the count is taken before any request above runs.
-passwordRowsBefore = (await outside(`SELECT count(*)::int AS n FROM exchange.account`))[0].n;

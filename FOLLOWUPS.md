@@ -402,6 +402,95 @@ around the nav and account controls, not around the document. That changes what
 every page looks like while loading, which is why it is written down here rather
 than done.
 
+### CHECKED AND FINE: the four features with no `dual` repo, and why each is right
+
+An inventory of every feature turned up four that look unfinished — no
+`repo.next`, no `repo.dual`, or no `*_SOURCE`. All four are deliberate. Written
+down because the file listing suggests otherwise, and the next person to audit
+this will ask the same question.
+
+**`mints` and `refiners` are two-state, not three.** Both are read-only through
+the API — no route writes to them — so there is nothing to dual-write and
+nothing to keep in sync. `exchange.mints` and `exchange.suppliers` cannot drift
+from the new tables through anything this code does. Both repos say so at the
+top. If a write path is ever added, both need the three-phase treatment.
+
+**`fulfillments` has no source to read from.** It records capability `exchange`
+never had, so a switch would have exactly one state.
+
+**`scrap` writes `exchange.scrap` directly and needs no switch of its own** —
+this is the one that took checking rather than reading. Its data does migrate:
+the map sends `exchange.scrap` to `orders.items` and `refiners.items`. So how
+does a scrap edit reach the new schema with no dual repo?
+
+Through the orders dual repo, and the ordering is what makes it work. All three
+callers write scrap **first**, then make an orders write that syncs:
+
+| service call | writes scrap | then | which syncs |
+|---|---|---|---|
+| `updateScrapItem` | `scrapRepo.updateScrapItem` | `updatePremium` | `["items"]` |
+| `deleteOrderItems` | `scrapRepo.deleteItems` | `deleteOrderItems` | `["items"]` |
+| `createOrderItem` | `scrapRepo.createNewItem` | `createOrderItem` | `["items"]` |
+
+`sync(..., ["items"])` calls `next.mirrorItems(orderId)`, which **re-derives**
+`orders.items` from `exchange` rather than replaying the write — so it reads the
+scrap row that was just updated, in the same transaction. A scrap edit lands in
+the new schema without scrap knowing the new schema exists.
+
+That is a real dependency and not an obvious one: it holds only because scrap is
+never the last write in its transaction. **If a path is ever added that edits
+scrap without a following orders write, it will silently stop mirroring** — the
+kind of failure that shows up as a stale weight on an order months later. Worth
+a test if scrap gains a route of its own.
+
+### RESOLVED: every populated column in production now has somewhere to go
+
+`audit:coverage --prod` is clean. That is the answer to "is all the data
+accounted for", and it is worth stating plainly because it has never been true
+before: **no populated column in production's `exchange` schema lacks a
+destination in the new one.**
+
+The five tables no feature claims are all explained rather than outstanding —
+`account`, `session` and `verification` belong to better-auth and go with auth's
+atomic cutover; `auctions` and `auction_items` are retired by 067;
+`schema_migrations` is the ledger and stays in `exchange` by design.
+
+**Getting there was a fix to the audit, not to the data.** It had been reporting
+three columns as homeless:
+
+```
+exchange.addresses.user_id      73 of 73 rows populated
+exchange.addresses.name         73 of 73 rows populated
+exchange.addresses.is_default   73 of 73 rows populated
+```
+
+They were reported under `orders`, and under `orders` that is **true and
+intentional** — an order snapshots an address without copying whose it was,
+which is exactly why `places.addresses` and `places.user_addresses` are separate
+tables. But the `addresses` feature maps to `places.user_addresses`, which holds
+all three (`name` → `label`, `is_default` → `default_shipping`). Nothing was
+homeless.
+
+The bug was that the loop is per feature and built its list of available columns
+only from *that* feature's targets, so a column another feature already carried
+still counted as a gap. The grouping by feature stays — it is useful context —
+but the gap test is now global.
+
+Two smaller things fixed alongside, both about the number being believable:
+
+- The count was of **sightings, not columns**. Two features map
+  `exchange.addresses`, so three missing columns were reported as "6". It counts
+  distinct `source.column` pairs now.
+- Proven both ways rather than assumed. Removing `places.user_addresses` from
+  the map brings the three back and reports "3"; restoring it clears them. A
+  change that makes a check *less* likely to fire has to be shown still able to.
+
+This matters more than a cosmetic report. `audit:coverage` is the thing that
+catches a feature being split while columns of live data have nowhere to land —
+orders had matching row counts and was missing 21 columns. A report that cries
+wolf is one people stop reading, and this one needs to be believed on the day it
+finds something real.
+
 ### FOR JACOB, THE URGENT ONE: the customer sets the spot price they are charged at
 
 **Not fixed. It needs a decision that is yours, and the fix runs through a wire

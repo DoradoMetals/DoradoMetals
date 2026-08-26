@@ -70,7 +70,60 @@ if (only && !FEATURES[only]) {
   process.exit(1);
 }
 
-let gaps = 0;
+// A COLUMN HAS A HOME IF *ANY* FEATURE PROVIDES ONE, NOT JUST THE ONE BEING
+// WALKED.
+//
+// The loop below is per feature, and `available` used to be built only from the
+// feature currently in hand. So a column that another feature already carries
+// was still counted as a gap. That is not hypothetical - it reported three:
+//
+//   exchange.addresses.user_id / name / is_default, 73 of 73 rows in production
+//
+// under `orders`. And under `orders` that is TRUE and intentional: an order
+// snapshots an address without copying whose it was, which is the whole reason
+// places.addresses and places.user_addresses are separate tables. But the
+// `addresses` feature maps to places.user_addresses, which holds all three
+// (name -> label, is_default -> default_shipping). Nothing was homeless.
+//
+// The summary line then called them "3 populated columns with no home in the
+// new schema", which was simply wrong, and wrong in the direction that costs
+// the most: a report that cries wolf is one people stop reading, and this one
+// exists to be believed the day it finds something real.
+//
+// So the per-feature grouping stays - it is useful context - but the gap test
+// is global. Built once, up front, because the column lists are the same for
+// every feature that names the same target.
+const globalTargets = new Map(); // source table -> Set of target tables
+for (const sources of Object.values(FEATURES)) {
+  for (const [source, targets] of Object.entries(sources)) {
+    if (!globalTargets.has(source)) globalTargets.set(source, new Set());
+    for (const t of targets) globalTargets.get(source).add(t);
+  }
+}
+
+const globalColumns = new Map(); // source table -> Set of column names anywhere
+for (const [source, targets] of globalTargets) {
+  const set = new Set();
+  for (const t of targets) {
+    const [ts, tt] = t.split(".");
+    for (const c of await q(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = $1 AND table_name = $2`,
+      [ts, tt]
+    )) {
+      set.add(c.column_name);
+    }
+  }
+  globalColumns.set(source, set);
+}
+
+// Counted as DISTINCT source.column pairs, not as sightings. Two features can
+// map the same source table - orders and addresses both map exchange.addresses
+// - so a genuinely missing column was counted once per feature and the summary
+// said "6" when three columns were missing. A number that overstates by the
+// number of features that happen to mention a table is not a number anyone can
+// act on.
+const gapSet = new Set();
 
 for (const [feature, sources] of Object.entries(features)) {
   const lines = [];
@@ -101,10 +154,15 @@ for (const [feature, sources] of Object.entries(features)) {
 
     const renames = RENAMES[source] ?? {};
 
+    const elsewhere = globalColumns.get(source) ?? new Set();
+
     for (const { column_name: col } of cols) {
       const mapped = renames[col];
       if (mapped === "-") continue;
       if (available.has(mapped ?? col)) continue;
+      // Covered by some other feature's mapping for the same source table. Not
+      // a gap - the data has a home, just not this feature's.
+      if (elsewhere.has(mapped ?? col)) continue;
       if (DELIBERATE[`${source}.${col}`]) continue;
 
       // Only report it if it actually holds something. A column that is null on
@@ -115,7 +173,7 @@ for (const [feature, sources] of Object.entries(features)) {
       if (n === 0) continue;
 
       const blocked = BLOCKED[`${source}.${col}`];
-      gaps++;
+      gapSet.add(`${source}.${col}`);
       lines.push(
         `   ${source}.${col}`.padEnd(52) +
           `${n} of ${total} rows populated` +
@@ -186,6 +244,8 @@ if (undeclared.length) {
     );
   }
 }
+
+const gaps = gapSet.size;
 
 console.log(
   gaps
