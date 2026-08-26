@@ -50,7 +50,7 @@
     "seed:e2e": "NODE_ENV=test node scripts/seed-e2e-users.mjs"
   },
   "imports": {
-    "#env": "./env.js",
+    "#env": "./env.ts",
     "#db": "./db.ts",
     "#app": "./app.js",
     "#shared/*": "./shared/*",

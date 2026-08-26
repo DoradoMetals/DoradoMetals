@@ -45,7 +45,11 @@ dotenv.config({ path: path.join(import.meta.dirname, ".env") });
 // so Railway injecting DATABASE_URL, or a one-off `DATABASE_URL=... node ...`,
 // behaves exactly as before. That also means this can be adopted one variable
 // at a time rather than in a single sweep.
-const compose = (user, password, database) => {
+const compose = (
+  user: string | undefined,
+  password: string | undefined,
+  database: string
+): string | undefined => {
   if (!user || !password || !process.env.PGHOST) return undefined;
   const url = new URL(`postgresql://${process.env.PGHOST}`);
   if (process.env.PGPORT) url.port = process.env.PGPORT;
@@ -55,15 +59,15 @@ const compose = (user, password, database) => {
   return url.toString();
 };
 
-const dorado = (database) =>
+const dorado = (database: string) =>
   compose(process.env.DORADO_USER, process.env.DORADO_PASSWORD, database);
-const readonly = (database) =>
+const readonly = (database: string) =>
   compose(process.env.READONLY_USER, process.env.READONLY_PASSWORD, database);
 
 // The database each name points at. Written here rather than in .env so that
 // "which database is DATABASE_URL" is answered by reading code, not by trusting
 // that five strings were all edited consistently.
-const COMPOSED = {
+const COMPOSED: Record<string, () => string | undefined> = {
   DATABASE_URL: () => dorado(process.env.DEV_DATABASE ?? "dev"),
   TEST_DATABASE_URL: () => dorado(process.env.TEST_DATABASE ?? "test"),
   DUMP_SOURCE_DATABASE_URL: () => dorado(process.env.PROD_DATABASE ?? "prod"),
