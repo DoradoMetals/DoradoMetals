@@ -4157,3 +4157,44 @@ these functions is currently reached.
 it is D34.** The tests state the behaviour as it stands and were mutation-checked:
 making `purchaseOrderScrapTotal` consult `scrap.bid_premium` fails exactly the
 two tests that assert the divergence and no others.
+
+### What a customer pays was untested too
+
+The same by-symbol scan that found the purchase-order gap, run across every
+`utils/` file in the frontend: **25 files with exports, 6 with no symbol
+referenced by any test.** The valuable one was
+`features/orders/salesOrders/utils/calculateSalesOrderPrices.ts` — the sell
+side, deciding the item total, whether shipping is free, how much account
+credit is consumed, the card surcharge, and the number the customer is charged.
+`calculateSalesOrderPrices.test.ts` covers it in 20 tests.
+
+What the tests pin, none of it changed:
+
+- **An unrecognised payment method is billed 2.9%.** `calculateCardCharge`
+  takes a plain `string` and resolves an unknown method to `?? 0.029` — the
+  card rate, the most expensive of the six. Not free, not an error. The enum
+  keeps TypeScript callers honest; the function itself does not.
+- **Free shipping is strictly above 1000.** An order of exactly 1000 pays.
+- **The surcharge applies after account funds**, so paying part of an order
+  with credit reduces the surcharge as well, and an order fully covered by
+  funds carries none even by card.
+- **The surcharge applies to sales tax too** — 1000 of metal with 80 of tax is
+  charged 31.32, not 29.
+- **Two ways an item is given away for nothing.** `calculateItemTotals` uses
+  `item.ask_premium ?? 0` and `spot?.ask_spot ?? 0`, so a product with no
+  premium, or one whose metal has no spot price, contributes **zero** to the
+  order rather than raising anything. Same silent-zero shape as D32 and D34.
+
+**Not live, measured:** of 95 production products, **25 have `ask_premium = 0`**
+— but none of those 25 is `sell_display`, and all 21 products actually offered
+for sale carry a real premium. Flipping one of those 25 to visible would sell
+it for nothing, silently.
+
+Mutation-checked twice: moving the free-shipping boundary to `>=` fails exactly
+1 test, and charging the surcharge on `baseTotal` instead of the post-funds
+amount fails exactly 2.
+
+**Still untested**, and the next one worth doing: `calculatePurchaseOrderTotals.ts`
+— 304 lines splitting an order three ways between the customer, the business
+and the refiner. It deserves its own pass rather than a hurried one. The other
+four uncovered files are form/address helpers and `cn`.
