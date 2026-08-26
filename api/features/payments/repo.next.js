@@ -8,7 +8,7 @@
 //
 // This returns the new shape, and repo.exchange composes the same one out of its
 // flat row, so the internal shape does not depend on which switch is selected.
-// features/payments/wire.js flattens it back for the frontend behind
+// features/payments/wire.ts flattens it back for the frontend behind
 // PAYMENTS_WIRE - the frontend reads payment_status and payment_intent_id today
 // and stops when it is migrated, not before.
 //

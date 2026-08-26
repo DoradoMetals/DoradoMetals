@@ -173,7 +173,7 @@ add("GET /fulfillments/schedule", c.FulfillmentWire, () => fulfillments.getSched
 
 // The one payments response that is a repo row rather than a Stripe object or a
 // client_secret. Both implementations, both shapes.
-const paymentsWire = await import("#features/payments/wire.js");
+const paymentsWire = await import("#features/payments/wire.ts");
 const salesOrderIds = async () => {
   const { rows } = await pool.query(
     `SELECT sales_order_id FROM exchange.payment_intents WHERE sales_order_id IS NOT NULL`

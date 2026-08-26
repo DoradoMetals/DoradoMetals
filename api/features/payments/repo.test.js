@@ -117,7 +117,7 @@ test("an open intent is found again for the same session, user and type", async 
     // repo.exchange composes the same nested shape repo.next returns, so the
     // provider's id for the intent is on the attempt rather than at the top
     // level - the internal shape does not depend on which switch is selected,
-    // and features/payments/wire.js is what flattens it back for the frontend.
+    // and features/payments/wire.ts is what flattens it back for the frontend.
     const found = await repo.retrievePaymentIntent("checkout", session, null, c);
     assert.equal(found?.attempt?.provider_ref, pi.id);
     assert.equal(found?.status, pi.status);

@@ -8,7 +8,7 @@ import {
 
 import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.js";
 
-import * as paymentsWire from "#features/payments/wire.js";
+import * as paymentsWire from "#features/payments/wire.ts";
 import { wireShape } from "#shared/wire/middleware.ts";
 
 const router = express.Router();

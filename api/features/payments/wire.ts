@@ -11,7 +11,9 @@
 //   PAYMENTS_WIRE=next              status, attempt, details
 //
 // A transformation rather than a rename, so it does not use
-// shared/wire/rename.ts.
+// shared/wire/rename.ts, and unlike carriers/refiners/addresses it is not a
+// lift either - shared/wire/lift.ts does not fit, and forcing it would hide the
+// unit conversion below inside a declaration that looks like a rename.
 //
 // ONE ENDPOINT IS AFFECTED and it is worth being precise about which. Of the
 // four payment routes, three answer with something that is not a repo row -
@@ -30,33 +32,63 @@
 // number, it was on the wire only because the read was SELECT *, it is null on
 // every row in dev and production, and nothing in the frontend reads it.
 // CLAUDE.md: never log or return bank details.
-const overList = (fn) => (data) => (Array.isArray(data) ? data.map(fn) : fn(data));
+import type { WireRow, WireData } from "#shared/wire/rename.ts";
+
+// The types are wide at the boundary for the reason rename.ts gives - this runs
+// on whatever a handler is about to send, including objects that are not ours.
+// What IS typed is the nested structure this file builds, because that is the
+// part it owns and the part a PAYMENTS_WIRE flip exposes.
+
+/** What payments.attempts contributes: what was tried, and the provider's ref. */
+interface Attempt {
+  provider: string;
+  provider_ref: string | null;
+  status: unknown;
+}
+
+/** What payments.details contributes: the instrument. Never carries `routing`. */
+interface Details {
+  provider: string;
+  provider_ref: unknown;
+  type: string | null;
+  last_four: unknown;
+  card_brand: unknown;
+  bank_name: unknown;
+  account_type: unknown;
+}
+
+type RowFn = (row: WireRow | null | undefined) => WireRow | null | undefined;
+
+const overList =
+  (fn: RowFn) =>
+  (data: WireData): WireData =>
+    Array.isArray(data) ? (data.map(fn) as WireRow[]) : (fn(data) as WireRow);
 
 // Stripe's spelling of an instrument type, from the new schema's. The two
 // values that exist are the two that map; anything else is lowercased, which is
 // what Stripe's own vocabulary looks like.
-const toStripeType = (type) =>
+const toStripeType = (type: unknown): string | null =>
   type == null
     ? null
     : type === "ACH"
       ? "us_bank_account"
       : type === "CARD"
         ? "card"
-        : type.toLowerCase();
+        : String(type).toLowerCase();
 
-const fromStripeType = (type) =>
+const fromStripeType = (type: unknown): string | null =>
   type == null
     ? null
     : type === "us_bank_account"
       ? "ACH"
       : type === "card"
         ? "CARD"
-        : type.toUpperCase();
+        : String(type).toUpperCase();
 
-const cents = (dollars) =>
-  dollars == null ? null : Math.round(Number(dollars) * 100);
+const cents = (dollarAmount: unknown): number | null =>
+  dollarAmount == null ? null : Math.round(Number(dollarAmount) * 100);
 
-const dollars = (c) => (c == null ? null : Number(c) / 100);
+const dollars = (c: unknown): number | null => (c == null ? null : Number(c) / 100);
 
 // THE ONE HAZARD THE OTHER ADAPTERS DO NOT HAVE. Mounting this as middleware
 // wraps res.json for the whole router, and one handler here answers with an
@@ -69,16 +101,18 @@ const dollars = (c) => (c == null ? null : Number(c) / 100);
 // `attempt` is the discriminator. Both repos build it with jsonb_build_object
 // unconditionally, so it is present on every row this feature produces and on
 // nothing Stripe returns.
-const isOurs = (row) => row != null && typeof row === "object" && "attempt" in row;
+const isOurs = (row: unknown): row is WireRow =>
+  row != null && typeof row === "object" && "attempt" in row;
 
-function flatten(row) {
+function flatten(row: WireRow | null | undefined): WireRow | null | undefined {
   if (!isOurs(row)) return row;
   const { status, order_id, direction, attempt, details, amount_expected, ...rest } = row;
-  const d = details ?? {};
+  const d = (details ?? {}) as Partial<Details>;
+  const a = (attempt ?? {}) as Partial<Attempt>;
   return {
     ...rest,
     payment_status: status ?? null,
-    payment_intent_id: attempt?.provider_ref ?? null,
+    payment_intent_id: a.provider_ref ?? null,
     // One order_id becomes the two columns exchange had, put back in whichever
     // one it came out of. A null direction means no order, and both stay null.
     sales_order_id: direction === "sale" ? (order_id ?? null) : null,
@@ -95,7 +129,7 @@ function flatten(row) {
   };
 }
 
-function nest(row) {
+function nest(row: WireRow | null | undefined): WireRow | null | undefined {
   if (!row || typeof row !== "object") return row;
   if (row.attempt || row.status !== undefined) return row;
   const {
@@ -125,6 +159,25 @@ function nest(row) {
     return row;
   }
 
+  const details: Details | null =
+    method_id == null
+      ? null
+      : {
+          provider: "stripe",
+          provider_ref: method_id,
+          type: fromStripeType(method_type ?? null),
+          last_four: last_four ?? null,
+          card_brand: card_brand ?? null,
+          bank_name: bank_name ?? null,
+          account_type: bank_account_type ?? null,
+        };
+
+  const attempt: Attempt = {
+    provider: "stripe",
+    provider_ref: (payment_intent_id ?? null) as string | null,
+    status: payment_status ?? null,
+  };
+
   return {
     ...rest,
     status: payment_status ?? null,
@@ -133,30 +186,15 @@ function nest(row) {
     amount_expected: dollars(amount),
     amount_received: dollars(amount_received),
     amount_capturable: dollars(amount_capturable),
-    attempt: {
-      provider: "stripe",
-      provider_ref: payment_intent_id ?? null,
-      status: payment_status ?? null,
-    },
-    details:
-      method_id == null
-        ? null
-        : {
-            provider: "stripe",
-            provider_ref: method_id,
-            type: fromStripeType(method_type ?? null),
-            last_four: last_four ?? null,
-            card_brand: card_brand ?? null,
-            bank_name: bank_name ?? null,
-            account_type: bank_account_type ?? null,
-          },
+    attempt,
+    details,
   };
 }
 
-const identity = (row) => row;
-const SHAPES = { legacy: flatten, next: identity };
+const identity: RowFn = (row) => row;
+const SHAPES: Record<string, RowFn> = { legacy: flatten, next: identity };
 const SHAPE = Object.hasOwn(SHAPES, process.env.PAYMENTS_WIRE ?? "")
-  ? process.env.PAYMENTS_WIRE
+  ? (process.env.PAYMENTS_WIRE as string)
   : "legacy";
 
 export const activeShape = SHAPE;

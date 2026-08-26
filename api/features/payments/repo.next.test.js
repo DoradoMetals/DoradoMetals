@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as next from "#features/payments/repo.next.js";
 import * as exchange from "#features/payments/repo.exchange.js";
-import { toLegacy, fromLegacy } from "#features/payments/wire.js";
+import { toLegacy, fromLegacy } from "#features/payments/wire.ts";
 
 let client;
 

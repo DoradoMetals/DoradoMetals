@@ -3,7 +3,7 @@
 // Projected explicitly rather than SELECT *, and composed into the same nested
 // shape repo.next returns, so the two implementations agree whatever the switch
 // says. That is the pattern carriers and addresses follow: the internal shape is
-// the new one on both sides, and features/payments/wire.js flattens it back for
+// the new one on both sides, and features/payments/wire.ts flattens it back for
 // the frontend behind PAYMENTS_WIRE.
 //
 // exchange keeps the intent, the attempt and the instrument in one row. The
