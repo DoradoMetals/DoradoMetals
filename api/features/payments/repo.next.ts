@@ -192,10 +192,12 @@ export async function createPaymentIntent(
   );
 }
 
+// Answers whether the webhook matched an intent. See the exchange
+// implementation and D24: a webhook that matches nothing must not be accepted.
 export async function updatePaymentIntent(
   payment_intent: StripeIntentLike,
   executor?: Executor
-): Promise<void> {
+): Promise<boolean> {
   const { rows } = await query<{ id: string }>(
     `UPDATE payments.intents i
         SET status = $1,
@@ -211,7 +213,7 @@ export async function updatePaymentIntent(
     ],
     executor
   );
-  if (!rows[0]) return;
+  if (!rows[0]) return false;
 
   await query(
     `UPDATE payments.attempts
@@ -236,6 +238,7 @@ export async function updatePaymentIntent(
       executor
     );
   }
+  return true;
 }
 
 // The instrument Stripe says was used. It is found by the provider's id for it,

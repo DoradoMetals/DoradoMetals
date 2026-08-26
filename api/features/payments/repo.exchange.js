@@ -151,14 +151,18 @@ export async function updatePaymentIntent(payment_intent, executor) {
   // SHOW THIS, because from Stripe's side it went fine. This line is what makes
   // it visible from ours.
   //
-  // Deliberately a log and not a throw. Answering 500 would make Stripe retry,
-  // which is arguably right and is a change to how a money path behaves under
-  // failure - Jacob's call, in the decision log, not one to make at 4am.
+  // D24, decided by Jacob 26 August: the caller answers non-2xx so Stripe
+  // retries, rather than logging and accepting. Retrying is safe because this
+  // statement is a straight overwrite - applying it twice writes the same
+  // values - and the alternative is a money event that Stripe records as
+  // delivered while nothing here was written.
   if (result?.rowCount === 0) {
     console.warn(
       `⚠️  stripe webhook: no exchange.payment_intents row for ${payment_intent.id} - status "${payment_intent.status}" was not recorded`
     );
+    return false;
   }
+  return true;
 }
 
 export async function updateMethod({ paymentMethod }, executor) {

@@ -309,12 +309,36 @@ export async function updateMethod({
   await stripeRepo.updateMethod({ paymentMethod });
 }
 
+// D24, decided by Jacob 26 August. A WEBHOOK THAT MATCHES NO ROW IS REFUSED,
+// so Stripe retries it.
+//
+// It used to be accepted silently: the statement is an UPDATE, the controller
+// answered `{received:true}` either way, and Stripe recorded a delivery that
+// succeeded while nothing here was written. audit:payments counts twenty such
+// intents in production, and that is the shape of the missing $126.48 - the
+// delivery log cannot show it, because from Stripe's side it went fine.
+//
+// Retrying is safe. The statement is a straight overwrite, so applying it twice
+// writes the same values; the controller's own comment already relies on that
+// where a later failure in the same handler makes Stripe retry an update
+// already applied.
+//
+// This does NOT create the missing row - see D25. An intent row needs
+// session_id, user_id and type, none of which a webhook payload carries, so
+// upserting would mean inventing a user and a session.
 export async function updateIntentFromWebhook({
   paymentIntent,
 }: {
   paymentIntent: StripeIntentLike;
 }): Promise<void> {
-  await stripeRepo.updatePaymentIntent(paymentIntent);
+  const matched = await stripeRepo.updatePaymentIntent(paymentIntent);
+  if (matched === false) {
+    const err: Error & { statusCode?: number } = new Error(
+      `stripe webhook: no payment intent row for ${paymentIntent.id} - refusing so Stripe retries`
+    );
+    err.statusCode = 500;
+    throw err;
+  }
 }
 
 export async function getPaymentIntentFromSalesOrderId({

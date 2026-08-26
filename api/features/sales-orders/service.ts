@@ -294,6 +294,32 @@ export async function sendOrderToSupplier(
     throw err;
   }
 
+  // A SENT ORDER MAY BE RE-SENT TO THE SAME REFINER, AND MAY NOT BE MOVED TO
+  // ANOTHER ONE.
+  //
+  // Nothing used to check order_sent at all, so calling this twice overwrote
+  // supplier_id with no audit trail and no updated_at (attachSupplierToOrder
+  // and updateOrderSent both leave it alone), created a SECOND outbound
+  // shipment, and emailed the new refiner their copy - leaving two refiners
+  // each holding one order, one of them expecting to ship metal.
+  //
+  // A blanket refusal would be wrong: the comment on the transaction below
+  // names resending as the recovery path for its own accepted worst case, an
+  // order marked sent whose email did not arrive. So the same refiner is
+  // allowed through and takes the email again WITHOUT a second shipment or a
+  // second attach; a different one is refused, because moving an order to
+  // another refiner after it has gone is not something to do silently and
+  // there is no unsend to do it deliberately.
+  const alreadySent = sales_order.order_sent === true;
+  if (alreadySent && sales_order.supplier_id !== supplier_id) {
+    const err: Error & { statusCode?: number } = new Error(
+      `Sales order ${sales_order.order_number} has already been sent to a refiner. ` +
+        `Sending it to a different one would leave two refiners holding it.`
+    );
+    err.statusCode = 409;
+    throw err;
+  }
+
   const supplier = await refinerRepo.getRefinerFromId(supplier_id);
 
   // An order with no address cannot be sent to a refiner: the whole point of
@@ -326,20 +352,25 @@ export async function sendOrderToSupplier(
   // is an order marked sent whose email did not arrive, which nobody acts on
   // and an admin can resend. The other way round, metal leaves the building
   // against a record that was rolled back.
-  await withTransaction(async (client) => {
-    await salesOrderRepo.attachSupplierToOrder(
-      sales_order.id,
-      supplier_id,
-      client
-    );
+  // Skipped entirely on a resend: the supplier is already attached, the outbound
+  // shipment already exists, and order_sent is already true. Running it again
+  // is what created the duplicate shipment.
+  if (!alreadySent) {
+    await withTransaction(async (client) => {
+      await salesOrderRepo.attachSupplierToOrder(
+        sales_order.id,
+        supplier_id,
+        client
+      );
 
-    await shipmentRepo.create(
-      { sales_order_id: sales_order.id, type: "Outbound" },
-      client
-    );
+      await shipmentRepo.create(
+        { sales_order_id: sales_order.id, type: "Outbound" },
+        client
+      );
 
-    await salesOrderRepo.updateOrderSent(sales_order.id, client);
-  });
+      await salesOrderRepo.updateOrderSent(sales_order.id, client);
+    });
+  }
 
   await emailService.sendSalesOrderToSupplier(
     sales_order,

@@ -215,3 +215,90 @@ test("nothing this file did survived the transaction", async () => {
   assert.equal(row.order_sent, baseline.order_sent, "order_sent was committed to dev");
   assert.equal(row.supplier_id, baseline.supplier_id, "a supplier was committed to dev");
 });
+
+// A SENT ORDER MAY BE RE-SENT TO THE SAME REFINER, AND MAY NOT BE MOVED.
+//
+// Nothing checked order_sent, so calling this twice overwrote supplier_id with
+// no audit trail and no updated_at, created a SECOND outbound shipment, and
+// emailed the new refiner their copy - two refiners each holding one order.
+//
+// A blanket refusal would be wrong: the service's own comment names resending
+// as the recovery path for its accepted worst case, an order marked sent whose
+// email did not arrive. So both halves are pinned - the resend still works and
+// still emails, and it must NOT write again.
+test("a sent order cannot be moved to a different refiner", async () => {
+  await inPinnedTransaction(async (client) => {
+    const order = (
+      await client.query(
+        `SELECT id, order_number, supplier_id FROM exchange.sales_orders
+          WHERE order_sent = true AND supplier_id IS NOT NULL
+            AND address_id IS NOT NULL LIMIT 1`
+      )
+    ).rows[0];
+    // ASSERTED, NOT SKIPPED. A silent `return` here would make this test pass
+    // for ever if the dev data stopped matching, which is the failure mode
+    // where a green suite proves nothing. Dev has six of these.
+    assert.ok(order, "dev has no sent order with a supplier and an address to test against");
+
+    const other = (
+      await client.query(
+        `SELECT id FROM exchange.suppliers WHERE id <> $1 LIMIT 1`,
+        [order.supplier_id]
+      )
+    ).rows[0];
+    assert.ok(other, "dev has only one supplier, so this cannot be tested");
+
+    await assert.rejects(
+      () => service.sendOrderToSupplier({ order: { id: order.id }, spots: [], supplier_id: other.id }),
+      (err) => {
+        assert.equal(err.statusCode, 409, `expected 409, got ${err.statusCode}`);
+        assert.match(err.message, /already been sent/);
+        return true;
+      }
+    );
+
+    const after = (
+      await client.query(`SELECT supplier_id FROM exchange.sales_orders WHERE id = $1`, [order.id])
+    ).rows[0];
+    assert.equal(after.supplier_id, order.supplier_id, "the refiner was changed anyway");
+  }, { lock: LOCKS.ORDERS });
+});
+
+test("re-sending to the same refiner writes nothing new", async () => {
+  await inPinnedTransaction(async (client) => {
+    const order = (
+      await client.query(
+        `SELECT id, supplier_id FROM exchange.sales_orders
+          WHERE order_sent = true AND supplier_id IS NOT NULL
+            AND address_id IS NOT NULL LIMIT 1`
+      )
+    ).rows[0];
+    assert.ok(order, "dev has no sent order with a supplier and an address to test against");
+
+    const before = Number(
+      (
+        await client.query(
+          `SELECT count(*)::int n FROM exchange.shipments WHERE sales_order_id = $1 AND type = 'Outbound'`,
+          [order.id]
+        )
+      ).rows[0].n
+    );
+
+    const sent = [];
+    await service.sendOrderToSupplier(
+      { order: { id: order.id }, spots: [], supplier_id: order.supplier_id },
+      { sendMail: async (m) => { sent.push(m); return { messageId: "test" }; } }
+    );
+
+    const after = Number(
+      (
+        await client.query(
+          `SELECT count(*)::int n FROM exchange.shipments WHERE sales_order_id = $1 AND type = 'Outbound'`,
+          [order.id]
+        )
+      ).rows[0].n
+    );
+    assert.equal(after, before, "a resend created another outbound shipment");
+    assert.equal(sent.length, 1, "the resend did not send the refiner their copy");
+  }, { lock: LOCKS.ORDERS });
+});

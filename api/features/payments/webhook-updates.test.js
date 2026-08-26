@@ -30,6 +30,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as repo from "#features/payments/repo.exchange.js";
+import * as service from "#features/payments/service.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.js";
 import query from "#shared/db/query.js";
 
@@ -83,14 +84,14 @@ test("a charge.* webhook updates nothing, because a charge is not an intent", as
   });
 });
 
-test("a webhook for an intent exchange has no row for writes nothing and raises nothing", async () => {
+test("a webhook for an intent exchange has no row for writes nothing, and says so", async () => {
   await inPinnedTransaction(async (c) => {
     const before = await query(`SELECT count(*)::int AS n FROM exchange.payment_intents`, [], c);
 
     // audit:payments reports 20 of these in production. createPaymentIntent is
     // what inserts the row, so an intent opened any other way - or one whose
     // insert failed - never gets one, and every webhook after it lands here.
-    await repo.updatePaymentIntent(
+    const matched = await repo.updatePaymentIntent(
       {
         id: `pi_test_absent_${Date.now()}`,
         status: "succeeded",
@@ -104,9 +105,61 @@ test("a webhook for an intent exchange has no row for writes nothing and raises 
 
     const after = await query(`SELECT count(*)::int AS n FROM exchange.payment_intents`, [], c);
     assert.equal(after.rows[0].n, before.rows[0].n, "no row inserted - it is an UPDATE");
-    // No throw. The controller therefore answers 200 and Stripe marks the
-    // delivery delivered. This is the assertion that says the delivery log
-    // cannot distinguish this case from a working one.
+
+    // D24. The repo still does not throw - it REPORTS, and the service turns
+    // that into a refusal so Stripe retries. Keeping the signal here rather
+    // than the throw means the repo stays usable from a backfill or a script
+    // that legitimately does not care.
+    assert.equal(matched, false, "the repo did not report that nothing matched");
+  });
+});
+
+// D24, the half that changes what Stripe sees. Before this, an intent with no
+// row was accepted with `{received:true}` and the money event was lost while
+// the delivery log said it went fine - which is why the delivery log could
+// never show the missing $126.48.
+test("the service refuses a webhook that matches no intent, so Stripe retries", async () => {
+  await inPinnedTransaction(async () => {
+    await assert.rejects(
+      () =>
+        service.updateIntentFromWebhook({
+          paymentIntent: {
+            id: `pi_test_absent_${Date.now()}`,
+            status: "succeeded",
+            amount: 11480,
+            amount_received: 11480,
+            amount_capturable: 0,
+            payment_method: "pm_x",
+          },
+        }),
+      (err) => {
+        assert.equal(err.statusCode, 500, `expected 500 so Stripe retries, got ${err.statusCode}`);
+        assert.match(err.message, /no payment intent row/);
+        return true;
+      }
+    );
+  });
+});
+
+// The other side of it: a webhook that DOES match must still be accepted, or
+// every delivery would retry for days.
+test("the service accepts a webhook that matches an intent", async () => {
+  await inPinnedTransaction(async (c) => {
+    const existing = (
+      await query(`SELECT payment_intent_id FROM exchange.payment_intents WHERE payment_intent_id IS NOT NULL LIMIT 1`, [], c)
+    ).rows[0];
+    assert.ok(existing, "dev has no payment intent to match against");
+
+    await service.updateIntentFromWebhook({
+      paymentIntent: {
+        id: existing.payment_intent_id,
+        status: "succeeded",
+        amount: 11480,
+        amount_received: 11480,
+        amount_capturable: 0,
+        payment_method: "pm_x",
+      },
+    });
   });
 });
 
