@@ -1,0 +1,115 @@
+// POST /api/stripe/update_payment_intent, over real HTTP, as far as it goes
+// without Stripe.
+//
+// WHY THIS FILE EXISTS. The route answered 500 on every call for eight months.
+// features/payments/service.js awaited addressService.getAddressFromId, a
+// function that has not existed since be03eed3 - the December 2025 feature
+// slicing - and `import * as` makes a missing export `undefined` rather than an
+// import error, so nothing failed until the line ran.
+//
+// That is the route that prices the cart and tells Stripe what to charge. With
+// it dead, the intent keeps the $10.00 placeholder createPaymentIntent opens
+// with. No repo test could see this: the repos were fine. No typecheck could
+// see it either, because both files were JavaScript.
+//
+// WHAT THIS ASSERTS, AND WHAT IT CANNOT. The success path ends at Stripe, which
+// this suite does not call. So the assertion is the one that matters and is
+// reachable: the handler gets PAST the address lookup and the pricing, and the
+// failure - when there is one - is not a TypeError about a missing function.
+// A 500 whose body points at features/payments is exactly what regressing this
+// looks like.
+//
+// NOTHING IS COMMITTED: shared/testing/pinned-pool.js holds every query in one
+// transaction that is rolled back.
+import test, { after, before } from "node:test";
+import assert from "node:assert/strict";
+import request from "supertest";
+import pool from "#db";
+import { mockSessions, restoreSessions, as } from "#shared/testing/session.js";
+import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
+import * as addressService from "#features/addresses/service.ts";
+
+await mockSessions();
+const { default: app } = await import("#app");
+
+let customer;
+let addressId;
+
+before(async () => {
+  const users = await outside(
+    `SELECT u.id, u.name, u.email FROM exchange.users u
+      WHERE u.role IS DISTINCT FROM 'admin'
+        AND EXISTS (SELECT 1 FROM exchange.addresses a WHERE a.user_id = u.id)
+      LIMIT 1`
+  );
+  customer = users[0];
+  assert.ok(customer, "dev needs a non-admin user with an address");
+
+  const rows = await outside(
+    `SELECT id FROM exchange.addresses WHERE user_id = $1 ORDER BY id LIMIT 1`,
+    [customer.id]
+  );
+  addressId = rows[0]?.id;
+  assert.ok(addressId, "dev needs an address for that user");
+});
+
+after(async () => {
+  restoreSessions();
+  await pool.end();
+});
+
+// The unit the route died on, asserted directly so a failure says which half
+// broke rather than only that the route is down.
+test("the addresses service can resolve one address by id", async () => {
+  assert.equal(
+    typeof addressService.getAddressFromId,
+    "function",
+    "getAddressFromId is missing - features/payments/service.ts awaits it"
+  );
+
+  const address = await addressService.getAddressFromId(addressId);
+  assert.ok(address, "a real address id resolved to nothing");
+  assert.equal(address.id, addressId, "it returned a different address");
+  assert.ok(
+    typeof address.state === "string" || address.state === null,
+    "the caller reads `address?.state` to decide the tax state"
+  );
+});
+
+// An id that matches nothing must come back empty rather than throw: the call
+// site is written as `address?.state ?? "TX"`.
+test("an unknown address id resolves to nothing rather than throwing", async () => {
+  const address = await addressService.getAddressFromId(
+    "00000000-0000-4000-8000-000000000000"
+  );
+  assert.equal(address, undefined, "an unknown id should resolve to undefined");
+});
+
+test("update_payment_intent no longer dies before it reaches Stripe", async () => {
+  await inPinnedTransaction(async () => {
+    await as({ ...customer, role: "user" }, async () => {
+      const res = await request(app)
+        .post("/api/stripe/update_payment_intent")
+        .send({
+          items: [],
+          using_funds: false,
+          type: "customer",
+          user: { id: customer.id },
+          address_id: addressId,
+        });
+
+      // Not asserting 200: the success path ends at Stripe and this suite does
+      // not call it. What must never come back is the route falling over inside
+      // features/payments before any of that.
+      const where = res.body?.error?.where ?? "";
+      assert.ok(
+        !where.includes("features/payments/service"),
+        `update_payment_intent failed inside the service itself: ${where}`
+      );
+      assert.ok(
+        !JSON.stringify(res.body ?? "").includes("is not a function"),
+        "the handler called something that does not exist"
+      );
+    });
+  });
+});

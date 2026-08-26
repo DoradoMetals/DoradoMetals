@@ -15,6 +15,36 @@ function badRequest(message: string): HttpError {
   return err;
 }
 
+// ONE ADDRESS BY ID, WHICH THIS SERVICE HAS NOT EXPOSED SINCE 26 DECEMBER 2025.
+//
+// features/payments/service.ts calls addressService.getAddressFromId to find
+// the state a sales order is taxed in. The function did not exist: it was lost
+// in be03eed3, the feature-slicing restructure, and nothing has defined it
+// since. `import * as addressService` makes the missing name `undefined` rather
+// than an import error, so it fails at the call.
+//
+// The effect is that POST /api/stripe/update_payment_intent throws on its first
+// await and answers 500 - EVERY TIME. That is the route that prices the cart and
+// tells Stripe what to charge, so the intent keeps the $10.00 placeholder
+// createPaymentIntent opens it with.
+//
+// Verified on master, which is what auto-deploys: the call is at
+// dorado-exchange-api/features/stripe/service.js:82 and nothing in that tree
+// defines it either. Driven over HTTP here to be sure rather than reasoned
+// about - see features/payments/update-intent.test.js.
+//
+// The repo's getFromId returns a LIST, because exchange's did and both
+// implementations kept that shape. The caller wants one address, so it takes
+// the first, and reads `address?.state ?? "TX"` - so an id that matches nothing
+// falls back rather than throwing, which is the behaviour the call site was
+// already written for.
+export async function getAddressFromId(
+  addressId: string
+): Promise<AddressRow | undefined> {
+  const rows = await addressRepo.getFromId(addressId);
+  return rows[0];
+}
+
 export async function list(userId: string): Promise<AddressRow[]> {
   return addressRepo.list(userId);
 }
