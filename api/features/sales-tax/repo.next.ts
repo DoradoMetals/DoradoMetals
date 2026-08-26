@@ -5,8 +5,32 @@
 //
 // exchange.state_sales_tax is tax.sales_tax in the new layout.
 import query from "#shared/db/query.js";
+import type { tax } from "@dorado/contracts";
+import type { PoolClient } from "pg";
 
-export async function getSalesTax(state, item, item_price, item_total, executor) {
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// tax.sales_tax_rules is one of only two table pairs the migration rehearsal
+// managed to populate - 88 rows - because it is backfilled by a migration PAST
+// genesis's baseline rather than inside it.
+export type SalesTaxRuleRow = tax.SalesTaxRulesRow;
+export type SalesTaxRow = tax.SalesTaxRow;
+
+
+// The rule is matched on far more than the state: metal category, product
+// type, price, purity, aggregate, weight, and the domestic/legal-tender flags.
+// An item missing any of them matches NO rule and is taxed at zero - which
+// looks exactly like a state that does not collect, and cost three attempts to
+// get right in the test for it.
+export async function getSalesTax(
+  state: string,
+  item: Record<string, unknown>,
+  item_price: number,
+  item_total: number,
+  executor?: Executor
+): Promise<number> {
   const hasNexus = await isNexus(state, executor);
   const collectingNexus = process.env.COLLECTING_NEXUS_TAXES === 'true' ? true : false;
 
@@ -59,7 +83,11 @@ export async function getSalesTax(state, item, item_price, item_total, executor)
   return Number(result.rows[0].tax_rate);
 }
 
-export async function updateStateSalesTax(amount, state, client) {
+export async function updateStateSalesTax(
+  amount: number,
+  state: string,
+  client?: Executor
+): Promise<void> {
   const sql = `
     UPDATE tax.sales_tax
     SET amount_owed = amount_owed + $1
@@ -70,7 +98,7 @@ export async function updateStateSalesTax(amount, state, client) {
   await query(sql, values, client);
 }
 
-export async function isNexus(state, executor) {
+export async function isNexus(state: string, executor?: Executor): Promise<boolean> {
   const sql = `
     SELECT reached_nexus
     FROM tax.sales_tax

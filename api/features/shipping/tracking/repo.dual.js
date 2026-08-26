@@ -5,7 +5,7 @@
 // same, and the two stay in step without needing to match events individually.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/shipping/tracking/repo.exchange.js";
-import * as next from "#features/shipping/tracking/repo.next.js";
+import * as next from "#features/shipping/tracking/repo.next.ts";
 
 export const getEvents = next.getEvents;
 

@@ -11,7 +11,7 @@
 // absolute - so a single missed write is permanent, not self-correcting.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/sales-tax/repo.exchange.js";
-import * as next from "#features/sales-tax/repo.next.js";
+import * as next from "#features/sales-tax/repo.next.ts";
 
 export const getSalesTax = next.getSalesTax;
 export const isNexus = next.isNexus;

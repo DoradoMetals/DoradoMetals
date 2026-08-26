@@ -9,7 +9,7 @@
 // placed while it lasts. The two writes share a transaction for that reason.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/spots/repo.exchange.js";
-import * as next from "#features/spots/repo.next.js";
+import * as next from "#features/spots/repo.next.ts";
 
 export const METALS = exchange.METALS;
 export const getAll = next.getAll;

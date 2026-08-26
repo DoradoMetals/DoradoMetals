@@ -7,7 +7,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import * as spots from "#features/spots/repo.next.js";
+import * as spots from "#features/spots/repo.next.ts";
 
 let client;
 

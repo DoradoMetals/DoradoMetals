@@ -84,7 +84,7 @@ const FEATURES = {
   },
   'sales-tax': {
     exchange: () => import("#features/sales-tax/repo.exchange.js"),
-    next: () => import("#features/sales-tax/repo.next.js"),
+    next: () => import("#features/sales-tax/repo.next.ts"),
     reads: [
       ["isNexus(TX)", (m) => m.isNexus("TX")],
       ["isNexus(CA)", (m) => m.isNexus("CA")],
@@ -97,7 +97,7 @@ const FEATURES = {
   },
   spots: {
     exchange: () => import("#features/spots/repo.exchange.js"),
-    next: () => import("#features/spots/repo.next.js"),
+    next: () => import("#features/spots/repo.next.ts"),
     reads: [
       ["getAll", (m) => m.getAll()],
       ["getAllMetals", (m) => m.getAllMetals()],
@@ -241,7 +241,7 @@ const FEATURES = {
   },
   transactions: {
     exchange: () => import("#features/transactions/repo.exchange.js"),
-    next: () => import("#features/transactions/repo.next.js"),
+    next: () => import("#features/transactions/repo.next.ts"),
     // getTransactionHistory returns one row, not a history - see FOLLOWUPS.
     // Compared per user rather than once, because one call proves one row and
     // the reshaping that matters here (two order columns collapsing into one,
@@ -297,7 +297,7 @@ const FEATURES = {
   },
   "shipping-tracking": {
     exchange: () => import("#features/shipping/tracking/repo.exchange.js"),
-    next: () => import("#features/shipping/tracking/repo.next.js"),
+    next: () => import("#features/shipping/tracking/repo.next.ts"),
     reads: [["getEvents(first)", (m, ctx) => (ctx.id ? m.getEvents(ctx.id) : [])]],
     // Deliberately a shipment whose events exist in exchange. Three shipments
     // in dev carry tracking rows that exist only in the new schema - artifacts
