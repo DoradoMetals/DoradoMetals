@@ -40,7 +40,8 @@
     "test:on-test-db": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node --test",
     "audit:test-leaks:self-test": "TZ=UTC node scripts/audit-test-leaks.mjs --self-test",
     "dump:stripe": "node scripts/dump-stripe-reconciliation.mjs",
-    "test:sandbox": "TZ=UTC NODE_ENV=test node --test --test-timeout=60000 sandbox/*.sandbox.js"
+    "test:sandbox": "TZ=UTC NODE_ENV=test node --test --test-timeout=60000 sandbox/*.sandbox.js",
+    "seed:e2e": "NODE_ENV=test node scripts/seed-e2e-users.mjs"
   },
   "imports": {
     "#env": "./env.js",

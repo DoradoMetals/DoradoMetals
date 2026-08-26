@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { isTestRun } from "#shared/testing/is-test-run.ts";
 
 // STRUCTURAL, NOT nodemailer.Transporter. The whole point of the `transport`
 // parameter is that a test can pass something which records the message instead
@@ -49,15 +50,11 @@ let shared: Transport | null = null;
 // until someone writes the one that forgets. So the shared transport refuses to
 // exist during a test run instead.
 //
-// Detected two ways, because either alone can be defeated: NODE_ENV, which the
-// test scripts set deliberately, and node's own --test-* flags in execArgv,
-// which catch `node --test some.test.js` run by hand.
-const looksLikeATestRun =
-  process.env.NODE_ENV === "test" ||
-  process.execArgv.some((a) => a.startsWith("--test"));
-
 function sharedTransport(): Transport {
-  if (looksLikeATestRun) {
+  // Asked HERE, not at module load. See shared/testing/is-test-run.ts - a
+  // module-level const captures the environment before a script that sets
+  // NODE_ENV itself has run, because imports are hoisted.
+  if (isTestRun()) {
     throw new Error(
       "refusing to build the real mail transport during a test run.\n" +
         "Pass a transport: sendEmail(message, recorder). Nothing in a test may " +

@@ -12,6 +12,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { sendEmail } from "#features/emails/utils/sendEmail.ts";
+import path from "node:path";
+import fs from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+const execFileAsync = promisify(execFile);
+
 
 test("sending with no transport is refused during a test run", async () => {
   await assert.rejects(
@@ -32,3 +39,48 @@ test("a caller's own transport still works", async () => {
   assert.equal(sent.length, 1, "the recorder was not used");
   assert.deepEqual(result, { messageId: "recorded" });
 });
+
+// THE CASE THAT DEFEATED THE FIRST VERSION OF THIS GUARD.
+//
+// The check used to be a module-level const:
+//
+//   const looksLikeATestRun = process.env.NODE_ENV === "test" || ...
+//
+// ES module imports are HOISTED, so a script whose first statement sets
+// NODE_ENV runs that statement AFTER every import has already evaluated. The
+// guard captured `undefined`, decided this was not a test, and built the real
+// transport. scripts/seed-e2e-users.mjs did exactly that and reached Gmail - it
+// failed on bad credentials rather than on the guard, which is luck.
+//
+// Run in a child process because the parent is already NODE_ENV=test, so it
+// cannot reproduce the condition. The child starts with NODE_ENV unset and sets
+// it itself, which is the shape that broke.
+test("a script that sets NODE_ENV after its imports is still refused", async () => {
+  const source = `
+    process.env.NODE_ENV = "test";
+    import { sendEmail } from "#features/emails/utils/sendEmail.ts";
+    try {
+      await sendEmail({ to: "nobody@example.invalid", subject: "x", html: "x" });
+      console.log("LEAKED");
+    } catch (err) {
+      console.log(/refusing to build the real mail transport/.test(String(err?.message)) ? "REFUSED" : "OTHER");
+    }
+  `;
+  const file = path.join(process.cwd(), `late-env-${randomUUID().slice(0, 8)}.mjs`);
+  await fs.writeFile(file, source);
+  try {
+    const { stdout } = await execFileAsync(process.execPath, [file], {
+      cwd: process.cwd(),
+      env: { ...process.env, NODE_ENV: "" },
+      timeout: 30_000,
+    });
+    assert.match(
+      stdout,
+      /REFUSED/,
+      "the real transport was built - the guard is evaluating at module load again"
+    );
+  } finally {
+    await fs.unlink(file).catch(() => {});
+  }
+});
+

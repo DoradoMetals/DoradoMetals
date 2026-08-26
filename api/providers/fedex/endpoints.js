@@ -20,6 +20,7 @@
 // that is supposed to fail only when this codebase is wrong. Automated tests
 // stub the provider; a human uses the sandbox.
 import axios from "axios";
+import { isTestRun } from "#shared/testing/is-test-run.ts";
 
 // Read per call rather than captured at import. The first version of this
 // wrote `const SANDBOX = process.env.FEDEX_ENV === "sandbox"` and claimed in a
@@ -80,12 +81,10 @@ async function fetchOAuthToken({ clientId, clientSecret }) {
 // is an argument for stubbing in the fast suite and pointing integration tests
 // at the sandbox, and it is a scheduling decision rather than a safety one -
 // which is exactly why it is not enforced here.
-const looksLikeATestRun =
-  process.env.NODE_ENV === "test" ||
-  process.execArgv.some((a) => a.startsWith("--test"));
 
 function refuseInTests(what) {
-  if (!looksLikeATestRun) return;
+  // Asked at call time; see shared/testing/is-test-run.ts.
+  if (!isTestRun()) return;
   if ((process.env.FEDEX_ENV ?? "production") === "sandbox") return;
   throw new Error(
     `refusing to call the LIVE FedEx API (${what}) during a test run.\n` +
