@@ -1720,7 +1720,31 @@ and breaks nothing. Same destination, better order.
 
 **One thing that genuinely goes.** `price` is null on 12 dev lines and 6
 production lines, and null means "this quote has been invalidated" —
-`clearItemPrices` sets it in `reissueOffer`. Deriving cannot reproduce that,
+`clearItemPrices` sets it in `reissueOffer`.
+
+> **And `reissueOffer` never asks what state the order is in — 26 August.**
+> `send_offer` NULLs every item price and the order total before writing the new
+> offer window. That is deliberate for a re-offer, and the code says so. What it
+> does not do is check whether the offer has already been **accepted**.
+>
+> So `POST /api/purchase_orders/send_offer` on an accepted order erases the
+> agreed figures — `purchase_order_items.price` and `purchase_orders.total_price`
+> both become NULL, with no way back to them. On a Completed order it erases the
+> record of what was paid. It is `requireAdmin`, so this is an admin on the
+> wrong drawer rather than anything a customer can reach.
+>
+> **Measured** in `features/purchase-orders/send-offer-state.test.js`, which
+> drives it on an accepted order and reads the rows back, and drives the normal
+> transition too so the route's actual purpose stays asserted.
+>
+> **It has not happened in production.** All six production orders with no
+> total are Cancelled (four) or In Transit (two), every one with
+> `offer_status = 'Pending'` — orders that never had an offer accepted, which is
+> exactly what a null total should mean. Checked read-only before writing this
+> up, because "could erase" and "has erased" are different claims and only one
+> of them is true here.
+>
+> Whether it should refuse on an accepted or completed order is **D27**. Deriving cannot reproduce that,
 because the locked spot deliberately stays frozen (Jacob: unfreezing is an admin
 action, never automatic). Two production lines would show a withdrawn quote.
 Jacob has decided that does not matter, twice, and it is his call — recorded
