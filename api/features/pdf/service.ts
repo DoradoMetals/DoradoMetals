@@ -18,12 +18,64 @@ import {
   buildInvoiceScrapRows,
   buildInvoiceBullionRows,
 } from "#features/pdf/render/sections.ts";
+import type { RenderableOrder } from "#features/pdf/render/sections.ts";
+import type { SpotPriceWire } from "@dorado/contracts";
+
+
+// THE INPUTS EACH DOCUMENT TAKES.
+//
+// Same reasoning as sections.ts, which these build on: the order that arrives
+// is COMPOSED - items with nested scrap or product, a shipment, an address -
+// and no generated contract row describes that tree, so RenderableOrder is
+// defined there and reused here. Spots DO have a contract type, SpotPriceWire,
+// because they arrive in the legacy wire shape the frontend sends.
+//
+// Every field named is one these builders actually read.
+
+/** The box a parcel ships in. Coerced with Number(), so strings are legal. */
+export interface PackageDimensions {
+  length?: number | string | null;
+  width?: number | string | null;
+  height?: number | string | null;
+  units?: string | null;
+}
+
+/** What a packing list needs beyond the order itself. */
+export interface PackageDetails {
+  label?: string | null;
+  dimensions?: PackageDimensions | null;
+  [key: string]: unknown;
+}
+
+export interface PackingListInput {
+  purchaseOrder: RenderableOrder;
+  spotPrices?: SpotPriceWire[];
+  packageDetails?: PackageDetails;
+}
+
+export interface ReturnPackingListInput {
+  purchaseOrder: RenderableOrder;
+  spotPrices?: SpotPriceWire[];
+}
+
+export interface InvoiceInput {
+  purchaseOrder: RenderableOrder;
+  spotPrices?: SpotPriceWire[];
+  /** The spots frozen onto the order, as against today's live ones. */
+  orderSpots?: SpotPriceWire[];
+}
+
+/** A sales order carries its own items and is not a purchase order. */
+export interface SalesOrderInvoiceInput {
+  salesOrder: RenderableOrder;
+  spots?: SpotPriceWire[];
+}
 
 export function buildPackingListHtml({
   purchaseOrder,
   spotPrices = [],
-  packageDetails,
-}) {
+  packageDetails = {},
+}: PackingListInput): string {
   // The same sum the invoice uses, rather than a second copy of it.
   //
   // This had its own inline reduce, and the two drifted: it fell back to the
@@ -31,19 +83,24 @@ export function buildPackingListHtml({
   // order 239 came out at $7,980.22 here and $4,744.11 on the invoice - both
   // documents going to the same customer. The fallback was the correct half;
   // calculations.js now has it, and this calls it.
-  const total = calculateTotalPrice(purchaseOrder, spotPrices);
+  const total = calculateTotalPrice(
+    // The composed order this file receives overlaps the contract's PricedOrder
+    // without matching it - it carries the nested items and shipment these
+    // templates read, and not the row fields the calculation never touches. The
+    // double cast says that is deliberate rather than a slip.
+    purchaseOrder as unknown as Parameters<typeof calculateTotalPrice>[0], spotPrices);
 
   const scrapRows = buildPackingScrapRows(
-    purchaseOrder.order_items,
+    (purchaseOrder.order_items ?? []),
     spotPrices
   );
   const bullionRows = buildPackingBullionRows(
-    purchaseOrder.order_items,
+    (purchaseOrder.order_items ?? []),
     spotPrices
   );
 
   const selectedPackage = packageDetails?.label || "Unknown Package";
-  const dimensions = packageDetails?.dimensions || {
+  const dimensions: PackageDimensions = packageDetails?.dimensions ?? {
     length: "-",
     width: "-",
     height: "-",
@@ -85,7 +142,7 @@ export function buildPackingListHtml({
       <p>
         We've scheduled a FedEx pickup on your behalf. Please ensure your package is ready by
         <strong>${new Date(
-          purchaseOrder.carrier_pickup?.pickup_requested_at
+          purchaseOrder.carrier_pickup?.pickup_requested_at ?? Date.now()
         ).toLocaleString("en-US", {
           dateStyle: "long",
           timeStyle: "short",
@@ -244,17 +301,23 @@ export function buildPackingListHtml({
 export function buildReturnPackingListHtml({
   purchaseOrder,
   spotPrices = [],
-}) {
+}: ReturnPackingListInput): string {
+  // GUARDED DEFENSIVELY. A return packing list is only produced for an order
+  // that has both legs, so in practice both shipments are present - but this
+  // summed them unguarded, and `undefined + undefined` is NaN, which would
+  // print "NaN" on a document going into a parcel. I did not establish whether
+  // an order can reach here with a leg missing; the guard costs nothing and the
+  // failure it prevents is the silent kind this file has produced before.
   const total =
-    purchaseOrder.shipment.shipping_charge +
-    purchaseOrder.return_shipment.shipping_charge;
+    (purchaseOrder.shipment?.shipping_charge ?? 0) +
+    (purchaseOrder.return_shipment?.shipping_charge ?? 0);
 
   const scrapRows = buildPackingScrapRows(
-    purchaseOrder.order_items,
+    (purchaseOrder.order_items ?? []),
     spotPrices
   );
   const bullionRows = buildPackingBullionRows(
-    purchaseOrder.order_items,
+    (purchaseOrder.order_items ?? []),
     spotPrices
   );
 
@@ -332,27 +395,32 @@ export function buildInvoiceHtml({
   purchaseOrder,
   spotPrices = [],
   orderSpots = [],
-}) {
+}: InvoiceInput): string {
   const doneStatus = ["Accepted", "Payment Processing", "Completed"];
   const statusForDone =
     purchaseOrder.purchase_order_status ?? purchaseOrder.status ?? "";
   const isDone = doneStatus.includes(statusForDone);
 
   const browserSpots = purchaseOrder.spots_locked ? orderSpots : spotPrices;
-  const total = calculateTotalPrice(purchaseOrder, browserSpots);
-  const payoutCost = purchaseOrder.payout.cost ?? 0;
+  const total = calculateTotalPrice(
+    // The composed order this file receives overlaps the contract's PricedOrder
+    // without matching it - it carries the nested items and shipment these
+    // templates read, and not the row fields the calculation never touches. The
+    // double cast says that is deliberate rather than a slip.
+    purchaseOrder as unknown as Parameters<typeof calculateTotalPrice>[0], browserSpots);
+  const payoutCost = purchaseOrder.payout?.cost ?? 0;
 
   const { rowsHtml: scrapRows, rawScrapItems } = buildInvoiceScrapRows(
-    purchaseOrder.order_items,
+    (purchaseOrder.order_items ?? []),
     browserSpots
   );
-  const scrapTotal = getScrapTotal(rawScrapItems, browserSpots);
+  const scrapTotal = getScrapTotal(rawScrapItems as Parameters<typeof getScrapTotal>[0], browserSpots);
 
   const { rowsHtml: bullionRows, bullionOrderItems } = buildInvoiceBullionRows(
-    purchaseOrder.order_items,
+    (purchaseOrder.order_items ?? []),
     browserSpots
   );
-  const bullionTotal = getBullionTotal(bullionOrderItems, browserSpots);
+  const bullionTotal = getBullionTotal(bullionOrderItems as Parameters<typeof getBullionTotal>[0], browserSpots);
 
   const lineLabel = isDone ? "Payout" : "Estimate";
 
@@ -488,17 +556,20 @@ export function buildInvoiceHtml({
 // its test could fail: it failed on this instead.
 //
 // Same rule as those two: render what is known and a dash for what is not.
-const askSpot = (spots, metal) => {
+const askSpot = (spots: SpotPriceWire[], metal: string): string => {
   const value = spots.find((s) => s.type === metal)?.ask_spot;
   return value == null
     ? "&mdash;"
     : value.toLocaleString("en-US", { style: "currency", currency: "USD" });
 };
 
-export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
+export function buildSalesOrderInvoiceHtml({
+  salesOrder,
+  spots = [],
+}: SalesOrderInvoiceInput): string {
   const doneStatus = ["Preparing", "In Transit", "Completed"];
 
-  const bullionItems = salesOrder.order_items
+  const bullionItems = (salesOrder.order_items ?? [])
     .filter((item) => item.product)
     .map((item) => {
       const product = item.product || {};
@@ -508,9 +579,9 @@ export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
             product.product_name || "Bullion Product"
           }</td>
           <td>${item.quantity}</td>
-          <td>${product.content.toFixed(3)} t oz</td>
+          <td>${product.content != null ? `${product.content.toFixed(3)} t oz` : "&mdash;"}</td>
           <td class="text-right">
-            ${(item.price * item.quantity).toLocaleString("en-US", {
+            ${((item.price ?? 0) * (item.quantity ?? 0)).toLocaleString("en-US", {
               style: "currency",
               currency: "USD",
             })}
@@ -520,7 +591,7 @@ export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
     })
     .join("");
 
-  const title = doneStatus.includes(salesOrder.sales_order_status)
+  const title = doneStatus.includes(salesOrder.sales_order_status ?? "")
     ? "Sales Order Invoice"
     : "Sales Order Preview";
 
@@ -547,7 +618,7 @@ export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
           <div class="detail-row">
             <span class="detail-label">Placed:</span>
             <span class="detail-value">${new Date(
-              salesOrder.created_at
+              salesOrder.created_at ?? Date.now()
             ).toLocaleDateString("en-US", {
               month: "long",
               day: "numeric",
@@ -560,7 +631,7 @@ export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
           </div>
           <div class="detail-row">
             <span class="detail-label">Items:</span>
-            <span class="detail-value">${salesOrder.order_items.length}</span>
+            <span class="detail-value">${(salesOrder.order_items ?? []).length}</span>
           </div>
         </div>
       </div>
@@ -650,7 +721,7 @@ export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
               ? `
           <tr>
             <td class="text-left">Item Total</td>
-            <td class="text-right">${salesOrder.item_total.toLocaleString(
+            <td class="text-right">${(salesOrder.item_total ?? 0).toLocaleString(
               "en-US",
               {
                 style: "currency",
@@ -664,7 +735,7 @@ export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
 
           <tr>
             <td class="text-left">Shipping Fee</td>
-            <td class="text-right">${salesOrder.shipping_cost.toLocaleString(
+            <td class="text-right">${(salesOrder.shipping_cost ?? 0).toLocaleString(
               "en-US",
               {
                 style: "currency",
@@ -678,7 +749,7 @@ export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
               ? `
           <tr>
             <td class="text-left">Credit Applied</td>
-            <td class="text-right">-${salesOrder.pre_charges_amount.toLocaleString(
+            <td class="text-right">-${(salesOrder.pre_charges_amount ?? 0).toLocaleString(
               "en-US",
               {
                 style: "currency",
@@ -691,11 +762,11 @@ export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
           }
 
           ${
-            salesOrder.charges_amount > 0
+            (salesOrder.charges_amount ?? 0) > 0
               ? `
           <tr>
             <td class="text-left">Payment Fee</td>
-            <td class="text-right">${salesOrder.charges_amount.toLocaleString(
+            <td class="text-right">${(salesOrder.charges_amount ?? 0).toLocaleString(
               "en-US",
               {
                 style: "currency",
@@ -709,7 +780,7 @@ export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
 
           <tr>
             <td class="text-left text-bold">Total: </td>
-            <td class="text-right text-bold">${salesOrder.order_total.toLocaleString(
+            <td class="text-right text-bold">${(salesOrder.order_total ?? 0).toLocaleString(
               "en-US",
               {
                 style: "currency",
@@ -743,18 +814,22 @@ export function buildSalesOrderInvoiceHtml({ salesOrder, spots = [] }) {
 // The generators keep their names and signatures. Nothing that calls them
 // changes.
 
-export async function generatePackingList(input) {
+export async function generatePackingList(input: PackingListInput): Promise<Uint8Array> {
   return renderPdf(buildPackingListHtml(input));
 }
 
-export async function generateReturnPackingList(input) {
+export async function generateReturnPackingList(
+  input: ReturnPackingListInput
+): Promise<Uint8Array> {
   return renderPdf(buildReturnPackingListHtml(input));
 }
 
-export async function generateInvoice(input) {
+export async function generateInvoice(input: InvoiceInput): Promise<Uint8Array> {
   return renderPdf(buildInvoiceHtml(input));
 }
 
-export async function generateSalesOrderInvoice(input) {
+export async function generateSalesOrderInvoice(
+  input: SalesOrderInvoiceInput
+): Promise<Uint8Array> {
   return renderPdf(buildSalesOrderInvoiceHtml(input));
 }

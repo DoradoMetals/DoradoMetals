@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as pdfService from "#features/pdf/service.js";
+import * as pdfService from "#features/pdf/service.ts";
 
 const sendPdf = (res, pdf, filename) => {
   res.set({

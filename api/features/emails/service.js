@@ -1,4 +1,4 @@
-import * as pdfService from "#features/pdf/service.js";
+import * as pdfService from "#features/pdf/service.ts";
 
 import {
   renderPurchaseOrderPlacedEmail,

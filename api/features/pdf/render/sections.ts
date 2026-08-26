@@ -115,9 +115,19 @@ export interface RenderableOrder {
   address?: AddressPart | null;
   shipment?: ShipmentPart | null;
   return_shipment?: ShipmentPart | null;
-  payout?: { method?: string | null } | null;
+  payout?: { method?: string | null; cost?: number | null } | null;
+  carrier_pickup?: { pickup_requested_at?: string | number | Date | null } | null;
   user?: Record<string, unknown> | null;
   order_items?: OrderItem[];
+  /** Sales order money fields, printed on its invoice. */
+  item_total?: number | null;
+  charges_amount?: number | null;
+  shipping_charge?: number | null;
+  order_total?: number | null;
+  sales_tax?: number | null;
+  shipping_cost?: number | null;
+  pre_charges_amount?: number | null;
+  sales_order_status?: string | null;
   [key: string]: unknown;
 }
 
