@@ -4920,3 +4920,124 @@ own: dropping three of the eighteen schemas still left 113 literals and the run
 reported clean. It now also requires a known-present control — the `getUserImages`
 filter that migration 081 was written for — so partial breakage fails instead of
 passing quietly.
+
+## D39 — two products carry a type the sales-tax query cannot parse
+
+`exchange.products.product_type` is a **text** column. So is its successor,
+`products.bullion.type`. But the sales-tax rule match compares that value against
+`sales_tax_rules.product_type`, which is an **enum**:
+
+```sql
+AND r.product_type IN ($3, 'All')        -- $3 = item.product_type
+```
+
+Postgres has to coerce `$3` to the enum to run that comparison. A value that is
+not one of its labels does not quietly fail to match — it raises
+**`22P02 invalid input value for enum`**, and the tax calculation throws.
+
+Two production products carry
+
+```
+product_type = E'\n\tBar'
+```
+
+a newline and a tab in front of `Bar` — five characters where `Bar` is three.
+`1g Gold Bar` and `Silver Bar (10 oz)`.
+
+**`btrim()` does not find them.** Its default character set is spaces only, so
+the obvious data-quality check (`WHERE product_type <> btrim(product_type)`)
+reports every row clean. That is very likely why they have survived.
+
+### How bad it is, precisely
+
+**Not reachable today.** Both rows are `display = false` with `stock = 0`, and no
+production sales-order line references either — so the enum error has never
+fired. Same category as D35's zero-premium products: real, and currently inert.
+
+**It is one flag away from firing.** Set `display = true` on either — an ordinary
+merchandising action, taken from the admin screen with no warning attached — and
+adding it to a cart makes the sales-tax query raise 22P02. Checkout fails at the
+last step.
+
+**Both implementations behave identically**, so this is not a promotion risk and
+promotion does not fix it: `exchange.sales_tax_rules.product_type` and
+`tax.sales_tax_rules.product_type` are both the enum, and both raise 22P02.
+
+**The corrupt value is offered back to admins.** `GET /get_product_types` is
+`SELECT DISTINCT product_type FROM exchange.products` with no filter and no
+`ORDER BY`, and the frontend renders it as the product-type dropdown. So the
+admin editing a product sees **four** options, two of which read as "Bar". That
+is the most plausible way two rows acquired the value, and the way more would.
+
+### Why nothing caught it
+
+It is not a foreign key and not a constraint. It is two columns in different
+tables that must agree **by value**, with the type declared on only one of them.
+
+- `audit:constraints` compares constraints between schemas. There is no
+  constraint here to compare.
+- `audit:precision` casts each source value into the type of the column it lands
+  in. `product_type` lands in `products.bullion.type`, which is text, so the cast
+  is clean. **The value only becomes invalid somewhere else entirely** — in a
+  table the feature map does not couple it to, because it is not a mapping.
+- `validate:wire` parses the response shape. `"\n\tBar"` is a perfectly good
+  string.
+
+`audit:enum-domains` is the check for that class. It exits non-zero by design
+while the data is outstanding, in the way `audit:payments` does, and is
+deliberately **not** in `pnpm check` — fixing it means an `UPDATE` against
+production, which is not this repo's to run.
+
+### For Jacob
+
+Three things, none of which I did:
+
+1. **`UPDATE exchange.products SET product_type = 'Bar'` for the two rows.** A
+   two-row data fix against production. Trivial, and still yours.
+2. **Should `product_type` be the enum rather than text?** The value is already
+   constrained *de facto* by the query that consumes it; declaring it would move
+   the failure from checkout to the write that introduces it. That is a schema
+   decision with a migration attached.
+3. **Should `get_product_types` return only valid labels** (or the enum's labels
+   directly) rather than whatever distinct strings happen to be in the table? As
+   written, one corrupt row becomes a permanent menu option.
+
+### Also checked, and clean
+
+The sibling coupling — `metal_type` against `sales_tax_metal_category` — is
+clean on both sides: all four metals (`Gold`, `Palladium`, `Platinum`, `Silver`)
+are valid labels. The audit checks it too, and reports it separately, so the two
+are not confused.
+
+One trap in building it: **three schemas define an enum named
+`sales_tax_product_type`**, so matching on `typname` alone returns every label
+three times. Qualified by schema — the same shared-name mistake that has produced
+false findings on this project before.
+
+## Row order between the two implementations, checked
+
+`diff` compares `JSON.stringify(v)` without sorting, deliberately — its comment
+says sorting "would hide an ordering regression". But the same comment asserts
+that "both implementations carry the same [ORDER BY]", and nothing verified it.
+
+Checked all 14 list-returning reads that exist on both sides:
+
+- **Zero are ordered on one side and not the other.**
+- **Nine have a textually different `ORDER BY`**, and all nine are declared
+  renames that produce the identical sequence — verified against the data rather
+  than assumed. `type` → `m.name` gives `Gold, Palladium, Platinum, Silver` from
+  both. `is_default` → `ua.default_shipping` gives the same nine address ids in
+  the same order.
+- **Four have no `ORDER BY` on either side**, so both return physical order.
+  Two are order-independent by construction: `findOrderScrapItems` feeds a
+  commutative sum and then updates by id, and `findExpiredOffers` is a scheduler
+  loop. `spots.getAll` and `products.getAllTypes` reach the wire — and
+  `getAllTypes` is `SELECT DISTINCT`, whose order comes from a hash aggregate
+  rather than even from physical order, so it is unstable in principle. Both
+  agree in dev today.
+
+Two false alarms worth recording. `purchase-orders` and `sales-orders` looked
+like they had **lost** the main list ordering; the `ORDER BY` lives in a shared
+constant, `features/orders/fragments.ts`'s `newestFirst`, so a per-file grep
+undercounted. And `transactions` looked like it differed because a *comment*
+mentioning `ORDER BY` was counted as one.

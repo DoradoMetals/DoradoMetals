@@ -268,6 +268,23 @@ The ones that have actually caught things:
   **and** a known-present control, because the floor alone missed partial
   breakage: dropping three of eighteen schemas still left 113 literals and
   reported clean.
+- `audit:enum-domains` — **text values that are compared against an enum, and
+  are not labels of it.** `exchange.products.product_type` is text, and so is its
+  successor `products.bullion.type` — but the sales-tax rule match does
+  `r.product_type IN ($3, 'All')` against a column that *is* an enum. Postgres
+  must coerce, and a value that is not a label does not fail to match, it raises
+  **22P02 and the whole tax calculation throws**. Nothing checked the coupling
+  because it is not a foreign key and not a constraint: two columns in different
+  tables that must agree by value, with the type declared on only one of them.
+  `audit:precision` casts a source value into *its own* target's type, which
+  here is text, so it is clean — the value only becomes invalid somewhere else.
+  Found two production products carrying `E'\n\tBar'`, a newline and a tab in
+  front of "Bar". **`btrim()` does not report them** — its default character set
+  is spaces only. Not reachable today (both `display = false`, stock 0, no order
+  line references either) but `get_product_types` is `SELECT DISTINCT` with no
+  filter, so the admin dropdown offers the corrupt value beside the real "Bar".
+  Exits non-zero by design while it is outstanding, like `audit:payments`, and
+  is **not** in `pnpm check`: fixing it is an UPDATE against production. D39.
 - `audit:precision` — **every column whose value the target's type would
   change.** Casts each source value into the type of the column it lands in and
   counts what differs. `orders.items` declared `purity numeric(4,3)` against an

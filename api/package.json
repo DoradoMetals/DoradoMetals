@@ -41,6 +41,8 @@
     "audit:precision:prod": "TZ=UTC node scripts/audit-precision.mjs --prod",
     "audit:guards": "TZ=UTC node scripts/audit-guards.mjs",
     "audit:payments": "TZ=UTC node scripts/audit-payments.mjs",
+    "audit:enum-domains": "TZ=UTC node scripts/audit-enum-domains.mjs",
+    "audit:enum-domains:prod": "TZ=UTC node scripts/audit-enum-domains.mjs --prod",
     "audit:test-leaks": "TZ=UTC node scripts/audit-test-leaks.mjs",
     "compare:databases": "TZ=UTC node scripts/compare-databases.mjs",
     "backup": "node scripts/backup.mjs",
