@@ -21,9 +21,19 @@ import * as cartService from "#features/checkout/service.ts";
 // The id now comes from req.user and the request's own is ignored, which is the
 // same correction the order routes needed. It is transparent to the frontend,
 // which was already sending its own id.
+// RETURNS THE CART. It used to run the whole query and answer `{ success: true }`,
+// discarding the result - so a signed-in customer's saved buy cart never came
+// back. This was filed as D23, a product decision about whether a cart should
+// follow somebody between devices. It is not one: the FRONTEND had already
+// decided. `hydrateCarts` in features/auth/queries.ts types this response
+// `Product[]` and hands it straight to `mergeCartItems`, whose `mergeCart` does
+// `for (const item of cart)`. An object is not iterable, so hydration threw a
+// TypeError on every login, and the try/catch around it turned that into a
+// console.error nobody reads. The sell cart three lines below always returned
+// its array, which is why only the buy cart was affected.
 export const getCart = asyncHandler(async (req, res) => {
-  await cartService.getCart(callerId(req));
-  return res.status(200).json({ success: true });
+  const items = await cartService.getCart(callerId(req));
+  return res.status(200).json(items);
 });
 
 export const syncCart = asyncHandler(async (req, res) => {

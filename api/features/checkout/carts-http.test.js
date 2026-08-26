@@ -211,7 +211,7 @@ test("get_sell_cart returns what sync_sell_cart stored", async () => {
 //
 // If that is decided, this assertion becomes `Array.isArray(res.body)` and the
 // two lines above it go away.
-test("get_cart answers success and returns no cart - see D23", async () => {
+test("get_cart returns the customer's saved buy cart", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {
       await request(app)
@@ -220,13 +220,19 @@ test("get_cart answers success and returns no cart - see D23", async () => {
 
       const res = await request(app).get("/api/cart/get_cart");
 
-      assert.equal(res.status, 200, `answered ${res.status}`);
-      assert.equal(
+      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+      // AN ARRAY, not { success: true }. hydrateCarts types this Product[] and
+      // hands it to mergeCart, which iterates it - an object threw a TypeError
+      // that the try/catch around hydration swallowed into a console.error, so
+      // every login silently lost the buy cart.
+      assert.ok(
         Array.isArray(res.body),
-        false,
-        "get_cart now returns a list - if that was deliberate, update D23 and this test"
+        `get_cart must answer an array the frontend can iterate, got ${JSON.stringify(res.body)}`
       );
-      assert.deepEqual(res.body, { success: true }, "the response shape changed");
+      assert.ok(
+        res.body.some((r) => r.id === product.id || r.product_id === product.id),
+        "the product just synced is not in the returned cart"
+      );
     });
   });
 });
