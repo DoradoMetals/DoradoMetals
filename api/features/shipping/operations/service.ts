@@ -4,6 +4,35 @@ import * as trackingRepo from "#features/shipping/tracking/repo.js";
 import * as pickupRepo from "#features/shipping/pickups/repo.js";
 import * as shippingHandler from "#features/shipping/operations/handler.ts";
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/fedex/constants.js";
+import type { ShipmentRow } from "#features/shipping/shipments/repo.next.ts";
+import type { TrackingRow } from "#features/shipping/tracking/repo.next.ts";
+import type { ParsedTracking } from "#providers/fedex/utils/parsing.ts";
+import type { RatesInput } from "#features/shipping/operations/handler.ts";
+import type { PickupRow } from "#features/shipping/pickups/repo.next.ts";
+import type { PoolClient } from "pg";
+
+// The three repos here go through their own repo.js switches, which are
+// JavaScript indexing SOURCES dynamically - so TypeScript hands back `any` and
+// the row types have to be named. Taken from repo.next, which `diff` proves
+// agrees with repo.exchange row for row.
+type Executor = PoolClient | undefined;
+
+// `fetchTracking` is the seam a test uses instead of calling FedEx.
+//
+// IT RETURNS ParsedTracking, NOT TrackingInfo, AND THE DIFFERENCE MATTERS.
+// TrackingInfo - in tracking/repo.next.ts - declares only `scanEvents`, because
+// that is all insertEvents reads. This function reads four fields: scanEvents,
+// latestStatus, estimatedDeliveryTime and deliveredAt. Typing the seam as the
+// narrower one compiled until the body was checked, and then said those three
+// do not exist - which is true of TrackingInfo and false of what actually
+// arrives. ParsedTracking is the parser's own exported return, and it is
+// assignable to TrackingInfo where insertEvents wants it.
+export type FetchTracking = (
+  shipment: ShipmentRow,
+  client?: Executor
+) => Promise<ParsedTracking>;
+
+export type ShippingType = "Inbound" | "Outbound" | "Return";
 
 // Cancelling a label held a transaction open across the FedEx call, so a
 // failure in the update that follows rolled the row back with the label already
@@ -18,7 +47,13 @@ import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/fedex/constants.
 //
 // Creating a label is not idempotent and does not get this treatment; see
 // features/purchase-orders/service.js.
-export async function cancelLabel({ shipment_id, carrier_id }) {
+export async function cancelLabel({
+  shipment_id,
+  carrier_id,
+}: {
+  shipment_id: string;
+  carrier_id: string;
+}): Promise<ShipmentRow | null> {
   const shipment = await shipmentRepo.getById(shipment_id);
 
   await shippingHandler.cancelLabel(carrier_id, undefined, {
@@ -38,7 +73,13 @@ export async function cancelLabel({ shipment_id, carrier_id }) {
 // the parsed shape, which is what lets the guard below be checked without
 // calling FedEx - and FEDEX_ENV=sandbox is for a human smoke test, never a test
 // dependency.
-export async function getTracking(shipment_id, fetchTracking) {
+// Returns the shipment's tracking EVENTS, not the shipment - including on the
+// early return below, which is what makes "nothing recognised" indistinguishable
+// from "nothing changed" to a caller, deliberately.
+export async function getTracking(
+  shipment_id: string,
+  fetchTracking?: FetchTracking
+): Promise<TrackingRow | null> {
   return withTransaction(async (client) => {
     const shipment = await shipmentRepo.getById(shipment_id, client);
 
@@ -101,9 +142,21 @@ export async function getRates({
   pkg,
   pickupType,
   declaredValue,
+}: {
+  carrier_id: string;
+  // Checked by the switch below rather than trusted: it arrives in req.body,
+  // and the default case is what turns an unrecognised value into an error
+  // instead of a quote from the wrong end of the country.
+  shippingType: unknown;
+  // Derived from the builder's own input rather than restated, so a change to
+  // what a rate quote needs lands here without an edit.
+  address: RatesInput["shipperAddress"];
+  pkg?: RatesInput["pkg"];
+  pickupType?: RatesInput["pickupType"];
+  declaredValue?: RatesInput["declaredValue"];
 }) {
-  let shipperAddress;
-  let recipientAddress;
+  let shipperAddress: RatesInput["shipperAddress"];
+  let recipientAddress: RatesInput["recipientAddress"];
 
   switch (shippingType) {
     case "Inbound":
@@ -135,7 +188,13 @@ export async function getRates({
 // idempotent, so it happens outside any transaction and a retry is harmless.
 // Rolling back after it would have left a courier who is not coming and a row
 // that says one is.
-export async function cancelPickup({ pickup_id, carrier_id }) {
+export async function cancelPickup({
+  pickup_id,
+  carrier_id,
+}: {
+  pickup_id: string;
+  carrier_id: string;
+}): Promise<PickupRow | null> {
   const pickup = await pickupRepo.getById(pickup_id);
 
   await shippingHandler.cancelPickup(carrier_id, undefined, {

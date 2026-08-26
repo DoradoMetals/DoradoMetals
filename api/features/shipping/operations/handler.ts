@@ -30,6 +30,13 @@ import { BUILDERS } from "#features/shipping/operations/builders.ts";
 type Builders = (typeof BUILDERS)[keyof typeof BUILDERS];
 type InputFor<K extends keyof Builders> = Parameters<Builders[K]>[0];
 
+// EXPORTED for callers that assemble one of these inputs rather than receiving
+// it whole - features/shipping/operations/service.ts builds the two addresses
+// for a rate quote out of one address plus a direction. Derived here for the
+// same reason the parameters are: restating the builder's shape by hand is a
+// second copy that stops agreeing the moment the builder changes.
+export type RatesInput = NonNullable<InputFor<"getRates">>;
+
 export async function validateAddress(
   carrier_id: string,
   client: unknown,

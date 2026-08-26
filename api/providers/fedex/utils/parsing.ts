@@ -44,7 +44,7 @@ export type ParsedTracking = {
 // error response throws a TypeError here rather than returning an empty result.
 //
 // That looks like the obvious thing to fix and it is not, because of what runs
-// after it. features/shipping/operations/service.js calls this INSIDE a
+// after it. features/shipping/operations/service.ts calls this INSIDE a
 // transaction, and the next thing it used to do was delete every tracking event
 // for the shipment and re-insert whatever came back. The throw happened before
 // that delete, so it was the only thing preventing an empty response from

@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as operationsService from "#features/shipping/operations/service.js";
+import * as operationsService from "#features/shipping/operations/service.ts";
 import * as shippingHandler from "#features/shipping/operations/handler.ts";
 
 export const validateAddress = asyncHandler(async (req, res) => {

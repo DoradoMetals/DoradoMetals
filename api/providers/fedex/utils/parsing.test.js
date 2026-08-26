@@ -8,7 +8,7 @@
 // good faith.
 //
 // It is load-bearing because of what runs after it.
-// features/shipping/operations/service.js calls this inside a transaction, and
+// features/shipping/operations/service.ts calls this inside a transaction, and
 // the next thing it used to do was delete every tracking event for the shipment
 // and re-insert whatever came back. The throw happened before that delete, so
 // it was the only thing preventing an empty response from wiping a shipment's
@@ -72,7 +72,7 @@ test("events of unrecognised types are dropped", () => {
 });
 
 // THE DELIBERATE THROW. See the header. If this test ever fails because
-// somebody added `?.`, read features/shipping/operations/service.js first: the
+// somebody added `?.`, read features/shipping/operations/service.ts first: the
 // early return there is what makes softening this survivable, and the reason
 // not to is that an outage should not look like a quiet parcel.
 test("an empty or error response throws rather than reporting nothing", () => {
