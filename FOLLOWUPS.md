@@ -1141,7 +1141,18 @@ here because that path is mid-rebuild and changing it twice would be worse.
 > reaches it through `fulfillments.shipments → fulfillments.fulfillments →
 > orders.orders`.
 >
-> `features/shipping/operations/shipment-ownership.test.js` drives the refusals
+> **The last axis, and it is clean.** The guards say who may call; they do not
+> say whose rows come back. Checked the three list endpoints at the repo rather
+> than the controller, because a controller that passes `req.user.id` into a
+> query that ignores it would look right and leak everything:
+> `purchase_orders.findAllByUser` is `WHERE po.user_id = $1`,
+> `sales_orders.findAllByUser` is `WHERE so.user_id = $1`, and
+> `transactions.getTransactionHistory` is `WHERE user_id = $1`. All three
+> filter. `findById` has no user clause, but no customer-facing route reaches it
+> without `requireOwnOrder` in front. Nothing to change; recorded so the
+> question is not re-opened.
+>
+> > `features/shipping/operations/shipment-ownership.test.js` drives the refusals
 > only. The allowed path calls FedEx and rewrites rows, so it is covered against
 > the middleware directly rather than over HTTP — including the owner and admin
 > branches, without which the suite would pass against a guard that refuses
