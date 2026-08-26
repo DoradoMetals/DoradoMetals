@@ -6,7 +6,8 @@ import path from "node:path";
 // and finish in seconds - which is what lets `pnpm check` run them on every
 // change.
 //
-// THE END-TO-END TESTS ARE NOT THESE. They live in e2e/ as *.spec.ts, are
+// THE END-TO-END TESTS ARE NOT THESE. They live beside the feature they test as
+// `<feature>/tests/*.e2e.ts`, are
 // driven by Playwright against a real browser and a live API, and run under
 // `pnpm --filter @dorado/frontend e2e`. They are excluded here twice over - by
 // the .test.ts include pattern and by the explicit exclude below - because the
@@ -17,7 +18,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts"],
-    exclude: ["node_modules/**", ".next/**", "e2e/**"],
+    exclude: ["node_modules/**", ".next/**", "**/*.e2e.ts"],
   },
   resolve: {
     // Matches the `@/*` path alias in tsconfig.json.
