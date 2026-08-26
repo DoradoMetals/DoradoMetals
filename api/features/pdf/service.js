@@ -17,7 +17,7 @@ import {
   buildPackingBullionRows,
   buildInvoiceScrapRows,
   buildInvoiceBullionRows,
-} from "#features/pdf/render/sections.js";
+} from "#features/pdf/render/sections.ts";
 
 export function buildPackingListHtml({
   purchaseOrder,

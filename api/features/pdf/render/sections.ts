@@ -1,21 +1,138 @@
 import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
 import { assignScrapItemNames } from "#features/scrap/utils/assignScrapNames.ts";
 import { calculateItemPrice } from "#features/purchase-orders/utils/calculations.ts";
+import type { SpotPriceWire } from "@dorado/contracts";
 import {
   formatCurrency,
   getItemPrice,
   getPayoutDelay,
 } from "#features/pdf/render/format.ts";
 
-export function renderInvoiceHeader(purchaseOrder, total, spots = []) {
-  const orderPlaced = new Date(purchaseOrder.created_at).toLocaleDateString(
-    "en-US",
-    {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    }
-  );
+// The HTML sections a rendered document is assembled from.
+//
+// WHY THESE TYPES ARE LOCAL RATHER THAN FROM @dorado/contracts.
+//
+// The contracts package has PurchaseOrdersRow, ScrapRow, MetalsRow and the
+// rest, and they are the right types for a repo. They are the wrong types
+// HERE, for two reasons worth stating so nobody "fixes" this later:
+//
+//   The shape that arrives is COMPOSED, not a row. A purchase order reaches
+//   this file with order_items attached, each item carrying either a nested
+//   `scrap` or a nested `product`, plus a shipment and an address. No generated
+//   row describes that tree.
+//
+//   The spots arrive in the LEGACY WIRE SHAPE - `type` and `bid_spot`, not
+//   `name` and `bid`. The PDF and email paths take them from a request body in
+//   the shape /spots/spot_prices returns today. Typing them as SpotsRow would
+//   be describing a shape this file never sees.
+//
+// So these interfaces name exactly the fields the templates read, and nothing
+// else. They are deliberately narrow: every property here is one this file
+// actually touches, so the type doubles as a list of what a caller must supply.
+// Optional and unknown wherever the template already guards - a template that
+// prints "-" for a missing value is telling you the field is optional, and a
+// type that said otherwise would be a lie that happens to compile.
+
+// SPOTS USE THE CONTRACT TYPE. SpotPriceWire is exactly this shape - the
+// legacy wire names, `type` / `ask_spot` / `bid_spot` - and it is what
+// calculations.ts already takes, so a hand-rolled parallel interface would only
+// be a second definition to keep in step. The composed ORDER shapes below stay
+// local because no generated row describes them.
+/** The scrap half of a line, when item_type is "scrap". */
+export interface ScrapPart {
+  name?: unknown;
+  metal?: unknown;
+  content: number;
+  purity?: number | null;
+  pre_melt?: unknown;
+  post_melt?: unknown;
+  gross_unit?: unknown;
+  bid_premium?: number | null;
+}
+
+/** The bullion half of a line, when item_type is "product". */
+export interface ProductPart {
+  product_name?: unknown;
+  metal_type?: unknown;
+  content?: number | null;
+  /** Products carry their own premiums; a line falls back to these when it has none. */
+  bid_premium?: number | null;
+  ask_premium?: number | null;
+}
+
+/** One line on an order, which is either scrap or bullion, never both. */
+export interface OrderItem {
+  item_type?: string;
+  quantity?: number | null;
+  price?: number | null;
+  premium?: number | null;
+  scrap?: ScrapPart;
+  product?: ProductPart;
+}
+
+/** The address fields printed on a label block. */
+export interface AddressPart {
+  name?: string | null;
+  line_1?: string | null;
+  line_2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  country?: string | null;
+  phone_number?: string | null;
+  [key: string]: unknown;
+}
+
+/** The shipment fields the shipping table prints. */
+export interface ShipmentPart {
+  insured?: boolean | null;
+  package?: string | null;
+  shipping_charge?: number | null;
+  [key: string]: unknown;
+}
+
+/** A purchase order as this file receives it - composed, not a row. */
+export interface RenderableOrder {
+  /**
+   * REQUIRED, because the database says so: exchange.purchase_orders.order_number
+   * is NOT NULL. Formatted with padStart, so a string or a number.
+   */
+  order_number: string | number;
+  /**
+   * Nullable in the schema and zero orders have a null one today, so this is
+   * typed as it is stored rather than as it happens to be. The template guards
+   * it - `new Date(undefined)` renders "Invalid Date" on an invoice, which is
+   * the kind of thing that reaches a customer looking deliberate.
+   */
+  created_at?: string | number | Date | null;
+  offer_sent_at?: string | number | Date | null;
+  offer_expires_at?: string | number | Date | null;
+  purchase_order_status?: string | null;
+  status?: string | null;
+  spots_locked?: boolean | null;
+  offer_status?: string | null;
+  num_rejections?: number | null;
+  address?: AddressPart | null;
+  shipment?: ShipmentPart | null;
+  return_shipment?: ShipmentPart | null;
+  payout?: { method?: string | null } | null;
+  user?: Record<string, unknown> | null;
+  order_items?: OrderItem[];
+  [key: string]: unknown;
+}
+
+export function renderInvoiceHeader(
+  purchaseOrder: RenderableOrder,
+  total: number,
+  spots: SpotPriceWire[] = []
+): string {
+  const orderPlaced = purchaseOrder.created_at
+    ? new Date(purchaseOrder.created_at).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "&mdash;";
 
   const orderNumber = `PO-${purchaseOrder.order_number
     .toString()
@@ -87,7 +204,7 @@ export function renderInvoiceHeader(purchaseOrder, total, spots = []) {
           </div>
           <div class="invoice-card-row">
             <span>Items:</span>
-            <span>${purchaseOrder.order_items.length}</span>
+            <span>${purchaseOrder.order_items?.length ?? 0}</span>
           </div>
         </div>
       </div>
@@ -132,7 +249,10 @@ export function renderInvoiceHeader(purchaseOrder, total, spots = []) {
   `;
 }
 
-export function renderInvoiceShippingAndPayout(purchaseOrder, { payoutCost }) {
+export function renderInvoiceShippingAndPayout(
+  purchaseOrder: RenderableOrder,
+  { payoutCost }: { payoutCost?: number | null }
+): string {
   const inbound = purchaseOrder.shipment;
   const outbound = purchaseOrder.return_shipment;
   const isCancelled = purchaseOrder.purchase_order_status === "Cancelled";
@@ -162,7 +282,7 @@ export function renderInvoiceShippingAndPayout(purchaseOrder, { payoutCost }) {
       </tr>`
       : "";
 
-  const payoutMethod = purchaseOrder.payout.method;
+  const payoutMethod = purchaseOrder.payout?.method;
   const payoutDelay = getPayoutDelay(payoutMethod);
 
   return `
@@ -215,9 +335,13 @@ export function renderInvoiceShippingAndPayout(purchaseOrder, { payoutCost }) {
 // A blank line on a document is recoverable; a 500 when an admin asks for a
 // packing list is not, and it gives no hint of what is wrong.
 export function renderPackingShippingSection(
-  purchaseOrder,
-  { isReturn = false, includePayoutFee = false, payoutFee = 0 } = {}
-) {
+  purchaseOrder: RenderableOrder,
+  {
+    isReturn = false,
+    includePayoutFee = false,
+    payoutFee = 0,
+  }: { isReturn?: boolean; includePayoutFee?: boolean; payoutFee?: number } = {}
+): string {
   const fromIsCustomer = !isReturn;
 
   const fromName = fromIsCustomer
@@ -368,7 +492,10 @@ export function renderPackingShippingSection(
 }
 
 
-export function renderOrderSummaryTable(purchaseOrder, totalDisplay) {
+export function renderOrderSummaryTable(
+  purchaseOrder: RenderableOrder,
+  totalDisplay: string
+): string {
   return `
     <div class="order-info order-summary">
       <table>
@@ -381,7 +508,11 @@ export function renderOrderSummaryTable(purchaseOrder, totalDisplay) {
         </thead>
         <tbody>
           <tr>
-            <td>${new Date(purchaseOrder.created_at).toLocaleDateString()}</td>
+            <td>${
+              purchaseOrder.created_at
+                ? new Date(purchaseOrder.created_at).toLocaleDateString()
+                : "&mdash;"
+            }</td>
             <td>PO-${purchaseOrder.order_number
               .toString()
               .padStart(6, "0")}</td>
@@ -393,17 +524,24 @@ export function renderOrderSummaryTable(purchaseOrder, totalDisplay) {
   `;
 }
 
-export function buildPackingScrapRows(orderItems, spotPrices) {
+export function buildPackingScrapRows(orderItems: OrderItem[], spotPrices: SpotPriceWire[]): string {
   const rawScrapItems = orderItems.filter(
     (item) => item.item_type === "scrap" && item.scrap
   );
-  const scrapItemsWithNames = assignScrapItemNames(rawScrapItems);
+  // assignScrapItemNames takes the full contract item. This file only ever
+  // holds the composed subset the templates read, and the fields that function
+  // uses are all on it - so the narrowing is deliberate rather than a gap.
+  // Widening OrderItem to claim id, purchase_order_id and confirmed would be
+  // asserting fields these templates never touch.
+  const scrapItemsWithNames = assignScrapItemNames(
+    rawScrapItems as Parameters<typeof assignScrapItemNames>[0]
+  ) as OrderItem[];
 
   return scrapItemsWithNames
     .map((item) => {
-      const scrap = item.scrap || {};
+      const scrap: ScrapPart = item.scrap ?? ({} as ScrapPart);
       const spot = spotPrices.find((s) => s.type === scrap.metal);
-      const premium = item.premium ?? item.scrap.bid_premium;
+      const premium = item.premium ?? item.scrap?.bid_premium;
       const price =
         item.price != null
           ? item.price
@@ -416,7 +554,7 @@ export function buildPackingScrapRows(orderItems, spotPrices) {
           <td>${
             scrap.purity != null ? (scrap.purity * 100).toFixed(1) + "%" : "-"
           }</td>
-          <td>${scrap.content.toFixed(3)}</td>
+          <td>${scrap.content != null ? scrap.content.toFixed(3) : "&mdash;"}</td>
           <td>${premium != null ? (premium * 100).toFixed(1) + "%" : "-"}</td>
           <td>${price ? formatCurrency(price) : "-"}</td>
         </tr>`;
@@ -424,11 +562,11 @@ export function buildPackingScrapRows(orderItems, spotPrices) {
     .join("");
 }
 
-export function buildPackingBullionRows(orderItems, spotPrices) {
+export function buildPackingBullionRows(orderItems: OrderItem[], spotPrices: SpotPriceWire[]): string {
   return orderItems
     .filter((item) => item.item_type === "product" && item.product)
     .map((item) => {
-      const product = item.product || {};
+      const product: ProductPart = item.product ?? ({} as ProductPart);
       const spot = spotPrices.find((s) => s.type === product.metal_type);
       const unitPrice =
         item.price != null
@@ -452,17 +590,48 @@ export function buildPackingBullionRows(orderItems, spotPrices) {
     .join("");
 }
 
-export function buildInvoiceScrapRows(orderItems, spots) {
+export function buildInvoiceScrapRows(
+  orderItems: OrderItem[],
+  spots: SpotPriceWire[]
+): { rowsHtml: string; rawScrapItems: OrderItem[] } {
   const rawScrapItems = orderItems.filter(
     (item) => item.item_type === "scrap" && item.scrap
   );
-  const scrapItemsWithNames = assignScrapItemNames(rawScrapItems);
+  // assignScrapItemNames takes the full contract item. This file only ever
+  // holds the composed subset the templates read, and the fields that function
+  // uses are all on it - so the narrowing is deliberate rather than a gap.
+  // Widening OrderItem to claim id, purchase_order_id and confirmed would be
+  // asserting fields these templates never touch.
+  const scrapItemsWithNames = assignScrapItemNames(
+    rawScrapItems as Parameters<typeof assignScrapItemNames>[0]
+  ) as OrderItem[];
 
   const rowsHtml = scrapItemsWithNames
     .map((item) => {
-      const scrap = item.scrap || {};
+      const scrap: ScrapPart = item.scrap ?? ({} as ScrapPart);
+
+      // THE SAME FALLBACK THE PACKING LIST USES. This row had none, and the two
+      // documents disagreed: on order 239 the packing list showed 75.0% and the
+      // invoice showed 0.0% for the SAME scrap line, because `item.premium` is
+      // null there and `null * 100` is 0 rather than an error.
+      // buildPackingScrapRows resolves `item.premium ?? scrap.bid_premium`;
+      // this did not.
+      //
+      // Reproduced by rendering both documents for that order before changing
+      // anything, not inferred from reading. CLAUDE.md already records this
+      // exact class - an invoice and a packing list disagreeing - and the
+      // invoice is the document that tells a customer what they are paid.
+      const premium = item.premium ?? scrap.bid_premium;
+
       const price =
-        item.price != null ? item.price : calculateItemPrice(item, spots);
+        item.price != null
+          ? item.price
+          : // calculateItemPrice takes the full contract item; this file only
+            // ever holds the composed subset it actually reads, and the fields
+            // that function uses are all present on it. Narrowed deliberately
+            // rather than widening OrderItem to claim fields the templates
+            // never touch.
+            (calculateItemPrice(item as Parameters<typeof calculateItemPrice>[0], spots) ?? 0);
 
       return `
         <tr>
@@ -474,8 +643,8 @@ export function buildInvoiceScrapRows(orderItems, spots) {
           <td>${
             scrap.purity != null ? (scrap.purity * 100).toFixed(1) + "%" : "-"
           }</td>
-          <td>${scrap.content.toFixed(3)} t oz</td>
-          <td>${(item.premium * 100).toFixed(1)}%</td>
+          <td>${scrap.content != null ? `${scrap.content.toFixed(3)} t oz` : "&mdash;"}</td>
+          <td>${premium != null ? `${(premium * 100).toFixed(1)}%` : "&mdash;"}</td>
           <td class="text-right">${price ? formatCurrency(price) : "-"}</td>
         </tr>`;
     })
@@ -484,16 +653,26 @@ export function buildInvoiceScrapRows(orderItems, spots) {
   return { rowsHtml, rawScrapItems };
 }
 
-export function buildInvoiceBullionRows(orderItems, spots) {
+export function buildInvoiceBullionRows(
+  orderItems: OrderItem[],
+  spots: SpotPriceWire[]
+): { rowsHtml: string; bullionOrderItems: OrderItem[] } {
   const bullionOrderItems = orderItems.filter(
     (item) => item.item_type === "product" && item.product
   );
 
   const rowsHtml = bullionOrderItems
     .map((item) => {
-      const product = item.product || {};
+      const product: ProductPart = item.product ?? ({} as ProductPart);
       const unitPrice =
-        item.price != null ? item.price : calculateItemPrice(item, spots);
+        item.price != null
+          ? item.price
+          : // calculateItemPrice takes the full contract item; this file only
+            // ever holds the composed subset it actually reads, and the fields
+            // that function uses are all present on it. Narrowed deliberately
+            // rather than widening OrderItem to claim fields the templates
+            // never touch.
+            (calculateItemPrice(item as Parameters<typeof calculateItemPrice>[0], spots) ?? 0);
       const totalPrice = unitPrice * (item.quantity ?? 1);
 
       return `
@@ -502,8 +681,10 @@ export function buildInvoiceBullionRows(orderItems, spots) {
             product.product_name || "Bullion Product"
           }</td>
           <td>${item.quantity}</td>
-          <td>${product.content.toFixed(3)} t oz</td>
-          <td>${(item.premium * 100).toFixed(1)}% of spot</td>
+          <td>${product.content != null ? `${product.content.toFixed(3)} t oz` : "&mdash;"}</td>
+          <td>${
+            item.premium != null ? `${(item.premium * 100).toFixed(1)}% of spot` : "&mdash;"
+          }</td>
           <td class="text-right">${
             totalPrice ? formatCurrency(totalPrice) : "-"
           }</td>
