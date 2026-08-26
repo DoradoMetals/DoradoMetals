@@ -27,7 +27,22 @@ export const auth = betterAuth({
     },
     changeEmail: {
       enabled: true,
-      sendChangeEmailVerification: async ({ user, token }) => {
+      // sendChangeEmailConfirmation, NOT sendChangeEmailVerification.
+      //
+      // better-auth has never had an option by the second name, so this object
+      // key was read by nothing and this callback was never called. It does not
+      // fail: update-user.mjs computes
+      //   canSendConfirmation = emailVerified && changeEmail.sendChangeEmailConfirmation
+      // which was falsy, falls past it, and lands on the emailVerification
+      // branch instead - which sends the ordinary "Verify Your Email Address"
+      // mail to `{...user, email: newEmail}`, the NEW address.
+      //
+      // So the approval went to the address being moved TO, and the address
+      // being moved FROM was never told. frontend/app/change-email/page.tsx
+      // exists and is documented as "reached from the email-change
+      // confirmation link" - a page nothing could reach, because the link that
+      // points at it was never sent.
+      sendChangeEmailConfirmation: async ({ user, token }) => {
         const emailUrl = `${process.env.FRONTEND_URL}/change-email?token=${token}`;
         await sendEmail({
           to: user.email,
@@ -92,9 +107,20 @@ export const auth = betterAuth({
         });
       },
     }),
-    admin({
-      canImpersonate: async ({ user }) => user.role === 'admin',
-    }),
+    // NO canImpersonate HERE, DELIBERATELY. AdminOptions has never had one -
+    // the real names are allowImpersonatingAdmins and
+    // impersonationSessionDuration - so `canImpersonate: async ({ user }) =>
+    // user.role === 'admin'` was read by nothing and enforced nothing.
+    //
+    // Nothing is lost by removing it, and this is the part worth being sure
+    // about rather than assuming: the impersonate route already carries
+    // `use: [adminMiddleware]` and then a hasPermission check on the caller's
+    // role, throwing YOU_ARE_NOT_ALLOWED_TO_IMPERSONATE_USERS if it fails, with
+    // adminRoles defaulting to ["admin"]. That is exactly what the dead option
+    // was trying to say. It is left out rather than corrected because there is
+    // nothing to correct it TO - the default already does it, and a line that
+    // looks like a security control but is inert is worse than no line.
+    admin(),
     stripePlugin({
       stripeClient,
       stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
