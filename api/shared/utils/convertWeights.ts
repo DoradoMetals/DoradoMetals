@@ -1,3 +1,9 @@
+// MIRRORED. The same conversion exists in the other repo and in the database:
+//   frontend/shared/utils/convertWeights.ts
+//   the SQL function metals.convert_to_troy_oz
+// api/shared/mirror.test.js holds this file and the frontend copy in step;
+// api/shared/utils/convertWeights.test.js compares this one against the SQL
+// function on every unit, and pins the one place they differ on purpose.
 // Weight in whatever the scale reported, as troy ounces.
 //
 // Every price in this system is per troy ounce, so this is the boundary where a

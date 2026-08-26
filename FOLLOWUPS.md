@@ -4218,7 +4218,7 @@ while a customer is shown one number and paid another.
 `sumContentByMetal` are statement-for-statement identical once formatting is
 set aside.
 
-`api/features/rates/utils/mirror.test.js` now holds them there. It compares the
+`api/shared/mirror.test.js` now holds them there. It compares the
 extracted function bodies rather than behaviour, because the frontend copy
 imports a type through the `@/` alias that the API's runner cannot resolve.
 
@@ -4281,3 +4281,54 @@ customer at the refiner's spot fails exactly 1.
 **That empties the money side of the untested list.** What remains has no
 pricing in it: `addresses/utils/form.ts`, `addresses/utils/places.ts`,
 `shipping/utils/getRatesInput.ts` (a hook), and `shared/utils/cn.ts`.
+
+## Weight conversion exists three times, and nothing compared them
+
+The same by-symbol scan, pointed at `api/shared/`: **17 files with exports, 8
+with not one symbol referenced by any test.** The interesting one was
+`shared/utils/convertWeights.ts`.
+
+Weight conversion exists in **three** places — this file, the frontend's copy,
+and the SQL function `metals.convert_to_troy_oz`. The frontend's copy has had a
+test for a while, and that test's own comment records all three and the way
+they differ. But **the API's copy — the one the business actually pays people
+with — had no test at all**, and nothing had ever compared any copy against the
+database function.
+
+Every price in the system is per troy ounce, and a scrap line's content times
+spot times premium is what a customer is paid. So this is the boundary where a
+customer's grams become the unit the business trades in, and three copies
+disagreeing is a pricing bug rather than untidiness.
+
+`api/shared/utils/convertWeights.test.js` now checks the API copy against the
+SQL function directly, across `t oz`, `g`, `dwt` and `lb`, at five magnitudes
+each, and case-insensitively. **They agree everywhere.**
+
+**The one documented divergence is pinned rather than fixed.** An unrecognised
+unit returns `0` in both JavaScript copies and `NULL` from the SQL function.
+Zero is the more dangerous answer — a scrap line in a unit nobody anticipated
+is silently worth nothing and nothing about the result says it failed, where
+NULL at least propagates. Nothing calls the SQL function today, so it is
+latent; it is now asserted from both sides so changing either is deliberate.
+
+**The mirror guard is now general and has moved.** `api/shared/mirror.test.js`
+(was `features/rates/utils/mirror.test.js`, which was the wrong home once it
+covered more than rates) is table-driven over both mirrored pairs — the rate
+resolution and weight conversion — and asserts it extracted all four function
+bodies rather than comparing empty strings.
+
+**Weight conversion was the worse of the two, because it said nothing.** The
+rate resolution at least carried a "mirrored 1:1, keep in sync" comment, which
+is what made anyone look. `convertWeights` carried no comment in either copy;
+it was only found by scanning for untested exports. Both files now name their
+counterparts and the test that holds them together.
+
+Mutation-checked: nudging the API's grams-per-troy-ounce constant fails 1 test
+in the mirror guard and 3 in the three-way comparison.
+
+**Still untested in `api/shared/`**, and worth a look in that order:
+`middleware/authMiddleware.ts`'s `requireVerifiedUser` (a security gate),
+`wire/rename.ts`'s `makeWireAdapter` and `wire/middleware.ts`'s `wireShape`
+(the machinery behind every `*_WIRE` switch and D32), `http/caller.ts`'s
+`callerId` and `requiredParam`, then `env/required.ts`, `http/query.ts`,
+`testing/is-test-run.ts` and `utils/formatPhoneNumber.ts`.

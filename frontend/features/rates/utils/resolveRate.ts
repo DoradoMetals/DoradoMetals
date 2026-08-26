@@ -16,7 +16,7 @@ export type RateMaterial = 'scrap' | 'bullion'
  * NOTE: this file is mirrored 1:1 in the API at
  * `api/features/rates/utils/resolveRate.ts` (it was `.js` until the TypeScript
  * conversion). The two are held in sync by
- * `api/features/rates/utils/mirror.test.js`, which compares the shared
+ * `api/shared/mirror.test.js`, which compares the shared
  * functions and fails if they drift — one of these quotes a customer a payout
  * rate and the other pays it.
  */

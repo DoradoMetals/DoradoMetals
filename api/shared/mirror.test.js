@@ -1,6 +1,8 @@
-// The rate resolution exists TWICE - once here and once in the frontend at
-// frontend/features/rates/utils/resolveRate.ts - and its own comment says
-// "mirrored 1:1 ... keep the two in sync". Nothing checked that.
+// Logic that exists in BOTH repos, held in step.
+//
+// The rate resolution says so itself - "mirrored 1:1 ... keep the two in sync"
+// - and nothing checked it. Weight conversion says nothing at all and is
+// mirrored just the same, which is worse: there was no comment to go stale.
 //
 // It decides the payout premium a customer is quoted, tiered by how much of a
 // metal is in the order. If the two copies drift, the frontend shows one rate
@@ -15,13 +17,27 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-const ROOT = path.resolve(import.meta.dirname, "../../../..");
-const API = path.join(ROOT, "api/features/rates/utils/resolveRate.ts");
-const WEB = path.join(ROOT, "frontend/features/rates/utils/resolveRate.ts");
-
-// The three the two copies share. formatRate is frontend-only and is display,
-// not arithmetic, so it is deliberately not required here.
-const SHARED = ["getRateBand", "getRatePct", "sumContentByMetal"];
+const ROOT = path.resolve(import.meta.dirname, "../..");
+// Every piece of logic that exists in both repos. Each pair is money: one
+// side quotes a customer a number and the other side pays it.
+const PAIRS = [
+  {
+    what: "the rate resolution",
+    api: "api/features/rates/utils/resolveRate.ts",
+    web: "frontend/features/rates/utils/resolveRate.ts",
+    // formatRate is frontend-only and is display, not arithmetic.
+    shared: ["getRateBand", "getRatePct", "sumContentByMetal"],
+  },
+  {
+    what: "weight conversion",
+    api: "api/shared/utils/convertWeights.ts",
+    web: "frontend/shared/utils/convertWeights.ts",
+    // convertToPounds is frontend-only - it sizes a parcel, not a payout.
+    // A THIRD copy exists as the SQL function metals.convert_to_troy_oz;
+    // api/shared/utils/convertWeights.test.js compares against that one.
+    shared: ["convertTroyOz"],
+  },
+];
 
 function extract(file, name) {
   const src = fs.readFileSync(file, "utf8");
@@ -62,39 +78,49 @@ const normalise = (s) => {
   return out;
 };
 
-test("both copies of the rate resolution still exist where the comment says", () => {
-  assert.ok(fs.existsSync(API), `${API} is gone`);
-  assert.ok(fs.existsSync(WEB), `${WEB} is gone - the mirror comment is stale`);
-});
+for (const pair of PAIRS) {
+  const API = path.join(ROOT, pair.api);
+  const WEB = path.join(ROOT, pair.web);
 
-for (const name of SHARED) {
-  test(`${name} has not drifted between the API and the frontend`, () => {
-    const a = normalise(extract(API, name));
-    const w = normalise(extract(WEB, name));
-    assert.equal(
-      a,
-      w,
-      `${name} differs between api/ and frontend/. The two must agree: one ` +
-        `quotes the customer a payout rate and the other pays it.`
-    );
+  test(`both copies of ${pair.what} are still where they are expected`, () => {
+    assert.ok(fs.existsSync(API), `${pair.api} is gone`);
+    assert.ok(fs.existsSync(WEB), `${pair.web} is gone`);
   });
+
+  for (const name of pair.shared) {
+    test(`${name} has not drifted between the API and the frontend`, () => {
+      const a = normalise(extract(API, name));
+      const w = normalise(extract(WEB, name));
+      assert.equal(
+        a,
+        w,
+        `${name} differs between api/ and frontend/. The two must agree: one ` +
+          `quotes the customer a number and the other pays it.`
+      );
+    });
+  }
 }
 
 // The guard above compares source, so it is worth proving it is reading
 // something rather than comparing two empty strings.
 test("the comparison is reading real function bodies, not empty strings", () => {
-  for (const name of SHARED) {
-    const body = normalise(extract(API, name));
-    assert.ok(body.length > 80, `${name} extracted only ${body.length} chars`);
-    assert.match(body, /return/);
+  let checked = 0;
+  for (const pair of PAIRS) {
+    for (const name of pair.shared) {
+      const body = normalise(extract(path.join(ROOT, pair.api), name));
+      assert.ok(body.length > 80, `${name} extracted only ${body.length} chars`);
+      assert.match(body, /return/);
+      checked += 1;
+    }
   }
+  assert.equal(checked, 4, "expected four shared functions across the two pairs");
 });
 
 // The allowance above is only safe while the API really is the defensive one.
 // If someone removes these guards, the two files start agreeing for the wrong
 // reason and the API starts throwing on a null list off the wire.
 test("the API still tolerates a null list, which is why the difference is allowed", () => {
-  const src = fs.readFileSync(API, "utf8");
+  const src = fs.readFileSync(path.join(ROOT, PAIRS[0].api), "utf8");
   assert.match(src, /\(rates \?\? \[\]\)/, "the API's null-rates guard is gone");
   assert.match(src, /items \?\? \[\]/, "the API's null-items guard is gone");
 });
