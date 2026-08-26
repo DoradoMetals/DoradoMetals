@@ -70,37 +70,35 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       break;
     }
 
-    case "charge.failed": {
-      await stripeService.updateIntentFromWebhook({
-        paymentIntent: event.data.object,
-      });
-      break;
-    }
-
-    case "charge.updated": {
-      await stripeService.updateIntentFromWebhook({
-        paymentIntent: event.data.object,
-      });
-      break;
-    }
-
-    case "charge.captured": {
-      await stripeService.updateIntentFromWebhook({
-        paymentIntent: event.data.object,
-      });
-      break;
-    }
-
-    case "charge.pending": {
-      await stripeService.updateIntentFromWebhook({
-        paymentIntent: event.data.object,
-      });
-    }
-
+    // THE FIVE charge.* EVENTS CARRY A CHARGE, NOT A PAYMENT INTENT, AND HAVE
+    // NEVER UPDATED ANYTHING.
+    //
+    // Each passed `event.data.object` to updateIntentFromWebhook, which ends at
+    // `UPDATE exchange.payment_intents ... WHERE payment_intent_id = $6` keyed
+    // on that object's `id`. A charge's id is `ch_...`, so the statement has
+    // matched no row for every charge event this application has ever received.
+    //
+    // Keying on `charge.payment_intent` instead is the obvious repair and it is
+    // the wrong one: a charge has no `amount_received` and no
+    // `amount_capturable`, so the same statement would write NULL over a
+    // settled amount. Recording a charge needs a statement that reads a charge -
+    // a schema question, and where payments.settlements comes in - not a
+    // one-line fix. Explicit until then, rather than accidental.
+    //
+    // Three of these also lacked a `break` and fell through to the next case,
+    // so charge.pending ran the same no-op twice.
+    //
+    // features/payments/webhook-updates.test.js asserts the no-op, so a repair
+    // has something to change.
+    case "charge.failed":
+    case "charge.updated":
+    case "charge.captured":
+    case "charge.pending":
     case "charge.succeeded": {
-      await stripeService.updateIntentFromWebhook({
-        paymentIntent: event.data.object,
-      });
+      console.log(
+        `ℹ️  ${event.type} carries a charge, which exchange.payment_intents cannot be updated from - ignored`
+      );
+      break;
     }
 
     case "customer.created": {
@@ -109,6 +107,7 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
 
     case "payment_method.updated": {
       await stripeService.updateMethod({ paymentMethod: event.data.object });
+      break;
     }
 
     default:

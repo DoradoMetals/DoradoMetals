@@ -1410,6 +1410,41 @@ Either the deliveries are failing, or they are arriving and the handler is
 throwing after the response. `pnpm --filter @dorado/api audit:payments` now
 prints this list, so it is checkable rather than remembered.
 
+**Correction, 26 August: there is a third possibility, and the delivery log
+cannot show it.** The handler can run, write nothing, and answer 200.
+`repo.exchange.updatePaymentIntent` is an `UPDATE ... WHERE payment_intent_id =
+$6` with no upsert and, until now, no `rowCount` check, and every branch of
+`features/payments/controller.js` ends at `res.json({received:true})` whether a
+row matched or not. From Stripe's side that is a delivery that succeeded. So the
+question above cannot be settled from the dashboard alone - if this is the
+cause, the log shows green.
+
+That is not a guess about the three missing intents; it is now measured.
+`features/payments/webhook-updates.test.js` asserts the no-op, and
+`repo.exchange.js` logs when an update matches nothing, which is what makes it
+visible from our side. `audit:payments` counts **twenty** intents in the Stripe
+export with no row in `exchange` at all - exactly the population this happens to.
+
+**And the five `charge.*` handlers had never updated anything.**
+`charge.failed`, `charge.updated`, `charge.captured`, `charge.pending` and
+`charge.succeeded` each passed `event.data.object` - a **charge** - to a
+statement keyed on `payment_intent_id`. A charge's id is `ch_...`, so it matched
+no row, for every charge event the application has ever received. Three of them
+also lacked a `break`, so `charge.pending` ran the same no-op twice.
+
+They are now an explicit, commented no-op rather than an accidental one, because
+**the obvious repair is wrong**: keying on `charge.payment_intent` would run a
+statement that reads `amount_received` and `amount_capturable` off an object
+that has neither, writing NULL over a settled amount. Recording a charge needs a
+statement written for a charge - which is what `payments.settlements` is for,
+and a schema question rather than a one-line fix.
+
+**Two decisions this raises are Jacob's, not mine** (D24, D25 in the decision
+log): whether a webhook that matches no row should answer 500 so Stripe retries,
+and whether the statement should upsert so an intent opened outside
+`createPaymentIntent` gets a row at all. Both change how a money path behaves
+under failure. Neither was made here.
+
 ### RESOLVED: three production intents can be handed back for reuse after being paid
 
 Superseded by the entry above, which is the same finding with the money side

@@ -137,7 +137,28 @@ export async function updatePaymentIntent(payment_intent, executor) {
     payment_intent.payment_method,
     payment_intent.id,
   ];
-  await query(sql, values, executor);
+  const result = await query(sql, values, executor);
+
+  // A WEBHOOK THAT MATCHES NO ROW IS THE FAILURE MODE THAT LOOKS LIKE SUCCESS.
+  //
+  // This is an UPDATE, not an upsert, and the controller answers
+  // `{received:true}` either way - so an intent exchange has no row for is
+  // recorded by Stripe as a delivery that succeeded while nothing was written.
+  // audit:payments counts twenty such intents in production.
+  //
+  // FOLLOWUPS asks whether the missing $126.48 is failing delivery or a handler
+  // throwing after the response. It can be neither: THE DELIVERY LOG CANNOT
+  // SHOW THIS, because from Stripe's side it went fine. This line is what makes
+  // it visible from ours.
+  //
+  // Deliberately a log and not a throw. Answering 500 would make Stripe retry,
+  // which is arguably right and is a change to how a money path behaves under
+  // failure - Jacob's call, in the decision log, not one to make at 4am.
+  if (result?.rowCount === 0) {
+    console.warn(
+      `⚠️  stripe webhook: no exchange.payment_intents row for ${payment_intent.id} - status "${payment_intent.status}" was not recorded`
+    );
+  }
 }
 
 export async function updateMethod({ paymentMethod }, executor) {
