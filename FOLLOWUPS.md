@@ -4629,3 +4629,58 @@ the only table a cron rewrites continuously.
 
 None of these blocks anything today: no switch is promoted, so `exchange` is
 authoritative everywhere and these compare a live schema against a shadow.
+
+## `updated_at` cannot tell you whether a backfill needs re-running
+
+Triaging the one sharp item from `verify:backfill` — a single `orders.orders`
+row differing in exactly one boolean — produced a rule that applies to every
+feature's promotion.
+
+**The row.** Sales order number 57: `exchange.sales_orders.order_sent` is
+**true**, `orders.orders.order_sent` is **false**. The fresh backfill produces
+exchange's value, so the copy is stale and the backfill is right.
+
+**Why it drifted invisibly.** `updateOrderSent` is:
+
+```sql
+UPDATE exchange.sales_orders SET order_sent = true WHERE id = $1
+```
+
+It does not touch `updated_at`. Both rows carry the same `updated_at` to the
+millisecond, and the boolean differs anyway. **A comparison of `updated_at`
+would call this pair identical.**
+
+**It is not one function.** Of **52 UPDATE statements against `exchange`
+tables, 42 do not set `updated_at`** — including `editPayoutCharge`,
+`changePayoutMethod`, `updatePremium`, `updateRefinerPremium`,
+`updatePoolRemediation`, `updateOrderItemPrices`, `addFunds`, `removeFunds` and
+`adjustUserCredit`. Money paths, most of them.
+
+**The consequence for promotion, which is the point.** CLAUDE.md already says
+migration 057 must be re-run immediately before the auth cutover because
+production drifted from 74 users to 75. **That is not special to auth.** Any
+feature whose exchange rows changed since its backfill has a stale copy, and
+**`updated_at` cannot be used to find out** — only a value-by-value comparison
+can, which is what `verify:parity` and `verify:backfill` do. So:
+
+- re-run a feature's backfill immediately before promoting it, or
+- run `verify:parity` for the pair and accept only "ok: identical".
+
+Do **not** reason from timestamps.
+
+**Note the difference from the spots drift.** Spots converge by themselves —
+dual-write already writes both, and the next cron tick fixes it. This one does
+not: `SALES_ORDERS_SOURCE` going to `dual` makes *future* writes land in both,
+but this already-drifted row stays wrong until the backfill is re-run.
+
+**Whether those 42 writes should maintain `updated_at` is D38.** It is not a
+tidy-up: `updated_at` is returned on the wire for several shapes and is what an
+admin screen would show as "last updated", so changing it changes what a column
+means. Measured, not decided.
+
+**A correction worth keeping.** I first read the two `updated_at` values as five
+hours apart and nearly reported the row as "changed after the backfill". They
+are the same instant: I queried without `TZ=UTC`, and the driver rendered a
+`timestamp` and a `timestamptz` differently. The SQL comparison said zero rows
+where exchange was newer, which is what caught it. **The repo sets `TZ=UTC` for
+tests for exactly this reason; ad-hoc queries need it too.**
