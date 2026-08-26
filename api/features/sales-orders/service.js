@@ -259,11 +259,32 @@ export async function updateTracking({
   tracking_number,
   carrier_id,
 }) {
-  await shipmentRepo.insertTrackingNumber(
-    shipment_id,
+  // THIS AWAITED shipmentRepo.insertTrackingNumber, WHICH DOES NOT EXIST.
+  //
+  // The shipments repo exports getAll, getById, getByOrder, create, update and
+  // remove, and never had an insertTrackingNumber - checked against master,
+  // which is what auto-deploys, as well as here. `import * as` makes a missing
+  // name `undefined` rather than an import error, so
+  // POST /api/sales_orders/update_tracking answered 500 on every call: an admin
+  // could not record a tracking number against a sales order at all.
+  //
+  // Read-then-update is the pattern this codebase already uses for the same
+  // shape of change - see cancelLabel in features/shipping/operations/service.ts,
+  // which spreads the shipment and overrides one field. Going through
+  // shipmentRepo.update also means the write follows the SHIPMENTS_SOURCE switch
+  // and its dual-write, which a bespoke UPDATE here would have bypassed.
+  const shipment = await shipmentRepo.getById(shipment_id);
+  if (!shipment) {
+    const err = new Error(`no shipment ${shipment_id}`);
+    err.statusCode = 404;
+    throw err;
+  }
+
+  await shipmentRepo.update({
+    ...shipment,
     tracking_number,
-    carrier_id
-  );
+    carrier_id,
+  });
   return await salesOrderRepo.updateTrackingStatus(order_id);
 }
 

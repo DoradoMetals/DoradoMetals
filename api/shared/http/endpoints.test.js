@@ -163,8 +163,8 @@ test("public reads return JSON", async () => {
 
 // Every handler a controller exports is either routed or declared dead.
 //
-// features/sales-orders/controller.js exports getSalesOrderById and cancelOrder
-// and neither has a route. That is harmless until somebody reads one, assumes
+// features/sales-orders/controller.js exports getSalesOrderById, which has no
+// route. That is harmless until somebody reads one, assumes
 // it is reachable, and builds on it - or until a route is deleted and its
 // handler is left behind looking live.
 //
@@ -193,7 +193,12 @@ const FEATURES = path.join(import.meta.dirname, "..", "..", "features");
 const UNROUTED = {
   "sales-orders/controller.js": {
     getSalesOrderById: "no route; the frontend reads orders through get_all and get_sales_orders",
-    cancelOrder: "no route; cancelling a sale is not a customer action and admins use update_status",
+    // cancelOrder was here and the handler is now gone. It awaited
+    // salesOrderService.cancelOrder, which the service has never defined, so it
+    // could not have worked if anyone had routed it - and the reason recorded
+    // here for leaving it unrouted (cancelling a sale is not a customer action;
+    // admins use update_status) is the reason it should not exist at all.
+    // This list going stale is what surfaced that, which is the check working.
   },
   "purchase-orders/controller.js": {
     getPurchaseOrderById: "no route; the frontend reads orders through get_purchase_orders and get_all_purchase_orders",

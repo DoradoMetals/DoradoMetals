@@ -24,10 +24,19 @@ export const getOrderMetals = asyncHandler(async (req, res) => {
   return res.json(metals);
 });
 
-export const cancelOrder = asyncHandler(async (req, res) => {
-  const result = await salesOrderService.cancelOrder(req.body);
-  return res.status(200).json(result);
-});
+// THERE IS NO cancelOrder HERE, AND THERE NEVER WORKED ONE.
+//
+// This exported a handler that awaited salesOrderService.cancelOrder, which the
+// sales-orders service has never defined. It was mounted on no route - routes.js
+// does not import it - and the frontend's "Cancel Order" button calls the
+// PURCHASE order route, which does exist and works. So it was unreachable code
+// that would have answered 500 the moment anyone wired it up.
+//
+// Removed rather than implemented: what cancelling a sales order should DO -
+// whether it refunds, restocks, or only marks a status - is a business decision,
+// and inventing one is not a typing change. Recorded in the decision log.
+//
+// Found by scripts/lint-namespace-calls.mjs.
 
 export const createSalesOrder = asyncHandler(async (req, res) => {
   const order = await salesOrderService.createSalesOrder(req.body, req.headers);
