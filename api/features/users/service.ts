@@ -1,14 +1,22 @@
-import * as usersRepo from "#features/users/repo.js"
+import * as usersRepo from "#features/users/repo.js";
+import type { UserRow } from "#features/users/repo.next.ts";
+import type { QueryResult } from "pg";
 
-export async function getUser(id) {
+// The controller's error handler reads statusCode off the thrown error, so it
+// is declared rather than assigned onto a bare Error.
+interface HttpError extends Error {
+  statusCode?: number;
+}
+
+export async function getUser(id: string): Promise<UserRow | undefined> {
   return await usersRepo.getUser(id);
 }
 
-export async function getAllUsers() {
+export async function getAllUsers(): Promise<UserRow[]> {
   return await usersRepo.getAllUsers();
 }
 
-export async function getAdminUsers() {
+export async function getAdminUsers(): Promise<UserRow[]> {
   return await usersRepo.getAdminUsers();
 }
 
@@ -37,14 +45,28 @@ const CREDIT_MODES = new Set(["add", "subtract", "edit"]);
 // The same shape features/addresses uses: a plain Error carrying a statusCode.
 // errorHandler treats a deliberate 4xx as safe to show the caller and returns a
 // generic message for everything else, so the text here is written to be read.
-function badRequest(message) {
-  const err = new Error(message);
+function badRequest(message: string): HttpError {
+  const err: HttpError = new Error(message);
   err.statusCode = 400;
   return err;
 }
 
-export async function adjustDoradoCredit({user_id, mode, amount}) {
-  if (!CREDIT_MODES.has(mode)) {
+// `mode` and `amount` are typed as UNKNOWN on the way in, not as the narrow
+// types they end up being. They arrive as req.body: claiming `mode: string`
+// here would tell a reader the allowlist below is redundant, and claiming
+// `amount: number` would delete the reason the Number() coercion exists.
+// The checks are what turn them into the narrow types, so the signature
+// admits what actually arrives.
+export async function adjustDoradoCredit({
+  user_id,
+  mode,
+  amount,
+}: {
+  user_id?: string;
+  mode?: unknown;
+  amount?: unknown;
+}): Promise<QueryResult> {
+  if (typeof mode !== "string" || !CREDIT_MODES.has(mode)) {
     throw badRequest(
       `unknown credit mode ${JSON.stringify(mode)}. Expected one of ${[...CREDIT_MODES].join(", ")}.`
     );

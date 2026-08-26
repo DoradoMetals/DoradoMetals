@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as taxService from "#features/sales-tax/service.js"
+import * as taxService from "#features/sales-tax/service.ts"
 
 export const getSalesTax = asyncHandler(async (req, res) => {
   const tax = await taxService.getSalesTax(req.body);

@@ -1,8 +1,23 @@
 import axios from "axios";
 import * as spotRepo from "#features/spots/repo.js";
 import { toLegacy as spotsToLegacy } from "#features/spots/wire.ts";
+import type { SpotPriceWire } from "@dorado/contracts";
+import type { SpotRow } from "#features/spots/repo.next.ts";
+import type { PoolClient } from "pg";
 
-export async function getSpotPrices() {
+type Executor = PoolClient | undefined;
+
+// One upstream quote, as this service reduces it. Not the provider's own shape:
+// only these four fields are read out of it, and everything else the feed sends
+// is discarded rather than stored.
+export type Quote = {
+  ask: number;
+  bid: number;
+  percentChange: number;
+  dollarChange: number;
+};
+
+export async function getSpotPrices(): Promise<SpotRow[]> {
   return spotRepo.getAll();
 }
 
@@ -23,32 +38,35 @@ export async function getSpotPrices() {
 // An ounce of gold for $26.81. Items were already re-fetched server-side, so a
 // product could not be faked - only the metal price was taken on trust.
 //
-// SHAPED FOR THE CALCULATIONS, DELIBERATELY. calculateItemAsk reads
-// `s.type` and `s.ask_spot`, which is the LEGACY wire shape; the repo returns
-// the new one (`name` / `ask` / `bid`). toLegacy converts down, and it does so
-// unconditionally rather than following SPOTS_WIRE - that is the difference
-// between toLegacy and toWire, and it is why this keeps working when the switch
-// flips. When the calculations move to the new names, this is the one place to
-// change.
+// SHAPED FOR THE CALCULATIONS, DELIBERATELY, and the return type says so:
+// SpotPriceWire is the LEGACY shape (`type` / `ask_spot` / `bid_spot`), which
+// is what calculateItemAsk reads. The repo returns the new one (`name` / `ask`
+// / `bid`). toLegacy converts down, and it does so unconditionally rather than
+// following SPOTS_WIRE - that is the difference between toLegacy and toWire,
+// and it is why this keeps working when the switch flips. When the calculations
+// move to the new names, this is the one place to change.
 //
 // FRESH ON EVERY CALL, no caching. exchange.metals is updated by
 // updateSpotPrices on a cron, so a read is a read of the latest quote and the
 // customer is priced at what the business holds right now.
-export async function getPricingSpots(client) {
-  return spotsToLegacy(await spotRepo.getAll(client));
+export async function getPricingSpots(client?: Executor): Promise<SpotPriceWire[]> {
+  return spotsToLegacy(await spotRepo.getAll(client)) as SpotPriceWire[];
 }
 
 // Pulls the upstream quote feed and writes it to exchange.metals. Called by the
 // scheduler on startup and on the SPOT_UPDATE_SCHEDULE cron.
-export async function updateSpotPrices() {
-  const response = await axios.get(process.env.SPOT_API_URL, {
+//
+// A quote missing its symbol or either side of the market is SKIPPED, not
+// defaulted - a metal priced at zero would flow straight into an order total.
+export async function updateSpotPrices(): Promise<Record<string, Quote>> {
+  const response = await axios.get(process.env.SPOT_API_URL as string, {
     headers: {
       Accept: "application/json",
       "User-Agent": "DoradoMetalsExchange/1.0",
     },
   });
 
-  const quotes = {};
+  const quotes: Record<string, Quote> = {};
 
   for (const metal of response.data) {
     const name = metal.data?.symbol?.trim();

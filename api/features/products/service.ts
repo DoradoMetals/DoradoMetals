@@ -1,6 +1,5 @@
 // Products, plus the one piece of logic that is not a pass-through.
 import * as productRepo from "#features/products/repo.js";
-import type { PoolClient } from "pg";
 import type {
   StorefrontProductRow,
   AdminProductRow,
@@ -64,7 +63,7 @@ export async function createProduct({
   name: string;
 }): Promise<AdminProductRow | undefined> {
   const withTransaction = (await import("#shared/db/withTransaction.js")).default;
-  return withTransaction(async (client: PoolClient) => {
+  return withTransaction(async (client) => {
     const id = await productRepo.insertProduct({ created_by, name }, client);
     return productRepo.getAdminProductById(id, client);
   });

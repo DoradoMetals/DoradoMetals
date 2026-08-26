@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as cartService from "#features/checkout/service.js";
+import * as cartService from "#features/checkout/service.ts";
 
 // THE CART BELONGS TO THE SESSION, NOT TO WHOEVER NAMES A USER.
 //

@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as spotService from "#features/spots/service.js";
+import * as spotService from "#features/spots/service.ts";
 
 export const getSpotPrices = asyncHandler(async (req, res) => {
   const spots = await spotService.getSpotPrices();

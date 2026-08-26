@@ -26,7 +26,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
-import * as spotsService from "#features/spots/service.js";
+import * as spotsService from "#features/spots/service.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.js";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
 

@@ -1,12 +1,22 @@
 import * as taxRepo from "#features/sales-tax/repo.js";
-import * as spotsService from "#features/spots/service.js";
+import * as spotsService from "#features/spots/service.ts";
 import {
   calculateSalesTax,
   calculateItemTotals,
   calculateItemAsk,
 } from "#features/sales-orders/utils/calculations.ts";
+import type { SpotPriceWire } from "@dorado/contracts";
 
-export async function attachSalesTaxToItems(state_code, items, spots) {
+// An order line as the tax calculation reads it. Deliberately loose: this
+// arrives as req.body and the calculations pick out what they need, so
+// constraining it here would be a claim about the request that nothing checks.
+export type TaxableItem = Record<string, unknown>;
+
+export async function attachSalesTaxToItems(
+  state_code: string,
+  items: TaxableItem[],
+  spots: SpotPriceWire[]
+): Promise<(TaxableItem & { sales_tax_rate: number })[]> {
   const item_total = calculateItemTotals(items, spots);
 
   const promises = items.map(async (item) => ({
@@ -28,8 +38,16 @@ export async function attachSalesTaxToItems(state_code, items, spots) {
 // server's spots are the only ones used.
 //
 // The parameter is not accepted at all rather than accepted-and-overwritten, so
-// a reader cannot mistake it for something that still has an effect.
-export async function getSalesTax({ address, items }) {
+// a reader cannot mistake it for something that still has an effect. The type
+// enforces that now: a caller passing `spots` is a compile error, not a
+// silently discarded field.
+export async function getSalesTax({
+  address,
+  items,
+}: {
+  address: { state: string };
+  items: TaxableItem[];
+}): Promise<number> {
   const spots = await spotsService.getPricingSpots();
   const items_with_tax = await attachSalesTaxToItems(
     address.state,
@@ -39,10 +57,10 @@ export async function getSalesTax({ address, items }) {
   return calculateSalesTax(items_with_tax, spots);
 }
 
-export async function updateStateSalesTax(amount, state) {
+export async function updateStateSalesTax(amount: number, state: string): Promise<void> {
   await taxRepo.updateStateSalesTax(amount, state);
 }
 
-export async function isNexus(state) {
+export async function isNexus(state: string): Promise<boolean> {
   return await taxRepo.isNexus(state);
 }

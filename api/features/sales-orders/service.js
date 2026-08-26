@@ -11,8 +11,8 @@ import * as taxRepo from "#features/sales-tax/repo.js";
 
 import * as emailService from "#features/emails/service.js";
 import * as addressRepo from "#features/addresses/repo.js";
-import * as taxService from "#features/sales-tax/service.js";
-import * as spotsService from "#features/spots/service.js";
+import * as taxService from "#features/sales-tax/service.ts";
+import * as spotsService from "#features/spots/service.ts";
 import * as productService from "#features/products/service.ts";
 
 import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";

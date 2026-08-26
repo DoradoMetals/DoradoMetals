@@ -2,8 +2,8 @@ import * as stripe from "#providers/stripe/stripe.js";
 import * as stripeRepo from "#features/payments/repo.js";
 import * as productService from "#features/products/service.ts";
 import * as addressService from "#features/addresses/service.ts";
-import * as taxService from "#features/sales-tax/service.js";
-import * as spotsService from "#features/spots/service.js";
+import * as taxService from "#features/sales-tax/service.ts";
+import * as spotsService from "#features/spots/service.ts";
 import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";
 
 import { auth } from "#features/auth/client.js";

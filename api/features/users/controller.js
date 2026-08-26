@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as usersService from "#features/users/service.js"
+import * as usersService from "#features/users/service.ts"
 
 export const getUser = asyncHandler(async (req, res) => {
   const result = await usersService.getUser(req.query.user_id);
