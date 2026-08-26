@@ -3903,3 +3903,35 @@ production, so no test in it can see a column production lacks.**
   not have the pool columns at all. I have not rewritten that note because I
   cannot tell what it was measuring, but it does not match either database
   today.
+
+## Both customer order emails are sent by the browser, not the server
+
+Measured after fixing the offer-accepted URL, because that bug's real question
+is not "why was the path wrong" but "why did nobody notice for so long".
+
+Of 20 `apiRequest` calls in the frontend, **18 are inside a `mutationFn` and
+exactly 2 are not** — and the two are the order emails:
+
+- `POST /emails/purchase_order_created`, in a mutation's `onSuccess`
+- `POST /emails/purchase_order_offer_accepted`, in a mutation's `onSuccess`
+
+Nothing server-side sends either. `sendCreatedEmail` and `sendAcceptedEmail`
+are reachable only through their HTTP routes, and only those two calls reach
+them. So a customer's order confirmation depends on their browser making a
+second request *after* the order has already been placed.
+
+**A call in a `mutationFn` is the mutation** — if it fails, the mutation fails
+and the user is told. **A call in `onSuccess` is a follow-up** — the operation
+already succeeded, the UI already said so, and `apiRequest`'s throw becomes an
+unhandled rejection. Nothing retries. That is precisely why a wrong path
+survived: every customer accepted their offer successfully and simply never got
+an email.
+
+The same fragility remains for the created email even with correct paths: a
+closed tab, a dropped connection or a 500 from the mail provider all produce a
+placed order and no confirmation, silently.
+
+`shared/http/browser-triggered-effects.test.js` pins the two against a committed
+allowlist, so a third such call — or either of these moving — fails rather than
+passing quietly. It does not object to the design; that is **D31**, and it is
+Jacob's call.
