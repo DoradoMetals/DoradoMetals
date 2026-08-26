@@ -1365,7 +1365,7 @@ export const useUpdatePoolRemediation = () => {
       pool_remediation: number
     }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest('POST', '/purchase_orders/update_pool_oz_deducted', {
+      return await apiRequest('POST', '/purchase_orders/update_pool_remediation', {
         purchase_order_id,
         pool_remediation,
       })

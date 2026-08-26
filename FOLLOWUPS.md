@@ -3857,3 +3857,49 @@ Read `pg_index`, not `pg_constraint`, if you extend this. A bare `CREATE UNIQUE
 INDEX` is not a constraint row, and my first two attempts queried `pg_constraint`
 and both reported zero single-column uniques outside primary keys — for a schema
 with a `users.email`. Two wrong answers that agreed with each other.
+
+## The admin pool-remediation edit posted to the wrong route
+
+`useUpdatePoolRemediation` posted to `/purchase_orders/update_pool_oz_deducted`
+with a body of `{ purchase_order_id, pool_remediation }`. That route's service
+destructures `pool_oz_deducted`, which the body does not contain — so it arrived
+`undefined`, pg wrote NULL, and the remediation was never saved. Two money
+fields wrong in one click: the one being edited discarded, a different one
+erased. `/update_pool_remediation` had **zero** callers.
+
+**A test already drove all four of those routes and could not see this.**
+`money-edits.test.js` posts to each one from an `ORDER_EDITS` table with the
+correct body key and reads the row back — so it passes, and would have passed
+before this fix. It tests whether the route writes the column. Nothing tested
+whether the *frontend* calls the route that reads what it sends.
+`admin-mutation-urls.test.js` now does, checking each mutation against the keys
+the API service actually destructures. It fails against the old URL.
+
+Route name does not equal field name, which is why a simpler check would not
+have worked: `/update_shipping_actual` reads `shipping_fee_actual`, and
+`/update_refiner_premium` takes an `item_id` too. The service is the authority.
+
+**And in production both pool routes answer 500 anyway.**
+`exchange.purchase_orders` there has neither `pool_oz_deducted` nor
+`pool_remediation` — migration 033 adds them and no migration has been applied
+to production, so both fail with `42703, column does not exist`. The admin UI's
+pool fields have never worked there. That also means the wipe is *armed by a
+migration* rather than happening now: applying 033 without this fix would turn a
+loud 500 into a silent erasure.
+
+Worth keeping in view generally: **the suite runs against dev, which is ahead of
+production, so no test in it can see a column production lacks.**
+
+### Two corrections to this file
+
+- The route-coverage warning above is right and I ignored it. I measured
+  "27 routes no test drives" by matching literal paths, which this file already
+  records as undercounting, and four of my examples were driven by
+  `ORDER_EDITS` all along.
+- The nullability note in the contracts section says `pool_remediation` and
+  `pool_oz_deducted` are the only non-nullable columns on
+  `exchange.purchase_orders`. Measured now, dev has exactly two NOT NULL
+  columns on that table and they are `id` and `order_number`; production does
+  not have the pool columns at all. I have not rewritten that note because I
+  cannot tell what it was measuring, but it does not match either database
+  today.
