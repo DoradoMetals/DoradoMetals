@@ -4241,3 +4241,43 @@ before they are forgotten: `dorContent` is computed as a **remainder**
 lower than the estimate the customer was quoted on, so the business absorbs the
 shortfall; and the per-metal percentages are shares of that same total, so they
 can exceed 100% when one party's content is negative.
+
+### How an order is split three ways, now stated
+
+`calculatePurchaseOrderTotals.ts` divides one purchase order between the
+customer, the business and the refiner — 304 lines, and the last of the money
+utilities with no test. `calculatePurchaseOrderTotals.test.ts` covers it in 28
+tests. Nothing changed.
+
+**The two premiums are positions on a line, not slices.** The dorado premium is
+the fraction of spot the customer receives; the refiner premium is the fraction
+the refiner returns. The business keeps the gap between them and the refiner
+keeps what is above. Give only one and the other mirrors it, so the business
+keeps nothing. Give neither and the customer takes the whole lot.
+
+**The customer is valued at the order's spot; the other two at the refiner's.**
+That difference on the customer's metal is `getSpotNet`, and it is credited to
+the business alone. A metal is **skipped** when either spot is missing, rather
+than treated as a zero spot — which would book the whole lot as a loss.
+
+**A lot that assays below its estimate makes the business's content negative,
+and that is the intended direction.** The customer's share is computed on the
+**estimate they were quoted**; the refiner's and the business's are computed on
+**what actually came back**. The business is the remainder, so it absorbs the
+shortfall: an estimate of 1 oz that assays 0.8 credits the customer 1 and the
+business −0.2. The per-metal percentages divide by that same total, so the
+customer reads **125%** and the business **−25%**. A percentage over 100 on
+this screen is this case, not an arithmetic fault.
+
+**When the business premium is set above the refiner's**, the shares no longer
+sum to one and the remainder is rescaled — out of the refiner's share, never
+the customer's. The customer still receives exactly what was promised. Premiums
+above 1 are clamped, so no line pays out more than the metal is worth.
+
+Mutation-checked twice: ignoring the actual assay and using the estimate for
+everyone fails exactly 3 tests, all of them the shortfall cases; valuing the
+customer at the refiner's spot fails exactly 1.
+
+**That empties the money side of the untested list.** What remains has no
+pricing in it: `addresses/utils/form.ts`, `addresses/utils/places.ts`,
+`shipping/utils/getRatesInput.ts` (a hook), and `shared/utils/cn.ts`.
