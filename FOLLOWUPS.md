@@ -621,6 +621,39 @@ recording because the same trap will catch the next person:
 **Not fixed. It needs a decision that is yours, and the fix runs through a wire
 shape that is mid-migration.** This is live in production today.
 
+> **THE BUY SIDE IS THE SAME SHAPE AND POINTS THE OTHER WAY, found 26 August.**
+> The list below is the sell side. `POST /api/purchase_orders/accept_offer` is
+> not on it, and there a manipulated number does not make the customer pay less
+> — it makes **the business pay more**.
+>
+> `acceptOffer` takes the whole order out of `req.body`. `calculateTotalPrice`
+> reads ``item.price ?? (content * bid_spot * premium)``, so a price in the body
+> is used **verbatim** and no spot lookup even happens; `shipping_charge` and
+> `payout.cost` are **subtracted**, so sending zero for both maximises the
+> result. `calculateItemPrice` does the same, and `updateOrderItemPrices` writes
+> it into `exchange.purchase_order_items.price`. The total lands in
+> `purchase_orders.total_price` via `moveOrderToAccepted`.
+>
+> The route is `requireUser` + `requireOwnOrder`, so this is a customer
+> accepting **their own** offer — which is exactly who benefits.
+>
+> **Measured, not argued.** `features/purchase-orders/accept-offer-pricing.test.js`
+> sends two requests differing only in the prices in the body and reads the row
+> back: the recorded total follows the body both times, and the item rows carry
+> the body's number too. Safe to run — `accept_offer` is pure database work, and
+> the pinned transaction rolls it back.
+>
+> **Not fixed, for the same reason as the sell side**: the fix is server-side
+> pricing, which changes a wire shape mid-migration, and CLAUDE.md rules that
+> out. It is **D26** in the decision log. The test asserts the behaviour as it
+> is, so changing it is deliberate and visible.
+>
+> One correction to the note above while I am here: it says `accept_offer` "was
+> not exercised directly because accepting an offer moves money". It is
+> exercised now. Accepting an offer turns out to be pure database work — the
+> money moves later, when an admin pays out — so it can be driven inside a
+> transaction that is rolled back.
+
 `spots` arrives in the **request body** and is what every money figure is
 computed from. `calculateItemAsk` is:
 
