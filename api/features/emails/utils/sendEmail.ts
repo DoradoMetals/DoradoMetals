@@ -10,7 +10,10 @@ import { isTestRun } from "#shared/testing/is-test-run.ts";
 // The return is `unknown` rather than void because nodemailer returns a result
 // and a caller may depend on it; the tests' recorder returns one for that
 // reason.
-type Transport = {
+// EXPORTED so callers that thread it through - features/emails/service.ts -
+// can name it instead of restating the shape. Restating a structural type is
+// how the seam narrows by accident.
+export type Transport = {
   sendMail: (message: Message) => Promise<unknown>;
 };
 

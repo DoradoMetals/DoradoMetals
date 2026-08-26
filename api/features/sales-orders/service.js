@@ -9,7 +9,7 @@ import * as shipmentRepo from "#features/shipping/shipments/repo.js";
 import * as refinerRepo from "#features/refiners/repo.js";
 import * as taxRepo from "#features/sales-tax/repo.js";
 
-import * as emailService from "#features/emails/service.js";
+import * as emailService from "#features/emails/service.ts";
 import * as addressRepo from "#features/addresses/repo.js";
 import * as taxService from "#features/sales-tax/service.ts";
 import * as spotsService from "#features/spots/service.ts";
@@ -190,7 +190,7 @@ export async function updateStatus({ order, order_status, user_name }) {
 }
 
 // `transport` is a separate parameter, not a field on the input object, for the
-// reason features/emails/service.js gives: the controller hands req.body
+// reason features/emails/service.ts gives: the controller hands req.body
 // straight to this function, so a field would be reachable from the request.
 // Nothing in production passes one; a test passes a recorder, which is what
 // makes the guard below testable without mail leaving the building.

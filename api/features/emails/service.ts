@@ -1,4 +1,7 @@
 import * as pdfService from "#features/pdf/service.ts";
+import type { PackingListInput, InvoiceInput } from "#features/pdf/service.ts";
+import type { Transport } from "#features/emails/utils/sendEmail.ts";
+import type { SpotPriceWire, SalesOrderWire } from "@dorado/contracts";
 
 import {
   renderPurchaseOrderPlacedEmail,
@@ -33,11 +36,21 @@ import {
 // stored order, and handed in. Same seam as `transport`: a separate parameter
 // rather than a field on the input object, because the input object IS req.body
 // and anything read off it can be chosen by the caller.
+//
+// The input is PackingListInput because that is exactly what it forwards to
+// generatePackingList - named rather than restated, so a field added there
+// cannot quietly stop being accepted here.
+//
+// `user_name` comes off RenderableOrder.user, which is
+// `Record<string, unknown>`: the order's user is joined in and its shape is not
+// pinned by a contract. Coerced at the boundary rather than asserted, because
+// an object where a name is expected would render "[object Object]" into a
+// customer's greeting.
 export async function sendCreatedEmail(
-  { purchaseOrder, spotPrices, packageDetails },
-  to,
-  transport
-) {
+  { purchaseOrder, spotPrices, packageDetails }: PackingListInput,
+  to: string,
+  transport?: Transport
+): Promise<void> {
   const pdfBuffer = await pdfService.generatePackingList({
     purchaseOrder,
     spotPrices,
@@ -48,7 +61,7 @@ export async function sendCreatedEmail(
     to,
     subject: "Your Order Has Been Placed!",
     html: renderPurchaseOrderPlacedEmail({
-      firstName: purchaseOrder.user.user_name,
+      firstName: String(purchaseOrder.user?.user_name ?? ""),
       url: `${process.env.FRONTEND_URL}/account?tab=sold`,
     }),
     attachments: [
@@ -65,12 +78,25 @@ export async function sendCreatedEmail(
 
 // Same change, and this one was more direct: `email` came off the body and went
 // straight into `to:`.
+// THE FIELD NAMES DIFFER FROM InvoiceInput'S ON PURPOSE. This takes `order`,
+// `order_spots` and `spot_prices` - snake_case, because that is what the
+// controller destructures out of req.body - and maps them onto the pdf
+// service's purchaseOrder / orderSpots / spotPrices below. Renaming either side
+// would be a wire change.
 export async function sendAcceptedEmail(
-  { order, order_spots, spot_prices },
-  to,
-  transport
-) {
-  let pdfBuffer;
+  {
+    order,
+    order_spots,
+    spot_prices,
+  }: {
+    order: InvoiceInput["purchaseOrder"];
+    order_spots?: SpotPriceWire[];
+    spot_prices?: SpotPriceWire[];
+  },
+  to: string,
+  transport?: Transport
+): Promise<void> {
+  let pdfBuffer: Uint8Array;
   try {
     pdfBuffer = await pdfService.generateInvoice({
       purchaseOrder: order,
@@ -78,8 +104,11 @@ export async function sendAcceptedEmail(
       spotPrices: spot_prices,
     });
   } catch (err) {
-    const msg = "[EmailService] invoice PDF generation failed";
-    err.message = `${msg}: ${err.message}`;
+    // `err` is unknown in a strict file, and rethrowing a non-Error unchanged is
+    // better than crashing while trying to annotate it.
+    if (err instanceof Error) {
+      err.message = `[EmailService] invoice PDF generation failed: ${err.message}`;
+    }
     throw err;
   }
 
@@ -89,7 +118,7 @@ export async function sendAcceptedEmail(
       order.order_number
     )}`,
     html: renderOfferAcceptedEmail({
-      firstName: order.user.user_name,
+      firstName: String(order.user?.user_name ?? ""),
       url: `${process.env.FRONTEND_URL}/orders`,
     }),
     attachments: [
@@ -104,16 +133,30 @@ export async function sendAcceptedEmail(
   }, transport);
 }
 
-export async function sendSalesOrderToSupplier(order, spots, email, transport) {
-  let pdfBuffer;
+// `order` IS TYPED AS THE CONTRACT, NOT AS THE PDF'S RENDER SHAPE, and the two
+// consumers below are why. generateSalesOrderInvoice takes RenderableOrder,
+// which is deliberately loose - it is what a template needs, not what a sales
+// order is. renderSalesOrderToSupplierEmail declares SalesOrderWire, the full
+// contract. One object is handed to both, and SalesOrderWire is the stronger
+// true statement about it, so that is what the parameter says.
+export async function sendSalesOrderToSupplier(
+  order: SalesOrderWire,
+  spots: SpotPriceWire[],
+  email: string,
+  transport?: Transport
+): Promise<void> {
+  let pdfBuffer: Uint8Array;
   try {
     pdfBuffer = await pdfService.generateSalesOrderInvoice({
       salesOrder: order,
       spots,
     });
   } catch (err) {
-    const msg = "[EmailService] invoice PDF generation failed";
-    err.message = `${msg}: ${err.message}`;
+    // `err` is unknown in a strict file, and rethrowing a non-Error unchanged is
+    // better than crashing while trying to annotate it.
+    if (err instanceof Error) {
+      err.message = `[EmailService] invoice PDF generation failed: ${err.message}`;
+    }
     throw err;
   }
 
@@ -126,7 +169,7 @@ export async function sendSalesOrderToSupplier(order, spots, email, transport) {
       order.order_number
     )}`,
     html: renderSalesOrderToSupplierEmail({
-      firstName: order.user.user_name,
+      firstName: String(order.user?.user_name ?? ""),
       url: `${process.env.FRONTEND_URL}/orders`,
       order,
       spots,
