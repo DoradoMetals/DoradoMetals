@@ -3347,6 +3347,35 @@ Worth revisiting now that `pnpm check` takes about two and a half minutes and
 runs frontend tests as well: whatever timeout "Wait for CI" uses needs to allow
 for that.
 
+### 46 mounted routes have still never been driven over HTTP
+
+An inventory taken after the two December-2025 500s were found:
+`132 routes mounted, 75 driven by some test, 57 never driven`. Eleven of those
+57 were reads and are now covered by `shared/http/reads-answer.test.js`,
+leaving **46**.
+
+That gap is exactly where both 500s hid. Neither was visible to a repo test —
+the repos were correct — nor to a typecheck, because the files were JavaScript
+and `import * as` of a missing export is `undefined` rather than an error.
+
+**Why the rest are not covered by a blanket smoke test, deliberately.** Among the
+46 are routes that email a refiner their copy of an order, buy a FedEx label,
+and talk to Stripe. Driving all of them would do those things. The reads suite
+covers every route that writes nothing; the writes need either a sandbox or a
+seam per route, which is per-feature work rather than one file.
+
+The worst-covered by count is `features/purchase-orders`, with 25 — and they are
+the money operations: `edit_payout_charge`, `add_funds_to_account`,
+`update_refiner_fee`, `update_pool_remediation`, `update_shipping_actual`. A
+structural break in any of those looks exactly like the two that were found.
+
+`scripts/lint-namespace-calls.mjs` now catches the specific defect statically,
+across all 132 routes, so the urgent part of this gap is closed. What remains is
+everything only running the code can show.
+
+The inventory script is `scratchpad/routecov.mjs` in the session directory; it is
+twenty lines and worth keeping if this is picked up.
+
 ## Testing
 
 **The money paths are covered.** Every repo function that moves money, prices
