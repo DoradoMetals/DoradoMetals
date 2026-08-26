@@ -158,7 +158,7 @@ export const useAcceptOffer = () => {
       }
     },
     onSuccess: async (data, context) => {
-      await apiRequest('POST', '/purchase_orders/purchase_order_offer_accepted', {
+      await apiRequest('POST', '/emails/purchase_order_offer_accepted', {
         order: data.purchaseOrder,
         order_spots: data.orderSpots,
         spot_prices: context.spot_prices,
