@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as addressService from "#features/addresses/service.js"
+import * as addressService from "#features/addresses/service.ts"
 
 // WHOSE ADDRESS BOOK. Every one of these took user_id out of the request -
 // req.query.user_id on the read, req.body.user_id on the writes - behind

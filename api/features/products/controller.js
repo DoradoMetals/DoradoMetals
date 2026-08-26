@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as productService from "#features/products/service.js";
+import * as productService from "#features/products/service.ts";
 
 export const getAllProducts = asyncHandler(async (req, res) => {
   res.status(200).json(await productService.getAllProducts());

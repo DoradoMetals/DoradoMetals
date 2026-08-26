@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as rateService from "#features/rates/service.js"
+import * as rateService from "#features/rates/service.ts"
 
 export const getOne = asyncHandler(async (req, res) => {
   const rate = await rateService.getRate(req.query.rate_id);
