@@ -3418,8 +3418,27 @@ structural break in any of those looks exactly like the two that were found.
 across all 132 routes, so the urgent part of this gap is closed. What remains is
 everything only running the code can show.
 
-The inventory script is `scratchpad/routecov.mjs` in the session directory; it is
-twenty lines and worth keeping if this is picked up.
+**THE ROUTE-COVERAGE NUMBERS IN THIS SECTION ARE APPROXIMATE, AND THEY
+UNDERCOUNT.** `scratchpad/routecov.mjs` finds a route as "driven" by matching a
+literal path in a test — `request(app).post("/api/x/y")`. Several suites drive
+routes from a data table instead, through a loop variable or a template, and no
+regex here can resolve those:
+
+- `shared/http/reads-answer.test.js` drives eleven routes from a `READS` array
+- `features/purchase-orders/money-edits.test.js` drives four from `ORDER_EDITS`
+- `features/pdf/replay.test.js` and `features/emails/replay.test.js` build paths
+  with `${route}`
+
+The three template call sites are now resolved by hand in the script. The
+loop-variable ones are not, so the reported "never driven" figure is an **upper
+bound on the gap** rather than a count. Real coverage is higher than any number
+quoted in the commits from this session.
+
+Measuring it properly means instrumenting the router at runtime and recording
+what the suite actually hits, rather than reading the tests. That is the right
+answer and is not done.
+
+The script is worth keeping with that caveat attached to it.
 
 **One route is deliberately left undriven, and will stay that way until you say
 otherwise.** `DELETE /api/purchase_orders/purge_cancelled` is
