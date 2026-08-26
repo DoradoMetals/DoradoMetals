@@ -7,7 +7,7 @@ import {
   getByCarrier,
   remove,
   update,
-} from "#features/shipping/services/controller.js";
+} from "#features/shipping/services/controller.ts";
 
 import {
   requireAdmin,

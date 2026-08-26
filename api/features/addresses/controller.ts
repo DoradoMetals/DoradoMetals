@@ -1,8 +1,11 @@
+import { callerId, requiredParam } from "#shared/http/caller.ts";
+import type { Request } from "express";
+import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as addressService from "#features/addresses/service.ts"
 
 // WHOSE ADDRESS BOOK. Every one of these took user_id out of the request -
-// req.query.user_id on the read, req.body.user_id on the writes - behind
+// oneString(req.query.user_id) on the read, req.body.user_id on the writes - behind
 // requireUser, and nothing asked whether it was the caller's. So a signed-in
 // customer naming somebody else's id could read their address book, and create,
 // edit, delete or re-default an address in it. Addresses are names, street
@@ -15,10 +18,10 @@ import * as addressService from "#features/addresses/service.ts"
 // queries.ts has useUserAddress(userId) with requireAdmin, for the customer
 // drawer - so the rule is "your own, unless you are an admin", exactly as
 // shared/middleware/ownership.js treats an order.
-const subjectOf = (req) => {
+const subjectOf = (req: Request): string => {
   const named = req.body?.user_id ?? req.query?.user_id;
   if (req.user?.role === "admin" && named) return named;
-  return req.user.id;
+  return callerId(req);
 };
 
 export const getAll = asyncHandler(async (req, res) => {

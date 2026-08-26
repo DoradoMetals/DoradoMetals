@@ -6,7 +6,7 @@ import {
   update,
   remove,
   setDefault,
-} from "#features/addresses/controller.js";
+} from "#features/addresses/controller.ts";
 
 import { requireUser } from "#shared/middleware/authMiddleware.js";
 import * as addressesWire from "#features/addresses/wire.ts";

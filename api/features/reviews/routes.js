@@ -7,7 +7,7 @@ import {
   updateReview,
   deleteReview,
   getPublic,
-} from "#features/reviews/controller.js";
+} from "#features/reviews/controller.ts";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.js";
 

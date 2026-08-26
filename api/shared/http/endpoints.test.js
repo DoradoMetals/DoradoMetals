@@ -212,7 +212,12 @@ const controllers = (dir, out = []) => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) controllers(full, out);
-    else if (e.name === "controller.js") out.push(full);
+    // .ts as well as .js. The controllers are being converted one batch at a
+    // time, and this scan looked only for controller.js - so a converted
+    // controller became invisible and its routes "went unchecked", which is
+    // exactly what the assertion below refuses to let pass silently. It caught
+    // the first batch; this is the fix rather than a suppression.
+    else if (e.name === "controller.js" || e.name === "controller.ts") out.push(full);
   }
   return out;
 };
@@ -333,8 +338,14 @@ test("no public endpoint reads a user id from the request", () => {
   };
 
   const bodyOf = (dir, name) => {
-    const file = path.join(dir, "controller.js");
-    if (!fs.existsSync(file)) return null;
+    // .ts as well as .js, for the same reason the scan above needed it: the
+    // controllers are being converted a batch at a time, and this looked only
+    // for controller.js. A converted controller resolved to null, which this
+    // test correctly treats as "went unchecked" rather than "fine".
+    const file = [path.join(dir, "controller.ts"), path.join(dir, "controller.js")].find(
+      (f) => fs.existsSync(f)
+    );
+    if (!file) return null;
     const src = fs.readFileSync(file, "utf8");
     const start = src.indexOf(`export const ${name} =`);
     if (start === -1) return null;

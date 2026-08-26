@@ -6,7 +6,7 @@ import {
   getOne,
   remove,
   update,
-} from "#features/shipping/carriers/controller.js";
+} from "#features/shipping/carriers/controller.ts";
 
 import {
   requireAdmin,

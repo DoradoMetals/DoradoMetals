@@ -5,7 +5,7 @@ import {
   getUrl,
   deleteImage,
   getTestImages,
-} from "#features/media/controller.js";
+} from "#features/media/controller.ts";
 
 import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.js";
 import * as mediaWire from "#features/media/wire.ts";

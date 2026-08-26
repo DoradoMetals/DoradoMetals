@@ -5,7 +5,7 @@ import {
   syncCart,
   getSellCart,
   syncSellCart,
-} from "#features/checkout/controller.js";
+} from "#features/checkout/controller.ts";
 
 import { requireUser } from "#shared/middleware/authMiddleware.js";
 

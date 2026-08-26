@@ -6,7 +6,7 @@ import {
   createLead,
   updateLead,
   deleteLead,
-} from "#features/leads/controller.js";
+} from "#features/leads/controller.ts";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.js";
 

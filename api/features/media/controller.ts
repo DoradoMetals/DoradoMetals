@@ -1,8 +1,10 @@
+import { callerId, requiredParam } from "#shared/http/caller.ts";
+import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as mediaService from "#features/media/service.ts"
 
 export const uploadImage = asyncHandler(async (req, res) => {
-  const result = await mediaService.uploadImage({ ...req.body, user_id: req.user.id });
+  const result = await mediaService.uploadImage({ ...req.body, user_id: callerId(req) });
   return res.status(200).json(result);
 });
 
@@ -11,15 +13,17 @@ export const getUrl = asyncHandler(async (req, res) => {
   // returns null for an image that is not theirs, and "does not exist" and "is
   // not yours" are deliberately the same answer.
   const result = await mediaService.getUrlFor({
-    image_id: req.query.image_id,
-    user_id: req.user.id,
+    image_id: requiredParam(req.query.image_id, "image_id"),
+    user_id: callerId(req),
   });
   if (!result) return res.status(404).json({ error: "Not Found" });
   return res.status(200).json(result);
 });
 
 export const getTestImages = asyncHandler(async (req, res) => {
-  const result = await mediaService.getTestImages(req.body);
+  // getTestImages takes no arguments; req.body was passed and ignored,
+  // which reads as though the body filtered something.
+  const result = await mediaService.getTestImages();
   return res.status(200).json(result);
 });
 
@@ -28,7 +32,7 @@ export const deleteImage = asyncHandler(async (req, res) => {
   // the scoped DELETE, which ran after the file had already been removed.
   const result = await mediaService.deleteImage({
     id: req.body.id,
-    user_id: req.user.id,
+    user_id: callerId(req),
   });
   if (!result) return res.status(404).json({ error: "Not Found" });
   return res.status(200).json(result);

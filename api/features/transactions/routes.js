@@ -1,6 +1,6 @@
 import express from "express";
 
-import { getTransactionHistory } from "#features/transactions/controller.js";
+import { getTransactionHistory } from "#features/transactions/controller.ts";
 
 import { requireUser } from "#shared/middleware/authMiddleware.js";
 

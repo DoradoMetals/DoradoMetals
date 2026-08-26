@@ -1,8 +1,10 @@
+import { callerId, requiredParam } from "#shared/http/caller.ts";
+import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as usersService from "#features/users/service.ts"
 
 export const getUser = asyncHandler(async (req, res) => {
-  const result = await usersService.getUser(req.query.user_id);
+  const result = await usersService.getUser(requiredParam(req.query.user_id, "user_id"));
   return res.status(200).json(result);
 });
 

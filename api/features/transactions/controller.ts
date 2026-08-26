@@ -1,3 +1,4 @@
+import { callerId, requiredParam } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as transactionService from "#features/transactions/service.ts"
 
@@ -28,6 +29,6 @@ import * as transactionService from "#features/transactions/service.ts"
 // nothing calls this endpoint and changing a response shape during a schema
 // migration is separate, deliberate work.
 export const getTransactionHistory = asyncHandler(async (req, res) => {
-  const result = await transactionService.getTransactionHistory(req.user.id);
+  const result = await transactionService.getTransactionHistory(callerId(req));
   return res.status(200).json(result);
 });

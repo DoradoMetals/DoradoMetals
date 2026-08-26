@@ -1,8 +1,10 @@
+import { callerId, requiredParam } from "#shared/http/caller.ts";
+import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as rateService from "#features/rates/service.ts"
 
 export const getOne = asyncHandler(async (req, res) => {
-  const rate = await rateService.getRate(req.query.rate_id);
+  const rate = await rateService.getRate(requiredParam(req.query.rate_id, "rate_id"));
   return res.status(200).json(rate);
 });
 

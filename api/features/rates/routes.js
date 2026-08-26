@@ -7,7 +7,7 @@ import {
   updateRate,
   deleteRate,
   getAdmin,
-} from "#features/rates/controller.js";
+} from "#features/rates/controller.ts";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.js";
 

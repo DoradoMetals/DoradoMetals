@@ -1,8 +1,10 @@
+import { callerId, requiredParam } from "#shared/http/caller.ts";
+import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as reviewService from "#features/reviews/service.ts"
 
 export const getOne = asyncHandler(async (req, res) => {
-  const review = await reviewService.getReview(req.query.review_id);
+  const review = await reviewService.getReview(requiredParam(req.query.review_id, "review_id"));
   return res.status(200).json(review);
 });
 

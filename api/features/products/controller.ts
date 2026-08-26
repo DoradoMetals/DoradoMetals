@@ -1,3 +1,5 @@
+import { callerId, requiredParam } from "#shared/http/caller.ts";
+import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as productService from "#features/products/service.ts";
 
@@ -10,7 +12,7 @@ export const getSellProducts = asyncHandler(async (req, res) => {
 });
 
 export const getProductFromSlug = asyncHandler(async (req, res) => {
-  const rows = await productService.getProductFromSlug(req.query.slug);
+  const rows = await productService.getProductFromSlug(requiredParam(req.query.slug, "slug"));
   if (rows.length === 0) {
     return res.status(404).json({ message: "Not found" });
   }
@@ -22,7 +24,12 @@ export const getHomepageProducts = asyncHandler(async (req, res) => {
 });
 
 export const getFilteredProducts = asyncHandler(async (req, res) => {
-  const { metal_type, filter_category, product_type } = req.query;
+  // Optional filters, narrowed one at a time: Express delivers arrays and
+  // objects for these too, and a filter nobody sent must read as absent
+  // rather than as an object the repo would compare against.
+  const metal_type = oneString(req.query.metal_type);
+  const filter_category = oneString(req.query.filter_category);
+  const product_type = oneString(req.query.product_type);
   res
     .status(200)
     .json(

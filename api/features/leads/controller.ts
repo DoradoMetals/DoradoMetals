@@ -1,8 +1,10 @@
+import { callerId, requiredParam } from "#shared/http/caller.ts";
+import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as leadsService from "#features/leads/service.ts"
 
 export const getOne = asyncHandler(async (req, res) => {
-  const lead = await leadsService.getLead(req.query.lead_id);
+  const lead = await leadsService.getLead(requiredParam(req.query.lead_id, "lead_id"));
   return res.status(200).json(lead);
 });
 

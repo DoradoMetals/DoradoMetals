@@ -10,7 +10,7 @@ import {
   getProductFromSlug,
   getSellProducts,
   saveProduct,
-} from "#features/products/controller.js";
+} from "#features/products/controller.ts";
 
 // Mints are owned by #features/mints. The route stays here because the
 // frontend calls /products/get_mints; only the implementation moved.

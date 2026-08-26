@@ -156,22 +156,41 @@ test("the set of admin-guarded routes is the one that was reviewed", () => {
 // `user_id: req.user.id` is not reading one at all.
 test("no requireUser handler takes a user_id from the request without an admin check", () => {
   const offenders = [];
+  const unresolved = [];
 
   for (const r of allRoutes) {
     const isUserOnly =
       r.guards.some((g) => /requireUser/.test(g)) && !r.guards.some((g) => /requireAdmin/.test(g));
     if (!isUserOnly) continue;
 
-    const controller = r.file.replace(/routes\.(js|ts)$/, "controller.js");
-    let src;
-    try {
-      src = readFileSync(new URL(`../../${controller}`, import.meta.url), "utf8");
-    } catch {
+    // BOTH EXTENSIONS, AND A HANDLER THIS CANNOT FIND IS A FAILURE.
+    //
+    // This looked only for controller.js and skipped silently when the read
+    // threw. The controllers are being converted a batch at a time, so a
+    // converted one would have dropped out of this rule without a word - the
+    // check would still report clean while covering less of the surface every
+    // time another batch landed. shared/http/endpoints.test.js had the same
+    // assumption and caught it by refusing; this now refuses too.
+    let src = null;
+    for (const ext of ["ts", "js"]) {
+      const controller = r.file.replace(/routes\.(js|ts)$/, `controller.${ext}`);
+      try {
+        src = readFileSync(new URL(`../../${controller}`, import.meta.url), "utf8");
+        break;
+      } catch {
+        /* try the other extension */
+      }
+    }
+    if (src === null) {
+      unresolved.push(`${r.verb} ${r.url} (no controller file)`);
       continue;
     }
 
     const start = src.indexOf(`export const ${r.handler}`);
-    if (start < 0) continue;
+    if (start < 0) {
+      unresolved.push(`${r.verb} ${r.url} (${r.handler} not exported)`);
+      continue;
+    }
     const next = src.indexOf("\nexport const", start + 1);
     // Comments stripped: this very file explains the rule in prose above each
     // handler it applies to, and prose is not code.
@@ -185,6 +204,13 @@ test("no requireUser handler takes a user_id from the request without an admin c
     if (readsFromRequest && !checksAdmin) offenders.push(`${r.verb} ${r.url}`);
   }
 
+  // A handler this cannot resolve is a failure, not a pass - otherwise a rename
+  // or a conversion quietly empties the check.
+  assert.deepEqual(
+    unresolved,
+    [],
+    "could not find the handler for these routes, so they went unchecked"
+  );
   assert.deepEqual(
     offenders,
     [],

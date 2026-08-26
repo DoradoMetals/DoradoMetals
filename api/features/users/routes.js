@@ -5,7 +5,7 @@ import {
   getUser,
   getAdmins,
   updateCredit,
-} from "#features/users/controller.js"
+} from "#features/users/controller.ts"
 
 import { requireAdmin } from '#shared/middleware/authMiddleware.js';
 
