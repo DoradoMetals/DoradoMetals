@@ -3421,6 +3421,22 @@ everything only running the code can show.
 The inventory script is `scratchpad/routecov.mjs` in the session directory; it is
 twenty lines and worth keeping if this is picked up.
 
+**One route is deliberately left undriven, and will stay that way until you say
+otherwise.** `DELETE /api/purchase_orders/purge_cancelled` is
+`DELETE FROM exchange.purchase_orders WHERE purchase_order_status = 'Cancelled'`
+— a bulk delete of the live table. A pinned transaction would roll it back, and
+the pin is proven by its own tests, but CLAUDE.md's rule about deleting is
+categorical rather than conditional, and covering a cleanup endpoint is not
+worth being wrong about the harness. It is the only route excluded for that
+reason rather than for a side effect.
+
+**`POST /get_payout_details` is now covered, carefully.** It is the one endpoint
+allowed to return full bank details — `exchange.payouts` holds routing and
+account numbers in plaintext, and order responses carry only last-4. The test
+asserts on KEYS and status and never prints or interpolates the body, including
+on failure: a test that dumps the response on a bad day would put a customer's
+bank account into a CI log.
+
 ## Testing
 
 **The money paths are covered.** Every repo function that moves money, prices
