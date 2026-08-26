@@ -83,7 +83,7 @@ const carriers = await import("#features/shipping/carriers/repo.js");
 const services = await import("#features/shipping/services/repo.js");
 const users = await import("#features/users/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
-const productsWire = await import("#features/products/wire.js");
+const productsWire = await import("#features/products/wire.ts");
 const mediaWire = await import("#features/media/wire.ts");
 const refinersWire = await import("#features/refiners/wire.ts");
 const carriersWire = await import("#features/shipping/carriers/wire.js");
@@ -204,7 +204,7 @@ await bothWays(
 // Two shapes now, and both are checked.
 //
 // The repos return BullionWire - products.bullion's own names - because that is
-// the internal truth from here on. features/products/wire.js converts it down
+// the internal truth from here on. features/products/wire.ts converts it down
 // to ProductWire, which is what the frontend reads, and PRODUCTS_WIRE decides
 // which one leaves the API.
 //

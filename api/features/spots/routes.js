@@ -4,7 +4,7 @@ import {
 } from '#features/spots/controller.js';
 
 import * as spotsWire from "#features/spots/wire.ts";
-import { wireShape } from "#shared/wire/middleware.js";
+import { wireShape } from "#shared/wire/middleware.ts";
 
 const router = express.Router();
 

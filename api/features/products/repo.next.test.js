@@ -10,7 +10,7 @@ import pool from "#db";
 import * as next from "#features/products/repo.next.js";
 import * as exchange from "#features/products/repo.exchange.js";
 import * as dual from "#features/products/repo.dual.js";
-import { toLegacy } from "#features/products/wire.js";
+import { toLegacy } from "#features/products/wire.ts";
 
 let client;
 
@@ -38,7 +38,7 @@ async function inRollback(fn) {
 //
 // The direction of that rename inverted when the wire adapter went in. The repos
 // now return the NEW names - that is the internal truth - and
-// features/products/wire.js converts down to the old ones on the way out, behind
+// features/products/wire.ts converts down to the old ones on the way out, behind
 // PRODUCTS_WIRE. Both halves are asserted here, because getting either backwards
 // is how the frontend breaks.
 test("the repo returns the new names, not the exchange ones", async () => {

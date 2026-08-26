@@ -3,7 +3,7 @@
 // product_name, product_description and product_type.
 //
 // These lists used to alias them back to the exchange names. They no longer do:
-// the new shape is the internal truth now, and features/products/wire.js
+// the new shape is the internal truth now, and features/products/wire.ts
 // converts down to the legacy names on the way out, behind PRODUCTS_WIRE. The
 // exchange field lists alias UP to meet these.
 //

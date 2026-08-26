@@ -28,23 +28,52 @@
 // to lift to null. So this is applied at most once per request, whichever route
 // or router mounts it first, and a second mount is a no-op rather than a
 // corruption.
+import type { NextFunction, Request, RequestHandler, Response } from "express";
+import type { WireData } from "#shared/wire/rename.ts";
+
+// STRUCTURAL, NOT NOMINAL. Four features declare their adapter through
+// makeWireAdapter and three write their own, so this cannot depend on the
+// helper's return type - it has to accept anything shaped like an adapter.
+// `fromWire` is optional because the check below already tolerates its absence.
+export interface WireLike {
+  toWire: (data: WireData) => WireData;
+  fromWire?: (data: WireData) => WireData;
+}
+
+export interface WireShapeOptions {
+  /**
+   * The key in the request body holding the entity, or omitted when the body IS
+   * the entity, or false when the feature has no writes to convert.
+   */
+  body?: string | false;
+}
+
 const APPLIED = Symbol("wireShape");
 
-export function wireShape(adapter, { body } = {}) {
-  return (req, res, next) => {
-    if (res[APPLIED]) return next();
-    res[APPLIED] = true;
+// res is widened rather than augmenting Express's own Response type globally: a
+// module-level declaration merge would put this symbol on every response in the
+// codebase to serve one middleware.
+type Marked = Response & { [APPLIED]?: boolean };
+
+export function wireShape(adapter: WireLike, { body }: WireShapeOptions = {}): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const marked = res as Marked;
+    if (marked[APPLIED]) return next();
+    marked[APPLIED] = true;
 
     if (body !== false && adapter.fromWire && req.body && typeof req.body === "object") {
       if (body === undefined) {
-        req.body = adapter.fromWire(req.body);
-      } else if (req.body[body] !== undefined) {
-        req.body = { ...req.body, [body]: adapter.fromWire(req.body[body]) };
+        req.body = adapter.fromWire(req.body as WireData);
+      } else if ((req.body as Record<string, unknown>)[body] !== undefined) {
+        req.body = {
+          ...(req.body as Record<string, unknown>),
+          [body]: adapter.fromWire((req.body as Record<string, unknown>)[body] as WireData),
+        };
       }
     }
 
     const send = res.json.bind(res);
-    res.json = (payload) => send(adapter.toWire(payload));
+    res.json = (payload: unknown) => send(adapter.toWire(payload as WireData));
 
     next();
   };

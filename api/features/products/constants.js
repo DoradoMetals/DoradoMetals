@@ -2,7 +2,7 @@
 //
 // These alias UP to the new schema's names - name, description and type -
 // because the new shape is the internal truth now and both implementations
-// have to speak it. features/products/wire.js converts back down to
+// have to speak it. features/products/wire.ts converts back down to
 // product_name and friends on the way out, behind PRODUCTS_WIRE, and that
 // adapter is deleted when the frontend stops reading the old names.
 export const PRODUCT_FIELDS = `

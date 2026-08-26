@@ -20,8 +20,8 @@ import { getAllMints } from "#features/mints/controller.js";
 import { getAllMetals } from "#features/spots/controller.js";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.js";
-import * as productsWire from "#features/products/wire.js";
-import { wireShape } from "#shared/wire/middleware.js";
+import * as productsWire from "#features/products/wire.ts";
+import { wireShape } from "#shared/wire/middleware.ts";
 
 const router = express.Router();
 
