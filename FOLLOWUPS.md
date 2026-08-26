@@ -3826,6 +3826,33 @@ carries the allowlist exactly, and `organizations.organizations`, whose `type`
 is a different concept that merely shares a column name. One verdict per
 constraint, not one per target.
 
+### And 2 foreign keys carried over without the key
+
+The fourth kind, and the one that most needed narrowing. A naive comparison —
+"the source has an FK on these columns, does the target" — reports **four**
+losses, and **two of them are wrong**, because a relationship legitimately moves
+table:
+
+- `exchange.addresses(user_id)` → `places.user_addresses(user_id)`, a join table
+  that keeps the FK.
+- `exchange.carrier_pickups(user_id)` → reachable through
+  `fulfillments.pickups(fulfillment_id)` → fulfillment → order → user.
+
+Both of those targets have no `user_id` column at all, which is the tell. So the
+check only judges a target that **has** the mapped column and has no foreign key
+on it — the case where the column was carried over and the guard was not. That
+was verified by hand against all four before the rule was narrowed, rather than
+tuning until the output looked tidy. 35 carried-over keys, two reported:
+
+- **`exchange.account_transactions(user_id)` → `payments.ledger(user_id)` has
+  the column and no foreign key.** This is the credit ledger — 17 rows, 8
+  customers, $66,999.32. Today a ledger entry cannot name a user who does not
+  exist. Afterwards it can, and an orphaned ledger row is money attributed to
+  nobody.
+- **`exchange.payment_intents(session_id)` → `payments.intents(session_id)`**,
+  same shape. Arguably deliberate: sessions expire, and a foreign key to a row
+  that gets cleaned up is its own problem. Worth a decision rather than a fix.
+
 Read `pg_index`, not `pg_constraint`, if you extend this. A bare `CREATE UNIQUE
 INDEX` is not a constraint row, and my first two attempts queried `pg_constraint`
 and both reported zero single-column uniques outside primary keys — for a schema

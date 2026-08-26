@@ -341,4 +341,93 @@ if (!checksLost.length) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// FOREIGN KEYS, and why this section is narrower than it looks like it should be.
+//
+// A naive comparison - "the source has an FK on these columns, does the target"
+// - reports FOUR losses here, and TWO of them are wrong. A relationship
+// legitimately MOVES TABLE:
+//
+//   exchange.addresses(user_id)      -> places.user_addresses(user_id), which
+//                                       is a join table and keeps the FK
+//   exchange.carrier_pickups(user_id)-> reachable through
+//                                       fulfillments.pickups(fulfillment_id)
+//                                       -> fulfillment -> order -> user
+//
+// Both of those targets do not have a user_id column AT ALL, which is the tell.
+// So this only judges a target that HAS the mapped column and has no foreign
+// key on it - the case where the column was carried over and the guard was not.
+// Checked by hand against all four before narrowing it, rather than tuning the
+// rule until the output looked nice.
+const fkColumnsOf = async (table) => {
+  const [schema, name] = table.split(".");
+  const { rows } = await pool.query(
+    `SELECT a.attname::text AS column,
+            EXISTS (SELECT 1 FROM pg_constraint k
+                     WHERE k.conrelid = c.oid AND k.contype = 'f'
+                       AND a.attnum = ANY(k.conkey)) AS has_fkey
+       FROM pg_attribute a
+       JOIN pg_class c ON c.oid = a.attrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped`,
+    [schema, name]
+  );
+  return new Map(rows.map((r) => [r.column, r.has_fkey]));
+};
+
+const sourceFks = async (table) => {
+  const [schema, name] = table.split(".");
+  const { rows } = await pool.query(
+    `SELECT array_agg(a.attname::text ORDER BY k.ord) AS cols
+       FROM pg_constraint con
+       JOIN pg_class c ON c.oid = con.conrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       CROSS JOIN LATERAL unnest(con.conkey::int[]) WITH ORDINALITY k(attnum, ord)
+       JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
+      WHERE n.nspname = $1 AND c.relname = $2 AND con.contype = 'f'
+      GROUP BY con.oid`,
+    [schema, name]
+  );
+  return rows.map((r) => r.cols ?? []).filter((c) => c.length);
+};
+
+let fkChecked = 0;
+const fkLost = [];
+
+for (const [feature, sources] of Object.entries(features)) {
+  for (const [source, targets] of Object.entries(sources)) {
+    const renames = RENAMES[source] ?? {};
+    for (const cols of await sourceFks(source)) {
+      const mapped = cols.map((c) => renames[c] ?? c);
+      if (mapped.includes("-")) continue;
+
+      const carriedButUnguarded = [];
+      let covered = false;
+      for (const target of targets) {
+        const fks = await fkColumnsOf(target);
+        const present = mapped.filter((c) => fks.has(c));
+        if (present.length !== mapped.length) continue; // moved table; not this check's business
+        fkChecked += 1;
+        if (mapped.every((c) => fks.get(c))) { covered = true; break; }
+        carriedButUnguarded.push(`${target}(${mapped.join(", ")})`);
+      }
+      if (!covered && carriedButUnguarded.length) {
+        fkLost.push({ feature, from: `${source}(${cols.join(", ")})`, to: carriedButUnguarded.join(", ") });
+      }
+    }
+  }
+}
+
+console.log(`\n${fkChecked} foreign key(s) whose columns were carried over to a target`);
+if (!fkLost.length) {
+  console.log("every one of them is a foreign key on the other side too");
+} else {
+  console.log(`${fkLost.length} carried over WITHOUT the foreign key:\n`);
+  for (const f of fkLost) {
+    console.log(`  ${f.feature}`);
+    console.log(`    ${f.from}`);
+    console.log(`      -> ${f.to} has the column but no foreign key on it\n`);
+  }
+}
+
 await pool.end();
