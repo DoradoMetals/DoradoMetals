@@ -21,8 +21,21 @@ import {
 // accept it - the packing list reads the fee off purchaseOrder.payout.cost. It
 // is still accepted here because the frontend sends it, and dropping a field
 // from a request body is a wire change.
+// `to` IS A PARAMETER, NOT A FIELD OF THE BODY.
+//
+// This sent to `purchaseOrder.user.user_email`, an address out of req.body,
+// behind requireUser. Any signed-in account could send mail FROM the business's
+// own domain TO any address it named, subject "Your Order Has Been Placed!",
+// with a PDF attachment it also supplied - an open relay and a ready-made
+// phishing template, at the cost of the sending domain's reputation.
+//
+// The recipient is now resolved and authorised by the controller, from the
+// stored order, and handed in. Same seam as `transport`: a separate parameter
+// rather than a field on the input object, because the input object IS req.body
+// and anything read off it can be chosen by the caller.
 export async function sendCreatedEmail(
   { purchaseOrder, spotPrices, packageDetails },
+  to,
   transport
 ) {
   const pdfBuffer = await pdfService.generatePackingList({
@@ -32,7 +45,7 @@ export async function sendCreatedEmail(
   });
 
   await sendEmail({
-    to: purchaseOrder.user.user_email,
+    to,
     subject: "Your Order Has Been Placed!",
     html: renderPurchaseOrderPlacedEmail({
       firstName: purchaseOrder.user.user_name,
@@ -50,8 +63,11 @@ export async function sendCreatedEmail(
   }, transport);
 }
 
+// Same change, and this one was more direct: `email` came off the body and went
+// straight into `to:`.
 export async function sendAcceptedEmail(
-  { order, order_spots, spot_prices, email },
+  { order, order_spots, spot_prices },
+  to,
   transport
 ) {
   let pdfBuffer;
@@ -68,7 +84,7 @@ export async function sendAcceptedEmail(
   }
 
   await sendEmail({
-    to: email,
+    to,
     subject: `Offer Accepted - Order ${formatPurchaseOrderNumber(
       order.order_number
     )}`,
@@ -102,6 +118,9 @@ export async function sendSalesOrderToSupplier(order, spots, email, transport) {
   }
 
   await sendEmail({
+    // `email` here is not from a request body - sendSalesOrderToSupplier is not
+    // a route. It is called with the refiner's address the order was placed
+    // against, and it already took it as an explicit parameter.
     to: email,
     subject: `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(
       order.order_number

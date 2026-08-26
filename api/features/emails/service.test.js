@@ -85,8 +85,13 @@ test("the order confirmation goes to the customer with its packing list attached
   const order = anOrderWithAUser();
   const t = recorder();
 
+  // `to` is a parameter now, resolved and authorised by the controller from the
+  // stored order. It used to be read off purchaseOrder.user.user_email, which
+  // made the endpoint an open relay - the body chose the recipient. Passing the
+  // same address here keeps this test asserting exactly what it did before.
   await emails.sendCreatedEmail(
     { purchaseOrder: order, spotPrices: spots, packageDetails: { label: "Medium Box" } },
+    order.user.user_email,
     t
   );
 
@@ -115,7 +120,8 @@ test("the offer acceptance carries the invoice, named for the same order", async
   const t = recorder();
 
   await emails.sendAcceptedEmail(
-    { order, order_spots: [], spot_prices: spots, email: order.user.user_email },
+    { order, order_spots: [], spot_prices: spots },
+    order.user.user_email,
     t
   );
 
@@ -154,6 +160,7 @@ test("a transport failure propagates rather than being swallowed", async () => {
   await assert.rejects(
     () => emails.sendCreatedEmail(
       { purchaseOrder: order, spotPrices: spots, packageDetails: {} },
+      order.user.user_email,
       failing()
     ),
     /Authentication failed/,
@@ -168,7 +175,8 @@ test("nothing is sent when the document cannot be built", async () => {
 
   await assert.rejects(
     () => emails.sendAcceptedEmail(
-      { order: { order_number: 1, user: {} }, order_spots: [], spot_prices: spots, email: "x@y.z" },
+      { order: { order_number: 1, user: {} }, order_spots: [], spot_prices: spots },
+      "x@y.z",
       t
     ),
     /invoice PDF generation failed/

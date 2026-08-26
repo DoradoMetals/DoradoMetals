@@ -348,6 +348,121 @@ Worth noting `addFunds` and `removeFunds` were already correct and already
 transactional; the existing tests cover the property that matters, which is that
 a balance movement and its ledger entry commit together.
 
+### FOR JACOB, THE URGENT ONE: the customer sets the spot price they are charged at
+
+**Not fixed. It needs a decision that is yours, and the fix runs through a wire
+shape that is mid-migration.** This is live in production today.
+
+`spots` arrives in the **request body** and is what every money figure is
+computed from. `calculateItemAsk` is:
+
+```js
+content * (spot.ask_spot * ask_premium)
+```
+
+The item's own `price` field is not used. The number that prices an ounce of
+gold is the one in the request. It reaches three places, all from `req.body`:
+
+- `POST /api/tax/get_sales_tax` → `getSalesTax({ address, items, spots })`
+- `createSalesOrder({ sales_order, payment_intent_id, spot_prices })`
+- `updatePaymentIntent({ items, using_funds, spots, ... })` → and there
+  `rawAmount = Math.round(orderPrices.post_charges_amount * 100)` becomes the
+  **Stripe charge amount**, floored at `Math.max(rawAmount, 1000)`.
+
+Measured against `calculateSalesOrderTotal`, one Coin, `content: 1`,
+`ask_premium: 1.05`, STANDARD shipping, CARD — identical in every respect except
+the `spots` array in the body:
+
+| client's `ask_spot` | order total | Stripe is told |
+|---|---|---|
+| 3400 (honest) | $3,673.53 | 367353 |
+| 100 | $133.77 | 13377 |
+| 1 | $26.81 | 2681 |
+| 0 | $25.73 | 2573 |
+
+So an ounce of gold can be bought for **$26.81**, and the floor means nothing
+goes below $10.00. The recorded order total and the charge agree with each
+other, so nothing downstream flags it — both were computed from the same
+supplied number.
+
+**What is already safe.** Items are re-fetched server-side with
+`productService.getItemsFromServer(sales_order.items)`, so the product, its
+`content` and its premium cannot be faked. The address is loaded by id. It is
+only the metal price that is taken on trust.
+
+**Why I did not just fix it.** The obvious fix — have the server fetch its own
+spots — is not a one-line change, for two reasons worth knowing before you make
+it:
+
+1. **The calculation reads the legacy WIRE shape, not the internal one.**
+   `calculateItemAsk` matches `s.type` and reads `s.ask_spot`. The repo returns
+   `{ id, name, ask, bid }` and `shared/wire` converts to
+   `{ type, ask_spot, bid_spot }` at the edge. So server-sourced spots have to
+   be converted *back* into the wire shape to feed the calculation — and
+   `SPOTS_WIRE` is one of the seven switches still on `legacy`. Whatever is
+   written now has to keep working when it flips.
+2. **It is partly a pricing-policy question.** Sending spots from the client is
+   a crude price lock: the customer is charged the price they were quoted rather
+   than one that moved while they were checking out. Making the server
+   authoritative removes that lock. The proper answer is a server-side quote —
+   store the spot at quote time, charge against the stored one, expire it — and
+   that is a design decision rather than a patch.
+
+My recommendation is the server-side quote, with the stored spot referenced by
+id from the intent. A one-line "use server spots" change would close the hole
+and silently change what a customer pays relative to what they were shown.
+
+`features/sales-tax/replay.test.js` pins the current behaviour, including the
+zero-tax-when-no-spots case, so that changing it is deliberate and visible.
+
+### FOR JACOB: an eighth — the email endpoints were an open relay on your domain
+
+**Fixed.** This is the one you were worried about when you said we cannot be
+emailing Elemetal fake orders.
+
+Both email routes are `requireUser` and both took the RECIPIENT from the
+request body:
+
+```js
+sendCreatedEmail   ->  to: purchaseOrder.user.user_email   // from req.body
+sendAcceptedEmail  ->  to: email                            // from req.body
+```
+
+So any signed-in account could send mail **from the business's own domain, to
+any address it named**, with the subject "Your Order Has Been Placed!" and a PDF
+attachment whose contents it also supplied. That is an open relay and a
+ready-made phishing template — a message that passes SPF and DKIM because it
+genuinely is from you. It also spends the sending domain's reputation, and
+unlike a bug, reputation is not recovered by deploying a fix.
+
+**The fix.** The recipient is resolved by the controller from the **stored**
+order and handed to the service as its own parameter — the same seam shape as
+`transport`, and for the same reason: the input object *is* `req.body`, so
+anything read off it can be chosen by the caller. The caller must also be
+entitled to the order: an admin may send on a customer's behalf, anyone else
+only about their own. Without that, naming somebody else's order id would be a
+way to mail that customer at will from a domain they trust.
+
+`sendSalesOrderToSupplier` — the one that actually emails the refiner — was
+already correct: it is not a route, and it already took the address as an
+explicit parameter. It is unchanged, and the existing test that says so caught
+me when a too-broad edit briefly rewrote its recipient.
+
+**Two things about the tests are worth knowing.**
+
+The suite proves the fix through the cases that *require* the lookup to have
+happened — an unknown order id answering 404, a stranger answering 403. The
+more obvious test, "an address in the body cannot redirect the mail", **does not
+discriminate**: with the fix the controller resolves the real address and
+proceeds to send, without it the body's address is used and it also proceeds to
+send, and both then hit the test-mode transport guard and fail identically. It
+passed against the reverted code. That is recorded in the file rather than left
+looking stronger than it is.
+
+And no mail can leave the suite structurally, not by convention: `sendEmail`
+refuses to construct the real SMTP transport when `NODE_ENV=test`, and the last
+test asserts that refusal rather than assuming it.
+
 ### FOR JACOB: a seventh — the credit ledger could be read by naming its owner
 
 `GET /api/transactions/get_transactions` is `requireUser` and did
