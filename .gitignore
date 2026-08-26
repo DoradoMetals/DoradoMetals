@@ -19,3 +19,8 @@ packages/contracts/.env
 /unified_customers.csv
 /unified_payments.csv
 /*stripe*.csv
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/

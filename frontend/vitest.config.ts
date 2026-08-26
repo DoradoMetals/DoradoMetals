@@ -2,14 +2,22 @@ import { defineConfig } from "vitest/config";
 import path from "node:path";
 
 // Unit tests only: pure functions and the shapes the API contract depends on.
-// No browser or e2e harness - that is a bigger decision than this config, and
-// rendering React would mean picking a DOM implementation and a testing
-// library. What is here runs in plain Node and needs neither.
+// They run in plain Node, need no DOM implementation and no testing library,
+// and finish in seconds - which is what lets `pnpm check` run them on every
+// change.
+//
+// THE END-TO-END TESTS ARE NOT THESE. They live in e2e/ as *.spec.ts, are
+// driven by Playwright against a real browser and a live API, and run under
+// `pnpm --filter @dorado/frontend e2e`. They are excluded here twice over - by
+// the .test.ts include pattern and by the explicit exclude below - because the
+// separation matters more than it looks: vitest picking up a Playwright spec
+// fails confusingly, and adding minutes of browser startup to `pnpm check`
+// would make the check something people skip.
 export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts"],
-    exclude: ["node_modules/**", ".next/**"],
+    exclude: ["node_modules/**", ".next/**", "e2e/**"],
   },
   resolve: {
     // Matches the `@/*` path alias in tsconfig.json.
