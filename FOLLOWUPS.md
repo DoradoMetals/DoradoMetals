@@ -683,6 +683,62 @@ and silently change what a customer pays relative to what they were shown.
 `features/sales-tax/replay.test.js` pins the current behaviour, including the
 zero-tax-when-no-spots case, so that changing it is deliberate and visible.
 
+### Sales orders have been taxed in no state at all since 6 January 2026
+
+**Fixed, and it is not the same thing as money having been lost.** Read the
+second half before deciding how alarming this is.
+
+`createSalesOrder` and `adminCreateSalesOrder` both did:
+
+```js
+const address = await addressRepo.getFromId(sales_order.address.id);
+...
+taxService.attachSalesTaxToItems(address.state, ...)   // what the customer pays
+taxRepo.updateStateSalesTax(orderPrices.sales_tax, address.state, ...)  // what we owe
+```
+
+`addressRepo.getFromId` returns `rows` — a **list**. `address.state` on a list
+is `undefined`. `getSalesTax` passes it as `$1`, no rule matches a NULL
+`state_code`, and the query `COALESCE`s to a rate of **0**. The liability update
+is `WHERE state = $2`, which matches nothing — though that one is moot in
+effect, since the amount it would have added is itself 0.
+
+**Where it came from.** `cf724c4e`, "fix sales order bug", 6 January 2026,
+replaced `addressService.getAddressFromId` — which returns `rows[0]` — with the
+repo call. That service function had been **deleted in `be03eed3`**, the
+December feature-slicing: the same deletion that left
+`POST /api/stripe/update_payment_intent` answering 500 for eight months. One
+call site was left broken and one was "fixed" into something quieter.
+
+**Why I am not claiming money was lost.** No production state has
+`reached_nexus = true` — the table is empty of them — so if
+`COLLECTING_NEXUS_TAXES` is on in production, `getSalesTax` returns 0 before the
+rules are ever consulted and this defect changes nothing today. Exactly **one**
+sales order was placed after `cf724c4e`: a Texas order, and Texas exempts
+bullion. There is no order whose tax can be shown to be wrong. The one
+production order that *did* carry tax — $18.67, Maryland, 27 June 2025 —
+predates the regression, which is consistent with the engine working before it.
+Consistent with, not proof of.
+
+**So the exposure is forward, and it is real**: the moment a state is marked as
+having reached nexus, or that flag is turned off, orders are taxed against
+`undefined` and quietly come back zero. That is a tax-collection failure that
+looks exactly like a customer who owes no tax.
+
+**What to check when you are up**: whether `COLLECTING_NEXUS_TAXES` is `true` in
+Railway, and whether it should be. If it is `false` there, orders since January
+were taxed by the rules with a NULL state — still zero, but for a different
+reason, and the Texas order would have been zero anyway.
+
+**Fixed two ways.** The call sites now use `addressService.getAddressFromId`,
+and `features/addresses/repo.d.ts` types the facade so `getFromId(...).state` is
+a **compile error** rather than a silent zero — for every caller, permanently.
+The repo facade resolves its implementation with `SOURCES[SOURCE]`, and a
+dynamic index erases the type to `any`, which is why nothing caught this.
+`features/sales-orders/address-state.test.js` proves both halves; the rule and
+the item it tests with are derived from the same database row, so the fixture
+cannot drift from the data.
+
 ### FOR JACOB: an eighth — the email endpoints were an open relay on your domain
 
 **Fixed.** This is the one you were worried about when you said we cannot be

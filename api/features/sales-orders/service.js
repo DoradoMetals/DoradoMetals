@@ -10,7 +10,7 @@ import * as refinerRepo from "#features/refiners/repo.js";
 import * as taxRepo from "#features/sales-tax/repo.js";
 
 import * as emailService from "#features/emails/service.ts";
-import * as addressRepo from "#features/addresses/repo.js";
+import * as addressService from "#features/addresses/service.ts";
 import * as taxService from "#features/sales-tax/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import * as productService from "#features/products/service.ts";
@@ -47,11 +47,26 @@ export async function getMetalsForOrder(orderId) {
 // between the customer loading the page and confirming, the recorded total is
 // the newer one. A quote held for a few minutes is the proper answer and is
 // written up in FOLLOWUPS; it needs a table, and the schema is mid-migration.
+// THE ADDRESS IS A ROW, NOT A LIST OF THEM.
+//
+// This read `addressRepo.getFromId(...)`, which returns `rows`, and then took
+// `.state` off it - which on an array is `undefined`. Both uses below are the
+// taxing state: one decides what the customer is charged, the other credits
+// the state's liability. Taxed in no state at all, the rules match nothing and
+// COALESCE to a rate of zero, silently.
+//
+// It arrived in cf724c4e, "fix sales order bug", 6 January 2026, which replaced
+// addressService.getAddressFromId - deleted in the December feature-slicing -
+// with the repo call. The same deletion left update_payment_intent answering
+// 500 for eight months (cf5a94eb). One call site was left broken; this one was
+// "fixed" into something quieter.
+//
+// features/sales-orders/address-state.test.js proves both halves.
 export async function createSalesOrder({ sales_order, payment_intent_id }, headers) {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(headers),
   });
-  const address = await addressRepo.getFromId(sales_order.address.id);
+  const address = await addressService.getAddressFromId(sales_order.address.id);
   const serverItems = await productService.getItemsFromServer(
     sales_order.items
   );
@@ -119,7 +134,7 @@ export async function adminCreateSalesOrder({
   payment_intent_id,
   user,
 }) {
-  const address = await addressRepo.getFromId(sales_order.address.id);
+  const address = await addressService.getAddressFromId(sales_order.address.id);
   const serverItems = await productService.getItemsFromServer(
     sales_order.items
   );
