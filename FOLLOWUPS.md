@@ -3704,3 +3704,35 @@ The one that hid the August checkout outage for months was the last of them.
 - `api/features/rates/utils/resolveRate.js` still points at
   `apps/frontend/features/rates/utils/resolveRate.ts` in its header comment —
   a path that stopped existing when the workspace was flattened to `frontend/`.
+
+## The database connection accepts any certificate
+
+`api/db.ts` sets `ssl: { rejectUnauthorized: false }`, which accepts whatever
+certificate the server presents without verifying it. That is the common
+setting for managed Postgres, which frequently serves a self-signed
+certificate — turning verification on without knowing what production actually
+serves would refuse every connection, so it is recorded here rather than
+changed.
+
+It belongs next to the credential rotation, not separate from it: the database
+password is already on the list to rotate, and a connection nobody
+authenticates is the thing that would make an intercepted one useful.
+
+Deciding it needs one fact I cannot read from here — what certificate Railway's
+Postgres presents. If it is a real one, `rejectUnauthorized: true` costs
+nothing. If it is self-signed, the answer is `ca:` with the certificate pinned
+rather than verification off.
+
+## An unset DATABASE_URL used to connect somewhere else
+
+Closed in the same commit, and written down because the reasoning has an
+exception in it. pg falls back to `PGHOST`/`PGUSER`/`PGDATABASE` when no
+connection string is given, and `#env` sets `PGHOST`. Measured: with the parts
+blanked so composition fails, a pg Client resolved `localhost` / `jtj60` /
+`jtj60` and would have opened a working connection to it.
+
+`api/db.ts` now refuses — **except when `NODE_ENV === "production"`**. That
+asymmetry is deliberate. Whatever production resolves today is what it has
+always resolved, so a refusal there could only take a working site down over a
+variable that cannot be read from here. `db.test.js` pins both halves so the
+exception is not later "fixed" into consistency.

@@ -49,7 +49,7 @@
   },
   "imports": {
     "#env": "./env.js",
-    "#db": "./db.js",
+    "#db": "./db.ts",
     "#app": "./app.js",
     "#shared/*": "./shared/*",
     "#features/*": "./features/*",
