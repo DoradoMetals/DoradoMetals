@@ -4372,3 +4372,39 @@ customers have never verified their email, and no route requires it.** Whether
 that should be true of placing an order, or of requesting a payout, is a
 business call. If the answer is yes, the fix is not this guard — it would need
 to read `emailVerified` rather than a role rung that will stay empty.
+
+## The machinery behind every `*_WIRE` switch had no test
+
+`shared/wire/rename.ts` (`makeWireAdapter`) and `shared/wire/middleware.ts`
+(`wireShape`) decide what shape leaves the API — the axis D32 is about — and
+neither had a test. `shared/wire/adapter.test.js` covers both in 15 tests.
+Nothing changed.
+
+**The safe direction is the point.** An unset switch, or one holding a typo,
+`"NEXT"`, `"true"` or a trailing space, resolves to **legacy** — never to the
+shape the frontend has never seen. That is pinned across seven bad values.
+`fromWire` converts in *both* switch positions, which is right and looks wrong
+until you see why: a request already in the new shape has no legacy names left
+to rename, so converting it is a no-op.
+
+**Two sharp edges, both stated.** `rename()` writes into a fresh object, so a
+row that *already* holds the key a rename is about to write loses one of the
+two values silently — the row's own value wins and nothing says a field went
+missing. And the double-apply guarantee only holds while no legacy name is also
+a new name. Neither can happen today, and a structural test over the real
+adapters is what keeps that true: no map may send two fields to one legacy
+name, and no legacy name may also be a new name. Measured across all three
+rename maps (`MEDIA`, `PRODUCTS`, `SPOTS`) — clean, and the test refuses if it
+finds fewer than three maps.
+
+**One test I wrote was worthless and mutation testing caught it.** The
+"applies once per response" test used a rename adapter — and a rename applied
+twice renames nothing the second time, exactly as the source comment says. So
+deleting the guard entirely left all 15 tests passing. Rewritten with a
+counting adapter that is *not* idempotent, which is the case the guard actually
+exists for: `flatten()` on an already-flat object nulls every field it meant to
+lift. **A test of an idempotency guard must use something non-idempotent.**
+
+Mutation-checked three ways: making the fallback select `next` fails 1 test,
+deleting the applied-once guard fails 1 (after the rewrite — 0 before it), and
+pointing two fields of a real map at one legacy name fails 1.
