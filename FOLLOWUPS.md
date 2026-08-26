@@ -4743,3 +4743,95 @@ Production is unaffected: the test ran against dev. So the rule stands for
 production, and **dev shipping is the one place where `exchange` is not the
 better copy.** Anyone rehearsing the promotion on dev should know that before
 running a backfill and concluding the tracking data was always thin.
+
+## The indexes nobody was comparing
+
+`audit:constraints` compares four kinds of guard between `exchange` and the
+schema replacing it: NOT NULL, CHECK, foreign keys, and unique indexes. It reads
+`pg_index` rather than `pg_constraint` — deliberately, because a bare
+`CREATE UNIQUE INDEX` is not a constraint row and `exchange` has plenty. But it
+filters on `i.indisunique`. **The plain indexes had never been looked at at all.**
+
+That the gap survived this long is a consequence of what a plain index is. A
+uniqueness guard is a correctness guard: drop it and something eventually raises
+23505. A plain index guarantees nothing, so dropping it raises nothing. The query
+returns the same rows, in the same order, and takes a sequential scan to do it.
+
+Nothing downstream closes it either. `diff` compares the two implementations'
+output, not their plans. `verify:parity` compares rows. `validate:wire` compares
+shapes. Every one of them passes against a table with no indexes whatsoever. The
+only symptom is latency — and dev holds tens of rows, where a sequential scan is
+genuinely the faster plan, so **dev cannot produce the symptom.** The first
+appearance would be production row counts arriving at a schema nobody had
+measured, on the day a `*_SOURCE` switch moved.
+
+### The question it asks
+
+Not "did uniqueness survive" — that one is `audit:constraints`', and it already
+reports eight source uniques with no exact counterpart while exiting 0, because a
+source unique on `(number)` against a target unique on `(direction, number)` is
+the *correct* meaning for a table that merged purchase and sales orders.
+
+The question here is whether the **access path** survived. btree is only
+enterable on a leading prefix, so the line between a mild degradation and a
+sequential scan is whether any target index — unique, primary or plain — *leads*
+with the column the source index leads with. A source index on `(a, b)` is served
+by a target index on `(a, b, c)`. It is not served by one on `(b, a)`.
+
+Note that "the foreign key is there" is not an answer: Postgres does not index a
+foreign key automatically, so `audit:constraints` passing on FKs says nothing
+about whether the column is indexed.
+
+### What it found, and what was fixed
+
+48 indexes checked across 18 features. Five access paths had no index in the new
+schema. Each was then checked against the queries that actually run, which is the
+half a static audit cannot do — and it split them three to two.
+
+**Fixed in `081_the_new_schema_indexes_what_exchange_indexed.sql`:**
+
+- **`media.images (user_id, created_at)`.** `getUserImages` is
+  `WHERE user_id = $1 ORDER BY created_at DESC, id DESC`, and `media.images`' only
+  non-primary index is `UNIQUE (path, filename, user_id)`, which leads with `path`
+  and cannot serve it. `exchange` has a purpose-built `(user_id, created_at)` —
+  the misspelling in `imges_user_created_idx` is a fair sign it was added the day
+  somebody noticed. This is the sharp one: **`MEDIA_WIRE` is the single switch
+  `audit:wire-readiness` reports as clear to move**, which makes media the
+  likeliest feature to be promoted first.
+- **`tax.sales_tax (state)`, UNIQUE.** Both live queries in
+  `features/sales-tax/repo.next.ts` key on it — `isNexus(state)` decides whether a
+  checkout is charged sales tax at all, and `updateStateSalesTax(amount, state)`
+  is an `UPDATE ... WHERE state = $2`. UNIQUE rather than plain because
+  `exchange.state_sales_tax` has `state_sales_tax_state_key` and that UPDATE's
+  correctness depends on it: without one-row-per-state it silently increments
+  every duplicate. Checked first — 51 rows, 51 non-null states, 0 duplicates — so
+  the unique index could only succeed or refuse, never lose a row. This also
+  closes one of the eight gaps `audit:constraints` reports.
+
+**Not fixed, named in `ACCEPTED` with the reason:** `products.bullion.supplier_id`
+is only ever joined *from* bullion *to* refiners' primary key, never used to look
+a bullion row up; nothing looks an order up by `number` alone; `provider_ref` is
+always paired with the indexed `intent_id`. An index nothing reads still costs
+every write, so speculation is the wrong default in both directions. The list is
+pinned from both sides — a gap not named fails the audit, and a name that no
+longer reports a gap fails it too, so it cannot rot into a blanket suppression of
+something since fixed or since changed in meaning.
+
+Three more are reported as narrower or reordered rather than absent (`rates`,
+`carrier_services`, `cart_items`); in each the leading column is still indexed, so
+the path is entered and only the most selective lookup loses.
+
+### Two things this cost me
+
+The first version used leading-prefix matching for everything and reported eight
+gaps, six of them UNIQUE — which looked like `audit:constraints` had missed them.
+It had not: **`audit:constraints` reports those eight itself and exits 0 by
+design**, because it judges uniqueness semantics rather than access paths. Reading
+its output, not just its query, is what separated the two audits' questions.
+
+The second: `payments` looked like the best finding of the set — a missing index
+on `provider_ref`, on the webhook path that is already the subject of an open
+thread about $126.48. It is not a finding. Every query pairs `provider_ref` with
+`intent_id`, and `payments.attempts` is indexed on `intent_id`. **A missing index
+only matters if something queries it that way**, and the audit cannot see that;
+only reading the queries can.

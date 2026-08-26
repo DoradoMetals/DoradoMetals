@@ -3037,6 +3037,7 @@ CREATE INDEX IF NOT EXISTS idx_fulfillment_shipments_shipper_location_id ON fulf
 CREATE INDEX IF NOT EXISTS migration_leads_email_idx ON leads.leads USING btree (lower(email));
 CREATE INDEX IF NOT EXISTS migration_leads_phone_idx ON leads.leads USING btree (phone);
 CREATE INDEX IF NOT EXISTS migration_leads_status_idx ON leads.leads USING btree (converted, contacted, responded);
+CREATE INDEX IF NOT EXISTS idx_images_user_created ON media.images USING btree (user_id, created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS addresses_one_per_order ON orders.addresses USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_addresses_source_address_id ON orders.addresses USING btree (source_address_id);
 CREATE INDEX IF NOT EXISTS order_addresses_address_idx ON orders.addresses USING btree (address_id);
@@ -3121,6 +3122,7 @@ CREATE INDEX IF NOT EXISTS shipments_service_idx ON shipping.shipments USING btr
 CREATE INDEX IF NOT EXISTS shipments_tracking_idx ON shipping.shipments USING btree (tracking_number);
 CREATE INDEX IF NOT EXISTS shipment_events_shipment_time_idx ON shipping.tracking USING btree (shipment_id, "time");
 CREATE INDEX IF NOT EXISTS idx_current_spots_metal ON spots.spots USING btree (metal_id);
+CREATE UNIQUE INDEX IF NOT EXISTS sales_tax_state_key ON tax.sales_tax USING btree (state);
 CREATE INDEX IF NOT EXISTS sales_tax_rules_lookup_idx ON tax.sales_tax_rules USING btree (state_code, metal_category, product_type);
 
 -- Functions ----------------------------------------------------------

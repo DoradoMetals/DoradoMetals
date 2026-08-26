@@ -232,6 +232,23 @@ The ones that have actually caught things:
   cannot see something must not call it clean. `--self-test` proves the file
   floor fires; the first version walked zero files and called every switch
   ready.
+- `audit:indexes` — **every access path `exchange` indexes that the new schema
+  does not.** `audit:constraints` reads `pg_index` but filters on `indisunique`,
+  so the plain indexes had never been looked at at all. Uniqueness is a
+  correctness guard and something eventually raises 23505 when it goes; a plain
+  index going produces no error at all — same rows, same order, sequential scan.
+  Nothing downstream sees it either: `diff` compares output not plans,
+  `verify:parity` compares rows, `validate:wire` compares shapes, and all three
+  pass against a table with no indexes whatsoever. The only symptom is latency,
+  and dev holds tens of rows where a seq scan is genuinely the faster plan — so
+  the symptom first appears as production row counts arriving at a schema nobody
+  measured. Asks the access-path question, not the uniqueness one: does any
+  target index **lead** with the column the source index leads with. Found
+  `media.images(user_id, created_at)` — the index behind "list my images", on the
+  one feature `audit:wire-readiness` says is clear to promote — and
+  `tax.sales_tax(state)`, which both live sales-tax queries key on. Three more
+  are named in `ACCEPTED` with the query that makes each a non-issue, pinned from
+  both sides so a new gap fails and a fixed one forces the entry out.
 - `audit:precision` — **every column whose value the target's type would
   change.** Casts each source value into the type of the column it lands in and
   counts what differs. `orders.items` declared `purity numeric(4,3)` against an
