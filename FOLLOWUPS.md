@@ -348,6 +348,60 @@ Worth noting `addFunds` and `removeFunds` were already correct and already
 transactional; the existing tests cover the property that matters, which is that
 a balance movement and its ledger entry commit together.
 
+### FOR JACOB: every page is blank until an auth request completes, and forever if it cannot
+
+**Not fixed — it is a visible product decision, not a patch.** Found by the
+negative control for the first Playwright test, which is the only reason it
+surfaced at all.
+
+`shared/providers/LayoutProvider.tsx` gates the entire app on the session query:
+
+```jsx
+if (!session && isPending === true) {
+  return (<>{/* a pulsing skeleton */}</>)   // note: NOT {children}
+}
+```
+
+It returns the skeleton *instead of* `children`, so nothing below it renders
+while `useGetSession()` is pending. That includes pages that need no session at
+all.
+
+**Measured, with the frontend up and the API stopped** — `/rates`, sampled by a
+real browser:
+
+| elapsed | heading | skeleton | body text |
+|---|---|---|---|
+| ~2s | 0 | 1 | *(empty)* |
+| ~10s | 0 | 1 | *(empty)* |
+| ~40s | 0 | 1 | *(empty)* |
+| 77s | 0 | 1 | *(empty)* |
+
+It never recovers. I expected React Query's default three retries to exhaust and
+let `isPending` fall to false — that reasoning was wrong, and the measurement is
+what settled it. The mechanism underneath is not yet identified; the observable
+behaviour is not in doubt.
+
+**Why this matters beyond an outage.** Ten routes declare `seoIndex: true`,
+including `/buy`, `/sell`, `/rates`, `/about-us`, `/terms-and-conditions` and
+`/privacy-policy`. All of them are public — `roles: []` — and all of them render
+**no content whatsoever** until an authentication round-trip finishes. So:
+
+- during any API blip the marketing site is a blank page, not a degraded one;
+- on every cold load, a first-time visitor waits on an auth request before
+  seeing a word of copy;
+- a crawler that does not wait, or that hits a slow moment, indexes nothing.
+
+The page even has the right instinct already — `/rates` has a
+`"Loading current rates…"` state for exactly the case where data has not
+arrived. It never gets to show it.
+
+**The shape of the fix**, for when you want it: render `children`
+unconditionally and let the parts that actually need a session handle their own
+pending state. The skeleton is the right idea in the wrong place — it belongs
+around the nav and account controls, not around the document. That changes what
+every page looks like while loading, which is why it is written down here rather
+than done.
+
 ### FOR JACOB, THE URGENT ONE: the customer sets the spot price they are charged at
 
 **Not fixed. It needs a decision that is yours, and the fix runs through a wire

@@ -31,6 +31,24 @@ It resolves the newest version directory at config time rather than hardcoding
 one. `PLAYWRIGHT_CHROME` overrides it; if no Chrome is found at all it falls
 back to Playwright's own channel, so `npx playwright install` remains a way out.
 
+## Reading a price
+
+Prices render through `@number-flow/react`, a custom element that animates a
+spinning digit reel inside a shadow root. It is not readable the obvious ways,
+and this cost an hour:
+
+| approach | result |
+|---|---|
+| `innerText` on `<body>` | no prices — they are in shadow DOM |
+| `textContent` on the element | `""` — the light DOM is empty |
+| shadow root `.number` text | `0123456789,0123456789…` — the whole reel |
+| `element.value` | `undefined` — the prop is not reflected |
+
+`ariaSnapshot()` is the one place the rendered value appears, character-separated
+as `"$ 4 , 6 5 2 . 8 5"`. Flatten the spaces between digits and parse. Wait for
+the reel to settle first — mid-animation the tree shows an in-between value,
+which is a real source of flake.
+
 ## Writing one
 
 The trap is a test that passes against a dead API. `/rates` renders its heading
@@ -39,10 +57,25 @@ and its prose from static JSX and only the cards from data, so asserting the
 arrived, and that was verified the only way it can be — by stopping the API,
 leaving the frontend up, and confirming all four fail.
 
-That control also turned up something worth knowing: with the API unreachable
-the page renders **nothing at all**, not even its own heading, despite the code
-having a "Loading current rates…" state for exactly that case. The page is
-client-rendered — the server HTML never carries the heading either way — so
-something client-side stops the tree rendering rather than degrading. Not
-chased down yet; recorded here because it is a real behaviour a customer would
-see during an outage.
+A second control was written for the catalogue, and it FAILED — which is the
+most useful thing that happened here. `buy.spec.ts` originally asserted that no
+price was `$0.00`. Intercepting `/api/spots/spot_prices` and renaming `ask_spot`
+to `ask` — exactly what a `SPOTS_WIRE` flip does — showed the prices do not go
+to zero, they **vanish**: cards render with no price and a few unrelated prices
+survive elsewhere, so "none are zero" stayed true and the test passed against
+the broken state. A test that passes its own control is worse than no test.
+
+The assertion is now tied to the card count, with the threshold taken from
+measurement rather than guessed: healthy is 64 card images and 58 prices, the
+renamed state is 64 and 4, and the floor is a quarter of the image count.
+
+That first control also turned up a real bug, since traced: `LayoutProvider` returns
+its loading skeleton **instead of `{children}`** whenever the session query is
+pending, so every page in the app renders nothing until an auth round-trip
+finishes — and nothing at all, indefinitely, if the API is unreachable. Measured
+at 2s, 10s, 40s and 77s with the API stopped: empty body every time. Ten public
+`seoIndex: true` routes are behind that gate. Written up in FOLLOWUPS.
+
+It is worth noticing how it was found. Nothing in the API suites could have
+caught it — the API was fine. It took a browser, and it took deliberately
+breaking the thing the test depends on to see what the page does without it.
