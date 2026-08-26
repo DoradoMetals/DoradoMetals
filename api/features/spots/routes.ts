@@ -1,7 +1,7 @@
 import express from 'express';
 import {
   getSpotPrices,
-} from '#features/spots/controller.js';
+} from '#features/spots/controller.ts';
 
 import * as spotsWire from "#features/spots/wire.ts";
 import { wireShape } from "#shared/wire/middleware.ts";

@@ -1,6 +1,6 @@
 import express from "express";
 
-import { getAllRefiners } from "#features/refiners/controller.js";
+import { getAllRefiners } from "#features/refiners/controller.ts";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
 import * as refinersWire from "#features/refiners/wire.ts";

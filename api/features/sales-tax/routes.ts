@@ -1,6 +1,6 @@
 import express from "express";
 
-import { getSalesTax } from "#features/sales-tax/controller.js";
+import { getSalesTax } from "#features/sales-tax/controller.ts";
 
 import { requireUser } from "#shared/middleware/authMiddleware.ts";
 const router = express.Router();

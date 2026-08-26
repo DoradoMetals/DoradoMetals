@@ -14,10 +14,10 @@ import {
 
 // Mints are owned by #features/mints. The route stays here because the
 // frontend calls /products/get_mints; only the implementation moved.
-import { getAllMints } from "#features/mints/controller.js";
+import { getAllMints } from "#features/mints/controller.ts";
 // Metals are owned by #features/spots, which owns exchange.metals. Route stays
 // because the frontend calls /products/get_metals.
-import { getAllMetals } from "#features/spots/controller.js";
+import { getAllMetals } from "#features/spots/controller.ts";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
 import * as productsWire from "#features/products/wire.ts";
