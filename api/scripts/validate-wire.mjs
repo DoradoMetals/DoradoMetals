@@ -35,7 +35,7 @@ const add = (name, schema, load, many = true) =>
 // quietly disappeared from the run because its repo.next is TypeScript and the
 // hardcoded `.js` threw - a check reporting success for a file it could not
 // see. If a repo.next exists and will not load, that is a failure, not a skip.
-const bothWays = async (name, schema, dir, read) => {
+const bothWays = async (name, schema, dir, read, many = true) => {
   // A directory with NEITHER implementation is a wrong name, not a feature that
   // happens to have none - and the per-impl `continue` below would swallow it
   // silently, taking the endpoint out of the run with nothing to show for it.
@@ -70,18 +70,16 @@ const bothWays = async (name, schema, dir, read) => {
       });
       continue;
     }
-    add(`${name} [${impl}]`, schema, () => read(mod));
+    add(`${name} [${impl}]`, schema, () => read(mod), many);
   }
 };
 
 const spots = await import("#features/spots/repo.js");
 const rates = await import("#features/rates/repo.js");
-const reviews = await import("#features/reviews/repo.js");
 const leads = await import("#features/leads/repo.js");
 const refiners = await import("#features/refiners/repo.js");
 const carriers = await import("#features/shipping/carriers/repo.js");
 const services = await import("#features/shipping/services/repo.js");
-const users = await import("#features/users/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
 const productsWire = await import("#features/products/wire.ts");
 const mediaWire = await import("#features/media/wire.ts");
@@ -90,7 +88,12 @@ const carriersWire = await import("#features/shipping/carriers/wire.ts");
 const spotsWire = await import("#features/spots/wire.ts");
 const addressesWire = await import("#features/addresses/wire.ts");
 
-add("GET /reviews (public)", c.ReviewWire, () => reviews.getPublicReviews());
+// The public list was checked ONE WAY while the admin list right below it was
+// checked both. Same table, same contract, and repo.next exports
+// getPublicReviews too - so the one-way check proved the shape only for
+// whichever schema REVIEWS_SOURCE currently names, which is exchange. The
+// public list is the one an anonymous visitor sees.
+await bothWays("GET /reviews (public)", c.ReviewWire, "reviews", (m) => m.getPublicReviews());
 await bothWays("GET /carriers", c.CarrierWireNext, "shipping/carriers", (m) => m.getAll());
 await bothWays("GET /carriers (legacy wire)", c.CarrierWire, "shipping/carriers", async (m) =>
   carriersWire.toLegacy(await m.getAll())
@@ -139,7 +142,49 @@ await bothWays("GET /images", c.ImageWireNext, "media", (m) => m.getTestImages()
 await bothWays("GET /images (legacy wire)", c.ImageWire, "media", async (m) =>
   mediaWire.toLegacy(await m.getTestImages())
 );
-add("GET /users", c.UserWire, () => users.getAllUsers());
+// Users was the last one-way check with a next implementation to compare
+// against. auth.users is where exchange.users lands, repo.next.ts projects the
+// same columns back, and nothing was proving that until now.
+await bothWays("GET /users", c.UserWire, "users", (m) => m.getAllUsers());
+
+// THE CREDIT LEDGER HAD A CONTRACT AND NOTHING VALIDATED IT.
+//
+// c.AccountTransactionWire has existed since the transactions split and was
+// referenced by no check in this file - the one feature holding real customer
+// money ($66,999.32 across 17 production rows) and the reshaping is the
+// awkward kind: `type` becomes `transaction_type`, and exchange's two order
+// columns collapse into payments.ledger.order_id, resolved back through
+// orders.orders.direction. That projection is exactly the sort of thing that
+// is right until it is not.
+//
+// TRANSACTIONS_SOURCE=dual deliberately READS exchange, so repo.next is never
+// on the request path today - which is the argument for checking it here
+// rather than against it. Nothing else looks at it before promotion.
+//
+// getTransactionHistory returns ONE row, not a list, in both implementations -
+// hence many=false. That it does so at all is a separate bug; see the note in
+// FOLLOWUPS.md. This check asserts the shape the code HAS.
+const { rows: withLedger } = await pool.query(
+  `SELECT user_id FROM exchange.account_transactions
+   GROUP BY user_id ORDER BY count(*) DESC LIMIT 1`
+);
+const ledgerUser = withLedger[0]?.user_id;
+if (!ledgerUser) {
+  // Not a skip. An empty ledger means this check proves nothing, and a check
+  // that silently proves nothing is what let the ledger go unnoticed for seven
+  // months in the first place.
+  add("GET /get_transactions", c.AccountTransactionWire, () => {
+    throw new Error("dev has no account_transactions - the ledger check would be vacuous");
+  });
+} else {
+  await bothWays(
+    "GET /get_transactions",
+    c.AccountTransactionWire,
+    "transactions",
+    (m) => m.getTransactionHistory(ledgerUser),
+    false
+  );
+}
 
 // Fulfillments have no repo.exchange, so bothWays has nothing to compare - the
 // feature is new capability rather than migrated data, and the only shape it

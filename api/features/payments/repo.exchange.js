@@ -188,11 +188,25 @@ export async function attachCustomerToUser(customerId, userId, executor) {
   await query(sql, values, executor);
 }
 
+// WHICH intent, when a sales order has more than one.
+//
+// This took `rows[0]` off an unordered SELECT, so the answer was whatever
+// Postgres handed back first - while repo.next.js has always ordered newest
+// first and taken one. repo.dual switches between the two, so the admin screen
+// could show a different intent depending on a switch, and a different one
+// again after a VACUUM.
+//
+// No sales order has a second intent today - 0 in dev, 0 in production, checked
+// - so this changes no current answer. It stops being true the first time a
+// checkout fails and is retried, which is the case the admin screen exists for.
+// Newest wins, matching repo.next.js: a retry supersedes what it replaced.
 export async function getPaymentIntentFromSalesOrderId(sales_order_id, executor) {
   const sql = `
     SELECT ${FIELDS}
     FROM exchange.payment_intents
     WHERE sales_order_id = $1
+    ORDER BY created_at DESC, id
+    LIMIT 1
   `;
   const values = [sales_order_id];
   const result = await query(sql, values, executor);

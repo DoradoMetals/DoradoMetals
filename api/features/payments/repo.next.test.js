@@ -369,3 +369,77 @@ test("the new schema knows about money exchange has no record of", async () => {
     );
   });
 });
+
+// WHICH INTENT A SALES ORDER RESOLVES TO, WHEN IT HAS MORE THAN ONE.
+//
+// exchange's lookup was `rows[0]` off a SELECT with no ORDER BY and no LIMIT,
+// so the row it returned was whatever the plan happened to yield first. The new
+// implementation has always ordered newest-first and taken one. repo.dual
+// switches between them, which means the admin screen could name one intent
+// today and another after a VACUUM, entirely legally.
+//
+// Nothing shows it right now: no sales order in dev OR production has a second
+// intent. That changes the first time a checkout fails and the customer tries
+// again, which is precisely the situation the admin screen is opened for.
+//
+// This test creates the second intent, so it does not depend on dev holding one.
+test("a sales order with two intents resolves to the newer one, both ways", async () => {
+  await inRollback(async (c) => {
+    const { rows: [order] } = await c.query(
+      `SELECT so.id FROM exchange.sales_orders so
+        WHERE EXISTS (SELECT 1 FROM orders.orders o WHERE o.id = so.id)
+        ORDER BY so.id LIMIT 1`
+    );
+    assert.ok(order, "dev needs a sales order present in both schemas");
+
+    // A real session row: exchange.payment_intents.session_id is a foreign key
+    // into exchange.session, and the new schema keys on it too.
+    const { rows: [sess] } = await c.query(
+      `SELECT s.id, s."userId" AS user_id FROM exchange.session s
+        WHERE EXISTS (SELECT 1 FROM auth.users a WHERE a.id = s."userId")
+        ORDER BY s.id LIMIT 1`
+    );
+    assert.ok(sess, "dev needs a session belonging to a user present in both schemas");
+    const user = { id: sess.user_id };
+    const older = stripeIntent({ id: `pi_old_${randomUUID().slice(0, 8)}` });
+    const newer = stripeIntent({ id: `pi_new_${randomUUID().slice(0, 8)}` });
+
+    // exchange: two rows against the same sales order, an hour apart.
+    for (const [pi, ago] of [[older, "2 hours"], [newer, "1 hour"]]) {
+      await c.query(
+        `INSERT INTO exchange.payment_intents
+           (session_id, user_id, type, payment_status, payment_intent_id,
+            sales_order_id, created_at)
+         VALUES ($1, $2, 'checkout', $3, $4, $5, now() - $6::interval)`,
+        [sess.id, user.id, pi.status, pi.id, order.id, ago]
+      );
+    }
+
+    // next: the same two, through the repo, then pointed at the order.
+    for (const [pi, ago] of [[older, "2 hours"], [newer, "1 hour"]]) {
+      await next.createPaymentIntent(pi, "checkout", user.id, { session: { id: sess.id }, user: { id: user.id } }, c);
+      await c.query(
+        `UPDATE payments.intents i SET order_id = $1, created_at = now() - $2::interval
+           FROM payments.attempts a
+          WHERE a.intent_id = i.id AND a.provider_ref = $3`,
+        [order.id, ago, pi.id]
+      );
+    }
+
+    const fromExchange = await exchange.getPaymentIntentFromSalesOrderId(order.id, c);
+    const fromNext = await next.getPaymentIntentFromSalesOrderId(order.id, c);
+
+    assert.equal(
+      fromExchange?.attempt?.provider_ref, newer.id,
+      "exchange returned an intent that is not the newest - the lookup is unordered"
+    );
+    assert.equal(
+      fromNext?.attempt?.provider_ref, newer.id,
+      "the new schema returned an intent that is not the newest"
+    );
+    assert.equal(
+      fromExchange?.attempt?.provider_ref, fromNext?.attempt?.provider_ref,
+      "the two implementations resolved the same sales order to different intents"
+    );
+  });
+});

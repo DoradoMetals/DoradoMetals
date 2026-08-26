@@ -3267,6 +3267,30 @@ bank details. Anything reasoned from dev row counts should be re-checked against
 production before being believed — `audit:coverage:prod` and
 `PROD_READONLY_DATABASE_URL` make that cheap now.
 
+### `GET /get_transactions` returns ONE ledger entry, not a history
+
+`getTransactionHistory(user_id)` ends in `result.rows[0]` in **both**
+implementations, under a query that orders by `occurred_at` ascending. So the
+route hands back the customer's OLDEST credit movement and nothing else — a
+customer with five entries sees the first one. The two implementations agree
+with each other, so `diff` is silent, and the shape matches
+`AccountTransactionWire`, so the wire check is silent too. Both are right: this
+is not a migration defect, it is what the endpoint has always done.
+
+Nothing calls it. Grepped the whole frontend for `get_transactions`, for the
+query key, and for any transactions fetch — there is no consumer, so no customer
+is currently seeing a truncated history.
+
+**Why it is not fixed here.** Changing `rows[0]` to `rows` turns an object into
+an array, and that is a wire-shape change during a schema migration, which
+CLAUDE.md rules out. It also needs a product answer first: whether the account
+page should show a ledger at all, and if so whether it pages. Left for Jacob —
+see the decision log.
+
+The credit ledger is the feature holding $66,999.32 across 17 production rows
+and 8 customers, so the route being wrong AND unused at the same time is worth
+recording rather than quietly correcting.
+
 ## Operations
 
 ### No production backup has been taken, and now there is more to back up
