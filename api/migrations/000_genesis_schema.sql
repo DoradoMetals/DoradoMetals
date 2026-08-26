@@ -175,7 +175,7 @@ CREATE TABLE IF NOT EXISTS auth.users (
   image text,
   role text,
   "stripeCustomerId" text,
-  dorado_funds numeric,
+  dorado_funds numeric DEFAULT 0 NOT NULL,
   banned boolean,
   "banReason" text,
   "banExpires" timestamp without time zone,
@@ -190,7 +190,7 @@ ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "emailVerified" boolean DEFAULT 
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS image text;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS role text;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "stripeCustomerId" text;
-ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS dorado_funds numeric;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS dorado_funds numeric DEFAULT 0;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS banned boolean;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "banReason" text;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "banExpires" timestamp without time zone;
@@ -632,7 +632,7 @@ ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS error_message text;
 CREATE TABLE IF NOT EXISTS payments.details (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   user_id uuid NOT NULL,
-  method_id uuid NOT NULL,
+  method_id uuid,
   account_holder text,
   bank_name text,
   account_type text,

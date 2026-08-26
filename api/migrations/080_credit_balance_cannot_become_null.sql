@@ -1,0 +1,52 @@
+-- The customer credit balance must not be nullable in the new schema either.
+--
+-- WHAT THIS PROTECTS. features/users adjustUserCredit updates dorado_funds with
+-- an unguarded CASE:
+--
+--   SET dorado_funds = CASE
+--     WHEN $2 = 'add'      THEN COALESCE(dorado_funds, 0) + $1
+--     WHEN $2 = 'subtract' THEN COALESCE(dorado_funds, 0) - $1
+--     WHEN $2 = 'edit'     THEN $1
+--   END
+--
+-- `mode` arrives from req.body and is never validated. A CASE with no ELSE
+-- yields NULL when nothing matches, so any unrecognised mode - a typo, a
+-- renamed frontend constant, a stale client - assigns NULL to a customer's
+-- credit balance.
+--
+-- Against exchange this is harmless today, and the reason is worth stating
+-- plainly: THE DATABASE IS WHAT STOPS IT, not the code. exchange.users.
+-- dorado_funds is NOT NULL DEFAULT 0, so the write is refused and the caller
+-- gets a 500 instead of a wiped balance. Verified in a rolled-back transaction
+-- rather than assumed: the UPDATE raises 23502.
+--
+-- auth.users.dorado_funds is NULLABLE with no default. So the protection is a
+-- property of the schema being left behind, and it does not survive promotion.
+-- The moment that write moves to auth.users, the same request silently sets the
+-- balance to NULL - and dorado_funds is real money: 8 customers hold credit,
+-- and exchange.account_transactions is a $66,999.32 ledger.
+--
+-- The code fix lands alongside this - the service now takes an allowlist of
+-- modes and refuses anything else - and that is the fix that matters, because
+-- it does not depend on a constraint being present. This is the second layer,
+-- so that the guarantee exchange has always given is one the new schema gives
+-- too. Neither alone is the answer; a validation can be bypassed by a new
+-- caller, and a constraint only converts silent loss into a loud failure.
+--
+-- SAFE TO ADD, checked against production rather than dev row counts:
+--
+--   prod exchange.users   75 rows, 0 null, total 10.251268973986002615
+--   prod auth.users       60 rows, 0 null, total 10.251268973986002615
+--   dev  exchange.users   10 rows, 0 null
+--   dev  auth.users       11 rows, 2 null
+--
+-- Production needs no repair at all. Dev's two nulls are seeded employees that
+-- exchange.users has no row for, so there is no value to preserve - they have
+-- no credit, and 0 is what exchange would have defaulted them to. The UPDATE
+-- touches only rows where the column is unset, so it cannot overwrite a
+-- balance, and it is on auth.users, never on exchange.
+
+UPDATE auth.users SET dorado_funds = 0 WHERE dorado_funds IS NULL;
+
+ALTER TABLE auth.users ALTER COLUMN dorado_funds SET DEFAULT 0;
+ALTER TABLE auth.users ALTER COLUMN dorado_funds SET NOT NULL;

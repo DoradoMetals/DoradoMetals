@@ -209,12 +209,49 @@ try {
     [path.join(import.meta.dirname, "dump-schema.mjs"), "--stdout"],
     { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }
   );
+  // THE DRIFT REPORT IS QUALIFIED BY TABLE, and that is not cosmetic.
+  //
+  // This compared the two files as unordered sets of BARE LINES: a line counted
+  // as drift only if its exact text appeared nowhere in the other file. Column
+  // declarations are not unique across a 47-table schema, so a real change was
+  // invisible whenever an identical declaration existed under some other table.
+  //
+  // It happened. 077a relaxed payments.details.method_id, and the report said
+  // nothing about it, because fulfillments.fulfillments ALSO declares
+  //
+  //   method_id uuid NOT NULL,
+  //
+  // so the removed line still "existed" and was filtered out. The check itself
+  // was never wrong - `committed !== regenerated` is a whole-string comparison
+  // and it fired - but it named one of the two drifted columns, and a person
+  // acting on that report would have fixed one and been baffled by the next run.
+  //
+  // Lines like `id uuid DEFAULT gen_random_uuid() NOT NULL,`, `user_id uuid NOT
+  // NULL,` and `created_at timestamptz` appear in dozens of tables, so most of
+  // the schema was maskable this way. Qualifying each line with the table it sits
+  // in makes every one of them distinguishable.
+  const qualify = (text) => {
+    let table = "(top level)";
+    return text.split("\n").map((line) => {
+      const opens = line.match(/^CREATE (?:TABLE|VIEW)(?: IF NOT EXISTS)? ([\w.]+)/);
+      if (opens) table = opens[1];
+      else if (line === ");") table = "(top level)";
+      return `${table}\u0000${line}`;
+    });
+  };
+  const unqualify = (k) => {
+    const [table, line] = k.split("\u0000");
+    return table === "(top level)" ? line : `${line}   [${table}]`;
+  };
+
   if (committed !== regenerated) {
-    const a = committed.split("\n");
-    const b = regenerated.split("\n");
+    const a = qualify(committed);
+    const b = qualify(regenerated);
+    const inB = new Set(b);
+    const inA = new Set(a);
     const drift = [
-      ...a.filter((l) => !b.includes(l)).map((l) => `  committed: ${l}`),
-      ...b.filter((l) => !a.includes(l)).map((l) => `  dev has:   ${l}`),
+      ...a.filter((l) => !inB.has(l)).map((l) => `  committed: ${unqualify(l)}`),
+      ...b.filter((l) => !inA.has(l)).map((l) => `  dev has:   ${unqualify(l)}`),
     ];
     note(
       `000_genesis_schema.sql is stale - it does not match what dev now is.\n` +

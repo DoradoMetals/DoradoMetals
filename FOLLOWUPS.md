@@ -348,6 +348,146 @@ Worth noting `addFunds` and `removeFunds` were already correct and already
 transactional; the existing tests cover the property that matters, which is that
 a balance movement and its ledger entry commit together.
 
+### FOR JACOB: a seventh — the credit ledger could be read by naming its owner
+
+`GET /api/transactions/get_transactions` is `requireUser` and did
+`const { user_id } = req.body`. The repo scopes `WHERE user_id = $1` on
+whatever it is handed, so a signed-in customer sending
+
+```
+GET /api/transactions/get_transactions
+Content-Type: application/json
+
+{"user_id": "<somebody else>"}
+```
+
+received that person's `account_transactions` row — 200, carrying their
+`user_id`, `transaction_type` and `purchase_order_id`. **Confirmed against dev
+before fixing rather than inferred**: one customer read another's ledger entry.
+
+This is the customer credit ledger. Production holds 17 rows across 8
+customers, **$66,999.32**.
+
+**Why it survived.** A GET normally carries no body, so every ordinary call
+passed `user_id` as `undefined` and got an empty response back — and the
+frontend does not call this endpoint at all. It was already written up here as
+"reads req.body.user_id and always returns nothing", and that description was
+accurate for every caller who did not think to send a body. *Returns nothing*
+and *returns anyone's ledger* were the same endpoint, separated only by a
+request header. It was filed as broken, and being broken is what kept it from
+being read as dangerous.
+
+Fixed the same way as the other six: `user_id` comes from the session. The
+replay suite sends the exploit exactly as it was confirmed, and reverting the
+controller fails it.
+
+**Not fixed, deliberately**: the repo returns `rows[0]`, so a customer with 11
+ledger rows receives one, despite the endpoint being called *history*. That is a
+response shape, and shapes do not move during a schema migration. The suite
+asserts the current shape so the change is deliberate when it comes.
+
+### FOR JACOB: a sixth unguarded endpoint, and a protection that does not survive promotion
+
+Two found while writing HTTP replay suites for reviews, users, media and
+payments. Both are fixed; neither needed a deploy to be true, so both were
+already true in production.
+
+**`GET /api/images/get_test_image` listed every image in the system.** It was
+`requireUser`, its repo call is `SELECT ... FROM exchange.images` with no user
+scoping at all, and the service attaches a presigned GET URL to every row — a
+working download link for the file. So any of the 75 signed-in accounts could
+enumerate and download every image any customer had ever uploaded. Production
+holds 3 images belonging to 1 customer.
+
+The frontend already treated it as admin-only: `/images` declares
+`roles: ['admin']` and is titled "Image Test". **The guard was in the UI**,
+which is not a place a guard does anything — the endpoint answers a request
+whether a page asked for it or not. The route is `requireAdmin` now, which
+matches the frontend's own declaration, so nothing a real user can do changes.
+
+Left unscoped rather than filtered to the caller on purpose: showing an admin
+every image is what that page is for. Scoping would have been right had it been
+a customer's own gallery.
+
+**The credit balance is protected by a constraint that the new schema does not
+have.** `adjustUserCredit` builds the new balance with a `CASE` that has no
+`ELSE`, and `mode` came from `req.body` unvalidated:
+
+```sql
+SET dorado_funds = CASE WHEN $2 = 'add' ... WHEN $2 = 'subtract' ...
+                        WHEN $2 = 'edit' ... END
+```
+
+A `CASE` matching nothing yields NULL, so any unrecognised mode — a typo, a
+renamed frontend constant, a stale client — assigned NULL to a customer's store
+credit.
+
+It never lost anyone's money, and the reason is the whole point: **the database
+stopped it, not the code.** `exchange.users.dorado_funds` is `NOT NULL DEFAULT
+0`, so the write was refused and the caller got a 500. Verified in a rolled-back
+transaction rather than assumed — the UPDATE raises 23502.
+
+`auth.users.dorado_funds` was **nullable with no default**. So the protection
+was a property of the schema being left behind, and the moment that write moves
+there, the same request sets the balance to NULL and returns 200. `repo.dual.js`
+still routes this write to `exchange`, so nothing is live yet — this is a
+promotion landmine, not a current bug.
+
+Both halves fixed. Migration `080` gives `auth.users` the same `NOT NULL DEFAULT
+0`, checked against production rather than dev row counts:
+
+| | rows | null | total |
+|---|---|---|---|
+| prod `exchange.users` | 75 | 0 | 10.251268973986002615 |
+| prod `auth.users` | 60 | 0 | 10.251268973986002615 |
+| dev `exchange.users` | 10 | 0 | |
+| dev `auth.users` | 11 | **2** | |
+
+Production needs no repair. Dev's two nulls are seeded employees `exchange.users`
+has no row for, so there was no value to preserve. And the service now takes an
+allowlist of modes — that is the half that does not depend on a constraint
+existing, because a validation can be bypassed by a new caller and a constraint
+only turns silent loss into a loud failure. Neither alone is the answer.
+
+The amount is validated too, and the first attempt at that check *was* the bug it
+was written to prevent: `Number(null)`, `Number("")` and `Number([])` are all 0,
+and 0 is finite, so an empty amount field passed validation and became a zero
+adjustment — under `edit`, a zeroed balance, returned as 200. The suite sends
+each of them.
+
+### verify:genesis named one of two drifted columns
+
+Worth recording separately because it is a check on the file **production is
+built from**.
+
+The drift report compared the committed genesis and a fresh dump as unordered
+sets of **bare lines**: a line counted as drift only if its exact text appeared
+nowhere in the other file. Column declarations are not unique across a 47-table
+schema, so a real change was invisible whenever an identical declaration existed
+under some other table.
+
+It happened. `077a` relaxed `payments.details.method_id` and the report said
+nothing about it, because `fulfillments.fulfillments` also declares
+
+```
+  method_id uuid NOT NULL,
+```
+
+so the removed line still "existed" and was filtered out. Lines like
+`id uuid DEFAULT gen_random_uuid() NOT NULL,` and `user_id uuid NOT NULL,`
+appear in dozens of tables, so most of the schema was maskable this way.
+
+**The check itself was never wrong** — `committed !== regenerated` is a
+whole-string comparison and it fired. But it named one of the two drifted
+columns, and someone acting on that report would have fixed one and been
+baffled when the next run fired again. Each line is now qualified by the table
+it sits in. Proven by restoring the stale file and confirming both are named.
+
+Two things this also established: `verify:genesis` is **not** part of
+`pnpm check` — the check script is contracts build, `lint:db`,
+`lint:migrations`, `typecheck` and the two test suites — so genesis had simply
+been stale since `077a` and nothing re-ran it.
+
 ### FOR JACOB: seven populated exchange tables that no feature claims
 
 `audit:coverage` walked the feature map, so it could only ever report on tables
