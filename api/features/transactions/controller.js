@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as transactionService from "#features/transactions/service.js"
+import * as transactionService from "#features/transactions/service.ts"
 
 // USER_ID COMES FROM THE SESSION, NOT THE BODY.
 //

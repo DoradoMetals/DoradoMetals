@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as leadsService from "#features/leads/service.js"
+import * as leadsService from "#features/leads/service.ts"
 
 export const getOne = asyncHandler(async (req, res) => {
   const lead = await leadsService.getLead(req.query.lead_id);

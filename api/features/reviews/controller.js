@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as reviewService from "#features/reviews/service.js"
+import * as reviewService from "#features/reviews/service.ts"
 
 export const getOne = asyncHandler(async (req, res) => {
   const review = await reviewService.getReview(req.query.review_id);

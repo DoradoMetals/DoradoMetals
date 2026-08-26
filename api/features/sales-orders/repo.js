@@ -2,7 +2,6 @@
 //
 //   SALES_ORDERS_SOURCE=exchange   (default) read exchange, write exchange
 //   SALES_ORDERS_SOURCE=dual                 read the orders schema, write BOTH
-//   SALES_ORDERS_SOURCE=next                 read and write the orders schema
 //
 // `dual` means what it says now. It did not before this commit - writes all
 // went to exchange - and the comment here said so rather than letting the name
@@ -20,6 +19,9 @@
 import * as exchange from "#features/sales-orders/repo.exchange.js";
 import * as dual from "#features/sales-orders/repo.dual.js";
 
+// An unrecognised value is NOT an error: the Object.hasOwn check below falls
+// back to `exchange`, silently. So a setting listed here that SOURCES does not
+// contain reads as a working promotion and is not one.
 const SOURCES = { exchange, dual };
 
 const SOURCE = Object.hasOwn(SOURCES, process.env.SALES_ORDERS_SOURCE ?? "")

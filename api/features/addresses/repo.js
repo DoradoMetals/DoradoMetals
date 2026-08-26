@@ -2,7 +2,6 @@
 //
 //   ADDRESSES_SOURCE=exchange   (default) read exchange, write exchange
 //   ADDRESSES_SOURCE=dual                 read places, write BOTH
-//   ADDRESSES_SOURCE=next                 read and write places
 //
 // `next` is deliberately absent from the switch: writing only to the new schema
 // is the one-way door and should be a separate change.
@@ -19,6 +18,9 @@
 import * as exchange from "#features/addresses/repo.exchange.js";
 import * as dual from "#features/addresses/repo.dual.js";
 
+// An unrecognised value is NOT an error: the Object.hasOwn check below falls
+// back to `exchange`, silently. So a setting listed here that SOURCES does not
+// contain reads as a working promotion and is not one.
 const SOURCES = { exchange, dual };
 
 const SOURCE = Object.hasOwn(SOURCES, process.env.ADDRESSES_SOURCE ?? "")
