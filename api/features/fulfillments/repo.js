@@ -84,6 +84,27 @@ const FROM = `
     LEFT JOIN fulfillments.shipments s ON s.fulfillment_id = f.id
 `;
 
+// EVERY REFUSAL BELOW CARRIES A STATUS, AND THAT IS WHY THE MESSAGES ARE WORTH
+// WRITING.
+//
+// shared/middleware/errorHandler.js shows a message to the caller only when the
+// error carries a deliberate 4xx - "an error raised deliberately is different:
+// it was written to be read, and its status says so". These six were bare
+// `new Error`, so every one arrived as a generic 500 "Server error" and the
+// explanation went to the log instead of to the admin who needed it.
+//
+// An admin trying to move an order off SHIPMENT was told "Server error" rather
+// than "cancel the shipment first". Found by driving set_method over HTTP; the
+// repo test for the same guard passes either way, because it asserts the
+// thrown message rather than what the caller receives.
+//
+// 404 for "that does not exist", 409 for "the current state forbids this".
+function refuse(status, message) {
+  const err = new Error(message);
+  err.statusCode = status;
+  return err;
+}
+
 export async function getByOrder(order_id, executor) {
   const { rows } = await query(
     `SELECT ${FIELDS} ${FROM} WHERE f.order_id = $1 LIMIT 1`,
@@ -155,7 +176,8 @@ export async function create(
     executor
   );
   if (!order.length) {
-    throw new Error(
+    throw refuse(
+      409,
       `cannot fulfill order ${order_id}: it is not in orders.orders. ` +
         `Orders reach the new schema through the orders dual-write, so this ` +
         `order exists only in exchange.`
@@ -211,7 +233,7 @@ export async function setMethod({ id, method_id, updated_by_id = null }, executo
     executor
   );
   const category = target[0]?.category;
-  if (!category) throw new Error(`no such fulfillment method: ${method_id}`);
+  if (!category) throw refuse(404, `no such fulfillment method: ${method_id}`);
 
   const { rows: current } = await query(
     `SELECT m.category, EXISTS (
@@ -223,9 +245,10 @@ export async function setMethod({ id, method_id, updated_by_id = null }, executo
     [id],
     executor
   );
-  if (!current.length) throw new Error(`no such fulfillment: ${id}`);
+  if (!current.length) throw refuse(404, `no such fulfillment: ${id}`);
   if (current[0].category === "SHIPMENT" && category !== "SHIPMENT" && current[0].has_shipment) {
-    throw new Error(
+    throw refuse(
+      409,
       `fulfillment ${id} already has a shipment - cancel it through features/shipping ` +
         `before moving the order off SHIPMENT`
     );
@@ -267,9 +290,10 @@ async function assertCategory(fulfillment_id, category, executor) {
     executor
   );
   const found = rows[0]?.category;
-  if (!found) throw new Error(`no such fulfillment: ${fulfillment_id}`);
+  if (!found) throw refuse(404, `no such fulfillment: ${fulfillment_id}`);
   if (found !== category) {
-    throw new Error(
+    throw refuse(
+      409,
       `fulfillment ${fulfillment_id} is a ${found}, not a ${category} - ` +
         `change the method before scheduling`
     );
