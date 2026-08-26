@@ -5041,3 +5041,85 @@ like they had **lost** the main list ordering; the `ORDER BY` lives in a shared
 constant, `features/orders/fragments.ts`'s `newestFirst`, so a per-file grep
 undercounted. And `transactions` looked like it differed because a *comment*
 mentioning `ORDER BY` was counted as one.
+
+## The four small shared files that had no test
+
+Four one-function files in `shared/`, none of them covered by any test, all four
+on paths that matter. 23 tests now, every one mutation-checked.
+
+**`isTestRun` is the one worth reading.** It is the guard the mail transport, the
+FedEx client and the Stripe client all ask before reaching a live third party,
+and its whole design is one sentence: *evaluated when asked, never cached*. The
+bug it was written for is invisible without a test — each guard used to compute
+the answer once at module scope, and ES module imports are hoisted, so a script
+whose first statement is `process.env.NODE_ENV = "test"` sets it *after* every
+imported module has evaluated. The guard captured `undefined`, decided this was
+not a test, and built the real transport. `seed-e2e-users.mjs` did exactly that
+and reached Gmail; it failed on credentials rather than on the guard, which is
+luck rather than design.
+
+So the test that earns its keep is not "returns true under `NODE_ENV=test`" — a
+cached implementation passes that. It is that the answer **changes between two
+calls** when the environment changes between them. Reintroducing the module-scope
+constant fails 2 of the 5 tests, including that one.
+
+That suite also carries a control asserting the harness satisfies both detectors,
+because it runs under `NODE_ENV=test` *and* `node --test`: every case has to
+neutralise both and reinstate them, or it is asserting the harness rather than
+the function.
+
+**`requiredEnv`** is how three secrets are read — the reCAPTCHA secret, the
+Stripe webhook secret, the FedEx credentials — so "the message names the variable
+and never its value" is a security property rather than a nicety, and is now
+asserted. Also pinned: it refuses an **empty string**. That is not obvious from
+the name — an operator who sets a variable to `""` in Railway has set it — and it
+is the right answer, since `""` as a reCAPTCHA secret fails exactly the way
+`undefined` did. It is a decision, so it is held rather than left to the
+truthiness of `!value`.
+
+**`oneString`** narrows `req.query.x` before it reaches a repo. Express really
+does hand over an array for `?id=a&id=b` and an object for `?id[k]=v`. The
+deliberate part is that it does **not** coerce: an array is not joined into
+`"a,b"`, because that would invent an id nobody sent. Pinned from the value side,
+because that is precisely what a future "helpful" change would break. Two subtle
+cases are stated rather than left implicit: `""` is a string and survives, and a
+boxed `String` object is not a string primitive and does not.
+
+**`formatPhoneNumber`** renders the numbers on shipping documents — the
+business's own number in the PDF header and the from/to numbers on a label — so
+what it does with unexpected input ends up printed on paper a courier reads.
+Partial input is a supported case, not an edge one. Two behaviours are pinned as
+*decisions* rather than discoveries: the leading-`1` strip is unconditional, so
+it also applies to short input (`"1555"` → `"(555"`, which no real number reaches
+because US area and exchange codes cannot begin with 1); and digits past the
+tenth are **truncated rather than rejected**, so an over-long number prints as a
+plausible wrong number.
+
+## The value-coupling axis, continued and closed
+
+`audit:enum-domains` came out of D39: two columns in different tables that must
+agree by value, with the type declared on only one. The obvious next question is
+how much more of that class exists. Answer: not much, and what exists is clean.
+
+- **Six enum columns** in the eighteen schemas. Four are `direction`, two are the
+  sales-tax rule columns. Every stored value is a valid label.
+- **One value-restricting CHECK constraint** in the whole of the new schemas —
+  `products.mints.type IN ('Private','Sovereign')`. Both stored values are valid.
+- **`exchange.shipments.type`** holds only `Inbound` and `Outbound`, both of which
+  `shipping.direction` (`Inbound | Outbound | Return`) can hold, so the text →
+  enum cast the backfill performs cannot fail.
+
+`audit:precision` turns out to already cover the text-to-enum case properly — it
+casts and treats a *throwing* cast as a loss, with a comment saying a cast that
+throws is worse than one that rounds. What it cannot cover is a value that is
+valid in its own target and only becomes invalid somewhere else, which is exactly
+D39 and exactly why `audit:enum-domains` exists.
+
+One near-miss worth recording. Grepping for `direction = '...'` showed the
+shipping repo writing `'purchase'` and `'sale'` while `shipping.shipments.direction`
+stores `Inbound`/`Outbound` — which reads like a live 22P02. It is not: those are
+`o.direction` (the *order's* direction, type `orders.direction`) inside `CASE`
+expressions that derive `purchase_order_id` and `sales_order_id`, not
+`s.direction`. **Two different types are both named `direction`**, in `orders` and
+in `shipping` — the same shared-name trap that has now produced a false lead three
+times on this project.
