@@ -1,11 +1,12 @@
 import axios from "axios";
+import type { NextFunction, Request, Response } from "express";
 import chalk from "chalk";
 
 function termWidth() {
   return Number(process.stdout?.columns) || 120;
 }
 
-function twoCol(left, right, width = termWidth()) {
+function twoCol(left: string, right: string, width: number = termWidth()) {
   const L = String(left);
   const R = String(right);
   const space = 2;
@@ -14,7 +15,7 @@ function twoCol(left, right, width = termWidth()) {
   return L + " ".repeat(width - L.length - R.length) + R;
 }
 
-function padRight(str, width) {
+function padRight(str: string, width: number) {
   const s = String(str);
   if (s.length >= width) return s;
   return s + " ".repeat(width - s.length);
@@ -29,7 +30,7 @@ function localTimestamp() {
     hour12: true,
   });
 }
-function redactHeaders(headers = {}) {
+function redactHeaders(headers: Record<string, unknown> = {}) {
   const h = { ...headers };
   for (const k of Object.keys(h)) {
     const key = k.toLowerCase();
@@ -47,13 +48,13 @@ function redactHeaders(headers = {}) {
   return h;
 }
 
-function pick(obj, keys) {
-  const out = {};
+function pick(obj: Record<string, unknown> | undefined, keys: string[]) {
+  const out: Record<string, unknown> = {};
   for (const k of keys) if (obj && obj[k] != null) out[k] = obj[k];
   return out;
 }
 
-function parseStack(stack) {
+function parseStack(stack?: string) {
   if (!stack) return [];
   const lines = String(stack).split("\n").slice(1);
   const frames = [];
@@ -79,7 +80,7 @@ function parseStack(stack) {
   return frames;
 }
 
-function isNoiseFrame(f) {
+function isNoiseFrame(f: { file: string }) {
   const s = f.file;
   return (
     s.includes("node:internal") ||
@@ -88,7 +89,7 @@ function isNoiseFrame(f) {
   );
 }
 
-function toRelPath(absPath, rootHint) {
+function toRelPath(absPath: string, rootHint?: string) {
   if (!absPath) return absPath;
   if (!rootHint) return absPath;
   return absPath.startsWith(rootHint)
@@ -96,12 +97,12 @@ function toRelPath(absPath, rootHint) {
     : absPath;
 }
 
-function firstUsefulFrame(stack) {
+function firstUsefulFrame(stack?: string) {
   const frames = parseStack(stack).filter((f) => !isNoiseFrame(f));
   return frames[0] ?? null;
 }
 
-function splitWhere(where) {
+function splitWhere(where?: string | null) {
   if (!where) return { file: null, line: null };
 
   const m = String(where).match(/^(.*):(\d+)$/);
@@ -110,7 +111,12 @@ function splitWhere(where) {
   return { file: m[1], line: Number(m[2]) };
 }
 
-function prettyStack(stack, chalk, opts = {}) {
+function prettyStack(stack: string | undefined, chalk: any, opts: {
+    limit?: number;
+    maxFrames?: number;
+    rootHint?: string;
+    showNodeModules?: boolean;
+  } = {}) {
   const { maxFrames = 6, rootHint = null, showNodeModules = false } = opts;
 
   const frames = parseStack(stack);
@@ -146,18 +152,18 @@ function prettyStack(stack, chalk, opts = {}) {
   return lines.join("\n");
 }
 
-function stripAnsiLen(s) {
+function stripAnsiLen(s: string) {
   return String(s).replace(/\x1b\[[0-9;]*m/g, "").length;
 }
 
-function toAxiosSafe(err, req) {
+function toAxiosSafe(err: any, req?: Request) {
   const status = err.response?.status;
   const data = err.response?.data;
 
   const frame = firstUsefulFrame(err?.stack);
   const where = frame ? `${frame.file}:${frame.line}` : null;
   return {
-    kind: "axios",
+    kind: "axios" as const,
     message: err.message,
     status,
     url: err.config?.url,
@@ -185,11 +191,11 @@ function toAxiosSafe(err, req) {
   };
 }
 
-function toAppSafe(err, req) {
+function toAppSafe(err: any, req?: Request) {
   const frame = firstUsefulFrame(err?.stack);
   const where = frame ? `${frame.file}:${frame.line}` : null;
   return {
-    kind: "app",
+    kind: "app" as const,
     message: err?.message || "Unknown error",
     name: err?.name,
     code: err?.code,
@@ -200,7 +206,7 @@ function toAppSafe(err, req) {
   };
 }
 
-function colorStatus(status) {
+function colorStatus(status?: number) {
   if (!status) return chalk.gray;
   if (status >= 500) return chalk.redBright;
   if (status >= 400) return chalk.yellowBright;
@@ -208,7 +214,7 @@ function colorStatus(status) {
   return chalk.greenBright;
 }
 
-function prettyPrint(safe) {
+function prettyPrint(safe: any) {
   const width = termWidth();
   const ts = localTimestamp();
 
@@ -286,7 +292,27 @@ function prettyPrint(safe) {
   console.error(chalk.gray("\n" + "—".repeat(Math.min(width, 120))));
 }
 
-export default function errorHandler(err, req, res, _next) {
+// `err` IS `unknown` BECAUSE ANYTHING CAN BE THROWN.
+//
+// Express types it `any`, which is convenient and untrue: a route can throw a
+// string, a plain object, or nothing at all. Everything below already reads it
+// defensively - `err?.message || "Unknown error"` - and the narrowing here says
+// so out loud rather than trusting a dot to be safe.
+//
+// It matters most for `deliberate`, three lines down, which is what decides
+// whether a caller sees the real message or a generic one. That test must
+// answer false for a thrown string, and now cannot silently do otherwise.
+export default function errorHandler(
+  err: unknown,
+  req: Request,
+  res: Response,
+  _next: NextFunction
+) {
+  const raised = (err ?? {}) as {
+    message?: string;
+    statusCode?: unknown;
+    status?: unknown;
+  };
   const safe = axios.isAxiosError(err)
     ? toAxiosSafe(err, req)
     : toAppSafe(err, req);
@@ -295,8 +321,8 @@ export default function errorHandler(err, req, res, _next) {
 
   const status =
     (safe.kind === "axios" && safe.status) ||
-    err.statusCode ||
-    err.status ||
+    raised.statusCode ||
+    raised.status ||
     500;
 
   // What goes back to the client is not what goes to the log.
@@ -315,7 +341,7 @@ export default function errorHandler(err, req, res, _next) {
   // message. An error raised deliberately is different: it was written to be
   // read, and its status says so. Those keep their message; everything else
   // gets a generic one. The real message is still printed in full above.
-  const deliberate = Number.isInteger(err?.statusCode ?? err?.status)
+  const deliberate = Number.isInteger(raised.statusCode ?? raised.status)
     && status >= 400 && status < 500;
 
   res.status(status).json({

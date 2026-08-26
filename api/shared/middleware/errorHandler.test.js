@@ -11,7 +11,7 @@
 // Pure: no database, no HTTP. The handler is a function of (err, req, res).
 import test from "node:test";
 import assert from "node:assert/strict";
-import errorHandler from "#shared/middleware/errorHandler.js";
+import errorHandler from "#shared/middleware/errorHandler.ts";
 
 // The handler prints a full report to stderr by design. Silence it here so a
 // passing run is readable; a test that hides real output is worse than noise,
