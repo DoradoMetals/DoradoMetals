@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as next from "#features/shipping/carriers/repo.next.js";
-import { toLegacy, fromLegacy } from "#features/shipping/carriers/wire.js";
+import { toLegacy, fromLegacy } from "#features/shipping/carriers/wire.ts";
 import * as exchange from "#features/shipping/carriers/repo.exchange.js";
 
 let client;

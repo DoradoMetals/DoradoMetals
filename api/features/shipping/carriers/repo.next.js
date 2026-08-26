@@ -8,7 +8,7 @@
 //
 // The shape keeps the two apart: a carrier has an organization, and the response
 // says so rather than flattening its fields to the top level.
-// features/shipping/carriers/wire.js flattens it back for the frontend behind
+// features/shipping/carriers/wire.ts flattens it back for the frontend behind
 // CARRIERS_WIRE, which is a transformation rather than a rename.
 import query from "#shared/db/query.js";
 

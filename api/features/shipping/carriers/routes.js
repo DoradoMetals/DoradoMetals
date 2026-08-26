@@ -13,7 +13,7 @@ import {
   requireUser,
 } from "#shared/middleware/authMiddleware.js";
 
-import * as carriersWire from "#features/shipping/carriers/wire.js";
+import * as carriersWire from "#features/shipping/carriers/wire.ts";
 import { wireShape } from "#shared/wire/middleware.ts";
 
 const router = express.Router();
