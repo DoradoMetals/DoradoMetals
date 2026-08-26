@@ -100,12 +100,22 @@ async function undoPickup(
 //
 // Found by converting this file to TypeScript; the contract has always said
 // `string | null`, and JavaScript had no reason to mention it.
-async function labelBufferOrUndo(labelData: {
-  labelFile: string | null;
-  tracking_number: string | null;
-}): Promise<Buffer> {
+// `cancel` is a SEPARATE parameter rather than a field on labelData, for the
+// reason emails/service.ts gives about `transport`: labelData comes from the
+// carrier's response, and a field would be reachable from something the carrier
+// said. Nothing in production passes one; the test passes a recorder, which is
+// what makes this assertable without a FedEx call.
+export type CancelLabel = (trackingNumber: string | undefined | null) => Promise<void>;
+
+export async function labelBufferOrUndo(
+  labelData: {
+    labelFile: string | null;
+    tracking_number: string | null;
+  },
+  cancel: CancelLabel = undoLabel
+): Promise<Buffer> {
   if (!labelData.labelFile) {
-    await undoLabel(labelData.tracking_number);
+    await cancel(labelData.tracking_number);
     throw new Error(
       "the carrier created a shipment but returned no label file - the label has been cancelled"
     );
