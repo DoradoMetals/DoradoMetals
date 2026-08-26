@@ -3061,6 +3061,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS organizations_type_name_uniq ON organizations.
 CREATE INDEX IF NOT EXISTS attempts_intent_idx ON payments.attempts USING btree (intent_id);
 CREATE INDEX IF NOT EXISTS attempts_method_idx ON payments.attempts USING btree (method_id);
 CREATE INDEX IF NOT EXISTS attempts_provider_idx ON payments.attempts USING btree (provider, provider_ref);
+CREATE INDEX IF NOT EXISTS attempts_provider_ref_idx ON payments.attempts USING btree (provider_ref);
 CREATE INDEX IF NOT EXISTS attempts_status_idx ON payments.attempts USING btree (status);
 CREATE INDEX IF NOT EXISTS details_method_idx ON payments.details USING btree (method_id);
 CREATE UNIQUE INDEX IF NOT EXISTS details_provider_ref_key ON payments.details USING btree (provider, provider_ref) WHERE (provider_ref IS NOT NULL);

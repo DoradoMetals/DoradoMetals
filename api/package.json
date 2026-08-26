@@ -37,6 +37,7 @@
     "audit:precision": "TZ=UTC node scripts/audit-precision.mjs",
     "audit:constraints": "node scripts/audit-constraints.mjs",
     "audit:indexes": "TZ=UTC node scripts/audit-indexes.mjs",
+    "audit:query-paths": "TZ=UTC node scripts/audit-query-paths.mjs",
     "audit:precision:prod": "TZ=UTC node scripts/audit-precision.mjs --prod",
     "audit:guards": "TZ=UTC node scripts/audit-guards.mjs",
     "audit:payments": "TZ=UTC node scripts/audit-payments.mjs",

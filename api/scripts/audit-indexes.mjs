@@ -102,6 +102,12 @@ const columnsOf = async (table) => {
 // here that no longer reports a gap fails it too, so the list cannot rot into a
 // blanket suppression of something that was since fixed - or of something that
 // changed meaning underneath it.
+// `unique_payment_intent_id` was here and was WRONG. I declined it because
+// provider_ref is always paired with intent_id - but `a.intent_id = i.id` is a
+// join condition, not a narrowing filter, so it gives the planner no row to
+// seek to. Migration 082 indexes provider_ref and the entry is gone. Reading
+// the queries is what makes a shape finding real; reading them CARELESSLY is
+// what makes a real one disappear.
 const ACCEPTED = {
   idx_products_supplier_id:
     "supplier_id is only ever joined FROM products.bullion TO refiners' primary " +
@@ -111,9 +117,6 @@ const ACCEPTED = {
     "nothing looks an order up by number alone - orders.orders merged purchase " +
     "and sales orders and is unique on (direction, number), which every caller " +
     "supplies. The uniqueness half of this is audit:constraints' and it reports it.",
-  unique_payment_intent_id:
-    "provider_ref is always paired with intent_id (repo.next.ts:205 and :300), " +
-    "and payments.attempts is indexed on intent_id, so the path is entered there.",
 };
 
 const leadsWith = (col, idx) => idx.cols && idx.cols[0] === col;

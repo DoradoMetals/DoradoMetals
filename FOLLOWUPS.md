@@ -4835,3 +4835,88 @@ thread about $126.48. It is not a finding. Every query pairs `provider_ref` with
 `intent_id`, and `payments.attempts` is indexed on `intent_id`. **A missing index
 only matters if something queries it that way**, and the audit cannot see that;
 only reading the queries can.
+
+## The index the webhook needed, and the reasoning that talked me out of it
+
+`audit:indexes`, added the same night, compares `exchange`'s indexes against the
+schema replacing it. It reported five access paths with no counterpart, I read
+the queries behind each, and I declined three. **One of those three was a real
+defect and my reason for declining it was wrong.**
+
+The pair was `exchange.payment_intents UNIQUE (provider_ref)` against
+`payments.attempts`. I wrote it off because `provider_ref` is always accompanied
+by `intent_id`, and `payments.attempts` is indexed on `intent_id`. Both halves of
+that sentence are true. The conclusion does not follow.
+
+The live query is:
+
+```sql
+UPDATE payments.intents i
+   SET status = $1, amount_expected = $2, updated_at = now()
+  FROM payments.attempts a
+ WHERE a.intent_id = i.id AND a.provider_ref = $3
+```
+
+`a.intent_id = i.id` is a **join condition**. It says how two tables line up; it
+does not say which row to find. Nothing else constrains either side, so the only
+thing that identifies a row is `a.provider_ref = $3` — and the only index
+covering that column is `attempts_provider_idx (provider, provider_ref)`, which
+leads with `provider`. Postgres has no skip scan, so it cannot seek.
+
+Confirmed with the planner rather than argued: it chose a hash join over two
+sequential scans, and with `enable_seqscan` off it fell back to scanning the
+whole of `attempts_provider_idx` (cost 12.30, against a 2.26 heap scan of 21
+rows) instead of seeking. After migration 082 the same query plans as an
+`Index Scan using attempts_provider_ref_idx` with `Index Cond: (provider_ref =
+...)` at cost 8.15.
+
+**This is a change of complexity class, not a constant factor.** `exchange`
+seeks in O(log n) through `UNIQUE(provider_ref)`; the new schema scanned every
+attempt ever made. `payments.attempts` grows with every payment attempt and is
+read on every webhook delivery — and that path already has an open production
+thread against it, where three captured Stripe intents never landed in
+`exchange` at all.
+
+Plain rather than unique. Whether one `provider_ref` may appear on two attempts
+is a question about the new model's semantics, not its access paths; it is
+already reported by `audit:constraints`, and asserting it here could refuse a row
+the model intends to allow.
+
+### Why the second audit was needed to see it
+
+`audit:indexes` is **source-driven**. It walks `exchange`'s indexes and asks
+whether each survived, which means it can only ever ask about lookups `exchange`
+already had. A `WHERE` clause written fresh in a `repo.next.ts` has no source
+index to be compared against, so no comparison happens and nothing is reported.
+That is a whole half of the question, and `audit:query-paths` is it: start from
+the queries, not the schema.
+
+It found 46 distinct query filters across 165 SQL literals. All but three have an
+index to enter by; two of those are four-row and three-row reference tables where
+a sequential scan is the correct plan, named in `ACCEPTED` with that reason. The
+third was `provider_ref`.
+
+### Three things it cost to get the scan honest
+
+**A `SET` clause is not a filter.** The first version matched `col = $n`
+anywhere, so every `UPDATE ... SET` assignment read as an unindexed lookup — 24
+of them on `products.bullion` alone.
+
+**A subquery is its own scope.** Restricting to text after `WHERE` was not
+enough: `SET supplier_id = (SELECT id FROM refiners.exchange_compat WHERE name =
+$2), description = $3, ...` contains a `WHERE`, and the region ran straight past
+the closing paren through the rest of the `SET` list. It also attributed that
+`name` to `products.bullion` rather than to the subquery's own table. Fixed by
+splitting each statement into paren-depth scopes and resolving aliases per scope.
+
+**The unit is the query, not the column.** A `WHERE` filtering
+`user_id = $1 AND direction = $2` is fully served by an index leading with
+`user_id` — btree is entered once and the rest is a predicate on very few rows.
+Asking the question per column called that query unindexed twice over, and turned
+four findings into eight, which buried the one that mattered.
+
+A floor on the number of SQL literals turned out to be too weak a guard on its
+own: dropping three of the eighteen schemas still left 113 literals and the run
+reported clean. It now also requires a known-present control — the `getUserImages`
+filter that migration 081 was written for — so partial breakage fails instead of
+passing quietly.

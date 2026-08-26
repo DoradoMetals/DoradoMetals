@@ -1,0 +1,42 @@
+-- The Stripe webhook's lookup has no index to seek with in the new schema.
+--
+-- exchange.payment_intents is one table with UNIQUE (provider_ref), so finding
+-- the row for a Stripe payment-intent id is an index seek. The new schema splits
+-- it into payments.intents and payments.attempts, and the id lives on the
+-- attempt - correctly, because it is a reference issued by a provider for one
+-- attempt. But the only index covering it is
+--
+--     attempts_provider_idx ON payments.attempts (provider, provider_ref)
+--
+-- which LEADS with `provider`. Both live queries filter provider_ref alone:
+--
+--     UPDATE payments.intents i SET ...
+--       FROM payments.attempts a
+--      WHERE a.intent_id = i.id AND a.provider_ref = $3
+--
+-- `a.intent_id = i.id` is a join condition, not a narrowing filter - it says how
+-- the two tables line up, not which row to find. Nothing else constrains either
+-- side, so the planner has no seek available. Confirmed with EXPLAIN: it picks a
+-- hash join over two sequential scans, and with enable_seqscan off it falls back
+-- to scanning the whole of attempts_provider_idx (cost 12.30 against a 2.26 heap
+-- scan on 21 rows) rather than seeking, because Postgres has no skip scan.
+--
+-- So this is a change of complexity class, not a constant factor: exchange seeks
+-- in O(log n), the new schema scans every attempt ever made. payments.attempts
+-- grows with every payment attempt and is read on every webhook delivery - and
+-- that path is already the subject of an open production thread, where three
+-- captured intents never landed in exchange at all.
+--
+-- Plain rather than unique. exchange's index is UNIQUE and this does not restore
+-- that; whether one provider_ref may appear on two attempts is a semantic
+-- question about the new model rather than an access-path one, it is already
+-- reported by audit:constraints, and asserting it here could refuse a row the
+-- model intends to allow. Dev holds 21 attempts with provider_ref, all distinct.
+--
+-- Found by scanning the queries rather than the schema. audit:indexes compares
+-- exchange's indexes against the new schema's, and it DID flag this pair - I
+-- then declined it, on the reasoning that provider_ref is always paired with
+-- the indexed intent_id. That reasoning was wrong: it read a join condition as
+-- a filter. The ACCEPTED entry is removed in the same commit.
+CREATE INDEX IF NOT EXISTS attempts_provider_ref_idx
+  ON payments.attempts (provider_ref);

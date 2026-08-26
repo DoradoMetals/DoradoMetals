@@ -249,6 +249,25 @@ The ones that have actually caught things:
   `tax.sales_tax(state)`, which both live sales-tax queries key on. Three more
   are named in `ACCEPTED` with the query that makes each a non-issue, pinned from
   both sides so a new gap fails and a fixed one forces the entry out.
+- `audit:query-paths` — **the other direction of the index question.**
+  `audit:indexes` is source-driven: it walks `exchange`'s indexes and asks
+  whether each survived. It is blind by construction to a lookup `exchange`
+  never had — a `WHERE` written fresh in a `repo.next.ts` has no source index to
+  be compared against, so no comparison happens. This one starts from the
+  queries: every parameterised equality filter in code touching the eighteen
+  schemas, checked for whether any index on that table **leads** with a column
+  the query filters on. It caught `payments.attempts.provider_ref`, which
+  `audit:indexes` had reported and I had **wrongly** dismissed — the live query
+  is `WHERE a.intent_id = i.id AND a.provider_ref = $3`, and `a.intent_id = i.id`
+  is a join condition, not a narrowing filter, so there was no seek at all where
+  `exchange` sought through `UNIQUE(provider_ref)`. On the Stripe webhook path.
+  Fixed in 082. **The unit is the query, not the column** — a `WHERE` filtering
+  `user_id AND direction` is served by an index leading with `user_id`, and
+  asking per column called that unindexed twice over. Views are excluded (they
+  carry no index); an unresolvable alias reports `?`. Guarded by a literal floor
+  **and** a known-present control, because the floor alone missed partial
+  breakage: dropping three of eighteen schemas still left 113 literals and
+  reported clean.
 - `audit:precision` — **every column whose value the target's type would
   change.** Casts each source value into the type of the column it lands in and
   counts what differs. `orders.items` declared `purity numeric(4,3)` against an
