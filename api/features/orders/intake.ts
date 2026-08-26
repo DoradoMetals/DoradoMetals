@@ -21,7 +21,7 @@
 // customer asked for is not, and can be tested exhaustively without one.
 //
 // Nothing calls this yet. The legacy creation path in
-// features/purchase-orders/service.js is untouched and still serves traffic;
+// features/purchase-orders/service.ts is untouched and still serves traffic;
 // this is the half that has to exist before the two can be compared.
 
 // The handoff options the frontend actually offers, mapped to the fulfillment
@@ -32,7 +32,70 @@
 // The same mapping 052_backfill_fulfillments.sql uses for the historical rows,
 // verified there against all 70 production shipments. Keeping them the same is
 // what makes a rebuilt order and a migrated one comparable.
-const HANDOFF = {
+// WHAT IS TYPED HERE AND WHAT IS NOT, on purpose.
+//
+// The OUTPUT is typed precisely, because it is a contract: the repo builds a
+// checkout and an order out of it, and a misspelled key there is a column that
+// silently never gets written. The INPUT is not, because `block` is req.body -
+// it is whatever the frontend posted, including nothing at all, and pretending
+// otherwise in a type would be a claim this file exists to avoid making. Every
+// read of it below is already guarded with `?.` and `??`, which is the real
+// check; the type just declines to lie about what arrived.
+type Category = "SHIPMENT" | "PICKUP" | "DIRECT";
+type HandoffMethod = { type: string; category: Category };
+
+type ProductItem = {
+  kind: "product";
+  bullion_id: unknown;
+  metal: unknown;
+  quantity: unknown;
+  premium: unknown;
+  content: unknown;
+  pre_melt: unknown;
+  purity: unknown;
+  unit: unknown;
+};
+
+type ScrapItem = {
+  kind: "scrap";
+  metal: unknown;
+  quantity: unknown;
+  premium: unknown;
+  content: unknown;
+  pre_melt: unknown;
+  post_melt: unknown;
+  purity: unknown;
+  unit: unknown;
+  name: unknown;
+};
+
+// Built up branch by branch below, which is exactly why it is declared here.
+// `fulfillment.shipmnet = {...}` on an untyped object literal is a new key and
+// a silent no-op; on this it is an error.
+type Fulfillment = {
+  method_type: string | null;
+  category: Category | null;
+  shipment?: {
+    shipper_address: unknown;
+    recipient_address: unknown;
+    service_type: unknown;
+    service_description: unknown;
+    carrier_code: unknown;
+    net_charge: unknown;
+    package_label: unknown;
+    weight: unknown;
+    dimensions: unknown;
+    insured: unknown;
+    declared_value: unknown;
+  };
+  carrier_pickup?: { date: unknown; time: unknown };
+  pickup?: { pickup_address: unknown; start_time: unknown };
+  direct?: { location_type: string; is_appointment: boolean; start_time: unknown };
+};
+
+type Block = Record<string, any>;
+
+const HANDOFF: Record<string, HandoffMethod> = {
   "Store Dropoff": { type: "CARRIER DROPOFF", category: "SHIPMENT" },
   "Carrier Pickup": { type: "CARRIER PICKUP", category: "SHIPMENT" },
   // Not offered by the frontend today, and named here because the methods table
@@ -54,9 +117,9 @@ const HANDOFF = {
 // insertItems has always written when a line arrives without one
 // (features/purchase-orders/repo.exchange.js). Changing it here would silently
 // reprice every order placed through the new path.
-function item(line) {
+function item(line: unknown): ProductItem | ScrapItem | null {
   if (!line || typeof line !== "object") return null;
-  const { type, data } = line;
+  const { type, data } = line as { type?: string; data?: Record<string, any> };
   if (!data) return null;
 
   if (type === "product") {
@@ -103,7 +166,10 @@ function item(line) {
 // something inferred from the block, because the block does not say - the two
 // checkout flows post to different endpoints and that is the only thing that
 // distinguishes them.
-export function decompose(block, { direction, userId } = {}) {
+export function decompose(
+  block: Block,
+  { direction, userId }: { direction?: string; userId?: string | null } = {}
+) {
   if (!block || typeof block !== "object") {
     throw new Error("nothing to decompose");
   }
@@ -127,7 +193,7 @@ export function decompose(block, { direction, userId } = {}) {
   const items = (block.items ?? []).map(item).filter(Boolean);
   if (!items.length) throw new Error("an order needs at least one item");
 
-  const fulfillment = {
+  const fulfillment: Fulfillment = {
     // Null when the block did not say, which is legal: chooseDefault picks the
     // direction's default method rather than this inventing one.
     method_type: method?.type ?? null,

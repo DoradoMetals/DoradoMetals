@@ -87,7 +87,7 @@ import {
   userJson,
   sharedJoins,
   newestFirst,
-} from "#features/orders/fragments.js";
+} from "#features/orders/fragments.ts";
 
 
 // Only the last four digits of a bank account travel with an order. Unchanged

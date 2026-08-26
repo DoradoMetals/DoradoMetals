@@ -21,7 +21,7 @@
 // shipping_label is a bytea and is base64'd rather than returned raw: the
 // driver would hand back a Buffer, which serialises as
 // {"type":"Buffer","data":[...]} and turns 23 rows into half a megabyte.
-export const shipmentJson = (alias) => `
+export const shipmentJson = (alias: string) => `
       jsonb_build_object(
         'id', ${alias}.id,
         'purchase_order_id', ${alias}.purchase_order_id,

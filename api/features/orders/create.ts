@@ -12,10 +12,17 @@
 // fulfillment are one transaction. Nothing in it touches the outside world -
 // the label and the courier are the caller's problem and happen before the
 // transaction opens, which is the shape createPurchaseOrder was rebuilt into.
+import type { PoolClient } from "pg";
+
 import query from "#shared/db/query.js";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
 import * as ratesRepo from "#features/rates/repo.js";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
+
+// Passing the executor is how each step below joins the caller's transaction.
+// Every one of these is called from inside one, and an order that half-exists
+// is the failure this is guarding.
+type Executor = PoolClient | undefined;
 
 // THE ORDER NUMBER COMES FROM EXCHANGE, and that is deliberate.
 //
@@ -33,7 +40,7 @@ import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate
 // seeded from max(number) + 1 per direction. That is a migration to write when
 // ORDERS_SOURCE moves, and it belongs in PROMOTION.md rather than here, because
 // seeding it now would fix a starting point that keeps moving.
-async function nextNumber(direction, executor) {
+async function nextNumber(direction: string, executor?: Executor): Promise<string> {
   const seq =
     direction === "purchase"
       ? "exchange.purchase_orders_order_number_seq"
@@ -49,7 +56,11 @@ async function nextNumber(direction, executor) {
 //
 // The same shape 031_backfill_orders.sql produced for the historical orders, so
 // a migrated order and a new one are indistinguishable.
-async function snapshotAddress(order_id, source_address_id, executor) {
+async function snapshotAddress(
+  order_id: string,
+  source_address_id: string | null | undefined,
+  executor?: Executor
+) {
   if (!source_address_id) return null;
   const { rows } = await query(
     `INSERT INTO places.addresses (
@@ -86,7 +97,7 @@ async function snapshotAddress(order_id, source_address_id, executor) {
 // A line whose metal cannot be resolved is refused rather than skipped. An
 // order silently missing a line is worse than an order that failed to be
 // placed: the customer's metal arrives and nothing recorded that it was coming.
-async function copyItems(order_id, checkout_id, executor) {
+async function copyItems(order_id: string, checkout_id: string, executor?: Executor) {
   const { rows: items } = await query(
     `SELECT i.id, i.bullion_id,
             coalesce(i.metal_id, b.metal_id) AS metal_id,
@@ -144,7 +155,7 @@ async function copyItems(order_id, checkout_id, executor) {
 // A no-op when there are no rate bands, which is the same thing the legacy
 // helper does - an order placed with no rates configured keeps what it was
 // given rather than being repriced to nothing.
-async function retierScrapPremiums(order_id, executor) {
+async function retierScrapPremiums(order_id: string, executor?: Executor) {
   const rates = await ratesRepo.getAllRates();
   if (!rates?.length) return;
 
@@ -180,7 +191,7 @@ async function retierScrapPremiums(order_id, executor) {
 // this order_metals and writes a row per metal whether or not the order has any
 // of it; this writes one per metal the order actually contains, because a spot
 // for a metal nobody sold is a row that means nothing.
-async function freezeSpots(order_id, executor) {
+async function freezeSpots(order_id: string, executor?: Executor) {
   await query(
     `INSERT INTO orders.spots (order_id, metal_id, ask, bid, created_at, updated_at)
      SELECT DISTINCT $1::uuid, oi.metal_id, s.ask, s.bid, now(), now()
@@ -198,8 +209,18 @@ async function freezeSpots(order_id, executor) {
 // business decision that differs by direction and by how it was placed, and
 // exchange's default of "In Transit" only makes sense for a parcel in the post.
 export async function createFromCheckout(
-  { checkout_id, status, created_by_id = null, notes = null },
-  executor
+  {
+    checkout_id,
+    status,
+    created_by_id = null,
+    notes = null,
+  }: {
+    checkout_id: string;
+    status: string;
+    created_by_id?: string | null;
+    notes?: string | null;
+  },
+  executor?: Executor
 ) {
   const { rows: found } = await query(
     `SELECT * FROM checkout.checkouts WHERE id = $1`,
@@ -251,6 +272,24 @@ export async function createFromCheckout(
         { order_id, direction, category: "SHIPMENT", created_by_id },
         executor
       );
+
+  // BOTH of those are declared to return null, and everything below reads
+  // .method off it straight away. Null is not reachable today: the only way
+  // fulfillmentsRepo.create comes back empty is ON CONFLICT DO NOTHING, and it
+  // falls back to getByOrder, which finds the row the conflict proves exists.
+  //
+  // Kept anyway, because of WHERE this runs. createFromCheckout is called
+  // inside the caller's transaction, and a TypeError here would roll the whole
+  // order back with "Cannot read properties of null" - which says nothing about
+  // an order, a checkout or a fulfillment to whoever reads the log. The order
+  // still rolls back either way; this only decides what it says on the way out.
+  if (!fulfillment) {
+    throw new Error(
+      `order ${order_id} was created from checkout ${checkout_id} but no ` +
+        `fulfillment came back for it - the order cannot be handed over and ` +
+        `this transaction must not commit`
+    );
+  }
 
   if (fulfillment.method.category === "PICKUP" && checkout.pickup_address_id) {
     await fulfillmentService.schedulePickup(

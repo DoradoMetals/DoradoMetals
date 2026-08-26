@@ -8,7 +8,7 @@
 // mostly about the mappings that would fail quietly.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { decompose, handoffMethods } from "#features/orders/intake.js";
+import { decompose, handoffMethods } from "#features/orders/intake.ts";
 
 // The payload frontend/features/orders/purchaseOrders/users/queries.ts sends,
 // field for field, with only the values changed.

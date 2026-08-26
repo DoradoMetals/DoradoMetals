@@ -14,14 +14,14 @@
 import query from "#shared/db/query.js";
 import type { SalesOrderWire } from "@dorado/contracts";
 import type { PoolClient } from "pg";
-// See features/orders/fragments.js: the shipment and user objects are
+// See features/orders/fragments.ts: the shipment and user objects are
 // identical in both directions and are now written once.
 import {
   shipmentJson,
   userJson,
   sharedJoins,
   newestFirst,
-} from "#features/orders/fragments.js";
+} from "#features/orders/fragments.ts";
 
 // Repos take an optional executor so a caller can pull them into its
 // transaction; without one they run on the pool.

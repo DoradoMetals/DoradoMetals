@@ -1,7 +1,7 @@
 // Turning the description into rows: resolving names to ids, and recording the
 // choices on the checkout.
 //
-// features/orders/intake.js says what the customer asked for, in names. This
+// features/orders/intake.ts says what the customer asked for, in names. This
 // says where those names live. The split is deliberate - deciding what somebody
 // asked for is a question about the request, and finding the row that means it
 // is a question about the database, and mixing them makes both untestable.
@@ -14,7 +14,16 @@
 //
 // Those columns have been empty since January. This is the first code that
 // writes any of them.
+import type { PoolClient } from "pg";
+
 import query from "#shared/db/query.js";
+
+// The shared executor, optional on every one of these: passing it is how a
+// repo call joins its caller's transaction, and omitting it runs on the pool.
+type Executor = PoolClient | undefined;
+
+// Ids are uuids on every one of these tables.
+type Id = string | null;
 
 // ------------------------------------------------------------------ resolving
 //
@@ -23,7 +32,10 @@ import query from "#shared/db/query.js";
 // fatal - a package that cannot be resolved is a detail, a fulfillment method
 // that cannot be is not.
 
-export async function methodId({ type, direction }, executor) {
+export async function methodId(
+  { type, direction }: { type?: string | null; direction?: string },
+  executor?: Executor
+): Promise<Id> {
   if (!type) return null;
   const { rows } = await query(
     `SELECT id FROM fulfillments.methods
@@ -48,7 +60,10 @@ export async function methodId({ type, direction }, executor) {
 // exactly, which is fragile in a specific way worth naming: renaming a service
 // in the admin table silently stops new orders resolving it. Storing the
 // provider code would fix it and is a schema change, not a migration one.
-export async function serviceId({ description, carrierName = "FedEx" }, executor) {
+export async function serviceId(
+  { description, carrierName = "FedEx" }: { description?: string | null; carrierName?: string },
+  executor?: Executor
+): Promise<Id> {
   if (!description) return null;
   const { rows } = await query(
     `SELECT s.id
@@ -67,7 +82,10 @@ export async function serviceId({ description, carrierName = "FedEx" }, executor
 // three labels appear twice - 'Small Box', 'Medium Box' and 'Large Box' exist
 // for both FedEx and UPS - so a label alone resolves to whichever row Postgres
 // happens to return first, which is a coin toss that would look like it worked.
-export async function packageId({ label, carrierName = "FedEx" }, executor) {
+export async function packageId(
+  { label, carrierName = "FedEx" }: { label?: string | null; carrierName?: string },
+  executor?: Executor
+): Promise<Id> {
   if (!label) return null;
   const { rows } = await query(
     `SELECT p.id
@@ -84,7 +102,7 @@ export async function packageId({ label, carrierName = "FedEx" }, executor) {
 
 // By type rather than by name, the same way 052 resolves them: renaming a
 // location must not break what it means.
-export async function locationId(type, executor) {
+export async function locationId(type: string | null | undefined, executor?: Executor): Promise<Id> {
   if (!type) return null;
   const { rows } = await query(
     `SELECT id FROM places.locations WHERE type = $1 LIMIT 1`,
@@ -96,7 +114,10 @@ export async function locationId(type, executor) {
 
 // The payout method a customer chose - ACH, WIRE, ECHECK - as a row in
 // payments.methods rather than a string on the payout. exchange keeps the word.
-export async function paymentMethodId({ type, direction }, executor) {
+export async function paymentMethodId(
+  { type, direction }: { type?: string | null; direction?: string },
+  executor?: Executor
+): Promise<Id> {
   if (!type) return null;
   const { rows } = await query(
     `SELECT id FROM payments.methods
@@ -112,7 +133,7 @@ export async function paymentMethodId({ type, direction }, executor) {
 //
 // The whole description at once, so the caller gets one object of ids and the
 // per-name lookups above stay small enough to test individually.
-export async function resolve(described, executor) {
+export async function resolve(described: any, executor?: Executor) {
   const { direction, fulfillment = {} } = described;
   const carrierName = "FedEx";
 
@@ -157,7 +178,10 @@ export async function resolve(described, executor) {
 // agreeing to - a second tab, a stale page or a failed sync would otherwise
 // place an order for a different set of lines than the one on screen. The
 // submitted block wins.
-export async function record({ described, ids, address_id }, executor) {
+export async function record(
+  { described, ids, address_id }: { described: any; ids: any; address_id?: string | null },
+  executor?: Executor
+) {
   const { direction, user_id } = described;
   const f = described.fulfillment ?? {};
 
