@@ -4332,3 +4332,43 @@ in the mirror guard and 3 in the three-way comparison.
 (the machinery behind every `*_WIRE` switch and D32), `http/caller.ts`'s
 `callerId` and `requiredParam`, then `env/required.ts`, `http/query.ts`,
 `testing/is-test-run.ts` and `utils/formatPhoneNumber.ts`.
+
+## The middle rung of the role ladder is unoccupied, and the guard for it is a trap
+
+`api/shared/middleware/authMiddleware.ts` exports three guards from one ladder:
+`requireUser` (1), `requireVerifiedUser` (2), `requireAdmin` (3). The scan for
+untested exports flagged `requireVerifiedUser`; looking at why produced
+something better than a missing test.
+
+**It is mounted on nothing.** Across every `routes.*` file: `requireAdmin`
+appears in 93 places, `requireUser` in 62, `requireVerifiedUser` in **zero**.
+
+That would be unremarkable if it were merely unused. It is worse than unused:
+
+- **It checks a role nobody holds.** Production carries **73 `user` and 2
+  `admin`**; dev carries 9 and 3. **Not one row in either database has the role
+  `verified_user`.**
+- **It never reads `emailVerified`,** which is a separate column — and **53 of
+  75 production users are not verified**.
+
+So mounting it on a route, which its name invites, would **refuse every
+customer and admit every admin**, and the name would make that look like the
+intent rather than an accident. Nothing is broken today; it is armed for the
+next person who wants "verified users only" and reaches for the obvious import.
+
+`features/authorization/role-ladder.test.js` pins it unmounted, so using it
+becomes a deliberate act taken after reading the note rather than a
+reasonable-looking import. It also pins the three rungs and their order, that
+the guard does not consult `emailVerified`, and that an unrecognised role
+resolves to level 0 and is refused rather than trusted — the safe direction,
+and not the obvious one to write. The scan asserts it reached the route files
+and that the other two guards are found, so it cannot pass by reading nothing.
+
+Mutation-checked twice: mounting `requireVerifiedUser` on a route fails exactly
+1 test, and adding a rung to the ladder fails exactly 1.
+
+**The question underneath is D36**, and it is not mine: **53 of 75 production
+customers have never verified their email, and no route requires it.** Whether
+that should be true of placing an order, or of requesting a payout, is a
+business call. If the answer is yes, the fix is not this guard — it would need
+to read `emailVerified` rather than a role rung that will stay empty.
