@@ -227,13 +227,14 @@ const controllers = (dir, out = []) => {
   return out;
 };
 
-// Every routes.js in the tree, because a handler may legitimately be routed
-// from another feature's router.
+// Every routes file in the tree - BOTH EXTENSIONS - because a handler may
+// legitimately be routed from another feature's router. Matching only
+// "routes.js" would have shrunk this walk with every conversion batch.
 const routeFiles = (dir, out = []) => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) routeFiles(full, out);
-    else if (e.name === "routes.js") out.push(full);
+    else if (e.name === "routes.js" || e.name === "routes.ts") out.push(full);
   }
   return out;
 };
@@ -250,7 +251,7 @@ test("every exported controller handler is routed, or declared unrouted", () => 
   const orphans = [];
   const stale = [];
   const allRoutes = routeFiles(FEATURES).map((f) => fs.readFileSync(f, "utf8"));
-  assert.ok(allRoutes.length > 10, `only ${allRoutes.length} routes.js found - the walk is wrong`);
+  assert.ok(allRoutes.length > 10, `only ${allRoutes.length} routes file(s) found - the walk is wrong`);
 
   for (const file of controllers(FEATURES)) {
     const rel = path.relative(FEATURES, file);

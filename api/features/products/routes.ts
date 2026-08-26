@@ -29,7 +29,12 @@ const router = express.Router();
 // routes disagree about where the product is: save_product takes
 // { product, user } and create_product takes the product itself. Everything
 // else only needs the response converted.
-const wire = (body) => wireShape(productsWire, body === undefined ? {} : { body });
+// The parameter is OPTIONAL, and the zero-argument call below is deliberate:
+// wireShape reads an omitted `body` as "the body IS the entity" and a `false`
+// as "do not touch the body at all". They are different instructions, so this
+// mirrors WireShapeOptions.body rather than defaulting.
+const wire = (body?: string | false) =>
+  wireShape(productsWire, body === undefined ? {} : { body });
 
 router.get("/get_all_products", wire(false), getAllProducts);
 router.get("/get_sell_products", wire(false), getSellProducts);

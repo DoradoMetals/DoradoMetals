@@ -28,7 +28,11 @@ const importedAs = new Map();
 {
   const re = /import\s+(\w+)\s+from\s+["']#features\/([^"']+)\/routes\.(?:js|ts)["']/g;
   let m;
-  while ((m = re.exec(appSrc))) importedAs.set(m[1], `features/${m[2]}/routes.js`);
+  // Keyed WITHOUT the extension, on both sides. This line hardcoded `.js`,
+  // so the moment routes.js became routes.ts every mount resolved to null
+  // and every url with it - silently, because the guard counts read only
+  // the middleware names and would have stayed at 132.
+  while ((m = re.exec(appSrc))) importedAs.set(m[1], `features/${m[2]}/routes`);
 }
 const mountOf = new Map();
 {
@@ -52,10 +56,11 @@ for (const file of walk(join(ROOT, "features"))) {
     const handler = names[names.length - 1];
     const guards = names.slice(0, -1);
     const rel = relative(ROOT, file);
+    const key = rel.replace(/\.(js|ts)$/, "");
     routes.push({
       file: rel,
-      mount: mountOf.get(rel) ?? null,
-      url: mountOf.has(rel) ? (mountOf.get(rel) + path).replace(/\/+/g, "/") : null,
+      mount: mountOf.get(key) ?? null,
+      url: mountOf.has(key) ? (mountOf.get(key) + path).replace(/\/+/g, "/") : null,
       verb: verb.toUpperCase(),
       path,
       guards,
