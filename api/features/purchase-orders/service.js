@@ -648,7 +648,25 @@ export async function editPayoutCharge({ order_id, payout_charge }) {
   return await purchaseOrderRepo.editPayoutCharge(order_id, payout_charge);
 }
 
-export async function addFundsToAccount({ order, spots }) {
+// THE LEDGER NOW RECORDS WHAT WAS ACTUALLY CREDITED.
+//
+// This credited `order.total_price` and logged `calculateTotalPrice(order,
+// spots)` - two different numbers, computed different ways, from a `spots` that
+// arrived in the request body. So the entry meant to explain a balance movement
+// recorded a different figure from the movement itself.
+//
+// It shows in production. All NINE Credit entries differ from the total_price of
+// the order they name, three of them materially: two at -$219.60 and one at
+// -$17.69. CLAUDE.md puts it exactly right - a ledger that disagrees with the
+// orders it explains is worse than no ledger.
+//
+// `spots` is REMOVED from the signature rather than accepted and ignored, the
+// same treatment get_sales_tax and createSalesOrder got: a parameter that is
+// still accepted is one a future reader will assume still matters.
+//
+// This does NOT rewrite the nine historical rows. What they should say is a
+// business question, and there is a second one beside it - see FOLLOWUPS.md.
+export async function addFundsToAccount({ order }) {
   try {
     await withTransaction(async (client) => {
       await transactionRepo.addFunds(order.user_id, order.total_price, client);
@@ -657,7 +675,7 @@ export async function addFundsToAccount({ order, spots }) {
         "Credit",
         order.id,
         null,
-        calculateTotalPrice(order, spots),
+        order.total_price,
         client
       );
     });

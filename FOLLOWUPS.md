@@ -3313,6 +3313,51 @@ The same question is worth asking of the other provider variables — the FedEx
 and Stripe credentials, and `SPOT_API_URL`, which `spots.updateSpotPrices` also
 reads without a check.
 
+### The credit ledger has never been reconcilable, and nine entries disagree with their order
+
+Two separate things, found while covering
+`POST /api/purchase_orders/add_funds_to_account` — one of the routes no test had
+ever driven.
+
+**One: the entry and the movement were computed differently.** `addFundsToAccount`
+credited `order.total_price` and logged `calculateTotalPrice(order, spots)`, with
+`spots` arriving in the request body. Two numbers, two methods. Fixed — the
+ledger now records what was credited, and `spots` is removed from the signature
+rather than ignored, the same treatment `get_sales_tax` and `createSalesOrder`
+got.
+
+It shows in production. **All nine `Credit` entries differ from the
+`total_price` of the order they name**, three materially:
+
+| ledger amount | order total | difference |
+|---|---|---|
+| 13,619.75 | 13,839.35 | −219.60 |
+| 13,619.75 | 13,839.35 | −219.60 |
+| 405.17 | 422.86 | −17.69 |
+
+**Two: two orders carry more than one `Credit` entry.** Order
+`6d9b867d-…` has **three**, totalling **$41,078.85 against an order worth
+$13,839.35** — one correct entry in June 2025 and two identical ones on
+2025-10-03. Order `7975c2b5-…` has two, totalling $828.03 against $422.86.
+
+**What I could NOT determine, and did not assume.** Whether any customer was
+actually over-credited. The balances do not reconcile against the ledger — one
+customer's entries net to $40,859.25 while their `dorado_funds` is **$10.23** —
+but that is explained without any over-crediting: `adjustUserCredit`, the admin
+credit adjustment, moves `dorado_funds` and **writes no ledger row at all**. So
+the ledger has never been a complete account of the balance, and the gap is not
+evidence of harm.
+
+**What is yours.** Whether the three divergent historical rows should be
+corrected, whether the duplicate entries represent duplicate payouts or only
+duplicate logging, and whether `adjustUserCredit` should start writing a ledger
+row so the two can be reconciled at all. Each is a decision about financial
+records, not a typing change. Nothing historical was rewritten.
+
+Covered now by `features/purchase-orders/add-funds.test.js`, which asserts the
+property rather than a number: the balance moves by exactly what the ledger
+records.
+
 ## Operations
 
 ### No production backup has been taken, and now there is more to back up
