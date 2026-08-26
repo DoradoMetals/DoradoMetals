@@ -3,7 +3,7 @@ import * as shipmentRepo from "#features/shipping/shipments/repo.js";
 import * as trackingRepo from "#features/shipping/tracking/repo.js";
 import * as pickupRepo from "#features/shipping/pickups/repo.js";
 import * as shippingHandler from "#features/shipping/operations/handler.ts";
-import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/fedex/constants.js";
+import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/fedex/constants.ts";
 import type { ShipmentRow } from "#features/shipping/shipments/repo.next.ts";
 import type { TrackingRow } from "#features/shipping/tracking/repo.next.ts";
 import type { ParsedTracking } from "#providers/fedex/utils/parsing.ts";

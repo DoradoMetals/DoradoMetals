@@ -1,11 +1,23 @@
 import { requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as stripe from "#providers/stripe/stripe.js"
+import * as stripe from "#providers/stripe/stripe.ts"
 import * as stripeService from "#features/payments/service.ts"
 
 export const handleStripeWebhook = asyncHandler(async (req, res) => {
+  // A HEADER CAN BE AN ARRAY, AND CAN BE ABSENT.
+  //
+  // Node types req.headers[x] as `string | string[] | undefined`, and it means
+  // it - a client may send the same header twice. Either non-string form went
+  // straight into Stripe's signature check, which is the one thing standing
+  // between this endpoint and anybody who can guess its URL. It refuses them,
+  // so this was never a hole; refusing here makes the reason legible instead of
+  // arriving as whatever Stripe's error happens to say.
   const sig = req.headers["stripe-signature"];
+  if (typeof sig !== "string") {
+    return res.status(400).send("Webhook Error: missing stripe-signature");
+  }
+
   let event;
 
   try {
@@ -25,11 +37,18 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       await stripeService.updateIntentFromWebhook({
         paymentIntent: event.data.object,
       });
-      const paymentMethod = await stripe.retrievePaymentMethod(
-        event.data.object.payment_method
-      );
-
-      await stripeService.updateMethod({ paymentMethod: paymentMethod });
+      // payment_method is `string | PaymentMethod | null` on Stripe's own type.
+      // Null is the case that matters: an intent can succeed without one on
+      // some flows, and retrievePaymentMethod(null) would throw INSIDE the
+      // handler - after updateIntentFromWebhook had already run - so the
+      // response would be a 500 and Stripe would retry an update that had
+      // already been applied. Nothing to look up is not an error; it just means
+      // there is no instrument to record.
+      const methodId = event.data.object.payment_method;
+      if (typeof methodId === "string") {
+        const paymentMethod = await stripe.retrievePaymentMethod(methodId);
+        await stripeService.updateMethod({ paymentMethod });
+      }
       break;
     }
 
@@ -37,11 +56,18 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       await stripeService.updateIntentFromWebhook({
         paymentIntent: event.data.object,
       });
-      const paymentMethod = await stripe.retrievePaymentMethod(
-        event.data.object.payment_method
-      );
-
-      await stripeService.updateMethod({ paymentMethod: paymentMethod });
+      // payment_method is `string | PaymentMethod | null` on Stripe's own type.
+      // Null is the case that matters: an intent can succeed without one on
+      // some flows, and retrievePaymentMethod(null) would throw INSIDE the
+      // handler - after updateIntentFromWebhook had already run - so the
+      // response would be a 500 and Stripe would retry an update that had
+      // already been applied. Nothing to look up is not an error; it just means
+      // there is no instrument to record.
+      const methodId = event.data.object.payment_method;
+      if (typeof methodId === "string") {
+        const paymentMethod = await stripe.retrievePaymentMethod(methodId);
+        await stripeService.updateMethod({ paymentMethod });
+      }
       break;
     }
 

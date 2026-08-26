@@ -1,3 +1,4 @@
+import { requiredEnv } from "#shared/env/required.ts";
 // Everything this codebase asks Stripe to do.
 //
 // The same shape providers/fedex has: the feature says what it wants and the
@@ -14,13 +15,21 @@
 //
 // Deliberately thin. No mapping, no defaults, no business rules - those belong
 // to features/payments. This is the boundary, not a layer.
-import stripeClient from "#providers/stripe/client.js";
+import stripeClient from "#providers/stripe/client.ts";
 
-export function retrieveIntent(paymentIntentId) {
+export function retrieveIntent(paymentIntentId: string) {
   return stripeClient.paymentIntents.retrieve(paymentIntentId);
 }
 
-export function createIntent({ amount, currency = "usd", customerId }) {
+export function createIntent({
+  amount,
+  currency = "usd",
+  customerId,
+}: {
+  amount: number;
+  currency?: string;
+  customerId?: string;
+}) {
   return stripeClient.paymentIntents.create({
     amount,
     currency,
@@ -30,33 +39,39 @@ export function createIntent({ amount, currency = "usd", customerId }) {
   });
 }
 
-export function updateIntent(paymentIntentId, changes) {
+export function updateIntent(paymentIntentId: string, changes: Record<string, unknown>) {
   return stripeClient.paymentIntents.update(paymentIntentId, changes);
 }
 
-export function captureIntent(paymentIntentId) {
+export function captureIntent(paymentIntentId: string) {
   return stripeClient.paymentIntents.capture(paymentIntentId);
 }
 
-export function cancelIntent(paymentIntentId) {
+export function cancelIntent(paymentIntentId: string) {
   return stripeClient.paymentIntents.cancel(paymentIntentId);
 }
 
-export function createCustomer({ name, email }) {
+export function createCustomer({
+  name,
+  email,
+}: {
+  name?: string | null;
+  email?: string | null;
+}) {
   return stripeClient.customers.create({ name: name ?? "", email: email ?? "" });
 }
 
-export function retrievePaymentMethod(paymentMethodId) {
+export function retrievePaymentMethod(paymentMethodId: string) {
   return stripeClient.paymentMethods.retrieve(paymentMethodId);
 }
 
 // The webhook signature check. It is Stripe's business what a valid signature
 // looks like, and the secret is Stripe's too, so it lives here rather than in a
 // controller.
-export function verifyWebhook(rawBody, signature) {
+export function verifyWebhook(rawBody: Buffer | string, signature: string) {
   return stripeClient.webhooks.constructEvent(
     rawBody,
     signature,
-    process.env.STRIPE_WEBHOOK_SECRET
+    requiredEnv("STRIPE_WEBHOOK_SECRET")
   );
 }

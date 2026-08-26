@@ -1,12 +1,13 @@
 import axios from 'axios';
+import { requiredEnv } from '#shared/env/required.ts';
 
-export async function verifyToken(token) {
+export async function verifyToken(token: string): Promise<unknown> {
   if (!token) {
     throw new Error('Captcha token is missing');
   }
 
   const params = new URLSearchParams();
-  params.append('secret', process.env.RECAPTCHA_SECRET_KEY);
+  params.append('secret', requiredEnv('RECAPTCHA_SECRET_KEY'));
   params.append('response', token);
 
   const threshold = parseFloat(process.env.RECAPTCHA_THRESHOLD || '0.5');

@@ -22,7 +22,7 @@ import pool from "#db";
 import { PROVIDERS } from "#features/shipping/operations/registry.ts";
 import { BUILDERS } from "#features/shipping/operations/builders.ts";
 import { resolveCarrier } from "#features/shipping/operations/resolver.ts";
-import { FEDEX_CARRIER_ID } from "#providers/fedex/constants.js";
+import { FEDEX_CARRIER_ID } from "#providers/fedex/constants.ts";
 import * as exchangeCarriers from "#features/shipping/carriers/repo.exchange.js";
 import * as nextCarriers from "#features/shipping/carriers/repo.next.ts";
 

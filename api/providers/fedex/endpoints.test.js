@@ -19,7 +19,7 @@ import {
   trackingAccountNumber,
   activeEnvironment,
   apiBase,
-} from "#providers/fedex/endpoints.js";
+} from "#providers/fedex/endpoints.ts";
 
 const saved = { ...process.env };
 
@@ -84,7 +84,7 @@ test("the sandbox account is a different account from the live one", () => {
 // The payload builders have to follow the switch too, or a sandbox request is
 // built naming the live account.
 test("a built payload carries the account the switch selected", async () => {
-  const { createShipmentPayload } = await import("#providers/fedex/payloads.js");
+  const { createShipmentPayload } = await import("#providers/fedex/payloads.ts");
   const input = {
     shipper: { contact: {}, address: {} },
     recipient: { contact: {}, address: {} },

@@ -1,3 +1,4 @@
+import { requiredEnv } from "#shared/env/required.ts";
 // The FedEx HTTP layer: which host, which credentials, and nothing else.
 //
 // PRODUCTION OR SANDBOX, chosen by FEDEX_ENV. `.env` has carried a full set of
@@ -47,7 +48,13 @@ export const trackingAccountNumber = () =>
 export const activeEnvironment = () => (sandbox() ? "sandbox" : "production");
 export const apiBase = base;
 
-async function fetchOAuthToken({ clientId, clientSecret }) {
+async function fetchOAuthToken({
+  clientId,
+  clientSecret,
+}: {
+  clientId: string;
+  clientSecret: string;
+}) {
   const response = await axios.post(
     base() + "/oauth/token",
     new URLSearchParams({
@@ -82,7 +89,7 @@ async function fetchOAuthToken({ clientId, clientSecret }) {
 // at the sandbox, and it is a scheduling decision rather than a safety one -
 // which is exactly why it is not enforced here.
 
-function refuseInTests(what) {
+function refuseInTests(what: string) {
   // Asked at call time; see shared/testing/is-test-run.ts.
   if (!isTestRun()) return;
   if ((process.env.FEDEX_ENV ?? "production") === "sandbox") return;
@@ -96,11 +103,17 @@ function refuseInTests(what) {
 
 export async function fetchAccessToken() {
   refuseInTests("fetchAccessToken");
+  // requiredEnv NAMES THE MISSING VARIABLE AND NEVER ITS VALUE. Without it an
+  // unset credential reached FedEx as `undefined` and came back as a generic
+  // authentication failure, with nothing anywhere saying which of the four it
+  // was - and there are four, because sandbox and production each have a pair.
   return fetchOAuthToken({
-    clientId: sandbox() ? process.env.FEDEX_SANDBOX_CLIENT_ID : process.env.FEDEX_CLIENT_ID,
+    clientId: sandbox()
+      ? requiredEnv("FEDEX_SANDBOX_CLIENT_ID")
+      : requiredEnv("FEDEX_CLIENT_ID"),
     clientSecret: sandbox()
-      ? process.env.FEDEX_SANDBOX_CLIENT_SECRET
-      : process.env.FEDEX_CLIENT_SECRET,
+      ? requiredEnv("FEDEX_SANDBOX_CLIENT_SECRET")
+      : requiredEnv("FEDEX_CLIENT_SECRET"),
   });
 }
 
@@ -108,28 +121,44 @@ export async function fetchTrackingToken() {
   refuseInTests("fetchTrackingToken");
   return fetchOAuthToken({
     clientId: sandbox()
-      ? process.env.FEDEX_TRACKING_SANDBOX_CLIENT_ID
-      : process.env.FEDEX_TRACKING_CLIENT_ID,
+      ? requiredEnv("FEDEX_TRACKING_SANDBOX_CLIENT_ID")
+      : requiredEnv("FEDEX_TRACKING_CLIENT_ID"),
     clientSecret: sandbox()
-      ? process.env.FEDEX_TRACKING_SANDBOX_CLIENT_SECRET
-      : process.env.FEDEX_TRACKING_CLIENT_SECRET,
+      ? requiredEnv("FEDEX_TRACKING_SANDBOX_CLIENT_SECRET")
+      : requiredEnv("FEDEX_TRACKING_CLIENT_SECRET"),
   });
 }
 
-function authHeaders(token) {
+function authHeaders(token: string) {
   return {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
 }
 
-export async function fedexPost({ token, path, payload }) {
+export async function fedexPost({
+  token,
+  path,
+  payload,
+}: {
+  token: string;
+  path: string;
+  payload: unknown;
+}) {
   refuseInTests(`POST ${path}`);
   const res = await axios.post(base() + path, payload, { headers: authHeaders(token) });
   return res.data;
 }
 
-export async function fedexPut({ token, path, payload }) {
+export async function fedexPut({
+  token,
+  path,
+  payload,
+}: {
+  token: string;
+  path: string;
+  payload: unknown;
+}) {
   refuseInTests(`PUT ${path}`);
   const res = await axios.put(base() + path, payload, { headers: authHeaders(token) });
   return res.data;

@@ -31,7 +31,7 @@ import "#env";
 
 // Set BEFORE importing the provider, which reads the environment at module load.
 process.env.FEDEX_ENV = "sandbox";
-const { fetchAccessToken, fetchTrackingToken } = await import("#providers/fedex/endpoints.js");
+const { fetchAccessToken, fetchTrackingToken } = await import("#providers/fedex/endpoints.ts");
 
 before(() => {
   for (const name of [
@@ -76,7 +76,7 @@ test("the provider refuses the live API during a test run", async () => {
   const saved = process.env.FEDEX_ENV;
   process.env.FEDEX_ENV = "production";
   try {
-    const fresh = await import(`#providers/fedex/endpoints.js?live=${Date.now()}`);
+    const fresh = await import(`#providers/fedex/endpoints.ts?live=${Date.now()}`);
     await assert.rejects(
       () => fresh.fetchAccessToken(),
       /refusing to call the LIVE FedEx API/,

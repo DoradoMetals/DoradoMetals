@@ -20,7 +20,7 @@
 // modifies anything that already exists in the account.
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
-import * as stripe from "#providers/stripe/stripe.js";
+import * as stripe from "#providers/stripe/stripe.ts";
 
 const created = { intents: [], customers: [] };
 

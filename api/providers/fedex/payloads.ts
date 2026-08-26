@@ -1,11 +1,11 @@
 import {
   DEFAULT_EMAIL_NOTIFICATION_DETAIL,
   DEFAULT_HOLD_AT_LOCATION_DETAIL,
-} from "#providers/fedex/constants.js";
+} from "#providers/fedex/constants.ts";
 // The account number follows FEDEX_ENV: the sandbox is a different FedEx
 // account, so a payload built for it has to name that one or every request is
 // refused with a permissions error rather than anything that says "wrong env".
-import { accountNumber } from "#providers/fedex/endpoints.js";
+import { accountNumber } from "#providers/fedex/endpoints.ts";
 // schedulePickupPayload calls normalizeTime, formatFedexFullDateTime and
 // addHours. All three live in this module and none of them was imported, so
 // building a pickup payload threw ReferenceError on the first line that used
@@ -17,7 +17,50 @@ import {
   addHours,
 } from "#providers/fedex/utils/formatting.ts";
 
-export function validateAddressPayload(address) {
+
+// THE SHAPES FEDEX IS SENT.
+//
+// Deliberately structural and loose rather than a full model of FedEx's API:
+// these builders pass most of what they are given straight through, and a
+// stricter type here would be a second, drifting copy of somebody else's
+// schema. What is named is what these functions actually read or decide on -
+// enough that a caller cannot omit an address or misspell `packageDetails`.
+type FedexAddress = Record<string, unknown>;
+type PackageDetails = Record<string, unknown>;
+
+type RateQuoteInput = {
+  shipperAddress: FedexAddress;
+  recipientAddress: FedexAddress;
+  packageDetails: PackageDetails;
+  pickupType?: string;
+  declaredValue?: { amount?: number; currency?: string } | null;
+  carrierCodes?: string[];
+};
+
+type CreateShipmentInput = {
+  shipper: Record<string, unknown>;
+  recipient: Record<string, unknown>;
+  serviceType?: string;
+  pickupType?: string;
+  packageDetails: PackageDetails;
+  totalDeclaredValue?: { amount?: number; currency?: string } | null;
+  label?: Record<string, unknown>;
+  specialServices?: Record<string, unknown> | null;
+  emailNotificationDetail?: Record<string, unknown> | null;
+  options?: { holdAtLocation?: boolean; emailNotifications?: boolean };
+};
+
+type PickupAvailabilityInput = {
+  pickupAddress: FedexAddress;
+  code?: string;
+  readyDate: Date;
+};
+
+type SchedulePickupInput = Record<string, any>;
+type CancelPickupInput = Record<string, any>;
+type LocationsInput = Record<string, any>;
+
+export function validateAddressPayload(address: FedexAddress) {
   return {
     addressesToValidate: [
       {
@@ -43,7 +86,7 @@ export function rateQuotePayload({
   pickupType,
   declaredValue,
   carrierCodes = ["FDXE"],
-}) {
+}: RateQuoteInput) {
   return {
     accountNumber: { value: accountNumber() },
     rateRequestControlParameters: { returnTransitTimes: true },
@@ -86,7 +129,7 @@ export function createShipmentPayload({
   specialServices,
   emailNotificationDetail,
   options,
-}) {
+}: CreateShipmentInput) {
   const wantsHoldAtLocation = options?.holdAtLocation !== false;
   const wantsEmailNotifications = options?.emailNotifications !== false;
 
@@ -134,14 +177,18 @@ export function createShipmentPayload({
 }
 
 
-export function cancelShipmentPayload(trackingNumber) {
+export function cancelShipmentPayload(trackingNumber: string) {
   return {
     accountNumber: { value: accountNumber() },
     trackingNumber,
   };
 }
 
-export function pickupAvailabilityPayload({ pickupAddress, code, readyDate }) {
+export function pickupAvailabilityPayload({
+  pickupAddress,
+  code,
+  readyDate,
+}: PickupAvailabilityInput) {
   const packageReadyTime = formatFedexTime(readyDate);
 
   return {
@@ -163,7 +210,7 @@ export function schedulePickupPayload({
   carrierCode,
   trackingNumber,
   packageLocation = "FRONT",
-}) {
+}: SchedulePickupInput) {
   const time = normalizeTime(pickupTime);
   const readyDate = new Date(`${pickupDate}T${time}`);
 
@@ -191,7 +238,7 @@ export function cancelPickupPayload({
   confirmationCode,
   pickupDate,
   location,
-}) {
+}: CancelPickupInput) {
   return {
     associatedAccountNumber: { value: accountNumber() },
     pickupConfirmationCode: confirmationCode,
@@ -204,7 +251,7 @@ export function locationsPayload({
   address,
   radiusMiles = 25,
   maxResults = 10,
-}) {
+}: LocationsInput) {
   return {
     locationsSummaryRequestControlParameters: {
       distance: { units: "MI", value: radiusMiles },
@@ -222,7 +269,7 @@ export function locationsPayload({
   };
 }
 
-export function trackingPayload(trackingNumber) {
+export function trackingPayload(trackingNumber: string) {
   return {
     includeDetailedScans: true,
     trackingInfo: [{ trackingNumberInfo: { trackingNumber } }],

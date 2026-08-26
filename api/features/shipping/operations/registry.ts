@@ -5,7 +5,7 @@
 // are the shape a second carrier would take rather than aspiration: adding UPS
 // means a providers/ups/ups.js exporting the same functions, an entry here and
 // an entry in BUILDERS, and nothing else changes.
-import * as fedex from "#providers/fedex/fedex.js";
+import * as fedex from "#providers/fedex/fedex.ts";
 // import * as ups from "#providers/ups/ups.js";
 // import * as usps from "#providers/usps/usps.js";
 

@@ -15,10 +15,29 @@ export const getRates = asyncHandler(async (req, res) => {
 
 export const checkPickup = asyncHandler(async (req, res) => {
   const { carrier_id, pickupAddress, code, readyDate } = req.body;
+
+  // READY DATE IS A Date EVERYWHERE BELOW, AND JSON CANNOT CARRY ONE.
+  //
+  // The provider takes it twice - pickupAvailabilityPayload calls
+  // formatFedexTime(d), which reads d.getHours(), and parsePickupAvailability
+  // calls d.getTime() - and both were handed the raw string from the body. The
+  // frontend sends `new Date().toISOString().split("T")[0]`, so this route
+  // answered 500 with "d.getHours is not a function" on every call.
+  //
+  // Converted here because this is the boundary where a request becomes
+  // objects; the provider's Date is the type it always meant.
+  const readyAt = new Date(readyDate);
+  if (Number.isNaN(readyAt.getTime())) {
+    const err: Error & { statusCode?: number } = new Error(
+      "readyDate is required and must be a date"
+    );
+    err.statusCode = 400;
+    throw err;
+  }
   const result = await shippingHandler.checkPickup(carrier_id, null, {
     pickupAddress,
     code,
-    readyDate,
+    readyDate: readyAt,
   });
   return res.json(result);
 });
