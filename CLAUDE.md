@@ -183,7 +183,12 @@ The ones that have actually caught things:
   feature with no contract at all and the last checked one way; they now go
   through `bothWays` like everything else. Contracts describe the wire, so
   timestamps are strings — the comparison runs on
-  `JSON.parse(JSON.stringify(row))`.
+  `JSON.parse(JSON.stringify(row))`. **It also refuses a field no contract
+  declares.** zod strips unknown keys rather than rejecting them, so a
+  projection that grew a column parsed clean and reached the wire unnoticed —
+  which is the hazard `features/products/constants.bullion.ts` names in its own
+  comment. Zero of the 61 shapes have one, so refusing costs nothing; if it
+  fires after a deliberate addition, regenerate the contracts.
 - `audit:coverage` — **every populated column in `exchange` that has nowhere to
   go.** Run this before splitting any repo. Orders had matching row counts and
   was missing 21 columns of live data; row counts are not evidence.

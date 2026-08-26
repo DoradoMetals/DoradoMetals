@@ -293,6 +293,8 @@ add("order.address", c.AddressOnOrder, () => orders.map((o) => o.address).filter
 let pass = 0;
 const failures = [];
 
+const undeclaredTotal = new Map();
+
 for (const { name, schema, load } of cases) {
   let rows;
   try {
@@ -308,9 +310,17 @@ for (const { name, schema, load } of cases) {
   }
 
   const issues = new Map();
+  const undeclared = new Set();
   for (const row of list) {
     // Contracts describe the wire, so compare what JSON serialisation produces.
-    const result = schema.safeParse(JSON.parse(JSON.stringify(row)));
+    const wire = JSON.parse(JSON.stringify(row));
+    const result = schema.safeParse(wire);
+    // zod STRIPS keys the contract does not declare rather than rejecting them,
+    // so a parse can succeed on a response carrying fields nobody declared.
+    // Recover them by diffing what went in against what came out.
+    if (result.success && wire && typeof wire === "object" && !Array.isArray(wire)) {
+      for (const k of Object.keys(wire)) if (!(k in result.data)) undeclared.add(k);
+    }
     if (result.success) continue;
     for (const i of result.error.issues) {
       const key = `${i.path.join(".") || "(root)"}: ${i.message}`;
@@ -321,8 +331,10 @@ for (const { name, schema, load } of cases) {
   if (issues.size) failures.push({ name, issues, count: list.length });
   else {
     pass++;
-    console.log(`  ok    ${name}  (${list.length} rows)`);
+    const extra = undeclared.size ? `  UNDECLARED: ${[...undeclared].join(", ")}` : "";
+    console.log(`  ok    ${name}  (${list.length} rows)${extra}`);
   }
+  if (undeclared.size) undeclaredTotal.set(name, [...undeclared]);
 }
 
 if (failures.length) {
@@ -336,6 +348,19 @@ if (failures.length) {
 }
 
 console.log();
+// A field nobody declared is the failure this check could not previously see.
+// zod strips unknown keys rather than rejecting them, so a response carrying an
+// extra column parsed clean - and features/products/constants.bullion.ts names
+// exactly that hazard: "a projection that silently grew is how columns start
+// leaking onto the wire". Zero endpoints have one today, so refusing is free.
+// If this fires after a deliberate addition, regenerate the contracts.
+if (undeclaredTotal.size) {
+  console.log(`${undeclaredTotal.size} endpoint(s) RETURN FIELDS NO CONTRACT DECLARES:`);
+  for (const [name, keys] of undeclaredTotal) console.log(`        ${name}: ${keys.join(", ")}`);
+  console.log("      zod strips these silently - regenerate the contracts, or stop selecting them.");
+  console.log();
+  process.exitCode = 1;
+}
 console.log(`${pass} endpoint shape(s) match, ${failures.length} diverge`);
 if (failures.length) process.exitCode = 1;
 await pool.end();

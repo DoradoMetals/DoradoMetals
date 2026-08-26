@@ -4408,3 +4408,54 @@ lift. **A test of an idempotency guard must use something non-idempotent.**
 Mutation-checked three ways: making the fallback select `next` fails 1 test,
 deleting the applied-once guard fails 1 (after the rewrite — 0 before it), and
 pointing two fields of a real map at one legacy name fails 1.
+
+## `validate:wire` could not see a field that should not be there
+
+The untested-exports scan over `api/features/` came back nearly clean — **155
+files with exports, 7 with no symbol in any test** — and the interesting ones
+were the product field lists. Following them produced a gap in a gate rather
+than a bug in the lists.
+
+**zod strips unknown keys; it does not reject them.** `validate:wire` calls
+`schema.safeParse(row)` and no contract uses `.strict()`, so a response
+carrying a column nobody declared parsed clean. The check could see a missing
+field and a mistyped one, and was blind to an extra one — which is precisely
+the hazard `features/products/constants.bullion.ts` names in its own comment:
+*"a projection that silently grew is how columns start leaking onto the wire."*
+
+Undeclared keys are recoverable by diffing what went in against what
+`safeParse` handed back. Measured first: **zero undeclared fields across all 61
+endpoint shapes.** So refusing costs nothing, and `validate:wire` now fails on
+one. Mutation-checked: adding one column to `PRODUCT_FIELDS` fails the gate
+(exit 1) and names the three endpoints it reached.
+
+**The field lists themselves are also now pinned.** There are eight across two
+files — `exchange.products` and the new `products.bullion`, each with a public
+and an admin list, each of those with a `WITH_ALIAS` twin for joined queries.
+Four pairs that must agree, and no test. `constants.test.js` holds:
+
+- each list and its alias twin project the same fields **in the same order**;
+- **everything public is also admin**, with exactly nine admin-only fields
+  (`created_at`, `created_by`, `display`, `filter_category`,
+  `homepage_display`, `quantity`, `stock`, `updated_at`, `updated_by`) — the
+  disclosure boundary;
+- the exchange and bullion lists deliver **the same shape from differently
+  named columns**, asserted alongside a check that they really are different
+  underneath, or that comparison would be trivially true.
+
+Mutation-checked: putting `stock` in the public list fails 3 tests; drifting an
+alias twin fails 1.
+
+**Worth knowing:** three of the eight constants had **no importer at all** —
+`ADMIN_PRODUCT_FIELDS`, `BULLION_PRODUCT_FIELDS_WITH_ALIAS` and
+`BULLION_ADMIN_PRODUCT_FIELDS`. They are symmetric completions of the set
+rather than mistakes, and they are left in place. Note that the new test now
+references them, so a future dead-export scan will no longer report them —
+this paragraph is the record that they had no production consumer as of today.
+
+Also checked and clean, so it is not re-investigated: `shared/http/caller.ts`.
+`callerId` throws 401 and `requiredParam` throws 400, and the error handler
+reads `raised.statusCode || raised.status`, so both refusals reach the client
+as intended rather than becoming 500s. The nine direct `req.user` reads outside
+it are all guarded routes or explicit admin checks, and `emails/controller.ts`
+resolves its recipient through an ownership-or-admin check that refuses 403.
