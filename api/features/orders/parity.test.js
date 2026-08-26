@@ -24,7 +24,7 @@ import { LOCKS, takeLocks } from "#shared/testing/locks.js";
 import { decompose } from "#features/orders/intake.js";
 import * as intake from "#features/orders/intake.repo.js";
 import { createFromCheckout } from "#features/orders/create.js";
-import { recordPurchaseOrder } from "#features/purchase-orders/service.js";
+import { recordPurchaseOrder } from "#features/purchase-orders/service.ts";
 
 let client;
 

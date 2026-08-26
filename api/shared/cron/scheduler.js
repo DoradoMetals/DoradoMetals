@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import { updateSpotPrices } from "#features/spots/service.ts";
-import { expireStaleOffers } from "#features/purchase-orders/service.js";
+import { expireStaleOffers } from "#features/purchase-orders/service.ts";
 
 // Each job runs once at startup and then on its cron expression. Failures are
 // logged and swallowed so one bad run never takes the process down.
