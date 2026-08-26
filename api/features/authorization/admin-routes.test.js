@@ -49,7 +49,7 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.js";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
-import { adminRoutes } from "../../scripts/route-guards.mjs";
+import { adminRoutes, allRoutes } from "../../scripts/route-guards.mjs";
 import { readFileSync } from "node:fs";
 
 const INVENTORY = JSON.parse(
@@ -133,5 +133,61 @@ test("the set of admin-guarded routes is the one that was reviewed", () => {
     added,
     [],
     `${added.length} new admin route(s) - add them to admin-routes.json so the sweep covers them`
+  );
+});
+
+// A requireUser handler must not believe an identity that came from the request.
+//
+// WHY THIS IS STATIC AND NOT A REQUEST. The route that motivated it,
+// POST /api/purchase_orders/create_purchase_order, took `user_id` from the body
+// behind requireUser - so a signed-in customer could place an order attributed
+// to somebody else, and that path buys a real FedEx label and can book a
+// courier on the way through. It cannot be driven from a test for exactly that
+// reason: the request that demonstrated the bug would be the one that spent the
+// money. FOLLOWUPS had recorded it and deferred it while the write path was
+// mid-rebuild; that rebuild has landed, so it is fixed and this holds it.
+//
+// requireOwnOrder covers the routes whose subject is an ORDER id. This covers
+// the ones whose subject is the USER, which that middleware cannot see.
+//
+// Reading `user_id` is allowed when the handler also asks whether the caller is
+// an admin - GET /api/stripe/retrieve_payment_intent does exactly that, and an
+// admin acting for a named customer is a real flow. Writing
+// `user_id: req.user.id` is not reading one at all.
+test("no requireUser handler takes a user_id from the request without an admin check", () => {
+  const offenders = [];
+
+  for (const r of allRoutes) {
+    const isUserOnly =
+      r.guards.some((g) => /requireUser/.test(g)) && !r.guards.some((g) => /requireAdmin/.test(g));
+    if (!isUserOnly) continue;
+
+    const controller = r.file.replace(/routes\.(js|ts)$/, "controller.js");
+    let src;
+    try {
+      src = readFileSync(new URL(`../../${controller}`, import.meta.url), "utf8");
+    } catch {
+      continue;
+    }
+
+    const start = src.indexOf(`export const ${r.handler}`);
+    if (start < 0) continue;
+    const next = src.indexOf("\nexport const", start + 1);
+    // Comments stripped: this very file explains the rule in prose above each
+    // handler it applies to, and prose is not code.
+    const body = src.slice(start, next < 0 ? src.length : next).replace(/\/\/[^\n]*/g, "");
+
+    const readsFromRequest =
+      /req\.(body|query)(\?)?\.user_id/.test(body) ||
+      /\{[^}]*\buser_id\b[^}]*\}\s*=\s*req\.(body|query)/.test(body);
+    const checksAdmin = /req\.user(\?)?\.role/.test(body);
+
+    if (readsFromRequest && !checksAdmin) offenders.push(`${r.verb} ${r.url}`);
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `${offenders.length} route(s) take a user_id from the request behind requireUser alone`
   );
 });

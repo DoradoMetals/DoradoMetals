@@ -60,9 +60,28 @@ export const createReview = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
+// WHOSE ORDER. This took `user_id` straight from the body behind requireUser,
+// so a signed-in customer could place a purchase order attributed to somebody
+// else - and this path buys a real FedEx label and can book a courier on the
+// way through, so it spends money as it does it.
+//
+// Same shape as the address book and the order routes: an id taken from the
+// request with nothing asking whose it is. FOLLOWUPS recorded it and deferred
+// it because the write path was mid-rebuild; that rebuild has landed, so it is
+// fixed here.
+//
+// The session, unconditionally, with no admin escape hatch - unlike addresses,
+// where an admin legitimately reads another user's book. There is no admin
+// caller for this route: the one frontend caller sends its own session id, and
+// an admin placing an order on a customer's behalf has a separate route for
+// sales orders (admin_create_sales_order, requireAdmin) rather than borrowing
+// this one. A hatch nothing uses is a hatch nobody tests.
+//
+// Not a wire change: the body may still carry user_id, it is simply no longer
+// believed.
 export const createPurchaseOrder = asyncHandler(async (req, res) => {
-  const { purchase_order, user_id } = req.body;
-  const order = await purchaseOrderService.createPurchaseOrder(purchase_order, user_id);
+  const { purchase_order } = req.body;
+  const order = await purchaseOrderService.createPurchaseOrder(purchase_order, req.user.id);
   return res.status(200).json(order);
 });
 

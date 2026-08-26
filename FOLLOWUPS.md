@@ -1098,6 +1098,36 @@ noted, not changed. `create_purchase_order` takes `user_id` from the body and is
 worth a look when the orders collapse reaches its write path — it is not fixed
 here because that path is mid-rebuild and changing it twice would be worse.
 
+> **Both of those have moved on, 26 August.**
+>
+> **`create_purchase_order` is fixed.** The write path this deferred to has
+> landed, so the controller now takes the owner from the session and the body's
+> `user_id` is simply no longer believed. It is not a wire change. There is no
+> admin escape hatch, unlike the address book: the one frontend caller sends its
+> own session id, and an admin ordering for a customer has a separate route on
+> the sales side (`admin_create_sales_order`, `requireAdmin`) rather than
+> borrowing this one. Worth restating what it was: a signed-in customer could
+> place a purchase order attributed to somebody else, and that path **buys a
+> real FedEx label and can book a courier**, so it spent money doing it.
+>
+> It is held by a static check rather than a request, in
+> `features/authorization/admin-routes.test.js` — "no requireUser handler takes
+> a user_id from the request without an admin check". Static **because** of the
+> label: the request that demonstrated the bug would be the one that spent the
+> money. Proved discriminating by restoring the old line and watching it name
+> the route.
+>
+> **`get_tracking` is described above as a read, and it is not.**
+> `operationsService.getTracking` deletes and reinserts the shipment's tracking
+> events and updates its status, estimate and `delivered_at` — the same function
+> whose unconditional `removeEvents` is documented elsewhere in this file as
+> having already emptied seven production shipments' histories. So an
+> unauthorised caller with a shipment id does not merely see a tracking status;
+> they can **mutate another customer's shipment record and spend a FedEx call
+> doing it**. Still not changed — it needs an ownership rule keyed on a shipment
+> rather than an order, which `requireOwnOrder` cannot express — but "noted, not
+> changed" should be noted for what it actually is.
+
 ### FOR JACOB: any signed-in user could destroy any image file in storage
 
 **Live in the deployed API.** The third of three, and the only destructive one.
