@@ -205,6 +205,18 @@ The ones that have actually caught things:
   overwrote two columns in place, which a row count cannot see.
   `--self-test` proves the detector works by updating one row inside a
   transaction it rolls back.
+- `audit:frontend-nullability` — **every field the frontend requires that the
+  database allows to be absent.** The frontend keeps its own zod schemas (see
+  `audit:wire-readiness`), and three of them are `.parse()`d on the checkout
+  path, so one can reject the API's own data. 77 fields compared against
+  production, 31 stricter, **17 in schemas parsed at runtime** — none live, and
+  measured: 247 production rows, not one null. A mismatch is not automatically
+  a defect and the report says so; a form schema *should* be stricter than its
+  column. Two guards earn their keep: it prints how many of a schema's fields
+  are really columns of the mapped table (`pickupSchema` matched 0 of 6 and had
+  been reporting clean), and dropping `serviceSchema` killed a false alarm
+  where a FedEx rate quote shared only the word `code` with
+  `carrier_services` — the third shared-name false finding on this project.
 - `audit:wire-readiness` — **the other half of the promotion rule.** `*_WIRE`
   moves "when the frontend is ready", and nothing measured that. It counts the
   legacy field names the frontend still reads: `MEDIA_WIRE` is clear,

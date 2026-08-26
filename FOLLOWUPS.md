@@ -4056,3 +4056,56 @@ Both of these exist because the consumer's schema was written by hand against
 an assumption rather than derived from the contract. Making the frontend depend
 on `@dorado/contracts` would collapse this whole class, and is the obvious fix
 — but it changes a build boundary, so it is Jacob's call, not a night edit.
+
+### Every field the frontend requires that the database allows to be absent
+
+`pnpm --filter @dorado/api audit:frontend-nullability` (`--prod` for the
+authoritative answer) finishes the class D33 opened. It compares each frontend
+zod schema against the `exchange` columns it describes and reports every field
+the schema **requires** whose column **permits NULL** — reading
+`information_schema` only, so it never selects a value and stays clear of
+`exchange.payouts`.
+
+Against production: **77 fields compared, 31 stricter than the database, 17 of
+them in schemas that are actually parsed at runtime.**
+
+| schema | table | required-but-nullable |
+| --- | --- | --- |
+| `addressSchema` | `addresses` | `user_id`, `line_1`, `city`, `state`, `country`, `country_code`, `zip`, `name`, `phone_number`, `is_valid`, `is_residential` |
+| `productSchema` | `products` | `sell_display`, `is_generic` |
+| `spotPriceSchema` | `metals` | `bid_spot`, `percent_change`, `dollar_change` |
+| `userSchema` | `users` | `name` |
+
+**None is live. Measured: 247 production rows across those four tables, and not
+one null in any of the seventeen.** Each is a single row away from throwing a
+`ZodError` in the browser, with no server-side fault to find, because these
+schemas sit in the checkout `.parse()` path.
+
+**A mismatch is not automatically a defect, and the report says so.** A form
+schema *should* be stricter than its column — the user must supply what the
+database allows to be absent. `wireSchema` requiring `routing_number` is
+correct. What narrows the list is whether the schema is reached from a real
+`.parse()` call, computed transitively from the five call sites; the other 14
+can disagree with the database forever in silence.
+
+**Two guards, both of which caught something immediately.**
+
+- *Suspect mappings.* The report prints how many of a schema's fields are
+  actually columns of the table it is mapped to. `pickupSchema` matched **0 of
+  6** and had been reporting a clean "yes" — a check that proved nothing.
+- *Shared words.* `serviceSchema` was mapped to `carrier_services` and reported
+  that it requires `code` while `code` is NULL in **all 8** production rows —
+  which looks like a live broken checkout. It is not: `serviceSchema` is a
+  FedEx rate quote (`serviceType`, `netCharge`, `transitTime`, a Lucide
+  `icon`), and `code` is the only word it shares with that table. The mapping
+  was removed. This is the third time a shared column name has produced a
+  false finding on this project.
+
+`--self-test` requires the detector to still report `spotPriceSchema.bid_spot`,
+a case known to be true; if that stops appearing, every other "yes" is
+worthless.
+
+**A side effect worth keeping:** dev reports 30 and production 31. The extra is
+`products.sell_display` — `NOT NULL` in dev, nullable in production, because
+the migration that tightened it has not been applied there. Running the two and
+diffing is a cheap way to see that drift.

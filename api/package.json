@@ -15,6 +15,7 @@
     "audit:routes": "node scripts/route-guards.mjs --list",
     "audit:switches": "node scripts/audit-switches.mjs",
     "audit:wire-readiness": "node scripts/audit-wire-readiness.mjs",
+    "audit:frontend-nullability": "node scripts/audit-frontend-nullability.mjs",
     "migrate": "node scripts/migrate.mjs",
     "migrate:status": "node scripts/migrate.mjs --status",
     "audit:nullability": "node scripts/audit-nullability.mjs",
