@@ -1124,9 +1124,28 @@ here because that path is mid-rebuild and changing it twice would be worse.
 > having already emptied seven production shipments' histories. So an
 > unauthorised caller with a shipment id does not merely see a tracking status;
 > they can **mutate another customer's shipment record and spend a FedEx call
-> doing it**. Still not changed — it needs an ownership rule keyed on a shipment
-> rather than an order, which `requireOwnOrder` cannot express — but "noted, not
-> changed" should be noted for what it actually is.
+> doing it**.
+>
+> **Fixed the same morning.** `requireOwnShipment` in
+> `shared/middleware/ownership.js`, mounted on `get_tracking`. `requireOwnOrder`
+> could not be reused: it looks for an order id under four spellings and refuses
+> when it finds none, and this route names a `shipment_id`.
+>
+> `requireAdmin` was not the answer either — `useTracking` is called from the
+> **customer** purchase-order and sales-order drawers as well as the admin ones,
+> checked in the frontend before choosing the harder fix over the simpler one.
+>
+> It asks both schemas, for the same reason `requireOwnOrder` asks all three
+> order tables: it must answer identically whichever `SHIPMENTS_SOURCE` is
+> serving. `exchange.shipments` carries the order id inline; the new schema
+> reaches it through `fulfillments.shipments → fulfillments.fulfillments →
+> orders.orders`.
+>
+> `features/shipping/operations/shipment-ownership.test.js` drives the refusals
+> only. The allowed path calls FedEx and rewrites rows, so it is covered against
+> the middleware directly rather than over HTTP — including the owner and admin
+> branches, without which the suite would pass against a guard that refuses
+> everybody and takes the customer drawers down with it.
 
 ### FOR JACOB: any signed-in user could destroy any image file in storage
 
