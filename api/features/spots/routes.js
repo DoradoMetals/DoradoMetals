@@ -3,7 +3,7 @@ import {
   getSpotPrices,
 } from '#features/spots/controller.js';
 
-import * as spotsWire from "#features/spots/wire.js";
+import * as spotsWire from "#features/spots/wire.ts";
 import { wireShape } from "#shared/wire/middleware.js";
 
 const router = express.Router();

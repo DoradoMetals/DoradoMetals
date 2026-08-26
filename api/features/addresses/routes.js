@@ -9,7 +9,7 @@ import {
 } from "#features/addresses/controller.js";
 
 import { requireUser } from "#shared/middleware/authMiddleware.js";
-import * as addressesWire from "#features/addresses/wire.js";
+import * as addressesWire from "#features/addresses/wire.ts";
 import { wireShape } from "#shared/wire/middleware.js";
 
 const router = express.Router();

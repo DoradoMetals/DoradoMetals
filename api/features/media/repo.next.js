@@ -1,7 +1,7 @@
 // Images read from the media schema.
 //
 // media.images calls one column `checksum` where exchange.images calls it
-// `checksum_sha256`. Reads return the new name now and features/media/wire.js
+// `checksum_sha256`. Reads return the new name now and features/media/wire.ts
 // converts down for the frontend, behind MEDIA_WIRE. The wire shape is
 // unchanged - the better column name is a property of the new schema, not
 // something callers have to learn about mid-migration.

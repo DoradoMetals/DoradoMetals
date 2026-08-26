@@ -3,7 +3,7 @@
 //
 //   MEDIA_WIRE=legacy  (default) checksum_sha256
 //   MEDIA_WIRE=next              checksum
-import { makeWireAdapter } from "#shared/wire/rename.js";
+import { makeWireAdapter } from "#shared/wire/rename.ts";
 
 export const { toWire, fromWire, toLegacy, fromLegacy, activeShape } = makeWireAdapter({
   env: "MEDIA_WIRE",

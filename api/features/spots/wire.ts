@@ -10,7 +10,7 @@
 //
 //   SPOTS_WIRE=legacy  (default) type / ask_spot / bid_spot
 //   SPOTS_WIRE=next              name / ask / bid
-import { makeWireAdapter } from "#shared/wire/rename.js";
+import { makeWireAdapter } from "#shared/wire/rename.ts";
 
 export const { toWire, fromWire, toLegacy, fromLegacy, activeShape } = makeWireAdapter({
   env: "SPOTS_WIRE",

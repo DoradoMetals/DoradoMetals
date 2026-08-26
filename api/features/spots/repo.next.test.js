@@ -42,7 +42,7 @@ test("getAll returns one quote per metal", async () => {
 
 // The repo returns the new schema's names now - metals.metals calls it `name`,
 // spots.spots calls the quote columns `ask` and `bid` - and
-// features/spots/wire.js renames them back for the frontend behind SPOTS_WIRE.
+// features/spots/wire.ts renames them back for the frontend behind SPOTS_WIRE.
 // The legacy half is asserted below.
 //
 // It used to be: exchange.metals' `type` for the name, ask_spot/bid_spot

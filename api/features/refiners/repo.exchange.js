@@ -7,9 +7,9 @@
 // new schema holds them in two rows and joins them back. Both produce the same
 // thing, which is what lets diff compare them.
 //
-// features/refiners/wire.js flattens it back for the frontend, behind
+// features/refiners/wire.ts flattens it back for the frontend, behind
 // REFINERS_WIRE, and that is a transformation rather than a rename - which is
-// why this feature does not use shared/wire/rename.js.
+// why this feature does not use shared/wire/rename.ts.
 import query from "#shared/db/query.js";
 
 const FIELDS = `

@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as media from "#features/media/repo.next.js";
-import { toLegacy } from "#features/media/wire.js";
+import { toLegacy } from "#features/media/wire.ts";
 
 let client;
 let userId;
@@ -51,7 +51,7 @@ test("insertImage returns the inserted row", async () => {
 });
 
 // media.images names the column `checksum`; exchange calls it checksum_sha256.
-// The repos return the new name now - features/media/wire.js converts down for
+// The repos return the new name now - features/media/wire.ts converts down for
 // the frontend, behind MEDIA_WIRE - so this asserts the new name, and the
 // adapter half is asserted below it.
 // The reads alias it back so nothing above the repo sees the rename.

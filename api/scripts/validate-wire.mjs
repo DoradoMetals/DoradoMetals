@@ -84,11 +84,11 @@ const services = await import("#features/shipping/services/repo.js");
 const users = await import("#features/users/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
 const productsWire = await import("#features/products/wire.js");
-const mediaWire = await import("#features/media/wire.js");
-const refinersWire = await import("#features/refiners/wire.js");
+const mediaWire = await import("#features/media/wire.ts");
+const refinersWire = await import("#features/refiners/wire.ts");
 const carriersWire = await import("#features/shipping/carriers/wire.js");
-const spotsWire = await import("#features/spots/wire.js");
-const addressesWire = await import("#features/addresses/wire.js");
+const spotsWire = await import("#features/spots/wire.ts");
+const addressesWire = await import("#features/addresses/wire.ts");
 
 add("GET /reviews (public)", c.ReviewWire, () => reviews.getPublicReviews());
 await bothWays("GET /carriers", c.CarrierWireNext, "shipping/carriers", (m) => m.getAll());

@@ -8,7 +8,7 @@ import {
 } from "#features/media/controller.js";
 
 import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.js";
-import * as mediaWire from "#features/media/wire.js";
+import * as mediaWire from "#features/media/wire.ts";
 import { wireShape } from "#shared/wire/middleware.js";
 
 const router = express.Router();

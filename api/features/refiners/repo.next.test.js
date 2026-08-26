@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as next from "#features/refiners/repo.next.js";
-import { toLegacy } from "#features/refiners/wire.js";
+import { toLegacy } from "#features/refiners/wire.ts";
 import * as exchange from "#features/refiners/repo.exchange.js";
 
 let client;
@@ -43,7 +43,7 @@ test("getAllRefiners keeps the organization as its own object", async () => {
 });
 
 // `enabled` is the organization's column name and stays that way in the repo.
-// The frontend reads `is_active`, and features/refiners/wire.js is what turns
+// The frontend reads `is_active`, and features/refiners/wire.ts is what turns
 // one into the other - so both halves are asserted.
 test("the adapter flattens it to the shape the frontend reads", async () => {
   await inRollback(async (c) => {

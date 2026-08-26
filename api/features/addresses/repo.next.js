@@ -26,7 +26,7 @@ import query from "#shared/db/query.js";
 // key on it, and exchange returned it. The person's side - what they called it,
 // whether it is their default - is theirs, not the address's.
 //
-// features/addresses/wire.js flattens it back for the frontend behind
+// features/addresses/wire.ts flattens it back for the frontend behind
 // ADDRESSES_WIRE, which is a transformation rather than a rename.
 const ADDRESS_COLUMNS = `
       a.id,

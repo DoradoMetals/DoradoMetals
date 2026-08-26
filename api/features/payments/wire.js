@@ -11,7 +11,7 @@
 //   PAYMENTS_WIRE=next              status, attempt, details
 //
 // A transformation rather than a rename, so it does not use
-// shared/wire/rename.js.
+// shared/wire/rename.ts.
 //
 // ONE ENDPOINT IS AFFECTED and it is worth being precise about which. Of the
 // four payment routes, three answer with something that is not a repo row -

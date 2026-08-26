@@ -3,7 +3,7 @@ import express from "express";
 import { getAllRefiners } from "#features/refiners/controller.js";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.js";
-import * as refinersWire from "#features/refiners/wire.js";
+import * as refinersWire from "#features/refiners/wire.ts";
 import { wireShape } from "#shared/wire/middleware.js";
 
 const router = express.Router();

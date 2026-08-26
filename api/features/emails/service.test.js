@@ -24,7 +24,7 @@ import { closeBrowser } from "#features/pdf/render/browser.js";
 import * as poRepo from "#features/purchase-orders/repo.js";
 import * as soRepo from "#features/sales-orders/repo.js";
 import * as spotsRepo from "#features/spots/repo.js";
-import { toLegacy as spotsToLegacy } from "#features/spots/wire.js";
+import { toLegacy as spotsToLegacy } from "#features/spots/wire.ts";
 import { formatPurchaseOrderNumber, formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 
 let orders;

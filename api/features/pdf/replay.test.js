@@ -24,7 +24,7 @@ import pool from "#db";
 import { closeBrowser } from "#features/pdf/render/browser.js";
 import * as poRepo from "#features/purchase-orders/repo.js";
 import * as spotsRepo from "#features/spots/repo.js";
-import { toLegacy as spotsToLegacy } from "#features/spots/wire.js";
+import { toLegacy as spotsToLegacy } from "#features/spots/wire.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.js";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
 

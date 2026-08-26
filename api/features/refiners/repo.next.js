@@ -9,7 +9,7 @@
 // says so rather than flattening its fields to the top level. Separation of
 // concerns - the organization is a different thing that happens to be joined in.
 //
-// features/refiners/wire.js flattens it back for the frontend behind
+// features/refiners/wire.ts flattens it back for the frontend behind
 // REFINERS_WIRE, which is a transformation rather than a rename.
 import query from "#shared/db/query.js";
 

@@ -12,7 +12,7 @@
 // fulfillment that records how it changes hands. So the same block has to
 // become a checkout FIRST and an order from there, which is a translation
 // between two creation flows rather than a field map - and that is why orders
-// gets a hand-written adapter instead of shared/wire/rename.js.
+// gets a hand-written adapter instead of shared/wire/rename.ts.
 //
 // THIS FILE IS PURE ON PURPOSE. It resolves nothing, reads nothing and writes
 // nothing: it turns the block into a description of what was asked for, in the
