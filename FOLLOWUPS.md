@@ -4684,3 +4684,62 @@ are the same instant: I queried without `TZ=UTC`, and the driver rendered a
 `timestamp` and a `timestamptz` differently. The SQL comparison said zero rows
 where exchange was newer, which is what caught it. **The repo sets `TZ=UTC` for
 tests for exactly this reason; ad-hoc queries need it too.**
+
+## Every open divergence is now explained
+
+The five `diff` divergences and the 29 `verify:backfill` differences were left
+untriaged. All of them now have a cause. **None is a defect in the new schema's
+code**, and two point the opposite way from what you would assume.
+
+**1. `spots.getAll` and `spots.getAllMetals` — cron staleness, self-healing.**
+Gold reads `4599.42` in `exchange` and `4326.81` in the new schema. The spots
+cron rewrites `exchange.metals` every few minutes and only `exchange`, because
+`SPOTS_SOURCE` is unset. Dual-write already exists, so `dual` converges them on
+the next tick. Same cause as the single `verify:parity` NOT SAFE.
+
+**2. `sales-orders.getAll` — one order, and it names the wrong refiner.**
+Compared all 15 sales orders on 10 fields: **exactly one row differs, on
+exactly two fields.** Sales order 57 (`f437ce8a…`):
+
+| | `exchange` | new schema |
+| --- | --- | --- |
+| supplier / refinery | `18b3ccd9…` — **Dillion Gage** | `d7414aa4…` — **Elemetal** |
+| `order_sent` | **true** | false |
+
+**These are not a remap.** `refiners.refiners` preserves both ids, so the new
+schema is not translating — it names a **different company**. `exchange` is
+authoritative, so Dillion Gage is right and the new schema is wrong for that
+order. Both fields are written together by `sendOrderToSupplier`
+(`attachSupplierToOrder` + `updateOrderSent`), and **neither sets
+`updated_at`** — so this is D38, with a sharper consequence than a stray
+boolean: promoting sales-orders without re-running the backfill would record a
+customer's metal as sent to the wrong refinery.
+
+**3. `shipping-shipments.getAll`, `shipping-tracking.getEvents`, and the
+`shipping.tracking` extras — `exchange` is the damaged side, not the new
+schema.** Measured:
+
+- **5 shipments** differ on `shipping_status`, `estimated_delivery` and
+  `delivered_at`;
+- **8 shipments** differ on tracking-event count, and **`exchange` has fewer in
+  all 8**;
+- totals: **16 rows in `exchange.tracking_events` against 81 in
+  `shipping.tracking`**.
+
+That is the incident already on record — `tracking.test.js` deleting the real
+FedEx history of dev shipments. The backfilled copy predates the damage and
+still holds it. (CLAUDE.md says five shipments; five is the shipment-status
+count, eight is the event-count count. Both are right, and they measure
+different things.)
+
+### The caveat this creates for the D38 rule
+
+D38 says: re-run a feature's backfill immediately before promoting it. **For
+shipping in dev, that would do damage** — the backfill derives from `exchange`,
+and `exchange` is the side that lost 65 tracking events. Re-running it would
+copy the damaged data over the good copy.
+
+Production is unaffected: the test ran against dev. So the rule stands for
+production, and **dev shipping is the one place where `exchange` is not the
+better copy.** Anyone rehearsing the promotion on dev should know that before
+running a backfill and concluding the tracking data was always thin.
