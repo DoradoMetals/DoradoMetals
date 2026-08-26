@@ -15,6 +15,8 @@ export const ImagesRow = z.object({
   "metadata": z.unknown().nullable(),
   "path": z.string(),
   "filename": z.string(),
+  "user_id": z.string().uuid().nullable(),
+  "created_at": z.string(),
 });
 export type ImagesRow = z.infer<typeof ImagesRow>;
 

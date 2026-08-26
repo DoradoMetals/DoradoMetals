@@ -116,7 +116,7 @@ const FEATURES = {
   },
   refiners: {
     exchange: () => import("#features/refiners/repo.exchange.js"),
-    next: () => import("#features/refiners/repo.next.js"),
+    next: () => import("#features/refiners/repo.next.ts"),
     // The organization's own id. exchange has no equivalent - an organization is
     // a new concept and the migration issued its id - so exchange composes the
     // nested shape without one. The supplier's id is unchanged and is what
@@ -144,7 +144,7 @@ const FEATURES = {
   },
   users: {
     exchange: () => import("#features/users/repo.exchange.js"),
-    next: () => import("#features/users/repo.next.js"),
+    next: () => import("#features/users/repo.next.ts"),
     // Both list reads are narrowed to the users exchange actually holds.
     //
     // dev's auth.users carries two rows exchange.users does not, both created
@@ -380,7 +380,7 @@ const FEATURES = {
   },
   mints: {
     exchange: () => import("#features/mints/repo.exchange.js"),
-    next: () => import("#features/mints/repo.next.js"),
+    next: () => import("#features/mints/repo.next.ts"),
     reads: [["getAllMints", (m) => m.getAllMints()]],
   },
   products: {

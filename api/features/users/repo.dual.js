@@ -20,7 +20,7 @@
 //
 // Gate on `pnpm --filter @dorado/api diff users` before promoting.
 import * as exchange from "#features/users/repo.exchange.js";
-import * as next from "#features/users/repo.next.js";
+import * as next from "#features/users/repo.next.ts";
 
 export const getUser = next.getUser;
 export const getAllUsers = next.getAllUsers;

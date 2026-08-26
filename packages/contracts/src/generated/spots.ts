@@ -9,6 +9,9 @@ export const SpotsRow = z.object({
   "metal_id": z.string().uuid(),
   "ask": z.number().nullable(),
   "bid": z.number().nullable(),
+  "percent_change": z.number().nullable(),
+  "dollar_change": z.number().nullable(),
+  "updated_at": z.string(),
 });
 export type SpotsRow = z.infer<typeof SpotsRow>;
 

@@ -10,6 +10,7 @@ export const AddressesRow = z.object({
   "id": z.string().uuid(),
   "address_id": z.string().uuid(),
   "order_id": z.string().uuid(),
+  "source_address_id": z.string().uuid().nullable(),
 });
 export type AddressesRow = z.infer<typeof AddressesRow>;
 
@@ -23,10 +24,12 @@ export const ItemsRow = z.object({
   "purity": z.number().nullable(),
   "content": z.number().nullable(),
   "premium": z.number().nullable(),
-  "quantity": z.number(),
+  "quantity": z.number().nullable(),
   "confirmed": z.boolean(),
   "sales_tax_charged": z.number(),
   "unit": z.string().nullable(),
+  "price": z.number().nullable(),
+  "bid_premium": z.number().nullable(),
 });
 export type ItemsRow = z.infer<typeof ItemsRow>;
 
@@ -46,6 +49,7 @@ export const OffersRow = z.object({
   "updated_at": z.string().nullable(),
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
+  "offer_sent_at": z.string().nullable(),
 });
 export type OffersRow = z.infer<typeof OffersRow>;
 
@@ -64,6 +68,8 @@ export const OrdersRow = z.object({
   "updated_at": z.string().nullable(),
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
+  "order_sent": z.boolean().nullable(),
+  "tracking_updated": z.boolean().nullable(),
 });
 export type OrdersRow = z.infer<typeof OrdersRow>;
 
@@ -73,6 +79,10 @@ export const SpotsRow = z.object({
   "order_id": z.string().uuid(),
   "ask": z.number().nullable(),
   "bid": z.number().nullable(),
+  "scrap_percentage": z.number().nullable(),
+  "bullion_percentage": z.number().nullable(),
+  "created_at": z.string().nullable(),
+  "updated_at": z.string().nullable(),
 });
 export type SpotsRow = z.infer<typeof SpotsRow>;
 
@@ -92,6 +102,18 @@ export const TransactionsRow = z.object({
   "refiner_fee": z.number().nullable(),
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
+  "base_total": z.number().nullable(),
+  "post_charges_amount": z.number().nullable(),
+  "subject_to_charges_amount": z.number().nullable(),
+  "used_funds": z.boolean().nullable(),
+  "waive_shipping_fee": z.boolean().nullable(),
+  "waive_payout_fee": z.boolean().nullable(),
+  "shipping_paid": z.boolean().nullable(),
+  "shipping_fee_actual": z.number().nullable(),
+  "pool_remediation": z.number().nullable(),
+  "pool_oz_deducted": z.number().nullable(),
+  "shipping_service": z.string().nullable(),
+  "payout_fee": z.number().nullable(),
 });
 export type TransactionsRow = z.infer<typeof TransactionsRow>;
 

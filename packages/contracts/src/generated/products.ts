@@ -27,14 +27,17 @@ export const BullionRow = z.object({
   "shadow_offset": z.number().int(),
   "slug": z.string().nullable(),
   "filter_category": z.string().nullable(),
-  "image_front": z.string().nullable(),
-  "image_back": z.string().nullable(),
+  "image_front": z.string(),
+  "image_back": z.string(),
   "created_by": z.string(),
   "updated_by": z.string(),
   "created_at": z.string(),
   "updated_at": z.string(),
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
+  "supplier_id": z.string().uuid(),
+  "stock": z.number(),
+  "quantity": z.number().nullable(),
 });
 export type BullionRow = z.infer<typeof BullionRow>;
 

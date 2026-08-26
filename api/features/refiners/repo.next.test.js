@@ -7,7 +7,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import * as next from "#features/refiners/repo.next.js";
+import * as next from "#features/refiners/repo.next.ts";
 import { toLegacy } from "#features/refiners/wire.ts";
 import * as exchange from "#features/refiners/repo.exchange.js";
 

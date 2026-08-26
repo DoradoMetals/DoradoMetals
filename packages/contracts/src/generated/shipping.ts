@@ -87,6 +87,9 @@ export const ShipmentsRow = z.object({
   "declared_value": z.number().nullable(),
   "cost": z.number().nullable(),
   "actual_cost": z.number().nullable(),
+  "shipping_status": z.string().nullable(),
+  "pickup_type": z.string().nullable(),
+  "created_at": z.string().nullable(),
 });
 export type ShipmentsRow = z.infer<typeof ShipmentsRow>;
 

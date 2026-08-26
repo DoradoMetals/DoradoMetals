@@ -9,10 +9,10 @@ export const Direction = z.enum(["purchase", "sale"]);
 export const AttemptsRow = z.object({
   "id": z.string().uuid(),
   "intent_id": z.string().uuid(),
-  "method_id": z.string().uuid(),
+  "method_id": z.string().uuid().nullable(),
   "provider": z.string().nullable(),
   "provider_ref": z.string().nullable(),
-  "amount": z.number(),
+  "amount": z.number().nullable(),
   "status": z.string(),
   "error_code": z.string().nullable(),
   "error_message": z.string().nullable(),
@@ -22,7 +22,7 @@ export type AttemptsRow = z.infer<typeof AttemptsRow>;
 export const DetailsRow = z.object({
   "id": z.string().uuid(),
   "user_id": z.string().uuid(),
-  "method_id": z.string().uuid(),
+  "method_id": z.string().uuid().nullable(),
   "account_holder": z.string().nullable(),
   "bank_name": z.string().nullable(),
   "account_type": z.string().nullable(),
@@ -37,15 +37,17 @@ export const DetailsRow = z.object({
   "updated_by": z.string().nullable(),
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
+  "provider": z.string().nullable(),
+  "provider_ref": z.string().nullable(),
 });
 export type DetailsRow = z.infer<typeof DetailsRow>;
 
 export const IntentsRow = z.object({
   "id": z.string().uuid(),
   "order_id": z.string().uuid().nullable(),
-  "method_id": z.string().uuid(),
+  "method_id": z.string().uuid().nullable(),
   "details_id": z.string().uuid().nullable(),
-  "amount_expected": z.number(),
+  "amount_expected": z.number().nullable(),
   "status": z.string(),
   "created_at": z.string(),
   "updated_at": z.string(),
@@ -53,8 +55,23 @@ export const IntentsRow = z.object({
   "updated_by": z.string().nullable(),
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
+  "session_id": z.string().uuid().nullable(),
+  "user_id": z.string().uuid().nullable(),
+  "type": z.string().nullable(),
 });
 export type IntentsRow = z.infer<typeof IntentsRow>;
+
+export const LedgerRow = z.object({
+  "id": z.string().uuid(),
+  "user_id": z.string().uuid(),
+  "type": z.string(),
+  "order_id": z.string().uuid().nullable(),
+  "amount": z.number(),
+  "occurred_at": z.string().nullable(),
+  "created_at": z.string(),
+  "updated_at": z.string(),
+});
+export type LedgerRow = z.infer<typeof LedgerRow>;
 
 export const MethodsRow = z.object({
   "id": z.string().uuid(),
@@ -99,4 +116,22 @@ export const SettlementsRow = z.object({
   "settled_at": z.string().nullable(),
 });
 export type SettlementsRow = z.infer<typeof SettlementsRow>;
+
+export const StripeChargesRow = z.object({
+  "payment_intent_id": z.string(),
+  "charge_id": z.string().nullable(),
+  "created_at": z.string(),
+  "amount": z.number(),
+  "amount_refunded": z.number().nullable(),
+  "fee": z.number().nullable(),
+  "currency": z.string().nullable(),
+  "captured": z.boolean().nullable(),
+  "status": z.string(),
+  "refunded_at": z.string().nullable(),
+  "payment_source_type": z.string().nullable(),
+  "stripe_customer_id": z.string().nullable(),
+  "livemode": z.boolean().nullable(),
+  "imported_at": z.string(),
+});
+export type StripeChargesRow = z.infer<typeof StripeChargesRow>;
 

@@ -20,7 +20,7 @@
 //
 // Gate on `pnpm --filter @dorado/api diff refiners` before promoting.
 import * as exchange from "#features/refiners/repo.exchange.js";
-import * as next from "#features/refiners/repo.next.js";
+import * as next from "#features/refiners/repo.next.ts";
 
 const SOURCES = { exchange, next };
 

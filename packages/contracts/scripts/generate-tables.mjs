@@ -15,18 +15,41 @@
 //
 //   pnpm --filter @dorado/contracts generate
 //   CONTRACT_SCHEMAS=exchange,orders pnpm --filter @dorado/contracts generate
-import "dotenv/config";
+// READS api/.env, NOT ITS OWN COPY.
+//
+// `import "dotenv/config"` loads .env relative to the CURRENT WORKING
+// DIRECTORY, and this package had its own - carrying a second copy of the
+// database password and a connection string that still named `dorado_db_dev`,
+// the name the databases had before they were renamed to prod/dev/test. So
+// this generator would fail for anybody who ran it, and had been failing
+// silently in the sense that nobody had.
+//
+// api/env.js resolves from its own file location for exactly this reason - a
+// cwd-relative .env once pointed a migration runner at the wrong database. Same
+// fix here: one source of truth, and one fewer copy of the credentials on disk.
+import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
 import pg from "pg";
 
 // Every schema the API reads. exchange is the one still serving traffic; the
 // rest are the per-feature schemas it is migrating to.
+dotenv.config({
+  path: path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "api", ".env"),
+});
+
 const DEFAULT_SCHEMAS = [
   "exchange",
   "leads", "reviews", "rates", "spots", "products",
   "media", "organizations", "metals",
   "orders", "shipping", "tax", "payments", "fulfillments", "places",
+  // Added after a conversion found them missing: these three schemas exist in
+  // the database and had no generated types at all, so anything reading them
+  // could not be typed from the contracts and validate:wire could not cover
+  // them. auth holds users, sessions and accounts; checkout holds the carts;
+  // refiners holds the refiners and their spots.
+  "auth", "checkout", "refiners",
 ].join(",");
 
 const SCHEMAS = (process.env.CONTRACT_SCHEMAS ?? DEFAULT_SCHEMAS)

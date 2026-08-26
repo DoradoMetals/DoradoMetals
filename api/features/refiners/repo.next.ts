@@ -12,6 +12,19 @@
 // features/refiners/wire.ts flattens it back for the frontend behind
 // REFINERS_WIRE, which is a transformation rather than a rename.
 import query from "#shared/db/query.js";
+import type { refiners, organizations } from "@dorado/contracts";
+import type { PoolClient } from "pg";
+
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// A refiner is two rows in the new layout - the refiner itself and the
+// organization it is - projected back into the flat shape exchange returned.
+export type RefinerRow = Pick<refiners.RefinersRow, "id"> &
+  Partial<Pick<organizations.OrganizationsRow, "name" | "email" | "phone" | "enabled">> &
+  Record<string, unknown>;
+
 
 const FIELDS = `
     r.id,
@@ -32,8 +45,8 @@ const FROM = `
     JOIN organizations.organizations o ON o.id = r.organization_id
 `;
 
-export async function getAllRefiners(executor) {
-  const { rows } = await query(
+export async function getAllRefiners(executor?: Executor): Promise<RefinerRow[]> {
+  const { rows } = await query<RefinerRow>(
     `SELECT ${FIELDS} ${FROM} ORDER BY o.name ASC, r.id ASC`,
     [],
     executor
@@ -41,8 +54,11 @@ export async function getAllRefiners(executor) {
   return rows;
 }
 
-export async function getRefinerFromId(id, executor) {
-  const { rows } = await query(
+export async function getRefinerFromId(
+  id: string,
+  executor?: Executor
+): Promise<RefinerRow | undefined> {
+  const { rows } = await query<RefinerRow>(
     `SELECT ${FIELDS} ${FROM} WHERE r.id = $1`,
     [id],
     executor

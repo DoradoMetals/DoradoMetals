@@ -24,5 +24,8 @@ export * as reviews from "./generated/reviews.js";
 export * as shipping from "./generated/shipping.js";
 export * as spots from "./generated/spots.js";
 export * as tax from "./generated/tax.js";
+export * as refiners from "./generated/refiners.js";
+export * as checkout from "./generated/checkout.js";
+export * as auth from "./generated/auth.js";
 
 export * from "./wire/index.js";

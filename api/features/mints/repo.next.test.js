@@ -8,7 +8,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import * as next from "#features/mints/repo.next.js";
+import * as next from "#features/mints/repo.next.ts";
 import * as exchange from "#features/mints/repo.exchange.js";
 
 let client;

@@ -14,6 +14,22 @@
 // Dockerfiles now pin - so the two agree, and the comparison in the parity
 // check converts rather than assuming.
 import query from "#shared/db/query.js";
+import type { products, organizations } from "@dorado/contracts";
+import type { PoolClient } from "pg";
+
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool. Same shape as every other
+// repo.next.
+type Executor = PoolClient | undefined;
+
+// The flat shape exchange returned, assembled from two rows. Composed from the
+// generated types rather than hand-written, so it follows the database: what a
+// mint contributes, plus what its organization does.
+export type MintRow = Pick<
+  products.MintsRow,
+  "id" | "name" | "type" | "country" | "created_at" | "updated_at"
+> &
+  Pick<organizations.OrganizationsRow, "description" | "website">;
 
 const MINT_FIELDS = `
   mint.id,
@@ -31,8 +47,8 @@ const FROM = `
   JOIN organizations.organizations org ON org.id = mint.organization_id
 `;
 
-export async function getAllMints(executor) {
-  const { rows } = await query(
+export async function getAllMints(executor?: Executor): Promise<MintRow[]> {
+  const { rows } = await query<MintRow>(
     `SELECT ${MINT_FIELDS} ${FROM} ORDER BY mint.name ASC, mint.id ASC`,
     [],
     executor

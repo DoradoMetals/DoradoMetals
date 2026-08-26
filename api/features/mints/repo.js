@@ -13,7 +13,7 @@
 //
 // Gate on `pnpm --filter @dorado/api diff mints` before promoting.
 import * as exchange from "#features/mints/repo.exchange.js";
-import * as next from "#features/mints/repo.next.js";
+import * as next from "#features/mints/repo.next.ts";
 
 const SOURCES = { exchange, next };
 
