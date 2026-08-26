@@ -4459,3 +4459,50 @@ reads `raised.statusCode || raised.status`, so both refusals reach the client
 as intended rather than becoming 500s. The nine direct `req.user` reads outside
 it are all guarded routes or explicit admin checks, and `emails/controller.ts`
 resolves its recipient through an ownership-or-admin check that refuses 403.
+
+## The map two audits believe was never checked against the database
+
+`audit:coverage` asks whether a column has anywhere to go; `audit:precision`
+asks whether what it lands in can hold the value. Both read
+`scripts/lib/feature-map.mjs`, and **nothing validated the map itself**. A table
+or column named there that does not exist makes a mapping quietly inert: the
+audit walks past the column and reports nothing wrong.
+
+That failure mode is already recorded twice in the map's own comments —
+`exchange.carrier_services` was migrated and never declared, so "neither audit
+had been looking at it", and `exchange.account_transactions` went unnoticed the
+same way, seventeen production rows of customer credit. **A misspelling fails
+identically to an omission and is harder to see.**
+
+`scripts/lib/feature-map.test.js` now checks every name in the map against
+`information_schema`:
+
+- every table `FEATURES` names, source and target;
+- every column a rename comes **from**, on its source table;
+- every column a rename goes **to**, on one of that table's declared targets —
+  the one that matters, because a target that does not exist means coverage
+  believes a column landed somewhere it did not and reports the feature clean;
+- every column `DELIBERATE` excuses, so a stale excuse cannot hide a live gap;
+- every table and column in a value `FLOW`, on both sides.
+
+**The map is sound — all six pass.** It also asserts it read a real schema
+(>50 tables, `exchange.products` present, ≥15 features declared) so it cannot
+pass against an empty map, and that it checked at least 40 rename targets and
+5 flow columns.
+
+**One thing I got wrong, and it is the useful part.** The flow check failed
+first run on `orders.items.post_melt,content`. That is not a broken map: a
+source column may flow into **more than one** target, so
+`exchange.products.content` is declared as `["post_melt", "content"]` and my
+check treated the array as a single column name. The map was right and the test
+was wrong. Fixed the test.
+
+Mutation-checked three ways, each failing exactly one test and exiting 1:
+misspelling a target table, pointing a rename at a column that does not exist,
+and naming a missing column in a value flow.
+
+**Also checked, and left alone:** `features/orders/fragments.ts`. Its stated
+disciplines — `userJson` returning exactly three fields, `to_jsonb(addr)` being
+an unbounded whole-row projection — are now covered by the undeclared-field
+refusal added to `validate:wire`, since `order.user` and `order.address` are
+both among its 61 shapes. A widened projection there fails that gate.
