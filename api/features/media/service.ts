@@ -1,4 +1,4 @@
-import minio from "#features/media/client.js";
+import minio from "#features/media/client.ts";
 import * as mediaRepo from "#features/media/repo.js";
 import type { ImageRow } from "#features/media/repo.next.ts";
 

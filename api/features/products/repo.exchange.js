@@ -17,7 +17,7 @@ import query from "#shared/db/query.js";
 import {
   ADMIN_PRODUCT_FIELDS_WITH_ALIAS,
   PRODUCT_FIELDS,
-} from "#features/products/constants.js";
+} from "#features/products/constants.ts";
 
 // The four storefront lookups differ only in how they filter. The projection
 // and joins are stated once so they cannot drift apart the way the order

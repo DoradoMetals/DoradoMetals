@@ -23,7 +23,7 @@ import type { PoolClient, QueryResult } from "pg";
 import {
   BULLION_ADMIN_PRODUCT_FIELDS_WITH_ALIAS as ADMIN_PRODUCT_FIELDS_WITH_ALIAS,
   BULLION_PRODUCT_FIELDS as PRODUCT_FIELDS,
-} from "#features/products/constants.bullion.js";
+} from "#features/products/constants.bullion.ts";
 
 // Repos take an optional executor so a caller can pull them into its
 // transaction; without one they run on the pool.

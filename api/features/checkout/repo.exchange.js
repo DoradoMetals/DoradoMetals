@@ -13,7 +13,7 @@
 // this list" - and each implementation does it in its own idiom. The granular
 // functions below are unchanged and still used, by the composites and by the
 // tests that already cover them.
-import { PRODUCT_FIELDS, PRODUCT_FIELDS_WITH_ALIAS } from "#features/products/constants.js";
+import { PRODUCT_FIELDS, PRODUCT_FIELDS_WITH_ALIAS } from "#features/products/constants.ts";
 import query from "#shared/db/query.js";
 
 export async function getCart(user_id) {
