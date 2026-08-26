@@ -3795,6 +3795,37 @@ same kind of thing:
   not compare equal in a unique index, so the original never deduplicated an
   open-ended tier.
 
+### And 3 CHECK constraints with nothing standing in for them
+
+The audit now covers CHECKs too, and the interesting part is what it does *not*
+report. A CHECK is often replaced by something stronger: `exchange` guards a
+metal type with `type = ANY (ARRAY['Gold', ...])`, and the new schema makes it a
+uuid referencing `metals.metals`. `payouts.method` becomes a foreign key into
+`payments.methods`. So a source CHECK is only reported when the column it
+protects has **no check, no enum type and no foreign key** — a sound test of
+"nothing replaces this" rather than a guess. Ten CHECKs, three reported.
+
+- **`exchange.scrap(purity)` and `(purity_actual)`, both `>= 0 AND <= 1`, land
+  in `orders.items(purity)` and `refiners.items(purity)` with nothing.** This is
+  the one to care about, and it is the second time this column has come up: the
+  precision audit already found `orders.items` declared `purity numeric(4,3)`
+  against an unconstrained source, so `.9999` fine gold was stored as `1.000`.
+  The type has been fixed; the *range* is still unguarded. Purity multiplies
+  into content and content into price, so a value entered as `99.99` rather than
+  `0.9999` is a hundredfold error that `exchange` refuses today and the new
+  schema would accept. Dev holds 20 scrap rows with a purity, all between 0.011
+  and 1 — so the constraint is meaningful and currently holds.
+- **`exchange.carrier_pickups(pickup_status)`** — an allowlist of pending /
+  scheduled / completed / canceled — lands in `shipping.pickups(status)`, which
+  is plain `text`. Checked rather than assumed: it is not an enum type, and it
+  has no foreign key.
+
+The mints allowlist is NOT in that list, and the first version of the check
+wrongly said it was: `exchange.mints` maps to both `products.mints`, which
+carries the allowlist exactly, and `organizations.organizations`, whose `type`
+is a different concept that merely shares a column name. One verdict per
+constraint, not one per target.
+
 Read `pg_index`, not `pg_constraint`, if you extend this. A bare `CREATE UNIQUE
 INDEX` is not a constraint row, and my first two attempts queried `pg_constraint`
 and both reported zero single-column uniques outside primary keys — for a schema

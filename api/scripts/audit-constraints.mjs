@@ -234,4 +234,111 @@ if (!uniqueLost.length) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// CHECK CONSTRAINTS, and the three ways one can legitimately disappear.
+//
+// A CHECK is not always replaced by a CHECK. exchange guards a metal type with
+// `type = ANY (ARRAY['Gold', ...])`; the new schema makes it a uuid referencing
+// metals.metals, which is STRONGER. Same for payouts.method, which becomes a
+// foreign key into payments.methods. A naive comparison would report both as
+// losses and be wrong twice.
+//
+// So a source CHECK is only reported when the column it protects has NONE of:
+//   - a CHECK of its own
+//   - an enum type (which encodes the allowlist in the type system)
+//   - a foreign key (which moves the allowlist into a table)
+//
+// That is a sound test of "nothing replaces this" rather than a guess.
+const guardsOn = async (table) => {
+  const [schema, name] = table.split(".");
+  const { rows } = await pool.query(
+    `SELECT a.attname::text AS column,
+            t.typtype = 'e' AS is_enum,
+            EXISTS (SELECT 1 FROM pg_constraint k
+                     WHERE k.conrelid = c.oid AND k.contype = 'c'
+                       AND a.attnum = ANY(k.conkey)) AS has_check,
+            EXISTS (SELECT 1 FROM pg_constraint k
+                     WHERE k.conrelid = c.oid AND k.contype = 'f'
+                       AND a.attnum = ANY(k.conkey)) AS has_fkey
+       FROM pg_attribute a
+       JOIN pg_class c ON c.oid = a.attrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       JOIN pg_type t ON t.oid = a.atttypid
+      WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped`,
+    [schema, name]
+  );
+  return new Map(rows.map((r) => [r.column, r]));
+};
+
+const checksOn = async (table) => {
+  const [schema, name] = table.split(".");
+  const { rows } = await pool.query(
+    `SELECT pg_get_constraintdef(con.oid) AS def,
+            array_agg(a.attname::text) AS cols
+       FROM pg_constraint con
+       JOIN pg_class c ON c.oid = con.conrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(con.conkey)
+      WHERE n.nspname = $1 AND c.relname = $2 AND con.contype = 'c'
+      GROUP BY con.oid`,
+    [schema, name]
+  );
+  return rows;
+};
+
+let checksChecked = 0;
+const checksLost = [];
+
+for (const [feature, sources] of Object.entries(features)) {
+  for (const [source, targets] of Object.entries(sources)) {
+    const renames = RENAMES[source] ?? {};
+    for (const chk of await checksOn(source)) {
+      const mapped = (chk.cols ?? []).map((c) => renames[c] ?? c);
+      if (!mapped.length || mapped.includes("-")) continue;
+      checksChecked += 1;
+
+      // ONE VERDICT PER CHECK, NOT ONE PER TARGET. A source table often maps to
+      // several, and a column name can mean different things in two of them -
+      // exchange.mints(type) is Private/Sovereign, and organizations(type) is
+      // REFINER. The first version reported the mints check as lost because
+      // organizations.type has no allowlist, while products.mints carries it
+      // exactly. If ANY target covers the column, the guard survives.
+      const uncovered = [];
+      let coveredSomewhere = false;
+      for (const target of targets) {
+        const guards = await guardsOn(target);
+        const present = mapped.filter((c) => guards.has(c));
+        if (present.length !== mapped.length) continue; // target lacks the column
+        const covered = present.every((c) => {
+          const g = guards.get(c);
+          return g.has_check || g.is_enum || g.has_fkey;
+        });
+        if (covered) { coveredSomewhere = true; break; }
+        uncovered.push(`${target}(${mapped.join(", ")})`);
+      }
+      if (!coveredSomewhere && uncovered.length) {
+        checksLost.push({
+          feature,
+          from: `${source}(${chk.cols.join(", ")})`,
+          def: chk.def,
+          to: uncovered.join(", "),
+        });
+      }
+    }
+  }
+}
+
+console.log(`\n${checksChecked} CHECK constraint(s) in the source schema`);
+if (!checksLost.length) {
+  console.log("every one is matched by a check, an enum or a foreign key on the other side");
+} else {
+  console.log(`${checksLost.length} whose column has no check, no enum and no foreign key:\n`);
+  for (const c of checksLost) {
+    console.log(`  ${c.feature}`);
+    console.log(`    ${c.from}`);
+    console.log(`      ${c.def}`);
+    console.log(`      -> ${c.to} has nothing standing in for it\n`);
+  }
+}
+
 await pool.end();
