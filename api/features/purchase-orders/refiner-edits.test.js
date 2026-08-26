@@ -22,13 +22,14 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.js";
+import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.js";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
 
 await mockSessions();
 const { default: app } = await import("#app");
 
 let admin;
+let customer;
 let refinerMetal;
 let orderItem;
 let payoutOrderId;
@@ -38,6 +39,13 @@ before(async () => {
     await outside(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
   )[0];
   assert.ok(admin, "dev has no admin user");
+
+  customer = (
+    await outside(
+      `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
+    )
+  )[0];
+  assert.ok(customer, "dev has no non-admin user - the refusal test would prove nothing");
 
   refinerMetal = (
     await outside(
@@ -135,6 +143,49 @@ test("get_payout_details answers with the payout's fields", async () => {
       for (const key of ["method", "account_holder_name"]) {
         assert.ok(key in payout, `the payout is missing ${key}`);
       }
+    });
+  });
+});
+
+// THE HALF THE TEST ABOVE DOES NOT COVER.
+//
+// It drives get_payout_details as an admin and asserts the shape. That proves
+// the endpoint works; it proves nothing about who may reach it. This is the
+// endpoint CLAUDE.md means by "full values come from an admin-only endpoint" -
+// exchange.payouts holds routing and account numbers in plaintext, and
+// production has fourteen of them - so the guard is the whole point of it.
+//
+// The route does carry requireAdmin today; this asserts that rather than
+// trusting a line in routes.js to stay there.
+//
+// Same rule as above: no response body is printed or interpolated, on any path.
+// Only status codes.
+test("a customer cannot read a payout's bank details", async () => {
+  await inPinnedTransaction(async () => {
+    await as({ ...customer, role: "user" }, async () => {
+      const res = await request(app)
+        .post("/api/purchase_orders/get_payout_details")
+        .send({ order_id: payoutOrderId });
+
+      assert.ok(
+        [401, 403].includes(res.status),
+        `a signed-in customer was answered ${res.status}`
+      );
+    });
+  });
+});
+
+test("an anonymous caller cannot read a payout's bank details", async () => {
+  await inPinnedTransaction(async () => {
+    await anonymous(async () => {
+      const res = await request(app)
+        .post("/api/purchase_orders/get_payout_details")
+        .send({ order_id: payoutOrderId });
+
+      assert.ok(
+        [401, 403].includes(res.status),
+        `an anonymous caller was answered ${res.status}`
+      );
     });
   });
 });
