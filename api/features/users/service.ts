@@ -51,6 +51,12 @@ function badRequest(message: string): HttpError {
   return err;
 }
 
+function notFound(message: string): HttpError {
+  const err: HttpError = new Error(message);
+  err.statusCode = 404;
+  return err;
+}
+
 // `mode` and `amount` are typed as UNKNOWN on the way in, not as the narrow
 // types they end up being. They arrive as req.body: claiming `mode: string`
 // here would tell a reader the allowlist below is redundant, and claiming
@@ -95,5 +101,25 @@ export async function adjustDoradoCredit({
     throw badRequest("a credit adjustment needs a user_id");
   }
 
-  return await usersRepo.adjustUserCredit(user_id, mode, value)
+  const result = await usersRepo.adjustUserCredit(user_id, mode, value);
+
+  // A CREDIT NOBODY RECEIVED USED TO ANSWER 200.
+  //
+  // The UPDATE is `WHERE id = $3`. A user_id matching no row updates nothing,
+  // returns rowCount 0, and the controller answers 200 with it - so an admin
+  // adding $500 to an account that does not exist is told it worked. Measured:
+  // a random uuid comes back rowCount 0 and 200.
+  //
+  // The frontend cannot reach it today, because it sends an id from a list it
+  // has just fetched. That is not the same as it being unreachable: a user
+  // deleted between the fetch and the adjustment lands here, and so does any
+  // direct call. Reporting success for money that moved nowhere is the wrong
+  // answer in both cases.
+  if (result.rowCount === 0) {
+    throw notFound(
+      `no user ${user_id} - the credit adjustment was not applied to anybody`
+    );
+  }
+
+  return result;
 }
