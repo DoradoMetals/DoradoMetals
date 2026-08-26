@@ -5,7 +5,7 @@ import {
   getScrapTotal,
 } from "#features/purchase-orders/utils/calculations.ts";
 
-import { renderPdf } from "#features/pdf/render/browser.js";
+import { renderPdf } from "#features/pdf/render/browser.ts";
 import { renderShell } from "#features/pdf/render/layout.js";
 import { formatCurrency } from "#features/pdf/render/format.ts";
 import {

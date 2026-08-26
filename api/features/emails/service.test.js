@@ -20,7 +20,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
 import * as emails from "#features/emails/service.js";
-import { closeBrowser } from "#features/pdf/render/browser.js";
+import { closeBrowser } from "#features/pdf/render/browser.ts";
 import * as poRepo from "#features/purchase-orders/repo.js";
 import * as soRepo from "#features/sales-orders/repo.js";
 import * as spotsRepo from "#features/spots/repo.js";

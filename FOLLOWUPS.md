@@ -443,6 +443,43 @@ scrap without a following orders write, it will silently stop mirroring** — th
 kind of failure that shows up as a stale weight on an order months later. Worth
 a test if scrap gains a route of its own.
 
+### FOR JACOB: every invoice fetches a font from Google before it renders
+
+Found while converting the PDF renderer, not caused by it.
+
+`features/pdf/render/layout.js` opens its stylesheet with:
+
+```css
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+```
+
+So **every packing list and every invoice makes an outbound request to Google at
+render time** — a stylesheet and then the font file itself. Everything else in
+these documents is inlined: `assets.js` reads the logo and the four contact
+icons off disk and base64s them into data URIs precisely so the PDF does not
+depend on anything external. The font is the one exception, and it is the one
+thing on the page that appears on every line.
+
+**What happens if Google is slow or unreachable.** The render does not fail; it
+falls back to the next font in the stack. A customer's invoice silently comes
+out in a different typeface, and nothing logs it. This is also a third party
+learning the timing of every order document the business produces.
+
+**Not fixed**, because the fix is to self-host the font — download the Poppins
+woff2 files, put them in `shared/assets/`, and inline them the way the logo
+already is. That is a handful of binary files in the repo and a decision about
+which weights are actually used, so it is yours rather than mine.
+
+While in there, the wait was made explicit and got faster. `renderPdf` used
+`waitUntil: "networkidle0"`, which puppeteer's own types now **exclude** for
+`setContent` — still honoured at runtime, but on the way out, so an upgrade
+would have silently changed when the PDF is captured. It now waits on
+`document.fonts.ready`, which is what the wait was always for. Measured on the
+real template: **~1960ms before, ~390ms after**, because network-idle waits out
+a fixed quiet period after the last response while this resolves the moment the
+fonts are in. Verified by searching the output bytes for the embedded font name
+rather than by trusting that it looked right.
+
 ### RESOLVED: every populated column in production now has somewhere to go
 
 `audit:coverage --prod` is clean. That is the answer to "is all the data
