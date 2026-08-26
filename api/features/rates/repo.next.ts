@@ -2,8 +2,23 @@
 // it names and in metals.metals calling its label column `name` where
 // exchange.metals calls it `type` - aliased so the wire shape is unchanged.
 import query from "#shared/db/query.js";
+import type { rates } from "@dorado/contracts";
+import type { PoolClient } from "pg";
 
-export async function getRate(id, executor) {
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// rates.rates - the tiered percentages a scrap payout is computed from. The
+// public read carries seven fields; five more are admin-only, and a replay
+// suite measures that split rather than trusting it.
+export type RateRow = rates.RatesRow;
+
+// What a caller supplies. The database fills id and the timestamps.
+export type RateInput = Partial<RateRow>;
+
+
+export async function getRate(id: string, executor?: Executor): Promise<RateRow | undefined> {
   const sql = `
     SELECT
       r.id,
@@ -22,11 +37,11 @@ export async function getRate(id, executor) {
     JOIN metals.metals m ON m.id = r.metal_id
     WHERE r.id = $1
   `;
-  const { rows } = await query(sql, [id]);
+  const { rows } = await query<RateRow>(sql, [id]);
   return rows[0];
 }
 
-export async function getAllRates(executor) {
+export async function getAllRates(executor?: Executor): Promise<RateRow[]> {
   const sql = `
     SELECT
       r.id,
@@ -40,11 +55,11 @@ export async function getAllRates(executor) {
     JOIN metals.metals m ON m.id = r.metal_id
     ORDER BY m.name, r.min_qty, r.id
   `;
-  const { rows } = await query(sql, [], executor);
+  const { rows } = await query<RateRow>(sql, [], executor);
   return rows;
 }
 
-export async function getAdminRates(executor) {
+export async function getAdminRates(executor?: Executor): Promise<RateRow[]> {
   const sql = `
     SELECT
       r.id,
@@ -63,11 +78,15 @@ export async function getAdminRates(executor) {
     JOIN metals.metals m ON m.id = r.metal_id
     ORDER BY m.name, r.min_qty, r.id
   `;
-  const { rows } = await query(sql, [], executor);
+  const { rows } = await query<RateRow>(sql, [], executor);
   return rows;
 }
 
-export async function createRate(rate, user_name = "Dorado Admin", executor) {
+export async function createRate(
+  rate: RateInput,
+  user_name = "Dorado Admin",
+  executor?: Executor
+): Promise<RateRow | undefined> {
   const sql = `
     INSERT INTO rates.rates
       (id, metal_id, min_qty, max_qty, scrap_pct, bullion_pct, created_by, updated_by)
@@ -83,11 +102,15 @@ export async function createRate(rate, user_name = "Dorado Admin", executor) {
     rate.bullion_pct,
     user_name ?? "Dorado Admin",
   ];
-  const { rows } = await query(sql, values, executor);
+  const { rows } = await query<RateRow>(sql, values, executor);
   return rows[0];
 }
 
-export async function updateRate(rate, user_name, executor) {
+export async function updateRate(
+  rate: RateInput & { id: string },
+  user_name: string,
+  executor?: Executor
+): Promise<RateRow | undefined> {
   const sql = `
     UPDATE rates.rates
     SET
@@ -108,16 +131,16 @@ export async function updateRate(rate, user_name, executor) {
     user_name ?? 'Dorado Admin',
     rate.id,
   ];
-  const { rows } = await query(sql, values, executor);
+  const { rows } = await query<RateRow>(sql, values, executor);
   return rows[0];
 }
 
-export async function deleteRate(id, executor) {
+export async function deleteRate(id: string, executor?: Executor): Promise<{ success: boolean }> {
   // The executor is passed on, not merely accepted. It was declared and then
   // dropped, so a delete ran on the pool while its caller sat in a transaction
   // - and under dual-write that means a rate deleted from both schemas even
   // when the surrounding operation rolls back.
-  await query(`DELETE FROM rates.rates WHERE id = $1`, [id], executor);
+  await query<RateRow>(`DELETE FROM rates.rates WHERE id = $1`, [id], executor);
   return { success: true };
 }
 
@@ -126,7 +149,7 @@ export async function deleteRate(id, executor) {
 // Server-side, for the same reason as the other mirrors: a row read into
 // JavaScript comes back with millisecond timestamps and would silently lose the
 // microseconds Postgres stores.
-export async function mirrorRate(id, executor) {
+export async function mirrorRate(id: string, executor?: Executor): Promise<RateRow | undefined> {
   const cols = `id, metal_id, unit, min_qty, max_qty, scrap_pct, bullion_pct, created_at, updated_at, created_by, updated_by`;
   const sql = `
     INSERT INTO rates.rates (${cols})
@@ -139,6 +162,6 @@ export async function mirrorRate(id, executor) {
       created_by = EXCLUDED.created_by, updated_by = EXCLUDED.updated_by
     RETURNING ${cols};
   `;
-  const { rows } = await query(sql, [id], executor);
+  const { rows } = await query<RateRow>(sql, [id], executor);
   return rows[0];
 }

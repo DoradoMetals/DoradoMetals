@@ -74,7 +74,7 @@ const FEATURES = {
   },
   reviews: {
     exchange: () => import("#features/reviews/repo.exchange.js"),
-    next: () => import("#features/reviews/repo.next.js"),
+    next: () => import("#features/reviews/repo.next.ts"),
     reads: [
       ["getAllReviews", (m) => m.getAllReviews()],
       ["getPublicReviews", (m) => m.getPublicReviews()],
@@ -106,7 +106,7 @@ const FEATURES = {
   },
   media: {
     exchange: () => import("#features/media/repo.exchange.js"),
-    next: () => import("#features/media/repo.next.js"),
+    next: () => import("#features/media/repo.next.ts"),
     reads: [
       ["getTestImages", (m) => m.getTestImages()],
       ["getImageById(first)", async (m, ctx) => (ctx.id ? m.getImageById(ctx.id) : null)],
@@ -265,7 +265,7 @@ const FEATURES = {
   },
   pickups: {
     exchange: () => import("#features/shipping/pickups/repo.exchange.js"),
-    next: () => import("#features/shipping/pickups/repo.next.js"),
+    next: () => import("#features/shipping/pickups/repo.next.ts"),
     reads: [
       ["getAll", (m) => m.getAll()],
       ["getByOrder(first)", (m, ctx) => (ctx.orderId ? m.getByOrder(ctx.orderId) : [])],
@@ -399,7 +399,7 @@ const FEATURES = {
   },
   rates: {
     exchange: () => import("#features/rates/repo.exchange.js"),
-    next: () => import("#features/rates/repo.next.js"),
+    next: () => import("#features/rates/repo.next.ts"),
     reads: [
       ["getAllRates", (m) => m.getAllRates()],
       ["getAdminRates", (m) => m.getAdminRates()],

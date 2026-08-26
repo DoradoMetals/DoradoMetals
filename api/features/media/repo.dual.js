@@ -10,7 +10,7 @@
 // leaving an orphan behind.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/media/repo.exchange.js";
-import * as next from "#features/media/repo.next.js";
+import * as next from "#features/media/repo.next.ts";
 
 export const getImageById = next.getImageById;
 export const getTestImages = next.getTestImages;

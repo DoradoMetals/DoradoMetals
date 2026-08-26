@@ -6,7 +6,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import * as media from "#features/media/repo.next.js";
+import * as media from "#features/media/repo.next.ts";
 import { toLegacy } from "#features/media/wire.ts";
 
 let client;

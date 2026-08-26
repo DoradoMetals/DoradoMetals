@@ -9,6 +9,22 @@
 // Reads project explicitly rather than SELECT *, so a column added to
 // media.images cannot start appearing in responses by accident.
 import query from "#shared/db/query.js";
+import type { media } from "@dorado/contracts";
+import type { PoolClient } from "pg";
+
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// media.images calls one column `checksum` where exchange calls it
+// checksum_sha256 - a rename and nothing else, handled by the wire adapter.
+export type ImageRow = media.ImagesRow;
+
+// What a caller supplies when recording an upload. The database fills id,
+// created_at and the columns that carry defaults.
+export type NewImage = Pick<ImageRow, "user_id" | "bucket" | "path" | "filename"> &
+  Partial<Pick<ImageRow, "mime_type" | "size_bytes">>;
+
 
 const FIELDS = `
     id, user_id, bucket, mime_type, size_bytes, width, height,
@@ -16,9 +32,9 @@ const FIELDS = `
 `;
 
 export async function insertImage(
-  { user_id, bucket, path, filename, mime_type, size_bytes },
-  executor
-) {
+  { user_id, bucket, path, filename, mime_type, size_bytes }: NewImage,
+  executor?: Executor
+): Promise<ImageRow | undefined> {
   const sql = `
     INSERT INTO media.images (user_id, bucket, path, filename, mime_type, size_bytes)
     VALUES ($1, $2, $3, $4, $5, $6)
@@ -40,12 +56,15 @@ export async function insertImage(
     mime_type || null,
     size_bytes || null,
   ];
-  const { rows } = await query(sql, values, executor);
+  const { rows } = await query<ImageRow>(sql, values, executor);
   return rows[0];
 }
 
-export async function getImageById(id, executor) {
-  const { rows } = await query(
+export async function getImageById(
+  id: string,
+  executor?: Executor
+): Promise<ImageRow | undefined> {
+  const { rows } = await query<ImageRow>(
     `SELECT ${FIELDS} FROM media.images WHERE id = $1`,
     [id],
     executor
@@ -53,13 +72,19 @@ export async function getImageById(id, executor) {
   return rows[0];
 }
 
-export async function getTestImages(executor) {
-  const { rows } = await query(`SELECT ${FIELDS} FROM media.images`, [], executor);
+// UNSCOPED BY DESIGN, and the route is requireAdmin because of it - this
+// returns every image in the system, and the service attaches a presigned
+// download URL to each. It was behind requireUser until a replay suite found it.
+export async function getTestImages(executor?: Executor): Promise<ImageRow[]> {
+  const { rows } = await query<ImageRow>(`SELECT ${FIELDS} FROM media.images`, [], executor);
   return rows ?? [];
 }
 
-export async function listImagesByUser(userId, executor) {
-  const { rows } = await query(
+export async function listImagesByUser(
+  userId: string,
+  executor?: Executor
+): Promise<ImageRow[]> {
+  const { rows } = await query<ImageRow>(
     `SELECT ${FIELDS} FROM media.images
      WHERE user_id = $1 ORDER BY created_at DESC, id DESC`,
     [userId],
@@ -68,8 +93,16 @@ export async function listImagesByUser(userId, executor) {
   return rows;
 }
 
-export async function deleteImage(user_id, id, executor) {
-  await query(
+// Returns nothing, exactly as the exchange implementation does. repo.dual
+// switches between the two, so their shapes have to match - typing this as
+// returning a row would be a lie, and making it return one would change what
+// the dual repo hands back depending on which switch is set.
+export async function deleteImage(
+  user_id: string,
+  id: string,
+  executor?: Executor
+): Promise<void> {
+  await query<ImageRow>(
     `DELETE FROM media.images WHERE id = $1 AND user_id = $2`,
     [id, user_id],
     executor
@@ -79,7 +112,7 @@ export async function deleteImage(user_id, id, executor) {
 // Copies a row from exchange.images, id included. Server-side, so no value is
 // materialised in a client - a JS round trip would truncate created_at to
 // millisecond precision.
-export async function mirrorImage(id, executor) {
+export async function mirrorImage(id: string, executor?: Executor): Promise<ImageRow | undefined> {
   const sql = `
     INSERT INTO media.images (
       id, user_id, bucket, mime_type, size_bytes, width, height,
@@ -99,6 +132,6 @@ export async function mirrorImage(id, executor) {
       filename = EXCLUDED.filename
     RETURNING ${FIELDS};
   `;
-  const { rows } = await query(sql, [id], executor);
+  const { rows } = await query<ImageRow>(sql, [id], executor);
   return rows[0];
 }

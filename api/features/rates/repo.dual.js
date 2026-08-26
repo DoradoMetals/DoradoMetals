@@ -9,7 +9,7 @@
 // one. The two writes share a transaction for that reason.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/rates/repo.exchange.js";
-import * as next from "#features/rates/repo.next.js";
+import * as next from "#features/rates/repo.next.ts";
 
 export const getRate = next.getRate;
 export const getAllRates = next.getAllRates;

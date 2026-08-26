@@ -8,29 +8,50 @@
 // Every function takes an optional trailing executor so the dual-write phase
 // can apply the write here and its mirror into core atomically.
 import query from "#shared/db/query.js";
+import type { reviews } from "@dorado/contracts";
+import type { QueryResult } from "pg";
+import type { PoolClient } from "pg";
 
-export async function getReview(id, executor) {
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// reviews.reviews. The public read differs from the admin read by exactly one
+// clause - WHERE hidden = false - and that clause is the only thing between the
+// reviews the business chose to publish and every review anyone ever left.
+export type ReviewRow = reviews.ReviewsRow;
+
+// What a caller supplies. `hidden` is the field that decides whether the public
+// read returns it at all, so it is required rather than defaulted here.
+export type ReviewInput = Partial<ReviewRow> &
+  Pick<ReviewRow, "review_text" | "rating" | "name">;
+
+
+export async function getReview(
+  id: string,
+  executor?: Executor
+): Promise<ReviewRow | undefined> {
   const sql = `
     SELECT id, review_text, created_at, updated_at, rating, created_by, updated_by, name, hidden
     FROM reviews.reviews
     WHERE id = $1
   `;
   const values = [id];
-  const result = await query(sql, values, executor);
+  const result = await query<ReviewRow>(sql, values, executor);
   return result.rows[0];
 }
 
-export async function getAllReviews(executor) {
+export async function getAllReviews(executor?: Executor): Promise<ReviewRow[]> {
   const sql = `
     SELECT id, review_text, created_at, updated_at, rating, created_by, updated_by, name, hidden
     FROM reviews.reviews
     ORDER BY created_at DESC, id DESC
   `;
-  const result = await query(sql, [], executor);
+  const result = await query<ReviewRow>(sql, [], executor);
   return result.rows
 }
 
-export async function getPublicReviews(executor) {
+export async function getPublicReviews(executor?: Executor): Promise<ReviewRow[]> {
   const sql = `
     SELECT id, review_text, created_at, updated_at, rating, created_by, updated_by, name, hidden
     FROM reviews.reviews
@@ -38,12 +59,15 @@ export async function getPublicReviews(executor) {
     ORDER BY created_at DESC, id DESC
     LIMIT 10
   `;
-  const result = await query(sql, [], executor);
+  const result = await query<ReviewRow>(sql, [], executor);
   return result.rows
 }
 
 
-export async function createReview(review, executor) {
+export async function createReview(
+  review: ReviewInput,
+  executor?: Executor
+): Promise<ReviewRow | undefined> {
   const sql = `
     INSERT INTO reviews.reviews (review_text, rating, created_by, updated_by, name, hidden)
     VALUES ($1, $2, $3, $4, $5, $6)
@@ -57,11 +81,15 @@ export async function createReview(review, executor) {
     review.name,
     review.hidden,
   ];
-  const result = await query(sql, values, executor);
+  const result = await query<ReviewRow>(sql, values, executor);
   return result.rows[0];
 }
 
-export async function updateReview(review, user_name, executor) {
+export async function updateReview(
+  review: ReviewInput & { id: string },
+  user_name: string,
+  executor?: Executor
+): Promise<ReviewRow | undefined> {
   const sql = `
     UPDATE reviews.reviews
     SET review_text = $1,
@@ -85,16 +113,19 @@ export async function updateReview(review, user_name, executor) {
     review.id,
   ];
 
-  const result = await query(sql, values, executor);
+  const result = await query<ReviewRow>(sql, values, executor);
   return result.rows[0];
 }
 
-export async function deleteReview(id, executor) {
+export async function deleteReview(
+  id: string,
+  executor?: Executor
+): Promise<QueryResult<ReviewRow>> {
   const sql = `
     DELETE FROM reviews.reviews WHERE id = $1
   `;
   const values = [id];
-  return await query(sql, values, executor);
+  return await query<ReviewRow>(sql, values, executor);
 }
 
 // Copies a row from exchange.reviews, id included, creating or overwriting.
@@ -102,7 +133,7 @@ export async function deleteReview(id, executor) {
 // Server-side rather than through a row that has already been read into
 // JavaScript: pg materialises timestamps as JS Dates, which hold milliseconds,
 // so a read-then-write round trip truncates the microseconds Postgres stores.
-export async function mirrorReview(id, executor) {
+export async function mirrorReview(id: string, executor?: Executor): Promise<ReviewRow | undefined> {
   const cols = `id, review_text, created_at, updated_at, rating, created_by, updated_by, name, hidden`;
   const sql = `
     INSERT INTO reviews.reviews (${cols})
@@ -114,6 +145,6 @@ export async function mirrorReview(id, executor) {
       name = EXCLUDED.name, hidden = EXCLUDED.hidden
     RETURNING ${cols};
   `;
-  const { rows } = await query(sql, [id], executor);
+  const { rows } = await query<ReviewRow>(sql, [id], executor);
   return rows[0];
 }

@@ -9,8 +9,8 @@
 // pattern in the feature's own idiom.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/reviews/repo.exchange.js";
-import * as next from "#features/reviews/repo.next.js";
-import { mirrorReview } from "#features/reviews/repo.next.js";
+import * as next from "#features/reviews/repo.next.ts";
+import { mirrorReview } from "#features/reviews/repo.next.ts";
 
 export const getReview = next.getReview;
 export const getAllReviews = next.getAllReviews;

@@ -12,7 +12,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
 import * as dual from "#features/shipping/pickups/repo.dual.js";
-import * as next from "#features/shipping/pickups/repo.next.js";
+import * as next from "#features/shipping/pickups/repo.next.ts";
 import * as exchange from "#features/shipping/pickups/repo.exchange.js";
 
 let client;
