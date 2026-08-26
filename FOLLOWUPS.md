@@ -3736,3 +3736,40 @@ asymmetry is deliberate. Whatever production resolves today is what it has
 always resolved, so a refusal there could only take a working site down over a
 variable that cannot be read from here. `db.test.js` pins both halves so the
 exception is not later "fixed" into consistency.
+
+## Promotion would drop 27 NOT NULL constraints
+
+`pnpm --filter @dorado/api audit:constraints` compares every mapped column pair
+and asks one question: is the source `NOT NULL` while the target is not. 137
+NOT NULL columns in `exchange`, 163 pairs with a counterpart, **27 where the
+guard does not exist on the other side**.
+
+This came out of the credit-ledger work. `features/users/repo.js` updates
+`dorado_funds` with a `CASE` that has no `ELSE`, so an unrecognised mode
+evaluates to NULL — on a credit ledger, a wiped balance. It has never happened,
+and the reason is not the code: `exchange.users.dorado_funds` is NOT NULL, so
+Postgres raises 23502 and writes nothing. **When a constraint is the only thing
+stopping a bug, nobody knows, because nothing ever fails.** That one is safe
+through promotion — `auth.users.dorado_funds` is NOT NULL too, checked — but it
+is the reason to ask the question of everything else.
+
+**The nine that are money.** Every total on a sales order loses its constraint:
+`order_total`, `item_total`, `base_total`, `charges_amount`, `sales_tax`,
+`post_charges_amount`, `subject_to_charges_amount` and `funds`/`used_funds` all
+land in `orders.transactions` as nullable columns. A sales order with a NULL
+total is exactly the state D27 describes as unrecoverable, and after promotion
+the database would accept it.
+
+Three more worth naming: `exchange.payouts.method` and `.account_holder_name`
+become nullable in `payments.details`; and
+`exchange.account_transactions.occurred_at` becomes nullable in
+`payments.ledger` — a ledger entry with no time on it.
+
+**None of this is automatically wrong.** Some columns are deliberately optional
+in the new model, and a default on the target (`leads.priority` defaults to
+'Medium', `rates.created_by` to 'Dorado Admin') covers an INSERT that omits the
+column — though not an explicit NULL. The point is that each should be a
+decision rather than something discovered afterwards.
+
+Run it per feature (`audit:constraints orders`) when working on one. The floor
+that refuses a run comparing fewer than 50 pairs applies only to a full run.
