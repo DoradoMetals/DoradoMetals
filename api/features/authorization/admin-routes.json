@@ -70,6 +70,7 @@
   "POST /api/reviews/create",
   "POST /api/reviews/update",
   "POST /api/sales_orders/admin_create_sales_order",
+  "POST /api/sales_orders/create_sales_order",
   "POST /api/sales_orders/send_order_to_supplier",
   "POST /api/sales_orders/update_status",
   "POST /api/sales_orders/update_tracking",

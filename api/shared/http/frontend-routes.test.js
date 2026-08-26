@@ -63,6 +63,22 @@ const collect = () => {
   return { calls, skipped };
 };
 
+// Calls that are KNOWN to hit nothing, and are meant to. Each needs a reason,
+// because the default reading of a 404 here is a defect - that is the whole
+// point of the test.
+//
+// Pinned from both sides: an unlisted 404 fails, and a listed call that has
+// started resolving also fails, so this cannot quietly become a suppression
+// list for something that was since fixed.
+const DELIBERATE_404 = {
+  "POST /api/purchase_orders/purchase_order_offer_accepted":
+    "The offer-accepted email has never sent in production - wrong feature " +
+    "prefix, the route lives under /emails. Fixing it was reverted on purpose " +
+    "(Jacob, 26 August): the offer-sent/offer-accepted steps are being removed, " +
+    "so making it work would START sending customers an email they have never " +
+    "received, for a flow that is going away. Delete this entry when the step goes.",
+};
+
 // The frontend writes paths without the /api the server mounts them under.
 const toRoute = (url) => (url.startsWith("/api/") ? url : `/api${url.startsWith("/") ? "" : "/"}${url}`);
 
@@ -77,8 +93,9 @@ test("every frontend API call names a route the API actually has", () => {
       "matching, and a check that reads nothing accepts everything"
   );
 
-  const missing = calls
-    .filter((c) => !known.has(`${c.verb} ${toRoute(c.url)}`))
+  const unresolved = calls.filter((c) => !known.has(`${c.verb} ${toRoute(c.url)}`));
+  const missing = unresolved
+    .filter((c) => !DELIBERATE_404[`${c.verb} ${toRoute(c.url)}`])
     .map((c) => `${c.verb} ${toRoute(c.url)}  (${c.file})`);
 
   assert.deepEqual(
@@ -87,8 +104,21 @@ test("every frontend API call names a route the API actually has", () => {
     "the frontend calls a route the API does not have - it 404s, and if the " +
       "call sits in an onSuccess the user sees success anyway"
   );
+
+  // The other direction of the pin. An entry that now resolves is stale, and a
+  // stale entry is how a real 404 gets waved through by a name that used to
+  // mean something else.
+  const stale = Object.keys(DELIBERATE_404).filter(
+    (k) => !unresolved.some((c) => `${c.verb} ${toRoute(c.url)}` === k)
+  );
+  assert.deepEqual(
+    stale,
+    [],
+    "a call listed as a deliberate 404 now resolves - remove it from DELIBERATE_404"
+  );
   console.log(
     `      ${calls.length} frontend call(s) checked against ${known.size} routes` +
-      `, ${skipped} template path(s) skipped`
+      `, ${skipped} template path(s) skipped` +
+      `, ${Object.keys(DELIBERATE_404).length} deliberate 404(s)`
   );
 });
