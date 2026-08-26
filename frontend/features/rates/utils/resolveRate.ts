@@ -14,7 +14,11 @@ export type RateMaterial = 'scrap' | 'bullion'
  * plugs straight into `bid_spot * premium`.
  *
  * NOTE: this file is mirrored 1:1 in the API at
- * `features/rates/utils/resolveRate.js`. Keep the two in sync.
+ * `api/features/rates/utils/resolveRate.ts` (it was `.js` until the TypeScript
+ * conversion). The two are held in sync by
+ * `api/features/rates/utils/mirror.test.js`, which compares the shared
+ * functions and fails if they drift — one of these quotes a customer a payout
+ * rate and the other pays it.
  */
 
 const normMetal = (m: unknown) => String(m ?? '').trim().toLowerCase()

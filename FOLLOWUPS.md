@@ -4198,3 +4198,46 @@ amount fails exactly 2.
 — 304 lines splitting an order three ways between the customer, the business
 and the refiner. It deserves its own pass rather than a hurried one. The other
 four uncovered files are form/address helpers and `cn`.
+
+## The rate resolution exists twice, and nothing checked the copies agree
+
+`frontend/features/rates/utils/resolveRate.ts` carries its own instruction:
+*"this file is mirrored 1:1 in the API … keep the two in sync."* Nothing
+checked it, and the path it named — `features/rates/utils/resolveRate.js` —
+**does not exist**; the API's copy became `.ts` in the TypeScript conversion, so
+the one pointer a reader had was stale.
+
+This matters because of what the function does. `getRatePct` resolves the
+payout premium for a metal, tiered by the total quantity of that metal in the
+order. **The frontend copy quotes the customer a rate and the API copy pays
+it.** If they drift, each side is self-consistent and neither test suite
+notices — the frontend tests its copy, the API tests its own, and both pass
+while a customer is shown one number and paid another.
+
+**Checked: they agree today.** `getRateBand`, `getRatePct` and
+`sumContentByMetal` are statement-for-statement identical once formatting is
+set aside.
+
+`api/features/rates/utils/mirror.test.js` now holds them there. It compares the
+extracted function bodies rather than behaviour, because the frontend copy
+imports a type through the `@/` alias that the API's runner cannot resolve.
+
+**One difference is real and is allowed by name, not by a loose comparison.**
+The API tolerates a null list — `(rates ?? [])`, `items ?? []` — where the
+frontend does not, which is correct: the API's input arrives off the wire and
+the frontend's is typed. That is normalised away explicitly, and a further test
+asserts **the API still has both guards**, so removing its null tolerance fails
+rather than quietly making the two files "agree". `formatRate` is frontend-only
+and is display rather than arithmetic, so it is deliberately not required.
+
+Mutation-checked: making the frontend read the bullion band for scrap fails
+exactly one test — `getRatePct` — and nothing else.
+
+**Still untested**, and the reason this was found: `calculatePurchaseOrderTotals.ts`,
+304 lines splitting an order three ways between customer, business and refiner.
+Reading it is what led to the mirror comment. Two things in it to write down
+before they are forgotten: `dorContent` is computed as a **remainder**
+(`basis - customer - refiner`) and goes **negative** when a scrap lot assays
+lower than the estimate the customer was quoted on, so the business absorbs the
+shortfall; and the per-metal percentages are shares of that same total, so they
+can exceed 100% when one party's content is negative.
