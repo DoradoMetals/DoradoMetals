@@ -25,6 +25,6 @@
     "start:frontend": "pnpm --filter @dorado/frontend start",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "check": "pnpm --filter @dorado/contracts build && pnpm --filter @dorado/api lint:imports && pnpm --filter @dorado/api lint:namespace-calls && pnpm --filter @dorado/api lint:db && pnpm --filter @dorado/api lint:migrations && pnpm --filter @dorado/api typecheck && pnpm --filter @dorado/api test && pnpm --filter @dorado/frontend typecheck && pnpm --filter @dorado/frontend test && pnpm --filter @dorado/api verify:genesis && pnpm --filter @dorado/api validate:wire && pnpm --filter @dorado/api audit:coverage"
+    "check": "pnpm --filter @dorado/contracts build && pnpm --filter @dorado/api lint:imports && pnpm --filter @dorado/api lint:namespace-calls && pnpm --filter @dorado/api lint:row-vs-list && pnpm --filter @dorado/api lint:db && pnpm --filter @dorado/api lint:migrations && pnpm --filter @dorado/api typecheck && pnpm --filter @dorado/api test && pnpm --filter @dorado/frontend typecheck && pnpm --filter @dorado/frontend test && pnpm --filter @dorado/api verify:genesis && pnpm --filter @dorado/api validate:wire && pnpm --filter @dorado/api audit:coverage"
   }
 }
