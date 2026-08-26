@@ -112,6 +112,21 @@ export function AddNewDialog({
               {createConfig.fields.map((field) => {
                 const value = values[field.name] ?? ''
 
+                // EVERY FIELD NEEDS A LABEL THE BROWSER CAN ASSOCIATE.
+                //
+                // These rendered a bare <label> next to an <input> with no id,
+                // no name, no placeholder and no aria-label - so nothing tied
+                // the two together. A sighted user reads the text above the
+                // box; a screen reader announces "edit text" five times and
+                // gives no way to tell Name from Email.
+                //
+                // This is the dialog EVERY admin create form uses - leads,
+                // users, products, reviews - so it was every create form in the
+                // admin area. Found while writing a test that could not select
+                // a field by its label, which is the same problem a screen
+                // reader has.
+                const fieldId = `create-${field.name}`
+
                 const isPhoneField =
                   field.inputType === 'tel' ||
                   field.inputMode === 'tel' ||
@@ -120,7 +135,9 @@ export function AddNewDialog({
                 if (field.render) {
                   return (
                     <div key={field.name} className="w-full">
-                      <label className="block text-xs text-neutral-600 mb-1">{field.label}</label>
+                      <label htmlFor={fieldId} className="block text-xs text-neutral-600 mb-1">
+                        {field.label}
+                      </label>
                       {field.render({ value, values, setValue })}
                     </div>
                   )
@@ -130,7 +147,7 @@ export function AddNewDialog({
                   const numeric = Number(value) || 0
                   return (
                     <div key={field.name} className="w-full flex flex-col items-center gap-2">
-                      <label className="block text-xs text-neutral-600 mb-1 w-full">
+                      <label htmlFor={fieldId} className="block text-xs text-neutral-600 mb-1 w-full">
                         {field.label}
                       </label>
                       <Rating
@@ -152,9 +169,13 @@ export function AddNewDialog({
                 if (field.multiline) {
                   return (
                     <div key={field.name} className="w-full">
-                      <label className="block text-xs text-neutral-600 mb-1">{field.label}</label>
+                      <label htmlFor={fieldId} className="block text-xs text-neutral-600 mb-1">
+                        {field.label}
+                      </label>
                       <div className="relative w-full">
                         <Textarea
+                          id={fieldId}
+                          name={field.name}
                           className="on-glass min-h-[80px]"
                           value={value}
                           onChange={(e) => setValue(field.name, e.target.value)}
@@ -178,9 +199,13 @@ export function AddNewDialog({
 
                 return (
                   <div key={field.name} className="w-full">
-                    <label className="block text-xs text-neutral-600 mb-1">{field.label}</label>
+                    <label htmlFor={fieldId} className="block text-xs text-neutral-600 mb-1">
+                      {field.label}
+                    </label>
                     <div className="relative w-full">
                       <Input
+                        id={fieldId}
+                        name={field.name}
                         type={field.inputType ?? 'text'}
                         inputMode={field.inputMode}
                         autoComplete={field.autoComplete}

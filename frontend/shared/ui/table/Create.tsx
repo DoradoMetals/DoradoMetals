@@ -19,7 +19,15 @@ export function AddNew({
 
   return (
     <>
-      <AddNewTrigger onOpen={() => setOpen(true)} icon={triggerIcon} className={triggerClass} />
+      <AddNewTrigger
+        onOpen={() => setOpen(true)}
+        icon={triggerIcon}
+        className={triggerClass}
+        // The dialog already names what it creates - "Create New Lead" - so the
+        // trigger takes its accessible name from the same string rather than
+        // asking every table to repeat it.
+        label={createConfig.title.replace(/^Create\s+(New\s+)?/i, '')}
+      />
       <AddNewDialog open={open} onOpenChange={setOpen} createConfig={createConfig} />
     </>
   )
