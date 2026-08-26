@@ -5,7 +5,7 @@
 import query from "#shared/db/query.js";
 
 // The columns are listed rather than selected with *, so that a column added to
-// exchange.reviews shows up as a difference against repo.next.js rather than
+// exchange.reviews shows up as a difference against repo.next.ts rather than
 // silently widening what the API returns.
 
 export async function getReview(id, executor) {

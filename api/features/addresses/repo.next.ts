@@ -15,6 +15,26 @@
 // getFromId in particular, which is what resolves the address_id an order
 // returns.
 import query from "#shared/db/query.js";
+import type { places } from "@dorado/contracts";
+import type { PoolClient } from "pg";
+
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// A person's side of an address, nested. exchange holds label and one
+// is_default on the address row itself and builds the same object out of them,
+// so repo.dual returns this shape either way. default_billing is deliberately
+// absent: exchange has no second flag, and the projection does not return one.
+export type AddressUserAddress = Pick<
+  places.UserAddressesRow,
+  "user_id" | "label" | "default_shipping"
+>;
+
+// The exchange shape, reassembled from the two tables that now hold it.
+export type AddressRow = places.AddressesRow & {
+  user_address: AddressUserAddress;
+};
 
 // The columns exchange.addresses had, from the two tables now holding them.
 // A postal address and a person's relationship to it are different things, and
@@ -55,8 +75,8 @@ const FROM = `
     FROM places.addresses a
     JOIN places.user_addresses ua ON ua.address_id = a.id`;
 
-export async function list(userId) {
-  const { rows } = await query(
+export async function list(userId: string): Promise<AddressRow[]> {
+  const { rows } = await query<AddressRow>(
     `SELECT ${ADDRESS_COLUMNS} ${FROM}
      WHERE ua.user_id = $1
      ORDER BY ua.default_shipping DESC, a.id ASC;`,
@@ -65,8 +85,10 @@ export async function list(userId) {
   return rows;
 }
 
-export async function getFromId(address_id) {
-  const { rows } = await query(
+// Returns a LIST, not one row - exchange's does too, and repo.dual switches
+// between them. Callers take [0].
+export async function getFromId(address_id: string): Promise<AddressRow[]> {
+  const { rows } = await query<AddressRow>(
     `SELECT ${ADDRESS_COLUMNS} ${FROM}
      WHERE a.id = $1
      ORDER BY ua.default_shipping DESC, a.id ASC;`,
@@ -81,8 +103,14 @@ export async function getFromId(address_id) {
 // The order no longer carries the address id - orders.addresses does, and it
 // records both the snapshot and the address book row it came from. Matching on
 // source_address_id is what keeps this asking the same question exchange asked.
-export async function isActive({ addressId, userId }) {
-  const { rows } = await query(
+export async function isActive({
+  addressId,
+  userId,
+}: {
+  addressId: string;
+  userId: string;
+}): Promise<boolean> {
+  const { rows } = await query<{ locked: boolean }>(
     `SELECT EXISTS (
        SELECT 1
        FROM orders.orders o
@@ -101,7 +129,10 @@ export async function isActive({ addressId, userId }) {
 // Server-side, from exchange, joining the caller's transaction. Both halves of
 // the split are kept in step: the postal address and the person's link to it.
 
-export async function mirrorAddress(addressId, executor) {
+export async function mirrorAddress(
+  addressId: string,
+  executor?: Executor
+): Promise<void> {
   await query(
     `INSERT INTO places.addresses (
        id, line_1, line_2, city, state, country, zip,
@@ -149,8 +180,11 @@ export async function mirrorAddress(addressId, executor) {
 
 // Every address a user owns, for the writes that change one flag across all of
 // them - setDefault turns one on and the rest off in a single statement.
-export async function mirrorUserAddresses(userId, executor) {
-  const { rows } = await query(
+export async function mirrorUserAddresses(
+  userId: string,
+  executor?: Executor
+): Promise<void> {
+  const { rows } = await query<Pick<places.AddressesRow, "id">>(
     `SELECT id FROM exchange.addresses WHERE user_id = $1`,
     [userId],
     executor
@@ -161,7 +195,10 @@ export async function mirrorUserAddresses(userId, executor) {
 // Removes what exchange no longer has. The link goes first: places.addresses
 // may still be referenced by an order snapshot, and an address that is gone
 // from someone's book has not stopped being the place a parcel was sent.
-export async function removeAddress(addressId, executor) {
+export async function removeAddress(
+  addressId: string,
+  executor?: Executor
+): Promise<void> {
   await query(
     `DELETE FROM places.user_addresses ua
      WHERE ua.address_id = $1

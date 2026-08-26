@@ -1,6 +1,6 @@
 // Images read from the exchange schema, which currently serves traffic.
 //
-// Reads project explicitly rather than SELECT *, matching repo.next.js, so the
+// Reads project explicitly rather than SELECT *, matching repo.next.ts, so the
 // two return the same shape.
 import query from "#shared/db/query.js";
 

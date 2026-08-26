@@ -18,7 +18,7 @@
 // Gate on `pnpm --filter @dorado/api diff services` before promoting.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/shipping/services/repo.exchange.js";
-import * as next from "#features/shipping/services/repo.next.js";
+import * as next from "#features/shipping/services/repo.next.ts";
 
 export const getAll = next.getAll;
 export const getById = next.getById;

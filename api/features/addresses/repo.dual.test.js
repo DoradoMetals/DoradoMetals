@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.js";
 import * as dual from "#features/addresses/repo.dual.js";
-import * as next from "#features/addresses/repo.next.js";
+import * as next from "#features/addresses/repo.next.ts";
 
 let client;
 

@@ -1,10 +1,10 @@
 // Addresses read from the legacy exchange schema.
 //
-// See repo.js for how this and repo.next.js are selected between.
+// See repo.js for how this and repo.next.ts are selected between.
 import query from "#shared/db/query.js";
 
 // The columns are listed rather than selected with *, so that a column added to
-// exchange.addresses shows up as a difference against repo.next.js instead of
+// exchange.addresses shows up as a difference against repo.next.ts instead of
 // silently widening what the API returns. Projecting explicitly is what let the
 // products and orders migrations catch drift; a * hides it.
 //

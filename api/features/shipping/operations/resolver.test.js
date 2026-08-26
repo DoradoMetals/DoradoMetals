@@ -24,7 +24,7 @@ import { BUILDERS } from "#features/shipping/operations/builders.ts";
 import { resolveCarrier } from "#features/shipping/operations/resolver.ts";
 import { FEDEX_CARRIER_ID } from "#providers/fedex/constants.js";
 import * as exchangeCarriers from "#features/shipping/carriers/repo.exchange.js";
-import * as nextCarriers from "#features/shipping/carriers/repo.next.js";
+import * as nextCarriers from "#features/shipping/carriers/repo.next.ts";
 
 let client;
 

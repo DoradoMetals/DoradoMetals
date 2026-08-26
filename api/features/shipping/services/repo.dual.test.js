@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as dual from "#features/shipping/services/repo.dual.js";
-import * as next from "#features/shipping/services/repo.next.js";
+import * as next from "#features/shipping/services/repo.next.ts";
 import * as exchange from "#features/shipping/services/repo.exchange.js";
 
 let client;

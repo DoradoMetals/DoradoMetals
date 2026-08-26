@@ -11,6 +11,42 @@
 // features/shipping/carriers/wire.ts flattens it back for the frontend behind
 // CARRIERS_WIRE, which is a transformation rather than a rename.
 import query from "#shared/db/query.js";
+import type { shipping, organizations } from "@dorado/contracts";
+import type { PoolClient } from "pg";
+
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// The organization as it is embedded in a carrier.
+//
+// `id` is OPTIONAL on purpose and this is not an oversight: repo.exchange.js
+// builds the same object out of one flat exchange.carriers row, and there is no
+// organization id in that schema to put in it. repo.dual switches between the
+// two, so the type has to admit both - and the wire contract
+// (contracts/wire/shipping.ts CarrierWireNext) already declares it optional for
+// exactly this reason. Nothing reads it; it is projected because the new schema
+// has it.
+export type CarrierOrganization = Pick<
+  organizations.OrganizationsRow,
+  "name" | "email" | "phone" | "enabled"
+> &
+  Partial<Pick<organizations.OrganizationsRow, "id">>;
+
+// What both implementations return: the carrier, its timestamps, and the
+// organization it is.
+export type CarrierRow = Pick<shipping.CarriersRow, "id" | "logo"> &
+  Pick<organizations.OrganizationsRow, "created_at" | "updated_at"> & {
+    organization: CarrierOrganization;
+  };
+
+// What a caller supplies. This arrives as req.body, so every field is optional
+// and the queries pass undefined through to the database as null.
+export type CarrierInput = {
+  id?: string;
+  logo?: string | null;
+  organization?: Partial<CarrierOrganization>;
+};
 
 const FIELDS = `
     c.id,
@@ -31,8 +67,8 @@ const FROM = `
     JOIN organizations.organizations o ON o.id = c.organization_id
 `;
 
-export async function getAll(client) {
-  const { rows } = await query(
+export async function getAll(client?: Executor): Promise<CarrierRow[]> {
+  const { rows } = await query<CarrierRow>(
     `SELECT ${FIELDS} ${FROM} ORDER BY o.name ASC, c.id ASC`,
     [],
     client
@@ -40,8 +76,10 @@ export async function getAll(client) {
   return rows ?? [];
 }
 
-export async function getById(id, client) {
-  const { rows } = await query(
+// Returns null rather than undefined, matching repo.exchange.js - repo.dual
+// hands back whichever is selected and callers compare against null.
+export async function getById(id: string, client?: Executor): Promise<CarrierRow | null> {
+  const { rows } = await query<CarrierRow>(
     `SELECT ${FIELDS} ${FROM} WHERE c.id = $1 LIMIT 1`,
     [id],
     client
@@ -49,8 +87,10 @@ export async function getById(id, client) {
   return rows[0] ?? null;
 }
 
-export async function getNameById(id, client) {
-  const { rows } = await query(
+// Returns "" for a carrier that does not exist, not null - the callers put this
+// straight into a label and a string is what they need.
+export async function getNameById(id: string, client?: Executor): Promise<string> {
+  const { rows } = await query<Pick<organizations.OrganizationsRow, "name">>(
     `SELECT o.name ${FROM} WHERE c.id = $1 LIMIT 1`,
     [id],
     client
@@ -62,8 +102,11 @@ export async function getNameById(id, client) {
 // shipping.carriers references it, and both happen in whatever transaction the
 // caller supplies - a carrier that exists in one table and not the other would
 // be invisible to getAll while still holding its id.
-export async function create(carrier, client) {
-  const { rows: orgRows } = await query(
+export async function create(
+  carrier: CarrierInput,
+  client?: Executor
+): Promise<CarrierRow | null> {
+  const { rows: orgRows } = await query<Pick<organizations.OrganizationsRow, "id">>(
     `INSERT INTO organizations.organizations (type, name, email, phone, enabled)
      VALUES ('CARRIER', $1, $2, $3, $4)
      RETURNING id`,
@@ -72,7 +115,7 @@ export async function create(carrier, client) {
     client
   );
 
-  const { rows } = await query(
+  const { rows } = await query<Pick<shipping.CarriersRow, "id">>(
     `INSERT INTO shipping.carriers (organization_id, logo)
      VALUES ($1, $2)
      RETURNING id`,
@@ -83,7 +126,10 @@ export async function create(carrier, client) {
   return getById(rows[0].id, client);
 }
 
-export async function update(carrier, client) {
+export async function update(
+  carrier: CarrierInput,
+  client?: Executor
+): Promise<CarrierRow | null> {
   await query(
     `UPDATE organizations.organizations o
      SET name = $1, email = $2, phone = $3, enabled = $4, updated_at = NOW()
@@ -100,13 +146,16 @@ export async function update(carrier, client) {
     client
   );
 
-  return getById(carrier.id, client);
+  return getById(carrier.id as string, client);
 }
 
 // Removes both rows. The carrier row goes first because it holds the foreign
 // key; dropping the organization first would be refused.
-export async function remove(id, client) {
-  const { rows } = await query(
+//
+// Returns true unconditionally, exactly as repo.exchange.js does - it is not a
+// report of whether anything was deleted, and typing it as one would be a lie.
+export async function remove(id: string, client?: Executor): Promise<boolean> {
+  const { rows } = await query<Pick<shipping.CarriersRow, "organization_id">>(
     `DELETE FROM shipping.carriers WHERE id = $1 RETURNING organization_id`,
     [id],
     client
@@ -123,7 +172,10 @@ export async function remove(id, client) {
 
 // Copies a carrier from exchange, id included, creating or overwriting both
 // rows. Server-side, so no value is materialised in a client.
-export async function mirrorCarrier(id, client) {
+export async function mirrorCarrier(
+  id: string,
+  client?: Executor
+): Promise<CarrierRow | null> {
   await query(
     `INSERT INTO organizations.organizations (id, type, name, email, phone, enabled, created_at, updated_at)
      SELECT COALESCE(c.organization_id, gen_random_uuid()), 'CARRIER',

@@ -8,7 +8,7 @@
 // a JS round trip that would truncate them to milliseconds.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/shipping/carriers/repo.exchange.js";
-import * as next from "#features/shipping/carriers/repo.next.js";
+import * as next from "#features/shipping/carriers/repo.next.ts";
 
 export const getAll = next.getAll;
 export const getById = next.getById;

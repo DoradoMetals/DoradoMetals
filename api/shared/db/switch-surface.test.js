@@ -19,7 +19,7 @@
 // is there either way. The reference has to be followed to repo.next.
 //
 // This was written as a check that passed, which is how it was found to be
-// useless: un-exporting getByCarrierId from shipping/services/repo.next.js
+// useless: un-exporting getByCarrierId from shipping/services/repo.next.ts
 // left it reporting success, because repo.dual still had the name. It now
 // fails on exactly that, which is the only reason to trust it.
 //

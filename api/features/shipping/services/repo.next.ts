@@ -18,6 +18,33 @@
 // identity, and carrier_id itself is stable - shipping.carriers reuses
 // exchange.carriers' ids exactly, verified for all three carriers.
 import query from "#shared/db/query.js";
+import type { shipping } from "@dorado/contracts";
+import type { PoolClient } from "pg";
+
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// What both implementations return. The three renamed columns are aliased back
+// to the names exchange uses, so the type says so too rather than describing
+// the table - it is the wire shape that must not change, not the schema.
+// created_by_id and updated_by_id are dropped because the projection does not
+// return them.
+export type ServiceRow = Omit<
+  shipping.ServicesRow,
+  | "supports_pickups"
+  | "supports_dropoffs"
+  | "max_weight_lb"
+  | "created_by_id"
+  | "updated_by_id"
+> & {
+  supports_pickup: shipping.ServicesRow["supports_pickups"];
+  supports_dropoff: shipping.ServicesRow["supports_dropoffs"];
+  max_weight_lbs: shipping.ServicesRow["max_weight_lb"];
+};
+
+// The identity of a service in the new schema. Not its id - see the header.
+export type ServicePair = Pick<shipping.ServicesRow, "carrier_id" | "name">;
 
 const FIELDS = `
     s.id,
@@ -51,8 +78,8 @@ const FIELDS = `
 // 'Standard' each exist for both FedEx and UPS - so id breaks them, or the two
 // implementations would return the same rows in a different order and `diff`
 // would report a divergence that is not one.
-export async function getAll(client) {
-  const { rows } = await query(
+export async function getAll(client?: Executor): Promise<ServiceRow[]> {
+  const { rows } = await query<ServiceRow>(
     `SELECT ${FIELDS} FROM shipping.services s ORDER BY s.name ASC, s.id ASC`,
     [],
     client
@@ -60,8 +87,8 @@ export async function getAll(client) {
   return rows ?? [];
 }
 
-export async function getById(id, client) {
-  const { rows } = await query(
+export async function getById(id: string, client?: Executor): Promise<ServiceRow | null> {
+  const { rows } = await query<ServiceRow>(
     `SELECT ${FIELDS} FROM shipping.services s WHERE s.id = $1 LIMIT 1`,
     [id],
     client
@@ -69,8 +96,11 @@ export async function getById(id, client) {
   return rows[0] ?? null;
 }
 
-export async function getByCarrierId(carrier_id, client) {
-  const { rows } = await query(
+export async function getByCarrierId(
+  carrier_id: string,
+  client?: Executor
+): Promise<ServiceRow[]> {
+  const { rows } = await query<ServiceRow>(
     `SELECT ${FIELDS} FROM shipping.services s
      WHERE s.carrier_id = $1 ORDER BY s.name ASC, s.id ASC`,
     [carrier_id],
@@ -88,7 +118,10 @@ export async function getByCarrierId(carrier_id, client) {
 // exchange's id would violate the primary key and take the caller's
 // transaction down with it. New rows therefore get a fresh id, and existing
 // ones keep the id they have; nothing references either.
-export async function mirrorService(id, client) {
+export async function mirrorService(
+  id: string,
+  client?: Executor
+): Promise<ServiceRow | null> {
   await query(
     `INSERT INTO shipping.services (
        id, carrier_id, name, description, code, provider_code,
@@ -137,7 +170,7 @@ export async function mirrorService(id, client) {
     client
   );
 
-  const { rows } = await query(
+  const { rows } = await query<ServiceRow>(
     `SELECT ${FIELDS} FROM shipping.services s
      JOIN exchange.carrier_services e
        ON e.carrier_id = s.carrier_id AND e.name = s.name
@@ -154,7 +187,11 @@ export async function mirrorService(id, client) {
 // which means nothing here. shipping.shipments.carrier_service_id references
 // this table with no ON DELETE clause, so deleting a service that shipments
 // still point at is refused - see the note in repo.dual.js.
-export async function removeByPair(carrier_id, name, client) {
+export async function removeByPair(
+  carrier_id: string,
+  name: string,
+  client?: Executor
+): Promise<boolean> {
   await query(
     `DELETE FROM shipping.services WHERE carrier_id = $1 AND name = $2`,
     [carrier_id, name],
@@ -168,7 +205,11 @@ export async function removeByPair(carrier_id, name, client) {
 // Needed because update() can change the name, and the mirror is keyed on the
 // name. Without this, renaming FedEx 'Overnight' to 'Next Day' would leave the
 // old row untouched and insert a second one, and the table would hold both.
-export async function renamePair(from, to, client) {
+export async function renamePair(
+  from: ServicePair,
+  to: ServicePair,
+  client?: Executor
+): Promise<boolean> {
   if (from.carrier_id === to.carrier_id && from.name === to.name) return false;
   const { rowCount } = await query(
     `UPDATE shipping.services SET carrier_id = $3, name = $4
@@ -176,5 +217,5 @@ export async function renamePair(from, to, client) {
     [from.carrier_id, from.name, to.carrier_id, to.name],
     client
   );
-  return rowCount > 0;
+  return (rowCount ?? 0) > 0;
 }

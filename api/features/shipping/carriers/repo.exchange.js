@@ -1,6 +1,6 @@
 // Carriers read from the exchange schema, which currently serves traffic.
 //
-// Projected explicitly rather than SELECT *, matching repo.next.js so the two
+// Projected explicitly rather than SELECT *, matching repo.next.ts so the two
 // return the same shape.
 import query from "#shared/db/query.js";
 

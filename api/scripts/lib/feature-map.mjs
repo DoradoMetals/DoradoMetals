@@ -35,7 +35,7 @@ export const FEATURES = {
     "exchange.shipments": ["shipping.shipments", "fulfillments.shipments"],
     // Migrated behind SERVICES_SOURCE this session and never declared here, so
     // neither audit had been looking at it. Three columns are pluralised or
-    // shortened by the new schema; repo.next.js aliases them back, which is why
+    // shortened by the new schema; repo.next.ts aliases them back, which is why
     // the wire shape is unchanged.
     "exchange.carrier_services": ["shipping.services"],
     "exchange.tracking_events": ["shipping.tracking"],

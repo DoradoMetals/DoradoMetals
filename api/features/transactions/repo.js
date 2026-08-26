@@ -5,7 +5,7 @@
 //
 // There is deliberately no `next`. This feature writes, and writing only to the
 // new schema is the one-way door: exchange stops receiving ledger entries and
-// falling back loses every movement in between. repo.next.js exists all the
+// falling back loses every movement in between. repo.next.ts exists all the
 // same - the diff compares it against exchange, which is what proves the
 // reshaped columns project back correctly before anything is promoted.
 //

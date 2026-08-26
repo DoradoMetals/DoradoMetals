@@ -15,7 +15,7 @@
 // still resolves. That is not a coincidence; it is why the ids were kept.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/addresses/repo.exchange.js";
-import * as next from "#features/addresses/repo.next.js";
+import * as next from "#features/addresses/repo.next.ts";
 
 export const list = next.list;
 export const getFromId = next.getFromId;

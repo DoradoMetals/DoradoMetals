@@ -130,7 +130,7 @@ const FEATURES = {
   },
   carriers: {
     exchange: () => import("#features/shipping/carriers/repo.exchange.js"),
-    next: () => import("#features/shipping/carriers/repo.next.js"),
+    next: () => import("#features/shipping/carriers/repo.next.ts"),
     // The organization's own id, which exchange has no equivalent for - the
     // migration issued it. Same as suppliers. The carrier's id is unchanged,
     // which matters more here: FEDEX_CARRIER_ID is a literal uuid.
@@ -178,7 +178,7 @@ const FEATURES = {
   },
   services: {
     exchange: () => import("#features/shipping/services/repo.exchange.js"),
-    next: () => import("#features/shipping/services/repo.next.js"),
+    next: () => import("#features/shipping/services/repo.next.ts"),
     // The id is deliberately different in each schema and always will be: 047
     // seeds shipping.services from a dev snapshot and production's exchange
     // rows carry other ids entirely. Nothing references it - there is no
@@ -313,7 +313,7 @@ const FEATURES = {
   },
   addresses: {
     exchange: () => import("#features/addresses/repo.exchange.js"),
-    next: () => import("#features/addresses/repo.next.js"),
+    next: () => import("#features/addresses/repo.next.ts"),
     reads: [
       ["list(first user)", (m, ctx) => (ctx.userId ? m.list(ctx.userId) : [])],
       ["getFromId(first)", (m, ctx) => (ctx.id ? m.getFromId(ctx.id) : [])],
