@@ -348,7 +348,34 @@ Worth noting `addFunds` and `removeFunds` were already correct and already
 transactional; the existing tests cover the property that matters, which is that
 a balance movement and its ledger entry commit together.
 
-### FOR JACOB: every page is blank until an auth request completes, and forever if it cannot
+### RESOLVED: every page was blank until an auth request completed
+
+**Fixed.** `LayoutProvider` no longer returns its skeleton *instead of*
+`children`. The skeleton now stands in for the **nav**, which is the thing that
+actually needs a session, and everything below it renders immediately.
+
+Measured before and after with the frontend up and the API stopped:
+
+| | before | after |
+|---|---|---|
+| ~2s | empty | heading and prose rendered |
+| ~10s | empty | heading and prose rendered |
+| ~40s | empty | heading and prose rendered |
+| 77s | empty | — |
+
+The data-driven rate cards are correctly absent in both cases; it is the page's
+own copy that now survives an outage. Three permanent tests in
+`frontend/e2e/degrades.spec.ts` hold it there.
+
+**The first version of those tests failed for a reason worth recording.** They
+intercepted `**/api/**`, which is far too broad — it also matched Google Maps'
+script URL and Sentry's ingest endpoint, and blocking the Maps script takes
+`GoogleMapsProvider` down and the whole React tree with it. Every test failed,
+and the failure looked exactly like the bug they were written to prove was
+fixed. Scoped to the API's own origin now, taken from the same environment
+variable the app uses.
+
+
 
 **Not fixed — it is a visible product decision, not a patch.** Found by the
 negative control for the first Playwright test, which is the only reason it
@@ -443,7 +470,30 @@ scrap without a following orders write, it will silently stop mirroring** — th
 kind of failure that shows up as a stale weight on an order months later. Worth
 a test if scrap gains a route of its own.
 
-### FOR JACOB: every invoice fetches a font from Google before it renders
+### RESOLVED: every invoice fetched a font from Google before it rendered
+
+**Fixed.** Poppins is self-hosted now — three woff2 files in
+`api/shared/assets/fonts/`, inlined as data URIs by `assets.ts` exactly the way
+the logo and contact icons already were, and four `@font-face` blocks in
+`layout.ts` in place of the `@import`.
+
+**Three weights, not four.** The `@import` asked for 400/500/600/700, but the
+templates only ever use `normal`, `600` and `bold` — checked across `layout.ts`,
+`sections.js` and `service.js`. 500 was never rendered, so it is not carried.
+About 24KB total.
+
+Verified rather than assumed, and the control is the part that matters: with the
+network blocked entirely, the PDF still embeds Poppins. Before the change, with
+googleapis and gstatic blocked, it embedded it **zero** times — the silent
+substitution reproduced. External requests during a render went from 4 to
+**0**.
+
+Self-hosted locally rather than served from S3. S3 would work, but the whole
+reason the logo and icons are inlined is that a rendered PDF should depend on
+nothing external; putting the font back on a network hop, even ours,
+reintroduces exactly the failure mode being removed.
+
+
 
 Found while converting the PDF renderer, not caused by it.
 

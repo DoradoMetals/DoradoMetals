@@ -24,3 +24,24 @@ export const ICON_PIN_SRC = dataUriFromAssets("pin.svg", "image/svg+xml");
 export const ICON_PHONE_SRC = dataUriFromAssets("phone.svg", "image/svg+xml");
 export const ICON_URL_SRC = dataUriFromAssets("url.svg", "image/svg+xml");
 export const ICON_EMAIL_SRC = dataUriFromAssets("email.svg", "image/svg+xml");
+
+// POPPINS, SELF-HOSTED, FOR THE SAME REASON AS EVERYTHING ELSE HERE.
+//
+// layout.ts used to @import this from fonts.googleapis.com, so every invoice
+// and packing list made an outbound request at render time - the only one these
+// documents made. If Google was slow or unreachable the render did not fail, it
+// silently fell back to another typeface. Reproduced before fixing: with
+// googleapis and gstatic blocked, the old template embedded the string
+// "Poppins" ZERO times; with these files it embeds it nine.
+//
+// THREE WEIGHTS, NOT FOUR. The old @import asked for 400/500/600/700, but the
+// templates only ever use `normal`, `600` and `bold` - checked across layout.ts,
+// sections.js and service.js. 500 was never rendered, so it is not carried.
+//
+// ~24KB in total, latin subset. That is smaller than it looks like it should
+// be; the files are not truncated - each one's internal woff2 length field
+// matches its size on disk exactly.
+export const FONT_POPPINS_400_SRC = dataUriFromAssets("fonts/poppins-latin-400.woff2", "font/woff2");
+export const FONT_POPPINS_600_SRC = dataUriFromAssets("fonts/poppins-latin-600.woff2", "font/woff2");
+export const FONT_POPPINS_700_SRC = dataUriFromAssets("fonts/poppins-latin-700.woff2", "font/woff2");
+

@@ -53,21 +53,21 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
 
   useScrollLock(isAnyDrawerOpen)
 
-  if (!session && isPending === true) {
-    return (
-      <>
-        <div className="sticky top-0 z-50 mb-6 shadow-lg bg-card w-full">
-          <div className="w-full bg-background py-2 px-4 sm:px-32 flex gap-6 overflow-x-auto animate-pulse">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex w-full gap-1 justify-between">
-                <div className="h-4 w-16 bg-muted rounded" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </>
-    )
-  }
+  // THE SKELETON GOES OVER THE NAV, NOT OVER THE WHOLE DOCUMENT.
+  //
+  // This used to `return` the skeleton INSTEAD OF {children} while the session
+  // query was pending, so every page in the app rendered nothing until an
+  // authentication round-trip finished - including pages that need no session
+  // at all. With the API unreachable it never finished: /rates was measured
+  // empty at 2s, 10s, 40s and 77s. Ten routes declare seoIndex: true and every
+  // one of them is public, so during any API blip the marketing site was a
+  // blank page rather than a degraded one, and every cold visitor waited on
+  // auth before seeing a word of copy.
+  //
+  // The skeleton was the right idea in the wrong place. What actually depends
+  // on the session is the nav and the account controls inside Shell, so that is
+  // what it stands in for now. Everything below renders immediately.
+  const sessionPending = !session && isPending === true
 
   return (
     <>
@@ -91,7 +91,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
           )}
         </AnimatePresence>
 
-        <Shell visible={visible} />
+        {sessionPending ? <NavSkeleton /> : <Shell visible={visible} />}
 
         {/* <BreadcrumbBar visible={visible} setVisible={setVisible} /> */}
 
@@ -236,6 +236,23 @@ function BreadcrumbBar({
           </div>
         </div>
       </FloatingNav>
+    </div>
+  )
+}
+
+// The nav placeholder, held while the session resolves. Deliberately the same
+// markup that used to replace the entire page - it was always a nav skeleton,
+// it was just standing in front of everything else.
+function NavSkeleton() {
+  return (
+    <div className="sticky top-0 z-50 mb-6 shadow-lg bg-card w-full">
+      <div className="w-full bg-background py-2 px-4 sm:px-32 flex gap-6 overflow-x-auto animate-pulse">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="flex w-full gap-1 justify-between">
+            <div className="h-4 w-16 bg-muted rounded" />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

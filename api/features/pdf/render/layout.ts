@@ -5,6 +5,9 @@ import {
   ICON_PHONE_SRC,
   ICON_URL_SRC,
   ICON_EMAIL_SRC,
+  FONT_POPPINS_400_SRC,
+  FONT_POPPINS_600_SRC,
+  FONT_POPPINS_700_SRC,
 } from "#features/pdf/render/assets.ts";
 
 function renderHeader(): string {
@@ -74,7 +77,31 @@ export function renderShell({ title, subtitle, bodyHtml }: ShellInput): string {
 }
 
 const baseStyles = `
-  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+  /* Self-hosted, inlined as data URIs. This was an @import from
+     fonts.googleapis.com, which made every invoice depend on Google being
+     reachable - and failed silently into a different typeface when it was not.
+     Only the three weights the templates actually use. */
+  @font-face {
+    font-family: 'Poppins';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(${FONT_POPPINS_400_SRC}) format('woff2');
+  }
+  @font-face {
+    font-family: 'Poppins';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url(${FONT_POPPINS_600_SRC}) format('woff2');
+  }
+  @font-face {
+    font-family: 'Poppins';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url(${FONT_POPPINS_700_SRC}) format('woff2');
+  }
 
   body {
     font-family: 'Poppins', Arial, sans-serif;
