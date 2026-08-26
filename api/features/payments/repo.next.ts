@@ -23,6 +23,58 @@
 // still divides, because a write arrives from Stripe in cents. Getting this
 // backwards is a hundredfold error, so it is written out rather than implied.
 import query from "#shared/db/query.js";
+import type { PaymentIntentWireNext } from "@dorado/contracts";
+import type { PoolClient } from "pg";
+
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// The row BOTH implementations return, taken from the wire contract rather than
+// rebuilt by hand - validate:wire already parses real rows through it for
+// exchange and next alike, so it is the one description of this shape that has
+// been checked against the database.
+//
+// The two timestamps are the exception. A contract describes the WIRE, where a
+// timestamp is a string because JSON made it one; pg hands back a Date. Taking
+// the contract unchanged would have quietly typed a Date as a string, and
+// `created_at.getTime()` would then be a type error in code that works.
+export type PaymentIntentRow = Omit<
+  PaymentIntentWireNext,
+  "created_at" | "updated_at"
+> & {
+  created_at: Date;
+  updated_at: Date;
+};
+
+// The fields these functions read off a Stripe PaymentIntent. Deliberately not
+// the whole Stripe type: this is what the code touches, and amount is in CENTS
+// on the way in - see the header.
+export type StripeIntentLike = {
+  id: string;
+  status?: string | null;
+  amount?: number | null;
+  amount_received?: number | null;
+};
+
+// better-auth's session, as this repo uses it.
+export type SessionLike = {
+  session: { id: string };
+  user: { id: string };
+};
+
+// The fields read off a Stripe PaymentMethod. Every one is optional because
+// which are present depends on the instrument.
+export type StripePaymentMethodLike = {
+  id?: string;
+  type?: string;
+  card?: { last4?: string | null; brand?: string | null } | null;
+  us_bank_account?: {
+    bank_name?: string | null;
+    account_type?: string | null;
+    last4?: string | null;
+  } | null;
+};
 
 // amount_received comes off the settlement rather than the intent, because that
 // is the whole point of settlements: an intent records what was asked for and a
@@ -71,8 +123,13 @@ const FROM = `
 // An intent is reusable while it has not resolved. Keyed on the trio 075 added:
 // without session_id, user_id and type this question cannot be asked here at
 // all, which is what forced that migration.
-export async function retrievePaymentIntent(type, session, user_id, executor) {
-  const { rows } = await query(
+export async function retrievePaymentIntent(
+  type: string,
+  session: SessionLike,
+  user_id: string,
+  executor?: Executor
+): Promise<PaymentIntentRow | undefined> {
+  const { rows } = await query<PaymentIntentRow>(
     `SELECT ${FIELDS} ${FROM}
       WHERE i.session_id = $1
         AND i.user_id = $2
@@ -86,8 +143,11 @@ export async function retrievePaymentIntent(type, session, user_id, executor) {
   return rows[0];
 }
 
-export async function getPaymentIntentFromSalesOrderId(sales_order_id, executor) {
-  const { rows } = await query(
+export async function getPaymentIntentFromSalesOrderId(
+  sales_order_id: string,
+  executor?: Executor
+): Promise<PaymentIntentRow | undefined> {
+  const { rows } = await query<PaymentIntentRow>(
     `SELECT ${FIELDS} ${FROM} WHERE i.order_id = $1 ORDER BY i.created_at DESC, i.id LIMIT 1`,
     [sales_order_id],
     executor
@@ -98,8 +158,14 @@ export async function getPaymentIntentFromSalesOrderId(sales_order_id, executor)
 // An intent and the attempt that carries its provider reference are created
 // together: exchange has no notion of an attempt, so one intent means one
 // attempt until something tells us otherwise.
-export async function createPaymentIntent(payment_intent, type, user_id, session, executor) {
-  const { rows } = await query(
+export async function createPaymentIntent(
+  payment_intent: StripeIntentLike,
+  type: string,
+  user_id: string,
+  session: SessionLike,
+  executor?: Executor
+): Promise<void> {
+  const { rows } = await query<{ id: string }>(
     `INSERT INTO payments.intents (session_id, user_id, type, status, amount_expected)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id`,
@@ -126,8 +192,11 @@ export async function createPaymentIntent(payment_intent, type, user_id, session
   );
 }
 
-export async function updatePaymentIntent(payment_intent, executor) {
-  const { rows } = await query(
+export async function updatePaymentIntent(
+  payment_intent: StripeIntentLike,
+  executor?: Executor
+): Promise<void> {
+  const { rows } = await query<{ id: string }>(
     `UPDATE payments.intents i
         SET status = $1,
             amount_expected = $2,
@@ -158,12 +227,12 @@ export async function updatePaymentIntent(payment_intent, executor) {
 
   // What actually settled. exchange keeps amount_received on the intent; here it
   // is a settlement, and only exists once money has moved.
-  if (payment_intent.amount_received > 0) {
+  if ((payment_intent.amount_received ?? 0) > 0) {
     await query(
       `INSERT INTO payments.settlements (id, attempt_id, settled_amount, provider, provider_ref)
        VALUES ($1, $1, $2, 'stripe', $3)
        ON CONFLICT (id) DO UPDATE SET settled_amount = EXCLUDED.settled_amount`,
-      [rows[0].id, payment_intent.amount_received / 100, payment_intent.id],
+      [rows[0].id, (payment_intent.amount_received as number) / 100, payment_intent.id],
       executor
     );
   }
@@ -172,7 +241,10 @@ export async function updatePaymentIntent(payment_intent, executor) {
 // The instrument Stripe says was used. It is found by the provider's id for it,
 // which is what 077 gave payments.details - exchange keyed this on a column
 // called method_id that holds a pm_... string, not a foreign key.
-export async function updateMethod({ paymentMethod }, executor) {
+export async function updateMethod(
+  { paymentMethod }: { paymentMethod?: StripePaymentMethodLike | null },
+  executor?: Executor
+): Promise<void> {
   await query(
     `INSERT INTO payments.details (
        id, method_id, bank_name, account_type, last_four, card_brand,
@@ -214,7 +286,12 @@ export async function updateMethod({ paymentMethod }, executor) {
 
 // exchange stores both order ids on the intent; orders.orders is one table with
 // a direction, so whichever is given is the order.
-export async function attachOrder(payment_intent_id, purchase_order_id, sales_order_id, client) {
+export async function attachOrder(
+  payment_intent_id: string,
+  purchase_order_id: string | null | undefined,
+  sales_order_id: string | null | undefined,
+  client?: Executor
+): Promise<void> {
   await query(
     `UPDATE payments.intents i
         SET order_id = (SELECT o.id FROM orders.orders o WHERE o.id = $1),
@@ -228,7 +305,11 @@ export async function attachOrder(payment_intent_id, purchase_order_id, sales_or
 
 // The Stripe customer id belongs to the user, and auth.users is where a user
 // lives in the new schema. 056's trigger keeps it honest from the other side.
-export async function attachCustomerToUser(customerId, userId, executor) {
+export async function attachCustomerToUser(
+  customerId: string,
+  userId: string,
+  executor?: Executor
+): Promise<void> {
   await query(
     `UPDATE auth.users SET "stripeCustomerId" = $1 WHERE id = $2`,
     [customerId, userId],

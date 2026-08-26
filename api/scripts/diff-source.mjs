@@ -47,7 +47,7 @@ const FEATURES = {
   // diff ignore would hide the improvement along with the noise.
   payments: {
     exchange: () => import("#features/payments/repo.exchange.js"),
-    next: () => import("#features/payments/repo.next.js"),
+    next: () => import("#features/payments/repo.next.ts"),
     reads: [
       [
         "getPaymentIntentFromSalesOrderId(first)",
@@ -283,7 +283,7 @@ const FEATURES = {
   },
   "shipping-shipments": {
     exchange: () => import("#features/shipping/shipments/repo.exchange.js"),
-    next: () => import("#features/shipping/shipments/repo.next.js"),
+    next: () => import("#features/shipping/shipments/repo.next.ts"),
     reads: [
       ["getAll", (m) => m.getAll()],
       ["getById(first)", (m, ctx) => (ctx.id ? m.getById(ctx.id) : [])],

@@ -16,6 +16,24 @@
 // and references here, so they are resolved back to their names. carrier_id
 // comes through the service rather than being stored twice.
 import query from "#shared/db/query.js";
+// exchange is exported FLAT from the contracts index, not namespaced - it is
+// still what serves traffic, and every per-feature schema is namespaced
+// because their table names collide with it by design. Aliased so the next
+// reader can see WHICH schema this row describes.
+import type { ShipmentsRow as ExchangeShipmentsRow } from "@dorado/contracts";
+import type { PoolClient } from "pg";
+
+// Repos take an optional executor so a caller can pull them into its
+// transaction; without one they run on the pool.
+type Executor = PoolClient | undefined;
+
+// The row type is exchange.shipments' OWN shape, not shipping.shipments'.
+// repo.exchange.js reads SELECT *, so the wire shape is every column that
+// table has - including purchase_order_id and sales_order_id, which the new
+// schema does not keep and the projection below reconstructs. Typing this
+// against shipping.ShipmentsRow would describe the table rather than the
+// contract, and the contract is the thing that must not change.
+export type ShipmentRow = ExchangeShipmentsRow;
 
 // Every column exchange.shipments has, in its own order, so that a caller
 // reading the result cannot tell which schema answered.
@@ -50,8 +68,12 @@ export const SHIPMENT_FROM = `
     LEFT JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
     LEFT JOIN orders.orders o ON o.id = f.order_id`;
 
-export async function getAll(client) {
-  const { rows } = await query(
+// `rows ?? null` in both implementations. pg never hands back a null `rows`,
+// so the fallback is dead and the real return is an array - which is what the
+// compiler agrees to. Left the expression alone: changing it would change
+// repo.exchange.js's sibling too, and it costs nothing where it is.
+export async function getAll(client?: Executor): Promise<ShipmentRow[]> {
+  const { rows } = await query<ShipmentRow>(
     `SELECT ${SHIPMENT_COLUMNS} ${SHIPMENT_FROM} ORDER BY s.id ASC`,
     [],
     client
@@ -59,8 +81,8 @@ export async function getAll(client) {
   return rows ?? null;
 }
 
-export async function getById(id, client) {
-  const { rows } = await query(
+export async function getById(id: string, client?: Executor): Promise<ShipmentRow | null> {
+  const { rows } = await query<ShipmentRow>(
     `SELECT ${SHIPMENT_COLUMNS} ${SHIPMENT_FROM} WHERE s.id = $1`,
     [id],
     client
@@ -70,8 +92,10 @@ export async function getById(id, client) {
 
 // Matches either order id, as exchange does with its OR across two columns.
 // Here both come from the same place, so one comparison covers both.
-export async function getByOrder(id, client) {
-  const { rows } = await query(
+// Returns ONE shipment, not a list, matching repo.exchange.js - an order can
+// legitimately have more than one, and both implementations take the first.
+export async function getByOrder(id: string, client?: Executor): Promise<ShipmentRow | null> {
+  const { rows } = await query<ShipmentRow>(
     `SELECT ${SHIPMENT_COLUMNS} ${SHIPMENT_FROM} WHERE f.order_id = $1`,
     [id],
     client
@@ -95,7 +119,7 @@ export async function getByOrder(id, client) {
 // Everything is server-side, and every function takes the caller's executor so
 // the mirror joins the same transaction as the write it follows.
 
-export async function mirrorShipment(id, executor) {
+export async function mirrorShipment(id: string, executor?: Executor): Promise<void> {
   await query(
     `INSERT INTO shipping.shipments (
        id, carrier_service_id, package_id, tracking_number,
@@ -197,7 +221,7 @@ export async function mirrorShipment(id, executor) {
 // Removes what exchange no longer has. The links go first, then the shipment:
 // fulfillments.shipments references it, and the fulfillment itself is left
 // alone because an order can be fulfilled without a surviving shipment record.
-export async function removeShipment(id, executor) {
+export async function removeShipment(id: string, executor?: Executor): Promise<void> {
   await query(
     `DELETE FROM fulfillments.shipments fs
      WHERE fs.shipment_id = $1

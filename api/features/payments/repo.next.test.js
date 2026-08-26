@@ -11,7 +11,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import * as next from "#features/payments/repo.next.js";
+import * as next from "#features/payments/repo.next.ts";
 import * as exchange from "#features/payments/repo.exchange.js";
 import { toLegacy, fromLegacy } from "#features/payments/wire.ts";
 

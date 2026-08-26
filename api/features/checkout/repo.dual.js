@@ -16,7 +16,7 @@
 // refers to a cart by id. It is looked up by user every time.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/checkout/repo.exchange.js";
-import * as next from "#features/checkout/repo.next.js";
+import * as next from "#features/checkout/repo.next.ts";
 
 export const getCart = exchange.getCart;
 export const getSellCartId = exchange.getSellCartId;

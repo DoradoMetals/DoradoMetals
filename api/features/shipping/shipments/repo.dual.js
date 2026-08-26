@@ -11,7 +11,7 @@
 // any of it.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/shipping/shipments/repo.exchange.js";
-import * as next from "#features/shipping/shipments/repo.next.js";
+import * as next from "#features/shipping/shipments/repo.next.ts";
 
 export const getAll = next.getAll;
 export const getById = next.getById;

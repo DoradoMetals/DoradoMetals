@@ -35,7 +35,7 @@ export interface TrackingInfo {
 import {
   SHIPMENT_COLUMNS,
   SHIPMENT_FROM,
-} from "#features/shipping/shipments/repo.next.js";
+} from "#features/shipping/shipments/repo.next.ts";
 
 export async function getEvents(
   shipment_id: string,

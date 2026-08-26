@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.js";
 import * as dual from "#features/checkout/repo.dual.js";
-import * as next from "#features/checkout/repo.next.js";
+import * as next from "#features/checkout/repo.next.ts";
 
 let client;
 

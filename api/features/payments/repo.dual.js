@@ -11,7 +11,7 @@
 // that is the one thing the mirror depends on staying true.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/payments/repo.exchange.js";
-import * as next from "#features/payments/repo.next.js";
+import * as next from "#features/payments/repo.next.ts";
 
 const both = (executor, fn) => (executor ? fn(executor) : withTransaction(fn));
 

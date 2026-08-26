@@ -15,12 +15,24 @@
 // flow, because an admin placing an order on a customer's behalf is real; it
 // just cannot be claimed.
 //
-// WHY THE REFUSALS ARE THE TESTS, AND WHY THAT IS ENOUGH HERE. Every success
-// path in this feature ends at Stripe. The suite does not call Stripe - the
-// provider now refuses a live key under test, and the sandbox is a network
+// WHY THE REFUSALS ARE MOST OF THE TESTS. THREE of the four success paths end
+// at Stripe - retrieve, update and cancel. The suite does not call Stripe: the
+// provider refuses a live key under test, and the sandbox is a network
 // dependency this file deliberately does not take. Every refusal below returns
-// from the controller BEFORE the service runs, so the assertions cover exactly
+// from the controller BEFORE the service runs, so those assertions cover exactly
 // the boundary that was broken, deterministically.
+//
+// THE FOURTH IS NOT LIKE THE OTHERS, AND THIS HEADER USED TO SAY IT WAS.
+// get_sales_order_payment_intent is a pure database read -
+// stripeService.getPaymentIntentFromSalesOrderId goes straight to the repo and
+// touches no provider. It had zero success coverage on the strength of a
+// sentence that was true of its three neighbours and not of it.
+//
+// That matters more than one missing assertion, because it was also the only
+// route in this feature that could give the payments WIRE ADAPTER any coverage
+// over real HTTP. The adapter runs as middleware AFTER the controller returns,
+// which is precisely where the addresses bug lived: the repo was correct, the
+// response was not, and no repo test could see it. The success test is below.
 //
 // THE ROUTES ARE MOUNTED AT /api/stripe, NOT /api/payments. The feature was
 // renamed; the path deliberately was not, because the frontend calls it and
@@ -38,6 +50,8 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.js";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
+import * as paymentsWire from "#features/payments/wire.ts";
+import { PaymentIntentWire, PaymentIntentWireNext } from "@dorado/contracts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -175,6 +189,61 @@ test("the refused requests created no payment intent", async () => {
     intentsBefore,
     "a route that answered 401/403 still wrote a payment intent"
   );
+});
+
+// THE ONE SUCCESS PATH THAT DOES NOT END AT STRIPE.
+//
+// An admin reading a sales order's payment intent. This is a database read, so
+// it can be asserted here, and it is the only HTTP-level coverage the payments
+// wire adapter has: the adapter is middleware that rewrites the body after the
+// controller has returned, and the addresses feature has already been bitten
+// once by a response that was correct until exactly that point.
+//
+// Asserted three ways, because a 200 alone would pass against an empty body:
+// the response parses through the contract for whichever shape is ACTIVE, it
+// names the intent the database holds for that order, and it does not carry the
+// other shape's field names.
+test("an admin reading a sales order's payment intent gets it, in the active wire shape", async () => {
+  const [seed] = await outside(
+    `SELECT sales_order_id, payment_intent_id
+       FROM exchange.payment_intents
+      WHERE sales_order_id IS NOT NULL AND payment_intent_id IS NOT NULL
+      ORDER BY created_at DESC, id
+      LIMIT 1`
+  );
+  assert.ok(seed, "dev has no sales order with a payment intent - this test would be vacuous");
+
+  await inPinnedTransaction(async () => {
+    await as({ ...admin, role: "admin" }, async () => {
+      const res = await request(app)
+        .get("/api/stripe/get_sales_order_payment_intent")
+        .query({ sales_order_id: seed.sales_order_id });
+
+      assert.equal(res.status, 200, `answered ${res.status} to an admin`);
+      assert.ok(res.body && typeof res.body === "object", "the body was not an object");
+
+      const shape = paymentsWire.activeShape;
+      const schema = shape === "next" ? PaymentIntentWireNext : PaymentIntentWire;
+      const parsed = schema.safeParse(res.body);
+      assert.ok(
+        parsed.success,
+        `the response does not satisfy the ${shape} contract: ` +
+          JSON.stringify(parsed.error?.issues?.slice(0, 4))
+      );
+
+      // The right intent, not merely a well-shaped one.
+      const ref = shape === "next" ? res.body.attempt?.provider_ref : res.body.payment_intent_id;
+      assert.equal(ref, seed.payment_intent_id, "a different intent came back");
+
+      // And the other shape's names did not leak through the adapter.
+      if (shape === "legacy") {
+        assert.ok(!("attempt" in res.body), "the nested shape leaked onto the legacy wire");
+        assert.ok(!("status" in res.body), "the nested shape leaked onto the legacy wire");
+      } else {
+        assert.ok(!("payment_intent_id" in res.body), "the legacy names leaked onto the next wire");
+      }
+    });
+  });
 });
 
 // A GAP, STATED RATHER THAN PAPERED OVER.
