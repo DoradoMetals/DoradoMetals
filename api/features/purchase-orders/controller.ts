@@ -1,3 +1,4 @@
+import { callerId } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as purchaseOrderService from "#features/purchase-orders/service.ts"
 
@@ -8,7 +9,7 @@ export const getPurchaseOrderById = asyncHandler(async (req, res) => {
 });
 
 export const getPurchaseOrders = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
+  const userId = callerId(req);
   const orders = await purchaseOrderService.listOrdersForUser(userId);
   return res.json(orders);
 });
@@ -81,7 +82,7 @@ export const createReview = asyncHandler(async (req, res) => {
 // believed.
 export const createPurchaseOrder = asyncHandler(async (req, res) => {
   const { purchase_order } = req.body;
-  const order = await purchaseOrderService.createPurchaseOrder(purchase_order, req.user.id);
+  const order = await purchaseOrderService.createPurchaseOrder(purchase_order, callerId(req));
   return res.status(200).json(order);
 });
 

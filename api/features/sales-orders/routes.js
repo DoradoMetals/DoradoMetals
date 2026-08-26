@@ -9,7 +9,7 @@ import {
   updateStatus,
   adminCreateSalesOrder,
   createReview,
-} from "#features/sales-orders/controller.js";
+} from "#features/sales-orders/controller.ts";
 
 import {
   requireUser,

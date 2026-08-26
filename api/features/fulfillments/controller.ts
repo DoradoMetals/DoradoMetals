@@ -1,3 +1,5 @@
+import { requiredParam } from "#shared/http/caller.ts";
+import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
 
@@ -25,7 +27,7 @@ export const updateMethod = asyncHandler(async (req, res) => {
 });
 
 export const getForOrder = asyncHandler(async (req, res) => {
-  const { order_id } = req.query;
+  const order_id = requiredParam(req.query.order_id, "order_id");
   const row = await fulfillmentService.getForOrder(order_id, {
     userId: req.user?.id,
     isAdmin: req.user?.role === "admin",
@@ -37,7 +39,11 @@ export const getForOrder = asyncHandler(async (req, res) => {
 // than defaulting to "today", because an admin scrolling next week wants next
 // week and a default would quietly hide it.
 export const getSchedule = asyncHandler(async (req, res) => {
-  const { from, to, employee_id } = req.query;
+  // Optional window and filter. Narrowed one at a time because Express delivers
+  // arrays and objects here too, and a filter nobody sent must read as absent.
+  const from = oneString(req.query.from);
+  const to = oneString(req.query.to);
+  const employee_id = oneString(req.query.employee_id);
   const rows = await fulfillmentService.getSchedule({ from, to, employee_id });
   return res.status(200).json(rows);
 });

@@ -1,3 +1,5 @@
+import { requiredParam } from "#shared/http/caller.ts";
+import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as stripe from "#providers/stripe/stripe.js"
 import * as stripeService from "#features/payments/service.ts"
@@ -11,9 +13,11 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
   } catch (err) {
     console.error(
       "❌ Stripe webhook signature verification failed:",
-      err.message
+      err instanceof Error ? err.message : String(err)
     );
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    return res
+      .status(400)
+      .send(`Webhook Error: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   switch (event.type) {
@@ -132,8 +136,8 @@ export const retrievePaymentIntent = asyncHandler(async (req, res) => {
     return res.status(403).json({ error: "Forbidden" });
   }
   const paymentIntent = await stripeService.retrievePaymentIntent(
-    req.query.type,
-    req.query.user_id,
+    oneString(req.query.type),
+    oneString(req.query.user_id),
     req.headers
   );
   res.json(paymentIntent.client_secret);
@@ -148,9 +152,13 @@ export const updatePaymentIntent = asyncHandler(async (req, res) => {
 });
 
 export const getPaymentIntentFromSalesOrderId = asyncHandler(async (req, res) => {
-  const paymentIntent = await stripeService.getPaymentIntentFromSalesOrderId(
-    req.query
-  );
+  // The whole query object was passed to a service declaring
+  // `{ sales_order_id: string }`. Express types every value in it as
+  // string | string[] | ParsedQs, so the id could arrive as an array or an
+  // object and reach a uuid comparison as one.
+  const paymentIntent = await stripeService.getPaymentIntentFromSalesOrderId({
+    sales_order_id: requiredParam(req.query.sales_order_id, "sales_order_id"),
+  });
   res.json(paymentIntent);
 });
 

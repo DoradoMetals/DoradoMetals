@@ -3,7 +3,7 @@ import express from "express";
 import {
   sendCreatedEmail,
   sendAcceptedEmail,
-} from "#features/emails/controller.js";
+} from "#features/emails/controller.ts";
 
 import { requireUser } from "#shared/middleware/authMiddleware.js";
 

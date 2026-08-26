@@ -4,7 +4,7 @@ import {
   updatePaymentIntent,
   getPaymentIntentFromSalesOrderId,
   cancelPaymentIntent,
-} from "#features/payments/controller.js";
+} from "#features/payments/controller.ts";
 
 import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.js";
 

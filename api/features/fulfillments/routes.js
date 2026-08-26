@@ -11,7 +11,7 @@ import {
   setMethod,
   setStatus,
   updateMethod,
-} from "#features/fulfillments/controller.js";
+} from "#features/fulfillments/controller.ts";
 
 import {
   requireAdmin,

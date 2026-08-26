@@ -1,3 +1,4 @@
+import { callerId } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as salesOrderService from "#features/sales-orders/service.ts"
 
@@ -8,7 +9,7 @@ export const getSalesOrderById = asyncHandler(async (req, res) => {
 });
 
 export const getSalesOrders = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
+  const userId = callerId(req);
   const orders = await salesOrderService.listOrdersForUser(userId);
   return res.json(orders);
 });

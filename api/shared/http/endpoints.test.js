@@ -190,8 +190,13 @@ import path from "node:path";
 const FEATURES = path.join(import.meta.dirname, "..", "..", "features");
 
 // Exported from a controller and deliberately not routed.
+//
+// KEYED BY FILENAME, so these move when a controller is converted. That is not
+// incidental bookkeeping: if a key stops matching, its handlers stop being
+// "declared dead" and the test reports them as unrouted - which is the right
+// failure, and is how this list stays honest.
 const UNROUTED = {
-  "sales-orders/controller.js": {
+  "sales-orders/controller.ts": {
     getSalesOrderById: "no route; the frontend reads orders through get_all and get_sales_orders",
     // cancelOrder was here and the handler is now gone. It awaited
     // salesOrderService.cancelOrder, which the service has never defined, so it
@@ -200,10 +205,10 @@ const UNROUTED = {
     // admins use update_status) is the reason it should not exist at all.
     // This list going stale is what surfaced that, which is the check working.
   },
-  "purchase-orders/controller.js": {
+  "purchase-orders/controller.ts": {
     getPurchaseOrderById: "no route; the frontend reads orders through get_purchase_orders and get_all_purchase_orders",
   },
-  "payments/controller.js": {
+  "payments/controller.ts": {
     handleStripeWebhook: "mounted directly on the app in app.js, before express.json",
   },
 };

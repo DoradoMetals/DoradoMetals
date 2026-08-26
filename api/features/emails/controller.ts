@@ -1,3 +1,4 @@
+import type { Request } from "express";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as emailService from "#features/emails/service.ts"
 import * as purchaseOrderRepo from "#features/purchase-orders/repo.js";
@@ -10,9 +11,12 @@ import * as purchaseOrderRepo from "#features/purchase-orders/repo.js";
 // entitled to it: an admin may send on a customer's behalf, anyone else only
 // about their own order. Otherwise naming somebody else's order id would be a
 // way to mail that customer at will.
-async function recipientFor(orderId, caller) {
-  const fail = (status, message) => {
-    const err = new Error(message);
+async function recipientFor(
+  orderId: string | undefined,
+  caller: Request["user"]
+): Promise<string> {
+  const fail = (status: number, message: string) => {
+    const err: Error & { statusCode?: number } = new Error(message);
     err.statusCode = status;
     return err;
   };

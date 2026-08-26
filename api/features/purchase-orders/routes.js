@@ -35,7 +35,7 @@ import {
   updatePoolOzDeducted,
   updatePoolRemediation,
   getPayoutDetails,
-} from "#features/purchase-orders/controller.js";
+} from "#features/purchase-orders/controller.ts";
 
 import { 
   requireUser, 

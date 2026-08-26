@@ -619,7 +619,12 @@ export async function toggleOrderItemStatus({
   ids,
   purchase_order_id,
 }: {
-  item_status: string;
+  // BOOLEAN, not a string. I typed this `string` when converting the service
+  // and the compiler caught it the moment the callers were converted too:
+  // saveOrderItems passes `true` and resetOrderItems passes `false`, and the
+  // repo writes it to exchange.purchase_order_items.confirmed, which is a
+  // boolean column. The name reads like a status; the thing is a flag.
+  item_status: boolean;
   ids: string[];
   purchase_order_id: string;
 }): Promise<unknown> {

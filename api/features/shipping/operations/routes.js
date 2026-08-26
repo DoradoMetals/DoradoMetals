@@ -8,7 +8,7 @@ import {
   getRates,
   getTracking,
   validateAddress,
-} from "#features/shipping/operations/controller.js";
+} from "#features/shipping/operations/controller.ts";
 
 import {
   requireUser,

@@ -5,7 +5,7 @@ import {
   generateReturnPackingList,
   generateInvoice,
   generateSalesOrderInvoice,
-} from "#features/pdf/controller.js";
+} from "#features/pdf/controller.ts";
 
 import { requireUser } from "#shared/middleware/authMiddleware.js";
 

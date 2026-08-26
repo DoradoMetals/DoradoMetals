@@ -38,7 +38,7 @@ import fulfillmentRoutes from "#features/fulfillments/routes.js";
 
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "#features/auth/client.js";
-import { handleStripeWebhook } from "#features/payments/controller.js";
+import { handleStripeWebhook } from "#features/payments/controller.ts";
 import errorHandler from "#shared/middleware/errorHandler.js";
 
 const app = express();
