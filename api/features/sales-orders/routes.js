@@ -14,10 +14,10 @@ import {
 import {
   requireUser,
   requireAdmin,
-} from "#shared/middleware/authMiddleware.js";
+} from "#shared/middleware/authMiddleware.ts";
 // See features/purchase-orders/routes.js: requireUser asks whether somebody is
 // signed in, this asks whether the order is theirs.
-import { requireOwnOrder } from "#shared/middleware/ownership.js";
+import { requireOwnOrder } from "#shared/middleware/ownership.ts";
 
 const router = express.Router();
 

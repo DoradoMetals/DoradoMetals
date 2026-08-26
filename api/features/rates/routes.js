@@ -9,7 +9,7 @@ import {
   getAdmin,
 } from "#features/rates/controller.ts";
 
-import { requireAdmin } from "#shared/middleware/authMiddleware.js";
+import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
 
 const router = express.Router();
 

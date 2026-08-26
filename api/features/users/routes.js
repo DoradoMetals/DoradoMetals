@@ -7,7 +7,7 @@ import {
   updateCredit,
 } from "#features/users/controller.ts"
 
-import { requireAdmin } from '#shared/middleware/authMiddleware.js';
+import { requireAdmin } from '#shared/middleware/authMiddleware.ts';
 
 const router = express.Router();
 

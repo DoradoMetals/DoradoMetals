@@ -27,7 +27,7 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.js";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
-import { requireOwnShipment } from "#shared/middleware/ownership.js";
+import { requireOwnShipment } from "#shared/middleware/ownership.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");

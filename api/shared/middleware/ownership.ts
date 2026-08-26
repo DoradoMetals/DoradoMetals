@@ -22,13 +22,25 @@
 // inside each service: a service that grew a new caller would need the check
 // adding again, and the routes file is where somebody looks to answer "who can
 // do this". One line per route, next to the guard it completes.
+import type { NextFunction, Request, Response } from "express";
 import query from "#shared/db/query.js";
+
+// The four spellings a request body uses for an order id, and the two for a
+// shipment. Written as a type so a fifth spelling has to be added here as well
+// as below - the guard refusing when it finds none is only safe if the list of
+// places it looks is deliberate.
+type OrderBody = {
+  order?: { id?: string | null } | null;
+  purchase_order_id?: string | null;
+  sales_order_id?: string | null;
+  order_id?: string | null;
+};
 
 // The order id, wherever the frontend happens to put it. These are the four
 // spellings in use across purchase-orders and sales-orders; a route whose body
 // uses none of them is refused rather than waved through, because a guard that
 // cannot find its subject must not decide it is fine.
-function orderIdFrom(body = {}) {
+function orderIdFrom(body: OrderBody = {}): string | null {
   return (
     body.order?.id ??
     body.purchase_order_id ??
@@ -38,7 +50,7 @@ function orderIdFrom(body = {}) {
   );
 }
 
-export function requireOwnOrder(req, res, next) {
+export function requireOwnOrder(req: Request, res: Response, next: NextFunction) {
   // Admins administer every order. requireUser has already run, so req.user is
   // present; a missing one means this was mounted without a guard in front of
   // it, which is a wiring mistake rather than an anonymous caller.
@@ -107,7 +119,7 @@ export function requireOwnOrder(req, res, next) {
 // and it is not this middleware's business to know which. exchange.shipments
 // carries the order id inline; the new schema reaches it through
 // fulfillments.shipments -> fulfillments.fulfillments -> orders.orders.
-export function requireOwnShipment(req, res, next) {
+export function requireOwnShipment(req: Request, res: Response, next: NextFunction) {
   if (!req.user) {
     return res.status(401).json({ error: "Unauthorized" });
   }

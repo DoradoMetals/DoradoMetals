@@ -13,8 +13,8 @@ import {
 import {
   requireUser,
   requireAdmin,
-} from "#shared/middleware/authMiddleware.js";
-import { requireOwnShipment } from "#shared/middleware/ownership.js";
+} from "#shared/middleware/authMiddleware.ts";
+import { requireOwnShipment } from "#shared/middleware/ownership.ts";
 
 const router = express.Router();
 

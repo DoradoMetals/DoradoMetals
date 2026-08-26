@@ -8,7 +8,7 @@ import {
   setDefault,
 } from "#features/addresses/controller.ts";
 
-import { requireUser } from "#shared/middleware/authMiddleware.js";
+import { requireUser } from "#shared/middleware/authMiddleware.ts";
 import * as addressesWire from "#features/addresses/wire.ts";
 import { wireShape } from "#shared/wire/middleware.ts";
 

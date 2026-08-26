@@ -2,7 +2,7 @@ import express from "express";
 
 import { getAllRefiners } from "#features/refiners/controller.js";
 
-import { requireAdmin } from "#shared/middleware/authMiddleware.js";
+import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
 import * as refinersWire from "#features/refiners/wire.ts";
 import { wireShape } from "#shared/wire/middleware.ts";
 

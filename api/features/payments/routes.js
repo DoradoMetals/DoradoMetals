@@ -6,7 +6,7 @@ import {
   cancelPaymentIntent,
 } from "#features/payments/controller.ts";
 
-import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.js";
+import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.ts";
 
 import * as paymentsWire from "#features/payments/wire.ts";
 import { wireShape } from "#shared/wire/middleware.ts";

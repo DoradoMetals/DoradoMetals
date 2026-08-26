@@ -40,12 +40,12 @@ import {
 import { 
   requireUser, 
   requireAdmin 
-} from "#shared/middleware/authMiddleware.js";
+} from "#shared/middleware/authMiddleware.ts";
 // requireUser asks whether somebody is signed in; this asks whether the order
 // is theirs. Every route below that takes an order out of the request body
 // needs both, and until this existed a customer could act on any order whose id
 // they had - including cancelling it, which buys a FedEx return label.
-import { requireOwnOrder } from "#shared/middleware/ownership.js";
+import { requireOwnOrder } from "#shared/middleware/ownership.ts";
 
 const router = express.Router();
 

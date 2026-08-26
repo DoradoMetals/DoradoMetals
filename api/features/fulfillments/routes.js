@@ -16,7 +16,7 @@ import {
 import {
   requireAdmin,
   requireUser,
-} from "#shared/middleware/authMiddleware.js";
+} from "#shared/middleware/authMiddleware.ts";
 
 const router = express.Router();
 

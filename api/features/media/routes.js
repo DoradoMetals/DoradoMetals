@@ -7,7 +7,7 @@ import {
   getTestImages,
 } from "#features/media/controller.ts";
 
-import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.js";
+import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.ts";
 import * as mediaWire from "#features/media/wire.ts";
 import { wireShape } from "#shared/wire/middleware.ts";
 

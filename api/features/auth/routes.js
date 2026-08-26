@@ -1,7 +1,7 @@
 import express from 'express';
 
 import { setPassword } from '#features/auth/controller.ts';
-import { requireAuth } from '#shared/middleware/authMiddleware.js';
+import { requireAuth } from '#shared/middleware/authMiddleware.ts';
 
 const router = express.Router();
 

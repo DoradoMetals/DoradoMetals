@@ -19,7 +19,7 @@ import { getAllMints } from "#features/mints/controller.js";
 // because the frontend calls /products/get_metals.
 import { getAllMetals } from "#features/spots/controller.js";
 
-import { requireAdmin } from "#shared/middleware/authMiddleware.js";
+import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
 import * as productsWire from "#features/products/wire.ts";
 import { wireShape } from "#shared/wire/middleware.ts";
 

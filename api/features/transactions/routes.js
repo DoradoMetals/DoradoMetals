@@ -2,7 +2,7 @@ import express from "express";
 
 import { getTransactionHistory } from "#features/transactions/controller.ts";
 
-import { requireUser } from "#shared/middleware/authMiddleware.js";
+import { requireUser } from "#shared/middleware/authMiddleware.ts";
 
 const router = express.Router();
 
