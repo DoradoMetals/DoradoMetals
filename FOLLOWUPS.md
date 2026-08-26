@@ -4109,3 +4109,51 @@ worthless.
 `products.sell_display` — `NOT NULL` in dev, nullable in production, because
 the migration that tightened it has not been applied there. Running the two and
 diffing is a cheap way to see that drift.
+
+## The purchase-order pricing functions disagree about what a line is worth
+
+Eight functions in `frontend/features/orders/purchaseOrders/utils/` compute
+what the business **pays** a customer for the metal they sent in.
+`purchaseOrderTotal` alone is imported by 10 files. **None of them had a
+test** — checked by symbol rather than by filename, because path-matching has
+undercounted here before.
+
+`purchaseOrderPricing.test.ts` now covers six of them, 16 tests. Writing it
+surfaced two disagreements about the same question: what premium applies when
+a line carries no price and no premium of its own.
+
+**Scrap: the line and the total use different premiums.**
+
+```ts
+// getPurchaseOrderScrapPrice  - what one line displays
+item.price ?? (scrap.content ?? 0) * (bid_spot * (item.premium ?? scrap.bid_premium ?? 1))
+
+// purchaseOrderScrapTotal / purchaseOrderTotal  - what the order sums to
+item.price ?? (scrap.content ?? 0) * (bid_spot * (item.premium ?? 1))
+```
+
+The per-line function consults the scrap record's own `bid_premium`; both
+functions that total the same items skip it. A scrap row with
+`bid_premium = 0.9` at gold 3000 **displays 2700 and sums to 3000** — the total
+is not the sum of the lines shown above it, and it is the total that is larger.
+
+**Bullion: the default premium is 0 in one place and 1 in another.**
+`purchaseOrderBullionTotal`, `purchaseOrderTotal` and
+`getPurchaseOrderBullionPrice` resolve a missing premium to `0`, which prices
+the line at **nothing**. `getPurchaseOrderItemPrice` resolves it to `1`, which
+prices the same line at **full spot**.
+
+**One function fails loudly where the rest fail silently.**
+`getPurchaseOrderItemPrice` does `spots.find(...)!` and throws a `TypeError`
+when no spot matches the metal. Every other function absorbs that into `?? 0`.
+That is the same silent-zero path D32 is about.
+
+**None of this is live. Measured against production:** 89 purchase-order items,
+7 with no price, and **not one with neither a price nor a premium**. Every item
+either carries an agreed price or its own premium, so no fallback in any of
+these functions is currently reached.
+
+**Which premium is correct is a business question, so it is not fixed here —
+it is D34.** The tests state the behaviour as it stands and were mutation-checked:
+making `purchaseOrderScrapTotal` consult `scrap.bid_premium` fails exactly the
+two tests that assert the divergence and no others.
