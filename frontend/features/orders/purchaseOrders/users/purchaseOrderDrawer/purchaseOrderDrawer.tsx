@@ -22,7 +22,7 @@ export default function PurchaseOrderDrawer({ order_id, user }: PurchaseOrderDra
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="glass-panel">
+    <Drawer label="Purchase order" open={isDrawerOpen} setOpen={closeDrawer} className="glass-panel">
       <PurchaseOrderDrawerHeader
         order={order}
         username={user?.name ?? ''}

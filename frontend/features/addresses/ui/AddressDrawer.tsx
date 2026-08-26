@@ -27,7 +27,7 @@ export function AddressDrawer({ onSuccess }: AddressDrawerProps) {
   }, [pathname, closeDrawer])
 
   return (
-    <Drawer open={isAddressOpen} setOpen={closeDrawer} className="glass-panel">
+    <Drawer label="Address" open={isAddressOpen} setOpen={closeDrawer} className="glass-panel">
       <Button
         variant="ghost"
         size="icon"

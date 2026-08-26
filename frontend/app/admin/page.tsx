@@ -201,7 +201,7 @@ function AdminShell() {
         {content}
       </div>
 
-      <Drawer
+      <Drawer label="Admin"
         open={activeDrawer === 'adminSidebar'}
         setOpen={(o) => (o ? openDrawer('adminSidebar') : closeDrawer())}
         anchor="left"

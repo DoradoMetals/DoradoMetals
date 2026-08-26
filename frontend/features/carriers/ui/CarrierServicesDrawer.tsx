@@ -45,7 +45,7 @@ export default function CarrierServiceDrawer({
   if (!service) return null
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="glass-panel">
+    <Drawer label="Carrier service" open={isDrawerOpen} setOpen={closeDrawer} className="glass-panel">
       <Header service={service} carrier={carrier} />
       <div className="glass-divider" />
       <div className="space-y-8">

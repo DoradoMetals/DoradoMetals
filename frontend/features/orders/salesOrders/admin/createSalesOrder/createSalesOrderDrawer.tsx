@@ -105,7 +105,7 @@ export function CreateSalesOrderDrawer() {
   }, [defaultAddress.id, addresses.length, data.address?.id, setData])
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} anchor="left" className="glass-panel">
+    <Drawer label="New sales order" open={isDrawerOpen} setOpen={closeDrawer} anchor="left" className="glass-panel">
       <div className="text-base text-neutral-800">{createSalesOrderUser?.name}</div>
 
       <div className="glass-divider" />

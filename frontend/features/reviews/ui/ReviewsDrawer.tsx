@@ -31,7 +31,7 @@ export default function ReviewsDrawer({
   if (!review) return null
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
+    <Drawer label="Review" open={isDrawerOpen} setOpen={closeDrawer}>
       <Header review={review} />
       <div className="glass-divider" />
       <EditFields review={review} />

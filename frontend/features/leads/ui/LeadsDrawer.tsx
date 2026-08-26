@@ -42,7 +42,7 @@ export default function LeadsDrawer({ leads, lead_id }: { leads: Lead[]; lead_id
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="glass-panel">
+    <Drawer label="Lead" open={isDrawerOpen} setOpen={closeDrawer} className="glass-panel">
       <Header lead={lead} />
       <div className="glass-divider" />
       <div className="space-y-8">

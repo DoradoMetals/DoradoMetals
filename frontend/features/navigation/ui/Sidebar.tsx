@@ -150,7 +150,7 @@ export default function Sidebar() {
   )
 
   return (
-    <Drawer
+    <Drawer label="Navigation"
       open={isDrawerOpen}
       setOpen={closeDrawer}
       className="bg-neutral-800/50 dark:bg-neutral-200/50 !backdrop-blur-sm border-t-1 border-border"

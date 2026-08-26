@@ -30,7 +30,7 @@ export function CartTabs() {
 
   return (
     <div>
-      <Drawer
+      <Drawer label="Cart"
         open={isCartOpen}
         setOpen={closeDrawer}
         className="bg-card border-t-1 border-border lg:border-none sm:!overflow-hidden"

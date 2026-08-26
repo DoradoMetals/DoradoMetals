@@ -40,7 +40,7 @@ export default function ProductDrawer({
   }
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
+    <Drawer label="Product" open={isDrawerOpen} setOpen={closeDrawer}>
       <Header product={product} />
       <div className="glass-divider" />
       <Details product={product} />
