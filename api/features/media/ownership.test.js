@@ -20,7 +20,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import * as mediaService from "#features/media/service.js";
+import * as mediaService from "#features/media/service.ts";
 import * as mediaRepo from "#features/media/repo.js";
 
 let client;

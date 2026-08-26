@@ -13,7 +13,7 @@
 // the label and the courier are the caller's problem and happen before the
 // transaction opens, which is the shape createPurchaseOrder was rebuilt into.
 import query from "#shared/db/query.js";
-import * as fulfillmentService from "#features/fulfillments/service.js";
+import * as fulfillmentService from "#features/fulfillments/service.ts";
 import * as ratesRepo from "#features/rates/repo.js";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 

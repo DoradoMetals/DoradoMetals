@@ -14,7 +14,7 @@ import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.js";
 import * as repo from "#features/fulfillments/repo.js";
 import * as methods from "#features/fulfillments/methods/repo.js";
-import * as service from "#features/fulfillments/service.js";
+import * as service from "#features/fulfillments/service.ts";
 
 let client;
 

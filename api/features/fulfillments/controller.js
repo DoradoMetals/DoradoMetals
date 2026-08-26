@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as fulfillmentService from "#features/fulfillments/service.js";
+import * as fulfillmentService from "#features/fulfillments/service.ts";
 
 // The menu a customer is offered, per direction. Guarded rather than public:
 // which methods exist and which are hidden is operational information, and a

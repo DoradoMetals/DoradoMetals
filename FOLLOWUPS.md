@@ -3291,6 +3291,28 @@ The credit ledger is the feature holding $66,999.32 across 17 production rows
 and 8 customers, so the route being wrong AND unused at the same time is worth
 recording rather than quietly correcting.
 
+### `MINIO_BUCKET` is not validated at boot, and is the only unchecked one used
+
+`env.js` checks `DATABASE_URL` and, under `USE_TEST_DB=1`, `TEST_DATABASE_URL`.
+Nothing else. `MINIO_BUCKET` has exactly two uses in the repo, both in
+`features/media/service.ts`: the bucket written onto the `media.images` row, and
+the bucket the presigned PUT is issued against.
+
+Unset, an upload writes a null bucket and hands `undefined` to the presigner —
+so it fails at request time, confusingly, rather than at startup, clearly. It is
+evidently set in production, because uploads work; this is about the failure
+mode if it ever is not.
+
+Not fixed here because adding a boot check changes deploy-time behaviour: a
+missing variable would stop the server rather than one endpoint, which is the
+right call but is a decision about deploys rather than about types. Noted while
+converting the service, where the compiler made the `string | undefined`
+visible.
+
+The same question is worth asking of the other provider variables — the FedEx
+and Stripe credentials, and `SPOT_API_URL`, which `spots.updateSpotPrices` also
+reads without a check.
+
 ## Operations
 
 ### No production backup has been taken, and now there is more to back up

@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as mediaService from "#features/media/service.js"
+import * as mediaService from "#features/media/service.ts"
 
 export const uploadImage = asyncHandler(async (req, res) => {
   const result = await mediaService.uploadImage({ ...req.body, user_id: req.user.id });
