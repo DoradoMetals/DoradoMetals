@@ -4562,3 +4562,70 @@ long enough for the databases to be renamed underneath it.
 Mutation-checked: editing a committed contract fails with `leads.ts: differs
 from what the database produces`; removing one fails with `rates.ts: generated
 but not committed`. Both exit 1.
+
+## Where every gate stands, measured tonight
+
+`pnpm check` is green, but it runs only some of the verifiers. This is the
+current state of the ones it does not, run end to end. **Nothing here is a
+regression from tonight's work** — no commit tonight touched a repo, a service
+or a migration.
+
+**Clean, exit 0:** `audit:routes` (132), `audit:switches` (no switch set to a
+value it does not have), `audit:constraints`, `audit:nullability` (161 columns
+could take NOT NULL as-is, 110 need a decision), `audit:wire-readiness` and
+`audit:frontend-nullability` including both `--self-test`s,
+`audit:coverage --prod` (every populated column has somewhere to go), and
+**`audit:precision --prod` — 0 columns whose value the target type would
+change**, across 57 type differences examined.
+
+**`audit:test-leaks`: no table changed.** Run deliberately, because roughly 90
+tests were added tonight and this is the check that work could break. The suite
+leaves nothing behind in dev.
+
+**`audit:payments --prod` exits 1, and the numbers are unchanged.** I first read
+"7 settled payments the database does not record as succeeded" as growth from
+the five on record. It is not: 7 is the count of Stripe intents whose row
+*differs*, and two of those are **refunds**. The paid-but-unrecorded set is
+still **3 intents, $126.48**, plus two paid charges with no row at all —
+exactly what was already written down.
+
+### The one parity failure is expected, and it is worth writing down why
+
+`verify:parity` reports a single **NOT SAFE**:
+`exchange.metals -> metals.exchange_compat`, 4 rows, **4 differing values**.
+
+It is **staleness, not corruption**. All four metals differ on all four price
+columns by plausible market moves — gold `4599.06` against `4326.81`, about 6%.
+`exchange.metals` is rewritten by the spots cron every few minutes; the new
+schema holds a point-in-time backfill.
+
+**Dual-write already exists.** `features/spots/repo.dual.js` `updateQuotes`
+writes `exchange` *and* `next`. The drift exists only because `SPOTS_SOURCE` is
+unset, so `repo.js` selects `repo.exchange` and only one side is written. **The
+moment the switch goes to `dual`, the next cron tick converges them** — no
+backfill needed, and re-running one is not the answer.
+
+Written down because someone running `verify:parity` before promoting spots
+will see NOT SAFE on a money table and may reasonably panic, or re-run a
+backfill that is not required. It is the *only* pair that drifts, because it is
+the only table a cron rewrites continuously.
+
+### Still to triage, and not from tonight
+
+- **`diff`: 52 operations identical, 5 diverge.** Two are `spots.getAll` and
+  `spots.getAllMetals` — the same staleness as above, same explanation. The
+  other three are `shipping-shipments.getAll`,
+  `shipping-tracking.getEvents(first)` and `sales-orders.getAll`. The tracking
+  one shows `exchange` holding *less* than the new schema: `"Dropped Off"` with
+  a 2026 estimated delivery and no `delivered_at`, against `"Delivered"` with
+  the real dates. That is the shape of dev's tracking history having been
+  damaged — which is recorded: `tracking.test.js` deleted the real FedEx
+  history of five dev shipments. **Consistent with it, not proof of it.**
+- **`verify:backfill`: 29 differences.** Most are `shipping.tracking` rows the
+  backfill produces that are not in the current copy, same neighbourhood as
+  above. One is sharper and worth a look on its own: a single `orders.orders`
+  row differing in exactly **one boolean** — `f,f,f` against `f,t,f`, every
+  other column identical.
+
+None of these blocks anything today: no switch is promoted, so `exchange` is
+authoritative everywhere and these compare a live schema against a shadow.
