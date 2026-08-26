@@ -1,5 +1,6 @@
 import withTransaction from "#shared/db/withTransaction.js";
 import * as cartRepo from "#features/checkout/repo.js";
+import * as productRepo from "#features/products/repo.js";
 import type {
   CartItemRow,
   CartInput,
@@ -26,9 +27,53 @@ export async function getCart(user_id: string): Promise<CartItemRow[]> {
   return await cartRepo.getCart(user_id);
 }
 
+// A CART MAY ONLY HOLD PRODUCTS THAT ARE LIVE IN THAT DIRECTION.
+//
+// The storefront only ever shows live products, so the frontend never asks for
+// a hidden one - but the cart endpoints take a product id from the request body
+// and nothing checked it. A caller posting straight to the API could put any
+// id in a cart, including the 25 products carrying a zero ask premium, none of
+// which is displayed and every one of which would price at nothing.
+//
+// The two directions are separate flags and are checked separately: `display`
+// governs buying from the business, `sell_display` governs selling to it. A
+// product can legitimately be one and not the other, so neither is a proxy for
+// the other.
+//
+// An unknown id is refused the same way a hidden one is. It reaches this point
+// only from a caller inventing ids, and telling the difference apart in the
+// message would confirm which ids exist.
+async function refuseProductsThatAreNotLive(
+  ids: string[],
+  direction: "display" | "sell_display",
+  executor?: unknown
+): Promise<void> {
+  const unique = [...new Set(ids.filter((id) => typeof id === "string" && id))];
+  if (unique.length === 0) return;
+
+  const rows = await productRepo.getLiveness(unique, executor);
+  const live = new Set(
+    rows.filter((r: Record<string, unknown>) => r[direction] === true).map((r: { id: string }) => r.id)
+  );
+  const refused = unique.filter((id) => !live.has(id));
+
+  if (refused.length > 0) {
+    throw badRequest(
+      refused.length === 1
+        ? "That product is not available"
+        : `${refused.length} of those products are not available`
+    );
+  }
+}
+
 // Returns a MESSAGE, not the cart. The frontend refetches.
 export async function syncCart(user_id: string, items: CartInput[]): Promise<string> {
   return withTransaction(async (client) => {
+    await refuseProductsThatAreNotLive(
+      (items ?? []).map((i) => i?.id),
+      "display",
+      client
+    );
     await cartRepo.replaceCart(user_id, items, client);
     return "Cart Synced";
   });
@@ -95,6 +140,13 @@ export async function syncSellCart(
   }
 
   return withTransaction(async (client) => {
+    // Only the product lines. A scrap line carries its own values and names no
+    // product, so it has nothing to check.
+    await refuseProductsThatAreNotLive(
+      cart.filter((l) => l?.type === "product").map((l) => l?.data?.id as string),
+      "sell_display",
+      client
+    );
     await cartRepo.replaceSellCart(user_id, cart, client);
     return "Sell Cart Synced";
   });

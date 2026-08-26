@@ -39,5 +39,6 @@ export const getAllAdminProducts = impl.getAllAdminProducts;
 export const getAdminProductById = impl.getAdminProductById;
 export const getAllTypes = impl.getAllTypes;
 export const getItemsFromIds = impl.getItemsFromIds;
+export const getLiveness = impl.getLiveness;
 export const updateProduct = impl.updateProduct;
 export const insertProduct = impl.insertProduct;

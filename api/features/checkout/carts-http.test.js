@@ -28,6 +28,8 @@ const { default: app } = await import("#app");
 
 let customer;
 let product;
+let hidden;
+let notSellable;
 // The frontend generates a UUID per local scrap line and the backend stores it
 // AS the scrap row's id, so this cannot be an arbitrary string - a plain
 // "local-1" is rejected by the column type, which is how I learned it.
@@ -40,6 +42,28 @@ before(async () => {
     )
   )[0];
   assert.ok(customer, "dev has no non-admin user");
+
+  // EACH FIXTURE IS CHOSEN TO DISCRIMINATE THE TWO FLAGS, not merely to be
+  // hidden. The first version took "any product with display = false" and "any
+  // with sell_display = false", and both happened to be false in BOTH
+  // directions - so swapping the flags in the guard passed every test. A test
+  // that cannot tell the two apart is not testing which one is checked.
+  //
+  // So: the buy-cart fixture is hidden for buying but LIVE for selling, and the
+  // sell-cart fixture is the reverse. Now checking the wrong flag lets it
+  // through and the test fails.
+  hidden = (
+    await outside(
+      `SELECT id, product_name FROM exchange.products
+        WHERE display IS NOT TRUE AND sell_display IS TRUE ORDER BY id LIMIT 1`
+    )
+  )[0];
+  notSellable = (
+    await outside(
+      `SELECT id, product_name FROM exchange.products
+        WHERE display IS TRUE AND sell_display IS NOT TRUE ORDER BY id LIMIT 1`
+    )
+  )[0];
 
   product = (
     await outside(`SELECT id, product_name FROM exchange.products ORDER BY id LIMIT 1`)
@@ -203,6 +227,128 @@ test("get_cart answers success and returns no cart - see D23", async () => {
         "get_cart now returns a list - if that was deliberate, update D23 and this test"
       );
       assert.deepEqual(res.body, { success: true }, "the response shape changed");
+    });
+  });
+});
+
+// A CART MAY ONLY HOLD PRODUCTS THAT ARE LIVE IN THAT DIRECTION.
+//
+// The storefront only ever shows live products, so the frontend never asks for
+// a hidden one - but these routes take a product id from the request body and
+// nothing checked it. Twenty-five products carry a zero ask premium and would
+// price at nothing; none is displayed, which is the ONLY thing that was
+// stopping one reaching a cart.
+//
+// These fixtures are chosen by flag rather than hard-coded, and asserted to
+// exist, because a fixture that silently resolves to undefined turns every
+// assertion below into a test of nothing.
+// The customer in dev may already own a cart, so "nothing was written" cannot
+// be asserted as "the cart is empty" - that was the first version of these
+// tests and it failed against real data. The property is that a REFUSED sync
+// leaves the cart exactly as it found it.
+const cartOf = async (client) => {
+  const { rows } = await client.query(
+    `SELECT ci.product_id::text, ci.quantity
+       FROM exchange.cart_items ci
+       JOIN exchange.carts c ON c.id = ci.cart_id
+      WHERE c.user_id = $1
+      ORDER BY ci.product_id`,
+    [customer.id]
+  );
+  return JSON.stringify(rows);
+};
+
+test("the fixtures for these cases really are what they claim", () => {
+  assert.ok(
+    hidden,
+    "dev has no product that is hidden for buying but live for selling - " +
+      "without one, this suite cannot tell which flag the buy guard reads"
+  );
+  assert.ok(
+    notSellable,
+    "dev has no product that is live for buying but hidden for selling - " +
+      "without one, this suite cannot tell which flag the sell guard reads"
+  );
+  assert.ok(product, "dev has no product at all");
+  assert.notEqual(hidden.id, product.id, "the hidden fixture is the live one");
+  assert.notEqual(notSellable.id, hidden.id, "the two fixtures are the same row");
+});
+
+test("sync_cart refuses a product that is not displayed", async () => {
+  await inPinnedTransaction(async (client) => {
+    await as({ ...customer, role: "user" }, async () => {
+      const before = await cartOf(client);
+
+      const res = await request(app)
+        .post("/api/cart/sync_cart")
+        .send({ cart: [{ id: hidden.id, quantity: 1 }] });
+
+      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+      assert.equal(await cartOf(client), before, "a refused sync changed the cart");
+      assert.ok(!before.includes(hidden.id), "the hidden product reached the cart");
+    });
+  });
+});
+
+// The whole sync is refused, not the offending line quietly dropped. Dropping
+// it would leave the customer with a cart they did not ask for and no error.
+test("one bad line refuses the whole sync, and nothing is written", async () => {
+  await inPinnedTransaction(async (client) => {
+    await as({ ...customer, role: "user" }, async () => {
+      const before = await cartOf(client);
+
+      const res = await request(app)
+        .post("/api/cart/sync_cart")
+        .send({ cart: [{ id: product.id, quantity: 2 }, { id: hidden.id, quantity: 1 }] });
+
+      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+      assert.equal(
+        await cartOf(client),
+        before,
+        "the good line was written even though the sync was refused"
+      );
+    });
+  });
+});
+
+// An id that names nothing is refused the same way a hidden one is. Answering
+// differently would confirm which ids exist to a caller guessing them.
+test("sync_cart refuses an id that names no product", async () => {
+  await inPinnedTransaction(async () => {
+    await as({ ...customer, role: "user" }, async () => {
+      const res = await request(app)
+        .post("/api/cart/sync_cart")
+        .send({ cart: [{ id: randomUUID(), quantity: 1 }] });
+      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+    });
+  });
+});
+
+// The two directions are separate flags. A product can be sellable to the
+// business without being displayed for sale by it, so neither is a proxy for
+// the other and the sell cart is checked against its own.
+test("sync_sell_cart refuses a product line that is not sell_display", async () => {
+  await inPinnedTransaction(async () => {
+    await as({ ...customer, role: "user" }, async () => {
+      const res = await request(app)
+        .post("/api/cart/sync_sell_cart")
+        .send({ cart: [{ type: "product", quantity: 1, data: { id: notSellable.id } }] });
+      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+    });
+  });
+});
+
+// A scrap line names no product, so it has nothing to check and must still be
+// accepted - the guard must not refuse the sell cart's main case.
+test("a scrap line is unaffected by the product check", async () => {
+  await inPinnedTransaction(async () => {
+    await as({ ...customer, role: "user" }, async () => {
+      const res = await request(app)
+        .post("/api/cart/sync_sell_cart")
+        .send({
+          cart: [{ type: "scrap", quantity: 1, data: { id: randomUUID(), metal: "Gold", pre_melt: 1 } }],
+        });
+      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
     });
   });
 });

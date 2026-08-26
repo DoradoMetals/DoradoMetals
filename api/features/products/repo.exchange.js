@@ -192,6 +192,25 @@ export async function insertProduct({ created_by, name }, executor) {
   return rows[0].id;
 }
 
+// Whether each id is live, for the two directions independently.
+//
+// DELIBERATELY ITS OWN QUERY rather than a field added to STOREFRONT. That
+// projection is on the wire, `display` is not currently in it, and validate:wire
+// refuses a field no contract declares - so widening it to answer an internal
+// question would change a response shape mid-migration. This answers the
+// question and nothing else.
+//
+// An id with no row comes back absent rather than false, so the caller can tell
+// "hidden" from "does not exist" and refuse both.
+export async function getLiveness(ids, executor) {
+  const { rows } = await query(
+    `SELECT id, display, sell_display FROM exchange.products WHERE id = ANY($1)`,
+    [ids],
+    executor
+  );
+  return rows;
+}
+
 export async function getItemsFromIds(ids, executor) {
   const { rows } = await query(`${STOREFRONT} WHERE product.id = ANY($1)`, [ids], executor);
   return rows;

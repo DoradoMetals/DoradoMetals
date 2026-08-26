@@ -297,6 +297,21 @@ export async function insertProduct(
   return rows[0].id;
 }
 
+// Whether each id is live, for the two directions independently. See the
+// exchange implementation for why this is its own query rather than a field
+// added to the storefront projection.
+export async function getLiveness(
+  ids: string[],
+  executor?: Executor
+): Promise<{ id: string; display: boolean; sell_display: boolean }[]> {
+  const { rows } = await query<{ id: string; display: boolean; sell_display: boolean }>(
+    `SELECT id, display, sell_display FROM products.bullion WHERE id = ANY($1)`,
+    [ids],
+    executor
+  );
+  return rows;
+}
+
 export async function getItemsFromIds(
   ids: string[],
   executor?: Executor

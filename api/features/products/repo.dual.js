@@ -20,6 +20,7 @@ export const getAllAdminProducts = next.getAllAdminProducts;
 export const getAdminProductById = next.getAdminProductById;
 export const getAllTypes = next.getAllTypes;
 export const getItemsFromIds = next.getItemsFromIds;
+export const getLiveness = next.getLiveness;
 
 const both = (executor, fn) => (executor ? fn(executor) : withTransaction(fn));
 
