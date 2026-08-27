@@ -121,10 +121,18 @@ the user.
 The API's tests run against real Postgres, each inside a transaction that is
 rolled back, and need `TZ=UTC` — `pnpm --filter @dorado/api test`.
 
-The frontend uses vitest, `pnpm --filter @dorado/frontend test`, and is unit
-tests only: pure functions, and the shapes the API contract depends on. There is
-deliberately no browser or e2e harness — that is a larger decision than a config
-file. Both run under `pnpm check`.
+The frontend uses vitest, `pnpm --filter @dorado/frontend test`, in two lanes:
+pure functions and contract shapes run in plain node, and component render
+tests (`*.test.tsx`) run under jsdom with testing-library — added 2026-08-27 as
+part of the feature-by-feature conversion, with jsdom's gaps shimmed once in
+`vitest.setup.ts`. Both run under `pnpm check`.
+
+There is ALSO a Playwright e2e harness — eleven specs under
+`pnpm --filter @dorado/frontend e2e`, driving a real browser against a live
+API. An earlier version of this paragraph said there was "deliberately no
+browser or e2e harness"; that had stopped being true and the claim was
+repeated unverified for some time. E2e specs are excluded from vitest twice
+over and do not run in `pnpm check`.
 
 ## Conventions
 
@@ -224,15 +232,16 @@ The ones that have actually caught things:
   `carrier_services` — the third shared-name false finding on this project.
 - `audit:wire-readiness` — **the other half of the promotion rule.** `*_WIRE`
   moves "when the frontend is ready", and nothing measured that. It counts the
-  legacy field names the frontend still reads: `MEDIA_WIRE` is clear,
+  legacy field names the frontend still reads: media is CONVERTED (first
+  feature through: contracts types, render tests, adapter deleted),
   `PRODUCTS_WIRE` (124 uses) and `SPOTS_WIRE` (86) would break it today. The
   count is **split into product code and test fixtures** — SPOTS_WIRE is 76
   real reads and 10 fixtures — because a test spelling the legacy name is a
   real occurrence but not a component reading the wire, and counting them
   together made the metric move the wrong way when tests were written:
   SPOTS_WIRE drifted from 83 to 86 purely on frontend *test* commits, with
-  the product code untouched. The switch this endangers is `MEDIA_WIRE`,
-  the one reporting ready at 0 — one fixture would report it blocked. The
+  the product code untouched. The switch this endangered was `MEDIA_WIRE` —
+  converted 2026-08-27, its adapter deleted. The
   frontend imports `@dorado/contracts` nowhere, so `tsc` cannot see a rename
   from either side. Four adapters are structural and one rename (`type`) is too
   common to count globally — those report `?`, never `yes`, because a scan that

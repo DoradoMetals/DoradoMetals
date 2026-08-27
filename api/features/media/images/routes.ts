@@ -8,16 +8,15 @@ import {
 } from "#features/media/images/controller.ts";
 
 import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.ts";
-import * as mediaWire from "#features/media/images/wire.ts";
-import { wireShape } from "#shared/wire/middleware.ts";
 
 const router = express.Router();
 
-// The wire adapter, mounted once for the whole feature rather than called by
-// hand in every handler - the body IS the entity on writes. Controllers return the internal shape
-// and know nothing about the frontend not having caught up. Deleting the
-// adapter is deleting this line.
-router.use(wireShape(mediaWire));
+// NO WIRE ADAPTER. Media is the first CONVERTED feature (2026-08-27): the
+// frontend types derive from @dorado/contracts and read the schema's own
+// names, so there is no legacy shape left to convert down to. The adapter and
+// its mount were deleted together - this comment is the tombstone that
+// explains why media looks different from the features still awaiting
+// conversion.
 
 router.post("/upload", requireUser, uploadImage);
 // requireAdmin, NOT requireUser. This lists EVERY image in the system - the

@@ -177,6 +177,12 @@ test("spot rows come back per metal with the shape the API returns", async () =>
 
 test("reads do not write", async () => {
   await inRollback(async (c) => {
+    // The ORDERS advisory lock, because this assertion is "the count did not
+    // change across my read" - under the dual default, other suite files
+    // legitimately COMMIT orders concurrently, and a count taken twice across
+    // that is a race, not a finding. Holding the lock serialises us with every
+    // file that writes orders.
+    await c.query("SELECT pg_advisory_xact_lock(4213)");
     const before = await c.query("SELECT count(*)::int n FROM orders.orders");
     await next.getAll();
     const after = await c.query("SELECT count(*)::int n FROM orders.orders");

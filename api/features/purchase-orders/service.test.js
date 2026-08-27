@@ -54,10 +54,24 @@ const anOrderWithScrap = async (c) => {
 // The services open their own transactions, so these tests cannot run inside
 // one - a rolled-back outer transaction would not see the service's commit.
 // They clean up after themselves instead, on a second connection.
+// BOTH SCHEMAS. This used to delete the three exchange tables its author was
+// thinking about (lesson ao) - and once dual became the default, the services
+// mirrored every fixture into orders.* and refiners.*, which nothing removed.
+// That is where the stray orders came from: this file leaked one order per run
+// into the new schema, invisibly, because a test reads its own writes either
+// way. Scoped strictly to THIS fixture's ids - it deletes what it created.
 const cleanup = async (c, { orderId, scrapId }) => {
   await c.query("DELETE FROM exchange.purchase_order_items WHERE purchase_order_id = $1", [orderId]);
   await c.query("DELETE FROM exchange.scrap WHERE id = $1", [scrapId]);
   await c.query("DELETE FROM exchange.purchase_orders WHERE id = $1", [orderId]);
+  await c.query(
+    "DELETE FROM refiners.items WHERE order_item_id IN (SELECT id FROM orders.items WHERE order_id = $1)",
+    [orderId]
+  );
+  for (const t of ["orders.items", "orders.spots", "orders.transactions", "orders.addresses"]) {
+    await c.query(`DELETE FROM ${t} WHERE order_id = $1`, [orderId]);
+  }
+  await c.query("DELETE FROM orders.orders WHERE id = $1", [orderId]);
 };
 
 test("deleting a line removes the scrap and the item together", async () => {

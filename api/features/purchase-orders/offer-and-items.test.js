@@ -19,6 +19,14 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+
+// Both tests write exchange.scrap/purchase_order_items AND - now that dual is
+// the dev default - orders.items through the mirror. The lock declaration has
+// to cover the tables the test writes TODAY, not the ones it wrote when its
+// author was thinking about exchange alone: without ORDERS this file passed
+// alone and 500'd in the full run, colliding with the order-placing files.
+const ITEM_LOCKS = [LOCKS.SCRAP_SWEEP, LOCKS.ORDERS];
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -79,7 +87,7 @@ test("update_bullion_item writes the line's quantity", async () => {
       );
       assert.equal(Number(rows[0].quantity), 7, "the quantity did not change");
     });
-  });
+  }, { lock: ITEM_LOCKS });
 });
 
 // Creating a scrap line is three writes in one transaction: the scrap row, the
@@ -119,5 +127,5 @@ test("create_order_item adds a scrap line and its scrap row", async () => {
         "the route answered 200 but added no line"
       );
     });
-  });
+  }, { lock: ITEM_LOCKS });
 });

@@ -7722,3 +7722,29 @@ effectively clean. Flipping dual as the dev DEFAULT (env file) is Jacob's.
 **LESSON (bu): A RECONCILIATION MUST BE INVISIBLE TO THE VERIFIER THAT DEMANDED
 IT. Writing `now()` into a refresh created a permanent diff against the rebuild
 it existed to satisfy; carry the source's timestamps.**
+
+## D69 — the stray leak, found: a cleanup that deletes the schema its author was thinking about
+
+The strays grew 6 → 9 → **24** across tonight's dual-mode gate runs, roughly
+three per full suite. The source is the one D52 left standing:
+`purchase-orders/service.test.js` builds committed fixtures through the real
+services and cleans up by hand - three exchange DELETEs. Under the dual
+default, those same services mirror every fixture into `orders.orders/items/
+spots/transactions/addresses` and `refiners.items`, and nothing removed them. A
+test reads its own writes either way, so every assertion stayed green while the
+file leaked an order per run.
+
+**Fixed**: cleanup now removes the fixture's own rows from both schemas, scoped
+to its ids. This deletes what the test created, not Jacob's strays - the 24 on
+the books are still his `clean:dual-orphans --commit`, list re-derived.
+
+The same run surfaced the companion race: `reads do not write` counts
+`orders.orders` twice around a read and asserts equality - sound when nothing
+committed orders mid-suite, a race once dual made concurrent commits
+legitimate. It now holds the ORDERS advisory lock for the comparison.
+
+**LESSON (bv): FLIPPING A SOURCE SWITCH RE-SCOPES EVERY TEST'S FOOTPRINT.
+Cleanups, lock declarations and count-based assertions were all written against
+the tables the code wrote THEN; dual doubled the footprint and each of those
+assumptions broke separately (ao, vv, and now this). When a switch moves,
+re-audit the test harness, not just the code.**

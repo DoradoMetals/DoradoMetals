@@ -66,7 +66,7 @@ adapters.sort((a, b) => a.env.localeCompare(b.env));
 // untouched: 86 counted, 10 of them fixtures, 76 real reads. Still counted in
 // the verdict, because a flip is still work - but reported separately, so a
 // switch held back only by fixtures is visible as such. The switch this
-// actually endangers is MEDIA_WIRE, the one reporting ready at 0: a single
+// actually endangered was MEDIA_WIRE, the one reporting ready at 0: a single
 // test spelling "checksum_sha256" would report it blocked. D55.
 const isTestFile = (rel) => /\.(test|spec)\.tsx?$|\.e2e\.tsx?$|(^|\/)tests?\//.test(rel);
 

@@ -17,7 +17,13 @@ import path from "node:path";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["**/*.test.ts"],
+    // Component render tests are .test.tsx and get jsdom; everything .test.ts
+    // stays pure-function-in-node. The split keeps the fast lane fast: a pure
+    // test never pays for a DOM, and a component test never pretends it does
+    // not need one.
+    environmentMatchGlobs: [["**/*.test.tsx", "jsdom"]],
+    setupFiles: ["./vitest.setup.ts"],
+    include: ["**/*.test.ts", "**/*.test.tsx"],
     exclude: ["node_modules/**", ".next/**", "**/*.e2e.ts"],
   },
   resolve: {

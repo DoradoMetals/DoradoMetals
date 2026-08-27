@@ -10,13 +10,9 @@ export const ImageWireNext = ImagesRow.omit({ checksum_sha256: true }).extend({
 });
 export type ImageWireNext = z.infer<typeof ImageWireNext>;
 
-// What the frontend still reads. Produced by features/media/wire.js on the way
-// out, behind MEDIA_WIRE=legacy, and deleted when the frontend stops reading it.
-//
-// Derived from ImageWireNext rather than restated, so the two cannot drift: a
-// column added to images appears in both and the only difference stays the
-// rename.
-export const ImageWire = ImageWireNext.omit({ checksum: true }).extend({
-  checksum_sha256: z.string().nullable(),
-});
-export type ImageWire = z.infer<typeof ImageWire>;
+// The legacy ImageWire shape (checksum_sha256) lived here until 2026-08-27,
+// "deleted when the frontend stops reading it" - its own words. The frontend
+// stopped: features/media/types.ts derives from ImageWireNext, the adapter and
+// its mount are gone, and audit:wire-readiness had the legacy read count at
+// zero before the flip. Media is the first feature all the way through the
+// conversion.

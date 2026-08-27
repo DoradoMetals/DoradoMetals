@@ -48,7 +48,8 @@ test("both list reads are deterministically ordered", () => {
 });
 
 // `checksum` is a RENAME of exchange's checksum_sha256, not a new column, so it
-// IS projected and wire.ts renames it at the edge under MEDIA_WIRE.
+// IS projected - and since the conversion it goes to the wire under its own
+// name; there is no adapter renaming it down any more.
 test("checksum is projected, and the legacy writes do not mention either name", () => {
   for (const n of ["get_one", "get_all", "by_user", "create"]) {
     assert.match(body(n), /\bchecksum\b/, `${n} does not project checksum`);
