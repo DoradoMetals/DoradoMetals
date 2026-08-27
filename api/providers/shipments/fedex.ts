@@ -1,5 +1,5 @@
-import * as endpoints from "#providers/fedex/endpoints.ts";
-import * as payloads from "#providers/fedex/payloads.ts";
+import * as endpoints from "#providers/shipments/endpoints.ts";
+import * as payloads from "#providers/shipments/payloads.ts";
 import {
   parseAddressValidation,
   parseLocations,
@@ -8,7 +8,7 @@ import {
   parseScheduledPickup,
   parseTracking,
   parseCreateShipment,
-} from "#providers/fedex/utils/parsing.ts";
+} from "#providers/shipments/utils/parsing.ts";
 
 export async function validateAddress(address: Record<string, unknown> | null | undefined) {
   if (!address) {

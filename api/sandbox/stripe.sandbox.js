@@ -13,14 +13,14 @@
 //
 //   pnpm --filter @dorado/api test:sandbox
 //
-// SAFETY. providers/stripe/client.js refuses to construct a client from an
+// SAFETY. providers/payment/stripe-client.ts refuses to construct a client from an
 // sk_live key when NODE_ENV=test or a --test flag is present, and the first
 // test here asserts that guard is actually in force rather than trusting it.
 // Everything below creates and cancels its own objects; nothing reads or
 // modifies anything that already exists in the account.
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
-import * as stripe from "#providers/stripe/stripe.ts";
+import * as stripe from "#providers/payment/stripe.ts";
 
 const created = { intents: [], customers: [] };
 

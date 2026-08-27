@@ -12,7 +12,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { scoreThreshold } from "#providers/recaptcha/recaptcha.ts";
+import { scoreThreshold } from "#providers/captcha/recaptcha.ts";
 
 const withThreshold = (value, fn) => {
   const had = Object.prototype.hasOwnProperty.call(process.env, "RECAPTCHA_THRESHOLD");

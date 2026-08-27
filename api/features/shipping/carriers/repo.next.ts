@@ -3,7 +3,7 @@
 // shipping.carriers row holding the logo and carrying the original carrier id.
 //
 // That id surviving matters more here than for suppliers. FEDEX_CARRIER_ID in
-// providers/fedex/constants.js is a literal uuid, and exchange.shipments.carrier_id
+// providers/shipments/constants.ts is a literal uuid, and exchange.shipments.carrier_id
 // references it - so if the id moved, label creation would break.
 //
 // The shape keeps the two apart: a carrier has an organization, and the response

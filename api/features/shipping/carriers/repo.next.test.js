@@ -86,7 +86,7 @@ test("flatten and nest round trip", async () => {
   });
 });
 
-// FEDEX_CARRIER_ID is a literal uuid in providers/fedex/constants.js and
+// FEDEX_CARRIER_ID is a literal uuid in providers/shipments/constants.ts and
 // exchange.shipments.carrier_id references it. If the id did not survive the
 // split, label creation would break.
 test("the FedEx carrier keeps its original id", async () => {

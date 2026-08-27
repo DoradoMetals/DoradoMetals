@@ -1,4 +1,4 @@
-import * as stripe from "#providers/stripe/stripe.ts";
+import * as stripe from "#providers/payment/stripe.ts";
 import * as stripeRepo from "#features/payments/repo.js";
 import * as productService from "#features/products/service.ts";
 import * as addressService from "#features/addresses/service.ts";

@@ -1,6 +1,6 @@
 // FedEx, against the real sandbox.
 //
-// WHY THIS IS SHAPED THE WAY IT IS. providers/fedex/endpoints.js says, in its
+// WHY THIS IS SHAPED THE WAY IT IS. providers/shipments/endpoints.ts says, in its
 // own header, that the sandbox "is not a test dependency: FedEx's sandbox is not
 // reliable enough to sit inside a suite that is supposed to fail only when this
 // codebase is wrong". That judgement is correct and this file does not overturn
@@ -31,7 +31,7 @@ import "#env";
 
 // Set BEFORE importing the provider, which reads the environment at module load.
 process.env.FEDEX_ENV = "sandbox";
-const { fetchAccessToken, fetchTrackingToken } = await import("#providers/fedex/endpoints.ts");
+const { fetchAccessToken, fetchTrackingToken } = await import("#providers/shipments/endpoints.ts");
 
 before(() => {
   for (const name of [
@@ -69,14 +69,14 @@ test("shipping and tracking get different tokens", async () => {
   assert.notEqual(ship, track, "the same token served both - one credential set is unused");
 });
 
-// THE GUARD, ASSERTED RATHER THAN TRUSTED. providers/fedex refuses the LIVE API
+// THE GUARD, ASSERTED RATHER THAN TRUSTED. providers/shipments refuses the LIVE API
 // under test and permits the sandbox. Everything above depends on that being
 // true, so it is checked here rather than assumed.
 test("the provider refuses the live API during a test run", async () => {
   const saved = process.env.FEDEX_ENV;
   process.env.FEDEX_ENV = "production";
   try {
-    const fresh = await import(`#providers/fedex/endpoints.ts?live=${Date.now()}`);
+    const fresh = await import(`#providers/shipments/endpoints.ts?live=${Date.now()}`);
     await assert.rejects(
       () => fresh.fetchAccessToken(),
       /refusing to call the LIVE FedEx API/,

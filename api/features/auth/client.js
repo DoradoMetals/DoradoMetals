@@ -4,8 +4,8 @@ import { magicLink, admin } from 'better-auth/plugins';
 import { stripe as stripePlugin } from '@better-auth/stripe';
 import { Pool } from 'pg';
 
-import stripeClient from '#providers/stripe/client.ts';
-import { sendEmail } from '#providers/nodemailer/transport.ts';
+import stripeClient from '#providers/payment/stripe-client.ts';
+import { sendEmail } from '#providers/emails/nodemailer.ts';
 import {
   renderAccountCreatedEmail,
   renderVerifyEmail,

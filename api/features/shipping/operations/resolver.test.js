@@ -22,7 +22,7 @@ import pool from "#db";
 import { PROVIDERS } from "#features/shipping/operations/registry.ts";
 import { BUILDERS } from "#features/shipping/operations/builders.ts";
 import { resolveCarrier } from "#features/shipping/operations/resolver.ts";
-import { FEDEX_CARRIER_ID } from "#providers/fedex/constants.ts";
+import { FEDEX_CARRIER_ID } from "#providers/shipments/constants.ts";
 import * as exchangeCarriers from "#features/shipping/carriers/repo.exchange.js";
 import * as nextCarriers from "#features/shipping/carriers/repo.next.ts";
 
@@ -40,7 +40,7 @@ after(async () => {
 const normalize = (name) => String(name || "").trim().toLowerCase();
 
 describe("the carrier name every provider lookup depends on", () => {
-  // The literal uuid in providers/fedex/constants.js has to keep pointing at
+  // The literal uuid in providers/shipments/constants.ts has to keep pointing at
   // FedEx in both schemas. Migration notes say the carrier id survives; this
   // asserts it rather than trusting it.
   test("FEDEX_CARRIER_ID names FedEx in both implementations", async () => {

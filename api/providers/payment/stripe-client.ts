@@ -1,7 +1,7 @@
 // The Stripe SDK client.
 //
 // Moved here from features/stripe because Stripe is a provider, not a feature -
-// the same distinction providers/fedex already made. A feature is something the
+// the same distinction providers/shipments already made. A feature is something the
 // business does; a provider is a third party it does it through. What was
 // features/stripe was both at once: the payments domain AND the SDK it happens
 // to use.
@@ -13,7 +13,7 @@ import Stripe from "stripe";
 
 // A TEST RUN MAY USE A TEST KEY. IT MAY NEVER USE A LIVE ONE.
 //
-// The same rule as providers/fedex: the hazard is the live account, not the
+// The same rule as providers/shipments: the hazard is the live account, not the
 // provider. With a live key, a test that reaches createIntent charges a real
 // card and a test that reaches captureIntent takes real money.
 //

@@ -1,11 +1,11 @@
 import {
   DEFAULT_EMAIL_NOTIFICATION_DETAIL,
   DEFAULT_HOLD_AT_LOCATION_DETAIL,
-} from "#providers/fedex/constants.ts";
+} from "#providers/shipments/constants.ts";
 // The account number follows FEDEX_ENV: the sandbox is a different FedEx
 // account, so a payload built for it has to name that one or every request is
 // refused with a permissions error rather than anything that says "wrong env".
-import { accountNumber } from "#providers/fedex/endpoints.ts";
+import { accountNumber } from "#providers/shipments/endpoints.ts";
 // schedulePickupPayload calls normalizeTime, formatFedexFullDateTime and
 // addHours. All three live in this module and none of them was imported, so
 // building a pickup payload threw ReferenceError on the first line that used
@@ -15,7 +15,7 @@ import {
   normalizeTime,
   formatFedexFullDateTime,
   addHours,
-} from "#providers/fedex/utils/formatting.ts";
+} from "#providers/shipments/utils/formatting.ts";
 
 
 // THE SHAPES FEDEX IS SENT.

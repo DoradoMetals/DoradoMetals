@@ -20,7 +20,7 @@ import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculati
 import type { SalesOrderRow, OrderMetalRow } from "#features/sales-orders/repo.next.ts";
 import type { PaymentSession } from "#features/payments/service.ts";
 import type { IncomingHttpHeaders } from "node:http";
-import type { Transport } from "#providers/nodemailer/transport.ts";
+import type { Transport } from "#providers/emails/nodemailer.ts";
 import type { SpotPriceWire } from "@dorado/contracts";
 
 // The order as the browser sends it. This is req.body, so every field is

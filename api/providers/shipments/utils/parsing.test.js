@@ -28,7 +28,7 @@ import {
   parseAddressValidation,
   parseCreateShipment,
   parseScheduledPickup,
-} from "#providers/fedex/utils/parsing.ts";
+} from "#providers/shipments/utils/parsing.ts";
 
 const trackingResponse = (trackResults) => ({
   output: { completeTrackResults: [{ trackResults }] },

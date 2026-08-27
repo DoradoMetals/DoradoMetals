@@ -1,7 +1,7 @@
 import { requiredEnv } from "#shared/env/required.ts";
 // Everything this codebase asks Stripe to do.
 //
-// The same shape providers/fedex has: the feature says what it wants and the
+// The same shape providers/shipments has: the feature says what it wants and the
 // provider knows the API. Before this, features/payments called
 // stripeClient.paymentIntents.create() directly in ten places across a service
 // and a controller, which meant the payments domain and the Stripe SDK were the
@@ -15,7 +15,7 @@ import { requiredEnv } from "#shared/env/required.ts";
 //
 // Deliberately thin. No mapping, no defaults, no business rules - those belong
 // to features/payments. This is the boundary, not a layer.
-import stripeClient from "#providers/stripe/client.ts";
+import stripeClient from "#providers/payment/stripe-client.ts";
 
 export function retrieveIntent(paymentIntentId: string) {
   return stripeClient.paymentIntents.retrieve(paymentIntentId);

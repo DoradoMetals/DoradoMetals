@@ -15,7 +15,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
 import * as pdf from "#features/pdf/service.ts";
-import { closeBrowser } from "#providers/puppeteer/browser.ts";
+import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as poRepo from "#features/purchase-orders/repo.js";
 import * as soRepo from "#features/sales-orders/repo.js";
 import * as spotsRepo from "#features/spots/repo.js";

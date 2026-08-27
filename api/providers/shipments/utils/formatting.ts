@@ -3,7 +3,7 @@
 // A STRUCTURAL ADDRESS, NOT AddressWire. Three different things reach this: an
 // address-book row, an order's address snapshot (AddressOnOrder, a different
 // type with the same field names) and the constants in
-// providers/fedex/constants.js, which are hand-written literals. Naming any one
+// providers/shipments/constants.ts, which are hand-written literals. Naming any one
 // of them here would reject the other two.
 //
 // Every field is optional and nullable because both wire shapes declare them

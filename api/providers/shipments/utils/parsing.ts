@@ -5,7 +5,7 @@
 // shape below states only the fields these functions read, and states them all
 // as optional, because an external payload is a promise rather than a
 // guarantee. A type that claimed more would be a description of the happy path.
-import { FEDEX_TRACKING_STATUS_MAP } from "#providers/fedex/constants.ts";
+import { FEDEX_TRACKING_STATUS_MAP } from "#providers/shipments/constants.ts";
 
 type FedexScanEvent = {
   eventType?: string;

@@ -11,7 +11,7 @@
 // the name and contact details, and a shipping.carriers row with the logo,
 // carrying the original carrier id.
 //
-// That id has to survive: FEDEX_CARRIER_ID in providers/fedex/constants.js is a
+// That id has to survive: FEDEX_CARRIER_ID in providers/shipments/constants.ts is a
 // literal uuid and exchange.shipments.carrier_id references it, so a carrier
 // that changed id would break label creation.
 //

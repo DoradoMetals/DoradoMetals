@@ -191,7 +191,7 @@ test("an unknown or missing order id is refused before anything is built", async
 // THE SAFETY NET ITSELF. Everything above depends on no real mail leaving, so
 // prove the guard is what prevents it rather than trusting that it does.
 test("the real mail transport refuses to exist during this run", async () => {
-  const { sendEmail } = await import("#providers/nodemailer/transport.ts");
+  const { sendEmail } = await import("#providers/emails/nodemailer.ts");
   await assert.rejects(
     () => sendEmail({ to: ATTACKER_ADDRESS, subject: "x", html: "x" }),
     /refusing to build the real mail transport/,

@@ -33,7 +33,7 @@ import {
   DORADO_ADDRESS,
   FEDEX_STORE_ADDRESS,
   FEDEX_CARRIER_ID,
-} from "#providers/fedex/constants.ts";
+} from "#providers/shipments/constants.ts";
 
 // Compensation for an external action a failed transaction has orphaned.
 //

@@ -42,7 +42,7 @@ type Message = {
 // file - which is most of the app, since features/auth/client.js sends
 // verification mail - opened an SMTP transport. That happens in tests and in
 // one-off scripts too, neither of which is ever going to send anything. Same
-// reasoning as providers/puppeteer/browser.ts, which launches Chromium lazily for exactly
+// reasoning as providers/pdfs/puppeteer.ts, which launches Chromium lazily for exactly
 // this reason.
 let shared: Transport | null = null;
 

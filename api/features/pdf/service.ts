@@ -5,7 +5,7 @@ import {
   getScrapTotal,
 } from "#features/purchase-orders/utils/calculations.ts";
 
-import { renderPdf } from "#providers/puppeteer/browser.ts";
+import { renderPdf } from "#providers/pdfs/puppeteer.ts";
 import { renderShell } from "#features/pdf/render/layout.ts";
 import { formatCurrency } from "#features/pdf/render/format.ts";
 import {

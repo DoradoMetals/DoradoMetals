@@ -66,7 +66,7 @@ const check = (readyDate) =>
     });
 
 test("the payload builder needs a Date, which is why the controller converts", async () => {
-  const payloads = await import("#providers/fedex/payloads.ts");
+  const payloads = await import("#providers/shipments/payloads.ts");
   const address = { streetLines: ["1 Test St"], city: "Dallas" };
 
   // The string the frontend sends, handed straight to the provider - the state

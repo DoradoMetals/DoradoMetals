@@ -14,7 +14,7 @@
 // indecision: cancelPickupInput read only the database's while its one caller
 // passed the provider's, so FedEx was asked to cancel a pickup without being
 // told which one. Accepting both is the convention this file already had.
-import { formatAddressForFedEx } from "#providers/fedex/utils/formatting.ts";
+import { formatAddressForFedEx } from "#providers/shipments/utils/formatting.ts";
 
 // Either an address as this application stores it, or one already converted -
 // toFedexAddress detects which by looking for streetLines and passes a

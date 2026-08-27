@@ -1,5 +1,5 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as recaptcha from "#providers/recaptcha/recaptcha.ts"
+import * as recaptcha from "#providers/captcha/recaptcha.ts"
 
 export const verifyRecaptcha = asyncHandler(async (req, res) => {
   const { token } = req.body;
