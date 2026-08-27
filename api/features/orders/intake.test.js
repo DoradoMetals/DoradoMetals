@@ -138,23 +138,77 @@ test("scrap and bullion decompose to the same shape", () => {
   }
 });
 
-// 0.75 is what insertItems has always written for a line with no premium. It is
-// not a placeholder; changing it reprices every order placed through this path.
-test("a line with no premium takes the same default the old path used", () => {
+// THE PREMIUM COMES FROM RATES.
+//
+// These two tests used to assert the opposite: that a line with no premium got
+// 0.75, and that a posted premium of 0 survived. Both were pinning a hardcode.
+// 0.75 was never a rate - 033 added orders.items.bid_premium mirroring
+// exchange.scrap's column, 065 recorded that it was "the hardcoded default in
+// features/scrap/repo.js", and it was read back out as if it were a decision.
+// 085 drops the column and the premium is resolved from rates.rates here.
+const rates = [
+  { metal: "Gold", unit: "troy_oz", min_qty: 0, max_qty: 10, scrap_pct: 0.75, bullion_pct: 0.8 },
+  { metal: "Gold", unit: "troy_oz", min_qty: 10, max_qty: null, scrap_pct: 0.81, bullion_pct: 0.84 },
+];
+
+test("a scrap line takes scrap_pct from the band its metal total falls in", () => {
   const out = decompose(
-    block({ items: [{ type: "scrap", data: { id: "s1", metal: "Gold" } }] }),
-    { direction: "purchase" }
+    block({ items: [{ type: "scrap", data: { id: "s1", metal: "Gold", content: 4 } }] }),
+    { direction: "purchase", rates }
   );
-  assert.equal(out.items[0].premium, 0.75);
+  assert.equal(out.items[0].premium, 0.75, "4oz should sit in the 0-10 band");
   assert.equal(out.items[0].quantity, 1);
 });
 
-test("an explicit premium of zero is kept rather than defaulted away", () => {
+// The band is chosen on the TOTAL for the metal across the order, not per line.
+// Two 6oz lines are a 12oz order and both price at the higher band - which is
+// the whole reason this cannot be resolved inside item().
+test("two lines of one metal are banded on their combined total", () => {
   const out = decompose(
-    block({ items: [{ type: "scrap", data: { id: "s1", metal: "Gold", bid_premium: 0 } }] }),
+    block({ items: [
+      { type: "scrap", data: { id: "s1", metal: "Gold", content: 6 } },
+      { type: "scrap", data: { id: "s2", metal: "Gold", content: 6 } },
+    ] }),
+    { direction: "purchase", rates }
+  );
+  assert.equal(out.items[0].premium, 0.81, "12oz total should reach the 10+ band");
+  assert.equal(out.items[1].premium, 0.81);
+});
+
+test("a bullion line takes bullion_pct from the same band a scrap line would", () => {
+  const out = decompose(
+    block({ items: [{ type: "product", data: { id: "p1", metal_type: "Gold", content: 4 } }] }),
+    { direction: "purchase", rates }
+  );
+  assert.equal(out.items[0].premium, 0.8, "a product should take bullion_pct, not scrap_pct");
+});
+
+// Null, not a number. A line the rates cannot price is not a line worth
+// guessing a price for, and the old fallback is exactly what this replaces.
+test("no matching band leaves the premium null rather than inventing one", () => {
+  const out = decompose(
+    block({ items: [{ type: "scrap", data: { id: "s1", metal: "Palladium", content: 4 } }] }),
+    { direction: "purchase", rates }
+  );
+  assert.equal(out.items[0].premium, null);
+});
+
+test("no rates at all leaves the premium null", () => {
+  const out = decompose(
+    block({ items: [{ type: "scrap", data: { id: "s1", metal: "Gold", content: 4 } }] }),
     { direction: "purchase" }
   );
-  assert.equal(out.items[0].premium, 0, "?? not ||, or a waived premium becomes 0.75");
+  assert.equal(out.items[0].premium, null, "a missing rates list must not fall back to a literal");
+});
+
+// A premium posted by the frontend is IGNORED. It is not the frontend's to set:
+// the same block used to carry bid_premium and it was written straight through.
+test("a premium posted in the block is ignored", () => {
+  const out = decompose(
+    block({ items: [{ type: "scrap", data: { id: "s1", metal: "Gold", content: 4, bid_premium: 0.99 } }] }),
+    { direction: "purchase", rates }
+  );
+  assert.equal(out.items[0].premium, 0.75, "the posted 0.99 should not reach the item");
 });
 
 // Purity is the value that was being rounded to 1.000 by orders.items until

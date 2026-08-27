@@ -408,8 +408,7 @@ CREATE TABLE IF NOT EXISTS orders.items (
   confirmed boolean DEFAULT false NOT NULL,
   sales_tax_charged numeric DEFAULT 0 NOT NULL,
   unit text,
-  price numeric,
-  bid_premium numeric
+  price numeric
 );
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS order_id uuid;
@@ -425,42 +424,6 @@ ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS confirmed boolean DEFAULT fals
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS sales_tax_charged numeric DEFAULT 0;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS unit text;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS price numeric;
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS bid_premium numeric;
-
-CREATE TABLE IF NOT EXISTS orders.offers (
-  id uuid DEFAULT gen_random_uuid() NOT NULL,
-  order_id uuid,
-  status text,
-  offer_status text,
-  notes text,
-  spots_locked boolean,
-  offer_expiration timestamp with time zone,
-  num_rejections numeric,
-  offer_amount numeric,
-  created_by text,
-  updated_by text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  created_by_id uuid,
-  updated_by_id uuid,
-  offer_sent_at timestamp with time zone
-);
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS order_id uuid;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS status text;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS offer_status text;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS notes text;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS spots_locked boolean;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS offer_expiration timestamp with time zone;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS num_rejections numeric;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS offer_amount numeric;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS created_by text;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS updated_by text;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS created_by_id uuid;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS updated_by_id uuid;
-ALTER TABLE orders.offers ADD COLUMN IF NOT EXISTS offer_sent_at timestamp with time zone;
 
 CREATE TABLE IF NOT EXISTS orders.orders (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -478,7 +441,8 @@ CREATE TABLE IF NOT EXISTS orders.orders (
   created_by_id uuid,
   updated_by_id uuid,
   order_sent boolean,
-  tracking_updated boolean
+  tracking_updated boolean,
+  spots_locked boolean DEFAULT false NOT NULL
 );
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS user_id uuid;
@@ -496,6 +460,7 @@ ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS order_sent boolean;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS tracking_updated boolean;
+ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS spots_locked boolean DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS orders.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1590,16 +1555,6 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE con.conname = 'offers_pkey' AND c.relname = 'offers' AND n.nspname = 'orders'
-  ) THEN
-    ALTER TABLE orders.offers ADD CONSTRAINT offers_pkey PRIMARY KEY (id);
-  END IF;
-END $$;
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint con
-    JOIN pg_class c ON c.oid = con.conrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'orders_pkey' AND c.relname = 'orders' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.orders ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
@@ -2320,26 +2275,6 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE con.conname = 'offers_created_by_id_fkey' AND c.relname = 'offers' AND n.nspname = 'orders'
-  ) THEN
-    ALTER TABLE orders.offers ADD CONSTRAINT offers_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
-  END IF;
-END $$;
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint con
-    JOIN pg_class c ON c.oid = con.conrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE con.conname = 'offers_updated_by_id_fkey' AND c.relname = 'offers' AND n.nspname = 'orders'
-  ) THEN
-    ALTER TABLE orders.offers ADD CONSTRAINT offers_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
-  END IF;
-END $$;
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint con
-    JOIN pg_class c ON c.oid = con.conrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'orders_created_by_id_fkey' AND c.relname = 'orders' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.orders ADD CONSTRAINT orders_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
@@ -3045,8 +2980,6 @@ CREATE INDEX IF NOT EXISTS order_addresses_order_idx ON orders.addresses USING b
 CREATE INDEX IF NOT EXISTS idx_order_items_bullion_id ON orders.items USING btree (bullion_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_metal_id ON orders.items USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON orders.items USING btree (order_id);
-CREATE INDEX IF NOT EXISTS idx_offers_order_id ON orders.offers USING btree (order_id);
-CREATE UNIQUE INDEX IF NOT EXISTS offers_one_per_order ON orders.offers USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_refinery_id ON orders.orders USING btree (refinery_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders.orders USING btree (user_id);
 CREATE INDEX IF NOT EXISTS idx_order_spots_metal ON orders.spots USING btree (metal_id);
@@ -3093,6 +3026,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS user_addresses_user_address_uniq ON places.use
 CREATE INDEX IF NOT EXISTS user_addresses_user_idx ON places.user_addresses USING btree (user_id);
 CREATE INDEX IF NOT EXISTS idx_bullion_metal_id ON products.bullion USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_bullion_mint_id ON products.bullion USING btree (mint_id);
+CREATE INDEX IF NOT EXISTS idx_bullion_slug ON products.bullion USING btree (slug, display);
 CREATE INDEX IF NOT EXISTS idx_core_mints_image_id ON products.mints USING btree (image_id);
 CREATE UNIQUE INDEX IF NOT EXISTS mints_organization_uniq ON products.mints USING btree (organization_id);
 CREATE UNIQUE INDEX IF NOT EXISTS migration_rates_band_uniq ON rates.rates USING btree (metal_id, unit, min_qty, COALESCE(max_qty, ('-1'::integer)::numeric));

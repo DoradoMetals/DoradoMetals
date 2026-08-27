@@ -1,12 +1,30 @@
 import withTransaction from "#shared/db/withTransaction.js";
-import { auth } from "#features/auth/client.js";
+import { auth } from "#features/auth/client.ts";
 import { fromNodeHeaders } from "better-auth/node";
 
-import * as salesOrderRepo from "#features/sales-orders/repo.js";
+// READS AND WRITES PIVOTED TOGETHER, and that ordering is the whole point.
+//
+// Pointing the reads at the new schema while the writes still went to exchange
+// alone was tried on purchase orders and broke immediately: a read cannot see a
+// write that just happened, so an admin changed a status and the drawer showed
+// the previous one. Reads move when the dual write lands beside them, in one
+// change, which is what every other restructured feature did.
+//
+// `verify:sales-order-decomposition` is what made it safe to make rather than
+// hope about: it compares the new read against the composed query AND against
+// repo.exchange.js - the implementation that was serving traffic - across every
+// order and every nested object.
+import * as readService from "#features/sales-orders/read.service.ts";
+import * as salesOrderWrites from "#features/sales-orders/write.service.ts";
+import * as orderSpots from "#features/orders/spots/repo.ts";
+import * as metalsRepo from "#features/metals/repo.ts";
+import { calculateItemAsk } from "#features/sales-orders/utils/calculations.ts";
 import * as stripeRepo from "#features/payments/repo.js";
 import * as transactionsService from "#features/transactions/service.ts";
 import * as usersService from "#features/users/service.ts";
-import * as shipmentRepo from "#features/shipping/shipments/repo.js";
+// The SERVICE, not a repo: a shipment is composed from six tables now, and
+// the order link it carries is reconstructed rather than stored.
+import * as shipmentRepo from "#features/shipping/shipments/service.ts";
 import * as refinerRepo from "#features/refiners/service.ts";
 
 import * as emailService from "#features/media/emails/service.ts";
@@ -18,6 +36,7 @@ import * as productService from "#features/products/service.ts";
 import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";
 
 import type { SalesOrderRow, OrderMetalRow } from "#features/sales-orders/repo.next.ts";
+import type { PoolClient } from "pg";
 import type { PaymentSession } from "#features/payments/service.ts";
 import type { IncomingHttpHeaders } from "node:http";
 import type { Transport } from "#providers/emails/nodemailer.ts";
@@ -30,24 +49,71 @@ export type SalesOrderInput = {
   address: { id: string };
   items: { id: string; quantity: number }[];
   using_funds?: boolean | null;
-  service: { value?: string | null };
+  // BOTH FIELDS ARE REAL, and the type said only one. `value` is what the tax
+  // and total calculations read; `label` is what gets stored as the order's
+  // shipping_service - dev holds "Standard" and "Free" from exactly this path,
+  // so it has always been present and the declaration was simply short.
+  // Found by the compiler when the write moved to a typed service.
+  service: { value?: string | null; label?: string | null };
   payment_method?: string | null;
 };
 
+// THE LINES AND THE QUOTED SPOTS, written to both schemas.
+//
+// Two things the caller has to supply because only it holds them: the PRICE of
+// each line, which calculateItemAsk derives from the quote, and the metal id
+// for each quoted metal, because exchange keys a spot by NAME and the new
+// schema by id. Resolving the names once here beats a lookup per row.
+//
+// A line's metal comes from its PRODUCT - a sale is always bullion - so a
+// product whose metal cannot be resolved would write a null into a NOT NULL
+// column. It is refused by name instead.
+async function insertLines(
+  client: PoolClient,
+  orderId: string,
+  items: Parameters<typeof salesOrderWrites.insertItems>[2],
+  spot_prices: Parameters<typeof salesOrderWrites.insertOrderMetals>[1]
+): Promise<void> {
+  const metals = await metalsRepo.getAll(client);
+  const idByName = new Map(metals.map((m) => [m.name, m.id]));
+
+  await salesOrderWrites.insertItems(
+    client,
+    orderId,
+    items,
+    (item) => calculateItemAsk(item as never, spot_prices as never),
+    (item) => {
+      const metal_id = (item as { metal_id?: string | null }).metal_id ?? null;
+      if (!metal_id) {
+        const err: Error & { statusCode?: number } = new Error(
+          `product ${String(item.id)} has no metal, so its order line cannot be written`
+        );
+        err.statusCode = 422;
+        throw err;
+      }
+      return metal_id;
+    }
+  );
+
+  await salesOrderWrites.insertOrderMetals(
+    orderId, spot_prices, (name) => idByName.get(name), client
+  );
+}
+
 export async function getById(orderId: string): Promise<SalesOrderRow | undefined> {
-  return salesOrderRepo.findById(orderId);
+  return (await readService.findById(orderId)) as unknown as SalesOrderRow;
 }
 
 export async function listOrdersForUser(userId: string): Promise<SalesOrderRow[]> {
-  return salesOrderRepo.findAllByUser(userId);
+  return (await readService.findAllByUser(userId)) as unknown as SalesOrderRow[];
 }
 
 export async function getAll(): Promise<SalesOrderRow[]> {
-  return salesOrderRepo.getAll();
+  return (await readService.getAll()) as unknown as SalesOrderRow[];
 }
 
 export async function getMetalsForOrder(orderId: string): Promise<OrderMetalRow[]> {
-  return salesOrderRepo.findMetalsByOrderId(orderId);
+  return (await orderSpots.getFor(orderId)) as unknown as OrderMetalRow[];
 }
 
 // SPOT PRICES COME FROM THE SERVER, NOT FROM THE BODY.
@@ -132,7 +198,7 @@ export async function createSalesOrder(
       sales_order.payment_method
     );
 
-    const orderId = await salesOrderRepo.insertOrder(client, {
+    const orderId = await salesOrderWrites.insertOrder(client, {
       user: session.user,
       status: sales_order.payment_method === "CREDIT" ? "Preparing" : "Pending",
       sales_order: sales_order,
@@ -155,9 +221,7 @@ export async function createSalesOrder(
       );
     }
 
-    await salesOrderRepo.insertItems(client, orderId, items, spot_prices);
-
-    await salesOrderRepo.insertOrderMetals(orderId, spot_prices, client);
+    await insertLines(client, orderId, items, spot_prices);
 
     await taxService.updateStateSalesTax(
       orderPrices.sales_tax,
@@ -214,7 +278,7 @@ export async function adminCreateSalesOrder({
       sales_order.payment_method
     );
 
-    const orderId = await salesOrderRepo.insertOrder(client, {
+    const orderId = await salesOrderWrites.insertOrder(client, {
       user: user,
       status: sales_order.payment_method === "CREDIT" ? "Preparing" : "Pending",
       sales_order: sales_order,
@@ -237,9 +301,7 @@ export async function adminCreateSalesOrder({
       );
     }
 
-    await salesOrderRepo.insertItems(client, orderId, items, spot_prices);
-
-    await salesOrderRepo.insertOrderMetals(orderId, spot_prices, client);
+    await insertLines(client, orderId, items, spot_prices);
 
     await taxService.updateStateSalesTax(
       orderPrices.sales_tax,
@@ -266,7 +328,12 @@ export async function updateStatus({
   order_status: string;
   user_name: string;
 }): Promise<SalesOrderRow | undefined> {
-  return await salesOrderRepo.updateStatus(order, order_status, user_name);
+  // The status write returns the id it touched, not the order. The route
+  // answers with it and always has - repo.exchange.js returned `rows[0]` of an
+  // UPDATE ... RETURNING *, which the caller never read a field off.
+  return (await salesOrderWrites.updateStatus(
+    order, order_status, user_name ?? null
+  )) as unknown as SalesOrderRow;
 }
 
 // `transport` is a separate parameter, not a field on the input object, for the
@@ -367,7 +434,7 @@ export async function sendOrderToSupplier(
   // is what created the duplicate shipment.
   if (!alreadySent) {
     await withTransaction(async (client) => {
-      await salesOrderRepo.attachSupplierToOrder(
+      await salesOrderWrites.attachSupplierToOrder(
         sales_order.id,
         supplier_id,
         client
@@ -378,7 +445,7 @@ export async function sendOrderToSupplier(
         client
       );
 
-      await salesOrderRepo.updateOrderSent(sales_order.id, client);
+      await salesOrderWrites.setFlag(sales_order.id, "order_sent", client);
     });
   }
 
@@ -448,9 +515,9 @@ export async function updateTracking({
     tracking_number,
     carrier_id,
   });
-  return await salesOrderRepo.updateTrackingStatus(order_id);
+  return await salesOrderWrites.setFlag(order_id, "tracking_updated");
 }
 
 export async function createReview({ order }: { order: SalesOrderRow }): Promise<unknown> {
-  return salesOrderRepo.createReview({ order });
+  return await salesOrderWrites.setFlag(order.id, "review_created");
 }

@@ -59,10 +59,21 @@ for (const file of walk(FEATURES, /wire\.ts$/)) {
 }
 adapters.sort((a, b) => a.env.localeCompare(b.env));
 
-const sources = walk(FRONTEND, /\.(ts|tsx)$/).map((f) => ({
-  rel: path.relative(FRONTEND, f),
-  src: fs.readFileSync(f, "utf8"),
-}));
+// A test fixture spelling the legacy name IS a real occurrence - the flip
+// breaks it - but it is not a component reading the wire, and conflating the
+// two makes this metric move the WRONG WAY when tests get written. SPOTS_WIRE
+// drifted 83 -> 86 entirely on frontend test commits, with the product code
+// untouched: 86 counted, 10 of them fixtures, 76 real reads. Still counted in
+// the verdict, because a flip is still work - but reported separately, so a
+// switch held back only by fixtures is visible as such. The switch this
+// actually endangers is MEDIA_WIRE, the one reporting ready at 0: a single
+// test spelling "checksum_sha256" would report it blocked. D55.
+const isTestFile = (rel) => /\.(test|spec)\.tsx?$|\.e2e\.tsx?$|(^|\/)tests?\//.test(rel);
+
+const sources = walk(FRONTEND, /\.(ts|tsx)$/).map((f) => {
+  const rel = path.relative(FRONTEND, f);
+  return { rel, src: fs.readFileSync(f, "utf8"), test: isTestFile(rel) };
+});
 
 // --self-test proves the floor fires, because the floor is the whole defence:
 // this script's first version walked zero files and called every switch clear.
@@ -104,6 +115,7 @@ for (const a of adapters) {
   }
   const lines = [];
   let uses = 0;
+  let testUses = 0;
   let unmeasurable = 0;
   for (const { next, legacy } of a.renames) {
     if (UNCOUNTABLE.has(legacy)) {
@@ -131,19 +143,29 @@ for (const a of adapters) {
     }
     const re = new RegExp(`\\b${legacy}\\b`, "g");
     let n = 0;
+    let t = 0;
     const files = new Set();
     for (const s of sources) {
       const m = s.src.match(re);
-      if (m) { n += m.length; files.add(s.rel); }
+      if (m) { n += m.length; files.add(s.rel); if (s.test) t += m.length; }
     }
     uses += n;
+    testUses += t;
     lines.push(
-      `       "${legacy}" -> "${next}"   ${n} occurrence(s) in ${files.size} file(s)`
+      `       "${legacy}" -> "${next}"   ${n} occurrence(s) in ${files.size} file(s)` +
+        (t ? `, ${t} of them in test files` : "")
     );
   }
   const verdict = uses ? "NO " : unmeasurable ? "?  " : "yes";
   if (uses) blocked += 1;
-  console.log(`  ${verdict} ${a.env.padEnd(16)} ${uses} legacy occurrence(s) still read by the frontend`);
+  const split = !testUses
+    ? ""
+    : uses === testUses
+      ? " - ALL of them test fixtures, none in product code"
+      : ` (${uses - testUses} in product code, ${testUses} in tests)`;
+  console.log(
+    `  ${verdict} ${a.env.padEnd(16)} ${uses} legacy occurrence(s) still read by the frontend${split}`
+  );
   for (const l of lines) console.log(l);
 }
 

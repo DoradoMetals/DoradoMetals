@@ -1,0 +1,5 @@
+-- The direct details of several fulfillments at once.
+SELECT id, fulfillment_id, location_id, assigned_employee_id, is_appointment,
+       start_time, end_time
+  FROM fulfillments.directs
+ WHERE fulfillment_id = ANY($1::uuid[])

@@ -5163,3 +5163,2507 @@ output becomes money — or as an audit that runs against production. Deliberate
 not added yet: dev's own copy is hours stale for the reason above, so the guard
 would fire immediately here and teach everyone to ignore it. It needs to go in
 alongside restarting that process, not before.
+
+## Running the suite with the switches on `dual` left six orders in dev
+
+**Dev's `pnpm check` is RED until `pnpm --filter @dorado/api clean:dual-orphans
+--commit` is run.** It now clears TWO sets of eleven rows, from two separate
+mistakes - see the script's header. The second set is five purchase orders a
+shipments test fixture committed, because it was built on a pool connection with
+no transaction open; that test now builds inside the rolled-back transaction and
+asserts the fixture itself did not escape. Three tests in `features/purchase-orders/repo.next.test.js`
+fail, and `validate:wire` fails on two endpoints - `GET /purchase_orders (admin)`
+now returns 22 rows where exchange has 16, and the six extras have no payout and
+no item ids, so they do not parse. All of it is right to fail.
+
+Jacob asked for the eight remaining `*_SOURCE` switches to be set to `dual` in
+dev and the suite run against them. That was done, three times, and it found two
+real things and caused one.
+
+**What it caused.** `features/purchase-orders/service.test.js` builds its fixture
+by INSERTing a purchase order straight into `exchange`, calls a service - which
+opens its own transaction and commits - and deletes the exchange rows again.
+Correct while the switch is on `exchange`, because the service writes nowhere
+else. On `dual` the same service also mirrors the order into `orders.orders` and
+`orders.items`, and the cleanup knows nothing about those. Two runs, three
+fixture tests each, six orders and four items left behind.
+
+Nothing was lost - this is added data - but it is exactly the state that makes
+the order backfill refuse, because the target now holds rows the source does not.
+Every row was dumped to `~/dev-orphan-orders-restore-2026-08-27.sql` (plain
+INSERTs, puts them back exactly) before anything else was decided, and the
+cleanup script deletes six named ids, refuses if anything references them, and
+refuses if the counts are not exactly six and four. Its dry run is the default.
+
+`audit:test-leaks` does not cover this. It fingerprints `exchange`, and in the
+end nothing here touched `exchange` — the leak was entirely in the new schema.
+**That is a gap worth closing before promotion**, because after promotion every
+one of these fixtures writes the new schema by default.
+
+**First real finding: mirroring a child of an order the new schema has never
+seen took the whole write down.** `orders.items`, `orders.spots` and
+`orders.refiner_spots` all have a foreign key to `orders.orders`, and the
+item-level writes called `sync(c, orderId, ["items"])` without `"order"`. If the
+order was not already mirrored, the INSERT raised 23503 and rolled back the
+`exchange` write with it — so the edit silently did nothing and the customer got
+a 500.
+
+Not hypothetical: **production holds 15 purchase orders with no `orders.orders`
+row** (9 Completed, 4 Cancelled, 1 In Transit, 1 Received), because the backfills
+have not run there. With `PURCHASE_ORDERS_SOURCE=dual`, editing a line on any of
+them would have failed. Fixed in both `repo.dual.js` files: the order is now
+mirrored first, unconditionally, which is one idempotent upsert and cannot be
+wrong. Nothing on `exchange` could ever have found this — with the switch off,
+the mirror never runs, so all 796 tests passed.
+
+**Second real finding: `dual` doubles the write footprint and deadlocks show
+up.** One run failed with `40P01 deadlock detected` writing `payments.ledger`
+from `addFundsToAccount`. It passes in isolation three times out of three, so it
+is contention between parallel test files rather than a defect — but the reason
+the contention appeared is that `dual` writes both schemas inside one
+transaction, holding twice as many locks for twice as long. In production that
+is concurrent customers rather than test files. **Worth a look at lock ordering
+before promoting the order switches**, and worth knowing that the symptom is a
+failed request rather than corruption.
+
+**Where it got to:** with the `sync` fix in, the suite under all eight switches
+at `dual` is 795 pass / 1 fail, and the one failure is the deadlock above.
+
+## Test coverage, re-audited 2026-08-27
+
+### API — 813 tests over 118 files
+
+Up from 758 when the restructure started. Every feature restructured so far
+gained a `tests/` folder with three kinds of file, and the split is deliberate:
+
+- `unit.test.ts` — the statements as TEXT, no database. This is where the
+  parameter arrays are pinned against the SQL that consumes them, which is the
+  one transcription error the generator cannot prevent and which has bitten this
+  project five times.
+- `service.test.js` — real Postgres, in a rolled-back transaction. Both schemas
+  asserted on every write, because "the dual write happened" is the property the
+  `*_SOURCE` switch used to make optional.
+- `replay.test.js` — real HTTP through the app, in a pinned transaction. The
+  only kind that can see a defect in middleware, which is how the nameless
+  address and the never-succeeding carrier delete were both found.
+
+**Six things still have no test of their own**, and the reasons differ:
+
+| | why |
+|---|---|
+| `features/metals` | four seeded rows, read-only; covered through spots |
+| `features/mints` | ten seeded rows, read-only; covered through products |
+| `features/organizations` | no routes; covered through carriers and refiners |
+| `features/places/user-addresses` | no routes; covered through addresses |
+| `features/fulfillments/methods` | no routes; reference data |
+| **`features/shipping/tracking`** | **nothing covers it, and it is not reference data** |
+
+Tracking is the real gap. It is the one feature with a live write path, a FedEx
+integration, and no test file at all — and `tracking.test.js` is the file that
+once deleted the real FedEx history of five dev shipments, so it was removed
+rather than fixed. Restoring coverage there needs the pinned-transaction harness
+the other replay tests use.
+
+### API — TypeScript: effectively finished
+
+**31 non-test `.js` files remain, and 25 of them are deleted rather than
+converted.** They are the `repo.js` / `repo.dual.js` / `repo.exchange.js` trio
+belonging to the seven features that still have a `*_SOURCE` switch; each
+restructure removes three of them.
+
+What is actually left after that:
+
+- `shared/db/query.js`, `withTransaction.js`, `asyncHandler.js` — **excluded
+  deliberately.** Everything imports them, and a type error in one of the three
+  stops the whole build.
+- `shared/testing/{locks,pinned-pool,session}.js` — the test harness.
+- `features/auth/client.js`, `features/fulfillments/repo.js`,
+  `features/fulfillments/methods/repo.js`, `features/scrap/repo.js`.
+
+`features/scrap/repo.js` is worth a note: **scrap has no table in the new
+schema.** `exchange.scrap` is inlined onto `orders.items` as pre_melt,
+post_melt, purity and content, so scrap cannot be restructured on its own — it
+moves when purchase-orders does, and its repo is deleted rather than converted.
+
+### Frontend — 144 tests over 13 files, against 364 source files
+
+**Unchanged, and still the thinnest evidence in the project.** Every one of the
+13 files tests a pure function or a contract shape. **Zero of the 260 `.tsx`
+components have a test** — there is no `.test.tsx` in the repository.
+
+That is a deliberate decision (`CLAUDE.md`: "no browser or e2e harness — that is
+a larger decision than a config file") and it is worth restating what it costs
+now rather than in the abstract, because the schema migration has made the gap
+sharper in one specific place:
+
+**Five components call `.parse()` on a zod schema at runtime, on the checkout
+path.**
+
+    features/checkout/purchase-order-checkout/reviewStep/reviewStep.tsx
+    features/checkout/sales-order-checkout/salesOrderCheckout.tsx
+    features/stripe/ui/AdminStripeForm.tsx
+    features/stripe/ui/SalesOrderStripeForm.tsx
+    features/orders/salesOrders/admin/createSalesOrder/createSalesOrderDrawer.tsx
+
+A `.parse()` throws on a mismatch. Those five are the places where an API shape
+change stops being a rendering bug and becomes a customer who cannot check out —
+and nothing in either repository would fail first. `audit:frontend-nullability`
+measures one axis of this (17 fields stricter than their column, in schemas
+parsed at runtime); the other axis, a field renamed or removed, is measured by
+`audit:wire-readiness` and by nothing else, because the frontend imports
+`@dorado/contracts` nowhere.
+
+**The cheapest thing that would help** is not a browser harness. It is a test
+that feeds a real API response — the same fixtures `validate:wire` already
+collects — through each of those five schemas. That is a unit test, it needs no
+DOM, and it would turn "the checkout might break on deploy" into a build
+failure.
+
+## A test file that passed for its whole life while asserting nothing
+
+`features/shipping/shipments/tests/service.test.js` (was `repo.dual.test.js`)
+opened every one of its seven tests with
+
+    const orderId = await anOrderWithoutShipment(c);
+    if (!orderId) return;
+
+and `anOrderWithoutShipment` searched dev for a purchase order that had no
+shipment AND was present in `orders.orders`. **Dev has zero of those, and always
+has.** All seven returned on the second line. Seven green ticks, nothing
+asserted, for as long as the file has existed.
+
+It builds the order now instead of looking for one. That change alone found
+three real defects in the shipments restructure within a minute:
+
+- **`ON CONFLICT (fulfillment_id)` on `fulfillments.shipments`, which has no
+  such constraint.** The unique index is `fulfillment_shipments_one_per_shipment`
+  on **shipment_id** - so a parcel belongs to one fulfillment and a fulfillment
+  may have several parcels. 42P10 at runtime, invisible to the compiler.
+- **A service name sent without a carrier was silently dropped.** exchange
+  stores `service_type` as text and takes it regardless; the new schema needs a
+  reference, and a service is identified by (carrier, name). Resolving only when
+  both were present meant the shipment ended up with no service and nobody found
+  out until the next read. Refused now, by name.
+- **`Delivered` stopped completing the fulfillment.** The mirror did it inline -
+  `CASE WHEN e.shipping_status = 'Delivered' THEN 'COMPLETED' ELSE 'PENDING'` -
+  and the native write did not carry it across, so an order would have looked
+  unfulfilled after it arrived. Both arms restored, including the ELSE.
+
+**The general lesson is about the fixture, not the feature.** A test whose
+fixture SEARCHES for its preconditions degrades to a no-op the moment the data
+stops matching, and reports success either way. A test that BUILDS its
+preconditions fails loudly instead. Worth a sweep: this is unlikely to be the
+only file that does it.
+
+## `audit:vacuous-tests` — the sweep, and what it found
+
+Written after `features/shipping/shipments/tests/service.test.js` turned out to
+have asserted nothing for its entire life. It reads every test statically and
+reports two shapes:
+
+- **SKIP** — the test returns early when a fixture finds nothing. Legitimate
+  when dev genuinely may not hold the case; a silent no-op when dev *never*
+  holds it. The script cannot tell those apart, so it reports them for a human.
+- **LOOP** — the test asserts inside `for (… of X)` with nothing asserting `X`
+  is non-empty. `for (const x of [])` runs zero times and passes.
+
+    pnpm --filter @dorado/api audit:vacuous-tests
+    pnpm --filter @dorado/api audit:vacuous-tests:self-test
+
+**764 tests in 114 files: 21 LOOP, 10 SKIP.** It is report-only and not in
+`pnpm check` — a skip can be correct, and failing the build on one would make
+the cheapest fix "delete the comment".
+
+**The first version reported 112 LOOPs and would have been switched off**, which
+is the failure mode this project has hit before. Three exemptions killed the
+noise without hiding anything:
+
+- a loop over a **literal array**, declared in the test or at module scope,
+  cannot be empty;
+- a floor asserted in a **dedicated test** counts — `admin-routes.test.js` says
+  `assert.ok(routes.length >= 70)` once, loudly, then loops in three others, and
+  that is the right shape;
+- a floor on a **counter** counts — `browser-triggered-effects.test.js` asserts
+  `total >= 15` about what it scanned.
+
+### The two real gaps found and fixed
+
+**`features/purchase-orders/repo.next.test.js` — the bank-detail test.** It was
+
+    for (const o of await next.getAll()) {
+      if (!o.payout) continue;
+      assert.equal("account_number" in o.payout, false);
+
+so it asserted nothing if `getAll()` came back empty *or* if no order in dev
+carried a payout. That is the single constraint this project puts above every
+other one — "never log or return bank details" — and it was checking it
+conditionally. It now asserts orders came back, asserts at least one has a
+payout, and loops over those.
+
+**`features/spots/replay.test.js`** — the same shape over `res.body`. An empty
+spot feed would have run none of the assertions and reported success, and an
+empty spot feed is exactly the failure that prices every order at nothing.
+
+### Checked and clean
+
+All fifteen `if (!x) return` fixtures were run against dev directly: every one
+finds rows (20 scrap-linked items, 8 users with addresses, 23 shipments naming a
+service, 4 null-quantity items, and so on). **The shipments file was the only
+vacuous one.** The remaining SKIP findings are all cases where dev does hold the
+data and the guard is defensive.
+
+## Purchase orders: the decomposition is proven before it is wired
+
+The purchase-order read is one query joining **thirteen tables** and building a
+deeply nested shape the frontend is coupled to. Taking it apart into one repo
+per table is the largest single reshaping left in the migration, so it is being
+done in stages, and the first stage is a gate rather than a rewrite.
+
+**Built so far** — six per-table repos, all additive, nothing rewired:
+
+    features/orders/offers/          the offer on a purchase order
+    features/orders/transactions/    what one order came to
+    features/orders/items/           its lines, scrap weights included
+    features/orders/addresses/       the snapshot link
+    features/refiners/items/         what the refinery reported
+    features/shipping/packages/      (added with shipments)
+
+**`verify:orders-decomposition`** compares them against the composed query and
+**reproduces it exactly: 432 values across 27 orders, zero divergences.** It
+checks the fifteen fields that MOVED between tables plus the line ids, and not
+the ones that stayed put, because those cannot diverge. Run it before and after
+the wiring.
+
+Three things the decomposition made explicit, all of which were true before and
+were buried in a 130-line SQL string:
+
+- **`orders.transactions` is not the credit ledger.** `payments.ledger` is the
+  customer's balance and lives in `features/transactions`; this is what one
+  order came to. Two different things sharing a word, which is why the new repo
+  sits under `orders/`.
+- **`orders.addresses` carries two ids and the wire returns the second.**
+  `address_id` is the frozen snapshot; `source_address_id` is the address-book
+  row. The frontend posts the book id back at checkout, so returning the
+  snapshot's would break checkout.
+- **The expired-offers read must not join the lines.** The query has no GROUP
+  BY, so joining them multiplies the row by their number and the scheduler
+  expires one offer several times. Reading `orders.offers` alone makes that
+  impossible rather than merely avoided.
+
+**Still to do:** compose.ts, the service, the write paths (with scrap folding
+in - `exchange.scrap` has no table here, its columns are on `orders.items`), and
+the per-feature checklist. `PURCHASE_ORDERS_SOURCE` is still one of the four
+remaining switches.
+
+## Purchase orders, stage two: the gate earned its keep five times
+
+`read.service.ts` and `compose.ts` now rebuild the whole purchase-order shape
+from nine per-table reads instead of one thirteen-table query, and
+`verify:orders-decomposition` deep-compares the two, order by order, field by
+field, nested objects included. **It found five real differences that nothing
+else would have**, because in every case the response still parsed and every
+value was still present.
+
+1. **`net_charge` and `service_type` are renamed on the way into an order.**
+   `GET /shipments` returns exchange's names; an order returns
+   `shipping_charge` and `shipping_service`. Nesting the shipments service's row
+   unchanged dropped both and added two the frontend does not read.
+
+2. **The shipping label must be base64, wrapped at 76 characters.** The
+   projection wrote `encode(..., 'base64')`, which is MIME base64 - a newline
+   every 76 characters. `Buffer.toString("base64")` produces one unbroken line;
+   for a 13KB label that is a 172-newline difference. Returning the raw Buffer
+   is worse still: it serialises as `{"type":"Buffer","data":[137,80,...]}`, one
+   integer per byte.
+
+3. **An absent nested object is all-null, not `null` - except when it is
+   `null`.** The distinction is in the SQL and easy to miss:
+   `jsonb_build_object(...)` builds an object whatever the join found, so an
+   absent payout or shipment becomes an object full of nulls and
+   `order.payout.cost` gives `undefined`. `to_jsonb(alias)` is genuinely NULL,
+   which is what the carrier pickup and the address use. Returning `null` for
+   the first pair would make that same expression **throw**; returning an
+   all-null object for the second pair is the same wire change in the other
+   direction. Both were got wrong once and caught.
+
+4. **Timestamps lose microseconds, unavoidably.** `jsonb_build_object` renders
+   `2026-01-07T22:05:39.625512`; reading the column gives a Date, which
+   serialises to `...625Z`. A JS Date has millisecond resolution and cannot hold
+   microseconds, so any consumer doing `new Date(created_at)` already truncates
+   them and the database still stores them. **This is the second time it has
+   come up** - fulfillments hit it first - so it is recorded here rather than
+   left in a comment.
+
+5. **Key order changes and that is not a defect.** `jsonb_build_object` returns
+   keys in jsonb's internal order; a JavaScript object preserves insertion
+   order. `features/orders/fragments.ts` warns against making a comparison
+   order-insensitive, and that warning was right for the case it describes - a
+   reordering that was a CHOICE. This one is forced by composition moving out of
+   SQL and no version of the code avoids it, so the gate compares values and key
+   SETS exactly and ignores only the sequence.
+
+**One declared difference remains.** An order with no lines returned ONE line
+with every field null - `json_agg` over a LEFT JOIN - which the frontend would
+render as a blank row. The service returns `[]`. Reproducing the phantom would
+mean fabricating a line item. It cannot be observed on real data: every
+genuinely real purchase order in dev has lines, and the only orders that hit it
+are the eleven test rows `clean:dual-orphans` removes.
+
+## Five dev shipments: `exchange` and the new schema disagree, and exchange looks like the damaged one
+
+Found while gating the purchase-order decomposition, because the composed query
+reads `exchange.shipments` and the new read goes through `shipping.shipments`.
+
+    dev: 23 shipments joined on id
+         5 differ on shipping_status
+         5 differ on delivered_at
+         5 differ on estimated_delivery
+
+    exchange says "Dropped Off", delivered_at NULL
+    the new schema says "Delivered", with a delivery date
+
+**The count matches the `tracking.test.js` incident in CLAUDE.md exactly** -
+"how `tracking.test.js` came to delete the real FedEx history of five dev
+shipments", and "the same bug also overwrote two columns in place, which a row
+count cannot see". Five shipments, columns overwritten in place. This is very
+likely that residue, which would mean `shipping.shipments` holds the CORRECT
+delivery state and `exchange` is the damaged copy - the opposite of the usual
+direction.
+
+**Not proven, and not acted on.** Stated as what was measured. Two things follow:
+
+- **Production cannot be compared.** Its `shipping.shipments` has no
+  `shipping_status` column at all - the migrations that added it have not run
+  there - so this is a dev-only observation and says nothing about production.
+- **`verify:parity` does not cover this pair.** It compares
+  `exchange.carriers -> shipping.carriers_exchange_compat` and similar, and
+  there is no shipments entry. Worth adding before shipments is promoted.
+
+## Reads and writes must pivot together, and I found that out the hard way
+
+The purchase-order read path is finished and proven. I pointed the service at
+it, on its own, leaving the writes on `repo.js` and the switch. **Two replay
+tests failed within a minute:**
+
+    moving an order's status takes the body the drawer sends
+      expected 'Payment Processing', got 'Pending'
+    locking spots freezes them and unlocking releases them
+      the order does not report its spots as locked
+
+Nothing was wrong with the read. `PURCHASE_ORDERS_SOURCE` defaults to
+`exchange`, so every WRITE goes to exchange alone - and reading the new schema
+while writing the old one means **a read cannot see a write that just
+happened**. An admin changes a status and the drawer shows the previous one.
+
+It is obvious stated plainly, and it was not obvious while staging the work:
+"build the decomposition, gate it, then pivot the reads, then do the writes"
+reads like a sensible sequence and has a broken state in the middle. Every other
+restructured feature did it in one change - read the new schema, write both -
+and that is not a stylistic preference, it is the only ordering with no broken
+intermediate.
+
+**Reverted.** `read.service.ts`, `compose.ts`, the nine repos and the gate all
+stay: they are additive, proven, and what the write stage builds on. The service
+still reads through `repo.js` until the writes land beside it.
+
+### What the gate says, for when they do
+
+`verify:orders-decomposition` now compares three ways:
+
+- the moved fields against the composed query: **432 values, 27 orders, exact**;
+- the whole shape against the composed query: **every real order identical**,
+  nested objects included;
+- the whole shape against **`repo.exchange.js`, which is what serves traffic**:
+  16 real orders, and *"nothing else differs"*.
+
+Two differences are declared in the script with their reasons - the `scrap.id`
+change, and the five dev shipments. Five partial orders are skipped and the
+reason is described structurally: an order in `orders.orders` with no offer and
+no totals row is not a migrated order, and comparing one reports every money
+field as different. All five are test rows today.
+
+### One thing the typed read surfaced and did not change
+
+**`exchange.payouts.cost` is nullable and one of 16 dev rows is NULL**, and it
+reaches `calculateTotalPrice`, which expects a number. The old path resolved
+through a dynamic index so every field on it was `any`; the typed read made it
+visible. Nothing was changed - `?? 0` would be a silent edit to a money
+calculation made while doing something else - and null is what reaches that
+function today. Worth deciding deliberately.
+
+## The three biggest tables are outside `verify:parity`, and they have drifted
+
+`scripts/lib/feature-map.mjs` declares the mappings:
+
+    exchange.purchase_orders -> orders.orders, orders.offers, orders.transactions
+    exchange.sales_orders    -> orders.orders, orders.transactions
+    exchange.shipments       -> shipping.shipments, fulfillments.shipments
+
+**`verify:parity` does not check any of them.** It runs eleven pairs - leads,
+rates, reviews, sales tax, suppliers, carriers, mints, images, products, metals,
+the credit ledger - and orders and shipments are not among them. The reason is
+structural rather than an oversight: parity compares a source table against a
+target table one-to-one, and each of these is a MERGE into two or three tables.
+CLAUDE.md says so in passing - "orders is a merge, not a pair" - as the
+explanation for why the `purity numeric(4,3)` rounding went unseen.
+
+So the three largest migrations in the project have no parity check, and
+building the decomposition gates is what made that visible. Two drifts, both
+measured while gating:
+
+**Six shipments disagree** (five on purchase orders, one on a sales order):
+exchange says "Dropped Off" with no `delivered_at`, the new schema says
+"Delivered" with a date. Written up above - it matches the `tracking.test.js`
+incident exactly.
+
+**One sales order's `order_sent` disagrees.** `f437ce8a`, created 2025-07-19:
+`true` in exchange, `false` in `orders.orders`. Both rows carry the same
+`updated_at`, so the new-schema row has not been touched since the backfill.
+
+That second one turns out **not to be a defect at all, and the explanation is
+worth more than the finding**. Migration `034_backfill_orders_missing_columns`
+does set `order_sent` from exchange, it is idempotent, and it has been applied.
+The order was marked sent AFTERWARDS - and with `SALES_ORDERS_SOURCE=exchange`,
+`updateOrderSent` writes exchange alone. The new schema is simply stale for
+every write made since the backfill ran, which is exactly what the switch means.
+
+**The consequence for promotion is concrete:** the backfills have to be re-run
+immediately before any order switch is flipped, because everything written since
+they last ran is missing from the new schema - and with no parity pair covering
+these tables, nothing would report it. One flag on one order is harmless; the
+same mechanism applies to every column those backfills touch.
+
+`verify:orders-decomposition` and `verify:sales-order-decomposition` now fill
+part of that gap: both compare the new schema against **whatever the switch
+currently selects**, which is what makes a drift visible at all.
+
+## D40 — the "nothing irreversible in a transaction" guard had gone blind to TypeScript
+
+`shared/db/transaction-side-effects.test.js` is the guard that exists because
+`sendOrderToSupplier` emailed a refiner their copy of a sales order as the first
+statement of a transaction that went on to fail, leaving them shipping metal
+against an order nothing recorded. It walks the source, finds every
+`withTransaction(` block, and fails if an email, a Stripe call, a carrier call
+or an HTTP request appears inside one.
+
+Its walker collected **`.js` files only**:
+
+```js
+else if (e.name.endsWith(".js") && !e.name.includes(".test.")) out.push(full);
+```
+
+Every service converted to TypeScript therefore fell silently out of its reach,
+and by this week that was almost all of them. Twenty-one files in `features/`
+open a transaction; the walk was finding **three**, all of them `repo.dual.js`
+files that the restructure is in the middle of deleting.
+
+**Nothing failed while this was true.** The guard kept passing, on an
+ever-smaller sample, for the whole TypeScript conversion. It reported clean at
+every commit.
+
+What caught it was its own floor — the second test in the file asserts
+`withTx.length > 3` with the message *"the walk is probably wrong"*. Deleting
+`features/sales-orders/repo.dual.js` took the count from 4 to 3 and the floor
+fired. One more restructure and it would have been finding two, then one, then
+zero, and a walk that finds zero files has nothing to report and passes
+loudest.
+
+Fixed: the walk takes `.ts` as well as `.js`, and the floor is raised from 3 to
+15 so that losing TypeScript again fails immediately rather than after a
+decade of quiet. **With the walk corrected the guard reports zero violations** —
+the codebase is genuinely clean on this, and now that is a measured fact rather
+than an artifact of not looking.
+
+The general lesson, and this is the third time this project has hit it: a
+static check is only as good as its file walk, and a walk that silently narrows
+is indistinguishable from a codebase that got better. `audit:wire-readiness`
+had the same failure — the first version walked zero files and called every
+switch ready — which is why it grew a `--self-test`. A floor is the cheapest
+version of that, and here it was the only thing standing between a narrowing
+walk and a rolled-back FedEx label.
+
+### The sweep this prompted, and two more found
+
+If one walker had narrowed silently, others could have. Every file in the repo
+that calls `readdirSync` was checked for its extension filter and for whether
+it can report clean on an empty walk.
+
+**Two more had the same extension bug**, and both guard the switch surface:
+
+| guard | walked | should walk |
+|---|---|---|
+| `shared/db/switch-surface.test.js` | `repo.js` | `repo.js` **and** `repo.ts` |
+| `shared/db/source-switches.test.js` | `repo.js` | `repo.js` **and** `repo.ts` |
+
+These matter more than the count suggests. `switch-surface` is what proves a
+function a switch offers actually exists in the state it selects — the check
+that stops `impl.getByCarrierId is not a function` happening in production on
+the deploy that flips a switch. `source-switches` is what proves nothing is
+promoted past `exchange`.
+
+**They were not yet lying.** All three remaining switches — purchase-orders,
+payments, checkout — are still `repo.js`, so both guards did see them. But
+finishing the TypeScript conversion renames exactly those three files, and the
+guards would have gone blind on the last and highest-stakes switches at the
+moment they were converted. Both now accept either extension. `source-switches`
+would have failed loudly rather than silently (3 switches against a floor of 3,
+so any rename drops it to 2) — but failing because a guard went blind is not
+the same as not going blind.
+
+**The pattern worth keeping: a guard should print its denominator.**
+`lint:migrations` says `89 files, no destructive writes to exchange`, so a
+broken walk is visible in the CI log without anyone thinking to check. That is
+why it was never at risk despite having no floor at all. Of the checks swept,
+only `lint:db` reported bare success — it now prints
+`206 query() call(s) in 280 file(s)`. Cheaper than a floor, needs no
+maintenance, and it makes the denominator someone's problem the first time it
+moves.
+
+## D41 — purchase-orders writes a table another feature already owns
+
+Mapping the purchase-orders write surface before pivoting it produced a clean
+answer: **35 writing functions across exactly six `exchange` tables.**
+
+| exchange table | functions |
+|---|---|
+| `purchase_orders` | 15 |
+| `purchase_order_items` | 9 |
+| `order_metals` | 4 |
+| `payouts` | 3 |
+| `refiner_metals` | 3 |
+| `shipments` | 1 |
+
+Five of those six are the feature's own. The sixth is not.
+`editShippingCharge` does:
+
+```sql
+UPDATE exchange.shipments SET net_charge = $1 WHERE purchase_order_id = $2
+```
+
+`shipping/shipments` was restructured weeks ago and owns that table — it has
+its own `repo.ts`, `legacy.repo.ts`, `service.ts` and `sql/legacy/update.sql`,
+and that last file already sets `net_charge`. So there are two writers to one
+table, in two features, and only one of them will be dual-writing after the
+purchase-orders pivot. The other would keep writing `exchange` alone.
+
+This is the exact failure mode of *one table, one writing service*, and it is
+worse than a duplication: after the pivot, a shipping charge edited from the
+purchase-order screen lands in `exchange` only, while everything else about
+that shipment lands in both. The two schemas then disagree about one column,
+silently, and `verify:parity` does not cover shipments (it compares 1:1 pairs
+and shipments is a merge — see the note on orders above), so nothing would
+report it.
+
+**Decision, made rather than deferred:** `editShippingCharge` does not move to
+a purchase-orders write service. `shipping/shipments` grows a narrow
+`setCharge(orderId, amount, executor)` — narrow because the existing `update`
+is a whole-row write taking eleven parameters and keyed on the shipment id,
+while this is one column keyed on `purchase_order_id` — and purchase-orders
+calls it. One table, one writing service, and the dual write happens in the
+feature that owns the table.
+
+Worth checking the same way round for the two remaining features after this:
+a cross-feature write is invisible in a per-feature review, which is why this
+one survived a restructure that was looking straight at it.
+
+## D42 — sales-orders writes orders.orders with its own copy of the statement
+
+D41 found purchase-orders writing a table another feature owned. Looking for
+the same shape one level down found it again, inside orders itself.
+
+`features/orders` owns `orders.orders`. But three statements live elsewhere:
+
+```
+features/sales-orders/sql/set_status.sql     UPDATE orders.orders
+features/sales-orders/sql/set_flag.sql       UPDATE orders.orders
+features/sales-orders/sql/set_refinery.sql   UPDATE orders.orders
+```
+
+This is less dangerous than D41 — both writers are in the same repo, both
+dual-write, and `sales-orders/set_status.sql` is character-for-character the
+statement purchase-orders needs, so nothing is currently inconsistent. It is a
+divergence risk rather than a live defect: two copies of one statement, and
+whichever is edited first is right until someone notices.
+
+`features/orders/repo.ts` says in its own header that it "grows when
+purchase-orders and sales-orders are restructured", so the canonical versions
+now live there — `sql/set_status.sql` and `sql/set_flag.sql`, with the same
+closed three-flag set. Purchase-orders uses them.
+
+**Not converged in the same change, deliberately.** sales-orders was pivoted
+hours ago and its tests pass; rewriting working, covered code in the same step
+as building new code means a failure has two possible causes. The convergence
+is: point `sales-orders/repo.ts` at `features/orders/repo.ts` for `setStatus`
+and `setFlag`, delete its two SQL files, and let the existing sales-orders
+tests prove it. `set_refinery.sql` is a sales-order-only concept (a refinery
+buys the metal) and can stay where it is or move with it — that one is a
+judgement call, not a duplication.
+
+The general point, and it is the third instance now: **a per-feature review
+cannot see a cross-feature write.** Both D41 and this were found by asking
+"which feature owns this table?" of every write, which is a question no test
+and no lint currently asks. That would make a worthwhile audit —
+`audit:table-owners` — one line per table, listing every feature with a
+statement against it, failing when a table has more than one writer that is
+not its owner.
+
+### D42 — converged
+
+Done, and proved by tests written for something else.
+`features/sales-orders/repo.ts` no longer implements `setStatus` or `setFlag`;
+it re-exports both from `features/orders/repo.ts`, so every call site in
+`write.service.ts` is unchanged. `sales-orders/sql/set_status.sql` and
+`sql/set_flag.sql` are deleted.
+
+**All 39 sales-orders tests pass untouched**, including the dual-write tests
+that exercise both functions. That is the right kind of evidence for a
+convergence: the tests were written against the behaviour, not against the
+implementation, so they could not have been quietly bent to fit the change.
+
+Two things that would have rotted silently:
+
+- `git rm` **refused** the deletion because both files were staged. That is the
+  protection working — the correct move was `rm` plus `git add` of the
+  deletion, not `-f`.
+- `sql/legacy/set_status.sql` and `sql/legacy/set_flag.sql` opened with
+  "Mirror of sql/set_status.sql" — pointers to the files being deleted. Both
+  now name `features/orders/sql/...`. The legacy halves themselves stay in
+  sales-orders, because exchange really does keep purchase and sales orders in
+  two separate tables; it is only the new schema that has one.
+
+`set_refinery.sql` deliberately stays where it is. A refinery buying the metal
+is a sales-order concept, not a shared one — it is a single writer, not a
+duplicate, and moving it would be tidying rather than fixing.
+
+## D43 — `audit:table-owners`, and what it says about the migration
+
+D41 and D42 were both found by hand, asking "which feature owns this table?" of
+one write at a time. That question is worth asking mechanically, because the
+answer is invisible to every other check on this project: reviews here are
+per-feature, and a cross-feature write is by definition in a directory you are
+not looking at.
+
+`scripts/audit-table-owners.mjs` walks every write statement in `features/`,
+attributes each to the feature whose directory holds it, and reports any table
+with more than one writing feature.
+
+**It reads inline SQL as well as `.sql` files, and that is not a detail.** The
+D41 statement was a template literal inside `repo.exchange.js`; a scan of
+`sql/` directories alone would have missed the one finding that mattered.
+
+Current state: **212 write statements across 398 files, 64 tables written, 13
+with more than one writing feature — all 13 declared, 0 undeclared.**
+
+The thirteen fall into three groups, and the split is the useful output:
+
+- **Nine are mid-pivot duplication.** A feature being restructured holds
+  `repo.exchange.js` / `repo.next.ts` beside its new per-table repos, so both
+  show up. These go when the pivots delete those files. They are pinned rather
+  than filtered *because* they should disappear — a table still on this list
+  after its feature is done is a real finding.
+- **Two are verified safe for a reason other than "it goes away".** payments
+  sets `"stripeCustomerId"` on the user row, which is a payments fact living on
+  a users table. Checked rather than assumed: migration 056 installs
+  `mirror_users_to_auth`, an `AFTER INSERT OR UPDATE` trigger on
+  `exchange.users` that copies the row into `auth.users` **including
+  `"stripeCustomerId"`**. Both halves write the same value and the trigger
+  reconciles from below the application entirely — which is what makes the
+  second writer harmless rather than a split, and is worth knowing given `users`
+  is the one feature that must not dual-write.
+- **Two are each feature's own legacy half** of a table exchange shared between
+  the two order directions.
+
+`--self-test` proves the detector fires; `--strict` exits non-zero on an
+undeclared finding, so it can join CI once the migration settles. It is
+deliberately not in `pnpm check` yet, for the reason the first group names.
+
+### D41's dead statement, removed
+
+Writing the audit turned up that `editShippingCharge` was still *present* in
+`purchase-orders/repo.exchange.js` and re-exported through `repo.dual.js` and
+`repo.js`, even though the live path had already been repointed at
+`shipping/shipments`. Dead, but dead code that a future reader would have
+treated as the real implementation. Removed from all three files, which
+`switch-surface.test.js` is exactly the guard for — a name a switch offers that
+no implementation defines is what it exists to catch, and it stayed green.
+
+The audit's own numbers moved to match: 213 statements to 212, and
+`exchange.shipments` dropped off the multi-writer list entirely.
+
+## D44 — refiners.spots lacks the uniqueness its sibling has
+
+`orders.spots` carries `UNIQUE (order_id, metal_id)` —
+`order_spots_one_per_order_metal`. `refiners.spots` carries no equivalent: a
+primary key on `id` and three plain indexes, nothing more.
+
+The two tables are the same idea twice over. One holds what *we* quoted for a
+metal on an order, the other what the *refiner* quoted. They were built
+together, they are read together, and their exchange predecessors —
+`order_metals` and `refiner_metals` — were near-identical tables written by
+near-identical functions. One of them constrains the pair; the other does not.
+
+**Found by trying to copy the statement across.** `orders/spots/sql/create.sql`
+uses `ON CONFLICT (order_id, metal_id) DO NOTHING`, which is what makes the
+dual-write path safe to re-run. The same clause against `refiners.spots` raises
+**42P10** — *"there is no unique or exclusion constraint matching the ON
+CONFLICT specification"* — and it raises it at runtime, not at compile time, so
+it would have shipped and failed on the first mirror re-run. Checked
+`pg_indexes` rather than assuming the sibling matched.
+
+**Nothing is wrong today, and the gap is inherited rather than introduced.**
+Dev holds 124 refiner spot rows with zero duplicate `(order_id, metal_id)`
+pairs, and `exchange.refiner_metals` had no such constraint either — only its
+primary key and two plain order indexes. So the new schema preserves exchange's
+looseness rather than losing a guarantee.
+
+What it means practically: `refiners/spots` `create` is not idempotent and
+cannot be made so without a migration. Both facts are stated in the SQL and in
+the repo, so the next person to reach for `ON CONFLICT` there finds out by
+reading rather than by 42P10.
+
+Worth a decision, not a fix tonight: adding `UNIQUE (order_id, metal_id)` to
+`refiners.spots` would make it match its sibling and make the create
+idempotent. It needs a production check first — dev is clean, production is not
+measured — and adding a unique constraint to a table that turns out to hold
+duplicates fails the migration.
+
+### Two things checked and found benign
+
+`exchange.refiner_metals` has 60 rows with a null `purchase_order_id`, which
+looks alarming for a column the new schema declares `NOT NULL`. They are sales
+orders: 64 purchase + 60 sales = 124, no row has neither, and every
+`refiners.spots` row points at an order that exists. **Sales orders carry
+refiner spots too** — which is why the new table's single `order_id` is the
+right shape and why the write must not assume a purchase order. There is a test
+for the sales direction specifically.
+
+## D45 — an order's offer, money and address link have no foreign key to the order
+
+Found while working out what `purgeCancelled` would have to become, which is
+the only destructive path in purchase-orders.
+
+`pg_constraint`, which is authoritative here (the `information_schema` join
+gives duplicated rows and disagreed):
+
+| child | order_id FK | ON DELETE |
+|---|---|---|
+| `orders.items` | yes | NO ACTION |
+| `orders.spots` | yes | NO ACTION |
+| `refiners.spots` | yes | NO ACTION |
+| `fulfillments.fulfillments` | yes | CASCADE |
+| `payments.intents` | yes | NO ACTION |
+| `payments.ledger` | yes | SET NULL |
+| `reviews.reviews` | yes | NO ACTION |
+| **`orders.offers`** | **none** | — |
+| **`orders.transactions`** | **none** | — |
+| **`orders.addresses`** | **none** | — |
+
+Those three carry foreign keys for *other* columns — `offers` and
+`transactions` to `auth.users` for their audit columns, `addresses` to
+`places.addresses` — so it is not that constraints were forgotten wholesale.
+The link to the order specifically is missing.
+
+**What it costs.** An order's offer, its money row and its address link can all
+be orphaned and nothing in the database objects. `exchange` was stricter:
+`purchase_order_items`, `order_metals`, `refiner_metals`, `payouts` and
+`shipments` all cascaded from `exchange.purchase_orders`, so deleting an order
+took its children with it, atomically, in the database rather than in a
+service. Three of the new schema's five children have neither cascade nor
+refusal.
+
+This is not hypothetical — it is what tonight's orphan cleanup is about. The
+rows waiting on `clean:dual-orphans` exist partly because nothing refused them.
+
+### And `purgeCancelled` cannot be translated as one statement
+
+`DELETE FROM exchange.purchase_orders WHERE purchase_order_status = 'Cancelled'`
+becomes three separate problems in the new schema:
+
+1. **`orders.orders` holds BOTH directions.** exchange had two tables; the new
+   schema has one with a `direction`. `DELETE FROM orders.orders WHERE status =
+   'Cancelled'` deletes cancelled **sales** orders as well. Dev has 3 cancelled
+   purchase orders and **0 cancelled sales orders**, so nothing would be lost
+   today — that is luck, not safety, and production is unmeasured.
+2. **It would raise 23503 rather than run.** `orders.items`, `orders.spots`,
+   `refiners.spots`, `payments.intents` and `reviews.reviews` are all NO
+   ACTION, and the 3 cancelled orders carry 3 items, 12 spots and 3
+   transactions between them. So the naive statement fails loudly — which is
+   the one piece of good news here.
+3. **It would silently orphan the three tables above**, which have no FK to
+   refuse it.
+
+**I have not built it, and that is a deliberate call.** It is destructive, it
+is excluded from testing by standing instruction so it cannot be verified, its
+correct form needs explicit child deletes in a specific order, and getting the
+order wrong on a real money system loses assay figures and payout records that
+exist nowhere else. Writing an unverifiable `DELETE` against production data
+shapes autonomously is exactly the case CLAUDE.md's "when unsure, stop and ask"
+covers. Everything needed to write it is above; it wants a human eye on the
+child ordering before it runs even once.
+
+Until then `purgeCancelled` keeps writing `exchange` alone. That is a known
+divergence rather than a hidden one: after the pivot, an order purged from
+`exchange` survives in `orders.orders`, which `verify:parity` would report.
+
+## D46 — the test suite leaks orders into dev, about three per run
+
+Found while investigating a `NaN` reported by `verify:orders-decomposition`,
+which turned out to be the smaller half of the story.
+
+**Measured.** `orders.orders` holds 42 rows; `exchange` holds 21 purchase and
+15 sales, 36 together. The six-row gap is entirely orders that exist in the new
+schema and in neither exchange table. All six were created within the last
+hour, in **two batches of three**, at 06:47:46–06:47:56 and 06:52:42–06:52:53 —
+which are exactly the two full-suite runs made in that window.
+
+Every one of the six carries `created_by = 'Dorado Metals Exchange'`, a status
+of `Pending`, and an `orders.offers` row. None has spots. Three have one item.
+
+**This is the known leak mechanism, still live.** `audit:test-leaks` was
+written for precisely this — a test that calls a service does not contain it,
+because the service opens its own transaction on its own pool connection and
+commits while the test's rolls back. It is also already recorded that
+**`audit:test-leaks` cannot see new-schema leaks**: it fingerprints `exchange`
+tables, and these rows never touch `exchange`. So the one guard aimed at this
+class of bug is blind to exactly this instance of it.
+
+**Two consequences that matter more than the rows themselves.**
+
+1. **The orphan list is a moving target.** `clean:dual-orphans` names 11
+   specific ids. Every full-suite run adds roughly three more, so by the time
+   that command is run the list is already short. It should be re-derived
+   immediately before it is run, not trusted from a note written earlier.
+2. **Dev drifts under measurement.** Any comparison of the two schemas — the
+   decomposition gates, `verify:parity`, `audit:coverage` — is being taken
+   against a database that gains rows on one side every time the suite runs.
+   That is why the gate's order counts have crept up (27 purchase orders
+   against 21 in exchange).
+
+**And two of the leaked rows carry a corrupt value.** `refiners.items.content`
+holds Postgres `NaN` — a real NUMERIC value, not null — on the lines belonging
+to two of these six orders. `exchange.scrap.content_actual` has **zero** NaN
+across its 20 rows, and `orders.items` has none either, so this is not migrated
+data: something wrote it. The rows read `pre_melt = 10.000, post_melt = 8,
+purity = 0.500`, where content should be 4. Round synthetic numbers, on rows
+created by the suite an hour ago.
+
+`NaN` in an assay figure is worth naming plainly: it is the recorded amount of
+metal recovered from a customer's parcel. It propagates through arithmetic
+silently — `NaN * anything` is `NaN`, and no comparison against it is ever
+true, so a threshold check passes or fails without anyone noticing which.
+
+**Not fixed tonight, and the pivot is not being attempted on top of it.**
+Deleting rows needs confirmation, and more importantly the leak should be
+stopped before the strays are cleared, or the next suite run simply makes more.
+Finding which test does it is the next step: the signature is narrow —
+`created_by = 'Dorado Metals Exchange'`, an offer row, no spots.
+
+### D46, continued — the leak is in the cleanup, not the test
+
+`features/purchase-orders/service.test.js` explains its own design in a comment,
+and the comment is correct as far as it goes:
+
+> The services open their own transactions, so these tests cannot run inside
+> one - a rolled-back outer transaction would not see the service's commit.
+> They clean up after themselves instead, on a second connection.
+
+That is a reasonable answer to a real problem. The gap is in what `cleanup`
+removes:
+
+```js
+DELETE FROM exchange.purchase_order_items WHERE purchase_order_id = $1
+DELETE FROM exchange.scrap               WHERE id = $1
+DELETE FROM exchange.purchase_orders     WHERE id = $1
+```
+
+**Three exchange tables, and nothing else.** The services these tests exercise
+dual-write, so the same operations also produce `orders.orders`,
+`orders.offers`, `orders.items` and `refiners.items` rows. Those are not
+deleted. The fixture is torn down on the old side and left standing on the new
+one — which is exactly the signature of the six strays: present in the new
+schema, absent from both exchange order tables, carrying an offer row.
+
+It also explains the corrupt value. `refiners.items` for those rows holds
+`pre_melt = 10.000, post_melt = 8, purity = 0.500` — the literal fixture on
+line 138 of that file, where the test itself asserts `content` should be **4**
+("8 post-melt at 0.5 purity"). exchange got 4; the new-schema copy got `NaN`.
+So the two sides of the dual write do not agree on how content is derived, and
+only the exchange side is asserted.
+
+**This is a second, independent finding inside the first.** The leak is a
+tidiness problem; the two schemas disagreeing about an assay figure is not.
+`verify:parity` does not cover orders, so nothing else would have reported it.
+
+**The per-directory measurements say the cleanup is not the whole story.**
+Twelve feature groups were run one at a time with a row count either side —
+checkout, purchase-orders, sales-orders, orders, scrap, sales-tax, refiners,
+shipping, media, payments, users, transactions — and `orders.orders` stayed at
+**42 throughout**. Not one group leaked.
+
+**CONFIRMED: THE LEAK IS A RACE, AND SERIALISING THE SUITE AVOIDS IT
+ENTIRELY.** A full run with `--test-concurrency=1` — all 867 tests, the same
+861 passing and the same six failures — left `orders.orders` at **42, exactly
+where it started**. Two parallel runs of the identical suite leaked three each.
+
+So the cleanup gap is real but is not what fires. Under parallelism something
+re-creates the new-schema rows after `cleanup` has removed the exchange ones —
+the likeliest shape being one test's mirror reading `exchange` a moment before
+another test's cleanup deletes it, and writing `orders.orders` after. That fits
+the already-recorded observation that `dual` deadlocks under parallel load, and
+the two purchase-orders tests that pass alone and fail in a group.
+
+**Immediate mitigation, no code change required:** run the suite with
+`--test-concurrency=1`. It costs wall-clock time and stops dev accumulating
+strays. Worth considering as the default until the race is understood, because
+a suite that mutates the database it measures makes every two-schema comparison
+unreliable.
+
+**A measurement error worth recording, because it nearly became a finding.**
+The first sweep reported `orders LEAKS`. It had not: a probe script was deleted
+while the sweep was still running in the background, so every count after the
+first came back an empty string, and "42" differing from "" was reported as a
+leak. The eight groups after that compared empty to empty and were reported
+clean. **One deleted file invalidated ten of twelve measurements while leaving
+output that looked exactly like data.** The numbers above are the rerun.
+
+## D47 — a fallback that cannot fire, on the assay figures
+
+`features/scrap/repo.js`, `updateScrapItem`, live code on the admin edit path:
+
+```js
+const content_actual =
+  convertTroyOz(
+    item.scrap.post_melt_actual ?? item.scrap.pre_melt,
+    item.scrap.gross_unit
+  ) * item.scrap.purity_actual ?? item.scrap.content;
+```
+
+The trailing `?? item.scrap.content` is plainly meant to say "and if we cannot
+compute it, keep what we had". **It can never fire.** `??` falls back only on
+`null` and `undefined`, and the expression before it produces neither:
+
+- `purity_actual` **undefined** → `10 * undefined` → **`NaN`**, and
+  `NaN ?? x` is `NaN`.
+- `purity_actual` **null** → `10 * null` → **`0`**, and `0 ?? x` is `0`.
+
+So a missing assay purity is stored either as `NaN` or as a silent `0`,
+depending only on whether the caller omitted the key or sent it as null. The
+guard against exactly that outcome is present, reads correctly, and does
+nothing. `content` on the line above has the same shape and the same flaw.
+
+**What that column is.** `content_actual` is how much metal was actually
+recovered from a customer's parcel once it was melted and assayed — the number
+the payout is computed from. `0` is the worse of the two failures: `NaN`
+poisons any arithmetic downstream and is at least conspicuous, while `0` looks
+like a legitimate reading of "nothing recoverable".
+
+**Verified against production, read-only, and it has not fired.**
+`exchange.scrap` holds 105 rows with **0 NaN in `content` or `content_actual`,
+and 0 rows where `content_actual` is zero**. Two rows have `content = 0`, which
+may be legitimate. So this is a latent defect, not damage already done.
+
+**But the path is live.** 47 of those 105 rows have `purity_actual` and
+`post_melt_actual` NULL. An admin editing one of those lines writes through
+this function; whether the result is `NaN` or `0` depends on how the frontend
+serialises an empty field, which nothing on the API side controls or checks.
+
+**Found in dev, where it HAS fired.** Two `refiners.items` rows hold
+`content = 'NaN'::numeric`, mirrored from scrap rows written by
+`features/purchase-orders/service.test.js`, whose fixture supplies `post_melt`
+and `purity` but no `_actual` values. The exchange rows were removed by that
+test's cleanup; the mirrored copies survived, which is how they were still
+visible (D46).
+
+**Not fixed, deliberately, and this one is a genuine question rather than
+caution.** Making the fallback work is one line — reject non-finite results
+before the `??`. What it should fall back *to* is the part I should not decide:
+`item.scrap.content` is the **estimated** content, and quietly substituting an
+estimate for a measurement is arguably worse than storing nothing. Refusing the
+write, or leaving the column untouched, may be the right answer instead. That
+is a decision about how the business records what it recovered, and it wants a
+person.
+
+Worth pairing with a check: nothing currently rejects a non-finite number on
+the way into a NUMERIC column. Postgres accepts `NaN` there quite happily, and
+node-postgres serialises a JavaScript `NaN` straight through.
+
+## D48 — `audit:non-finite`, and the answer for both databases
+
+D47 is a defect that writes a `NaN` into a column recording how much metal came
+out of a customer's parcel. Reading the code found it; nothing was asking the
+data. `scripts/audit-non-finite.mjs` now does.
+
+It enumerates every `numeric`, `double precision` and `real` column across all
+nineteen schemas and counts the values that are not finite — `NaN` for numeric,
+`NaN` and both infinities for the float types, asking each type only what it
+can answer. Views are excluded (they carry no rows of their own and would
+double-count their tables).
+
+**Dev: 187 columns across 44 tables — one finding.**
+
+```
+NOT FINITE  refiners.items.content — 2 of 29 row(s) not finite
+```
+
+Exactly the two rows D47 predicted, and nothing else.
+
+**Production: 151 columns across 38 tables — every value finite.**
+
+That is the number worth having. The D47 defect is real, its path is live on 47
+of 105 scrap rows, and it has **not fired against production data**. Previously
+that was inferred from two hand-written counts on one table; it is now measured
+across every numeric column the business has. (Production shows fewer columns
+than dev because none of the 89 migrations have been applied there yet, which is
+the expected difference and not a gap in the scan.)
+
+**Guards, because this is a check whose failure mode is reporting clean.**
+`--self-test` asks Postgres to distinguish a literal `'NaN'::numeric` from a
+real value, proving the comparison works without writing a NaN anywhere. A
+floor refuses to report at all if the catalogue query returns fewer than 100
+columns — the same narrowing failure D40 found in the side-effect guard. And it
+prints its denominator.
+
+**Not in `pnpm check` yet.** It needs a database and dev currently has a real
+finding, so adding it would fail the build for a condition Jacob has not decided
+on. `--strict` makes it CI-ready the moment the two dev rows are cleared.
+
+### The sweep it came from
+
+Every arithmetic expression feeding a `??` was checked. The correct pattern —
+guarding each operand *before* the multiplication, `(a ?? 0) * (b ?? 0)` — is
+used consistently in both `calculations.ts` files. **The D47 shape appears only
+on lines 9 and 15 of `features/scrap/repo.js`.** Line 75 of the same file has
+it the right way round: `item.content ?? (item.pre_melt ?? 1) * (item.purity ?? 1)`.
+
+So this is a bounded defect in one function, not a habit spread through the
+codebase — which is the more useful thing to know before deciding how to fix it.
+
+## D49 — the frontend can take a payment and then throw before creating the order
+
+Order item (2) asked for a coverage re-audit. The counts first, then the thing
+the counts led to.
+
+**Frontend: 13 test files, 260 `.tsx` files.** Unchanged from the earlier
+figure. There is no `components/` directory — the 260 are feature components —
+so "0 of 260 covered" remains the honest summary.
+
+**Exactly five files call `.parse()` at runtime**, and all five parse an
+*outgoing checkout payload* rather than an API response:
+
+| file | schema | path |
+|---|---|---|
+| `checkout/purchase-order-checkout/reviewStep/reviewStep.tsx` | `purchaseOrderCheckoutSchema` | customer sells |
+| `checkout/sales-order-checkout/salesOrderCheckout.tsx` | `salesOrderCheckoutSchema` | customer buys |
+| `stripe/ui/SalesOrderStripeForm.tsx` | `salesOrderCheckoutSchema` | customer buys |
+| `stripe/ui/AdminStripeForm.tsx` | `adminSalesOrderCheckoutSchema` | admin |
+| `orders/salesOrders/admin/createSalesOrder/createSalesOrderDrawer.tsx` | `adminSalesOrderCheckoutSchema` | admin |
+
+That distinction matters and softens part of the earlier concern: a schema
+validating what the browser is about to *send* **should** be strict, and is not
+the same hazard as one parsing what the API returns. But the payload is
+assembled from API-supplied data — `{ ...data, items: liveCartItems }`, where
+the cart comes from the server — so an API null in a field the schema requires
+still becomes a browser-side throw.
+
+**What happens when it throws is the finding.**
+
+`reviewStep.tsx` is the only one of the five with a `try`, and its `catch` is:
+
+```js
+} catch (err) {
+  console.error('Invalid purchase order data', err)
+}
+```
+
+The order is not placed, nothing is shown, and the button stays enabled reading
+"Confirm and Place Order". A customer clicks it and nothing happens, forever,
+with the explanation in a console they will never open.
+
+**The other four have no `catch` at all, and the app has no error boundary** —
+no `ErrorBoundary`, no `componentDidCatch`, anywhere in `frontend/`.
+
+### And two of those four parse *after* the payment succeeds
+
+`SalesOrderStripeForm.tsx`:
+
+```js
+if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
+  const checkoutPayload = { ...orderData, address: orderData.address!, items: liveItems }
+  const validated = salesOrderCheckoutSchema.parse(checkoutPayload)   // throws here
+  createOrder.mutate({ paymentIntentId: paymentIntent.id, sales_order: validated, ... })
+}
+```
+
+`AdminStripeForm.tsx` has the identical shape. The sequence is: **Stripe
+confirms the charge → the payload is validated → the order is created.** A
+throw in the middle step means the customer has been charged and no order
+exists, with no catch, no boundary and no message.
+
+Note also the `!` assertions on `orderData.address` and `orderData.service`
+directly above the parse. TypeScript is being told those cannot be null at
+exactly the point where the runtime check assumes they might be.
+
+**This is a plausible mechanism for an open thread already in this file:**
+"Production has no record of $126.48 it was paid" — three captured Stripe
+intents with no matching order, whose recorded symptom is "a checkout that
+fails at the last step". That was attributed to the webhook not landing. This
+is a second, independent path to the same outcome, on the client side, and it
+would leave exactly the same evidence: money at Stripe, nothing in the
+database.
+
+**I am not claiming it caused those three.** The webhook explanation is
+documented and may well be right; both can be true, and distinguishing them
+needs the browser console from a failed attempt or a Sentry-style report, which
+this project does not appear to have. What is certain is that the code can
+produce that outcome and nothing would record it.
+
+**Not changed.** Ordering a payment and an order creation correctly is the same
+class of problem as `sendOrderToSupplier` — the one the API's
+"nothing irreversible inside a transaction" guard exists for — and the fix is a
+design decision about what to do with a captured payment whose order cannot be
+built: retry, refund, or create the order and repair it. That is Jacob's call.
+The cheap first move, independent of that decision, is an error boundary and a
+`catch` that tells the customer something went wrong and gives support the
+payment intent id.
+
+### D49, continued — the audit that should cover this does not
+
+`audit:frontend-nullability` exists to find exactly this: a frontend schema
+stricter than the API's own data. Re-run tonight it reports **77 fields
+compared, 30 stricter, 16 in schemas parsed at runtime** (drifted by one from
+the previously recorded 31/17).
+
+Its last line is the important one:
+
+> unmapped, NOT checked: adminSalesOrderCheckoutSchema, insuranceSchema,
+> packageSchema, pickupSchema, **purchaseOrderCheckoutSchema**,
+> purchaseOrderReturnShipmentSchema, **salesOrderCheckoutSchema**,
+> salesOrderReturnShipmentSchema, serviceSchema, signInSchema, signUpSchema
+
+**All three checkout schemas — the ones that can strand a payment — are in the
+not-checked list.** Not through any oversight in the audit's logic: it maps a
+schema to a single table, and a checkout payload is not one table. But the
+effect is that the check aimed at this hazard skips the schemas where the
+hazard costs money.
+
+**They are covered indirectly, and that is where the triggers are.** The
+composites are built from schemas the audit *did* flag:
+
+```
+salesOrderCheckoutSchema      items: z.array(productSchema)          [RUN] requires is_generic
+adminSalesOrderCheckoutSchema order_metals: z.array(spotPriceSchema) [RUN] requires bid_spot,
+                                                                     percent_change, dollar_change
+                              user: userSchema                       [RUN] requires name
+both                          address: addressSchema                 requires is_valid, is_residential
+```
+
+Every one of those columns permits NULL. So a single cart product with a null
+`is_generic` throws inside `salesOrderCheckoutSchema.parse` — which, in
+`SalesOrderStripeForm.tsx`, runs after the charge.
+
+**Measured against production: not currently triggerable by nulls.**
+
+| required field | production |
+|---|---|
+| `products.is_generic` | 0 null of 95 |
+| `metals.bid_spot` / `percent_change` / `dollar_change` | 0 null of 4 |
+| `users.name` | 0 null of 75 |
+| `addresses.is_valid` / `is_residential` | 0 null of 73 |
+
+So the D49 path is real but its nullability triggers are absent today — the
+same shape as D47: a live mechanism, no damage yet. The columns still permit
+NULL, so a product created without `is_generic` or an address without
+`is_residential` arms it.
+
+**And nullability is only one trigger class.** A parse also throws on a type
+mismatch, an unexpected enum value in `paymentMethodTypeSchema`, or an empty
+cart against `items.min(1)`. Measuring nulls clean does not make the
+charge-then-throw safe; it only rules out one way in. The ordering is the
+defect, not the schema.
+
+**Worth doing to close the audit gap:** teach `audit:frontend-nullability` to
+follow composite schemas down to their component schemas, so a payload schema
+inherits the findings of everything it embeds. It already knows productSchema,
+spotPriceSchema, userSchema and addressSchema are stricter than their columns —
+it simply never connects that to the three payloads built from them.
+
+## D50 — the coverage re-audit, and two of my own tests that tested nothing
+
+Order item (2), finished. Three audits re-run, and the last one found something
+in work written earlier tonight.
+
+**`audit:wire-readiness` — 7 adapters, 375 frontend files.** Unchanged in
+substance: `MEDIA_WIRE` clear at 0 occurrences; `PRODUCTS_WIRE` **124**
+(`product_name`→`name` 98, `product_type`→`type` 19,
+`product_description`→`description` 7); `SPOTS_WIRE` **86**
+(`bid_spot`→`bid` 68, `ask_spot`→`ask` 18, plus 31 `.type` accesses it declines
+to count globally). Four adapters report `?` because they are structural lifts
+with no name to grep for. **SPOTS_WIRE has drifted up from the recorded 83 to
+86** — no frontend code was written tonight, so that is either files changing
+under the scan or the earlier figure being stale. Worth a glance, not alarm.
+
+**`audit:vacuous-tests` — 801 tests in 122 files, 25 LOOP.** And six of the
+flags were mine, from tonight.
+
+Two were false positives, and the reason is worth recording: the loops over
+`Object.entries(FLAGS)` and `Object.entries(AMOUNTS)` are preceded in the same
+test by a `deepEqual` of the key list against a literal, which proves the
+collection is non-empty. The detector cannot see a floor asserted that way — it
+looks for a dedicated test or a counter. Leaving them; the alternative is
+loosening a detector that has now earned its keep twice.
+
+**Four were real, and two of those were worse than "real".**
+
+The `for … of others` loops in `orders/spots` and `refiners/spots` asserted the
+update was narrow, but nothing proved `others` was non-empty. Fixed with an
+explicit assertion.
+
+The other two are the interesting ones. Both read:
+
+```js
+if (!absent) return assert.ok(true, "every metal is already quoted on this order");
+```
+
+Adding the assertion the detector wanted turned both **red**. `absent` was
+always falsy: there are exactly four metals, `insertOrderMetals` quotes all
+four, and every order in dev carries all of them — so the early return fired
+every single time and **neither test ever tested anything**. They passed for
+their whole (short) life while asserting nothing, which is precisely the defect
+`audit:vacuous-tests` was written to find, committed by tests I wrote hours
+after describing that hazard.
+
+Rewritten to **create** the condition rather than look for it — deleting the
+metal's row inside the transaction the test already rolls back — so
+"a metal the order does not carry" genuinely exists for the duration of the
+assertion. Both now pass on their merits, and the file says why the condition
+has to be manufactured.
+
+**The general point:** a test that skips when its precondition is absent is
+indistinguishable, in a green run, from a test that passes. Assert the
+precondition or build it; never return.
+
+### D49, corrected — the audit did connect them; it just never said so
+
+The D49 note above says `audit:frontend-nullability` "does not cover" the three
+checkout payload schemas. **That overstates it, and the correction matters.**
+
+Reading the script rather than its output: it already resolves composition. A
+fixed-point loop walks every `\w+Schema` name inside a schema body and marks it
+parsed-at-runtime if anything embedding it is parsed. That is precisely *why*
+`productSchema`, `spotPriceSchema` and `userSchema` carry the `RUN` marker —
+they are not parsed directly anywhere, they inherit it from the checkout
+payloads. So the connection D49 asked for was already being made, for the
+question that decides whether a mismatch can throw.
+
+What was missing was only the **report**. The reader saw
+`unmapped, NOT checked: …salesOrderCheckoutSchema…` and had no way to tell that
+its components were checked, that they carry findings, or that the payload is
+parsed at runtime. A true statement, phrased so as to look like a hole.
+
+Now it prints the relationship:
+
+```
+unmapped, no table of their own: adminSalesOrderCheckoutSchema, …
+  adminSalesOrderCheckoutSchema is covered through: addressSchema (11 finding(s)),
+      productSchema (1), spotPriceSchema (3), userSchema (1)  [PARSED AT RUNTIME]
+  purchaseOrderCheckoutSchema  is covered through: addressSchema (11)  [PARSED AT RUNTIME]
+  salesOrderCheckoutSchema     is covered through: addressSchema (11), productSchema (1)  [PARSED AT RUNTIME]
+```
+
+That is the D49 blast radius in three lines: **16 stricter-than-the-column
+fields reachable from the admin checkout parse, 12 from the customer sales
+checkout, 11 from the purchase checkout** — each one a value that, if it ever
+arrives null from the API, throws inside a `.parse()` that in two of the three
+runs *after* the Stripe charge.
+
+Note `addressSchema` carries **11** findings, not the two named earlier; the
+earlier figure was the two I happened to quote from the output, not the total.
+
+**No behaviour changed** — this only alters what the audit prints. The counts,
+the comparisons and the RUN determination are as they were.
+
+## D51 — the "six known failures" are five itemless orders the suite creates, one per run
+
+I have been calling the six persistent test failures "orphan/leak collateral"
+all night, on a diagnosis made early and then repeated rather than rechecked.
+It is roughly right and precisely wrong, and the precise version is more useful.
+
+**Chasing the actual assertions.** One failure reads
+`actual: 'object', expected: 'number'` — which is `typeof null`, not some exotic
+value. Another names `order 7922: 1 of 1 items have no scrap or product object`.
+Both point at the same thing.
+
+`exchange.purchase_orders` order 7922 exists, is `Pending`, was created **today**
+— and has **zero items**. No exchange order item anywhere lacks both `scrap_id`
+and `product_id`, so "1 of 1 items with no scrap or product" is not a broken
+item row. It is the legacy projection: `json_agg(DISTINCT jsonb_build_object(…))`
+over a `LEFT JOIN` yields **one all-null object** for an order with no items,
+and the tests assert real values against it. That is the already-recorded
+decision "an itemless order returns `[]` not `[{all null}]`" showing up as a
+failure because data now exists that exercises it.
+
+**And there are five of them:**
+
+| order | status | created | in new schema |
+|---|---|---|---|
+| 7866 | Pending | 2026-08-27 | yes |
+| 7880 | Pending | 2026-08-27 | yes |
+| 7894 | Pending | 2026-08-27 | yes |
+| 7908 | Pending | 2026-08-27 | yes |
+| 7922 | Pending | 2026-08-27 | yes |
+
+**Spaced by exactly 14, all created today, all in BOTH schemas.** The suite has
+been run five times tonight. That is one itemless order per run, with the
+sequence advancing 14 between them as other tests consume numbers.
+
+**This is a SECOND leak, and a different one from D46.** D46's strays exist in
+the new schema only, because a hand-written `cleanup` deletes the three exchange
+tables and not their dual-written counterparts. These exist in **both** schemas
+and are never deleted at all — a test creates a purchase order, never gives it
+items, and never removes it. D46's leak is a race that serialising avoids; **this
+one happens on every run, serialised or not.** The serialised run I just
+finished left `orders.orders` at 42 while still adding one of these, because
+these orders are created through the normal path and counted in that 42.
+
+**What it means for the six failures.** They are not evidence of a defect in
+the migration. They are the legacy projection meeting itemless orders that a
+test manufactures and abandons. Clearing them makes the six pass; fixing the
+test stops them coming back. Both are worth doing, and the second matters more —
+`clean:dual-orphans` names a fixed list of ids, and this adds one more every
+time anyone runs the suite.
+
+**Not fixed:** finding the creator needs a per-file run with a count of
+`exchange.purchase_orders` either side, which is the same measurement D46 used.
+The signature is narrow: a purchase order with a user, `Pending`, and no items.
+
+### D51, hunt in progress — and what the order numbers say
+
+Two candidates eliminated by measurement (`exchange.purchase_orders` total and
+itemless count, before and after, one file at a time):
+
+| file | total/itemless |
+|---|---|
+| `shipping/shipments/tests/service.test.js` | 21/5 → 21/5 clean |
+| `purchase-orders/service.test.js` | 21/5 → 21/5 clean |
+
+The shipments fixture was the obvious suspect — it inserts a purchase order
+into **both** schemas with the same id, `Pending`, with no items, which is D51's
+signature exactly. It does so inside `inRollback`, and the measurement confirms
+the rollback holds.
+
+**The order numbers narrow it further than the file list does.** The five
+itemless orders are 7866, 7880, 7894, 7908, 7922 — spaced by **exactly 14**.
+`nextval` is not transactional: a rolled-back insert still consumes its number.
+So a full suite run draws **14 order numbers, of which exactly one commits**.
+That is a strong constraint — there are about fourteen order-creating
+operations in the suite, thirteen of which correctly roll back, and the guilty
+one is not merely "a test that makes an order" but the single one that escapes.
+
+It also means the gap will stay at 14 as long as the suite's shape is stable,
+so the arithmetic is a check on any proposed culprit: whatever is found must be
+called exactly **once** per run, not once per test.
+
+**Method note for whoever continues this.** Measuring
+`exchange.purchase_orders` is the right probe, not `orders.orders` — D46's
+strays inflate the latter and would mask the signal. Count the itemless subset
+too; a test that creates an order *with* items is not this one.
+
+### D51 — seven candidates eliminated, and the creator is application code
+
+All seven order-creating test files measured **21/5 → 21/5, clean**:
+`purchase-orders/service.test.js`, `purchase-orders/repo.dual.test.js`,
+`orders/parity.test.js`, `purchase-orders/write.service.test.js`,
+`orders/create.test.js`, `orders/intake.test.js`,
+`checkout/repo.dual.test.js` — plus `shipping/shipments/tests/service.test.js`
+from the previous pass.
+
+**So no test creates these directly.** Searching for the distinctive shape — the
+same id inserted into `exchange.purchase_orders` *and* `orders.orders` — finds
+exactly one test file (the shipments one, clean) and three pieces of
+**application code**:
+
+- `features/orders/create.ts`
+- `features/purchase-orders/repo.next.ts`
+- `features/purchase-orders/sql/create.sql` (written tonight; its caller is
+  covered by `write.service.test.js`, clean)
+
+`features/orders/create.ts` is the intake path, and its structure explains how
+an itemless order becomes possible. `createFromCheckout` threads an executor
+through every step — `nextNumber`, the `orders.orders` insert, `copyItems`,
+`retierScrapPremiums`, `freezeSpots`. A caller that **omits** the executor puts
+each step on its own connection, committing independently: the order row lands
+and stays, and if `copyItems` finds nothing in the checkout, the order is
+committed with no items. That is D51's shape precisely.
+
+**The once-per-run constraint still holds and is the sharpest tool here.** The
+14-number gap means thirteen order creations roll back and one does not, so the
+culprit is called once per suite run — which fits a `before()` hook or a
+module-level side effect far better than a test body. Eight test files have
+`before()` hooks that mention order creation, all but one in `purchase-orders`,
+and that group already measured clean on `orders.orders` (42 → 42) in an
+earlier valid pass.
+
+A full per-group sweep on `exchange.purchase_orders` — the correct probe, since
+`orders.orders` is inflated by D46's separate strays — is running.
+
+### D51, corrected — two claims of mine were inference, not measurement
+
+**Every one of 22 feature groups measures 21/5 → 21/5.** orders, checkout,
+purchase-orders, sales-orders, scrap, shipping, refiners, payments, users,
+transactions, sales-tax, media, products, spots, places, leads, rates, reviews,
+auth, authorization, fulfillments, and shared+providers. **Nothing leaks when
+run in isolation.**
+
+That forces two retractions of my own text above.
+
+**"One itemless order per run" — not measured.** I inferred it from five orders
+and "five suite runs". The suite has actually been run eight or nine times
+tonight. Five orders across nine runs is not one per run. What the 14-number
+spacing establishes is only that fourteen order numbers were consumed between
+consecutive itemless orders — which may span several runs, since `nextval`
+counts every attempt from every run.
+
+**"Fires on every run, serialised or not" — not measured either.** I never took
+an `exchange.purchase_orders` count *before* the serialised run. What I observed
+was `orders.orders` holding at 42, which is a different counter and speaks to
+D46's strays, not these. The serialised run may well have leaked nothing.
+
+**What is actually established:**
+
+- five itemless purchase orders exist, all dated 2026-08-27, all in both schemas
+- their numbers are spaced by exactly 14
+- **no test file and no feature group creates one in isolation** — 8 files and
+  22 groups, all clean
+- therefore creation needs full-suite conditions
+
+That last point makes D51 look like **the same phenomenon as D46 rather than a
+separate one** — a race that only appears under full parallel load — seen from
+the exchange side instead of the new-schema side. I split them into two findings
+on the strength of the "even serialised" claim, and that claim was mine, not the
+data's.
+
+**The decisive experiment**, not yet run: count `exchange.purchase_orders`
+before and after one full **parallel** run, then before and after one full
+**serialised** run. If parallel leaks and serialised does not, D51 collapses
+into D46 and the mitigation is already known. Two runs, and it settles it.
+
+## D52 — the leaks are historical, and my "rates" were never measured
+
+One clean experiment overturns most of D46 and D51. It is worth setting out
+plainly, because both findings were built on inference and only this run
+actually measured the thing they claimed.
+
+**A full PARALLEL suite run, counted on both sides:**
+
+| counter | before | after |
+|---|---|---|
+| `exchange.purchase_orders` total / itemless | 21 / 5 | **21 / 5** |
+| `orders.orders` | 42 | **42** |
+| `orders.orders` rows in neither exchange table | 6 | **6** |
+
+**Nothing leaked. Not one row, on either counter, under full parallelism.**
+
+### What that means for D46
+
+D46 says the suite leaks about three orders per parallel run and that
+serialising avoids it. **The "three per parallel run" was never measured.** I
+derived it from six new-schema-only rows whose `created_at` fell into two
+clusters (06:47:46–56 and 06:52:42–53) and matched those clusters to two runs.
+That is a plausible reading of timestamps, not a before/after count. The
+serialised observation *was* measured (42 → 42) — but a measurement showing no
+leak proves nothing about concurrency if the parallel case also shows no leak,
+which is what just happened.
+
+### What that means for D51
+
+Same shape. "One itemless order per run" came from five rows and a sequence
+gap. Twenty-two groups, eight files, and now a full parallel run all leave
+21/5 untouched.
+
+### The honest conclusion
+
+Both sets of strays are **historical** — created earlier tonight by a code state
+that no longer exists — and **the current tree leaks nothing under either
+scheduling**. The six new-schema-only rows cluster tightly around 06:47 and
+06:52, which is exactly when `write.service.ts` and its test were being written
+and re-run; an intermediate version of that work is the most likely source, and
+if so I made them myself. I am not asserting that — `created_by` on those rows
+is `Dorado Metals Exchange` where my test passes `test`, which does not fit —
+and chasing it further has poor returns now that the bleeding has stopped.
+
+**What survives from D46 and D51, and is still worth acting on:**
+
+- The strays exist and still need clearing; `clean:dual-orphans` should be
+  **re-derived** rather than trusted, because the list was written before them.
+- `features/purchase-orders/service.test.js`'s `cleanup` really does delete only
+  three `exchange` tables while the services under test dual-write. That gap is
+  real whether or not it is currently firing, and it is one edit from mattering
+  again.
+- `audit:test-leaks` really is blind to new-schema-only rows, because it
+  fingerprints `exchange`. That is a structural gap in a guard.
+- The six failing tests really are caused by the five itemless orders meeting a
+  `json_agg`-over-`LEFT JOIN` that renders them as one all-null item.
+
+**What does not survive: the rates.** No leak-per-run figure in D46 or D51 was
+measured, and the one measurement that exists says zero. Serialising the suite
+remains harmless and I would still default to it, but I can no longer say it
+prevents anything.
+
+**The lesson, and it is the third of its kind tonight:** timestamps clustering
+into groups is a story, not a measurement. Counting the same thing before and
+after is a measurement. I wrote the story into two findings and only later ran
+the count.
+
+## D53 — the six failures and most of the gate's divergences are the NEW code being right
+
+A direct comparison of how each read path renders the five itemless orders:
+
+| order | `repo.next.ts` | `read.service.ts` |
+|---|---|---|
+| 7866 | 1 item, `item_type: "scrap"` | **0 items** |
+| 7880 | 1 item, `item_type: "scrap"` | **0 items** |
+| 7894 | 1 item, `item_type: "scrap"` | **0 items** |
+| 7908 | 1 item, `item_type: "scrap"` | **0 items** |
+| 7922 | 1 item, `item_type: "scrap"` | **0 items** |
+
+`repo.next.ts` reproduces the legacy artifact — `json_agg` over a `LEFT JOIN`
+yields one object whose every field is null, and `item_type` is computed as
+`bullion_id === null ? "scrap" : "product"`, so a row of pure nulls is labelled
+a scrap line. `read.service.ts`, composing in JavaScript from one read per
+table, correctly returns an empty array.
+
+**This reframes both of the outstanding blockers.**
+
+**The six failing tests.** They assert against `repo.next.getAll()`. A scrap
+line with a null `content` fails `typeof … === "number"`; a packing list with a
+phantom item fails its count. They are not reporting a defect in the migration —
+they are reporting that **the file the pivot deletes** renders itemless orders
+the way exchange does. The replacement already gets it right.
+
+**The gate.** `verify:orders-decomposition`'s shape comparison is *composed
+query vs read service* — that is `repo.next.ts` against `read.service.ts`. So
+the divergences it lists for those orders are the new path disagreeing with the
+old mirror **in the direction where the new path is correct**. Its other half,
+the comparison against `exchange`, still says "nothing else differs" across 16
+orders, which is the half that speaks to the pivot's safety.
+
+**What follows, and it is the useful part:**
+
+- The pivot does not need the strays deleted to be safe. It needs them deleted
+  to make the *legacy* tests green, which is a different and lesser thing.
+- Six of the gate's 13 divergences would vanish on the pivot itself, because
+  `repo.next.ts` goes with it.
+- The remaining declared differences are the 2 NaN rows (D47) and the 4 shipment
+  drifts already listed in the gate's own "declared differences" block.
+
+**Still not pivoting.** The gate exits non-zero, and "I have explained every
+divergence" is not the same as "the gate passes" — the whole point of a gate is
+that it is checked mechanically rather than argued past. But the character of
+the remaining failures is now known, and it is much better than it looked: they
+are the old code being wrong, not the new code being unfinished.
+
+## D54 — the night's work was not staged, and a plain commit would have lost most of it
+
+Checking the handoff rather than opening another thread turned up the most
+practically important thing of the last few hours.
+
+The working tree held **41 untracked files and a further ~30 unstaged
+modifications**, and every untracked one was tonight's output:
+
+- all twenty-odd new `.sql` statements (`orders/items`, `orders/offers`,
+  `orders/spots`, `orders/transactions`, `orders`, `refiners/spots`,
+  `refiners/items`, `shipping/shipments`, `purchase-orders`)
+- `purchase-orders/{create.repo.ts, legacy.repo.ts, write.service.ts}`
+- `sales-orders/{repo.ts, legacy.repo.ts, write.service.ts}` — the D42
+  convergence
+- six new test files
+- `scripts/audit-non-finite.mjs` and `scripts/audit-table-owners.mjs`
+- `scripts/fixtures/`
+
+My own earlier note said "~200 files, all `git add`-ed", which was true when it
+was written and quietly stopped being true as the night went on. Running
+`git commit` against that state would have committed the pre-existing staged
+work and **silently dropped nearly everything done since**, with no error and a
+plausible-looking commit.
+
+**Now staged: 251 files — 189 added, 29 modified, 26 deleted, 7 renamed —
+with nothing untracked and nothing unstaged.** Verified first that no throwaway
+probe scripts survived (`scripts/_probe*` is empty) and that the untracked
+directories held only real work: `purchase-orders/sql/` (3 statements) and
+`scripts/fixtures/sales-orders-exchange.sql`.
+
+Staging is not committing, so this stays inside the standing instruction that
+commits wait for Jacob. It just means the commit he runs will contain what he
+expects it to.
+
+**The lesson generalises past this repo:** a note recording that work is staged
+decays every time more work is done. The staging state is a fact about the
+index, not about the past, and should be re-checked at the moment it matters
+rather than trusted from a note — the same failure mode as the accepted-list
+entries in `audit:table-owners` and the "one per run" rate in D51.
+
+## D55 — the wire-readiness metric counted test fixtures, so writing tests made the frontend look less ready
+
+`audit:wire-readiness` is the measurement behind half the promotion rule:
+`*_WIRE` moves "when the frontend is ready", and this is the only thing that
+says whether it is. Its SPOTS_WIRE figure had drifted from the 83 recorded in
+CLAUDE.md to 86, and the drift was worth chasing precisely because *nothing in
+the frontend had been touched tonight* — zero frontend files are in the 251
+staged.
+
+**Bisected: all three occurrences came from my own frontend test commits.**
+`0df2607f` +1, `94092652` +1, `5fba6f9d` +1 — the three pricing-test commits.
+The product code did not change at all between `afb489df` (when the audit was
+written) and now.
+
+So the metric moves the **wrong way** when tests get written. That is a
+measurement that punishes the work it is supposed to support.
+
+**Measured split, two independent ways** (the audit's own regex, and a
+`git grep` over the same file set, agreeing exactly):
+
+| switch | counted | product code | test fixtures |
+|---|---|---|---|
+| SPOTS_WIRE | 86 | **76** | 10 |
+| PRODUCTS_WIRE | 124 | **124** | 0 |
+| MEDIA_WIRE | 0 | 0 | 0 |
+
+**The verdict does not change** — SPOTS_WIRE is blocked either way, on 76 real
+reads. What changes is that the number is now interpretable.
+
+**The switch this actually endangers is MEDIA_WIRE.** It is the one switch
+reporting `yes`, at 0 occurrences, and it is therefore the one where a single
+test fixture spelling `checksum_sha256` flips it to `NO` and blocks a promotion
+that is genuinely safe. Nobody would suspect the cause, because the report said
+"still read by the frontend" and the frontend was not the thing that changed.
+
+**Fixed by reporting, not by excluding.** Fixtures stay in the headline count —
+a flip really does break them, and that really is work — but the line now reads
+`86 ... (76 in product code, 10 in tests)`, and a switch blocked *only* by
+fixtures says so explicitly: `ALL of them test fixtures, none in product code`.
+Conservative default, visible interpretation.
+
+Two guards against the classifier itself being wrong: the split was checked
+against an independent `git grep` (76/10 both ways), and the existing
+`--self-test` floor still fires. The one discrepancy I found between my grep and
+the audit's — 125 vs 124 for products — turned out to be **the audit being
+right**: `/products/get_product_types` is a URL path, and its `\b` boundary
+correctly refuses the plural.
+
+CLAUDE.md's 83 has been corrected to 86 with the split, since it was a measured
+fact that had quietly stopped being true.
+
+### Also this tick — the five `audit:vacuous-tests` SKIP findings are live today
+
+Measured every precondition against dev rather than reading the code and
+guessing: scrap-backed order line **20**, `orders.addresses` **20**, admin users
+**3**, scrap a PO points at **20**, fulfillment with an order **23**. All five
+tests currently run and assert. They are **fragile, not vacuous** — each would
+turn silently green if dev's data changed, which is lesson (an) waiting to
+happen, but none is a no-op today. Recording the measurement so the next pass
+does not re-derive it. Not rewritten: the D50 fix (create the condition inside
+the rollback) is right, but it is a bigger change than it looks for the three
+that need an order, and none of them is currently lying.
+
+**LESSON (be): A METRIC THAT COUNTS TEST CODE AS PRODUCT RISK MOVES THE WRONG
+WAY UNDER GOOD WORK.** When a readiness number drifts, bisect it before
+believing it — and check whether the thing it claims to measure is even what
+changed.
+
+## D56 — six tests looped over a query result with nothing asserting it was non-empty, on the two features whose reads moved tonight
+
+Read all 23 `audit:vacuous-tests` LOOP findings one at a time rather than
+dismissing the class. Most are false positives of one consistent kind — the
+detector cannot see a `deepEqual` against a literal in the same test, nor a
+floor asserted in a *sibling* test — but **six were real**, and they cluster
+exactly where it matters.
+
+**`features/sales-orders/repo.next.test.js` — three tests, no floor.**
+`for (const o of await next.getAll())` at three sites, with nothing asserting
+`getAll()` returned anything. The same file asserts `assert.ok(withAddress.length)`
+at line 89, so this was an omission rather than a decision.
+
+That matters because **sales-orders is a feature whose reads moved tonight** —
+`repo.ts`, `compose.ts`, `read.service.ts` and `legacy.repo.ts` are all in the
+staged set. "Returns nothing" is the precise failure a read pivot produces when
+it points at a table nothing has written yet (lesson (u)), and these three tests
+are the guard against it. They would have gone quiet at exactly the moment they
+were needed — three green ticks over zero assertions.
+
+**`features/products/tests/service.test.js:104` — one test, three loops.**
+"each list filters on the flag it claims to": `display` is what a customer may
+buy and `sell_display` what they may sell. An empty list passes all three loops.
+
+**Three more, layered:**
+- `shipping/operations/resolver.test.js:83` — the chain bottoms out here. An
+  empty `PROVIDERS`/`BUILDERS` is caught *only* by this test, and only if
+  `getAllCarriers()` returns something. Nothing asserted that it did, so all
+  three resolver tests could pass having checked nothing. (`:186`/`:197` are
+  themselves false positives — the preceding test asserts
+  `dispatched(...).length >= 9` with a comment naming this very hazard. The
+  author saw it; the detector cannot see across tests.)
+- `places/addresses/tests/service.test.js:300` — `nx` empty means neither
+  address write landed, which *is* the thing under test. Now `>= 2`.
+- `shipping/services/tests/unit.test.ts:121` — an empty `RENAMES` passes every
+  alias check.
+
+**Each fix is a strict strengthening** — it can only fail where the collection
+really is empty. All six files run green after.
+
+**PROVED THE GUARD FIRES**, per lesson (ac): temporarily sliced `getAll()` to
+empty → **8 pass / 1 fail**; restored → **9 pass / 0 fail**. Same method that
+proved the `deleteOrderItems` ownership scoping.
+
+One judgement call: the inner loop of "every line resolves to a product" is
+floored on the **total line count across all orders**, not one line per order —
+an individual order legitimately having no lines is the itemless case from D53,
+and demanding one each would have written D53's bug into a test.
+
+**23 LOOP findings → 13.** The remaining 13 are all assessed false positives of
+the two kinds above; the SKIP findings were measured last tick and all five run.
+
+**LESSON (bg): A LOOP OVER A QUERY RESULT NEEDS A FLOOR EVEN WHEN THE DATA IS
+OBVIOUSLY THERE — "obviously there" is a statement about today's database, and
+the pivot that empties it is the event the test exists to catch.**
+
+## D57 — my production audits were measuring ten of production's thirteen schemas and reporting it as production
+
+`compare:databases` had never been run this session. It now has, and **the
+documented control reproduces exactly: 91 differences across 76 tables**, both
+databases correctly identified (`prod` and `dev` on the same instance), exit 1
+by design. Nothing has moved. That thread is closed.
+
+What it surfaced is more useful than the control.
+
+**Production has thirteen schemas. The read-only audit role can see ten.**
+
+```
+PROD : auctions auth checkout core exchange fulfillments orders
+       payments places public refiners shipping tax
+DEV  : auth checkout exchange fulfillments leads media metals orders
+       organizations payments places products public rates refiners
+       reviews shipping spots tax
+```
+
+`core` holds nine tables in production. `SELECT` against it raises **42501,
+permission denied for schema core** — and the shape of that blindness is the
+dangerous part:
+
+- `core` **is** visible in `pg_tables` — 9 tables. A catalogue walk sees it, and
+  `compare:databases` duly listed all nine.
+- `core` contributes **zero rows** to `information_schema.columns`. A column
+  walk cannot see it at all.
+
+Every production audit I have written or run walks columns. **Zero columns from
+a schema is indistinguishable from a schema holding no columns of interest.**
+
+**This retracts the scope of D48.** "PRODUCTION: 151 columns / 38 tables, every
+value finite" was measured over ten of production's thirteen schemas and
+reported as a statement about production. The column floor could not catch it —
+151 clears the floor of 100 whether or not a schema is missing entirely. The
+same applies to any `--prod` run of `audit:precision` and `audit:nullability`.
+
+**Fixed:** `audit:non-finite` now asks `pg_tables` which schemas exist and
+refuses to report at all when one is unmeasured, distinguishing the two cases —
+present-but-not-in-`SCHEMAS`, and in-`SCHEMAS`-but-no-readable-columns. The
+readability probe is a **separate unfiltered column query**, because the main
+one is already narrowed to numeric types and a schema legitimately holding no
+numeric column contributes zero rows to it. My first version conflated those and
+reported five dev schemas as unreadable; caught by running it.
+
+- dev → clears the guard, 187 columns / 44 tables, and reports its one real
+  finding (`refiners.items.content`, the 2 NaN rows already known from D47).
+- prod → **exits 1** naming `core` (present, not in `SCHEMAS`) and `auctions`
+  (present, no readable columns).
+
+**FOR JACOB — a one-line grant closes this:** `GRANT USAGE ON SCHEMA core` (and
+`auctions`) to the read-only role, and every production audit can see the whole
+database. Until then `core`'s contents are unmeasured by anything.
+
+Not claimed: that anything is wrong inside `core`. It is the January-refactor
+ancestor, `013_split_core_into_feature_schemas.sql` derives the feature schemas
+from it, and `exchange` remains authoritative. The point is only that nobody can
+currently check.
+
+### RETRACTED WITHIN THIS ENTRY, BEFORE IT WAS WRITTEN
+
+I was one step from recording "**zero of the 89 migrations reference `core`, so
+the path from production's actual state to dev's does not exist**". That is
+false. **Eleven migrations reference it, including
+`013_split_core_into_feature_schemas.sql`, named for exactly that
+transformation**, and `067_retire_auctions_from_the_new_schema.sql` explains
+`auctions` — Jacob's own decision, quoted in the file, with the reasoning for
+leaving `exchange.auctions` alone.
+
+The bad grep ran while `cd` had left the shell in `frontend/`, so
+`migrations/*.sql` matched nothing and `grep -l` returned zero files. **An empty
+grep is indistinguishable from a clean result** — the same failure that
+invalidated ten measurements earlier tonight, and mistake #2 on my own list.
+Caught only because I then ran a broader search that disagreed with it.
+
+**LESSON (bi): AN AUDIT IS A STATEMENT ABOUT WHAT IT COULD SEE, NEVER ABOUT THE
+DATABASE — enumerate the schemas from the catalogue and REFUSE when one is
+unmeasured. A column-level scan cannot see a schema it has no USAGE on, and
+reports it as clean.**
+
+## D58 — D57's blindness is bounded to two schemas, and the audit that matters most was never affected
+
+I ended the last tick asserting that `audit:precision` and `audit:nullability`
+"both walk columns, so both are blind to `core` the same way". **I wrote that
+into the handoff without checking it. It is wrong**, and propagating it would
+have cast doubt over two audits that are sound.
+
+- **`audit:nullability`** reads only `table_schema = 'exchange'`. `core` is not
+  in its universe.
+- **`audit:precision`** takes its shape from **dev** and its pairs from the
+  declared `FEATURES`/`FLOWS` map in `feature-map.mjs` — it is map-driven, not a
+  schema walk. `core` is neither a source nor a target in it.
+
+**Measured the real question instead — catalogue against privilege-filtered
+visibility, per schema, on production:**
+
+```
+  auctions       catalogue   2  visible   0   *** 2 HIDDEN ***
+  auth           catalogue   5  visible   5
+  checkout       catalogue   2  visible   2
+  core           catalogue   9  visible   0   *** 9 HIDDEN ***
+  exchange       catalogue  38  visible  38
+  fulfillments   catalogue   5  visible   5
+  orders         catalogue   6  visible   6
+  payments       catalogue   5  visible   5
+  places         catalogue   4  visible   4
+  refiners       catalogue   3  visible   3
+  shipping       catalogue   6  visible   6
+  tax            catalogue   2  visible   2
+```
+
+**`exchange` is fully visible: 38 of 38.** That is the schema that matters —
+`exchange` is authoritative, and `audit:nullability` is the stated authority for
+adding `NOT NULL` against real data rather than dev row counts. It has been
+seeing all of it.
+
+**D57 is therefore bounded, not systemic**: eleven hidden tables, all in `core`
+and `auctions`, and nothing else in production is invisible to the audit role.
+The negative result is worth as much as the finding was — it stops D57 becoming
+a general reason to distrust every production number.
+
+**Landed anyway, because the guard belongs where the authority is:**
+`audit:nullability` now prints `# exchange: 38 of 38 table(s) readable by this
+role` and **exits 1 if the catalogue ever holds an exchange table it cannot
+read**. `information_schema` is privilege-filtered, so a shorter list is
+indistinguishable from a smaller schema — the same shape as D57, guarded before
+it can happen on the one schema where it would matter most. Runs clean,
+**TRUE_EXIT=0**.
+
+Two process notes:
+- `audit:nullability` defaults to **production**, not dev. Worth knowing before
+  reading its output as a dev report.
+- Its first exit code read as 1 because I piped it to `head`, which closes the
+  pipe and kills the producer. That is lesson (k) catching me in the act; the
+  unpiped run is 0.
+
+**LESSON (bk): A FINDING'S BLAST RADIUS IS ITSELF A MEASUREMENT. Having found
+one blind audit, I assumed two neighbours shared the flaw and wrote it down as
+fact. Bounding a defect is as much work as finding it, and skipping that step
+turns one real problem into three imagined ones.**
+
+## D59 — five functions price a purchase-order line, with three different rules for the same premium
+
+Started the 16 untested frontend util modules (item 2). Reading the
+purchase-order pricing group before writing anything turned up more than the
+tests were for.
+
+**A purchase order is what the business PAYS a customer for metal they sent in.**
+Each row is priced by one function and the footer by another, so the two
+agreeing is not a nicety — it is whether the screen adds up.
+
+**The scrap premium, three ways:**
+
+| function | premium rule |
+|---|---|
+| `getPurchaseOrderScrapPrice` | `item.premium ?? scrap.bid_premium ?? 1` |
+| `purchaseOrderScrapTotal` | `item.premium ?? 1` |
+| `purchaseOrderTotal` (scrap branch) | `item.premium ?? 1` |
+| `getPurchaseOrderItemPrice` | `item.premium ?? product.bid_premium ?? scrap.bid_premium ?? 1` |
+
+**Both total functions never look at `scrap.bid_premium` at all.** For a scrap
+line with a `bid_premium` and no explicit `premium` — what a line looks like
+before an admin edits it — the row and the footer are computed from different
+numbers. At a premium of 0.9 the total is ~11% above the sum of the rows it
+claims to add.
+
+**A second inconsistency, opposite directions.** Bullion with no premium
+anywhere falls back to **0** — the business pays nothing. Scrap in the same
+position falls back to **1** — full spot, the business pays the whole market
+price with no margin. Both are one-line `??` chains and they point opposite
+ways.
+
+**A third: `getPurchaseOrderItemPrice` throws where every sibling returns 0.**
+It resolves its spot with `spots.find(...)!` — a non-null assertion — then reads
+`spot.bid_spot`. Every other function in the folder guards (`?? null`, `?? 0`),
+and `getProductPrice` guards explicitly with `if (!spot) return 0`. It is also
+the **only one matching the metal name case-sensitively**;
+`calculatePurchaseOrderTotals` lowercases both sides. Two functions resolving
+the same spot from the same data, disagreeing on both the guard and the
+comparison — so `"gold"` against `"Gold"` is a TypeError in one and a 0 in the
+other.
+
+**MEASURED — latent, not live:**
+
+```
+DEV : 20 scrap lines | 1 with no item premium | 1 of those has scrap.bid_premium <> 1
+PROD: 82 scrap lines | 0 with no item premium | 0 affected
+```
+
+**Every production scrap line carries an explicit `item.premium`, so the two
+paths agree today.** Dev reproduces it on one row. Same calibration as D47 and
+D49: the code is wrong, the data currently saves it.
+
+**NOT FIXED — which rule is correct is a business question**, exactly like D47's
+assay fallback: does an unedited scrap line pay the scrap's own bid premium, or
+full spot? That decides what the business pays for real metal, and it is Jacob's
+call, not mine. Same for whether bullion should fall back to 0.
+
+**Pinned instead**, in
+`features/orders/purchaseOrders/utils/purchaseOrderItemPricing.test.ts` — 17
+tests, and two `describe` blocks are explicitly labelled as pinning a
+disagreement rather than a desired behaviour, including
+`expect(total).not.toBeCloseTo(line)` and `expect(total * 0.9).toBeCloseTo(line)`
+so the gap is stated as exactly the dropped premium. The throw and the
+case-sensitivity are pinned the same way.
+
+**Frontend suite: 14 files / 161 tests, all green.** Untested util modules
+16 → 15.
+
+**LESSON (bl): WHEN N FUNCTIONS COMPUTE THE SAME BUSINESS QUANTITY, READ THEM AS
+A GROUP BEFORE TESTING ANY ONE OF THEM. Each is defensible alone; the defect is
+only visible in the diff between them, and a test written per-function pins the
+inconsistency in place instead of exposing it.**
+
+## D60 — my own "16 untested util modules" was wrong by a factor of three, and one of them is an empty file
+
+Continuing item (2). Before writing more tests I re-derived the list, and the
+list was the first defect.
+
+**I had built it by filename**: `X.ts` counts as tested iff `X.test.ts` exists
+beside it. That misses every module covered by a differently-named test file —
+and `productPricing.test.ts` alone covers four of the modules I had listed as
+untested. Re-derived properly, by **what the test files actually import**:
+
+```
+util modules imported by some test: 18
+util modules imported by NO test:    5
+```
+
+**Five, not sixteen.** Same class of error as everything else tonight: a
+measurement whose method quietly answered a different question than the one I
+asked. A filename convention is not coverage.
+
+**The genuinely untested five, and what each is worth:**
+
+| module | verdict |
+|---|---|
+| `features/addresses/utils/places.ts` | **tested this tick — 17 tests** |
+| `features/addresses/utils/form.ts` | thin `react-hook-form` setValue wrapper; testable with a fake form, low yield |
+| `features/shipping/utils/getRatesInput.ts` | a React hook calling `useMemo` — needs a renderer, and **a renderer is the harness decision that is Jacob's, not mine** |
+| `shared/utils/cn.ts` | three lines wrapping `clsx` + `twMerge`; a test here tests those libraries |
+| `features/orders/purchaseOrders/utils/calculatePurchaseOrder.ts` | **a 0-byte file** |
+
+### `calculatePurchaseOrder.ts` is empty and always has been
+
+Zero bytes, **imported by nothing** (verified: no import of it anywhere in
+`.ts`/`.tsx`, excluding the separate and real `calculatePurchaseOrderTotals`),
+present since `ff6320e2`, the workspace conversion.
+
+**Not deleted** — that is Jacob's call and there is no urgency. But it sits in a
+folder with five real pricing functions, under a name that reads as *the* place
+the purchase-order calculation lives, which is a trap for the next person
+looking for D59's logic.
+
+### What `places.ts` turned out to be worth testing
+
+This is the only path by which a customer's address enters checkout without
+being typed field by field, and its output feeds two gates. **Both are
+constants in the function, not values read from the place:**
+
+- **`is_valid: true`** — unconditional. `useGetRatesInput` returns `null` and
+  quotes nothing unless `address.is_valid`, so anything from Places clears that
+  gate by construction. **Including the case where the street line came back
+  empty**: a place with components but no `street_number`/`route` yields
+  `line_1: ""` and `is_valid: true`. Pinned as its own test.
+- **`country: 'United States'`** — hardcoded. A Toronto result, complete with a
+  `country: CA` component, comes back as United States. That decides whether a
+  FedEx label is domestic. Pinned with a real Canadian address.
+
+**Neither is called a defect**: restricting Places to US results upstream would
+make both correct, and I cannot see that configuration from here. They are
+stated so that changing either is a visible decision. Same treatment as D59.
+
+**Frontend suite: 15 files / 178 tests, all green.** Genuinely untested util
+modules 5 → 4, and of the remaining four, one is empty, one needs a harness
+that is not mine to add, and one would be testing `clsx`.
+
+**LESSON (bm): A COVERAGE NUMBER INHERITS THE FLAWS OF HOW IT WAS DERIVED.
+"Has a same-named test file" is a proxy for "is tested" that is wrong in both
+directions, and I reported it three times before checking it. Derive coverage
+from what the tests IMPORT, and say which question the number answers.**
+
+## D61 — the purity fix was applied to the target and not the source, and production has sixteen values the source column cannot hold
+
+Re-ran `audit:precision` under item (5). **It now reports 0 against production**,
+where CLAUDE.md records eighteen — and 0 against dev, where it records three.
+Both examine an identical **57 type differences**, so the denominator is intact
+and the audit is doing work.
+
+**The eighteen are genuinely fixed**, not un-measured: `orders.items.purity` was
+`numeric(4,3)` and is now unconstrained `numeric`, so a value cast into it loses
+nothing. CLAUDE.md's figures are stale in the good direction.
+
+**A zero is what a broken audit reports, so I checked the specific case CLAUDE.md
+names** — and checking it turned the finding around.
+
+### The direction has reversed, and the audit is blind to the new one
+
+`audit:precision` casts each **source** value into the type of the **target**
+column it lands in. That is exactly the right question while the target is the
+narrow one. It cannot ask anything at all when **the source is the narrow one** —
+the loss has already happened before any migration reads the row.
+
+That is now the case. Production, measured:
+
+```
+exchange.scrap.purity          numeric(4,3)
+exchange.scrap.purity_actual   numeric(4,3)
+exchange.products.purity       unconstrained
+orders.items.purity            unconstrained   <- widened, the fix
+```
+
+**`numeric(4,3)` cannot represent four-nines.** Demonstrated by production's own
+Postgres rather than asserted: `SELECT 0.9999::numeric(4,3)` returns **`1.000`**.
+
+### The values are really there, on the wide column, and absent from the narrow one
+
+```
+exchange.products.purity  (unconstrained)      exchange.scrap.purity_actual  (4,3)
+  0.9999   10 products                           1.000    8 rows   <- top value
+  0.9995    6 products                           0.999    2 rows
+  0.999    73 products                           0.989    1 row
+  -> 16 products strictly between .999 and 1     0.9995 / 0.9999 appear NOWHERE
+```
+
+**Sixteen production products carry a purity the scrap columns physically cannot
+store**, and the scrap column's most common value is exactly the number those
+would round to. I cannot prove the eight 1.000 rows were rounded rather than
+entered deliberately — 24k is often recorded as 1.000 by convention — but the
+column's inability to hold `0.9999` is a fact, and the absence of any four-nines
+value from a 105-row column whose sibling has ten of them is consistent with it.
+
+**Why it is money.** `purity_actual` multiplies into `content_actual` — the same
+line as D47 — and `content_actual` is what the business pays a customer on.
+Recording `0.9999` as `1.000` overstates recovered metal by 0.01%, **always in
+the direction of the business overpaying**. Tiny per order and not a crisis at
+105 rows; it is one-directional and the schema cannot record the right number.
+
+### What this is and is not
+
+- **Not a migration defect.** Nothing here was introduced by the 89 migrations;
+  `exchange` has been this way throughout, and the migration work *fixed* the
+  target half.
+- **Not something any audit was ever going to catch.** `audit:precision` is
+  source-driven by design; `audit:non-finite` asks about NaN, not scale;
+  `verify:parity` compares rows that already round the same way on both sides.
+- **Widening `exchange.scrap.purity` would not recover anything already
+  rounded** — those digits are gone. It would only stop the next one.
+- **NOT CHANGED.** Altering a column type on the authoritative schema is a
+  production migration and squarely Jacob's call, and whether 1.000 is a defect
+  or a convention is a business question first.
+
+CLAUDE.md's `audit:precision` line (dev 3 / prod 18) is now stale; corrected to
+0/0 with the 57-difference denominator, and the reversal recorded there too.
+
+**LESSON (bn): A SOURCE-DRIVEN AUDIT GOES BLIND THE MOMENT THE FIX MOVES THE
+CONSTRAINT TO THE SOURCE. Widening the target made `audit:precision` report
+clean on a path where data is still being lost — the report got better because
+the question stopped applying, not because the loss stopped.**
+
+## D62 — `pnpm check` was failing, on a query I added tonight, and the failure was the last line of the gate
+
+Ran the audits never run this session, checking denominators rather than
+verdicts. Two results.
+
+**`audit:coverage --prod` is clean.** Every populated column in production's
+`exchange` has somewhere to go. The dev run says in its own output that dev's
+nulls prove nothing, so the `--prod` run is the one that counts; it lists four
+unclaimed tables, all documented (`account`, `auction_items`, `auctions`,
+and `schema_migrations`, which **is not present in production at all** —
+consistent with no migration having been run there).
+
+**`audit:query-paths` exited 1**, and it is the **last item in `pnpm check`**:
+
+```
+1 query(ies) with NO index to enter by:
+  products.bullion ON (slug)
+      features/products/sql/get_by_slug.sql:1
+```
+
+`get_by_slug.sql` is a file **I added tonight**. So the gate has been red since,
+and Jacob's commit sequence — `clean:dual-orphans` → `pnpm check` → confirm
+CHECK_EXIT=0 → commit — would have stopped dead at the final step, on 258 staged
+files, with no obvious cause.
+
+### It is not a regression, which is why it earned a migration
+
+`exchange.products` has no slug index either. `audit:indexes` was right to report
+clean — it is source-driven, and there was no access path in the source to lose.
+The gap is older than the migration and simply had nothing looking for it until
+the query-driven audit existed. **That is the complementarity CLAUDE.md
+describes, working exactly as designed**, on the first query where the two
+audits could disagree.
+
+**Why index rather than accept.** Both existing `ACCEPTED` entries are seeded
+reference tables of three and four rows, where a sequential scan genuinely is
+the faster plan. A product catalogue is not that: this is the read behind every
+product page view, keyed on a value that appears in the **public URL**, and it
+grows with the business. An entry reading "95 rows today" is a note that rots —
+the exact failure those lists are pinned from both sides to prevent.
+
+**`084_the_product_page_has_an_index_to_enter_by.sql`**, applied to **dev only**:
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_bullion_slug ON products.bullion (slug, display);
+```
+
+Two deliberate choices, both recorded in the migration: **not unique** — a slug
+names a variant set, `gold-american-eagle` is four rows, and `get_by_slug`
+returns the list because the page renders the set; and **`slug` leads, not
+`display`** — btree is only enterable on a leading prefix and a two-valued flag
+narrows almost nothing, so leading with `display` would produce an index the
+planner ignores. `display` rides along so the flag is checked without a heap
+fetch.
+
+### The genesis rule, followed through rather than left half-done
+
+Changing dev's schema breaks `000_genesis_schema.sql`, and I would have left the
+tree worse than I found it by stopping at the migration. Full sequence, each
+step verified:
+
+| step | result |
+|---|---|
+| `pnpm migrate` | applied 084, **`database: dev`** |
+| `pnpm lint:migrations` | passed, 90 files, no destructive writes to `exchange` |
+| `audit:query-paths` | **exit 1 → exit 0** |
+| `verify:genesis` | **exit 1**, naming the one stale line |
+| `pnpm dump:schema` | regenerated, 3242 lines |
+| genesis diff | **exactly one line added — mine, nothing else drifted** |
+| `verify:genesis` | **exit 0**, "identical to dev, and the committed genesis matches" |
+| `audit:indexes`, `audit:coverage` | still 0 |
+
+The one-line diff is worth its own note: it confirms genesis was in sync before I
+touched it, so nothing else in dev had quietly drifted.
+
+**LESSON (bo): RUN THE GATE, NOT ITS MEMBERS. I had been reporting "5 lints +
+typecheck GREEN" all night from running pieces individually, and `pnpm check`
+ends with two audits I had never once run in this session — one of which I had
+broken myself. A green list of the parts you happen to run is not a green
+build.**
+
+## D63 — the audit whose findings are about money has neither an accept-list nor a place in the gate
+
+Read `audit:constraints` properly rather than its tail. It reports, against a
+denominator of **137 NOT NULL columns in the source, 163 with a counterpart**:
+
+- **27 constraints that promotion would drop**, and
+- **7 of 15 unique indexes without an exact counterpart**, with the sharp note
+  that `orders.orders(direction, number)` does not restore
+  `exchange.purchase_orders(order_number)` — *"WIDER is not the same as equal."*
+
+Its own closing line is exactly right: *"That is not automatically wrong — some
+columns are deliberately optional in the new model — but each one should be a
+decision rather than an accident."*
+
+**There is nowhere to record that decision.** `audit:indexes` and
+`audit:query-paths` each carry an `ACCEPTED` map, pinned from both sides so a new
+gap fails *and* a stale entry fails, and both are members of `pnpm check`.
+`audit:constraints` has **neither** — no accept mechanism, and it is not in the
+gate. So 27 items that "should be a decision" are re-read from scratch by
+whoever looks next, and nothing notices if the list changes.
+
+That asymmetry is upside-down relative to the stakes: the indexes audits guard
+latency, and this one guards `order_total`, `sales_tax`, `shipping_cost`,
+`payouts.method` and `account_holder_name` losing `NOT NULL`.
+
+### I measured it and nearly reported the opposite of the truth
+
+`orders.transactions`, 37 rows in dev:
+
+```
+  total NULL 14 | items NULL 22 | shipping NULL 22 | surcharge NULL 22 | sales_tax NULL 22
+```
+
+That reads as a guard already violated wholesale. **Split by direction, it is
+the opposite:**
+
+```
+  purchase   22 rows | total NULL 14 | items NULL 22 | sales_tax NULL 22
+  sale       15 rows | total NULL  0 | items NULL  0 | sales_tax NULL  0
+```
+
+**Every null is on a purchase-order row. The direction whose source column was
+`NOT NULL` — sales orders — is fully populated, 15 of 15.**
+`exchange.purchase_orders` has no `order_total`, `sales_tax` or `item_total` at
+all; those are sales-order columns. One table now serves both directions, so a
+`NOT NULL` that held for one of them **cannot** hold for the merged table. The
+constraint loss is structurally necessary, not accidental — lesson (aj) and
+lesson (ah) together, and (ah) exists precisely because I have made this mistake
+before.
+
+I was one query from writing "14 of 37 order totals are NULL" into a findings
+list. The query cost nothing.
+
+**Also measured: 0 transaction rows with no matching order**, despite D45's
+missing foreign key. The FK gap is real and currently orphaning nothing.
+
+### Not acted on, deliberately
+
+Adding an `ACCEPTED` map would require making 27 calls about whether each
+`NOT NULL` should be restored on the new schema — several of them on money
+columns, which is the same business question as D47, D59 and D61 and is Jacob's,
+not mine. Adding the audit to `pnpm check` with 27 unaccepted findings would
+simply turn the gate red the moment it went in, which helps nobody.
+
+**The recommendation is one sentence:** give `audit:constraints` the same
+`ACCEPTED` map its two siblings have, walk the 27 once with a decision each,
+then add it to `pnpm check` — at which point the ones that are structurally
+necessary (every sales-order money column above) get written down as such, and
+the ones that are not become visible.
+
+**LESSON (bp): CHECK WHICH POPULATION A NULL BELONGS TO BEFORE CALLING IT A
+VIOLATION. A merged table inherits the union of its parents' columns and the
+intersection of their guarantees; the nulls are the other parent's rows, and an
+aggregate over the whole table hides that completely.**
+
+## D64 — the gate ran end to end for the first time: CHECK_EXIT=1, and it never reaches the audits at all
+
+`pnpm check` completed. **`CHECK_EXIT=1`.**
+
+**First, a trap worth recording:** the harness's task notification said
+*"completed (exit code 0)"*. That is the exit of the compound command's trailing
+`echo`, not of `pnpm check`. The real code was in the file, as `CHECK_EXIT=1`.
+Had I trusted the notification I would have reported the first green build of
+the session, and it is red.
+
+### Where it stops, and what that corrects
+
+`pnpm check` is an **18-member `&&` chain**. It reached member 10 and halted:
+
+```
+ 1 contracts build            ✓      10 api test                 ✖  <- STOPS HERE
+ 2 contracts verify:fresh     ✓      11 frontend typecheck       never ran
+ 3 contracts validate         ✓      12 frontend test            never ran
+ 4 lint:imports               ✓      13 verify:genesis           never ran
+ 5 lint:namespace-calls       ✓      14 validate:wire            never ran
+ 6 lint:row-vs-list           ✓      15 audit:switches           never ran
+ 7 lint:db                    ✓      16 audit:coverage           never ran
+ 8 lint:migrations            ✓      17 audit:indexes            never ran
+ 9 api typecheck              ✓      18 audit:query-paths        never ran
+```
+
+**This corrects D62.** I wrote that `audit:query-paths` was "failing at the last
+line of the gate" and that Jacob's commit sequence "would have stopped dead at
+the final step". Wrong on both counts: **it would have stopped at member 10, and
+member 18 has never executed inside the gate at all.** The slug index was a real
+gap and 084 was worth doing — the gate cannot go green without it either — but
+it was not what made `pnpm check` red, and I should have established the order
+of failure before claiming a cause.
+
+### Why it is red
+
+Six failures, all in **`features/purchase-orders/repo.next.test.js`** — the
+exact KNOWN SIX:
+
+- every order item appears as a row in the packing list
+- changing a spot price lands on that order and no other
+- a spot change lands in both, keyed by order and metal
+- a scrap line carries its weights and its metal name
+- a line with no quantity still reads as null
+- spot rows come back per metal with the shape the API returns
+
+These are **D53**: the old mirror being wrong, not the new read. They assert
+against `repo.next.getAll()`, which returns one all-null `"scrap"` item for an
+itemless order because `json_agg` over a `LEFT JOIN` yields a single all-null
+object. `read.service.ts` correctly returns `[]`.
+
+### The consequence, stated plainly for Jacob
+
+**The commit sequence as written cannot complete.** `clean:dual-orphans` →
+`pnpm check` → confirm `CHECK_EXIT=0` → commit will always fail at member 10,
+regardless of the orphan cleanup, because the six failures are not caused by the
+stray rows. There are three ways out and **all three are Jacob's call**:
+
+1. **Land the purchase-orders pivot**, which deletes `repo.next.test.js` and the
+   six failures with it. Blocked on `verify:orders-decomposition` exiting 1.
+2. **Update or delete the six tests.** That means editing
+   `repo.next.test.js` — which I have deliberately refused to touch all night
+   precisely because the pivot deletes it, and editing it would pin the old
+   code's bug (lesson bc).
+3. **Commit with a known-red gate, deliberately**, having read the six and
+   agreed they are D53.
+
+I am not choosing between these autonomously: (1) is blocked, (2) contradicts a
+standing decision, and (3) is a judgement about whether to commit against a
+failing gate on a repository handling real money.
+
+**What the gate did prove**: nine members pass, including `lint:migrations` with
+migration 084 in place, `api typecheck`, and all four lints. And the eight
+members after `api test` remain **unverified inside the gate** — I have run
+`verify:genesis`, `audit:coverage`, `audit:indexes` and `audit:query-paths`
+individually and green this session, but `validate:wire`, `audit:switches` and
+the frontend members have never run in gate context.
+
+**LESSON (bq): AN `&&` CHAIN REPORTS THE FIRST FAILURE, NOT THE WORST ONE, AND
+SAYS NOTHING ABOUT EVERYTHING DOWNSTREAM. Before attributing a red build to a
+cause, find WHICH member stopped it and how many never ran — I fixed member 18
+and described it as the reason the gate was red, when the gate had never got
+past member 10.**
+
+## D65 — a second failing gate member was hiding behind member 10, and a NaN is a number on one read path and a string on the other
+
+Ran the three gate members that had never executed in any context this session.
+
+- `frontend typecheck` — **exit 0**
+- `audit:switches` — **exit 0**; 10 switches (3 `*_SOURCE`, 7 `*_WIRE`), all unset
+  at their defaults, which independently confirms the switch floor of 3
+- **`validate:wire` — EXIT 1.** *23 endpoint shapes match, 4 diverge.*
+
+So D64's `api test` failure was **not** the only thing wrong: `validate:wire` is
+gate member 14 and would have failed too. Anyone who fixed the six D53 tests and
+re-ran `pnpm check` expecting green would have hit this next.
+
+### The four divergences, sorted by what is new
+
+**Already explained by D53** — the itemless-order artifact, `json_agg` over a
+`LEFT JOIN` yielding one all-null object:
+`order_items.0.id` null ×5 (exchange) / ×7 (next), `item_type` not one of
+`"scrap"|"product"`, `confirmed` null. Same rows, same cause as the six failures.
+
+**New, and `[next]`-only:**
+- `pool_remediation` and `pool_oz_deducted` null ×5 — both members of the
+  `AMOUNTS` closed set I built `setAmount` over. The exchange path supplies a
+  value; the new path returns null and the contract wants a number.
+- `payout.method` and `payout.account_holder_name` null — **×5 on exchange but
+  ×11 on next.** Both are `NOT NULL` in `exchange.payouts` and both appear in
+  D63's list of 27 dropped constraints. The new path surfaces more than twice as
+  many.
+
+### The one worth the most: a NaN changes JavaScript type depending on the read path
+
+`2x scrap.content_actual: expected number, received string`, on `[next]` only.
+A numeric arriving as a *string* is the failure mode CLAUDE.md warns about for
+the `db.js` parsers — but that would affect every row, not two. Measured
+instead:
+
+```
+to_jsonb('NaN'::numeric)   ->  "NaN"     jsonb_typeof: string
+'NaN'::numeric via pg      ->  NaN       typeof: number
+```
+
+**JSON has no NaN, so Postgres renders it as the string `"NaN"`.** The identical
+stored value is therefore a **`number` on a flat `SELECT` and a `string` through
+jsonb composition** — and the new read path composes through jsonb.
+
+The counts line up exactly: `refiners.items` holds **2** rows with
+`content = 'NaN'`, `exchange.scrap` holds **0**, and `validate:wire` reports
+exactly **2**, only on `next`. (The step I am inferring rather than proving is
+that `refiners.items.content` is what surfaces as the composed
+`scrap.content_actual` — the refiner's assay being the *actual* recovered
+content. The counts and the path-exclusivity both fit.)
+
+**This closes a chain across four findings.** D47 found the `??` fallback on the
+assay figures that cannot fire, so `undefined * purity` yields NaN. D48 built
+`audit:non-finite` and found exactly those 2 NaN rows. `at` recorded that
+Postgres NUMERIC accepts NaN. This is the consequence: **the NaN reaches the
+wire, and on the new path it arrives as the string `"NaN"`.** Any consumer doing
+arithmetic gets string concatenation rather than NaN propagation — and
+`content_actual` is what a customer is paid on (D61).
+
+**Not fixed.** The right fix is upstream at D47 — stop writing NaN — and that is
+the money-semantics decision I have deferred all night. Patching the wire would
+hide it.
+
+**LESSON (bs): THE SAME STORED VALUE CAN HAVE DIFFERENT JAVASCRIPT TYPES ON
+DIFFERENT READ PATHS. jsonb composition is not a transparent wrapper around a
+`SELECT`: it goes through a serialisation that cannot represent every value the
+column can hold. Check the composed path separately — a contract that passes on
+the flat read proves nothing about it.**
+
+## D66 — the seven-item block: payout writes, the premium, offers gone, carts collapsed, TS done where possible
+
+Jacob's ordered list, executed in order. What each item turned out to involve:
+
+**1. Payout writes (previously mis-called blocked).** `payments/details/` —
+create, linkToOrder, setMethodForOrder, six tests. The account resolves its
+method against `payments.methods (direction, type)` with 073's
+`DORADO_ACCOUNT → DORADO CREDIT` rename; routing/account numbers are asserted
+never written; an unresolvable method writes nothing.
+
+**2. `bid_premium`.** Migration 085 drops `orders.items.bid_premium` — the
+column existed to preserve a hardcode (065's own comment: "0.75 on 17 of 20
+populated rows - the hardcoded default in features/scrap/repo.js"), and I had
+laundered that hardcode into ITEM_DEFAULTS. Premium now resolves from
+`rates.rates` in `intake.ts`, banded on the metal's total across the whole
+order, two-pass, still pure (rates are passed in). A posted premium is ignored;
+an unpriceable line is null, not guessed. My own two tests that pinned the 0.75
+were replaced with six that pin the rate behaviour.
+
+**3. Offers.** Migration 086: `spots_locked` carried to `orders.orders`
+(8 → 8 verified), `orders.offers` dropped, five offer columns off
+`exchange.purchase_orders`. Production loses offer_status×62, num_rejections×62,
+offer_sent_at×57, offer_expires_at×57, offer_notes×2 when it runs there —
+stated in the migration, backup `~/dorado-prod-20260825.dump`. Removed: the
+offers feature dir, five service functions, four routes, the stale-offers cron,
+the dual mirror, the wire fields, four frontend components, seven frontend
+hooks, and every fixture that read the columns. `total_price` re-pointed to
+`orders.transactions.total` (21 orders compared first: 0 differ).
+**Customer accept/reject is GONE — Jacob: customers do not control order status,
+only admins.** What survived is the pricing half: `accept_order`, admin-only,
+which snapshots spots, prices every line, writes total + status + pin. The
+ownership test now asserts a customer — including the order's own owner —
+gets 403.
+
+**The D53 artifact is FIXED, not worked around**: both `repo.next.ts` and
+`repo.exchange.js` now aggregate with
+`COALESCE(json_agg(...) FILTER (WHERE id IS NOT NULL), '[]')`, so an itemless
+order returns [] on every path. The six all-night test failures pass against
+corrected code.
+
+**4. Carts.** The new checkout write path is direction-parameterised:
+`ensureCheckout(user, direction)`, `replaceItems` / `replaceSellItems`,
+`getCheckoutId(user, direction)`; the Cart/SellCart-named wrappers are gone from
+`repo.next.ts` and its types renamed (SaleItemRow, PurchaseScrapRow, …). The
+switch surface and wire keep their legacy names — the frontend still speaks
+cart, and the wire must not change. Also removed `addItems`' copy of
+`b.bid_premium` into checkout items — same disease as item 2; a cart line has
+no premium of its own.
+
+**5. TypeScript.** Converted: `scrap/repo.ts` (verbatim - and tsc itself
+flagged D47's `??` as "unreachable", the compiler confirming the fallback never
+fires; dropped as dead code with the maths byte-identical),
+`shared/testing/{locks,session,pinned-pool}.ts`, `features/auth/client.ts`,
+~120 import sites updated. Remaining .js: the three Jacob forbade and the nine
+switch triplets the pivots delete rather than convert. **The conversion is done
+"where possible".**
+
+**6. `audit:non-finite` and `audit:nullability` are gate members 19 and 20.**
+
+**7. In progress — the full gate runs next.**
+
+Fixture repairs along the way, all lesson (jj): three "newest order" fixtures
+now require spot rows in the query; `DELIBERATE_404` emptied per its own
+instruction; the admin-route review list updated (−2 offer routes, +accept_order);
+the scheduler tests cover one cron.
+
+**LESSON (bt): DELETING A FEATURE IS A CLOSURE COMPUTATION. The table, the
+mirror, the wire contract, the fixture SELECTs, the allow-lists, the review
+lists and the cron that swept it are all reachable from "offers", and every one
+the grep missed was found by a guard that had been built earlier for exactly
+that class of miss. The guards paid for themselves tonight.**

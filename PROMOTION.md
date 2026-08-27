@@ -218,21 +218,30 @@ switch flipped alongside three others tells you nothing when something breaks.
 
 There are two independent axes and conflating them is the mistake to avoid.
 
-- **`*_SOURCE`** — which schema the data is read from and written to. **Eight of
+- **`*_SOURCE`** — which schema the data is read from and written to. **Three of
   them, down from twenty-one.** All default to `exchange`. None has been
   changed.
 - **`*_WIRE`** — which *shape* the data leaves the API in. Seven of them. All
   default to `legacy`. None has been changed.
 
-**Thirteen switches are gone, and that is not the same as thirteen features
+**Eighteen switches are gone, and that is not the same as eighteen features
 being promoted.** leads, reviews, rates, sales tax, spots, metals, images,
-mints, refiners, the credit ledger, carriers, carrier services, addresses and
-users have been restructured into per-table CRUD folders; organizations, emails and pdfs were built that way and
-never had a switch. Each restructured feature reads the new schema
+mints, refiners, the credit ledger, carriers, carrier services, addresses,
+products, shipments, tracking, carrier pickups, sales orders and users have been
+restructured into per-table CRUD folders;
+organizations, fulfillments, emails and pdfs were built that way and never had
+a switch. Each restructured feature reads the new schema
 unconditionally and writes **both** schemas unconditionally, in one
 transaction. There is no switch to set and
 nothing to roll back to, because there is no second implementation left to roll
 back to — what would have been `dual` is now the only behaviour.
+
+**Fulfillments is the one that writes only the new schema, and that is correct
+rather than an exception to the rule below.** It is capability `exchange` never
+recorded - there is nothing to dual-write TO. Its five tables were split the
+same way as everything else in August 2026: `fulfillments.fulfillments`,
+`.methods`, `.pickups`, `.directs` and `.shipments`, one repo each, composed in
+JS instead of by the four joins the old projection carried.
 
 That is a one-way door in code rather than in data. `exchange` is still written
 for every one of them, so the data is still recoverable; reverting the *reads*
@@ -269,21 +278,18 @@ reversible.
 
 | Switch | Feature |
 |---|---|
-| `PRODUCTS_SOURCE` | bullion products |
 | `PURCHASE_ORDERS_SOURCE` | purchase orders |
-| `SALES_ORDERS_SOURCE` | sales orders |
-| `PICKUPS_SOURCE` | carrier pickups |
-| `SHIPPING_SHIPMENTS_SOURCE` | shipments |
-| `SHIPPING_TRACKING_SOURCE` | tracking events |
 | `CHECKOUT_SOURCE` | the cart, which is a checkout session |
 | `PAYMENTS_SOURCE` | Stripe intents, attempts and settlements |
 
 `LEADS_SOURCE`, `RATES_SOURCE`, `REVIEWS_SOURCE`, `SALES_TAX_SOURCE`,
 `SPOTS_SOURCE`, `MEDIA_SOURCE`, `MINTS_SOURCE`, `REFINERS_SOURCE`,
 `TRANSACTIONS_SOURCE`, `USERS_SOURCE`, `CARRIERS_SOURCE`, `SERVICES_SOURCE` and
-`ADDRESSES_SOURCE` were all listed here
+`ADDRESSES_SOURCE`, `PRODUCTS_SOURCE`, `SHIPPING_SHIPMENTS_SOURCE` and
+`SHIPPING_TRACKING_SOURCE`, `PICKUPS_SOURCE` and `SALES_ORDERS_SOURCE` were all
+listed here
 and **no longer exist** — see the note above. Setting one in the environment now
-does nothing at all; `audit:switches` reports the eight that remain and fails if
+does nothing at all; `audit:switches` reports the three that remain and fails if
 its own parser stops finding them.
 
 **Rollback:** set back to `exchange`, redeploy. Safe because `exchange` never

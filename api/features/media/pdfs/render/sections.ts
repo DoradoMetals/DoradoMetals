@@ -105,13 +105,9 @@ export interface RenderableOrder {
    * the kind of thing that reaches a customer looking deliberate.
    */
   created_at?: string | number | Date | null;
-  offer_sent_at?: string | number | Date | null;
-  offer_expires_at?: string | number | Date | null;
   purchase_order_status?: string | null;
   status?: string | null;
   spots_locked?: boolean | null;
-  offer_status?: string | null;
-  num_rejections?: number | null;
   address?: AddressPart | null;
   shipment?: ShipmentPart | null;
   return_shipment?: ShipmentPart | null;
@@ -155,22 +151,6 @@ export function renderInvoiceHeader(
   const isDone = doneStatus.includes(status);
   const offerLabel = isDone ? "Total Payout" : "Total Estimate";
 
-  const offerStatus = purchaseOrder.offer_status ?? "N/A";
-  const sentAt = purchaseOrder.offer_sent_at
-    ? new Date(purchaseOrder.offer_sent_at).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
-    : "N/A";
-  const expiresAt = purchaseOrder.offer_expires_at
-    ? new Date(purchaseOrder.offer_expires_at).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
-    : "N/A";
-  const rejections = purchaseOrder.num_rejections ?? 0;
 
   const metals = ["Gold", "Silver", "Platinum", "Palladium"];
   const spotRows =
@@ -225,22 +205,6 @@ export function renderInvoiceHeader(
           <div class="invoice-card-row">
             <span>${offerLabel}:</span>
             <span>${formatCurrency(total)}</span>
-          </div>
-          <div class="invoice-card-row">
-            <span>Status:</span>
-            <span>${offerStatus}</span>
-          </div>
-          <div class="invoice-card-row">
-            <span>Sent:</span>
-            <span>${sentAt}</span>
-          </div>
-          <div class="invoice-card-row">
-            <span>Expires:</span>
-            <span>${expiresAt}</span>
-          </div>
-          <div class="invoice-card-row">
-            <span>Rejections:</span>
-            <span>${rejections}</span>
           </div>
         </div>
       </div>

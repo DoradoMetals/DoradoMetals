@@ -36,12 +36,12 @@ import assert from "node:assert/strict";
 import pool from "#db";
 import query from "#shared/db/query.js";
 import * as service from "#features/shipping/operations/service.ts";
-import { LOCKS } from "#shared/testing/locks.js";
+import { LOCKS } from "#shared/testing/locks.ts";
 import {
   inPinnedTransaction,
   assertNothingEscaped,
   outside,
-} from "#shared/testing/pinned-pool.js";
+} from "#shared/testing/pinned-pool.ts";
 
 let fixture;
 let baseline;

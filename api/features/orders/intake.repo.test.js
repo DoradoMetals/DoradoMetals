@@ -8,7 +8,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import { LOCKS, takeLocks } from "#shared/testing/locks.js";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import { decompose } from "#features/orders/intake.ts";
 import * as intake from "#features/orders/intake.repo.ts";
 
@@ -248,7 +248,13 @@ test("four nines of purity survive being recorded", async () => {
   await inRollback(async (c) => {
     const user = await aUser(c);
     const address = await anAddress(c);
-    const described = decompose(block(), { direction: "purchase", userId: user });
+    // The premium no longer rides in on the block - intake ignores a posted
+    // bid_premium and resolves from rates (085). One open-ended band at 0.8
+    // keeps the assertion the same number it always was, now with a source.
+    const rates = [
+      { metal: "Gold", unit: "troy_oz", min_qty: 0, max_qty: null, scrap_pct: 0.8, bullion_pct: 0.85 },
+    ];
+    const described = decompose(block(), { direction: "purchase", userId: user, rates });
     const ids = await intake.resolve(described, c);
     const checkout_id = await intake.record({ described, ids, address_id: address }, c);
 
@@ -258,7 +264,7 @@ test("four nines of purity survive being recorded", async () => {
     );
     assert.equal(Number(rows[0].purity), 0.9999);
     assert.equal(Number(rows[0].content), 9.4991);
-    assert.equal(Number(rows[0].premium), 0.8);
+    assert.equal(Number(rows[0].premium), 0.8, "the premium should come from the rate band");
     assert.equal(rows[0].unit, "g");
   });
 });

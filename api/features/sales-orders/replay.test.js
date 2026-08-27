@@ -12,13 +12,13 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.js";
+import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import {
   inPinnedTransaction,
   assertNothingEscaped,
   outside,
-} from "#shared/testing/pinned-pool.js";
-import { LOCKS } from "#shared/testing/locks.js";
+} from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");

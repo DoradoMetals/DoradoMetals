@@ -31,8 +31,8 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.js";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
+import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -75,7 +75,7 @@ after(async () => {
 // against so the fixture cannot drift: id, spots_locked, order_items, and the
 // two figures that are subtracted.
 const bodyClaiming = (pricePerItem) => ({
-  order: {
+  purchase_order: {
     id: order.id,
     spots_locked: true,
     order_items: items.map((i) => ({
@@ -94,9 +94,9 @@ const bodyClaiming = (pricePerItem) => ({
 
 const acceptClaiming = async (pricePerItem, client) => {
   const res = await request(app)
-    .post("/api/purchase_orders/accept_offer")
+    .post("/api/purchase_orders/accept_order")
     .send(bodyClaiming(pricePerItem));
-  assert.equal(res.status, 200, `accept_offer answered ${res.status}`);
+  assert.equal(res.status, 200, `accept_order answered ${res.status}`);
 
   // The ROW, not the response. A 200 is not evidence of what was written.
   const { rows } = await client.query(
@@ -108,7 +108,10 @@ const acceptClaiming = async (pricePerItem, client) => {
 
 test("the price in the request body becomes what the business records it owes", async () => {
   await inPinnedTransaction(async (client) => {
-    await as({ ...owner, role: "user" }, async () => {
+    // Admin, because 086 made acceptance admin-only - customers do not control
+    // order status. The pricing-from-body behaviour this file pins is now an
+    // ADMIN capability, which is why it is pinned rather than fixed.
+    await as({ ...owner, role: "admin" }, async () => {
       const modest = await acceptClaiming(1, client);
       const greedy = await acceptClaiming(100000, client);
 
@@ -131,7 +134,7 @@ test("the price in the request body becomes what the business records it owes", 
 
 test("the line prices in the database follow the body too", async () => {
   await inPinnedTransaction(async (client) => {
-    await as({ ...owner, role: "user" }, async () => {
+    await as({ ...owner, role: "admin" }, async () => {
       await acceptClaiming(4242, client);
 
       const { rows } = await client.query(

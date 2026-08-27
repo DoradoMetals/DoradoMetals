@@ -25,34 +25,9 @@ export const getPurchaseOrderMetals = asyncHandler(async (req, res) => {
   return res.json(metals);
 });
 
-export const acceptOffer = asyncHandler(async (req, res) => {
-  const { order, order_spots, spot_prices } = req.body;
-  const { purchaseOrder, orderSpots } = await purchaseOrderService.acceptOffer({
-    order,
-    order_spots,
-    spot_prices,
-  });
-  return res.status(200).json({ purchaseOrder, orderSpots });
-});
-
-export const rejectOffer = asyncHandler(async (req, res) => {
-  const { order, offer_notes } = req.body;
-  const updated = await purchaseOrderService.rejectOffer({
-    orderId: order.id,
-    offerNotes: offer_notes,
-  });
-  return res.status(200).json(updated);
-});
-
 export const cancelOrder = asyncHandler(async (req, res) => {
   const { order, return_shipment } = req.body;
   const result = await purchaseOrderService.cancelOrder({ order, return_shipment });
-  return res.status(200).json(result);
-});
-
-export const updateOfferNotes = asyncHandler(async (req, res) => {
-  const { order, offer_notes } = req.body;
-  const result = await purchaseOrderService.updateOfferNotes({ order, offer_notes });
   return res.status(200).json(result);
 });
 
@@ -86,16 +61,14 @@ export const createPurchaseOrder = asyncHandler(async (req, res) => {
   return res.status(200).json(order);
 });
 
-export const sendOffer = asyncHandler(async (req, res) => {
-  await purchaseOrderService.sendOffer(req.body);
-  const updated = await purchaseOrderService.updateStatus(req.body);
-  return res.status(200).json(updated);
-});
-
-export const updateRejectedOffer = asyncHandler(async (req, res) => {
-  await purchaseOrderService.updateRejectedOffer(req.body);
-  const updated = await purchaseOrderService.updateStatus(req.body);
-  return res.status(200).json(updated);
+export const acceptOrder = asyncHandler(async (req, res) => {
+  const { purchase_order, order_spots, spot_prices } = req.body;
+  const { purchaseOrder, orderSpots } = await purchaseOrderService.acceptOrder({
+    order: purchase_order,
+    order_spots,
+    spot_prices,
+  });
+  res.json({ purchaseOrder, orderSpots });
 });
 
 export const updateStatus = asyncHandler(async (req, res) => {

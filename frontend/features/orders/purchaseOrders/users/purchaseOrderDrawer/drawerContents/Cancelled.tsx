@@ -7,7 +7,7 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
 import { useTracking } from '@/features/shipping/queries'
 import { useSpotPrices } from '@/features/spots/queries'
-import { useAcceptOffer, usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
+import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
 
 export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: spotPrices = [] } = useSpotPrices()
@@ -18,16 +18,6 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
     tracking_number: order.return_shipment.tracking_number,
     carrier_id: order.return_shipment.carrier_id,
   })
-
-  const acceptOffer = useAcceptOffer()
-
-  const handleAcceptOffer = () => {
-    acceptOffer.mutate({
-      purchase_order: order,
-      order_spots: orderSpotPrices,
-      spot_prices: spotPrices,
-    })
-  }
 
   const total = useMemo(() => {
     return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices)
@@ -70,19 +60,11 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
               </div>
 
               <div className="flex w-full justify-between items-center mb-1">
-                <div className="text-lg text-neutral-800">Last Offer:</div>
+                <div className="text-lg text-neutral-800">Order Total:</div>
                 <div className="text-lg text-neutral-800">
                   <PriceNumberFlow value={order.total_price ?? total} />
                 </div>
               </div>
-              <Button
-                variant="default"
-                className="text-primary hover:text-white hover:bg-primary raised-off-page w-full p-4 on-glass"
-                onClick={handleAcceptOffer}
-                disabled={acceptOffer.isPending}
-              >
-                {acceptOffer.isPending ? 'Accepting…' : 'Accept Last Offer'}
-              </Button>
             </div>
           </div>
         ) : (

@@ -1,0 +1,40 @@
+-- The public product page had no index to enter by.
+--
+-- Found by audit:query-paths, which asks the opposite question to
+-- audit:indexes: not "did every access path exchange indexed survive" but "does
+-- every parameterised equality filter in the code have an index that LEADS with
+-- a column it filters on". `features/products/sql/get_by_slug.sql` does
+--
+--     WHERE display = true AND slug = $1
+--
+-- against products.bullion, which had indexes on metal_id, mint_id, its primary
+-- key and unique_bullion_name - and nothing on slug.
+--
+-- THIS IS NOT A REGRESSION, and that is the reason it is worth a migration
+-- rather than an ACCEPTED entry. exchange.products has no slug index either, so
+-- audit:indexes was right to report clean: there was no access path in the
+-- source to lose. The gap is older than the migration and simply had nothing
+-- looking for it until the query-driven audit existed.
+--
+-- Why index it rather than accept it. The two entries already in
+-- audit:query-paths' ACCEPTED list are seeded reference tables of three and
+-- four rows, where a sequential scan genuinely is the faster plan and an index
+-- would only cost writes. A product catalogue is not that: this is the read
+-- behind every product page view, keyed on a value that appears in the public
+-- URL, and it grows with the business. An ACCEPTED entry reading "95 rows
+-- today" is a note that rots - exactly the failure the accepted lists are
+-- pinned from both sides to prevent.
+--
+-- NOT UNIQUE, deliberately. A slug names a VARIANT SET, not a product:
+-- `gold-american-eagle` is four rows differing only by variant_label, and
+-- get_by_slug returns the list because the page renders the set. Neither schema
+-- has a unique index on slug and neither should. This is a plain btree.
+--
+-- Leading column is `slug`, not `display`. btree is only enterable on a leading
+-- prefix, and `display` is a two-valued flag that narrows almost nothing -
+-- leading with it would produce an index the planner ignores. `display` is
+-- carried as a second column so the flag can be checked without a heap fetch.
+--
+-- Additive. Creates an index and touches no data.
+
+CREATE INDEX IF NOT EXISTS idx_bullion_slug ON products.bullion (slug, display);

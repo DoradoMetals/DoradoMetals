@@ -70,14 +70,9 @@ const collect = () => {
 // Pinned from both sides: an unlisted 404 fails, and a listed call that has
 // started resolving also fails, so this cannot quietly become a suppression
 // list for something that was since fixed.
-const DELIBERATE_404 = {
-  "POST /api/purchase_orders/purchase_order_offer_accepted":
-    "The offer-accepted email has never sent in production - wrong feature " +
-    "prefix, the route lives under /emails. Fixing it was reverted on purpose " +
-    "(Jacob, 26 August): the offer-sent/offer-accepted steps are being removed, " +
-    "so making it work would START sending customers an email they have never " +
-    "received, for a flow that is going away. Delete this entry when the step goes.",
-};
+// Empty since 086: the one entry was the offer-accepted email call, whose own
+// text said "Delete this entry when the step goes". The step went.
+const DELIBERATE_404 = {};
 
 // The frontend writes paths without the /api the server mounts them under.
 const toRoute = (url) => (url.startsWith("/api/") ? url : `/api${url.startsWith("/") ? "" : "/"}${url}`);

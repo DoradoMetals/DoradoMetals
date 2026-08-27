@@ -4,15 +4,11 @@ import {
   getPurchaseOrders,
   getPurchaseOrderMetals,
   createPurchaseOrder,
-  acceptOffer,
-  rejectOffer,
-  updateOfferNotes,
   cancelOrder,
   createReview,
   getAllPurchaseOrders,
-  sendOffer,
+  acceptOrder,
   updateStatus,
-  updateRejectedOffer,
   updateSpot,
   lockSpots,
   unlockSpots,
@@ -53,17 +49,15 @@ const router = express.Router();
 router.get('/get_purchase_orders', requireUser, getPurchaseOrders);
 router.post('/get_purchase_order_metals', requireUser, requireOwnOrder, getPurchaseOrderMetals);
 router.post('/create_purchase_order', requireUser, createPurchaseOrder);
-router.post('/accept_offer', requireUser, requireOwnOrder, acceptOffer);
-router.post('/reject_offer', requireUser, requireOwnOrder, rejectOffer);
-router.post('/update_offer_notes', requireUser, requireOwnOrder, updateOfferNotes);
 router.post('/cancel_order', requireUser, requireOwnOrder, cancelOrder);
 router.post('/create_review', requireUser, requireOwnOrder, createReview);
 
 // admin
 router.get('/get_all_purchase_orders', requireAdmin, getAllPurchaseOrders);
-router.post('/send_offer', requireAdmin, sendOffer);
 router.post('/update_status', requireAdmin, updateStatus);
-router.post('/update_rejected_offer', requireAdmin, updateRejectedOffer);
+// Accepting prices the order - it is update_status plus the money, and like
+// every status transition it is admin-only.
+router.post('/accept_order', requireAdmin, acceptOrder);
 router.post('/update_spot', requireAdmin, updateSpot);
 router.post('/lock_spots', requireAdmin, lockSpots);
 router.post('/unlock_spots', requireAdmin, unlockSpots);

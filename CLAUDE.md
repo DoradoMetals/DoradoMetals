@@ -225,7 +225,14 @@ The ones that have actually caught things:
 - `audit:wire-readiness` — **the other half of the promotion rule.** `*_WIRE`
   moves "when the frontend is ready", and nothing measured that. It counts the
   legacy field names the frontend still reads: `MEDIA_WIRE` is clear,
-  `PRODUCTS_WIRE` (124 uses) and `SPOTS_WIRE` (83) would break it today. The
+  `PRODUCTS_WIRE` (124 uses) and `SPOTS_WIRE` (86) would break it today. The
+  count is **split into product code and test fixtures** — SPOTS_WIRE is 76
+  real reads and 10 fixtures — because a test spelling the legacy name is a
+  real occurrence but not a component reading the wire, and counting them
+  together made the metric move the wrong way when tests were written:
+  SPOTS_WIRE drifted from 83 to 86 purely on frontend *test* commits, with
+  the product code untouched. The switch this endangers is `MEDIA_WIRE`,
+  the one reporting ready at 0 — one fixture would report it blocked. The
   frontend imports `@dorado/contracts` nowhere, so `tsc` cannot see a rename
   from either side. Four adapters are structural and one rename (`type`) is too
   common to count globally — those report `?`, never `yes`, because a scan that
@@ -290,7 +297,16 @@ The ones that have actually caught things:
   counts what differs. `orders.items` declared `purity numeric(4,3)` against an
   unconstrained source, so `.9999` fine gold was stored as `1.000`. Coverage
   passed — the column existed. Parity never looked — orders is a merge, not a
-  pair. Run it with `--prod`: dev held three of these and production eighteen.
+  pair. Run it with `--prod`. **Both now report 0** across 57 type differences
+  examined — the eighteen and the three are genuinely fixed, `orders.items.purity`
+  having been widened from `numeric(4,3)` to unconstrained. **But the fix moved
+  the constraint to the source, where this audit cannot see it**: it casts a
+  source value into the *target's* type, so a loss that already happened at the
+  source is invisible by construction. `exchange.scrap.purity` and
+  `purity_actual` are still `numeric(4,3)`, `0.9999::numeric(4,3)` is `1.000`,
+  and production holds 16 products at .9995/.9999 against a scrap column whose
+  commonest value is exactly 1.000. `purity_actual` multiplies into
+  `content_actual`, which is what a customer is paid on. D61.
 
 A reported gap is often a rename or a relocation rather than a loss — seven of
 shipping's thirteen were, and three of addresses'. Check before adding a column,

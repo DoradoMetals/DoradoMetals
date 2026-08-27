@@ -29,7 +29,6 @@ export const getAll = next.getAll;
 export const findMetalsByOrderId = next.findMetalsByOrderId;
 export const findRefinerMetalsByOrderId = next.findRefinerMetalsByOrderId;
 export const findOrderScrapItems = next.findOrderScrapItems;
-export const findExpiredOffers = next.findExpiredOffers;
 
 // Writes belonging to features that have not moved. exchange.shipments and
 // exchange.payouts are still the only copies of what these touch, so there is
@@ -38,7 +37,6 @@ export const findExpiredOffers = next.findExpiredOffers;
 // exchange.refiner_metals used to be on this list and is not any more: 070
 // derives refiners.spots from it, the same way orders.spots is derived from
 // order_metals, so the refiner writes below are mirrored like any other.
-export const editShippingCharge = exchange.editShippingCharge;
 export const editPayoutCharge = exchange.editPayoutCharge;
 export const insertPayout = exchange.insertPayout;
 export const changePayoutMethod = exchange.changePayoutMethod;
@@ -56,9 +54,28 @@ export const purgeCancelled = exchange.purgeCancelled;
 const both = (executor, fn) => (executor ? fn(executor) : withTransaction(fn));
 
 // Re-derives the parts of an order named in `parts` after a write to exchange.
+//
+// THE ORDER IS ALWAYS MIRRORED FIRST, EVEN WHEN THE CALLER ONLY ASKED FOR ITS
+// PARTS. orders.items, orders.spots and orders.refiner_spots all carry a
+// foreign key to orders.orders, so mirroring a child of an order the new schema
+// has never seen raises 23503 and takes the caller's whole transaction down -
+// including the write to exchange that had already succeeded.
+//
+// That is not hypothetical and it is not a dev-only shape. PRODUCTION HOLDS 15
+// purchase orders with no orders.orders row, because the backfills have not run
+// there yet: 9 Completed, 4 Cancelled, 1 In Transit, 1 Received. With this
+// switch on `dual`, editing or deleting a line on any of them answered 500 and
+// changed nothing - the exchange write rolled back with the mirror.
+//
+// Found by running the suite with all eight remaining switches set to `dual`,
+// which is the only thing that exercises this path at all: with the switch on
+// `exchange` the mirror never runs, so every test passed.
+//
+// mirrorOrder is an idempotent upsert from exchange, so doing it unconditionally
+// costs one statement and cannot be wrong.
 const sync = async (c, orderId, parts) => {
   if (!orderId) return;
-  if (parts.includes("order")) await next.mirrorOrder(orderId, c);
+  await next.mirrorOrder(orderId, c);
   if (parts.includes("items")) await next.mirrorItems(orderId, c);
   if (parts.includes("spots")) await next.mirrorSpots(orderId, c);
   if (parts.includes("refinerSpots")) await next.mirrorRefinerSpots(orderId, c);
@@ -66,31 +83,10 @@ const sync = async (c, orderId, parts) => {
 
 // --------------------------------------------------------- order-level writes
 
-export const moveOrderToAccepted = (orderId, totalPrice, client) =>
-  both(client, async (c) => {
-    const r = await exchange.moveOrderToAccepted(orderId, totalPrice, c);
-    await sync(c, orderId, ["order"]);
-    return r;
-  });
-
-export const rejectOfferById = (orderId, offerNotes, client) =>
-  both(client, async (c) => {
-    const r = await exchange.rejectOfferById(orderId, offerNotes, c);
-    await sync(c, orderId, ["order"]);
-    return r;
-  });
-
 export const cancelOrderById = (orderId, client) =>
   both(client, async (c) => {
     const r = await exchange.cancelOrderById(orderId, c);
     await sync(c, orderId, ["order"]);
-    return r;
-  });
-
-export const updateOfferNotes = (order, offer_notes, executor) =>
-  both(executor, async (c) => {
-    const r = await exchange.updateOfferNotes(order, offer_notes, c);
-    await sync(c, order.id, ["order"]);
     return r;
   });
 
@@ -112,13 +108,6 @@ export const toggleSpots = (locked, order_id, client) =>
   both(client, async (c) => {
     const r = await exchange.toggleSpots(locked, order_id, c);
     await sync(c, order_id, ["order"]);
-    return r;
-  });
-
-export const updateOffer = (client, args) =>
-  both(client, async (c) => {
-    const r = await exchange.updateOffer(c, args);
-    await sync(c, args.orderId, ["order"]);
     return r;
   });
 
@@ -294,4 +283,11 @@ export const insertOrder = (client, args) =>
     await next.mirrorOrder(id, c);
     await next.mirrorAddress(id, c);
     return id;
+  });
+
+export const acceptOrder = (orderId, totalPrice, client) =>
+  both(client, async (c) => {
+    const r = await exchange.acceptOrder(orderId, totalPrice, c);
+    await sync(c, orderId, ["order"]);
+    return r;
   });

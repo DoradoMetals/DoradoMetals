@@ -8,8 +8,8 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import { LOCKS, takeLocks } from "#shared/testing/locks.js";
-import * as dual from "#features/sales-orders/repo.dual.js";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import * as dual from "#features/sales-orders/write.service.ts";
 import * as next from "#features/sales-orders/repo.next.ts";
 
 let client;
@@ -61,8 +61,11 @@ test("order_sent and tracking_updated land on the order, not the transaction", a
   await inRollback(async (c) => {
     const id = await anOrder(c);
     await c.query("UPDATE exchange.sales_orders SET order_sent = false, tracking_updated = false WHERE id = $1", [id]);
-    await dual.updateOrderSent(id, c);
-    await dual.updateTrackingStatus(id, c);
+    // THREE FLAGS, ONE PATH. updateOrderSent / updateTrackingStatus /
+    // createReview were three near-identical functions; they are one call with
+    // a closed set of column names now - see FLAGS in repo.ts.
+    await dual.setFlag(id, "order_sent", c);
+    await dual.setFlag(id, "tracking_updated", c);
 
     const nx = await c.query("SELECT order_sent, tracking_updated FROM orders.orders WHERE id = $1", [id]);
     const ex = await c.query("SELECT order_sent, tracking_updated FROM exchange.sales_orders WHERE id = $1", [id]);
@@ -106,14 +109,6 @@ test("the money stays in step with the order", async () => {
   });
 });
 
-test("a sales order still gets no offer row", async () => {
-  await inRollback(async (c) => {
-    const id = await anOrder(c);
-    await dual.updateStatus({ id }, "Preparing", "test", c);
-    const offers = await c.query("SELECT count(*)::int n FROM orders.offers WHERE order_id = $1", [id]);
-    assert.equal(offers.rows[0].n, 0);
-  });
-});
 
 test("creating an order gives both schemas the same id and an address", async () => {
   await inRollback(async (c) => {

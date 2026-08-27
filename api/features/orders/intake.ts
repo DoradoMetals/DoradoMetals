@@ -24,6 +24,9 @@
 // features/purchase-orders/service.ts is untouched and still serves traffic;
 // this is the half that has to exist before the two can be compared.
 
+import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
+import type { RateWire } from "@dorado/contracts";
+
 // The handoff options the frontend actually offers, mapped to the fulfillment
 // methods 047 seeded. Both are SHIPMENT - a customer choosing between dropping
 // a parcel off and having one collected is choosing between two ways of posting
@@ -128,7 +131,7 @@ function item(line: unknown): ProductItem | ScrapItem | null {
       bullion_id: data.id,
       metal: data.metal_type ?? data.metal ?? null,
       quantity: data.quantity ?? 1,
-      premium: data.bid_premium ?? 0.75,
+      premium: null,
       // A product's weights are the product's, not the order's. They are
       // recorded on the item so an order still reads correctly after somebody
       // edits the product - which is the flow orders.items already declares in
@@ -145,7 +148,7 @@ function item(line: unknown): ProductItem | ScrapItem | null {
       kind: "scrap",
       metal: data.metal ?? null,
       quantity: data.quantity ?? 1,
-      premium: data.bid_premium ?? 0.75,
+      premium: null,
       content: data.content ?? null,
       pre_melt: data.pre_melt ?? null,
       post_melt: data.post_melt ?? null,
@@ -168,7 +171,11 @@ function item(line: unknown): ProductItem | ScrapItem | null {
 // distinguishes them.
 export function decompose(
   block: Block,
-  { direction, userId }: { direction?: string; userId?: string | null } = {}
+  {
+    direction,
+    userId,
+    rates,
+  }: { direction?: string; userId?: string | null; rates?: RateWire[] | null } = {}
 ) {
   if (!block || typeof block !== "object") {
     throw new Error("nothing to decompose");
@@ -190,8 +197,33 @@ export function decompose(
     );
   }
 
-  const items = (block.items ?? []).map(item).filter(Boolean);
+  const items = (block.items ?? []).map(item).filter(Boolean) as (ProductItem | ScrapItem)[];
   if (!items.length) throw new Error("an order needs at least one item");
+
+  // THE PREMIUM COMES FROM RATES, AND FROM NOWHERE ELSE.
+  //
+  // It used to be `data.bid_premium ?? 0.75`, taking whatever the frontend
+  // posted and falling back to a number that turned out to be a hardcode in
+  // features/scrap/repo.js, backfilled into a column, then read back out as if
+  // it were a business default. A premium is a rate, and rates.rates is where
+  // rates live.
+  //
+  // Banded on the TOTAL content of a metal across the whole order, not per
+  // line - two 5oz gold lines are a 10oz order and price at the 10oz band - so
+  // this cannot happen inside item() and is a second pass.
+  //
+  // Still pure: the bands are passed in, not read. Resolving them is the
+  // caller's database question.
+  const totals = sumContentByMetal(items, (i) => i.metal, (i) => i.content);
+  for (const line of items) {
+    line.premium =
+      getRatePct(
+        rates,
+        line.metal,
+        totals[String(line.metal ?? "").trim().toLowerCase()] ?? 0,
+        line.kind === "scrap" ? "scrap" : "bullion"
+      ) ?? null;
+  }
 
   const fulfillment: Fulfillment = {
     // Null when the block did not say, which is legal: chooseDefault picks the

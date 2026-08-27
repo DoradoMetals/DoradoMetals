@@ -64,13 +64,8 @@ export interface PurchaseOrder {
     user_name: string
     user_email: string
   }
-  offer_sent_at?: Date
-  offer_expires_at?: Date
-  offer_status: string
   spots_locked: boolean
-  offer_notes?: string
   total_price?: number
-  num_rejections: number
   waive_shipping_fee: boolean
   waive_payout_fee: boolean
   return_shipping_paid: boolean

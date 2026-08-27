@@ -37,7 +37,7 @@ import carrierServiceRoutes from "#features/shipping/services/routes.ts";
 import fulfillmentRoutes from "#features/fulfillments/routes.ts";
 
 import { toNodeHandler } from "better-auth/node";
-import { auth } from "#features/auth/client.js";
+import { auth } from "#features/auth/client.ts";
 import { handleStripeWebhook } from "#features/payments/controller.ts";
 import errorHandler from "#shared/middleware/errorHandler.ts";
 

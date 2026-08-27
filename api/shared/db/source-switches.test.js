@@ -23,7 +23,11 @@ const findSwitches = (dir) =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) return findSwitches(full);
-    if (entry.name !== "repo.js") return [];
+    // repo.ts too - see the note in switch-surface.test.js. This file's floor
+    // would have caught the rename (3 switches, floor of 3, any conversion
+    // drops it to 2 and fails) but failing because a guard went blind is not
+    // the same as not going blind.
+    if (!/^repo\.(js|ts)$/.test(entry.name)) return [];
     const source = fs.readFileSync(full, "utf8");
     if (!/process\.env\.[A-Z_]+_SOURCE/.test(source)) return [];
     return [{ name: path.relative(FEATURES, full), file: full, source }];
@@ -35,7 +39,7 @@ test("every feature that has a switch defaults to exchange", () => {
   // See scripts/audit-switches.mjs: the floor drops by one each time a feature is
   // restructured away from having a switch at all. 14 after leads, reviews,
   // media, rates, mints, sales-tax and users.
-  assert.ok(switches.length >= 8, `only found ${switches.length} switches`);
+  assert.ok(switches.length >= 3, `only found ${switches.length} switches`);
 
   for (const { name, source } of switches) {
     // The default is the fallback in `process.env.X_SOURCE ?? ""` ternaries:

@@ -26,12 +26,12 @@ import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
 import query from "#shared/db/query.js";
-import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.js";
+import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import {
   inPinnedTransaction,
   assertNothingEscaped,
   outside,
-} from "#shared/testing/pinned-pool.js";
+} from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");

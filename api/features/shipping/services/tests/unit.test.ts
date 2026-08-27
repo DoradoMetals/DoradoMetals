@@ -119,6 +119,7 @@ test("no read projects a column exchange has no equivalent for", () => {
 // Every read has to alias the three renamed columns back, or the frontend gets
 // a field it does not read and loses one it does.
 test("every read aliases the renamed columns back to the names the wire uses", () => {
+  assert.ok(Object.keys(RENAMES).length, "RENAMES is empty, so this test asserts nothing");
   for (const n of ["get_all", "get_one", "get_by_carrier", "create", "update"]) {
     for (const [newName, oldName] of Object.entries(RENAMES)) {
       assert.match(

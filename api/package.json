@@ -24,6 +24,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:sweep": "tsc -p tsconfig.json --noEmit --checkJs --noImplicitAny false",
     "diff": "TZ=UTC node scripts/diff-source.mjs",
+    "verify:sales-order-decomposition": "TZ=UTC node scripts/verify-sales-order-decomposition.mjs",
+    "verify:orders-decomposition": "TZ=UTC node scripts/verify-orders-decomposition.mjs",
     "verify:parity": "TZ=UTC node scripts/verify-parity.mjs",
     "lint:migrations": "node scripts/lint-migrations.mjs",
     "plan": "node scripts/plan-migration.mjs",
@@ -43,6 +45,9 @@
     "audit:payments": "TZ=UTC node scripts/audit-payments.mjs",
     "audit:enum-domains": "TZ=UTC node scripts/audit-enum-domains.mjs",
     "audit:enum-domains:prod": "TZ=UTC node scripts/audit-enum-domains.mjs --prod",
+    "clean:dual-orphans": "TZ=UTC node scripts/clean-dual-run-orphans.mjs",
+    "audit:vacuous-tests": "node scripts/audit-vacuous-tests.mjs",
+    "audit:vacuous-tests:self-test": "node scripts/audit-vacuous-tests.mjs --self-test",
     "audit:test-leaks": "TZ=UTC node scripts/audit-test-leaks.mjs",
     "compare:databases": "TZ=UTC node scripts/compare-databases.mjs",
     "backup": "node scripts/backup.mjs",
@@ -53,7 +58,9 @@
     "audit:test-leaks:self-test": "TZ=UTC node scripts/audit-test-leaks.mjs --self-test",
     "dump:stripe": "node scripts/dump-stripe-reconciliation.mjs",
     "test:sandbox": "TZ=UTC NODE_ENV=test node --test --test-timeout=60000 sandbox/*.sandbox.js",
-    "seed:e2e": "NODE_ENV=test node scripts/seed-e2e-users.mjs"
+    "seed:e2e": "NODE_ENV=test node scripts/seed-e2e-users.mjs",
+    "audit:table-owners": "node scripts/audit-table-owners.mjs",
+    "audit:non-finite": "node scripts/audit-non-finite.mjs"
   },
   "imports": {
     "#env": "./env.ts",

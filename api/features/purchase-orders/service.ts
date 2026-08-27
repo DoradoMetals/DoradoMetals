@@ -1,21 +1,24 @@
 import withTransaction from "#shared/db/withTransaction.js";
 import * as purchaseOrderRepo from "#features/purchase-orders/repo.js";
-import * as scrapRepo from "#features/scrap/repo.js";
+import * as scrapRepo from "#features/scrap/repo.ts";
 import * as transactionsService from "#features/transactions/service.ts";
 import * as usersFunds from "#features/users/service.ts";
 import * as ratesRepo from "#features/rates/service.ts";
 import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.ts";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 
-import * as shipmentRepo from "#features/shipping/shipments/repo.js";
-import * as pickupRepo from "#features/shipping/pickups/repo.js";
+// The SERVICE, not a repo: a shipment is composed from six tables now, and
+// the order link it carries is reconstructed rather than stored.
+import * as shipmentRepo from "#features/shipping/shipments/service.ts";
+// The SERVICE, not a repo: a pickup hangs off a SHIPMENT now, and the order,
+// the user and the carrier it reports are reconstructed through one.
+import * as pickupRepo from "#features/shipping/pickups/service.ts";
 import * as shippingOps from "#features/shipping/operations/handler.ts";
 
 import type {
   PurchaseOrderRow,
   OrderMetalRow,
   OrderScrapItemRow,
-  ExpiredOfferRow,
 } from "#features/purchase-orders/repo.next.ts";
 import type { SpotPriceWire, PurchaseOrderItemWire } from "@dorado/contracts";
 
@@ -124,6 +127,27 @@ export async function labelBufferOrUndo(
   return Buffer.from(labelData.labelFile, "base64");
 }
 
+// THE READS STILL GO THROUGH repo.js, AND PIVOTING THEM ALONE WAS A MISTAKE
+// THAT THE SUITE CAUGHT.
+//
+// features/purchase-orders/read.service.ts is finished and proven -
+// `verify:orders-decomposition` reports "nothing else differs" against the
+// implementation serving traffic, across every real order and every nested
+// object. It was pointed at here, and two replay tests failed immediately:
+//
+//   moving an order's status takes the body the drawer sends
+//     expected 'Payment Processing', got 'Pending'
+//   locking spots freezes them and unlocking releases them
+//     the order does not report its spots as locked
+//
+// The reason is the sequencing, not the read. PURCHASE_ORDERS_SOURCE defaults
+// to `exchange`, so every WRITE goes to exchange alone. Reading the new schema
+// while writing the old one means a read cannot see a write that just
+// happened: an admin changes a status and the drawer shows the old one.
+//
+// Reads and writes have to pivot TOGETHER, which is what every other
+// restructured feature did - read the new schema, write both, in one change.
+// The reads move when the write paths land beside them.
 export async function listOrdersForUser(userId: string): Promise<PurchaseOrderRow[]> {
   return purchaseOrderRepo.findAllByUser(userId);
 }
@@ -138,51 +162,6 @@ export async function getAll(): Promise<PurchaseOrderRow[]> {
 
 export async function getMetalsForOrder(orderId: string): Promise<OrderMetalRow[]> {
   return purchaseOrderRepo.findMetalsByOrderId(orderId);
-}
-
-export async function acceptOffer({
-  order,
-  order_spots,
-  spot_prices,
-}: {
-  order: OrderLike;
-  order_spots: SpotPriceWire[];
-  spot_prices: SpotPriceWire[];
-}): Promise<{ purchaseOrder: PurchaseOrderRow | undefined; orderSpots: SpotPriceWire[] }> {
-  const updatedSpots = await withTransaction(async (client) => {
-    const spots = order.spots_locked
-      ? order_spots
-      : await purchaseOrderRepo.updateOrderMetals(order.id, spot_prices, client);
-
-    await purchaseOrderRepo.updateRefinerMetals(order.id, spots, client);
-
-    await purchaseOrderRepo.updateOrderItemPrices(
-      order.id,
-      order.order_items,
-      spots,
-      client
-    );
-
-    const total = calculateTotalPrice(order, spots);
-    await purchaseOrderRepo.moveOrderToAccepted(order.id, total, client);
-
-    return spots;
-  });
-
-  const purchaseOrder = await getById(order.id);
-  return { purchaseOrder, orderSpots: updatedSpots };
-}
-
-export async function rejectOffer({
-  orderId,
-  offerNotes,
-}: {
-  orderId: string;
-  offerNotes: string | null;
-}): Promise<unknown> {
-  return withTransaction((client) =>
-    purchaseOrderRepo.rejectOfferById(orderId, offerNotes, client)
-  );
 }
 
 // Cancelling an order generates a return label, and a return label is a real
@@ -256,9 +235,14 @@ export async function cancelOrder({
         client
       );
 
+      // create() returns null only if the row vanished between the insert and
+      // the read back, which cannot happen inside this transaction - but the
+      // type admits it, so the id is taken explicitly rather than spread.
+      if (!shipment) throw new Error("the return shipment was not created");
       const updatedShipment = await shipmentRepo.update(
         {
           ...shipment,
+          id: shipment.id,
           tracking_number: labelData.tracking_number,
           carrier_id: FEDEX_CARRIER_ID,
           shipping_status: "Label Created",
@@ -281,16 +265,6 @@ export async function cancelOrder({
     await undoLabel(labelData.tracking_number);
     throw err;
   }
-}
-
-export async function updateOfferNotes({
-  order,
-  offer_notes,
-}: {
-  order: OrderLike;
-  offer_notes: string | null;
-}): Promise<unknown> {
-  return purchaseOrderRepo.updateOfferNotes(order, offer_notes);
 }
 
 export async function createReview({ order }: { order: OrderLike }): Promise<unknown> {
@@ -355,13 +329,18 @@ export async function recordPurchaseOrder(
     client
   );
 
+  if (!shipment) throw new Error("the inbound shipment was not created");
   await shipmentRepo.update(
     {
       ...shipment,
+      id: shipment.id,
       tracking_number: label.tracking_number ?? null,
       carrier_id: FEDEX_CARRIER_ID,
       shipping_status: "Label Created",
-      shipping_label: label.buffer ?? null,
+      // `label.buffer` is the carrier provider's own loosely-typed payload.
+      // Narrowed at the boundary rather than widening the shipment's type to
+      // accept anything - the column is text and the value is a base64 buffer.
+      shipping_label: (label.buffer as Buffer | string | null) ?? null,
       label_type: "Generated",
       pickup_type: purchase_order.pickup?.name ?? null,
       package: purchase_order.package?.label ?? null,
@@ -498,75 +477,43 @@ export async function createPurchaseOrder(
   return await purchaseOrderRepo.findById(order_id);
 }
 
-// A locked-spot offer holds its quoted prices for 24h; an unlocked one floats
-// with spot and gets a week.
-function offerWindow(order: { spots_locked?: boolean | null }): {
-  sentAt: Date;
-  expiresAt: Date;
-} {
-  const now = new Date();
-  const hours = order.spots_locked ? 24 : 7 * 24;
-  return { sentAt: now, expiresAt: new Date(now.getTime() + hours * 3600 * 1000) };
-}
-
-// Clearing prices and the order total invalidates the previous quote, so both
-// offer transitions below re-open the offer from a clean slate.
-type OfferWindow = { sentAt: Date; expiresAt: Date };
-
-async function reissueOffer(
-  order: OrderLike,
-  resolveStatus: (order: OrderLike, window: OfferWindow) => Record<string, unknown>
-): Promise<unknown> {
-  return withTransaction(async (client) => {
-    await purchaseOrderRepo.clearItemPrices(client, order.id);
-    await purchaseOrderRepo.resetOrderTotal(client, order.id);
-
-    const updated = await purchaseOrderRepo.updateOffer(client, {
-      orderId: order.id,
-      ...resolveStatus(order, offerWindow(order)),
-    });
-
-    if (!updated) {
-      const e: Error & { status?: number } = new Error("Purchase Order not found");
-      e.status = 404;
-      throw e;
-    }
-
-    return updated;
-  });
-}
-
-export async function sendOffer({
+// Accepting an order is a PRICING event, not a status move. The spots are
+// snapshotted (or kept, if already pinned), the refiner's copies updated, every
+// line priced from them, and the total written with the status and the pin in
+// one transaction. 086 removed the offer record this used to update alongside;
+// the pricing half is the order's and stays. ADMIN-ONLY - customers do not
+// control order status.
+export async function acceptOrder({
   order,
-  user_name,
+  order_spots,
+  spot_prices,
 }: {
   order: OrderLike;
-  user_name: string;
-}): Promise<unknown> {
-  return reissueOffer(order, (_order: OrderLike, { sentAt, expiresAt }: OfferWindow) => ({
-    sentAt,
-    expiresAt,
-    offerStatus: "Sent",
-    updated_by: user_name,
-  }));
-}
+  order_spots: SpotPriceWire[];
+  spot_prices: SpotPriceWire[];
+}): Promise<{ purchaseOrder: PurchaseOrderRow | undefined; orderSpots: SpotPriceWire[] }> {
+  const updatedSpots = await withTransaction(async (client) => {
+    const spots = order.spots_locked
+      ? order_spots
+      : await purchaseOrderRepo.updateOrderMetals(order.id, spot_prices, client);
 
-export async function updateRejectedOffer({
-  order,
-  user_name,
-}: {
-  order: OrderLike;
-  user_name: string;
-}): Promise<unknown> {
-  return reissueOffer(order, (o, { sentAt, expiresAt }) => {
-    const wasResent = o.offer_status === "Resent";
-    return {
-      sentAt: wasResent ? null : sentAt,
-      expiresAt: wasResent ? null : expiresAt,
-      offerStatus: wasResent ? "Rejected" : "Resent",
-      updated_by: user_name,
-    };
+    await purchaseOrderRepo.updateRefinerMetals(order.id, spots, client);
+
+    await purchaseOrderRepo.updateOrderItemPrices(
+      order.id,
+      order.order_items,
+      spots,
+      client
+    );
+
+    const total = calculateTotalPrice(order, spots);
+    await purchaseOrderRepo.acceptOrder(order.id, total, client);
+
+    return spots;
   });
+
+  const purchaseOrder = await getById(order.id);
+  return { purchaseOrder, orderSpots: updatedSpots };
 }
 
 export async function updateStatus({
@@ -741,42 +688,6 @@ export async function updateBullion({ item }: { item: Record<string, any> }): Pr
   return await purchaseOrderRepo.updateBullion(item);
 }
 
-export async function expireStaleOffers(): Promise<void> {
-  const expiredOrders = await purchaseOrderRepo.findExpiredOffers();
-
-  for (const order of expiredOrders) {
-    try {
-      // A locked-spot offer that lapses gets unlocked and re-sent on the
-      // floating 7-day window; an unlocked one is accepted at current spot.
-      if (!order.spots_locked) {
-        await autoAcceptOrder(order.id);
-        continue;
-      }
-
-      await withTransaction(async (client) => {
-        const newSentAt = new Date();
-        const newExpiresAt = new Date(
-          newSentAt.getTime() + 7 * 24 * 60 * 60 * 1000
-        );
-
-        await purchaseOrderRepo.toggleSpots(false, order.id, client);
-
-        await purchaseOrderRepo.updateOffer(client, {
-          orderId: order.id,
-          sentAt: newSentAt,
-          expiresAt: newExpiresAt,
-          offerStatus: "Sent",
-          updated_by: "Scheduler",
-        });
-
-        await purchaseOrderRepo.clearOrderMetals(order.id, client);
-      });
-    } catch (err) {
-      console.error("[CRON] Error expiring offer:", order.id, err);
-    }
-  }
-}
-
 export async function autoAcceptOrder(orderId: string): Promise<void> {
   try {
     await withTransaction(async (client) => {
@@ -801,7 +712,9 @@ export async function autoAcceptOrder(orderId: string): Promise<void> {
 
       const total = calculateTotalPrice(order, updatedSpots);
 
-      await purchaseOrderRepo.moveOrderToAccepted(orderId, total, client);
+      // moveOrderToAccepted also wrote offer_status; with offers gone (086)
+      // what is left is the order's own status, its price and the spot pin.
+      await purchaseOrderRepo.acceptOrder(orderId, total, client);
     });
   } catch (err) {
     console.error("[CRON] Failed to auto-accept order", orderId, err);
@@ -816,7 +729,16 @@ export async function editShippingCharge({
   order_id: string;
   shipping_charge: number;
 }): Promise<unknown> {
-  return await purchaseOrderRepo.editShippingCharge(order_id, shipping_charge);
+  // NOT purchaseOrderRepo. shipping.shipments belongs to features/shipping, and
+  // this used to be a raw UPDATE against exchange.shipments from here - the
+  // second writer to a table another feature already dual-writes (D41).
+  //
+  // Calling the shipments service means this column starts landing in both
+  // schemas now, before the purchase-orders pivot rather than after. That is
+  // safe while the switch is still `exchange`: the new-schema half is an
+  // UPDATE that matches nothing when the backfill has not yet created the
+  // shipment, which is a no-op, and reads still come from exchange either way.
+  return await shipmentRepo.setChargeForOrder(order_id, shipping_charge);
 }
 
 export async function editPayoutCharge({

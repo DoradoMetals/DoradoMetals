@@ -36,42 +36,36 @@ const withEnv = (values, fn) => {
   }
 };
 
-test("both jobs are declared, and neither is invoked by reading them", () => {
+test("the job is declared, and not invoked by reading it", () => {
+  // 086 removed offers, and the stale-offers job went with them - an offer
+  // that cannot exist cannot expire. Spot prices are the one remaining cron.
   const names = jobs().map((j) => j.name);
-  assert.deepEqual(names, ["spot prices", "stale offers"]);
+  assert.deepEqual(names, ["spot prices"]);
   for (const job of jobs()) {
     assert.equal(typeof job.run, "function", `${job.name} has something to run`);
   }
 });
 
 test("the schedule is read at CALL time, not at import time", () => {
-  const first = withEnv(
-    { SPOT_UPDATE_SCHEDULE: "*/5 * * * *", STALE_OFFERS_UPDATE_SCHEDULE: "0 * * * *" },
-    () => jobs()
-  );
+  const first = withEnv({ SPOT_UPDATE_SCHEDULE: "*/5 * * * *" }, () => jobs());
   assert.equal(first[0].schedule, "*/5 * * * *");
-  assert.equal(first[1].schedule, "0 * * * *");
 
   // The discriminating half: a module-level array could not do this, because it
   // was built once with whatever the environment held at import.
   const second = withEnv(
-    { SPOT_UPDATE_SCHEDULE: "*/17 * * * *", STALE_OFFERS_UPDATE_SCHEDULE: undefined },
+    { SPOT_UPDATE_SCHEDULE: undefined },
     () => jobs()
   );
-  assert.equal(second[0].schedule, "*/17 * * * *", "a later change to the env is seen");
   assert.equal(
-    second[1].schedule,
+    second[0].schedule,
     undefined,
-    "and so is a variable that has gone away - which is the case that would " +
+    "a variable that has gone away must be seen - this is the case that would " +
       "have left the process running with no cron at all"
   );
 });
 
 test("an unset schedule is undefined rather than a string", () => {
-  const got = withEnv(
-    { SPOT_UPDATE_SCHEDULE: undefined, STALE_OFFERS_UPDATE_SCHEDULE: undefined },
-    () => jobs()
-  );
+  const got = withEnv({ SPOT_UPDATE_SCHEDULE: undefined }, () => jobs());
   for (const job of got) {
     assert.equal(job.schedule, undefined, `${job.name} reports no schedule`);
     // Not the string "undefined", which cron.validate would reject with a

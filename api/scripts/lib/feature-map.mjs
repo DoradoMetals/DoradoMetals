@@ -23,7 +23,7 @@ export const FEATURES = {
   products: { "exchange.products": ["products.bullion"] },
   addresses: { "exchange.addresses": ["places.addresses", "places.user_addresses"] },
   orders: {
-    "exchange.purchase_orders": ["orders.orders", "orders.offers", "orders.transactions"],
+    "exchange.purchase_orders": ["orders.orders", "orders.transactions"],
     "exchange.sales_orders": ["orders.orders", "orders.transactions"],
     "exchange.purchase_order_items": ["orders.items", "refiners.items"],
     "exchange.sales_order_items": ["orders.items"],
@@ -73,8 +73,10 @@ export const RENAMES = {
   "exchange.suppliers": { is_active: "enabled" },
   "exchange.carriers": { is_active: "enabled" },
   "exchange.purchase_orders": {
-    purchase_order_status: "status", order_number: "number", offer_notes: "notes",
-    total_price: "offer_amount", offer_expires_at: "offer_expiration", address_id: "-",
+    purchase_order_status: "status", order_number: "number",
+    // 086: offers are gone. total_price maps to the transaction's total, and
+    // the offer columns were dropped from exchange in the same migration.
+    total_price: "total", address_id: "-",
   },
   "exchange.sales_orders": {
     sales_order_status: "status", order_number: "number", supplier_id: "refinery_id",
@@ -91,7 +93,7 @@ export const RENAMES = {
   "exchange.sales_order_items": { sales_order_id: "order_id", product_id: "bullion_id", sales_tax_rate: "sales_tax_charged" },
   // The assay moved to the refiner's line in 065: what the refinery reported
   // once the scrap was melted is refiners.items, and orders.items keeps only
-  // what the customer declared. bid_premium stays on the item.
+  // what the customer declared.
   "exchange.scrap": {
     gross_unit: "unit",
     gem_id: "-",
@@ -244,7 +246,8 @@ export const FLOWS = {
         purity: "purity",
         content: "content",
         gross_unit: "unit",
-        bid_premium: "premium",
+        // 085/086: no premium is copied. It is resolved from rates when the
+        // checkout becomes an order.
       },
     },
   },

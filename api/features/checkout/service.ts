@@ -1,12 +1,14 @@
 import withTransaction from "#shared/db/withTransaction.js";
 import * as cartRepo from "#features/checkout/repo.js";
-import * as productRepo from "#features/products/repo.js";
+// The SERVICE, not a repo: products is composed from three reference tables
+// now, and liveness is the one question checkout asks of it.
+import * as productService from "#features/products/service.ts";
 import type {
-  CartItemRow,
-  CartInput,
-  SellCartInput,
-  SellCartScrapRow,
-  SellCartProductRow,
+  SaleItemRow,
+  SaleItemsInput,
+  PurchaseItemsInput,
+  PurchaseScrapRow,
+  PurchaseProductRow,
 } from "#features/checkout/repo.next.ts";
 
 // NOTE THE FIELD IS `status`, NOT `statusCode`. addresses and users both throw
@@ -23,7 +25,7 @@ function badRequest(message: string): HttpError {
   return err;
 }
 
-export async function getCart(user_id: string): Promise<CartItemRow[]> {
+export async function getCart(user_id: string): Promise<SaleItemRow[]> {
   return await cartRepo.getCart(user_id);
 }
 
@@ -51,7 +53,7 @@ async function refuseProductsThatAreNotLive(
   const unique = [...new Set(ids.filter((id) => typeof id === "string" && id))];
   if (unique.length === 0) return;
 
-  const rows = await productRepo.getLiveness(unique, executor);
+  const rows = await productService.getLiveness(unique, executor as never);
   const live = new Set(
     rows.filter((r: Record<string, unknown>) => r[direction] === true).map((r: { id: string }) => r.id)
   );
@@ -67,7 +69,7 @@ async function refuseProductsThatAreNotLive(
 }
 
 // Returns a MESSAGE, not the cart. The frontend refetches.
-export async function syncCart(user_id: string, items: CartInput[]): Promise<string> {
+export async function syncCart(user_id: string, items: SaleItemsInput[]): Promise<string> {
   return withTransaction(async (client) => {
     await refuseProductsThatAreNotLive(
       (items ?? []).map((i) => i?.id),
@@ -82,8 +84,8 @@ export async function syncCart(user_id: string, items: CartInput[]): Promise<str
 // A sell cart line is either scrap or a product, told apart by `type`, and the
 // two carry different data. The union is what the frontend already switches on.
 export type SellCartLine =
-  | { type: "scrap"; data: SellCartScrapRow & { id: string } }
-  | { type: "product"; data: SellCartProductRow };
+  | { type: "scrap"; data: PurchaseScrapRow & { id: string } }
+  | { type: "product"; data: PurchaseProductRow };
 
 export async function getSellCart(user_id?: string): Promise<SellCartLine[]> {
   if (!user_id) {
@@ -94,7 +96,7 @@ export async function getSellCart(user_id?: string): Promise<SellCartLine[]> {
   if (!cartId) return [];
 
   const scrapRows = await cartRepo.getSellCartScrapItems(cartId);
-  const scrapItems: SellCartLine[] = scrapRows.map((row: SellCartScrapRow) => ({
+  const scrapItems: SellCartLine[] = scrapRows.map((row: PurchaseScrapRow) => ({
     type: "scrap",
     data: {
       ...row,
@@ -120,7 +122,7 @@ export async function getSellCart(user_id?: string): Promise<SellCartLine[]> {
   }));
 
   const productRows = await cartRepo.getSellCartProductItems(cartId);
-  const productItems: SellCartLine[] = productRows.map((row: SellCartProductRow) => ({
+  const productItems: SellCartLine[] = productRows.map((row: PurchaseProductRow) => ({
     type: "product",
     data: {
       ...row,
@@ -133,7 +135,7 @@ export async function getSellCart(user_id?: string): Promise<SellCartLine[]> {
 
 export async function syncSellCart(
   user_id?: string,
-  cart?: SellCartInput[]
+  cart?: PurchaseItemsInput[]
 ): Promise<string> {
   if (!user_id || !Array.isArray(cart)) {
     throw badRequest("Invalid payload");

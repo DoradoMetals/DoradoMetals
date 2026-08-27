@@ -79,7 +79,10 @@ function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
   return `
     SELECT
       po.*,
-      json_agg(DISTINCT jsonb_build_object(
+      -- FILTER + COALESCE, same fix as repo.next.ts: an itemless order gets []
+      -- rather than one all-null object that the item_type CASE labels a scrap
+      -- line (D53). Five production-era dev orders are in that state.
+      COALESCE(json_agg(DISTINCT jsonb_build_object(
         'id', poi.id,
         'purchase_order_id', poi.purchase_order_id,
         'price', poi.price,
@@ -106,7 +109,7 @@ function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
           'shadow_offset', p.shadow_offset,
           'metal_type', mp.type
         )
-      )) AS order_items,
+      )) FILTER (WHERE poi.id IS NOT NULL), '[]'::json) AS order_items,
       to_jsonb(addr) AS address,
       ${shipmentJson("ship")} AS shipment,
       ${shipmentJson("ret")} AS return_shipment,
@@ -209,45 +212,15 @@ export async function updateOrderItemPrices(orderId, items, spotRows, client) {
   );
 }
 
-export async function moveOrderToAccepted(orderId, totalPrice, client) {
-  const sql = `
-    UPDATE exchange.purchase_orders
-    SET offer_status = $1,
-        purchase_order_status = $2,
-        total_price = $3,
-        spots_locked = TRUE
-    WHERE id = $4;
-  `;
-  await query(sql, ["Accepted", "Accepted", totalPrice, orderId], client);
-}
-
-export async function rejectOfferById(orderId, offerNotes, client) {
-  const sql = `
-    UPDATE exchange.purchase_orders
-    SET 
-      purchase_order_status = $1,
-      offer_status          = $2,
-      offer_notes           = $3,
-      num_rejections        = num_rejections + 1
-    WHERE id = $4
-    RETURNING *;
-  `;
-  const vals = ["Rejected", "Rejected", offerNotes, orderId];
-  const { rows } = await query(sql, vals, client);
-  return rows[0];
-}
-
 export async function cancelOrderById(orderId, client) {
   const sql = `
     UPDATE exchange.purchase_orders
-    SET
-      purchase_order_status = $1,
-      spots_locked = FALSE,
-      offer_status = $2
-    WHERE id = $3
+    SET purchase_order_status = $1,
+        spots_locked = FALSE
+    WHERE id = $2
     RETURNING *;
   `;
-  const vals = ["Cancelled", "Cancelled", orderId];
+  const vals = ["Cancelled", orderId];
   const { rows } = await query(sql, vals, client);
   return rows[0];
 }
@@ -259,19 +232,6 @@ export async function clearOrderMetals(orderId, client) {
     WHERE purchase_order_id = $1;
   `;
   return query(sql, [orderId], client);
-}
-
-export async function updateOfferNotes(order, offer_notes, executor) {
-  const sql = `
-    UPDATE exchange.purchase_orders
-    SET offer_notes = $1
-    WHERE id = $2
-    RETURNING *;
-  `;
-  const values = [offer_notes, order.id];
-  const { rows } = await query(sql, values, executor);
-
-  return rows[0];
 }
 
 export async function createReview({ order }, executor) {
@@ -378,26 +338,6 @@ export async function resetOrderTotal(client, orderId) {
   return query(sql, [orderId], client);
 }
 
-export async function updateOffer(
-  client,
-  { orderId, sentAt, expiresAt, offerStatus, updated_by }
-) {
-  const sql = `
-    UPDATE exchange.purchase_orders
-      SET
-        offer_status = $1,
-        offer_sent_at = $2,
-        offer_expires_at = $3,
-        updated_by = $4,
-        updated_at = NOW()
-    WHERE id = $5
-    RETURNING *;
-  `;
-  const values = [offerStatus, sentAt, expiresAt, updated_by, orderId];
-  const { rows } = await query(sql, values, client);
-  return rows[0];
-}
-
 export async function updateStatus(order, order_status, user_name, executor) {
   const sql = `
     UPDATE exchange.purchase_orders
@@ -482,17 +422,6 @@ export async function updateBullion(item, executor) {
   return await query(sql, values, executor);
 }
 
-export async function findExpiredOffers() {
-  const sql = `
-    SELECT * FROM exchange.purchase_orders
-    WHERE offer_status = 'Sent'
-      AND offer_expires_at IS NOT NULL
-      AND offer_expires_at < NOW();
-  `;
-  const { rows } = await query(sql);
-  return rows;
-}
-
 export async function getCurrentSpotPrices(client) {
   const { rows } = await query(
     `
@@ -504,16 +433,13 @@ export async function getCurrentSpotPrices(client) {
   return rows;
 }
 
-export async function editShippingCharge(order_id, shipping_charge, executor) {
-  const sql = `
-  UPDATE exchange.shipments
-  SET net_charge = $1
-  WHERE purchase_order_id = $2
-  RETURNING *;
-  `;
-  const values = [shipping_charge, order_id];
-  return await query(sql, values, executor);
-}
+// editShippingCharge IS GONE FROM HERE (D41).
+//
+// It wrote exchange.shipments, a table features/shipping owns and dual-writes.
+// The live path is shipping/shipments' setChargeForOrder, called from
+// service.ts. Two writers to one table means only one of them dual-writes
+// after a pivot, and the column drifts apart between the schemas silently -
+// verify:parity does not cover shipments.
 
 export async function editPayoutCharge(order_id, shipping_charge, executor) {
   const sql = `
@@ -696,4 +622,20 @@ export async function findPayoutDetails(order_id, executor) {
   `;
   const { rows } = await query(sql, [order_id], executor);
   return rows[0] ?? null;
+}
+
+// The order is accepted: its status, the price agreed, and its spots pinned.
+//
+// This is what moveOrderToAccepted was once offer_status came out of it (086).
+// Renamed because it is an order transition, not an offer one - the auto-accept
+// cron is the only caller.
+export async function acceptOrder(orderId, totalPrice, client) {
+  const sql = `
+    UPDATE exchange.purchase_orders
+    SET purchase_order_status = $1,
+        total_price = $2,
+        spots_locked = TRUE
+    WHERE id = $3;
+  `;
+  await query(sql, ["Accepted", totalPrice, orderId], client);
 }

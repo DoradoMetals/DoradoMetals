@@ -18,8 +18,8 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, anonymous } from "#shared/testing/session.js";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
+import { mockSessions, restoreSessions, anonymous } from "#shared/testing/session.ts";
+import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -80,6 +80,10 @@ test("every metal carries the fields a quote is built from", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
       const res = await request(app).get("/api/spots/spot_prices");
+      // An empty feed would run none of the assertions below and report
+      // success - and an empty spot feed is exactly the failure that prices
+      // every order at nothing. Found by audit:vacuous-tests.
+      assert.ok(res.body.length > 0, "the spot feed came back empty");
       for (const spot of res.body) {
         for (const field of ["type", "ask_spot", "bid_spot"]) {
           assert.ok(field in spot, `a spot is missing ${field}`);

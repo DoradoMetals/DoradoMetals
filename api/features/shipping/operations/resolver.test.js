@@ -82,7 +82,12 @@ describe("the carrier name every provider lookup depends on", () => {
   // somebody tried. Every carrier either has a provider, or is a known gap.
   test("every carrier either resolves to a provider or is one we have not built", async () => {
     const unimplemented = new Set(["ups", "usps"]);
-    for (const carrier of await carriers.getAllCarriers()) {
+    const all = await carriers.getAllCarriers();
+    // The floor the two tests below lean on without saying so: an empty
+    // PROVIDERS/BUILDERS is only caught HERE, and only if there is a carrier to
+    // loop over. With no carriers, all three tests pass having checked nothing.
+    assert.ok(all.length, "no carriers, so this test asserts nothing");
+    for (const carrier of all) {
       const name = carrier.organization?.name;
       const code = normalize(name);
       if (unimplemented.has(code)) continue;

@@ -78,8 +78,18 @@ const lineOf = (src, index) => src.slice(0, index).split("\n").length;
 
 const problems = [];
 
+// Counted, and printed on success. A check whose success message is just
+// "passed" carries no evidence of what it looked at, so a walk that quietly
+// stops seeing files is indistinguishable from a clean codebase - which is
+// exactly how transaction-side-effects.test.js came to be scanning three files
+// out of twenty-one for the whole TypeScript conversion (D40). Every other
+// lint here prints its denominator; this one now does too.
+let filesScanned = 0;
+let callsChecked = 0;
+
 for (const file of sourceFiles(path.join(ROOT, "features"))) {
   const src = fs.readFileSync(file, "utf8");
+  filesScanned++;
   const rel = path.relative(ROOT, file);
   // Direct pool.query bypasses the shared executor entirely.
   for (const m of src.matchAll(/\bpool\.query\(/g)) {
@@ -97,6 +107,7 @@ for (const file of sourceFiles(path.join(ROOT, "features"))) {
     // Skip the declaration of the executor itself.
     if (/function\s+$/.test(src.slice(0, m.index))) continue;
 
+    callsChecked++;
     const open = m.index + "query".length;
     const { args } = callArgs(src, open);
     const line = lineOf(src, m.index);
@@ -122,4 +133,6 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log("db call check passed");
+console.log(
+  `db call check passed (${callsChecked} query() call(s) in ${filesScanned} file(s))`
+);

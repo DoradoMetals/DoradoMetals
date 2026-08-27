@@ -23,13 +23,13 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.js";
-import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/testing/pinned-pool.js";
+import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
 
-import { LOCKS } from "#shared/testing/locks.js";
+import { LOCKS } from "#shared/testing/locks.ts";
 // Orders only - this file writes no address.
 const ORDER_LOCK = LOCKS.ORDERS;
 
@@ -62,11 +62,15 @@ after(async () => {
 const MOVE_TO = "Payment Processing";
 
 const anOrder = async () => {
+  // ... and one that HAS spot rows, expressed in the query rather than assumed
+  // of whatever order happens to be newest - dev drifts, and the spot-change
+  // test needs a spot to change.
   const rows = await outside(
-    `SELECT id, order_number, purchase_order_status
-       FROM exchange.purchase_orders
-      WHERE purchase_order_status NOT IN ('Cancelled', 'Completed', $1)
-      ORDER BY created_at DESC LIMIT 1`,
+    `SELECT p.id, p.order_number, p.purchase_order_status
+       FROM exchange.purchase_orders p
+      WHERE p.purchase_order_status NOT IN ('Cancelled', 'Completed', $1)
+        AND EXISTS (SELECT 1 FROM exchange.order_metals m WHERE m.purchase_order_id = p.id)
+      ORDER BY p.created_at DESC LIMIT 1`,
     [MOVE_TO]
   );
   return rows[0];

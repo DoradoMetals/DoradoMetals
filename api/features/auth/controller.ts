@@ -1,7 +1,7 @@
 import { fromNodeHeaders } from 'better-auth/node';
 
 import { asyncHandler } from '#shared/middleware/asyncHandler.js';
-import { auth } from '#features/auth/client.js';
+import { auth } from '#features/auth/client.ts';
 
 // Sets a password for the currently-authenticated user. Used by the magic-link
 // welcome flow (/verify-login): admin-created / order accounts are created

@@ -27,7 +27,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-import { auth } from "#features/auth/client.js";
+import { auth } from "#features/auth/client.ts";
 
 const options = auth.options;
 
@@ -61,7 +61,7 @@ test("no inert security option pretends to guard impersonation", () => {
   // times to explain it. A check that cannot tell code from prose about code
   // fails the moment somebody documents the thing it is checking for.
   const source = fs
-    .readFileSync(new URL("./client.js", import.meta.url), "utf8")
+    .readFileSync(new URL("./client.ts", import.meta.url), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^\s*\/\/.*$/gm, "");
 

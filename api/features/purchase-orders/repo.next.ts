@@ -40,17 +40,6 @@ export type PurchaseOrderRow = Omit<
   updated_at: Date | null;
 };
 
-// findExpiredOffers returns ORDER_COLUMNS ALONE - no address, no payout, no
-// shipment, no user, no items. That is deliberate and load-bearing: the query
-// has no GROUP BY, so joining the lines would multiply the row by their number
-// and the scheduler would expire one offer several times. Expressed as the
-// order row minus its nested objects, so a column added to ORDER_COLUMNS
-// appears in both and the only difference between them stays the joins.
-export type ExpiredOfferRow = Omit<
-  PurchaseOrderRow,
-  "address" | "payout" | "shipment" | "return_shipment" | "carrier_pickup" | "user" | "order_items"
->;
-
 // The per-metal spot row an order carries, from orders.spots or refiners.spots.
 // No contract: it is never returned by a route on its own, only alongside an
 // order.
@@ -133,7 +122,7 @@ const scrapJson = (withActuals: boolean): string => {
           'content', ${scrapOnly("i.content")},
           'gross_unit', ${scrapOnly("i.unit")},
           'metal', ${scrapOnly("im.name")},
-          'bid_premium', ${scrapOnly("i.bid_premium")}${
+          'bid_premium', ${scrapOnly("i.premium")}${
             withActuals
               ? `,
           'purity_actual', ${scrapOnly("ri.purity")},
@@ -159,13 +148,8 @@ const ORDER_COLUMNS = `
       o.created_by,
       o.updated_by,
       o.number AS order_number,
-      f.offer_expiration AS offer_expires_at,
-      f.offer_status,
-      f.spots_locked,
-      f.offer_sent_at,
-      f.notes AS offer_notes,
-      f.offer_amount AS total_price,
-      f.num_rejections,
+      o.spots_locked,
+      t.total AS total_price,
       t.waive_shipping_fee,
       t.waive_payout_fee,
       t.shipping_paid,
@@ -182,7 +166,13 @@ function buildOrderQuery(
   return `
     SELECT
       ${ORDER_COLUMNS},
-      json_agg(DISTINCT jsonb_build_object(
+      -- FILTER + COALESCE: an order with no lines aggregates NOTHING rather
+      -- than one all-null object. Without the filter, json_agg over the LEFT
+      -- JOIN yields a single row of nulls which the item_type CASE then labels
+      -- a scrap line - the D53 artifact, reproduced from exchange. The composed
+      -- read (read.service.ts) already returns [] for these; this makes the
+      -- mirror agree with it.
+      COALESCE(json_agg(DISTINCT jsonb_build_object(
         'id', i.id,
         'purchase_order_id', i.order_id,
         'price', i.price,
@@ -208,7 +198,7 @@ function buildOrderQuery(
           'shadow_offset', b.shadow_offset,
           'metal_type', bm.name
         )
-      )) AS order_items,
+      )) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS order_items,
       to_jsonb(addr) AS address,
       ${shipmentJson("ship")} AS shipment,
       ${shipmentJson("ret")} AS return_shipment,
@@ -217,7 +207,6 @@ function buildOrderQuery(
       ${userJson()} AS "user"
     FROM orders.orders o
     ${sharedJoins}
-    LEFT JOIN orders.offers f ON f.order_id = o.id
     -- The refiner's counterpart to the line: what the refinery reported once the
     -- scrap was melted, as against what the customer declared. 064 made this one
     -- row per purchase-order line, so the join is one-to-one and the values are
@@ -229,7 +218,7 @@ function buildOrderQuery(
     LEFT JOIN exchange.carrier_pickups cp ON cp.order_id = o.id
     LEFT JOIN exchange.payouts pay ON pay.order_id = o.id
     WHERE o.direction = 'purchase'${where ? ` AND ${where}` : ""}
-    GROUP BY o.id, f.id, t.id, oa.source_address_id, addr.id, ship.id, ret.id, cp.id, pay.id, u.id
+    GROUP BY o.id, t.id, oa.source_address_id, addr.id, ship.id, ret.id, cp.id, pay.id, u.id
     ${newestFirst}${limit};
   `;
 }
@@ -323,32 +312,6 @@ export async function findOrderScrapItems(
   return rows;
 }
 
-// Offers past their expiry. exchange returns the whole purchase order row, so
-// the same columns are rebuilt here.
-//
-// DELIBERATELY NOT sharedJoins, and this is not an oversight to tidy up. This
-// query has no GROUP BY, so joining orders.items would multiply the row by the
-// number of lines on the order and the scheduler would expire the same offer
-// several times. It needs three joins and takes three.
-// Takes an optional executor where repo.exchange.js's takes none. Harmless -
-// the scheduler calls it with no argument either way - and it is what lets a
-// test pull this into its transaction.
-export async function findExpiredOffers(executor?: Executor): Promise<ExpiredOfferRow[]> {
-  const sql = `
-    SELECT ${ORDER_COLUMNS}
-    FROM orders.orders o
-    LEFT JOIN orders.offers f ON f.order_id = o.id
-    LEFT JOIN orders.transactions t ON t.order_id = o.id
-    LEFT JOIN orders.addresses oa ON oa.order_id = o.id
-    WHERE o.direction = 'purchase'
-      AND f.offer_status = 'Sent'
-      AND f.offer_expiration IS NOT NULL
-      AND f.offer_expiration < NOW();
-  `;
-  const { rows } = await query<ExpiredOfferRow>(sql, [], executor);
-  return rows;
-}
-
 // ---------------------------------------------------------------- mirroring
 //
 // The dual-write phase copies a purchase order across after exchange has been
@@ -375,46 +338,23 @@ export async function mirrorOrder(orderId: string, executor?: Executor): Promise
   await query(
     `INSERT INTO orders.orders (
        id, user_id, refinery_id, direction, status, number, notes,
-       review_created, order_sent, tracking_updated,
+       review_created, order_sent, tracking_updated, spots_locked,
        created_by, updated_by, created_at, updated_at
      )
      SELECT
        p.id, p.user_id, NULL, 'purchase', p.purchase_order_status, p.order_number,
-       p.notes, p.review_created, NULL, NULL, p.created_by, p.updated_by,
+       p.notes, p.review_created, NULL, NULL, coalesce(p.spots_locked, false),
+       p.created_by, p.updated_by,
        p.created_at AT TIME ZONE 'UTC', p.updated_at AT TIME ZONE 'UTC'
      FROM exchange.purchase_orders p
      WHERE p.id = $1
      ON CONFLICT (id) DO UPDATE SET
        user_id = EXCLUDED.user_id, status = EXCLUDED.status,
+       spots_locked = EXCLUDED.spots_locked,
        number = EXCLUDED.number, notes = EXCLUDED.notes,
        review_created = EXCLUDED.review_created,
        created_by = EXCLUDED.created_by, updated_by = EXCLUDED.updated_by,
        created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at`,
-    [orderId],
-    executor
-  );
-
-  await query(
-    `INSERT INTO orders.offers (
-       order_id, offer_status, notes, spots_locked, offer_expiration,
-       offer_sent_at, num_rejections, offer_amount,
-       created_by, updated_by, created_at, updated_at
-     )
-     SELECT
-       p.id, p.offer_status, p.offer_notes, p.spots_locked, p.offer_expires_at,
-       p.offer_sent_at, p.num_rejections, p.total_price,
-       p.created_by, p.updated_by,
-       p.created_at AT TIME ZONE 'UTC', p.updated_at AT TIME ZONE 'UTC'
-     FROM exchange.purchase_orders p
-     WHERE p.id = $1
-     ON CONFLICT (order_id) DO UPDATE SET
-       offer_status = EXCLUDED.offer_status, notes = EXCLUDED.notes,
-       spots_locked = EXCLUDED.spots_locked,
-       offer_expiration = EXCLUDED.offer_expiration,
-       offer_sent_at = EXCLUDED.offer_sent_at,
-       num_rejections = EXCLUDED.num_rejections,
-       offer_amount = EXCLUDED.offer_amount,
-       updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at`,
     [orderId],
     executor
   );
@@ -455,16 +395,16 @@ export async function mirrorItems(orderId: string, executor?: Executor): Promise
     `INSERT INTO orders.items (
        id, order_id, bullion_id, metal_id, pre_melt, post_melt, purity, content,
        premium, quantity, confirmed, sales_tax_charged, unit,
-       price, bid_premium
+       price
      )
      SELECT
        poi.id, poi.purchase_order_id, poi.product_id,
        coalesce(s.metal_id, pr.metal_id),
        coalesce(s.pre_melt, pr.gross), coalesce(s.post_melt, pr.content),
        coalesce(s.purity, pr.purity), coalesce(s.content, pr.content),
-       poi.premium, poi.quantity, coalesce(poi.confirmed, false), 0,
+       coalesce(poi.premium, s.bid_premium), poi.quantity, coalesce(poi.confirmed, false), 0,
        coalesce(s.gross_unit, 't oz'),
-       poi.price, s.bid_premium
+       poi.price
      FROM exchange.purchase_order_items poi
      LEFT JOIN exchange.scrap s ON s.id = poi.scrap_id
      LEFT JOIN exchange.products pr ON pr.id = poi.product_id
@@ -475,8 +415,7 @@ export async function mirrorItems(orderId: string, executor?: Executor): Promise
        purity = EXCLUDED.purity, content = EXCLUDED.content,
        premium = EXCLUDED.premium, quantity = EXCLUDED.quantity,
        confirmed = EXCLUDED.confirmed, unit = EXCLUDED.unit,
-       price = EXCLUDED.price,
-       bid_premium = EXCLUDED.bid_premium`,
+       price = EXCLUDED.price`,
     [orderId],
     executor
   );

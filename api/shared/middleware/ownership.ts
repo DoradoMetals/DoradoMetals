@@ -6,8 +6,6 @@
 // could act on any order whose id they had:
 //
 //   get_purchase_order_metals  200, another customer's frozen spot prices
-//   reject_offer               200, another customer's offer rejected
-//   update_offer_notes         200, notes written on another customer's order
 //   cancel_order               reached the code that buys a FedEx return label
 //                              and ships another customer's metal back
 //

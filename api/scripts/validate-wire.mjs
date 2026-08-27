@@ -111,7 +111,12 @@ add("GET /carrier_services", c.CarrierServiceWire, () => servicesService.getAllS
 // the frontend reads, and checking the adapter's OUTPUT is what proves the
 // frontend still gets exactly what it got before.
 // Refiners: one implementation after the restructure.
-await bothWays("GET /carrier_pickups", c.CarrierPickupWire, "shipping/pickups", (m) => m.getAll());
+// Carrier pickups is restructured - one implementation. Kept as a DIRECT check:
+// three of the eight fields on this shape - order_id, user_id and carrier - do
+// not exist as columns any more and are reconstructed through the shipment, so
+// the contract is checking a composition rather than a projection.
+const pickupsService = await import("#features/shipping/pickups/service.ts");
+add("GET /carrier_pickups", c.CarrierPickupWire, () => pickupsService.getAll());
 
 // Addresses were not checked here at all, and they are one of the two features
 // whose migrated read renames columns: places.user_addresses calls them
@@ -195,8 +200,12 @@ if (!ledgerUser) {
 // feature is new capability rather than migrated data, and the only shape it
 // has ever had is the one below. That also means these are the endpoints where
 // a contract is worth the most: nothing else is checking them.
-const fulfillments = await import("#features/fulfillments/repo.js");
-const fulfillmentMethods = await import("#features/fulfillments/methods/repo.js");
+// Fulfillments is restructured. The SERVICE, not the repos: what these
+// contracts describe is the COMPOSED shape - a fulfillment with its method and
+// one detail nested - and that shape is now assembled in JS from four repos
+// instead of by four joins, which is a new way for a field to go missing.
+const fulfillments = await import("#features/fulfillments/service.ts");
+const fulfillmentMethods = await import("#features/fulfillments/methods/repo.ts");
 
 add("GET /fulfillments/methods (purchase)", c.FulfillmentMethodWire, () =>
   fulfillmentMethods.getAvailable("purchase")
@@ -215,11 +224,11 @@ add("GET /fulfillments/methods/all", c.FulfillmentMethodWire, () =>
 add("GET /fulfillments/get_for_order", c.FulfillmentWire, async () => {
   const { rows } = await pool.query(`SELECT order_id FROM fulfillments.fulfillments`);
   const out = [];
-  for (const r of rows) out.push(await fulfillments.getByOrder(r.order_id));
+  for (const r of rows) out.push(await fulfillments.getForOrder(r.order_id, { isAdmin: true }));
   return out.filter(Boolean);
 });
 
-add("GET /fulfillments/schedule", c.FulfillmentWire, () => fulfillments.getScheduled());
+add("GET /fulfillments/schedule", c.FulfillmentWire, () => fulfillments.getSchedule());
 
 // The one payments response that is a repo row rather than a Stripe object or a
 // client_secret. Both implementations, both shapes.
@@ -261,10 +270,15 @@ await bothWays(
 // Checking the adapter's OUTPUT against the legacy contract is the point: it is
 // what proves the frontend still gets exactly what it got before, and it keeps
 // working as a regression test right up until the adapter is deleted.
-await bothWays("GET /products", c.BullionWire, "products", (m) => m.getAllProducts());
-await bothWays("GET /products (sell)", c.BullionWire, "products", (m) => m.getSellProducts());
-await bothWays("GET /products (legacy wire)", c.ProductWire, "products", async (m) =>
-  productsWire.toLegacy(await m.getAllProducts())
+// Products is restructured - one implementation, so there is no "both ways" to
+// run. Kept as a DIRECT check, and this is the one to keep hardest: the
+// storefront row is no longer a projection, it is a projection plus two labels
+// attached in JS, so a field can now go missing in a place SQL never could.
+const productsService = await import("#features/products/service.ts");
+add("GET /products", c.BullionWire, () => productsService.getAllProducts());
+add("GET /products (sell)", c.BullionWire, () => productsService.getSellProducts());
+add("GET /products (legacy wire)", c.ProductWire, async () =>
+  productsWire.toLegacy(await productsService.getAllProducts())
 );
 
 // Orders. The largest surface here and, until now, the only feature checked
@@ -278,15 +292,19 @@ await bothWays("GET /products (legacy wire)", c.ProductWire, "products", async (
 // independent statement, and it is what has to survive promotion.
 const orders = await po.getAll();
 await bothWays("GET /purchase_orders (admin)", c.PurchaseOrderWire, "purchase-orders", (m) => m.getAll());
-await bothWays("GET /sales_orders (admin)", c.SalesOrderWire, "sales-orders", (m) => m.getAll());
+// Sales orders is restructured - one implementation. Kept as a DIRECT check on
+// the SERVICE, which is where the composed shape is now assembled: 24 columns
+// from four tables, five of them renamed out of orders.transactions.
+const salesOrdersService = await import("#features/sales-orders/read.service.ts");
+add("GET /sales_orders (admin)", c.SalesOrderWire, () => salesOrdersService.getAll());
 
 // The items, flattened out of those orders, so a bad line is reported as a bad
 // line rather than as one failing order among sixteen.
 await bothWays("purchase order items", c.PurchaseOrderItemWire, "purchase-orders", async (m) =>
   (await m.getAll()).flatMap((o) => o.order_items ?? [])
 );
-await bothWays("sales order items", c.SalesOrderItemWire, "sales-orders", async (m) =>
-  (await m.getAll()).flatMap((o) => o.order_items ?? [])
+add("sales order items", c.SalesOrderItemWire, async () =>
+  (await salesOrdersService.getAll()).flatMap((o) => o.order_items ?? [])
 );
 
 // Nested shapes, taken off a real order.
@@ -355,9 +373,9 @@ if (failures.length) {
 console.log();
 // A field nobody declared is the failure this check could not previously see.
 // zod strips unknown keys rather than rejecting them, so a response carrying an
-// extra column parsed clean - and features/products/constants.bullion.ts names
-// exactly that hazard: "a projection that silently grew is how columns start
-// leaking onto the wire". Zero endpoints have one today, so refusing is free.
+// extra column parsed clean - and features/products named exactly that hazard in
+// its own comment: "a projection that silently grew is how columns start leaking
+// onto the wire". Zero endpoints have one today, so refusing is free.
 // If this fires after a deliberate addition, regenerate the contracts.
 if (undeclaredTotal.size) {
   console.log(`${undeclaredTotal.size} endpoint(s) RETURN FIELDS NO CONTRACT DECLARES:`);

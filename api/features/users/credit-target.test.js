@@ -21,7 +21,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { inPinnedTransaction } from "#shared/testing/pinned-pool.js";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import * as usersService from "#features/users/service.ts";
 import * as usersRepo from "#features/users/repo.ts";
 import query from "#shared/db/query.js";

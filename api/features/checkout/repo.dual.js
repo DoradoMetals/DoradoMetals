@@ -26,7 +26,7 @@ export const getSellCartProductItems = exchange.getSellCartProductItems;
 export async function replaceCart(user_id, items, client) {
   const run = async (c) => {
     const id = await exchange.replaceCart(user_id, items, c);
-    await next.replaceCart(user_id, items, c);
+    await next.replaceItems(user_id, items, c);
     return id;
   };
   return client ? run(client) : withTransaction(run);
@@ -35,7 +35,7 @@ export async function replaceCart(user_id, items, client) {
 export async function replaceSellCart(user_id, cart, client) {
   const run = async (c) => {
     const id = await exchange.replaceSellCart(user_id, cart, c);
-    await next.replaceSellCart(user_id, cart, c);
+    await next.replaceSellItems(user_id, cart, c);
     return id;
   };
   return client ? run(client) : withTransaction(run);

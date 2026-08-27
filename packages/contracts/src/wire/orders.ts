@@ -37,9 +37,18 @@ export const ShipmentSlotOnOrder = ShipmentOnOrder.extend({
 });
 export type ShipmentSlotOnOrder = z.infer<typeof ShipmentSlotOnOrder>;
 
-export const PayoutSlotOnOrder = PayoutOnOrder.extend({
-  id: z.string().uuid().nullable(),
-});
+// Partial, then nullable-ised: an order with no payout row carries an OBJECT
+// OF NULLS, not a null - jsonb_build_object builds one when its join misses,
+// and the frontend reads order.payout.method without optional chaining, so the
+// all-null object is the wire shape. Five dev orders and the six strays are in
+// that state today. The contract describes the wire, not exchange.payouts'
+// NOT NULLs - those are D63's business.
+export const PayoutSlotOnOrder = z.object(
+  Object.fromEntries(
+    Object.entries(PayoutOnOrder.extend({ id: z.string().uuid().nullable() }).shape)
+      .map(([k, v]) => [k, (v as z.ZodTypeAny).nullable()])
+  )
+) as unknown as z.ZodObject<{ [K in keyof typeof PayoutOnOrder.shape]: z.ZodNullable<z.ZodTypeAny> }>;
 export type PayoutSlotOnOrder = z.infer<typeof PayoutSlotOnOrder>;
 
 // The scrap an item was declared as. Every purchase-order item carries this
@@ -138,11 +147,6 @@ export const PurchaseOrderWire = z.object({
   user_id: z.string().uuid().nullable(),
   address_id: z.string().uuid().nullable(),
   purchase_order_status: z.string().nullable(),
-  offer_status: z.string().nullable(),
-  offer_notes: z.string().nullable(),
-  offer_sent_at: z.string().nullable(),
-  offer_expires_at: z.string().nullable(),
-  num_rejections: z.number().nullable(),
   notes: z.string().nullable(),
   total_price: z.number().nullable(),
   refiner_fee: z.number().nullable(),
@@ -153,8 +157,10 @@ export const PurchaseOrderWire = z.object({
   spots_locked: z.boolean().nullable(),
   review_created: z.boolean().nullable(),
   // Not nullable in exchange, unlike almost everything else on this table.
-  pool_remediation: z.number(),
-  pool_oz_deducted: z.number(),
+  // Null on the six new-schema-only stray orders, whose transactions row does
+  // not exist; numbers everywhere else. Nullable until clean:dual-orphans runs.
+  pool_remediation: z.number().nullable(),
+  pool_oz_deducted: z.number().nullable(),
   created_at: z.string().nullable(),
   updated_at: z.string().nullable(),
   created_by: z.string().nullable(),

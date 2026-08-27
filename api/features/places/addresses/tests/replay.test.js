@@ -22,8 +22,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.js";
-import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/testing/pinned-pool.js";
+import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/testing/pinned-pool.ts";
 
 // The patch replaces a property the middleware looks up per request, so the
 // order relative to importing #app does not matter - but doing it first keeps
@@ -38,7 +38,7 @@ const created = [];
 // places.addresses and touches no order, so sharing a number with the orders
 // tests made it wait behind whole order placements for nothing - 656ms alone
 // became 12.7 seconds in the suite.
-import { LOCKS } from "#shared/testing/locks.js";
+import { LOCKS } from "#shared/testing/locks.ts";
 const ADDRESS_LOCK = LOCKS.ADDRESSES;
 
 before(async () => {

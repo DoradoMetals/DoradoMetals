@@ -17,13 +17,13 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.js";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
+import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
 
-import { LOCKS } from "#shared/testing/locks.js";
+import { LOCKS } from "#shared/testing/locks.ts";
 // Orders only - this file writes no address.
 const ORDER_LOCK = LOCKS.ORDERS;
 
@@ -106,24 +106,17 @@ test("a stranger cannot read the spots frozen on somebody else's order", async (
   }, { lock: ORDER_LOCK });
 });
 
-test("a stranger cannot reject an offer on somebody else's order", async () => {
+// The offer routes left with 086. What replaced customer acceptance is an
+// ADMIN route, so the ownership question becomes an authorisation one: a plain
+// user - including the order's own owner - must not be able to accept, because
+// accepting PRICES the order.
+test("a plain user cannot accept an order, even their own", async () => {
   await inPinnedTransaction(async () => {
-    await as(stranger, async () => {
+    await as(victim, async () => {
       const res = await request(app)
-        .post("/api/purchase_orders/reject_offer")
-        .send({ order, offer_notes: "not mine" });
-      assert.equal(res.status, 403, `answered ${res.status}`);
-    });
-  }, { lock: ORDER_LOCK });
-});
-
-test("a stranger cannot write notes on somebody else's order", async () => {
-  await inPinnedTransaction(async () => {
-    await as(stranger, async () => {
-      const res = await request(app)
-        .post("/api/purchase_orders/update_offer_notes")
-        .send({ order, offer_notes: "not mine either" });
-      assert.equal(res.status, 403, `answered ${res.status}`);
+        .post("/api/purchase_orders/accept_order")
+        .send({ purchase_order: order, order_spots: [], spot_prices: [] });
+      assert.equal(res.status, 403, `answered ${res.status} - a customer accepted an order`);
     });
   }, { lock: ORDER_LOCK });
 });

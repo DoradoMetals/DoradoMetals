@@ -2,10 +2,8 @@ import AcceptedPurchaseOrder from '@/features/orders/purchaseOrders/users/purcha
 import CancelledPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/Cancelled'
 import CompletedPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/Completed'
 import InTransitPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/InTransit'
-import OfferSentPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/OfferSent'
 import PaymentProcessingPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/PaymentProcessing'
 import ReceivedPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/Received'
-import RejectedPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/Rejected'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 
 
@@ -15,12 +13,8 @@ export default function PurchaseOrderDrawerContent({ order }: PurchaseOrderDrawe
       return <InTransitPurchaseOrder order={order} />
     case 'Received':
       return <ReceivedPurchaseOrder order={order} />
-    case 'Offer Sent':
-      return <OfferSentPurchaseOrder order={order} />
     case 'Accepted':
       return <AcceptedPurchaseOrder order={order} />
-    case 'Rejected':
-      return <RejectedPurchaseOrder order={order} />
     case 'Payment Processing':
       return <PaymentProcessingPurchaseOrder order={order} />
     case 'Cancelled':

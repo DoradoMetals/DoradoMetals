@@ -31,7 +31,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as repo from "#features/payments/repo.exchange.js";
 import * as service from "#features/payments/service.ts";
-import { inPinnedTransaction } from "#shared/testing/pinned-pool.js";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import query from "#shared/db/query.js";
 
 // Safe columns only. This table also carries `routing` and `last_four` for

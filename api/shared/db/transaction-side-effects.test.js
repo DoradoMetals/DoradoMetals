@@ -38,7 +38,16 @@ const walk = (dir, out = []) => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) walk(full, out);
-    else if (e.name.endsWith(".js") && !e.name.includes(".test.")) out.push(full);
+    // `.ts` AS WELL AS `.js`, AND THIS WAS THE BUG IN THE GUARD ITSELF.
+    //
+    // It collected only `.js`, so every service converted to TypeScript fell
+    // silently out of its reach - and by August 2026 that was almost all of
+    // them. Twenty-five files use withTransaction; the walk was finding THREE,
+    // all of them repo.dual.js files that the restructure is deleting.
+    //
+    // Caught by its own floor - `withTx.length > 3` - which is the only reason
+    // anyone found out. One more restructure and it would have found two.
+    else if (/\.(js|ts)$/.test(e.name) && !e.name.includes(".test.")) out.push(full);
   }
   return out;
 };
@@ -85,7 +94,11 @@ test("there are transactions to check", () => {
     /withTransaction\(/.test(fs.readFileSync(f, "utf8"))
   );
   assert.ok(
-    withTx.length > 3,
+    // Raised from 3 to 15 now that the walk sees TypeScript. Twenty-five files
+    // use withTransaction today; the floor is set below that so deleting a
+    // dual repo does not fail the build, and far enough above the old value
+    // that losing TypeScript again would.
+    withTx.length > 15,
     `only ${withTx.length} files use withTransaction - the walk is probably wrong`
   );
 });

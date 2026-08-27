@@ -242,15 +242,8 @@ const TABLES = [
     // null rather than asserting it of orders it knows nothing about. Needs a
     // decision - see FOLLOWUPS.
     cols: `id, user_id, direction::text, status, number, notes,
-           review_created, order_sent, tracking_updated,
+           review_created, order_sent, tracking_updated, spots_locked,
            created_by, updated_by, created_at, updated_at`,
-  },
-  {
-    name: "orders.offers",
-    key: "order_id",
-    cols: `order_id, status, offer_status, notes, spots_locked, offer_expiration,
-           offer_sent_at, num_rejections, offer_amount, created_by, updated_by,
-           created_at, updated_at`,
   },
   {
     name: "orders.transactions",
@@ -272,7 +265,7 @@ const TABLES = [
     // there. What is left is what the customer declared plus the price.
     cols: `id, order_id, bullion_id, metal_id, pre_melt, post_melt, content,
            premium, quantity, confirmed, sales_tax_charged, unit,
-           price, bid_premium`,
+           price`,
   },
   {
     name: "orders.spots",

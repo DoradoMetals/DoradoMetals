@@ -10,8 +10,8 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import { LOCKS, takeLocks } from "#shared/testing/locks.js";
-import * as repo from "#features/scrap/repo.js";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import * as repo from "#features/scrap/repo.ts";
 
 let client;
 

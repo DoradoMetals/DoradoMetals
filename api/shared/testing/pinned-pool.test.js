@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import pool from "#db";
 import query from "#shared/db/query.js";
 import withTransaction from "#shared/db/withTransaction.js";
-import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.js";
+import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
 
 after(async () => {
   await pool.end();

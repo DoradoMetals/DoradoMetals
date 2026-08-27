@@ -195,7 +195,36 @@ if (suspect.length) {
   );
 }
 if (unmapped.length) {
-  console.log(`unmapped, NOT checked: ${unmapped.join(", ")}`);
+  // WHAT AN UNMAPPED SCHEMA IS COVERED BY, WHICH IS NOT NOTHING.
+  //
+  // A payload schema - salesOrderCheckoutSchema and friends - has no single
+  // table, so it cannot be compared against columns directly. But it EMBEDS
+  // schemas that do, and this audit already follows composition when deciding
+  // what is parsed at runtime. Printing "unmapped, NOT checked" on its own
+  // reads as a coverage hole and hides that its parts were checked - which
+  // matters, because those parts are exactly where a checkout payload throws.
+  //
+  // Written after D49: three checkout schemas parse a payload built from
+  // productSchema, spotPriceSchema, userSchema and addressSchema, and two of
+  // the three do it AFTER the Stripe charge has succeeded. Knowing which
+  // component carries the risk is the whole question there.
+  console.log(`unmapped, no table of their own: ${unmapped.join(", ")}`);
+  for (const name of unmapped) {
+    const parts = [...new Set(
+      [...(bodyOf.get(name) ?? "").matchAll(/\b(\w+Schema)\b/g)].map((m) => m[1])
+    )].filter((n) => n !== name && TABLE_OF[n]);
+    if (!parts.length) continue;
+    const withCounts = parts.map(
+      (n) => {
+        const hits = found.get(n) ?? [];
+        return `${n}${hits.length ? ` (${hits.length} finding(s))` : ""}`;
+      }
+    );
+    console.log(
+      `  ${name} is covered through: ${withCounts.join(", ")}` +
+        (parsed.has(name) ? "  [PARSED AT RUNTIME]" : "")
+    );
+  }
 }
 // --self-test: the detector must still report a finding known to be true.
 // spotPriceSchema requires bid_spot; exchange.metals.bid_spot permits NULL.

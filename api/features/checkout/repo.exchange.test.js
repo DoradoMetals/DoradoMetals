@@ -16,7 +16,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import { LOCKS, takeLocks } from "#shared/testing/locks.js";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import * as repo from "#features/checkout/repo.exchange.js";
 
 let client;

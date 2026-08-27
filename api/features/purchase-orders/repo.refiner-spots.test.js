@@ -13,7 +13,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import { LOCKS, takeLocks } from "#shared/testing/locks.js";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import * as dual from "#features/purchase-orders/repo.dual.js";
 import * as next from "#features/purchase-orders/repo.next.ts";
 import * as exchange from "#features/purchase-orders/repo.exchange.js";

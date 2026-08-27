@@ -1,14 +1,18 @@
 import withTransaction from "#shared/db/withTransaction.js";
-import * as shipmentRepo from "#features/shipping/shipments/repo.js";
-import * as trackingRepo from "#features/shipping/tracking/repo.js";
-import * as pickupRepo from "#features/shipping/pickups/repo.js";
+// The SERVICE, not a repo: a shipment is composed from six tables now, and
+// the order link it carries is reconstructed rather than stored.
+import * as shipmentRepo from "#features/shipping/shipments/service.ts";
+import * as trackingRepo from "#features/shipping/tracking/service.ts";
+// The SERVICE, not a repo: a pickup hangs off a SHIPMENT now, and the order,
+// the user and the carrier it reports are reconstructed through one.
+import * as pickupRepo from "#features/shipping/pickups/service.ts";
 import * as shippingHandler from "#features/shipping/operations/handler.ts";
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/shipments/constants.ts";
-import type { ShipmentRow } from "#features/shipping/shipments/repo.next.ts";
-import type { TrackingRow } from "#features/shipping/tracking/repo.next.ts";
+import type { ComposedShipment as ShipmentRow } from "#features/shipping/shipments/compose.ts";
+import type { TrackedShipment as TrackingRow } from "#features/shipping/tracking/service.ts";
 import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
 import type { RatesInput } from "#features/shipping/operations/handler.ts";
-import type { PickupRow } from "#features/shipping/pickups/repo.next.ts";
+import type { ComposedPickup as PickupRow } from "#features/shipping/pickups/compose.ts";
 import type { PoolClient } from "pg";
 
 // The three repos here go through their own repo.js switches, which are
@@ -54,7 +58,22 @@ export async function cancelLabel({
   shipment_id: string;
   carrier_id: string;
 }): Promise<ShipmentRow | null> {
+  // A SHIPMENT ID THAT NAMES NOTHING USED TO REACH THE CARRIER.
+  //
+  // This read `shipment.tracking_number` off whatever getById returned, and
+  // getById returns null for an unknown id - so cancelling a label for a
+  // shipment that does not exist threw a TypeError AFTER deciding to call
+  // FedEx, with the id having come from a request. Invisible until the
+  // shipments repo was typed, because repo.js resolved through a dynamic index
+  // and every field on it was `any`.
   const shipment = await shipmentRepo.getById(shipment_id);
+  if (!shipment) {
+    const err: Error & { statusCode?: number } = new Error(
+      `no shipment ${shipment_id} to cancel`
+    );
+    err.statusCode = 404;
+    throw err;
+  }
 
   await shippingHandler.cancelLabel(carrier_id, undefined, {
     trackingNumber: shipment.tracking_number,
@@ -62,6 +81,7 @@ export async function cancelLabel({
 
   return await shipmentRepo.update({
     ...shipment,
+    id: shipment.id,
     shipping_status: "Cancelled",
   });
 }
@@ -76,18 +96,45 @@ export async function cancelLabel({
 // Returns the shipment's tracking EVENTS, not the shipment - including on the
 // early return below, which is what makes "nothing recognised" indistinguishable
 // from "nothing changed" to a caller, deliberately.
+function requireCarrier(carrier_id: string | null, shipment_id: string): string {
+  if (!carrier_id) {
+    const err: Error & { statusCode?: number } = new Error(
+      `shipment ${shipment_id} has no carrier - it has no service, so no label ` +
+        `has been bought for it yet`
+    );
+    err.statusCode = 409;
+    throw err;
+  }
+  return carrier_id;
+}
+
 export async function getTracking(
   shipment_id: string,
   fetchTracking?: FetchTracking
 ): Promise<TrackingRow | null> {
   return withTransaction(async (client) => {
     const shipment = await shipmentRepo.getById(shipment_id, client);
+    // Same guard as cancelLabel: an unknown id read `shipment.carrier_id` off
+    // null, AFTER opening a transaction and before reaching the carrier.
+    if (!shipment) {
+      const err: Error & { statusCode?: number } = new Error(
+        `no shipment ${shipment_id} to track`
+      );
+      err.statusCode = 404;
+      throw err;
+    }
 
     const trackingInfo = fetchTracking
       ? await fetchTracking(shipment, client)
-      : await shippingHandler.getTracking(shipment.carrier_id, client, {
-          tracking_number: shipment.tracking_number,
-        });
+      : await shippingHandler.getTracking(
+          // carrier_id comes through the shipment's SERVICE now, so a shipment
+          // with no service yet has none - a shell created before the label was
+          // bought. There is no carrier to ask, and asking `undefined` would
+          // have reached the provider registry as "Unsupported carrier: ".
+          requireCarrier(shipment.carrier_id, shipment_id),
+          client,
+          { tracking_number: shipment.tracking_number }
+        );
 
     // A REFRESH THAT RECOGNISED NOTHING IS NOT NEWS, AND USED TO BE TREATED AS
     // NEWS THAT EVERYTHING IS GONE.
@@ -195,11 +242,37 @@ export async function cancelPickup({
   pickup_id: string;
   carrier_id: string;
 }): Promise<PickupRow | null> {
+  // Same guard as cancelLabel and getTracking: an unknown id read three fields
+  // off null, AFTER deciding to call the carrier. Invisible while the pickups
+  // repo resolved through a dynamic index and every field on it was `any`.
   const pickup = await pickupRepo.getById(pickup_id);
+  if (!pickup) {
+    const err: Error & { statusCode?: number } = new Error(
+      `no pickup ${pickup_id} to cancel`
+    );
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // CONVERTED AT THE BOUNDARY, NOT ASSUMED. The carrier wants strings;
+  // confirmation_number is NUMERIC on the wire because exchange's column is,
+  // and pickup_requested_at arrives as a Date because pg parses the column.
+  // Both were passed through unconverted while the pickups repo resolved
+  // through a dynamic index and every field on it was `any` - so what actually
+  // reached FedEx was a number and a Date object, and whether that worked
+  // depended on the provider's own coercion.
+  //
+  // The date is sent as YYYY-MM-DD, which is the form the FedEx pickup API
+  // takes and what a caller passing `date` would already have supplied.
+  const pickupDate =
+    pickup.pickup_requested_at instanceof Date
+      ? pickup.pickup_requested_at.toISOString().slice(0, 10)
+      : (pickup.pickup_requested_at ?? null);
 
   await shippingHandler.cancelPickup(carrier_id, undefined, {
-    confirmationCode: pickup.confirmation_number,
-    pickupDate: pickup.pickup_requested_at,
+    confirmationCode:
+      pickup.confirmation_number === null ? null : String(pickup.confirmation_number),
+    pickupDate,
     location: pickup.location,
   });
 
@@ -209,6 +282,8 @@ export async function cancelPickup({
   // canceled - one l - so "cancelled" is refused outright.
   return await pickupRepo.update({
     ...pickup,
+    id: pickup.id,
+    confirmation_number: pickup.confirmation_number,
     pickup_status: "canceled",
   });
 }

@@ -23,11 +23,11 @@ import request from "supertest";
 import pool from "#db";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as poRepo from "#features/purchase-orders/repo.js";
-import * as soRepo from "#features/sales-orders/repo.js";
+import * as soRepo from "#features/sales-orders/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import { toLegacy as spotsToLegacy } from "#features/spots/wire.ts";
-import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.js";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
+import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");

@@ -2,10 +2,8 @@ import AdminAcceptedPurchaseOrder from '@/features/orders/purchaseOrders/admin/a
 import AdminCancelledPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminCancelled'
 import AdminCompletedPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminCompleted'
 import AdminInTransitPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminInTransit'
-import AdminOfferSentPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminOfferSent'
 import AdminPaymentProcessingPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminPaymentProcessing'
 import AdminReceivedPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminReceived'
-import AdminRejectedPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminRejected'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 
 export default function AdminPurchaseOrderDrawerContent({
@@ -16,12 +14,8 @@ export default function AdminPurchaseOrderDrawerContent({
       return <AdminInTransitPurchaseOrder order={order} />
     case 'Received':
       return <AdminReceivedPurchaseOrder order={order} />
-    case 'Offer Sent':
-      return <AdminOfferSentPurchaseOrder order={order} />
     case 'Accepted':
       return <AdminAcceptedPurchaseOrder order={order} />
-    case 'Rejected':
-      return <AdminRejectedPurchaseOrder order={order} />
     case 'Payment Processing':
       return <AdminPaymentProcessingPurchaseOrder order={order} />
     case 'Cancelled':

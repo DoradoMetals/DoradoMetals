@@ -1,7 +1,6 @@
 import cron from "node-cron";
 
 import { updateSpotPrices } from "#features/spots/service.ts";
-import { expireStaleOffers } from "#features/purchase-orders/service.ts";
 
 type Job = {
   name: string;
@@ -19,7 +18,7 @@ type Job = {
 // It worked because of the ORDER OF TWO IMPORTS IN server.js. Swap those two
 // lines and every schedule reads undefined, both jobs log "no schedule
 // configured" and skip, and the process goes on serving traffic with spot
-// prices that never update again and offers that never expire. Nothing would
+// prices that never update again. Nothing would
 // fail; there would just be no cron.
 //
 // A function body cannot be evaluated too early, so this cannot depend on
@@ -32,11 +31,6 @@ export const jobs = (): Job[] => [
     name: "spot prices",
     schedule: process.env.SPOT_UPDATE_SCHEDULE,
     run: updateSpotPrices,
-  },
-  {
-    name: "stale offers",
-    schedule: process.env.STALE_OFFERS_UPDATE_SCHEDULE,
-    run: expireStaleOffers,
   },
 ];
 

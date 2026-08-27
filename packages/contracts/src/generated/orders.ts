@@ -29,29 +29,8 @@ export const ItemsRow = z.object({
   "sales_tax_charged": z.number(),
   "unit": z.string().nullable(),
   "price": z.number().nullable(),
-  "bid_premium": z.number().nullable(),
 });
 export type ItemsRow = z.infer<typeof ItemsRow>;
-
-export const OffersRow = z.object({
-  "id": z.string().uuid(),
-  "order_id": z.string().uuid().nullable(),
-  "status": z.string().nullable(),
-  "offer_status": z.string().nullable(),
-  "notes": z.string().nullable(),
-  "spots_locked": z.boolean().nullable(),
-  "offer_expiration": z.string().nullable(),
-  "num_rejections": z.number().nullable(),
-  "offer_amount": z.number().nullable(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
-  "created_at": z.string().nullable(),
-  "updated_at": z.string().nullable(),
-  "created_by_id": z.string().uuid().nullable(),
-  "updated_by_id": z.string().uuid().nullable(),
-  "offer_sent_at": z.string().nullable(),
-});
-export type OffersRow = z.infer<typeof OffersRow>;
 
 export const OrdersRow = z.object({
   "id": z.string().uuid(),
@@ -70,6 +49,7 @@ export const OrdersRow = z.object({
   "updated_by_id": z.string().uuid().nullable(),
   "order_sent": z.boolean().nullable(),
   "tracking_updated": z.boolean().nullable(),
+  "spots_locked": z.boolean(),
 });
 export type OrdersRow = z.infer<typeof OrdersRow>;
 

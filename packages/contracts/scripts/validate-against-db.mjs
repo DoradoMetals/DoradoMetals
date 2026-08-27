@@ -28,7 +28,14 @@ dotenv.config({
 // the application actually sees rather than pg defaults.
 pg.types.setTypeParser(pg.types.builtins.NUMERIC, (v) => (v === null ? null : parseFloat(v)));
 pg.types.setTypeParser(pg.types.builtins.INT8, (v) => (v === null ? null : Number(v)));
-import * as tables from "../dist/generated/tables.js";
+// exchange.js, NOT tables.js. The generator split its output per schema and
+// tables.js stopped being emitted - but tsc does not delete stale outputs, so
+// the old file sat in dist/ and this validator kept validating against a
+// FOSSIL of the schema. It reported columns 086 dropped as missing from every
+// row, while verify:fresh - which reads src/ - said everything matched. If the
+// import target ever goes stale again, the build now removes it: see the clean
+// step in package.json.
+import * as tables from "../dist/generated/exchange.js";
 
 const LIMIT = Number(process.env.VALIDATE_LIMIT ?? 200);
 

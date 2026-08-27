@@ -6,7 +6,7 @@ import * as taxService from "#features/sales-tax/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";
 
-import { auth } from "#features/auth/client.js";
+import { auth } from "#features/auth/client.ts";
 import { fromNodeHeaders } from "better-auth/node";
 import type {
   PaymentIntentRow,

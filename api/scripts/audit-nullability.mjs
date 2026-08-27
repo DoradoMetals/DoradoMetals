@@ -34,6 +34,32 @@ console.log(`# nullability audit: ${target.pathname.slice(1)} @ ${target.hostnam
 console.log(`# generated ${new Date().toISOString()}`);
 console.log();
 
+// THE DENOMINATOR. information_schema is privilege-filtered: a table this role
+// cannot touch does not appear here at all, and a shorter list is
+// indistinguishable from a smaller schema. That is not hypothetical - on
+// production this same role sees ZERO of the 9 tables in `core` and zero of the
+// 2 in `auctions`, and an audit that walked those would have called them clean
+// (D57). This one is the authority for adding NOT NULL against real data, so it
+// states what it saw and refuses if the catalogue holds a table it cannot.
+const { rows: [seen] } = await client.query(`
+  SELECT count(*)::int AS in_catalogue,
+         count(*) FILTER (WHERE i.table_name IS NOT NULL)::int AS visible
+    FROM pg_tables c
+    LEFT JOIN information_schema.tables i
+      ON i.table_schema = c.schemaname AND i.table_name = c.tablename
+   WHERE c.schemaname = 'exchange'
+`);
+console.log(`# exchange: ${seen.visible} of ${seen.in_catalogue} table(s) readable by this role`);
+console.log();
+if (seen.visible !== seen.in_catalogue) {
+  console.error(
+    `${seen.in_catalogue - seen.visible} exchange table(s) are in the catalogue but ` +
+      `not readable by this role - this report would silently omit them`
+  );
+  await client.end();
+  process.exit(1);
+}
+
 const { rows: tables } = await client.query(`
   SELECT table_name FROM information_schema.tables
   WHERE table_schema = 'exchange' AND table_type = 'BASE TABLE'

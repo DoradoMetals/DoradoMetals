@@ -1,0 +1,35 @@
+-- allow-destructive: orders.items.bid_premium is a column that should never
+-- have existed. It duplicates orders.items.premium, which is the one both scrap
+-- and bullion lines share and which is populated from rates at order creation.
+-- Jacob, 2026-08-27: "Orders.items SHOULD NOT HAVE A BID_PREMIUM COLUMN. They
+-- have a PREMIUM column, which both scrap/bullion share and is populated from
+-- rates at order creation."
+--
+-- SAFE BECAUSE THE VALUE IS NOT A RECORD OF ANYTHING. It is a copy of a
+-- hardcoded default. 065 kept the column and said so in its own comment:
+-- "It is 0.75 on 17 of 20 populated rows - the hardcoded default in
+-- features/scrap/repo.js". 033 added it in the first place reasoning it was
+-- "the scrap row's own premium", which is exchange.scrap.bid_premium - a
+-- different column on a different table that is NOT being touched here.
+--
+-- Nothing is lost that is not either (a) still in exchange.purchase_order_items
+-- and exchange.scrap, which this migration does not touch and which remain the
+-- authoritative copy, or (b) the literal 0.75.
+--
+-- Backup: ~/dorado-prod-20260825.dump.
+--
+-- WHAT ELSE MOVES WITH IT, so this is not a column drop that leaves the code
+-- reading a hole:
+--   - orders/items/sql/{create,get_many,get_for,get_by_ids}.sql stop selecting it
+--   - orders/items/repo.ts updateScrap stops writing it
+--   - orders/intake.ts stops reading `data.bid_premium ?? 0.75` and resolves the
+--     premium from rates.rates instead, which is where it was always meant to
+--     come from
+--   - purchase-orders/write.service.ts loses ITEM_DEFAULTS.bid_premium
+--   - the wire contract and the frontend admin payload lose the field
+--
+-- exchange.scrap.bid_premium and products.bullion.bid_premium STAY. A product
+-- genuinely has its own premium and a legacy scrap row genuinely recorded one;
+-- neither is this column.
+
+ALTER TABLE orders.items DROP COLUMN IF EXISTS bid_premium;

@@ -120,7 +120,19 @@ test("the list is that person's addresses, defaults first", async () => {
 
     const rows = await service.list(owner, c);
     assert.ok(rows.length >= 2);
-    assert.equal(rows[0].id, marked.id, "the default did not sort first");
+
+    // NOT `rows[0].id === marked.id`. That was the first version and it was
+    // flaky by construction: the owner may already HAVE a default address in
+    // dev, and the tiebreak among defaults is the id - which is a random uuid
+    // here, so it won a coin toss most of the time. What the sort actually
+    // promises is that every default precedes every non-default.
+    const marks = rows.map((r) => r.user_address.default_shipping === true);
+    assert.equal(marks.indexOf(false) === -1 || marks.lastIndexOf(true) < marks.indexOf(false),
+      true, "a non-default address sorted above a default one");
+    assert.ok(
+      rows.findIndex((r) => r.id === marked.id) < (marks.indexOf(false) === -1 ? rows.length : marks.indexOf(false)),
+      "the address just marked default did not sort among the defaults"
+    );
 
     // Every row is this user's, and every one carries the nested object the
     // wire adapter flattens.
@@ -298,6 +310,9 @@ test("setting a default clears the others, in both schemas", async () => {
       `SELECT address_id, default_shipping, default_billing
          FROM places.user_addresses WHERE user_id = $1`, [owner]
     );
+    // Two were just created. An empty nx means neither write landed - the exact
+    // failure this test exists to catch - so it must not pass vacuously.
+    assert.ok(nx.length >= 2, "the addresses just created are not in the book");
     for (const row of nx) {
       const expected = row.address_id === second.id;
       assert.equal(row.default_shipping, expected, "default_shipping is wrong somewhere");

@@ -8,7 +8,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import { LOCKS, takeLocks } from "#shared/testing/locks.js";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import * as dual from "#features/purchase-orders/repo.dual.js";
 import * as next from "#features/purchase-orders/repo.next.ts";
 
@@ -42,9 +42,13 @@ async function inRollback(fn) {
 // orders as fixtures - the services open their own transactions, so it has to.
 // Picking simply the newest purchase order could select one of those mid-run,
 // and it would have no mirrored rows to assert against.
+// An order that exists in BOTH schemas and HAS spot rows - the spot-change
+// test needs one to change, and dev's newest order does not always have any.
+// The precondition lives in the query rather than in hope (lesson jj).
 const anOrder = async (c) =>
   (await c.query(`SELECT p.id FROM exchange.purchase_orders p
      JOIN orders.orders o ON o.id = p.id
+     WHERE EXISTS (SELECT 1 FROM exchange.order_metals m WHERE m.purchase_order_id = p.id)
      ORDER BY p.order_number DESC LIMIT 1`)).rows[0].id;
 
 test("a status change lands in both schemas", async () => {
@@ -59,36 +63,19 @@ test("a status change lands in both schemas", async () => {
   });
 });
 
-// The offer's columns live on exchange.purchase_orders and in orders.offers, so
-// a single write has to reach a different table in each schema.
-test("an offer rejection reaches orders.offers, not orders.orders", async () => {
+// 086 removed offers. Accepting is now an order transition and a money write:
+// one statement against exchange.purchase_orders, two tables in the new schema.
+test("accepting an order updates the order and the transaction", async () => {
   await inRollback(async (c) => {
     const id = await anOrder(c);
-    const before = await c.query("SELECT num_rejections FROM exchange.purchase_orders WHERE id = $1", [id]);
-    await dual.rejectOfferById(id, "not enough", c);
+    await dual.acceptOrder(id, 1234.56, c);
 
-    const ex = await c.query("SELECT offer_notes, num_rejections FROM exchange.purchase_orders WHERE id = $1", [id]);
-    const nx = await c.query("SELECT notes, num_rejections, offer_status FROM orders.offers WHERE order_id = $1", [id]);
-    assert.equal(ex.rows[0].offer_notes, "not enough");
-    assert.equal(nx.rows[0].notes, "not enough");
-    assert.equal(Number(nx.rows[0].num_rejections), Number(before.rows[0].num_rejections) + 1);
-    assert.equal(nx.rows[0].offer_status, "Rejected");
-  });
-});
-
-// One write to exchange.purchase_orders, three tables touched in the new schema.
-test("accepting an offer updates the order, the offer and the transaction", async () => {
-  await inRollback(async (c) => {
-    const id = await anOrder(c);
-    await dual.moveOrderToAccepted(id, 1234.56, c);
-
-    const order = await c.query("SELECT status FROM orders.orders WHERE id = $1", [id]);
-    const offer = await c.query("SELECT offer_status, spots_locked, offer_amount FROM orders.offers WHERE order_id = $1", [id]);
+    const order = await c.query(
+      "SELECT status, spots_locked FROM orders.orders WHERE id = $1", [id]
+    );
     const txn = await c.query("SELECT total FROM orders.transactions WHERE order_id = $1", [id]);
     assert.equal(order.rows[0].status, "Accepted");
-    assert.equal(offer.rows[0].offer_status, "Accepted");
-    assert.equal(offer.rows[0].spots_locked, true);
-    assert.equal(Number(offer.rows[0].offer_amount), 1234.56);
+    assert.equal(order.rows[0].spots_locked, true, "accepting must pin the spots");
     assert.equal(Number(txn.rows[0].total), 1234.56);
   });
 });
@@ -227,10 +214,10 @@ test("mirroring twice changes nothing", async () => {
     await next.mirrorOrder(id, c);
     await next.mirrorItems(id, c);
     await next.mirrorSpots(id, c);
-    const before = [await count("items"), await count("spots"), await count("offers")];
+    const before = [await count("items"), await count("spots")];
     await next.mirrorOrder(id, c);
     await next.mirrorItems(id, c);
     await next.mirrorSpots(id, c);
-    assert.deepEqual([await count("items"), await count("spots"), await count("offers")], before);
+    assert.deepEqual([await count("items"), await count("spots")], before);
   });
 });

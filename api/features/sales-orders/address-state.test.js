@@ -39,7 +39,7 @@ import pool from "#db";
 // just no longer split across a repo and a service.
 import * as addressService from "#features/places/addresses/service.ts";
 import * as taxRepo from "#features/sales-tax/service.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
+import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 let addressId, addressState, ruleState, rule, item, price, aggregate;
 

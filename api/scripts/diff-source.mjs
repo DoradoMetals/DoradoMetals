@@ -89,77 +89,22 @@ const FEATURES = {
   // features/shipping/services/tests/ replaces it, and asserts what diff never
   // could: that the twenty-three values line up with BOTH statements.
   // transactions restructured - one implementation, nothing to compare.
-  pickups: {
-    exchange: () => import("#features/shipping/pickups/repo.exchange.js"),
-    next: () => import("#features/shipping/pickups/repo.next.ts"),
-    reads: [
-      ["getAll", (m) => m.getAll()],
-      ["getByOrder(first)", (m, ctx) => (ctx.orderId ? m.getByOrder(ctx.orderId) : [])],
-    ],
-    // Both tables are empty in dev and in production, so this compares two
-    // empty sets and proves only that neither implementation throws. It earns
-    // its place anyway: the exchange side threw on every write until it was
-    // split out, and nothing noticed for months.
-    context: async () => {
-      const { rows } = await pool.query(
-        "SELECT order_id FROM exchange.carrier_pickups WHERE order_id IS NOT NULL LIMIT 1"
-      );
-      return { orderId: rows[0]?.order_id };
-    },
-  },
-  "shipping-shipments": {
-    exchange: () => import("#features/shipping/shipments/repo.exchange.js"),
-    next: () => import("#features/shipping/shipments/repo.next.ts"),
-    reads: [
-      ["getAll", (m) => m.getAll()],
-      ["getById(first)", (m, ctx) => (ctx.id ? m.getById(ctx.id) : [])],
-      ["getByOrder(first)", (m, ctx) => (ctx.orderId ? m.getByOrder(ctx.orderId) : [])],
-    ],
-    context: async (m) => {
-      const all = await m.getAll();
-      const withOrder = all.find((s) => s.purchase_order_id || s.sales_order_id) ?? all[0];
-      return { id: withOrder?.id, orderId: withOrder?.purchase_order_id ?? withOrder?.sales_order_id };
-    },
-  },
-  "shipping-tracking": {
-    exchange: () => import("#features/shipping/tracking/repo.exchange.js"),
-    next: () => import("#features/shipping/tracking/repo.next.ts"),
-    reads: [["getEvents(first)", (m, ctx) => (ctx.id ? m.getEvents(ctx.id) : [])]],
-    // Deliberately a shipment whose events exist in exchange. Three shipments
-    // in dev carry tracking rows that exist only in the new schema - artifacts
-    // of the January work, absent from production entirely - so comparing one
-    // of those would report a difference that cannot exist anywhere real.
-    context: async () => {
-      const { rows } = await pool.query(
-        `SELECT shipment_id AS id FROM exchange.tracking_events
-         GROUP BY shipment_id ORDER BY count(*) DESC LIMIT 1`
-      );
-      return { id: rows[0]?.id };
-    },
-  },
+  // pickups restructured - one implementation, nothing to compare.
+  // features/shipping/pickups/tests/ replaces it.
+  // shipments restructured - one implementation, nothing to compare.
+  // features/shipping/shipments/tests/ replaces it, and asserts what diff never
+  // could: that the order link survives three hops and lands in the column the
+  // direction chooses.
+  // tracking restructured - one implementation, nothing to compare.
+  // features/shipping/tracking/tests/ replaces it - the first tests this feature
+  // has ever had.
   // addresses restructured - one implementation, nothing to compare.
   // features/places/addresses/tests/ replaces it, and asserts what diff never
   // could: that the ownership check survived the split. exchange scoped its
   // writes with `AND user_id = $2`; places.addresses has no user_id to scope on.
-  "sales-orders": {
-    exchange: () => import("#features/sales-orders/repo.exchange.js"),
-    next: () => import("#features/sales-orders/repo.next.ts"),
-    // Same as purchase-orders: orders.spots generates its own id where
-    // order_metals had one, and nothing keys on it.
-    // orders.spots generates its own ids where exchange.order_metals has its
-    // own; refiners.spots keeps the source id, so it is compared.
-    ignore: { "findMetalsByOrderId(first)": ["id"] },
-    reads: [
-      ["getAll", (m) => m.getAll()],
-      ["findById(first)", (m, ctx) => (ctx.id ? m.findById(ctx.id) : [])],
-      ["findAllByUser(first)", (m, ctx) => (ctx.userId ? m.findAllByUser(ctx.userId) : [])],
-      ["findMetalsByOrderId(first)", (m, ctx) => (ctx.id ? m.findMetalsByOrderId(ctx.id) : [])],
-    ],
-    context: async (m) => {
-      const [first] = await m.getAll();
-      return { id: first?.id, userId: first?.user_id };
-    },
-  },
+  // sales-orders restructured - one implementation, nothing to compare.
+  // verify:sales-order-decomposition replaces it and compares against what the
+  // switch used to select.
   "purchase-orders": {
     exchange: () => import("#features/purchase-orders/repo.exchange.js"),
     next: () => import("#features/purchase-orders/repo.next.ts"),
@@ -192,18 +137,8 @@ const FEATURES = {
     },
   },
   // restructured - one implementation, nothing to compare.
-  products: {
-    exchange: () => import("#features/products/repo.exchange.js"),
-    next: () => import("#features/products/repo.next.ts"),
-    reads: [
-      ["getAllProducts", (m) => m.getAllProducts()],
-      ["getSellProducts", (m) => m.getSellProducts()],
-      ["getHomepageProducts", (m) => m.getHomepageProducts()],
-      ["getAllAdminProducts", (m) => m.getAllAdminProducts()],
-      ["getAllTypes", (m) => m.getAllTypes()],
-      ["getFilteredProducts(Gold)", (m) => m.getFilteredProducts({ metal_type: "Gold" })],
-      ["getProductFromSlug(first)", async (m, ctx) => (ctx.slug ? m.getProductFromSlug(ctx.slug) : [])],
-    ],
-    context: async (m) => ({ slug: (await m.getAllProducts())[0]?.slug }),
-  },
+  // products restructured - one implementation, nothing to compare.
+  // features/products/tests/ replaces it, and asserts what diff never could:
+  // that the three labels compose.ts attaches are the ones the three JOINs
+  // produced, product for product.
   // rates is restructured - one implementation, nothing to compare.

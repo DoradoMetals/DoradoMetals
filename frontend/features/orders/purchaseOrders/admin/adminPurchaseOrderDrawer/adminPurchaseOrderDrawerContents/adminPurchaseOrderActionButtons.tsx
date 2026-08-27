@@ -4,7 +4,7 @@ import { cn } from '@/shared/utils/cn'
 import { useMemo } from 'react'
 import { useSpotPrices } from '@/features/spots/queries'
 import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
-import { useAcceptOffer, useAddFundsToAccount, useMovePurchaseOrderStatus, useRejectOffer, useSendOffer, useUpdateRejectedOffer } from '@/features/orders/purchaseOrders/admin/queries'
+import { useAcceptOrder, useAddFundsToAccount, useMovePurchaseOrderStatus } from '@/features/orders/purchaseOrders/admin/queries'
 
 
 export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtonsProps) {
@@ -12,27 +12,19 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
 
   const movePurchaseOrderStatus = useMovePurchaseOrderStatus()
-  const acceptOffer = useAcceptOffer()
-  const rejectOffer = useRejectOffer()
-  const sendOffer = useSendOffer()
-  const updateRejected = useUpdateRejectedOffer()
+  const acceptOrder = useAcceptOrder()
   const addAccountFunds = useAddFundsToAccount()
 
   const handleAction = (action: string, status: string) => {
-    if (action === 'accept_offer') {
-      acceptOffer.mutate({
+    // OFFERS ARE GONE (086). What survives of the accept transition is its
+    // PRICING half: accepting snapshots the spots, prices every line and writes
+    // the total, so it goes through its own route rather than a bare status
+    // move. Every other transition is a status move.
+    if (action === 'move_to_accepted') {
+      acceptOrder.mutate({
         purchase_order: order,
         order_spots: orderSpotPrices,
         spot_prices: spotPrices,
-      })
-    } else if (action === 'reject_offer') {
-      rejectOffer.mutate({ purchase_order: order, offer_notes: '' })
-    } else if (action === 'update_rejected_offer') {
-      updateRejected.mutate({ order_status: status, order: order })
-    } else if (action === 'send_offer') {
-      sendOffer.mutate({
-        order_status: status,
-        order: order,
       })
     } else if (action === 'move_to_completed' && order.payout.method === 'DORADO_ACCOUNT') {
       addAccountFunds.mutate({ purchase_order: order, spots: orderSpotPrices })
@@ -73,7 +65,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
         return [
           {
             label: 'Move to Offer Sent',
-            action: 'send_offer',
+            action: 'move_to_offer_sent',
             status: 'Offer Sent',
             disabled: !allItemsConfirmed,
           },
@@ -93,14 +85,14 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
       case 'Offer Sent':
         return [
           {
-            label: 'Accept Offer for Customer',
-            action: 'accept_offer',
+            label: 'Move to Accepted',
+            action: 'move_to_accepted',
             status: 'Accepted',
             disabled: false,
           },
           {
-            label: 'Reject Offer for Customer',
-            action: 'reject_offer',
+            label: 'Move to Rejected',
+            action: 'move_to_rejected',
             status: 'Rejected',
             disabled: false,
           },
@@ -121,7 +113,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
           },
           {
             label: 'Back to Offer Sent',
-            action: 'send_offer',
+            action: 'move_to_offer_sent',
             status: 'Offer Sent',
             disabled: !allItemsConfirmed,
           },
@@ -148,7 +140,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
           },
           {
             label: 'Back to Offer Sent',
-            action: 'send_offer',
+            action: 'move_to_offer_sent',
             status: 'Offer Sent',
             disabled: !allItemsConfirmed,
           },

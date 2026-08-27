@@ -37,15 +37,17 @@ import assert from "node:assert/strict";
 import pool from "#db";
 import query from "#shared/db/query.js";
 import * as service from "#features/sales-orders/service.ts";
-import * as salesOrderRepo from "#features/sales-orders/repo.js";
-import * as shipmentRepo from "#features/shipping/shipments/repo.js";
+import * as salesOrderRepo from "#features/sales-orders/write.service.ts";
+// The SERVICE, not a repo: a shipment is composed from six tables now, and
+// the order link it carries is reconstructed rather than stored.
+import * as shipmentRepo from "#features/shipping/shipments/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
-import { LOCKS } from "#shared/testing/locks.js";
+import { LOCKS } from "#shared/testing/locks.ts";
 import {
   inPinnedTransaction,
   assertNothingEscaped,
   outside,
-} from "#shared/testing/pinned-pool.js";
+} from "#shared/testing/pinned-pool.ts";
 
 let addressless;
 let withAddress;
@@ -178,7 +180,7 @@ test("those three writes are visible to the assertion that says they did not hap
       { sales_order_id: withAddress.id, type: "Outbound" },
       client
     );
-    await salesOrderRepo.updateOrderSent(withAddress.id, client);
+    await salesOrderRepo.setFlag(withAddress.id, "order_sent", client);
 
     const after = await state(withAddress.id);
     assert.equal(after.order_sent, true, "order_sent was not observed");

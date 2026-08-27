@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "generate": "node scripts/generate-tables.mjs",
-    "build": "tsc -p tsconfig.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "validate": "node scripts/validate-against-db.mjs",
     "verify:fresh": "node scripts/verify-fresh.mjs"

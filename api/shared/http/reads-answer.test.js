@@ -29,8 +29,8 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.js";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
+import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");

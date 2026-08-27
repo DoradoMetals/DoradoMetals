@@ -1,6 +1,6 @@
 // The offer edits and the item writes an admin makes on a purchase order.
 //
-// Four more from the undriven list. All pure database work - checked each
+// Item edits from the undriven list (the offer tests left with 086). All pure database work - checked each
 // service function first, and reissueOffer in particular, because "reissue"
 // sounds like it emails and it does not.
 //
@@ -17,8 +17,8 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.js";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
+import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -36,7 +36,7 @@ before(async () => {
 
   order = (
     await outside(
-      `SELECT id, user_id, offer_status FROM exchange.purchase_orders
+      `SELECT id, user_id FROM exchange.purchase_orders
         WHERE user_id IS NOT NULL ORDER BY id LIMIT 1`
     )
   )[0];
@@ -64,90 +64,6 @@ after(async () => {
 
 // requireOwnOrder, so this runs as the order's OWNER rather than as an admin -
 // the one route in this file a customer drives.
-test("update_offer_notes writes the customer's note onto the offer", async () => {
-  await inPinnedTransaction(async (client) => {
-    await as({ ...customer, role: "user" }, async () => {
-      const res = await request(app)
-        .post("/api/purchase_orders/update_offer_notes")
-        .send({ order: { id: order.id }, offer_notes: "please post it recorded delivery" });
-
-      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
-
-      const { rows } = await client.query(
-        `SELECT offer_notes FROM exchange.purchase_orders WHERE id = $1`,
-        [order.id]
-      );
-      assert.equal(
-        rows[0].offer_notes,
-        "please post it recorded delivery",
-        "the note did not land on the order"
-      );
-    });
-  });
-});
-
-test("update_rejected_offer resends a rejected offer and clears its prices", async () => {
-  await inPinnedTransaction(async (client) => {
-    await as({ ...admin, role: "admin" }, async () => {
-      await client.query(
-        `UPDATE exchange.purchase_orders SET offer_status = 'Rejected', total_price = 999
-          WHERE id = $1`,
-        [order.id]
-      );
-
-      const res = await request(app)
-        .post("/api/purchase_orders/update_rejected_offer")
-        .send({
-          order: { id: order.id, offer_status: "Rejected" },
-          order_status: "Offer Sent",
-          user_name: admin.name,
-        });
-
-      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
-
-      const { rows } = await client.query(
-        `SELECT offer_status, total_price FROM exchange.purchase_orders WHERE id = $1`,
-        [order.id]
-      );
-      assert.equal(rows[0].offer_status, "Resent", "the offer was not resent");
-      assert.notEqual(
-        Number(rows[0].total_price),
-        999,
-        "the order total was carried forward instead of being cleared for re-pricing"
-      );
-    });
-  });
-});
-
-// The other direction. A Resent offer going back to Rejected is the same route
-// reading the CURRENT status, which is the part a single-direction test misses.
-test("update_rejected_offer sends a resent offer back to rejected", async () => {
-  await inPinnedTransaction(async (client) => {
-    await as({ ...admin, role: "admin" }, async () => {
-      await client.query(
-        `UPDATE exchange.purchase_orders SET offer_status = 'Resent' WHERE id = $1`,
-        [order.id]
-      );
-
-      const res = await request(app)
-        .post("/api/purchase_orders/update_rejected_offer")
-        .send({
-          order: { id: order.id, offer_status: "Resent" },
-          order_status: "Rejected",
-          user_name: admin.name,
-        });
-
-      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
-
-      const { rows } = await client.query(
-        `SELECT offer_status FROM exchange.purchase_orders WHERE id = $1`,
-        [order.id]
-      );
-      assert.equal(rows[0].offer_status, "Rejected", "the offer did not go back to rejected");
-    });
-  });
-});
-
 test("update_bullion_item writes the line's quantity", async () => {
   await inPinnedTransaction(async (client) => {
     await as({ ...admin, role: "admin" }, async () => {

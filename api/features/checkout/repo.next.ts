@@ -28,16 +28,16 @@ import type { PoolClient, QueryResult } from "pg";
 // transaction; without one they run on the pool.
 type Executor = PoolClient | undefined;
 
-// Every bullion column on a cart line comes through a LEFT JOIN, so a line
+// Every bullion column on a sale line comes through a LEFT JOIN, so a line
 // whose product has since been deleted returns nulls rather than disappearing -
 // exactly as exchange's does. The mapped type says that once instead of
 // repeating `| null` twenty times.
 type Nullable<T> = { [K in keyof T]: T[K] | null };
 
-// The bullion columns a BUY cart line carries. Three are aliased, because
+// The bullion columns a sale line carries. Three are aliased, because
 // products.bullion calls them name/description/type and the wire has always
 // called them product_name/product_description/product_type.
-type CartBullion = Nullable<
+type SaleBullion = Nullable<
   Pick<
     products.BullionRow,
     | "id"
@@ -63,7 +63,7 @@ type CartBullion = Nullable<
   product_type: string | null;
 };
 
-export type CartItemRow = CartBullion & {
+export type SaleItemRow = SaleBullion & {
   cart_item_id: checkout.ItemsRow["id"];
   product_id: checkout.ItemsRow["bullion_id"];
   quantity: checkout.ItemsRow["quantity"];
@@ -74,7 +74,7 @@ export type CartItemRow = CartBullion & {
 // A SELL cart's product line: the same idea with a smaller column list and no
 // mint. Narrowed rather than reused, so adding a column to one does not
 // silently claim the other returns it too.
-export type SellCartProductRow = Nullable<
+export type PurchaseProductRow = Nullable<
   Pick<
     products.BullionRow,
     | "id"
@@ -104,7 +104,7 @@ export type SellCartProductRow = Nullable<
 // a cart item at a row in exchange.scrap, and here the values live on the line
 // itself, so there is no second row to reference. Two aliases of one column is
 // what keeps the wire shape identical.
-export type SellCartScrapRow = Pick<
+export type PurchaseScrapRow = Pick<
   checkout.ItemsRow,
   "id" | "quantity" | "pre_melt" | "post_melt" | "purity" | "content"
 > & {
@@ -116,12 +116,12 @@ export type SellCartScrapRow = Pick<
 };
 
 // What a caller adds to a buy cart. This arrives as req.body.
-export type CartInput = { id: string; quantity: number };
+export type SaleItemsInput = { id: string; quantity: number };
 
 // What a caller replaces a sell cart with. A line is either a named product or
 // a piece of scrap carrying its own values; the two are told apart by `type`,
 // and anything else is skipped rather than rejected.
-export type SellCartInput = {
+export type PurchaseItemsInput = {
   type?: string;
   quantity?: number;
   product_name?: string;
@@ -141,6 +141,7 @@ type CheckoutId = checkout.CheckoutsRow["id"];
 
 const SALE = "sale";
 const PURCHASE = "purchase";
+export type Direction = typeof SALE | typeof PURCHASE;
 
 // One checkout per user per direction, created on first use. 068 added the
 // unique index this upserts on.
@@ -167,25 +168,28 @@ async function ensureCheckout(
   return existing.rows[0]?.id;
 }
 
-export const ensureCart = (user_id: string, client?: Executor) =>
-  ensureCheckout(user_id, SALE, client);
-export const ensureSellCart = (user_id: string, client?: Executor) =>
-  ensureCheckout(user_id, PURCHASE, client);
+// THERE IS NO CART AND NO SELL CART. A checkout session has a direction, and
+// the direction is a parameter - Jacob: "It's being replaced by checkout.items
+// with a direction." The Cart/SellCart-named wrappers this file used to export
+// were the legacy divide living on inside the new write path, which is exactly
+// what the one-table design exists to remove.
 
-// Returns null for a user who has never started one, matching
-// repo.exchange.js - ensureSellCart is what creates it.
-export async function getSellCartId(user_id: string): Promise<CheckoutId | null> {
+// Returns null for a user who has never started one - ensureCheckout is what
+// creates it.
+export async function getCheckoutId(
+  user_id: string, direction: Direction
+): Promise<CheckoutId | null> {
   const { rows } = await query<{ id: CheckoutId }>(
     `SELECT id FROM checkout.checkouts WHERE user_id = $1 AND direction = $2`,
-    [user_id, PURCHASE]
+    [user_id, direction]
   );
   return rows[0]?.id ?? null;
 }
 
-// The buy cart. Column names are aliased back to what exchange returns:
+// The sale direction. Column names are aliased back to what exchange returns:
 // products.bullion calls three of them name/description/type.
-export async function getCart(user_id: string): Promise<CartItemRow[]> {
-  const { rows } = await query<CartItemRow>(
+export async function getSaleItems(user_id: string): Promise<SaleItemRow[]> {
+  const { rows } = await query<SaleItemRow>(
     `SELECT
        ci.id AS cart_item_id,
        ci.bullion_id AS product_id,
@@ -211,10 +215,10 @@ export async function getCart(user_id: string): Promise<CartItemRow[]> {
 
 // A scrap line is one with no bullion. Its values are on the item itself, so
 // `scrap_id` is the item's own id - there is no second row to point at.
-export async function getSellCartScrapItems(
+export async function getPurchaseScrapItems(
   checkout_id: CheckoutId
-): Promise<SellCartScrapRow[]> {
-  const { rows } = await query<SellCartScrapRow>(
+): Promise<PurchaseScrapRow[]> {
+  const { rows } = await query<PurchaseScrapRow>(
     `SELECT
        ci.id AS cart_item_id,
        ci.id AS scrap_id,
@@ -236,10 +240,10 @@ export async function getSellCartScrapItems(
   return rows;
 }
 
-export async function getSellCartProductItems(
+export async function getPurchaseProductItems(
   checkout_id: CheckoutId
-): Promise<SellCartProductRow[]> {
-  const { rows } = await query<SellCartProductRow>(
+): Promise<PurchaseProductRow[]> {
+  const { rows } = await query<PurchaseProductRow>(
     `SELECT
        ci.id AS cart_item_id,
        ci.bullion_id AS product_id,
@@ -293,21 +297,23 @@ async function clearItems(
   );
 }
 
-export const clearCart = clearItems;
-export const clearSellCartItems = clearItems;
-
 // Returns undefined for an empty list rather than an empty QueryResult, which
 // is what repo.exchange.js does too - the callers only await it.
 export async function addItems(
-  items: CartInput[] | null | undefined,
+  items: SaleItemsInput[] | null | undefined,
   checkout_id: CheckoutId | undefined,
   client?: Executor
 ): Promise<QueryResult | undefined> {
   if (!items || items.length === 0) return;
 
   return await query(
-    `INSERT INTO checkout.items (checkout_id, bullion_id, metal_id, quantity, premium)
-     SELECT $1::uuid, u.bullion_id, b.metal_id, u.quantity, b.bid_premium
+    // NO PREMIUM IS WRITTEN HERE. This used to take b.bid_premium off the
+    // product, which is the same mistake 085 removed from order items: a
+    // premium is a rate, banded on the metal total across the whole checkout,
+    // and it is resolved when the checkout becomes an order. A cart line has no
+    // premium of its own.
+    `INSERT INTO checkout.items (checkout_id, bullion_id, metal_id, quantity)
+     SELECT $1::uuid, u.bullion_id, b.metal_id, u.quantity
      FROM UNNEST($2::uuid[], $3::numeric[]) AS u(bullion_id, quantity)
      JOIN products.bullion b ON b.id = u.bullion_id`,
     [checkout_id, items.map((i) => i.id), items.map((i) => i.quantity)],
@@ -315,25 +321,26 @@ export async function addItems(
   );
 }
 
-export async function replaceCart(
+export async function replaceItems(
   user_id: string,
-  items: CartInput[],
+  items: SaleItemsInput[],
   client?: Executor
 ): Promise<CheckoutId | undefined> {
-  const checkout_id = await ensureCart(user_id, client);
+  const checkout_id = await ensureCheckout(user_id, SALE, client);
   await clearItems(checkout_id, client);
   await addItems(items, checkout_id, client);
   return checkout_id;
 }
 
-// The sell cart. A scrap line carries its own values rather than an id into
-// another table, so there is nothing to create first and nothing to sweep after.
-export async function replaceSellCart(
+// The purchase direction. A scrap line carries its own values rather than an id
+// into another table, so there is nothing to create first and nothing to sweep
+// after.
+export async function replaceSellItems(
   user_id: string,
-  cart: SellCartInput[],
+  cart: PurchaseItemsInput[],
   client?: Executor
 ): Promise<CheckoutId | undefined> {
-  const checkout_id = await ensureSellCart(user_id, client);
+  const checkout_id = await ensureCheckout(user_id, PURCHASE, client);
   await clearItems(checkout_id, client);
 
   for (const item of cart) {

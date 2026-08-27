@@ -47,14 +47,9 @@ const walk = (dir, out = []) => {
 // shrink as the code changed and always agree with itself.
 const ALLOWED = [
   "onSuccess POST /emails/purchase_order_created",
-  // Reverted to the 404ing path on purpose (Jacob, 26 August): the
-  // offer-sent/offer-accepted steps are being removed, and this email has never
-  // once sent in production, so making it work would start sending customers
-  // mail they have never received for a flow that is going away. It is listed
-  // here because the call still EXISTS and is still browser-triggered - the
-  // point this test makes about it is unchanged. See DELIBERATE_404 in
-  // shared/http/frontend-routes.test.js.
-  "onSuccess POST /purchase_orders/purchase_order_offer_accepted",
+  // The offer-accepted entry left with 086: the hook that made the call was
+  // deleted along with the rest of the offer flow, so there is nothing
+  // browser-triggered left to allow.
 ];
 
 test("only the two order emails are triggered after an operation already succeeded", () => {

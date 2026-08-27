@@ -31,7 +31,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
-import { outside } from "#shared/testing/pinned-pool.js";
+import { outside } from "#shared/testing/pinned-pool.ts";
 
 const { default: app } = await import("#app");
 

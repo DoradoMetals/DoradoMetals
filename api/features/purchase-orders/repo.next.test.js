@@ -100,9 +100,23 @@ test("the assay actuals appear for admin and not for a customer", async () => {
 });
 
 // Only the last four digits of a bank account may travel with an order.
+//
+// THE FLOOR IS THE POINT OF THIS TEST, NOT DECORATION. Without it the whole
+// assertion is `for (const o of []) {}` the moment getAll returns nothing, or
+// the moment no order in dev carries a payout - and it would report success
+// while checking the single constraint this project puts above every other one.
+// Found by audit:vacuous-tests.
 test("no order response carries a full account or routing number", async () => {
-  for (const o of await next.getAll()) {
-    if (!o.payout) continue;
+  const orders = await next.getAll();
+  assert.ok(orders.length > 0, "no orders came back - this would prove nothing");
+
+  const withPayout = orders.filter((o) => o.payout);
+  assert.ok(
+    withPayout.length > 0,
+    "no order carries a payout, so nothing here is checking a bank detail"
+  );
+
+  for (const o of withPayout) {
     assert.equal("account_number" in o.payout, false);
     assert.equal("routing_number" in o.payout, false);
   }
@@ -146,8 +160,14 @@ test("a line with no quantity still reads as null", async () => {
 });
 
 test("spot rows come back per metal with the shape the API returns", async () => {
-  const [order] = await next.getAll();
-  const spots = await next.findMetalsByOrderId(order.id);
+  // The first order with spots, not merely the first order - and a floor so an
+  // empty search cannot pass vacuously.
+  let spots = [];
+  for (const order of await next.getAll()) {
+    spots = await next.findMetalsByOrderId(order.id);
+    if (spots.length) break;
+  }
+  assert.ok(spots.length, "no purchase order has spot rows, so this asserts nothing");
   assert.deepEqual(Object.keys(spots[0]).sort(), [
     "ask_spot", "bid_spot", "created_at", "dollar_change", "id",
     "percent_change", "purchase_order_id", "type", "updated_at",
@@ -159,7 +179,6 @@ test("reads do not write", async () => {
   await inRollback(async (c) => {
     const before = await c.query("SELECT count(*)::int n FROM orders.orders");
     await next.getAll();
-    await next.findExpiredOffers();
     const after = await c.query("SELECT count(*)::int n FROM orders.orders");
     assert.equal(after.rows[0].n, before.rows[0].n);
   });
