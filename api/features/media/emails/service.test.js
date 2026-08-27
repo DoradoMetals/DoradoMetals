@@ -23,7 +23,7 @@ import * as emails from "#features/media/emails/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as poRepo from "#features/purchase-orders/repo.js";
 import * as soRepo from "#features/sales-orders/repo.js";
-import * as spotsRepo from "#features/spots/repo.js";
+import * as spotsService from "#features/spots/service.ts";
 import { toLegacy as spotsToLegacy } from "#features/spots/wire.ts";
 import { formatPurchaseOrderNumber, formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 
@@ -46,7 +46,7 @@ before(async () => {
   //
   // When SPOTS_WIRE flips and order spots move with it, this goes and
   // calculations.js reads the new names instead.
-  spots = spotsToLegacy(await spotsRepo.getAll());
+  spots = await spotsService.getPricingSpots();
 });
 
 after(async () => {

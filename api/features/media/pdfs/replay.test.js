@@ -24,7 +24,7 @@ import pool from "#db";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as poRepo from "#features/purchase-orders/repo.js";
 import * as soRepo from "#features/sales-orders/repo.js";
-import * as spotsRepo from "#features/spots/repo.js";
+import * as spotsService from "#features/spots/service.ts";
 import { toLegacy as spotsToLegacy } from "#features/spots/wire.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.js";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
@@ -62,7 +62,7 @@ before(async () => {
 
   // Legacy-shaped, the way the frontend sends them and the calculations read
   // them. The same conversion service.test.js does, and for the same reason.
-  spots = spotsToLegacy(await spotsRepo.getAll());
+  spots = await spotsService.getPricingSpots();
 
   // The sales-order invoice is a different document from a different table -
   // it is the copy a REFINER is sent. `order` above is a purchase order and

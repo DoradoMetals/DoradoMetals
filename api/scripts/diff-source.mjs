@@ -80,18 +80,7 @@ const FEATURES = {
   // features/reviews/tests/endpoints.test.ts replaces it, and additionally
   // asserts the thing diff never could: that an anonymous visitor cannot reach
   // a hidden review through the one unguarded route in the feature.
-  spots: {
-    exchange: () => import("#features/spots/repo.exchange.js"),
-    next: () => import("#features/spots/repo.next.ts"),
-    reads: [
-      ["getAll", (m) => m.getAll()],
-      ["getAllMetals", (m) => m.getAllMetals()],
-    ],
-    context: async () => ({}),
-  },
-  // Media is restructured - one implementation, so nothing to compare.
-  // features/media/tests/endpoints.test.ts replaces it.
-  // refiners restructured - one implementation, nothing to compare.
+  // restructured - one implementation, nothing to compare.
   carriers: {
     exchange: () => import("#features/shipping/carriers/repo.exchange.js"),
     next: () => import("#features/shipping/carriers/repo.next.ts"),

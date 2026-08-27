@@ -74,7 +74,6 @@ const bothWays = async (name, schema, dir, read, many = true) => {
   }
 };
 
-const spots = await import("#features/spots/repo.js");
 const carriers = await import("#features/shipping/carriers/repo.js");
 const services = await import("#features/shipping/services/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
@@ -94,10 +93,7 @@ await bothWays("GET /carriers (legacy wire)", c.CarrierWire, "shipping/carriers"
   carriersWire.toLegacy(await m.getAll())
 );
 await bothWays("GET /carrier_services", c.CarrierServiceWire, "shipping/services", (m) => m.getAll());
-await bothWays("GET /spots/spot_prices", c.SpotPriceWireNext, "spots", (m) => m.getAll());
-await bothWays("GET /spots/spot_prices (legacy wire)", c.SpotPriceWire, "spots", async (m) =>
-  spotsWire.toLegacy(await m.getAll())
-);
+// Spots: one implementation after the restructure.
 // Rates: one implementation after the restructure.
 // Reviews: one implementation after the restructure, so no both-ways to run.
 // Leads is checked by features/leads/tests/endpoints.test.ts instead:

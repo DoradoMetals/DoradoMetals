@@ -1,8 +1,12 @@
 import axios from "axios";
-import * as spotRepo from "#features/spots/repo.js";
+import * as spots from "#features/spots/repo.ts";
+import * as legacy from "#features/spots/legacy.repo.ts";
+import * as metals from "#features/metals/repo.ts";
+import { toWire } from "#features/spots/compose.ts";
+import withTransaction from "#shared/db/withTransaction.js";
 import { toLegacy as spotsToLegacy } from "#features/spots/wire.ts";
 import type { SpotPriceWire } from "@dorado/contracts";
-import type { SpotRow } from "#features/spots/repo.next.ts";
+import type { SpotWire as SpotRow } from "#features/spots/compose.ts";
 import type { PoolClient } from "pg";
 
 type Executor = PoolClient | undefined;
@@ -18,7 +22,7 @@ export type Quote = {
 };
 
 export async function getSpotPrices(): Promise<SpotRow[]> {
-  return spotRepo.getAll();
+  return await toWire(await spots.getAll());
 }
 
 // THE PRICE OF METAL COMES FROM HERE, AND ONLY FROM HERE.
@@ -50,7 +54,7 @@ export async function getSpotPrices(): Promise<SpotRow[]> {
 // updateSpotPrices on a cron, so a read is a read of the latest quote and the
 // customer is priced at what the business holds right now.
 export async function getPricingSpots(client?: Executor): Promise<SpotPriceWire[]> {
-  return spotsToLegacy(await spotRepo.getAll(client)) as SpotPriceWire[];
+  return spotsToLegacy(await toWire(await spots.getAll(client))) as SpotPriceWire[];
 }
 
 // Pulls the upstream quote feed and writes it to exchange.metals. Called by the
@@ -83,8 +87,32 @@ export async function updateSpotPrices(): Promise<Record<string, Quote>> {
     };
   }
 
-  await spotRepo.updateQuotes(quotes);
+    // ONE UPSERT PER METAL, BOTH SCHEMAS, ONE TRANSACTION.
+  //
+  // The old write joined metals.metals inside the INSERT to turn the feed's
+  // metal NAME into an id. The name is resolved here instead, so neither
+  // statement touches a second table - and the legacy statement still keys on
+  // the name, because exchange.metals identifies a metal by `type`.
+  //
+  // THIS IS WHAT CLOSES THE ONE `NOT SAFE` IN verify:parity. The cron wrote
+  // exchange.metals only, so spots.spots drifted - four metals differing on
+  // ask, bid and percent_change. Writing both keeps them together from the
+  // next tick.
+  const ids = new Map([...(await metals.namesById())].map(([id, name]) => [name, id]));
+  await withTransaction(async (c) => {
+    for (const [name, quote] of Object.entries(quotes)) {
+      await legacy.upsert(name, quote, c);
+      const id = ids.get(name);
+      // A metal the feed names but the database does not have is skipped
+      // rather than invented - the old INSERT ... JOIN did the same by
+      // matching no row.
+      if (id) await spots.upsert(id, quote, c);
+    }
+  });
   return quotes;
 }
 
-export const getAllMetals = () => spotRepo.getAllMetals();
+// The admin product editor's metal list. exchange.metals carried the quote on
+// the metal's own row, so the returned shape is the same composed one - identity
+// plus quote - even though it now comes from two tables.
+export const getAllMetals = async () => await toWire(await spots.getAll());
