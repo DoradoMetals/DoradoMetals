@@ -7667,3 +7667,35 @@ mirror, the wire contract, the fixture SELECTs, the allow-lists, the review
 lists and the cron that swept it are all reachable from "offers", and every one
 the grep missed was found by a guard that had been built earlier for exactly
 that class of miss. The guards paid for themselves tonight.**
+
+## D67 — the ultimate test, run: the full suite passes with every remaining switch on dual
+
+Jacob's removal criterion: the frontend sends a request, it writes both schemas,
+reads come from the new schema in the legacy shape, and the shape is verified.
+
+**Measured, not argued:**
+
+- **Full API suite under `CHECKOUT_SOURCE=dual PURCHASE_ORDERS_SOURCE=dual
+  PAYMENTS_SOURCE=dual`: 859/859, zero failures.** Every replay test drove real
+  HTTP through routes -> services -> dual writes -> both schemas, and every
+  response stayed byte-compatible with the wire.
+- **The switch selection was proven, not assumed**: a probe printed
+  `activeSource` = dual under the env and exchange without it, so the green run
+  really exercised the dual path and the committed default moves nothing.
+- **The read half**: verify:orders-decomposition is down from 13 divergences to
+  **4, all of them the pre-declared dev shipment damage** (where exchange may be
+  the corrupted copy), plus one reported-not-failed difference that is 085
+  working as intended. 270 values across 27 orders otherwise exact.
+- The eighteen restructured features already run this whole flow on every suite
+  pass - that is what being restructured means here.
+
+**What this does NOT say**: the frontend has no component coverage (0 of 260
+.tsx, no harness, by standing decision), so frontend behaviour during legacy
+removal is protected by the wire contracts, the route-existence guard and
+typecheck rather than by rendering tests. Stated to Jacob in full before any
+removal begins.
+
+Remaining before the three features can lose their legacy halves:
+clean:dual-orphans (Jacob), a ruling on the 5 damaged dev shipments, and the
+purchase-orders read pivot (service.ts -> read.service.ts), whose gate is now
+effectively clean. Flipping dual as the dev DEFAULT (env file) is Jacob's.
