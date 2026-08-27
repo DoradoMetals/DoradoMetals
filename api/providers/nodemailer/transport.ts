@@ -1,3 +1,7 @@
+// The mail transport. An adapter to something outside the domain, which is why
+// it lives here rather than in features/emails: this decides how a message
+// leaves the building, the feature decides which message to send and what it
+// says. Changing mail provider should touch this file and no template.
 import nodemailer from "nodemailer";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
 
@@ -38,7 +42,7 @@ type Message = {
 // file - which is most of the app, since features/auth/client.js sends
 // verification mail - opened an SMTP transport. That happens in tests and in
 // one-off scripts too, neither of which is ever going to send anything. Same
-// reasoning as render/browser.ts, which launches Chromium lazily for exactly
+// reasoning as providers/puppeteer/browser.ts, which launches Chromium lazily for exactly
 // this reason.
 let shared: Transport | null = null;
 

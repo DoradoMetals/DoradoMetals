@@ -39,7 +39,7 @@ import query from "#shared/db/query.js";
 import * as service from "#features/sales-orders/service.ts";
 import * as salesOrderRepo from "#features/sales-orders/repo.js";
 import * as shipmentRepo from "#features/shipping/shipments/repo.js";
-import { closeBrowser } from "#features/pdf/render/browser.ts";
+import { closeBrowser } from "#providers/puppeteer/browser.ts";
 import { LOCKS } from "#shared/testing/locks.js";
 import {
   inPinnedTransaction,

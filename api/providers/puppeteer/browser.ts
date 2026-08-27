@@ -1,3 +1,7 @@
+// Chromium, and turning HTML into bytes. An adapter to something outside the
+// domain, which is why it lives here rather than in features/pdf: this decides
+// HOW a document becomes a PDF, features/pdf/render decides WHAT the document
+// says. Swapping the renderer should not touch a layout.
 import puppeteer from "puppeteer";
 import type { Browser, PDFOptions } from "puppeteer";
 

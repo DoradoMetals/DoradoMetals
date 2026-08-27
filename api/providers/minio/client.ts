@@ -1,3 +1,7 @@
+// The object store. An adapter to something outside the domain, which is why
+// it lives here rather than in features/media: media decides which images a
+// user may see, this decides how bytes reach S3-compatible storage. Swapping
+// the store should not touch a feature.
 import { Client } from 'minio';
 
 import { requiredEnv } from '#shared/env/required.ts';

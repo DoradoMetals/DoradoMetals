@@ -5,7 +5,7 @@ import { stripe as stripePlugin } from '@better-auth/stripe';
 import { Pool } from 'pg';
 
 import stripeClient from '#providers/stripe/client.ts';
-import { sendEmail } from '#features/emails/utils/sendEmail.ts';
+import { sendEmail } from '#providers/nodemailer/transport.ts';
 import {
   renderAccountCreatedEmail,
   renderVerifyEmail,

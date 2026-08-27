@@ -11,7 +11,7 @@
 // the email tests.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sendEmail } from "#features/emails/utils/sendEmail.ts";
+import { sendEmail } from "#providers/nodemailer/transport.ts";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -58,7 +58,7 @@ test("a caller's own transport still works", async () => {
 test("a script that sets NODE_ENV after its imports is still refused", async () => {
   const source = `
     process.env.NODE_ENV = "test";
-    import { sendEmail } from "#features/emails/utils/sendEmail.ts";
+    import { sendEmail } from "#providers/nodemailer/transport.ts";
     try {
       await sendEmail({ to: "nobody@example.invalid", subject: "x", html: "x" });
       console.log("LEAKED");
