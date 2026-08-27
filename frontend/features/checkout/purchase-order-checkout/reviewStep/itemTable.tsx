@@ -30,14 +30,14 @@ export default function ReviewItemTables() {
   const total = useMemo(() => {
     const baseTotal = items.reduce((acc, item) => {
       if (item.type === 'product') {
-        const spot = spotPrices.find((s) => s.type === item.data.metal_type)
+        const spot = spotPrices.find((s) => s.name === item.data.metal_type)
         const price = getProductBidPrice(item.data, spot)
         const quantity = item.data.quantity ?? 1
         return acc + price * quantity
       }
 
       if (item.type === 'scrap') {
-        const spot = spotPrices.find((s) => s.type === item.data.metal)
+        const spot = spotPrices.find((s) => s.name === item.data.metal)
         const price = getScrapPrice(item.data.content ?? 0, item.data.bid_premium ?? 0, spot)
         return acc + price
       }
@@ -50,14 +50,14 @@ export default function ReviewItemTables() {
 
   const scrapTotal = useMemo(() => {
     return scrapItems.reduce((acc, item) => {
-      const spot = spotPrices.find((s) => s.type === item.data.metal)
+      const spot = spotPrices.find((s) => s.name === item.data.metal)
       return acc + getScrapPrice(item.data.content ?? 0, item.data.bid_premium ?? 0, spot)
     }, 0)
   }, [scrapItems, spotPrices])
 
   const bullionTotal = useMemo(() => {
     return bullionItems.reduce((acc, item) => {
-      const spot = spotPrices.find((s) => s.type === item.data.metal_type)
+      const spot = spotPrices.find((s) => s.name === item.data.metal_type)
       return acc + getProductBidPrice(item.data, spot) * (item.data.quantity ?? 1)
     }, 0)
   }, [bullionItems, spotPrices])
@@ -241,7 +241,7 @@ const scrapColumns: ColumnDef<Extract<SellCartItem, { type: 'scrap' }>>[] = [
     header: 'Est. Value',
     cell: ({ row }) => {
       const { data: spotPrices = [] } = useSpotPrices()
-      const spot = spotPrices.find((s) => s.type === row.original.data.metal)
+      const spot = spotPrices.find((s) => s.name === row.original.data.metal)
 
       return (
         <span className="font-normal text-right block w-full">
@@ -265,7 +265,7 @@ const bullionColumns: ColumnDef<Extract<SellCartItem, { type: 'product' }>>[] = 
     header: 'Est. Value',
     cell: ({ row }) => {
       const { data: spotPrices = [] } = useSpotPrices()
-      const spot = spotPrices.find((s) => s.type === row.original.data.metal_type)
+      const spot = spotPrices.find((s) => s.name === row.original.data.metal_type)
 
       return (
         <span className="font-normal text-right block w-full">

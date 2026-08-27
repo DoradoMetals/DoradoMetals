@@ -90,6 +90,19 @@ export interface AdminMints {
   updated_at: Date,
 }
 
+// The admin product editor's metal list, served by /products/get_metals.
+// Lived in features/spots/types.ts until the spots conversion (2026-08-27) -
+// but its endpoint is a PRODUCTS route behind PRODUCTS_WIRE, so it converts
+// with products, not with spots. String-valued because the form edits it.
+export interface AdminMetal {
+  id: string
+  type: string
+  ask_spot: string
+  bid_spot: string
+  percent_change: string
+  dollar_change: string
+}
+
 export interface AdminTypes {
   name: string,
 }

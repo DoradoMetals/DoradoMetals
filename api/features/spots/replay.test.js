@@ -6,11 +6,11 @@
 // wrong makes every quote wrong, so what matters here is the SHAPE and that no
 // admin-only field rides along.
 //
-// SPOTS_WIRE exists for this feature, so a second thing matters: the response
-// must stay the shape the frontend destructures while the switch is on
-// `legacy`. That is asserted directly rather than left to the wire contract,
-// because a contract that is never exercised over HTTP proves nothing about
-// what a browser receives.
+// Spots is CONVERTED (2026-08-27): the frontend types derive from
+// @dorado/contracts and read the schema's own names, so the response must be
+// the NEW shape - `name` / `ask` / `bid`. That is asserted directly rather
+// than left to the wire contract, because a contract that is never exercised
+// over HTTP proves nothing about what a browser receives.
 //
 // NOTHING IS COMMITTED - this file only reads, but it runs inside the pin like
 // the rest so a future write cannot escape.
@@ -47,7 +47,7 @@ let metals;
 // whole suite, and would be asking parity's question in the wrong place.
 before(async () => {
   metals = await outside(
-    `SELECT m.name AS type, s.ask AS ask_spot, s.bid AS bid_spot
+    `SELECT m.name, s.ask, s.bid
        FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id
       ORDER BY m.name`
   );
@@ -85,16 +85,16 @@ test("every metal carries the fields a quote is built from", async () => {
       // every order at nothing. Found by audit:vacuous-tests.
       assert.ok(res.body.length > 0, "the spot feed came back empty");
       for (const spot of res.body) {
-        for (const field of ["type", "ask_spot", "bid_spot"]) {
+        for (const field of ["name", "ask", "bid"]) {
           assert.ok(field in spot, `a spot is missing ${field}`);
         }
         assert.ok(
-          Number.isFinite(Number(spot.ask_spot)),
-          `${spot.type} has a non-numeric ask (${spot.ask_spot}) - every quote built on it is wrong`
+          Number.isFinite(Number(spot.ask)),
+          `${spot.name} has a non-numeric ask (${spot.ask}) - every quote built on it is wrong`
         );
         assert.ok(
-          Number(spot.ask_spot) > 0,
-          `${spot.type} has an ask of ${spot.ask_spot}; a zero ask values metal at nothing`
+          Number(spot.ask) > 0,
+          `${spot.name} has an ask of ${spot.ask}; a zero ask values metal at nothing`
         );
       }
     });
@@ -108,17 +108,17 @@ test("the asks and bids are the ones in the table, not a transposition of them",
     await anonymous(async () => {
       const res = await request(app).get("/api/spots/spot_prices");
       for (const row of metals) {
-        const served = res.body.find((s) => s.type === row.type);
-        assert.ok(served, `${row.type} is in the table and not in the feed`);
+        const served = res.body.find((s) => s.name === row.name);
+        assert.ok(served, `${row.name} is in the table and not in the feed`);
         assert.equal(
-          Number(served.ask_spot).toFixed(6),
-          Number(row.ask_spot).toFixed(6),
-          `${row.type} was served an ask that is not the stored one`
+          Number(served.ask).toFixed(6),
+          Number(row.ask).toFixed(6),
+          `${row.name} was served an ask that is not the stored one`
         );
         assert.equal(
-          Number(served.bid_spot).toFixed(6),
-          Number(row.bid_spot).toFixed(6),
-          `${row.type} was served a bid that is not the stored one`
+          Number(served.bid).toFixed(6),
+          Number(row.bid).toFixed(6),
+          `${row.name} was served a bid that is not the stored one`
         );
       }
     });
@@ -133,17 +133,11 @@ test("the public feed carries nothing beyond the quote fields", async () => {
       const res = await request(app).get("/api/spots/spot_prices");
       const allowed = new Set([
         "id",
-        "type",
-        "ask_spot",
-        "bid_spot",
+        "name",
+        "ask",
+        "bid",
         "dollar_change",
         "percent_change",
-        "scrap_percentage",
-        "premium",
-        "updated_at",
-        "created_at",
-        "name",
-        "symbol",
       ]);
       const unexpected = Object.keys(res.body[0] ?? {}).filter((k) => !allowed.has(k));
       assert.deepEqual(

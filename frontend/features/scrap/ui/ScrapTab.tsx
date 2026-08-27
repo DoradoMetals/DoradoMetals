@@ -64,7 +64,7 @@ export default function ScrapForm() {
   const router = useRouter()
 
   const handleSubmit = (values: Scrap) => {
-    const spot = spotPrices.find((s) => s.type === values.metal)
+    const spot = spotPrices.find((s) => s.name === values.metal)
     const content =
       convertTroyOz(values.pre_melt ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
 

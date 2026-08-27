@@ -154,7 +154,7 @@ function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
   const spots = data.order_metals ?? []
 
   const updateSpot = (spot: SpotPrice, new_spot: number) => {
-    const updated = spots.map((s) => (s.id === spot.id ? { ...s, ask_spot: new_spot } : s))
+    const updated = spots.map((s) => (s.id === spot.id ? { ...s, ask: new_spot } : s))
     setData({ order_metals: updated })
   }
 
@@ -163,7 +163,7 @@ function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
       {spots.map((spot) => (
         <div key={spot.id} className="flex flex-col w-full">
           <div className="flex items-center justify-between w-full text-sm text-neutral-700">
-            {spot.type}
+            {spot.name}
           </div>
 
           <div className="flex items-center gap-1 w-full">
@@ -176,7 +176,7 @@ function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
                 'on-glass no-spinner text-center w-full text-base h-8',
                 !spotsLocked && 'cursor-not-allowed'
               )}
-              value={spot?.ask_spot ?? ''}
+              value={spot?.ask ?? ''}
               onChange={(e) => updateSpot(spot, Number(e.target.value))}
             />
           </div>
@@ -238,7 +238,7 @@ function ProductSelector() {
       <div className="w-full flex-col">
         <div className="flex-col gap-5">
           {items.map((item, index) => {
-            const spot = spots.find((s) => s.type === item.metal_type)
+            const spot = spots.find((s) => s.name === item.metal_type)
             const price = getProductPrice(item, spot)
             const quantity = item.quantity ?? 1
 

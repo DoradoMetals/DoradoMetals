@@ -48,7 +48,7 @@ const getScrapActualContent = (item: PurchaseOrderItem): number | null => {
 }
 
 const getSpot = (spots: SpotPrice[], metal: MetalName) =>
-  spots.find((s) => s.type.toLowerCase() === metal.toLowerCase()) ?? null
+  spots.find((s) => s.name.toLowerCase() === metal.toLowerCase()) ?? null
 
 type Shares = { customerShare: number; doradoShare: number; refinerShare: number }
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n))
@@ -172,8 +172,8 @@ function computeMetalsForAllParties(
     let dorContent = dorRefContentBasis - custContent - refContent
 
     const key = toKey(metal)
-    const orderBid = orderSpot?.bid_spot ?? 0
-    const refBid = refSpot?.bid_spot ?? 0
+    const orderBid = orderSpot?.bid ?? 0
+    const refBid = refSpot?.bid ?? 0
 
     customer[key].content += custContent
     customer[key].profit += custContent * orderBid
@@ -219,8 +219,8 @@ export function getSpotNet(
     const qty = customerTotals[key]?.content ?? 0
     if (!qty) continue
 
-    const orderBid = getSpot(orderSpots, metal)?.bid_spot
-    const refBid = getSpot(refinerSpots, metal)?.bid_spot
+    const orderBid = getSpot(orderSpots, metal)?.bid
+    const refBid = getSpot(refinerSpots, metal)?.bid
     if (orderBid == null || refBid == null) continue
 
     sum += qty * (refBid - orderBid)

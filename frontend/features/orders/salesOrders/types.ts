@@ -22,7 +22,7 @@ import { pickupSchema } from '@/features/handoff/types'
 import { serviceSchema } from '@/features/service/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User, userSchema } from '@/features/users/types'
-import { spotPriceSchema } from '@/features/spots/types'
+import type { SpotPriceWireNext } from '@dorado/contracts'
 
 export interface SalesOrderItem {
   id: string
@@ -307,13 +307,29 @@ export const salesOrderCheckoutSchema = z.object({
 })
 export type SalesOrderCheckout = z.infer<typeof salesOrderCheckoutSchema>
 
+// The live spot shape, in this file's own zod. The contracts export the same
+// schema in zod v4, which cannot be composed into a v3 object - so this is
+// hand-written but PINNED: `satisfies` fails typecheck the moment it drifts
+// from the contract's inferred type.
+const liveSpotSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  ask: z.number().nullable(),
+  bid: z.number().nullable(),
+  percent_change: z.number().nullable(),
+  dollar_change: z.number().nullable(),
+}) satisfies z.ZodType<SpotPriceWireNext>
+
 export const adminSalesOrderCheckoutSchema = z.object({
   address: addressSchema,
   service: salesOrderServiceSchema,
   using_funds: z.boolean(),
   payment_method: paymentMethodTypeSchema,
   items: z.array(productSchema).min(1, 'At least one item is required'),
-  order_metals: z.array(spotPriceSchema),
+  // Client-side form state: the admin picks the spots the order is
+  // quoted at. Both create endpoints price server-side and ignore what
+  // is sent, so this describes the CONVERTED live-spot shape.
+  order_metals: z.array(liveSpotSchema),
   user: userSchema,
 })
 export type AdminSalesOrderCheckout = z.infer<typeof adminSalesOrderCheckoutSchema>

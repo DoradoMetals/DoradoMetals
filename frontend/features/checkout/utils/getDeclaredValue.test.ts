@@ -13,7 +13,7 @@ import type { PurchaseOrder } from "@/features/orders/purchaseOrders/types";
 import type { SpotPrice } from "@/features/spots/types";
 
 const spots = (bid: number, type = "Gold") =>
-  [{ type, bid_spot: bid }] as unknown as SpotPrice[];
+  [{ name: type, bid }] as unknown as SpotPrice[];
 
 const order = (items: unknown[]) => ({ order_items: items }) as unknown as PurchaseOrder;
 

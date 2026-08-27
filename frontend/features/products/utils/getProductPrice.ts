@@ -6,5 +6,5 @@ export default function getProductPrice(
   spot?: SpotPrice
 ): number {
   if (!spot) return 0
-  return product.content * ( spot.ask_spot * product.ask_premium)
+  return product.content * ((spot.ask ?? 0) * product.ask_premium)
 }

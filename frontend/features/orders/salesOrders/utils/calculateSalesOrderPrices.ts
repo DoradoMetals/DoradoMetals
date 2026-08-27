@@ -9,8 +9,8 @@ export function calculateCardCharge(orderTotal: number, paymentMethod: string): 
 
 export function calculateItemTotals(items: Product[], spots: SpotPrice[] = []): number {
   return items.reduce((acc, item) => {
-    const spot = spots.find((s) => s.type === item.metal_type)
-    const unitPrice = (item.content ?? 0) * ((spot?.ask_spot ?? 0) * (item.ask_premium ?? 0))
+    const spot = spots.find((s) => s.name === item.metal_type)
+    const unitPrice = (item.content ?? 0) * ((spot?.ask ?? 0) * (item.ask_premium ?? 0))
     const qty = item.quantity ?? 1
     return acc + unitPrice * qty
   }, 0)

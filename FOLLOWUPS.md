@@ -7748,3 +7748,59 @@ Cleanups, lock declarations and count-based assertions were all written against
 the tables the code wrote THEN; dual doubled the footprint and each of those
 assumptions broke separately (ao, vv, and now this). When a switch moves,
 re-audit the test harness, not just the code.**
+
+## D70 — spots is the second converted feature, and one type was serving two wires
+
+The media template, run again at real scale: render tests first (Spots and
+MobileSpots, network-only mocks), types from `@dorado/contracts`, ~30 files
+swept, `SPOTS_WIRE=next`, adapter deleted, both deletion floors lowered
+(adapter maps 2 -> 1, WIRE_FLOOR 6 -> 5).
+
+### The split the conversion forced
+
+`SpotPrice` was one hand-written type serving TWO wires: the live feed
+(`/spots/spot_prices`, switchable, now converted) and the order-locked rows
+(`exchange.order_metals`, embedded in ORDERS endpoints, still legacy). One
+rename would have silently broken the other wire, so the conversion split
+them: `features/spots/types.ts` is now only the live shape from the
+contracts, and `features/orders/orderSpots.ts` owns the order-spot shape plus
+the edge mappers - reads come up (`get_purchase_order_metals`,
+`get_purchase_order_refiner_metals`, `get_order_metals`), and the four
+mutations whose bodies the API reads legacy names out of go down
+(`accept_order`, `update_spot`/`update_refiner_spot`, `lock_spots`,
+`send_order_to_supplier`). That file dies with the orders conversion. On the
+API side the same seam is `features/spots/legacy-shape.ts`: the unconditional
+remnant of the adapter, kept because `getPricingSpots`' consumers (order
+calculations, supplier PDF/email) still price with legacy names.
+
+Both create-sales-order endpoints IGNORE the `spot_prices` their bodies
+carry - pricing is server-sourced since the $26.81-ounce fix - so those
+payloads are dead weight the frontend still sends. Left as-is; removing them
+belongs to the sales-orders conversion.
+
+### What tsc could and could not see
+
+The mechanical sweep was driven off tsc's own error positions (98 renames in
+29 files), which only works AFTER the type import flips - and it still misses
+two classes: `{ ...spread, legacy_key: x }` literals lose excess-property
+freshness (five live ones found by grep in the optimistic cache updates), and
+`as unknown as` casts (one fixture). A grep sweep after tsc goes green is
+part of the template, not optional.
+
+### Found, not fixed: the cancel-order cache writes to the wrong key
+
+`useCancelOrder` (purchase-orders users/queries.ts) snapshots the METALS
+cache but applies both its optimistic null-out and its on-error restore to
+the ORDERS-LIST key - it has been spreading a bid field onto `PurchaseOrder`
+objects and, on error, replacing the orders list with an array of spots. The
+conversion renamed the field it writes and nothing else; the fix belongs to
+the purchase-orders frontend conversion, where its render tests can pin it.
+
+**LESSON (bw): NODE 24 SHIPS GLOBALS THAT SHADOW THE TEST ENVIRONMENT'S.**
+Its experimental `localStorage` exists but is inert without
+`--localstorage-file`, and it shadows jsdom's - so zustand's persist middleware
+died on first write with `storage.setItem is not a function`. Same class as
+the NUMERIC/BIGINT parser rule: a global the runtime provides is not the
+global the code was written against. The shim and its probe live in
+`frontend/vitest.setup.ts`, alongside the RTL cleanup registration that
+vitest's globals-off mode also fails to auto-install.

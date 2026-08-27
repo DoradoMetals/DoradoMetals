@@ -18,7 +18,7 @@ import type {
   PurchaseOrderItem,
 } from "@/features/orders/purchaseOrders/types";
 
-const spot = (type: string, bid: number) => ({ type, bid_spot: bid }) as SpotPrice;
+const spot = (type: string, bid: number) => ({ name: type, bid }) as SpotPrice;
 
 const scrap = (over: Record<string, unknown> = {}) =>
   ({

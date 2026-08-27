@@ -12,7 +12,7 @@ import type { SpotPrice } from "@/features/spots/types";
 import type { Product } from "@/features/products/types";
 import type { PaymentMethodType } from "@/features/orders/salesOrders/types";
 
-const gold = (ask: number) => ({ type: "Gold", ask_spot: ask }) as SpotPrice;
+const gold = (ask: number) => ({ name: "Gold", ask }) as SpotPrice;
 const item = (over: Partial<Product> = {}) =>
   ({ metal_type: "Gold", content: 1, ask_premium: 1, quantity: 1, ...over }) as Product;
 

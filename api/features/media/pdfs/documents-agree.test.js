@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import pool from "#db";
 import * as poRepo from "#features/purchase-orders/repo.js";
 import * as spotsService from "#features/spots/service.ts";
-import { toLegacy } from "#features/spots/wire.ts";
+import { toLegacy } from "#features/spots/legacy-shape.ts";
 import {
   buildPackingScrapRows,
   buildInvoiceScrapRows,

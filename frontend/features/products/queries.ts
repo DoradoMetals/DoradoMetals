@@ -3,7 +3,7 @@ import type { Product, ProductGroup, ProductFilters, AdminProduct, AdminTypes, S
 import { groupProducts } from '@/features/products/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import { AdminMetal } from '@/features/spots/types'
+import { AdminMetal } from '@/features/products/types'
 
 export const useProducts = () => {
   return useApiQuery<Product[]>({

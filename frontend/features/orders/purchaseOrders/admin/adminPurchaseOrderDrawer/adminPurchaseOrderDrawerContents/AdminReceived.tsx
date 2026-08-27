@@ -108,7 +108,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
               {orderSpotPrices.map((spot) => (
                 <div key={spot.id} className="flex flex-col w-full">
                   <div className="flex items-center justify-between w-full text-sm text-neutral-700">
-                    {spot.type}
+                    {spot.name}
                   </div>
 
                   <div className="flex items-center gap-1 w-full">
@@ -122,8 +122,8 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                         !order?.spots_locked && 'cursor-not-allowed'
                       )}
                       defaultValue={
-                        spot?.bid_spot ??
-                        spotPrices?.find((s) => s.type === spot.type)?.bid_spot ??
+                        spot?.bid ??
+                        spotPrices?.find((s) => s.name === spot.name)?.bid ??
                         ''
                       }
                       onBlur={(e) => handleUpdateSpot(spot, Number(e.target.value))}

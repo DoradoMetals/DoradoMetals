@@ -1,5 +1,7 @@
 import { SalesOrder, SalesOrderCheckout } from '@/features/orders/salesOrders/types'
 import { SpotPrice } from '@/features/spots/types'
+import { OrderSpot, OrderSpotWire, orderSpotFromWire } from '@/features/orders/orderSpots'
+import { apiRequest } from '@/shared/queries/axios'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 
@@ -41,16 +43,18 @@ export const useCreateSalesOrder = () => {
 }
 
 export const useSalesOrderMetals = (sales_order_id: string) => {
-  return useApiQuery<SpotPrice[]>({
+  return useApiQuery<OrderSpot[]>({
     key: queryKeys.salesOrderMetals(sales_order_id),
-    url: '/sales_orders/get_order_metals',
-    method: 'POST',
+    request: async (user) => {
+      // The orders wire still speaks legacy names; map up at the edge.
+      const rows = await apiRequest<OrderSpotWire[]>('POST', '/sales_orders/get_order_metals', {
+        user_id: user!.id,
+        sales_order_id,
+      })
+      return rows.map(orderSpotFromWire)
+    },
     requireUser: true,
     enabled: (user) => !!user?.id && !!sales_order_id,
-    body: (user) => ({
-      user_id: user!.id,
-      sales_order_id,
-    }),
     refetchInterval: 60_000,
   })
 }

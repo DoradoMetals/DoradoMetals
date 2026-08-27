@@ -7,7 +7,7 @@ import { describe, expect, test } from "vitest";
 import getScrapPrice from "@/features/scrap/utils/getScrapPrice";
 import type { SpotPrice } from "@/features/spots/types";
 
-const spot = (bid: number) => ({ bid_spot: bid }) as SpotPrice;
+const spot = (bid: number) => ({ bid }) as SpotPrice;
 
 describe("getScrapPrice", () => {
   test("multiplies content by the discounted spot", () => {

@@ -44,7 +44,7 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
             {refinerSpotPrices.map((spot) => (
               <div key={spot.id} className="flex flex-col w-full">
                 <div className="flex items-center justify-between w-full text-sm text-neutral-700">
-                  {spot.type}
+                  {spot.name}
                 </div>
 
                 <div className="flex items-center gap-1 w-full">
@@ -56,8 +56,8 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
                       'on-glass no-spinner text-center w-full text-base h-8'
                     )}
                     defaultValue={
-                      spot?.bid_spot ??
-                      orderSpotPrices?.find((s) => s.type === spot.type)?.bid_spot ??
+                      spot?.bid ??
+                      orderSpotPrices?.find((s) => s.name === spot.name)?.bid ??
                       ''
                     }
                     onBlur={(e) =>

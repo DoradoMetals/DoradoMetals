@@ -22,7 +22,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const { data: rates = [] } = useRates()
   const items = sellCartStore((s) => s.items)
 
-  const spot = spotPrices.find((s) => s.type === metal)
+  const spot = spotPrices.find((s) => s.name === metal)
   const content = convertTroyOz(pre_melt, unit) * purity
 
   // Match the cart: premium is tiered by the total scrap of this metal in the

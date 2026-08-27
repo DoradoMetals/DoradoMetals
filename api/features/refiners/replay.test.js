@@ -76,10 +76,12 @@ test("spot prices answer a signed-out visitor and take nothing from the request"
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
       const s = res.body[0];
-      for (const field of ["type", "bid_spot", "ask_spot"]) {
+      // Spots is converted (2026-08-27): the feed serves the schema's own
+      // names now, and this cross-feature smoke check follows it.
+      for (const field of ["name", "bid", "ask"]) {
         assert.ok(field in s, `the spot response is missing ${field}`);
       }
-      assert.equal(typeof s.bid_spot, "number", "a price came back as a string");
+      assert.equal(typeof s.bid, "number", "a price came back as a string");
     });
   });
 });

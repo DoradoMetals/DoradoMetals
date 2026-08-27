@@ -11,7 +11,7 @@ export type RateMaterial = 'scrap' | 'bullion'
  * not a single line's content.
  *
  * `scrap_pct` / `bullion_pct` are stored as fractions (0–1), so the result
- * plugs straight into `bid_spot * premium`.
+ * plugs straight into `bid * premium`.
  *
  * NOTE: this file is mirrored 1:1 in the API at
  * `api/features/rates/utils/resolveRate.ts` (it was `.js` until the TypeScript

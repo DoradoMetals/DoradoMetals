@@ -52,7 +52,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const quantity = cartItem?.quantity ?? 0
   const { data: spotPrices = [] } = useSpotPrices()
 
-  const spot = spotPrices.find((s) => s.type === product.metal_type)
+  const spot = spotPrices.find((s) => s.name === product.metal_type)
   const price = getProductPrice(selectedProduct, spot)
 
   const overOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
@@ -255,9 +255,9 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                       <div className="flex flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                           <div className="flex w-full items-start justify-between pl-8">
-                            <div className="text-xs text-neutral-600">{spot?.type} Spot Price</div>
+                            <div className="text-xs text-neutral-600">{spot?.name} Spot Price</div>
                             <div className="text-sm">
-                              <PriceNumberFlow value={spot?.ask_spot ?? 0} />
+                              <PriceNumberFlow value={spot?.ask ?? 0} />
                             </div>
                           </div>
 

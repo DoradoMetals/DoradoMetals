@@ -65,7 +65,7 @@ describe("getRatePct", () => {
     expect(getRatePct(rates, "Platinum", 5, "scrap")).toBeUndefined();
   });
 
-  // The fractions plug straight into `bid_spot * premium`, so a percentage
+  // The fractions plug straight into `bid * premium`, so a percentage
   // leaking through instead of a fraction would multiply a price by ninety.
   test("resolves to a fraction, never a percentage", () => {
     for (const metal of ["Gold", "Silver"]) {

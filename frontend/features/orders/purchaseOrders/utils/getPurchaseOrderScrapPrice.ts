@@ -6,11 +6,11 @@ export default function getPurchaseOrderScrapPrice(
   spotPrices: SpotPrice[],
   orderSpotPrices: SpotPrice[]
 ): number {
-  const orderSpot = orderSpotPrices?.find((s) => s.type === item?.scrap?.metal)
-  const globalSpot = spotPrices.find((s) => s.type === item?.scrap?.metal)
+  const orderSpot = orderSpotPrices?.find((s) => s.name === item?.scrap?.metal)
+  const globalSpot = spotPrices.find((s) => s.name === item?.scrap?.metal)
 
-  const bid_spot = orderSpot?.bid_spot ?? globalSpot?.bid_spot ?? 0
+  const bidSpot = orderSpot?.bid ?? globalSpot?.bid ?? 0
 
-  const price = item.price ?? (item?.scrap?.content ?? 0) * (bid_spot * (item?.premium ?? item?.scrap?.bid_premium ?? 1))
+  const price = item.price ?? (item?.scrap?.content ?? 0) * (bidSpot * (item?.premium ?? item?.scrap?.bid_premium ?? 1))
   return price
 }

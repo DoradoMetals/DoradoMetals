@@ -1,38 +1,20 @@
-import { z } from 'zod'
+// Spot types, FROM THE CONTRACTS.
+//
+// SECOND CONVERTED FEATURE. SpotPrice used to be hand-written with the LEGACY
+// field names (`type` / `ask_spot` / `bid_spot`) plus optional order ids -
+// one type serving two different wires. It is now the live spot feed's shape
+// only, imported from @dorado/contracts so `tsc` sees a rename from both
+// sides; the schema's own names are `name` / `ask` / `bid`.
+//
+// What used to share this file moved to where its wire lives:
+//   - the order-locked spot rows (exchange.order_metals, embedded in order
+//     responses and mutation bodies) are features/orders/orderSpots.ts - the
+//     ORDERS wire still speaks legacy names, and that file owns the edge
+//     conversion until orders itself converts;
+//   - AdminMetal is features/products/types.ts - it is served by
+//     /products/get_metals and converts with products.
+import type { SpotPriceWireNext } from "@dorado/contracts";
 
-export type Metal = "Gold" | "Silver" | "Platinum" | "Palladium"
+export type Metal = "Gold" | "Silver" | "Platinum" | "Palladium";
 
-export type SpotPrice = {
-  id: string
-  purchase_order_id?: string
-  sales_order_id?: string
-  type: string
-  ask_spot: number
-  bid_spot: number
-  percent_change: number
-  dollar_change: number
-  created_at?: Date
-  updated_at?: Date
-}
-
-export interface AdminMetal {
-  id: string,
-  type: string,
-  ask_spot: string,
-  bid_spot: string,
-  percent_change: string,
-  dollar_change: string,
-}
-
-export const spotPriceSchema = z.object({
-  id: z.string(),
-  purchase_order_id: z.string().optional(),
-  sales_order_id: z.string().optional(),
-  type: z.string(),
-  ask_spot: z.number(),
-  bid_spot: z.number(),
-  percent_change: z.number(),
-  dollar_change: z.number(),
-  created_at: z.date().optional(),
-  updated_at: z.date().optional(),
-})
+export type SpotPrice = SpotPriceWireNext;

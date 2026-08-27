@@ -18,7 +18,7 @@ import type { SpotPrice } from "@/features/spots/types";
 import type { PurchaseOrder, PurchaseOrderItem } from "@/features/orders/purchaseOrders/types";
 import type { Product } from "@/features/products/types";
 
-const gold = (bid: number) => ({ type: "Gold", bid_spot: bid }) as SpotPrice;
+const gold = (bid: number) => ({ name: "Gold", bid }) as SpotPrice;
 
 const scrapItem = (over: Partial<PurchaseOrderItem> & { bid_premium?: number } = {}) => {
   const { bid_premium, ...rest } = over;

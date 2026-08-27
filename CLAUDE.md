@@ -232,18 +232,18 @@ The ones that have actually caught things:
   `carrier_services` — the third shared-name false finding on this project.
 - `audit:wire-readiness` — **the other half of the promotion rule.** `*_WIRE`
   moves "when the frontend is ready", and nothing measured that. It counts the
-  legacy field names the frontend still reads: media is CONVERTED (first
-  feature through: contracts types, render tests, adapter deleted),
-  `PRODUCTS_WIRE` (124 uses) and `SPOTS_WIRE` (86) would break it today. The
-  count is **split into product code and test fixtures** — SPOTS_WIRE is 76
-  real reads and 10 fixtures — because a test spelling the legacy name is a
-  real occurrence but not a component reading the wire, and counting them
-  together made the metric move the wrong way when tests were written:
-  SPOTS_WIRE drifted from 83 to 86 purely on frontend *test* commits, with
-  the product code untouched. The switch this endangered was `MEDIA_WIRE` —
-  converted 2026-08-27, its adapter deleted. The
-  frontend imports `@dorado/contracts` nowhere, so `tsc` cannot see a rename
-  from either side. Four adapters are structural and one rename (`type`) is too
+  legacy field names the frontend still reads: media and spots are CONVERTED
+  (contracts types, render tests, adapters deleted, 2026-08-27), leaving
+  `PRODUCTS_WIRE` (121 uses) the one that would break it today. The count is
+  **split into product code and test fixtures** — SPOTS_WIRE, before its
+  conversion, was 76 real reads and 10 fixtures — because a test spelling the
+  legacy name is a real occurrence but not a component reading the wire, and
+  counting them together made the metric move the wrong way when tests were
+  written: SPOTS_WIRE drifted from 83 to 86 purely on frontend *test*
+  commits, with the product code untouched. The switch this endangered was
+  `MEDIA_WIRE`, the one reporting ready at 0. The frontend now imports
+  `@dorado/contracts` ONLY in converted features, so `tsc` sees those renames
+  from both sides — everywhere else it still cannot. Four adapters are structural and one rename (`type`) is too
   common to count globally — those report `?`, never `yes`, because a scan that
   cannot see something must not call it clean. `--self-test` proves the file
   floor fires; the first version walked zero files and called every switch

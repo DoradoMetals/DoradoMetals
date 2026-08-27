@@ -33,14 +33,14 @@ export default function SellCart() {
 
   const total = items.reduce((acc, item) => {
     if (item.type === 'product') {
-      const spot = spotPrices.find((s) => s.type === item.data.metal_type)
+      const spot = spotPrices.find((s) => s.name === item.data.metal_type)
       const price = getProductBidPrice(item.data, spot)
       const quantity = item.data.quantity ?? 1
       return acc + price * quantity
     }
 
     if (item.type === 'scrap') {
-      const spot = spotPrices.find((s) => s.type === item.data.metal)
+      const spot = spotPrices.find((s) => s.name === item.data.metal)
       const price = getScrapPrice(item.data.content ?? 0, item.data.bid_premium ?? 0, spot)
       return acc + price
     }
@@ -77,7 +77,7 @@ export default function SellCart() {
   )
 
   const renderProductItem = (item: Product, index: number) => {
-    const spot = spotPrices.find((s) => s.type === item.metal_type)
+    const spot = spotPrices.find((s) => s.name === item.metal_type)
     const price = getProductBidPrice(item, spot)
     const quantity = item.quantity ?? 1
 
@@ -144,7 +144,7 @@ export default function SellCart() {
   }
 
   const renderScrapItem = (item: Scrap, index: number) => {
-    const spot = spotPrices.find((s) => s.type === item.metal)
+    const spot = spotPrices.find((s) => s.name === item.metal)
     const price = getScrapPrice(item.content ?? 0, item.bid_premium ?? 0, spot)
 
     return (

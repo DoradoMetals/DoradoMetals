@@ -72,7 +72,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
   const { data: spotPrices = [] } = useSpotPrices()
 
-  const spot = spotPrices.find((s) => s.type === product.metal_type)
+  const spot = spotPrices.find((s) => s.name === product.metal_type)
 
   const askOverOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
   const bidOverOrUnder = getProductBidOverUnderSpot(selectedProduct, spot)
@@ -320,9 +320,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className="flex w-full items-start justify-between pl-8">
-                      <div className="text-xs text-neutral-600">{spot?.type} Ask Spot</div>
+                      <div className="text-xs text-neutral-600">{spot?.name} Ask Spot</div>
                       <div className="text-sm">
-                        <PriceNumberFlow value={spot?.ask_spot ?? 0} />
+                        <PriceNumberFlow value={spot?.ask ?? 0} />
                       </div>
                     </div>
 
@@ -371,9 +371,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className="flex w-full items-start justify-between pl-8">
-                      <div className="text-xs text-neutral-600">{spot?.type} Bid Spot</div>
+                      <div className="text-xs text-neutral-600">{spot?.name} Bid Spot</div>
                       <div className="text-sm">
-                        <PriceNumberFlow value={spot?.bid_spot ?? 0} />
+                        <PriceNumberFlow value={spot?.bid ?? 0} />
                       </div>
                     </div>
 
@@ -752,9 +752,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className="flex w-full items-start justify-between pl-8">
-                      <div className="text-xs text-neutral-600">{spot?.type} Ask Spot</div>
+                      <div className="text-xs text-neutral-600">{spot?.name} Ask Spot</div>
                       <div className="text-sm">
-                        <PriceNumberFlow value={spot?.ask_spot ?? 0} />
+                        <PriceNumberFlow value={spot?.ask ?? 0} />
                       </div>
                     </div>
 
@@ -803,9 +803,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className="flex w-full items-start justify-between pl-8">
-                      <div className="text-xs text-neutral-600">{spot?.type} Bid Spot</div>
+                      <div className="text-xs text-neutral-600">{spot?.name} Bid Spot</div>
                       <div className="text-sm">
-                        <PriceNumberFlow value={spot?.bid_spot ?? 0} />
+                        <PriceNumberFlow value={spot?.bid ?? 0} />
                       </div>
                     </div>
 

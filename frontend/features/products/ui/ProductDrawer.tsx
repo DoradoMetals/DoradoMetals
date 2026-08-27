@@ -175,7 +175,7 @@ function Inventory({ product }: { product: AdminProduct }) {
   }
 
   const { data: spots = [] } = useSpotPrices()
-  const spot = spots.find((s) => s.type === product.metal)
+  const spot = spots.find((s) => s.name === product.metal)
   return (
     <div className="flex flex-col gap-4">
       <div className="section-label">Inventory</div>
@@ -183,7 +183,7 @@ function Inventory({ product }: { product: AdminProduct }) {
       <PremiumControl
         label="Bid Premium"
         value={product.bid_premium}
-        spotPerOz={spot?.bid_spot ?? 0}
+        spotPerOz={spot?.bid ?? 0}
         contentOz={product.content ?? 1}
         onChange={(mult) => handleUpdate(product.id, { bid_premium: mult })}
       />
@@ -191,7 +191,7 @@ function Inventory({ product }: { product: AdminProduct }) {
       <PremiumControl
         label="Ask Premium"
         value={product.ask_premium}
-        spotPerOz={spot?.ask_spot ?? 0}
+        spotPerOz={spot?.ask ?? 0}
         contentOz={product.content ?? 1}
         onChange={(mult) => handleUpdate(product.id, { ask_premium: mult })}
       />

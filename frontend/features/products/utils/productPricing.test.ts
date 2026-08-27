@@ -18,7 +18,7 @@ const product = (over: Partial<Product> = {}) =>
 
 // Deliberately different bid and ask, so a helper reaching for the wrong one
 // produces a different number rather than the same one by luck.
-const spot = { bid_spot: 3000, ask_spot: 3050 } as SpotPrice;
+const spot = { bid: 3000, ask: 3050 } as SpotPrice;
 
 describe("what a customer pays and what we offer", () => {
   test("the ask price uses the ask spot and the ask premium", () => {

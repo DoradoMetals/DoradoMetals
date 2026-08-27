@@ -4,7 +4,7 @@ import * as legacy from "#features/spots/legacy.repo.ts";
 import * as metals from "#features/metals/repo.ts";
 import { toWire } from "#features/spots/compose.ts";
 import withTransaction from "#shared/db/withTransaction.js";
-import { toLegacy as spotsToLegacy } from "#features/spots/wire.ts";
+import { toLegacy as spotsToLegacy } from "#features/spots/legacy-shape.ts";
 import type { SpotPriceWire } from "@dorado/contracts";
 import type { SpotWire as SpotRow } from "#features/spots/compose.ts";
 import type { PoolClient } from "pg";
@@ -45,10 +45,10 @@ export async function getSpotPrices(): Promise<SpotRow[]> {
 // SHAPED FOR THE CALCULATIONS, DELIBERATELY, and the return type says so:
 // SpotPriceWire is the LEGACY shape (`type` / `ask_spot` / `bid_spot`), which
 // is what calculateItemAsk reads. The repo returns the new one (`name` / `ask`
-// / `bid`). toLegacy converts down, and it does so unconditionally rather than
-// following SPOTS_WIRE - that is the difference between toLegacy and toWire,
-// and it is why this keeps working when the switch flips. When the calculations
-// move to the new names, this is the one place to change.
+// / `bid`). toLegacy converts down unconditionally - the spots conversion
+// deleted the adapter and its switch, and this internal shim is what remains
+// (features/spots/legacy-shape.ts). When the calculations move to the new
+// names with the orders conversion, this is the one place to change.
 //
 // FRESH ON EVERY CALL, no caching. exchange.metals is updated by
 // updateSpotPrices on a cron, so a read is a read of the latest quote and the

@@ -1,5 +1,6 @@
 import { AdminSalesOrderCheckout, SalesOrder } from '@/features/orders/salesOrders/types'
 import { SpotPrice } from '@/features/spots/types'
+import { orderSpotToWire } from '@/features/orders/orderSpots'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 
@@ -73,7 +74,8 @@ export const useSendOrderToSupplier = () =>
     optimistic: true,
     body: ({ order, spots, supplier_id }) => ({
       order,
-      spots,
+      // The supplier PDF is rendered from the orders wire's legacy names.
+      spots: spots.map(orderSpotToWire),
       supplier_id,
     }),
     optimisticUpdater: (list, { order, supplier_id }) =>

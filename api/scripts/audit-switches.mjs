@@ -135,7 +135,7 @@ switches.sort((a, b) => a.varName.localeCompare(b.varName));
 // alongside the commit that removes the feature's repo.js, and never to make a
 // red build green - a count that falls on its own is the parser breaking.
 const SOURCE_FLOOR = 3; // + sales orders; was 21
-const WIRE_FLOOR = 6; // media converted 2026-08-27, its adapter deleted; was 7
+const WIRE_FLOOR = 5; // media then spots converted 2026-08-27, adapters deleted; was 7
 {
   const sources = switches.filter((s) => s.kind === "source").length;
   const wires = switches.filter((s) => s.kind === "wire").length;

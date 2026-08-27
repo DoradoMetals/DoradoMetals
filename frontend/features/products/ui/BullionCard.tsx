@@ -44,7 +44,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
 
   const { data: spotPrices = [] } = useSpotPrices()
 
-  const spot = spotPrices.find((s) => s.type === selectedProduct.metal_type)
+  const spot = spotPrices.find((s) => s.name === selectedProduct.metal_type)
   const price = getProductBidPrice(selectedProduct, spot)
 
   const overOrUnder = getProductBidOverUnderSpot(selectedProduct, spot)
@@ -132,9 +132,9 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                       <div className="flex flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                           <div className="flex w-full items-start justify-between pl-8">
-                            <div className="text-xs text-neutral-600">{spot?.type} Bid Price</div>
+                            <div className="text-xs text-neutral-600">{spot?.name} Bid Price</div>
                             <div className="text-sm">
-                              <PriceNumberFlow value={spot?.bid_spot ?? 0} />
+                              <PriceNumberFlow value={spot?.bid ?? 0} />
                             </div>
                           </div>
 

@@ -6,6 +6,7 @@ import {
   PurchaseOrderReturnShipment,
 } from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
+import { OrderSpot, OrderSpotWire, orderSpotFromWire } from '@/features/orders/orderSpots'
 import getPurchaseOrderItemPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderItemPrice'
 import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
 import { payoutOptions } from '@/features/payouts/types'
@@ -78,14 +79,17 @@ export const useCreatePurchaseOrder = () => {
 export const usePurchaseOrderMetals = (purchase_order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<SpotPrice[]>({
+  return useQuery<OrderSpot[]>({
     queryKey: ['purchase_orders_metals', purchase_order_id],
     queryFn: async () => {
       if (!user?.id) return []
-      return await apiRequest<SpotPrice[]>('POST', '/purchase_orders/get_purchase_order_metals', {
+      // The orders wire still speaks legacy names; map up at the edge so
+      // everything downstream reads the converted shape.
+      const rows = await apiRequest<OrderSpotWire[]>('POST', '/purchase_orders/get_purchase_order_metals', {
         user_id: user.id,
         purchase_order_id: purchase_order_id,
       })
+      return rows.map(orderSpotFromWire)
     },
     enabled: !!user && !!purchase_order_id,
     refetchInterval: 60000,
@@ -131,12 +135,12 @@ export const useCancelOrder = () => {
       )
 
       const metalsQueryKey = ['purchase_orders_metals', purchase_order.id]
-      const previousSpotPrices = queryClient.getQueryData<SpotPrice[]>(metalsQueryKey)
+      const previousSpotPrices = queryClient.getQueryData<OrderSpot[]>(metalsQueryKey)
 
       queryClient.setQueryData<SpotPrice[]>(queryKey, (old = []) =>
         old.map((s) => ({
           ...s,
-          bid_spot: null as unknown as number,
+          bid: null,
         }))
       )
 

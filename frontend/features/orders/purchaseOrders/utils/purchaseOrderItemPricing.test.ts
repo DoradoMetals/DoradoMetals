@@ -18,8 +18,8 @@ import type { SpotPrice } from "@/features/spots/types";
 
 // Bid and ask differ so a function reaching for the wrong side is visible, and
 // the order spot differs from the global one so the precedence is testable.
-const globalSpots = [{ type: "Gold", bid_spot: 3000, ask_spot: 3050 }] as SpotPrice[];
-const orderSpots = [{ type: "Gold", bid_spot: 2900, ask_spot: 2950 }] as SpotPrice[];
+const globalSpots = [{ name: "Gold", bid: 3000, ask: 3050 }] as SpotPrice[];
+const orderSpots = [{ name: "Gold", bid: 2900, ask: 2950 }] as SpotPrice[];
 
 const scrapItem = (over: Partial<PurchaseOrderItem> = {}) =>
   ({
@@ -150,7 +150,7 @@ describe("bullion falls back to zero where scrap falls back to one", () => {
 
 // ---------------------------------------------------------------------------
 // getPurchaseOrderItemPrice resolves its spot with `spots.find(...)!` - a
-// non-null assertion - and then reads `spot.bid_spot`. Every sibling in this
+// non-null assertion - and then reads `spot.bid`. Every sibling in this
 // folder either guards with `?? null` or falls back to 0. This one THROWS.
 //
 // It is also the only one matching the metal name case-sensitively;

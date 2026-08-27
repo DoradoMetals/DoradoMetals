@@ -19,7 +19,6 @@ import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as poRepo from "#features/purchase-orders/repo.js";
 import * as soRepo from "#features/sales-orders/service.ts";
 import * as spotsService from "#features/spots/service.ts";
-import { toLegacy as spotsToLegacy } from "#features/spots/wire.ts";
 import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.ts";
 import { formatCurrency } from "#features/media/pdfs/render/format.ts";
 
@@ -35,13 +34,15 @@ before(async () => {
   orders = await poRepo.getAll();
   salesOrders = await soRepo.getAll();
   // Legacy-shaped on purpose. The PDF and email paths take spot prices from the
-  // request body, and the frontend sends them in the shape /spots/spot_prices
-  // returns today - type / ask_spot / bid_spot. The repo now returns the new
-  // names, so this converts them the way the adapter does on the way out, which
-  // is what production actually hands these functions.
+  // request body in the ORDERS wire's legacy shape - type / ask_spot /
+  // bid_spot. The live spot feed converted (2026-08-27) but order spots did
+  // not move with it: the frontend maps down at its edge
+  // (features/orders/orderSpots.ts), so legacy names are still what
+  // production hands these functions. getPricingSpots converts down through
+  // features/spots/legacy-shape.ts the same way.
   //
-  // When SPOTS_WIRE flips and order spots move with it, this goes and
-  // calculations.ts reads the new names instead.
+  // When the ORDERS conversion lands and calculations.ts reads the new
+  // names, this goes.
   spots = await spotsService.getPricingSpots();
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
   assert.ok(spots.length > 0, "dev has no spot prices");

@@ -8,26 +8,26 @@ export default function getPurchaseOrderTotal(
 ): number {
   const baseTotal = order.order_items.reduce((acc, item) => {
     if (item.item_type === 'product') {
-      const orderSpot = orderSpotPrices?.find((s) => s.type === item.product?.metal_type)
-      const globalSpot = spotPrices?.find((s) => s.type === item.product?.metal_type)
-      const bid_spot = orderSpot?.bid_spot ?? globalSpot?.bid_spot ?? 0
+      const orderSpot = orderSpotPrices?.find((s) => s.name === item.product?.metal_type)
+      const globalSpot = spotPrices?.find((s) => s.name === item.product?.metal_type)
+      const bidSpot = orderSpot?.bid ?? globalSpot?.bid ?? 0
 
       const price =
         item.price ??
         (item?.product?.content ?? 0) *
-          (bid_spot * (item.premium ?? item?.product?.bid_premium ?? 0))
+          (bidSpot * (item.premium ?? item?.product?.bid_premium ?? 0))
 
       const quantity = item.quantity ?? 1
       return acc + price * quantity
     }
 
     if (item.item_type === 'scrap') {
-      const orderSpot = orderSpotPrices?.find((s) => s.type === item.scrap?.metal)
-      const globalSpot = spotPrices.find((s) => s.type === item.scrap?.metal)
+      const orderSpot = orderSpotPrices?.find((s) => s.name === item.scrap?.metal)
+      const globalSpot = spotPrices.find((s) => s.name === item.scrap?.metal)
 
-      const bid_spot = orderSpot?.bid_spot ?? globalSpot?.bid_spot ?? 0
+      const bidSpot = orderSpot?.bid ?? globalSpot?.bid ?? 0
 
-      const price = item.price ?? (item?.scrap?.content ?? 0) * (bid_spot * (item.premium ?? 1))
+      const price = item.price ?? (item?.scrap?.content ?? 0) * (bidSpot * (item.premium ?? 1))
       return acc + price
     }
 

@@ -28,24 +28,24 @@ export default function Spots() {
                   Show {type === 'Bid' ? 'Ask' : 'Bid'}
                 </Button>
                 {spots.map((spot) => {
-                  const trendUp = spot.dollar_change >= 0
+                  const trendUp = (spot.dollar_change ?? 0) >= 0
                   const CaretIcon = trendUp ? CaretUpIcon : CaretDownIcon
                   const colorClass = trendUp ? 'text-success' : 'text-destructive'
 
                   return (
                     <div key={spot.id} className="flex items-center gap-3">
                       <span className="text-sm font-medium uppercase">
-                        {spot.type}:
+                        {spot.name}:
                       </span>
 
                       <NumberFlowGroup>
                         <div className="text-sm flex font-medium items-center tracking-wide">
-                          <PriceNumberFlow value={type === 'Bid' ? spot.bid_spot : spot.ask_spot} />
+                          <PriceNumberFlow value={(type === 'Bid' ? spot.bid : spot.ask) ?? 0} />
                         </div>
 
                         <div className="flex items-center gap-1 text-xs">
                           <CaretIcon size={16} className={colorClass} />
-                          <PriceNumberFlow value={spot.dollar_change} className={colorClass} />
+                          <PriceNumberFlow value={spot.dollar_change ?? 0} className={colorClass} />
                         </div>
                       </NumberFlowGroup>
                     </div>

@@ -23,7 +23,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
 
       <div className="flex-col gap-10">
         {items.map((item, index) => {
-          const spot = spotPrices.find((s) => s.type === item.metal_type)
+          const spot = spotPrices.find((s) => s.name === item.metal_type)
           const price = getProductPrice(item, spot)
           const quantity = item.quantity ?? 1
 

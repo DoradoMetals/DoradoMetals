@@ -78,7 +78,6 @@ const po = await import("#features/purchase-orders/repo.js");
 const productsWire = await import("#features/products/wire.ts");
 const refinersWire = await import("#features/refiners/wire.ts");
 const carriersWire = await import("#features/shipping/carriers/wire.ts");
-const spotsWire = await import("#features/spots/wire.ts");
 const addressesWire = await import("#features/places/addresses/wire.ts");
 
 // The public list was checked ONE WAY while the admin list right below it was

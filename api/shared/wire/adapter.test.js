@@ -176,10 +176,12 @@ test("no real wire adapter can collide or break its own round trip", () => {
 
   // The floor tracks how many rename-map adapters EXIST, and it shrinks as
   // features convert: media's adapter was deleted 2026-08-27 (first converted
-  // feature), taking the count 3 -> 2. Lower this again when spots or products
-  // converts - and if it ever reads low WITHOUT a deletion in the same change,
-  // the scan broke, which is what the floor is for.
-  assert.ok(maps.length >= 2, `only ${maps.length} rename map(s) found - the scan missed some`);
+  // feature, 3 -> 2), spots' the same day (2 -> 1, its unconditional remnant
+  // lives in features/spots/legacy-shape.ts and carries no env switch). Lower
+  // this again when products converts - and if it ever reads low WITHOUT a
+  // deletion in the same change, the scan broke, which is what the floor is
+  // for.
+  assert.ok(maps.length >= 1, `only ${maps.length} rename map(s) found - the scan missed some`);
   for (const [where, pairs] of maps) {
     const news = pairs.map((p) => p[1]);
     const legacies = pairs.map((p) => p[2]);

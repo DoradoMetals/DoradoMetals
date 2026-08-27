@@ -3,16 +3,14 @@ import {
   getSpotPrices,
 } from '#features/spots/controller.ts';
 
-import * as spotsWire from "#features/spots/wire.ts";
-import { wireShape } from "#shared/wire/middleware.ts";
-
 const router = express.Router();
 
-// The wire adapter, mounted once for the whole feature rather than called by
-// hand in every handler - no writes take this entity, so only the response is converted. Controllers return the internal shape
-// and know nothing about the frontend not having caught up. Deleting the
-// adapter is deleting this line.
-router.use(wireShape(spotsWire, { body: false }));
+// NO WIRE ADAPTER. Spots is the second CONVERTED feature (2026-08-27): the
+// frontend types derive from @dorado/contracts and read the schema's own
+// names - `name` / `ask` / `bid` - so there is no legacy shape left to
+// convert down to. The one conversion that survives is INTERNAL: the order
+// calculations still price with the legacy names, and
+// features/spots/legacy-shape.ts covers them until orders converts.
 
 router.get('/spot_prices', getSpotPrices);
 
