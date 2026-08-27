@@ -94,7 +94,7 @@ test("there are switches to check", () => {
   // commit that removes a repo.js, and never to make a red build green; a count
   // that falls on its own means the parser broke. Mirrors SOURCE_FLOOR in
   // scripts/audit-switches.mjs, which is at 14 for the same reason.
-  assert.ok(switches.length >= 9, `only found ${switches.length} switches`);
+  assert.ok(switches.length >= 8, `only found ${switches.length} switches`);
   for (const s of switches) {
     assert.ok(s.states.length, `${s.name}: could not read the SOURCES map`);
     assert.ok(s.wired.length, `${s.name}: no re-exported functions found`);

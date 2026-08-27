@@ -13,7 +13,7 @@ import express from "express";
 import cors from "cors";
 
 import productRoutes from "#features/products/routes.ts";
-import addressRoutes from "#features/addresses/routes.ts";
+import addressRoutes from "#features/places/addresses/routes.ts";
 import purchaseOrderRoutes from "#features/purchase-orders/routes.ts";
 import checkoutRoutes from "#features/checkout/routes.ts";
 import pdfRoutes from "#features/media/pdfs/routes.ts";

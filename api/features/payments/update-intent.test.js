@@ -27,7 +27,7 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.js";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
-import * as addressService from "#features/addresses/service.ts";
+import * as addressService from "#features/places/addresses/service.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");

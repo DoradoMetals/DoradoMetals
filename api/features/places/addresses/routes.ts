@@ -6,10 +6,10 @@ import {
   update,
   remove,
   setDefault,
-} from "#features/addresses/controller.ts";
+} from "#features/places/addresses/controller.ts";
 
 import { requireUser } from "#shared/middleware/authMiddleware.ts";
-import * as addressesWire from "#features/addresses/wire.ts";
+import * as addressesWire from "#features/places/addresses/wire.ts";
 import { wireShape } from "#shared/wire/middleware.ts";
 
 const router = express.Router();

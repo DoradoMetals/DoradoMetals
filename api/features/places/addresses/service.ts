@@ -1,0 +1,210 @@
+// Addresses: two rows in the new schema, one row in exchange, written together.
+//
+// THE OWNERSHIP CHECK MOVED HERE, AND THAT IS THE ONE THING TO GET RIGHT.
+//
+// exchange scoped its writes in the statement - `WHERE id = $1 AND user_id =
+// $2` - because the address carried its owner. places.addresses does not have a
+// user_id; whose book an address is in is places.user_addresses. So the
+// statement cannot refuse a stranger's address and this file has to, by reading
+// the caller's link first, inside the same transaction as the write.
+//
+// Without that check any signed-in customer could rewrite any address by id.
+// The exchange statement is still scoped, so the damage would have been
+// one-sided - the new schema changed and exchange not - which is worse than
+// either, because the two schemas would then disagree about someone's address
+// and nothing reads the new one yet to notice.
+import { randomUUID } from "node:crypto";
+import withTransaction from "#shared/db/withTransaction.js";
+import * as addresses from "#features/places/addresses/repo.ts";
+import * as userAddresses from "#features/places/user-addresses/repo.ts";
+import * as legacy from "#features/places/addresses/legacy.repo.ts";
+import * as compose from "#features/places/addresses/compose.ts";
+import type { ComposedAddress } from "#features/places/addresses/compose.ts";
+import type { AddressValues, Executor } from "#features/places/addresses/repo.ts";
+
+interface HttpError extends Error {
+  statusCode?: number;
+}
+
+function badRequest(message: string): HttpError {
+  const err: HttpError = new Error(message);
+  err.statusCode = 400;
+  return err;
+}
+
+// Arrives as req.body after the wire adapter has nested it, so everything is
+// optional.
+export type AddressInput = {
+  id?: string;
+  line_1?: string | null;
+  line_2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  zip?: string | null;
+  country_code?: string | null;
+  phone_number?: string | null;
+  user_address?: {
+    label?: string | null;
+    default_shipping?: boolean | null;
+  };
+};
+
+const toValues = (a: AddressInput): AddressValues => [
+  a.line_1 ?? null,
+  a.line_2 ?? null,
+  a.city ?? null,
+  a.state ?? null,
+  a.country ?? null,
+  a.zip ?? null,
+  a.country_code ?? null,
+  a.phone_number ?? null,
+];
+
+const labelOf = (a: AddressInput): string | null => a.user_address?.label ?? null;
+const defaultOf = (a: AddressInput): boolean => a.user_address?.default_shipping === true;
+
+// ---------------------------------------------------------------------- reads
+
+export async function list(userId: string, executor?: Executor): Promise<ComposedAddress[]> {
+  const links = await userAddresses.getForUser(userId, executor);
+  const rows = await addresses.getMany(links.map((l) => l.address_id), executor);
+  return compose.all(links, rows);
+}
+
+// RETURNS A LIST, and that is not an oversight - exchange's getFromId did too,
+// and callers take [0]. An address can be in more than one person's book now,
+// so a list is also the honest answer rather than a leftover.
+export async function getFromId(
+  address_id: string, executor?: Executor
+): Promise<ComposedAddress[]> {
+  const row = await addresses.getOne(address_id, executor);
+  if (!row) return [];
+  const links = await userAddresses.getByAddress(address_id, executor);
+  return compose.all(links, [row]);
+}
+
+// ONE ADDRESS BY ID, WHICH THIS SERVICE HAD NOT EXPOSED SINCE 26 DECEMBER 2025.
+//
+// features/payments/service.ts calls getAddressFromId to find the state a sales
+// order is taxed in. The function did not exist - it was lost in be03eed3 and
+// nothing defined it since, and `import * as` makes a missing name `undefined`
+// rather than an import error, so it failed at the call. The effect was that
+// POST /api/stripe/update_payment_intent threw on its first await and answered
+// 500 every time, leaving the intent at the $10.00 placeholder.
+export async function getAddressFromId(
+  address_id: string, executor?: Executor
+): Promise<ComposedAddress | undefined> {
+  return (await getFromId(address_id, executor))[0];
+}
+
+export async function isActive(
+  address_id: string, user_id: string, executor?: Executor
+): Promise<boolean> {
+  return await addresses.isActive(address_id, user_id, executor);
+}
+
+// --------------------------------------------------------------------- writes
+
+export async function create(
+  { address, userId }: { address: AddressInput; userId: string },
+  executor?: Executor
+): Promise<ComposedAddress> {
+  const values = toValues(address);
+  const label = labelOf(address);
+  const isDefault = defaultOf(address);
+
+  const run = async (c: Executor): Promise<ComposedAddress> => {
+    const id = randomUUID();
+    const row = await addresses.create(id, values, c);
+    const link = await userAddresses.create(randomUUID(), id, userId, label, isDefault, c);
+    await legacy.create(id, userId, values, label, isDefault, c);
+    return compose.compose(row, link);
+  };
+  return executor ? await run(executor) : await withTransaction(run);
+}
+
+export async function update(
+  { address, userId }: { address: AddressInput & { id: string }; userId: string },
+  executor?: Executor
+): Promise<ComposedAddress> {
+  if (await addresses.isActive(address.id, userId, executor)) {
+    throw badRequest(
+      "Address cannot be edited because it is associated with an active order."
+    );
+  }
+
+  const values = toValues(address);
+  const label = labelOf(address);
+  const isDefault = defaultOf(address);
+
+  const run = async (c: Executor): Promise<ComposedAddress> => {
+    // THE OWNERSHIP CHECK. See the header. Read inside the transaction, so an
+    // address that leaves the caller's book between this and the write cannot
+    // slip through.
+    const owned = await userAddresses.getOne(address.id, userId, c);
+    if (!owned) throw badRequest("Address not found.");
+
+    const row = await addresses.update(address.id, values, c);
+    if (!row) throw badRequest("Address not found.");
+
+    const link = await userAddresses.update(address.id, userId, label, isDefault, c);
+    await legacy.update(address.id, userId, values, label, isDefault, c);
+    return compose.compose(row, link ?? owned);
+  };
+  return executor ? await run(executor) : await withTransaction(run);
+}
+
+export async function updateValidation(
+  { addressId, is_valid, is_residential }:
+    { addressId: string; is_valid: boolean; is_residential: boolean },
+  executor?: Executor
+): Promise<ComposedAddress | undefined> {
+  const run = async (c: Executor): Promise<ComposedAddress | undefined> => {
+    const row = await addresses.updateValidation(addressId, is_valid, is_residential, c);
+    await legacy.updateValidation(addressId, is_valid, is_residential, c);
+    if (!row) return undefined;
+    const links = await userAddresses.getByAddress(addressId, c);
+    return links[0] ? compose.compose(row, links[0]) : undefined;
+  };
+  return executor ? await run(executor) : await withTransaction(run);
+}
+
+// Returns a MESSAGE STRING, not the row and not a boolean - that is what the
+// controller sends back, so it is what this returns.
+export async function remove(
+  { addressId, userId }: { addressId: string; userId: string },
+  executor?: Executor
+): Promise<string> {
+  if (await addresses.isActive(addressId, userId, executor)) {
+    throw badRequest(
+      "Address cannot be deleted because it is associated with an active order."
+    );
+  }
+
+  const run = async (c: Executor): Promise<string> => {
+    // The LINK goes first. places.addresses may still be referenced by an order
+    // snapshot, and an address that is gone from someone's book has not stopped
+    // being the place a parcel was sent - so the address itself only goes when
+    // nothing at all points at it.
+    await userAddresses.remove(addressId, userId, c);
+    if (!(await addresses.isReferenced(addressId, c))) {
+      await addresses.remove(addressId, c);
+    }
+    await legacy.remove(addressId, userId, c);
+    return "Deleted address.";
+  };
+  return executor ? await run(executor) : await withTransaction(run);
+}
+
+export async function setDefault(
+  { userId, addressId }: { userId: string; addressId: string },
+  executor?: Executor
+): Promise<string> {
+  const run = async (c: Executor): Promise<string> => {
+    await userAddresses.setDefault(userId, addressId, c);
+    await legacy.setDefault(userId, addressId, c);
+    return "Set default address.";
+  };
+  return executor ? await run(executor) : await withTransaction(run);
+}

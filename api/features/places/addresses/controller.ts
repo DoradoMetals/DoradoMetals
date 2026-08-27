@@ -2,7 +2,7 @@ import { callerId, requiredParam } from "#shared/http/caller.ts";
 import type { Request } from "express";
 import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as addressService from "#features/addresses/service.ts"
+import * as addressService from "#features/places/addresses/service.ts"
 
 // WHOSE ADDRESS BOOK. Every one of these took user_id out of the request -
 // oneString(req.query.user_id) on the read, req.body.user_id on the writes - behind

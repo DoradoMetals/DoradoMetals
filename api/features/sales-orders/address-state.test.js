@@ -33,8 +33,11 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import * as addressRepo from "#features/addresses/repo.js";
-import * as addressService from "#features/addresses/service.ts";
+// Both names now come from the one service. `getFromId` returning a LIST and
+// `getAddressFromId` returning a ROW is the distinction this whole file exists
+// to pin, and the restructure kept both - so the pair is still testable, it is
+// just no longer split across a repo and a service.
+import * as addressService from "#features/places/addresses/service.ts";
 import * as taxRepo from "#features/sales-tax/service.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
 
@@ -90,7 +93,7 @@ after(async () => {
 
 test("getFromId returns a list, so reading .state off it is undefined", async () => {
   await inPinnedTransaction(async () => {
-    const address = await addressRepo.getFromId(addressId);
+    const address = await addressService.getFromId(addressId);
 
     assert.ok(Array.isArray(address), "getFromId returns rows, not a row");
     assert.equal(

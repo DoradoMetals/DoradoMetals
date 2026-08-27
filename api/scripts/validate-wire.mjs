@@ -79,7 +79,7 @@ const productsWire = await import("#features/products/wire.ts");
 const refinersWire = await import("#features/refiners/wire.ts");
 const carriersWire = await import("#features/shipping/carriers/wire.ts");
 const spotsWire = await import("#features/spots/wire.ts");
-const addressesWire = await import("#features/addresses/wire.ts");
+const addressesWire = await import("#features/places/addresses/wire.ts");
 
 // The public list was checked ONE WAY while the admin list right below it was
 // checked both. Same table, same contract, and repo.next exports
@@ -125,11 +125,16 @@ const { rows: withAddresses } = await pool.query(
    GROUP BY user_id ORDER BY count(*) DESC LIMIT 1`
 );
 const addressUser = withAddresses[0]?.user_id;
-await bothWays("GET /addresses", c.AddressWireNext, "addresses", (m) =>
-  addressUser ? m.list(addressUser) : []
-);
-await bothWays("GET /addresses (legacy wire)", c.AddressWire, "addresses", async (m) =>
-  addressesWire.toLegacy(addressUser ? await m.list(addressUser) : [])
+// Addresses is restructured - one implementation, so there is no "both ways"
+// to run. Kept as a DIRECT check rather than dropped, and this is the feature
+// where dropping it would cost the most: `label` and `default_shipping` become
+// `name` and `is_default` on the wire, and those two aliases are the whole
+// reason the address book renders a name at all.
+const addressesService = await import("#features/places/addresses/service.ts");
+const listAddresses = async () => (addressUser ? await addressesService.list(addressUser) : []);
+add("GET /addresses", c.AddressWireNext, listAddresses);
+add("GET /addresses (legacy wire)", c.AddressWire, async () =>
+  addressesWire.toLegacy(await listAddresses())
 );
 
 // The other renaming read: media.images stores `checksum` and the wire calls it

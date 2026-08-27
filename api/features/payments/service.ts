@@ -1,7 +1,7 @@
 import * as stripe from "#providers/payment/stripe.ts";
 import * as stripeRepo from "#features/payments/repo.js";
 import * as productService from "#features/products/service.ts";
-import * as addressService from "#features/addresses/service.ts";
+import * as addressService from "#features/places/addresses/service.ts";
 import * as taxService from "#features/sales-tax/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";

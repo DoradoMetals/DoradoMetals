@@ -218,16 +218,16 @@ switch flipped alongside three others tells you nothing when something breaks.
 
 There are two independent axes and conflating them is the mistake to avoid.
 
-- **`*_SOURCE`** — which schema the data is read from and written to. **Nine of
+- **`*_SOURCE`** — which schema the data is read from and written to. **Eight of
   them, down from twenty-one.** All default to `exchange`. None has been
   changed.
 - **`*_WIRE`** — which *shape* the data leaves the API in. Seven of them. All
   default to `legacy`. None has been changed.
 
-**Twelve switches are gone, and that is not the same as twelve features being
-promoted.** leads, reviews, rates, sales tax, spots, metals, images, mints,
-refiners, the credit ledger, carriers, carrier services and users have been
-restructured into per-table CRUD folders; organizations, emails and pdfs were built that way and
+**Thirteen switches are gone, and that is not the same as thirteen features
+being promoted.** leads, reviews, rates, sales tax, spots, metals, images,
+mints, refiners, the credit ledger, carriers, carrier services, addresses and
+users have been restructured into per-table CRUD folders; organizations, emails and pdfs were built that way and
 never had a switch. Each restructured feature reads the new schema
 unconditionally and writes **both** schemas unconditionally, in one
 transaction. There is no switch to set and
@@ -270,7 +270,6 @@ reversible.
 | Switch | Feature |
 |---|---|
 | `PRODUCTS_SOURCE` | bullion products |
-| `ADDRESSES_SOURCE` | addresses |
 | `PURCHASE_ORDERS_SOURCE` | purchase orders |
 | `SALES_ORDERS_SOURCE` | sales orders |
 | `PICKUPS_SOURCE` | carrier pickups |
@@ -281,10 +280,10 @@ reversible.
 
 `LEADS_SOURCE`, `RATES_SOURCE`, `REVIEWS_SOURCE`, `SALES_TAX_SOURCE`,
 `SPOTS_SOURCE`, `MEDIA_SOURCE`, `MINTS_SOURCE`, `REFINERS_SOURCE`,
-`TRANSACTIONS_SOURCE`, `USERS_SOURCE`, `CARRIERS_SOURCE` and `SERVICES_SOURCE`
-were all listed here
+`TRANSACTIONS_SOURCE`, `USERS_SOURCE`, `CARRIERS_SOURCE`, `SERVICES_SOURCE` and
+`ADDRESSES_SOURCE` were all listed here
 and **no longer exist** — see the note above. Setting one in the environment now
-does nothing at all; `audit:switches` reports the ten that remain and fails if
+does nothing at all; `audit:switches` reports the eight that remain and fails if
 its own parser stops finding them.
 
 **Rollback:** set back to `exchange`, redeploy. Safe because `exchange` never
@@ -454,7 +453,13 @@ every call until it was fixed. `diff pickups` compares two empty sets and proves
 only that neither implementation errors. Promote it when a real pickup has been
 recorded and checked, not before.
 
-### `ADDRESSES_SOURCE` — the 60 extra rows are snapshots, not duplicates
+### ~~`ADDRESSES_SOURCE`~~ — the 60 extra rows are snapshots, not duplicates
+
+**This switch no longer exists** — addresses has been restructured into
+`features/places/addresses` and `features/places/user-addresses`, and reads come
+from the new schema unconditionally. What follows still applies to the data, and
+the "do not delete" is now load-bearing in a second way: `is_referenced` refuses
+to delete an address any of those snapshots points at.
 
 `places.addresses` holds 118 rows against `exchange`'s 72, and 60 have no
 counterpart in `exchange`. **Do not delete them.**
