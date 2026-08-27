@@ -11,7 +11,13 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import * as repo from "#features/transactions/repo.js";
+// MOVED FROM features/transactions. addFunds and removeFunds write
+// exchange.users.dorado_funds, and features/users owns that table - two
+// services writing one table is the single thing the structure forbids.
+import * as repo from "#features/users/repo.ts";
+// The ledger entry that records WHY a balance moved lives in its own feature -
+// the balance is users', the log is transactions'. Two tables, two owners.
+import * as transactions from "#features/transactions/service.ts";
 
 let client;
 
@@ -101,7 +107,7 @@ test("a transaction log records the movement", async () => {
   await inRollback(async (c) => {
     const user = await aUser(c);
     const { rows: [order] } = await c.query("SELECT id FROM exchange.purchase_orders LIMIT 1");
-    await repo.addTransactionLog(user.id, "credit", order.id, null, 42.5, c);
+    await transactions.addTransactionLog(user.id, "credit", order.id, null, 42.5, c);
 
     const { rows } = await c.query(
       `SELECT amount, transaction_type FROM exchange.account_transactions
@@ -127,7 +133,7 @@ test("a rolled-back movement leaves neither the balance nor the log changed", as
 
     await client.query("BEGIN");
     await repo.addFunds(user.id, 999.99, client);
-    await repo.addTransactionLog(user.id, `sentinel-${randomUUID().slice(0, 8)}`, null, null, 999.99, client);
+    await transactions.addTransactionLog(user.id, `sentinel-${randomUUID().slice(0, 8)}`, null, null, 999.99, client);
 
     // Visible inside, invisible outside.
     assert.equal(await balance(client, user.id), before + 999.99);

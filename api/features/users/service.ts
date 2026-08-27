@@ -141,3 +141,25 @@ export async function adjustDoradoCredit({
 
   return result;
 }
+
+// The balance movements that accompany an order. Called from inside the
+// transaction that creates or completes it, so they take the caller's executor -
+// funds that move for an order which rolls back must roll back with it.
+// user_id and total are NULLABLE at the call site, because the order they come
+// from declares them so on the wire. A movement with no user or no amount is a
+// no-op rather than a crash or a NULL arithmetic result - `dorado_funds + NULL`
+// is NULL, and the column is NOT NULL, so the statement would have raised 23502
+// after the caller had already committed other work.
+export async function addFunds(
+  user_id: string | null, total: number | null, executor?: unknown
+): Promise<number> {
+  if (!user_id || total === null) return 0;
+  return await users.addFunds(user_id, total, executor as never);
+}
+
+export async function removeFunds(
+  user_id: string | null, total: number | null, executor?: unknown
+): Promise<number> {
+  if (!user_id || total === null) return 0;
+  return await users.removeFunds(user_id, total, executor as never);
+}

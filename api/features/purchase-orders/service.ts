@@ -1,7 +1,8 @@
 import withTransaction from "#shared/db/withTransaction.js";
 import * as purchaseOrderRepo from "#features/purchase-orders/repo.js";
 import * as scrapRepo from "#features/scrap/repo.js";
-import * as transactionRepo from "#features/transactions/repo.js";
+import * as transactionsService from "#features/transactions/service.ts";
+import * as usersFunds from "#features/users/service.ts";
 import * as ratesRepo from "#features/rates/service.ts";
 import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.ts";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
@@ -849,8 +850,8 @@ export async function editPayoutCharge({
 export async function addFundsToAccount({ order }: { order: OrderLike }): Promise<void> {
   try {
     await withTransaction(async (client) => {
-      await transactionRepo.addFunds(order.user_id, order.total_price, client);
-      await transactionRepo.addTransactionLog(
+      await usersFunds.addFunds(order.user_id, order.total_price, client);
+      await transactionsService.addTransactionLog(
         order.user_id,
         "Credit",
         order.id,

@@ -4,7 +4,8 @@ import { fromNodeHeaders } from "better-auth/node";
 
 import * as salesOrderRepo from "#features/sales-orders/repo.js";
 import * as stripeRepo from "#features/payments/repo.js";
-import * as transactionsRepo from "#features/transactions/repo.js";
+import * as transactionsService from "#features/transactions/service.ts";
+import * as usersService from "#features/users/service.ts";
 import * as shipmentRepo from "#features/shipping/shipments/repo.js";
 import * as refinerRepo from "#features/refiners/service.ts";
 
@@ -139,12 +140,12 @@ export async function createSalesOrder(
     });
 
     if (sales_order.using_funds === true) {
-      await transactionsRepo.removeFunds(
+      await usersService.removeFunds(
         session.user.id,
         orderPrices.pre_charges_amount,
         client
       );
-      await transactionsRepo.addTransactionLog(
+      await transactionsService.addTransactionLog(
         session.user.id,
         "Debit",
         null,
@@ -221,12 +222,12 @@ export async function adminCreateSalesOrder({
     });
 
     if (sales_order.using_funds === true) {
-      await transactionsRepo.removeFunds(
+      await usersService.removeFunds(
         user.id,
         orderPrices.pre_charges_amount,
         client
       );
-      await transactionsRepo.addTransactionLog(
+      await transactionsService.addTransactionLog(
         user.id,
         "Debit",
         null,

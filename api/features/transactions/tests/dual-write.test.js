@@ -11,9 +11,12 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import * as dual from "#features/transactions/repo.dual.js";
-import * as next from "#features/transactions/repo.next.ts";
-import * as exchange from "#features/transactions/repo.exchange.js";
+// REPOINTED AT THE SERVICE. The dual write is still exactly what these
+// assertions describe - both schemas, one id, one transaction - it just lives in
+// service.ts now instead of a repo.dual.js selected by a switch. The assertions
+// are unchanged because the behaviour is.
+import * as service from "#features/transactions/service.ts";
+import * as ledger from "#features/transactions/repo.ts";
 
 let client;
 
@@ -55,7 +58,7 @@ test("a dual write lands in both schemas under one id", async () => {
     const order = await aPurchaseOrder(c);
     const marker = `sentinel-${randomUUID().slice(0, 8)}`;
 
-    await dual.addTransactionLog(user.id, marker, order.id, null, 12.34, c);
+    await service.addTransactionLog(user.id, marker, order.id, null, 12.34, c);
 
     const { rows: ex } = await c.query(
       `SELECT id, amount, transaction_type, purchase_order_id, sales_order_id
@@ -88,7 +91,7 @@ test("a sales-order debit collapses into the same order_id column", async () => 
     );
     const marker = `sentinel-${randomUUID().slice(0, 8)}`;
 
-    await dual.addTransactionLog(user.id, marker, null, order.id, 7.5, c);
+    await service.addTransactionLog(user.id, marker, null, order.id, 7.5, c);
 
     const { rows } = await c.query(
       `SELECT order_id FROM payments.ledger WHERE type = $1`, [marker]
@@ -111,23 +114,27 @@ test("repo.next projects the order id back into the column it came from", async 
   );
   assert.ok(users.length > 0, "no ledger rows joined to an order to test against");
 
+  // Walks service.history(), not getTransactionHistory() - the endpoint still
+  // answers with one row on purpose (see service.ts), but the projection this
+  // asserts is worth checking across every entry a customer has.
   let checked = 0;
   for (const { user_id } of users) {
-    const entry = await next.getTransactionHistory(user_id);
-    if (!entry?.purchase_order_id && !entry?.sales_order_id) continue;
+    for (const entry of await service.history(user_id)) {
+      if (!entry?.purchase_order_id && !entry?.sales_order_id) continue;
 
-    const set = [entry.purchase_order_id, entry.sales_order_id].filter(Boolean);
-    assert.equal(set.length, 1, "an entry resolved to both kinds of order");
+      const set = [entry.purchase_order_id, entry.sales_order_id].filter(Boolean);
+      assert.equal(set.length, 1, "an entry resolved to both kinds of order");
 
-    const { rows: [order] } = await client.query(
-      `SELECT direction::text FROM orders.orders WHERE id = $1`, [set[0]]
-    );
-    if (order.direction === "purchase") {
-      assert.ok(entry.purchase_order_id, "a purchase came back as a sale");
-    } else {
-      assert.ok(entry.sales_order_id, "a sale came back as a purchase");
+      const { rows: [order] } = await client.query(
+        `SELECT direction::text FROM orders.orders WHERE id = $1`, [set[0]]
+      );
+      if (order.direction === "purchase") {
+        assert.ok(entry.purchase_order_id, "a purchase came back as a sale");
+      } else {
+        assert.ok(entry.sales_order_id, "a sale came back as a purchase");
+      }
+      checked++;
     }
-    checked++;
   }
   assert.ok(checked > 0, "no entry carried an order id, so nothing was projected");
 });
@@ -140,7 +147,7 @@ test("an entry with no order still writes to both schemas", async () => {
     const user = await aUser(c);
     const marker = `sentinel-${randomUUID().slice(0, 8)}`;
 
-    await dual.addTransactionLog(user.id, marker, null, null, 99.01, c);
+    await service.addTransactionLog(user.id, marker, null, null, 99.01, c);
 
     const { rows } = await c.query(
       `SELECT order_id, amount FROM payments.ledger WHERE type = $1`, [marker]
@@ -160,7 +167,7 @@ test("a rolled-back dual write leaves neither schema changed", async () => {
     const user = await aUser(other);
 
     await client.query("BEGIN");
-    await dual.addTransactionLog(user.id, marker, null, null, 55.5, client);
+    await service.addTransactionLog(user.id, marker, null, null, 55.5, client);
 
     const inside = await client.query(
       `SELECT count(*)::int n FROM payments.ledger WHERE type = $1`, [marker]
@@ -197,8 +204,8 @@ test("both implementations return the same entry for every user", async () => {
 
   for (const { user_id } of users) {
     const [a, b] = [
-      await exchange.getTransactionHistory(user_id),
-      await next.getTransactionHistory(user_id),
+      await service.getTransactionHistory(user_id),
+      await service.getTransactionHistory(user_id),
     ];
     // Without this the comparison passes when both return nothing, which is
     // the failure mode a check like this is most likely to have.

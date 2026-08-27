@@ -169,11 +169,15 @@ if (!ledgerUser) {
     throw new Error("dev has no account_transactions - the ledger check would be vacuous");
   });
 } else {
-  await bothWays(
+  // ONE IMPLEMENTATION AFTER THE RESTRUCTURE, so there is no both-ways to run -
+  // but the shape is still worth checking, and this is the ledger, so it is
+  // checked directly rather than dropped. Still many=false: the endpoint hands
+  // back one row on purpose (see features/transactions/service.ts).
+  const transactionsService = await import("#features/transactions/service.ts");
+  add(
     "GET /get_transactions",
     c.AccountTransactionWire,
-    "transactions",
-    (m) => m.getTransactionHistory(ledgerUser),
+    () => transactionsService.getTransactionHistory(ledgerUser),
     false
   );
 }

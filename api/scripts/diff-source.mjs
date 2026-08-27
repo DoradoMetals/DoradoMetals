@@ -170,30 +170,7 @@ const FEATURES = {
       };
     },
   },
-  transactions: {
-    exchange: () => import("#features/transactions/repo.exchange.js"),
-    next: () => import("#features/transactions/repo.next.ts"),
-    // getTransactionHistory returns one row, not a history - see FOLLOWUPS.
-    // Compared per user rather than once, because one call proves one row and
-    // the reshaping that matters here (two order columns collapsing into one,
-    // resolved through orders.orders.direction) is only wrong for some of them.
-    reads: [
-      [
-        "getTransactionHistory(every user)",
-        async (m, ctx) => {
-          const out = [];
-          for (const id of ctx.userIds) out.push(await m.getTransactionHistory(id));
-          return out;
-        },
-      ],
-    ],
-    context: async () => {
-      const { rows } = await pool.query(
-        `SELECT DISTINCT user_id FROM exchange.account_transactions ORDER BY user_id`
-      );
-      return { userIds: rows.map((r) => r.user_id) };
-    },
-  },
+  // transactions restructured - one implementation, nothing to compare.
   pickups: {
     exchange: () => import("#features/shipping/pickups/repo.exchange.js"),
     next: () => import("#features/shipping/pickups/repo.next.ts"),
