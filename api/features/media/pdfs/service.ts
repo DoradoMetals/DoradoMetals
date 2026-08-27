@@ -1,4 +1,4 @@
-import { generateBoxSVG } from "#features/pdf/utils/generateBoxSVG.ts";
+import { generateBoxSVG } from "#features/media/pdfs/utils/generateBoxSVG.ts";
 import {
   calculateTotalPrice,
   getBullionTotal,
@@ -6,8 +6,8 @@ import {
 } from "#features/purchase-orders/utils/calculations.ts";
 
 import { renderPdf } from "#providers/pdfs/puppeteer.ts";
-import { renderShell } from "#features/pdf/render/layout.ts";
-import { formatCurrency } from "#features/pdf/render/format.ts";
+import { renderShell } from "#features/media/pdfs/render/layout.ts";
+import { formatCurrency } from "#features/media/pdfs/render/format.ts";
 import {
   renderInvoiceHeader,
   renderInvoiceShippingAndPayout,
@@ -17,8 +17,8 @@ import {
   buildPackingBullionRows,
   buildInvoiceScrapRows,
   buildInvoiceBullionRows,
-} from "#features/pdf/render/sections.ts";
-import type { RenderableOrder } from "#features/pdf/render/sections.ts";
+} from "#features/media/pdfs/render/sections.ts";
+import type { RenderableOrder } from "#features/media/pdfs/render/sections.ts";
 import type { SpotPriceWire } from "@dorado/contracts";
 
 

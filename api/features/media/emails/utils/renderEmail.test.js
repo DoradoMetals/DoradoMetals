@@ -19,7 +19,7 @@ import assert from "node:assert/strict";
 import {
   renderSalesOrderToSupplierEmail,
   renderOfferSentEmail,
-} from "#features/emails/utils/renderEmail.ts";
+} from "#features/media/emails/utils/renderEmail.ts";
 
 // The wire shape, not a convenience object: SalesOrderWire says address is
 // nullable, item_total is not, and an item's price and quantity are.

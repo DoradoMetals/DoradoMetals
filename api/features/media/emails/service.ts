@@ -1,5 +1,5 @@
-import * as pdfService from "#features/pdf/service.ts";
-import type { PackingListInput, InvoiceInput } from "#features/pdf/service.ts";
+import * as pdfService from "#features/media/pdfs/service.ts";
+import type { PackingListInput, InvoiceInput } from "#features/media/pdfs/service.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 import type { SpotPriceWire, SalesOrderWire } from "@dorado/contracts";
 
@@ -7,8 +7,8 @@ import {
   renderPurchaseOrderPlacedEmail,
   renderOfferAcceptedEmail,
   renderSalesOrderToSupplierEmail,
-} from "#features/emails/utils/renderEmail.ts";
-import type { SalesOrderForRender } from "#features/emails/utils/renderEmail.ts";
+} from "#features/media/emails/utils/renderEmail.ts";
+import type { SalesOrderForRender } from "#features/media/emails/utils/renderEmail.ts";
 
 import { sendEmail } from "#providers/emails/nodemailer.ts";
 import {

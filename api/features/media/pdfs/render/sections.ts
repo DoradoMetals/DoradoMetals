@@ -6,7 +6,7 @@ import {
   formatCurrency,
   getItemPrice,
   getPayoutDelay,
-} from "#features/pdf/render/format.ts";
+} from "#features/media/pdfs/render/format.ts";
 
 // The HTML sections a rendered document is assembled from.
 //

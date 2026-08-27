@@ -1,7 +1,7 @@
 import { callerId, requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as mediaService from "#features/media/service.ts"
+import * as mediaService from "#features/media/images/service.ts"
 
 export const uploadImage = asyncHandler(async (req, res) => {
   const result = await mediaService.uploadImage({ ...req.body, user_id: callerId(req) });

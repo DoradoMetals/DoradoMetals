@@ -6,9 +6,9 @@
 import { randomUUID } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
 import withTransaction from "#shared/db/withTransaction.js";
-import * as images from "#features/media/repo.ts";
-import * as legacy from "#features/media/legacy.repo.ts";
-import type { ImageRow, NewImage } from "#features/media/repo.ts";
+import * as images from "#features/media/images/repo.ts";
+import * as legacy from "#features/media/images/legacy.repo.ts";
+import type { ImageRow, NewImage } from "#features/media/images/repo.ts";
 
 const PUT_TTL_SECONDS = 60 * 5;
 const GET_TTL_SECONDS = 60 * 10;

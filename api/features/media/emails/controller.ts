@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as emailService from "#features/emails/service.ts"
+import * as emailService from "#features/media/emails/service.ts"
 import * as purchaseOrderRepo from "#features/purchase-orders/repo.js";
 
 // WHO THE EMAIL GOES TO IS DECIDED HERE, FROM THE DATABASE.

@@ -24,7 +24,7 @@ import { toLegacy } from "#features/spots/wire.ts";
 import {
   buildPackingScrapRows,
   buildInvoiceScrapRows,
-} from "#features/pdf/render/sections.ts";
+} from "#features/media/pdfs/render/sections.ts";
 
 let orders;
 let spots;

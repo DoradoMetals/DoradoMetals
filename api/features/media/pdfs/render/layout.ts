@@ -8,7 +8,7 @@ import {
   FONT_POPPINS_400_SRC,
   FONT_POPPINS_600_SRC,
   FONT_POPPINS_700_SRC,
-} from "#features/pdf/render/assets.ts";
+} from "#features/media/pdfs/render/assets.ts";
 
 function renderHeader(): string {
   const phone = formatPhoneNumber(process.env.FEDEX_DORADO_PHONE_NUMBER);

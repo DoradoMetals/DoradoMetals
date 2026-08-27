@@ -9,7 +9,7 @@ import * as shipmentRepo from "#features/shipping/shipments/repo.js";
 import * as refinerRepo from "#features/refiners/repo.js";
 import * as taxRepo from "#features/sales-tax/repo.js";
 
-import * as emailService from "#features/emails/service.ts";
+import * as emailService from "#features/media/emails/service.ts";
 import * as addressService from "#features/addresses/service.ts";
 import * as taxService from "#features/sales-tax/service.ts";
 import * as spotsService from "#features/spots/service.ts";

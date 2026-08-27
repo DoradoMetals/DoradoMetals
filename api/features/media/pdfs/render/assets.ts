@@ -13,8 +13,28 @@ const __dirname = path.dirname(__filename);
 // The one asset NOT inlined is the Poppins font, which layout.ts @imports from
 // Google. That is written up in FOLLOWUPS: it is the single outbound request a
 // packing list makes, and if it fails the document silently changes typeface.
+// FOUND BY WALKING UP, not by counting "..".
+//
+// This was path.join(__dirname, "..", "..", "..", "shared", "assets") - a fixed
+// number of levels, which silently became wrong the moment features/pdf moved
+// to features/media/pdfs and every document lost its logo. A count that encodes
+// how deep a file happens to sit breaks on any move, and the restructure moves
+// folders. Searching upward for the directory that actually holds the assets
+// does not care how deep this file is.
+const assetsDir = (() => {
+  let dir = __dirname;
+  for (let i = 0; i < 10; i++) {
+    const candidate = path.join(dir, "shared", "assets");
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error(`no shared/assets directory above ${__dirname}`);
+})();
+
 function dataUriFromAssets(relPath: string, mime: string): string {
-  const absPath = path.join(__dirname, "..", "..", "..", "shared", "assets", relPath);
+  const absPath = path.join(assetsDir, relPath);
   const file = fs.readFileSync(absPath);
   return `data:${mime};base64,${file.toString("base64")}`;
 }

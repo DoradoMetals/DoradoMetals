@@ -1,6 +1,6 @@
 import type { Response } from "express";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as pdfService from "#features/pdf/service.ts";
+import * as pdfService from "#features/media/pdfs/service.ts";
 
 const sendPdf = (res: Response, pdf: Uint8Array, filename: string) => {
   res.set({
