@@ -79,26 +79,16 @@ SELECT
   s.created_at AT TIME ZONE 'UTC', s.updated_at AT TIME ZONE 'UTC'
 FROM exchange.sales_orders s
 ON CONFLICT (id) DO NOTHING;
-
--- offers ---------------------------------------------------------------
+-- offers ----------------------------------------------------------------
 --
--- Only purchase orders carry an offer, which is the point of splitting it out.
--- The row gets a fresh id and points back at the order, so idempotency keys on
--- order_id rather than on a conflict target.
---
--- `status` stays null: the column exists but nothing has ever written to it,
--- in dev or anywhere the schema was copied from.
-
-INSERT INTO orders.offers (
-  order_id, offer_status, notes, spots_locked, offer_expiration,
-  num_rejections, offer_amount, created_by, updated_by, created_at, updated_at
-)
-SELECT
-  p.id, p.offer_status, p.offer_notes, p.spots_locked, p.offer_expires_at,
-  p.num_rejections, p.total_price, p.created_by, p.updated_by,
-  p.created_at AT TIME ZONE 'UTC', p.updated_at AT TIME ZONE 'UTC'
-FROM exchange.purchase_orders p
-WHERE NOT EXISTS (SELECT 1 FROM orders.offers o WHERE o.order_id = p.id);
+-- REMOVED BY 086. This backfill originally created an orders.offers row per
+-- purchase order, from offer columns exchange carried. Offers no longer exist
+-- anywhere - not the table, not the exchange columns - so on a fresh build
+-- there is nothing to select from and nothing to insert into. spots_locked,
+-- the one surviving value, is carried onto orders.orders by 086 itself.
+-- Edited rather than left: this file is part of the build-from-nothing path,
+-- and a backfill referencing dropped relations breaks it (caught by
+-- verify:backfill the first time it ran after 086).
 
 -- transactions ----------------------------------------------------------
 --

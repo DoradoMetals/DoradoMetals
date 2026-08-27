@@ -7699,3 +7699,26 @@ Remaining before the three features can lose their legacy halves:
 clean:dual-orphans (Jacob), a ruling on the 5 damaged dev shipments, and the
 purchase-orders read pivot (service.ts -> read.service.ts), whose gate is now
 effectively clean. Flipping dual as the dev DEFAULT (env file) is Jacob's.
+
+## D68 — dual is the dev default, the gate is green under it, and the rebuild path survived 086
+
+**The promotion Jacob asked for, verified end to end:**
+
+- `.env` (dev-local, gitignored) now sets the three remaining switches to
+  `dual`. Takes effect on his server restart — the stale process has been
+  writing exchange-only since Aug 25, which is the drift engine 088 repairs.
+- **Full 20-member `pnpm check` under the dual default: CHECK_EXIT=0.**
+  859/859, wire 27/27, contracts 36/36.
+- `verify:backfill` caught that **086/085 had broken build-from-nothing**: 031
+  backfilled `orders.offers`, 034 wrote `offer_sent_at` and
+  `orders.items.bid_premium` — all against relations/columns that no longer
+  exist on a fresh build. Both edited in place (the same convention as
+  regenerating genesis), and the rebuild now reproduces dev exactly except:
+  stray-order children (Jacob's cleanup; **strays grew 6 → 9, re-derive the
+  list**), the pre-declared damaged-shipment family, and — briefly — a
+  one-column diff 088 itself created by stamping `updated_at = now()`; fixed in
+  the file for prod and repaired in dev (1 row).
+
+**LESSON (bu): A RECONCILIATION MUST BE INVISIBLE TO THE VERIFIER THAT DEMANDED
+IT. Writing `now()` into a refresh created a permanent diff against the rebuild
+it existed to satisfy; carry the source's timestamps.**

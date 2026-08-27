@@ -25,13 +25,8 @@ BEGIN
   END IF;
 END $$;
 
--- The offer's send time.
-
-UPDATE orders.offers f
-SET offer_sent_at = p.offer_sent_at
-FROM exchange.purchase_orders p
-WHERE p.id = f.order_id
-  AND f.offer_sent_at IS DISTINCT FROM p.offer_sent_at;
+-- The offer's send time: REMOVED BY 086, along with the table and the source
+-- column. See 031 for the same edit and why it is made in place.
 
 -- Order-level workflow flags, sales side.
 
@@ -104,18 +99,17 @@ WHERE p.id = t.order_id
 -- post_melt_actual and content_actual - and 065 removed those columns from
 -- orders.items. They belong on the refiner's line, which 066 derives.
 --
--- bid_premium stays. An earlier edit dropped it along with the four, which
--- verify:backfill caught immediately: a rebuild produced null where dev held
--- 0.75 on twenty rows.
+-- bid_premium is GONE (085). The paragraph that used to be here recorded the
+-- opposite - an earlier edit dropped it and verify:backfill caught the loss -
+-- but that was when the column existed and carried the scrap hardcode. 085
+-- removed the column deliberately; the premium lives on i.premium and comes
+-- from rates at creation. Only the price remains to carry.
 
 UPDATE orders.items i
-SET price = poi.price,
-    bid_premium = s.bid_premium
+SET price = poi.price
 FROM exchange.purchase_order_items poi
-LEFT JOIN exchange.scrap s ON s.id = poi.scrap_id
 WHERE poi.id = i.id
-  AND (i.price IS DISTINCT FROM poi.price
-    OR i.bid_premium IS DISTINCT FROM s.bid_premium);
+  AND i.price IS DISTINCT FROM poi.price;
 
 UPDATE orders.items i
 SET price = soi.price
