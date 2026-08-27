@@ -92,7 +92,6 @@ const addressesWire = await import("#features/addresses/wire.ts");
 // getPublicReviews too - so the one-way check proved the shape only for
 // whichever schema REVIEWS_SOURCE currently names, which is exchange. The
 // public list is the one an anonymous visitor sees.
-await bothWays("GET /reviews (public)", c.ReviewWire, "reviews", (m) => m.getPublicReviews());
 await bothWays("GET /carriers", c.CarrierWireNext, "shipping/carriers", (m) => m.getAll());
 await bothWays("GET /carriers (legacy wire)", c.CarrierWire, "shipping/carriers", async (m) =>
   carriersWire.toLegacy(await m.getAll())
@@ -103,7 +102,7 @@ await bothWays("GET /spots/spot_prices (legacy wire)", c.SpotPriceWire, "spots",
   spotsWire.toLegacy(await m.getAll())
 );
 await bothWays("GET /rates", c.RateWire, "rates", (m) => m.getAllRates());
-await bothWays("GET /reviews (admin)", c.ReviewWire, "reviews", (m) => m.getAllReviews());
+// Reviews: one implementation after the restructure, so no both-ways to run.
 // Leads is checked by features/leads/tests/endpoints.test.ts instead:
 // after the restructure it has one implementation, so there is no "both ways"
 // to run. Its wire shape is the table's own row type.

@@ -76,29 +76,10 @@ const FEATURES = {
       return { sales_order_id: rows[0]?.sales_order_id ?? null };
     },
   },
-  reviews: {
-    exchange: () => import("#features/reviews/repo.exchange.js"),
-    next: () => import("#features/reviews/repo.next.ts"),
-    reads: [
-      ["getAllReviews", (m) => m.getAllReviews()],
-      ["getPublicReviews", (m) => m.getPublicReviews()],
-      ["getReview(first)", async (m, ctx) => (ctx.id ? m.getReview(ctx.id) : null)],
-    ],
-    context: async (m) => ({ id: (await m.getAllReviews())[0]?.id }),
-  },
-  'sales-tax': {
-    exchange: () => import("#features/sales-tax/repo.exchange.js"),
-    next: () => import("#features/sales-tax/repo.next.ts"),
-    reads: [
-      ["isNexus(TX)", (m) => m.isNexus("TX")],
-      ["isNexus(CA)", (m) => m.isNexus("CA")],
-      ["getSalesTax(TX, gold coin)", (m) => m.getSalesTax("TX",
-        { metal_type: "Gold", product_type: "Coin", purity: 0.999, domestic_tender: true, legal_tender: true, gross: 1 }, 500, 500)],
-      ["getSalesTax(CA, silver bar)", (m) => m.getSalesTax("CA",
-        { metal_type: "Silver", product_type: "Bar", purity: 0.999, domestic_tender: false, legal_tender: false, gross: 10 }, 5000, 5000)],
-    ],
-    context: async () => ({}),
-  },
+  // Reviews is restructured too - one implementation, so nothing to compare.
+  // features/reviews/tests/endpoints.test.ts replaces it, and additionally
+  // asserts the thing diff never could: that an anonymous visitor cannot reach
+  // a hidden review through the one unguarded route in the feature.
   spots: {
     exchange: () => import("#features/spots/repo.exchange.js"),
     next: () => import("#features/spots/repo.next.ts"),
