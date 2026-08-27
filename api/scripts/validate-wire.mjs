@@ -74,8 +74,6 @@ const bothWays = async (name, schema, dir, read, many = true) => {
   }
 };
 
-const carriers = await import("#features/shipping/carriers/repo.js");
-const services = await import("#features/shipping/services/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
 const productsWire = await import("#features/products/wire.ts");
 const refinersWire = await import("#features/refiners/wire.ts");
@@ -88,11 +86,21 @@ const addressesWire = await import("#features/addresses/wire.ts");
 // getPublicReviews too - so the one-way check proved the shape only for
 // whichever schema REVIEWS_SOURCE currently names, which is exchange. The
 // public list is the one an anonymous visitor sees.
-await bothWays("GET /carriers", c.CarrierWireNext, "shipping/carriers", (m) => m.getAll());
-await bothWays("GET /carriers (legacy wire)", c.CarrierWire, "shipping/carriers", async (m) =>
-  carriersWire.toLegacy(await m.getAll())
+// Carriers is restructured - one implementation, so there is no "both ways" to
+// run. Kept as a DIRECT check rather than dropped: the composed shape is now
+// assembled in JS from two repos instead of by a JOIN, which is a new way for a
+// field to go missing, and BOTH shapes are still checked - the internal one and
+// what the adapter flattens it to.
+const carriersService = await import("#features/shipping/carriers/service.ts");
+add("GET /carriers", c.CarrierWireNext, () => carriersService.getAllCarriers());
+add("GET /carriers (legacy wire)", c.CarrierWire, async () =>
+  carriersWire.toLegacy(await carriersService.getAllCarriers())
 );
-await bothWays("GET /carrier_services", c.CarrierServiceWire, "shipping/services", (m) => m.getAll());
+// Carrier services is restructured - one implementation. Kept as a DIRECT
+// check: it is the feature whose projection renames three columns back, so a
+// contract that stopped being exercised would stop noticing a rename escaping.
+const servicesService = await import("#features/shipping/services/service.ts");
+add("GET /carrier_services", c.CarrierServiceWire, () => servicesService.getAllServices());
 // Spots: one implementation after the restructure.
 // Rates: one implementation after the restructure.
 // Reviews: one implementation after the restructure, so no both-ways to run.

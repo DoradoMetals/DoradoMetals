@@ -5,15 +5,16 @@
 // PROVIDERS. Every label, rate and pickup goes through it.
 //
 // That makes the carrier's name load-bearing in a way nothing else in this
-// migration is, and it is read through carriersRepo - which resolves the
-// CARRIERS_SOURCE switch. The two implementations fetch the name from different
-// places: exchange.carriers has a name column, while the new schema keeps it on
-// the joined organizations row. If the migrated read ever returned a different
-// spelling, a null, or dropped the join, every label would fail with
-// "Unsupported carrier" on the deploy that promoted carriers.
+// migration is. Carriers has been restructured, so the read now comes from the
+// new schema unconditionally: the name lives on the organization row, and a
+// compose step that dropped it would fail every label with "Unsupported
+// carrier".
 //
-// So the test is not that FedEx resolves - it is that BOTH implementations
-// produce a name that resolves, which is the thing promotion could break.
+// exchange.carriers is still written alongside and is still the record of
+// truth, so the comparison is kept - it just runs against the table directly
+// now rather than through a repo that no longer exists. What it asks has
+// changed with it: not "do the two reads agree" but "did the dual write leave
+// exchange holding the same name".
 import test, { after, before, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -23,8 +24,7 @@ import { PROVIDERS } from "#features/shipping/operations/registry.ts";
 import { BUILDERS } from "#features/shipping/operations/builders.ts";
 import { resolveCarrier } from "#features/shipping/operations/resolver.ts";
 import { FEDEX_CARRIER_ID } from "#providers/shipments/constants.ts";
-import * as exchangeCarriers from "#features/shipping/carriers/repo.exchange.js";
-import * as nextCarriers from "#features/shipping/carriers/repo.next.ts";
+import * as carriers from "#features/shipping/carriers/service.ts";
 
 let client;
 
@@ -43,29 +43,36 @@ describe("the carrier name every provider lookup depends on", () => {
   // The literal uuid in providers/shipments/constants.ts has to keep pointing at
   // FedEx in both schemas. Migration notes say the carrier id survives; this
   // asserts it rather than trusting it.
-  test("FEDEX_CARRIER_ID names FedEx in both implementations", async () => {
-    for (const [label, repo] of [["exchange", exchangeCarriers], ["next", nextCarriers]]) {
-      const carrier = await repo.getById(FEDEX_CARRIER_ID, client);
-      assert.ok(carrier, `${label}: FEDEX_CARRIER_ID resolves to no carrier at all`);
-      // A carrier's name is its organization's now - see the comment in
-      // resolver.js. Both implementations return it in the same place.
-      const name = carrier.organization?.name ?? (carrier.organization?.name ?? carrier.name);
-      assert.equal(normalize(name), "fedex", `${label}: the name is "${name}"`);
-    }
+  test("FEDEX_CARRIER_ID names FedEx in the schema the resolver reads", async () => {
+    const carrier = await carriers.getCarrierById(FEDEX_CARRIER_ID, client);
+    assert.ok(carrier, "FEDEX_CARRIER_ID resolves to no carrier at all");
+    // A carrier's name is its organization's now - see the comment in
+    // resolver.ts.
+    assert.equal(normalize(carrier.organization?.name), "fedex",
+      `the name is "${carrier.organization?.name}"`);
+
+    // And in exchange, which the dual write still maintains.
+    const { rows } = await client.query(
+      "SELECT name FROM exchange.carriers WHERE id = $1", [FEDEX_CARRIER_ID]
+    );
+    assert.equal(normalize(rows[0]?.name), "fedex",
+      `exchange calls it "${rows[0]?.name}"`);
   });
 
-  test("both implementations agree about every carrier's name", async () => {
-    const fromExchange = await exchangeCarriers.getAll(client);
-    const fromNext = await nextCarriers.getAll(client);
+  test("exchange holds the same name for every carrier the new schema serves", async () => {
+    const { rows: fromExchange } = await client.query(
+      "SELECT id, name FROM exchange.carriers"
+    );
+    assert.ok(fromExchange.length > 0, "dev has no carriers to compare");
+    const fromNext = await carriers.getAllCarriers();
 
     for (const carrier of fromExchange) {
       const counterpart = fromNext.find((c) => c.id === carrier.id);
-      assert.ok(counterpart, `${(carrier.organization?.name ?? carrier.name)} is missing from the new schema`);
-      const theirs = counterpart.organization?.name ?? counterpart.name;
-      const ours = carrier.organization?.name ?? carrier.name;
+      assert.ok(counterpart, `${carrier.name} is missing from the new schema`);
       assert.equal(
-        theirs, ours,
-        `carrier ${carrier.id} is "${ours}" in exchange and "${theirs}" in the new schema`
+        counterpart.organization?.name, carrier.name,
+        `carrier ${carrier.id} is "${carrier.name}" in exchange and ` +
+          `"${counterpart.organization?.name}" in the new schema`
       );
     }
   });
@@ -75,11 +82,12 @@ describe("the carrier name every provider lookup depends on", () => {
   // somebody tried. Every carrier either has a provider, or is a known gap.
   test("every carrier either resolves to a provider or is one we have not built", async () => {
     const unimplemented = new Set(["ups", "usps"]);
-    for (const carrier of await exchangeCarriers.getAll(client)) {
-      const code = normalize((carrier.organization?.name ?? carrier.name));
+    for (const carrier of await carriers.getAllCarriers()) {
+      const name = carrier.organization?.name;
+      const code = normalize(name);
       if (unimplemented.has(code)) continue;
-      assert.ok(PROVIDERS[code], `carrier "${(carrier.organization?.name ?? carrier.name)}" has no provider registered`);
-      assert.ok(BUILDERS[code], `carrier "${(carrier.organization?.name ?? carrier.name)}" has no builders registered`);
+      assert.ok(PROVIDERS[code], `carrier "${name}" has no provider registered`);
+      assert.ok(BUILDERS[code], `carrier "${name}" has no builders registered`);
     }
   });
 });

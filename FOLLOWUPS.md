@@ -5123,3 +5123,43 @@ expressions that derive `purchase_order_id` and `sales_order_id`, not
 `s.direction`. **Two different types are both named `direction`**, in `orders` and
 in `shipping` — the same shared-name trap that has now produced a false lead three
 times on this project.
+
+## Spot prices go stale silently when anything writes only `exchange.metals`
+
+Found 2026-08-27 by `verify:parity`, which reported `exchange.metals ->
+metals.exchange_compat` NOT SAFE with four differing values — gold apart by
+$3.93 — a day after the same tool first reported every pair identical.
+
+**Not a code defect.** The dev API server had been running since 2026-08-25
+21:45, from before the spots restructure. Its `updateSpotPrices` was the
+pre-restructure one, which followed `SPOTS_SOURCE` and therefore wrote
+`exchange.metals` alone. Every ten minutes it moved exchange on; `spots.spots`
+stayed at whatever the current code last left it, 05:43:58 that morning.
+Restarting the process onto current code fixes it — the restructured service
+writes both in one transaction.
+
+**The reason it is worth writing down anyway** is that this is what the
+promotion hazard looks like from the inside, and it produced no error at all.
+Reads had already pivoted to `spots.spots`, so the API was serving quotes six
+hours old while `exchange.metals` — the table anyone would check — was current
+to the minute. Every structural assertion passed. The price of gold is the
+input to every order total, so the symptom of this in production is customers
+quoted at yesterday's metal, and nothing in the API would say so.
+
+Three things noticed it and only one is honest about why:
+
+- `verify:parity` reported it, and is **not** part of `pnpm check`.
+- `features/spots/replay.test.js` failed, but only incidentally: its fixture
+  still read `exchange.metals` while the endpoint read the new schema, so it was
+  comparing two tables by accident. The fixture now follows the endpoint.
+- Nothing else. `validate:wire` compares shapes, `diff` compares output between
+  implementations that no longer both exist, and a stale number is a perfectly
+  well-formed number.
+
+**Outstanding:** there is no staleness guard anywhere. A check that
+`spots.spots.updated_at` is within some multiple of `SPOT_UPDATE_SCHEDULE`
+belongs either at the top of `getPricingSpots` — which is the one function whose
+output becomes money — or as an audit that runs against production. Deliberately
+not added yet: dev's own copy is hours stale for the reason above, so the guard
+would fire immediately here and teach everyone to ignore it. It needs to go in
+alongside restarting that process, not before.

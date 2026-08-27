@@ -1,9 +1,13 @@
 // organizations.organizations, and nothing else.
 //
-// READ ONLY. An organization is created by seed (047) or by a migration; no
-// route writes one. It exists as a feature because three other features -
-// refiners, carriers and mints - compose an organization's name and contact
-// details into their own shape, and each of them used to do it with a JOIN.
+// THE ONLY SERVICE THAT WRITES THIS TABLE. Carriers create and update an
+// organization as part of creating and updating a carrier, and refiners and
+// mints compose one into their own shape. Every one of those used to reach into
+// this table directly - the carrier update was a statement against
+// organizations that had to know about shipping.carriers to find its row.
+//
+// One table, one writing service: carriers' service calls this one, inside its
+// own transaction, rather than writing here itself.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { organizations } from "@dorado/contracts";
@@ -13,6 +17,38 @@ const sql = sqlFrom(import.meta.dirname);
 
 export type OrganizationRow = organizations.OrganizationsRow;
 export type Executor = PoolClient | undefined;
+
+export type OrganizationInput = {
+  name?: string | null; email?: string | null;
+  phone?: string | null; enabled?: boolean | null;
+};
+
+export async function create(
+  id: string, type: string, o: OrganizationInput, executor?: Executor
+): Promise<OrganizationRow> {
+  const { rows } = await query<OrganizationRow>(
+    sql("create"),
+    [id, type, o.name ?? null, o.email ?? null, o.phone ?? null, o.enabled ?? null],
+    executor
+  );
+  return rows[0];
+}
+
+export async function update(
+  id: string, o: OrganizationInput, executor?: Executor
+): Promise<OrganizationRow | undefined> {
+  const { rows } = await query<OrganizationRow>(
+    sql("update"),
+    [o.name ?? null, o.email ?? null, o.phone ?? null, o.enabled ?? null, id],
+    executor
+  );
+  return rows[0];
+}
+
+export async function remove(id: string, executor?: Executor): Promise<number> {
+  const r = await query(sql("delete"), [id], executor);
+  return r.rowCount ?? 0;
+}
 
 export async function getAll(executor?: Executor): Promise<OrganizationRow[]> {
   const { rows } = await query<OrganizationRow>(sql("get_all"), [], executor);

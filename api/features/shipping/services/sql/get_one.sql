@@ -1,0 +1,15 @@
+-- One service, by id. Same projection as get_all - see its header for why
+-- three columns are aliased.
+SELECT
+       id, carrier_id, name, description, code, provider_code,
+       supports_pickups  AS supports_pickup,
+       supports_dropoffs AS supports_dropoff,
+       supports_returns, supports_insurance,
+       is_international, is_residential, is_active,
+       max_weight_lb     AS max_weight_lbs,
+       max_length_in, max_width_in, max_height_in, max_declared_value,
+       min_transit_days, max_transit_days, display_order,
+       created_by, updated_by, created_at, updated_at
+  FROM shipping.services
+ WHERE id = $1
+ LIMIT 1

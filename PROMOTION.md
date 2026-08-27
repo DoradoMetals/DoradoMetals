@@ -218,10 +218,32 @@ switch flipped alongside three others tells you nothing when something breaks.
 
 There are two independent axes and conflating them is the mistake to avoid.
 
-- **`*_SOURCE`** — which schema the data is read from and written to.
-  Twenty-one of them. All default to `exchange`. None has been changed.
+- **`*_SOURCE`** — which schema the data is read from and written to. **Nine of
+  them, down from twenty-one.** All default to `exchange`. None has been
+  changed.
 - **`*_WIRE`** — which *shape* the data leaves the API in. Seven of them. All
   default to `legacy`. None has been changed.
+
+**Twelve switches are gone, and that is not the same as twelve features being
+promoted.** leads, reviews, rates, sales tax, spots, metals, images, mints,
+refiners, the credit ledger, carriers, carrier services and users have been
+restructured into per-table CRUD folders; organizations, emails and pdfs were built that way and
+never had a switch. Each restructured feature reads the new schema
+unconditionally and writes **both** schemas unconditionally, in one
+transaction. There is no switch to set and
+nothing to roll back to, because there is no second implementation left to roll
+back to — what would have been `dual` is now the only behaviour.
+
+That is a one-way door in code rather than in data. `exchange` is still written
+for every one of them, so the data is still recoverable; reverting the *reads*
+means reverting the commit. Each is covered by tests that assert the write
+reached exchange as well as the new schema, which is the property the switch
+used to make optional.
+
+The one exception is users, which must **not** dual-write: `exchange.users`
+carries an `AFTER INSERT OR UPDATE` trigger that mirrors into `auth.users`, so
+writing both by hand applies an adjustment twice. It writes `exchange` only and
+lets the trigger carry it across.
 
 A feature can be on `dual` and `legacy`, or on `exchange` and `next`. The first
 axis moves when the data is ready; the second moves when the frontend is. They
@@ -229,18 +251,15 @@ are deliberately not one switch, because "the new schema is serving reads" and
 "the frontend understands the new shape" become true at different times and
 each has to be reversible without the other.
 
-### Read-only features — `exchange` → `next`
+### Read-only features — ~~`exchange` → `next`~~ already done
 
-These expose no writes at all, so `next` carries no risk of divergence: there is
-nothing to write to the old schema that the new one would miss.
+**This step no longer exists.** It covered `MINTS_SOURCE` and
+`REFINERS_SOURCE` — two features that expose no writes, so pointing them at the
+new schema carried no risk of divergence. Both have since been restructured and
+read the new schema unconditionally, so there is nothing left to set.
 
-| Switch | Reads that move |
-|---|---|
-| `MINTS_SOURCE` | `getAllMints` |
-| `REFINERS_SOURCE` | `getAllRefiners`, `getRefinerFromId` |
-
-**Rollback:** set back to `exchange`, redeploy. Instant and total — no writes
-happened anywhere new.
+Kept as a heading rather than deleted because it was the first step of the plan
+and its absence would otherwise read as an omission.
 
 ### Everything else — `exchange` → `dual`
 
@@ -250,25 +269,23 @@ reversible.
 
 | Switch | Feature |
 |---|---|
-| `LEADS_SOURCE` | leads |
-| `RATES_SOURCE` | rates |
-| `REVIEWS_SOURCE` | reviews |
-| `SALES_TAX_SOURCE` | sales tax |
-| `SPOTS_SOURCE` | spots and metals |
-| `MEDIA_SOURCE` | images |
 | `PRODUCTS_SOURCE` | bullion products |
 | `ADDRESSES_SOURCE` | addresses |
 | `PURCHASE_ORDERS_SOURCE` | purchase orders |
 | `SALES_ORDERS_SOURCE` | sales orders |
-| `CARRIERS_SOURCE` | carriers |
-| `SERVICES_SOURCE` | carrier services |
 | `PICKUPS_SOURCE` | carrier pickups |
 | `SHIPPING_SHIPMENTS_SOURCE` | shipments |
 | `SHIPPING_TRACKING_SOURCE` | tracking events |
-| `TRANSACTIONS_SOURCE` | the customer credit ledger |
 | `CHECKOUT_SOURCE` | the cart, which is a checkout session |
-| `USERS_SOURCE` | users |
 | `PAYMENTS_SOURCE` | Stripe intents, attempts and settlements |
+
+`LEADS_SOURCE`, `RATES_SOURCE`, `REVIEWS_SOURCE`, `SALES_TAX_SOURCE`,
+`SPOTS_SOURCE`, `MEDIA_SOURCE`, `MINTS_SOURCE`, `REFINERS_SOURCE`,
+`TRANSACTIONS_SOURCE`, `USERS_SOURCE`, `CARRIERS_SOURCE` and `SERVICES_SOURCE`
+were all listed here
+and **no longer exist** — see the note above. Setting one in the environment now
+does nothing at all; `audit:switches` reports the ten that remain and fails if
+its own parser stops finding them.
 
 **Rollback:** set back to `exchange`, redeploy. Safe because `exchange` never
 stopped being written to. Rows written to the new schema while `dual` was on are
@@ -316,17 +333,39 @@ list changes a value, only names and nesting.
 
 Things that are specifically true of one feature and would be surprising.
 
-### `SERVICES_SOURCE` — the ids change
+### ~~`SERVICES_SOURCE`~~ — the ids change in dev, and **do not** change in production
 
-`exchange.carrier_services` and `shipping.services` disagree about ids by
-construction. Promoting means the admin services table shows a different set of
-uuids.
+**This switch no longer exists** — carrier services has been restructured. What
+follows is still worth reading, because it is the only place the dev/production
+difference is written down and it is the reason the feature keys on the id.
 
-Nothing stores a carrier service id — there is no foreign key to
-`exchange.carrier_services.id` in dev or production — so nothing breaks. But a
-browser holding a stale list would send ids the new table does not have, and
-`getById` would return `null` until the page refetches. Worth a hard refresh
-after this one, and worth not doing it while someone is mid-edit in the drawer.
+This section used to say the two tables "disagree about ids by construction"
+and that promoting would show a different set of uuids. **Checked against
+production on 2026-08-27, and it is false there.**
+
+    production   exchange.carrier_services  8 rows
+                 shipping.services          8 rows
+                 same id                    8
+                 same (carrier_id, name)    8
+
+Every service matches on both. Promoting changes nothing a user or a browser
+would see.
+
+**Dev is where they disagree**, and only because dev's
+`exchange.carrier_services` holds two of the eight — so the six that only exist
+in `shipping.services` came from `047_seed_reference_data.sql` with fresh ids,
+and one id is worse than merely absent: `2fb26257-…` is *Overnight* in dev's
+exchange and *Priority Overnight* in dev's new schema. A test written against
+dev would conclude the promotion renames services. It does not; dev is simply
+not a copy of production.
+
+The practical consequence is for testing, not for promotion: **`shipping.services`
+must be matched on `(carrier_id, name)` and never on id when reconciling it
+against `exchange` in dev**, which is what `mirrorService` already did and why.
+
+The stale-browser caveat stands on its own merits — a page holding a list from
+before a deploy can always send an id the server has since removed — but it is
+not specific to this switch, and there is no id churn here to cause it.
 
 Deleting a service also becomes stricter: `shipping.shipments.carrier_service_id`
 has a foreign key with no `ON DELETE`, so removing a service that shipments still
@@ -334,7 +373,12 @@ reference is refused. `exchange` allowed it. That endpoint has never worked
 anyway — the controller passed the whole request body where the repo wanted an
 id — so there is no prior behaviour being changed.
 
-### `TRANSACTIONS_SOURCE` — the target did not exist until August 2026
+### The credit ledger — the target did not exist until August 2026
+
+**There is no `TRANSACTIONS_SOURCE` any more; transactions was restructured and
+writes both schemas unconditionally.** Everything below still applies — it is
+about the data, not the switch — and the deployment order it describes is now
+enforced by the code rather than by a flip.
 
 Every other switch moves data into a table January already built. This one moves
 it into `payments.ledger`, created by migration 060, because
@@ -380,12 +424,12 @@ symptom is a checkout that fails at the last step, not a double charge.
 Stripe dashboard's webhook delivery log before or after — the flip stops the
 symptom, it does not fix whatever is dropping the webhook.
 
-### `REFINERS_SOURCE` — it used to be called `SUPPLIERS_SOURCE`
+### `REFINERS_SOURCE` — it used to be called `SUPPLIERS_SOURCE`, and now it is gone
 
-Renamed with the module, in August 2026. Nothing had ever set it, so there is no
-old value to carry over — but if you have a note anywhere saying
-`SUPPLIERS_SOURCE`, it is this. The HTTP route is still `/api/suppliers`,
-because the frontend calls it.
+Renamed with the module in August 2026, then removed with the restructure.
+Nothing had ever set it. If you have a note anywhere saying `SUPPLIERS_SOURCE`
+or `REFINERS_SOURCE`, it refers to a switch that no longer exists. The HTTP
+route is still `/api/suppliers`, because the frontend calls it.
 
 ### `ORDERS_SOURCE` — the new schema has no order-number sequence
 

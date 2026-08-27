@@ -70,16 +70,23 @@ after(async () => {
 
 // THE SHARED SOURCE. All three call sites use this, so this is what makes the
 // fix one fact rather than three.
+// THE FIXTURE READS THE TABLE getPricingSpots READS, WHICH IS NO LONGER
+// exchange. Same change, and the same reason, as features/spots/replay.test.js -
+// see the long note there. Reading exchange.metals here made this a comparison
+// of two schemas by accident, and it failed the moment they drifted apart for a
+// reason that had nothing to do with pricing.
 test("getPricingSpots returns the database's spots in the shape the calculations read", async () => {
   const stored = await outside(
-    `SELECT type, ask_spot, bid_spot FROM exchange.metals ORDER BY type`
+    `SELECT m.name AS type, s.ask AS ask_spot, s.bid AS bid_spot
+       FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id
+      ORDER BY m.name`
   );
 
   assert.equal(serverSpots.length, stored.length, "the helper lost or invented a metal");
 
   for (const row of stored) {
     const served = serverSpots.find((s) => s.type === row.type);
-    assert.ok(served, `${row.type} is in exchange.metals and not in the pricing spots`);
+    assert.ok(served, `${row.type} is in spots.spots and not in the pricing spots`);
 
     // calculateItemAsk reads `type` and `ask_spot` - the legacy names. The repo
     // returns `name` and `ask`. If this ever fails with the value present under

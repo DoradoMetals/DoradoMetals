@@ -1,4 +1,4 @@
-import * as carriersRepo from "#features/shipping/carriers/repo.js";
+import * as carriersService from "#features/shipping/carriers/service.ts";
 import { PROVIDERS } from "#features/shipping/operations/registry.ts";
 import { BUILDERS } from "#features/shipping/operations/builders.ts";
 
@@ -25,7 +25,11 @@ type ProviderCode = keyof typeof PROVIDERS;
 // to carrier.name is for a caller still holding a flattened one; it goes when
 // CARRIERS_WIRE does.
 export async function resolveCarrier(carrier_id: string, client?: unknown) {
-  const carrier: CarrierLike | undefined = await carriersRepo.getById(carrier_id, client);
+  // The SERVICE, not a repo: the carrier this needs is composed from two
+  // tables, and the name it reads lives on the organization half.
+  const carrier: CarrierLike | null = await carriersService.getCarrierById(
+    carrier_id, client as never
+  );
   const code = normalizeCarrierCode(carrier?.organization?.name ?? carrier?.name);
 
   // Indexed as a plain lookup rather than narrowed first: `code` comes from the

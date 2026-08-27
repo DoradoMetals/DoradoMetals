@@ -81,84 +81,13 @@ const FEATURES = {
   // asserts the thing diff never could: that an anonymous visitor cannot reach
   // a hidden review through the one unguarded route in the feature.
   // restructured - one implementation, nothing to compare.
-  carriers: {
-    exchange: () => import("#features/shipping/carriers/repo.exchange.js"),
-    next: () => import("#features/shipping/carriers/repo.next.ts"),
-    // The organization's own id, which exchange has no equivalent for - the
-    // migration issued it. Same as suppliers. The carrier's id is unchanged,
-    // which matters more here: FEDEX_CARRIER_ID is a literal uuid.
-    ignore: { "*": ["organization.id"] },
-    reads: [
-      ["getAll", (m) => m.getAll()],
-      ["getById(first)", async (m, ctx) => (ctx.id ? m.getById(ctx.id) : null)],
-      ["getNameById(first)", async (m, ctx) => (ctx.id ? m.getNameById(ctx.id) : null)],
-    ],
-    context: async (m) => ({ id: (await m.getAll())[0]?.id }),
-  },
+  // carriers restructured - one implementation, nothing to compare.
+  // features/shipping/carriers/tests/ replaces it, and asserts what diff never
+  // could: that the write reached exchange too.
   // users restructured - one implementation, nothing to compare.
-  services: {
-    exchange: () => import("#features/shipping/services/repo.exchange.js"),
-    next: () => import("#features/shipping/services/repo.next.ts"),
-    // The id is deliberately different in each schema and always will be: 047
-    // seeds shipping.services from a dev snapshot and production's exchange
-    // rows carry other ids entirely. Nothing references it - there is no
-    // foreign key to exchange.carrier_services in dev or production - and what
-    // actually resolves a service is (carrier_id, name), which 053 makes
-    // unique. Declared here rather than hidden.
-    ignore: { "*": ["id"] },
-    // Both reads are narrowed to the services exchange actually holds.
-    //
-    // Not to make the comparison pass - to keep it meaningful. Dev's exchange
-    // has 2 carrier services where shipping.services has all 8, because 047
-    // seeds the new table from production's set and dev's exchange was never
-    // filled in. Comparing unfiltered would report 6 phantom differences that
-    // say nothing about the two implementations, and would go on reporting
-    // them forever. Production holds 8 on both sides, so there the filter is a
-    // no-op. Fixing it in dev would mean writing to exchange, which this
-    // migration does not do.
-    reads: [
-      ["getAll(shared)", async (m, ctx) =>
-        (await m.getAll()).filter((s) => ctx.keys.includes(`${s.carrier_id}|${s.name}`))],
-      ["getByCarrierId(first)", async (m, ctx) =>
-        (ctx.carrierId
-          ? (await m.getByCarrierId(ctx.carrierId)).filter((s) => ctx.keys.includes(`${s.carrier_id}|${s.name}`))
-          : [])],
-    ],
-    // getById is not compared: it takes an id, and the two schemas do not share
-    // one. getByCarrierId reaches the same rows through a key they do agree
-    // about - shipping.carriers reuses exchange.carriers' ids exactly.
-    // Only services the seed actually carried data across for.
-    //
-    // 6 of dev's 8 shipping.services rows are placeholders with every metadata
-    // column NULL - they stand in for production services that dev's exchange
-    // has never held. One of them is named 'Overnight', which is also the name
-    // of a real row in dev's exchange, so filtering by name alone still lines a
-    // real row up against a placeholder.
-    //
-    // The give-away is id 2fb26257: identical created_at, updated_at,
-    // display_order and created_by on both sides, but named 'Overnight' in
-    // exchange and 'Priority Overnight' in shipping.services. It is one row that
-    // was renamed on one side after the other was snapshotted. Production has
-    // both names as separate rows with separate ids and no placeholders, so
-    // there this filter selects all 8.
-    //
-    // Requiring created_at on the new side is what separates a carried-across
-    // row from a placeholder. What proves the implementation rather than the
-    // data is repo.dual.test.js, which mirrors every exchange service and
-    // compares all 24 non-id fields.
-    context: async () => {
-      const { rows } = await pool.query(
-        `SELECT e.carrier_id, e.name FROM exchange.carrier_services e
-         JOIN shipping.services s
-           ON s.carrier_id = e.carrier_id AND s.name = e.name
-         WHERE e.carrier_id IS NOT NULL AND s.created_at IS NOT NULL`
-      );
-      return {
-        carrierId: rows[0]?.carrier_id,
-        keys: rows.map((r) => `${r.carrier_id}|${r.name}`),
-      };
-    },
-  },
+  // carrier services restructured - one implementation, nothing to compare.
+  // features/shipping/services/tests/ replaces it, and asserts what diff never
+  // could: that the twenty-three values line up with BOTH statements.
   // transactions restructured - one implementation, nothing to compare.
   pickups: {
     exchange: () => import("#features/shipping/pickups/repo.exchange.js"),

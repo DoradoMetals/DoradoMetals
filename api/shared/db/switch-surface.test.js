@@ -19,9 +19,11 @@
 // is there either way. The reference has to be followed to repo.next.
 //
 // This was written as a check that passed, which is how it was found to be
-// useless: un-exporting getByCarrierId from shipping/services/repo.next.ts
-// left it reporting success, because repo.dual still had the name. It now
-// fails on exactly that, which is the only reason to trust it.
+// useless: un-exporting getByCarrierId from what was then
+// shipping/services/repo.next.ts left it reporting success, because repo.dual
+// still had the name. It now fails on exactly that, which is the only reason to
+// trust it. (That feature has since been restructured and has no switch at all;
+// the example is kept because it is what the check was calibrated against.)
 //
 // Static - reads the files, needs no database.
 import test from "node:test";
@@ -92,7 +94,7 @@ test("there are switches to check", () => {
   // commit that removes a repo.js, and never to make a red build green; a count
   // that falls on its own means the parser broke. Mirrors SOURCE_FLOOR in
   // scripts/audit-switches.mjs, which is at 14 for the same reason.
-  assert.ok(switches.length >= 11, `only found ${switches.length} switches`);
+  assert.ok(switches.length >= 9, `only found ${switches.length} switches`);
   for (const s of switches) {
     assert.ok(s.states.length, `${s.name}: could not read the SOURCES map`);
     assert.ok(s.wired.length, `${s.name}: no re-exported functions found`);

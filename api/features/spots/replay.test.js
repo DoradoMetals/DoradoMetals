@@ -26,8 +26,31 @@ const { default: app } = await import("#app");
 
 let metals;
 
+// THE FIXTURE READS THE TABLE THE ENDPOINT READS, WHICH IS NO LONGER exchange.
+//
+// This selected `FROM exchange.metals` and started failing the moment spots was
+// restructured, because the endpoint now serves spots.spots joined to
+// metals.metals. The failure was real and worth reading before repointing it:
+// the two tables genuinely disagreed, by $3.93 on gold.
+//
+// The cause was a long-running dev server started before the restructure. Its
+// cron writes exchange.metals ONLY - that was the behaviour with
+// SPOTS_SOURCE=exchange - so exchange kept moving while spots.spots stayed at
+// whatever the last run of the current code left. It is a dev artefact, not a
+// defect, and it disappears when that process is restarted onto current code,
+// which writes both.
+//
+// What this file asks is "does the endpoint serve what is stored", so the
+// fixture follows the endpoint. Whether the two SCHEMAS agree is a different
+// question with its own tool - `verify:parity` - which is what noticed this.
+// Asserting it here as well would make an unrelated stale process fail the
+// whole suite, and would be asking parity's question in the wrong place.
 before(async () => {
-  metals = await outside(`SELECT type, ask_spot, bid_spot FROM exchange.metals ORDER BY type`);
+  metals = await outside(
+    `SELECT m.name AS type, s.ask AS ask_spot, s.bid AS bid_spot
+       FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id
+      ORDER BY m.name`
+  );
   assert.ok(metals.length > 0, "dev has no metals - every assertion here would be vacuous");
 });
 
