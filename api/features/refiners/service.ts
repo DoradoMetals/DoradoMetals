@@ -1,13 +1,14 @@
-// Refiners, straight through to the switch.
-import * as refinerRepo from "#features/refiners/repo.js";
-import type { RefinerRow } from "#features/refiners/repo.next.ts";
+// Refiners: read only, composed from two tables.
+import * as refiners from "#features/refiners/repo.ts";
+import * as compose from "#features/refiners/compose.ts";
+import type { ComposedRefiner } from "#features/refiners/compose.ts";
 
-export async function getAllRefiners(): Promise<RefinerRow[]> {
-  return await refinerRepo.getAllRefiners();
+export async function getAllRefiners(): Promise<ComposedRefiner[]> {
+  return await compose.all(await refiners.getAll());
 }
 
-// Took `ids` and passed `id`, which was never defined - a ReferenceError on
-// every call. Renamed to match what the repo actually wants: one id.
-export async function getRefinerFromId(id: string): Promise<RefinerRow | null> {
-  return await refinerRepo.getRefinerFromId(id);
+export async function getRefinerFromId(id: string): Promise<ComposedRefiner | null> {
+  const row = await refiners.getOne(id);
+  if (!row) return null;
+  return await compose.one(row);
 }

@@ -134,7 +134,7 @@ switches.sort((a, b) => a.varName.localeCompare(b.varName));
 // Lowering this is therefore a real decision and not bookkeeping. Do it only
 // alongside the commit that removes the feature's repo.js, and never to make a
 // red build green - a count that falls on its own is the parser breaking.
-const SOURCE_FLOOR = 14; // + users; was 21
+const SOURCE_FLOOR = 13; // + users; was 21
 const WIRE_FLOOR = 7;
 {
   const sources = switches.filter((s) => s.kind === "source").length;

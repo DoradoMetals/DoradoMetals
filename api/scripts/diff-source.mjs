@@ -91,20 +91,7 @@ const FEATURES = {
   },
   // Media is restructured - one implementation, so nothing to compare.
   // features/media/tests/endpoints.test.ts replaces it.
-  refiners: {
-    exchange: () => import("#features/refiners/repo.exchange.js"),
-    next: () => import("#features/refiners/repo.next.ts"),
-    // The organization's own id. exchange has no equivalent - an organization is
-    // a new concept and the migration issued its id - so exchange composes the
-    // nested shape without one. The supplier's id is unchanged and is what
-    // everything references; this is the organization behind it.
-    ignore: { "*": ["organization.id"] },
-    reads: [
-      ["getAllRefiners", (m) => m.getAllRefiners()],
-      ["getRefinerFromId(first)", async (m, ctx) => (ctx.id ? m.getRefinerFromId(ctx.id) : null)],
-    ],
-    context: async (m) => ({ id: (await m.getAllRefiners())[0]?.id }),
-  },
+  // refiners restructured - one implementation, nothing to compare.
   carriers: {
     exchange: () => import("#features/shipping/carriers/repo.exchange.js"),
     next: () => import("#features/shipping/carriers/repo.next.ts"),

@@ -302,3 +302,89 @@ test("re-sending to the same refiner writes nothing new", async () => {
     assert.equal(sent.length, 1, "the resend did not send the refiner their copy");
   }, { lock: LOCKS.ORDERS });
 });
+
+// THE REFINER'S COPY HAS NEVER ARRIVED, AND THIS IS WHY.
+//
+// A refiner has no top-level email in either schema - both projections nest
+// name/email/phone/enabled under `organization`. So `supplier.email` was
+// undefined and sendEmail got `to: undefined`, which nodemailer refuses. It
+// threw AFTER the transaction committed, which is the accepted worst case this
+// function's comment describes: an order marked sent whose email did not
+// arrive. Permanently, for every sales order sent to a refiner.
+//
+// tsc could not see it: repo.js resolved through a dynamic index, which erases
+// every export to `any`, so `email: string` accepted undefined.
+test("the refiner's copy goes to the organization's address, not a field that does not exist", async () => {
+  await inPinnedTransaction(async (client) => {
+    const order = (
+      await client.query(
+        `SELECT s.id, s.order_number, s.supplier_id FROM exchange.sales_orders s
+          WHERE s.order_sent = false AND s.address_id IS NOT NULL LIMIT 1`
+      )
+    ).rows[0];
+    assert.ok(order, "dev has no unsent sales order with an address");
+
+    // A refiner that DOES have an address, so the send is reached.
+    const withEmail = (
+      await client.query(
+        `SELECT r.id FROM refiners.refiners r
+           JOIN organizations.organizations o ON o.id = r.organization_id
+          WHERE o.email IS NOT NULL AND o.email <> '' LIMIT 1`
+      )
+    ).rows[0];
+    assert.ok(withEmail, "dev has no refiner with an email - this would prove nothing");
+
+    const sent = [];
+    await service.sendOrderToSupplier(
+      { order: { id: order.id }, spots: [], supplier_id: withEmail.id },
+      { sendMail: async (m) => { sent.push(m); return { messageId: "test" }; } }
+    );
+
+    assert.equal(sent.length, 1, "the refiner was not sent their copy");
+    assert.ok(sent[0].to, `the recipient was ${JSON.stringify(sent[0].to)}`);
+    assert.match(String(sent[0].to), /@/, "the recipient is not an address");
+  }, { lock: LOCKS.ORDERS });
+});
+
+// A refiner with no email is refused BEFORE the transaction, not after it.
+// Dillion Gage is exactly that in production - is_active false, no email - and
+// sending metal against an order nobody was told about is the failure the
+// record-first-email-second ordering exists to prevent.
+test("a refiner with no email is refused before anything is written", async () => {
+  await inPinnedTransaction(async (client) => {
+    const order = (
+      await client.query(
+        `SELECT s.id, s.supplier_id FROM exchange.sales_orders s
+          WHERE s.order_sent = false AND s.address_id IS NOT NULL LIMIT 1`
+      )
+    ).rows[0];
+    assert.ok(order, "dev has no unsent sales order with an address");
+
+    const noEmail = (
+      await client.query(
+        `SELECT r.id FROM refiners.refiners r
+           JOIN organizations.organizations o ON o.id = r.organization_id
+          WHERE o.email IS NULL OR o.email = '' LIMIT 1`
+      )
+    ).rows[0];
+    assert.ok(noEmail, "dev has no refiner without an email - this would prove nothing");
+
+    await assert.rejects(
+      () => service.sendOrderToSupplier(
+        { order: { id: order.id }, spots: [], supplier_id: noEmail.id },
+        { sendMail: async () => { throw new Error("must not be reached"); } }
+      ),
+      (err) => {
+        assert.equal(err.statusCode, 422, `expected 422, got ${err.statusCode}`);
+        assert.match(err.message, /no email address/);
+        return true;
+      }
+    );
+
+    const after = (
+      await client.query(`SELECT order_sent, supplier_id FROM exchange.sales_orders WHERE id = $1`, [order.id])
+    ).rows[0];
+    assert.equal(after.order_sent, false, "the order was marked sent anyway");
+    assert.equal(after.supplier_id, order.supplier_id, "the refiner was attached anyway");
+  }, { lock: LOCKS.ORDERS });
+});

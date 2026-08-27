@@ -6,7 +6,7 @@ import * as salesOrderRepo from "#features/sales-orders/repo.js";
 import * as stripeRepo from "#features/payments/repo.js";
 import * as transactionsRepo from "#features/transactions/repo.js";
 import * as shipmentRepo from "#features/shipping/shipments/repo.js";
-import * as refinerRepo from "#features/refiners/repo.js";
+import * as refinerRepo from "#features/refiners/service.ts";
 
 import * as emailService from "#features/media/emails/service.ts";
 import * as addressService from "#features/addresses/service.ts";
@@ -339,6 +339,16 @@ export async function sendOrderToSupplier(
     throw err;
   }
 
+  const supplierEmail = supplier?.organization?.email;
+  if (!supplierEmail) {
+    const err: Error & { statusCode?: number } = new Error(
+      `Refiner ${supplier?.organization?.name ?? supplier_id} has no email address, ` +
+        `so sales order ${sales_order.order_number} cannot be sent to them`
+    );
+    err.statusCode = 422;
+    throw err;
+  }
+
   // The record first, the email second.
   //
   // The send used to be the first statement inside this transaction, so if any
@@ -371,10 +381,29 @@ export async function sendOrderToSupplier(
     });
   }
 
+  // supplier.organization.email, NOT supplier.email.
+  //
+  // THE REFINER'S COPY HAS NEVER ARRIVED. A refiner has no top-level email in
+  // either schema - both projections nest name/email/phone/enabled under
+  // `organization` (exchange builds it with jsonb_build_object; the new schema
+  // composes it) - so `supplier.email` was undefined, and sendEmail was handed
+  // `to: undefined`. nodemailer refuses that, and it throws AFTER the
+  // transaction has committed - which is exactly the accepted worst case this
+  // function's own comment describes: an order marked sent whose email did not
+  // arrive. Permanently, for every sales order ever sent to a refiner.
+  //
+  // Invisible to tsc because repo.js resolved its implementation through a
+  // dynamic index, which erases every export to `any` - the same hazard
+  // lint:row-vs-list exists for.
+  //
+  // A refiner with no email at all is refused BEFORE the transaction rather
+  // than after it. Dillion Gage is exactly that in production: is_active false,
+  // no email. Sending metal against an order nobody was told about is the
+  // failure this whole ordering exists to prevent.
   await emailService.sendSalesOrderToSupplier(
     sales_order,
     spots,
-    supplier.email,
+    supplierEmail,
     transport
   );
 

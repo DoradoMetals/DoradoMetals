@@ -75,7 +75,6 @@ const bothWays = async (name, schema, dir, read, many = true) => {
 };
 
 const spots = await import("#features/spots/repo.js");
-const refiners = await import("#features/refiners/repo.js");
 const carriers = await import("#features/shipping/carriers/repo.js");
 const services = await import("#features/shipping/services/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
@@ -107,10 +106,7 @@ await bothWays("GET /spots/spot_prices (legacy wire)", c.SpotPriceWire, "spots",
 // Both shapes. The repos return the nested one; the adapter flattens it to what
 // the frontend reads, and checking the adapter's OUTPUT is what proves the
 // frontend still gets exactly what it got before.
-await bothWays("GET /suppliers", c.RefinerWireNext, "refiners", (m) => m.getAllRefiners());
-await bothWays("GET /suppliers (legacy wire)", c.RefinerWire, "refiners", async (m) =>
-  refinersWire.toLegacy(await m.getAllRefiners())
-);
+// Refiners: one implementation after the restructure.
 await bothWays("GET /carrier_pickups", c.CarrierPickupWire, "shipping/pickups", (m) => m.getAll());
 
 // Addresses were not checked here at all, and they are one of the two features
