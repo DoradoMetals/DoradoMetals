@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as mediaService from "#features/media/service.ts";
-import * as mediaRepo from "#features/media/repo.js";
+import * as mediaRepo from "#features/media/repo.ts";
 
 let client;
 let image;
@@ -55,7 +55,7 @@ test("a stranger cannot delete somebody else's image", async () => {
   // And the row is still there, which is what the old code would ALSO have
   // shown - the row survived while the file did not. Asserted anyway, because
   // a fix that deleted the row instead would be a different bug.
-  const still = await mediaRepo.getImageById(image.id);
+  const still = await mediaRepo.getOne(image.id);
   assert.ok(still, "the image row was deleted by a stranger");
 });
 

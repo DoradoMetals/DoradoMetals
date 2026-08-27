@@ -89,16 +89,8 @@ const FEATURES = {
     ],
     context: async () => ({}),
   },
-  media: {
-    exchange: () => import("#features/media/repo.exchange.js"),
-    next: () => import("#features/media/repo.next.ts"),
-    reads: [
-      ["getTestImages", (m) => m.getTestImages()],
-      ["getImageById(first)", async (m, ctx) => (ctx.id ? m.getImageById(ctx.id) : null)],
-      ["listImagesByUser(first)", async (m, ctx) => (ctx.user ? m.listImagesByUser(ctx.user) : [])],
-    ],
-    context: async (m) => { const r = (await m.getTestImages())[0]; return { id: r?.id, user: r?.user_id }; },
-  },
+  // Media is restructured - one implementation, so nothing to compare.
+  // features/media/tests/endpoints.test.ts replaces it.
   refiners: {
     exchange: () => import("#features/refiners/repo.exchange.js"),
     next: () => import("#features/refiners/repo.next.ts"),

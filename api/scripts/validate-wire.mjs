@@ -81,7 +81,6 @@ const carriers = await import("#features/shipping/carriers/repo.js");
 const services = await import("#features/shipping/services/repo.js");
 const po = await import("#features/purchase-orders/repo.js");
 const productsWire = await import("#features/products/wire.ts");
-const mediaWire = await import("#features/media/wire.ts");
 const refinersWire = await import("#features/refiners/wire.ts");
 const carriersWire = await import("#features/shipping/carriers/wire.ts");
 const spotsWire = await import("#features/spots/wire.ts");
@@ -138,10 +137,8 @@ await bothWays("GET /addresses (legacy wire)", c.AddressWire, "addresses", async
 // `checksum_sha`.
 // Both shapes, as with products: the repos return media.images' own name and
 // the adapter converts down to what the frontend reads.
-await bothWays("GET /images", c.ImageWireNext, "media", (m) => m.getTestImages());
-await bothWays("GET /images (legacy wire)", c.ImageWire, "media", async (m) =>
-  mediaWire.toLegacy(await m.getTestImages())
-);
+// Media: one implementation after the restructure, so no both-ways to run.
+// Its wire rename is covered by features/media/tests/unit.test.ts.
 // Users was the last one-way check with a next implementation to compare
 // against. auth.users is where exchange.users lands, repo.next.ts projects the
 // same columns back, and nothing was proving that until now.

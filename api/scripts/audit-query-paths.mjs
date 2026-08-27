@@ -64,7 +64,11 @@ const walk = (d, out = []) => {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
     const p = path.join(d, e.name);
     if (e.isDirectory()) { if (!/node_modules|\.git|dist|migrations/.test(p)) walk(p, out); }
-    else if (/\.(ts|js)$/.test(e.name) && !/\.test\.|\.d\.ts$/.test(e.name)) out.push(p);
+    // .sql TOO. Statements moved out of template literals and into .sql files
+    // with the per-table feature restructure, and this scan could no longer see
+    // them - which the known-present control below caught immediately rather
+    // than reporting a blind run as clean.
+    else if (/\.(ts|js|sql)$/.test(e.name) && !/\.test\.|\.d\.ts$/.test(e.name)) out.push(p);
   }
   return out;
 };
@@ -130,7 +134,11 @@ const scan = (sql, file, line) => {
 
 for (const f of walk(path.join(ROOT, "features")).concat(walk(path.join(ROOT, "shared")))) {
   const src = fs.readFileSync(f, "utf8");
-  for (const m of src.matchAll(/`([^`]*)`/gs)) {
+  // A .sql file IS the statement; a .ts file carries them in backticks.
+  const blobs = f.endsWith(".sql")
+    ? [{ 1: src, index: 0 }]
+    : [...src.matchAll(/`([^`]*)`/gs)];
+  for (const m of blobs) {
     const sql = m[1];
     if (!new RegExp(`\\b(?:FROM|JOIN|UPDATE|INTO)\\s+(?:${S})\\.`, "i").test(sql)) continue;
     literals += 1;
@@ -191,8 +199,8 @@ for (const f of found) {
 const CONTROL = "media.images|user_id";
 if (![...seen.keys()].includes(CONTROL)) {
   console.error(
-    `the known-present control ${CONTROL} was not found - getUserImages filters on it ` +
-    `in features/media/repo.next.ts, so the scan is broken rather than the schema clean`
+    `the known-present control ${CONTROL} was not found - features/media/sql/by_user.sql ` +
+    `filters on it, so the scan is broken rather than the schema clean`
   );
   process.exit(1);
 }

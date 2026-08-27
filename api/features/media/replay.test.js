@@ -66,10 +66,18 @@ after(async () => {
 async function imageFor(userId) {
   const filename = `replay-${randomUUID().slice(0, 8)}.jpg`;
   created.push(filename);
+  // BOTH SCHEMAS, under one id. Reads come from media.images since the
+  // restructure, so a fixture that writes only exchange creates an image the
+  // API cannot see - which is a broken fixture, not a broken endpoint.
   const { rows } = await query(
-    `INSERT INTO exchange.images (user_id, bucket, path, filename, mime_type, size_bytes)
+    `INSERT INTO media.images (user_id, bucket, path, filename, mime_type, size_bytes)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
     [userId, "replay-bucket", "/replay/", filename, "image/jpeg", 1234]
+  );
+  await query(
+    `INSERT INTO exchange.images (id, user_id, bucket, path, filename, mime_type, size_bytes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [rows[0].id, userId, "replay-bucket", "/replay/", filename, "image/jpeg", 1234]
   );
   return { id: rows[0].id, filename };
 }
