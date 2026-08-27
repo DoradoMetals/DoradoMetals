@@ -35,7 +35,7 @@ import assert from "node:assert/strict";
 import pool from "#db";
 import * as addressRepo from "#features/addresses/repo.js";
 import * as addressService from "#features/addresses/service.ts";
-import * as taxRepo from "#features/sales-tax/repo.js";
+import * as taxRepo from "#features/sales-tax/service.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.js";
 
 let addressId, addressState, ruleState, rule, item, price, aggregate;
@@ -104,8 +104,8 @@ test("getFromId returns a list, so reading .state off it is undefined", async ()
 
 test("a real state and an undefined one are answered differently", async () => {
   await inPinnedTransaction(async (c) => {
-    const withState = await taxRepo.getSalesTax(ruleState, item, price, aggregate, c);
-    const withUndefined = await taxRepo.getSalesTax(undefined, item, price, aggregate, c);
+    const withState = await taxRepo.rateForItem(ruleState, item, price, aggregate, c);
+    const withUndefined = await taxRepo.rateForItem(undefined, item, price, aggregate, c);
 
     // The discriminating half. If dev ever stops producing a rate here, this
     // fails loudly rather than the suite passing against a broken engine.
@@ -141,7 +141,7 @@ test("the taxing state now yields the rate the rule says, not zero", async () =>
     const address = await addressService.getAddressFromId(addressId);
     assert.equal(address.state, ruleState, "the fixture address is in the charging state");
 
-    const rate = await taxRepo.getSalesTax(address.state, item, price, aggregate, c);
+    const rate = await taxRepo.rateForItem(address.state, item, price, aggregate, c);
     assert.ok(rate > 0, "a real state reached the rules");
     assert.equal(Number(rate), Number(rule.tax_rate));
   });

@@ -7,7 +7,6 @@ import * as stripeRepo from "#features/payments/repo.js";
 import * as transactionsRepo from "#features/transactions/repo.js";
 import * as shipmentRepo from "#features/shipping/shipments/repo.js";
 import * as refinerRepo from "#features/refiners/repo.js";
-import * as taxRepo from "#features/sales-tax/repo.js";
 
 import * as emailService from "#features/media/emails/service.ts";
 import * as addressService from "#features/addresses/service.ts";
@@ -159,7 +158,7 @@ export async function createSalesOrder(
 
     await salesOrderRepo.insertOrderMetals(orderId, spot_prices, client);
 
-    await taxRepo.updateStateSalesTax(
+    await taxService.updateStateSalesTax(
       orderPrices.sales_tax,
       address.state,
       client
@@ -241,7 +240,7 @@ export async function adminCreateSalesOrder({
 
     await salesOrderRepo.insertOrderMetals(orderId, spot_prices, client);
 
-    await taxRepo.updateStateSalesTax(
+    await taxService.updateStateSalesTax(
       orderPrices.sales_tax,
       address.state,
       client

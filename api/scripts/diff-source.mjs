@@ -355,11 +355,7 @@ const FEATURES = {
       return { id: first?.id, userId: first?.user_id };
     },
   },
-  mints: {
-    exchange: () => import("#features/mints/repo.exchange.js"),
-    next: () => import("#features/mints/repo.next.ts"),
-    reads: [["getAllMints", (m) => m.getAllMints()]],
-  },
+  // restructured - one implementation, nothing to compare.
   products: {
     exchange: () => import("#features/products/repo.exchange.js"),
     next: () => import("#features/products/repo.next.ts"),
