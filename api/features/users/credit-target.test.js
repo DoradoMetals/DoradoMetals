@@ -23,7 +23,7 @@ import assert from "node:assert/strict";
 
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.js";
 import * as usersService from "#features/users/service.ts";
-import * as usersRepo from "#features/users/repo.js";
+import * as usersRepo from "#features/users/repo.ts";
 import query from "#shared/db/query.js";
 
 const NOBODY = "00000000-0000-0000-0000-000000000000";
@@ -44,17 +44,17 @@ test("a credit adjustment that matches no user is refused, not reported as done"
 test("a real user is still adjusted, and by the right amount", async () => {
   await inPinnedTransaction(async (client) => {
     const { rows } = await query(
-      `SELECT id, dorado_funds FROM exchange.users WHERE dorado_funds IS NOT NULL LIMIT 1`,
+      `SELECT id, dorado_funds FROM auth.users WHERE dorado_funds IS NOT NULL LIMIT 1`,
       [],
       client
     );
     assert.ok(rows.length, "dev has a user with a balance to adjust");
     const before = Number(rows[0].dorado_funds);
 
-    await usersRepo.adjustUserCredit(rows[0].id, "add", 7.5, client);
+    await usersRepo.adjustCredit(rows[0].id, "add", 7.5, client);
 
     const { rows: after } = await query(
-      `SELECT dorado_funds FROM exchange.users WHERE id = $1`,
+      `SELECT dorado_funds FROM auth.users WHERE id = $1`,
       [rows[0].id],
       client
     );
@@ -71,7 +71,7 @@ test("a real user is still adjusted, and by the right amount", async () => {
 test("the database refuses a NULL balance, which is what makes an unknown mode safe", async () => {
   await inPinnedTransaction(async (client) => {
     const { rows } = await query(
-      `SELECT id FROM exchange.users WHERE dorado_funds IS NOT NULL LIMIT 1`,
+      `SELECT id FROM auth.users WHERE dorado_funds IS NOT NULL LIMIT 1`,
       [],
       client
     );
@@ -80,7 +80,7 @@ test("the database refuses a NULL balance, which is what makes an unknown mode s
     // The repo's CASE has no ELSE, so this evaluates to NULL. On a money
     // column that would be a wiped balance if the column allowed it.
     await assert.rejects(
-      () => usersRepo.adjustUserCredit(rows[0].id, "not-a-mode", 5, client),
+      () => usersRepo.adjustCredit(rows[0].id, "not-a-mode", 5, client),
       (err) => {
         assert.equal(err.code, "23502", "not-null violation, not a silent wipe");
         assert.match(err.message, /dorado_funds/);

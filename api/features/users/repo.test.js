@@ -6,7 +6,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import * as repo from "#features/users/repo.js";
+import * as repo from "#features/users/repo.ts";
 
 let client;
 
@@ -33,16 +33,16 @@ async function inRollback(fn) {
 }
 
 const aUser = async (c) =>
-  (await c.query("SELECT id FROM exchange.users ORDER BY id LIMIT 1")).rows[0].id;
+  (await c.query("SELECT id FROM auth.users ORDER BY id LIMIT 1")).rows[0].id;
 
 const balance = async (c, id) =>
-  Number((await c.query("SELECT dorado_funds FROM exchange.users WHERE id = $1", [id])).rows[0].dorado_funds ?? 0);
+  Number((await c.query("SELECT dorado_funds FROM auth.users WHERE id = $1", [id])).rows[0].dorado_funds ?? 0);
 
 test("add increases the balance", async () => {
   await inRollback(async (c) => {
     const user = await aUser(c);
     const before = await balance(c, user);
-    await repo.adjustUserCredit(user, "add", 150, c);
+    await repo.adjustCredit(user, "add", 150, c);
     assert.equal(await balance(c, user), before + 150);
   });
 });
@@ -51,7 +51,7 @@ test("subtract decreases it", async () => {
   await inRollback(async (c) => {
     const user = await aUser(c);
     const before = await balance(c, user);
-    await repo.adjustUserCredit(user, "subtract", 50, c);
+    await repo.adjustCredit(user, "subtract", 50, c);
     assert.equal(await balance(c, user), before - 50);
   });
 });
@@ -62,8 +62,8 @@ test("subtract decreases it", async () => {
 test("edit replaces the balance rather than adjusting it", async () => {
   await inRollback(async (c) => {
     const user = await aUser(c);
-    await repo.adjustUserCredit(user, "add", 500, c);
-    await repo.adjustUserCredit(user, "edit", 25, c);
+    await repo.adjustCredit(user, "add", 500, c);
+    await repo.adjustCredit(user, "edit", 25, c);
     assert.equal(await balance(c, user), 25);
   });
 });
@@ -73,7 +73,7 @@ test("edit replaces the balance rather than adjusting it", async () => {
 test("every user has a balance to adjust, never null", async () => {
   await inRollback(async (c) => {
     const { rows } = await c.query(
-      "SELECT count(*) FILTER (WHERE dorado_funds IS NULL)::int nulls FROM exchange.users"
+      "SELECT count(*) FILTER (WHERE dorado_funds IS NULL)::int nulls FROM auth.users"
     );
     assert.equal(rows[0].nulls, 0);
   });
@@ -87,11 +87,11 @@ test("every user has a balance to adjust, never null", async () => {
 test("an unrecognised mode is refused rather than blanking the balance", async () => {
   await inRollback(async (c) => {
     const user = await aUser(c);
-    await repo.adjustUserCredit(user, "add", 200, c);
+    await repo.adjustCredit(user, "add", 200, c);
     const before = await balance(c, user);
 
     await assert.rejects(
-      () => repo.adjustUserCredit(user, "increment", 10, c),
+      () => repo.adjustCredit(user, "increment", 10, c),
       /not-null|null value/i,
       "an unrecognised mode was accepted"
     );
@@ -105,8 +105,8 @@ test("an unrecognised mode is refused rather than blanking the balance", async (
 test("subtracting more than the balance goes negative", async () => {
   await inRollback(async (c) => {
     const user = await aUser(c);
-    await repo.adjustUserCredit(user, "edit", 10, c);
-    await repo.adjustUserCredit(user, "subtract", 100, c);
+    await repo.adjustCredit(user, "edit", 10, c);
+    await repo.adjustCredit(user, "subtract", 100, c);
     assert.equal(await balance(c, user), -90);
   });
 });
@@ -117,7 +117,7 @@ test("an adjustment on a client is invisible on another connection", async () =>
   try {
     const user = await aUser(client);
     const sentinel = 123456.78;
-    await repo.adjustUserCredit(user, "edit", sentinel, client);
+    await repo.adjustCredit(user, "edit", sentinel, client);
     assert.equal(await balance(client, user), sentinel, "the write did not happen");
     assert.notEqual(await balance(other, user), sentinel, "an uncommitted balance was visible elsewhere");
   } finally {

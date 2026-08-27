@@ -141,7 +141,7 @@ await bothWays("GET /addresses (legacy wire)", c.AddressWire, "addresses", async
 // Users was the last one-way check with a next implementation to compare
 // against. auth.users is where exchange.users lands, repo.next.ts projects the
 // same columns back, and nothing was proving that until now.
-await bothWays("GET /users", c.UserWire, "users", (m) => m.getAllUsers());
+// Users: one implementation after the restructure.
 
 // THE CREDIT LEDGER HAD A CONTRACT AND NOTHING VALIDATED IT.
 //

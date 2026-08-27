@@ -1,6 +1,7 @@
-import * as usersRepo from "#features/users/repo.js";
-import type { UserRow } from "#features/users/repo.next.ts";
-import type { QueryResult } from "pg";
+import * as users from "#features/users/repo.ts";
+import * as legacy from "#features/users/legacy.repo.ts";
+import withTransaction from "#shared/db/withTransaction.js";
+import type { UserRow } from "#features/users/repo.ts";
 
 // The controller's error handler reads statusCode off the thrown error, so it
 // is declared rather than assigned onto a bare Error.
@@ -9,15 +10,15 @@ interface HttpError extends Error {
 }
 
 export async function getUser(id: string): Promise<UserRow | undefined> {
-  return await usersRepo.getUser(id);
+  return await users.getOne(id);
 }
 
 export async function getAllUsers(): Promise<UserRow[]> {
-  return await usersRepo.getAllUsers();
+  return await users.getAll();
 }
 
 export async function getAdminUsers(): Promise<UserRow[]> {
-  return await usersRepo.getAdminUsers();
+  return await users.getAdmins();
 }
 
 // THE MODES ARE AN ALLOWLIST, AND `amount` HAS TO BE A NUMBER.
@@ -71,7 +72,7 @@ export async function adjustDoradoCredit({
   user_id?: string;
   mode?: unknown;
   amount?: unknown;
-}): Promise<QueryResult> {
+}): Promise<{ rowCount: number }> {
   if (typeof mode !== "string" || !CREDIT_MODES.has(mode)) {
     throw badRequest(
       `unknown credit mode ${JSON.stringify(mode)}. Expected one of ${[...CREDIT_MODES].join(", ")}.`
@@ -101,7 +102,24 @@ export async function adjustDoradoCredit({
     throw badRequest("a credit adjustment needs a user_id");
   }
 
-  const result = await usersRepo.adjustUserCredit(user_id, mode, value);
+  // ONE WRITE, NOT TWO - AND THAT IS THE OPPOSITE OF EVERY OTHER FEATURE.
+  //
+  // users is the one place a dual write is WRONG, because the database already
+  // does it: exchange.users carries an AFTER INSERT OR UPDATE trigger,
+  // `mirror_users_to_auth`, running auth.mirror_user_from_exchange(). Writing
+  // both by hand applies the adjustment TWICE - a $25 credit moved the balance
+  // $50, which replay.test.js caught immediately.
+  //
+  // So the legacy statement is the only one, and auth.users.dorado_funds is
+  // maintained by the trigger. Reads still come from auth.users, so the balance
+  // a customer sees is the mirrored one.
+  //
+  // THIS IS ALSO THE ANSWER TO THE AUTH CUTOVER QUESTION. Trigger-based
+  // mirroring already exists and works for users; better-auth writing exchange
+  // through its own pool is fine, because the trigger carries it across without
+  // better-auth's cooperation. Noted for the report.
+  const rowCount = await legacy.adjustCredit(user_id, mode as users.CreditMode, value);
+  const result = { rowCount };
 
   // A CREDIT NOBODY RECEIVED USED TO ANSWER 200.
   //

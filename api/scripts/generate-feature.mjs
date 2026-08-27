@@ -87,12 +87,20 @@ const writable = projected.filter((n) => !MANAGED.has(n));
 const hasUpdatedAt = names.includes("updated_at");
 const hasCreatedAt = names.includes("created_at");
 
+// QUOTED IF NOT ALL-LOWERCASE. Postgres folds an unquoted identifier to lower
+// case, so auth.users' camelCase columns - createdAt, emailVerified,
+// stripeCustomerId - become createdat and do not exist. The generator PREPAREd
+// the statement, got "column does not exist" and wrote nothing, which is the
+// right failure; this makes it emit correct SQL instead.
+const q = (name) => (/[A-Z]/.test(name) ? `"${name}"` : name);
+
 const list = (ns, indent = "       ") => {
   const out = [];
   let line = "";
   for (const n of ns) {
-    if ((line + n).length > 62) { out.push(line.replace(/, $/, "")); line = ""; }
-    line += `${n}, `;
+    const qn = q(n);
+    if ((line + qn).length > 62) { out.push(line.replace(/, $/, "")); line = ""; }
+    line += `${qn}, `;
   }
   if (line) out.push(line.replace(/, $/, ""));
   return out.join(`,\n${indent}`);
@@ -137,7 +145,7 @@ ${hasUpdatedAt ? `--
 -- against exchange do not maintain theirs, which is why a drifted row cannot be
 -- spotted from its timestamp.
 ` : ""}UPDATE ${target}
-   SET ${updatable.map((n, i) => `${n} = $${i + 1}`).join(",\n       ")}${hasUpdatedAt ? ",\n       updated_at = NOW()" : ""}
+   SET ${updatable.map((n, i) => `${q(n)} = $${i + 1}`).join(",\n       ")}${hasUpdatedAt ? ",\n       updated_at = NOW()" : ""}
  WHERE id = $${updatable.length + 1}
 RETURNING ${RETURNING}
 `;
@@ -156,7 +164,7 @@ RETURNING id
 `;
   files["sql/legacy/update.sql"] = `-- Mirror of sql/update.sql against the schema still serving as record of truth.
 UPDATE ${legacy}
-   SET ${updatable.map((n, i) => `${n} = $${i + 1}`).join(",\n       ")}${legacyNames.includes("updated_at") ? ",\n       updated_at = NOW()" : ""}
+   SET ${updatable.map((n, i) => `${q(n)} = $${i + 1}`).join(",\n       ")}${legacyNames.includes("updated_at") ? ",\n       updated_at = NOW()" : ""}
  WHERE id = $${updatable.length + 1}
 RETURNING id
 `;

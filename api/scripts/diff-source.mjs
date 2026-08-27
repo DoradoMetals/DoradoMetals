@@ -119,40 +119,7 @@ const FEATURES = {
     ],
     context: async (m) => ({ id: (await m.getAll())[0]?.id }),
   },
-  users: {
-    exchange: () => import("#features/users/repo.exchange.js"),
-    next: () => import("#features/users/repo.next.ts"),
-    // Both list reads are narrowed to the users exchange actually holds.
-    //
-    // dev's auth.users carries two rows exchange.users does not, both created
-    // 2026-01-14 with no orders and no sessions - leftovers from the January
-    // work. Production has none: 74 exchange users, 60 in auth, zero orphans.
-    // The 056 trigger only propagates exchange -> auth, so anything already
-    // sitting in auth.users stays there and would report a difference forever
-    // that says nothing about the two implementations.
-    reads: [
-      ["getAllUsers(shared)", async (m, ctx) =>
-        (await m.getAllUsers()).filter((u) => ctx.ids.includes(u.id))],
-      ["getAdminUsers(shared)", async (m, ctx) =>
-        (await m.getAdminUsers()).filter((u) => ctx.ids.includes(u.id))],
-      ["getUser(first)", (m, ctx) => (ctx.id ? m.getUser(ctx.id) : null)],
-    ],
-    // Also excludes the one dev user whose email is held in auth.users under a
-    // different id. 057 deliberately skips it - auth.users has a unique index
-    // on email, and the January work inserted a second row for the same person
-    // rather than carrying the id across. Production has zero such collisions,
-    // so this excludes nothing there.
-    context: async () => {
-      const { rows } = await pool.query(
-        `SELECT e.id FROM exchange.users e
-         WHERE NOT EXISTS (
-           SELECT 1 FROM auth.users a WHERE a.email = e.email AND a.id <> e.id
-         )
-         ORDER BY e.id`
-      );
-      return { id: rows[0]?.id, ids: rows.map((r) => r.id) };
-    },
-  },
+  // users restructured - one implementation, nothing to compare.
   services: {
     exchange: () => import("#features/shipping/services/repo.exchange.js"),
     next: () => import("#features/shipping/services/repo.next.ts"),

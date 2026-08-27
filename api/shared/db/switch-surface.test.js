@@ -86,7 +86,13 @@ const switches = walk(FEATURES)
   }));
 
 test("there are switches to check", () => {
-  assert.ok(switches.length >= 15, `only found ${switches.length} switches`);
+  // FLOOR COMES DOWN AS FEATURES ARE RESTRUCTURED. A restructured feature reads
+  // the new schema and writes both unconditionally, so it has no switch to
+  // select an implementation - there is only one. Lower this only alongside the
+  // commit that removes a repo.js, and never to make a red build green; a count
+  // that falls on its own means the parser broke. Mirrors SOURCE_FLOOR in
+  // scripts/audit-switches.mjs, which is at 14 for the same reason.
+  assert.ok(switches.length >= 14, `only found ${switches.length} switches`);
   for (const s of switches) {
     assert.ok(s.states.length, `${s.name}: could not read the SOURCES map`);
     assert.ok(s.wired.length, `${s.name}: no re-exported functions found`);
