@@ -75,7 +75,6 @@ const bothWays = async (name, schema, dir, read, many = true) => {
 };
 
 const spots = await import("#features/spots/repo.js");
-const rates = await import("#features/rates/repo.js");
 const refiners = await import("#features/refiners/repo.js");
 const carriers = await import("#features/shipping/carriers/repo.js");
 const services = await import("#features/shipping/services/repo.js");
@@ -100,7 +99,7 @@ await bothWays("GET /spots/spot_prices", c.SpotPriceWireNext, "spots", (m) => m.
 await bothWays("GET /spots/spot_prices (legacy wire)", c.SpotPriceWire, "spots", async (m) =>
   spotsWire.toLegacy(await m.getAll())
 );
-await bothWays("GET /rates", c.RateWire, "rates", (m) => m.getAllRates());
+// Rates: one implementation after the restructure.
 // Reviews: one implementation after the restructure, so no both-ways to run.
 // Leads is checked by features/leads/tests/endpoints.test.ts instead:
 // after the restructure it has one implementation, so there is no "both ways"

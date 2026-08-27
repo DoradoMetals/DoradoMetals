@@ -16,7 +16,7 @@ import type { PoolClient } from "pg";
 
 import query from "#shared/db/query.js";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
-import * as ratesRepo from "#features/rates/repo.js";
+import * as ratesRepo from "#features/rates/service.ts";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 
 // Passing the executor is how each step below joins the caller's transaction.

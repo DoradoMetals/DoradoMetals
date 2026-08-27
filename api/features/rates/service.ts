@@ -1,40 +1,59 @@
-// Rates, straight through to the switch.
+// Rates: orchestration, the dual write, and the composed shape.
 //
-// Return types are named rather than inferred: repo.js is JavaScript and picks
-// between the implementations at runtime, so TypeScript sees `any` coming out
-// of it. Taking the row type from repo.next is sound by the invariant `diff`
-// already enforces - the two implementations are compared row for row.
-import * as ratesRepo from "#features/rates/repo.js";
-import type { RateRow, RateInput } from "#features/rates/repo.next.ts";
+// getAllRates is consumed by the PRICING path as well as by HTTP -
+// features/orders/create.ts and purchase-orders/service.ts both resolve a
+// customer's rate from it - and resolveRate keys on the metal NAME. So the
+// composed shape is what the service returns, not the bare table row.
+import { randomUUID } from "node:crypto";
+import withTransaction from "#shared/db/withTransaction.js";
+import * as rates from "#features/rates/repo.ts";
+import * as legacy from "#features/rates/legacy.repo.ts";
+import * as wire from "#features/rates/wire.ts";
+import type { RateInput } from "#features/rates/repo.ts";
 
-export async function getRate(id: string): Promise<RateRow | undefined> {
-  return await ratesRepo.getRate(id);
+interface HttpError extends Error { statusCode?: number }
+const notFound = (id: string): HttpError => {
+  const e: HttpError = new Error(`no rate ${id}`);
+  e.statusCode = 404;
+  return e;
+};
+
+export async function getRate(id: string) {
+  const row = await rates.getOne(id);
+  if (!row) throw notFound(id);
+  return await wire.toAdminOne(row);
 }
 
-export async function getAllRates(): Promise<RateRow[]> {
-  return await ratesRepo.getAllRates();
+export async function getAllRates() {
+  return await wire.toPublicList(await rates.getAll());
 }
 
-// Admin sees every rate; getAllRates is the public list.
-export async function getAdminRates(): Promise<RateRow[]> {
-  return await ratesRepo.getAdminRates();
+export async function getAdminRates() {
+  return await wire.toAdminList(await rates.getAll());
 }
 
-export async function createRate(
-  rate: RateInput,
-  user_name: string
-): Promise<RateRow | undefined> {
-  return await ratesRepo.createRate(rate, user_name);
+export async function createRate(rate: RateInput, user_name?: string) {
+  const id = randomUUID();
+  if (user_name) rate = { ...rate, created_by: user_name, updated_by: user_name };
+  const row = await withTransaction(async (c) => {
+    await legacy.create(id, rate, c);
+    return await rates.create(id, rate, c);
+  });
+  return await wire.toAdminOne(row);
 }
 
-export async function updateRate(
-  rate: RateInput,
-  user_name: string
-): Promise<RateRow | undefined> {
-  return await ratesRepo.updateRate(rate, user_name);
+export async function updateRate(rate: RateInput & { id: string }, user_name: string) {
+  const row = await withTransaction(async (c) => {
+    await legacy.update(rate, user_name, c);
+    return await rates.update(rate, user_name, c);
+  });
+  if (!row) throw notFound(rate.id);
+  return await wire.toAdminOne(row);
 }
 
-// Returns { success } rather than a QueryResult, matching the repo.
-export async function deleteRate(id: string): Promise<{ success: boolean }> {
-  return await ratesRepo.deleteRate(id);
+export async function deleteRate(id: string) {
+  return await withTransaction(async (c) => {
+    await legacy.remove(id, c);
+    return await rates.remove(id, c);
+  });
 }
