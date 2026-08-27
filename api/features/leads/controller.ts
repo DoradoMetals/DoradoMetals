@@ -1,29 +1,34 @@
-import { callerId, requiredParam } from "#shared/http/caller.ts";
-import { oneString } from "#shared/http/query.ts";
+// HTTP in, HTTP out. No database, no composition, no business rules.
+//
+// The controller's whole job is turning a request into service arguments and a
+// service result into a status code. Everything it does here it does because
+// HTTP requires it - reading a query parameter, choosing 404 over 200.
+import { requiredParam } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
-import * as leadsService from "#features/leads/service.ts"
+import * as service from "#features/leads/service.ts";
 
 export const getOne = asyncHandler(async (req, res) => {
-  const lead = await leadsService.getLead(requiredParam(req.query.lead_id, "lead_id"));
+  const lead = await service.getOne(requiredParam(req.query.lead_id, "lead_id"));
   return res.status(200).json(lead);
 });
 
-export const getAll = asyncHandler(async (req, res) => {
-  const leads = await leadsService.getAllLeads();
-  return res.status(200).json(leads);
+export const getAll = asyncHandler(async (_req, res) => {
+  return res.status(200).json(await service.getAll());
 });
 
-export const createLead = asyncHandler(async (req, res) => {
-  const lead = await leadsService.createLead(req.body.lead);
-  return res.status(200).json(lead);
+export const create = asyncHandler(async (req, res) => {
+  return res.status(200).json(await service.create(req.body.lead));
 });
 
-export const updateLead = asyncHandler(async (req, res) => {
-  const lead = await leadsService.updateLead(req.body.lead, req.body.user_name);
-  return res.status(200).json(lead);
+export const update = asyncHandler(async (req, res) => {
+  return res.status(200).json(await service.update(req.body.lead, req.body.user_name));
 });
 
-export const deleteLead = asyncHandler(async (req, res) => {
-  const lead = await leadsService.deleteLead(req.body.lead_id);
-  return res.status(200).json(lead);
+// 404 rather than 200 when the id matched nothing. The old implementation
+// returned the pg QueryResult, so a delete of a non-existent id answered 200
+// with a result object the frontend ignored.
+export const remove = asyncHandler(async (req, res) => {
+  const removed = await service.remove(req.body.lead_id);
+  if (removed === 0) return res.status(404).json({ message: "no such lead" });
+  return res.status(200).json({ message: "Lead deleted" });
 });

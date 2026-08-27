@@ -122,16 +122,27 @@ const helperStates = () => {
 
 switches.sort((a, b) => a.varName.localeCompare(b.varName));
 
-// A check that finds nothing accepts everything. CLAUDE.md records twenty-one
-// *_SOURCE and seven *_WIRE; if either count drops, this parser has stopped
-// understanding an idiom rather than the codebase having lost a switch.
+// A check that finds nothing accepts everything, so the count has a floor: if it
+// drops, the usual cause is this parser no longer understanding an idiom rather
+// than the codebase genuinely losing a switch.
+//
+// THE FLOOR COMES DOWN BY ONE EACH TIME A FEATURE IS RESTRUCTURED, and that has
+// to be deliberate. A restructured feature reads the new schema and writes both
+// unconditionally, so it has no switch to select an implementation - there is
+// only one. Leads was the first: 21 -> 20.
+//
+// Lowering this is therefore a real decision and not bookkeeping. Do it only
+// alongside the commit that removes the feature's repo.js, and never to make a
+// red build green - a count that falls on its own is the parser breaking.
+const SOURCE_FLOOR = 20; // leads restructured; was 21
+const WIRE_FLOOR = 7;
 {
   const sources = switches.filter((s) => s.kind === "source").length;
   const wires = switches.filter((s) => s.kind === "wire").length;
-  if (sources < 21 || wires < 7) {
+  if (sources < SOURCE_FLOOR || wires < WIRE_FLOOR) {
     console.error(
       `only ${sources} *_SOURCE and ${wires} *_WIRE switch(es) found, expected at ` +
-        `least 21 and 7 - this parser has stopped understanding an idiom`
+        `least ${SOURCE_FLOOR} and ${WIRE_FLOOR} - this parser has stopped understanding an idiom`
     );
     process.exit(1);
   }

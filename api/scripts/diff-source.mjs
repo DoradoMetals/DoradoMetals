@@ -17,15 +17,19 @@ import pool from "#db";
 // Each entry names the read operations whose output must match. Extend as
 // features move.
 const FEATURES = {
-  leads: {
-    exchange: () => import("#features/leads/repo.exchange.js"),
-    next: () => import("#features/leads/repo.next.ts"),
-    reads: [
-      ["getAllLeads", (m) => m.getAllLeads()],
-      ["getLead(first)", async (m, ctx) => (ctx.id ? m.getLead(ctx.id) : null)],
-    ],
-    context: async (m) => ({ id: (await m.getAllLeads())[0]?.id }),
-  },
+  // LEADS IS GONE FROM HERE, AND THAT IS THE COST OF RESTRUCTURING IT.
+  //
+  // This gate works by running two implementations of the same read and
+  // requiring identical output. features/leads has ONE implementation:
+  // it reads leads.leads and writes both schemas, so there is no second
+  // implementation to compare it against. Deleting repo.exchange.js is what
+  // removed the subject.
+  //
+  // What replaces it is features/leads/tests/endpoints.test.ts, which
+  // drives the same URLs over HTTP and asserts the row lands in BOTH schemas -
+  // and, by diverging the two tables deliberately, that the read comes from the
+  // new one. That is a weaker guarantee than "byte-identical to the old
+  // implementation", and it is the trade this restructure makes per feature.
   // Payments is the one feature where the two implementations are EXPECTED to
   // disagree about a status, and the disagreement is the migration being right.
   // exchange's payment_status is only as fresh as the last webhook processed and

@@ -76,7 +76,6 @@ const bothWays = async (name, schema, dir, read, many = true) => {
 
 const spots = await import("#features/spots/repo.js");
 const rates = await import("#features/rates/repo.js");
-const leads = await import("#features/leads/repo.js");
 const refiners = await import("#features/refiners/repo.js");
 const carriers = await import("#features/shipping/carriers/repo.js");
 const services = await import("#features/shipping/services/repo.js");
@@ -105,7 +104,9 @@ await bothWays("GET /spots/spot_prices (legacy wire)", c.SpotPriceWire, "spots",
 );
 await bothWays("GET /rates", c.RateWire, "rates", (m) => m.getAllRates());
 await bothWays("GET /reviews (admin)", c.ReviewWire, "reviews", (m) => m.getAllReviews());
-await bothWays("GET /leads", c.LeadWire, "leads", (m) => m.getAllLeads());
+// Leads is checked by features/leads/tests/endpoints.test.ts instead:
+// after the restructure it has one implementation, so there is no "both ways"
+// to run. Its wire shape is the table's own row type.
 // Both shapes. The repos return the nested one; the adapter flattens it to what
 // the frontend reads, and checking the adapter's OUTPUT is what proves the
 // frontend still gets exactly what it got before.

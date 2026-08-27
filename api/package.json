@@ -22,7 +22,6 @@
     "validate:wire": "TZ=UTC node scripts/validate-wire.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:sweep": "tsc -p tsconfig.json --noEmit --checkJs --noImplicitAny false",
-    "diff:leads": "TZ=UTC node scripts/diff-leads.mjs",
     "diff": "TZ=UTC node scripts/diff-source.mjs",
     "verify:parity": "TZ=UTC node scripts/verify-parity.mjs",
     "lint:migrations": "node scripts/lint-migrations.mjs",
