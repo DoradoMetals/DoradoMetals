@@ -12,7 +12,7 @@
 // back at checkout and the API resolves it against exchange.addresses.
 // Shipments and users are still read from exchange, unmigrated.
 import query from "#shared/db/query.js";
-import type { SalesOrderWire } from "@dorado/contracts";
+import type { SalesOrderWireNext } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 // See features/orders/fragments.ts: the shipment and user objects are
 // identical in both directions and are now written once.
@@ -27,15 +27,16 @@ import {
 // transaction; without one they run on the pool.
 type Executor = PoolClient | undefined;
 
-// The order row is SalesOrderWire, which validate:wire already parses real rows
-// through for BOTH implementations - so it is the description of this shape
-// that has been checked against the database rather than read off the SQL.
+// The order row is SalesOrderWireNext - the converted shape (D84), which
+// validate:wire parses real rows through, so it is the description of this
+// shape that has been checked against the database rather than read off the
+// SQL.
 //
 // Its two timestamps are overridden. A contract describes the WIRE, where a
 // timestamp is a string because JSON made it one; pg returns a Date. The rest
-// of the shape - the money, the nested address, shipment, user and items - is
+// of the shape - the nested totals, address, shipment, user and items - is
 // taken exactly as declared.
-export type SalesOrderRow = Omit<SalesOrderWire, "created_at" | "updated_at"> & {
+export type SalesOrderRow = Omit<SalesOrderWireNext, "created_at" | "updated_at"> & {
   created_at: Date | null;
   updated_at: Date | null;
 };
@@ -51,9 +52,9 @@ export type SalesOrderRow = Omit<SalesOrderWire, "created_at" | "updated_at"> & 
 export type OrderMetalRow = {
   id: string;
   sales_order_id: string | null;
-  type: string;
-  ask_spot: number | null;
-  bid_spot: number | null;
+  name: string;
+  ask: number | null;
+  bid: number | null;
   percent_change: number | null;
   dollar_change: number | null;
   created_at: Date | null;
@@ -64,37 +65,47 @@ export type OrderMetalRow = {
 // split across. Listed rather than selected with *, so a column appearing on
 // one side and not the other shows up as a conflict, not as a quiet change in
 // what the API returns.
+// The Next wire's columns (D84): the schema's own names, no renames left to
+// undo. The money is not here - it nests as `totals` in the query below,
+// under orders.transactions' own names.
 const ORDER_COLUMNS = `
       o.id,
       o.user_id,
       oa.source_address_id AS address_id,
-      o.status AS sales_order_status,
+      o.status,
       o.notes,
       o.created_at,
       o.updated_at,
       o.created_by,
       o.updated_by,
-      o.number AS order_number,
-      t.total AS order_total,
+      o.number,
       o.review_created,
       t.shipping_service,
-      t.shipping AS shipping_cost,
-      t.funds AS pre_charges_amount,
-      t.post_charges_amount,
-      t.subject_to_charges_amount,
       t.used_funds,
-      t.items AS item_total,
-      t.base_total,
-      t.surcharge AS charges_amount,
       o.order_sent,
       o.tracking_updated,
-      t.sales_tax,
       o.refinery_id AS supplier_id`;
 
 function buildOrderQuery({ where = "", limit = "" }: { where?: string; limit?: string } = {}): string {
   return `
     SELECT
       ${ORDER_COLUMNS},
+      -- The money, under orders.transactions' own names (D84). Always an
+      -- object, every key present. refiner_fee is NULL deliberately: exchange
+      -- never had the column for a sales order and the transactions rows hold
+      -- only a literal column default (0) - see compose.ts.
+      jsonb_build_object(
+        'total', t.total,
+        'items', t.items,
+        'shipping', t.shipping,
+        'surcharge', t.surcharge,
+        'sales_tax', t.sales_tax,
+        'funds', t.funds,
+        'refiner_fee', NULL,
+        'base_total', t.base_total,
+        'subject_to_charges_amount', t.subject_to_charges_amount,
+        'post_charges_amount', t.post_charges_amount
+      ) AS totals,
       json_agg(DISTINCT jsonb_build_object(
         'id', i.id,
         'sales_order_id', i.order_id,
@@ -103,19 +114,37 @@ function buildOrderQuery({ where = "", limit = "" }: { where?: string; limit?: s
         'premium', i.premium,
         'product', jsonb_build_object(
           'id', b.id,
-          'product_name', b.name,
+          'name', b.name,
+          'description', b.description,
+          'type', b.type,
+          'metal_type', bm.name,
           'content', b.content,
-          'product_type', b.type,
-          'image_front', b.image_front,
-          'image_back', b.image_back,
+          'gross', b.gross,
+          'purity', b.purity,
           'bid_premium', b.bid_premium,
           'ask_premium', b.ask_premium,
-          'variant_group', b.variant_group,
-          'shadow_offset', b.shadow_offset,
-          'metal_type', bm.name
+          'image_front', b.image_front,
+          'image_back', b.image_back,
+          'mint_name', mnt.name
         )
       )) AS order_items,
-      to_jsonb(addr) AS address,
+      -- THE SNAPSHOT SHAPE (D84). address_id is the BOOK id - see the header -
+      -- and recipient_name is what the book's smeared name column always meant on an order.
+      -- CASE keeps "no address" null, exactly as to_jsonb(addr) was.
+      CASE WHEN addr.id IS NULL THEN NULL ELSE jsonb_build_object(
+        'address_id', addr.id,
+        'recipient_name', addr.name,
+        'line_1', addr.line_1,
+        'line_2', addr.line_2,
+        'city', addr.city,
+        'state', addr.state,
+        'country', addr.country,
+        'country_code', addr.country_code,
+        'zip', addr.zip,
+        'phone_number', addr.phone_number,
+        'is_residential', addr.is_residential,
+        'is_valid', addr.is_valid
+      ) END AS address,
       ${userJson()} AS "user",
       ${shipmentJson("ship")} AS shipment
     FROM orders.orders o
@@ -153,9 +182,9 @@ export async function findMetalsByOrderId(orderId: string): Promise<OrderMetalRo
     SELECT
       sp.id,
       sp.order_id AS sales_order_id,
-      m.name AS type,
-      sp.ask AS ask_spot,
-      sp.bid AS bid_spot,
+      m.name,
+      sp.ask,
+      sp.bid,
       NULL::numeric AS percent_change,
       NULL::numeric AS dollar_change,
       sp.created_at,

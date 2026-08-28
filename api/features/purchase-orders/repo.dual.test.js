@@ -120,7 +120,8 @@ test("a spot change lands in both, keyed by order and metal", async () => {
     const { rows: [m] } = await c.query(
       "SELECT type FROM exchange.order_metals WHERE purchase_order_id = $1 LIMIT 1", [id]
     );
-    await dual.updateSpot({ spot: { purchase_order_id: id, type: m.type }, updated_spot: 999.99 }, c);
+    // The body's spot speaks the converted names (D84): `name`, not `type`.
+    await dual.updateSpot({ spot: { purchase_order_id: id, name: m.type }, updated_spot: 999.99 }, c);
 
     const nx = await c.query(
       `SELECT sp.bid FROM orders.spots sp JOIN metals.metals mt ON mt.id = sp.metal_id

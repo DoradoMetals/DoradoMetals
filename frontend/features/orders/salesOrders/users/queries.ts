@@ -1,9 +1,28 @@
 import { SalesOrder, SalesOrderCheckout } from '@/features/orders/salesOrders/types'
 import { SpotPrice } from '@/features/spots/types'
-import { OrderSpot, OrderSpotWire, orderSpotFromWire } from '@/features/orders/orderSpots'
+import type { OrderAddressSnapshotWire, SpotOnOrderNext } from '@dorado/contracts'
+import type { Address, UserAddress } from '@/features/addresses/types'
 import { apiRequest } from '@/shared/queries/axios'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
+
+// The order's address on the wire is a SNAPSHOT built at the mutation edge
+// from the checkout's picked pair - see the note in purchaseOrders/users/
+// queries.ts, the same build.
+export const toAddressSnapshot = (a: Address, ua?: UserAddress | null): OrderAddressSnapshotWire => ({
+  address_id: a.id ?? null,
+  recipient_name: ua?.label ?? null,
+  line_1: a.line_1,
+  line_2: a.line_2,
+  city: a.city,
+  state: a.state,
+  country: a.country,
+  country_code: a.country_code,
+  zip: a.zip,
+  phone_number: a.phone_number,
+  is_residential: a.is_residential,
+  is_valid: a.is_valid,
+})
 
 export const useSalesOrders = () => {
   return useApiQuery<SalesOrder[]>({
@@ -33,8 +52,12 @@ export const useCreateSalesOrder = () => {
     method: 'POST',
     requireUser: true,
     optimistic: false,
+    // The body's address goes down as the snapshot, built at this edge.
     body: (vars, user) => ({
-      sales_order: vars.sales_order,
+      sales_order: {
+        ...vars.sales_order,
+        address: toAddressSnapshot(vars.sales_order.address, vars.sales_order.user_address),
+      },
       payment_intent_id: vars.paymentIntentId,
       spot_prices: vars.spotPrices,
       user,
@@ -43,15 +66,13 @@ export const useCreateSalesOrder = () => {
 }
 
 export const useSalesOrderMetals = (sales_order_id: string) => {
-  return useApiQuery<OrderSpot[]>({
+  return useApiQuery<SpotOnOrderNext[]>({
     key: queryKeys.salesOrderMetals(sales_order_id),
     request: async (user) => {
-      // The orders wire still speaks legacy names; map up at the edge.
-      const rows = await apiRequest<OrderSpotWire[]>('POST', '/sales_orders/get_order_metals', {
+      return await apiRequest<SpotOnOrderNext[]>('POST', '/sales_orders/get_order_metals', {
         user_id: user!.id,
         sales_order_id,
       })
-      return rows.map(orderSpotFromWire)
     },
     requireUser: true,
     enabled: (user) => !!user?.id && !!sales_order_id,

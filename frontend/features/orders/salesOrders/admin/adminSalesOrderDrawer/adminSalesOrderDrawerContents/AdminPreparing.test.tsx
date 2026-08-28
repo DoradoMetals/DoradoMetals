@@ -33,7 +33,7 @@ const renderWithClient = (ui: React.ReactElement) => {
 const order = () =>
   ({
     id: "so-1",
-    sales_order_status: "Preparing",
+    status: "Preparing",
     order_sent: false,
     supplier_id: "",
     shipment: { carrier_id: "" },

@@ -1,14 +1,13 @@
 import * as pdfService from "#features/media/pdfs/service.ts";
 import type { PackingListInput, InvoiceInput } from "#features/media/pdfs/service.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
-import type { SpotPriceWire, SalesOrderWire } from "@dorado/contracts";
 
 import {
   renderPurchaseOrderPlacedEmail,
   renderOfferAcceptedEmail,
   renderSalesOrderToSupplierEmail,
 } from "#features/media/emails/utils/renderEmail.ts";
-import type { SalesOrderForRender } from "#features/media/emails/utils/renderEmail.ts";
+import type { SalesOrderForRender, SupplierSpot } from "#features/media/emails/utils/renderEmail.ts";
 
 import { sendEmail } from "#providers/emails/nodemailer.ts";
 import { recordEmail, messageIdOf } from "#features/media/emails/record.ts";
@@ -88,7 +87,7 @@ export async function sendCreatedEmail(
       attachments: [
         {
           filename: `${formatPurchaseOrderNumber(
-            purchaseOrder.order_number
+            purchaseOrder.number
           )}_packing_list.pdf`,
           content: pdfBuffer,
           contentType: "application/pdf",
@@ -116,8 +115,8 @@ export async function sendAcceptedEmail(
     spot_prices,
   }: {
     order: InvoiceInput["purchaseOrder"];
-    order_spots?: SpotPriceWire[];
-    spot_prices?: SpotPriceWire[];
+    order_spots?: InvoiceInput["orderSpots"];
+    spot_prices?: InvoiceInput["spotPrices"];
   },
   to: string,
   transport?: Transport,
@@ -142,7 +141,7 @@ export async function sendAcceptedEmail(
   const orderId = typeof order.id === "string" ? order.id : null;
   const pdfId = await persistPdf({ kind: "invoice", order_id: orderId, bytes: pdfBuffer }, executor);
 
-  const subject = `Offer Accepted - Order ${formatPurchaseOrderNumber(order.order_number)}`;
+  const subject = `Offer Accepted - Order ${formatPurchaseOrderNumber(order.number)}`;
   const record = {
     kind: "purchase_order_accepted" as const,
     to, subject, order_id: orderId, pdf_id: pdfId,
@@ -160,7 +159,7 @@ export async function sendAcceptedEmail(
       attachments: [
         {
           filename: `${formatPurchaseOrderNumber(
-            order.order_number
+            order.number
           )}_invoice.pdf`,
           content: pdfBuffer,
           contentType: "application/pdf",
@@ -176,7 +175,7 @@ export async function sendAcceptedEmail(
 
 // `order` IS NEARLY THE CONTRACT, AND THE GAP IS THE TIMESTAMPS.
 //
-// This said SalesOrderWire, with a comment calling it "the stronger true
+// This said the wire contract type, with a comment calling it "the stronger true
 // statement" about the object. It was not true. The caller is
 // sales-orders/service.ts, which passes what getById returned - a database row,
 // where pg has already parsed created_at and updated_at into Date objects,
@@ -195,7 +194,7 @@ export async function sendAcceptedEmail(
 
 export async function sendSalesOrderToSupplier(
   order: SalesOrderForRender,
-  spots: SpotPriceWire[],
+  spots: SupplierSpot[],
   email: string,
   transport?: Transport,
   executor?: PoolClient
@@ -218,7 +217,7 @@ export async function sendSalesOrderToSupplier(
   const orderId = typeof order.id === "string" ? order.id : null;
   const pdfId = await persistPdf({ kind: "sales_order_invoice", order_id: orderId, bytes: pdfBuffer }, executor);
 
-  const subject = `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(order.order_number)}`;
+  const subject = `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(order.number)}`;
   const record = {
     kind: "sales_order_to_supplier" as const,
     to: email, subject, order_id: orderId, pdf_id: pdfId,
@@ -239,7 +238,7 @@ export async function sendSalesOrderToSupplier(
       }),
       attachments: [
         {
-          filename: `${formatSalesOrderNumber(order.order_number)}_invoice.pdf`,
+          filename: `${formatSalesOrderNumber(order.number)}_invoice.pdf`,
           content: pdfBuffer,
           contentType: "application/pdf",
         },

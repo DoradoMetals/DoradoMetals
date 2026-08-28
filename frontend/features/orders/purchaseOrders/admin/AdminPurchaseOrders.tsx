@@ -29,7 +29,7 @@ export default function PurchaseOrdersPage() {
 
   const filterCards = React.useMemo(() => {
     const counts = purchaseOrders.reduce<Record<string, number>>((acc, po) => {
-      acc[po.purchase_order_status] = (acc[po.purchase_order_status] || 0) + 1
+      acc[po.status ?? ''] = (acc[po.status ?? ''] || 0) + 1
       return acc
     }, {})
 
@@ -44,7 +44,7 @@ export default function PurchaseOrdersPage() {
         filter: status,
         header: `${count}`,
         label: status,
-        predicate: (po: PurchaseOrder) => po.purchase_order_status === status,
+        predicate: (po: PurchaseOrder) => po.status === status,
         buttonActiveClassName: cn('bg-primary/20', 'border-primary', 'text-neutral-900'),
         iconBaseClassName: 'text-primary',
         iconActiveClassName: 'text-primary',
@@ -55,8 +55,8 @@ export default function PurchaseOrdersPage() {
   const columns: ColumnDef<PurchaseOrder>[] = React.useMemo(
     () => [
       OrderNumberColumn<PurchaseOrder>({
-        id: 'order_number',
-        accessorKey: 'order_number',
+        id: 'number',
+        accessorKey: 'number',
         align: 'center',
         useFormatterHook: useFormatPurchaseOrderNumber,
         enableHiding: false,
@@ -73,12 +73,12 @@ export default function PurchaseOrdersPage() {
       }),
 
       IconColumn<PurchaseOrder>({
-        id: 'purchase_order_status',
+        id: 'status',
         header: 'Status',
-        accessorKey: 'purchase_order_status',
+        accessorKey: 'status',
         align: 'center',
         renderIcon: ({ value, row }) => {
-          const status = (value as string) ?? (row as PurchaseOrder).purchase_order_status
+          const status = (value as string) ?? (row as PurchaseOrder).status ?? ''
           const config = statusConfig[status]
           if (!config) return null
           const Icon = config.icon
@@ -133,12 +133,12 @@ export default function PurchaseOrdersPage() {
         data={purchaseOrders}
         columns={columns}
         hidePagination
-        searchColumnId="order_number"
+        searchColumnId="number"
         searchPlaceholder="Search orders..."
         enableColumnVisibility={true}
         onRowClick={handleRowClick}
         getRowClassName={(row) => {
-          const cfg = statusConfig[row.original.purchase_order_status]
+          const cfg = statusConfig[row.original.status ?? '']
           return cn('hover:bg-background hover:cursor-pointer', 'hover:bg-primary/20')
         }}
         filterCards={filterCards}

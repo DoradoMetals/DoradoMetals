@@ -130,3 +130,51 @@ export const OrderQuoteWire = z.object({
   total: z.number(),
 });
 export type OrderQuoteWire = z.infer<typeof OrderQuoteWire>;
+
+// One metal's slice of the profit split: how much of it a party owns, what
+// share of the order's total that is, and what it is worth at the bid the
+// split values that party at.
+export const ProfitMetalWire = z.object({
+  content: z.number(),
+  percentage: z.number(),
+  profit: z.number(),
+});
+export type ProfitMetalWire = z.infer<typeof ProfitMetalWire>;
+
+export const ProfitMetalsDictWire = z.object({
+  gold: ProfitMetalWire,
+  silver: ProfitMetalWire,
+  platinum: ProfitMetalWire,
+  palladium: ProfitMetalWire,
+});
+export type ProfitMetalsDictWire = z.infer<typeof ProfitMetalsDictWire>;
+
+// One party's view of the order - the metal split by category plus the fees
+// that land on them. The field names are the frontend's own
+// computePurchaseOrderTotals shapes, ported server-side (D83): this endpoint
+// replaces the last client-side money math, so the shape is the one the
+// profit drawer already renders.
+export const ProfitCategoriesDictWire = z.object({
+  scrap: ProfitMetalsDictWire,
+  bullion: ProfitMetalsDictWire,
+  total: ProfitMetalsDictWire,
+  shipping_net: z.number(),
+  refiner_fee_net: z.number(),
+  spot_net: z.number(),
+  total_profit: z.number(),
+});
+export type ProfitCategoriesDictWire = z.infer<typeof ProfitCategoriesDictWire>;
+
+// POST /quotes/profit_breakdown. ADMIN ONLY, and that is a property of the
+// shape, not just the route: this is what the business makes on an order -
+// margins, the refiner's share, the spot spread - and none of it may ever be
+// customer-reachable. spots_at says when the live half of the numbers was
+// read, matching the other quote shapes.
+export const ProfitBreakdownWire = z.object({
+  order_id: z.string().uuid(),
+  spots_at: z.string(),
+  refiner: ProfitCategoriesDictWire,
+  dorado: ProfitCategoriesDictWire,
+  customer: ProfitCategoriesDictWire,
+});
+export type ProfitBreakdownWire = z.infer<typeof ProfitBreakdownWire>;

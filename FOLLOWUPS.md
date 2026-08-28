@@ -8141,7 +8141,7 @@ conversion). One unification: the scrap SUBTOTAL now sums the line formula
 (premium ?? scrap.bid_premium ?? 1) instead of the old premium ?? 1 - zero
 production rows have a null premium, so no live number moves.
 
-## D84 (PLAN) — the orders wire conversion, for Jacob's review
+## D84 — the orders wire conversion (PLANNED above, DONE below)
 
 The last wire. Orders never had a switch, so this is ONE deliberate
 change per Jacob's conversion mandate - API and frontend land together in
@@ -8191,3 +8191,44 @@ the damaged-shipments ruling - unrelated to the wire shape. The
 createSalesOrderDrawer order math converts inside c4 (its
 calculateSalesOrderPrices/SalesOrderTotals die there). The admin-only
 profit endpoint for viewProfitBreakdown rides c3.
+
+### D84 DONE — one deliberate change, both sides, first-attempt green gate
+
+Jacob approved the plan and the snapshot design ("order addresses are
+immutable"; address_id links the book). Executed as three parallel lanes
+against a frozen contract, gated once, landed once.
+
+**The composition map** (identical on BOTH read paths, proven bothWays in
+validate:wire 29/29, decomposition gates byte-identical to pre-change):
+order_number->number; *_status->status; money nests as `totals` under
+orders.transactions' own names - with two decisions: pre_charges_amount ->
+totals.funds (it IS transactions.funds; the old compose undid that rename)
+and a SALES order's totals.refiner_fee is deliberately NULL (exchange never
+had the column; transactions holds only the column default, and projecting
+it would break the decomposition gate's comparison). The address snapshot
+serves address_id = the BOOK id (repo.next's checkout constraint) +
+recipient_name = what the smeared `name` always meant. Embedded products
+and spots speak the converted names everywhere, including the email/PDF
+renderers and the inbound bodies (recipient_name now feeds FedEx's
+personName; spot mutations read name/bid).
+
+**Retired**: the frontend seam trio (orderSpots/orderProducts/
+orderAddresses - four egress sites now build the snapshot,
+recipient_name=user_address.label), the API's features/spots/
+legacy-shape.ts (getPricingSpots deleted, its $26.81 doc moved to
+getSpotPrices, eight pricing callers repointed), and the LAST client money
+math (calculateSalesOrderPrices, SalesOrderTotals,
+calculatePurchaseOrderTotals - profit margins now come from the
+requireAdmin-only /quotes/profit_breakdown, listed in admin-routes.json).
+
+**Truth-fix**: order.return_shipping_paid was read by two components and
+served by NO wire, ever - the branch could never show. Converted to the
+wire's shipping_paid; the display now tells the truth.
+
+**Finds for Jacob**: `pnpm diff` is broken at HEAD and was BEFORE this
+work - scripts/diff-source.mjs is truncated mid-SOURCES-map and fails
+node --check. Not repaired (the decomposition gates + bothWays cover the
+two-implementation question); decide whether to fix or retire it. And a
+c5 follow-up: the admin create drawer's Credit-Available reads the TARGET
+user's funds from client state because the sales quote prices the CALLER -
+a quote-for-user admin variant closes it.

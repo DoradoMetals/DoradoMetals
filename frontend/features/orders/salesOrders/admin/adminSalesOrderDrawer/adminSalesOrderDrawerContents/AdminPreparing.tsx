@@ -45,7 +45,7 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
     }
   }, [carriers, order.shipment.carrier_id])
 
-  const config = statusConfig[order.sales_order_status]
+  const config = statusConfig[order.status ?? '']
 
   return (
     <div className="flex flex-col w-full gap-5">
@@ -80,7 +80,7 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
             supplier_id: selectedSupplier?.id ?? '',
           })
         }}
-        disabled={!selectedSupplier || sendOrder.isPending || order.order_sent}
+        disabled={!selectedSupplier || sendOrder.isPending || !!order.order_sent}
       >
         {sendOrder.isPending
           ? `Sending to ${selectedSupplier?.organization.name}...`
@@ -126,7 +126,7 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
         onClick={() => {
           updateTracking.mutate({
             order_id: order.id,
-            shipment_id: order.shipment.id,
+            shipment_id: order.shipment.id ?? '',
             tracking_number: trackingNumber,
             carrier_id: selectedCarrier?.id ?? '',
           })

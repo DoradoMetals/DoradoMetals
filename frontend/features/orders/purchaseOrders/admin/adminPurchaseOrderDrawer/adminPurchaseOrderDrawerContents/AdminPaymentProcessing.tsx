@@ -10,7 +10,7 @@ import ActualsEditor from '@/features/orders/purchaseOrders/admin/adminPurchaseO
 export default function AdminPaymentProcessingPurchaseOrder({
   order,
 }: PurchaseOrderDrawerContentProps) {
-  const config = statusConfig[order.purchase_order_status]
+  const config = statusConfig[order.status ?? '']
   const payout = payoutOptions.find((p) => p.method === order.payout?.method)
   const Icon = payout?.icon
 
@@ -35,7 +35,7 @@ export default function AdminPaymentProcessingPurchaseOrder({
               {payout?.label}
             </div>
             <div className="text-xl text-neutral-900">
-              <PriceNumberFlow value={order.total_price ?? 0} />
+              <PriceNumberFlow value={order.totals?.total ?? 0} />
             </div>
           </div>
 

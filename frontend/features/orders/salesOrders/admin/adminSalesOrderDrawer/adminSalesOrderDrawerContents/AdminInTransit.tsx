@@ -4,9 +4,9 @@ import { useTracking } from '@/features/shipping/queries'
 
 export default function AdminInTransitSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: order.shipment.id,
-    tracking_number: order.shipment.tracking_number,
-    carrier_id: order.shipment.carrier_id,
+    shipment_id: order.shipment.id ?? '',
+    tracking_number: order.shipment.tracking_number ?? '',
+    carrier_id: order.shipment.carrier_id ?? '',
   })
 
   const baseBg = 'bg-primary'
@@ -19,8 +19,8 @@ export default function AdminInTransitSalesOrder({ order }: SalesOrderDrawerCont
         trackingInfo={trackingInfo}
         background_color={baseBg}
         borderColor={border}
-        delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery}
-        shipping_status={order.shipment.shipping_status}
+        delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery ?? undefined}
+        shipping_status={order.shipment.shipping_status ?? ''}
       />
     </>
   )

@@ -9,9 +9,11 @@ import {
   calculateSalesOrderTotal,
 } from "#features/sales-orders/utils/calculations.ts";
 
+// The composed spot shape (`name` / `ask`) - what getSpotPrices serves and
+// what the calculations read since D84.
 const spots = [
-  { type: "Gold", ask_spot: 4000 },
-  { type: "Silver", ask_spot: 30 },
+  { name: "Gold", ask: 4000 },
+  { name: "Silver", ask: 30 },
 ];
 
 const item = (over = {}) => ({

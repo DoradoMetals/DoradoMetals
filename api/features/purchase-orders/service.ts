@@ -20,7 +20,8 @@ import type {
   OrderMetalRow,
   OrderScrapItemRow,
 } from "#features/purchase-orders/repo.next.ts";
-import type { SpotPriceWire, PurchaseOrderItemWire } from "@dorado/contracts";
+import type { PurchaseOrderItemWireNext } from "@dorado/contracts";
+import type { PricingSpot } from "#features/purchase-orders/utils/calculations.ts";
 
 // `order` here is whatever the caller had - a row from getById, or the body of
 // a request. The functions below read a handful of fields off it, and those are
@@ -28,7 +29,7 @@ import type { SpotPriceWire, PurchaseOrderItemWire } from "@dorado/contracts";
 // controllers handing over req.body.
 type OrderLike = PurchaseOrderRow &
   Record<string, any> & {
-    order_items: PurchaseOrderItemWire[];
+    order_items: PurchaseOrderItemWireNext[];
     shipment?: { shipping_charge?: number | null } | null;
     payout: { cost: number };
   };
@@ -195,7 +196,10 @@ export async function cancelOrder({
 
   const recipient = {
     contact: {
-      personName: return_shipment.address.name,
+      // The body's address speaks the snapshot shape now (D84):
+      // recipient_name is who receives the parcel - the field the old smeared
+      // `name` actually was.
+      personName: return_shipment.address.recipient_name,
       phoneNumber: return_shipment.address.phone_number,
     },
     address: return_shipment.address,
@@ -395,7 +399,10 @@ export async function createPurchaseOrder(
 ): Promise<PurchaseOrderRow | undefined> {
   const shipper = {
     contact: {
-      personName: purchase_order.address.name,
+      // Snapshot shape (D84): recipient_name is the person on the label.
+      // `purchase_order.address.id` stays the BOOK id and is what
+      // recordPurchaseOrder stores.
+      personName: purchase_order.address.recipient_name,
       phoneNumber: purchase_order.address.phone_number,
     },
     address: purchase_order.address,
@@ -438,7 +445,7 @@ export async function createPurchaseOrder(
     try {
       pickupResult = await shippingOps.createPickup(FEDEX_CARRIER_ID, undefined, {
         pickupContact: {
-          personName: purchase_order.address.name,
+          personName: purchase_order.address.recipient_name,
           phoneNumber: purchase_order.address.phone_number,
         },
         pickupAddress: purchase_order.address,
@@ -489,9 +496,11 @@ export async function acceptOrder({
   spot_prices,
 }: {
   order: OrderLike;
-  order_spots: SpotPriceWire[];
-  spot_prices: SpotPriceWire[];
-}): Promise<{ purchaseOrder: PurchaseOrderRow | undefined; orderSpots: SpotPriceWire[] }> {
+  // The body's spot arrays speak the converted names (`name` / `ask` / `bid`)
+  // since D84; frozen order-spot rows carry more, and only these are read.
+  order_spots: PricingSpot[];
+  spot_prices: PricingSpot[];
+}): Promise<{ purchaseOrder: PurchaseOrderRow | undefined; orderSpots: PricingSpot[] }> {
   const updatedSpots = await withTransaction(async (client) => {
     const spots = order.spots_locked
       ? order_spots
@@ -542,7 +551,7 @@ export async function lockSpots({
   spots,
   purchase_order_id,
 }: {
-  spots: SpotPriceWire[];
+  spots: PricingSpot[];
   purchase_order_id: string;
 }): Promise<unknown> {
   return withTransaction(async (client) => {
@@ -753,7 +762,7 @@ export async function editPayoutCharge({
 
 // THE LEDGER NOW RECORDS WHAT WAS ACTUALLY CREDITED.
 //
-// This credited `order.total_price` and logged `calculateTotalPrice(order,
+// This credited the order's stored total and logged `calculateTotalPrice(order,
 // spots)` - two different numbers, computed different ways, from a `spots` that
 // arrived in the request body. So the entry meant to explain a balance movement
 // recorded a different figure from the movement itself.
@@ -772,13 +781,13 @@ export async function editPayoutCharge({
 export async function addFundsToAccount({ order }: { order: OrderLike }): Promise<void> {
   try {
     await withTransaction(async (client) => {
-      await usersFunds.addFunds(order.user_id, order.total_price, client);
+      await usersFunds.addFunds(order.user_id, order.totals?.total ?? null, client);
       await transactionsService.addTransactionLog(
         order.user_id,
         "Credit",
         order.id,
         null,
-        order.total_price,
+        order.totals?.total ?? null,
         client
       );
     });

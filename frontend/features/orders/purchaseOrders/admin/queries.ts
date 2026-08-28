@@ -2,8 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
-import { OrderSpot, OrderSpotWire, orderSpotFromWire, orderSpotToWire } from '@/features/orders/orderSpots'
-import { toOrderProduct } from '@/features/orders/orderProducts'
+import type { SpotOnOrderNext } from '@dorado/contracts'
 import { Product } from '@/features/products/types'
 import { PayoutDetails } from '@/features/payouts/types'
 import { useGetSession } from '@/features/auth/queries'
@@ -47,16 +46,16 @@ export const useAcceptOrder = () => {
       spot_prices,
     }: {
       purchase_order: PurchaseOrder
-      order_spots: OrderSpot[]
+      order_spots: SpotOnOrderNext[]
       spot_prices: SpotPrice[]
     }) => {
       if (!user?.id) throw new Error('Not authenticated')
-      // The API prices the order off these rows and reads the orders wire's
-      // legacy names; both arrays go down at the edge.
+      // The API prices the order off these rows; both arrays already speak
+      // the converted names (name / ask / bid).
       return await apiRequest('POST', '/purchase_orders/accept_order', {
         purchase_order,
-        order_spots: order_spots.map(orderSpotToWire),
-        spot_prices: spot_prices.map(orderSpotToWire),
+        order_spots,
+        spot_prices,
       })
     },
     onSettled: () => {
@@ -93,20 +92,29 @@ export const useUpdateOrderSpotPrice = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ spot, updated_spot }: { spot: OrderSpot; updated_spot: number }) => {
+    // purchase_order_id rides the vars now: the converted spot row is the
+    // metal's price alone and no longer says which order froze it.
+    mutationFn: async ({
+      spot,
+      updated_spot,
+    }: {
+      spot: SpotOnOrderNext
+      updated_spot: number
+      purchase_order_id: string
+    }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<OrderSpotWire>('POST', '/purchase_orders/update_spot', {
+      return await apiRequest<SpotOnOrderNext>('POST', '/purchase_orders/update_spot', {
         user_id: user.id,
-        spot: orderSpotToWire(spot),
+        spot,
         updated_spot,
       })
     },
-    onMutate: async ({ spot, updated_spot }) => {
-      const queryKey = ['purchase_orders_metals', spot.purchase_order_id]
+    onMutate: async ({ spot, updated_spot, purchase_order_id }) => {
+      const queryKey = ['purchase_orders_metals', purchase_order_id]
       await queryClient.cancelQueries({ queryKey })
-      const previousSpotPrices = queryClient.getQueryData<OrderSpot[]>(queryKey)
+      const previousSpotPrices = queryClient.getQueryData<SpotOnOrderNext[]>(queryKey)
 
-      queryClient.setQueryData<OrderSpot[]>(queryKey, (old = []) =>
+      queryClient.setQueryData<SpotOnOrderNext[]>(queryKey, (old = []) =>
         old.map((s) => (s.id === spot.id ? { ...s, bid: updated_spot } : s))
       )
 
@@ -142,9 +150,10 @@ export const useLockOrderSpotPrices = () => {
       purchase_order_id: string
     }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<OrderSpotWire[]>('POST', '/purchase_orders/lock_spots', {
+      // The live rows go down as they are - the converted names are the wire.
+      return await apiRequest<SpotOnOrderNext[]>('POST', '/purchase_orders/lock_spots', {
         user_id: user.id,
-        spots: spots.map(orderSpotToWire),
+        spots,
         purchase_order_id,
       })
     },
@@ -152,9 +161,9 @@ export const useLockOrderSpotPrices = () => {
       const metalsKey = ['purchase_orders_metals', purchase_order_id]
 
       await queryClient.cancelQueries({ queryKey: metalsKey })
-      const previousSpotPrices = queryClient.getQueryData<OrderSpot[]>(metalsKey)
+      const previousSpotPrices = queryClient.getQueryData<SpotOnOrderNext[]>(metalsKey)
 
-      queryClient.setQueryData<OrderSpot[]>(metalsKey, (old = []) =>
+      queryClient.setQueryData<SpotOnOrderNext[]>(metalsKey, (old = []) =>
         old.map((s) => {
           const incoming = spots.find((sp) => sp.id === s.id)
           return incoming ? { ...s, bid: incoming.bid } : s
@@ -218,9 +227,9 @@ export const useResetOrderSpotPrices = () => {
     onMutate: async ({ purchase_order_id }) => {
       const queryKey = ['purchase_orders_metals', purchase_order_id]
       await queryClient.cancelQueries({ queryKey })
-      const previousSpotPrices = queryClient.getQueryData<OrderSpot[]>(queryKey)
+      const previousSpotPrices = queryClient.getQueryData<SpotOnOrderNext[]>(queryKey)
 
-      queryClient.setQueryData<OrderSpot[]>(queryKey, (old = []) =>
+      queryClient.setQueryData<SpotOnOrderNext[]>(queryKey, (old = []) =>
         old.map((s) => ({
           ...s,
           bid: null,
@@ -524,16 +533,20 @@ export const useAddNewOrderScrapItem = () => {
         id: optimisticId,
         purchase_order_id,
         item_type: 'scrap',
+        price: null,
+        premium: null,
         scrap: {
           id: optimisticScrapId,
           metal: item.metal,
           pre_melt: item.pre_melt ?? 1,
+          post_melt: null,
           purity: item.purity ?? 1,
           content: item.content ?? (item.pre_melt ?? 1) * (item.purity ?? 1),
           gross_unit: item.gross_unit ?? 't oz',
           bid_premium: item.bid_premium ?? 0.75,
           name: `${item.metal} Item`,
         },
+        product: null,
         quantity: 1,
         confirmed: false,
       }
@@ -649,14 +662,41 @@ export const useAddNewOrderBullionItem = () => {
       const previousOrders = queryClient.getQueryData<PurchaseOrder[]>(queryKey)
 
       const optimisticId = `temp-${Date.now()}`
-      const optimisticScrapId = `temp-product-${Date.now()}`
 
       const optimisticOrderItem: PurchaseOrderItem = {
         id: optimisticId,
         purchase_order_id,
         item_type: 'product',
-        // The optimistic entry is read by UI that speaks the orders wire.
-        product: toOrderProduct(item),
+        price: null,
+        premium: null,
+        // The catalogue row IS the converted shape; the order embed is its
+        // subset. A purchase-order item always carries a scrap object - all
+        // null for a bullion line, per the contract.
+        product: {
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          type: item.type,
+          metal_type: item.metal_type,
+          content: item.content,
+          gross: item.gross,
+          purity: item.purity,
+          bid_premium: item.bid_premium,
+          ask_premium: item.ask_premium,
+          image_front: item.image_front,
+          image_back: item.image_back,
+          mint_name: item.mint_name,
+        },
+        scrap: {
+          id: null,
+          metal: null,
+          pre_melt: null,
+          post_melt: null,
+          purity: null,
+          content: null,
+          gross_unit: null,
+          bid_premium: null,
+        },
         quantity: 1,
         confirmed: false,
       }
@@ -874,7 +914,7 @@ export const useAddFundsToAccount = () => {
       spots,
     }: {
       purchase_order: PurchaseOrder
-      spots: SpotPrice[]
+      spots: SpotOnOrderNext[]
     }) => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/add_funds_to_account', {
@@ -914,11 +954,11 @@ export const usePurgeCancelled = () => {
 export const usePurchaseOrderRefinerMetals = (purchase_order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<OrderSpot[]>({
+  return useQuery<SpotOnOrderNext[]>({
     queryKey: ['purchase_order_refiner_metals', purchase_order_id],
     queryFn: async () => {
       if (!user?.id) return []
-      const rows = await apiRequest<OrderSpotWire[]>(
+      return await apiRequest<SpotOnOrderNext[]>(
         'POST',
         '/purchase_orders/get_purchase_order_refiner_metals',
         {
@@ -926,7 +966,6 @@ export const usePurchaseOrderRefinerMetals = (purchase_order_id: string) => {
           purchase_order_id: purchase_order_id,
         }
       )
-      return rows.map(orderSpotFromWire)
     },
     enabled: !!user && !!purchase_order_id,
     refetchInterval: 60000,
@@ -938,20 +977,28 @@ export const useUpdateOrderRefinerSpotPrice = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ spot, updated_spot }: { spot: OrderSpot; updated_spot: number }) => {
+    // Same as useUpdateOrderSpotPrice: the order id rides the vars.
+    mutationFn: async ({
+      spot,
+      updated_spot,
+    }: {
+      spot: SpotOnOrderNext
+      updated_spot: number
+      purchase_order_id: string
+    }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<OrderSpotWire>('POST', '/purchase_orders/update_refiner_spot', {
+      return await apiRequest<SpotOnOrderNext>('POST', '/purchase_orders/update_refiner_spot', {
         user_id: user.id,
-        spot: orderSpotToWire(spot),
+        spot,
         updated_spot,
       })
     },
-    onMutate: async ({ spot, updated_spot }) => {
-      const queryKey = ['purchase_order_refiner_metals', spot.purchase_order_id]
+    onMutate: async ({ spot, updated_spot, purchase_order_id }) => {
+      const queryKey = ['purchase_order_refiner_metals', purchase_order_id]
       await queryClient.cancelQueries({ queryKey })
-      const previousSpotPrices = queryClient.getQueryData<OrderSpot[]>(queryKey)
+      const previousSpotPrices = queryClient.getQueryData<SpotOnOrderNext[]>(queryKey)
 
-      queryClient.setQueryData<OrderSpot[]>(queryKey, (old = []) =>
+      queryClient.setQueryData<SpotOnOrderNext[]>(queryKey, (old = []) =>
         old.map((s) => (s.id === spot.id ? { ...s, bid: updated_spot } : s))
       )
 

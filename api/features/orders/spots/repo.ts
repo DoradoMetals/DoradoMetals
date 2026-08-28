@@ -18,9 +18,9 @@ export type Executor = PoolClient | undefined;
 export type OrderSpotRow = {
   id: string;
   purchase_order_id: string | null;
-  type: string;
-  ask_spot: number | null;
-  bid_spot: number | null;
+  name: string;
+  ask: number | null;
+  bid: number | null;
   percent_change: number | null;
   dollar_change: number | null;
   created_at: Date | null;

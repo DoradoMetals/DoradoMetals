@@ -5,7 +5,7 @@ import PreparingSalesOrder from '@/features/orders/salesOrders/users/salesOrderD
 import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 
 export default function SalesOrderDrawerContent({ order }: SalesOrderDrawerContentProps) {
-  switch (order.sales_order_status) {
+  switch (order.status) {
     case 'Pending':
       return <PendingSalesOrder order={order} />
     case 'Preparing':

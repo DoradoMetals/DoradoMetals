@@ -2,7 +2,7 @@
 //
 // What this file pins is the ruling itself: every number here is priced by
 // the server from its own tables, and a body that rides prices or spots in
-// changes NOTHING - the $26.81 regression (see getPricingSpots' header)
+// changes NOTHING - the $26.81 regression (see getSpotPrices' header)
 // stays dead. The math checks are hand-computed from the same tables the
 // endpoints read, so a transposed spot, a dropped premium or a quantity
 // applied twice all fail loudly.
@@ -334,6 +334,85 @@ test("no body-supplied price, spot or premium is ever honoured", async () => {
       assert.equal(poisonedSell.status, 200);
       assert.deepEqual(stripTimestamp(poisonedSell.body), stripTimestamp(cleanSell.body),
         "a purchase-order quote read a premium, spot or product content off the body");
+    });
+  });
+});
+
+
+// ------------------------------------------------- the profit breakdown
+
+// ADMIN ONLY, and asserted from both sides: the response is the business's
+// margins on a customer's order, so the customer being refused is as much the
+// contract as the admin being answered. Priced against the oldest purchase
+// order, the same stable fixture the ownership tests pick.
+test("the profit breakdown answers an admin and refuses everyone else", async () => {
+  await inPinnedTransaction(async () => {
+    const orders = await outside(
+      `SELECT id FROM exchange.purchase_orders ORDER BY created_at ASC, id ASC LIMIT 1`
+    );
+    assert.ok(orders[0], "dev has no purchase order to price");
+    const order_id = orders[0].id;
+
+    await anonymous(async () => {
+      const res = await request(app).post("/api/quotes/profit_breakdown").send({ order_id });
+      assert.ok([401, 403].includes(res.status), `answered ${res.status} anonymously`);
+    });
+
+    await as({ id: buyer.id, name: buyer.name, email: buyer.email, role: "user" }, async () => {
+      const res = await request(app).post("/api/quotes/profit_breakdown").send({ order_id });
+      assert.equal(res.status, 403, "a customer read the business's margins");
+    });
+
+    await as({ id: buyer.id, name: buyer.name, email: buyer.email, role: "admin" }, async () => {
+      const res = await request(app).post("/api/quotes/profit_breakdown").send({ order_id });
+      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+      assert.equal(res.body.order_id, order_id);
+      assert.ok(!Number.isNaN(Date.parse(res.body.spots_at)), "spots_at is not a timestamp");
+      for (const party of ["refiner", "dorado", "customer"]) {
+        const c = res.body[party];
+        assert.ok(c, `the breakdown is missing ${party}`);
+        for (const cat of ["scrap", "bullion", "total"]) {
+          for (const metal of ["gold", "silver", "platinum", "palladium"]) {
+            for (const field of ["content", "percentage", "profit"]) {
+              assert.equal(typeof c[cat][metal][field], "number", `${party}.${cat}.${metal}.${field} is not a number`);
+              assert.ok(Number.isFinite(c[cat][metal][field]), `${party}.${cat}.${metal}.${field} is not finite`);
+            }
+          }
+        }
+        for (const field of ["shipping_net", "refiner_fee_net", "spot_net", "total_profit"]) {
+          assert.equal(typeof c[field], "number", `${party}.${field} is not a number`);
+          assert.ok(Number.isFinite(c[field]), `${party}.${field} is not finite`);
+        }
+      }
+    });
+  });
+});
+
+// The margins are server-sourced like every other quote: a body riding spots,
+// premiums or an order object in is priced identically to a clean one.
+test("a poisoned profit-breakdown body changes nothing", async () => {
+  await inPinnedTransaction(async () => {
+    const orders = await outside(
+      `SELECT id FROM exchange.purchase_orders ORDER BY created_at ASC, id ASC LIMIT 1`
+    );
+    const order_id = orders[0].id;
+    const stripTimestamp = ({ spots_at, ...rest }) => rest;
+
+    await as({ id: buyer.id, name: buyer.name, email: buyer.email, role: "admin" }, async () => {
+      const clean = await request(app).post("/api/quotes/profit_breakdown").send({ order_id });
+      const poisoned = await request(app).post("/api/quotes/profit_breakdown").send({
+        order_id,
+        order: { id: order_id, totals: { refiner_fee: 1000000 }, order_items: [] },
+        orderSpots: [{ name: "Gold", bid: 1 }],
+        refinerSpots: [{ name: "Gold", bid: 999999 }],
+        spots: [{ name: "Gold", ask: 1, bid: 1 }],
+        rates: [{ metal: "Gold", min_qty: 0, max_qty: null, scrap_pct: 0.0001, bullion_pct: 0.0001 }],
+        shipping_fee_actual: 999999,
+        payout: { cost: 999999 },
+      });
+      assert.equal(poisoned.status, 200);
+      assert.deepEqual(stripTimestamp(poisoned.body), stripTimestamp(clean.body),
+        "the profit breakdown read something off the body besides the order id");
     });
   });
 });

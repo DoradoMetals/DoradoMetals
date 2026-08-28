@@ -65,8 +65,10 @@ const anOrder = async () => {
   // ... and one that HAS spot rows, expressed in the query rather than assumed
   // of whatever order happens to be newest - dev drifts, and the spot-change
   // test needs a spot to change.
+  // Aliased to the WIRE's names (D84) because this row becomes the body the
+  // drawer sends; the exchange COLUMNS keep their own spellings in the WHERE.
   const rows = await outside(
-    `SELECT p.id, p.order_number, p.purchase_order_status
+    `SELECT p.id, p.order_number AS number, p.purchase_order_status AS status
        FROM exchange.purchase_orders p
       WHERE p.purchase_order_status NOT IN ('Cancelled', 'Completed', $1)
         AND EXISTS (SELECT 1 FROM exchange.order_metals m WHERE m.purchase_order_id = p.id)
@@ -93,8 +95,8 @@ test("the admin list is refused to a customer and served to an admin", async () 
       // asserting rather than eyeballing.
       const order = res.body[0];
       for (const field of [
-        "id", "order_number", "purchase_order_status", "created_at",
-        "order_items", "address", "user", "payout", "spots_locked",
+        "id", "number", "status", "created_at",
+        "order_items", "address", "user", "payout", "spots_locked", "totals",
       ]) {
         assert.ok(field in order, `the admin list is missing ${field}`);
       }
@@ -153,11 +155,11 @@ test("moving an order's status takes the body the drawer sends", async () => {
       const list = await request(app).get("/api/purchase_orders/get_all_purchase_orders");
       const moved = list.body.find((o) => o.id === order.id);
       assert.notEqual(
-        order.purchase_order_status,
+        order.status,
         MOVE_TO,
         "the order was already in the target status - this proves nothing"
       );
-      assert.equal(moved.purchase_order_status, MOVE_TO);
+      assert.equal(moved.status, MOVE_TO);
     });
   }, { lock: ORDER_LOCK });
 });
@@ -182,7 +184,7 @@ test("locking spots freezes them and unlocking releases them", async () => {
       // useLockSpots sends { user_id, spots, purchase_order_id } - the spots
       // it is locking, not just the order. The first version of this sent
       // { order, user_name } and got a 500 out of updateOrderMetals, which maps
-      // over spotPrices and reads spot.bid_spot off each one.
+      // over spotPrices and reads spot.bid off each one.
       const metals = await request(app)
         .post("/api/purchase_orders/get_purchase_order_metals")
         .send({ purchase_order_id: order.id });
@@ -224,7 +226,8 @@ test("changing a spot price lands on that order and no other", async () => {
 
       const spot = metals.body[0];
       const sentinel = 1234.56;
-      assert.ok("bid_spot" in spot, "the metals response no longer carries bid_spot");
+      assert.ok("bid" in spot, "the metals response no longer carries bid");
+      assert.ok(!("bid_spot" in spot), "the metals response still carries the legacy bid_spot");
 
       const res = await request(app)
         .post("/api/purchase_orders/update_spot")
@@ -235,12 +238,12 @@ test("changing a spot price lands on that order and no other", async () => {
         .post("/api/purchase_orders/get_purchase_order_metals")
         .send({ purchase_order_id: order.id });
       const changed = after.body.find((s) => s.id === spot.id);
-      assert.equal(Number(changed.bid_spot), sentinel, "the new price did not stick");
+      assert.equal(Number(changed.bid), sentinel, "the new price did not stick");
 
       // Every other metal on the order is untouched.
       for (const other of after.body.filter((s) => s.id !== spot.id)) {
         assert.notEqual(
-          Number(other.bid_spot),
+          Number(other.bid),
           sentinel,
           "one edit changed more than one metal's spot"
         );

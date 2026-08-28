@@ -52,11 +52,12 @@ async function productsById(
 ): Promise<Map<string, ComposedProduct>> {
   if (ids.length === 0) return new Map();
   const { rows } = await query<ComposedProduct & { id: string }>(
-    `SELECT b.id, b.name AS product_name, b.content, b.type AS product_type,
-            b.image_front, b.image_back, b.bid_premium, b.ask_premium,
-            b.variant_group, b.shadow_offset, bm.name AS metal_type
+    `SELECT b.id, b.name, b.description, b.type, bm.name AS metal_type,
+            b.content, b.gross, b.purity, b.bid_premium, b.ask_premium,
+            b.image_front, b.image_back, mnt.name AS mint_name
        FROM products.bullion b
        LEFT JOIN metals.metals bm ON bm.id = b.metal_id
+       LEFT JOIN products.mints mnt ON mnt.id = b.mint_id
       WHERE b.id = ANY($1::uuid[])`,
     [ids],
     executor

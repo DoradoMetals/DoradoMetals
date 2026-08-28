@@ -19,7 +19,7 @@ import type { OrderItemRow } from "#features/orders/items/repo.ts";
 import type { OrderTotalsRow } from "#features/orders/transactions/repo.ts";
 import type { OrderAddressRow } from "#features/orders/addresses/repo.ts";
 import type { ComposedProduct } from "#features/purchase-orders/compose.ts";
-import { EMPTY_SHIPMENT, nestShipment } from "#features/purchase-orders/compose.ts";
+import { EMPTY_SHIPMENT, nestShipment, snapshotAddress } from "#features/purchase-orders/compose.ts";
 
 // The product shape and the shipment nesting are IDENTICAL in both directions,
 // so they are imported rather than restated - the same test fragments.ts
@@ -38,9 +38,9 @@ export type ComposedSalesItem = {
 };
 
 const EMPTY_PRODUCT: ComposedProduct = {
-  id: null, product_name: null, content: null, product_type: null,
-  image_front: null, image_back: null, bid_premium: null, ask_premium: null,
-  variant_group: null, shadow_offset: null, metal_type: null,
+  id: null, name: null, description: null, type: null, metal_type: null,
+  content: null, gross: null, purity: null, bid_premium: null,
+  ask_premium: null, image_front: null, image_back: null, mint_name: null,
 };
 
 export function composeItem(
@@ -83,13 +83,20 @@ export type SalesOrderParts = {
   user: { user_id: string | null; user_name: string | null; user_email: string | null };
 };
 
-// The twenty-four columns exchange.sales_orders had, in the order the
-// projection listed them. FIVE ARE RENAMED on the way out of
-// orders.transactions and the mapping is stated in sql/create_totals.sql too,
-// so the read and the write cannot drift apart silently:
+// The Next wire (D84): the schema's own names. The FIVE RENAMES the old
+// composition undid on the way out of orders.transactions - total ->
+// order_total, shipping -> shipping_cost, funds -> pre_charges_amount, items
+// -> item_total, surcharge -> charges_amount - are simply not undone any
+// more: the money nests as `totals` under the transactions table's own names,
+// which is also what sql/create_totals.sql writes. pre_charges_amount was the
+// one exchange column without a same-name home; `funds` IS that column's
+// value, so totals.funds is where it honestly lives.
 //
-//   total -> order_total, shipping -> shipping_cost, funds -> pre_charges_amount,
-//   items -> item_total, surcharge -> charges_amount
+// totals.refiner_fee is NULL for a sales order, deliberately: exchange never
+// had the column, orders.transactions holds a literal column default (0) on
+// every sale row, and no sales order has ever carried a refiner fee on the
+// wire. Projecting the default would make the decomposition gate's exchange
+// comparison diverge on a value exchange cannot produce.
 //
 // `supplier_id` is `refinery_id`: features/refiners owns that rename and the
 // wire still says supplier.
@@ -98,30 +105,35 @@ export function composeOrder(p: SalesOrderParts): Record<string, unknown> {
     id: p.order.id,
     user_id: p.order.user_id,
     address_id: p.addressLink?.source_address_id ?? null,
-    sales_order_status: p.order.status,
+    status: p.order.status,
     notes: p.order.notes,
     created_at: p.order.created_at,
     updated_at: p.order.updated_at,
     created_by: p.order.created_by,
     updated_by: p.order.updated_by,
-    order_number: p.order.number,
-    order_total: p.totals?.total ?? null,
+    number: p.order.number,
     review_created: p.order.review_created,
     shipping_service: p.totals?.shipping_service ?? null,
-    shipping_cost: p.totals?.shipping ?? null,
-    pre_charges_amount: p.totals?.funds ?? null,
-    post_charges_amount: p.totals?.post_charges_amount ?? null,
-    subject_to_charges_amount: p.totals?.subject_to_charges_amount ?? null,
     used_funds: p.totals?.used_funds ?? null,
-    item_total: p.totals?.items ?? null,
-    base_total: p.totals?.base_total ?? null,
-    charges_amount: p.totals?.surcharge ?? null,
     order_sent: p.order.order_sent,
     tracking_updated: p.order.tracking_updated,
-    sales_tax: p.totals?.sales_tax ?? null,
     supplier_id: p.order.refinery_id,
+    // ALWAYS AN OBJECT, never null, every key present - OrderTotalsWire
+    // declares all ten.
+    totals: {
+      total: p.totals?.total ?? null,
+      items: p.totals?.items ?? null,
+      shipping: p.totals?.shipping ?? null,
+      surcharge: p.totals?.surcharge ?? null,
+      sales_tax: p.totals?.sales_tax ?? null,
+      funds: p.totals?.funds ?? null,
+      refiner_fee: null,
+      base_total: p.totals?.base_total ?? null,
+      subject_to_charges_amount: p.totals?.subject_to_charges_amount ?? null,
+      post_charges_amount: p.totals?.post_charges_amount ?? null,
+    },
     order_items: p.items,
-    address: p.address,
+    address: snapshotAddress(p.address),
     user: p.user,
     // A sales order has ONE shipment, not two - there is no return leg. Same
     // all-null-when-absent rule as a purchase order's, because the projection

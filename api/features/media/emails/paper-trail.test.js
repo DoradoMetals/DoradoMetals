@@ -14,7 +14,6 @@ import * as emails from "#features/media/emails/service.ts";
 import { recordEmail } from "#features/media/emails/record.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as poRepo from "#features/purchase-orders/repo.js";
-import { toLegacy as spotsToLegacy } from "#features/spots/legacy-shape.ts";
 import * as spotsService from "#features/spots/service.ts";
 
 let client;
@@ -24,7 +23,8 @@ let spots;
 before(async () => {
   client = await pool.connect();
   orders = await poRepo.getAll();
-  spots = spotsToLegacy(await spotsService.getSpotPrices());
+  // The composed shape - what the renderers read since D84.
+  spots = await spotsService.getSpotPrices();
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
 });
 
@@ -144,7 +144,7 @@ test("without a transaction, a test-run send records nothing", async () => {
   const order = anOrderWithAUser();
   const probe = `no-exec-${randomUUID().slice(0, 8)}`;
   await emails.sendCreatedEmail(
-    { purchaseOrder: { ...order, order_number: order.order_number }, spotPrices: spots, packageDetails: { label: probe } },
+    { purchaseOrder: { ...order, number: order.number }, spotPrices: spots, packageDetails: { label: probe } },
     order.user.user_email,
     recorder()
     // no executor, deliberately

@@ -23,7 +23,7 @@ export default function PurchaseOrderDrawerHeader({
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpots = [] } = usePurchaseOrderMetals(order.id)
 
-  const status = statusConfig[order.purchase_order_status] ?? ''
+  const status = statusConfig[order.status ?? ''] ?? ''
   const Icon = status?.icon ?? CheckCheck
   const packageDetails =
     packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
@@ -85,7 +85,7 @@ export default function PurchaseOrderDrawerHeader({
     <div className="flex flex-col w-full gap-6 border-b-1 border-border">
       <div className="flex w-full justify-between items-center">
         <div className="text-base text-neutral-800">
-          {formatPurchaseOrderNumber(order.order_number)}
+          {formatPurchaseOrderNumber(order.number)}
         </div>
         <div className="text-sm text-neutral-800">{username}</div>
       </div>
@@ -96,11 +96,11 @@ export default function PurchaseOrderDrawerHeader({
               <Icon size={24} />
             </div>
           )}
-          <span className="text-lg text-neutral-800">{order.purchase_order_status}</span>
+          <span className="text-lg text-neutral-800">{order.status}</span>
         </div>
         <div className="flex ml-auto">
           {downloadOptions.map(({ statuses, label, onClick, isPending }, index) =>
-            statuses.includes(order.purchase_order_status) ? (
+            statuses.includes(order.status ?? '') ? (
               <Button
                 key={index}
                 variant="link"

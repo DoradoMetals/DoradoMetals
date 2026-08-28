@@ -20,7 +20,6 @@ import assert from "node:assert/strict";
 import pool from "#db";
 import * as poRepo from "#features/purchase-orders/repo.js";
 import * as spotsService from "#features/spots/service.ts";
-import { toLegacy } from "#features/spots/legacy-shape.ts";
 import {
   buildPackingScrapRows,
   buildInvoiceScrapRows,
@@ -31,7 +30,9 @@ let spots;
 
 before(async () => {
   orders = await poRepo.getAll();
-  spots = toLegacy(await spotsService.getSpotPrices());
+  // The composed shape (`name` / `ask` / `bid`) - what the renderers read
+  // since the orders wire conversion (D84) retired the legacy spellings.
+  spots = await spotsService.getSpotPrices();
   assert.ok(orders.length > 0, "dev has no purchase orders");
 });
 
@@ -57,7 +58,7 @@ test("every order's packing list and invoice quote the same premiums", async () 
 
     if (JSON.stringify(packing) !== JSON.stringify(invoice)) {
       disagreements.push(
-        `  PO ${order.order_number}: packing ${JSON.stringify(packing)} vs invoice ${JSON.stringify(invoice)}`
+        `  PO ${order.number}: packing ${JSON.stringify(packing)} vs invoice ${JSON.stringify(invoice)}`
       );
     }
   }

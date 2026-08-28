@@ -2,6 +2,7 @@ import { pdfRequest } from '@/shared/queries/axios'
 import { PurchaseOrder } from '@/features/orders/purchaseOrders/types'
 import { useMutation } from '@tanstack/react-query'
 import { SpotPrice } from '@/features/spots/types'
+import type { SpotOnOrderNext } from '@dorado/contracts'
 import { PackageOption } from '@/features/packaging/types'
 import { PayoutMethod } from '@/features/payouts/types'
 import { SalesOrder } from '@/features/orders/salesOrders/types'
@@ -29,7 +30,7 @@ const downloadPackingListRequest = async ({
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const link = document.createElement('a')
   link.href = url
-  link.download = `${formatPurchaseOrderNumber(purchaseOrder.order_number)}_packing_list.pdf`
+  link.download = `${formatPurchaseOrderNumber(purchaseOrder.number)}_packing_list.pdf`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -57,7 +58,7 @@ const downloadReturnPackingListRequest = async ({
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const link = document.createElement('a')
   link.href = url
-  link.download = `${formatPurchaseOrderNumber(purchaseOrder.order_number)}_return_packing_list.pdf`
+  link.download = `${formatPurchaseOrderNumber(purchaseOrder.number)}_return_packing_list.pdf`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -77,7 +78,7 @@ const downloadInvoiceRequest = async ({
 }: {
   purchaseOrder: PurchaseOrder
   spotPrices: SpotPrice[]
-  orderSpots: SpotPrice[]
+  orderSpots: SpotOnOrderNext[]
   fileName: string
 }) => {
   const blob = await pdfRequest<Blob>('POST', '/pdf/generate_invoice', {
@@ -90,7 +91,7 @@ const downloadInvoiceRequest = async ({
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const link = document.createElement('a')
   link.href = url
-  link.download = `${formatPurchaseOrderNumber(purchaseOrder.order_number)}_${fileName}.pdf`
+  link.download = `${formatPurchaseOrderNumber(purchaseOrder.number)}_${fileName}.pdf`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -108,7 +109,7 @@ const downloadSalesOrderInvoiceRequest = async ({
   fileName,
 }: {
   salesOrder: SalesOrder
-  orderSpots: SpotPrice[]
+  orderSpots: SpotOnOrderNext[]
   fileName: string
 }) => {
   const blob = await pdfRequest<Blob>('POST', '/pdf/generate_sales_order_invoice', {
@@ -120,7 +121,7 @@ const downloadSalesOrderInvoiceRequest = async ({
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
   const link = document.createElement('a')
   link.href = url
-  link.download = `${formatSalesOrderNumber(salesOrder.order_number)}_${fileName}.pdf`
+  link.download = `${formatSalesOrderNumber(salesOrder.number)}_${fileName}.pdf`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)

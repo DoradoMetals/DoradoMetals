@@ -25,3 +25,10 @@ export const purchaseOrderQuote = asyncHandler(async (req, res) => {
 export const orderQuote = asyncHandler(async (req, res) => {
   res.status(200).json(await quoteService.orderQuote(req.body));
 });
+
+// The profit split on an order - the business's margins. requireAdmin is the
+// only thing in front of this and must stay the only way in; the service reads
+// the order id and nothing else off the request.
+export const profitBreakdown = asyncHandler(async (req, res) => {
+  res.status(200).json(await quoteService.profitBreakdown(req.body));
+});

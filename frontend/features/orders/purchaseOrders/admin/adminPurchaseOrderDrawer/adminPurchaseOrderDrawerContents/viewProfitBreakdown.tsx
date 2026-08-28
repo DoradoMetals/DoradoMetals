@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/base/tabs'
 import {
   Table,
@@ -15,11 +15,11 @@ import { cn } from '@/shared/utils/cn'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
-import { usePurchaseOrderRefinerMetals } from '@/features/orders/purchaseOrders/admin/queries'
-import { computePurchaseOrderTotals } from '@/features/orders/purchaseOrders/utils/calculatePurchaseOrderTotals'
-import { useRates } from '@/features/rates/queries'
-import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
-import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
+// The breakdown is the server's admin-only quote (POST /quotes/
+// profit_breakdown) - the last client money math (computePurchaseOrderTotals)
+// died here 2026-08-28.
+import { useProfitBreakdown } from '@/features/quotes/queries'
+import { PurchaseOrder } from '@/features/orders/purchaseOrders/types'
 
 type Party = 'customer' | 'refiner' | 'dorado'
 type Bucket = 'scrap' | 'bullion' | 'total'
@@ -72,16 +72,10 @@ function AccordionItem({
 }
 
 export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
-  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
-  const { data: refinerSpotPrices = [] } = usePurchaseOrderRefinerMetals(order.id)
-  const { data: rates = [] } = useRates()
-  const config = statusConfig[order.purchase_order_status]
-
-  const totals = computePurchaseOrderTotals(order, orderSpotPrices, refinerSpotPrices, rates)
-
-  const metalsFor = (party: Party, bucket: Bucket) => totals[party][bucket]
+  const { data: totals } = useProfitBreakdown(order.id)
 
   const bucketHasAnyContent = (b: Bucket) => {
+    if (!totals) return false
     const parties: Party[] = ['customer', 'dorado', 'refiner']
     for (const party of parties) {
       const m = totals[party][b]
@@ -117,6 +111,16 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
       ...prev,
       [bucket]: prev[bucket] === party ? null : party,
     }))
+
+  // After every hook, so the guard cannot reorder them: nothing to show until
+  // the server's breakdown lands (and nothing at all for an empty order).
+  if (!totals || availableBuckets.length === 0) {
+    return (
+      <div className="flex w-full h-full">
+        <div className="text-neutral-600">No items to display.</div>
+      </div>
+    )
+  }
 
   const renderTableBody = (party: Party, bucket: Bucket) => {
     const data = totals[party][bucket]
@@ -265,14 +269,6 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
       </AccordionItem>
     </div>
   )
-
-  if (availableBuckets.length === 0) {
-    return (
-      <div className="flex w-full h-full">
-        <div className="text-neutral-600">No items to display.</div>
-      </div>
-    )
-  }
 
   return (
     <div className="flex w-full">

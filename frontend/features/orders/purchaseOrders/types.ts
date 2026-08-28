@@ -12,73 +12,37 @@ import {
   LucideIcon,
 } from 'lucide-react'
 
-import { AddressWireNext, UserAddressWire } from '@dorado/contracts'
-import { CarrierPickup, pickupSchema } from '@/features/handoff/types'
-import { Payout, payoutSchema } from '@/features/payouts/types'
+import {
+  AddressWireNext,
+  UserAddressWire,
+  type PurchaseOrderWireNext,
+  type PurchaseOrderItemWireNext,
+  type PayoutOnOrder,
+} from '@dorado/contracts'
+import { pickupSchema } from '@/features/handoff/types'
+import { payoutSchema } from '@/features/payouts/types'
 import { packageSchema } from '@/features/packaging/types'
 import { serviceSchema } from '@/features/service/types'
 import { sellCartItemSchema } from '@/features/cart/types'
-import { Scrap } from '@/features/scrap/types'
-import { Product } from '@/features/products/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User } from '@/features/users/types'
-import { Shipment } from '@/features/shipping/types'
-import { OrderProduct } from '@/features/orders/orderProducts'
-import { OrderAddress } from '@/features/orders/orderAddresses'
 
-export interface PurchaseOrderItem {
-  item_type: string
-  id: string
-  purchase_order_id: string
-  scrap?: Scrap
-  // The ORDERS wire's embedded product - legacy names until orders converts.
-  product?: OrderProduct
-  quantity: number
-  price?: number
-  confirmed: boolean
-  premium?: number
-  refiner_premium?: number
-}
+// EIGHTH CONVERTED FEATURE (2026-08-28) - the last one. The order IS the
+// contracts shape: `number` / `status` where the legacy wire said
+// order_number / purchase_order_status, money nested as `totals`, the
+// address a SNAPSHOT (postal facts plus recipient_name), embedded products
+// speaking name/description/type and order spots name/ask/bid. The whole
+// seam layer (orderSpots / orderProducts / orderAddresses) died with this -
+// there is nothing left to map.
+export type PurchaseOrderItem = PurchaseOrderItemWireNext
 
-export interface PurchaseOrderMetal {
-  id: string
-  purchase_order_id: string
-  type: string
-  spot: number
-  created_at: Date
-}
+// The contract's PayoutSlotOnOrder is built by mapping nullability over
+// PayoutOnOrder at runtime, which erases the field types to `unknown` in
+// inference. Same shape, stated statically: every field, nullable - an order
+// with no payout row carries an object of nulls, not a null.
+export type PayoutSlot = { [K in keyof PayoutOnOrder]: PayoutOnOrder[K] | null }
 
-export interface PurchaseOrder {
-  id: string
-  order_number: number
-  purchase_order_status: string
-  notes: string
-  created_at: Date
-  updated_at: Date
-  user_id: string
-  order_items: PurchaseOrderItem[]
-  // The ORDERS wire's embedded address - flat until orders converts.
-  address: OrderAddress
-  shipment: Shipment
-  return_shipment: Shipment
-  carrier_pickup?: CarrierPickup
-  payout: Payout
-  user: {
-    user_id: string
-    user_name: string
-    user_email: string
-  }
-  spots_locked: boolean
-  total_price?: number
-  waive_shipping_fee: boolean
-  waive_payout_fee: boolean
-  return_shipping_paid: boolean
-  review_created: boolean
-  shipping_fee_actual?: number
-  refiner_fee?: number
-  pool_oz_deducted?: number
-  pool_remediation?: number
-}
+export type PurchaseOrder = Omit<PurchaseOrderWireNext, 'payout'> & { payout: PayoutSlot }
 
 export const purchaseOrderReturnShipmentSchema = z.object({
   address: AddressWireNext,
@@ -217,41 +181,7 @@ export function assignScrapItemNames(scrapItems: PurchaseOrderItem[]): PurchaseO
   })
 }
 
-export interface ProfitMetalsDict {
-  gold: {
-    content: number
-    percentage: number
-    profit: number
-  }
-  silver: {
-    content: number
-    percentage: number
-    profit: number
-  }
-  platinum: {
-    content: number
-    percentage: number
-    profit: number
-  }
-  palladium: {
-    content: number
-    percentage: number
-    profit: number
-  }
-}
-
-export interface ProfitCategoriesDict {
-  scrap: ProfitMetalsDict
-  bullion: ProfitMetalsDict
-  total: ProfitMetalsDict
-  shipping_net: number
-  refiner_fee_net: number
-  spot_net: number
-  total_profit: number
-}
-
-export interface PurchaseOrderTotals {
-  refiner: ProfitCategoriesDict
-  dorado: ProfitCategoriesDict
-  customer: ProfitCategoriesDict
-}
+// ProfitMetalsDict / ProfitCategoriesDict / PurchaseOrderTotals lived here
+// until 2026-08-28: the shape of the LAST client money math. The profit
+// breakdown is served by POST /quotes/profit_breakdown now and its shape is
+// the contracts' ProfitBreakdownWire.

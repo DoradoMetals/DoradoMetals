@@ -20,7 +20,7 @@ import {
   calculateItemTotals,
   calculateItemAsk,
 } from "#features/sales-orders/utils/calculations.ts";
-import type { SpotPriceWire } from "@dorado/contracts";
+import type { PricingSpot } from "#features/sales-orders/utils/calculations.ts";
 
 export async function isNexus(state: string, executor?: Executor): Promise<boolean> {
   return await tax.reachedNexus(state, executor);
@@ -92,7 +92,7 @@ export function factsFrom(
 export async function attachSalesTaxToItems(
   state_code: string | null,
   items: Record<string, unknown>[],
-  spots: SpotPriceWire[]
+  spots: PricingSpot[]
 ): Promise<(Record<string, unknown> & { sales_tax_rate: number })[]> {
   const item_total = calculateItemTotals(items as never, spots as never);
 
@@ -122,7 +122,7 @@ export async function getSalesTax({
   address: { state: string };
   items: Record<string, unknown>[];
 }): Promise<number> {
-  const spots = await spotsService.getPricingSpots();
+  const spots = await spotsService.getSpotPrices();
   const withTax = await attachSalesTaxToItems(address.state, items, spots);
   return calculateSalesTax(withTax as never, spots as never);
 }

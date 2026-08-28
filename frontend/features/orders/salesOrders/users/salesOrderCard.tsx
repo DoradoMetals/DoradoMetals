@@ -25,7 +25,7 @@ export default function SalesOrderCard({
   const { data: orderSpots = [] } = useSalesOrderMetals(order.id)
   const downloadInvoice = useDownloadSalesOrderInvoice()
 
-  const status = statusConfig[order.sales_order_status]
+  const status = statusConfig[order.status ?? '']
   const Icon = status?.icon
 
   const avatarItems = order.order_items.map((item) => ({
@@ -76,11 +76,11 @@ export default function SalesOrderCard({
 
   return (
     <OrderCardShell
-      createdAtLabel={formatFullDate(order.created_at)}
-      orderNumberLabel={formatSalesOrderNumber(order.order_number)}
-      statusLabel={order.sales_order_status}
+      createdAtLabel={formatFullDate(order.created_at ?? undefined)}
+      orderNumberLabel={formatSalesOrderNumber(order.number)}
+      statusLabel={order.status ?? ''}
       StatusIcon={Icon}
-      total={order.order_total}
+      total={order.totals?.total ?? 0}
       secondaryInfo={itemsLabel}
       rightContent={
         <AvatarCircles items={avatarItems} maxDisplay={3} className="bg-transparent border-none" />
@@ -88,7 +88,7 @@ export default function SalesOrderCard({
       downloadArea={
         <>
           {downloadOptions.map(({ statuses, label, onClick, isPending }, index) =>
-            statuses.includes(order.sales_order_status) ? (
+            statuses.includes(order.status ?? '') ? (
               <Button
                 key={index}
                 variant="link"

@@ -15,7 +15,7 @@ export function SalesOrderActionButtons({ order }: SalesOrderActionButtonsProps)
   }
 
   const getButtonActions = () => {
-    switch (order.sales_order_status) {
+    switch (order.status) {
       case 'Pending':
         return [
           {
@@ -71,7 +71,7 @@ export function SalesOrderActionButtons({ order }: SalesOrderActionButtonsProps)
   }
 
   const buttons = getButtonActions()
-  const status = statusConfig[order.sales_order_status]
+  const status = statusConfig[order.status ?? '']
 
   return (
     <div className="flex flex-col w-full gap-2 mt-4">

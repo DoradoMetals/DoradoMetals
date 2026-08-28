@@ -36,7 +36,7 @@ export default function PurchaseOrderCard({
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpots = [] } = usePurchaseOrderMetals(order.id)
 
-  const status = statusConfig[order.purchase_order_status]
+  const status = statusConfig[order.status ?? '']
   const Icon = status?.icon
 
   const packageDetails =
@@ -113,9 +113,9 @@ export default function PurchaseOrderCard({
 
   return (
     <OrderCardShell
-      createdAtLabel={formatFullDate(order.created_at)}
-      orderNumberLabel={formatPurchaseOrderNumber(order.order_number)}
-      statusLabel={order.purchase_order_status}
+      createdAtLabel={formatFullDate(order.created_at ?? undefined)}
+      orderNumberLabel={formatPurchaseOrderNumber(order.number)}
+      statusLabel={order.status ?? ''}
       StatusIcon={Icon}
       total={quote?.total ?? 0}
       secondaryInfo={itemsLabel}
@@ -123,7 +123,7 @@ export default function PurchaseOrderCard({
       downloadArea={
         <>
           {downloadButtons.map(({ statuses, label, onClick, isPending }, index) =>
-            statuses.includes(order.purchase_order_status) ? (
+            statuses.includes(order.status ?? '') ? (
               <Button
                 key={index}
                 variant="link"

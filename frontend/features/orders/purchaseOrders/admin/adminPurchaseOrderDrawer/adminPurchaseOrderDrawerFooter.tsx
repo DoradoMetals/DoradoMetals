@@ -29,7 +29,7 @@ import { formatRate } from '@/features/rates/utils/resolveRate'
 import { useOrderQuote } from '@/features/quotes/queries'
 
 export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
-  const valueLabel = statusConfig[order.purchase_order_status]?.value_label ?? ''
+  const valueLabel = statusConfig[order.status ?? '']?.value_label ?? ''
   const statusColor = 'text-primary'
 
   const { data: quote } = useOrderQuote(order.id)
@@ -51,7 +51,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
   const scrapItems = assignScrapItemNames(rawScrapItems)
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
   const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
-  const payoutFee = order.payout.cost
+  const payoutFee = order.payout.cost ?? 0
 
   // 0 until the first quote lands, which is what the old client math showed
   // before the spot feed loaded; placeholderData keeps later ticks flicker-free.
@@ -61,7 +61,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
 
   return (
     <div className="flex flex-col w-full gap-2">
-      {order.purchase_order_status !== 'Completed' && order.purchase_order_status !== 'Payment Processing' && (
+      {order.status !== 'Completed' && order.status !== 'Payment Processing' && (
         <div className='flex flex-col w-full gap-2'>
           {scrapItems.length > 0 && (
             <Accordion
@@ -120,7 +120,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                   {bullionItems.map((item, i) => (
                     <TableRow key={i} className="hover:bg-transparent">
                       <TableCell>{item.quantity}</TableCell>
-                      <TableCell>{item.product?.product_name}</TableCell>
+                      <TableCell>{item.product?.name}</TableCell>
                       <TableCell className="text-right p-0">
                         {/* line_total is already unit_price * quantity. */}
                         <PriceNumberFlow value={quoteLineById.get(item.id)?.line_total ?? 0} />
@@ -145,17 +145,17 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                     <TableCell>{order.shipment.shipping_service}</TableCell>
                     <TableCell>{order.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                     <TableCell className="text-right p-0">
-                      -<PriceNumberFlow value={order.shipment.shipping_charge} />
+                      -<PriceNumberFlow value={order.shipment.shipping_charge ?? 0} />
                     </TableCell>
                   </TableRow>
-                  {order.purchase_order_status === 'Cancelled' && (
+                  {order.status === 'Cancelled' && (
                     <TableRow className="hover:bg-transparent">
                       <TableCell>{order.return_shipment.shipping_service} (Return)</TableCell>
                       <TableCell>
                         {order.return_shipment.insured ? 'Insured' : 'Uninsured'}
                       </TableCell>
                       <TableCell className="text-right p-0">
-                        -<PriceNumberFlow value={order.return_shipment.shipping_charge} />
+                        -<PriceNumberFlow value={order.return_shipment.shipping_charge ?? 0} />
                       </TableCell>
                     </TableRow>
                   )}
@@ -209,11 +209,11 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                 </>
               )}
 
-              {order.shipment?.shipping_charge > 0 && (
+              {(order.shipment?.shipping_charge ?? 0) > 0 && (
                 <>
                   <div>Shipping:</div>
                   <div className="text-right">
-                    -<PriceNumberFlow value={order.shipment.shipping_charge} />
+                    -<PriceNumberFlow value={order.shipment.shipping_charge ?? 0} />
                   </div>
                 </>
               )}

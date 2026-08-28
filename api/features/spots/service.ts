@@ -4,12 +4,7 @@ import * as legacy from "#features/spots/legacy.repo.ts";
 import * as metals from "#features/metals/repo.ts";
 import { toWire } from "#features/spots/compose.ts";
 import withTransaction from "#shared/db/withTransaction.js";
-import { toLegacy as spotsToLegacy } from "#features/spots/legacy-shape.ts";
-import type { SpotPriceWire } from "@dorado/contracts";
 import type { SpotWire as SpotRow } from "#features/spots/compose.ts";
-import type { PoolClient } from "pg";
-
-type Executor = PoolClient | undefined;
 
 // One upstream quote, as this service reduces it. Not the provider's own shape:
 // only these four fields are read out of it, and everything else the feed sends
@@ -21,40 +16,34 @@ export type Quote = {
   dollarChange: number;
 };
 
-export async function getSpotPrices(): Promise<SpotRow[]> {
-  return await toWire(await spots.getAll());
-}
-
 // THE PRICE OF METAL COMES FROM HERE, AND ONLY FROM HERE.
 //
-// Every money figure on an order is content * (spot.ask_spot * ask_premium),
-// so whatever supplies `spots` decides what a customer pays. That used to be
-// the REQUEST BODY, in three places: get_sales_tax, createSalesOrder and
+// Every money figure on an order is content * (spot.ask * ask_premium), so
+// whatever supplies `spots` decides what a customer pays. That used to be the
+// REQUEST BODY, in three places: get_sales_tax, createSalesOrder and
 // updatePaymentIntent - and in the last of those the result becomes the amount
 // Stripe is told to charge.
 //
 // Measured before the fix, same order, same server-fetched items, only the
 // body's spots differing:
 //
-//   ask_spot 3400 (honest)   ->  $3,673.53
-//   ask_spot 1               ->  $26.81
+//   ask 3400 (honest)   ->  $3,673.53
+//   ask 1               ->  $26.81
 //
 // An ounce of gold for $26.81. Items were already re-fetched server-side, so a
 // product could not be faked - only the metal price was taken on trust.
 //
-// SHAPED FOR THE CALCULATIONS, DELIBERATELY, and the return type says so:
-// SpotPriceWire is the LEGACY shape (`type` / `ask_spot` / `bid_spot`), which
-// is what calculateItemAsk reads. The repo returns the new one (`name` / `ask`
-// / `bid`). toLegacy converts down unconditionally - the spots conversion
-// deleted the adapter and its switch, and this internal shim is what remains
-// (features/spots/legacy-shape.ts). When the calculations move to the new
-// names with the orders conversion, this is the one place to change.
+// ONE SHAPE, the schema's own names (`name` / `ask` / `bid`). getPricingSpots
+// used to sit beside this converting down to the legacy names for the order
+// calculations; the orders wire conversion (D84) moved the calculations to the
+// new names, so the shim (features/spots/legacy-shape.ts) is gone and every
+// pricing caller reads this directly.
 //
-// FRESH ON EVERY CALL, no caching. exchange.metals is updated by
+// FRESH ON EVERY CALL, no caching. The spot tables are updated by
 // updateSpotPrices on a cron, so a read is a read of the latest quote and the
 // customer is priced at what the business holds right now.
-export async function getPricingSpots(client?: Executor): Promise<SpotPriceWire[]> {
-  return spotsToLegacy(await toWire(await spots.getAll(client))) as SpotPriceWire[];
+export async function getSpotPrices(): Promise<SpotRow[]> {
+  return await toWire(await spots.getAll());
 }
 
 // Pulls the upstream quote feed and writes it to exchange.metals. Called by the

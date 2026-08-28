@@ -23,16 +23,16 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
           label={`Item Prices`}
           open={open.items}
           toggle={() => setOpen((prev) => ({ ...prev, items: !prev.items }))}
-          total={order.item_total}
+          total={order.totals?.items ?? 0}
         >
           <Table className="font-normal text-neutral-700 overflow-hidden">
             <TableBody>
               {order.order_items.map((item, i) => (
                 <TableRow key={i} className="hover:bg-transparent">
                   <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.product?.product_name}</TableCell>
+                  <TableCell>{item.product?.name}</TableCell>
                   <TableCell className="text-right p-0">
-                    <PriceNumberFlow value={item.quantity * (item.price ?? 0)} />
+                    <PriceNumberFlow value={(item.quantity ?? 0) * (item.price ?? 0)} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -45,43 +45,43 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
         label={`Total Price`}
         open={open.total}
         toggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
-        total={order.order_total}
+        total={order.totals?.total ?? 0}
       >
         <div className="flex flex-col gap-2 pr-2">
           {order.used_funds && (
             <div className="flex items-center justify-between w-full">
               <div className="text-sm text-neutral-700">Dorado Funds Applied:</div>
               <div className="text-right text-sm text-neutral-800">
-                <PriceNumberFlow value={order.pre_charges_amount} />
+                <PriceNumberFlow value={order.totals?.funds ?? 0} />
               </div>
             </div>
           )}
 
-          {order.subject_to_charges_amount > 0 && (
+          {(order.totals?.subject_to_charges_amount ?? 0) > 0 && (
             <div className="flex items-center justify-between w-full">
               <div className="text-sm text-neutral-700">
                 {order.used_funds ? 'Amount Remaining: ' : 'Before Fees: '}
               </div>
               <div className="text-right text-sm text-neutral-800">
-                <PriceNumberFlow value={order.subject_to_charges_amount} />
+                <PriceNumberFlow value={order.totals?.subject_to_charges_amount ?? 0} />
               </div>
             </div>
           )}
 
-          {order.shipping_cost > 0 && (
+          {(order.totals?.shipping ?? 0) > 0 && (
             <div className="flex items-center justify-between w-full">
               <div className="text-sm text-neutral-700">Shipping Fee:</div>
               <div className="text-right text-sm text-neutral-800">
-                <PriceNumberFlow value={order.shipping_cost} />
+                <PriceNumberFlow value={order.totals?.shipping ?? 0} />
               </div>
             </div>
           )}
 
-          {order.subject_to_charges_amount > 0 && (
+          {(order.totals?.subject_to_charges_amount ?? 0) > 0 && (
             <div className="flex items-center justify-between w-full">
               <div className="text-sm text-neutral-700">Payment Fee:</div>
               <div className="text-right text-sm text-neutral-800">
-                <PriceNumberFlow value={order.charges_amount} />
+                <PriceNumberFlow value={order.totals?.surcharge ?? 0} />
               </div>
             </div>
           )}

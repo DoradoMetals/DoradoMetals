@@ -4,7 +4,7 @@ import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders
 import { cn } from '@/shared/utils/cn'
 
 export default function ReceivedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
-  const config = statusConfig[order.purchase_order_status]
+  const config = statusConfig[order.status ?? '']
 
   const totalItems = order.order_items.length
   const confirmedItems = order.order_items.filter((item) => item.confirmed).length

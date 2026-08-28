@@ -61,7 +61,11 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
                       ''
                     }
                     onBlur={(e) =>
-                      updateSpot.mutate({ spot: spot, updated_spot: Number(e.target.value) })
+                      updateSpot.mutate({
+                        spot,
+                        updated_spot: Number(e.target.value),
+                        purchase_order_id: order.id,
+                      })
                     }
                   />
                 </div>
@@ -82,7 +86,7 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
             const label =
               item.item_type === 'scrap'
                 ? item.scrap?.name ?? item.scrap?.metal ?? 'Scrap'
-                : item.product?.product_name ?? 'Bullion'
+                : item.product?.name ?? 'Bullion'
 
             return (
               <div
@@ -136,7 +140,7 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
               pattern="[0-9]*"
               inputMode="decimal"
               className={cn('on-glass no-spinner text-right w-full text-base h-8')}
-              defaultValue={order.refiner_fee}
+              defaultValue={order.totals?.refiner_fee ?? ''}
               disabled={updateFee.isPending}
               onBlur={(e) =>
                 updateFee.mutate({

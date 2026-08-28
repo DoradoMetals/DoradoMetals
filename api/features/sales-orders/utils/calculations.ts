@@ -33,7 +33,15 @@
 // caller but /tax/get_sales_tax passes items through
 // productService.getItemsFromServer, which sets `quantity: ... ?? 0`. See the
 // note on `item.quantity!` below.
-import type { SpotPriceWire } from "@dorado/contracts";
+// What pricing needs of a spot row: the composed shape (`name` / `ask` /
+// `bid`), which is what spots/service.getSpotPrices returns since the orders
+// wire conversion (D84) retired the legacy `type` / `ask_spot` / `bid_spot`
+// spellings.
+export type PricingSpot = {
+  name?: string | null;
+  ask?: number | null;
+  bid?: number | null;
+};
 
 // What pricing needs of a line, which is emphatically NOT SalesOrderItemWire.
 // That is a line on a *saved* order - the product nested underneath, a premium
@@ -55,7 +63,7 @@ type PriceableItem = {
 // optional: that function always sets it, from a query that COALESCEs to 0.
 type TaxedItem = PriceableItem & { sales_tax_rate: number };
 
-type Spots = SpotPriceWire[] | null | undefined;
+type Spots = PricingSpot[] | null | undefined;
 
 // Only dorado_funds is ever read, so only dorado_funds is required. The
 // checkout passes a better-auth session user and the admin path passes a row
@@ -77,9 +85,9 @@ export type OrderPrices = {
 };
 
 export function calculateItemAsk(item: PriceableItem, spots: Spots): number {
-  const spot = spots?.find((s: SpotPriceWire) => s.type === item.metal_type);
+  const spot = spots?.find((s: PricingSpot) => s.name === item.metal_type);
   return (
-    (item?.content ?? 0) * ((spot?.ask_spot ?? 0) * (item?.ask_premium ?? 0))
+    (item?.content ?? 0) * ((spot?.ask ?? 0) * (item?.ask_premium ?? 0))
   );
 }
 

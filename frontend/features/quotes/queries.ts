@@ -18,6 +18,7 @@ import type {
   SalesOrderQuoteWire,
   PurchaseOrderQuoteWire,
   OrderQuoteWire,
+  ProfitBreakdownWire,
 } from '@dorado/contracts'
 
 export type CatalogQuoteItem = { id: string; quantity?: number }
@@ -93,4 +94,20 @@ export const useOrderQuote = (order_id: string, enabled = true) =>
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
     request: async () => apiRequest<OrderQuoteWire>('POST', '/quotes/order', { order_id }),
+  })
+
+// POST /quotes/profit_breakdown. The three-party profit view of a purchase
+// order - the LAST client money math to die (computePurchaseOrderTotals,
+// 2026-08-28): the server prices it from the order's own spots, refiner
+// spots and rates. Admin-only, like the numbers it exposes.
+export const useProfitBreakdown = (order_id: string, enabled = true) =>
+  useApiQuery<ProfitBreakdownWire>({
+    key: queryKeys.profitBreakdown(order_id),
+    requireUser: true,
+    requireAdmin: true,
+    enabled: enabled && !!order_id,
+    refetchInterval: 10_000,
+    placeholderData: (prev) => prev,
+    request: async () =>
+      apiRequest<ProfitBreakdownWire>('POST', '/quotes/profit_breakdown', { order_id }),
   })

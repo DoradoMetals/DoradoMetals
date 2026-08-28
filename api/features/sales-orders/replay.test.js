@@ -35,7 +35,7 @@ before(async () => {
   // against every file that creates one, and it made the purchase-order
   // ownership tests intermittent.
   const orders = await outside(
-    `SELECT id, user_id, sales_order_status, order_number
+    `SELECT id, user_id, sales_order_status AS status, order_number AS number
        FROM exchange.sales_orders
       WHERE user_id IS NOT NULL
       ORDER BY created_at ASC, id ASC LIMIT 1`
@@ -91,8 +91,8 @@ test("the admin list has the fields the drawer destructures", async () => {
 
       const o = res.body[0];
       for (const field of [
-        "id", "order_number", "sales_order_status", "created_at",
-        "order_items", "address", "user", "order_total", "shipment",
+        "id", "number", "status", "created_at",
+        "order_items", "address", "user", "totals", "shipment",
       ]) {
         assert.ok(field in o, `the admin sales list is missing ${field}`);
       }
@@ -158,7 +158,7 @@ test("a customer cannot move a sales order's status or send it to a refiner", as
 test("moving a sales order's status takes the body the drawer sends", async () => {
   await inPinnedTransaction(async () => {
     const MOVE_TO = "Preparing";
-    assert.notEqual(order.sales_order_status, MOVE_TO, "the order is already there");
+    assert.notEqual(order.status, MOVE_TO, "the order is already there");
 
     await as(admin, async () => {
       const res = await request(app)
@@ -168,7 +168,7 @@ test("moving a sales order's status takes the body the drawer sends", async () =
 
       const list = await request(app).get("/api/sales_orders/get_all");
       const moved = list.body.find((o) => o.id === order.id);
-      assert.equal(moved.sales_order_status, MOVE_TO);
+      assert.equal(moved.status, MOVE_TO);
     });
   }, { lock: ORDER_LOCK });
 });
@@ -203,7 +203,7 @@ test("nothing this file did survived the transaction", async () => {
   );
   assert.equal(
     status,
-    order.sales_order_status,
+    order.status,
     "a sales order was really moved in dev"
   );
 });

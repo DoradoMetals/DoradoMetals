@@ -33,17 +33,10 @@ before(async () => {
   );
   orders = await poRepo.getAll();
   salesOrders = await soRepo.getAll();
-  // Legacy-shaped on purpose. The PDF and email paths take spot prices from the
-  // request body in the ORDERS wire's legacy shape - type / ask_spot /
-  // bid_spot. The live spot feed converted (2026-08-27) but order spots did
-  // not move with it: the frontend maps down at its edge
-  // (features/orders/orderSpots.ts), so legacy names are still what
-  // production hands these functions. getPricingSpots converts down through
-  // features/spots/legacy-shape.ts the same way.
-  //
-  // When the ORDERS conversion lands and calculations.ts reads the new
-  // names, this goes.
-  spots = await spotsService.getPricingSpots();
+  // The composed shape (`name` / `ask` / `bid`): the ORDERS wire converted
+  // (D84), the frontend's mapping edge died with it, and the renderers read
+  // the schema's own spellings off the body.
+  spots = await spotsService.getSpotPrices();
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
   assert.ok(spots.length > 0, "dev has no spot prices");
 });
@@ -125,7 +118,7 @@ test("every purchase order in dev builds both documents", () => {
       try {
         const html = build();
         if (typeof html !== "string" || html.length < 500) {
-          failures.push(`order ${order.order_number}: ${name} built ${html?.length ?? 0} chars`);
+          failures.push(`order ${order.number}: ${name} built ${html?.length ?? 0} chars`);
         }
         // NaN reaches the page as the literal text "NaN" and renders as one:
         // an SVG attribute, a weight, a price. Nothing throws, so the sweep
@@ -133,10 +126,10 @@ test("every purchase order in dev builds both documents", () => {
         // documents rather than only the box, because arithmetic on a missing
         // field is not specific to the box.
         if (typeof html === "string" && html.includes("NaN")) {
-          failures.push(`order ${order.order_number}: ${name} contains NaN`);
+          failures.push(`order ${order.number}: ${name} contains NaN`);
         }
       } catch (err) {
-        failures.push(`order ${order.order_number}: ${name} threw - ${err.message}`);
+        failures.push(`order ${order.number}: ${name} threw - ${err.message}`);
       }
     }
   }
@@ -186,7 +179,7 @@ test("a packing list with no package details draws no box, rather than a broken 
 });
 
 // The sales order invoice names four metals in its spot table and read
-// `spots.find(...).ask_spot` on each with no guard. `spots` comes from the
+// `spots.find(...).ask` on each with no guard. `spots` comes from the
 // request body, so an omitted or partial one threw a TypeError - and this
 // invoice is the attachment on the refiner's copy of a sales order, built after
 // the transaction that marks the order sent. Found by removing the address
@@ -204,7 +197,7 @@ test("a sales order invoice builds with no spot prices at all", () => {
   // A partial set is the more likely shape: one metal quoted, three not.
   const partial = pdf.buildSalesOrderInvoiceHtml({
     salesOrder: order,
-    spots: [{ type: "Gold", ask_spot: 4000 }],
+    spots: [{ name: "Gold", ask: 4000 }],
   });
   assert.ok(partial.includes("$4,000.00"), "the quoted metal is missing");
   assert.ok(partial.includes("&mdash;"), "the unquoted metals rendered as nothing at all");
@@ -222,7 +215,7 @@ test("the packing list and the invoice report the same total", () => {
     const packing = pdf.buildPackingListHtml({ purchaseOrder: order, spotPrices: spots });
     assert.ok(
       packing.includes(money),
-      `order ${order.order_number}: the packing list does not show ${money}`
+      `order ${order.number}: the packing list does not show ${money}`
     );
   }
 });
@@ -247,13 +240,13 @@ test("every order item appears as a row in the packing list", () => {
 
     if (renderable !== items.length) {
       missing.push(
-        `order ${order.order_number}: ${items.length - renderable} of ${items.length} items ` +
+        `order ${order.number}: ${items.length - renderable} of ${items.length} items ` +
           `have no scrap or product object and would be dropped from the table`
       );
     }
     // Header rows exist too, so this is a floor rather than an equality.
     if (rows < renderable) {
-      missing.push(`order ${order.order_number}: ${renderable} items but only ${rows} rows`);
+      missing.push(`order ${order.number}: ${renderable} items but only ${rows} rows`);
     }
   }
   assert.deepEqual(missing, []);

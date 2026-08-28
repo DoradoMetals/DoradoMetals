@@ -28,7 +28,7 @@ import { formatRate } from '@/features/rates/utils/resolveRate'
 import { useOrderQuote } from '@/features/quotes/queries'
 
 export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
-  const valueLabel = statusConfig[order.purchase_order_status]?.value_label ?? ''
+  const valueLabel = statusConfig[order.status ?? '']?.value_label ?? ''
 
   const { data: quote } = useOrderQuote(order.id)
   // Quote lines pair to order items BY ID - these are stored rows, unlike the
@@ -117,7 +117,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
               {bullionItems.map((item, i) => (
                 <TableRow key={i} className="hover:bg-transparent">
                   <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.product?.product_name}</TableCell>
+                  <TableCell>{item.product?.name}</TableCell>
                   <TableCell className="text-right p-0">
                     {/* line_total is already unit_price * quantity. */}
                     <PriceNumberFlow value={quoteLineById.get(item.id)?.line_total ?? 0} />
@@ -142,15 +142,15 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
                 <TableCell>{order.shipment.shipping_service}</TableCell>
                 <TableCell>{order.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                 <TableCell className="text-right p-0">
-                  -<PriceNumberFlow value={order.shipment.shipping_charge} />
+                  -<PriceNumberFlow value={order.shipment.shipping_charge ?? 0} />
                 </TableCell>
               </TableRow>
-              {order.purchase_order_status === 'Cancelled' && (
+              {order.status === 'Cancelled' && (
                 <TableRow className="hover:bg-transparent">
                   <TableCell>{order.return_shipment.shipping_service} (Return)</TableCell>
                   <TableCell>{order.return_shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                   <TableCell className="text-right p-0">
-                    -<PriceNumberFlow value={order.return_shipment.shipping_charge} />
+                    -<PriceNumberFlow value={order.return_shipment.shipping_charge ?? 0} />
                   </TableCell>
                 </TableRow>
               )}
@@ -204,11 +204,11 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
             </>
           )}
 
-          {order.shipment?.shipping_charge > 0 && (
+          {(order.shipment?.shipping_charge ?? 0) > 0 && (
             <>
               <div>Shipping:</div>
               <div className="text-right">
-                -<PriceNumberFlow value={order.shipment.shipping_charge} />
+                -<PriceNumberFlow value={order.shipment.shipping_charge ?? 0} />
               </div>
             </>
           )}

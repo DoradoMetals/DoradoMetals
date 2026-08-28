@@ -19,21 +19,21 @@
 // Those features have not been migrated; when they are, these joins move with
 // them and nothing else here changes.
 import query from "#shared/db/query.js";
-import type { PurchaseOrderWire } from "@dorado/contracts";
+import type { PurchaseOrderWireNext } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 
 // Repos take an optional executor so a caller can pull them into its
 // transaction; without one they run on the pool.
 type Executor = PoolClient | undefined;
 
-// The order row is PurchaseOrderWire - validate:wire already parses real rows
+// The order row is PurchaseOrderWireNext - validate:wire parses real rows
 // through it for BOTH implementations, so it is the description of this shape
 // that has been checked against the database rather than read off the SQL.
 //
 // The two timestamps are overridden: a contract describes the WIRE, where a
 // timestamp is a string because JSON made it one, and pg returns a Date.
 export type PurchaseOrderRow = Omit<
-  PurchaseOrderWire,
+  PurchaseOrderWireNext,
   "created_at" | "updated_at"
 > & {
   created_at: Date | null;
@@ -52,9 +52,9 @@ export type PurchaseOrderRow = Omit<
 export type OrderMetalRow = {
   id: string;
   purchase_order_id: string | null;
-  type: string;
-  ask_spot: number | null;
-  bid_spot: number | null;
+  name: string;
+  ask: number | null;
+  bid: number | null;
   percent_change: number | null;
   dollar_change: number | null;
   created_at: Date | null;
@@ -137,25 +137,27 @@ const scrapJson = (withActuals: boolean): string => {
 // were split across. Named explicitly rather than with po.*, so that a column
 // appearing on one side and not the other is a merge conflict rather than a
 // silent change in what the API returns.
+// The column order matches repo.exchange.js exactly - `diff` serialises rows
+// to compare them, and a reordering reads as a divergence. The money is not
+// here any more: it nests as `totals` in the query below, under
+// orders.transactions' own names (D84).
 const ORDER_COLUMNS = `
       o.id,
       o.user_id,
       oa.source_address_id AS address_id,
-      o.status AS purchase_order_status,
+      o.status,
       o.notes,
       o.created_at,
       o.updated_at,
       o.created_by,
       o.updated_by,
-      o.number AS order_number,
+      o.number,
       o.spots_locked,
-      t.total AS total_price,
       t.waive_shipping_fee,
       t.waive_payout_fee,
       t.shipping_paid,
       o.review_created,
       t.shipping_fee_actual,
-      t.refiner_fee,
       t.pool_remediation,
       t.pool_oz_deducted`;
 
@@ -166,6 +168,22 @@ function buildOrderQuery(
   return `
     SELECT
       ${ORDER_COLUMNS},
+      -- The money, under orders.transactions' own names. Always an object,
+      -- never NULL: exchange always has its flat row, so an order whose
+      -- transactions row is missing (the strays) still carries the keys,
+      -- each null - which is what the flat columns produced before.
+      jsonb_build_object(
+        'total', t.total,
+        'items', t.items,
+        'shipping', t.shipping,
+        'surcharge', t.surcharge,
+        'sales_tax', t.sales_tax,
+        'funds', t.funds,
+        'refiner_fee', t.refiner_fee,
+        'base_total', t.base_total,
+        'subject_to_charges_amount', t.subject_to_charges_amount,
+        'post_charges_amount', t.post_charges_amount
+      ) AS totals,
       -- FILTER + COALESCE: an order with no lines aggregates NOTHING rather
       -- than one all-null object. Without the filter, json_agg over the LEFT
       -- JOIN yields a single row of nulls which the item_type CASE then labels
@@ -187,19 +205,37 @@ function buildOrderQuery(
         'scrap', ${scrapJson(withActuals)},
         'product', jsonb_build_object(
           'id', b.id,
-          'product_name', b.name,
+          'name', b.name,
+          'description', b.description,
+          'type', b.type,
+          'metal_type', bm.name,
           'content', b.content,
-          'product_type', b.type,
-          'image_front', b.image_front,
-          'image_back', b.image_back,
+          'gross', b.gross,
+          'purity', b.purity,
           'bid_premium', b.bid_premium,
           'ask_premium', b.ask_premium,
-          'variant_group', b.variant_group,
-          'shadow_offset', b.shadow_offset,
-          'metal_type', bm.name
+          'image_front', b.image_front,
+          'image_back', b.image_back,
+          'mint_name', mnt.name
         )
       )) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS order_items,
-      to_jsonb(addr) AS address,
+      -- THE SNAPSHOT SHAPE (D84). address_id is the BOOK id - see the header -
+      -- and recipient_name is what the book's smeared name column always meant on an order.
+      -- CASE keeps "no address" null, exactly as to_jsonb(addr) was.
+      CASE WHEN addr.id IS NULL THEN NULL ELSE jsonb_build_object(
+        'address_id', addr.id,
+        'recipient_name', addr.name,
+        'line_1', addr.line_1,
+        'line_2', addr.line_2,
+        'city', addr.city,
+        'state', addr.state,
+        'country', addr.country,
+        'country_code', addr.country_code,
+        'zip', addr.zip,
+        'phone_number', addr.phone_number,
+        'is_residential', addr.is_residential,
+        'is_valid', addr.is_valid
+      ) END AS address,
       ${shipmentJson("ship")} AS shipment,
       ${shipmentJson("ret")} AS return_shipment,
       to_jsonb(cp) AS carrier_pickup,
@@ -251,9 +287,9 @@ export async function findMetalsByOrderId(orderId: string): Promise<OrderMetalRo
     SELECT
       sp.id,
       sp.order_id AS purchase_order_id,
-      m.name AS type,
-      sp.ask AS ask_spot,
-      sp.bid AS bid_spot,
+      m.name,
+      sp.ask,
+      sp.bid,
       NULL::numeric AS percent_change,
       NULL::numeric AS dollar_change,
       sp.created_at,
@@ -281,9 +317,9 @@ export async function findRefinerMetalsByOrderId(orderId: string): Promise<Order
     SELECT
       sp.id,
       sp.order_id AS purchase_order_id,
-      m.name AS type,
-      sp.ask AS ask_spot,
-      sp.bid AS bid_spot,
+      m.name,
+      sp.ask,
+      sp.bid,
       NULL::numeric AS percent_change,
       NULL::numeric AS dollar_change,
       sp.created_at,

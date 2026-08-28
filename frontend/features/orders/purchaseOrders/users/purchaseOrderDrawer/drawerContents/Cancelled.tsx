@@ -11,9 +11,9 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
   const { data: quote } = useOrderQuote(order.id)
 
   const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: order.return_shipment.id,
-    tracking_number: order.return_shipment.tracking_number,
-    carrier_id: order.return_shipment.carrier_id,
+    shipment_id: order.return_shipment.id ?? '',
+    tracking_number: order.return_shipment.tracking_number ?? '',
+    carrier_id: order.return_shipment.carrier_id ?? '',
   })
 
 
@@ -22,14 +22,14 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
   return (
     <>
       <div className="flex flex-col w-full h-full">
-        {!order.return_shipping_paid ? (
+        {!order.shipping_paid ? (
           <div className="flex flex-col h-full w-full mb-4 gap-6">
             <div className="flex flex-col w-full">
               <div className="flex w-full justify-between items-center mb-1">
                 <div className="text-lg text-neutral-800">Shipping Charges:</div>
                 <div className="text-lg text-neutral-800">
                   <PriceNumberFlow
-                    value={order.shipment.shipping_charge + order.return_shipment.shipping_charge}
+                    value={(order.shipment.shipping_charge ?? 0) + (order.return_shipment.shipping_charge ?? 0)}
                   />
                 </div>
               </div>
@@ -56,7 +56,7 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
               <div className="flex w-full justify-between items-center mb-1">
                 <div className="text-lg text-neutral-800">Order Total:</div>
                 <div className="text-lg text-neutral-800">
-                  <PriceNumberFlow value={order.total_price ?? quote?.total ?? 0} />
+                  <PriceNumberFlow value={order.totals?.total ?? quote?.total ?? 0} />
                 </div>
               </div>
             </div>
@@ -65,8 +65,8 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
           <TrackingEvents
             isLoading={isLoading}
             trackingInfo={trackingInfo}
-            delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery}
-            shipping_status={order.shipment.shipping_status}
+            delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery ?? undefined}
+            shipping_status={order.shipment.shipping_status ?? ''}
           />
         )}
       </div>

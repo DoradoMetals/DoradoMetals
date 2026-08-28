@@ -1,6 +1,6 @@
 // The price of metal comes from the server, not from the request.
 //
-// Every money figure on an order is content * (spot.ask_spot * ask_premium), so
+// Every money figure on an order is content * (spot.ask * ask_premium), so
 // whatever supplies `spots` decides what a customer pays. It used to be the
 // REQUEST BODY, in three places - get_sales_tax, createSalesOrder and
 // updatePaymentIntent - and in the last of those the result becomes the amount
@@ -16,10 +16,10 @@
 // the three that can be driven end to end without Stripe, so it is the one
 // tested over HTTP: send a body carrying absurd spots and confirm the answer is
 // the server's. createSalesOrder and updatePaymentIntent take their spots from
-// the same getPricingSpots() call, and updatePaymentIntent cannot be exercised
+// the same getSpotPrices() call, and updatePaymentIntent cannot be exercised
 // here because it ends at Stripe - that belongs in the sandbox suite.
 //
-// So the second test asserts the shared source directly: getPricingSpots
+// So the second test asserts the shared source directly: getSpotPrices
 // returns what the database holds, in the shape the calculations read. If that
 // holds and all three call it, all three are priced from the server.
 import test, { after, before } from "node:test";
@@ -45,7 +45,7 @@ before(async () => {
   customer = users[0];
   assert.ok(customer, "dev has no non-admin user");
 
-  serverSpots = await spotsService.getPricingSpots();
+  serverSpots = await spotsService.getSpotPrices();
   assert.ok(serverSpots.length > 0, "the server has no spots - every assertion here is vacuous");
 
   // A state that actually CHARGES, and a rule whose band the fixture can sit
@@ -70,14 +70,14 @@ after(async () => {
 
 // THE SHARED SOURCE. All three call sites use this, so this is what makes the
 // fix one fact rather than three.
-// THE FIXTURE READS THE TABLE getPricingSpots READS, WHICH IS NO LONGER
+// THE FIXTURE READS THE TABLE getSpotPrices READS, WHICH IS NO LONGER
 // exchange. Same change, and the same reason, as features/spots/replay.test.js -
 // see the long note there. Reading exchange.metals here made this a comparison
 // of two schemas by accident, and it failed the moment they drifted apart for a
 // reason that had nothing to do with pricing.
-test("getPricingSpots returns the database's spots in the shape the calculations read", async () => {
+test("getSpotPrices returns the database's spots in the shape the calculations read", async () => {
   const stored = await outside(
-    `SELECT m.name AS type, s.ask AS ask_spot, s.bid AS bid_spot
+    `SELECT m.name, s.ask, s.bid
        FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id
       ORDER BY m.name`
   );
@@ -85,18 +85,17 @@ test("getPricingSpots returns the database's spots in the shape the calculations
   assert.equal(serverSpots.length, stored.length, "the helper lost or invented a metal");
 
   for (const row of stored) {
-    const served = serverSpots.find((s) => s.type === row.type);
-    assert.ok(served, `${row.type} is in spots.spots and not in the pricing spots`);
+    const served = serverSpots.find((s) => s.name === row.name);
+    assert.ok(served, `${row.name} is in spots.spots and not in the pricing spots`);
 
-    // calculateItemAsk reads `type` and `ask_spot` - the legacy names. The repo
-    // returns `name` and `ask`. If this ever fails with the value present under
-    // a different key, the calculations have moved to the new shape and
-    // getPricingSpots is the one place to update.
-    assert.ok("ask_spot" in served, `${row.type} has no ask_spot - the calculations read that name`);
+    // calculateItemAsk reads `name` and `ask` - the schema's own names, since
+    // the orders conversion (D84) retired the legacy spellings and the shim
+    // that produced them.
+    assert.ok("ask" in served, `${row.name} has no ask - the calculations read that name`);
     assert.equal(
-      Number(served.ask_spot).toFixed(6),
-      Number(row.ask_spot).toFixed(6),
-      `${row.type} was priced at something other than the stored ask`
+      Number(served.ask).toFixed(6),
+      Number(row.ask).toFixed(6),
+      `${row.name} was priced at something other than the stored ask`
     );
   }
 });
@@ -111,11 +110,11 @@ test("getPricingSpots returns the database's spots in the shape the calculations
 test("a body claiming gold costs $1 does not change the tax", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {
-      const gold = serverSpots.find((s) => s.type === "Gold") ?? serverSpots[0];
+      const gold = serverSpots.find((s) => s.name === "Gold") ?? serverSpots[0];
       // Small enough that the server's own price stays under the band's
       // aggregate ceiling - otherwise the honest call falls outside the rule
       // and returns zero for a legitimate reason.
-      const content = (aggregateMax * 0.5) / Number(gold.ask_spot);
+      const content = (aggregateMax * 0.5) / Number(gold.ask);
 
       // EVERY FIELD THE RULE MATCHES ON, not just the ones the calculation
       // reads. getSalesTax filters on purity, gross weight, domestic tender and
@@ -127,7 +126,7 @@ test("a body claiming gold costs $1 does not change the tax", async () => {
         {
           type: "bullion",
           quantity: 1,
-          metal_type: gold.type,
+          metal_type: gold.name,
           content,
           gross: content,
           purity: 0.9999,
@@ -150,7 +149,7 @@ test("a body claiming gold costs $1 does not change the tax", async () => {
         .send({
           address: { state: nexusState },
           items,
-          spots: serverSpots.map((s) => ({ ...s, ask_spot: 1, bid_spot: 1 })),
+          spots: serverSpots.map((s) => ({ ...s, ask: 1, bid: 1 })),
         });
 
       assert.equal(honest.status, 200);

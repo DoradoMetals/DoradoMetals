@@ -17,6 +17,7 @@ import {
 
 import { cn } from '@/shared/utils/cn'
 import { SpotPrice } from '@/features/spots/types'
+import type { SpotOnOrderNext } from '@dorado/contracts'
 import {
   assignScrapItemNames,
   PurchaseOrderDrawerContentProps,
@@ -56,8 +57,8 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   const scrapItems = assignScrapItemNames(rawScrapItems)
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
 
-  const handleUpdateSpot = (spot: SpotPrice, updated_spot: number) => {
-    updateSpot.mutate({ spot, updated_spot })
+  const handleUpdateSpot = (spot: SpotOnOrderNext, updated_spot: number) => {
+    updateSpot.mutate({ spot, updated_spot, purchase_order_id: order.id })
   }
 
   const handleLockSpots = (spots: SpotPrice[], purchase_order_id: string) => {
@@ -68,7 +69,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
     resetSpots.mutate({ purchase_order_id })
   }
 
-  const config = statusConfig[order.purchase_order_status]
+  const config = statusConfig[order.status ?? '']
 
   return (
     <>
@@ -312,7 +313,7 @@ function ScrapTable({
                           className={cn(
                             'on-glass no-spinner text-left text-base h-6'
                           )}
-                          defaultValue={item.scrap?.pre_melt}
+                          defaultValue={item.scrap?.pre_melt ?? ''}
                           onBlur={(e) => {
                             const pre_melt = parseFloat(e.target.value)
                             if (!isNaN(pre_melt)) {
@@ -348,7 +349,7 @@ function ScrapTable({
                           className={cn(
                             'on-glass no-spinner text-left text-base h-6'
                           )}
-                          defaultValue={item.scrap?.post_melt}
+                          defaultValue={item.scrap?.post_melt ?? ''}
                           onBlur={(e) => {
                             const post_melt = parseFloat(e.target.value)
                             if (!isNaN(post_melt)) {
@@ -384,7 +385,7 @@ function ScrapTable({
                           className={cn(
                             'on-glass no-spinner text-center text-base h-6'
                           )}
-                          defaultValue={item.scrap?.purity}
+                          defaultValue={item.scrap?.purity ?? ''}
                           onBlur={(e) => {
                             const purity = parseFloat(e.target.value)
                             if (!isNaN(purity)) {
@@ -415,7 +416,7 @@ function ScrapTable({
                           className={cn(
                             'on-glass no-spinner text-center text-base h-6'
                           )}
-                          defaultValue={item.premium}
+                          defaultValue={item.premium ?? ''}
                           onBlur={(e) => {
                             const premium = parseFloat(e.target.value)
                             if (!isNaN(premium)) {
@@ -692,7 +693,7 @@ function BullionTable({
                       />
                     )}
                   </TableCell>
-                  <TableCell className="text-left">{item.product?.product_name}</TableCell>
+                  <TableCell className="text-left">{item.product?.name}</TableCell>
                   <TableCell className="text-center">
                     {editMode && selectedIds.includes(item.id) ? (
                       <div className=" flex justify-center">
@@ -703,7 +704,7 @@ function BullionTable({
                           className={cn(
                             'on-glass no-spinner text-center text-base h-6'
                           )}
-                          defaultValue={item.quantity}
+                          defaultValue={item.quantity ?? ''}
                           onBlur={(e) => {
                             const quantity = parseFloat(e.target.value)
                             if (!isNaN(quantity)) {
@@ -735,7 +736,7 @@ function BullionTable({
                           className={cn(
                             'on-glass no-spinner text-right text-base h-6'
                           )}
-                          defaultValue={item.premium ?? item.product?.bid_premium}
+                          defaultValue={item.premium ?? item.product?.bid_premium ?? ''}
                           onBlur={(e) => {
                             const premium = parseFloat(e.target.value)
                             if (!isNaN(premium)) {

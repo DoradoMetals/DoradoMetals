@@ -274,19 +274,22 @@ add("GET /products (sell)", c.BullionWire, () => productsService.getSellProducts
 // because if both drift together it stays green. The contract is the
 // independent statement, and it is what has to survive promotion.
 const orders = await po.getAll();
-await bothWays("GET /purchase_orders (admin)", c.PurchaseOrderWire, "purchase-orders", (m) => m.getAll());
+// THE NEXT SHAPES (D84). Orders never had a *_WIRE switch, so the conversion
+// is one deliberate change - but the SOURCE switch still exists, so bothWays
+// stays: both read implementations must serve the SAME converted shape.
+await bothWays("GET /purchase_orders (admin)", c.PurchaseOrderWireNext, "purchase-orders", (m) => m.getAll());
 // Sales orders is restructured - one implementation. Kept as a DIRECT check on
-// the SERVICE, which is where the composed shape is now assembled: 24 columns
-// from four tables, five of them renamed out of orders.transactions.
+// the SERVICE, which is where the composed shape is now assembled: the money
+// nested as `totals` under orders.transactions' own names.
 const salesOrdersService = await import("#features/sales-orders/read.service.ts");
-add("GET /sales_orders (admin)", c.SalesOrderWire, () => salesOrdersService.getAll());
+add("GET /sales_orders (admin)", c.SalesOrderWireNext, () => salesOrdersService.getAll());
 
 // The items, flattened out of those orders, so a bad line is reported as a bad
 // line rather than as one failing order among sixteen.
-await bothWays("purchase order items", c.PurchaseOrderItemWire, "purchase-orders", async (m) =>
+await bothWays("purchase order items", c.PurchaseOrderItemWireNext, "purchase-orders", async (m) =>
   (await m.getAll()).flatMap((o) => o.order_items ?? [])
 );
-add("sales order items", c.SalesOrderItemWire, async () =>
+add("sales order items", c.SalesOrderItemWireNext, async () =>
   (await salesOrdersService.getAll()).flatMap((o) => o.order_items ?? [])
 );
 
@@ -294,7 +297,8 @@ add("sales order items", c.SalesOrderItemWire, async () =>
 add("order.payout", c.PayoutOnOrder, () => orders.map((o) => o.payout).filter((p) => p?.id));
 add("order.shipment", c.ShipmentOnOrder, () => orders.map((o) => o.shipment).filter((s) => s?.id));
 add("order.user", c.UserOnOrder, () => orders.map((o) => o.user).filter((u) => u?.user_id));
-add("order.address", c.AddressOnOrder, () => orders.map((o) => o.address).filter(Boolean));
+add("order.address", c.OrderAddressSnapshotWire, () => orders.map((o) => o.address).filter(Boolean));
+add("order.totals", c.OrderTotalsWire, () => orders.map((o) => o.totals).filter(Boolean));
 
 // Quotes: the pricing surface with nothing stored underneath. COMPUTED
 // shapes, not table rows - there is no repo pair for bothWays to compare, so
@@ -355,6 +359,14 @@ const { rows: quotableOrders } = await pool.query(
 );
 add("POST /quotes/order", c.OrderQuoteWire, () =>
   quotableOrders.length ? quotesService.orderQuote({ order_id: quotableOrders[0].id }) : [],
+  false
+);
+
+// The profit breakdown (D83): ADMIN-ONLY on the route, checked here the same
+// way the other computed shapes are - the service is the only implementation.
+// Priced against the same stable fixture the order quote uses.
+add("POST /quotes/profit_breakdown", c.ProfitBreakdownWire, () =>
+  quotableOrders.length ? quotesService.profitBreakdown({ order_id: quotableOrders[0].id }) : [],
   false
 );
 

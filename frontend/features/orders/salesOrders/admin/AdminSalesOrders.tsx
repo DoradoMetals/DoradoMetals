@@ -22,7 +22,7 @@ export default function SalesOrdersPage() {
 
   const filterCards = React.useMemo(() => {
     const counts = salesOrders.reduce<Record<string, number>>((acc, so) => {
-      acc[so.sales_order_status] = (acc[so.sales_order_status] || 0) + 1
+      acc[so.status ?? ''] = (acc[so.status ?? ''] || 0) + 1
       return acc
     }, {})
 
@@ -36,7 +36,7 @@ export default function SalesOrdersPage() {
         filter: status,
         header: `${count}`,
         label: status,
-        predicate: (so: SalesOrder) => so.sales_order_status === status,
+        predicate: (so: SalesOrder) => so.status === status,
 
         buttonActiveClassName: cn('bg-primary/20', 'border-primary', 'text-neutral-900'),
         iconBaseClassName: 'text-primary',
@@ -48,8 +48,8 @@ export default function SalesOrdersPage() {
   const columns: ColumnDef<SalesOrder>[] = React.useMemo(
     () => [
       OrderNumberColumn<SalesOrder>({
-        id: 'order_number',
-        accessorKey: 'order_number',
+        id: 'number',
+        accessorKey: 'number',
         align: 'center',
         useFormatterHook: useFormatSalesOrderNumber,
         enableHiding: false,
@@ -66,12 +66,12 @@ export default function SalesOrdersPage() {
       }),
 
       IconColumn<SalesOrder>({
-        id: 'sales_order_status',
+        id: 'status',
         header: 'Status',
-        accessorKey: 'sales_order_status',
+        accessorKey: 'status',
         align: 'center',
         renderIcon: ({ value, row }) => {
-          const status = (value as string) ?? (row as SalesOrder).sales_order_status
+          const status = (value as string) ?? (row as SalesOrder).status ?? ''
           const config = statusConfig[status]
           if (!config) return null
           const Icon = config.icon
@@ -103,12 +103,12 @@ export default function SalesOrdersPage() {
       <DataTable<SalesOrder>
         data={salesOrders}
         columns={columns}
-        searchColumnId="order_number"
+        searchColumnId="number"
         searchPlaceholder="Search orders..."
         enableColumnVisibility={true}
         onRowClick={handleRowClick}
         getRowClassName={(row) => {
-          const cfg = statusConfig[row.original.sales_order_status]
+          const cfg = statusConfig[row.original.status ?? '']
           return cn('hover:bg-background hover:cursor-pointer', 'hover:bg-primary/20')
         }}
         filterCards={filterCards}

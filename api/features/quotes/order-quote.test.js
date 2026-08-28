@@ -41,7 +41,7 @@ let owner;    // its customer
 let stranger; // a different non-admin user
 let items;    // the order's item rows with the facts each side of the estimate reads
 let orderMetals; // the order's frozen spots (bid_spot NULL when not locked)
-let liveMetals;  // exchange.metals - what getPricingSpots serves under the default source
+let liveMetals;  // what getSpotPrices serves - the composed name/ask/bid shape
 let payoutCost;
 let shippingCharge;
 
@@ -117,7 +117,7 @@ before(async () => {
     [order.id]
   );
   // The live pricing spots. Spots is restructured - one implementation,
-  // reading spots.spots - so this reads the same table getPricingSpots does,
+  // reading spots.spots - so this reads the same table getSpotPrices does,
   // the way the sibling replay tests do. exchange.metals drifts from it in
   // dev and would hand-compute a different estimate.
   liveMetals = await outside(

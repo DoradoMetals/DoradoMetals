@@ -6,12 +6,12 @@ import { useTracking } from '@/features/shipping/queries'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
 
 export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
-  const config = statusConfig[order.purchase_order_status]
+  const config = statusConfig[order.status ?? '']
 
   const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: order.return_shipment.id,
-    tracking_number: order.return_shipment.tracking_number,
-    carrier_id: order.return_shipment.carrier_id,
+    shipment_id: order.return_shipment.id ?? '',
+    tracking_number: order.return_shipment.tracking_number ?? '',
+    carrier_id: order.return_shipment.carrier_id ?? '',
   })
 
   const handleMarkShippingPaid = () => {}
@@ -19,19 +19,19 @@ export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDraw
   return (
     <>
       <div className="flex flex-col w-full h-full">
-        {!order.return_shipping_paid ? (
+        {!order.shipping_paid ? (
           <div className="flex flex-col w-full h-auto on-glass p-4 rounded-lg">
             <div className="flex w-full justify-between items-center mb-1">
               <div className="text-lg text-neutral-800">Customer Payment:</div>
               <div className="text-lg text-neutral-800">
-                {order.return_shipping_paid ? 'Complete' : 'Incomplete'}
+                {order.shipping_paid ? 'Complete' : 'Incomplete'}
               </div>
             </div>
             <div className="flex w-full justify-between items-center mb-3">
               <div className="text-lg text-neutral-800">Payment Due:</div>
               <div className="text-lg text-neutral-800">
                 <PriceNumberFlow
-                  value={order.shipment.shipping_charge + order.return_shipment.shipping_charge}
+                  value={(order.shipment.shipping_charge ?? 0) + (order.return_shipment.shipping_charge ?? 0)}
                 />
               </div>
             </div>
@@ -51,8 +51,8 @@ export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDraw
             trackingInfo={trackingInfo}
             background_color={'bg-primary'}
             borderColor={'border-primary'}
-            delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery}
-            shipping_status={order.shipment.shipping_status}
+            delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery ?? undefined}
+            shipping_status={order.shipment.shipping_status ?? ''}
           />
         )}
       </div>

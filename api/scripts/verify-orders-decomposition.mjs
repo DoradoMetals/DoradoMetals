@@ -36,13 +36,14 @@ for (const i of await items.getMany(ids)) {
 }
 
 // field on the composed order  ->  [which repo, field on that row]
+// "totals.x" reaches into the nested money object the Next wire carries (D84).
 const FIELDS = [
-  ["total_price", totalBy, "total"],
+  ["totals.total", totalBy, "total"],
   ["waive_shipping_fee", totalBy, "waive_shipping_fee"],
   ["waive_payout_fee", totalBy, "waive_payout_fee"],
   ["shipping_paid", totalBy, "shipping_paid"],
   ["shipping_fee_actual", totalBy, "shipping_fee_actual"],
-  ["refiner_fee", totalBy, "refiner_fee"],
+  ["totals.refiner_fee", totalBy, "refiner_fee"],
   ["pool_remediation", totalBy, "pool_remediation"],
   ["pool_oz_deducted", totalBy, "pool_oz_deducted"],
   ["address_id", addrBy, "source_address_id"],
@@ -60,7 +61,7 @@ const bad = [];
 for (const order of composed) {
   for (const [field, map, source] of FIELDS) {
     const mine = map.get(order.id)?.[source] ?? null;
-    const theirs = order[field] ?? null;
+    const theirs = field.split(".").reduce((v, k) => v?.[k], order) ?? null;
     checked++;
     if (!same(mine, theirs)) {
       bad.push(`${order.id.slice(0, 8)} ${field}: composed=${JSON.stringify(theirs)} decomposed=${JSON.stringify(mine)}`);

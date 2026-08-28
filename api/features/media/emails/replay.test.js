@@ -99,7 +99,7 @@ test("an address in the body cannot redirect the order confirmation", async () =
         .send({
           purchaseOrder: {
             id: order.id,
-            order_number: 1,
+            number: 1,
             user: { user_email: ATTACKER_ADDRESS, user_name: "whoever" },
           },
           spotPrices: [],
@@ -130,7 +130,7 @@ test("an email field in the body cannot redirect the acceptance notice", async (
       const res = await request(app)
         .post("/api/emails/purchase_order_offer_accepted")
         .send({
-          order: { id: order.id, order_number: 1, user: {} },
+          order: { id: order.id, number: 1, user: {} },
           order_spots: [],
           spot_prices: [],
           email: ATTACKER_ADDRESS,
@@ -157,7 +157,7 @@ test("a stranger cannot trigger mail about someone else's order", async () => {
       const res = await request(app)
         .post("/api/emails/purchase_order_created")
         .send({
-          purchaseOrder: { id: order.id, order_number: 1, user: {} },
+          purchaseOrder: { id: order.id, number: 1, user: {} },
           spotPrices: [],
           packageDetails: {},
         });
@@ -173,13 +173,13 @@ test("an unknown or missing order id is refused before anything is built", async
     await as({ ...owner, role: "user" }, async () => {
       const missing = await request(app)
         .post("/api/emails/purchase_order_created")
-        .send({ purchaseOrder: { order_number: 1 }, spotPrices: [], packageDetails: {} });
+        .send({ purchaseOrder: { number: 1 }, spotPrices: [], packageDetails: {} });
       assert.equal(missing.status, 400, `a body with no order id answered ${missing.status}`);
 
       const unknown = await request(app)
         .post("/api/emails/purchase_order_created")
         .send({
-          purchaseOrder: { id: randomUUID(), order_number: 1 },
+          purchaseOrder: { id: randomUUID(), number: 1 },
           spotPrices: [],
           packageDetails: {},
         });

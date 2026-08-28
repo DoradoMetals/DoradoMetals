@@ -7,7 +7,7 @@ import { paymentOptions, SalesOrderDrawerContentProps, statusConfig } from '@/fe
 export default function AdminPendingSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: paymentIntent } = useGetSalesOrderPaymentIntent(order.id)
   const cancelPaymentIntent = useCancelPaymentIntent(order.id)
-  const status = statusConfig[order.sales_order_status]
+  const status = statusConfig[order.status ?? '']
 
   // details.type speaks the schema's vocabulary (CARD, ACH), not Stripe's -
   // so the match is on the option's method, where the legacy wire matched its

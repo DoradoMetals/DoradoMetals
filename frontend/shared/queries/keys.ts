@@ -38,6 +38,9 @@ export const queryKeys = {
   // mutations invalidate - only actively-mounted drawers refetch.
   orderQuote: (order_id: string) => ['quote', 'order', order_id] as const,
   orderQuotes: () => ['quote', 'order'] as const,
+  // Under the orderQuotes prefix on purpose: the breakdown reprices off the
+  // same inputs, so the same invalidations refresh it.
+  profitBreakdown: (order_id: string) => ['quote', 'order', order_id, 'profit'] as const,
   userAddressLinksFor: (userId: string) => ['address', 'links', userId] as const,
   places: (input: PlacesSuggestionsInput) => ['places', input] as const,
 

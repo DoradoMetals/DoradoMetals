@@ -9,7 +9,7 @@ import { useState } from 'react'
 import { useEditPayoutMethod } from '@/features/orders/purchaseOrders/admin/queries'
 
 export default function AdminAcceptedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
-  const config = statusConfig[order.purchase_order_status]
+  const config = statusConfig[order.status ?? '']
   const [open, setOpen] = useState(false)
   const changePayoutMethod = useEditPayoutMethod()
 

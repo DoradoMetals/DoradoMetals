@@ -4,9 +4,9 @@ import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/type
 
 export default function InTransitSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: order.shipment.id,
-    tracking_number: order.shipment.tracking_number,
-    carrier_id: order.shipment.carrier_id,
+    shipment_id: order.shipment.id ?? '',
+    tracking_number: order.shipment.tracking_number ?? '',
+    carrier_id: order.shipment.carrier_id ?? '',
   })
 
   return (
@@ -14,8 +14,8 @@ export default function InTransitSalesOrder({ order }: SalesOrderDrawerContentPr
       <TrackingEvents
         isLoading={isLoading}
         trackingInfo={trackingInfo}
-        delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery}
-        shipping_status={order.shipment.shipping_status}
+        delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery ?? undefined}
+        shipping_status={order.shipment.shipping_status ?? ''}
         useStatusColor={false}
       />
     </>

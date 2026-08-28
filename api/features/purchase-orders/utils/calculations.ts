@@ -19,10 +19,10 @@
 // null premium. This can only ever have understated, never overstated.
 // TYPESCRIPT NOTES, because two of the choices below look wrong and are not.
 //
-// `spot` is `SpotPriceWire | undefined` - Array.prototype.find says so - and
+// `spot` is `PricingSpot | undefined` - Array.prototype.find says so - and
 // every use dereferences it with `!` rather than guarding it. That is
 // deliberate and locked in by a test: "a metal absent from spots throws"
-// asserts a TypeError specifically. Writing `spot?.bid_spot` would turn a loud
+// asserts a TypeError specifically. Writing `spot?.bid` would turn a loud
 // failure into `undefined * content` = NaN, and a NaN would travel all the way
 // to a payout. An order priced against a metal with no spot must stop, not
 // quietly become nothing.
@@ -32,46 +32,59 @@
 // `throw new Error(...)` would be clearer English and would break that test,
 // because the error class would change.
 //
-// `bid_spot` IS NULLABLE, and the `?? 0` on it is behaviour-preserving rather
+// `bid` IS NULLABLE, and the `?? 0` on it is behaviour-preserving rather
 // than a fix. JavaScript already evaluates `null * premium` as 0, so this
 // changes nothing at run time - it makes the intent explicit and lets the
 // checker see it. An unquoted metal prices at nothing.
 //
 // That sounds like the premium bug in the header and is not. Checked against
 // production: 5 scrap lines are currently priced against a metal whose frozen
-// bid_spot is null, and every one of them belongs to an order that is In
+// bid is null, and every one of them belongs to an order that is In
 // Transit or Cancelled - a spot is frozen when the offer is made, so an order
 // nobody has quoted yet correctly has no price. The dangerous version would be
 // a null spot on a priced order, and there are none.
 //
-// The item type is PurchaseOrderItemWire from the contracts package. Its
-// `scrap` and `product` are always present as objects - the repo builds them
-// with jsonb_build_object, so a bullion line carries a scrap object of nulls
-// rather than null - which is why the optional chaining on them stays: it
-// describes what a hand-built test fixture might omit, not what the API sends.
-import type { PurchaseOrderItemWire, SpotPriceWire } from "@dorado/contracts";
+// The item type is PurchaseOrderItemWireNext from the contracts package
+// (D84: the item's product speaks the schema's names now). `scrap` is always
+// present as an object - the repo builds it with jsonb_build_object, so a
+// bullion line carries a scrap object of nulls rather than null - and the
+// optional chaining stays: it describes what a hand-built test fixture might
+// omit, not what the API sends. `product` is nullable on the Next wire, so
+// its accesses chain too; at runtime the repos still emit an object of nulls.
+import type { PurchaseOrderItemWireNext } from "@dorado/contracts";
+
+// What pricing needs of a spot row. The composed shape (`name` / `ask` /
+// `bid`) - spots/service.getSpotPrices, orders.spots and the order-metals
+// endpoints all speak it since the orders conversion (D84). The frozen
+// order-spot rows carry more (purchase_order_id, timestamps); only these
+// three fields are read.
+export type PricingSpot = {
+  name?: string | null;
+  ask?: number | null;
+  bid?: number | null;
+};
 
 // What these functions need of an order, rather than the whole wire shape. A
 // caller passing a full PurchaseOrderWire satisfies it; the PDF and email code
 // passes assembled objects that do not carry every column, and demanding the
 // full shape would force casts at those call sites.
 type PricedOrder = {
-  order_items: PurchaseOrderItemWire[];
+  order_items: PurchaseOrderItemWireNext[];
   shipment?: { shipping_charge?: number | null } | null;
   payout: { cost: number };
 };
 
-type Spots = SpotPriceWire[] | null | undefined;
+type Spots = PricingSpot[] | null | undefined;
 
 export function calculateTotalPrice(order: PricedOrder, spots: Spots): number {
-  const baseTotal = order.order_items.reduce((acc: number, item: PurchaseOrderItemWire) => {
+  const baseTotal = order.order_items.reduce((acc: number, item: PurchaseOrderItemWireNext) => {
     if (item.item_type === "product") {
-      const spot = spots?.find((s: SpotPriceWire) => s.type === item.product?.metal_type);
+      const spot = spots?.find((s: PricingSpot) => s.name === item.product?.metal_type);
 
       const price =
         item.price ??
         (item?.product?.content ?? 0) *
-          ((spot!.bid_spot ?? 0) *
+          ((spot!.bid ?? 0) *
             (item.premium ?? item?.product?.bid_premium ?? 0));
 
       const quantity = item.quantity ?? 1;
@@ -79,11 +92,11 @@ export function calculateTotalPrice(order: PricedOrder, spots: Spots): number {
     }
 
     if (item.item_type === "scrap") {
-      const spot = spots?.find((s: SpotPriceWire) => s.type === item.scrap?.metal);
+      const spot = spots?.find((s: PricingSpot) => s.name === item.scrap?.metal);
 
       const price =
         item.price ??
-        (item?.scrap?.content ?? 0) * ((spot!.bid_spot ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0));
+        (item?.scrap?.content ?? 0) * ((spot!.bid ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0));
       return acc + price;
     }
 
@@ -96,13 +109,13 @@ export function calculateTotalPrice(order: PricedOrder, spots: Spots): number {
 }
 
 export function calculateReturnDeclaredValue(order: PricedOrder, spots: Spots): number {
-  const total = order.order_items.reduce((acc: number, item: PurchaseOrderItemWire) => {
+  const total = order.order_items.reduce((acc: number, item: PurchaseOrderItemWireNext) => {
     if (item.item_type === "product") {
-      const spot = spots?.find((s: SpotPriceWire) => s.type === item.product?.metal_type);
+      const spot = spots?.find((s: PricingSpot) => s.name === item.product?.metal_type);
 
       const price =
         (item?.product?.content ?? 0) *
-        ((spot!.bid_spot ?? 0) *
+        ((spot!.bid ?? 0) *
           (item.premium ?? item?.product?.bid_premium ?? 0));
 
       const quantity = item.quantity ?? 1;
@@ -110,10 +123,10 @@ export function calculateReturnDeclaredValue(order: PricedOrder, spots: Spots): 
     }
 
     if (item.item_type === "scrap") {
-      const spot = spots?.find((s: SpotPriceWire) => s.type === item.scrap?.metal);
+      const spot = spots?.find((s: PricingSpot) => s.name === item.scrap?.metal);
 
       const price =
-        (item?.scrap?.content ?? 0) * ((spot!.bid_spot ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0));
+        (item?.scrap?.content ?? 0) * ((spot!.bid ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0));
       return acc + price;
     }
 
@@ -124,45 +137,45 @@ export function calculateReturnDeclaredValue(order: PricedOrder, spots: Spots): 
 }
 
 export function calculateItemPrice(
-  item: PurchaseOrderItemWire,
+  item: PurchaseOrderItemWireNext,
   spots: Spots
 ): number | undefined {
   if (item.item_type === "product") {
-    const spot = spots?.find((s: SpotPriceWire) => s.type === item.product?.metal_type);
+    const spot = spots?.find((s: PricingSpot) => s.name === item.product?.metal_type);
     return (
       item.price ??
-      (item?.product.content ?? 0) *
-        ((spot!.bid_spot ?? 0) *
-          (item.premium ?? item?.product.bid_premium ?? 0))
+      (item?.product?.content ?? 0) *
+        ((spot!.bid ?? 0) *
+          (item.premium ?? item?.product?.bid_premium ?? 0))
     );
   } else if (item.item_type === "scrap") {
-    const spot = spots?.find((s: SpotPriceWire) => s.type === item.scrap?.metal);
+    const spot = spots?.find((s: PricingSpot) => s.name === item.scrap?.metal);
     return (
       item.price ??
-      (item?.scrap.content ?? 0) * ((spot!.bid_spot ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0))
+      (item?.scrap?.content ?? 0) * ((spot!.bid ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0))
     );
   }
 }
 
-export function getBullionTotal(items: PurchaseOrderItemWire[], spots: Spots): number {
-  return items.reduce((acc: number, item: PurchaseOrderItemWire) => {
-    const spot = spots?.find((s: SpotPriceWire) => s.type === item.product?.metal_type);
+export function getBullionTotal(items: PurchaseOrderItemWireNext[], spots: Spots): number {
+  return items.reduce((acc: number, item: PurchaseOrderItemWireNext) => {
+    const spot = spots?.find((s: PricingSpot) => s.name === item.product?.metal_type);
     const price =
       item.price ??
       (item?.product?.content ?? 0) *
-        ((spot!.bid_spot ?? 0) *
+        ((spot!.bid ?? 0) *
           (item.premium ?? item?.product?.bid_premium ?? 0));
     const quantity = item.quantity ?? 1;
     return acc + price * quantity;
   }, 0);
 }
 
-export function getScrapTotal(items: PurchaseOrderItemWire[], spots: Spots): number {
-  return items.reduce((acc: number, item: PurchaseOrderItemWire) => {
-    const spot = spots?.find((s: SpotPriceWire) => s.type === item.scrap?.metal);
+export function getScrapTotal(items: PurchaseOrderItemWireNext[], spots: Spots): number {
+  return items.reduce((acc: number, item: PurchaseOrderItemWireNext) => {
+    const spot = spots?.find((s: PricingSpot) => s.name === item.scrap?.metal);
     const price =
       item.price ??
-      (item?.scrap?.content ?? 0) * ((spot!.bid_spot ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0));
+      (item?.scrap?.content ?? 0) * ((spot!.bid ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0));
     return acc + price;
   }, 0);
 }

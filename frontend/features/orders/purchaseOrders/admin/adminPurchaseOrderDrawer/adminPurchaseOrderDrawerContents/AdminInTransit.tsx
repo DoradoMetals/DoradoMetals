@@ -13,9 +13,9 @@ import {
 
 export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: order.shipment.id,
-    tracking_number: order.shipment.tracking_number,
-    carrier_id: order.shipment.carrier_id,
+    shipment_id: order.shipment.id ?? '',
+    tracking_number: order.shipment.tracking_number ?? '',
+    carrier_id: order.shipment.carrier_id ?? '',
   })
 
   const color = 'text-primary'
@@ -34,8 +34,8 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
           trackingInfo={trackingInfo}
           background_color={baseBg}
           borderColor={border}
-          delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery}
-          shipping_status={order.shipment.shipping_status}
+          delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery ?? undefined}
+          shipping_status={order.shipment.shipping_status ?? ''}
         />
       )}
     </>
@@ -62,9 +62,9 @@ export function PreTransit({
             className={cn('bg-transparent hover:bg-transparent', color)}
             onClick={() => {
               cancelPickup.mutate({
-                carrier_id: order.shipment.carrier_id,
+                carrier_id: order.shipment.carrier_id ?? '',
                 pickup_id: order?.carrier_pickup?.id ?? '',
-                confirmation_code: order?.carrier_pickup?.confirmation_number,
+                confirmation_code: order?.carrier_pickup?.confirmation_number ?? undefined,
               })
             }}
           >
@@ -89,9 +89,9 @@ export function PreTransit({
           }
           onClick={() =>
             cancelLabel.mutate({
-              carrier_id: order.shipment.carrier_id,
-              shipment_id: order.shipment.id,
-              tracking_number: order.shipment.tracking_number,
+              carrier_id: order.shipment.carrier_id ?? '',
+              shipment_id: order.shipment.id ?? '',
+              tracking_number: order.shipment.tracking_number ?? '',
             })
           }
         >

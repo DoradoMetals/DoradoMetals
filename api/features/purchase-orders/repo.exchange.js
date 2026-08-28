@@ -75,10 +75,58 @@ const scrapJson = (withActuals) => `
           }
         )`;
 
+// THE NEXT WIRE, DERIVED FROM THE FLAT ROW (D84). Orders never had a *_WIRE
+// switch, so both read implementations serve the SAME converted shape and
+// PURCHASE_ORDERS_SOURCE goes on selecting between them. The renames are the
+// schema's own: order_number -> number, purchase_order_status -> status, the
+// money nested as `totals` under orders.transactions' names, the address as a
+// snapshot (recipient_name says what the smeared `name` meant on an order),
+// and the item's product speaking name/description/type.
+//
+// po.* is gone: an explicit list, so a column appearing on one side and not
+// the other is a conflict rather than a silent change, and so the column
+// order matches repo.next.ts exactly - `diff` serialises rows to compare
+// them, and a reordering reads as a divergence.
+//
+// The totals exchange never stored for a purchase order - items, shipping,
+// surcharge, sales_tax, funds, base_total, subject/post charges - are
+// projected NULL: OrderTotalsWire declares every key and a purchase order
+// simply has no value for the sale-side ones. repo.next.ts reads them off
+// orders.transactions, where every purchase row holds NULL for the same
+// columns (checked in dev: 0 of 40), so the two implementations agree.
 function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
   return `
     SELECT
-      po.*,
+      po.id,
+      po.user_id,
+      po.address_id,
+      po.purchase_order_status AS status,
+      po.notes,
+      po.created_at,
+      po.updated_at,
+      po.created_by,
+      po.updated_by,
+      po.order_number AS number,
+      po.spots_locked,
+      po.waive_shipping_fee,
+      po.waive_payout_fee,
+      po.shipping_paid,
+      po.review_created,
+      po.shipping_fee_actual,
+      po.pool_remediation,
+      po.pool_oz_deducted,
+      jsonb_build_object(
+        'total', po.total_price,
+        'items', NULL,
+        'shipping', NULL,
+        'surcharge', NULL,
+        'sales_tax', NULL,
+        'funds', NULL,
+        'refiner_fee', po.refiner_fee,
+        'base_total', NULL,
+        'subject_to_charges_amount', NULL,
+        'post_charges_amount', NULL
+      ) AS totals,
       -- FILTER + COALESCE, same fix as repo.next.ts: an itemless order gets []
       -- rather than one all-null object that the item_type CASE labels a scrap
       -- line (D53). Five production-era dev orders are in that state.
@@ -98,19 +146,42 @@ function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
         'scrap', ${scrapJson(withActuals)},
         'product', jsonb_build_object(
           'id', p.id,
-          'product_name', p.product_name,
+          'name', p.product_name,
+          'description', p.product_description,
+          'type', p.product_type,
+          'metal_type', mp.type,
           'content', p.content,
-          'product_type', p.product_type,
-          'image_front', p.image_front,
-          'image_back', p.image_back,
+          'gross', p.gross,
+          'purity', p.purity,
           'bid_premium', p.bid_premium,
           'ask_premium', p.ask_premium,
-          'variant_group', p.variant_group,
-          'shadow_offset', p.shadow_offset,
-          'metal_type', mp.type
+          'image_front', p.image_front,
+          'image_back', p.image_back,
+          'mint_name', pm.name
         )
       )) FILTER (WHERE poi.id IS NOT NULL), '[]'::json) AS order_items,
-      to_jsonb(addr) AS address,
+      -- THE SNAPSHOT SHAPE, NOT THE BOOK ROW. address_id is the BOOK id -
+      -- checkout posts it back and resolves it against exchange.addresses -
+      -- and recipient_name is what the book's smeared name column always meant on an
+      -- order: who receives the shipment. No user_id, no is_default, no
+      -- timestamps: a snapshot is neither a place nor a relationship.
+      -- CASE, not jsonb_build_object bare: to_jsonb(addr) was NULL when the
+      -- join missed, and "no address" must stay null rather than becoming an
+      -- object of nulls.
+      CASE WHEN addr.id IS NULL THEN NULL ELSE jsonb_build_object(
+        'address_id', addr.id,
+        'recipient_name', addr.name,
+        'line_1', addr.line_1,
+        'line_2', addr.line_2,
+        'city', addr.city,
+        'state', addr.state,
+        'country', addr.country,
+        'country_code', addr.country_code,
+        'zip', addr.zip,
+        'phone_number', addr.phone_number,
+        'is_residential', addr.is_residential,
+        'is_valid', addr.is_valid
+      ) END AS address,
       ${shipmentJson("ship")} AS shipment,
       ${shipmentJson("ret")} AS return_shipment,
       to_jsonb(cp) AS carrier_pickup,
@@ -124,6 +195,7 @@ function buildOrderQuery({ where = "", limit = "", withActuals = false } = {}) {
     LEFT JOIN exchange.purchase_order_items poi ON poi.purchase_order_id = po.id
     LEFT JOIN exchange.scrap s ON poi.scrap_id = s.id
     LEFT JOIN exchange.products p ON poi.product_id = p.id
+    LEFT JOIN exchange.mints pm ON pm.id = p.mint_id
     LEFT JOIN exchange.metals ms ON s.metal_id = ms.id
     LEFT JOIN exchange.metals mp ON p.metal_id = mp.id
     LEFT JOIN exchange.addresses addr ON addr.id = po.address_id
@@ -164,9 +236,9 @@ export async function findMetalsByOrderId(orderId) {
     SELECT 
       id,
       purchase_order_id,
-      type,
-      ask_spot,
-      bid_spot,
+      type AS name,
+      ask_spot AS ask,
+      bid_spot AS bid,
       percent_change,
       dollar_change,
       created_at,
@@ -187,9 +259,12 @@ export async function updateOrderMetals(orderId, spotPrices, client) {
         SET bid_spot = $1
         WHERE purchase_order_id = $2
         AND type = $3
-        RETURNING *;
+        RETURNING id, purchase_order_id, sales_order_id,
+                  type AS name, ask_spot AS ask, bid_spot AS bid,
+                  percent_change, dollar_change, scrap_percentage,
+                  bullion_percentage, created_at, updated_at;
       `;
-      const vals = [spot.bid_spot, orderId, spot.type];
+      const vals = [spot.bid, orderId, spot.name];
       const { rows } = await query(sql, vals, client);
       return rows[0];
     })
@@ -370,9 +445,12 @@ export async function updateSpot({ spot, updated_spot }, executor) {
     SET bid_spot = $1 
     WHERE purchase_order_id = $2
     AND type = $3
-    RETURNING *;
+    RETURNING id, purchase_order_id, sales_order_id,
+                  type AS name, ask_spot AS ask, bid_spot AS bid,
+                  percent_change, dollar_change, scrap_percentage,
+                  bullion_percentage, created_at, updated_at;
   `;
-  const values = [updated_spot, spot.purchase_order_id, spot.type];
+  const values = [updated_spot, spot.purchase_order_id, spot.name];
   return await query(sql, values, executor);
 }
 
@@ -425,7 +503,7 @@ export async function updateBullion(item, executor) {
 export async function getCurrentSpotPrices(client) {
   const { rows } = await query(
     `
-    SELECT type, bid_spot FROM exchange.metals;
+    SELECT type AS name, bid_spot AS bid FROM exchange.metals;
   `,
     [],
     client
@@ -479,9 +557,12 @@ export async function updateRefinerMetals(orderId, spotPrices, client) {
         SET bid_spot = $1
         WHERE purchase_order_id = $2
         AND type = $3
-        RETURNING *;
+        RETURNING id, purchase_order_id, sales_order_id,
+                  type AS name, ask_spot AS ask, bid_spot AS bid,
+                  percent_change, dollar_change, scrap_percentage,
+                  bullion_percentage, created_at, updated_at;
       `;
-      const vals = [spot.bid_spot, orderId, spot.type];
+      const vals = [spot.bid, orderId, spot.name];
       const { rows } = await query(sql, vals, client);
       return rows[0];
     })
@@ -494,9 +575,9 @@ export async function findRefinerMetalsByOrderId(orderId) {
     SELECT 
       id,
       purchase_order_id,
-      type,
-      ask_spot,
-      bid_spot,
+      type AS name,
+      ask_spot AS ask,
+      bid_spot AS bid,
       percent_change,
       dollar_change,
       created_at,
@@ -530,9 +611,12 @@ export async function updateRefinerSpot({ spot, updated_spot }, executor) {
     SET bid_spot = $1 
     WHERE purchase_order_id = $2
     AND type = $3
-    RETURNING *;
+    RETURNING id, purchase_order_id, sales_order_id,
+                  type AS name, ask_spot AS ask, bid_spot AS bid,
+                  percent_change, dollar_change, scrap_percentage,
+                  bullion_percentage, created_at, updated_at;
   `;
-  const values = [updated_spot, spot.purchase_order_id, spot.type];
+  const values = [updated_spot, spot.purchase_order_id, spot.name];
   return await query(sql, values, executor);
 }
 

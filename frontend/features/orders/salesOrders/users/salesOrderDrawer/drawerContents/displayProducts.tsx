@@ -7,7 +7,7 @@ export default function DisplaySalesOrderProducts({ items }: { items: SalesOrder
     <div className="w-full">
       {items.map((item, index) => (
         <div
-          key={item?.product?.product_name}
+          key={item?.product?.name}
           className={`flex items-center w-full justify-between gap-2 py-2 ${
             index !== items.length - 1 ? 'border-b border-border' : 'border-none'
           }`}
@@ -17,7 +17,7 @@ export default function DisplaySalesOrderProducts({ items }: { items: SalesOrder
               src={item.product?.image_front || ''}
               fill
               className="object-contain"
-              alt={item.product?.product_name || ''}
+              alt={item.product?.name || ''}
               sizes="(max-width: 640px) 100vw, 33vw"
             />
           </div>
@@ -25,7 +25,7 @@ export default function DisplaySalesOrderProducts({ items }: { items: SalesOrder
           <div className="flex flex-col lg:mx-auto w-full">
             <div className="flex flex-col gap-1 items-start w-full mt-2">
               <div className="text-base text-neutral-800">
-                {item?.product?.product_name}
+                {item?.product?.name}
               </div>
               <div className="text-sm sm:text-base text-neutral-600">
                 {item?.product?.mint_name}
@@ -43,7 +43,7 @@ export default function DisplaySalesOrderProducts({ items }: { items: SalesOrder
               <div className="flex flex-col items-end">
                 <div className="text-xs text-neutral-700">Price</div>
                 <div className="text-base sm:text-lg text-neutral-800">
-                  <PriceNumberFlow value={(item?.price ?? 0) * item?.quantity} />
+                  <PriceNumberFlow value={(item?.price ?? 0) * (item?.quantity ?? 0)} />
                 </div>
               </div>
             </div>

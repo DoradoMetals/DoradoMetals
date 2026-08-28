@@ -76,6 +76,7 @@ export const sharedJoins = `
     LEFT JOIN orders.items i ON i.order_id = o.id
     LEFT JOIN products.bullion b ON b.id = i.bullion_id
     LEFT JOIN metals.metals bm ON bm.id = b.metal_id
+    LEFT JOIN products.mints mnt ON mnt.id = b.mint_id
     LEFT JOIN orders.addresses oa ON oa.order_id = o.id
     LEFT JOIN exchange.addresses addr ON addr.id = oa.source_address_id
     LEFT JOIN exchange.users u ON u.id = o.user_id`;

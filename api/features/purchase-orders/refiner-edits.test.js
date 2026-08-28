@@ -79,9 +79,10 @@ test("update_refiner_spot writes the refiner's bid for that metal on that order"
       const res = await request(app)
         .post("/api/purchase_orders/update_refiner_spot")
         .send({
+          // The body's spot speaks the converted names (D84).
           spot: {
             purchase_order_id: refinerMetal.purchase_order_id,
-            type: refinerMetal.type,
+            name: refinerMetal.type,
           },
           updated_spot: "1234.56",
         });

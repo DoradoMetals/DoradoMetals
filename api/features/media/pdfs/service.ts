@@ -18,8 +18,7 @@ import {
   buildInvoiceScrapRows,
   buildInvoiceBullionRows,
 } from "#features/media/pdfs/render/sections.ts";
-import type { RenderableOrder } from "#features/media/pdfs/render/sections.ts";
-import type { SpotPriceWire } from "@dorado/contracts";
+import type { RenderableOrder, SpotPart } from "#features/media/pdfs/render/sections.ts";
 
 
 // THE INPUTS EACH DOCUMENT TAKES.
@@ -27,8 +26,8 @@ import type { SpotPriceWire } from "@dorado/contracts";
 // Same reasoning as sections.ts, which these build on: the order that arrives
 // is COMPOSED - items with nested scrap or product, a shipment, an address -
 // and no generated contract row describes that tree, so RenderableOrder is
-// defined there and reused here. Spots DO have a contract type, SpotPriceWire,
-// because they arrive in the legacy wire shape the frontend sends.
+// defined there and reused here, and so is SpotPart: the converted spot
+// spellings (`name` / `ask` / `bid`) the frontend sends since D84.
 //
 // Every field named is one these builders actually read.
 
@@ -49,26 +48,26 @@ export interface PackageDetails {
 
 export interface PackingListInput {
   purchaseOrder: RenderableOrder;
-  spotPrices?: SpotPriceWire[];
+  spotPrices?: SpotPart[];
   packageDetails?: PackageDetails;
 }
 
 export interface ReturnPackingListInput {
   purchaseOrder: RenderableOrder;
-  spotPrices?: SpotPriceWire[];
+  spotPrices?: SpotPart[];
 }
 
 export interface InvoiceInput {
   purchaseOrder: RenderableOrder;
-  spotPrices?: SpotPriceWire[];
+  spotPrices?: SpotPart[];
   /** The spots frozen onto the order, as against today's live ones. */
-  orderSpots?: SpotPriceWire[];
+  orderSpots?: SpotPart[];
 }
 
 /** A sales order carries its own items and is not a purchase order. */
 export interface SalesOrderInvoiceInput {
   salesOrder: RenderableOrder;
-  spots?: SpotPriceWire[];
+  spots?: SpotPart[];
 }
 
 export function buildPackingListHtml({
@@ -397,9 +396,7 @@ export function buildInvoiceHtml({
   orderSpots = [],
 }: InvoiceInput): string {
   const doneStatus = ["Accepted", "Payment Processing", "Completed"];
-  const statusForDone =
-    purchaseOrder.purchase_order_status ?? purchaseOrder.status ?? "";
-  const isDone = doneStatus.includes(statusForDone);
+  const isDone = doneStatus.includes(purchaseOrder.status ?? "");
 
   const browserSpots = purchaseOrder.spots_locked ? orderSpots : spotPrices;
   const total = calculateTotalPrice(
@@ -546,7 +543,7 @@ export function buildInvoiceHtml({
 
 // The invoice's spot table names its four metals, and `spots` arrives in the
 // request body rather than from the database, so a missing one is a request
-// away. `spots.find(...).ask_spot.toLocaleString(...)` threw a TypeError on
+// away. `spots.find(...).ask.toLocaleString(...)` threw a TypeError on
 // each of them - and this invoice is the attachment on the refiner's copy of a
 // sales order, built after the transaction that marks the order sent, so the
 // throw was silent in exactly the way the packing list's NaN box and the
@@ -556,8 +553,8 @@ export function buildInvoiceHtml({
 // its test could fail: it failed on this instead.
 //
 // Same rule as those two: render what is known and a dash for what is not.
-const askSpot = (spots: SpotPriceWire[], metal: string): string => {
-  const value = spots.find((s) => s.type === metal)?.ask_spot;
+const askSpot = (spots: SpotPart[], metal: string): string => {
+  const value = spots.find((s) => s.name === metal)?.ask;
   return value == null
     ? "&mdash;"
     : value.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -576,7 +573,7 @@ export function buildSalesOrderInvoiceHtml({
       return `
         <tr>
           <td class="text-left">${
-            product.product_name || "Bullion Product"
+            product.name || "Bullion Product"
           }</td>
           <td>${item.quantity}</td>
           <td>${product.content != null ? `${product.content.toFixed(3)} t oz` : "&mdash;"}</td>
@@ -591,7 +588,7 @@ export function buildSalesOrderInvoiceHtml({
     })
     .join("");
 
-  const title = doneStatus.includes(salesOrder.sales_order_status ?? "")
+  const title = doneStatus.includes(salesOrder.status ?? "")
     ? "Sales Order Invoice"
     : "Sales Order Preview";
 
@@ -605,7 +602,7 @@ export function buildSalesOrderInvoiceHtml({
         <div class="detail-content">
           <div class="detail-row">
             <span class="detail-label">Number:</span>
-            <span class="detail-value">SO-${salesOrder.order_number
+            <span class="detail-value">SO-${(salesOrder.number ?? "")
               .toString()
               .padStart(6, "0")}</span>
           </div>
@@ -627,7 +624,7 @@ export function buildSalesOrderInvoiceHtml({
           </div>
           <div class="detail-row">
             <span class="detail-label">Status:</span>
-            <span class="detail-value">${salesOrder.sales_order_status}</span>
+            <span class="detail-value">${salesOrder.status}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Items:</span>
@@ -721,7 +718,7 @@ export function buildSalesOrderInvoiceHtml({
               ? `
           <tr>
             <td class="text-left">Item Total</td>
-            <td class="text-right">${(salesOrder.item_total ?? 0).toLocaleString(
+            <td class="text-right">${(salesOrder.totals?.items ?? 0).toLocaleString(
               "en-US",
               {
                 style: "currency",
@@ -735,7 +732,7 @@ export function buildSalesOrderInvoiceHtml({
 
           <tr>
             <td class="text-left">Shipping Fee</td>
-            <td class="text-right">${(salesOrder.shipping_cost ?? 0).toLocaleString(
+            <td class="text-right">${(salesOrder.totals?.shipping ?? 0).toLocaleString(
               "en-US",
               {
                 style: "currency",
@@ -749,7 +746,7 @@ export function buildSalesOrderInvoiceHtml({
               ? `
           <tr>
             <td class="text-left">Credit Applied</td>
-            <td class="text-right">-${(salesOrder.pre_charges_amount ?? 0).toLocaleString(
+            <td class="text-right">-${(salesOrder.totals?.funds ?? 0).toLocaleString(
               "en-US",
               {
                 style: "currency",
@@ -762,11 +759,11 @@ export function buildSalesOrderInvoiceHtml({
           }
 
           ${
-            (salesOrder.charges_amount ?? 0) > 0
+            (salesOrder.totals?.surcharge ?? 0) > 0
               ? `
           <tr>
             <td class="text-left">Payment Fee</td>
-            <td class="text-right">${(salesOrder.charges_amount ?? 0).toLocaleString(
+            <td class="text-right">${(salesOrder.totals?.surcharge ?? 0).toLocaleString(
               "en-US",
               {
                 style: "currency",
@@ -780,7 +777,7 @@ export function buildSalesOrderInvoiceHtml({
 
           <tr>
             <td class="text-left text-bold">Total: </td>
-            <td class="text-right text-bold">${(salesOrder.order_total ?? 0).toLocaleString(
+            <td class="text-right text-bold">${(salesOrder.totals?.total ?? 0).toLocaleString(
               "en-US",
               {
                 style: "currency",

@@ -19,7 +19,7 @@ export default function CompletedPurchaseOrder({ order }: PurchaseOrderDrawerCon
               title="How did we do?"
               defaultText=""
               defaultRating={0}
-              reviewSubmitted={order.review_created}
+              reviewSubmitted={order.review_created ?? undefined}
               maxLength={600}
               submitLabel="Upload Review"
               onSubmit={async ({ text, rating }) => {

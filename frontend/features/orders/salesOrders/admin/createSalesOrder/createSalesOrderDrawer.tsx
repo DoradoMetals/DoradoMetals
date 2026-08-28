@@ -12,8 +12,8 @@ import {
   adminSalesOrderCheckoutSchema,
   adminSalesOrderServiceOptions,
   paymentOptions,
-  SalesOrderTotals,
 } from '@/features/orders/salesOrders/types'
+import type { SalesOrderQuoteWire } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
 import { SearchableDropdown } from '@/shared/ui/inputs/InputDropdownSearch'
@@ -27,15 +27,13 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Input } from '@/shared/ui/base/input'
 import { LockIcon, LockOpenIcon, QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
-import { calculateSalesOrderPrices } from '@/features/orders/salesOrders/utils/calculateSalesOrderPrices'
 import { useMutationState } from '@tanstack/react-query'
 import { loadStripe } from '@stripe/stripe-js'
 import { Switch } from '@/shared/ui/base/switch'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { useUserAddress, useUserAddressLinks } from '@/features/addresses/queries'
 import { useSpotPrices } from '@/features/spots/queries'
-import { useCatalogQuote } from '@/features/quotes/queries'
-import { useSalesTax } from '@/features/sales-tax/queries'
+import { useCatalogQuote, useSalesOrderQuote } from '@/features/quotes/queries'
 import { useProducts } from '@/features/products/queries'
 import { useAdminCreateSalesOrder } from '@/features/orders/salesOrders/admin/queries'
 import { useRetrievePaymentIntent, useUpdatePaymentIntent } from '@/features/stripe/queries'
@@ -57,31 +55,17 @@ export function CreateSalesOrderDrawer() {
   const isDrawerOpen = activeDrawer === 'createSalesOrder'
   const { data: spotPrices = [] } = useSpotPrices()
 
-  const { data: salesTax = 0 } = useSalesTax({
-    address: data.address ?? makeEmptyWireAddress(),
-    items: data.items ?? [],
-    spots: spotPrices,
+  // The preview is the server's sales-order quote (Jacob's no-previews
+  // ruling; calculateSalesOrderPrices died here 2026-08-28). It prices at
+  // LIVE server spots: the drawer's locked-spot overrides feed the CREATE -
+  // order_metals rides the body as spot_prices - never this preview.
+  const { data: orderPrices } = useSalesOrderQuote({
+    items: (data.items ?? []).map((i) => ({ id: i.id, quantity: i.quantity ?? 1 })),
+    using_funds: data.using_funds ?? true,
+    shipping_service: data.service?.value ?? null,
+    payment_method: data.payment_method ?? null,
+    address_id: data.address?.id ?? null,
   })
-
-  const orderPrices = useMemo(() => {
-    return calculateSalesOrderPrices(
-      data.items ?? [],
-      data.using_funds ?? true,
-      data.order_metals ?? [],
-      createSalesOrderUser?.dorado_funds ?? 0,
-      data.service?.cost ?? 0,
-      data.payment_method ?? 'CARD',
-      salesTax ?? 0
-    )
-  }, [
-    data.items,
-    data.using_funds,
-    data.order_metals,
-    createSalesOrderUser?.dorado_funds,
-    data.service?.cost,
-    data.payment_method,
-    salesTax,
-  ])
 
   useEffect(() => {
     if (spotPrices.length > 0 && !spotsLocked) {
@@ -149,7 +133,10 @@ export function CreateSalesOrderDrawer() {
       <div className="glass-divider" />
       <div className="flex flex-col gap-3">
         <OrderSummary orderPrices={orderPrices} />
-        <CreditSelect orderPrices={orderPrices} />
+        <CreditSelect
+          orderPrices={orderPrices}
+          funds={createSalesOrderUser?.dorado_funds ?? 0}
+        />
         <PaymentSelect orderPrices={orderPrices} user={createSalesOrderUser!} />
       </div>
     </Drawer>
@@ -200,8 +187,7 @@ function ProductSelector() {
 
   // The per-line preview is the server's ask quote, batched over the picked
   // items. It prices from LIVE server spots: the drawer's locked spot
-  // overrides feed the order math above (calculateSalesOrderPrices), never
-  // this preview.
+  // overrides feed the CREATE body, never this preview.
   const { data: quote } = useCatalogQuote(
     items.map((i) => ({ id: i.id, quantity: i.quantity ?? 1 })),
     'ask'
@@ -438,9 +424,16 @@ function ServiceSelector() {
   )
 }
 
-function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
+function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuoteWire }) {
   const { data } = useAdminSalesOrderCheckoutStore()
   const router = useRouter()
+
+  // 0 until the first quote lands; placeholderData keeps later ticks
+  // flicker-free. The field names are the quote contract's own.
+  const appliedFunds = orderPrices?.pre_charges_amount ?? 0
+  const subjectToCharges = orderPrices?.subject_to_charges_amount ?? 0
+  const surcharge = orderPrices?.charges_amount ?? 0
+  const salesTax = orderPrices?.sales_tax ?? 0
 
   const paymentContent = (
     <div className="w-full flex-col">
@@ -449,31 +442,31 @@ function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
       <div className="w-full flex items-center justify-between">
         <div className="text-sm text-neutral-700">Shipping</div>
         <div className="text-base text-neutral-800">
-          <PriceNumberFlow value={orderPrices.shippingCharge} />
+          <PriceNumberFlow value={orderPrices?.shipping_charge ?? 0} />
         </div>
       </div>
 
-      {orderPrices.appliedFunds > 0 && (
+      {appliedFunds > 0 && (
         <div className="w-full flex items-center justify-between">
           <div className="text-sm text-neutral-700">Dorado Funds Applied</div>
           <div className="text-base text-neutral-800">
-            -<PriceNumberFlow value={orderPrices.appliedFunds} />
+            -<PriceNumberFlow value={appliedFunds} />
           </div>
         </div>
       )}
-      {orderPrices.subjectToChargesAmount > 0 && (
+      {subjectToCharges > 0 && (
         <div className="w-full flex items-center justify-between">
           <div className="text-sm text-neutral-700">
             {' '}
-            {orderPrices.appliedFunds > 0 ? 'Amount Remaining' : 'Items'}
+            {appliedFunds > 0 ? 'Amount Remaining' : 'Items'}
           </div>
           <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={orderPrices.subjectToChargesAmount} />
+            <PriceNumberFlow value={subjectToCharges} />
           </div>
         </div>
       )}
 
-      {orderPrices.surchargeAmount > 0 && (
+      {surcharge > 0 && (
         <div className="w-full flex items-center justify-between">
           <div className="text-sm text-neutral-700">
             {`${
@@ -485,12 +478,12 @@ function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
             })`}
           </div>
           <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={orderPrices.surchargeAmount} />
+            <PriceNumberFlow value={surcharge} />
           </div>
         </div>
       )}
 
-      {orderPrices.salesTax > 0 && (
+      {salesTax > 0 && (
         <div className="w-full flex items-center justify-between">
           <div className="flex items-center gap-1">
             <div className="text-sm text-neutral-700">Sales Tax</div>
@@ -499,7 +492,7 @@ function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
             </Button>
           </div>
           <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={orderPrices.salesTax} />
+            <PriceNumberFlow value={salesTax} />
           </div>
         </div>
       )}
@@ -510,7 +503,7 @@ function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
         <div className="w-full flex items-center justify-between pt-2">
           <div className="text-base text-primary">Order Total</div>
           <div className="text-lg text-neutral-900">
-            <PriceNumberFlow value={orderPrices.postChargesAmount} />
+            <PriceNumberFlow value={orderPrices?.post_charges_amount ?? 0} />
           </div>
         </div>
       </div>
@@ -526,7 +519,15 @@ function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
   )
 }
 
-function CreditSelect({ orderPrices }: { orderPrices: SalesOrderTotals }) {
+// `funds` is the TARGET user's credit, from the drawer's client state: the
+// quote prices for the caller, and the caller here is the admin.
+function CreditSelect({
+  orderPrices,
+  funds,
+}: {
+  orderPrices?: SalesOrderQuoteWire
+  funds: number
+}) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
 
   const handleFundsToggle = (checked: boolean) => {
@@ -536,14 +537,16 @@ function CreditSelect({ orderPrices }: { orderPrices: SalesOrderTotals }) {
   }
 
   useEffect(() => {
+    // Hold the auto-switch until the first quote lands - a 0 base total
+    // would call any credit balance "covers it" and flip to CREDIT.
+    if (!orderPrices) return
     const usingFunds = !!data.using_funds
     const prev = data.payment_method
-    const { beginningFunds, baseTotal } = orderPrices
 
     let next = prev
 
     if (usingFunds) {
-      if (beginningFunds >= baseTotal) {
+      if (funds >= orderPrices.base_total) {
         next = 'CREDIT'
       } else if (prev === 'CREDIT') {
         next = 'CARD'
@@ -555,11 +558,11 @@ function CreditSelect({ orderPrices }: { orderPrices: SalesOrderTotals }) {
     if (next !== prev) {
       setData({ payment_method: next })
     }
-  }, [data.using_funds, data.payment_method, orderPrices.beginningFunds, orderPrices.baseTotal])
+  }, [data.using_funds, data.payment_method, funds, orderPrices?.base_total])
 
   return (
     <>
-      {orderPrices.beginningFunds > 0 && (
+      {funds > 0 && (
         <div className="">
           <div className="text-xs text-neutral-600 uppercase tracking-widest mb-4">
             Payment Method:
@@ -571,13 +574,13 @@ function CreditSelect({ orderPrices }: { orderPrices: SalesOrderTotals }) {
               <Switch
                 checked={data.using_funds}
                 onCheckedChange={handleFundsToggle}
-                disabled={orderPrices.beginningFunds <= 0}
+                disabled={funds <= 0}
               />
             </div>
             <div className="flex flex-col gap-1 items-end">
               <div className="text-sm text-neutral-700">Credit Available:</div>
               <div className="text-lg text-neutral-900">
-                <PriceNumberFlow value={orderPrices.beginningFunds} />
+                <PriceNumberFlow value={funds} />
               </div>
             </div>
           </div>
@@ -587,7 +590,7 @@ function CreditSelect({ orderPrices }: { orderPrices: SalesOrderTotals }) {
   )
 }
 
-function PaymentSelect({ orderPrices, user }: { orderPrices: SalesOrderTotals; user: User }) {
+function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuoteWire; user: User }) {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const { closeDrawer } = useDrawerStore()
   const [isPending, startTransition] = useTransition()
@@ -623,7 +626,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices: SalesOrderTotals; u
     (cardNeeded && (!clientSecret || !stripePromise))
 
   useEffect(() => {
-    if (clientSecret && orderPrices.postChargesAmount > 0 && cardNeeded && !itemsMissing) {
+    if (clientSecret && (orderPrices?.post_charges_amount ?? 0) > 0 && cardNeeded && !itemsMissing) {
       updatePaymentIntent.mutate({
         items: data?.items ?? [],
         using_funds: data?.using_funds ?? true,
@@ -640,7 +643,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices: SalesOrderTotals; u
     data.using_funds,
     data.order_metals,
     clientSecret,
-    orderPrices.postChargesAmount,
+    orderPrices?.post_charges_amount,
     data.payment_method,
     user,
     cardNeeded,

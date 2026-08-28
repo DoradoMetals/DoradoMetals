@@ -2,9 +2,9 @@
 SELECT
        sp.id,
        sp.order_id AS purchase_order_id,
-       m.name AS type,
-       sp.ask AS ask_spot,
-       sp.bid AS bid_spot,
+       m.name,
+       sp.ask,
+       sp.bid,
        NULL::numeric AS percent_change,
        NULL::numeric AS dollar_change,
        sp.created_at,

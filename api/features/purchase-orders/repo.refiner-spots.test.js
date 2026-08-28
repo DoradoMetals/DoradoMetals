@@ -62,8 +62,8 @@ test("both implementations read the same refiner spots", async () => {
   ];
   assert.ok(a.length > 0, "exchange returned nothing to compare");
   assert.deepEqual(
-    b.map((r) => ({ ...r, ask_spot: Number(r.ask_spot), bid_spot: Number(r.bid_spot) })),
-    a.map((r) => ({ ...r, ask_spot: Number(r.ask_spot), bid_spot: Number(r.bid_spot) }))
+    b.map((r) => ({ ...r, ask: Number(r.ask), bid: Number(r.bid) })),
+    a.map((r) => ({ ...r, ask: Number(r.ask), bid: Number(r.bid) }))
   );
 });
 
@@ -72,7 +72,7 @@ test("a spot write reaches both schemas", async () => {
     const order = await anOrderWithRefinerSpots(c);
 
     await dual.updateRefinerSpot(
-      { spot: { purchase_order_id: order.id, type: order.type }, updated_spot: 1234.56 },
+      { spot: { purchase_order_id: order.id, name: order.type }, updated_spot: 1234.56 },
       c
     );
 
@@ -99,10 +99,10 @@ test("mirroring twice does not duplicate a spot", async () => {
     const order = await anOrderWithRefinerSpots(c);
 
     await dual.updateRefinerSpot(
-      { spot: { purchase_order_id: order.id, type: order.type }, updated_spot: 10 }, c
+      { spot: { purchase_order_id: order.id, name: order.type }, updated_spot: 10 }, c
     );
     await dual.updateRefinerSpot(
-      { spot: { purchase_order_id: order.id, type: order.type }, updated_spot: 20 }, c
+      { spot: { purchase_order_id: order.id, name: order.type }, updated_spot: 20 }, c
     );
 
     const { rows } = await c.query(

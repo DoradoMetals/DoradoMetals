@@ -9,9 +9,9 @@ import { useTracking } from '@/features/shipping/queries'
 
 export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: order.shipment.id,
-    tracking_number: order.shipment.tracking_number,
-    carrier_id: order.shipment.carrier_id,
+    shipment_id: order.shipment.id ?? '',
+    tracking_number: order.shipment.tracking_number ?? '',
+    carrier_id: order.shipment.carrier_id ?? '',
   })
 
   return (
@@ -24,8 +24,8 @@ export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerCon
         <TrackingEvents
           isLoading={isLoading}
           trackingInfo={trackingInfo}
-          delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery}
-          shipping_status={order.shipment.shipping_status}
+          delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery ?? undefined}
+          shipping_status={order.shipment.shipping_status ?? ''}
         />
       )}
     </>
@@ -66,7 +66,7 @@ export function DropoffInstructionsSection({
       description:
         order.shipment.pickup_type === 'Carrier Pickup'
           ? `FedEx will pick up your items up around ${formatPickupDateTime(
-              order.carrier_pickup?.pickup_requested_at
+              order.carrier_pickup?.pickup_requested_at ?? undefined
             )}. Please have your shipment packed and ready to go by that time.`
           : 'Take your package to a FedEx or affiliate location of your choosing.',
       action:

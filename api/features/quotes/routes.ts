@@ -4,8 +4,9 @@ import {
   salesOrderQuote,
   purchaseOrderQuote,
   orderQuote,
+  profitBreakdown,
 } from "#features/quotes/controller.ts";
-import { requireUser } from "#shared/middleware/authMiddleware.ts";
+import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.ts";
 // The order quote prices an EXISTING order by id, so it needs what every
 // order route needs: not just a session but ownership - a customer may only
 // quote their own order, an admin any. Same guard, same body spelling
@@ -33,5 +34,10 @@ router.post("/purchase_order", purchaseOrderQuote);
 // answers with what that order is worth, which is the owner's business and
 // the admins' and nobody else's.
 router.post("/order", requireUser, requireOwnOrder, orderQuote);
+// ADMIN ONLY, with no ownership escape hatch to reason about: the response is
+// the business's margins on an order - what the refiner takes, what Dorado
+// keeps, the spot spread - and none of it may ever be customer-reachable, not
+// even for the customer whose order it is.
+router.post("/profit_breakdown", requireAdmin, profitBreakdown);
 
 export default router;

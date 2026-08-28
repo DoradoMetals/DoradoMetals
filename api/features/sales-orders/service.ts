@@ -40,7 +40,7 @@ import type { PoolClient } from "pg";
 import type { PaymentSession } from "#features/payments/service.ts";
 import type { IncomingHttpHeaders } from "node:http";
 import type { Transport } from "#providers/emails/nodemailer.ts";
-import type { SpotPriceWire } from "@dorado/contracts";
+import type { PricingSpot } from "#features/sales-orders/utils/calculations.ts";
 
 // The order as the browser sends it. This is req.body, so every field is
 // whatever arrived - which is the point of re-fetching the items and the
@@ -182,7 +182,7 @@ export async function createSalesOrder(
   const serverItems = await productService.getItemsFromServer(
     sales_order.items
   );
-  const spot_prices = await spotsService.getPricingSpots();
+  const spot_prices = await spotsService.getSpotPrices();
   const items = await taxService.attachSalesTaxToItems(
     address.state,
     serverItems,
@@ -262,7 +262,7 @@ export async function adminCreateSalesOrder({
   // Server-sourced here too. An admin placing an order on a customer's behalf
   // is still an order, and the same argument applies - more so, since this path
   // has no Stripe confirmation to disagree with it.
-  const spot_prices = await spotsService.getPricingSpots();
+  const spot_prices = await spotsService.getSpotPrices();
   const items = await taxService.attachSalesTaxToItems(
     address.state,
     serverItems,
@@ -342,7 +342,9 @@ export async function updateStatus({
 // Nothing in production passes one; a test passes a recorder, which is what
 // makes the guard below testable without mail leaving the building.
 export async function sendOrderToSupplier(
-  { order, spots, supplier_id }: { order: { id: string }; spots: SpotPriceWire[]; supplier_id: string },
+  // `spots` speaks the converted names (`name` / `ask`) since D84 - the
+  // renderer prints them on the refiner's copy.
+  { order, spots, supplier_id }: { order: { id: string }; spots: PricingSpot[]; supplier_id: string },
   transport?: Transport
 ): Promise<SalesOrderRow | undefined> {
   const sales_order = await getById(order.id);
@@ -377,7 +379,7 @@ export async function sendOrderToSupplier(
   // gets a message saying which order and why.
   if (!sales_order.address) {
     throw new Error(
-      `Sales order ${sales_order.order_number} has no address, so it cannot be sent to a supplier`
+      `Sales order ${sales_order.number} has no address, so it cannot be sent to a supplier`
     );
   }
 
@@ -400,7 +402,7 @@ export async function sendOrderToSupplier(
   const alreadySent = sales_order.order_sent === true;
   if (alreadySent && sales_order.supplier_id !== supplier_id) {
     const err: Error & { statusCode?: number } = new Error(
-      `Sales order ${sales_order.order_number} has already been sent to a refiner. ` +
+      `Sales order ${sales_order.number} has already been sent to a refiner. ` +
         `Sending it to a different one would leave two refiners holding it.`
     );
     err.statusCode = 409;
@@ -411,7 +413,7 @@ export async function sendOrderToSupplier(
   if (!supplierEmail) {
     const err: Error & { statusCode?: number } = new Error(
       `Refiner ${supplier?.organization?.name ?? supplier_id} has no email address, ` +
-        `so sales order ${sales_order.order_number} cannot be sent to them`
+        `so sales order ${sales_order.number} cannot be sent to them`
     );
     err.statusCode = 422;
     throw err;

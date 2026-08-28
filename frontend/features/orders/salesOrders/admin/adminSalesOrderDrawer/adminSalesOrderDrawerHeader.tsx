@@ -12,7 +12,7 @@ export default function AdminSalesOrderDrawerHeader({ order }: SalesOrderDrawerH
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
   const { data: orderSpots = [] } = useSalesOrderMetals(order.id)
 
-  const status = statusConfig[order.sales_order_status]
+  const status = statusConfig[order.status ?? '']
   const Icon = status?.icon
 
   const downloadOptions = [
@@ -34,9 +34,9 @@ export default function AdminSalesOrderDrawerHeader({ order }: SalesOrderDrawerH
   return (
     <div className="flex flex-col w-full border-b-1 gap-3 border-border">
       <div className="flex w-full justify-between items-center">
-        <div className="text-base text-neutral-800">{formatFullDate(order.created_at)}</div>
+        <div className="text-base text-neutral-800">{formatFullDate(order.created_at ?? undefined)}</div>
 
-        <div className="text-sm text-neutral-700">{formatSalesOrderNumber(order.order_number)}</div>
+        <div className="text-sm text-neutral-700">{formatSalesOrderNumber(order.number)}</div>
       </div>
       <div className="flex w-full justify-between items-center">
         <div className="flex items-center gap-2">
@@ -45,11 +45,11 @@ export default function AdminSalesOrderDrawerHeader({ order }: SalesOrderDrawerH
               <Icon size={24} />
             </div>
           )}
-          <span className="text-lg text-neutral-800">{order.sales_order_status}</span>
+          <span className="text-lg text-neutral-800">{order.status}</span>
         </div>
         <div className="flex ml-auto">
           {downloadOptions.map(({ statuses, label, onClick, isPending }, index) =>
-            statuses.includes(order.sales_order_status) ? (
+            statuses.includes(order.status ?? '') ? (
               <Button
                 key={index}
                 variant="link"

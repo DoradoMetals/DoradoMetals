@@ -41,10 +41,11 @@ test("an order carries the same columns it always did", async () => {
   assert.deepEqual(Object.keys(b).sort(), Object.keys(a).sort());
 });
 
-// The one that would take checkout down. The frontend reads address.id off the
-// order and posts it back; the API resolves it against exchange.addresses.
-// orders.addresses points at a snapshot with a different id, so the read has to
-// return the address-book id it was taken from.
+// The one that would take checkout down. The frontend reads the order
+// address's address_id (the BOOK id, per the snapshot shape) and posts it
+// back; the API resolves it against exchange.addresses. orders.addresses
+// points at a snapshot with a different id, so the read has to return the
+// address-book id it was taken from.
 test("the address id still resolves in exchange.addresses", async () => {
   await inRollback(async (c) => {
     const withAddress = (await next.getAll()).filter((o) => o.address_id);
@@ -54,7 +55,7 @@ test("the address id still resolves in exchange.addresses", async () => {
         "SELECT 1 FROM exchange.addresses WHERE id = $1", [o.address_id]
       );
       assert.equal(rows.length, 1, `address_id ${o.address_id} does not resolve`);
-      assert.equal(o.address.id, o.address_id, "address.id disagrees with address_id");
+      assert.equal(o.address.address_id, o.address_id, "address.address_id disagrees with address_id");
     }
   });
 });
@@ -174,10 +175,10 @@ test("spot rows come back per metal with the shape the API returns", async () =>
   }
   assert.ok(spots.length, "no purchase order has spot rows, so this asserts nothing");
   assert.deepEqual(Object.keys(spots[0]).sort(), [
-    "ask_spot", "bid_spot", "created_at", "dollar_change", "id",
-    "percent_change", "purchase_order_id", "type", "updated_at",
+    "ask", "bid", "created_at", "dollar_change", "id",
+    "name", "percent_change", "purchase_order_id", "updated_at",
   ]);
-  assert.deepEqual(spots.map((s) => s.type), [...spots.map((s) => s.type)].sort());
+  assert.deepEqual(spots.map((s) => s.name), [...spots.map((s) => s.name)].sort());
 });
 
 test("reads do not write", async () => {

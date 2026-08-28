@@ -9,8 +9,8 @@ import {
 } from "#features/purchase-orders/utils/calculations.ts";
 
 const spots = [
-  { type: "Gold", bid_spot: 4000 },
-  { type: "Silver", bid_spot: 30 },
+  { name: "Gold", bid: 4000 },
+  { name: "Silver", bid: 30 },
 ];
 
 const scrapItem = (over = {}) => ({

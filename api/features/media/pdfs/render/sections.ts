@@ -1,7 +1,6 @@
 import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
 import { assignScrapItemNames } from "#features/scrap/utils/assignScrapNames.ts";
 import { calculateItemPrice } from "#features/purchase-orders/utils/calculations.ts";
-import type { SpotPriceWire } from "@dorado/contracts";
 import {
   formatCurrency,
   getItemPrice,
@@ -21,10 +20,10 @@ import {
 //   `scrap` or a nested `product`, plus a shipment and an address. No generated
 //   row describes that tree.
 //
-//   The spots arrive in the LEGACY WIRE SHAPE - `type` and `bid_spot`, not
-//   `name` and `bid`. The PDF and email paths take them from a request body in
-//   the shape /spots/spot_prices returns today. Typing them as SpotsRow would
-//   be describing a shape this file never sees.
+//   The spots arrive in the CONVERTED wire shape - `name` / `ask` / `bid` -
+//   which is what /spots/spot_prices serves and what the order-metals
+//   endpoints serve since the orders conversion (D84). The PDF and email
+//   paths take them from a request body in that shape.
 //
 // So these interfaces name exactly the fields the templates read, and nothing
 // else. They are deliberately narrow: every property here is one this file
@@ -33,11 +32,14 @@ import {
 // prints "-" for a missing value is telling you the field is optional, and a
 // type that said otherwise would be a lie that happens to compile.
 
-// SPOTS USE THE CONTRACT TYPE. SpotPriceWire is exactly this shape - the
-// legacy wire names, `type` / `ask_spot` / `bid_spot` - and it is what
-// calculations.ts already takes, so a hand-rolled parallel interface would only
-// be a second definition to keep in step. The composed ORDER shapes below stay
-// local because no generated row describes them.
+// The spot part is local like the order shapes: bodies hand this file live
+// spot rows and frozen order-spot rows, which share exactly these three
+// fields, and calculations.ts reads the same three.
+export interface SpotPart {
+  name?: string | null;
+  ask?: number | null;
+  bid?: number | null;
+}
 /** The scrap half of a line, when item_type is "scrap". */
 export interface ScrapPart {
   name?: unknown;
@@ -52,7 +54,7 @@ export interface ScrapPart {
 
 /** The bullion half of a line, when item_type is "product". */
 export interface ProductPart {
-  product_name?: unknown;
+  name?: unknown;
   metal_type?: unknown;
   content?: number | null;
   /** Products carry their own premiums; a line falls back to these when it has none. */
@@ -60,19 +62,22 @@ export interface ProductPart {
   ask_premium?: number | null;
 }
 
-/** One line on an order, which is either scrap or bullion, never both. */
+/** One line on an order, which is either scrap or bullion, never both.
+ * `product` is nullable on the Next wire; the repos still emit an object of
+ * nulls, and every template read already chains. */
 export interface OrderItem {
   item_type?: string;
   quantity?: number | null;
   price?: number | null;
   premium?: number | null;
-  scrap?: ScrapPart;
-  product?: ProductPart;
+  scrap?: ScrapPart | null;
+  product?: ProductPart | null;
 }
 
-/** The address fields printed on a label block. */
+/** The address snapshot fields printed on a label block (D84):
+ * recipient_name is who receives the shipment. */
 export interface AddressPart {
-  name?: string | null;
+  recipient_name?: string | null;
   line_1?: string | null;
   line_2?: string | null;
   city?: string | null;
@@ -94,10 +99,12 @@ export interface ShipmentPart {
 /** A purchase order as this file receives it - composed, not a row. */
 export interface RenderableOrder {
   /**
-   * REQUIRED, because the database says so: exchange.purchase_orders.order_number
-   * is NOT NULL. Formatted with padStart, so a string or a number.
+   * NOT NULL in both schemas, but the Next contract admits null for the six
+   * stray new-schema-only orders, so the templates guard the padStart rather
+   * than crash a document for the type's sake. Formatted with padStart, so a
+   * string or a number.
    */
-  order_number: string | number;
+  number?: string | number | null;
   /**
    * Nullable in the schema and zero orders have a null one today, so this is
    * typed as it is stored rather than as it happens to be. The template guards
@@ -105,7 +112,7 @@ export interface RenderableOrder {
    * the kind of thing that reaches a customer looking deliberate.
    */
   created_at?: string | number | Date | null;
-  purchase_order_status?: string | null;
+  /** One field for both directions since D84 - direction is the endpoint's. */
   status?: string | null;
   spots_locked?: boolean | null;
   address?: AddressPart | null;
@@ -115,22 +122,27 @@ export interface RenderableOrder {
   carrier_pickup?: { pickup_requested_at?: string | number | Date | null } | null;
   user?: Record<string, unknown> | null;
   order_items?: OrderItem[];
-  /** Sales order money fields, printed on its invoice. */
-  item_total?: number | null;
-  charges_amount?: number | null;
-  shipping_charge?: number | null;
-  order_total?: number | null;
-  sales_tax?: number | null;
-  shipping_cost?: number | null;
-  pre_charges_amount?: number | null;
-  sales_order_status?: string | null;
+  /** The money, nested under orders.transactions' names (D84). The sales
+   * order invoice prints items/shipping/surcharge/funds/total off it. */
+  totals?: {
+    total?: number | null;
+    items?: number | null;
+    shipping?: number | null;
+    surcharge?: number | null;
+    sales_tax?: number | null;
+    funds?: number | null;
+    refiner_fee?: number | null;
+    base_total?: number | null;
+    subject_to_charges_amount?: number | null;
+    post_charges_amount?: number | null;
+  } | null;
   [key: string]: unknown;
 }
 
 export function renderInvoiceHeader(
   purchaseOrder: RenderableOrder,
   total: number,
-  spots: SpotPriceWire[] = []
+  spots: SpotPart[] = []
 ): string {
   const orderPlaced = purchaseOrder.created_at
     ? new Date(purchaseOrder.created_at).toLocaleDateString("en-US", {
@@ -140,11 +152,10 @@ export function renderInvoiceHeader(
       })
     : "&mdash;";
 
-  const orderNumber = `PO-${purchaseOrder.order_number
+  const orderNumber = `PO-${(purchaseOrder.number ?? "")
     .toString()
     .padStart(6, "0")}`;
-  const status =
-    purchaseOrder.purchase_order_status ?? purchaseOrder.status ?? "";
+  const status = purchaseOrder.status ?? "";
   const userName = purchaseOrder.user?.user_name ?? "";
 
   const doneStatus = ["Accepted", "Payment Processing", "Completed"];
@@ -156,12 +167,12 @@ export function renderInvoiceHeader(
   const spotRows =
     metals
       .map((m) => {
-        const spot = spots.find((s) => s.type === m);
-        if (!spot?.bid_spot) return null;
+        const spot = spots.find((s) => s.name === m);
+        if (!spot?.bid) return null;
         return `
           <div class="invoice-card-row">
             <span>${m}:</span>
-            <span>${formatCurrency(spot.bid_spot)}</span>
+            <span>${formatCurrency(spot.bid)}</span>
           </div>
         `;
       })
@@ -229,7 +240,7 @@ export function renderInvoiceShippingAndPayout(
 ): string {
   const inbound = purchaseOrder.shipment;
   const outbound = purchaseOrder.return_shipment;
-  const isCancelled = purchaseOrder.purchase_order_status === "Cancelled";
+  const isCancelled = purchaseOrder.status === "Cancelled";
 
   const inboundRow = inbound
     ? `
@@ -319,7 +330,7 @@ export function renderPackingShippingSection(
   const fromIsCustomer = !isReturn;
 
   const fromName = fromIsCustomer
-    ? (purchaseOrder.address?.name ?? "")
+    ? (purchaseOrder.address?.recipient_name ?? "")
     : process.env.FEDEX_DORADO_NAME;
 
   const fromLine1 = fromIsCustomer
@@ -348,7 +359,7 @@ export function renderPackingShippingSection(
 
   const toName = fromIsCustomer
     ? process.env.FEDEX_DORADO_NAME
-    : (purchaseOrder.address?.name ?? "");
+    : (purchaseOrder.address?.recipient_name ?? "");
 
   const toLine1 = fromIsCustomer
     ? process.env.FEDEX_RETURN_ADDRESS_LINE_1
@@ -487,7 +498,7 @@ export function renderOrderSummaryTable(
                 ? new Date(purchaseOrder.created_at).toLocaleDateString()
                 : "&mdash;"
             }</td>
-            <td>PO-${purchaseOrder.order_number
+            <td>PO-${(purchaseOrder.number ?? "")
               .toString()
               .padStart(6, "0")}</td>
             <td>${totalDisplay}</td>
@@ -498,7 +509,7 @@ export function renderOrderSummaryTable(
   `;
 }
 
-export function buildPackingScrapRows(orderItems: OrderItem[], spotPrices: SpotPriceWire[]): string {
+export function buildPackingScrapRows(orderItems: OrderItem[], spotPrices: SpotPart[]): string {
   const rawScrapItems = orderItems.filter(
     (item) => item.item_type === "scrap" && item.scrap
   );
@@ -514,12 +525,12 @@ export function buildPackingScrapRows(orderItems: OrderItem[], spotPrices: SpotP
   return scrapItemsWithNames
     .map((item) => {
       const scrap: ScrapPart = item.scrap ?? ({} as ScrapPart);
-      const spot = spotPrices.find((s) => s.type === scrap.metal);
+      const spot = spotPrices.find((s) => s.name === scrap.metal);
       const premium = item.premium ?? item.scrap?.bid_premium;
       const price =
         item.price != null
           ? item.price
-          : getItemPrice(scrap.content, premium, spot?.bid_spot);
+          : getItemPrice(scrap.content, premium, spot?.bid);
 
       return `
         <tr>
@@ -536,25 +547,25 @@ export function buildPackingScrapRows(orderItems: OrderItem[], spotPrices: SpotP
     .join("");
 }
 
-export function buildPackingBullionRows(orderItems: OrderItem[], spotPrices: SpotPriceWire[]): string {
+export function buildPackingBullionRows(orderItems: OrderItem[], spotPrices: SpotPart[]): string {
   return orderItems
     .filter((item) => item.item_type === "product" && item.product)
     .map((item) => {
       const product: ProductPart = item.product ?? ({} as ProductPart);
-      const spot = spotPrices.find((s) => s.type === product.metal_type);
+      const spot = spotPrices.find((s) => s.name === product.metal_type);
       const unitPrice =
         item.price != null
           ? item.price
           : getItemPrice(
               product.content,
               item.premium ?? product.bid_premium,
-              spot?.bid_spot
+              spot?.bid
             );
       const totalPrice = unitPrice * (item.quantity ?? 1);
 
       return `
         <tr>
-          <td>${product.product_name || "Bullion Product"}</td>
+          <td>${product.name || "Bullion Product"}</td>
           <td>${product.metal_type || "-"}</td>
           <td>${item.quantity}</td>
           <td>${product.content || "-"}</td>
@@ -566,7 +577,7 @@ export function buildPackingBullionRows(orderItems: OrderItem[], spotPrices: Spo
 
 export function buildInvoiceScrapRows(
   orderItems: OrderItem[],
-  spots: SpotPriceWire[]
+  spots: SpotPart[]
 ): { rowsHtml: string; rawScrapItems: OrderItem[] } {
   const rawScrapItems = orderItems.filter(
     (item) => item.item_type === "scrap" && item.scrap
@@ -629,7 +640,7 @@ export function buildInvoiceScrapRows(
 
 export function buildInvoiceBullionRows(
   orderItems: OrderItem[],
-  spots: SpotPriceWire[]
+  spots: SpotPart[]
 ): { rowsHtml: string; bullionOrderItems: OrderItem[] } {
   const bullionOrderItems = orderItems.filter(
     (item) => item.item_type === "product" && item.product
@@ -652,7 +663,7 @@ export function buildInvoiceBullionRows(
       return `
         <tr>
           <td class="text-left">${
-            product.product_name || "Bullion Product"
+            product.name || "Bullion Product"
           }</td>
           <td>${item.quantity}</td>
           <td>${product.content != null ? `${product.content.toFixed(3)} t oz` : "&mdash;"}</td>

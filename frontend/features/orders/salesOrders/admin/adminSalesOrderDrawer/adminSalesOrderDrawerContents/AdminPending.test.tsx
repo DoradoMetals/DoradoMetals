@@ -44,7 +44,7 @@ const renderWithClient = (ui: React.ReactElement) => {
 const order = () =>
   ({
     id: "so-1",
-    sales_order_status: "Pending",
+    status: "Pending",
   } as unknown as SalesOrder);
 
 // The wire's shape, one place. A card payment mid-confirmation: not yet

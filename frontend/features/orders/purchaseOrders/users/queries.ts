@@ -6,13 +6,34 @@ import {
   PurchaseOrderReturnShipment,
 } from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
-import { OrderSpot, OrderSpotWire, orderSpotFromWire } from '@/features/orders/orderSpots'
-import { orderAddressToWire } from '@/features/orders/orderAddresses'
+import type { OrderAddressSnapshotWire, SpotOnOrderNext } from '@dorado/contracts'
+import type { Address, UserAddress } from '@/features/addresses/types'
 import { queryKeys } from '@/shared/queries/keys'
 import { payoutOptions } from '@/features/payouts/types'
 import { packageOptions } from '@/features/packaging/types'
 import { useGetSession } from '@/features/auth/queries'
 import { useSpotPrices } from '@/features/spots/queries'
+
+// The order's address on the wire is a SNAPSHOT - immutable postal facts plus
+// the recipient - while the checkout keeps the picked pair (the book address
+// and the caller's relationship to it) as client state. The snapshot is built
+// HERE, at the mutation edge: recipient_name is the relationship's label (the
+// API reads it for the FedEx label's personName), address_id is the book row
+// the checkout resolved against.
+const toAddressSnapshot = (a: Address, ua?: UserAddress | null): OrderAddressSnapshotWire => ({
+  address_id: a.id ?? null,
+  recipient_name: ua?.label ?? null,
+  line_1: a.line_1,
+  line_2: a.line_2,
+  city: a.city,
+  state: a.state,
+  country: a.country,
+  country_code: a.country_code,
+  zip: a.zip,
+  phone_number: a.phone_number,
+  is_residential: a.is_residential,
+  is_valid: a.is_valid,
+})
 
 export const usePurchaseOrders = () => {
   const { user } = useGetSession()
@@ -43,14 +64,13 @@ export const useCreatePurchaseOrder = () => {
   return useMutation({
     mutationFn: async (purchase_order: PurchaseOrderCheckout) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      // The API reads the body address FLAT - address.name becomes the FedEx
-      // label's personName - so the picked (nested) address goes down at the
-      // edge. Dies with the orders/checkout conversion.
+      // The body carries the order's address as the SNAPSHOT the wire speaks,
+      // built at this edge from the checkout's picked pair.
       return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/create_purchase_order', {
         user_id: user.id,
         purchase_order: {
           ...purchase_order,
-          address: orderAddressToWire(purchase_order.address, purchase_order.user_address),
+          address: toAddressSnapshot(purchase_order.address, purchase_order.user_address),
         },
         user: user,
       })
@@ -85,17 +105,14 @@ export const useCreatePurchaseOrder = () => {
 export const usePurchaseOrderMetals = (purchase_order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<OrderSpot[]>({
+  return useQuery<SpotOnOrderNext[]>({
     queryKey: ['purchase_orders_metals', purchase_order_id],
     queryFn: async () => {
       if (!user?.id) return []
-      // The orders wire still speaks legacy names; map up at the edge so
-      // everything downstream reads the converted shape.
-      const rows = await apiRequest<OrderSpotWire[]>('POST', '/purchase_orders/get_purchase_order_metals', {
+      return await apiRequest<SpotOnOrderNext[]>('POST', '/purchase_orders/get_purchase_order_metals', {
         user_id: user.id,
         purchase_order_id: purchase_order_id,
       })
-      return rows.map(orderSpotFromWire)
     },
     enabled: !!user && !!purchase_order_id,
     refetchInterval: 60000,
@@ -115,14 +132,14 @@ export const useCancelOrder = () => {
       return_shipment: PurchaseOrderReturnShipment
     }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      // Same flat-body read as create: the return label's personName is
-      // return_shipment.address.name on the API side.
+      // Same edge-build as create: the return label's destination goes down
+      // as the snapshot, recipient_name included.
       return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/cancel_order', {
         user_id: user.id,
         order: purchase_order,
         return_shipment: {
           ...return_shipment,
-          address: orderAddressToWire(return_shipment.address, return_shipment.user_address),
+          address: toAddressSnapshot(return_shipment.address, return_shipment.user_address),
         },
       })
     },
@@ -139,14 +156,14 @@ export const useCancelOrder = () => {
             ? order
             : {
                 ...order,
-                purchase_order_status: 'Cancelled',
+                status: 'Cancelled',
                 spots_locked: false,
               }
         )
       )
 
       const metalsQueryKey = ['purchase_orders_metals', purchase_order.id]
-      const previousSpotPrices = queryClient.getQueryData<OrderSpot[]>(metalsQueryKey)
+      const previousSpotPrices = queryClient.getQueryData<SpotOnOrderNext[]>(metalsQueryKey)
 
       queryClient.setQueryData<SpotPrice[]>(queryKey, (old = []) =>
         old.map((s) => ({

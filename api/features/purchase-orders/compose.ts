@@ -32,19 +32,24 @@ import type { OrderAddressRow } from "#features/orders/addresses/repo.ts";
 import type { RefinerItemRow } from "#features/refiners/items/repo.ts";
 import type { PayoutRow } from "#features/payouts/repo.ts";
 
-// The bullion half of a line, when there is one.
+// The bullion half of a line, when there is one. The Next wire's names (D84):
+// products.bullion's own name/description/type, plus gross, purity and the
+// mint's name - and no variant_group or shadow_offset, which the contract
+// dropped.
 export type ComposedProduct = {
   id: string | null;
-  product_name: string | null;
+  name: string | null;
+  description: string | null;
+  type: string | null;
+  metal_type: string | null;
   content: number | null;
-  product_type: string | null;
-  image_front: string | null;
-  image_back: string | null;
+  gross: number | null;
+  purity: number | null;
   bid_premium: number | null;
   ask_premium: number | null;
-  variant_group: string | null;
-  shadow_offset: number | null;
-  metal_type: string | null;
+  image_front: string | null;
+  image_back: string | null;
+  mint_name: string | null;
 };
 
 // The scrap half. See composeScrap for why every line has one.
@@ -132,9 +137,9 @@ function composeScrap(
 }
 
 const EMPTY_PRODUCT: ComposedProduct = {
-  id: null, product_name: null, content: null, product_type: null,
-  image_front: null, image_back: null, bid_premium: null, ask_premium: null,
-  variant_group: null, shadow_offset: null, metal_type: null,
+  id: null, name: null, description: null, type: null, metal_type: null,
+  content: null, gross: null, purity: null, bid_premium: null,
+  ask_premium: null, image_front: null, image_back: null, mint_name: null,
 };
 
 export function composeItem(
@@ -282,40 +287,99 @@ export function nestShipment(s: Record<string, unknown> | null): Record<string, 
   };
 }
 
-// The twenty-five columns exchange.purchase_orders had, in the order the
-// projection listed them. Key order is not something a frontend depends on, but
-// `diff` serialises the row to compare it - and a reordering there reads as a
-// divergence, which is how the shared-column-list experiment was caught.
+// THE ADDRESS SNAPSHOT (D84). The raw row is the address-BOOK row - see the
+// header for why - and the wire keeps the book's id AS address_id because
+// checkout resolves against the book. recipient_name is what the book's
+// smeared `name` always meant on an order: who receives the shipment. No
+// user_id, no is_default, no timestamps - a snapshot is neither a place nor a
+// relationship. Null stays null: the projections this replaces used
+// to_jsonb(addr), which is NULL when the join misses.
+//
+// Shared with sales-orders/compose.ts, like nestShipment: the snapshot is
+// identical in both directions.
+export type ComposedAddress = {
+  address_id: string | null;
+  recipient_name: string | null;
+  line_1: string | null;
+  line_2: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  country_code: string | null;
+  zip: string | null;
+  phone_number: string | null;
+  is_residential: boolean | null;
+  is_valid: boolean | null;
+};
+
+export function snapshotAddress(row: unknown): ComposedAddress | null {
+  if (!row || typeof row !== "object") return null;
+  const a = row as Record<string, unknown>;
+  return {
+    address_id: (a.id as string | null) ?? null,
+    recipient_name: (a.name as string | null) ?? null,
+    line_1: (a.line_1 as string | null) ?? null,
+    line_2: (a.line_2 as string | null) ?? null,
+    city: (a.city as string | null) ?? null,
+    state: (a.state as string | null) ?? null,
+    country: (a.country as string | null) ?? null,
+    country_code: (a.country_code as string | null) ?? null,
+    zip: (a.zip as string | null) ?? null,
+    phone_number: (a.phone_number as string | null) ?? null,
+    is_residential: (a.is_residential as boolean | null) ?? null,
+    is_valid: (a.is_valid as boolean | null) ?? null,
+  };
+}
+
+// The Next wire (D84): the schema's own names - `number`, `status`, the money
+// nested as `totals` under orders.transactions' names - in the same key order
+// as both SQL implementations, because `diff` serialises the row to compare it
+// and a reordering there reads as a divergence.
 export function composeOrder(p: OrderParts): Record<string, unknown> {
   return {
     id: p.order.id,
     user_id: p.order.user_id,
     address_id: p.addressLink?.source_address_id ?? null,
-    purchase_order_status: p.order.status,
+    status: p.order.status,
     notes: p.order.notes,
     created_at: p.order.created_at,
     updated_at: p.order.updated_at,
     created_by: p.order.created_by,
     updated_by: p.order.updated_by,
-    order_number: p.order.number,
+    number: p.order.number,
     // OFFERS ARE GONE (086). spots_locked moved to orders.orders because it is
-    // a property of the order, and total_price comes off the transaction, which
+    // a property of the order, and the money comes off the transaction, which
     // is where the order's money lives. offer_amount was a second copy of that
     // same number: measured across 21 orders before the table was dropped,
     // exchange.purchase_orders.total_price and orders.transactions.total agreed
     // on every row, nulls included.
     spots_locked: p.order.spots_locked ?? null,
-    total_price: p.totals?.total ?? null,
     waive_shipping_fee: p.totals?.waive_shipping_fee ?? null,
     waive_payout_fee: p.totals?.waive_payout_fee ?? null,
     shipping_paid: p.totals?.shipping_paid ?? null,
     review_created: p.order.review_created,
     shipping_fee_actual: p.totals?.shipping_fee_actual ?? null,
-    refiner_fee: p.totals?.refiner_fee ?? null,
     pool_remediation: p.totals?.pool_remediation ?? null,
     pool_oz_deducted: p.totals?.pool_oz_deducted ?? null,
+    // ALWAYS AN OBJECT, never null, every key present: OrderTotalsWire
+    // declares all ten. The sale-side keys are read off the transactions row
+    // like repo.next.ts does - every purchase row holds NULL for them (0 of
+    // 40 in dev), which is also what repo.exchange.js projects, so the three
+    // reads agree.
+    totals: {
+      total: p.totals?.total ?? null,
+      items: p.totals?.items ?? null,
+      shipping: p.totals?.shipping ?? null,
+      surcharge: p.totals?.surcharge ?? null,
+      sales_tax: p.totals?.sales_tax ?? null,
+      funds: p.totals?.funds ?? null,
+      refiner_fee: p.totals?.refiner_fee ?? null,
+      base_total: p.totals?.base_total ?? null,
+      subject_to_charges_amount: p.totals?.subject_to_charges_amount ?? null,
+      post_charges_amount: p.totals?.post_charges_amount ?? null,
+    },
     order_items: p.items,
-    address: p.address,
+    address: snapshotAddress(p.address),
     shipment: nestShipment(p.shipment as Record<string, unknown> | null),
     return_shipment: nestShipment(p.return_shipment as Record<string, unknown> | null),
     carrier_pickup: p.carrier_pickup,

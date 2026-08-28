@@ -8,7 +8,7 @@ import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrder
 
 
 export default function PurchaseOrderDrawerContent({ order }: PurchaseOrderDrawerContentProps) {
-  switch (order.purchase_order_status) {
+  switch (order.status) {
     case 'In Transit':
       return <InTransitPurchaseOrder order={order} />
     case 'Received':

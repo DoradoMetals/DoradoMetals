@@ -214,7 +214,7 @@ export async function updatePaymentIntent(
   // Fetched fresh on every update rather than cached, which is what makes an
   // intent that is revised mid-checkout carry the current price rather than the
   // one from whenever the session started.
-  const spots = await spotsService.getPricingSpots();
+  const spots = await spotsService.getSpotPrices();
 
   const items_with_tax = await taxService.attachSalesTaxToItems(
     address?.state ?? "TX",

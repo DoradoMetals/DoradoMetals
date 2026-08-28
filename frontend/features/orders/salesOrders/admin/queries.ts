@@ -1,6 +1,6 @@
 import { AdminSalesOrderCheckout, SalesOrder } from '@/features/orders/salesOrders/types'
-import { SpotPrice } from '@/features/spots/types'
-import { orderSpotToWire } from '@/features/orders/orderSpots'
+import type { SpotOnOrderNext } from '@dorado/contracts'
+import { toAddressSnapshot } from '@/features/orders/salesOrders/users/queries'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 
@@ -29,8 +29,12 @@ export const useAdminCreateSalesOrder = () =>
     optimisticItemKey: 'sales_order',
     listAction: 'create',
     listInsertPosition: 'start',
+    // The body's address goes down as the snapshot, built at this edge.
     body: ({ paymentIntentId, sales_order }) => ({
-      sales_order,
+      sales_order: {
+        ...sales_order,
+        address: toAddressSnapshot(sales_order.address, sales_order.user_address),
+      },
       payment_intent_id: paymentIntentId,
       spot_prices: sales_order.order_metals,
       user: sales_order.user,
@@ -60,7 +64,7 @@ export const useMoveSalesOrderStatus = () =>
 
 type SendOrderToSupplierVars = {
   order: SalesOrder
-  spots: SpotPrice[]
+  spots: SpotOnOrderNext[]
   supplier_id: string
 }
 
@@ -72,10 +76,11 @@ export const useSendOrderToSupplier = () =>
     requireAdmin: true,
     queryKey: queryKeys.adminSalesOrders(),
     optimistic: true,
+    // The supplier PDF renders from the converted names now; the live rows
+    // go down as they are.
     body: ({ order, spots, supplier_id }) => ({
       order,
-      // The supplier PDF is rendered from the orders wire's legacy names.
-      spots: spots.map(orderSpotToWire),
+      spots,
       supplier_id,
     }),
     optimisticUpdater: (list, { order, supplier_id }) =>

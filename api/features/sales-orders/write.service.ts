@@ -152,7 +152,9 @@ export async function insertItems(
   }
 }
 
-export type QuotedSpot = { type: string; ask_spot?: number | null; bid_spot?: number | null };
+// The composed spot shape (`name` / `ask` / `bid`) - what getSpotPrices
+// returns since D84 retired the legacy spellings.
+export type QuotedSpot = { name: string; ask?: number | null; bid?: number | null };
 
 // The quoted spots. exchange keys them by metal NAME and the new schema by
 // metal id, so the caller supplies the resolution - it already holds the map.
@@ -163,16 +165,18 @@ export async function insertOrderMetals(
   executor?: Executor
 ): Promise<void> {
   for (const spot of spots) {
-    const metal_id = metalIdOf(spot.type);
+    const metal_id = metalIdOf(spot.name);
     // A metal the quote names but the database does not have is skipped rather
     // than invented - the INSERT ... JOIN this replaces did the same by
     // matching no row.
     if (metal_id) {
       await orders.createSpot(
-        randomUUID(), orderId, metal_id, spot.ask_spot ?? null, spot.bid_spot ?? null, executor
+        randomUUID(), orderId, metal_id, spot.ask ?? null, spot.bid ?? null, executor
       );
     }
-    await legacy.createSpot(orderId, spot.type, spot.ask_spot ?? null, executor);
+    // exchange.order_metals still calls the metal `type`; that spelling is the
+    // COLUMN's, stated in legacy.repo.ts, not the wire's.
+    await legacy.createSpot(orderId, spot.name, spot.ask ?? null, executor);
   }
 }
 

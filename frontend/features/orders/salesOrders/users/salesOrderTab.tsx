@@ -36,13 +36,13 @@ export function SalesOrdersContent() {
   const ordersPerPage = 5
 
   const sortedOrders = [...orders].sort((a, b) => {
-    const dateA = new Date(a.created_at).getTime()
-    const dateB = new Date(b.created_at).getTime()
+    const dateA = new Date(a.created_at ?? 0).getTime()
+    const dateB = new Date(b.created_at ?? 0).getTime()
     return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
   })
 
   const filteredOrders = sortedOrders.filter(
-    (order) => !selectedStatus || order.sales_order_status === selectedStatus
+    (order) => !selectedStatus || order.status === selectedStatus
   )
 
   const totalPages = Math.ceil(filteredOrders.length / ordersPerPage)

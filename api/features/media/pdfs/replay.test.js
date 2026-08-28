@@ -59,9 +59,9 @@ before(async () => {
   order = orders.find((o) => o.order_items?.length > 0) ?? orders[0];
   assert.ok(order, "dev has no purchase order to render");
 
-  // Legacy-shaped, the way the frontend sends them and the calculations read
-  // them. The same conversion service.test.js does, and for the same reason.
-  spots = await spotsService.getPricingSpots();
+  // The composed shape (`name` / `ask` / `bid`), the way the frontend sends
+  // them and the calculations read them since D84.
+  spots = await spotsService.getSpotPrices();
 
   // The sales-order invoice is a different document from a different table -
   // it is the copy a REFINER is sent. `order` above is a purchase order and

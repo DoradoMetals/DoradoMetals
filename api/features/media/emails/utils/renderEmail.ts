@@ -7,7 +7,7 @@ import fs from "fs";
 import path from "path";
 import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 import { fileURLToPath } from "url";
-import type { SalesOrderWire, SalesOrderItemWire, SpotPriceWire } from "@dorado/contracts";
+import type { SalesOrderWireNext, SalesOrderItemWireNext } from "@dorado/contracts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,20 +82,25 @@ export function renderOfferAcceptedEmail({ firstName, url }: TemplateVars): stri
 }
 
 // TIMESTAMPS ARE Date HERE, NOT string. Contracts describe the wire, so
-// SalesOrderWire says `created_at: string` - but what reaches this renderer is
-// what getById returned, a database row whose timestamps pg has already parsed.
-// The template only ever formats them, and features/pdf/render/sections.ts
-// declares `string | number | Date | null` for exactly this reason.
-export type SalesOrderForRender = Omit<SalesOrderWire, "created_at" | "updated_at"> & {
+// SalesOrderWireNext says `created_at: string` - but what reaches this
+// renderer is what getById returned, a database row whose timestamps pg has
+// already parsed. The template only ever formats them, and
+// features/pdf/render/sections.ts declares `string | number | Date | null`
+// for exactly this reason.
+export type SalesOrderForRender = Omit<SalesOrderWireNext, "created_at" | "updated_at"> & {
   created_at?: string | Date | null;
   updated_at?: string | Date | null;
 };
+
+// The converted spot spellings (D84). Only the metal's name and its ask are
+// printed on the refiner's copy.
+export type SupplierSpot = { name?: string | null; ask?: number | null };
 
 type SupplierEmailInput = {
   firstName?: string | null;
   url?: string | null;
   order: SalesOrderForRender;
-  spots: SpotPriceWire[];
+  spots: SupplierSpot[];
 };
 
 // Renders a value that the wire says can be missing. An em dash, never "null"
@@ -124,7 +129,7 @@ const money = (value: number | null | undefined): string =>
 //   invoice PDF built for that order does not read the address at all, so the
 //   document is fine and the render is what falls over.
 //
-//   `s.ask_spot.toFixed(2)` on a spot with no ask. ask_spot is nullable on the
+//   `s.ask.toFixed(2)` on a spot with no ask. The ask is nullable on the
 //   wire; production's four metals all have one, and the spots come from the
 //   request body rather than the database, so nothing guarantees it.
 //
@@ -163,11 +168,11 @@ export function renderSalesOrderToSupplierEmail({
 
   const spotsHtml = spots
     .map(
-      (s: SpotPriceWire) => `
+      (s: SupplierSpot) => `
     <tr>
-      <td style="padding:4px 8px;">${s.type}</td>
+      <td style="padding:4px 8px;">${s.name}</td>
       <td style="padding:4px 8px;text-align:right;">
-        ${money(s.ask_spot)}
+        ${money(s.ask)}
       </td>
     </tr>
   `
@@ -180,11 +185,11 @@ export function renderSalesOrderToSupplierEmail({
   // null price or quantity on any of its 14 sales order items. Changing what it
   // prints is a display decision, and this commit is for the two throws.
   const orderRows = order.order_items
-    .map((item: SalesOrderItemWire) => {
+    .map((item: SalesOrderItemWireNext) => {
       const subtotal = (item.quantity! * item.price!).toFixed(2);
       return `
       <tr>
-        <td style="padding:8px 0">${item.product.product_name}</td>
+        <td style="padding:8px 0">${item.product?.name}</td>
         <td style="padding:8px 0;text-align:center">${item.quantity}</td>
         <td style="padding:8px 0;text-align:right">$${subtotal}</td>
       </tr>
@@ -192,14 +197,18 @@ export function renderSalesOrderToSupplierEmail({
     })
     .join("");
 
-  const total = order.item_total.toFixed(2);
+  // totals.items is what item_total was: the sum of the lines. Nullable on
+  // the Next wire where the old field was declared required - `?? 0` keeps a
+  // missing value from crashing a send that happens after the order is
+  // already marked sent, per this file's own second-line-of-defence rule.
+  const total = (order.totals?.items ?? 0).toFixed(2);
 
   content = content
     .replace("[SHIPPING_ROWS]", shippingHtml)
     .replace("[SPOTS_ROWS]", spotsHtml)
     .replace("[ORDER_ROWS]", orderRows)
     .replace("[ORDER_TOTAL]", total)
-    .replace("[ORDER_NUMBER]", formatSalesOrderNumber(order.order_number))
+    .replace("[ORDER_NUMBER]", formatSalesOrderNumber(order.number))
     .replace("[CUSTOMER_NAME]", order.user.user_name ?? "");
 
   return layout.replace("[BODY]", content);

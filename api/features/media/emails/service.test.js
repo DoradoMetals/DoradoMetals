@@ -37,17 +37,10 @@ before(async () => {
   );
   orders = await poRepo.getAll();
   salesOrders = await soRepo.getAll();
-  // Legacy-shaped on purpose. The PDF and email paths take spot prices from the
-  // request body in the ORDERS wire's legacy shape - type / ask_spot /
-  // bid_spot. The live spot feed converted (2026-08-27) but order spots did
-  // not move with it: the frontend maps down at its edge
-  // (features/orders/orderSpots.ts), so legacy names are still what
-  // production hands these functions. getPricingSpots converts down through
-  // features/spots/legacy-shape.ts the same way.
-  //
-  // When the ORDERS conversion lands and calculations.js reads the new
-  // names, this goes.
-  spots = await spotsService.getPricingSpots();
+  // The composed shape (`name` / `ask` / `bid`): the ORDERS wire converted
+  // (D84), the frontend's mapping edge died with it, and the renderers read
+  // the schema's own spellings off the body.
+  spots = await spotsService.getSpotPrices();
 });
 
 after(async () => {
@@ -107,7 +100,7 @@ test("the order confirmation goes to the customer with its packing list attached
   assert.equal(pdf.contentType, "application/pdf");
   assert.equal(
     pdf.filename,
-    `${formatPurchaseOrderNumber(order.order_number)}_packing_list.pdf`,
+    `${formatPurchaseOrderNumber(order.number)}_packing_list.pdf`,
     "the attachment is named for a different order"
   );
   assert.equal(
@@ -128,10 +121,10 @@ test("the offer acceptance carries the invoice, named for the same order", async
 
   const [msg] = t.sent;
   assert.equal(msg.to, order.user.user_email);
-  assert.match(msg.subject, new RegExp(formatPurchaseOrderNumber(order.order_number)));
+  assert.match(msg.subject, new RegExp(formatPurchaseOrderNumber(order.number)));
   assert.equal(
     msg.attachments[0].filename,
-    `${formatPurchaseOrderNumber(order.order_number)}_invoice.pdf`
+    `${formatPurchaseOrderNumber(order.number)}_invoice.pdf`
   );
   assert.equal(Buffer.from(msg.attachments[0].content.subarray(0, 5)).toString(), "%PDF-");
 });
@@ -146,10 +139,10 @@ test("the refiner's copy goes to the address it was given, not the customer's", 
   const [msg] = t.sent;
   assert.equal(msg.to, "refiner@example.com", "the refiner's copy went somewhere else");
   assert.notEqual(msg.to, order.user?.user_email);
-  assert.match(msg.subject, new RegExp(formatSalesOrderNumber(order.order_number)));
+  assert.match(msg.subject, new RegExp(formatSalesOrderNumber(order.number)));
   assert.equal(
     msg.attachments[0].filename,
-    `${formatSalesOrderNumber(order.order_number)}_invoice.pdf`
+    `${formatSalesOrderNumber(order.number)}_invoice.pdf`
   );
 });
 
@@ -176,7 +169,7 @@ test("nothing is sent when the document cannot be built", async () => {
 
   await assert.rejects(
     () => emails.sendAcceptedEmail(
-      { order: { order_number: 1, user: {} }, order_spots: [], spot_prices: spots },
+      { order: { number: 1, user: {} }, order_spots: [], spot_prices: spots },
       "x@y.z",
       t
     ),

@@ -28,7 +28,7 @@ export default function AcceptedPurchaseOrder({ order }: PurchaseOrderDrawerCont
       <div className="p-4">
         <div className="text-2xl text-neutral-800 mb-2">
           <BlurredStagger
-            text={`Offer of  $${order.total_price?.toFixed(2)} accepted!`}
+            text={`Offer of  $${order.totals?.total?.toFixed(2)} accepted!`}
             delay={2000}
           />
         </div>

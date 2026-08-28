@@ -13,71 +13,29 @@ import {
 import { z } from 'zod/v4'
 
 import { LucideIcon } from 'lucide-react'
-import { Product, productSchema } from '@/features/products/types'
-import { Payout } from '@/features/payouts/types'
-import { Shipment } from '@/features/shipping/types'
+import { productSchema } from '@/features/products/types'
 import { packageSchema } from '@/features/packaging/types'
 import { pickupSchema } from '@/features/handoff/types'
 import { serviceSchema } from '@/features/service/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User, userSchema } from '@/features/users/types'
-import { AddressWireNext, SpotPriceWireNext, UserAddressWire } from '@dorado/contracts'
-import { OrderProduct } from '@/features/orders/orderProducts'
-import { OrderAddress } from '@/features/orders/orderAddresses'
+import {
+  AddressWireNext,
+  SpotPriceWireNext,
+  UserAddressWire,
+  type SalesOrderWireNext,
+  type SalesOrderItemWireNext,
+} from '@dorado/contracts'
 
-export interface SalesOrderItem {
-  id: string
-  sales_order_id: string
-  // The ORDERS wire's embedded product - legacy names until orders converts.
-  product?: OrderProduct
-  quantity: number
-  price?: number
-  premium?: number
-}
+// EIGHTH CONVERTED FEATURE (2026-08-28) - the last one. The order IS the
+// contracts shape: `number` / `status` where the legacy wire said
+// order_number / sales_order_status, the money nested as `totals` with
+// orders.transactions' own names (total / items / shipping / surcharge /
+// sales_tax / funds), the address a SNAPSHOT, embedded products speaking
+// name/description/type. The seam layer died with this.
+export type SalesOrderItem = SalesOrderItemWireNext
 
-export interface SalesOrderMetal {
-  id: string
-  sales_order_id: string
-  type: string
-  spot: number
-  created_at: Date
-}
-
-export interface SalesOrder {
-  id: string
-  user_id: string
-  sales_order_status: string
-  notes: string
-  created_at: Date
-  updated_at: Date
-  created_by: string
-  updated_by: string
-  order_number: number
-  order_total: number
-  review_created: boolean
-  shipping_service: string
-  shipping_cost: number
-  pre_charges_amount: number
-  post_charges_amount: number
-  subject_to_charges_amount: number
-  used_funds: boolean
-  item_total: number
-  base_total: number
-  charges_amount: number
-  order_sent: boolean
-  tracking_updated: boolean
-  supplier_id: string
-  order_items: SalesOrderItem[]
-  // The ORDERS wire's embedded address - flat until orders converts.
-  address: OrderAddress
-  payout: Payout
-  shipment: Shipment
-  user: {
-    user_name: string
-    user_email: string
-  }
-  sales_tax: number
-}
+export type SalesOrder = SalesOrderWireNext
 
 export const salesOrderReturnShipmentSchema = z.object({
   address: AddressWireNext,
@@ -327,16 +285,6 @@ export const adminSalesOrderCheckoutSchema = z.object({
 })
 export type AdminSalesOrderCheckout = z.infer<typeof adminSalesOrderCheckoutSchema>
 
-export interface SalesOrderTotals {
-  itemTotal: number
-  baseTotal: number
-  shippingCharge: number
-  beginningFunds: number
-  appliedFunds: number
-  endingFunds: number
-  subjectToChargesAmount: number
-  postChargesAmount: number
-  surchargeAmount: number
-  salesTax: number
-  orderTotal: number
-}
+// SalesOrderTotals lived here until 2026-08-28: the return shape of
+// calculateSalesOrderPrices, the last client money math on the sales side.
+// Every preview is the server's quote now (SalesOrderQuoteWire).

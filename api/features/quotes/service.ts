@@ -9,7 +9,7 @@
 //
 // THE PRICE OF METAL COMES FROM THE SERVER, AND ONLY FROM THE SERVER. Bodies
 // carry items and choices - ids, quantities, weights, a shipping service -
-// never prices and never spots. getPricingSpots' header holds the measurement
+// never prices and never spots. getSpotPrices' header holds the measurement
 // that made this a rule: the same order priced at $3,673.53 honest and $26.81
 // with ask_spot 1 riding in the body. Nothing below reads a price-shaped
 // field off a request, and the replay test posts one and pins that it
@@ -34,7 +34,7 @@ import {
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 import query from "#shared/db/query.js";
 import { convertTroyOz } from "#shared/utils/convertWeights.ts";
-import type { SpotPriceWire } from "@dorado/contracts";
+import type { PricingSpot } from "#features/sales-orders/utils/calculations.ts";
 
 // req.body, typed the way intake.ts types its block: whatever arrived,
 // guarded at every read rather than trusted by declaration.
@@ -89,10 +89,10 @@ async function refuseProductsThatAreNotLive(
 // calculateItemAsk prices a missing spot at zero rather than throwing.
 function calculateItemBid(
   item: { metal_type?: string | null; content?: number | null; bid_premium?: number | null },
-  spots: SpotPriceWire[]
+  spots: PricingSpot[]
 ): number {
-  const spot = spots.find((s) => s.type === item.metal_type);
-  return (item?.content ?? 0) * ((spot?.bid_spot ?? 0) * (item?.bid_premium ?? 0));
+  const spot = spots.find((s) => s.name === item.metal_type);
+  return (item?.content ?? 0) * ((spot?.bid ?? 0) * (item?.bid_premium ?? 0));
 }
 
 // ------------------------------------------------------------------ catalog
@@ -140,7 +140,7 @@ export async function catalogQuote(body: Body): Promise<CatalogQuote> {
 
   const [rows, spots] = await Promise.all([
     productService.getItemsFromServer(items),
-    spotsService.getPricingSpots(),
+    spotsService.getSpotPrices(),
   ]);
   const spots_at = new Date().toISOString();
 
@@ -237,7 +237,7 @@ export async function salesOrderQuote(user_id: string, body: Body): Promise<Sale
   }
 
   const serverItems = await productService.getItemsFromServer(items);
-  const spots = await spotsService.getPricingSpots();
+  const spots = await spotsService.getSpotPrices();
   const spots_at = new Date().toISOString();
   const withTax = await taxService.attachSalesTaxToItems(state, serverItems, spots);
 
@@ -378,7 +378,7 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
     // quantity 0 because only the row is wanted here - each line below keeps
     // its own quantity, so duplicate ids cannot collapse into one.
     productService.getItemsFromServer([...new Set(productIds)].map((id) => ({ id, quantity: 0 }))),
-    spotsService.getPricingSpots(),
+    spotsService.getSpotPrices(),
     ratesService.getAllRates(),
   ]);
   const spots_at = new Date().toISOString();
@@ -403,13 +403,13 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
       };
     }
     const spot = spots.find(
-      (s) => String(s.type).toLowerCase() === l.metal.toLowerCase()
+      (s) => String(s.name).toLowerCase() === l.metal.toLowerCase()
     );
     if (!spot) throw badRequest(`item ${l.index} names a metal with no spot price`);
     return {
       index: l.index,
       kind: l.kind,
-      metal: String(spot.type),
+      metal: String(spot.name),
       content: l.content,
       quantity: 1,
       own_premium: null,
@@ -489,8 +489,9 @@ export type OrderQuote = {
 // carries requireOwnOrder; nothing here re-checks ownership, and nothing in
 // the body is read except the order id.
 //
-// WHICH SPOTS. Per metal: the order's OWN frozen bid (order_metals.bid_spot,
-// via getMetalsForOrder) when it is set, else the live pricing spot. That is
+// WHICH SPOTS. Per metal: the order's OWN frozen bid (order_metals.bid_spot
+// on its way out as `bid`, via getMetalsForOrder) when it is set, else the
+// live pricing spot. That is
 // the frontend rule this replaces - `orderSpot?.bid ?? globalSpot?.bid ?? 0`
 // in every family member - and it is equivalent to how acceptOrder chooses
 // (`order.spots_locked ? order_spots : spot_prices`), because lockSpots is
@@ -541,7 +542,7 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
   }
 
   const [liveSpots, orderSpots] = await Promise.all([
-    spotsService.getPricingSpots(),
+    spotsService.getSpotPrices(),
     purchaseOrdersService.getMetalsForOrder(order_id),
   ]);
   const spots_at = new Date().toISOString();
@@ -549,9 +550,9 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
   // Exact-match on the metal name, the way the family and calculateTotalPrice
   // both find their spot rows.
   const bidFor = (metal: unknown): number => {
-    const pinned = orderSpots.find((s) => s.type === metal)?.bid_spot;
+    const pinned = orderSpots.find((s) => s.name === metal)?.bid;
     if (pinned != null) return Number(pinned);
-    return Number(liveSpots.find((s) => s.type === metal)?.bid_spot ?? 0);
+    return Number(liveSpots.find((s) => s.name === metal)?.bid ?? 0);
   };
 
   const rawItems: Body[] = Array.isArray(order.order_items) ? order.order_items : [];
@@ -616,4 +617,377 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
   const total = scrap_total + bullion_total - shipping - payoutCost;
 
   return { order_id, spots_at, items, scrap_total, bullion_total, total };
+}
+
+// ------------------------------------------------------ profit breakdown
+
+// THE LAST CLIENT MONEY MATH, PORTED (D83/D84). This is
+// frontend/features/orders/purchaseOrders/utils/calculatePurchaseOrderTotals.ts
+// moved server-side byte-for-byte - the shares algebra, the clamp, the
+// renormalisation, the actual-content basis - because the numbers it produces
+// are the business's margins and the frontend copy died with the orders wire
+// conversion. The math is kept faithful rather than improved; anything that
+// looks odd below looked exactly as odd in the file it came from, and changing
+// what an admin has been reading is not a port's job.
+//
+// ADMIN ONLY, and that is a property of the DATA, not just the route: the
+// split prices what the business and the refiner each make on a customer's
+// order. The route carries requireAdmin and nothing here may be reachable any
+// other way.
+//
+// Server-sourced throughout, per the header's rule: the order (the ADMIN
+// read, because the assay actuals ride only on it), its frozen spots, the
+// refiner's spots, and the rates bands. The body supplies the order id and
+// nothing else - the replay test posts a poisoned body and pins that it
+// changes nothing.
+
+type ProfitMetal = { content: number; percentage: number; profit: number };
+type ProfitMetalsDict = {
+  gold: ProfitMetal; silver: ProfitMetal; platinum: ProfitMetal; palladium: ProfitMetal;
+};
+type ProfitCategories = {
+  scrap: ProfitMetalsDict;
+  bullion: ProfitMetalsDict;
+  total: ProfitMetalsDict;
+  shipping_net: number;
+  refiner_fee_net: number;
+  spot_net: number;
+  total_profit: number;
+};
+export type ProfitBreakdown = {
+  order_id: string;
+  spots_at: string;
+  refiner: ProfitCategories;
+  dorado: ProfitCategories;
+  customer: ProfitCategories;
+};
+
+type MetalName = "Gold" | "Silver" | "Platinum" | "Palladium";
+type MetalKey = "gold" | "silver" | "platinum" | "palladium";
+type ProfitSpot = { name?: string | null; bid?: number | null };
+type ProfitItem = Record<string, any>;
+type ProfitOrder = Record<string, any>;
+
+const PROFIT_METALS: MetalName[] = ["Gold", "Silver", "Platinum", "Palladium"];
+const toKey = (m: MetalName): MetalKey => m.toLowerCase() as MetalKey;
+
+const emptyMetalsDict = (): ProfitMetalsDict => ({
+  gold: { content: 0, percentage: 0, profit: 0 },
+  silver: { content: 0, percentage: 0, profit: 0 },
+  platinum: { content: 0, percentage: 0, profit: 0 },
+  palladium: { content: 0, percentage: 0, profit: 0 },
+});
+
+const getItemMetal = (item: ProfitItem): MetalName | null => {
+  if (item.item_type === "scrap") return (item.scrap?.metal ?? null) as MetalName | null;
+  if (item.item_type === "product") return (item.product?.metal_type ?? null) as MetalName | null;
+  return null;
+};
+
+// `item.product?.quantity` predates the wire: a product on an order item has
+// never carried one, so the chain always lands on item.quantity. Ported as
+// written rather than simplified, because this file's rule is byte-faithful.
+const getItemContent = (item: ProfitItem): number => {
+  if (item.item_type === "scrap") return item.scrap?.content ?? 0;
+  if (item.item_type === "product") {
+    const c = item.product?.content ?? 0;
+    const q = item.product?.quantity ?? item.quantity ?? 1;
+    return c * q;
+  }
+  return 0;
+};
+
+const getScrapActualContent = (item: ProfitItem): number | null => {
+  if (item.item_type !== "scrap" || !item.scrap) return null;
+  const s = item.scrap;
+  if (typeof s.content_actual === "number") return s.content_actual;
+  if (typeof s.post_melt_actual === "number" && typeof s.purity_actual === "number") {
+    return s.post_melt_actual * s.purity_actual;
+  }
+  return null;
+};
+
+const getProfitSpot = (spots: ProfitSpot[], metal: MetalName): ProfitSpot | null =>
+  spots.find((s) => String(s.name ?? "").toLowerCase() === metal.toLowerCase()) ?? null;
+
+type Shares = { customerShare: number; doradoShare: number; refinerShare: number };
+const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
+
+function premiumsToShares(
+  category: "scrap" | "bullion" | "total",
+  doradoPremium?: number | null,
+  refinerPremium?: number | null
+): Shares {
+  let d = doradoPremium ?? undefined;
+  let r = refinerPremium ?? undefined;
+
+  if (d == null && r != null) d = r;
+  if (r == null && d != null) r = d;
+
+  if (d == null && r == null && (category === "bullion" || category === "total")) {
+    return { customerShare: 1, doradoShare: 0, refinerShare: 0 };
+  }
+
+  if (d == null) d = 1;
+  if (r == null) r = 1;
+
+  d = clamp01(d);
+  r = clamp01(r);
+
+  let customerShare = d;
+  let doradoShare = Math.max(r - d, 0);
+  let refinerShare = 1 - r;
+
+  const sum = customerShare + doradoShare + refinerShare;
+  if (Math.abs(sum - 1) > 1e-9) {
+    const remainder = Math.max(1 - customerShare, 0);
+    const dr = doradoShare + refinerShare;
+    if (dr > 0) {
+      const scale = remainder / dr;
+      doradoShare *= scale;
+      refinerShare *= scale;
+    } else {
+      doradoShare = remainder;
+    }
+  }
+
+  return {
+    customerShare: clamp01(customerShare),
+    doradoShare: clamp01(doradoShare),
+    refinerShare: clamp01(refinerShare),
+  };
+}
+
+function getSharesForItem(
+  item: ProfitItem,
+  metal: MetalName,
+  orderSpots: ProfitSpot[],
+  refinerSpots: ProfitSpot[],
+  category: "scrap" | "bullion" | "total",
+  rates: Parameters<typeof getRatePct>[0],
+  scrapTotalsByMetal: Record<string, number>
+) {
+  const orderSpot = getProfitSpot(orderSpots, metal);
+  const refSpot = getProfitSpot(refinerSpots, metal);
+
+  // For scrap, the default dorado premium comes from the rates table, tiered by
+  // total scrap of this metal in the order. An explicit item.premium (admin
+  // override) always wins.
+  const ratePremium =
+    item.item_type === "scrap"
+      ? getRatePct(rates, metal, scrapTotalsByMetal[metal.toLowerCase()] ?? 0, "scrap")
+      : undefined;
+
+  const doradoPremium =
+    item.premium != null ? Number(item.premium) : ratePremium ?? undefined;
+
+  const refinerPremium =
+    item.refiner_premium != null ? Number(item.refiner_premium) : undefined;
+
+  const shares = premiumsToShares(category, doradoPremium, refinerPremium);
+  return { ...shares, orderSpot, refSpot };
+}
+
+function computeMetalsForAllParties(
+  order: ProfitOrder,
+  category: "scrap" | "bullion" | "total",
+  orderSpots: ProfitSpot[],
+  refinerSpots: ProfitSpot[],
+  rates: Parameters<typeof getRatePct>[0],
+  scrapTotalsByMetal: Record<string, number>
+) {
+  const customer = emptyMetalsDict();
+  const refiner = emptyMetalsDict();
+  const dorado = emptyMetalsDict();
+
+  for (const item of (order.order_items ?? []) as ProfitItem[]) {
+    const metal = getItemMetal(item);
+    if (!metal) continue;
+
+    const isScrap = item.item_type === "scrap";
+    const isBullion = item.item_type === "product";
+    if ((category === "scrap" && !isScrap) || (category === "bullion" && !isBullion)) continue;
+
+    const baseContent = getItemContent(item);
+
+    if (!baseContent) continue;
+
+    const { customerShare, doradoShare, refinerShare, orderSpot, refSpot } = getSharesForItem(
+      item,
+      metal,
+      orderSpots,
+      refinerSpots,
+      category,
+      rates,
+      scrapTotalsByMetal
+    );
+    // doradoShare is derived and never read below - the dorado slice is what
+    // remains after the other two, exactly as the frontend computed it.
+    void doradoShare;
+
+    const actualScrap = isScrap ? getScrapActualContent(item) : null;
+
+    const dorRefContentBasis = isScrap ? actualScrap ?? baseContent : baseContent;
+
+    const custContent = baseContent * customerShare;
+    const refContent = dorRefContentBasis * refinerShare;
+    const dorContent = dorRefContentBasis - custContent - refContent;
+
+    const key = toKey(metal);
+    const orderBid = orderSpot?.bid ?? 0;
+    const refBid = refSpot?.bid ?? 0;
+
+    customer[key].content += custContent;
+    customer[key].profit += custContent * orderBid;
+
+    dorado[key].content += dorContent;
+    dorado[key].profit += dorContent * refBid;
+
+    refiner[key].content += refContent;
+    refiner[key].profit += refContent * refBid;
+  }
+
+  for (const metal of PROFIT_METALS) {
+    const key = toKey(metal);
+    const denom = customer[key].content + dorado[key].content + refiner[key].content;
+
+    const pct = (owned: number) => (denom ? (owned / denom) * 100 : 0);
+
+    customer[key].percentage = pct(customer[key].content);
+    dorado[key].percentage = pct(dorado[key].content);
+    refiner[key].percentage = pct(refiner[key].content);
+  }
+
+  return { customer, refiner, dorado };
+}
+
+function getShippingFees(order: ProfitOrder) {
+  return {
+    refiner: 0,
+    dorado: order.shipping_fee_actual ?? 0,
+    customer: order.shipment?.shipping_charge ?? 0,
+  };
+}
+
+function getSpotNet(
+  customerTotals: ProfitMetalsDict,
+  orderSpots: ProfitSpot[],
+  refinerSpots: ProfitSpot[]
+) {
+  let sum = 0;
+
+  for (const metal of PROFIT_METALS) {
+    const key = toKey(metal);
+    const qty = customerTotals[key]?.content ?? 0;
+    if (!qty) continue;
+
+    const orderBid = getProfitSpot(orderSpots, metal)?.bid;
+    const refBid = getProfitSpot(refinerSpots, metal)?.bid;
+    if (orderBid == null || refBid == null) continue;
+
+    sum += qty * (refBid - orderBid);
+  }
+
+  return {
+    refiner: 0,
+    dorado: sum,
+    customer: 0,
+  };
+}
+
+function getTotalProfit(
+  totalMetals: ProfitMetalsDict,
+  shippingFee: number,
+  spotNet: number = 0,
+  refiner_fee: number = 0
+): number {
+  const metalsProfit =
+    (totalMetals.gold?.profit ?? 0) +
+    (totalMetals.silver?.profit ?? 0) +
+    (totalMetals.platinum?.profit ?? 0) +
+    (totalMetals.palladium?.profit ?? 0);
+
+  return metalsProfit + spotNet - shippingFee - refiner_fee;
+}
+
+export async function profitBreakdown(body: Body): Promise<ProfitBreakdown> {
+  const order_id = body?.order_id;
+  if (typeof order_id !== "string" || !UUID.test(order_id)) {
+    throw badRequest("no order was named");
+  }
+
+  // THE ADMIN READ, deliberately: the assay actuals (content_actual,
+  // post_melt_actual, purity_actual) ride only on getAll's withActuals
+  // projection, and the dorado/refiner content basis is computed from them.
+  // getById is the customer read and omits them, which would silently price
+  // the split off declared weights. This is what the admin drawer read too -
+  // its order came from the admin list.
+  const order = (await purchaseOrdersService.getAll()).find(
+    (o) => (o as Record<string, unknown>).id === order_id
+  ) as ProfitOrder | undefined;
+  if (!order) {
+    const err: HttpError = new Error("no such purchase order");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const [orderSpots, refinerSpots, rates] = await Promise.all([
+    purchaseOrdersService.getMetalsForOrder(order_id),
+    purchaseOrdersService.getRefinerMetalsForOrder(order_id),
+    ratesService.getAllRates(),
+  ]);
+  const spots_at = new Date().toISOString();
+
+  // Total scrap content per metal for rate tiering (per-metal, order total).
+  const scrapTotalsByMetal = sumContentByMetal(
+    ((order.order_items ?? []) as ProfitItem[]).filter((i) => i.item_type === "scrap"),
+    (i) => getItemMetal(i),
+    (i) => getItemContent(i)
+  );
+
+  const scrap = computeMetalsForAllParties(order, "scrap", orderSpots, refinerSpots, rates, scrapTotalsByMetal);
+  const bullion = computeMetalsForAllParties(order, "bullion", orderSpots, refinerSpots, rates, scrapTotalsByMetal);
+  const total = computeMetalsForAllParties(order, "total", orderSpots, refinerSpots, rates, scrapTotalsByMetal);
+  const shipping = getShippingFees(order);
+  const spotNet = getSpotNet(total.customer, orderSpots, refinerSpots);
+
+  // The money nested as totals since D84; the refiner fee lives there.
+  const refinerFee = order.totals?.refiner_fee ?? 0;
+
+  return {
+    order_id,
+    spots_at,
+    refiner: {
+      scrap: scrap.refiner,
+      bullion: bullion.refiner,
+      total: total.refiner,
+      shipping_net: shipping.refiner,
+      refiner_fee_net: 0,
+      spot_net: spotNet.refiner,
+      total_profit: getTotalProfit(total.refiner, shipping.refiner, spotNet.refiner, 0),
+    },
+    dorado: {
+      scrap: scrap.dorado,
+      bullion: bullion.dorado,
+      total: total.dorado,
+      shipping_net: shipping.customer - shipping.dorado,
+      refiner_fee_net: -Math.abs(Number(refinerFee ?? 0)),
+      spot_net: spotNet.dorado,
+      total_profit: getTotalProfit(
+        total.dorado,
+        shipping.dorado - shipping.customer,
+        spotNet.dorado,
+        refinerFee
+      ),
+    },
+    customer: {
+      scrap: scrap.customer,
+      bullion: bullion.customer,
+      total: total.customer,
+      shipping_net: shipping.dorado - shipping.customer,
+      refiner_fee_net: -Math.abs(Number(order.payout?.cost ?? 0)),
+      spot_net: spotNet.customer,
+      total_profit: getTotalProfit(total.customer, shipping.customer, spotNet.customer, order.payout?.cost),
+    },
+  };
 }

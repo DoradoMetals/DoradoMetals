@@ -64,11 +64,12 @@ test("the balance moves by exactly what the ledger records", async () => {
       const res = await request(app)
         .post("/api/purchase_orders/add_funds_to_account")
         .send({
-          order: { id: order.id, user_id: order.user_id, total_price: order.total_price },
+          // The Next body shape (D84): the order's money rides in `totals`.
+          order: { id: order.id, user_id: order.user_id, totals: { total: order.total_price } },
           // Sent deliberately. The frontend still posts it and the service must
           // no longer read it - this is the D1 shape: not accepted rather than
           // accepted and overwritten.
-          spots: [{ type: "Gold", ask_spot: 1, bid_spot: 1 }],
+          spots: [{ name: "Gold", ask: 1, bid: 1 }],
         });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
@@ -125,8 +126,8 @@ test("spots in the request body do not reach the ledger", async () => {
       const res = await request(app)
         .post("/api/purchase_orders/add_funds_to_account")
         .send({
-          order: { id: order.id, user_id: order.user_id, total_price: order.total_price },
-          spots: [{ type: "Gold", ask_spot: 0, bid_spot: 0 }],
+          order: { id: order.id, user_id: order.user_id, totals: { total: order.total_price } },
+          spots: [{ name: "Gold", ask: 0, bid: 0 }],
         });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.equal(await countOf(), before + 1, "this request wrote no ledger entry");

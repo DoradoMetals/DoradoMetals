@@ -64,6 +64,7 @@
   "POST /api/purchase_orders/update_shipping_actual",
   "POST /api/purchase_orders/update_spot",
   "POST /api/purchase_orders/update_status",
+  "POST /api/quotes/profit_breakdown",
   "POST /api/rates/create",
   "POST /api/rates/update",
   "POST /api/reviews/create",

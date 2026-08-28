@@ -21,14 +21,17 @@ import {
   renderOfferSentEmail,
 } from "#features/media/emails/utils/renderEmail.ts";
 
-// The wire shape, not a convenience object: SalesOrderWire says address is
-// nullable, item_total is not, and an item's price and quantity are.
+// The wire shape, not a convenience object: SalesOrderWireNext says address
+// and totals are nullable, and an item's price and quantity are. The fixture
+// speaks the converted names (D84) because that is what the service hands the
+// renderer now.
 const order = (over = {}) => ({
   id: "00000000-0000-0000-0000-000000000001",
-  order_number: 55,
-  item_total: 1234.5,
+  number: 55,
+  totals: { items: 1234.5 },
   address: {
-    id: "00000000-0000-0000-0000-000000000002",
+    address_id: "00000000-0000-0000-0000-000000000002",
+    recipient_name: "Jacob",
     line_1: "1 Refinery Row",
     line_2: null,
     city: "Dallas",
@@ -40,13 +43,13 @@ const order = (over = {}) => ({
     {
       quantity: 2,
       price: 100,
-      product: { product_name: "1 oz Gold Eagle" },
+      product: { name: "1 oz Gold Eagle" },
     },
   ],
   ...over,
 });
 
-const spots = [{ type: "Gold", ask_spot: 4000 }];
+const spots = [{ name: "Gold", ask: 4000 }];
 
 test("the supplier email renders the order it was given", () => {
   const html = renderSalesOrderToSupplierEmail({
@@ -90,7 +93,7 @@ test("a spot with no ask renders rather than throwing", () => {
     firstName: "Refiner",
     url: "https://example.com/orders",
     order: order(),
-    spots: [{ type: "Gold", ask_spot: null }],
+    spots: [{ name: "Gold", ask: null }],
   });
 
   assert.ok(html.includes("Gold"), "the metal row is missing");

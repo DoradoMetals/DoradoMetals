@@ -215,3 +215,134 @@ export const SalesOrderWire = z.object({
   order_items: z.array(SalesOrderItemWire),
 });
 export type SalesOrderWire = z.infer<typeof SalesOrderWire>;
+
+// ---------------------------------------------------------------------------
+// THE CONVERTED ORDER WIRE (D84, 2026-08-28). Orders never had a *_WIRE
+// switch, so these land as ONE deliberate change with the API and frontend
+// together. The legacy family above retires when the last consumer moves
+// (slice c5), and the -WireNext suffixes go with it.
+//
+// Shape decisions, made against the schema rather than the old wire:
+//   - `number` and `status` take the orders.orders names; direction is the
+//     endpoint's, not a field the frontend switches on.
+//   - Money nests as `totals` with orders.transactions' own names - the
+//     payments precedent: what-was-asked keeps its own object.
+//   - The address is a SNAPSHOT, per Jacob: immutable postal facts plus the
+//     recipient - address_id is the BOOK id (source_address_id) because
+//     checkout resolves against the book, and recipient_name says what the
+//     old smeared `name` actually meant on an order. No user_address, no
+//     is_default: a snapshot is neither a place nor a relationship, it is
+//     where a shipment went and who receives it.
+//   - Embedded products and spots speak the converted names
+//     (name/description/type, name/ask/bid) - the seam trio dies with this.
+
+export const OrderAddressSnapshotWire = z.object({
+  address_id: z.string().uuid().nullable(),
+  recipient_name: z.string().nullable(),
+  line_1: z.string().nullable(),
+  line_2: z.string().nullable(),
+  city: z.string().nullable(),
+  state: z.string().nullable(),
+  country: z.string().nullable(),
+  country_code: z.string().nullable(),
+  zip: z.string().nullable(),
+  phone_number: z.string().nullable(),
+  is_residential: z.boolean().nullable(),
+  is_valid: z.boolean().nullable(),
+});
+export type OrderAddressSnapshotWire = z.infer<typeof OrderAddressSnapshotWire>;
+
+export const OrderTotalsWire = z.object({
+  total: z.number().nullable(),
+  items: z.number().nullable(),
+  shipping: z.number().nullable(),
+  surcharge: z.number().nullable(),
+  sales_tax: z.number().nullable(),
+  funds: z.number().nullable(),
+  refiner_fee: z.number().nullable(),
+  base_total: z.number().nullable(),
+  subject_to_charges_amount: z.number().nullable(),
+  post_charges_amount: z.number().nullable(),
+});
+export type OrderTotalsWire = z.infer<typeof OrderTotalsWire>;
+
+export const ProductOnOrderItemNext = z.object({
+  id: z.string().uuid().nullable(),
+  name: z.string().nullable(),
+  description: z.string().nullable(),
+  type: z.string().nullable(),
+  metal_type: z.string().nullable(),
+  content: z.number().nullable(),
+  gross: z.number().nullable(),
+  purity: z.number().nullable(),
+  bid_premium: z.number().nullable(),
+  ask_premium: z.number().nullable(),
+  image_front: z.string().nullable(),
+  image_back: z.string().nullable(),
+  mint_name: z.string().nullable(),
+});
+export type ProductOnOrderItemNext = z.infer<typeof ProductOnOrderItemNext>;
+
+export const SpotOnOrderNext = z.object({
+  id: z.string().uuid().nullable(),
+  name: z.string().nullable(),
+  ask: z.number().nullable(),
+  bid: z.number().nullable(),
+  percent_change: z.number().nullable(),
+  dollar_change: z.number().nullable(),
+});
+export type SpotOnOrderNext = z.infer<typeof SpotOnOrderNext>;
+
+export const PurchaseOrderItemWireNext = PurchaseOrderItemWire.omit({
+  product: true,
+}).extend({
+  product: ProductOnOrderItemNext.nullable(),
+});
+export type PurchaseOrderItemWireNext = z.infer<typeof PurchaseOrderItemWireNext>;
+
+export const SalesOrderItemWireNext = SalesOrderItemWire.omit({
+  product: true,
+}).extend({
+  product: ProductOnOrderItemNext.nullable(),
+});
+export type SalesOrderItemWireNext = z.infer<typeof SalesOrderItemWireNext>;
+
+export const PurchaseOrderWireNext = PurchaseOrderWire.omit({
+  order_number: true,
+  purchase_order_status: true,
+  total_price: true,
+  refiner_fee: true,
+  address: true,
+  order_items: true,
+}).extend({
+  number: z.number().nullable(),
+  status: z.string().nullable(),
+  totals: OrderTotalsWire.nullable(),
+  address: OrderAddressSnapshotWire.nullable(),
+  order_items: z.array(PurchaseOrderItemWireNext),
+});
+export type PurchaseOrderWireNext = z.infer<typeof PurchaseOrderWireNext>;
+
+export const SalesOrderWireNext = SalesOrderWire.omit({
+  order_number: true,
+  sales_order_status: true,
+  order_total: true,
+  item_total: true,
+  shipping_cost: true,
+  base_total: true,
+  charges_amount: true,
+  sales_tax: true,
+  pre_charges_amount: true,
+  subject_to_charges_amount: true,
+  post_charges_amount: true,
+  address: true,
+  order_items: true,
+}).extend({
+  number: z.number().nullable(),
+  status: z.string().nullable(),
+  totals: OrderTotalsWire.nullable(),
+  address: OrderAddressSnapshotWire.nullable(),
+  order_items: z.array(SalesOrderItemWireNext),
+});
+export type SalesOrderWireNext = z.infer<typeof SalesOrderWireNext>;
+
