@@ -51,10 +51,15 @@ frontend/            @dorado/frontend   Next.js, TypeScript, strict
 packages/contracts/  @dorado/contracts  zod schemas, imported by api only
 ```
 
-The frontend does **not** import `@dorado/contracts` and does not depend on
-it — its API types are hand-written and checked against nothing, so a wire
-rename is invisible to `tsc` on both sides. That is what
-`audit:wire-readiness` exists to measure; see FOLLOWUPS.md.
+The frontend imports `@dorado/contracts` as its ONLY source of table-derived
+shapes — types and, since the zod/v4 unification, the runtime schema objects
+themselves (Jacob's single-source ruling, executed 2026-08-28). Frontend
+files keep local names for UI concerns and alias contract imports as
+`<Name>Contract` on collision. An earlier version of this paragraph said the
+frontend imported the contracts nowhere and its hand-written types were
+"checked against nothing" — true when written, and the gap
+`audit:wire-readiness` was built to measure; the audit now measures a
+finished thing.
 
 `api` uses subpath imports — `#features/*`, `#shared/*`, `#providers/*`, `#db`.
 
@@ -90,16 +95,20 @@ no source to read from, so a switch would have one state. `auth` is an atomic
 cutover: better-auth writes `exchange` directly through its own pool via
 `modelName`, so there is no reversible middle state to sit in.
 
-**The shape a response leaves in is a second, independent axis.** Seven `*_WIRE`
-switches — products, media, spots, refiners, carriers, addresses, payments — all
-defaulting to `legacy`. `*_SOURCE` moves when the data is ready; `*_WIRE` moves
-when the frontend is. Both repos return the new shape internally, and
-`shared/wire/middleware.js` converts down at the edge, mounted as one line per
-feature. Conflating the two axes is the mistake to avoid.
+**The wire axis is RETIRED (2026-08-28).** There were seven `*_WIRE` switches
+— products, media, spots, refiners, carriers, addresses, payments — and all
+seven features (plus orders, which never had a switch) are CONVERTED: the
+frontend reads every response shape from `@dorado/contracts`, the adapters
+and `shared/wire/lift.ts` are deleted, and `audit:switches` asserts the
+zero-state. A wire rollback would now break the frontend rather than save
+it. What remains is the `*_SOURCE` axis alone — data readiness, Jacob's
+promotion decisions. The frontend also computes NO money: every
+customer-visible number comes from the `/quotes/*` endpoints (D81–D84).
 
 **Promotion is documented in `PROMOTION.md`** — the order of operations, what
-each of the twenty-eight switches moves, and how to roll each one back. Written
-against production as it actually is rather than against dev.
+each `*_SOURCE` switch moves, and how to roll each one back; its wire section
+stands as the record of what each conversion changed. Written against
+production as it actually is rather than against dev.
 
 **Production can be built from nothing.** `000_genesis_schema.sql` creates every
 schema, table, view, enum and function; the backfills derive the data from
