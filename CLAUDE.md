@@ -351,6 +351,51 @@ omission is exactly how the rounding went unseen.
   are 100% NULL but still referenced by live code.
 - `master` auto-deploys. There is no staging.
 
+## Where things stand (2026-08-28, end of the conversion push)
+
+Nineteen commits landed 8/27-8/28 (media c00c0b56 ... downloads 4ea0fa9a).
+The FRONTEND CONVERSION IS COMPLETE: every wire converted, every
+table-derived schema imported from `@dorado/contracts` as VALUES with plain
+names (no -Wire/-WireNext), zero client-side money math (the `/quotes/*`
+endpoints price everything), the paper trail live end to end. Read
+FOLLOWUPS.md D77-D86 for the record and BOTH "Jacob's rulings" sections
+(2026-08-28 evening + afternoon) for the standing design law: statuses are
+pure customer-facing labels driving no logic; offers are fully dead
+(vocabulary included); customers have zero post-placement order options;
+one endpoint per resource, owned by the feature that owns the table;
+coupled features convert in the same pass; shared UI components lift as
+surfaces are touched (structure now, styling later); admin order drawers
+are interim UI (future: one page, all statuses).
+
+**IN FLIGHT, UNCOMMITTED (D87 + D88)**: the working tree carries a
+three-agent series - (1) the order-mutation surface consolidation:
+`PATCH /purchase_orders/:id` + `PATCH /sales_orders/:id` replace the
+~25-route RPC zoo, admin-only, field-named 403s, `finalize_pricing` and
+`cancel` as explicit ops, 'Accepted'/'Offer Sent'/'Rejected' leave the
+lifecycle with row migrations; (2) the `refiners.orders` engagement entity
+(owns pool values + refiner fee; items/spots key to it; migration +
+guarded backfill; PATCH /refiners/orders/:id + /refiners/items/:id); (3)
+four shared UI components (AccordionSection/SelectMenu/StatusChip/
+UpdatedByline) adopted outside features/orders with a deferred-adoption
+table for the orders tree. Frontend + lifter halves are DONE and verified
+in-tree; the API half was still building at handoff. TO FINISH: read the
+API agent's report, cross-check the refiners endpoint keying (frontend
+keys items by ORDER ITEM id, engagements by refiner_order_id, guarded
+no-op when null) and the additive `refiner_order_id` on the order wire,
+run the full gate from the REPO ROOT, iterate, commit as a series, and
+REVIEW FLAG for Jacob: the offers purge edited the Terms & Conditions
+(legal copy - needs his eyes before deploy).
+
+**Session mechanics that matter**: `pnpm check` must launch as a fresh
+compound from the repo root (`pnpm
+check > FILE 2>&1; echo "CHECK_EXIT=$?" >> FILE`) - chaining it after a
+subdir cd has burned twelve attempts; read CHECK_EXIT from the file, never
+the task notification. ScheduleWakeup timers DIE when WSL idles - keep a
+background task alive (`sleep N` run_in_background) and let its completion
+notification re-invoke; task notifications have never failed. Capture test
+runs to files before grepping (SIGPIPE eats piped output). Subagents never
+touch api/.env or git commits; lanes parallelize, the gate does not.
+
 ## Open threads
 
 Full detail in FOLLOWUPS.md; these are the ones that block other work.
