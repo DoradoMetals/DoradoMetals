@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react'
 
 import { Button } from '@/shared/ui/base/button'
 import { Skeleton } from '@/shared/ui/base/skeleton'
-import { useAddress } from '@/features/addresses/queries'
+import { useAddress, useUserAddresses } from '@/features/addresses/queries'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { DebouncedInputSearch } from '@/shared/ui/inputs/DebouncedInputSearch'
 import { EmptyState } from '@/shared/ui/EmptyState'
@@ -14,26 +14,37 @@ import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 import { AddressCard } from '@/features/addresses/ui/AddressCard'
 
 export default function AddressList() {
+  // Two lists, one book: the addresses and what the caller names each one,
+  // joined here by address_id.
   const { data: addresses = [], isLoading } = useAddress()
+  const { data: links = [] } = useUserAddresses()
   const openDrawer = useDrawerStore((s) => s.openDrawer)
 
   const [query, setQuery] = useState('')
 
   const hasAddresses = addresses.length > 0
+  const linkOf = useMemo(() => new Map(links.map((l) => [l.address_id, l])), [links])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     const arr = [...addresses]
-    arr.sort((a, b) => Number(b.is_default) - Number(a.is_default) || a.name.localeCompare(b.name))
+    arr.sort((a, b) => {
+      const la = linkOf.get(a.id)
+      const lb = linkOf.get(b.id)
+      return (
+        Number(lb?.default_shipping ?? false) - Number(la?.default_shipping ?? false) ||
+        (la?.label ?? '').localeCompare(lb?.label ?? '')
+      )
+    })
     if (!q) return arr
     return arr.filter((a) => {
-      const text = [a.name, a.phone_number, a.line_1, a.line_2, a.city, a.state, a.zip]
+      const text = [linkOf.get(a.id)?.label, a.phone_number, a.line_1, a.line_2, a.city, a.state, a.zip]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
       return text.includes(q)
     })
-  }, [addresses, query])
+  }, [addresses, linkOf, query])
 
   const handleAdd = () => {
     openDrawer('address')
@@ -79,16 +90,17 @@ export default function AddressList() {
 
               <div className="flex flex-col gap-3">
                 {filtered.map((addr) => (
-                  <div key={addr.id ?? `${addr.user_id}-${addr.line_1}-${addr.zip}-${addr.name}`}>
+                  <div key={addr.id}>
                     <AddressCard
                       address={addr}
+                      userAddress={linkOf.get(addr.id)}
                       icon="auto"
                       showDefaultBanner
                       showEdit
                       showRemove
                       showSetDefault
-                      onEdit={(a)  => {
-                        openDrawer('address', {address: a})
+                      onEdit={(a, ua) => {
+                        openDrawer('address', { address: a, userAddress: ua ?? null })
                       }}
                     />
                   </div>

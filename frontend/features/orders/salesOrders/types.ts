@@ -14,7 +14,7 @@ import { z } from 'zod'
 
 import { LucideIcon } from 'lucide-react'
 import { Product, productSchema } from '@/features/products/types'
-import { Address, addressSchema } from '@/features/addresses/types'
+import { Address, addressWireSchemaV3, userAddressWireSchemaV3 } from '@/features/addresses/types'
 import { Payout } from '@/features/payouts/types'
 import { Shipment } from '@/features/shipping/types'
 import { packageSchema } from '@/features/packaging/types'
@@ -24,6 +24,7 @@ import { insuranceSchema } from '@/features/insurance/types'
 import { User, userSchema } from '@/features/users/types'
 import type { SpotPriceWireNext } from '@dorado/contracts'
 import { OrderProduct } from '@/features/orders/orderProducts'
+import { OrderAddress } from '@/features/orders/orderAddresses'
 
 export interface SalesOrderItem {
   id: string
@@ -68,7 +69,8 @@ export interface SalesOrder {
   tracking_updated: boolean
   supplier_id: string
   order_items: SalesOrderItem[]
-  address: Address
+  // The ORDERS wire's embedded address - flat until orders converts.
+  address: OrderAddress
   payout: Payout
   shipment: Shipment
   user: {
@@ -79,7 +81,8 @@ export interface SalesOrder {
 }
 
 export const salesOrderReturnShipmentSchema = z.object({
-  address: addressSchema,
+  address: addressWireSchemaV3,
+  user_address: userAddressWireSchemaV3.optional(),
   package: packageSchema,
   pickup: pickupSchema,
   service: serviceSchema,
@@ -301,7 +304,8 @@ export const adminSalesOrderServiceOptions: Record<string, SalesOrderServiceUIOp
 }
 
 export const salesOrderCheckoutSchema = z.object({
-  address: addressSchema,
+  address: addressWireSchemaV3,
+  user_address: userAddressWireSchemaV3.optional(),
   service: salesOrderServiceSchema,
   using_funds: z.boolean(),
   payment_method: paymentMethodTypeSchema,
@@ -323,7 +327,8 @@ const liveSpotSchema = z.object({
 }) satisfies z.ZodType<SpotPriceWireNext>
 
 export const adminSalesOrderCheckoutSchema = z.object({
-  address: addressSchema,
+  address: addressWireSchemaV3,
+  user_address: userAddressWireSchemaV3.optional(),
   service: salesOrderServiceSchema,
   using_funds: z.boolean(),
   payment_method: paymentMethodTypeSchema,

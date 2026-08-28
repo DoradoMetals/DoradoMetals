@@ -2,6 +2,7 @@ import express from "express";
 
 import {
   getAll,
+  getUserAddresses,
   create,
   update,
   remove,
@@ -9,18 +10,18 @@ import {
 } from "#features/places/addresses/controller.ts";
 
 import { requireUser } from "#shared/middleware/authMiddleware.ts";
-import * as addressesWire from "#features/places/addresses/wire.ts";
-import { wireShape } from "#shared/wire/middleware.ts";
-
 const router = express.Router();
 
-// The wire adapter, mounted once for the whole feature rather than called by
-// hand in every handler - writes arrive as { address, user_id }. Controllers return the internal shape
-// and know nothing about the frontend not having caught up. Deleting the
-// adapter is deleting this line.
-router.use(wireShape(addressesWire, { body: "address" }));
+// NO WIRE ADAPTER. Addresses converted 2026-08-27 - the LAST lift: the
+// frontend reads and writes the nested user_address from @dorado/contracts,
+// so the flatten is gone, and with it the last consumer of
+// shared/wire/lift.ts. What stays flat is the ORDERS wire's embedded
+// address and the purchase-order create/cancel bodies, which the frontend
+// down-converts at its edge (features/orders/orderAddresses.ts) until
+// orders converts.
 
 router.get("/get", requireUser, getAll);
+router.get("/get_user_addresses", requireUser, getUserAddresses);
 router.post("/create", requireUser, create);
 router.post("/update", requireUser, update);
 router.delete("/delete", requireUser, remove);

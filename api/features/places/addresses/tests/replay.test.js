@@ -60,21 +60,27 @@ after(async () => {
   await pool.end();
 });
 
-// The exact body frontend/features/addresses/queries.ts sends on create.
+// The exact body frontend/features/addresses/queries.ts sends on create -
+// SPLIT since the conversion (2026-08-27): the postal address and the
+// caller's relationship to it travel as siblings, one call, never nested.
 const newAddress = (over = {}) => ({
-  line_1: "1 Replay Street",
-  line_2: "",
-  city: "Dallas",
-  state: "TX",
-  zip: "75201",
-  country: "United States",
-  country_code: "US",
-  name: `replay-${randomUUID().slice(0, 8)}`,
-  phone_number: "5550000000",
-  is_default: false,
-  is_valid: true,
-  is_residential: true,
-  ...over,
+  address: {
+    line_1: "1 Replay Street",
+    line_2: "",
+    city: "Dallas",
+    state: "TX",
+    zip: "75201",
+    country: "United States",
+    country_code: "US",
+    phone_number: "5550000000",
+    is_valid: true,
+    is_residential: true,
+    ...over,
+  },
+  user_address: {
+    label: `replay-${randomUUID().slice(0, 8)}`,
+    default_shipping: false,
+  },
 });
 
 test("an anonymous request is refused before it reaches a controller", async () => {
@@ -94,45 +100,61 @@ test("a signed-in customer gets their addresses in the shape the hook destructur
       assert.ok(Array.isArray(res.body), "useAddress expects an array");
       assert.ok(res.body.length > 0, "the borrowed user has addresses and none came back");
 
-      // The fields frontend/features/addresses/types.ts declares, flat -
-      // ADDRESSES_WIRE=legacy, so the adapter has flattened user_address back
-      // out. If the nested shape leaked through, the frontend would render
-      // undefined everywhere.
+      // Addresses is CONVERTED (2026-08-27): /get serves the postal address
+      // ALONE - the caller's relationship travels on its own endpoint below.
       const a = res.body[0];
-      for (const field of ["id", "line_1", "city", "state", "zip", "country_code", "name", "is_default"]) {
+      for (const field of ["id", "line_1", "city", "state", "zip", "country_code"]) {
         assert.ok(field in a, `the response is missing ${field}`);
       }
-      assert.ok(!("user_address" in a), "the new nested shape reached the frontend");
+      assert.ok(!("user_address" in a), "the relationship is nested inside the address again");
+      assert.ok(!("is_default" in a), "the flat legacy shape came back");
+      assert.ok(!("name" in a), "the owner's label is smeared across the address again");
+
+      // The other half, joined by address_id.
+      const links = await request(app)
+        .get("/api/addresses/get_user_addresses")
+        .query({ user_id: customer.id });
+      assert.equal(links.status, 200);
+      assert.equal(links.body.length, res.body.length, "one relationship per book entry");
+      for (const field of ["address_id", "user_id", "label", "default_shipping"]) {
+        assert.ok(field in links.body[0], `the relationship is missing ${field}`);
+      }
+      const ids = new Set(res.body.map((x) => x.id));
+      assert.ok(
+        links.body.every((l) => ids.has(l.address_id)),
+        "a relationship points at an address the list did not return"
+      );
     });
   }, { lock: ADDRESS_LOCK });
 });
 
-test("creating an address round-trips through the wire adapter and comes back flat", async () => {
+test("creating an address round-trips in the split shape", async () => {
   await inPinnedTransaction(async () => {
     await as(customer, async () => {
       const address = newAddress();
       const res = await request(app)
         .post("/api/addresses/create")
-        .send({ user_id: customer.id, address });
+        .send({ user_id: customer.id, ...address });
 
       assert.equal(res.status, 200, JSON.stringify(res.body));
-      created.push(address.name);
+      created.push(address.user_address.label);
 
-      // The write went UP through the adapter (flat -> nested) and the
-      // response came back DOWN (nested -> flat). Applying it twice would null
-      // every field it lifts, which is the failure this arrangement is built to
-      // prevent.
-      const saved = Array.isArray(res.body) ? res.body[0] : res.body;
-      assert.equal(saved.line_1, "1 Replay Street");
-      assert.equal(saved.city, "Dallas");
-      assert.equal(saved.name, address.name, "the label was lost crossing the adapter");
-      assert.ok(saved.id, "no id came back, so the frontend cannot select it");
+      // The response is the same split: the row and the relationship, apart.
+      const saved = res.body;
+      assert.equal(saved.address.line_1, "1 Replay Street");
+      assert.equal(saved.address.city, "Dallas");
+      assert.equal(saved.user_address.label, address.user_address.label, "the label was lost");
+      assert.equal(saved.user_address.address_id, saved.address.id, "the halves do not join");
+      assert.ok(saved.address.id, "no id came back, so the frontend cannot select it");
 
-      // And it is really there, inside the transaction.
-      const back = await request(app).get("/api/addresses/get").query({ user_id: customer.id });
+      // And it is really there, inside the transaction - via the links list,
+      // which is where a label lives now.
+      const back = await request(app)
+        .get("/api/addresses/get_user_addresses")
+        .query({ user_id: customer.id });
       assert.ok(
-        back.body.some((a) => a.name === address.name),
-        "the address created a moment ago is not in the list"
+        back.body.some((l) => l.label === address.user_address.label),
+        "the address created a moment ago is not in the book"
       );
     });
   }, { lock: ADDRESS_LOCK });
@@ -141,18 +163,22 @@ test("creating an address round-trips through the wire adapter and comes back fl
 test("setting a default clears the others, as one request", async () => {
   await inPinnedTransaction(async () => {
     await as(customer, async () => {
-      const list = await request(app).get("/api/addresses/get").query({ user_id: customer.id });
-      const target = list.body.find((a) => !a.is_default) ?? list.body[0];
+      const list = await request(app)
+        .get("/api/addresses/get_user_addresses")
+        .query({ user_id: customer.id });
+      const target = list.body.find((l) => !l.default_shipping) ?? list.body[0];
 
       const res = await request(app)
         .post("/api/addresses/set_default")
-        .send({ user_id: customer.id, address: target });
+        .send({ user_id: customer.id, address_id: target.address_id });
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
-      const after = await request(app).get("/api/addresses/get").query({ user_id: customer.id });
-      const defaults = after.body.filter((a) => a.is_default);
+      const after = await request(app)
+        .get("/api/addresses/get_user_addresses")
+        .query({ user_id: customer.id });
+      const defaults = after.body.filter((l) => l.default_shipping);
       assert.equal(defaults.length, 1, "more than one address is the default");
-      assert.equal(defaults[0].id, target.id);
+      assert.equal(defaults[0].address_id, target.address_id);
     });
   }, { lock: ADDRESS_LOCK });
 });
@@ -182,8 +208,8 @@ test("a signed-in customer naming somebody else gets their own addresses", async
       const res = await request(app).get("/api/addresses/get").query({ user_id: victim });
       assert.equal(res.status, 200);
       assert.ok(
-        res.body.every((a) => a.name !== null || true),
-        "sanity"
+        res.body.every((a) => !("user_address" in a)),
+        "sanity - the split holds on this path too"
       );
       // Their own, not the victim's. Compared by count against the victim's,
       // because an empty array would pass either way if the caller had none.

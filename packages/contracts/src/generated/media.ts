@@ -4,6 +4,25 @@
 // Postgres schema: media
 import { z } from "zod/v4";
 
+export const EmailKind = z.enum(["purchase_order_created", "purchase_order_accepted", "sales_order_to_supplier"]);
+export const EmailStatus = z.enum(["sent", "failed"]);
+export const PdfKind = z.enum(["packing_list", "return_packing_list", "invoice", "sales_order_invoice"]);
+
+export const EmailsRow = z.object({
+  "id": z.string().uuid(),
+  "kind": EmailKind,
+  "status": EmailStatus,
+  "to_address": z.string(),
+  "subject": z.string().nullable(),
+  "order_id": z.string().uuid().nullable(),
+  "user_id": z.string().uuid().nullable(),
+  "pdf_id": z.string().uuid().nullable(),
+  "provider_message_id": z.string().nullable(),
+  "error": z.string().nullable(),
+  "sent_at": z.string(),
+});
+export type EmailsRow = z.infer<typeof EmailsRow>;
+
 export const ImagesRow = z.object({
   "id": z.string().uuid(),
   "bucket": z.string(),
@@ -19,4 +38,15 @@ export const ImagesRow = z.object({
   "created_at": z.string(),
 });
 export type ImagesRow = z.infer<typeof ImagesRow>;
+
+export const PdfsRow = z.object({
+  "id": z.string().uuid(),
+  "kind": PdfKind,
+  "order_id": z.string().uuid().nullable(),
+  "path": z.string(),
+  "size_bytes": z.number().int().nullable(),
+  "checksum": z.string().nullable(),
+  "created_at": z.string(),
+});
+export type PdfsRow = z.infer<typeof PdfsRow>;
 

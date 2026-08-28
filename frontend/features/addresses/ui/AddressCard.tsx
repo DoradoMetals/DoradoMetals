@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Building2, House } from 'lucide-react'
 
-import { Address } from '@/features/addresses/types'
+import { Address, UserAddress } from '@/features/addresses/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { Button } from '@/shared/ui/base/button'
 import { cn } from '@/shared/utils/cn'
@@ -17,7 +17,11 @@ export interface AddressCardProps {
   variant?: AddressCardVariant
   className?: string
   onClick?: () => void
-  onEdit?: (address: Address) => void
+  // The caller's relationship - label and default flag - joined by the
+  // parent from its own endpoint. Optional: a card can render a bare
+  // address (an order snapshot has no relationship).
+  userAddress?: UserAddress | null
+  onEdit?: (address: Address, userAddress?: UserAddress | null) => void
   icon?: IconKind
   showDefaultBanner?: boolean
   showEdit?: boolean
@@ -28,6 +32,7 @@ export interface AddressCardProps {
 
 export const AddressCard: React.FC<AddressCardProps> = ({
   address,
+  userAddress,
   variant = 'default',
   className,
   onClick,
@@ -87,7 +92,7 @@ export const AddressCard: React.FC<AddressCardProps> = ({
           raised === true && 'raised-off-page'
         )}
       >
-        {showDefaultBanner && address.is_default && (
+        {showDefaultBanner && userAddress?.default_shipping && (
           <>
             <span className="pointer-events-none absolute -right-14 top-3 rotate-45 bg-primary text-white text-xs px-15 py-1">
               Default
@@ -105,7 +110,7 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                   variant === 'default' ? 'text-xl md:text-2xl' : 'text-base md:text-lg'
                 )}
               >
-                {address.name}
+                {userAddress?.label}
               </div>
             </div>
           </div>
@@ -183,7 +188,7 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                 )}
               </div>
 
-              {showSetDefault && !address.is_default && (
+              {showSetDefault && !userAddress?.default_shipping && (
                 <Button
                   type="button"
                   variant="link"
@@ -192,7 +197,9 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                   disabled={busy}
                   onClick={(e) => {
                     e.stopPropagation()
-                    setDefaultAddressMutation.mutate(address, {
+                    setDefaultAddressMutation.mutate(
+                      userAddress ?? { address_id: address.id, user_id: null, label: null, default_shipping: false },
+                      {
                       onError: (err: any) => {
                         const msg =
                           err?.response?.data?.error ||
@@ -201,7 +208,8 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                         setTimedError(msg)
                       },
                       onSuccess: () => setError(null),
-                    })
+                    }
+                    )
                   }}
                 >
                   Set Default

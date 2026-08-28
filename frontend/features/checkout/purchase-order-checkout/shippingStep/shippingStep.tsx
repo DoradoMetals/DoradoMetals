@@ -1,6 +1,6 @@
 'use client'
 
-import type { Address } from '@/features/addresses/types'
+import type { Address, AddressFormValues, UserAddress } from '@/features/addresses/types'
 import { Button } from '@/shared/ui/base/button'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -10,7 +10,7 @@ import { useShippingPickupTimes } from '@/features/shipping/queries'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { useGetSession } from '@/features/auth/queries'
+import { useUserAddresses } from '@/features/addresses/queries'
 
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 
@@ -24,7 +24,7 @@ import { StoreLocationsMap } from '@/features/checkout/purchase-order-checkout/s
 
 interface ShippingStepProps {
   addresses: Address[]
-  emptyAddress: Address
+  emptyAddress: AddressFormValues
   rates: ShippingRate[]
   isLoading: boolean
 }
@@ -35,8 +35,7 @@ export default function ShippingStep({
   rates,
   isLoading,
 }: ShippingStepProps) {
-  const { user } = useGetSession()
-  const [draftAddress, setDraftAddress] = useState<Address>(emptyAddress)
+  const [draftAddress, setDraftAddress] = useState<AddressFormValues>(emptyAddress)
   const { openDrawer } = useDrawerStore()
 
   const isEmpty = addresses.length === 0
@@ -47,9 +46,16 @@ export default function ShippingStep({
   const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
 
+  const { data: links = [] } = useUserAddresses()
+  const linkOf = useMemo(() => new Map(links.map((l) => [l.address_id, l])), [links])
+
   const sortedAddresses = useMemo(() => {
-    return [...addresses].sort((a, b) => Number(b.is_default) - Number(a.is_default))
-  }, [addresses])
+    return [...addresses].sort(
+      (a, b) =>
+        Number(linkOf.get(b.id)?.default_shipping ?? false) -
+        Number(linkOf.get(a.id)?.default_shipping ?? false)
+    )
+  }, [addresses, linkOf])
 
   let pickupTimesInput: ShippingPickupTimesInput | null = null
   if (address?.is_valid && service?.code) {
@@ -66,8 +72,8 @@ export default function ShippingStep({
   return (
     <div className="space-y-6 w-full">
       <AddressDrawer
-        onSuccess={(savedAddress: Address) => {
-          setData({ address: savedAddress })
+        onSuccess={(savedAddress: Address, savedLink?: UserAddress) => {
+          setData({ address: savedAddress, user_address: savedLink })
         }}
       />
 
@@ -85,7 +91,7 @@ export default function ShippingStep({
             icon={Plus}
             iconSize={16}
             onClick={() => {
-              setDraftAddress({ ...emptyAddress, user_id: user?.id ?? '' })
+              setDraftAddress({ ...emptyAddress })
               openDrawer('address')
             }}
             className="border-primary text-primary hover:text-neutral-900 hover:bg-primary"
@@ -98,8 +104,9 @@ export default function ShippingStep({
           <div className="flex flex-col gap-1">
             <AddressSelect
               addresses={sortedAddresses}
+              userAddresses={links}
               value={address?.id ?? null}
-              onChange={(addr) => setData({ address: addr })}
+              onChange={(addr) => setData({ address: addr, user_address: linkOf.get(addr.id) })}
               onAddNew={() => openDrawer('address')}
             />
 

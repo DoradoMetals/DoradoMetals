@@ -1,7 +1,7 @@
 import type { UseFormReturn } from 'react-hook-form'
-import type { Address } from '@/features/addresses/types'
+import type { Address, AddressFormValues } from '@/features/addresses/types'
 
-type AddressForm = UseFormReturn<Address>
+type AddressForm = UseFormReturn<AddressFormValues>
 
 export function verifyAddress(form: AddressForm, value: boolean) {
   const v = form.getValues() as any

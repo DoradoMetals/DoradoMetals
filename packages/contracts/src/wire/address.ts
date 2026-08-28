@@ -1,44 +1,34 @@
 import { z } from "zod/v4";
 import { AddressesRow } from "../generated/exchange.js";
 
-// What the repos return: the postal address, with a person's relationship to it
-// kept apart.
-//
-// exchange keeps both on one row - `name` is what the owner calls it and
-// `is_default` is their preference, neither of which is a property of the
-// address. The new schema splits them, which is what lets an order snapshot an
-// address without copying whose it was.
-//
-// The address keeps the id, because the id is the handle: remove() and
-// setDefault() key on it.
+// What the wire serves: the postal address ALONE. exchange kept the owner's
+// name for it and their default flag on the same row; the new schema splits
+// them, and since 2026-08-27 the wire does too - the relationship travels on
+// its own endpoint as UserAddressWire below. The address keeps the id,
+// because the id is the handle: remove() and set_default() key on it, and
+// the two lists join on it.
 export const AddressWireNext = AddressesRow.omit({
   user_id: true,
   name: true,
   is_default: true,
-}).extend({
-  user_address: z.object({
-    user_id: z.string().uuid().nullable(),
-    label: z.string().nullable(),
-    default_shipping: z.boolean().nullable(),
-  }),
 });
 export type AddressWireNext = z.infer<typeof AddressWireNext>;
 
-// What the frontend still reads: one flat row. Produced by
-// features/addresses/wire.js behind ADDRESSES_WIRE=legacy. A flatten rather than
-// a rename, so it is stated rather than derived.
-export const AddressWire = AddressesRow;
-export type AddressWire = z.infer<typeof AddressWire>;
-
-// What POST /addresses accepts. The server owns identity and timestamps.
-export const CreateAddressBody = AddressesRow.omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
+// One person's relationship to one address - ITS OWN WIRE, its own endpoint
+// (GET /addresses/get_user_addresses), never nested inside the address. The
+// frontend joins the two lists by address_id. No row id: exchange composes
+// these from its flat row and has no link id to offer, so the wire carries
+// none from either source.
+export const UserAddressWire = z.object({
+  address_id: z.string().uuid(),
+  user_id: z.string().uuid().nullable(),
+  label: z.string().nullable(),
+  default_shipping: z.boolean().nullable(),
 });
-export type CreateAddressBody = z.infer<typeof CreateAddressBody>;
+export type UserAddressWire = z.infer<typeof UserAddressWire>;
 
-export const UpdateAddressBody = AddressesRow.partial().extend({
-  id: z.string().uuid(),
-});
-export type UpdateAddressBody = z.infer<typeof UpdateAddressBody>;
+// The flat AddressWire (one row, name / is_default at the top level) and the
+// flat Create/UpdateAddressBody lived here until 2026-08-27. Addresses
+// converted - the frontend reads and writes AddressWireNext - so the flat
+// shapes retired with the lift adapter. The ORDERS wire still embeds a flat
+// address; that is AddressOnOrder in orders.ts, unchanged.

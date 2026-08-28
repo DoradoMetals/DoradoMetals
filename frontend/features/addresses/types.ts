@@ -2,9 +2,70 @@ import * as z from 'zod'
 
 const blockedCities = ['Test', 'Fake City', 'Unknown', 'N/A']
 
+// SIXTH CONVERTED FEATURE (2026-08-27), types FROM THE CONTRACTS - and the
+// wire SPLIT the same day, at Jacob's direction: a postal address and a
+// person's relationship to it are different things, so they are different
+// entities everywhere. `Address` is the postal row alone; `UserAddress` is
+// what one person calls it and whether it is their default, fetched from its
+// own endpoint (get_user_addresses) and joined client-side by address_id.
+// Writes stay ONE call - the two halves travel as SIBLINGS in the body,
+// never nested - so the server keeps the transaction and the frontend never
+// orchestrates a two-step save.
+//
+// THE SCHEMAS COME FROM THE CONTRACTS, AS VALUES - what both sides intake.
+// (zod was bumped to 3.25 so the frontend can consume the contracts' v4
+// schema objects directly; the restated-and-pinned copies this replaced are
+// gone.) addressSchema - the FORM - validates what a human types: the
+// postal fields plus the label and default flag as plain form fields, split
+// into the two body halves at submit. Its rules are deliberately stricter
+// than the columns, the pattern audit:frontend-nullability documents.
+import { AddressWireNext, UserAddressWire } from '@dorado/contracts'
+
+export type Address = AddressWireNext
+export type UserAddress = UserAddressWire
+
+export const addressWireSchema = AddressWireNext
+export const userAddressWireSchema = UserAddressWire
+
+// FOR THE V3 CHECKOUT SCHEMA GRAPH ONLY. The checkout schemas (orders,
+// packaging, pickup...) are zod v3 classic and cannot nest the contracts'
+// v4 schema objects, so the two wire shapes are restated once here for
+// them. DIES WITH THE ZOD V4 MIGRATION - when the checkout graph moves to
+// zod/v4, embed AddressWireNext / UserAddressWire directly and delete these.
+export const addressWireSchemaV3 = z.object({
+  id: z.string().uuid(),
+  line_1: z.string().nullable(),
+  line_2: z.string().nullable(),
+  city: z.string().nullable(),
+  state: z.string().nullable(),
+  country: z.string().nullable(),
+  country_code: z.string().nullable(),
+  zip: z.string().nullable(),
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable(),
+  phone_number: z.string().nullable(),
+  is_valid: z.boolean().nullable(),
+  is_residential: z.boolean().nullable(),
+})
+
+export const userAddressWireSchemaV3 = z.object({
+  address_id: z.string().uuid(),
+  user_id: z.string().uuid().nullable(),
+  label: z.string().nullable(),
+  default_shipping: z.boolean().nullable(),
+})
+
+// One-way pins: the restatements' outputs must BE the contract types, so a
+// contract change fails typecheck here rather than drifting silently.
+const _pinAddress: Address = {} as z.infer<typeof addressWireSchemaV3>
+const _pinLink: UserAddress = {} as z.infer<typeof userAddressWireSchemaV3>
+void _pinAddress
+void _pinLink
+
+// The FORM: what a human submits, one flat set of fields for the UX, split
+// into { address, user_address } at the mutation edge.
 export const addressSchema = z.object({
   id: z.string().uuid().optional(),
-  user_id: z.string().uuid(),
   line_1: z
     .string()
     .min(1, 'Address Line 1 is required')
@@ -38,33 +99,63 @@ export const addressSchema = z.object({
     .refine((val) => !isNaN(Number(val.replace('-', ''))), {
       message: 'Zip Code must only contain numbers',
     }),
-  name: z.string().min(1, 'Name is required').trim(),
-  is_default: z.boolean().optional(),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional(),
   phone_number: z.string(),
   is_valid: z.boolean(),
   is_residential: z.boolean(),
+  label: z.string().min(1, 'Name is required').trim(),
+  default_shipping: z.boolean().optional(),
 })
 
-export type Address = z.infer<typeof addressSchema>
+export type AddressFormValues = z.infer<typeof addressSchema>
 
-export function makeEmptyAddress(userId?: string): Address {
+export function makeEmptyAddress(): AddressFormValues {
   return {
-    user_id: userId ?? '',
     line_1: '',
     line_2: '',
     city: '',
     state: '',
     country: 'United States',
     zip: '',
-    name: '',
-    is_default: false,
     phone_number: '',
     country_code: 'US',
     is_valid: false,
     is_residential: false,
-  } as Address
+    label: '',
+    default_shipping: false,
+  } as AddressFormValues
+}
+
+// An empty row of the WIRE shape, for call sites that must send an address
+// before one is picked (the tax quote reads only `state`, and a blank state
+// accrues nothing). The FORM's empty value is makeEmptyAddress().
+export function makeEmptyWireAddress(): Address {
+  return {
+    id: '',
+    line_1: '',
+    line_2: '',
+    city: '',
+    state: '',
+    country: 'United States',
+    country_code: 'US',
+    zip: '',
+    phone_number: '',
+    is_valid: false,
+    is_residential: false,
+    created_at: null,
+    updated_at: null,
+  }
+}
+
+// Split the one form into the two body halves the API writes in one
+// transaction.
+export function splitFormValues(v: AddressFormValues): {
+  address: Omit<AddressFormValues, 'label' | 'default_shipping'>
+  user_address: { label: string; default_shipping: boolean }
+} {
+  const { label, default_shipping, ...address } = v
+  return { address, user_address: { label, default_shipping: default_shipping ?? false } }
 }
 
 export type PlacesAddressComponent = {

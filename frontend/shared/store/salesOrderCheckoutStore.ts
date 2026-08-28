@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { SalesOrderCheckout, salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
-import { makeEmptyAddress } from '@/features/addresses/types'
 
 type PartialCheckout = Partial<SalesOrderCheckout>
 
@@ -12,11 +11,30 @@ interface SalesOrderCheckoutState {
   clear: () => void
 }
 
+
+// Same persisted-address note as purchaseOrderCheckoutStore: a deployed
+// customer's localStorage predates the address split, so the picked address
+// is one flat row. Version 1 splits it into the postal `data.address` and
+// the `data.user_address` sibling.
+const splitPersistedAddress = (a: Record<string, unknown> | undefined) => {
+  if (!a || typeof a !== 'object') return null
+  if (!('name' in a) && !('is_default' in a)) return null
+  const { name, is_default, user_id, ...address } = a
+  return {
+    address,
+    user_address: {
+      address_id: typeof address.id === 'string' ? address.id : '',
+      user_id: user_id ?? null,
+      label: name ?? null,
+      default_shipping: is_default ?? false,
+    },
+  }
+}
+
 export const useSalesOrderCheckoutStore = create<SalesOrderCheckoutState>()(
   persist(
     (set) => ({
       data: {
-        address: makeEmptyAddress(),
         service: salesOrderServiceOptions.STANDARD,
         using_funds: true,
         payment_method: 'CARD',
@@ -32,7 +50,6 @@ export const useSalesOrderCheckoutStore = create<SalesOrderCheckoutState>()(
       clear: () =>
         set({
           data: {
-            address: makeEmptyAddress(),
             service: salesOrderServiceOptions.STANDARD,
             using_funds: true,
             payment_method: 'CARD',
@@ -41,6 +58,16 @@ export const useSalesOrderCheckoutStore = create<SalesOrderCheckoutState>()(
     }),
     {
       name: 'sales-order-checkout',
+      version: 1,
+      migrate: (persisted: unknown) => {
+        const state = persisted as { data?: Record<string, unknown> }
+        const split = splitPersistedAddress(state?.data?.address as Record<string, unknown> | undefined)
+        if (split && state.data) {
+          state.data.address = split.address as never
+          state.data.user_address = split.user_address as never
+        }
+        return state as never
+      },
     }
   )
 )

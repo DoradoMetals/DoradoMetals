@@ -75,7 +75,6 @@ const bothWays = async (name, schema, dir, read, many = true) => {
 };
 
 const po = await import("#features/purchase-orders/repo.js");
-const addressesWire = await import("#features/places/addresses/wire.ts");
 
 // The public list was checked ONE WAY while the admin list right below it was
 // checked both. Same table, same contract, and repo.next exports
@@ -130,9 +129,13 @@ const addressUser = withAddresses[0]?.user_id;
 // reason the address book renders a name at all.
 const addressesService = await import("#features/places/addresses/service.ts");
 const listAddresses = async () => (addressUser ? await addressesService.list(addressUser) : []);
-add("GET /addresses", c.AddressWireNext, listAddresses);
-add("GET /addresses (legacy wire)", c.AddressWire, async () =>
-  addressesWire.toLegacy(await listAddresses())
+// The split wire (2026-08-27): the address rows and the caller's
+// relationships are separate endpoints, joined client-side by address_id.
+add("GET /addresses", c.AddressWireNext, async () =>
+  (await listAddresses()).map(({ user_address, ...a }) => a)
+);
+add("GET /addresses/user_addresses", c.UserAddressWire, async () =>
+  (await listAddresses()).map((r) => ({ address_id: r.id, ...r.user_address }))
 );
 
 // The other renaming read: media.images stores `checksum` and the wire calls it

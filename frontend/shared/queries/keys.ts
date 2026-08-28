@@ -30,6 +30,8 @@ export const queryKeys = {
   // Addresses
   address: () => ['address'] as const,
   userAddresses: (userId: string) => ['address', userId] as const,
+  userAddressLinks: () => ['address', 'links'] as const,
+  userAddressLinksFor: (userId: string) => ['address', 'links', userId] as const,
   places: (input: PlacesSuggestionsInput) => ['places', input] as const,
 
   // Shipping

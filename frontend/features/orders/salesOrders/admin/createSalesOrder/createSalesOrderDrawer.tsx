@@ -1,7 +1,7 @@
 'use client'
 
 import { User } from '@/features/users/types'
-import { Address, makeEmptyAddress } from '@/features/addresses/types'
+import { Address, UserAddress, makeEmptyWireAddress } from '@/features/addresses/types'
 import { Skeleton } from '@/shared/ui/base/skeleton'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
@@ -33,8 +33,7 @@ import { useMutationState } from '@tanstack/react-query'
 import { loadStripe } from '@stripe/stripe-js'
 import { Switch } from '@/shared/ui/base/switch'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
-import { useGetSession } from '@/features/auth/queries'
-import { useUserAddress } from '@/features/addresses/queries'
+import { useUserAddress, useUserAddressLinks } from '@/features/addresses/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useSalesTax } from '@/features/sales-tax/queries'
 import { useProducts } from '@/features/products/queries'
@@ -45,19 +44,21 @@ import AdminStripeWrapper from '@/features/stripe/ui/AdminStripeWrapper'
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export function CreateSalesOrderDrawer() {
-  const { user } = useGetSession()
   const { data, setData } = useAdminSalesOrderCheckoutStore()
   const { activeDrawer, closeDrawer, createSalesOrderUser } = useDrawerStore()
 
   const [spotsLocked, setSpotsLocked] = useState(false)
 
   const { data: addresses = [], isLoading } = useUserAddress(createSalesOrderUser?.id ?? '')
+  // The TARGET user's links (label / default), not the admin's own book.
+  const { data: links = [] } = useUserAddressLinks(createSalesOrderUser?.id ?? '')
+  const linkOf = useMemo(() => new Map(links.map((l) => [l.address_id, l])), [links])
 
   const isDrawerOpen = activeDrawer === 'createSalesOrder'
   const { data: spotPrices = [] } = useSpotPrices()
 
   const { data: salesTax = 0 } = useSalesTax({
-    address: data.address ??  makeEmptyAddress(user?.id),
+    address: data.address ?? makeEmptyWireAddress(),
     items: data.items ?? [],
     spots: spotPrices,
   })
@@ -96,13 +97,14 @@ export function CreateSalesOrderDrawer() {
     })
   }, [createSalesOrderUser])
 
-  const defaultAddress = addresses.find((a) => a.is_default) ?? addresses[0] ??  makeEmptyAddress(user?.id)
+  const defaultAddress: Address | undefined =
+    addresses.find((a) => linkOf.get(a.id)?.default_shipping) ?? addresses[0]
 
   useEffect(() => {
-    if (addresses.length > 0 && data.address?.id !== defaultAddress.id) {
-      setData({ address: defaultAddress })
+    if (addresses.length > 0 && defaultAddress && data.address?.id !== defaultAddress.id) {
+      setData({ address: defaultAddress, user_address: linkOf.get(defaultAddress.id) })
     }
-  }, [defaultAddress.id, addresses.length, data.address?.id, setData])
+  }, [defaultAddress, addresses.length, data.address?.id, setData, linkOf])
 
   return (
     <Drawer label="New sales order" open={isDrawerOpen} setOpen={closeDrawer} anchor="left" className="glass-panel">
@@ -135,7 +137,12 @@ export function CreateSalesOrderDrawer() {
 
       <div className="glass-divider" />
       <div className="flex flex-col gap-3">
-        <AddressSelector user={createSalesOrderUser} addresses={addresses} isLoading={isLoading} />
+        <AddressSelector
+          user={createSalesOrderUser}
+          addresses={addresses}
+          userAddresses={links}
+          isLoading={isLoading}
+        />
         <ServiceSelector />
       </div>
 
@@ -319,10 +326,11 @@ function ProductSelector() {
 interface AddressSelectProps {
   user: User | null
   addresses: Address[]
+  userAddresses: UserAddress[]
   isLoading: boolean
 }
 
-function AddressSelector({ user, addresses, isLoading }: AddressSelectProps) {
+function AddressSelector({ user, addresses, userAddresses, isLoading }: AddressSelectProps) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
 
   return (
@@ -347,8 +355,14 @@ function AddressSelector({ user, addresses, isLoading }: AddressSelectProps) {
             <div className="flex flex-col gap-3 justify-center w-full">
               <AddressSelect
                 addresses={addresses}
+                userAddresses={userAddresses}
                 value={data.address?.id ?? null}
-                onChange={(addr) => setData({ address: addr })}
+                onChange={(addr) =>
+                  setData({
+                    address: addr,
+                    user_address: userAddresses.find((l) => l.address_id === addr.id),
+                  })
+                }
               />
             </div>
           ) : user ? (

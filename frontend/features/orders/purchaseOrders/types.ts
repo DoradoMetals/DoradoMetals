@@ -12,7 +12,7 @@ import {
   LucideIcon,
 } from 'lucide-react'
 
-import { Address, addressSchema } from '@/features/addresses/types'
+import { Address, addressWireSchemaV3, userAddressWireSchemaV3 } from '@/features/addresses/types'
 import { CarrierPickup, pickupSchema } from '@/features/handoff/types'
 import { Payout, payoutSchema } from '@/features/payouts/types'
 import { packageSchema } from '@/features/packaging/types'
@@ -24,6 +24,7 @@ import { insuranceSchema } from '@/features/insurance/types'
 import { User } from '@/features/users/types'
 import { Shipment } from '@/features/shipping/types'
 import { OrderProduct } from '@/features/orders/orderProducts'
+import { OrderAddress } from '@/features/orders/orderAddresses'
 
 export interface PurchaseOrderItem {
   item_type: string
@@ -56,7 +57,8 @@ export interface PurchaseOrder {
   updated_at: Date
   user_id: string
   order_items: PurchaseOrderItem[]
-  address: Address
+  // The ORDERS wire's embedded address - flat until orders converts.
+  address: OrderAddress
   shipment: Shipment
   return_shipment: Shipment
   carrier_pickup?: CarrierPickup
@@ -79,7 +81,8 @@ export interface PurchaseOrder {
 }
 
 export const purchaseOrderReturnShipmentSchema = z.object({
-  address: addressSchema,
+  address: addressWireSchemaV3,
+  user_address: userAddressWireSchemaV3.optional(),
   package: packageSchema,
   pickup: pickupSchema,
   service: serviceSchema,
@@ -89,7 +92,8 @@ export const purchaseOrderReturnShipmentSchema = z.object({
 export type PurchaseOrderReturnShipment = z.infer<typeof purchaseOrderReturnShipmentSchema>
 
 export const purchaseOrderCheckoutSchema = z.object({
-  address: addressSchema,
+  address: addressWireSchemaV3,
+  user_address: userAddressWireSchemaV3.optional(),
   package: packageSchema,
   fedexPackageToggle: z.boolean(),
   pickup: pickupSchema,

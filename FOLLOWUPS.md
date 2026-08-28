@@ -7885,3 +7885,72 @@ offered by name, and the send carries the picked supplier's id. That is the
 screen in front of sendOrderToSupplier's guard stack (the 404-before-email,
 the no-address refusal, the Dillion Gage no-email refusal), so the frontend
 half of that path is no longer untested.
+
+## D76 — addresses converts: the last lift, and the seam triple is complete
+
+The biggest lift surface, same template: render pin for the address book
+first (labels render, default sorts first and banners - shape-agnostic),
+then the nested schema. addressSchema is BOTH the form validator and the
+shape the checkout path parses, so it moved whole: the owner's relationship
+lives under user_address (label / default_shipping / user_id), the form
+binds by react-hook-form dot paths, and the form rules stay deliberately
+stricter than the columns. 21 tsc sites across 9 files, plus what tsc
+cannot see:
+
+- **The PO create/cancel bodies are READ FLAT by the API** -
+  purchase-orders/service.ts takes address.name as the FedEx label's
+  personName - so the picked (nested) address goes DOWN at the mutation
+  edge. features/orders/orderAddresses.ts is the third and last file in the
+  seam triple with orderSpots and orderProducts; all three die with the
+  orders conversion. Order-response addresses are typed OrderAddress (their
+  only current reader touches phone_number, top-level in both shapes).
+- **Three checkout stores persist a picked address** - all three gained
+  persist v1 migrations nesting a flat persisted address in place, or the
+  nested schema would reject a returning customer's checkout state.
+- **The rates quote sends the whole address** and the provider code reads
+  only postal fields (verified by grep, not assumed) - safe un-flattened.
+- useCancelOrder has NO callers in any component - the cancel UI is not
+  wired to it. Flattened anyway for when it is; noted for the PO conversion.
+
+ADDRESSES_WIRE=next, adapter deleted, WIRE_FLOOR 2 -> 1, and
+shared/wire/lift.ts + its tests went with the last lift - audit-switches
+now reads its shape states from rename.ts alone and fails loudly if a
+listed helper stops existing. The flat AddressWire and Create/Update body
+contracts retired. Payments is the single *_WIRE switch and single adapter
+remaining - 204 lines, its own animal, to be read before anything is
+assumed about it.
+
+## Jacob's rulings, 2026-08-28 evening (addresses session)
+
+Captured verbatim-in-spirit so no future block relitigates them:
+
+1. **The address wire is SPLIT.** Pure postal rows on /addresses/get; the
+   caller's relationships on /addresses/get_user_addresses; frontend joins by
+   address_id. Writes stay ONE call with `{ address, user_address }` as
+   siblings - the server keeps the transaction, the frontend never
+   orchestrates a two-step save. A user_address never nests inside an
+   address entity anywhere.
+2. **Table-derived shapes live in @dorado/contracts, as schema VALUES both
+   sides intake.** The frontend's zod was bumped to 3.25 so contract v4
+   schema objects import directly. Frontend keeps only UI-policy schemas
+   (form validators, deliberately stricter than columns). Remaining debt,
+   named: the v3 checkout schema graph forces one pinned restatement
+   (addressWireSchemaV3) - dies when that graph moves to zod/v4; and the
+   orderProducts/orderSpots seam shapes should derive from
+   ProductOnOrderItem and the orders-wire contracts the way orderAddresses
+   now derives from AddressOnOrder - fold into the orders conversion.
+3. **"Fuck the previews": ALL client-side money math goes.** No catalogue
+   exception. The frontend calls the API for every number a customer sees;
+   the pricing utils (getProductPrice family, purchaseOrderTotal family,
+   getDeclaredValue, calculateSalesOrderPrices, resolveRate) get deleted
+   with the orders conversion, replaced by quote endpoints built on the
+   API's existing pure functions (intake.ts, calculations.ts, tax service).
+   D59's three-rules-for-one-premium problem dies with them.
+4. **The places schema stays as designed** (assessed at his invitation:
+   pure addresses + user_addresses join is the right shape); migration 089
+   added the one missing enforcement, one default per user, as a partial
+   unique index.
+5. **Emails and PDFs get schemas** - order-generated PDFs attached by id
+   with a type enum, and a record of every email sent from go-live. THE
+   NEXT DISCUSSION: Jacob asked to stop after addresses lands to design
+   this together ("so we can discuss media").

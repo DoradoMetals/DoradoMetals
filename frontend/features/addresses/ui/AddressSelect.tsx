@@ -2,15 +2,19 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, Plus } from 'lucide-react'
-import { Address } from '@/features/addresses/types'
+import { Address, UserAddress } from '@/features/addresses/types'
 import { cn } from '@/shared/utils/cn'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { Button } from '@/shared/ui/base/button'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AddressCard } from '@/features/addresses/ui/AddressCard'
 
 type Props = {
   addresses: Address[]
+  // The caller's relationships, joined here by address_id for the default
+  // pick and each card's label. Optional: an admin picking for another user
+  // may not have them.
+  userAddresses?: UserAddress[]
   value?: string | null
   onChange: (addr: Address) => void
   className?: string
@@ -22,6 +26,7 @@ type Props = {
 
 export function AddressSelect({
   addresses,
+  userAddresses,
   value,
   onChange,
   className,
@@ -32,8 +37,15 @@ export function AddressSelect({
 }: Props) {
   const hasMany = (addresses?.length ?? 0) > 1
 
+  const linkOf = useMemo(
+    () => new Map((userAddresses ?? []).map((l) => [l.address_id, l])),
+    [userAddresses]
+  )
+
   const selected =
-    addresses.find((a) => a.id === value) ?? addresses.find((a) => a.is_default) ?? addresses[0]
+    addresses.find((a) => a.id === value) ??
+    addresses.find((a) => linkOf.get(a.id)?.default_shipping) ??
+    addresses[0]
 
   const [expanded, setExpanded] = useState(false)
 
@@ -101,6 +113,7 @@ export function AddressSelect({
                 <AddressCard
                   variant="compact"
                   address={selected}
+                  userAddress={linkOf.get(selected.id)}
                   icon="auto"
                   showDefaultBanner={false}
                   showEdit={false}
@@ -157,6 +170,7 @@ export function AddressSelect({
                     <AddressCard
                       variant="compact"
                       address={addr}
+                      userAddress={linkOf.get(addr.id)}
                       icon="auto"
                       showDefaultBanner={false}
                       showEdit={false}

@@ -63,7 +63,10 @@ export async function update(
 export async function setDefault(
   user_id: string, address_id: string, executor?: Executor
 ): Promise<number> {
-  const r = await query(sql("set_default"), [user_id, address_id], executor);
+  // Two statements on the caller's executor, clear before mark - the
+  // one-statement swap tripped 089's unique index on row-visit order.
+  await query(sql("set_default_clear"), [user_id, address_id], executor);
+  const r = await query(sql("set_default_mark"), [user_id, address_id], executor);
   return r.rowCount ?? 0;
 }
 

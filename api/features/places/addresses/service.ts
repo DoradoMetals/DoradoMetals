@@ -32,8 +32,8 @@ function badRequest(message: string): HttpError {
   return err;
 }
 
-// Arrives as req.body after the wire adapter has nested it, so everything is
-// optional.
+// req.body's two halves. The relationship arrives BESIDE the address, never
+// inside it - one call, one transaction, but two things (2026-08-27).
 export type AddressInput = {
   id?: string;
   line_1?: string | null;
@@ -44,10 +44,11 @@ export type AddressInput = {
   zip?: string | null;
   country_code?: string | null;
   phone_number?: string | null;
-  user_address?: {
-    label?: string | null;
-    default_shipping?: boolean | null;
-  };
+};
+
+export type UserAddressInput = {
+  label?: string | null;
+  default_shipping?: boolean | null;
 };
 
 const toValues = (a: AddressInput): AddressValues => [
@@ -61,8 +62,8 @@ const toValues = (a: AddressInput): AddressValues => [
   a.phone_number ?? null,
 ];
 
-const labelOf = (a: AddressInput): string | null => a.user_address?.label ?? null;
-const defaultOf = (a: AddressInput): boolean => a.user_address?.default_shipping === true;
+const labelOf = (ua?: UserAddressInput): string | null => ua?.label ?? null;
+const defaultOf = (ua?: UserAddressInput): boolean => ua?.default_shipping === true;
 
 // ---------------------------------------------------------------------- reads
 
@@ -107,25 +108,37 @@ export async function isActive(
 // --------------------------------------------------------------------- writes
 
 export async function create(
-  { address, userId }: { address: AddressInput; userId: string },
+  { address, user_address, userId }:
+    { address: AddressInput; user_address?: UserAddressInput; userId: string },
   executor?: Executor
 ): Promise<ComposedAddress> {
   const values = toValues(address);
-  const label = labelOf(address);
-  const isDefault = defaultOf(address);
+  const label = labelOf(user_address);
+  const isDefault = defaultOf(user_address);
 
   const run = async (c: Executor): Promise<ComposedAddress> => {
     const id = randomUUID();
     const row = await addresses.create(id, values, c);
-    const link = await userAddresses.create(randomUUID(), id, userId, label, isDefault, c);
-    await legacy.create(id, userId, values, label, isDefault, c);
+    // Creating AS the default must also un-default the others. Only
+    // setDefault ever cleared them, so a second create with the flag left a
+    // user with two defaults and the UI showing a coin toss - a live bug
+    // migration 089's one-default-per-user index surfaced the day it landed.
+    // Insert off, then flip through the same clear-then-set both writes use.
+    const link = await userAddresses.create(randomUUID(), id, userId, label, false, c);
+    await legacy.create(id, userId, values, label, false, c);
+    if (isDefault) {
+      await userAddresses.setDefault(userId, id, c);
+      await legacy.setDefault(userId, id, c);
+      return compose.compose(row, { ...link, default_shipping: true });
+    }
     return compose.compose(row, link);
   };
   return executor ? await run(executor) : await withTransaction(run);
 }
 
 export async function update(
-  { address, userId }: { address: AddressInput & { id: string }; userId: string },
+  { address, user_address, userId }:
+    { address: AddressInput & { id: string }; user_address?: UserAddressInput; userId: string },
   executor?: Executor
 ): Promise<ComposedAddress> {
   if (await addresses.isActive(address.id, userId, executor)) {
@@ -135,8 +148,8 @@ export async function update(
   }
 
   const values = toValues(address);
-  const label = labelOf(address);
-  const isDefault = defaultOf(address);
+  const label = labelOf(user_address);
+  const isDefault = defaultOf(user_address);
 
   const run = async (c: Executor): Promise<ComposedAddress> => {
     // THE OWNERSHIP CHECK. See the header. Read inside the transaction, so an
@@ -148,8 +161,16 @@ export async function update(
     const row = await addresses.update(address.id, values, c);
     if (!row) throw badRequest("Address not found.");
 
-    const link = await userAddresses.update(address.id, userId, label, isDefault, c);
-    await legacy.update(address.id, userId, values, label, isDefault, c);
+    // Same one-default rule as create: an update that turns the flag ON goes
+    // through clear-then-set rather than writing a second default beside the
+    // existing one (089's index refuses that, correctly).
+    const link = await userAddresses.update(address.id, userId, label, false, c);
+    await legacy.update(address.id, userId, values, label, false, c);
+    if (isDefault) {
+      await userAddresses.setDefault(userId, address.id, c);
+      await legacy.setDefault(userId, address.id, c);
+      return compose.compose(row, { ...(link ?? owned), default_shipping: true });
+    }
     return compose.compose(row, link ?? owned);
   };
   return executor ? await run(executor) : await withTransaction(run);

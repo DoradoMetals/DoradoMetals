@@ -7,7 +7,13 @@ import { Form, FormField, FormItem } from '@/shared/ui/base/form'
 import { Button } from '@/shared/ui/base/button'
 import { Switch } from '@/shared/ui/base/switch'
 
-import { Address, addressSchema, makeEmptyAddress } from '@/features/addresses/types'
+import {
+  Address,
+  AddressFormValues,
+  UserAddress,
+  addressSchema,
+  makeEmptyAddress,
+} from '@/features/addresses/types'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useGetSession } from '@/features/auth/queries'
@@ -21,7 +27,7 @@ import { applyAddressFieldsToForm, clearAddressFields, verifyAddress } from '../
 import { GoogleMapDisplay } from '@/shared/ui/GoogleMapDisplay'
 import { Label } from '@/shared/ui/base/label'
 import { StateComboboxField } from './StateSelect'
-import { useAddress, useCreateAddress, useUpdateAddress } from '@/features/addresses/queries'
+import { useAddress, useCreateAddress, useUpdateAddress , type SavedAddress } from '@/features/addresses/queries'
 import { useGeocodeAddress } from '@/features/addresses/hooks/useGeocoder'
 import { usePlacesAutocompleteController } from '@/features/addresses/hooks/useAutocomplete'
 import { AddressSearchInput } from '@/features/addresses/ui/AutocompleteInput'
@@ -34,16 +40,39 @@ type EntryMode = 'auto' | 'manual'
 
 export default function AddressForm({
   address,
+  userAddress,
   onSuccess,
 }: {
   address: Address | null
-  onSuccess?: (address: Address) => void
+  // The caller's relationship to it - label and default flag - which is its
+  // own entity now and arrives beside the address, never inside it.
+  userAddress?: UserAddress | null
+  // Both halves of the save, so a caller storing the pick keeps the pair
+  // coherent (the label rides the link now, not the address).
+  onSuccess?: (address: Address, userAddress?: UserAddress) => void
 }) {
   const { user } = useGetSession()
   const { closeDrawer } = useDrawerStore()
   const { data: addresses = [] } = useAddress()
 
-  const empty = useMemo(() => makeEmptyAddress(user?.id), [user?.id])
+  const empty = useMemo(() => makeEmptyAddress(), [])
+
+  // The pair, flattened into one set of form fields for the UX; submit
+  // splits it back into the two body halves.
+  const initialValues = useMemo<AddressFormValues>(
+    () =>
+      address
+        ? ({
+            ...Object.fromEntries(
+              Object.entries(address).map(([k, v]) => [k, v ?? ''])
+            ),
+            id: address.id,
+            label: userAddress?.label ?? '',
+            default_shipping: userAddress?.default_shipping ?? false,
+          } as AddressFormValues)
+        : empty,
+    [address, userAddress, empty]
+  )
 
   const createAddressMutation = useCreateAddress()
   const updateAddressMutation = useUpdateAddress()
@@ -53,10 +82,10 @@ export default function AddressForm({
 
   const initialMode: EntryMode = address?.id ? 'manual' : 'auto'
 
-  const form = useForm<Address>({
+  const form = useForm<AddressFormValues>({
     resolver: zodResolver(addressSchema),
     mode: 'onSubmit',
-    defaultValues: address ?? empty,
+    defaultValues: initialValues,
   })
 
   const [mode, setMode] = useState<EntryMode>(initialMode)
@@ -89,22 +118,26 @@ export default function AddressForm({
   const isNewAddress = !address?.id
   const mustBeDefault = isNewAddress && addresses.length === 0
 
-  const handleSubmit = (values: Address) => {
+  const handleSubmit = (values: AddressFormValues) => {
     setFormError(null)
 
-    const submitValues = mustBeDefault ? { ...values, is_default: true } : values
+    const submitValues = mustBeDefault ? { ...values, default_shipping: true } : values
 
-    const mutation = submitValues?.id ? updateAddressMutation : createAddressMutation
-    const fallbackMsg = submitValues?.id ? 'Failed to update address.' : 'Failed to create address.'
+    const editingId = address?.id
+    const mutation = editingId ? updateAddressMutation : createAddressMutation
+    const fallbackMsg = editingId ? 'Failed to update address.' : 'Failed to create address.'
 
-    mutation.mutate(submitValues, {
+    // The update mutation needs the id alongside the form values; the split
+    // into { address, user_address } happens inside the mutation's body().
+    const payload = editingId ? { ...submitValues, id: editingId } : submitValues
+    mutation.mutate(payload as AddressFormValues & { id: string }, {
       onError: (error: any) => {
         const message = error?.response?.data?.message || error?.message || fallbackMsg
         setFormError(message)
         setTimeout(() => setFormError(null), 5000)
       },
-      onSuccess: (saved: Address) => {
-        onSuccess?.(saved)
+      onSuccess: (saved: SavedAddress) => {
+        onSuccess?.(saved.address, saved.user_address)
         closeDrawer()
       },
     })
@@ -128,7 +161,7 @@ export default function AddressForm({
 
           <ValidatedField
             control={form.control}
-            name="name"
+            name="label"
             label="Address Name"
             type="text"
             className="bg-highest border-1 border-border"
@@ -298,7 +331,7 @@ export default function AddressForm({
           <div className="flex items-end justify-between w-full">
             <FormField
               control={form.control}
-              name="is_default"
+              name="default_shipping"
               render={({ field }) => (
                 <FormItem className="w-full">
                   <div className="space-y-1">

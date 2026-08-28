@@ -7,6 +7,7 @@ import {
 } from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
 import { OrderSpot, OrderSpotWire, orderSpotFromWire } from '@/features/orders/orderSpots'
+import { orderAddressToWire } from '@/features/orders/orderAddresses'
 import getPurchaseOrderItemPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderItemPrice'
 import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
 import { payoutOptions } from '@/features/payouts/types'
@@ -43,9 +44,15 @@ export const useCreatePurchaseOrder = () => {
   return useMutation({
     mutationFn: async (purchase_order: PurchaseOrderCheckout) => {
       if (!user?.id) throw new Error('User is not authenticated')
+      // The API reads the body address FLAT - address.name becomes the FedEx
+      // label's personName - so the picked (nested) address goes down at the
+      // edge. Dies with the orders/checkout conversion.
       return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/create_purchase_order', {
         user_id: user.id,
-        purchase_order: purchase_order,
+        purchase_order: {
+          ...purchase_order,
+          address: orderAddressToWire(purchase_order.address, purchase_order.user_address),
+        },
         user: user,
       })
     },
@@ -109,10 +116,15 @@ export const useCancelOrder = () => {
       return_shipment: PurchaseOrderReturnShipment
     }) => {
       if (!user?.id) throw new Error('User is not authenticated')
+      // Same flat-body read as create: the return label's personName is
+      // return_shipment.address.name on the API side.
       return await apiRequest<PurchaseOrder>('POST', '/purchase_orders/cancel_order', {
         user_id: user.id,
         order: purchase_order,
-        return_shipment: return_shipment,
+        return_shipment: {
+          ...return_shipment,
+          address: orderAddressToWire(return_shipment.address, return_shipment.user_address),
+        },
       })
     },
 

@@ -24,31 +24,47 @@ const subjectOf = (req: Request): string => {
   return callerId(req);
 };
 
+// THE WIRE KEEPS THE TWO THINGS APART (2026-08-27). Internally the service
+// still composes an address with its link where that is convenient; at this
+// edge the composition is taken back apart, because a user_address inside an
+// address entity is exactly the smearing the new schema exists to end.
+const split = (c: { user_address: { user_id: string | null; label: string | null; default_shipping: boolean | null } } & { id: string }) => {
+  const { user_address, ...address } = c;
+  return { address, user_address: { address_id: address.id, ...user_address } };
+};
+
 export const getAll = asyncHandler(async (req, res) => {
   const rows = await addressService.list(subjectOf(req));
-  return res.status(200).json(rows);
+  return res.status(200).json(rows.map((r) => split(r).address));
+});
+
+// The other half of the book: the caller's relationships, joined client-side
+// by address_id.
+export const getUserAddresses = asyncHandler(async (req, res) => {
+  const rows = await addressService.list(subjectOf(req));
+  return res.status(200).json(rows.map((r) => split(r).user_address));
 });
 
 export const create = asyncHandler(async (req, res) => {
-  const { address } = req.body;
-  const saved = await addressService.create({ address, userId: subjectOf(req) });
-  return res.status(200).json(saved);
+  const { address, user_address } = req.body;
+  const saved = await addressService.create({ address, user_address, userId: subjectOf(req) });
+  return res.status(200).json(split(saved));
 });
 
 export const update = asyncHandler(async (req, res) => {
-  const { address } = req.body;
-  const saved = await addressService.update({ address, userId: subjectOf(req) });
-  return res.status(200).json(saved);
+  const { address, user_address } = req.body;
+  const saved = await addressService.update({ address, user_address, userId: subjectOf(req) });
+  return res.status(200).json(split(saved));
 });
 
 export const remove = asyncHandler(async (req, res) => {
-  const { address } = req.body;
-  const msg = await addressService.remove({ userId: subjectOf(req), addressId: address.id });
+  const { address, address_id } = req.body;
+  const msg = await addressService.remove({ userId: subjectOf(req), addressId: address_id ?? address?.id });
   return res.status(200).json(msg);
 });
 
 export const setDefault = asyncHandler(async (req, res) => {
-  const { address } = req.body;
-  const msg = await addressService.setDefault({ userId: subjectOf(req), addressId: address.id });
+  const { address, address_id } = req.body;
+  const msg = await addressService.setDefault({ userId: subjectOf(req), addressId: address_id ?? address?.id });
   return res.status(200).json(msg);
 });

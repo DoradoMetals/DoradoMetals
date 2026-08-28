@@ -6,18 +6,19 @@ import { Button } from '@/shared/ui/base/button'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
-import { Address } from '@/features/addresses/types'
+import { Address, UserAddress } from '@/features/addresses/types'
 import AddressForm from '@/features/addresses/ui/AddressForm'
 
 
 interface AddressDrawerProps {
-  onSuccess?: (address: Address) => void
+  onSuccess?: (address: Address, userAddress?: UserAddress) => void
 }
 
 export function AddressDrawer({ onSuccess }: AddressDrawerProps) {
   const activeDrawer = useDrawerStore((s) => s.activeDrawer)
   const closeDrawer = useDrawerStore((s) => s.closeDrawer)
   const address = useDrawerStore((s) => s.payload.address) ?? null
+  const userAddress = useDrawerStore((s) => s.payload.userAddress) ?? null
 
   const isAddressOpen = activeDrawer === 'address'
   const pathname = usePathname()
@@ -40,6 +41,7 @@ export function AddressDrawer({ onSuccess }: AddressDrawerProps) {
       <AddressForm
         key={address?.id ?? 'new'}
         address={address}
+        userAddress={userAddress}
         onSuccess={onSuccess}
       />
     </Drawer>

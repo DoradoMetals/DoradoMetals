@@ -58,6 +58,33 @@ CREATE SCHEMA IF NOT EXISTS tax;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'email_kind' AND n.nspname = 'media'
+  ) THEN
+    CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_accepted', 'sales_order_to_supplier');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'email_status' AND n.nspname = 'media'
+  ) THEN
+    CREATE TYPE media.email_status AS ENUM ('sent', 'failed');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'pdf_kind' AND n.nspname = 'media'
+  ) THEN
+    CREATE TYPE media.pdf_kind AS ENUM ('packing_list', 'return_packing_list', 'invoice', 'sales_order_invoice');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'direction' AND n.nspname = 'orders'
   ) THEN
     CREATE TYPE orders.direction AS ENUM ('purchase', 'sale');
@@ -349,6 +376,31 @@ ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS priority text DEFAULT 'Medium':
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE leads.leads ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 
+CREATE TABLE IF NOT EXISTS media.emails (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  kind media.email_kind NOT NULL,
+  status media.email_status NOT NULL,
+  to_address text NOT NULL,
+  subject text,
+  order_id uuid,
+  user_id uuid,
+  pdf_id uuid,
+  provider_message_id text,
+  error text,
+  sent_at timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS kind media.email_kind;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS status media.email_status;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS to_address text;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS subject text;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS pdf_id uuid;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS provider_message_id text;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS error text;
+ALTER TABLE media.emails ADD COLUMN IF NOT EXISTS sent_at timestamp with time zone DEFAULT now();
+
 CREATE TABLE IF NOT EXISTS media.images (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   bucket text NOT NULL,
@@ -375,6 +427,23 @@ ALTER TABLE media.images ADD COLUMN IF NOT EXISTS path text;
 ALTER TABLE media.images ADD COLUMN IF NOT EXISTS filename text;
 ALTER TABLE media.images ADD COLUMN IF NOT EXISTS user_id uuid;
 ALTER TABLE media.images ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+
+CREATE TABLE IF NOT EXISTS media.pdfs (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  kind media.pdf_kind NOT NULL,
+  order_id uuid,
+  path text NOT NULL,
+  size_bytes bigint,
+  checksum text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS kind media.pdf_kind;
+ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS path text;
+ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS size_bytes bigint;
+ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS checksum text;
+ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS metals.metals (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1505,6 +1574,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'emails_pkey' AND c.relname = 'emails' AND n.nspname = 'media'
+  ) THEN
+    ALTER TABLE media.emails ADD CONSTRAINT emails_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'images_path_filename_user_unique' AND c.relname = 'images' AND n.nspname = 'media'
   ) THEN
     ALTER TABLE media.images ADD CONSTRAINT images_path_filename_user_unique UNIQUE (path, filename, user_id);
@@ -1518,6 +1597,16 @@ DO $$ BEGIN
     WHERE con.conname = 'images_pkey' AND c.relname = 'images' AND n.nspname = 'media'
   ) THEN
     ALTER TABLE media.images ADD CONSTRAINT images_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pdfs_pkey' AND c.relname = 'pdfs' AND n.nspname = 'media'
+  ) THEN
+    ALTER TABLE media.pdfs ADD CONSTRAINT pdfs_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2225,9 +2314,49 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'emails_order_id_fkey' AND c.relname = 'emails' AND n.nspname = 'media'
+  ) THEN
+    ALTER TABLE media.emails ADD CONSTRAINT emails_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders.orders(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'emails_pdf_id_fkey' AND c.relname = 'emails' AND n.nspname = 'media'
+  ) THEN
+    ALTER TABLE media.emails ADD CONSTRAINT emails_pdf_id_fkey FOREIGN KEY (pdf_id) REFERENCES media.pdfs(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'emails_user_id_fkey' AND c.relname = 'emails' AND n.nspname = 'media'
+  ) THEN
+    ALTER TABLE media.emails ADD CONSTRAINT emails_user_id_fkey FOREIGN KEY (user_id) REFERENCES exchange.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'images_user_id_fkey' AND c.relname = 'images' AND n.nspname = 'media'
   ) THEN
     ALTER TABLE media.images ADD CONSTRAINT images_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pdfs_order_id_fkey' AND c.relname = 'pdfs' AND n.nspname = 'media'
+  ) THEN
+    ALTER TABLE media.pdfs ADD CONSTRAINT pdfs_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders.orders(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2972,7 +3101,10 @@ CREATE INDEX IF NOT EXISTS idx_fulfillment_shipments_shipper_location_id ON fulf
 CREATE INDEX IF NOT EXISTS migration_leads_email_idx ON leads.leads USING btree (lower(email));
 CREATE INDEX IF NOT EXISTS migration_leads_phone_idx ON leads.leads USING btree (phone);
 CREATE INDEX IF NOT EXISTS migration_leads_status_idx ON leads.leads USING btree (converted, contacted, responded);
+CREATE INDEX IF NOT EXISTS emails_order_idx ON media.emails USING btree (order_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS emails_user_idx ON media.emails USING btree (user_id, sent_at DESC);
 CREATE INDEX IF NOT EXISTS idx_images_user_created ON media.images USING btree (user_id, created_at);
+CREATE INDEX IF NOT EXISTS pdfs_order_kind_idx ON media.pdfs USING btree (order_id, kind, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS addresses_one_per_order ON orders.addresses USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_addresses_source_address_id ON orders.addresses USING btree (source_address_id);
 CREATE INDEX IF NOT EXISTS order_addresses_address_idx ON orders.addresses USING btree (address_id);
@@ -3022,6 +3154,7 @@ CREATE INDEX IF NOT EXISTS idx_places_locations_image_id ON places.locations USI
 CREATE INDEX IF NOT EXISTS locations_address_idx ON places.locations USING btree (address_id);
 CREATE INDEX IF NOT EXISTS locations_org_idx ON places.locations USING btree (organization_id);
 CREATE INDEX IF NOT EXISTS user_addresses_address_idx ON places.user_addresses USING btree (address_id);
+CREATE UNIQUE INDEX IF NOT EXISTS user_addresses_one_default_per_user ON places.user_addresses USING btree (user_id) WHERE default_shipping;
 CREATE UNIQUE INDEX IF NOT EXISTS user_addresses_user_address_uniq ON places.user_addresses USING btree (user_id, address_id);
 CREATE INDEX IF NOT EXISTS user_addresses_user_idx ON places.user_addresses USING btree (user_id);
 CREATE INDEX IF NOT EXISTS idx_bullion_metal_id ON products.bullion USING btree (metal_id);

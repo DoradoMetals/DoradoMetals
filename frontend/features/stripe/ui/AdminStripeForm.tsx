@@ -111,14 +111,14 @@ export default function AdminStripeForm({
     },
     defaultValues: {
       billingDetails: {
-        phone: address.phone_number,
+        phone: address.phone_number ?? '',
         address: {
-          line1: address.line_1,
-          line2: address.line_2,
-          city: address.city,
-          state: address.state,
-          postal_code: address.zip,
-          country: address.country_code,
+          line1: address.line_1 ?? '',
+          line2: address.line_2 ?? '',
+          city: address.city ?? '',
+          state: address.state ?? '',
+          postal_code: address.zip ?? '',
+          country: address.country_code ?? '',
         },
       },
     },

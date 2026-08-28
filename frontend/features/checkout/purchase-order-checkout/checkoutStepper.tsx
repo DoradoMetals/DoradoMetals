@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation'
 import { useGetSession } from '@/features/auth/queries'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 
-import { useAddress } from '@/features/addresses/queries'
+import { useAddress, useUserAddresses } from '@/features/addresses/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { getDeclaredValue } from '@/features/checkout/utils/getDeclaredValue'
 
@@ -67,15 +67,18 @@ export default function CheckoutStepper() {
     (data.pickup.label !== 'CONTACT_FEDEX_TO_SCHEDULE' ||
       (!!data.pickup.date && !!data.pickup.time))
 
-  const defaultAddress: Address =
-    addresses.find((a) => a.is_default) ?? addresses[0] ?? makeEmptyAddress(user?.id)
+  const { data: links = [] } = useUserAddresses()
+  const linkOf = useMemo(() => new Map(links.map((l) => [l.address_id, l])), [links])
+  const defaultAddress: Address | undefined =
+    addresses.find((a) => linkOf.get(a.id)?.default_shipping) ?? addresses[0]
 
   useEffect(() => {
     if (hasInitialized.current) return
-    if (addresses.length === 0) return
+    if (addresses.length === 0 || !defaultAddress) return
 
     setData({
       address: defaultAddress,
+      user_address: linkOf.get(defaultAddress.id),
       confirmation: false,
       fedexPackageToggle: false,
       insurance: {
@@ -88,7 +91,7 @@ export default function CheckoutStepper() {
     })
 
     hasInitialized.current = true
-  }, [addresses.length, defaultAddress, declaredValue, setData])
+  }, [addresses.length, defaultAddress, linkOf, declaredValue, setData])
 
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
@@ -97,7 +100,7 @@ export default function CheckoutStepper() {
 
   const ratesInput = useGetRatesInput({
     carrier_id: "30179428-b311-4873-8d08-382901c581d8",
-    address: data.address ?? makeEmptyAddress(user?.id),
+    address: data.address,
     package: data.package,
     shippingType: 'Inbound',
     pickupLabel: data.pickup?.label ?? 'DROPOFF_AT_FEDEX_LOCATION',
@@ -187,7 +190,7 @@ export default function CheckoutStepper() {
             shipping: () => (
               <ShippingStep
                 addresses={addresses}
-                emptyAddress={makeEmptyAddress(user?.id)}
+                emptyAddress={makeEmptyAddress()}
                 rates={rates}
                 isLoading={ratesLoading}
               />

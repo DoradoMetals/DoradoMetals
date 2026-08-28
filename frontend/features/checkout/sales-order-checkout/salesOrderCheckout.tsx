@@ -13,7 +13,7 @@ import { calculateSalesOrderPrices } from '@/features/orders/salesOrders/utils/c
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 import { useGetSession } from '@/features/auth/queries'
 import { useMutationState } from '@tanstack/react-query'
-import { makeEmptyAddress } from '@/features/addresses/types'
+import { makeEmptyWireAddress } from '@/features/addresses/types'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useAddress } from '@/features/addresses/queries'
 import { useSalesTax } from '@/features/sales-tax/queries'
@@ -28,7 +28,7 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 export default function SalesOrderCheckout() {
   const { user } = useGetSession()
   const [isLoading, setIsLoading] = useState<boolean>(false)
-  const emptyAddress = makeEmptyAddress(user?.id)
+  const emptyAddress = makeEmptyWireAddress()
 
   const router = useRouter()
   const [isPending, startTransition] = useTransition()

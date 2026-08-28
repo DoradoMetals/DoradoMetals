@@ -52,26 +52,30 @@ async function inRollback(fn) {
   }
 }
 
-const draft = (over = {}) => ({
-  line_1: "1 Test Street",
-  line_2: null,
-  city: "Austin",
-  state: "TX",
-  country: "United States",
-  zip: "78701",
-  country_code: "US",
-  phone_number: "5550000000",
-  user_address: { label: `probe-${randomUUID().slice(0, 8)}`, default_shipping: false },
-  ...over,
+// The two halves as the service takes them since the split (2026-08-28):
+// the postal address and the caller's relationship, siblings, one call.
+const draft = (over = {}, ua = {}) => ({
+  address: {
+    line_1: "1 Test Street",
+    line_2: null,
+    city: "Austin",
+    state: "TX",
+    country: "United States",
+    zip: "78701",
+    country_code: "US",
+    phone_number: "5550000000",
+    ...over,
+  },
+  user_address: { label: `probe-${randomUUID().slice(0, 8)}`, default_shipping: false, ...ua },
 });
 
 test("create writes both new rows and the exchange row under one id", async () => {
   await inRollback(async (c) => {
     const input = draft();
-    const made = await service.create({ address: input, userId: owner }, c);
+    const made = await service.create({ ...input, userId: owner }, c);
 
     assert.ok(made.id);
-    assert.equal(made.line_1, input.line_1);
+    assert.equal(made.line_1, input.address.line_1);
     assert.equal(made.user_address.label, input.user_address.label);
     assert.equal(made.user_address.user_id, owner);
 
@@ -98,7 +102,7 @@ test("create writes both new rows and the exchange row under one id", async () =
 // not from the caller. Address validation sets the real ones afterwards.
 test("a new address is valid and non-residential until validation says otherwise", async () => {
   await inRollback(async (c) => {
-    const made = await service.create({ address: draft(), userId: owner }, c);
+    const made = await service.create({ ...draft(), userId: owner }, c);
     assert.equal(made.is_valid, true);
     assert.equal(made.is_residential, false);
 
@@ -112,9 +116,9 @@ test("a new address is valid and non-residential until validation says otherwise
 
 test("the list is that person's addresses, defaults first", async () => {
   await inRollback(async (c) => {
-    await service.create({ address: draft(), userId: owner }, c);
+    await service.create({ ...draft(), userId: owner }, c);
     const marked = await service.create(
-      { address: draft({ user_address: { label: "the default", default_shipping: true } }),
+      { ...draft({}, { label: "the default", default_shipping: true }),
         userId: owner }, c
     );
 
@@ -165,7 +169,7 @@ test("an address with no link is not in anybody's list", async () => {
 // depend on which is which - see features/sales-orders/address-state.test.js.
 test("getFromId returns a list and getAddressFromId returns the row", async () => {
   await inRollback(async (c) => {
-    const made = await service.create({ address: draft(), userId: owner }, c);
+    const made = await service.create({ ...draft(), userId: owner }, c);
 
     const list = await service.getFromId(made.id, c);
     assert.ok(Array.isArray(list), "getFromId stopped returning a list");
@@ -179,9 +183,10 @@ test("getFromId returns a list and getAddressFromId returns the row", async () =
 
 test("update changes both schemas", async () => {
   await inRollback(async (c) => {
-    const made = await service.create({ address: draft(), userId: owner }, c);
+    const made = await service.create({ ...draft(), userId: owner }, c);
     const updated = await service.update(
-      { address: { ...made, city: "Dallas", user_address: { label: "renamed", default_shipping: true } },
+      { address: { ...made, city: "Dallas" },
+        user_address: { label: "renamed", default_shipping: true },
         userId: owner }, c
     );
 
@@ -204,7 +209,7 @@ test("update changes both schemas", async () => {
 // than a visible error.
 test("a stranger cannot update somebody else's address", async () => {
   await inRollback(async (c) => {
-    const made = await service.create({ address: draft(), userId: owner }, c);
+    const made = await service.create({ ...draft(), userId: owner }, c);
 
     await assert.rejects(
       () => service.update(
@@ -226,7 +231,7 @@ test("a stranger cannot update somebody else's address", async () => {
 
 test("a stranger's delete removes nothing", async () => {
   await inRollback(async (c) => {
-    const made = await service.create({ address: draft(), userId: owner }, c);
+    const made = await service.create({ ...draft(), userId: owner }, c);
     await service.remove({ addressId: made.id, userId: stranger }, c);
 
     const { rows: link } = await c.query(
@@ -243,7 +248,7 @@ test("a stranger's delete removes nothing", async () => {
 
 test("deleting removes the link, the address and the exchange row", async () => {
   await inRollback(async (c) => {
-    const made = await service.create({ address: draft(), userId: owner }, c);
+    const made = await service.create({ ...draft(), userId: owner }, c);
     assert.equal(await service.remove({ addressId: made.id, userId: owner }, c),
       "Deleted address.");
 
@@ -266,7 +271,7 @@ test("deleting removes the link, the address and the exchange row", async () => 
 // order loses where it went.
 test("an address an order points at survives being removed from a book", async () => {
   await inRollback(async (c) => {
-    const made = await service.create({ address: draft(), userId: owner }, c);
+    const made = await service.create({ ...draft(), userId: owner }, c);
 
     // orders.addresses is a LINK, not a copy of the fields: it records the
     // snapshot the order took (address_id) and the address book row that

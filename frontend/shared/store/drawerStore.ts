@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { User } from '@/features/users/types'
-import { Address } from '@/features/addresses/types'
+import { Address, UserAddress } from '@/features/addresses/types'
 
 type DrawerName =
   | 'cart'
@@ -21,6 +21,9 @@ type DrawerName =
 
 type DrawerPayloads = {
   address?: Address | null
+  // The caller's relationship to it - travels beside the address, never
+  // inside it, since the split (2026-08-27).
+  userAddress?: UserAddress | null
 }
 
 interface DrawerState {

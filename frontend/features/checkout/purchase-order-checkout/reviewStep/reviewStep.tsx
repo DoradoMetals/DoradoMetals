@@ -22,7 +22,7 @@ export default function ReviewStep() {
 
       <div className="rounded-xl border border-border bg-card px-4 py-3 raised-off-page">
         <div className="flex w-full items-center justify-between">
-          <div className="text-xl text-neutral-800">{data.address?.name}</div>
+          <div className="text-xl text-neutral-800">{data.user_address?.label}</div>
           <div className="text-base text-neutral-600">
             {formatPhoneNumber(data.address?.phone_number ?? '')}
           </div>

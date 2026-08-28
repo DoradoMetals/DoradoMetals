@@ -80,7 +80,11 @@ test("the writes to places.user_addresses are scoped to the person", () => {
   assert.match(uaBody("update"), /WHERE\s+address_id\s*=\s*\$4\s+AND\s+user_id\s*=\s*\$5/i);
   assert.match(uaBody("delete"), /WHERE\s+address_id\s*=\s*\$1\s+AND\s+user_id\s*=\s*\$2/i);
   assert.match(uaBody("get_one"), /WHERE\s+address_id\s*=\s*\$1\s+AND\s+user_id\s*=\s*\$2/i);
-  assert.match(uaBody("set_default"), /WHERE\s+user_id\s*=\s*\$1/i);
+  // set_default is two statements since 089's partial unique index: the
+  // one-statement swap held a transient double default and tripped it on
+  // row-visit order. Both halves must stay scoped to the person.
+  assert.match(uaBody("set_default_clear"), /WHERE\s+user_id\s*=\s*\$1/i);
+  assert.match(uaBody("set_default_mark"), /WHERE\s+user_id\s*=\s*\$1/i);
 });
 
 // One table per repo, except the two questions that are inherently about

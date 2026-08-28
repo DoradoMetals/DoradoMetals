@@ -93,7 +93,10 @@ for (const file of walk(FEATURES)) {
 const helperStates = () => {
   const states = new Set();
   let fallback;
-  for (const helper of ["rename.ts", "lift.ts"]) {
+  // lift.ts was deleted with the addresses conversion (2026-08-27, the last
+  // lift); rename.ts is the one helper left, and a helper file listed here
+  // that stops existing should fail loudly rather than be skipped.
+  for (const helper of ["rename.ts"]) {
     const src = fs.readFileSync(path.join(ROOT, "shared", "wire", helper), "utf8");
     for (const st of statesIn(src, "SHAPES")) states.add(st);
     fallback ??= src.match(/:\s*["']([a-z]+)["']\s*;/)?.[1];
@@ -135,7 +138,7 @@ switches.sort((a, b) => a.varName.localeCompare(b.varName));
 // alongside the commit that removes the feature's repo.js, and never to make a
 // red build green - a count that falls on its own is the parser breaking.
 const SOURCE_FLOOR = 3; // + sales orders; was 21
-const WIRE_FLOOR = 2; // five features converted 2026-08-27, refiners the latest; was 7
+const WIRE_FLOOR = 1; // six converted 2026-08-27, addresses the last lift; payments is the one left; was 7
 {
   const sources = switches.filter((s) => s.kind === "source").length;
   const wires = switches.filter((s) => s.kind === "wire").length;
