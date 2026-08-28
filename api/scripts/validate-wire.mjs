@@ -75,7 +75,6 @@ const bothWays = async (name, schema, dir, read, many = true) => {
 };
 
 const po = await import("#features/purchase-orders/repo.js");
-const productsWire = await import("#features/products/wire.ts");
 const refinersWire = await import("#features/refiners/wire.ts");
 const carriersWire = await import("#features/shipping/carriers/wire.ts");
 const addressesWire = await import("#features/places/addresses/wire.ts");
@@ -261,14 +260,9 @@ await bothWays(
 // other.
 // Two shapes now, and both are checked.
 //
-// The repos return BullionWire - products.bullion's own names - because that is
-// the internal truth from here on. features/products/wire.ts converts it down
-// to ProductWire, which is what the frontend reads, and PRODUCTS_WIRE decides
-// which one leaves the API.
-//
-// Checking the adapter's OUTPUT against the legacy contract is the point: it is
-// what proves the frontend still gets exactly what it got before, and it keeps
-// working as a regression test right up until the adapter is deleted.
+// The repos return BullionWire - products.bullion's own names - and since the
+// conversion (2026-08-27) that IS the wire: the adapter and its legacy check
+// were deleted together when the frontend switched to the contracts' names.
 // Products is restructured - one implementation, so there is no "both ways" to
 // run. Kept as a DIRECT check, and this is the one to keep hardest: the
 // storefront row is no longer a projection, it is a projection plus two labels
@@ -276,9 +270,6 @@ await bothWays(
 const productsService = await import("#features/products/service.ts");
 add("GET /products", c.BullionWire, () => productsService.getAllProducts());
 add("GET /products (sell)", c.BullionWire, () => productsService.getSellProducts());
-add("GET /products (legacy wire)", c.ProductWire, async () =>
-  productsWire.toLegacy(await productsService.getAllProducts())
-);
 
 // Orders. The largest surface here and, until now, the only feature checked
 // against exchange alone - everything else goes through bothWays and proves

@@ -57,7 +57,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   const items = cartStore((state) => state.items)
   const addItem = cartStore((state) => state.addItem)
   const removeOne = cartStore((state) => state.removeOne)
-  const cartItem = items.find((item) => item.product_name === selectedProduct.product_name)
+  const cartItem = items.find((item) => item.name === selectedProduct.name)
   const quantity = cartItem?.quantity ?? 0
 
   const sellItems = sellCartStore((state) => state.items)
@@ -66,7 +66,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   const sellCartItem = sellItems.find(
     (item) =>
       item.type === 'product' &&
-      (item.data as Product).product_name === selectedProduct.product_name
+      (item.data as Product).name === selectedProduct.name
   )
   const sellQuantity = sellCartItem?.data.quantity ?? 0
 
@@ -148,9 +148,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           </div>
           {variants.length > 0 && (
             <RadioGroup
-              value={selectedProduct.product_name}
+              value={selectedProduct.name}
               onValueChange={(val) => {
-                const variant = variants.find((v) => v.product_name === val)
+                const variant = variants.find((v) => v.name === val)
                 if (variant) setSelectedProduct(variant)
               }}
               className="gap-3 w-full flex"
@@ -158,7 +158,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               {[...variants]
                 .sort((a, b) => b.content - a.content)
                 .map((option) => {
-                  const isSelected = option.product_name === selectedProduct.product_name
+                  const isSelected = option.name === selectedProduct.name
                   return (
                     <motion.label
                       key={option.id}
@@ -185,8 +185,8 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <div className="text-sm">{option.variant_label}</div>
                       </div>
                       <RadioGroupItem
-                        id={option.product_name}
-                        value={option.product_name}
+                        id={option.name}
+                        value={option.name}
                         className="sr-only"
                       />
                     </motion.label>
@@ -282,7 +282,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
         <div className="flex flex-col gap-2 w-full">
           <div className="bg-card rounded-lg raised-off-page p-4 flex flex-col gap-4">
             <div className="flex flex-col w-full">
-              <h1 className="text-2xl text-neutral-800">{selectedProduct.product_name}</h1>
+              <h1 className="text-2xl text-neutral-800">{selectedProduct.name}</h1>
               <div className="text-sm text-neutral-700">{selectedProduct.mint_name}</div>
             </div>
             <div className="flex w-full justify-between items-center">
@@ -308,7 +308,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               toggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
             >
               <div className="text-sm text-left whitespace-pre-line">
-                {selectedProduct.product_description}
+                {selectedProduct.description}
               </div>
             </Accordion>
             <Accordion
@@ -516,7 +516,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
       <div className="flex flex-col lg:hidden items-center justify-center w-full gap-4 flex-1">
         <div className="bg-card rounded-lg raised-off-page p-4 flex flex-col gap-4 w-full">
           <div className="flex flex-col w-full">
-            <h1 className="text-2xl text-neutral-800">{selectedProduct.product_name}</h1>
+            <h1 className="text-2xl text-neutral-800">{selectedProduct.name}</h1>
             <div className="text-sm text-neutral-700">{selectedProduct.mint_name}</div>
           </div>
           <div className="flex w-full justify-between items-center">
@@ -596,9 +596,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
         {variants.length > 0 && (
           <RadioGroup
-            value={selectedProduct.product_name}
+            value={selectedProduct.name}
             onValueChange={(val) => {
-              const variant = variants.find((v) => v.product_name === val)
+              const variant = variants.find((v) => v.name === val)
               if (variant) setSelectedProduct(variant)
             }}
             className="gap-3 w-full flex"
@@ -606,7 +606,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             {[...variants]
               .sort((a, b) => b.content - a.content)
               .map((option) => {
-                const isSelected = option.product_name === selectedProduct.product_name
+                const isSelected = option.name === selectedProduct.name
                 return (
                   <motion.label
                     key={option.id}
@@ -633,8 +633,8 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       <div className="text-sm">{option.variant_label}</div>
                     </div>
                     <RadioGroupItem
-                      id={option.product_name}
-                      value={option.product_name}
+                      id={option.name}
+                      value={option.name}
                       className="sr-only"
                     />
                   </motion.label>
@@ -740,7 +740,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               toggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
             >
               <div className="text-sm text-left whitespace-pre-line">
-                {selectedProduct.product_description}
+                {selectedProduct.description}
               </div>
             </Accordion>
             <Accordion

@@ -3,7 +3,7 @@ import type { Product, ProductGroup, ProductFilters, AdminProduct, AdminTypes, S
 import { groupProducts } from '@/features/products/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import { AdminMetal } from '@/features/products/types'
+import { SpotPrice } from '@/features/spots/types'
 
 export const useProducts = () => {
   return useApiQuery<Product[]>({
@@ -133,8 +133,13 @@ export const useAdminTypes = () =>
     }),
   })
 
+// /products/get_metals serves the composed spot shape - the same
+// name/ask/bid the live feed serves - with no wire conversion on the route.
+// The old AdminMetal type (type/ask_spot as strings) described a response
+// this endpoint stopped sending at the products restructure; the drawer's
+// metal dropdown was reading `.type` off rows that no longer had one (D72).
 export const useAdminMetals = () =>
-  useApiQuery<AdminMetal[]>({
+  useApiQuery<SpotPrice[]>({
     key: queryKeys.adminMetals(),
     url: '/products/get_metals',
     method: 'GET',

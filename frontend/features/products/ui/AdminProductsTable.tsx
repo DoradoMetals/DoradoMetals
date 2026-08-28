@@ -91,13 +91,13 @@ export default function ProductsPage() {
       height: 50,
       width: 50,
       rounded: 'md',
-      getAlt: ({ row }) => `${row.product_name}`,
+      getAlt: ({ row }) => `${row.name}`,
       size: 50,
     }),
     TextColumn<AdminProduct>({
-      id: 'product_name',
+      id: 'name',
       header: 'Name',
-      accessorKey: 'product_name',
+      accessorKey: 'name',
       align: 'left',
       enableHiding: false,
       size: 240,
@@ -173,16 +173,16 @@ export default function ProductsPage() {
     submitLabel: 'Create Product',
     fields: [
       {
-        name: 'product_name',
+        name: 'name',
         label: 'Product Name',
         inputType: 'text',
       },
     ],
     createNew: async (values: Record<string, string>) => {
-      const name = (values.product_name ?? '').trim()
+      const name = (values.name ?? '').trim()
       await createProduct.mutateAsync({ name })
     },
-    canSubmit: (values: Record<string, string>) => (values.product_name ?? '').trim().length > 0,
+    canSubmit: (values: Record<string, string>) => (values.name ?? '').trim().length > 0,
   }
   const handleRowClick = (row: Row<AdminProduct>) => {
     setActiveProduct(row.original.id)
@@ -194,7 +194,7 @@ export default function ProductsPage() {
       <DataTable<AdminProduct>
         data={products}
         columns={columns}
-        searchColumnId="product_name"
+        searchColumnId="name"
         searchPlaceholder="Search products..."
         enableColumnVisibility
         onRowClick={handleRowClick}

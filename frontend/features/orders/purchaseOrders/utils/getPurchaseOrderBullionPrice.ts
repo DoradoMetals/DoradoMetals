@@ -1,8 +1,8 @@
 import { SpotPrice } from '@/features/spots/types'
-import { Product } from '@/features/products/types'
+import { OrderProduct } from '@/features/orders/orderProducts'
 
 export default function getPurchaseOrderBullionPrice(
-  item: Product,
+  item: OrderProduct,
   spotPrices: SpotPrice[],
   orderSpotPrices: SpotPrice[],
   premium: number | null,

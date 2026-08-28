@@ -3,6 +3,7 @@ import { apiRequest } from '@/shared/queries/axios'
 import { PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
 import { OrderSpot, OrderSpotWire, orderSpotFromWire, orderSpotToWire } from '@/features/orders/orderSpots'
+import { toOrderProduct } from '@/features/orders/orderProducts'
 import { Product } from '@/features/products/types'
 import { PayoutDetails } from '@/features/payouts/types'
 import getPurchaseOrderItemPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderItemPrice'
@@ -638,7 +639,8 @@ export const useAddNewOrderBullionItem = () => {
         id: optimisticId,
         purchase_order_id,
         item_type: 'product',
-        product: item,
+        // The optimistic entry is read by UI that speaks the orders wire.
+        product: toOrderProduct(item),
         quantity: 1,
         confirmed: false,
       }

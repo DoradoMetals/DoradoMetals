@@ -48,7 +48,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const addItem = cartStore((state) => state.addItem)
   const removeOne = cartStore((state) => state.removeOne)
 
-  const cartItem = items.find((item) => item.product_name === selectedProduct.product_name)
+  const cartItem = items.find((item) => item.name === selectedProduct.name)
   const quantity = cartItem?.quantity ?? 0
   const { data: spotPrices = [] } = useSpotPrices()
 
@@ -99,7 +99,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                   alt="thumbnail front"
                 />
                 <ProductShadow
-                  productType={selectedProduct.product_type}
+                  productType={selectedProduct.type}
                   offset={selectedProduct.shadow_offset}
                 />
               </div>
@@ -108,7 +108,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
             <SwiperSlide>
               <div className="flex relative aspect-square pb-4">
                 <ProductShadow
-                  productType={selectedProduct.product_type}
+                  productType={selectedProduct.type}
                   offset={selectedProduct.shadow_offset}
                 />
                 <Image
@@ -163,9 +163,9 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
         <div className="flex items-end justify-between w-full px-3 pr-5 pb-2">
           {variants.length > 0 && (
             <RadioGroup
-              value={selectedProduct.product_name}
+              value={selectedProduct.name}
               onValueChange={(val) => {
-                const variant = variants.find((v) => v.product_name === val)
+                const variant = variants.find((v) => v.name === val)
                 if (variant) setSelectedProduct(variant)
               }}
             >
@@ -190,15 +190,15 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
                   .map((option) => (
                     <FloatingButtonItem key={option.id}>
                       <label
-                        htmlFor={option.product_name}
+                        htmlFor={option.name}
                         className="h-8 w-10 xs:w-14 sm:w-15 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-primary has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:text-white text-neutral-900"
                         onClick={(e) => {
                           e.stopPropagation()
                         }}
                       >
                         <RadioGroupItem
-                          id={option.product_name}
-                          value={option.product_name}
+                          id={option.name}
+                          value={option.name}
                           className="sr-only"
                         />
                         {option.variant_label}
@@ -307,7 +307,7 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
             <div className="flex items-start">
               <div className="flex flex-col mr-auto">
                 <div className="text-neutral-700 text-sm lg:text-base">
-                  {selectedProduct.product_name}
+                  {selectedProduct.name}
                 </div>
                 <div className="text-neutral-500 text-xs lg:text-sm mr-auto">
                   {selectedProduct.mint_name}

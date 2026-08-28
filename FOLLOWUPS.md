@@ -7804,3 +7804,48 @@ the NUMERIC/BIGINT parser rule: a global the runtime provides is not the
 global the code was written against. The shim and its probe live in
 `frontend/vitest.setup.ts`, alongside the RTL cleanup registration that
 vitest's globals-off mode also fails to auto-install.
+
+## D71/D72/D73 — the products conversion, and the three bugs the stale dev server was sitting on
+
+Products followed the template (render tests for both catalogue cards, types
+from `@dorado/contracts`, tsc-position sweep + grep sweep, PRODUCTS_WIRE=next,
+adapter deleted, WIRE_FLOOR 5 -> 4, adapter map-scan inverted to assert ZERO).
+The catalogue split from the orders-embedded product exactly as spots split
+from order spots: `features/orders/orderProducts.ts` holds the legacy
+`OrderProduct` plus `toOrderProduct` for the one optimistic update that feeds
+order UI from a catalogue pick, and dies with the orders conversion. Both cart
+stores gained persist `version: 1` migrations - customers' localStorage holds
+legacy-keyed lines until their first load after deploy.
+
+The real finding is a PATTERN: the restructured API had been serving the NEW
+names on switchless internal endpoints for weeks, while frontend and API code
+kept reading the LEGACY names off them - and nothing failed, because the only
+process anyone watches is the stale dev server running pre-restructure code.
+Three separate bugs, one cause:
+
+- **D71, money**: `factsFrom` in sales-tax read `item.product_type` off
+  `getItemsFromServer` rows that carry `type` - so on the restructured path
+  every server-fetched item had a NULL product type and rules keyed on one
+  silently fell through to their 'All' fallback. Both order-create paths and
+  the payments path go through it. FIXED, reads both spellings legacy-first
+  (a cart line's own `type` is its kind discriminator); pinned by a
+  three-shape test in `sales-tax/tests/match.test.ts`.
+- **D72, admin**: `/products/get_metals` serves the composed spot shape with
+  no wire on the route; the frontend's `AdminMetal` type described the
+  pre-restructure response, and ProductDrawer's metal dropdown mapped
+  `m.type` over rows that stopped having one. FIXED - AdminMetal deleted,
+  `useAdminMetals` types the live spot shape, dropdown reads `m.name`.
+- **D73, silent data drop**: both checkout repos read `item.product_name` at
+  the TOP LEVEL of a sell-cart line, but the frontend's line has always been
+  `{ type, data: {...} }` - so every product line in a synced sell cart hit
+  `if (!productName) continue` and vanished, while scrap lines (whose branch
+  reads `item.data`) synced fine. A cart of one coin and one ring synced as
+  just the ring. FIXED in both repos (name and quantity read from the line
+  or its data, both spellings), pinned over HTTP in `carts-http.test.js`
+  against BOTH schemas under dual.
+
+Also deliberate: the `product_type` QUERY PARAM on /products/get_products
+keeps its spelling (a parameter the controller reads, not an entity field);
+`AdminProductsTable`'s string-keyed column config (`accessorKey`) was the
+tsc-invisible class again, caught by the grep sweep; both SO create endpoints
+still receive dead `spot_prices` payloads (noted at D70).

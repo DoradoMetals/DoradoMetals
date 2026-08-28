@@ -66,7 +66,7 @@ function Header({ product }: { product: AdminProduct }) {
       <div className="flex w-full items-center justify-between">
         <div className="flex items-center gap-1">
           <img src={product.image_front ?? ''} alt={`product image`} height={50} width={50} />
-          <div className="text-xl text-neutral-900">{product.product_name}</div>
+          <div className="text-xl text-neutral-900">{product.name}</div>
         </div>
         <div
           className={cn(
@@ -103,33 +103,33 @@ function Details({ product }: { product: AdminProduct }) {
     <div className="flex flex-col w-full gap-4">
       <div className="section-label mb-4">Details</div>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="product_name" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="name" className="text-xs pl-1 font-medium text-neutral-700">
           Product Name
         </Label>
 
         <Input
-          id="product_name"
+          id="name"
           placeholder="Enter name..."
           type="text"
           className="on-glass"
-          defaultValue={product.product_name ?? ''}
-          onBlur={(e) => handleUpdate(product.id, { product_name: e.target.value })}
+          defaultValue={product.name ?? ''}
+          onBlur={(e) => handleUpdate(product.id, { name: e.target.value })}
         />
       </div>
       <div className="flex w-full justify-between items-center gap-4">
         <PopoverSelect
           label="Metal"
           value={product.metal}
-          options={metals?.map((m) => m.type)}
+          options={metals?.map((m) => m.name)}
           onChange={(val) => handleUpdate(product.id, { metal: val })}
           triggerClass="on-glass"
           includeSearch={false}
         />
         <PopoverSelect
           label="Product Type"
-          value={product.product_type}
+          value={product.type}
           options={types?.map((item) => item.name)}
-          onChange={(val) => handleUpdate(product.id, { product_type: val })}
+          onChange={(val) => handleUpdate(product.id, { type: val })}
           triggerClass="on-glass"
           includeSearch={false}
         />
@@ -158,8 +158,8 @@ function Details({ product }: { product: AdminProduct }) {
           id="description"
           placeholder="Enter product description..."
           className="on-glass min-w-70"
-          defaultValue={product.product_description}
-          onBlur={(e) => handleUpdate(product.id, { product_description: e.target.value })}
+          defaultValue={product.description}
+          onBlur={(e) => handleUpdate(product.id, { description: e.target.value })}
         />
       </div>
     </div>

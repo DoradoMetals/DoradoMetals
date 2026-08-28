@@ -257,10 +257,13 @@ export async function replaceSellCart(user_id, cart, client) {
   await clearSellCartItems(cart_id, client);
 
   for (const item of cart) {
-    const quantity = item?.quantity || 1;
+    // Same shape note as repo.next.replaceSellItems: the frontend's line is
+    // { type, data } - see D73 there.
+    const quantity = item?.quantity ?? item?.data?.quantity ?? 1;
 
     if (item?.type === "product") {
-      const productName = item?.product_name;
+      const productName =
+        item?.product_name ?? item?.data?.name ?? item?.data?.product_name;
       if (!productName) continue;
 
       const productId = await findProductIdByName(productName, client);

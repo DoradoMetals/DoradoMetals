@@ -11,7 +11,7 @@ export default function ProductPage() {
     <div className="flex justify-center items-center w-full">
       <div className="w-full max-w-5xl px-4 py-4 sm:py-10">
         {groupedProducts.map(({ default: product, variants }) => (
-          <ProductPageDetails key={product.product_name} product={product} variants={variants} />
+          <ProductPageDetails key={product.name} product={product} variants={variants} />
         ))}
       </div>
     </div>

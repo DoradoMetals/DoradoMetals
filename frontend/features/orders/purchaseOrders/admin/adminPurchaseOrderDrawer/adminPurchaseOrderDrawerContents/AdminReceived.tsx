@@ -858,7 +858,7 @@ function BullionTable({
                             'text-primary'
                           )}
                         >
-                          {product.product_name}
+                          {product.name}
                         </span>
                       </CommandItem>
                     ))}
@@ -915,7 +915,7 @@ function BullionTable({
                           'text-primary'
                         )}
                       >
-                        {product.product_name}
+                        {product.name}
                       </span>
                     </CommandItem>
                   ))}

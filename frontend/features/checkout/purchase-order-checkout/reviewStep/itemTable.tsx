@@ -259,7 +259,7 @@ const bullionColumns: ColumnDef<Extract<SellCartItem, { type: 'product' }>>[] = 
   },
   {
     header: 'Name',
-    cell: ({ row }) => row.original.data.product_name,
+    cell: ({ row }) => row.original.data.name,
   },
   {
     header: 'Est. Value',

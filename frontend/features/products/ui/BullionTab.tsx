@@ -32,7 +32,7 @@ export default function BullionTab() {
           input,
           filtered.map((p) => ({
             ...p,
-            searchText: `${p.default.product_name} ${p.default.metal_type}`,
+            searchText: `${p.default.name} ${p.default.metal_type}`,
           })),
           {
             keys: ['searchText'],

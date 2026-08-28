@@ -174,14 +174,15 @@ test("no real wire adapter can collide or break its own round trip", () => {
   };
   walk(features);
 
-  // The floor tracks how many rename-map adapters EXIST, and it shrinks as
-  // features convert: media's adapter was deleted 2026-08-27 (first converted
-  // feature, 3 -> 2), spots' the same day (2 -> 1, its unconditional remnant
-  // lives in features/spots/legacy-shape.ts and carries no env switch). Lower
-  // this again when products converts - and if it ever reads low WITHOUT a
-  // deletion in the same change, the scan broke, which is what the floor is
-  // for.
-  assert.ok(maps.length >= 1, `only ${maps.length} rename map(s) found - the scan missed some`);
+  // The floor tracked how many rename-map adapters EXISTED, and it shrank as
+  // features converted: media 3 -> 2, spots 2 -> 1 (both 2026-08-27), and
+  // products 1 -> 0 the same day. ZERO IS NOW THE ASSERTED STATE: the three
+  // rename features are converted, the four adapters that remain are
+  // structural lifts with their own tests, and a `names:` map REAPPEARING in
+  // a wire.ts means someone is adding a legacy rename shim after the
+  // conversion - a deliberate decision, made here by flipping this assertion
+  // back to a floor. The collide checks below stay live for that day.
+  assert.equal(maps.length, 0, `a rename-map adapter appeared (${maps.map((m) => m[0]).join(", ")}) - flip this back to a floor deliberately`);
   for (const [where, pairs] of maps) {
     const news = pairs.map((p) => p[1]);
     const legacies = pairs.map((p) => p[2]);

@@ -1,42 +1,33 @@
 import { z } from 'zod'
+import type { BullionWire } from '@dorado/contracts'
 
-export interface Product {
-  id: string
-  product_name: string
-  product_description: string
-  content: number
-  purity: number
-  gross: number
-  bid_premium: number
-  ask_premium: number
-  product_type: string
-  image_front: string
-  image_back: string
-  quantity?: number
-  mint_name: string
+// THIRD CONVERTED FEATURE (2026-08-27). The catalogue product is the
+// contracts shape - products.bullion's own names, `name` / `description` /
+// `type` where the legacy wire said product_name / product_description /
+// product_type. The client adds what the API never sends: `price` is computed
+// from the live spot, `quantity` is cart state. thickness/diameter existed on
+// the old hand-written type and were read by nothing; they are gone.
+//
+// The products embedded in ORDER responses still speak the legacy names -
+// that is the orders wire, unconverted. Those are typed
+// features/orders/orderProducts.ts, not this.
+export type Product = BullionWire & {
   price?: number
-  metal_type: string
-  variant_group: string
-  shadow_offset: number
-  slug?: string
-  legal_tender?: boolean
-  domestic_tender?: boolean
-  sell_display: boolean
-  is_generic: boolean
-  variant_label?: string
-  thickness?: string
-  diameter?: string
+  quantity?: number
 }
 
+// The admin list and editor's shape. No contract covers the admin endpoint
+// yet, so this stays hand-written - but the wire rename applies to it the
+// same as the public list, so the three renamed columns are the new names.
 export interface AdminProduct {
   id: string
   metal: string
   supplier: string
-  product_name: string
-  product_description: string
+  name: string
+  description: string
   bid_premium: number
   ask_premium: number
-  product_type: string
+  type: string
   created_at: Date
   updated_at: Date
   image_front: string
@@ -90,47 +81,39 @@ export interface AdminMints {
   updated_at: Date,
 }
 
-// The admin product editor's metal list, served by /products/get_metals.
-// Lived in features/spots/types.ts until the spots conversion (2026-08-27) -
-// but its endpoint is a PRODUCTS route behind PRODUCTS_WIRE, so it converts
-// with products, not with spots. String-valued because the form edits it.
-export interface AdminMetal {
-  id: string
-  type: string
-  ask_spot: string
-  bid_spot: string
-  percent_change: string
-  dollar_change: string
-}
-
 export interface AdminTypes {
   name: string,
 }
 
+// Parsed on the checkout path, so it must accept what the converted client
+// actually holds: the contract's nullability, not the old hand-written
+// optionality. `satisfies` pins it - if BullionWire gains or renames a field,
+// this fails typecheck instead of silently rejecting checkouts at runtime.
 export const productSchema = z.object({
   id: z.string(),
-  product_name: z.string(),
-  product_description: z.string(),
+  name: z.string(),
+  description: z.string(),
+  type: z.string(),
+  slug: z.string().nullable(),
+  metal_type: z.string(),
+  mint_name: z.string(),
+  gross: z.number(),
   content: z.number(),
   purity: z.number(),
-  gross: z.number(),
   bid_premium: z.number(),
   ask_premium: z.number(),
-  product_type: z.string(),
   image_front: z.string(),
   image_back: z.string(),
-  mint_name: z.string(),
-  price: z.number().optional(),
-  metal_type: z.string(),
-  variant_group: z.string(),
   shadow_offset: z.number(),
+  variant_group: z.string(),
+  variant_label: z.string().nullable(),
+  is_generic: z.boolean().nullable(),
+  legal_tender: z.boolean().nullable(),
+  domestic_tender: z.boolean().nullable(),
+  sell_display: z.boolean().nullable(),
+  price: z.number().optional(),
   quantity: z.number().optional(),
-  legal_tender: z.boolean().optional(),
-  domestic_tender: z.boolean().optional(),
-  sell_display: z.boolean(),
-  is_generic: z.boolean(),
-  variant_label: z.string().optional(),
-})
+}) satisfies z.ZodType<Product>
 
 export interface ProductFilters {
   metal_type?: string

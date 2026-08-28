@@ -38,7 +38,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
   const cartItem = items.find(
     (item) =>
       item.type === 'product' &&
-      (item.data as Product).product_name === selectedProduct.product_name
+      (item.data as Product).name === selectedProduct.name
   )
   const quantity = cartItem?.data.quantity ?? 0
 
@@ -66,7 +66,7 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
           <div className="flex flex-col h-full justify-between py-2 mr-auto gap-4">
             <div className="flex flex-col gap-1">
               <div className="text-sm sm:text-base md:text-lg lg:text-xl text-neutral-800">
-                {selectedProduct.product_name}
+                {selectedProduct.name}
               </div>
               <div className="flex items-center gap-1 text-xs text-neutral-600">
                 <div className="text-sm sm:text-base text-neutral-600">
@@ -182,9 +182,9 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
           {variants.length > 0 && (
             <div className="mt-auto">
               <RadioGroup
-                value={selectedProduct.product_name}
+                value={selectedProduct.name}
                 onValueChange={(val) => {
-                  const variant = variants.find((v) => v.product_name === val)
+                  const variant = variants.find((v) => v.name === val)
                   if (variant) setSelectedProduct(variant)
                 }}
               >
@@ -203,20 +203,20 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
                   {[...variants]
                     .sort((a, b) => b.content - a.content)
                     .map((option) => {
-                      const isSelected = selectedProduct.product_name === option.product_name
+                      const isSelected = selectedProduct.name === option.name
 
                       return (
                         <BullionFloatingButtonItem key={option.id}>
                           <label
-                            htmlFor={option.product_name}
+                            htmlFor={option.name}
                             className={cn(
                               'h-5.5 sm:h-7 md:h-8.5 lg:h-9 w-8 xs:w-12 sm:w-14 rounded-lg flex items-center justify-center text-xs cursor-pointer border text-neutral-900 raised-off-page',
                               isSelected && 'bg-primary text-white'
                             )}
                           >
                             <RadioGroupItem
-                              id={option.product_name}
-                              value={option.product_name}
+                              id={option.name}
+                              value={option.name}
                               className="sr-only"
                             />
                             {option.variant_label}

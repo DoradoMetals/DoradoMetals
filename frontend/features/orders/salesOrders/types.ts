@@ -23,11 +23,13 @@ import { serviceSchema } from '@/features/service/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User, userSchema } from '@/features/users/types'
 import type { SpotPriceWireNext } from '@dorado/contracts'
+import { OrderProduct } from '@/features/orders/orderProducts'
 
 export interface SalesOrderItem {
   id: string
   sales_order_id: string
-  product?: Product
+  // The ORDERS wire's embedded product - legacy names until orders converts.
+  product?: OrderProduct
   quantity: number
   price?: number
   premium?: number

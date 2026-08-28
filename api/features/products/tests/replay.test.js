@@ -46,19 +46,21 @@ after(async () => {
 });
 
 // The catalogue is genuinely public - a signed-out visitor browses it.
-test("the catalogue answers a signed-out visitor in the legacy shape", async () => {
+test("the catalogue answers a signed-out visitor in the schema's own shape", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
       const res = await request(app).get("/api/products/get_all_products");
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
-      // PRODUCTS_WIRE=legacy, so the adapter has renamed the new columns back.
-      // The frontend reads product_name; `name` reaching it would render blank.
+      // Products is CONVERTED (2026-08-27): the frontend reads `name` from
+      // @dorado/contracts, and the legacy spelling reaching it would render
+      // blank cards - the e2e catalogue spec's price-count floor is the
+      // browser-level canary for exactly that.
       const p = res.body[0];
-      assert.ok("product_name" in p, "the new name leaked to the frontend");
-      assert.ok(!("name" in p), "both spellings came back at once");
-      assert.ok(p.product_name, "a product came back with no name");
+      assert.ok("name" in p, "the legacy spelling came back - the frontend reads name now");
+      assert.ok(!("product_name" in p), "both spellings came back at once");
+      assert.ok(p.name, "a product came back with no name");
     });
   });
 });
@@ -73,7 +75,7 @@ test("a slug names a product, not a person", async () => {
       assert.equal(res.status, 200);
       const rows = Array.isArray(res.body) ? res.body : [res.body];
       assert.ok(rows.length > 0 && rows[0], "a real slug returned nothing");
-      assert.ok("product_name" in rows[0]);
+      assert.ok("name" in rows[0]);
     });
   });
 });
@@ -97,9 +99,10 @@ test("the admin catalogue and the admin writes are refused to a customer", async
   });
 });
 
-// The write path, through the adapter both ways. Creating is the only product
-// write that makes a row, and it is done inside the pinned transaction.
-test("creating a product round-trips through the rename adapter", async () => {
+// The write path. Creating is the only product write that makes a row, and
+// it is done inside the pinned transaction. No adapter anymore - the body
+// arrives in the schema's own names and comes back the same way.
+test("creating a product round-trips in the schema's own names", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
       const name = `replay-product-${Date.now()}`;
@@ -113,11 +116,11 @@ test("creating a product round-trips through the rename adapter", async () => {
       const made = Array.isArray(res.body) ? res.body[0] : res.body;
       assert.ok(made?.id, "no id came back");
       assert.equal(
-        made.product_name,
+        made.name,
         name,
         "the created product came back under the wrong spelling, or nameless"
       );
-      assert.ok(!("name" in made), "the new spelling reached the frontend alongside the old");
+      assert.ok(!("product_name" in made), "the legacy spelling came back after the conversion");
 
       // created_by comes from the request body rather than the session. That is
       // admin-only and the frontend sends the real user, so it is audit

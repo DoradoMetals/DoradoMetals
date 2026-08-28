@@ -127,6 +127,11 @@ export type PurchaseItemsInput = {
   product_name?: string;
   data?: {
     id?: string;
+    // A product line's data is the catalogue product; only the fields the
+    // sync reads are declared. Both name spellings accepted - see D73 below.
+    name?: string;
+    product_name?: string;
+    quantity?: number;
     metal?: string;
     pre_melt?: number | null;
     post_melt?: number | null;
@@ -344,10 +349,19 @@ export async function replaceSellItems(
   await clearItems(checkout_id, client);
 
   for (const item of cart) {
-    const quantity = item?.quantity || 1;
+    // Quantity rides on the line's data in the frontend's shape; top-level
+    // kept first for the declared input type.
+    const quantity = item?.quantity ?? item?.data?.quantity ?? 1;
 
     if (item?.type === "product") {
-      const productName = item?.product_name;
+      // THE LINE THE FRONTEND ACTUALLY SENDS IS { type, data: {...} }. The
+      // top-level product_name this read - and only that - meant every
+      // product line in a synced sell cart was SKIPPED, silently, by the
+      // `continue` below (D73). The scrap branch always read item.data, which
+      // is why scrap synced and products vanished. Both spellings of the name
+      // are accepted while deployed frontends straddle the products rename.
+      const productName =
+        item?.product_name ?? item?.data?.name ?? item?.data?.product_name;
       if (!productName) continue;
 
       const bullionId = await findProductIdByName(productName, client);

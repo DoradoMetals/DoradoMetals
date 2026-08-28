@@ -63,7 +63,16 @@ export function factsFrom(
   return {
     state_code: state,
     metal_category: (item.metal_type as string) ?? null,
-    product_type: (item.product_type as string) ?? null,
+    // BOTH SPELLINGS, DELIBERATELY. Items reach this from two directions: the
+    // get_sales_tax endpoint hands over req.body, where the frontend still
+    // spells it product_type - and the order-create paths hand over
+    // getItemsFromServer's rows, which carry products.bullion's own name,
+    // `type`. Reading only the legacy spelling made every server-fetched item
+    // NULL here, so rules keyed on a product type silently fell through to
+    // their 'All' fallback - a tax-rate bug, found during the products
+    // conversion (D71). Legacy first: a cart item's own `type` is its
+    // kind discriminator ("product"/"scrap"), never a product type.
+    product_type: (item.product_type as string) ?? (item.type as string) ?? null,
     price: item_price,
     purity: Number(item.purity ?? 0),
     aggregate: item_total,

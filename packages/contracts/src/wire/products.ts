@@ -56,20 +56,7 @@ export const BullionWire = z.object({
 });
 export type BullionWire = z.infer<typeof BullionWire>;
 
-// The shape the frontend still reads. Produced by features/products/wire.js on
-// the way out, behind PRODUCTS_WIRE=legacy, and deleted when the frontend stops
-// reading these names.
-//
-// Derived from BullionWire rather than restated, so the two cannot drift: a
-// column added to the catalogue appears in both, and the only difference
-// between them stays the three renames.
-export const ProductWire = BullionWire.omit({
-  name: true,
-  description: true,
-  type: true,
-}).extend({
-  product_name: z.string(),
-  product_description: z.string(),
-  product_type: z.string(),
-});
-export type ProductWire = z.infer<typeof ProductWire>;
+// The legacy ProductWire (product_name / product_description / product_type)
+// lived here until 2026-08-27, derived from BullionWire by the three renames.
+// Products converted - the frontend reads BullionWire's names via
+// @dorado/contracts - so the legacy shape retired with its adapter.

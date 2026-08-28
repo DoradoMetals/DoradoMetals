@@ -16,7 +16,7 @@ import getPurchaseOrderBullionTotal from "@/features/orders/purchaseOrders/utils
 import getPurchaseOrderTotal from "@/features/orders/purchaseOrders/utils/purchaseOrderTotal";
 import type { SpotPrice } from "@/features/spots/types";
 import type { PurchaseOrder, PurchaseOrderItem } from "@/features/orders/purchaseOrders/types";
-import type { Product } from "@/features/products/types";
+import type { OrderProduct } from "@/features/orders/orderProducts";
 
 const gold = (bid: number) => ({ name: "Gold", bid }) as SpotPrice;
 
@@ -106,7 +106,7 @@ describe("the premium fallbacks do not agree", () => {
     expect(getPurchaseOrderBullionTotal([bare], [gold(3000)], [])).toBe(0);
     expect(
       getPurchaseOrderBullionPrice(
-        { metal_type: "Gold", content: 1 } as unknown as Product,
+        { metal_type: "Gold", content: 1 } as unknown as OrderProduct,
         [gold(3000)],
         [],
         null,

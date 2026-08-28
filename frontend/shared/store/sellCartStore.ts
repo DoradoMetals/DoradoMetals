@@ -82,6 +82,16 @@ function scrapMatches(a: Scrap, b: Scrap): boolean {
   )
 }
 
+// Same persisted-rename note as cartStore: a sell-cart line's product data
+// may predate the products rename in a customer's localStorage.
+const renameLegacySellLine = (line: Record<string, unknown>): Record<string, unknown> => {
+  if (!line || typeof line !== 'object') return line
+  const data = line.data as Record<string, unknown> | undefined
+  if (!data || !('product_name' in data)) return line
+  const { product_name, product_description, product_type, ...rest } = data
+  return { ...line, data: { ...rest, name: product_name, description: product_description, type: product_type } }
+}
+
 export const sellCartStore = create<SellCartState>()(
   persist(
     (set, get) => ({
@@ -97,7 +107,7 @@ export const sellCartStore = create<SellCartState>()(
 
         const match = (a: SellCartItem, b: SellCartItem) => {
           if (a.type !== b.type) return false
-          if (a.type === 'product') return a.data.product_name === (b.data as Product).product_name
+          if (a.type === 'product') return a.data.name === (b.data as Product).name
           if (a.type === 'scrap') return scrapMatches(a.data as Scrap, b.data as Scrap)
           return false
         }
@@ -118,7 +128,7 @@ export const sellCartStore = create<SellCartState>()(
         const index = items.findIndex((i) => {
           if (i.type !== item.type) return false
           if (i.type === 'product')
-            return i.data.product_name === (item.data as Product).product_name
+            return i.data.name === (item.data as Product).name
           if (i.type === 'scrap') return scrapMatches(i.data as Scrap, item.data as Scrap)
           return false
         })
@@ -139,7 +149,7 @@ export const sellCartStore = create<SellCartState>()(
         const filtered = get().items.filter((i) => {
           if (i.type !== item.type) return true
           if (i.type === 'product')
-            return i.data.product_name !== (item.data as Product).product_name
+            return i.data.name !== (item.data as Product).name
           if (i.type === 'scrap') return !scrapMatches(i.data as Scrap, item.data as Scrap)
           return true
         })
@@ -157,7 +167,7 @@ export const sellCartStore = create<SellCartState>()(
         const isProductMatch = (a: SellCartItem, b: SellCartItem) =>
           a.type === 'product' &&
           b.type === 'product' &&
-          (a.data as Product).product_name === (b.data as Product).product_name
+          (a.data as Product).name === (b.data as Product).name
 
         const isScrapMatch = (a: SellCartItem, b: SellCartItem) =>
           a.type === 'scrap' && b.type === 'scrap' && scrapMatches(a.data as Scrap, b.data as Scrap)
@@ -216,6 +226,11 @@ export const sellCartStore = create<SellCartState>()(
     }),
     {
       name: 'dorado_sell_cart',
+      version: 1,
+      migrate: (persisted: unknown) => {
+        const state = persisted as { items?: Record<string, unknown>[] }
+        return { ...state, items: (state?.items ?? []).map(renameLegacySellLine) } as never
+      },
       partialize: (state) => ({ items: state.items }),
     }
   )

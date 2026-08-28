@@ -358,3 +358,50 @@ test("a scrap line is unaffected by the product check", async () => {
     });
   });
 });
+
+// D73. The frontend's sell-cart line is { type: "product", data: {...} }, and
+// both repos read a TOP-LEVEL product_name that shape never had - so every
+// product line in a synced sell cart was skipped by a bare `continue`, while
+// the scrap branch (which always read item.data) worked. A cart of one coin
+// and one ring synced as just the ring, silently. This sends the frontend's
+// real shape, post-conversion spelling, and proves the product line lands in
+// BOTH schemas under dual.
+test("sync_sell_cart stores a product line sent in the frontend's own shape", async () => {
+  await inPinnedTransaction(async (client) => {
+    await as({ ...customer, role: "user" }, async () => {
+      const res = await request(app)
+        .post("/api/cart/sync_sell_cart")
+        .send({
+          cart: [
+            {
+              type: "product",
+              // `product` is the fixture asserted present in before(); the sell
+              // direction has no liveness refusal to dodge.
+              data: { name: product.product_name, quantity: 2 },
+            },
+          ],
+        });
+      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+
+      const legacy = await client.query(
+        `SELECT sci.quantity
+           FROM exchange.sell_cart_items sci
+           JOIN exchange.sell_carts sc ON sc.id = sci.cart_id
+          WHERE sc.user_id = $1 AND sci.product_id IS NOT NULL`,
+        [customer.id]
+      );
+      assert.equal(legacy.rows.length, 1, "the product line was skipped again - D73 is back");
+      assert.equal(Number(legacy.rows[0].quantity), 2, "the data.quantity was not read");
+
+      const next = await client.query(
+        `SELECT i.quantity
+           FROM checkout.items i
+           JOIN checkout.checkouts c ON c.id = i.checkout_id
+          WHERE c.user_id = $1 AND i.bullion_id IS NOT NULL AND c.direction = 'purchase'`,
+        [customer.id]
+      );
+      assert.equal(next.rows.length, 1, "the new schema did not get the product line");
+      assert.equal(Number(next.rows[0].quantity), 2, "the new schema quantity is wrong");
+    });
+  });
+});

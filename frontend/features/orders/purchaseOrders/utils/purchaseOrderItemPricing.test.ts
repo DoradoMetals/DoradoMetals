@@ -13,7 +13,7 @@ import getPurchaseOrderBullionPrice from "@/features/orders/purchaseOrders/utils
 import getPurchaseOrderScrapTotal from "@/features/orders/purchaseOrders/utils/purchaseOrderScrapTotal";
 import getPurchaseOrderBullionTotal from "@/features/orders/purchaseOrders/utils/purchaseOrderBullionTotal";
 import type { PurchaseOrderItem } from "@/features/orders/purchaseOrders/types";
-import type { Product } from "@/features/products/types";
+import type { OrderProduct } from "@/features/orders/orderProducts";
 import type { SpotPrice } from "@/features/spots/types";
 
 // Bid and ask differ so a function reaching for the wrong side is visible, and
@@ -110,7 +110,7 @@ describe("the line price and the order total disagree about scrap.bid_premium", 
 });
 
 describe("bullion falls back to zero where scrap falls back to one", () => {
-  const bullion = { metal_type: "Gold", content: 1, bid_premium: 0.97 } as Product;
+  const bullion = { metal_type: "Gold", content: 1, bid_premium: 0.97 } as OrderProduct;
 
   test("a bullion premium comes from the product when the caller passes none", () => {
     expect(getPurchaseOrderBullionPrice(bullion, globalSpots, [], null)).toBeCloseTo(
@@ -130,7 +130,7 @@ describe("bullion falls back to zero where scrap falls back to one", () => {
   // Scrap in the same position prices at FULL SPOT. Both are one-line fallbacks
   // and they point opposite ways; stated here so a change to either is visible.
   test("bullion with no premium at all prices at zero", () => {
-    const bare = { metal_type: "Gold", content: 1 } as Product;
+    const bare = { metal_type: "Gold", content: 1 } as OrderProduct;
     expect(getPurchaseOrderBullionPrice(bare, globalSpots, [], null)).toBe(0);
   });
 
@@ -140,7 +140,7 @@ describe("bullion falls back to zero where scrap falls back to one", () => {
   });
 
   test("a bullion total multiplies by quantity", () => {
-    const item = { item_type: "product", product: bullion, quantity: 3 } as PurchaseOrderItem;
+    const item = { item_type: "product", product: bullion, quantity: 3 } as unknown as PurchaseOrderItem;
     expect(getPurchaseOrderBullionTotal([item], globalSpots, [])).toBeCloseTo(
       3 * 1 * 3000 * 0.97,
       10

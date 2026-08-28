@@ -132,3 +132,25 @@ test("no two rules for a state tie on every specificity axis", () => {
 
   assert.deepEqual(ambiguous, [], "rules rank identically but carry different rates - LIMIT 1 picks arbitrarily");
 });
+
+// factsFrom is the seam between two item shapes, and D71 is what happens when
+// it only knows one. The get_sales_tax endpoint hands it req.body items that
+// still spell the legacy product_type; the order-create paths hand it
+// getItemsFromServer rows carrying products.bullion's own `type`. Reading only
+// the legacy spelling made every server-fetched item NULL here, so a rule
+// keyed on a product type fell through to its 'All' fallback silently - the
+// rate was still a number, just the wrong rule's.
+test("factsFrom reads the product type in both spellings, legacy first", async () => {
+  const { factsFrom } = await import("#features/sales-tax/service.ts");
+  const legacy = factsFrom("TX", { metal_type: "Gold", product_type: "Coin" }, 100, 100);
+  assert.equal(legacy.product_type, "Coin", "the legacy spelling stopped being read");
+
+  const next = factsFrom("TX", { metal_type: "Gold", type: "Coin" }, 100, 100);
+  assert.equal(next.product_type, "Coin", "a server-fetched item's type was dropped - D71 is back");
+
+  // A checkout cart item's own `type` is its KIND, not a product type. When
+  // both spellings are present the legacy one must win, so a legacy cart line
+  // carrying type:"product" alongside product_type:"Coin" stays a Coin.
+  const both = factsFrom("TX", { type: "product", product_type: "Coin" }, 100, 100);
+  assert.equal(both.product_type, "Coin", "the kind discriminator outranked the real product type");
+});

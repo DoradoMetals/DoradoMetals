@@ -16,7 +16,7 @@ export default function BuyPage() {
     <div className="flex justify-center">
       <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 justify-items-center mb-6 bg-transparent">
         {groupedProducts.map(({ default: product, variants }) => (
-          <ProductCard key={product.product_name} product={product} variants={variants} />
+          <ProductCard key={product.name} product={product} variants={variants} />
         ))}
       </div>
     </div>

@@ -69,7 +69,7 @@ export default function Cart() {
 
           return (
             <div
-              key={item.product_name}
+              key={item.name}
               className={`flex items-center justify-between w-full gap-4 py-4 ${
                 index !== items.length - 1 ? 'border-b border-neutral-300' : 'border-none'
               }`}
@@ -80,14 +80,14 @@ export default function Cart() {
                   width={80}
                   height={80}
                   className="pointer-events-none cursor-auto object-contain focus:outline-none drop-shadow-lg"
-                  alt={item.product_name}
+                  alt={item.name}
                 />
               </div>
 
               <div className="flex flex-col flex-grow min-w-0">
                 <div className="flex justify-between items-start w-full mt-2">
                   <div className="flex flex-col">
-                    <div className="text-base text-neutral-700">{item.product_name}</div>
+                    <div className="text-base text-neutral-700">{item.name}</div>
                     <div className="text-xs text-neutral-500">{item.mint_name}</div>
                   </div>
                   <Button

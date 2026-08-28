@@ -232,9 +232,10 @@ The ones that have actually caught things:
   `carrier_services` — the third shared-name false finding on this project.
 - `audit:wire-readiness` — **the other half of the promotion rule.** `*_WIRE`
   moves "when the frontend is ready", and nothing measured that. It counts the
-  legacy field names the frontend still reads: media and spots are CONVERTED
-  (contracts types, render tests, adapters deleted, 2026-08-27), leaving
-  `PRODUCTS_WIRE` (121 uses) the one that would break it today. The count is
+  legacy field names the frontend still reads: media, spots and products are
+  CONVERTED (contracts types, render tests, adapters deleted, 2026-08-27) -
+  every rename switch is done, and the audit reports 0 switches that would
+  break the frontend today. The four structural lifts still report `?`. The count is
   **split into product code and test fixtures** — SPOTS_WIRE, before its
   conversion, was 76 real reads and 10 fixtures — because a test spelling the
   legacy name is a real occurrence but not a component reading the wire, and

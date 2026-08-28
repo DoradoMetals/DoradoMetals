@@ -23,13 +23,15 @@ import { Product } from '@/features/products/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User } from '@/features/users/types'
 import { Shipment } from '@/features/shipping/types'
+import { OrderProduct } from '@/features/orders/orderProducts'
 
 export interface PurchaseOrderItem {
   item_type: string
   id: string
   purchase_order_id: string
   scrap?: Scrap
-  product?: Product
+  // The ORDERS wire's embedded product - legacy names until orders converts.
+  product?: OrderProduct
   quantity: number
   price?: number
   confirmed: boolean

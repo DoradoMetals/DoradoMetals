@@ -15,7 +15,7 @@ interface CartState {
 const mergeCart = (cart: Product[]): Product[] => {
   const merged = new Map<string, Product>()
   for (const item of cart) {
-    const key = item.product_name
+    const key = item.name
     if (merged.has(key)) {
       merged.get(key)!.quantity = (merged.get(key)!.quantity || 1) + (item.quantity || 1)
     } else {
@@ -25,6 +25,17 @@ const mergeCart = (cart: Product[]): Product[] => {
   return Array.from(merged.values())
 }
 
+
+// A persisted cart predates the products rename: customers' localStorage
+// still holds product_name / product_description / product_type keys, and a
+// store keyed by `name` would treat every one of those lines as broken.
+// Version 1 renames them in place; the data itself is untouched.
+const renameLegacyProduct = (p: Record<string, unknown>): Record<string, unknown> => {
+  if (!p || typeof p !== 'object' || !('product_name' in p)) return p
+  const { product_name, product_description, product_type, ...rest } = p
+  return { ...rest, name: product_name, description: product_description, type: product_type }
+}
+
 export const cartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -32,7 +43,7 @@ export const cartStore = create<CartState>()(
 
       addItem: (product: Product) => {
         const items = [...get().items]
-        const existing = items.find((i) => i.product_name === product.product_name)
+        const existing = items.find((i) => i.name === product.name)
 
         if (existing) {
           existing.quantity = (existing.quantity || 1) + 1
@@ -45,7 +56,7 @@ export const cartStore = create<CartState>()(
 
       removeOne: (product: Product) => {
         let items = [...get().items]
-        const index = items.findIndex((i) => i.product_name === product.product_name)
+        const index = items.findIndex((i) => i.name === product.name)
 
         if (index !== -1) {
           const item = items[index]
@@ -59,7 +70,7 @@ export const cartStore = create<CartState>()(
       },
 
       removeAll: (product: Product) => {
-        const filtered = get().items.filter((i) => i.product_name !== product.product_name)
+        const filtered = get().items.filter((i) => i.name !== product.name)
         set({ items: filtered })
       },
 
@@ -77,14 +88,14 @@ export const cartStore = create<CartState>()(
 
         if (backendItems.length > 0) {
           for (const item of backendItems) {
-            const key = item.product_name
+            const key = item.name
             merged.set(key, { ...item, quantity: item.quantity || 1 })
           }
         }
 
         if (localItems.length > 0) {
           for (const item of localItems) {
-            const key = item.product_name
+            const key = item.name
             if (!merged.has(key)) {
               merged.set(key, { ...item, quantity: item.quantity || 1 })
             }
@@ -96,6 +107,11 @@ export const cartStore = create<CartState>()(
     }),
     {
       name: 'dorado_cart',
+      version: 1,
+      migrate: (persisted: unknown) => {
+        const state = persisted as { items?: Record<string, unknown>[] }
+        return { ...state, items: (state?.items ?? []).map(renameLegacyProduct) } as never
+      },
       partialize: (state) => ({ items: state.items }),
     }
   )

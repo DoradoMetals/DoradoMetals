@@ -20,33 +20,28 @@ import { getAllMints } from "#features/mints/controller.ts";
 import { getAllMetals } from "#features/spots/controller.ts";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
-import * as productsWire from "#features/products/wire.ts";
-import { wireShape } from "#shared/wire/middleware.ts";
 
 const router = express.Router();
 
-// Mounted per-route rather than for the whole feature, because the two write
-// routes disagree about where the product is: save_product takes
-// { product, user } and create_product takes the product itself. Everything
-// else only needs the response converted.
-// The parameter is OPTIONAL, and the zero-argument call below is deliberate:
-// wireShape reads an omitted `body` as "the body IS the entity" and a `false`
-// as "do not touch the body at all". They are different instructions, so this
-// mirrors WireShapeOptions.body rather than defaulting.
-const wire = (body?: string | false) =>
-  wireShape(productsWire, body === undefined ? {} : { body });
+// NO WIRE ADAPTER. Products is the third CONVERTED feature (2026-08-27): the
+// frontend types derive from @dorado/contracts and read products.bullion's
+// own names - `name` / `description` / `type` - and the admin writes send
+// them natively, so there is nothing left to rename in either direction.
+// The exchange REPOS still translate at the SQL edge (product_name AS name,
+// and the dual-write UPDATEs in sql/legacy/) because exchange's columns keep
+// their names forever - that is schema, not wire.
 
-router.get("/get_all_products", wire(false), getAllProducts);
-router.get("/get_sell_products", wire(false), getSellProducts);
-router.get("/get_homepage_products", wire(false), getHomepageProducts);
-router.get("/get_products", wire(false), getFilteredProducts);
-router.get("/get_product_from_slug", wire(false), getProductFromSlug);
+router.get("/get_all_products", getAllProducts);
+router.get("/get_sell_products", getSellProducts);
+router.get("/get_homepage_products", getHomepageProducts);
+router.get("/get_products", getFilteredProducts);
+router.get("/get_product_from_slug", getProductFromSlug);
 
-router.get("/get_admin_products", requireAdmin, wire(false), getAllAdminProducts);
+router.get("/get_admin_products", requireAdmin, getAllAdminProducts);
 router.get("/get_metals", requireAdmin, getAllMetals);
 router.get("/get_mints", requireAdmin, getAllMints);
 router.get("/get_product_types", requireAdmin, getAllTypes);
-router.post("/save_product", requireAdmin, wire("product"), saveProduct);
-router.post("/create_product", requireAdmin, wire(), createProduct);
+router.post("/save_product", requireAdmin, saveProduct);
+router.post("/create_product", requireAdmin, createProduct);
 
 export default router;
