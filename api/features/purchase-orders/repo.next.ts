@@ -19,21 +19,21 @@
 // Those features have not been migrated; when they are, these joins move with
 // them and nothing else here changes.
 import query from "#shared/db/query.js";
-import type { PurchaseOrderWireNext } from "@dorado/contracts";
+import type { PurchaseOrder } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 
 // Repos take an optional executor so a caller can pull them into its
 // transaction; without one they run on the pool.
 type Executor = PoolClient | undefined;
 
-// The order row is PurchaseOrderWireNext - validate:wire parses real rows
+// The order row is PurchaseOrder - validate:wire parses real rows
 // through it for BOTH implementations, so it is the description of this shape
 // that has been checked against the database rather than read off the SQL.
 //
 // The two timestamps are overridden: a contract describes the WIRE, where a
 // timestamp is a string because JSON made it one, and pg returns a Date.
 export type PurchaseOrderRow = Omit<
-  PurchaseOrderWireNext,
+  PurchaseOrder,
   "created_at" | "updated_at"
 > & {
   created_at: Date | null;

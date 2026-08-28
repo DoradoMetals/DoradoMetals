@@ -8232,3 +8232,31 @@ two-implementation question); decide whether to fix or retire it. And a
 c5 follow-up: the admin create drawer's Credit-Available reads the TARGET
 user's funds from client state because the sales quote prices the CALLER -
 a quote-for-user admin variant closes it.
+
+## D85 — the migration vocabulary retires: one plain name per shape
+
+The census's non-zero counts were almost all COMMENTS - one real import
+(scrap/utils/assignScrapNames, now on the contract PurchaseOrderItem)
+decided the whole legacy orders family. Retired with dated tombstones:
+AddressOnOrder, PurchaseOrderWire, SalesOrderWire, both item wires, the
+legacy ProductOnOrderItem (name reused by the converted shape),
+SpotPriceWire, and the CarrierWire/RefinerWire legacy flats. KEPT, and the
+distinction matters: CarrierPickup, UserOnOrder, PayoutSlotOnOrder,
+ShipmentSlotOnOrder, ScrapOnOrderItem - the OnOrder/Slot names are ROLES a
+shape plays inside an order, not migration vocabulary. Every derived shape
+was inlined fully before its base died; nothing derives from a tombstone.
+
+The rename pass: every contract export drops Wire/WireNext to the bare
+entity name (Bullion, Address, UserAddress, SpotPrice, PurchaseOrder,
+SalesOrder, Image, Carrier, Refiner, PaymentIntent, the twelve quote
+shapes, all the rest; generated XRow names untouched). Where a frontend
+file already exports the plain name, the contract import aliases as
+<Name>Contract at the import line - frontend exported types kept their
+names so their hundred-plus consumers moved not at all.
+
+Quote-for-user closes D84's caveat: the sales quote honours a body user_id
+for ADMINS ONLY (the subjectOf pattern), the admin create drawer passes
+the target and Credit Available reads the server-priced beginning_funds;
+a non-admin naming someone else gets their own funds - the guard is
+semantics, not an error - and the replay fixture asserts a
+different-balance second user exists so the test cannot pass vacuously.

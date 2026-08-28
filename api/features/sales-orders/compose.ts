@@ -118,7 +118,7 @@ export function composeOrder(p: SalesOrderParts): Record<string, unknown> {
     order_sent: p.order.order_sent,
     tracking_updated: p.order.tracking_updated,
     supplier_id: p.order.refinery_id,
-    // ALWAYS AN OBJECT, never null, every key present - OrderTotalsWire
+    // ALWAYS AN OBJECT, never null, every key present - OrderTotals
     // declares all ten.
     totals: {
       total: p.totals?.total ?? null,

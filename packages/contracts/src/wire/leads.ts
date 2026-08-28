@@ -1,8 +1,8 @@
 import { z } from "zod/v4";
 import { LeadsRow } from "../generated/exchange.js";
 
-export const LeadWire = LeadsRow;
-export type LeadWire = z.infer<typeof LeadWire>;
+export const Lead = LeadsRow;
+export type Lead = z.infer<typeof Lead>;
 
 // The server owns identity, timestamps and audit columns.
 export const CreateLeadBody = LeadsRow.omit({

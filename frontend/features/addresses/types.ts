@@ -19,13 +19,13 @@ const blockedCities = ['Test', 'Fake City', 'Unknown', 'N/A']
 // postal fields plus the label and default flag as plain form fields, split
 // into the two body halves at submit. Its rules are deliberately stricter
 // than the columns, the pattern audit:frontend-nullability documents.
-import { AddressWireNext, UserAddressWire } from '@dorado/contracts'
+import { Address as AddressContract, UserAddress as UserAddressContract } from '@dorado/contracts'
 
-export type Address = AddressWireNext
-export type UserAddress = UserAddressWire
+export type Address = AddressContract
+export type UserAddress = UserAddressContract
 
-export const addressWireSchema = AddressWireNext
-export const userAddressWireSchema = UserAddressWire
+export const addressWireSchema = AddressContract
+export const userAddressWireSchema = UserAddressContract
 
 // The FORM: what a human submits, one flat set of fields for the UX, split
 // into { address, user_address } at the mutation edge.

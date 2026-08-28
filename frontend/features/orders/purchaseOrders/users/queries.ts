@@ -6,7 +6,7 @@ import {
   PurchaseOrderReturnShipment,
 } from '@/features/orders/purchaseOrders/types'
 import { SpotPrice } from '@/features/spots/types'
-import type { OrderAddressSnapshotWire, SpotOnOrderNext } from '@dorado/contracts'
+import type { OrderAddressSnapshot, SpotOnOrder } from '@dorado/contracts'
 import type { Address, UserAddress } from '@/features/addresses/types'
 import { queryKeys } from '@/shared/queries/keys'
 import { payoutOptions } from '@/features/payouts/types'
@@ -20,7 +20,7 @@ import { useSpotPrices } from '@/features/spots/queries'
 // HERE, at the mutation edge: recipient_name is the relationship's label (the
 // API reads it for the FedEx label's personName), address_id is the book row
 // the checkout resolved against.
-const toAddressSnapshot = (a: Address, ua?: UserAddress | null): OrderAddressSnapshotWire => ({
+const toAddressSnapshot = (a: Address, ua?: UserAddress | null): OrderAddressSnapshot => ({
   address_id: a.id ?? null,
   recipient_name: ua?.label ?? null,
   line_1: a.line_1,
@@ -105,11 +105,11 @@ export const useCreatePurchaseOrder = () => {
 export const usePurchaseOrderMetals = (purchase_order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<SpotOnOrderNext[]>({
+  return useQuery<SpotOnOrder[]>({
     queryKey: ['purchase_orders_metals', purchase_order_id],
     queryFn: async () => {
       if (!user?.id) return []
-      return await apiRequest<SpotOnOrderNext[]>('POST', '/purchase_orders/get_purchase_order_metals', {
+      return await apiRequest<SpotOnOrder[]>('POST', '/purchase_orders/get_purchase_order_metals', {
         user_id: user.id,
         purchase_order_id: purchase_order_id,
       })
@@ -163,7 +163,7 @@ export const useCancelOrder = () => {
       )
 
       const metalsQueryKey = ['purchase_orders_metals', purchase_order.id]
-      const previousSpotPrices = queryClient.getQueryData<SpotOnOrderNext[]>(metalsQueryKey)
+      const previousSpotPrices = queryClient.getQueryData<SpotOnOrder[]>(metalsQueryKey)
 
       queryClient.setQueryData<SpotPrice[]>(queryKey, (old = []) =>
         old.map((s) => ({

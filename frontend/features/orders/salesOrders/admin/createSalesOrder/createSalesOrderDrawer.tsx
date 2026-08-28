@@ -13,7 +13,7 @@ import {
   adminSalesOrderServiceOptions,
   paymentOptions,
 } from '@/features/orders/salesOrders/types'
-import type { SalesOrderQuoteWire } from '@dorado/contracts'
+import type { SalesOrderQuote } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
 import { SearchableDropdown } from '@/shared/ui/inputs/InputDropdownSearch'
@@ -59,12 +59,15 @@ export function CreateSalesOrderDrawer() {
   // ruling; calculateSalesOrderPrices died here 2026-08-28). It prices at
   // LIVE server spots: the drawer's locked-spot overrides feed the CREATE -
   // order_metals rides the body as spot_prices - never this preview.
+  // user_id names the TARGET customer, honored because this caller is an
+  // admin: funds price against that customer's row, not the admin's own.
   const { data: orderPrices } = useSalesOrderQuote({
     items: (data.items ?? []).map((i) => ({ id: i.id, quantity: i.quantity ?? 1 })),
     using_funds: data.using_funds ?? true,
     shipping_service: data.service?.value ?? null,
     payment_method: data.payment_method ?? null,
     address_id: data.address?.id ?? null,
+    user_id: createSalesOrderUser?.id ?? null,
   })
 
   useEffect(() => {
@@ -135,7 +138,7 @@ export function CreateSalesOrderDrawer() {
         <OrderSummary orderPrices={orderPrices} />
         <CreditSelect
           orderPrices={orderPrices}
-          funds={createSalesOrderUser?.dorado_funds ?? 0}
+          funds={orderPrices?.beginning_funds ?? createSalesOrderUser?.dorado_funds ?? 0}
         />
         <PaymentSelect orderPrices={orderPrices} user={createSalesOrderUser!} />
       </div>
@@ -424,7 +427,7 @@ function ServiceSelector() {
   )
 }
 
-function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuoteWire }) {
+function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
   const { data } = useAdminSalesOrderCheckoutStore()
   const router = useRouter()
 
@@ -519,13 +522,14 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuoteWire }) {
   )
 }
 
-// `funds` is the TARGET user's credit, from the drawer's client state: the
-// quote prices for the caller, and the caller here is the admin.
+// `funds` is the TARGET user's credit, priced by the SERVER: the quote names
+// that user (subjectOf honors it for admins), so beginning_funds is their row
+// balance. The client-state figure only bridges until the first quote lands.
 function CreditSelect({
   orderPrices,
   funds,
 }: {
-  orderPrices?: SalesOrderQuoteWire
+  orderPrices?: SalesOrderQuote
   funds: number
 }) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
@@ -590,7 +594,7 @@ function CreditSelect({
   )
 }
 
-function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuoteWire; user: User }) {
+function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; user: User }) {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const { closeDrawer } = useDrawerStore()
   const [isPending, startTransition] = useTransition()

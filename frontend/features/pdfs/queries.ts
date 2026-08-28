@@ -2,7 +2,7 @@ import { pdfRequest } from '@/shared/queries/axios'
 import { PurchaseOrder } from '@/features/orders/purchaseOrders/types'
 import { useMutation } from '@tanstack/react-query'
 import { SpotPrice } from '@/features/spots/types'
-import type { SpotOnOrderNext } from '@dorado/contracts'
+import type { SpotOnOrder } from '@dorado/contracts'
 import { PackageOption } from '@/features/packaging/types'
 import { PayoutMethod } from '@/features/payouts/types'
 import { SalesOrder } from '@/features/orders/salesOrders/types'
@@ -78,7 +78,7 @@ const downloadInvoiceRequest = async ({
 }: {
   purchaseOrder: PurchaseOrder
   spotPrices: SpotPrice[]
-  orderSpots: SpotOnOrderNext[]
+  orderSpots: SpotOnOrder[]
   fileName: string
 }) => {
   const blob = await pdfRequest<Blob>('POST', '/pdf/generate_invoice', {
@@ -109,7 +109,7 @@ const downloadSalesOrderInvoiceRequest = async ({
   fileName,
 }: {
   salesOrder: SalesOrder
-  orderSpots: SpotOnOrderNext[]
+  orderSpots: SpotOnOrder[]
   fileName: string
 }) => {
   const blob = await pdfRequest<Blob>('POST', '/pdf/generate_sales_order_invoice', {

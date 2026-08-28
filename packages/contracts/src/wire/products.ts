@@ -22,7 +22,7 @@ import { z } from "zod/v4";
 // The shape the repos return: products.bullion's own names. This is the
 // internal truth from here on - both implementations produce it, exchange by
 // aliasing product_name up to name.
-export const BullionWire = z.object({
+export const Bullion = z.object({
   id: z.string().uuid(),
   name: z.string(),
   description: z.string(),
@@ -54,9 +54,9 @@ export const BullionWire = z.object({
   domestic_tender: z.boolean().nullable(),
   sell_display: z.boolean().nullable(),
 });
-export type BullionWire = z.infer<typeof BullionWire>;
+export type Bullion = z.infer<typeof Bullion>;
 
 // The legacy ProductWire (product_name / product_description / product_type)
-// lived here until 2026-08-27, derived from BullionWire by the three renames.
-// Products converted - the frontend reads BullionWire's names via
+// lived here until 2026-08-27, derived from Bullion by the three renames.
+// Products converted - the frontend reads Bullion's names via
 // @dorado/contracts - so the legacy shape retired with its adapter.

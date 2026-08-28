@@ -8,12 +8,12 @@
 //
 // What used to share this file moved to where its wire lives:
 //   - the order-locked spot rows (embedded in order responses and mutation
-//     bodies) are the contracts' SpotOnOrderNext since the orders conversion
+//     bodies) are the contracts' SpotOnOrder since the orders conversion
 //     (2026-08-28) - same names as the live feed, no edge mapping left;
 //   - AdminMetal is features/products/types.ts - it is served by
 //     /products/get_metals and converts with products.
-import type { SpotPriceWireNext } from "@dorado/contracts";
+import type { SpotPrice as SpotPriceContract } from "@dorado/contracts";
 
 export type Metal = "Gold" | "Silver" | "Platinum" | "Palladium";
 
-export type SpotPrice = SpotPriceWireNext;
+export type SpotPrice = SpotPriceContract;

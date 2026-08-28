@@ -44,7 +44,7 @@ export default function CheckoutStepper() {
   const { data: quote } = usePurchaseOrderQuote(items)
 
   // The quote's declared_value is uncapped; $50,000 is FedEx's declared-value
-  // ceiling (PurchaseOrderQuoteWire's own note), applied here because this
+  // ceiling (PurchaseOrderQuote's own note), applied here because this
   // number is what the label's insurance is bought with.
   const declaredValue = Math.min(quote?.declared_value ?? 0, 50000)
 

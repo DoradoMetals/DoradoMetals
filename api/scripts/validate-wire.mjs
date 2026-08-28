@@ -87,12 +87,12 @@ const po = await import("#features/purchase-orders/repo.js");
 // field to go missing, and BOTH shapes are still checked - the internal one and
 // what the adapter flattens it to.
 const carriersService = await import("#features/shipping/carriers/service.ts");
-add("GET /carriers", c.CarrierWireNext, () => carriersService.getAllCarriers());
+add("GET /carriers", c.Carrier, () => carriersService.getAllCarriers());
 // Carrier services is restructured - one implementation. Kept as a DIRECT
 // check: it is the feature whose projection renames three columns back, so a
 // contract that stopped being exercised would stop noticing a rename escaping.
 const servicesService = await import("#features/shipping/services/service.ts");
-add("GET /carrier_services", c.CarrierServiceWire, () => servicesService.getAllServices());
+add("GET /carrier_services", c.CarrierService, () => servicesService.getAllServices());
 // Spots: one implementation after the restructure.
 // Rates: one implementation after the restructure.
 // Reviews: one implementation after the restructure, so no both-ways to run.
@@ -108,7 +108,7 @@ add("GET /carrier_services", c.CarrierServiceWire, () => servicesService.getAllS
 // not exist as columns any more and are reconstructed through the shipment, so
 // the contract is checking a composition rather than a projection.
 const pickupsService = await import("#features/shipping/pickups/service.ts");
-add("GET /carrier_pickups", c.CarrierPickupWire, () => pickupsService.getAll());
+add("GET /carrier_pickups", c.CarrierPickup, () => pickupsService.getAll());
 
 // Addresses were not checked here at all, and they are one of the two features
 // whose migrated read renames columns: places.user_addresses calls them
@@ -131,10 +131,10 @@ const addressesService = await import("#features/places/addresses/service.ts");
 const listAddresses = async () => (addressUser ? await addressesService.list(addressUser) : []);
 // The split wire (2026-08-27): the address rows and the caller's
 // relationships are separate endpoints, joined client-side by address_id.
-add("GET /addresses", c.AddressWireNext, async () =>
+add("GET /addresses", c.Address, async () =>
   (await listAddresses()).map(({ user_address, ...a }) => a)
 );
-add("GET /addresses/user_addresses", c.UserAddressWire, async () =>
+add("GET /addresses/user_addresses", c.UserAddress, async () =>
   (await listAddresses()).map((r) => ({ address_id: r.id, ...r.user_address }))
 );
 
@@ -151,7 +151,7 @@ add("GET /addresses/user_addresses", c.UserAddressWire, async () =>
 
 // THE CREDIT LEDGER HAD A CONTRACT AND NOTHING VALIDATED IT.
 //
-// c.AccountTransactionWire has existed since the transactions split and was
+// c.AccountTransaction has existed since the transactions split and was
 // referenced by no check in this file - the one feature holding real customer
 // money ($66,999.32 across 17 production rows) and the reshaping is the
 // awkward kind: `type` becomes `transaction_type`, and exchange's two order
@@ -175,7 +175,7 @@ if (!ledgerUser) {
   // Not a skip. An empty ledger means this check proves nothing, and a check
   // that silently proves nothing is what let the ledger go unnoticed for seven
   // months in the first place.
-  add("GET /get_transactions", c.AccountTransactionWire, () => {
+  add("GET /get_transactions", c.AccountTransaction, () => {
     throw new Error("dev has no account_transactions - the ledger check would be vacuous");
   });
 } else {
@@ -186,7 +186,7 @@ if (!ledgerUser) {
   const transactionsService = await import("#features/transactions/service.ts");
   add(
     "GET /get_transactions",
-    c.AccountTransactionWire,
+    c.AccountTransaction,
     () => transactionsService.getTransactionHistory(ledgerUser),
     false
   );
@@ -203,13 +203,13 @@ if (!ledgerUser) {
 const fulfillments = await import("#features/fulfillments/service.ts");
 const fulfillmentMethods = await import("#features/fulfillments/methods/repo.ts");
 
-add("GET /fulfillments/methods (purchase)", c.FulfillmentMethodWire, () =>
+add("GET /fulfillments/methods (purchase)", c.FulfillmentMethod, () =>
   fulfillmentMethods.getAvailable("purchase")
 );
-add("GET /fulfillments/methods (sale)", c.FulfillmentMethodWire, () =>
+add("GET /fulfillments/methods (sale)", c.FulfillmentMethod, () =>
   fulfillmentMethods.getAvailable("sale")
 );
-add("GET /fulfillments/methods/all", c.FulfillmentMethodWire, () =>
+add("GET /fulfillments/methods/all", c.FulfillmentMethod, () =>
   fulfillmentMethods.getAll()
 );
 
@@ -217,14 +217,14 @@ add("GET /fulfillments/methods/all", c.FulfillmentMethodWire, () =>
 // rows are what exercise the nested detail; pickups and directs are empty
 // everywhere until somebody books one, which is why the two booking shapes are
 // asserted by the repo tests instead.
-add("GET /fulfillments/get_for_order", c.FulfillmentWire, async () => {
+add("GET /fulfillments/get_for_order", c.Fulfillment, async () => {
   const { rows } = await pool.query(`SELECT order_id FROM fulfillments.fulfillments`);
   const out = [];
   for (const r of rows) out.push(await fulfillments.getForOrder(r.order_id, { isAdmin: true }));
   return out.filter(Boolean);
 });
 
-add("GET /fulfillments/schedule", c.FulfillmentWire, () => fulfillments.getSchedule());
+add("GET /fulfillments/schedule", c.Fulfillment, () => fulfillments.getSchedule());
 
 // The one payments response that is a repo row rather than a Stripe object or a
 // client_secret. Both implementations, ONE shape: the adapter died with the
@@ -244,7 +244,7 @@ const intents = async (m) => {
   }
   return out;
 };
-await bothWays("GET /stripe/get_sales_order_payment_intent", c.PaymentIntentWireNext, "payments", intents);
+await bothWays("GET /stripe/get_sales_order_payment_intent", c.PaymentIntent, "payments", intents);
 
 // The catalogue. The other feature that had no contract, and one the frontend
 // leans on hardest - every price on the site is derived from these numbers.
@@ -253,7 +253,7 @@ await bothWays("GET /stripe/get_sales_order_payment_intent", c.PaymentIntentWire
 // other.
 // Two shapes now, and both are checked.
 //
-// The repos return BullionWire - products.bullion's own names - and since the
+// The repos return Bullion - products.bullion's own names - and since the
 // conversion (2026-08-27) that IS the wire: the adapter and its legacy check
 // were deleted together when the frontend switched to the contracts' names.
 // Products is restructured - one implementation, so there is no "both ways" to
@@ -261,8 +261,8 @@ await bothWays("GET /stripe/get_sales_order_payment_intent", c.PaymentIntentWire
 // storefront row is no longer a projection, it is a projection plus two labels
 // attached in JS, so a field can now go missing in a place SQL never could.
 const productsService = await import("#features/products/service.ts");
-add("GET /products", c.BullionWire, () => productsService.getAllProducts());
-add("GET /products (sell)", c.BullionWire, () => productsService.getSellProducts());
+add("GET /products", c.Bullion, () => productsService.getAllProducts());
+add("GET /products (sell)", c.Bullion, () => productsService.getSellProducts());
 
 // Orders. The largest surface here and, until now, the only feature checked
 // against exchange alone - everything else goes through bothWays and proves
@@ -277,19 +277,19 @@ const orders = await po.getAll();
 // THE NEXT SHAPES (D84). Orders never had a *_WIRE switch, so the conversion
 // is one deliberate change - but the SOURCE switch still exists, so bothWays
 // stays: both read implementations must serve the SAME converted shape.
-await bothWays("GET /purchase_orders (admin)", c.PurchaseOrderWireNext, "purchase-orders", (m) => m.getAll());
+await bothWays("GET /purchase_orders (admin)", c.PurchaseOrder, "purchase-orders", (m) => m.getAll());
 // Sales orders is restructured - one implementation. Kept as a DIRECT check on
 // the SERVICE, which is where the composed shape is now assembled: the money
 // nested as `totals` under orders.transactions' own names.
 const salesOrdersService = await import("#features/sales-orders/read.service.ts");
-add("GET /sales_orders (admin)", c.SalesOrderWireNext, () => salesOrdersService.getAll());
+add("GET /sales_orders (admin)", c.SalesOrder, () => salesOrdersService.getAll());
 
 // The items, flattened out of those orders, so a bad line is reported as a bad
 // line rather than as one failing order among sixteen.
-await bothWays("purchase order items", c.PurchaseOrderItemWireNext, "purchase-orders", async (m) =>
+await bothWays("purchase order items", c.PurchaseOrderItem, "purchase-orders", async (m) =>
   (await m.getAll()).flatMap((o) => o.order_items ?? [])
 );
-add("sales order items", c.SalesOrderItemWireNext, async () =>
+add("sales order items", c.SalesOrderItem, async () =>
   (await salesOrdersService.getAll()).flatMap((o) => o.order_items ?? [])
 );
 
@@ -297,8 +297,8 @@ add("sales order items", c.SalesOrderItemWireNext, async () =>
 add("order.payout", c.PayoutOnOrder, () => orders.map((o) => o.payout).filter((p) => p?.id));
 add("order.shipment", c.ShipmentOnOrder, () => orders.map((o) => o.shipment).filter((s) => s?.id));
 add("order.user", c.UserOnOrder, () => orders.map((o) => o.user).filter((u) => u?.user_id));
-add("order.address", c.OrderAddressSnapshotWire, () => orders.map((o) => o.address).filter(Boolean));
-add("order.totals", c.OrderTotalsWire, () => orders.map((o) => o.totals).filter(Boolean));
+add("order.address", c.OrderAddressSnapshot, () => orders.map((o) => o.address).filter(Boolean));
+add("order.totals", c.OrderTotals, () => orders.map((o) => o.totals).filter(Boolean));
 
 // Quotes: the pricing surface with nothing stored underneath. COMPUTED
 // shapes, not table rows - there is no repo pair for bothWays to compare, so
@@ -316,7 +316,7 @@ const { rows: quotable } = await pool.query(
     ORDER BY name LIMIT 2`
 );
 const quoteItems = quotable.map((r, i) => ({ id: r.id, quantity: i + 1 }));
-add("POST /quotes/catalog", c.CatalogQuoteWire, () =>
+add("POST /quotes/catalog", c.CatalogQuote, () =>
   quoteItems.length ? quotesService.catalogQuote({ items: quoteItems, side: "ask" }) : [],
   false
 );
@@ -325,7 +325,7 @@ const { rows: quoteAddresses } = await pool.query(
   `SELECT id FROM exchange.addresses WHERE user_id = $1 LIMIT 1`,
   [addressUser]
 );
-add("POST /quotes/sales_order", c.SalesOrderQuoteWire, () =>
+add("POST /quotes/sales_order", c.SalesOrderQuote, () =>
   addressUser && quoteItems.length
     ? quotesService.salesOrderQuote(addressUser, {
         items: quoteItems,
@@ -338,7 +338,7 @@ add("POST /quotes/sales_order", c.SalesOrderQuoteWire, () =>
   false
 );
 
-add("POST /quotes/purchase_order", c.PurchaseOrderQuoteWire, () =>
+add("POST /quotes/purchase_order", c.PurchaseOrderQuote, () =>
   quotable.length
     ? quotesService.purchaseOrderQuote({
         items: [
@@ -357,7 +357,7 @@ add("POST /quotes/purchase_order", c.PurchaseOrderQuoteWire, () =>
 const { rows: quotableOrders } = await pool.query(
   `SELECT id FROM exchange.purchase_orders ORDER BY created_at ASC, id ASC LIMIT 1`
 );
-add("POST /quotes/order", c.OrderQuoteWire, () =>
+add("POST /quotes/order", c.OrderQuote, () =>
   quotableOrders.length ? quotesService.orderQuote({ order_id: quotableOrders[0].id }) : [],
   false
 );
@@ -365,7 +365,7 @@ add("POST /quotes/order", c.OrderQuoteWire, () =>
 // The profit breakdown (D83): ADMIN-ONLY on the route, checked here the same
 // way the other computed shapes are - the service is the only implementation.
 // Priced against the same stable fixture the order quote uses.
-add("POST /quotes/profit_breakdown", c.ProfitBreakdownWire, () =>
+add("POST /quotes/profit_breakdown", c.ProfitBreakdown, () =>
   quotableOrders.length ? quotesService.profitBreakdown({ order_id: quotableOrders[0].id }) : [],
   false
 );

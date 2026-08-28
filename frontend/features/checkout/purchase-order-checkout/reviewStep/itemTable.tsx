@@ -12,7 +12,7 @@ import { formatRate } from '@/features/rates/utils/resolveRate'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { payoutOptions } from '@/features/payouts/types'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
-import type { PurchaseOrderQuoteLineWire } from '@dorado/contracts'
+import type { PurchaseOrderQuoteLine } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 // A cart line paired with its quote line. Absent until the first quote lands
@@ -20,7 +20,7 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 // client-side.
 type QuotedRow<T extends SellCartItem['type']> = {
   item: Extract<SellCartItem, { type: T }>
-  line: PurchaseOrderQuoteLineWire | undefined
+  line: PurchaseOrderQuoteLine | undefined
 }
 
 export default function ReviewItemTables() {

@@ -52,7 +52,7 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
-import { PaymentIntentWireNext } from "@dorado/contracts";
+import { PaymentIntent } from "@dorado/contracts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -222,7 +222,7 @@ test("an admin reading a sales order's payment intent gets it, in the nested wir
       assert.equal(res.status, 200, `answered ${res.status} to an admin`);
       assert.ok(res.body && typeof res.body === "object", "the body was not an object");
 
-      const parsed = PaymentIntentWireNext.safeParse(res.body);
+      const parsed = PaymentIntent.safeParse(res.body);
       assert.ok(
         parsed.success,
         "the response does not satisfy the nested contract: " +

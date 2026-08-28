@@ -8,11 +8,12 @@ function normalizeCarrierCode(name: string | null | undefined): string {
     .toLowerCase();
 }
 
-// A carrier row as this function needs it, which is deliberately not
-// CarrierWire. Two shapes reach here: the new one, where a carrier is an
-// organization with a role and the name lives on the organization, and the
-// flattened legacy one. Naming either would reject the other while
-// CARRIERS_WIRE can still be pointed at both.
+// A carrier row as this function needs it, deliberately structural rather
+// than the Carrier contract. Two shapes reached here while the wire axis
+// existed: the nested one, where a carrier is an organization with a role and
+// the name lives on the organization, and the flattened legacy one. The axis
+// and the legacy shape are retired (2026-08-28); the structural type stays
+// because this function needs one field, not a contract.
 type CarrierLike = {
   organization?: { name?: string | null } | null;
   name?: string | null;
@@ -22,8 +23,8 @@ type ProviderCode = keyof typeof PROVIDERS;
 
 // The carrier's name is the organization's, not the carrier row's - a carrier is
 // an organization with a role, and the repos return the two apart. The fallback
-// to carrier.name is for a caller still holding a flattened one; it goes when
-// CARRIERS_WIRE does.
+// to carrier.name dates from the flattened legacy shape; the wire axis that
+// produced one is retired, so it should never be reached.
 export async function resolveCarrier(carrier_id: string, client?: unknown) {
   // The SERVICE, not a repo: the carrier this needs is composed from two
   // tables, and the name it reads lives on the organization half.

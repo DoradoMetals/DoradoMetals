@@ -21,7 +21,7 @@ import {
   renderOfferSentEmail,
 } from "#features/media/emails/utils/renderEmail.ts";
 
-// The wire shape, not a convenience object: SalesOrderWireNext says address
+// The wire shape, not a convenience object: SalesOrder says address
 // and totals are nullable, and an item's price and quantity are. The fixture
 // speaks the converted names (D84) because that is what the service hands the
 // renderer now.

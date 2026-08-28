@@ -1,6 +1,6 @@
 import { SalesOrder, SalesOrderCheckout } from '@/features/orders/salesOrders/types'
 import { SpotPrice } from '@/features/spots/types'
-import type { OrderAddressSnapshotWire, SpotOnOrderNext } from '@dorado/contracts'
+import type { OrderAddressSnapshot, SpotOnOrder } from '@dorado/contracts'
 import type { Address, UserAddress } from '@/features/addresses/types'
 import { apiRequest } from '@/shared/queries/axios'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
@@ -9,7 +9,7 @@ import { queryKeys } from '@/shared/queries/keys'
 // The order's address on the wire is a SNAPSHOT built at the mutation edge
 // from the checkout's picked pair - see the note in purchaseOrders/users/
 // queries.ts, the same build.
-export const toAddressSnapshot = (a: Address, ua?: UserAddress | null): OrderAddressSnapshotWire => ({
+export const toAddressSnapshot = (a: Address, ua?: UserAddress | null): OrderAddressSnapshot => ({
   address_id: a.id ?? null,
   recipient_name: ua?.label ?? null,
   line_1: a.line_1,
@@ -66,10 +66,10 @@ export const useCreateSalesOrder = () => {
 }
 
 export const useSalesOrderMetals = (sales_order_id: string) => {
-  return useApiQuery<SpotOnOrderNext[]>({
+  return useApiQuery<SpotOnOrder[]>({
     key: queryKeys.salesOrderMetals(sales_order_id),
     request: async (user) => {
-      return await apiRequest<SpotOnOrderNext[]>('POST', '/sales_orders/get_order_metals', {
+      return await apiRequest<SpotOnOrder[]>('POST', '/sales_orders/get_order_metals', {
         user_id: user!.id,
         sales_order_id,
       })

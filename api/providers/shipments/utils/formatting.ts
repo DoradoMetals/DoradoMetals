@@ -1,7 +1,7 @@
 // Turning our shapes into the ones FedEx's API expects.
 
-// A STRUCTURAL ADDRESS, NOT AddressWire. Three different things reach this: an
-// address-book row, an order's address snapshot (AddressOnOrder, a different
+// A STRUCTURAL ADDRESS, NOT the Address contract. Three different things reach this: an
+// address-book row, an order's address snapshot (OrderAddressSnapshot, a different
 // type with the same field names) and the constants in
 // providers/shipments/constants.ts, which are hand-written literals. Naming any one
 // of them here would reject the other two.

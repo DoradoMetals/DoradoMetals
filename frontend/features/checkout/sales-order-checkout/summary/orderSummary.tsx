@@ -7,12 +7,12 @@ import NumberFlow from '@number-flow/react'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import { QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
-import type { SalesOrderQuoteWire } from '@dorado/contracts'
+import type { SalesOrderQuote } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 // orderPrices is the server's quote, absent until the first one lands - the
 // summary renders zeros in the meantime, never a client-computed price.
-export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuoteWire }) {
+export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
   const { items, addItem, removeOne, removeAll } = cartStore()
   const { data } = useSalesOrderCheckoutStore()
   const router = useRouter()

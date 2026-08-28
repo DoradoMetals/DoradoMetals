@@ -206,15 +206,18 @@ export async function salesOrderQuote(user_id: string, body: Body): Promise<Sale
     return { id, quantity: Number(line?.quantity ?? 0) };
   });
 
-  // THE FUNDS COME FROM THE SESSION USER'S ROW, NEVER THE BODY. The create
-  // path reads session.user.dorado_funds - better-auth's serving of the same
-  // column, declared as an additionalField in auth/client.ts. The quote reads
-  // the row itself: usersService.getUser deliberately projects no balance
-  // (users/sql/get_one.sql - "preserved rather than harmonised"), and
-  // exchange.users is the table removeFunds writes, so it is the balance an
-  // order placed after this quote would actually apply. Read the way the
-  // order read.services read their user rows. A caller declaring their own
-  // balance would be declaring their own discount.
+  // THE FUNDS COME FROM THE SUBJECT'S ROW, NEVER THE BODY. The subject is the
+  // session user - or the customer an ADMIN named, resolved by the
+  // controller's subjectOf before this is called; nothing here reads an id
+  // off the body. The create path reads session.user.dorado_funds -
+  // better-auth's serving of the same column, declared as an additionalField
+  // in auth/client.ts. The quote reads the row itself: usersService.getUser
+  // deliberately projects no balance (users/sql/get_one.sql - "preserved
+  // rather than harmonised"), and exchange.users is the table removeFunds
+  // writes, so it is the balance an order placed after this quote would
+  // actually apply. Read the way the order read.services read their user
+  // rows. A caller declaring their own balance would be declaring their own
+  // discount.
   const { rows: funded } = await query(
     `SELECT dorado_funds FROM exchange.users WHERE id = $1`,
     [user_id]

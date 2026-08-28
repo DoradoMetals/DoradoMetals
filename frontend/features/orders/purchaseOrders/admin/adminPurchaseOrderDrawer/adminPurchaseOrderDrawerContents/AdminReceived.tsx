@@ -17,7 +17,7 @@ import {
 
 import { cn } from '@/shared/utils/cn'
 import { SpotPrice } from '@/features/spots/types'
-import type { SpotOnOrderNext } from '@dorado/contracts'
+import type { SpotOnOrder } from '@dorado/contracts'
 import {
   assignScrapItemNames,
   PurchaseOrderDrawerContentProps,
@@ -57,7 +57,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   const scrapItems = assignScrapItemNames(rawScrapItems)
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
 
-  const handleUpdateSpot = (spot: SpotOnOrderNext, updated_spot: number) => {
+  const handleUpdateSpot = (spot: SpotOnOrder, updated_spot: number) => {
     updateSpot.mutate({ spot, updated_spot, purchase_order_id: order.id })
   }
 

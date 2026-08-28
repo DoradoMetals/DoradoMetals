@@ -8,14 +8,14 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUserAddresses } from '@/features/addresses/queries'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import ServiceSelector from './serviceSelector'
-import type { SalesOrderQuoteWire } from '@dorado/contracts'
+import type { SalesOrderQuote } from '@dorado/contracts'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 
 interface ShippingSelectProps {
   addresses: Address[]
   isLoading: boolean
-  orderPrices?: SalesOrderQuoteWire
+  orderPrices?: SalesOrderQuote
 }
 
 export default function ShippingSelect({ addresses, orderPrices }: ShippingSelectProps) {

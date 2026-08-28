@@ -4,16 +4,16 @@
 // The names are display only. Nothing stores them, which is why `name` is
 // optional on ScrapOnOrderItem: it is the one field on that object the database
 // never supplies.
-import type { PurchaseOrderItemWire, ScrapOnOrderItem } from "@dorado/contracts";
+import type { PurchaseOrderItem, ScrapOnOrderItem } from "@dorado/contracts";
 
 // A line that has survived the filter below. Narrowing `metal` to a string is
 // the whole point of that filter, and saying so here is what lets the sort and
 // the grouping index by it without a cast.
-type ScrapItem = PurchaseOrderItemWire & {
+type ScrapItem = PurchaseOrderItem & {
   scrap: ScrapOnOrderItem & { metal: string };
 };
 
-export function assignScrapItemNames(scrapItems: PurchaseOrderItemWire[]): ScrapItem[] {
+export function assignScrapItemNames(scrapItems: PurchaseOrderItem[]): ScrapItem[] {
   const metalOrder = ["Gold", "Silver", "Platinum", "Palladium"];
 
   // The type predicate states what the truthiness check already does. `metal`

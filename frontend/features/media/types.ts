@@ -3,7 +3,7 @@
 // FIRST CONVERTED FEATURE. This file used to hand-write `Image` - twelve
 // fields transcribed from memory, checked against nothing, which is exactly
 // the gap audit:wire-readiness exists to measure. It now imports the shape the
-// API actually serves: ImageWireNext is derived from the generated ImagesRow
+// API actually serves: the contract Image is derived from the generated ImagesRow
 // in @dorado/contracts, so a column change regenerates through to here and
 // `tsc` sees a rename from BOTH sides for the first time.
 //
@@ -12,10 +12,10 @@
 // here, metadata is jsonb (unknown) not string, and mime_type/size_bytes had
 // drifted looser than the wire. Nothing read the wrong fields - which is luck,
 // not safety.
-import type { ImageWireNext } from "@dorado/contracts";
+import type { Image as ImageContract } from "@dorado/contracts";
 
 // What the API adds on top of the row: reads attach a presigned GET url.
-export type Image = ImageWireNext & { url: string };
+export type Image = ImageContract & { url: string };
 
 // The upload flow's own shapes - these are request/response bodies of
 // /images/upload, not rows, so they stay local.

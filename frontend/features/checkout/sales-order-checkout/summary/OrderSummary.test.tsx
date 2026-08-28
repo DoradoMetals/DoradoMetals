@@ -35,7 +35,7 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 import { apiRequest } from "@/shared/queries/axios";
 import { cartStore } from "@/shared/store/cartStore";
 import OrderSummary from "@/features/checkout/sales-order-checkout/summary/orderSummary";
-import type { SalesOrderQuoteWire } from "@dorado/contracts";
+import type { SalesOrderQuote } from "@dorado/contracts";
 import type { Product } from "@/features/products/types";
 
 const renderWithClient = (ui: React.ReactElement) => {
@@ -71,7 +71,7 @@ const eagle = (): Product =>
 
 // Distinct values so an assertion can only match the field it means. The
 // quote's line id matches eagle()'s so the item row shows its line_total.
-const prices = (): SalesOrderQuoteWire => ({
+const prices = (): SalesOrderQuote => ({
   spots_at: "2026-08-27T00:00:00.000Z",
   item_total: 4500,
   base_total: 4577.25,

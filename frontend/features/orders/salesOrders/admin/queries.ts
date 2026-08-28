@@ -1,5 +1,5 @@
 import { AdminSalesOrderCheckout, SalesOrder } from '@/features/orders/salesOrders/types'
-import type { SpotOnOrderNext } from '@dorado/contracts'
+import type { SpotOnOrder } from '@dorado/contracts'
 import { toAddressSnapshot } from '@/features/orders/salesOrders/users/queries'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
@@ -64,7 +64,7 @@ export const useMoveSalesOrderStatus = () =>
 
 type SendOrderToSupplierVars = {
   order: SalesOrder
-  spots: SpotOnOrderNext[]
+  spots: SpotOnOrder[]
   supplier_id: string
 }
 

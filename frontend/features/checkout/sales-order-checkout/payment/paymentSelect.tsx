@@ -1,10 +1,10 @@
 import { Switch } from '@/shared/ui/base/switch'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
-import type { SalesOrderQuoteWire } from '@dorado/contracts'
+import type { SalesOrderQuote } from '@dorado/contracts'
 import { useEffect } from 'react'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 
-export default function PaymentSelect({ orderPrices }: { orderPrices?: SalesOrderQuoteWire }) {
+export default function PaymentSelect({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
   const { data, setData } = useSalesOrderCheckoutStore()
 
   const handleFundsToggle = (checked: boolean) => {

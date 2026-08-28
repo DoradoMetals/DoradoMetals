@@ -14,7 +14,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
-import type { PurchaseOrderQuoteLineWire } from '@dorado/contracts'
+import type { PurchaseOrderQuoteLine } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 export default function SellCart() {
@@ -34,7 +34,7 @@ export default function SellCart() {
   // their position in the filtered list. Gated on the session: the endpoint
   // is per-caller, so a signed-out cart estimates at zero.
   const { data: quote } = usePurchaseOrderQuote(items)
-  const lineAt = (storeIndex: number): PurchaseOrderQuoteLineWire | undefined =>
+  const lineAt = (storeIndex: number): PurchaseOrderQuoteLine | undefined =>
     quote?.items.find((line) => line.index === storeIndex)
 
   const indexed = items.map((item, storeIndex) => ({ item, storeIndex }))

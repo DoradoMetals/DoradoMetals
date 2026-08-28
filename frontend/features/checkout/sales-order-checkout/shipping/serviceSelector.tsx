@@ -5,9 +5,9 @@ import { cn } from '@/shared/utils/cn'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import { salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
-import type { SalesOrderQuoteWire } from '@dorado/contracts'
+import type { SalesOrderQuote } from '@dorado/contracts'
 
-export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOrderQuoteWire }) {
+export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
   const selected = useSalesOrderCheckoutStore((state) => state.data.service)
   const setData = useSalesOrderCheckoutStore((state) => state.setData)
 

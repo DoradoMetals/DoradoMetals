@@ -9,7 +9,7 @@ import { MetalsRow } from "../generated/exchange.js";
 // apart from the metal it prices - the id here IS the metal's id. An
 // organization exists independently and can be a refiner or a carrier, so that
 // one stays its own object; this one does not.
-export const SpotPriceWireNext = MetalsRow.omit({
+export const SpotPrice = MetalsRow.omit({
   scrap_percentage: true,
   bullion_percentage: true,
   type: true,
@@ -20,17 +20,10 @@ export const SpotPriceWireNext = MetalsRow.omit({
   ask: z.number().nullable(),
   bid: z.number().nullable(),
 });
-export type SpotPriceWireNext = z.infer<typeof SpotPriceWireNext>;
+export type SpotPrice = z.infer<typeof SpotPrice>;
 
-// What the frontend still reads. Produced by features/spots/wire.js behind
-// SPOTS_WIRE=legacy, and derived from the next shape so the two cannot drift.
-export const SpotPriceWire = SpotPriceWireNext.omit({
-  name: true,
-  ask: true,
-  bid: true,
-}).extend({
-  type: z.string(),
-  ask_spot: z.number().nullable(),
-  bid_spot: z.number().nullable(),
-});
-export type SpotPriceWire = z.infer<typeof SpotPriceWire>;
+// The legacy SpotPriceWire shape (type / ask_spot / bid_spot) lived here until
+// 2026-08-28, derived from this one by the three renames back. Spots converted
+// 2026-08-27 and its adapter died then; the schema itself retired when the
+// orders wire conversion took the last legacy vocabulary with it. This shape
+// carried the -WireNext suffix until the same day: one shape, one name.

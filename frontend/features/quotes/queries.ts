@@ -14,24 +14,24 @@ import { useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 import { apiRequest } from '@/shared/queries/axios'
 import type {
-  CatalogQuoteWire,
-  SalesOrderQuoteWire,
-  PurchaseOrderQuoteWire,
-  OrderQuoteWire,
-  ProfitBreakdownWire,
+  CatalogQuote,
+  SalesOrderQuote,
+  PurchaseOrderQuote,
+  OrderQuote,
+  ProfitBreakdown,
 } from '@dorado/contracts'
 
 export type CatalogQuoteItem = { id: string; quantity?: number }
 
 export const useCatalogQuote = (items: CatalogQuoteItem[], side: 'ask' | 'bid') =>
-  useApiQuery<CatalogQuoteWire>({
+  useApiQuery<CatalogQuote>({
     key: queryKeys.catalogQuote(items, side),
     requireUser: false,
     enabled: items.length > 0,
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
     request: async () =>
-      apiRequest<CatalogQuoteWire>('POST', '/quotes/catalog', { items, side }),
+      apiRequest<CatalogQuote>('POST', '/quotes/catalog', { items, side }),
   })
 
 export type SalesOrderQuoteBody = {
@@ -40,17 +40,21 @@ export type SalesOrderQuoteBody = {
   shipping_service?: string | null
   payment_method?: string | null
   address_id?: string | null
+  // Honored for ADMINS only (the server's subjectOf, same rule as the address
+  // book): the quote prices the named customer's funds row instead of the
+  // caller's. Anyone else naming someone gets their own quote back.
+  user_id?: string | null
 }
 
 export const useSalesOrderQuote = (body: SalesOrderQuoteBody, enabled = true) =>
-  useApiQuery<SalesOrderQuoteWire>({
+  useApiQuery<SalesOrderQuote>({
     key: queryKeys.salesOrderQuote(body),
     requireUser: true,
     enabled: enabled && body.items.length > 0,
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
     request: async () =>
-      apiRequest<SalesOrderQuoteWire>('POST', '/quotes/sales_order', body),
+      apiRequest<SalesOrderQuote>('POST', '/quotes/sales_order', body),
   })
 
 // The sell-cart lines, exactly as the store holds them - the server resolves
@@ -69,7 +73,7 @@ export type PurchaseOrderQuoteLine =
     }
 
 export const usePurchaseOrderQuote = (items: PurchaseOrderQuoteLine[], enabled = true) =>
-  useApiQuery<PurchaseOrderQuoteWire>({
+  useApiQuery<PurchaseOrderQuote>({
     key: queryKeys.purchaseOrderQuote(items),
     // Public like the catalogue: the anonymous sell cart estimates what the
     // business would pay, exactly as the client math it replaced did.
@@ -78,7 +82,7 @@ export const usePurchaseOrderQuote = (items: PurchaseOrderQuoteLine[], enabled =
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
     request: async () =>
-      apiRequest<PurchaseOrderQuoteWire>('POST', '/quotes/purchase_order', items ? { items } : { items: [] }),
+      apiRequest<PurchaseOrderQuote>('POST', '/quotes/purchase_order', items ? { items } : { items: [] }),
   })
 
 // An EXISTING purchase order, priced by the server - the order drawers' line
@@ -87,13 +91,13 @@ export const usePurchaseOrderQuote = (items: PurchaseOrderQuoteLine[], enabled =
 // Stored (accepted) prices come back flagged "stored"; everything else is an
 // estimate at the order's locked spots when it has them, live spots when not.
 export const useOrderQuote = (order_id: string, enabled = true) =>
-  useApiQuery<OrderQuoteWire>({
+  useApiQuery<OrderQuote>({
     key: queryKeys.orderQuote(order_id),
     requireUser: true,
     enabled: enabled && !!order_id,
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
-    request: async () => apiRequest<OrderQuoteWire>('POST', '/quotes/order', { order_id }),
+    request: async () => apiRequest<OrderQuote>('POST', '/quotes/order', { order_id }),
   })
 
 // POST /quotes/profit_breakdown. The three-party profit view of a purchase
@@ -101,7 +105,7 @@ export const useOrderQuote = (order_id: string, enabled = true) =>
 // 2026-08-28): the server prices it from the order's own spots, refiner
 // spots and rates. Admin-only, like the numbers it exposes.
 export const useProfitBreakdown = (order_id: string, enabled = true) =>
-  useApiQuery<ProfitBreakdownWire>({
+  useApiQuery<ProfitBreakdown>({
     key: queryKeys.profitBreakdown(order_id),
     requireUser: true,
     requireAdmin: true,
@@ -109,5 +113,5 @@ export const useProfitBreakdown = (order_id: string, enabled = true) =>
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
     request: async () =>
-      apiRequest<ProfitBreakdownWire>('POST', '/quotes/profit_breakdown', { order_id }),
+      apiRequest<ProfitBreakdown>('POST', '/quotes/profit_breakdown', { order_id }),
   })

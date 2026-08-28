@@ -23,7 +23,7 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 import { apiRequest } from "@/shared/queries/axios";
 import PurchaseOrderDrawerFooter from "@/features/orders/purchaseOrders/users/purchaseOrderDrawer/purchaseOrderDrawerFooter";
 import type { PurchaseOrder } from "@/features/orders/purchaseOrders/types";
-import type { OrderQuoteWire } from "@dorado/contracts";
+import type { OrderQuote } from "@dorado/contracts";
 
 const renderWithClient = (ui: React.ReactElement) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -56,7 +56,7 @@ const order = () =>
 
 // Distinct values so an assertion can only match the field it means; line ids
 // pair to the order's items BY ID, the way the drawer joins them.
-const quote = (): OrderQuoteWire => ({
+const quote = (): OrderQuote => ({
   order_id: "po-1",
   spots_at: "2026-08-28T00:00:00.000Z",
   items: [

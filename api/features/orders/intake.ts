@@ -25,7 +25,7 @@
 // this is the half that has to exist before the two can be compared.
 
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
-import type { RateWire } from "@dorado/contracts";
+import type { Rate } from "@dorado/contracts";
 
 // The handoff options the frontend actually offers, mapped to the fulfillment
 // methods 047 seeded. Both are SHIPMENT - a customer choosing between dropping
@@ -175,7 +175,7 @@ export function decompose(
     direction,
     userId,
     rates,
-  }: { direction?: string; userId?: string | null; rates?: RateWire[] | null } = {}
+  }: { direction?: string; userId?: string | null; rates?: Rate[] | null } = {}
 ) {
   if (!block || typeof block !== "object") {
     throw new Error("nothing to decompose");

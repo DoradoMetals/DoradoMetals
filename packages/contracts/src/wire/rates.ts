@@ -3,7 +3,7 @@ import { RatesRow } from "../generated/exchange.js";
 
 // GET /rates. The query joins metals and returns the metal's name in place of
 // its id, and drops the audit columns.
-export const RateWire = RatesRow.omit({
+export const Rate = RatesRow.omit({
   metal_id: true,
   created_at: true,
   updated_at: true,
@@ -12,4 +12,4 @@ export const RateWire = RatesRow.omit({
 }).extend({
   metal: z.string(),
 });
-export type RateWire = z.infer<typeof RateWire>;
+export type Rate = z.infer<typeof Rate>;

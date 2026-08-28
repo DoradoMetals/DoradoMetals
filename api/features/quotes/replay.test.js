@@ -201,6 +201,44 @@ test("the sales-order breakdown reconciles to the cent and funds come from the u
   });
 });
 
+// WHOSE FUNDS (D84's c5 follow-up): the admin create drawer quotes for the
+// customer it is creating the order for, so the sales-order quote accepts an
+// optional user_id honored ONLY for admins - subjectOf semantics, the
+// address-book rule. A customer naming somebody else is answered with their
+// own quote: the guard is the session winning, never an error and never
+// somebody else's balance.
+test("an admin's sales-order quote prices the named user's funds; a customer's name is ignored", async () => {
+  await inPinnedTransaction(async () => {
+    // A second user whose balance differs from the session user's - a
+    // same-balance fixture would make both assertions vacuous.
+    const targets = await outside(
+      `SELECT id, dorado_funds FROM exchange.users
+        WHERE id <> $1 AND dorado_funds IS NOT NULL
+          AND dorado_funds IS DISTINCT FROM $2
+        ORDER BY dorado_funds DESC, id LIMIT 1`,
+      [buyer.id, buyer.dorado_funds]
+    );
+    const target = targets[0];
+    assert.ok(target, "dev has no second user with a different balance - the subject check would be vacuous");
+
+    const body = { items: [{ id: product.id, quantity: 1 }], using_funds: true, user_id: target.id };
+
+    await as({ id: buyer.id, name: buyer.name, email: buyer.email, role: "admin" }, async () => {
+      const res = await request(app).post("/api/quotes/sales_order").send(body);
+      assert.equal(res.status, 200, `the admin quote answered ${res.status}: ${JSON.stringify(res.body)}`);
+      assert.ok(Math.abs(res.body.beginning_funds - Number(target.dorado_funds)) < EXACT,
+        `an admin naming a user got beginning_funds ${res.body.beginning_funds}, not that user's row balance ${target.dorado_funds}`);
+    });
+
+    await as({ id: buyer.id, name: buyer.name, email: buyer.email, role: "user" }, async () => {
+      const res = await request(app).post("/api/quotes/sales_order").send(body);
+      assert.equal(res.status, 200, "the guard is the session winning, not an error");
+      assert.ok(Math.abs(res.body.beginning_funds - Number(buyer.dorado_funds ?? 0)) < EXACT,
+        `a customer naming somebody else got beginning_funds ${res.body.beginning_funds}, not their own ${buyer.dorado_funds}`);
+    });
+  });
+});
+
 // ---------------------------------------------------------- purchase order
 
 test("the purchase-order quote prices scrap and product lines from the rates band for the metal total", async () => {

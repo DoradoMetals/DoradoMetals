@@ -23,7 +23,7 @@
 // still divides, because a write arrives from Stripe in cents. Getting this
 // backwards is a hundredfold error, so it is written out rather than implied.
 import query from "#shared/db/query.js";
-import type { PaymentIntentWireNext } from "@dorado/contracts";
+import type { PaymentIntent } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 
 // Repos take an optional executor so a caller can pull them into its
@@ -40,7 +40,7 @@ type Executor = PoolClient | undefined;
 // the contract unchanged would have quietly typed a Date as a string, and
 // `created_at.getTime()` would then be a type error in code that works.
 export type PaymentIntentRow = Omit<
-  PaymentIntentWireNext,
+  PaymentIntent,
   "created_at" | "updated_at"
 > & {
   created_at: Date;

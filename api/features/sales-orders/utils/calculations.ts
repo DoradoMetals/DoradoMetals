@@ -43,10 +43,10 @@ export type PricingSpot = {
   bid?: number | null;
 };
 
-// What pricing needs of a line, which is emphatically NOT SalesOrderItemWire.
+// What pricing needs of a line, which is emphatically NOT SalesOrderItem.
 // That is a line on a *saved* order - the product nested underneath, a premium
 // frozen at the time of sale. These functions run before the order exists, over
-// catalogue rows (BullionWire) that the cart named and getItemsFromServer read
+// catalogue rows (Bullion) that the cart named and getItemsFromServer read
 // back from the database, with `quantity` overlaid from the request.
 //
 // Every field is optional because /tax/get_sales_tax prices the request body as

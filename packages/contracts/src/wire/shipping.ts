@@ -1,6 +1,5 @@
 import { z } from "zod/v4";
 import {
-  CarriersRow,
   CarrierServicesRow,
   ShipmentsRow,
   CarrierPickupsRow,
@@ -8,9 +7,9 @@ import {
 } from "../generated/exchange.js";
 
 // The repos return a carrier and the organization it is, kept apart - the same
-// shape as RefinerWireNext, because a carrier and a refiner are the same kind
-// of thing in the new design: an organization with a role.
-export const CarrierWireNext = z.object({
+// shape as Refiner, because a carrier and a refiner are the same kind of thing
+// in the new design: an organization with a role.
+export const Carrier = z.object({
   id: z.string().uuid(),
   logo: z.string().nullable(),
   created_at: z.string().nullable(),
@@ -23,21 +22,21 @@ export const CarrierWireNext = z.object({
     enabled: z.boolean().nullable(),
   }),
 });
-export type CarrierWireNext = z.infer<typeof CarrierWireNext>;
+export type Carrier = z.infer<typeof Carrier>;
 
-// Flattened for the frontend by features/shipping/carriers/wire.js, behind
-// CARRIERS_WIRE=legacy.
-export const CarrierWire = CarriersRow;
-export type CarrierWire = z.infer<typeof CarrierWire>;
+// The legacy CarrierWire (the flat CarriersRow) lived here until 2026-08-28.
+// Carriers converted and the flatten adapter died with the wire axis; the
+// schema retired when the last legacy vocabulary went. The shape above
+// carried the -WireNext suffix until the same day: one shape, one name.
 
-export const CarrierServiceWire = CarrierServicesRow;
-export type CarrierServiceWire = z.infer<typeof CarrierServiceWire>;
+export const CarrierService = CarrierServicesRow;
+export type CarrierService = z.infer<typeof CarrierService>;
 
-export const CarrierPickupWire = CarrierPickupsRow;
-export type CarrierPickupWire = z.infer<typeof CarrierPickupWire>;
+export const CarrierPickup = CarrierPickupsRow;
+export type CarrierPickup = z.infer<typeof CarrierPickup>;
 
-export const TrackingEventWire = TrackingEventsRow;
-export type TrackingEventWire = z.infer<typeof TrackingEventWire>;
+export const TrackingEvent = TrackingEventsRow;
+export type TrackingEvent = z.infer<typeof TrackingEvent>;
 
 // There is deliberately no standalone shipment wire schema. No route returns a
 // shipment on its own; the repo's SELECT * reads are internal, and they hand

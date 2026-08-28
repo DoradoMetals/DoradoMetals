@@ -44,14 +44,14 @@
 // nobody has quoted yet correctly has no price. The dangerous version would be
 // a null spot on a priced order, and there are none.
 //
-// The item type is PurchaseOrderItemWireNext from the contracts package
+// The item type is PurchaseOrderItem from the contracts package
 // (D84: the item's product speaks the schema's names now). `scrap` is always
 // present as an object - the repo builds it with jsonb_build_object, so a
 // bullion line carries a scrap object of nulls rather than null - and the
 // optional chaining stays: it describes what a hand-built test fixture might
 // omit, not what the API sends. `product` is nullable on the Next wire, so
 // its accesses chain too; at runtime the repos still emit an object of nulls.
-import type { PurchaseOrderItemWireNext } from "@dorado/contracts";
+import type { PurchaseOrderItem } from "@dorado/contracts";
 
 // What pricing needs of a spot row. The composed shape (`name` / `ask` /
 // `bid`) - spots/service.getSpotPrices, orders.spots and the order-metals
@@ -65,11 +65,11 @@ export type PricingSpot = {
 };
 
 // What these functions need of an order, rather than the whole wire shape. A
-// caller passing a full PurchaseOrderWire satisfies it; the PDF and email code
+// caller passing a full PurchaseOrder satisfies it; the PDF and email code
 // passes assembled objects that do not carry every column, and demanding the
 // full shape would force casts at those call sites.
 type PricedOrder = {
-  order_items: PurchaseOrderItemWireNext[];
+  order_items: PurchaseOrderItem[];
   shipment?: { shipping_charge?: number | null } | null;
   payout: { cost: number };
 };
@@ -77,7 +77,7 @@ type PricedOrder = {
 type Spots = PricingSpot[] | null | undefined;
 
 export function calculateTotalPrice(order: PricedOrder, spots: Spots): number {
-  const baseTotal = order.order_items.reduce((acc: number, item: PurchaseOrderItemWireNext) => {
+  const baseTotal = order.order_items.reduce((acc: number, item: PurchaseOrderItem) => {
     if (item.item_type === "product") {
       const spot = spots?.find((s: PricingSpot) => s.name === item.product?.metal_type);
 
@@ -109,7 +109,7 @@ export function calculateTotalPrice(order: PricedOrder, spots: Spots): number {
 }
 
 export function calculateReturnDeclaredValue(order: PricedOrder, spots: Spots): number {
-  const total = order.order_items.reduce((acc: number, item: PurchaseOrderItemWireNext) => {
+  const total = order.order_items.reduce((acc: number, item: PurchaseOrderItem) => {
     if (item.item_type === "product") {
       const spot = spots?.find((s: PricingSpot) => s.name === item.product?.metal_type);
 
@@ -137,7 +137,7 @@ export function calculateReturnDeclaredValue(order: PricedOrder, spots: Spots): 
 }
 
 export function calculateItemPrice(
-  item: PurchaseOrderItemWireNext,
+  item: PurchaseOrderItem,
   spots: Spots
 ): number | undefined {
   if (item.item_type === "product") {
@@ -157,8 +157,8 @@ export function calculateItemPrice(
   }
 }
 
-export function getBullionTotal(items: PurchaseOrderItemWireNext[], spots: Spots): number {
-  return items.reduce((acc: number, item: PurchaseOrderItemWireNext) => {
+export function getBullionTotal(items: PurchaseOrderItem[], spots: Spots): number {
+  return items.reduce((acc: number, item: PurchaseOrderItem) => {
     const spot = spots?.find((s: PricingSpot) => s.name === item.product?.metal_type);
     const price =
       item.price ??
@@ -170,8 +170,8 @@ export function getBullionTotal(items: PurchaseOrderItemWireNext[], spots: Spots
   }, 0);
 }
 
-export function getScrapTotal(items: PurchaseOrderItemWireNext[], spots: Spots): number {
-  return items.reduce((acc: number, item: PurchaseOrderItemWireNext) => {
+export function getScrapTotal(items: PurchaseOrderItem[], spots: Spots): number {
+  return items.reduce((acc: number, item: PurchaseOrderItem) => {
     const spot = spots?.find((s: PricingSpot) => s.name === item.scrap?.metal);
     const price =
       item.price ??

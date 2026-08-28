@@ -20,7 +20,7 @@ import type {
   OrderMetalRow,
   OrderScrapItemRow,
 } from "#features/purchase-orders/repo.next.ts";
-import type { PurchaseOrderItemWireNext } from "@dorado/contracts";
+import type { PurchaseOrderItem } from "@dorado/contracts";
 import type { PricingSpot } from "#features/purchase-orders/utils/calculations.ts";
 
 // `order` here is whatever the caller had - a row from getById, or the body of
@@ -29,7 +29,7 @@ import type { PricingSpot } from "#features/purchase-orders/utils/calculations.t
 // controllers handing over req.body.
 type OrderLike = PurchaseOrderRow &
   Record<string, any> & {
-    order_items: PurchaseOrderItemWireNext[];
+    order_items: PurchaseOrderItem[];
     shipment?: { shipping_charge?: number | null } | null;
     payout: { cost: number };
   };

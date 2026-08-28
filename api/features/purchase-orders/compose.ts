@@ -361,7 +361,7 @@ export function composeOrder(p: OrderParts): Record<string, unknown> {
     shipping_fee_actual: p.totals?.shipping_fee_actual ?? null,
     pool_remediation: p.totals?.pool_remediation ?? null,
     pool_oz_deducted: p.totals?.pool_oz_deducted ?? null,
-    // ALWAYS AN OBJECT, never null, every key present: OrderTotalsWire
+    // ALWAYS AN OBJECT, never null, every key present: OrderTotals
     // declares all ten. The sale-side keys are read off the transactions row
     // like repo.next.ts does - every purchase row holds NULL for them (0 of
     // 40 in dev), which is also what repo.exchange.js projects, so the three

@@ -368,8 +368,8 @@ export async function sendOrderToSupplier(
   // An order with no address cannot be sent to a refiner: the whole point of
   // the message is telling them where to ship the metal.
   //
-  // This was found by typing renderEmail. SalesOrderWire declares
-  // `address: AddressOnOrder.nullable()` and production means it - sales order
+  // This was found by typing renderEmail. SalesOrder declares
+  // `address: OrderAddressSnapshot.nullable()` and production means it - sales order
   // 55 has address_id NULL - so the renderer threw a TypeError on
   // `addr.line_1`. It threw *after* the transaction below, which is where the
   // comment on that transaction says the acceptable failure lives: an order

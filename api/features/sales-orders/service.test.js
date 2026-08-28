@@ -9,8 +9,8 @@
 // is an order marked sent whose email did not arrive.
 //
 // That is only acceptable while it is visible. Rendering the refiner's copy of
-// an order with no address threw a TypeError - SalesOrderWire declares
-// `address: AddressOnOrder.nullable()` and production sales order 55 is exactly
+// an order with no address threw a TypeError - SalesOrder declares
+// `address: OrderAddressSnapshot.nullable()` and production sales order 55 is exactly
 // that, with a supplier attached and order_sent true - so the message failed
 // silently, after the record said it had gone.
 //

@@ -90,7 +90,7 @@ const scrapJson = (withActuals) => `
 //
 // The totals exchange never stored for a purchase order - items, shipping,
 // surcharge, sales_tax, funds, base_total, subject/post charges - are
-// projected NULL: OrderTotalsWire declares every key and a purchase order
+// projected NULL: OrderTotals declares every key and a purchase order
 // simply has no value for the sale-side ones. repo.next.ts reads them off
 // orders.transactions, where every purchase row holds NULL for the same
 // columns (checked in dev: 0 of 40), so the two implementations agree.

@@ -3,8 +3,8 @@ import { z } from "zod/v4";
 // exchange keeps one row per Stripe intent with everything inline; the new
 // schema separates what was asked for from what was tried from the instrument.
 // Both repos return the nested shape, and since 2026-08-27 it is the wire:
-// the frontend derives its PaymentIntent from PaymentIntentWireNext, and the
-// adapter that flattened it back behind PAYMENTS_WIRE is deleted.
+// the frontend derives its own PaymentIntent from this one, and the adapter
+// that flattened it back behind PAYMENTS_WIRE is deleted.
 //
 // ONE ENDPOINT returns a repo row: GET /stripe/get_sales_order_payment_intent.
 // The other three answer with Stripe's client_secret or Stripe's own object, so
@@ -12,12 +12,12 @@ import { z } from "zod/v4";
 
 // An attempt is what was tried, and it is the only thing carrying a reference
 // issued by a provider - a second processor would issue its own.
-export const PaymentAttemptWire = z.object({
+export const PaymentAttempt = z.object({
   provider: z.string().nullable(),
   provider_ref: z.string().nullable(),
   status: z.string().nullable(),
 });
-export type PaymentAttemptWire = z.infer<typeof PaymentAttemptWire>;
+export type PaymentAttempt = z.infer<typeof PaymentAttempt>;
 
 // The instrument. `type` is the new schema's vocabulary - CARD, ACH - rather
 // than Stripe's card / us_bank_account, which is what the legacy wire carries;
@@ -27,7 +27,7 @@ export type PaymentAttemptWire = z.infer<typeof PaymentAttemptWire>;
 // customer's bank routing number. It reached the wire only because the exchange
 // read was SELECT *, it is null on every row in dev and in production, and
 // nothing in the frontend reads it.
-export const PaymentDetailsWire = z.object({
+export const PaymentDetails = z.object({
   provider: z.string().nullable(),
   provider_ref: z.string().nullable(),
   type: z.string().nullable(),
@@ -36,11 +36,11 @@ export const PaymentDetailsWire = z.object({
   bank_name: z.string().nullable(),
   account_type: z.string().nullable(),
 });
-export type PaymentDetailsWire = z.infer<typeof PaymentDetailsWire>;
+export type PaymentDetails = z.infer<typeof PaymentDetails>;
 
 const money = z.union([z.number(), z.string()]).nullable();
 
-export const PaymentIntentWireNext = z.object({
+export const PaymentIntent = z.object({
   id: z.string().uuid(),
   session_id: z.string().uuid().nullable(),
   user_id: z.string().uuid().nullable(),
@@ -59,13 +59,14 @@ export const PaymentIntentWireNext = z.object({
   amount_capturable: money,
   created_at: z.string(),
   updated_at: z.string(),
-  attempt: PaymentAttemptWire,
-  details: PaymentDetailsWire.nullable(),
+  attempt: PaymentAttempt,
+  details: PaymentDetails.nullable(),
 });
-export type PaymentIntentWireNext = z.infer<typeof PaymentIntentWireNext>;
+export type PaymentIntent = z.infer<typeof PaymentIntent>;
 
 // The legacy PaymentIntentWire shape (one flat object - payment_status,
 // payment_intent_id, the instrument inline, amounts in CENTS) lived here until
 // 2026-08-27, describing what the frontend read. The frontend stopped:
-// features/stripe/types.ts derives from PaymentIntentWireNext, AdminPending
-// reads the nested shape in dollars, and the adapter and its mount are gone.
+// features/stripe/types.ts derives from this shape, AdminPending reads the
+// nested one in dollars, and the adapter and its mount are gone. The
+// -WireNext suffix retired 2026-08-28: one shape, one name.

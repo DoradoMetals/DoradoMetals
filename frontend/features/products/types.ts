@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import { BullionWire, type RefinerWireNext } from '@dorado/contracts'
+import { Bullion, type Refiner } from '@dorado/contracts'
 
 // THIRD CONVERTED FEATURE (2026-08-27). The catalogue product is the
 // contracts shape - products.bullion's own names, `name` / `description` /
@@ -8,10 +8,11 @@ import { BullionWire, type RefinerWireNext } from '@dorado/contracts'
 // from the live spot, `quantity` is cart state. thickness/diameter existed on
 // the old hand-written type and were read by nothing; they are gone.
 //
-// The products embedded in ORDER responses still speak the legacy names -
-// that is the orders wire, unconverted. Those are typed
-// features/orders/orderProducts.ts, not this.
-export type Product = BullionWire & {
+// The products embedded in ORDER responses converted with the orders wire
+// (2026-08-28) and speak the same names; those are the contracts'
+// ProductOnOrderItem, not this - an order item's product summary, not the
+// catalogue row.
+export type Product = Bullion & {
   price?: number
   quantity?: number
 }
@@ -60,7 +61,7 @@ export interface AdminProduct {
 // refiners conversion (2026-08-27) the frontend reads it nested from
 // @dorado/contracts. The old flat interface also claimed a
 // `shipping_carrier` field no wire ever served - read by nothing, gone.
-export type Supplier = RefinerWireNext
+export type Supplier = Refiner
 
 
 
@@ -80,11 +81,11 @@ export interface AdminTypes {
 }
 
 // Parsed on the checkout path. DERIVED from the contract now that this file
-// is zod v4 like the contracts: the catalogue shape IS BullionWire, plus the
+// is zod v4 like the contracts: the catalogue shape IS Bullion, plus the
 // two fields the client adds (`price` from the live spot, `quantity` cart
 // state). `satisfies` still pins the output to Product, so a contract change
 // fails typecheck here rather than silently rejecting checkouts at runtime.
-export const productSchema = BullionWire.extend({
+export const productSchema = Bullion.extend({
   price: z.number().optional(),
   quantity: z.number().optional(),
 }) satisfies z.ZodType<Product>

@@ -4,7 +4,7 @@ import { UsersRow } from "../generated/exchange.js";
 // The user endpoints alias better-auth's camelCase columns to snake_case and
 // omit the Stripe and ban columns. This is one of the few places where the wire
 // genuinely differs from the table.
-export const UserWire = UsersRow.omit({
+export const User = UsersRow.omit({
   createdAt: true,
   updatedAt: true,
   emailVerified: true,
@@ -17,7 +17,7 @@ export const UserWire = UsersRow.omit({
   updated_at: z.string().nullable(),
   email_verified: z.boolean().nullable(),
 });
-export type UserWire = z.infer<typeof UserWire>;
+export type User = z.infer<typeof User>;
 
 // How a user appears nested on an order.
 export const UserOnOrder = z.object({

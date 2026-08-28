@@ -21,8 +21,10 @@ const router = express.Router();
 // /catalog is UNGUARDED like /spots/spot_prices, and for the same reason: the
 // catalogue quotes prices to anyone who visits, and the response is derivable
 // from the public product list and the public spot feed. The other two are
-// per-caller - sales_order prices against the session user's funds row - so
-// they take requireUser.
+// per-caller - sales_order prices against a funds row: the session user's,
+// or, for an admin naming a customer in the body, that customer's (the
+// controller's subjectOf, same rule as the address book) - so they take
+// requireUser.
 router.post("/catalog", catalogQuote);
 router.post("/sales_order", requireUser, salesOrderQuote);
 // Public like the catalogue's bid side, and for the same reason: this prices

@@ -20,11 +20,11 @@ import { serviceSchema } from '@/features/service/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User, userSchema } from '@/features/users/types'
 import {
-  AddressWireNext,
-  SpotPriceWireNext,
-  UserAddressWire,
-  type SalesOrderWireNext,
-  type SalesOrderItemWireNext,
+  Address as AddressContract,
+  SpotPrice as SpotPriceContract,
+  UserAddress as UserAddressContract,
+  type SalesOrder as SalesOrderContract,
+  type SalesOrderItem as SalesOrderItemContract,
 } from '@dorado/contracts'
 
 // EIGHTH CONVERTED FEATURE (2026-08-28) - the last one. The order IS the
@@ -33,13 +33,13 @@ import {
 // orders.transactions' own names (total / items / shipping / surcharge /
 // sales_tax / funds), the address a SNAPSHOT, embedded products speaking
 // name/description/type. The seam layer died with this.
-export type SalesOrderItem = SalesOrderItemWireNext
+export type SalesOrderItem = SalesOrderItemContract
 
-export type SalesOrder = SalesOrderWireNext
+export type SalesOrder = SalesOrderContract
 
 export const salesOrderReturnShipmentSchema = z.object({
-  address: AddressWireNext,
-  user_address: UserAddressWire.optional(),
+  address: AddressContract,
+  user_address: UserAddressContract.optional(),
   package: packageSchema,
   pickup: pickupSchema,
   service: serviceSchema,
@@ -261,8 +261,8 @@ export const adminSalesOrderServiceOptions: Record<string, SalesOrderServiceUIOp
 }
 
 export const salesOrderCheckoutSchema = z.object({
-  address: AddressWireNext,
-  user_address: UserAddressWire.optional(),
+  address: AddressContract,
+  user_address: UserAddressContract.optional(),
   service: salesOrderServiceSchema,
   using_funds: z.boolean(),
   payment_method: paymentMethodTypeSchema,
@@ -271,8 +271,8 @@ export const salesOrderCheckoutSchema = z.object({
 export type SalesOrderCheckout = z.infer<typeof salesOrderCheckoutSchema>
 
 export const adminSalesOrderCheckoutSchema = z.object({
-  address: AddressWireNext,
-  user_address: UserAddressWire.optional(),
+  address: AddressContract,
+  user_address: UserAddressContract.optional(),
   service: salesOrderServiceSchema,
   using_funds: z.boolean(),
   payment_method: paymentMethodTypeSchema,
@@ -280,11 +280,11 @@ export const adminSalesOrderCheckoutSchema = z.object({
   // Client-side form state: the admin picks the spots the order is
   // quoted at. Both create endpoints price server-side and ignore what
   // is sent, so this embeds the contract's live-spot schema directly.
-  order_metals: z.array(SpotPriceWireNext),
+  order_metals: z.array(SpotPriceContract),
   user: userSchema,
 })
 export type AdminSalesOrderCheckout = z.infer<typeof adminSalesOrderCheckoutSchema>
 
 // SalesOrderTotals lived here until 2026-08-28: the return shape of
 // calculateSalesOrderPrices, the last client money math on the sales side.
-// Every preview is the server's quote now (SalesOrderQuoteWire).
+// Every preview is the server's quote now (SalesOrderQuote).

@@ -13,10 +13,10 @@ import {
 } from 'lucide-react'
 
 import {
-  AddressWireNext,
-  UserAddressWire,
-  type PurchaseOrderWireNext,
-  type PurchaseOrderItemWireNext,
+  Address as AddressContract,
+  UserAddress as UserAddressContract,
+  type PurchaseOrder as PurchaseOrderContract,
+  type PurchaseOrderItem as PurchaseOrderItemContract,
   type PayoutOnOrder,
 } from '@dorado/contracts'
 import { pickupSchema } from '@/features/handoff/types'
@@ -34,7 +34,7 @@ import { User } from '@/features/users/types'
 // speaking name/description/type and order spots name/ask/bid. The whole
 // seam layer (orderSpots / orderProducts / orderAddresses) died with this -
 // there is nothing left to map.
-export type PurchaseOrderItem = PurchaseOrderItemWireNext
+export type PurchaseOrderItem = PurchaseOrderItemContract
 
 // The contract's PayoutSlotOnOrder is built by mapping nullability over
 // PayoutOnOrder at runtime, which erases the field types to `unknown` in
@@ -42,11 +42,11 @@ export type PurchaseOrderItem = PurchaseOrderItemWireNext
 // with no payout row carries an object of nulls, not a null.
 export type PayoutSlot = { [K in keyof PayoutOnOrder]: PayoutOnOrder[K] | null }
 
-export type PurchaseOrder = Omit<PurchaseOrderWireNext, 'payout'> & { payout: PayoutSlot }
+export type PurchaseOrder = Omit<PurchaseOrderContract, 'payout'> & { payout: PayoutSlot }
 
 export const purchaseOrderReturnShipmentSchema = z.object({
-  address: AddressWireNext,
-  user_address: UserAddressWire.optional(),
+  address: AddressContract,
+  user_address: UserAddressContract.optional(),
   package: packageSchema,
   pickup: pickupSchema,
   service: serviceSchema,
@@ -56,8 +56,8 @@ export const purchaseOrderReturnShipmentSchema = z.object({
 export type PurchaseOrderReturnShipment = z.infer<typeof purchaseOrderReturnShipmentSchema>
 
 export const purchaseOrderCheckoutSchema = z.object({
-  address: AddressWireNext,
-  user_address: UserAddressWire.optional(),
+  address: AddressContract,
+  user_address: UserAddressContract.optional(),
   package: packageSchema,
   fedexPackageToggle: z.boolean(),
   pickup: pickupSchema,
@@ -184,4 +184,4 @@ export function assignScrapItemNames(scrapItems: PurchaseOrderItem[]): PurchaseO
 // ProfitMetalsDict / ProfitCategoriesDict / PurchaseOrderTotals lived here
 // until 2026-08-28: the shape of the LAST client money math. The profit
 // breakdown is served by POST /quotes/profit_breakdown now and its shape is
-// the contracts' ProfitBreakdownWire.
+// the contracts' ProfitBreakdown.

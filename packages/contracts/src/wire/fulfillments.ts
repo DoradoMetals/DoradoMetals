@@ -9,7 +9,7 @@ import { MethodsRow } from "../generated/fulfillments.js";
 
 // The customer-facing menu and the admin list are the same row, minus the audit
 // columns nobody outside the API needs.
-export const FulfillmentMethodWire = MethodsRow.pick({
+export const FulfillmentMethod = MethodsRow.pick({
   id: true,
   type: true,
   label: true,
@@ -22,7 +22,7 @@ export const FulfillmentMethodWire = MethodsRow.pick({
   created_at: true,
   updated_at: true,
 });
-export type FulfillmentMethodWire = z.infer<typeof FulfillmentMethodWire>;
+export type FulfillmentMethod = z.infer<typeof FulfillmentMethod>;
 
 // The detail objects are built with jsonb_build_object rather than selected as
 // columns, so their timestamps arrive as STRINGS carrying an offset, not as the
@@ -36,33 +36,33 @@ const Booking = {
   end_time: z.string().nullable(),
 };
 
-export const FulfillmentPickupWire = z.object({
+export const FulfillmentPickup = z.object({
   ...Booking,
   pickup_address_id: z.string().uuid(),
 });
-export type FulfillmentPickupWire = z.infer<typeof FulfillmentPickupWire>;
+export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>;
 
-export const FulfillmentDirectWire = z.object({
+export const FulfillmentDirect = z.object({
   ...Booking,
   location_id: z.string().uuid(),
   is_appointment: z.boolean(),
 });
-export type FulfillmentDirectWire = z.infer<typeof FulfillmentDirectWire>;
+export type FulfillmentDirect = z.infer<typeof FulfillmentDirect>;
 
-export const FulfillmentShipmentWire = z.object({
+export const FulfillmentShipment = z.object({
   id: z.string().uuid(),
   shipment_id: z.string().uuid(),
   recipient_location_id: z.string().uuid().nullable(),
   shipper_location_id: z.string().uuid().nullable(),
 });
-export type FulfillmentShipmentWire = z.infer<typeof FulfillmentShipmentWire>;
+export type FulfillmentShipment = z.infer<typeof FulfillmentShipment>;
 
 // The method is nested rather than flattened, because a method exists
 // independently of any fulfillment - the same row is referenced by every order
 // that chose it. The detail is nested under the name of its category and
 // exactly one of the three is ever present: a fulfillment has one method, a
 // method has one category, and the category names which table holds the detail.
-export const FulfillmentWire = z.object({
+export const Fulfillment = z.object({
   id: z.string().uuid(),
   order_id: z.string().uuid(),
   status: z.string(),
@@ -82,8 +82,8 @@ export const FulfillmentWire = z.object({
     category: z.enum(["SHIPMENT", "PICKUP", "DIRECT"]),
     direction: z.enum(["purchase", "sale"]).nullable(),
   }),
-  pickup: FulfillmentPickupWire.nullable(),
-  direct: FulfillmentDirectWire.nullable(),
-  shipment: FulfillmentShipmentWire.nullable(),
+  pickup: FulfillmentPickup.nullable(),
+  direct: FulfillmentDirect.nullable(),
+  shipment: FulfillmentShipment.nullable(),
 });
-export type FulfillmentWire = z.infer<typeof FulfillmentWire>;
+export type Fulfillment = z.infer<typeof Fulfillment>;

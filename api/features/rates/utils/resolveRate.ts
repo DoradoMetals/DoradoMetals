@@ -10,14 +10,14 @@
  * `scrap_pct` / `bullion_pct` are fractions (0–1) that plug into
  * `bid_spot * premium`.
  *
- * TYPESCRIPT. The band type is RateWire from the contracts package rather than
+ * TYPESCRIPT. The band type is Rate from the contracts package rather than
  * a hand-written interface, because that is what the endpoint actually returns
  * and CLAUDE.md says types come from the generated contracts. A local interface
  * would be a second description of the same rows, free to drift.
  *
  * Node strips types at run time; checking is `tsc --noEmit`, in pnpm check.
  */
-import type { RateWire } from "@dorado/contracts";
+import type { Rate } from "@dorado/contracts";
 
 const normMetal = (m: unknown): string => String(m ?? "").trim().toLowerCase();
 
@@ -28,10 +28,10 @@ const normMetal = (m: unknown): string => String(m ?? "").trim().toLowerCase();
  * - above the highest band → the highest band
  */
 export function getRateBand(
-  rates: RateWire[] | null | undefined,
+  rates: Rate[] | null | undefined,
   metal: unknown,
   totalQty: number
-): RateWire | null {
+): Rate | null {
   const bands = (rates ?? [])
     .filter((r) => normMetal(r.metal) === normMetal(metal))
     .sort((a, b) => a.min_qty - b.min_qty);
@@ -52,7 +52,7 @@ export function getRateBand(
  * Returns undefined when no band exists (caller decides the fallback).
  */
 export function getRatePct(
-  rates: RateWire[] | null | undefined,
+  rates: Rate[] | null | undefined,
   metal: unknown,
   totalQty: number,
   material: "scrap" | "bullion"

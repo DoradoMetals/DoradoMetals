@@ -12,7 +12,7 @@
 // back at checkout and the API resolves it against exchange.addresses.
 // Shipments and users are still read from exchange, unmigrated.
 import query from "#shared/db/query.js";
-import type { SalesOrderWireNext } from "@dorado/contracts";
+import type { SalesOrder } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 // See features/orders/fragments.ts: the shipment and user objects are
 // identical in both directions and are now written once.
@@ -27,7 +27,7 @@ import {
 // transaction; without one they run on the pool.
 type Executor = PoolClient | undefined;
 
-// The order row is SalesOrderWireNext - the converted shape (D84), which
+// The order row is SalesOrder - the converted shape (D84), which
 // validate:wire parses real rows through, so it is the description of this
 // shape that has been checked against the database rather than read off the
 // SQL.
@@ -36,7 +36,7 @@ type Executor = PoolClient | undefined;
 // timestamp is a string because JSON made it one; pg returns a Date. The rest
 // of the shape - the nested totals, address, shipment, user and items - is
 // taken exactly as declared.
-export type SalesOrderRow = Omit<SalesOrderWireNext, "created_at" | "updated_at"> & {
+export type SalesOrderRow = Omit<SalesOrder, "created_at" | "updated_at"> & {
   created_at: Date | null;
   updated_at: Date | null;
 };

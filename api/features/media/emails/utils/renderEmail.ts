@@ -7,7 +7,7 @@ import fs from "fs";
 import path from "path";
 import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 import { fileURLToPath } from "url";
-import type { SalesOrderWireNext, SalesOrderItemWireNext } from "@dorado/contracts";
+import type { SalesOrder, SalesOrderItem } from "@dorado/contracts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,12 +82,12 @@ export function renderOfferAcceptedEmail({ firstName, url }: TemplateVars): stri
 }
 
 // TIMESTAMPS ARE Date HERE, NOT string. Contracts describe the wire, so
-// SalesOrderWireNext says `created_at: string` - but what reaches this
+// SalesOrder says `created_at: string` - but what reaches this
 // renderer is what getById returned, a database row whose timestamps pg has
 // already parsed. The template only ever formats them, and
 // features/pdf/render/sections.ts declares `string | number | Date | null`
 // for exactly this reason.
-export type SalesOrderForRender = Omit<SalesOrderWireNext, "created_at" | "updated_at"> & {
+export type SalesOrderForRender = Omit<SalesOrder, "created_at" | "updated_at"> & {
   created_at?: string | Date | null;
   updated_at?: string | Date | null;
 };
@@ -123,8 +123,8 @@ const money = (value: number | null | undefined): string =>
 // that throws in here silent: the order says it was sent, and the refiner was
 // never told.
 //
-//   `addr.line_1` on an order with no address. SalesOrderWire says
-//   `address: AddressOnOrder.nullable()`, and it means it - production sales
+//   `addr.line_1` on an order with no address. SalesOrder says
+//   `address: OrderAddressSnapshot.nullable()`, and it means it - production sales
 //   order 55 has address_id NULL, a supplier attached and order_sent true. The
 //   invoice PDF built for that order does not read the address at all, so the
 //   document is fine and the render is what falls over.
@@ -185,7 +185,7 @@ export function renderSalesOrderToSupplierEmail({
   // null price or quantity on any of its 14 sales order items. Changing what it
   // prints is a display decision, and this commit is for the two throws.
   const orderRows = order.order_items
-    .map((item: SalesOrderItemWireNext) => {
+    .map((item: SalesOrderItem) => {
       const subtotal = (item.quantity! * item.price!).toFixed(2);
       return `
       <tr>
