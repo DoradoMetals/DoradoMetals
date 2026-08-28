@@ -31,42 +31,6 @@
 
 }
 
-/* ============================================================================
-   TEMPORARY BRIDGE — REMOVE WITH THE SWEEP. See RETIREMENT.md "primary".
-   ----------------------------------------------------------------------------
-   `--primary` is now WHITE. 52 of the 105 `bg-primary` lines in .tsx also say
-   `text-white`, which is white-on-white — invisible buttons on live checkout
-   and order screens. Those are .tsx files this pass is not allowed to touch.
-
-   These rules repaint exactly that pair and nothing else. They sit in the
-   `utilities` layer so they are in the same layer as `.text-white`, and score
-   (0,2,0) against its (0,1,0), so they win on specificity rather than on
-   emit order.
-
-   The sweep deletes `text-white` from those 52 lines (the `bg-primary` /
-   `--primary-foreground` pairing already handles the colour) and then deletes
-   this block. Grep to confirm it is dead:
-     grep -rn "bg-primary" --include=*.tsx . | grep "text-white"
-   ============================================================================ */
-@layer utilities {
-  .bg-primary.text-white,
-  .bg-primary\!.text-white,
-  .bg-primary.hover\:text-white:hover,
-  .bg-primary\!.hover\:text-white:hover,
-  .hover\:bg-primary.text-white:hover,
-  .hover\:bg-primary\!.text-white:hover,
-  .hover\:bg-primary.hover\:text-white:hover,
-  .hover\:bg-primary\!.hover\:text-white:hover {
-    color: var(--primary-foreground);
-  }
-
-  /* The one `has-[]` spelling of the same collision:
-     features/products/ui/ProductCard.tsx:202, the selected product variant. */
-  .has-\[\[data-state\=checked\]\]\:bg-primary.has-\[\[data-state\=checked\]\]\:text-white:has(*:is([data-state='checked'])) {
-    color: var(--primary-foreground);
-  }
-}
-
 html,
 body {
   margin: 0;

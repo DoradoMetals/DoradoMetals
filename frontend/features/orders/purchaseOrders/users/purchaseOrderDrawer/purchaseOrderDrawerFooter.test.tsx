@@ -30,29 +30,28 @@ const renderWithClient = (ui: React.ReactElement) => {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 };
 
-// The converted wire: `status` for the state, the embedded product speaking
-// `name`.
+// THE SLIM WIRE (wave 3): the orders.orders row plus totals, and nothing
+// else. The footer is a CONTAINER - it reads its own lines, parcels and
+// payout - so the fixtures below are what those reads answer.
 const order = () =>
-  ({
-    id: "po-1",
-    status: "Received",
-    order_items: [
-      {
-        id: "i-scrap",
-        item_type: "scrap",
-        scrap: { id: "s-1", metal: "Gold", content: 2, bid_premium: 0.75, gross_unit: "t oz" },
-      },
-      {
-        id: "i-bullion",
-        item_type: "product",
-        quantity: 2,
-        product: { id: "p-1", name: "Gold American Eagle" },
-      },
-    ],
-    shipment: { id: "sh-1", shipping_charge: 25, shipping_service: "Ground", insured: true },
-    return_shipment: { id: null },
-    payout: { method: "ACH" },
-  } as unknown as PurchaseOrder);
+  ({ id: "po-1", status: "Received" } as unknown as PurchaseOrder);
+
+// orders.items rows, VERBATIM: bullion_id is the discriminator (null means
+// scrap), the weights live on the line, and metal_id resolves to a name
+// against the spots reference list.
+const items = () => [
+  { id: "i-scrap", bullion_id: null, metal_id: "m-gold", content: 2, premium: 0.75, unit: "t oz" },
+  { id: "i-bullion", bullion_id: "p-1", metal_id: "m-gold", quantity: 2, premium: 0.98 },
+];
+const spots = () => [{ id: "m-gold", name: "Gold" }];
+const catalogue = () => [{ id: "p-1", name: "Gold American Eagle" }];
+// One parcel, both directions in one array - `direction` is the column the
+// component filters on, and `cost` is the row's own name for what the
+// composed wire called shipping_charge.
+const shipments = () => [
+  { id: "sh-1", direction: "Inbound", cost: 25, insured: true, carrier_service_id: "cs-1" },
+];
+const payouts = () => [{ id: "pay-1", method: "ACH", cost: 0 }];
 
 // Distinct values so an assertion can only match the field it means; line ids
 // pair to the order's items BY ID, the way the drawer joins them.
@@ -70,9 +69,20 @@ const quote = (): OrderQuote => ({
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockImplementation(async (_m, url) =>
-    String(url) === "/quotes/order" ? (quote() as never) : ([] as never)
-  );
+  // Routed by URL, because the container issues one read per resource now -
+  // which is the shape of the whole wave: a drawer section asks for the table
+  // it renders, and nothing arrives nested.
+  vi.mocked(apiRequest).mockImplementation(async (_m, url) => {
+    const u = String(url);
+    if (u === "/quotes/order") return quote() as never;
+    if (u === "/orders/po-1/items") return items() as never;
+    if (u === "/orders/po-1/shipments") return shipments() as never;
+    if (u === "/orders/po-1/payouts") return payouts() as never;
+    if (u.startsWith("/spots")) return spots() as never;
+    if (u.startsWith("/products")) return catalogue() as never;
+    if (u.startsWith("/carrier_services")) return [{ id: "cs-1", name: "Ground", carrier_id: "c-1" }] as never;
+    return [] as never;
+  });
 });
 
 describe("the purchase-order drawer footer", () => {

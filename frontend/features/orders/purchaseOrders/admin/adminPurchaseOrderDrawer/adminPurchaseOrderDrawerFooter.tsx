@@ -22,6 +22,16 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
 import { payoutOptions } from '@/features/payouts/types'
+import { useOrderPayouts } from '@/features/payouts/queries'
+import { useOrderItems, useOrderAddress, nameOf } from '@/features/orders/reads'
+import {
+  useOrderShipments,
+  useShipmentDisplay,
+  outboundOf,
+  returnOf,
+} from '@/features/shipping/queries'
+import { useProducts } from '@/features/products/queries'
+import { useSpotPrices } from '@/features/spots/queries'
 import { formatRate } from '@/features/rates/utils/resolveRate'
 // Every dollar figure below comes from the order quote - the server prices
 // the order's own items at its own spots, honouring a lock (Jacob's
@@ -47,11 +57,31 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
     payout: false,
     total: false,
   })
-  const rawScrapItems = order.order_items.filter((item) => item.item_type === 'scrap' && item.scrap)
-  const scrapItems = assignScrapItemNames(rawScrapItems)
-  const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
-  const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
-  const payoutFee = order.payout.cost ?? 0
+  // A CONTAINER (ruling 14): every piece the composed order used to carry -
+  // lines, parcels, the payout, the address - is its own read keyed by the id
+  // this component already holds.
+  const { data: items = [] } = useOrderItems(order.id)
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const { data: payouts = [] } = useOrderPayouts(order.id)
+  const { data: address } = useOrderAddress(order.id)
+  const { data: catalogue = [] } = useProducts()
+  const { data: spotPrices = [] } = useSpotPrices()
+
+  const shipment = outboundOf(shipments)
+  const returnShipment = returnOf(shipments)
+  const { service_name: shipmentService } = useShipmentDisplay(shipment)
+  const { service_name: returnService } = useShipmentDisplay(returnShipment)
+  const payout = payouts[0] ?? null
+
+  // bullion_id IS the discriminator - null means scrap; `item_type` was
+  // derived in the compose layer and has no column.
+  const scrapItems = assignScrapItemNames(
+    items.filter((item) => item.bullion_id === null),
+    (metal_id) => nameOf(spotPrices, metal_id)
+  )
+  const bullionItems = items.filter((item) => item.bullion_id !== null)
+  const payoutMethod = payoutOptions.find((p) => p.method === payout?.method)
+  const payoutFee = payout?.cost ?? 0
 
   // 0 until the first quote lands, which is what the old client math showed
   // before the spot feed loaded; placeholderData keeps later ticks flicker-free.
@@ -83,18 +113,16 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                 <TableBody>
                   {scrapItems.map((item, i) => (
                     <TableRow key={i} className="hover:bg-transparent">
-                      <TableCell className="text-left">{item.scrap?.name}</TableCell>
+                      <TableCell className="text-left">{item.name}</TableCell>
                       <TableCell className="text-right">
-                        {item.scrap?.content?.toFixed(3)}
+                        {item.content?.toFixed(3)}
                       </TableCell>
-                      <TableCell className="text-center">
-                        {formatRate(item.premium ?? item.scrap?.bid_premium)}
-                      </TableCell>
+                      {/* One premium, read once: 085 folded scrap into the
+                          items table, and the composed wire's
+                          scrap.bid_premium was served FROM item.premium. */}
+                      <TableCell className="text-center">{formatRate(item.premium)}</TableCell>
                       <TableCell className="text-right">
-                        {(
-                          (item.scrap?.content ?? 0) *
-                          (item?.premium ?? item?.scrap?.bid_premium ?? 0)
-                        ).toFixed(3)}{' '}
+                        {((item.content ?? 0) * (item.premium ?? 0)).toFixed(3)}{' '}
                       </TableCell>
                       <TableCell className="text-right">
                         {/* Scrap line_total is the whole line - content is not
@@ -120,7 +148,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                   {bullionItems.map((item, i) => (
                     <TableRow key={i} className="hover:bg-transparent">
                       <TableCell>{item.quantity}</TableCell>
-                      <TableCell>{item.product?.name}</TableCell>
+                      <TableCell>{nameOf(catalogue, item.bullion_id)}</TableCell>
                       <TableCell className="text-right p-0">
                         {/* line_total is already unit_price * quantity. */}
                         <PriceNumberFlow value={quoteLineById.get(item.id)?.line_total ?? 0} />
@@ -132,30 +160,30 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
             </Accordion>
           )}
 
-          {order.shipment && (
+          {shipment && (
             <Accordion
               label="Shipping Charges"
               open={open.shipment ?? false}
               toggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
-              total={order.shipment.shipping_charge ?? 0}
+              total={shipment.cost ?? 0}
             >
               <Table className="font-normal text-neutral-700 overflow-hidden">
                 <TableBody>
                   <TableRow className="hover:bg-transparent">
-                    <TableCell>{order.shipment.shipping_service}</TableCell>
-                    <TableCell>{order.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
+                    <TableCell>{shipmentService}</TableCell>
+                    <TableCell>{shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                     <TableCell className="text-right p-0">
-                      -<PriceNumberFlow value={order.shipment.shipping_charge ?? 0} />
+                      -<PriceNumberFlow value={shipment.cost ?? 0} />
                     </TableCell>
                   </TableRow>
-                  {order.status === 'Cancelled' && (
+                  {order.status === 'Cancelled' && returnShipment && (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell>{order.return_shipment.shipping_service} (Return)</TableCell>
+                      <TableCell>{returnService} (Return)</TableCell>
                       <TableCell>
-                        {order.return_shipment.insured ? 'Insured' : 'Uninsured'}
+                        {returnShipment.insured ? 'Insured' : 'Uninsured'}
                       </TableCell>
                       <TableCell className="text-right p-0">
-                        -<PriceNumberFlow value={order.return_shipment.shipping_charge ?? 0} />
+                        -<PriceNumberFlow value={returnShipment.cost ?? 0} />
                       </TableCell>
                     </TableRow>
                   )}
@@ -209,11 +237,11 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                 </>
               )}
 
-              {(order.shipment?.shipping_charge ?? 0) > 0 && (
+              {(shipment?.cost ?? 0) > 0 && (
                 <>
                   <div>Shipping:</div>
                   <div className="text-right">
-                    -<PriceNumberFlow value={order.shipment.shipping_charge ?? 0} />
+                    -<PriceNumberFlow value={shipment?.cost ?? 0} />
                   </div>
                 </>
               )}
@@ -240,12 +268,12 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
       <div className="flex w-full justify-between items-center mt-3">
         <div className="text-sm text-neutral-700">Call Customer:</div>
 
-        {order?.address?.phone_number ? (
+        {address?.phone_number ? (
           <a
-            href={`tel:+1${order.address.phone_number}`}
+            href={`tel:+1${address.phone_number}`}
             className={cn('text-sm hover:underline', statusColor)}
           >
-            {formatPhoneNumber(order.address.phone_number ?? '')}
+            {formatPhoneNumber(address.phone_number ?? '')}
           </a>
         ) : (
           <div className="text-sm">No Phone Number </div>

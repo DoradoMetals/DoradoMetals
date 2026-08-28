@@ -23,19 +23,19 @@ import {
   Address as AddressContract,
   SpotPrice as SpotPriceContract,
   UserAddress as UserAddressContract,
-  type SalesOrder as SalesOrderContract,
-  type SalesOrderItem as SalesOrderItemContract,
+  type Order as OrderContract,
 } from '@dorado/contracts'
 
-// EIGHTH CONVERTED FEATURE (2026-08-28) - the last one. The order IS the
-// contracts shape: `number` / `status` where the legacy wire said
-// order_number / sales_order_status, the money nested as `totals` with
-// orders.transactions' own names (total / items / shipping / surcharge /
-// sales_tax / funds), the address a SNAPSHOT, embedded products speaking
-// name/description/type. The seam layer died with this.
-export type SalesOrderItem = SalesOrderItemContract
-
-export type SalesOrder = SalesOrderContract
+// THE ORDER IS THE ROW (wave 3), and it is the SAME row a purchase order is:
+// one orders.orders shape plus `totals`, with `direction` telling them apart.
+// `SalesOrder` is a local name for this tree's components. See
+// features/orders/purchaseOrders/types.ts for the full map of what moved to
+// its own hook - items, shipments, the address, the payout - and note the
+// two this tree read off the order document: `used_funds` and
+// `shipping_service` are columns of orders.transactions, so they are
+// `order.totals?.used_funds` and `order.totals?.shipping_service`; the
+// refinery is the ENGAGEMENT's refiner_id, useRefinerOrder(order.id).
+export type SalesOrder = OrderContract
 
 export const salesOrderReturnShipmentSchema = z.object({
   address: AddressContract,

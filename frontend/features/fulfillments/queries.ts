@@ -1,7 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
-import type { OrderFulfillment } from '@dorado/contracts'
+import type {
+  FulfillmentDirect,
+  FulfillmentPickup,
+  OrderFulfillment,
+} from '@dorado/contracts'
 
 // How an order is handed over, as its own read: GET /orders/:orderId/fulfillments
 // - LIVE since the read-flip wave, typed by the OrderFulfillment contract both
@@ -27,6 +31,36 @@ export const useFulfillment = (order_id: string) => {
     queryKey: ['order_fulfillment', order_id],
     queryFn: async () =>
       await apiRequest<OrderFulfillment>('GET', `/orders/${order_id}/fulfillments`),
+    enabled: !!user && !!order_id,
+  })
+}
+
+// THE FULFILLMENT'S CHILDREN, each its own parent-path read (wave 3).
+// US COLLECTING FROM A CUSTOMER (a pickup) and A CUSTOMER COMING TO US (a
+// direct). Neither is a carrier booking - useShipmentPickups is FedEx coming
+// for a parcel, hangs off the shipment, and lives in features/shipping. Both
+// answer [] rather than 404 when the order is handed over some other way, so
+// a drawer renders the same component for every method.
+export type { FulfillmentPickup, FulfillmentDirect } from '@dorado/contracts'
+
+export const useOrderPickups = (order_id: string) => {
+  const { user } = useGetSession()
+
+  return useQuery<FulfillmentPickup[]>({
+    queryKey: ['order_pickups', order_id],
+    queryFn: async () =>
+      await apiRequest<FulfillmentPickup[]>('GET', `/orders/${order_id}/pickups`),
+    enabled: !!user && !!order_id,
+  })
+}
+
+export const useOrderDirects = (order_id: string) => {
+  const { user } = useGetSession()
+
+  return useQuery<FulfillmentDirect[]>({
+    queryKey: ['order_directs', order_id],
+    queryFn: async () =>
+      await apiRequest<FulfillmentDirect[]>('GET', `/orders/${order_id}/directs`),
     enabled: !!user && !!order_id,
   })
 }

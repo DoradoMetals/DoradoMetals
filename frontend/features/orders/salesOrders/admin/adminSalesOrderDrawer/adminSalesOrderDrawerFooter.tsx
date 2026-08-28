@@ -11,10 +11,19 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 
 import { SalesOrderDrawerFooterProps, statusConfig } from '@/features/orders/salesOrders/types'
+import { useSalesOrderLines } from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/useSalesOrderLines'
+import { useOrderAddress } from '@/features/orders/reads'
 import { SalesOrderActionButtons } from '@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawerContents/adminSalesOrderActionButtons'
 
 export default function AdminSalesOrderDrawerFooter({ order }: SalesOrderDrawerFooterProps) {
   const statusColor = 'text-primary'
+  // The address SNAPSHOT is its own read - a places.addresses row the server
+  // resolves through orders.addresses. Only the phone number is shown here.
+  const { data: address } = useOrderAddress(order.id)
+
+  // A CONTAINER (ruling 14): the lines are their own read, named against the
+  // cached catalogue - the order document carries neither.
+  const lines = useSalesOrderLines(order.id)
 
   const [open, setOpen] = useState({
     items: false,
@@ -23,7 +32,7 @@ export default function AdminSalesOrderDrawerFooter({ order }: SalesOrderDrawerF
 
   return (
     <div className="flex flex-col w-full gap-2">
-      {order.order_items.length > 0 && (
+      {lines.length > 0 && (
         <Accordion
           label={`Item Prices`}
           open={open.items}
@@ -32,10 +41,10 @@ export default function AdminSalesOrderDrawerFooter({ order }: SalesOrderDrawerF
         >
           <Table className="font-normal text-neutral-700 overflow-hidden">
             <TableBody>
-              {order.order_items.map((item, i) => (
+              {lines.map((item, i) => (
                 <TableRow key={i} className="hover:bg-transparent">
                   <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.product?.name}</TableCell>
+                  <TableCell>{item.name}</TableCell>
                   <TableCell className="text-right p-0">
                     <PriceNumberFlow value={(item.quantity ?? 0) * (item.price ?? 0)} />
                   </TableCell>
@@ -53,7 +62,7 @@ export default function AdminSalesOrderDrawerFooter({ order }: SalesOrderDrawerF
         total={order.totals?.total ?? 0}
       >
         <div className="flex flex-col gap-2 pr-2">
-          {order.used_funds && (
+          {order.totals?.used_funds && (
             <div className="flex items-center justify-between w-full">
               <div className="text-sm text-neutral-700">Dorado Funds Applied:</div>
               <div className="text-right text-sm text-neutral-800">
@@ -65,7 +74,7 @@ export default function AdminSalesOrderDrawerFooter({ order }: SalesOrderDrawerF
           {(order.totals?.subject_to_charges_amount ?? 0) > 0 && (
             <div className="flex items-center justify-between w-full">
               <div className="text-sm text-neutral-700">
-                {order.used_funds ? 'Amount Remaining: ' : 'Before Fees: '}
+                {order.totals?.used_funds ? 'Amount Remaining: ' : 'Before Fees: '}
               </div>
               <div className="text-right text-sm text-neutral-800">
                 <PriceNumberFlow value={order.totals?.subject_to_charges_amount ?? 0} />
@@ -97,12 +106,12 @@ export default function AdminSalesOrderDrawerFooter({ order }: SalesOrderDrawerF
       <div className="flex w-full justify-between items-center mt-3">
         <div className="text-sm text-neutral-700">Call Customer:</div>
 
-        {order?.address?.phone_number ? (
+        {address?.phone_number ? (
           <a
-            href={`tel:+${order.address.phone_number}`}
+            href={`tel:+${address.phone_number}`}
             className={cn('text-sm hover:underline', statusColor)}
           >
-            {formatPhoneNumber(order.address.phone_number ?? '')}
+            {formatPhoneNumber(address.phone_number ?? '')}
           </a>
         ) : (
           <div className="text-sm">No Phone Number </div>

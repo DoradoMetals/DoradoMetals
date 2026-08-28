@@ -73,7 +73,7 @@ export function PurchaseOrdersContent() {
             onClick={() => {
               router.push('/sell')
             }}
-            className="raised-off-page bg-primary text-white hover:bg-primary/90 px-12"
+            className="raised-off-page bg-primary text-primary-foreground hover:bg-primary/90 px-12"
           >
             Get a Price Estimate
           </Button>

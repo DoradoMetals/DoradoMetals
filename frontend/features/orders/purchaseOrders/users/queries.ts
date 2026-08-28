@@ -1,33 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { PurchaseOrder, PurchaseOrderCheckout } from '@/features/orders/purchaseOrders/types'
-import type { OrderAddressSnapshot } from '@dorado/contracts'
-import type { Address, UserAddress } from '@/features/addresses/types'
-import { payoutOptions } from '@/features/payouts/types'
-import { packageOptions } from '@/features/packaging/types'
+import { toAddressSnapshot } from '@/features/orders/addressSnapshot'
 import { useGetSession } from '@/features/auth/queries'
-import { useSpotPrices } from '@/features/spots/queries'
-
-// The order's address on the wire is a SNAPSHOT - immutable postal facts plus
-// the recipient - while the checkout keeps the picked pair (the book address
-// and the caller's relationship to it) as client state. The snapshot is built
-// HERE, at the mutation edge: recipient_name is the relationship's label (the
-// API reads it for the FedEx label's personName), address_id is the book row
-// the checkout resolved against.
-const toAddressSnapshot = (a: Address, ua?: UserAddress | null): OrderAddressSnapshot => ({
-  address_id: a.id ?? null,
-  recipient_name: ua?.label ?? null,
-  line_1: a.line_1,
-  line_2: a.line_2,
-  city: a.city,
-  state: a.state,
-  country: a.country,
-  country_code: a.country_code,
-  zip: a.zip,
-  phone_number: a.phone_number,
-  is_residential: a.is_residential,
-  is_valid: a.is_valid,
-})
 
 export const usePurchaseOrders = () => {
   const { user } = useGetSession()
@@ -52,7 +27,6 @@ export const usePurchaseOrders = () => {
 export const useCreatePurchaseOrder = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
-  const { data: spotPrices = [] } = useSpotPrices()
 
   return useMutation({
     mutationFn: async (purchase_order: PurchaseOrderCheckout) => {
@@ -74,24 +48,14 @@ export const useCreatePurchaseOrder = () => {
         refetchType: 'active',
       })
     },
-    onSuccess: async (purchaseOrder: PurchaseOrder) => {
-      const packageDetails =
-        packageOptions.find((pkg) => pkg.label === purchaseOrder.shipment.package) ??
-        packageOptions[0]
-      const payoutDetails =
-        payoutOptions.find((payout) => payout.method === purchaseOrder.payout.method) ??
-        payoutOptions[0]
-      try {
-        await apiRequest('POST', '/emails/purchase_order_created', {
-          purchaseOrder: purchaseOrder,
-          spotPrices: spotPrices,
-          packageDetails: packageDetails,
-          payoutDetails: payoutDetails,
-        })
-      } catch (err) {
-        console.error('Failed to send confirmation email:', err)
-      }
-    },
+    // THE CONFIRMATION EMAIL IS NOT SENT FROM HERE ANY MORE (D91). It was an
+    // await in this onSuccess, POSTing the whole composed order plus the spot
+    // feed, the package and the payout method to
+    // /emails/purchase_order_created, wrapped in a try/catch that only
+    // console.error'd - so the content of a customer's confirmation came from
+    // the browser (ruling 10), and closing the tab meant no email, no record
+    // and nobody told. The server sends it at creation now, after the commit,
+    // rendered from its own read; the route is deleted.
   })
 }
 

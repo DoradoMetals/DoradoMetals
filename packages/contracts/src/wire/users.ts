@@ -19,10 +19,8 @@ export const User = UsersRow.omit({
 });
 export type User = z.infer<typeof User>;
 
-// How a user appears nested on an order.
-export const UserOnOrder = z.object({
-  user_id: z.string().uuid().nullable(),
-  user_name: z.string().nullable(),
-  user_email: z.string().nullable(),
-});
-export type UserOnOrder = z.infer<typeof UserOnOrder>;
+// UserOnOrder - user_id / user_name / user_email, three columns of
+// exchange.users joined onto every order - died with the order wire slim
+// (wave 3). An order carries `user_id`; a name is the client's to map from
+// the admin users list it already caches, which is the same rule that killed
+// mint_name. Nothing about a customer needs to ride along on their order.

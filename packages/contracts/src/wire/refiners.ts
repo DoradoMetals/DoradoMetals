@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { OrdersRow, SpotsRow } from "../generated/refiners.js";
+import { ItemsRow, OrdersRow, SpotsRow } from "../generated/refiners.js";
 
 // What the repos return: a refiner, and the organization it is, kept apart.
 //
@@ -43,3 +43,14 @@ export type RefinerOrder = z.infer<typeof RefinerOrder>;
 // from the spots reference read, client-side.
 export const RefinerSpot = SpotsRow;
 export type RefinerSpot = z.infer<typeof RefinerSpot>;
+
+// GET /orders/:orderId/refiners/items - the refinery's numbers PER CUSTOMER
+// LINE, as VERBATIM refiners.items rows, keyed by order_item_id.
+//
+// The assay report lives here. It rode on the composed order as
+// scrap.purity_actual / post_melt_actual / content_actual, and the refiner's
+// premium as a field of the customer's line - four values of another table
+// wearing customer-facing names. What the customer was quoted and what the
+// refinery reported are different facts and are now different reads.
+export const RefinerItem = ItemsRow;
+export type RefinerItem = z.infer<typeof RefinerItem>;

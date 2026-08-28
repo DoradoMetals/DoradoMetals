@@ -108,3 +108,15 @@ export const getFulfillmentByOrder = asyncHandler(async (req, res) => {
   }
   return res.json(fulfillment);
 });
+
+// GET /api/orders/:orderId/pickups - fulfillments.pickups rows, VERBATIM.
+// [] when the order has no fulfillment or its method is not a pickup; see
+// order-read.ts.
+export const getPickupsByOrder = asyncHandler(async (req, res) => {
+  return res.json(await orderRead.getOrderPickups(req.params.orderId));
+});
+
+// GET /api/orders/:orderId/directs - fulfillments.directs rows, VERBATIM.
+export const getDirectsByOrder = asyncHandler(async (req, res) => {
+  return res.json(await orderRead.getOrderDirects(req.params.orderId));
+});

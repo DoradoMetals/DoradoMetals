@@ -3,9 +3,10 @@ import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import {
   invalidateOrderReads,
-  optimisticallyUpdatePurchaseOrder,
+  optimisticallyUpdateOrderItems,
   rollbackOrderLists,
 } from '@/features/orders/invalidation'
+import type { OrderItem } from '@dorado/contracts'
 import type { Product } from '@/features/products/types'
 
 // Order lines as their own resource (D87, unified form): everything under
@@ -77,12 +78,11 @@ export const usePatchOrderItem = () => {
       const confirmed = patch.reset ? false : patch.confirmed
       if (confirmed === undefined) return { previous: undefined }
       return {
-        previous: await optimisticallyUpdatePurchaseOrder(queryClient, user, order_id, (order) => ({
-          ...order,
-          order_items: order.order_items.map((item) =>
+        previous: await optimisticallyUpdateOrderItems(queryClient, order_id, (items) =>
+          (items as OrderItem[]).map((item) =>
             item.id === order_item_id ? { ...item, confirmed } : item
-          ),
-        })),
+          )
+        ),
       }
     },
 
@@ -137,10 +137,9 @@ export const useDeleteOrderItem = () => {
     // Removal is structural, not priced - the same optimism the legacy
     // delete hook wrote.
     onMutate: async ({ order_item_id, order_id }) => ({
-      previous: await optimisticallyUpdatePurchaseOrder(queryClient, user, order_id, (order) => ({
-        ...order,
-        order_items: order.order_items.filter((item) => item.id !== order_item_id),
-      })),
+      previous: await optimisticallyUpdateOrderItems(queryClient, order_id, (items) =>
+        (items as OrderItem[]).filter((item) => item.id !== order_item_id)
+      ),
     }),
 
     onError: (_err, _vars, context) => {

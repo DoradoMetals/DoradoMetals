@@ -25,13 +25,13 @@ export default function AdminSalesOrderDrawerHeader({ order }: SalesOrderDrawerH
       statuses: ['Pending'],
       label: 'Download Invoice Preview',
       onClick: () =>
-        downloadInvoice.mutate({ salesOrder: order, orderSpots: namedOrderSpots, fileName: 'invoice_preview' }),
+        downloadInvoice.mutate({ order_id: order.id, order_number: order.number, fileName: 'invoice_preview' }),
       isPending: downloadInvoice.isPending,
     },
     {
       statuses: ['Preparing', 'In Transit', 'Completed'],
       label: 'Download Invoice',
-      onClick: () => downloadInvoice.mutate({ salesOrder: order, orderSpots: namedOrderSpots, fileName: 'invoice' }),
+      onClick: () => downloadInvoice.mutate({ order_id: order.id, order_number: order.number, fileName: 'invoice' }),
       isPending: downloadInvoice.isPending,
     },
   ]

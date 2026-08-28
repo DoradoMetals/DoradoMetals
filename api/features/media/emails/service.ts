@@ -12,6 +12,10 @@ import {
 import type { SalesOrderForRender, SupplierSpot } from "#features/media/emails/utils/renderEmail.ts";
 
 import { sendEmail } from "#providers/emails/nodemailer.ts";
+import * as purchaseOrderReads from "#features/purchase-orders/read.service.ts";
+import * as spots from "#features/purchase-orders/repo.dual.js";
+import * as packages from "#features/shipping/packages/repo.ts";
+import * as shipmentOrderRead from "#features/shipping/shipments/order-read.ts";
 import { recordEmail, messageIdOf } from "#features/media/emails/record.ts";
 import { persistPdf } from "#features/media/pdfs/store.ts";
 import type { PoolClient } from "pg";
@@ -51,6 +55,84 @@ import {
 // pinned by a contract. Coerced at the boundary rather than asserted, because
 // an object where a name is expected would render "[object Object]" into a
 // customer's greeting.
+// D91: THE CONFIRMATION EMAIL IS THE SERVER'S TO SEND, keyed by order id.
+//
+// It was sent BY THE BROWSER until wave 3 - an await in the create mutation's
+// onSuccess, POSTing the whole composed order plus the spot feed, the package
+// and the payout method to /emails/purchase_order_created, wrapped in a
+// try/catch that only console.error'd. Three things were wrong with that and
+// each is a standing ruling:
+//
+//   RULING 10, ids in and data out. The content of a customer's confirmation
+//   - every figure on the attached packing list - came from data the CLIENT
+//   supplied. This renders from the server's own read of the order that was
+//   just committed.
+//   RELIABILITY. Close the tab, lose the network, get a 500: no email, no
+//   record, no retry, nobody told. Same shape as D49.
+//   THE SLOTS IT READ ARE GONE. purchaseOrder.shipment.package and
+//   purchaseOrder.payout.method were members of the composed wire, so it
+//   broke with this wave regardless.
+//
+// AFTER THE COMMIT, NEVER INSIDE IT. An email cannot be rolled back, which is
+// the rule shared/db/transaction-side-effects.test.js fails the build over;
+// createPurchaseOrder calls this once withTransaction has returned.
+//
+// IT DOES NOT THROW. The order exists and is paid for by the time this runs -
+// failing the response over an email would be a worse outcome than a missing
+// one, and the send is not silent either way: recordEmail writes a
+// media.emails row with status 'failed' and the error, which is the paper
+// trail the browser version never had.
+//
+// `transport` and `executor` are the usual test seams.
+export async function sendOrderPlacedConfirmation(
+  order_id: string,
+  transport?: Transport,
+  executor?: PoolClient
+): Promise<void> {
+  try {
+    const purchaseOrder = (await purchaseOrderReads.findById(order_id, executor)) as
+      | (Record<string, any> & { user?: { user_email?: string | null } | null })
+      | null;
+    if (!purchaseOrder) return;
+
+    const to = purchaseOrder.user?.user_email;
+    if (typeof to !== "string" || to.length === 0) return;
+
+    // THE PACKING LIST'S INPUTS, RESOLVED SERVER-SIDE. The live feed comes
+    // from the spot read the pricing paths use; the package is the one the
+    // parcel was actually booked with - shipping.shipments names it by id and
+    // shipping.packages holds its label and dimensions, which is where the
+    // browser's `packageOptions.find(...)` guess was always trying to land.
+    const spotPrices = await spots.getCurrentSpotPrices(executor);
+    const [shipment] = await shipmentOrderRead.getForOrder(order_id, executor);
+    const pkg = shipment?.package_id
+      ? await packages.getOne(shipment.package_id, executor)
+      : undefined;
+    const packageDetails = pkg
+      ? {
+          label: pkg.label,
+          dimensions: {
+            length: Number(pkg.length),
+            width: Number(pkg.width),
+            height: Number(pkg.height),
+          },
+        }
+      : undefined;
+
+    await sendCreatedEmail(
+      { purchaseOrder, spotPrices, packageDetails } as PackingListInput,
+      to,
+      transport,
+      executor
+    );
+  } catch (err) {
+    // sendCreatedEmail has already recorded a failed send if it got that far.
+    // Anything else here - a read that failed, a package that would not
+    // resolve - is logged and dropped, because the order is placed either way.
+    console.error(`confirmation email for order ${order_id} was not sent:`, err);
+  }
+}
+
 export async function sendCreatedEmail(
   { purchaseOrder, spotPrices, packageDetails }: PackingListInput,
   to: string,

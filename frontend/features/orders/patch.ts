@@ -12,7 +12,7 @@ import type {
   PurchaseOrderReturnShipment,
 } from '@/features/orders/purchaseOrders/types'
 import type { SalesOrder } from '@/features/orders/salesOrders/types'
-import type { OrderAddressSnapshot } from '@dorado/contracts'
+import type { OrderAddressInput } from '@/features/orders/addressSnapshot'
 
 // ONE ENDPOINT PER RESOURCE, ONE ROUTE VOCABULARY (D87, unified form):
 // PATCH /orders/:id holds the ORDER ROW and order-level actions for BOTH
@@ -34,7 +34,7 @@ import type { OrderAddressSnapshot } from '@dorado/contracts'
 export type ReturnShipmentOnPatch = Omit<
   PurchaseOrderReturnShipment,
   'address' | 'user_address'
-> & { address: OrderAddressSnapshot }
+> & { address: OrderAddressInput }
 
 export type OrderPatch = {
   // A pure label - every status write is only the word. Advancing the label
@@ -71,7 +71,12 @@ const applyPurchaseFields = (order: PurchaseOrder, patch: OrderPatch): PurchaseO
 const applySalesFields = (order: SalesOrder, patch: OrderPatch): SalesOrder => {
   let next = order
   if (patch.supplier?.send) {
-    next = { ...next, order_sent: true, supplier_id: patch.supplier.supplier_id }
+    // WHICH REFINERY HAS THE METAL IS THE ENGAGEMENT'S (refiners.orders,
+    // ruling 6) and never was a column of the order row - the composed wire
+    // carried supplier_id as an alias of it. Only the order's own flag flips
+    // optimistically here; the engagement refetches through
+    // invalidateOrderReads, which invalidates refiner_order by id.
+    next = { ...next, order_sent: true }
   }
   if (patch.status) {
     next = { ...next, status: patch.status }

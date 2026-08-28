@@ -145,3 +145,31 @@ export function composeOrder(p: SalesOrderParts): Record<string, unknown> {
     shipment: p.shipment ? nestShipment(p.shipment) : EMPTY_SHIPMENT,
   };
 }
+
+// THE COMPOSED SALES ORDER, AS A TYPE - internal, not a contract (wave 3).
+// Same reasoning as features/purchase-orders/compose.ts's ComposedOrder: this
+// was the SalesOrder wire schema until the order wire slimmed, and it now
+// describes only what the API assembles for its own pricing, emails and PDFs.
+export type ComposedSalesOrder = {
+  id: string;
+  user_id: string | null;
+  address_id: string | null;
+  supplier_id: string | null;
+  status: string | null;
+  notes: string | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+  created_by: string | null;
+  updated_by: string | null;
+  number: number | null;
+  review_created: boolean | null;
+  order_sent: boolean | null;
+  tracking_updated: boolean | null;
+  shipping_service: string | null;
+  used_funds: boolean;
+  totals: Record<string, number | null>;
+  order_items: ComposedSalesItem[];
+  address: Record<string, any> | null;
+  shipment: Record<string, any>;
+  user: { user_id: string | null; user_name: string | null; user_email: string | null };
+};

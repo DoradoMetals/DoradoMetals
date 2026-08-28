@@ -6,11 +6,20 @@ import { cn } from '@/shared/utils/cn'
 import { useRefinerMetals, useRefinerOrder } from '@/features/refiners/queries'
 import { usePatchRefinerItem, usePatchRefinerOrder } from '@/features/refiners/queries'
 
-import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
+import { assignScrapItemNames, PurchaseOrder } from '@/features/orders/purchaseOrders/types'
+import { useOrderItems, nameOf } from '@/features/orders/reads'
+import { useProducts } from '@/features/products/queries'
+import { useRefinerItems } from '@/features/refiners/queries'
 import { useOrderSpots, nameSpots } from '@/features/orders/spots'
 import { useSpotPrices } from '@/features/spots/queries'
 
 export default function RefinerValues({ order }: { order: PurchaseOrder }) {
+  const { data: items = [] } = useOrderItems(order.id)
+  const { data: catalogue = [] } = useProducts()
+  // THE REFINER'S PREMIUM IS refiners.items' (ruling 6), keyed by
+  // order_item_id. The composed wire smeared it onto the customer's line as
+  // `refiner_premium`.
+  const { data: refinerItems = [] } = useRefinerItems(order.id)
   const { data: orderSpotRows = [] } = useOrderSpots(order.id)
   // By the ORDER id - the key this component holds. The engagement row rides
   // along because its own id is what the PATCH addresses.
@@ -38,10 +47,19 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
     return val / 100
   }
 
-  const rawScrap = order.order_items.filter((it) => it.item_type === 'scrap' && it.scrap)
-  const scrapItems = assignScrapItemNames(rawScrap)
-  const bullionItems = order.order_items.filter((it) => it.item_type === 'product')
-  const rows: PurchaseOrderItem[] = [...scrapItems, ...bullionItems]
+  // bullion_id is the discriminator; a scrap line's display name is derived,
+  // a bullion line's comes from the catalogue.
+  const scrapItems = assignScrapItemNames(
+    items.filter((it) => it.bullion_id === null),
+    (metal_id) => nameOf(spotPrices, metal_id)
+  )
+  const bullionItems = items.filter((it) => it.bullion_id !== null)
+  const rows = [
+    ...scrapItems.map((it) => ({ id: it.id, label: it.name })),
+    ...bullionItems.map((it) => ({ id: it.id, label: nameOf(catalogue, it.bullion_id) ?? 'Bullion' })),
+  ]
+  const refinerPremiumOf = (order_item_id: string) =>
+    refinerItems.find((r) => r.order_item_id === order_item_id)?.premium ?? null
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -92,10 +110,7 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
 
         <div className="divide-y">
           {rows.map((item) => {
-            const label =
-              item.item_type === 'scrap'
-                ? item.scrap?.name ?? item.scrap?.metal ?? 'Scrap'
-                : item.product?.name ?? 'Bullion'
+            const label = item.label ?? 'Item'
 
             return (
               <div
@@ -114,7 +129,9 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
                     min="-9999"
                     className={cn('on-glass no-spinner text-right h-8')}
                     defaultValue={
-                      item.refiner_premium != null ? (item.refiner_premium * 100).toString() : ''
+                      refinerPremiumOf(item.id) != null
+                        ? (refinerPremiumOf(item.id)! * 100).toString()
+                        : ''
                     }
                     disabled={updatePremium.isPending}
                     placeholder="e.g. 2.50"

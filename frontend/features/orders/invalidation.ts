@@ -23,8 +23,21 @@ export const invalidateOrderReads = (queryClient: QueryClient, order_id?: string
     queryKeys.salesOrders(),
     ...(order_id
       ? ([
+          // THE ORDER-SCOPED READ FAMILY (wave 3). The order document no
+          // longer carries items, shipments, the payout or the address, so
+          // each of their reads is invalidated by name: a mutation that once
+          // refetched one composed blob now refetches the resources it
+          // touched. Broad on purpose, same as the lists - refetchType
+          // 'active' bounds the cost to what is mounted.
+          ['order_items', order_id],
+          ['order_address', order_id],
+          ['order_shipments', order_id],
+          ['order_payouts', order_id],
+          ['order_pickups', order_id],
+          ['order_directs', order_id],
           ['order_spots', order_id],
           ['refiner_metals', order_id],
+          ['refiner_items', order_id],
           ['refiner_order', order_id],
           // The fulfillment read (features/fulfillments/queries.ts) serves the
           // same rows the shipment mutations write.
@@ -89,4 +102,22 @@ export const rollbackOrderLists = (queryClient: QueryClient, previous?: OrderLis
   for (const [queryKey, orders] of previous ?? []) {
     if (orders) queryClient.setQueryData(queryKey, orders)
   }
+}
+
+// The order's LINES, optimistically (wave 3). They are their own query now -
+// ['order_items', order_id] - so a confirmed flag or a removal flips there
+// rather than inside a composed order in two list caches. D83's rule is
+// unchanged and easier to keep here: only NON-price fields go through this;
+// every scrap and bullion figure prices the line and comes back from the
+// refetch invalidateOrderReads schedules.
+export const optimisticallyUpdateOrderItems = async (
+  queryClient: QueryClient,
+  order_id: string,
+  map: (items: readonly unknown[]) => unknown[]
+): Promise<OrderListSnapshot> => {
+  const queryKey: QueryKey = ['order_items', order_id]
+  await queryClient.cancelQueries({ queryKey })
+  const previous: OrderListSnapshot = [[queryKey, queryClient.getQueryData<unknown[]>(queryKey)]]
+  queryClient.setQueryData<unknown[]>(queryKey, (old = []) => map(old))
+  return previous
 }

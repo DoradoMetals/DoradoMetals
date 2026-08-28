@@ -10,8 +10,8 @@ import { DownloadIcon } from '@phosphor-icons/react'
 import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { OrderCardShell } from '@/features/orders/ui/OrderCardShell'
-import { useOrderSpots, nameSpots } from '@/features/orders/spots'
-import { useSpotPrices } from '@/features/spots/queries'
+import { useOrderItems } from '@/features/orders/reads'
+import { useProducts } from '@/features/products/queries'
 
 export default function SalesOrderCard({
   order,
@@ -23,25 +23,23 @@ export default function SalesOrderCard({
   const { openDrawer } = useDrawerStore()
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
 
-  const { data: orderSpots = [] } = useOrderSpots(order.id)
-  // Display composition, client-side: the rows carry metal_id, the reference
-  // read supplies the names the PDF templates print.
-  const { data: spotPrices = [] } = useSpotPrices()
-  const namedOrderSpots = nameSpots(orderSpots, spotPrices)
+  // A CONTAINER for its own lines (ruling 14). The row carries bullion_id and
+  // nothing else about the product; the image comes from the catalogue the
+  // storefront already caches, mapped by id client-side.
+  const { data: items = [] } = useOrderItems(order.id)
+  const { data: catalogue = [] } = useProducts()
   const downloadInvoice = useDownloadSalesOrderInvoice()
 
   const status = statusConfig[order.status ?? '']
   const Icon = status?.icon
 
-  const avatarItems = order.order_items.map((item) => ({
-    url: item.product?.image_front || '',
+  const avatarItems = items.map((item) => ({
+    url: catalogue.find((p) => p.id === item.bullion_id)?.image_front || '',
     count: item.quantity || 1,
   }))
 
   const itemsLabel =
-    order.order_items.length === 0
-      ? 'No Items Included'
-      : `${order.order_items.length} ${order.order_items.length === 1 ? 'Item' : 'Items'}`
+    items.length === 0 ? 'No Items Included' : `${items.length} ${items.length === 1 ? 'Item' : 'Items'}`
 
   const downloadOptions = [
     {
@@ -49,8 +47,8 @@ export default function SalesOrderCard({
       label: 'Invoice Preview',
       onClick: () =>
         downloadInvoice.mutate({
-          salesOrder: order,
-          orderSpots: namedOrderSpots,
+          order_id: order.id,
+          order_number: order.number,
           fileName: 'invoice_preview',
         }),
       isPending: downloadInvoice.isPending,
@@ -60,8 +58,8 @@ export default function SalesOrderCard({
       label: 'Invoice',
       onClick: () =>
         downloadInvoice.mutate({
-          salesOrder: order,
-          orderSpots: namedOrderSpots,
+          order_id: order.id,
+          order_number: order.number,
           fileName: 'invoice',
         }),
       isPending: downloadInvoice.isPending,

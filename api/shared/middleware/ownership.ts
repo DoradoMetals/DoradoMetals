@@ -115,16 +115,23 @@ export function requireOwnOrder(req: Request, res: Response, next: NextFunction)
 }
 
 // The same question for routes that carry the order id in the PATH -
-// GET /api/orders/:id/spots and /:id/fulfillment - where requireOwnOrder's
-// body-reading cannot see it. Same rules: admins pass, a missing row answers
-// exactly like somebody else's row.
+// GET /api/orders/:id/items, /:id/spots, /:id/address, /:orderId/shipments,
+// /:orderId/payouts - where requireOwnOrder's body-reading cannot see it.
+// Same rules: admins pass, a missing row answers exactly like somebody else's
+// row.
+//
+// BOTH SPELLINGS, because the order-scoped read family uses both: `:id` on the
+// paths whose sibling writes key the order itself, `:orderId` on the ones
+// handled by another feature. A guard that read only one would wave through
+// every route using the other - silently, with a 400 nobody sees because
+// admins short-circuit above it and admins are who tries it first.
 export function requireOwnOrderParam(req: Request, res: Response, next: NextFunction) {
   if (!req.user) {
     return res.status(401).json({ error: "Unauthorized" });
   }
   if (req.user.role === "admin") return next();
 
-  const orderId = req.params.id;
+  const orderId = req.params.id ?? req.params.orderId;
   if (!orderId) {
     return res.status(400).json({
       error: "Bad Request",

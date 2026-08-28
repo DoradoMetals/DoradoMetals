@@ -101,14 +101,18 @@ test("the admin list has the fields the drawer destructures", async () => {
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
+      // THE SLIM WIRE (wave 3) - see the twin in
+      // features/purchase-orders/replay.test.js. One shape for both
+      // directions, with `direction` the column that tells them apart.
       const o = res.body[0];
       for (const field of [
-        "id", "number", "status", "created_at",
-        "order_items", "address", "user", "totals", "shipment",
+        "id", "number", "status", "created_at", "direction", "user_id", "totals",
       ]) {
         assert.ok(field in o, `the admin sales list is missing ${field}`);
       }
-      assert.ok(Array.isArray(o.order_items));
+      for (const gone of ["order_items", "address", "user", "shipment"]) {
+        assert.ok(!(gone in o), `the order wire still carries ${gone}`);
+      }
     });
   }, { lock: ORDER_LOCK });
 });

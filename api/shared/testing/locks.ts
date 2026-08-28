@@ -30,7 +30,9 @@ export const LOCKS = {
   SCRAP_SWEEP: 4207,
   // fulfillments.fulfillments, .pickups, .directs, .shipments
   FULFILLMENTS: 4211,
-  // orders.*, checkout.*, exchange.purchase_orders, exchange.sales_orders
+  // orders.*, refiners.* (spots and items hang off an order and are written
+  // by the order-placing paths), checkout.*, exchange.purchase_orders,
+  // exchange.sales_orders
   ORDERS: 4213,
   // exchange.addresses, places.addresses, places.user_addresses
   //
@@ -74,13 +76,67 @@ export const LOCKS = {
 // and were left alone. orders/parity was one of the eight, and it creates
 // exchange.scrap - so the file written to prove the two order paths agree was
 // itself missing a lock.
+//
+// A NINTH JOINED THEM IN WAVE 3, the same way: features/refiners/spots/
+// repo.test.js deadlocked in a full run having passed in isolation every time
+// before. Nothing about it changed - the suite got faster (the order wire
+// slimmed and the composed read left the order paths) and the interleaving
+// moved. That is the standing lesson of this file: a missing lock is latent
+// until timing changes, and timing changes for reasons that have nothing to
+// do with the file that fails.
+import { appendFileSync } from "node:fs";
 import type { PoolClient } from "pg";
+
+// WHO HOLDS THE LOCK, AND FOR HOW LONG (D94). Set DORADO_LOCK_TRACE to a path
+// and every acquisition appends one JSON line: which file asked, which lock,
+// how long it WAITED, and - written at release - how long it HELD.
+//
+// This exists because the question D94 asks cannot be answered from test
+// durations. A test that asserts a 404 and touches nothing reported 195
+// seconds; the duration says the test was slow and says nothing about which
+// other file it was queued behind. Separating wait from hold is the whole
+// measurement: wait is the symptom, hold is the cause, and the serial chain
+// is the sum of the holds on one lock id.
+//
+// The file is process.argv[1], which node --test sets to the test file
+// because it runs each one in its own process. Off unless the variable is
+// set, so it costs nothing in a normal run.
+const TRACE = process.env.DORADO_LOCK_TRACE ?? null;
+
+function trace(record: Record<string, unknown>): void {
+  if (!TRACE) return;
+  try {
+    appendFileSync(TRACE, `${JSON.stringify(record)}\n`);
+  } catch {
+    // A diagnostic must never fail a test run.
+  }
+}
 
 export async function takeLocks(
   client: PoolClient, locks: number | number[] | null | undefined
 ): Promise<void> {
   const wanted = (Array.isArray(locks) ? locks : [locks]).filter((l): l is number => Boolean(l));
-  for (const id of [...new Set(wanted)].sort((a, b) => a - b)) {
+  const ids = [...new Set(wanted)].sort((a, b) => a - b);
+  for (const id of ids) {
+    const asked = Date.now();
     await client.query("SELECT pg_advisory_xact_lock($1)", [id]);
+    trace({ event: "acquired", id, file: process.argv[1], wait_ms: Date.now() - asked });
   }
+  if (!TRACE || ids.length === 0) return;
+
+  // The HOLD ends when the transaction does - pg_advisory_xact_lock releases
+  // at COMMIT or ROLLBACK - so the end of the hold is the end of the
+  // transaction, and that is what this hooks rather than guessing.
+  const held = Date.now();
+  const realQuery = client.query.bind(client);
+  (client as unknown as { query: unknown }).query = (sql: unknown, params?: unknown[]) => {
+    const text = typeof sql === "string" ? sql.trim().toUpperCase() : "";
+    if (text === "COMMIT" || text === "ROLLBACK") {
+      for (const id of ids) {
+        trace({ event: "released", id, file: process.argv[1], hold_ms: Date.now() - held });
+      }
+      (client as unknown as { query: unknown }).query = realQuery;
+    }
+    return realQuery(sql as never, params as never);
+  };
 }

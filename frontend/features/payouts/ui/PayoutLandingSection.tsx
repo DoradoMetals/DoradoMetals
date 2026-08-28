@@ -25,13 +25,18 @@ export function Payout() {
               return (
                 <div
                   key={opt.method}
-                  className="group relative rounded-xl bg-primary has-[.arrow:hover]:-translate-y-0.5 transition p-4 raised-off-page"
+                  // D95: a bg-primary CONTAINER whose children were painted -
+                  // which the palette flip made white-on-white, and which neither
+                  // the grep nor base.css's compound bridge can see because the
+                  // ground and the text are on different elements. The ground
+                  // keeps the token and the children take its FOREGROUND.
+                  className="group relative rounded-xl bg-primary text-primary-foreground has-[.arrow:hover]:-translate-y-0.5 transition p-4"
                 >
                   <div className="flex items-center justify-between w-full mb-2 md:mb-4 lg:mb-10">
                     <div className="flex items-center gap-2">
-                      <Icon className="text-white hidden md:block" size={48} />
-                      <Icon className="text-white md:hidden" size={36} />
-                      <h3 className="text-white text-xl font-semibold truncate mb-0 pb-0 md:hidden">
+                      <Icon className="hidden md:block" size={48} />
+                      <Icon className="md:hidden" size={36} />
+                      <h3 className="text-xl font-semibold truncate mb-0 pb-0 md:hidden">
                         {opt.label}
                       </h3>
                     </div>
@@ -41,16 +46,16 @@ export function Payout() {
                       className="arrow inline-flex items-center justify-center hover:cursor-pointer p-0"
                       onClick={() => router.push('/payout-options')}
                     >
-                      <ArrowUpRightIcon className="text-white hidden md:block" size={20} />
-                      <ArrowUpRightIcon className="text-white md:hidden" size={16} />
+                      <ArrowUpRightIcon className="hidden md:block" size={20} />
+                      <ArrowUpRightIcon className="md:hidden" size={16} />
                     </Button>
                   </div>
                   <div className="flex flex-col items-start gap-1">
-                    <h3 className="text-white hidden md:block text-2xl font-semibold truncate mb-0 pb-0">
+                    <h3 className="hidden md:block text-2xl font-semibold truncate mb-0 pb-0">
                       {opt.label}
                     </h3>
 
-                    <p className="text-white text-xs md:text-sm leading-relaxed">{opt.paragraph}</p>
+                    <p className="text-xs md:text-sm leading-relaxed">{opt.paragraph}</p>
                   </div>
                 </div>
               )

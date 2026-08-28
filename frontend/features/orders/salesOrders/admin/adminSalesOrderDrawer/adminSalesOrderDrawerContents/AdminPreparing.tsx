@@ -6,13 +6,26 @@ import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { RadioGroupImage } from '@/shared/ui/RadioGroupImage'
 import { useAdminSuppliers } from '@/features/products/queries'
 import { usePatchOrder } from '@/features/orders/patch'
-import { usePatchShipment } from '@/features/shipping/queries'
+import {
+  usePatchShipment,
+  useOrderShipments,
+  useShipmentDisplay,
+  outboundOf,
+} from '@/features/shipping/queries'
+import { useRefinerOrder } from '@/features/refiners/queries'
 import { Supplier } from '@/features/products/types'
 import { useCarriers } from '@/features/carriers/queries'
 import { Carrier } from '@/features/carriers/types'
 
 export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: suppliers = [] } = useAdminSuppliers()
+  // WHICH REFINERY HAS THE METAL IS THE ENGAGEMENT'S (ruling 6): the composed
+  // wire aliased refiners.orders.refiner_id onto the order as supplier_id, and
+  // orders.orders.refinery_id was dropped in 094.
+  const { data: engagement } = useRefinerOrder(order.id)
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const shipment = outboundOf(shipments)
+  const { carrier_id: shipmentCarrierId } = useShipmentDisplay(shipment)
   const { data: carriers = [] } = useCarriers()
 
   // Tracking writes to the SHIPMENT resource; the supplier send is the order
@@ -35,16 +48,16 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
   }
 
   useEffect(() => {
-    if (suppliers.length && order.supplier_id) {
-      handleSupplierChange(order.supplier_id)
+    if (suppliers.length && engagement?.refiner_id) {
+      handleSupplierChange(engagement.refiner_id)
     }
-  }, [suppliers, order.supplier_id])
+  }, [suppliers, engagement?.refiner_id])
 
   useEffect(() => {
-    if (carriers.length && order.shipment.carrier_id) {
-      handleCarrierChange(order.shipment.carrier_id)
+    if (carriers.length && shipmentCarrierId) {
+      handleCarrierChange(shipmentCarrierId)
     }
-  }, [carriers, order.shipment.carrier_id])
+  }, [carriers, shipmentCarrierId])
 
   const config = statusConfig[order.status ?? '']
 
@@ -69,9 +82,7 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
 
       <Button
         className={cn(
-          'p-4 raised-off-page w-full text-white',
-          'primary-on-glass',
-          'hover:bg-primary',
+          'p-4 w-full',
           !selectedSupplier || (sendOrder.isPending && 'opacity-30')
         )}
         onClick={() => {
@@ -120,15 +131,13 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
 
       <Button
         className={cn(
-          'p-4 raised-off-page w-full text-white',
-          'primary-on-glass',
-          'hover:bg-primary',
+          'p-4 w-full',
           !selectedCarrier || updateTracking.isPending || (trackingNumber === '' && 'opacity-30')
         )}
         onClick={() => {
-          if (!order.shipment.id) return
+          if (!shipment?.id) return
           updateTracking.mutate({
-            shipment_id: order.shipment.id,
+            shipment_id: shipment.id,
             order_id: order.id,
             patch: {
               tracking_number: trackingNumber,

@@ -95,6 +95,42 @@ const send = (verb, url) => {
   return req[method](url).send({});
 };
 
+// Where a route's handler actually lives. Mounting is composition, not
+// ownership: `import { getShipmentsByOrder } from "#features/shipping/..."`
+// in features/orders/routes.ts is a handler owned by shipping and mounted by
+// orders, and this reads that import rather than assuming the sibling.
+function controllerFor(r) {
+  const read = (rel) => {
+    for (const ext of ["ts", "js"]) {
+      try {
+        return readFileSync(new URL(`../../${rel.replace(/\.(ts|js)$/, "")}.${ext}`, import.meta.url), "utf8");
+      } catch {
+        /* try the other extension */
+      }
+    }
+    return null;
+  };
+
+  let routes = null;
+  try {
+    routes = readFileSync(new URL(`../../${r.file}`, import.meta.url), "utf8");
+  } catch {
+    routes = null;
+  }
+  if (routes) {
+    // Every import block naming this handler, single- or multi-line.
+    const re = /import\s*\{([^}]*)\}\s*from\s*"#([^"]+)"/g;
+    let m;
+    while ((m = re.exec(routes)) !== null) {
+      const named = m[1].split(",").map((n) => n.trim().split(/\s+as\s+/)[0].trim());
+      if (!named.includes(r.handler)) continue;
+      const src = read(m[2].replace(/^features\//, "features/"));
+      if (src !== null) return src;
+    }
+  }
+  return read(r.file.replace(/routes\.(js|ts)$/, "controller"));
+}
+
 test("every admin route refuses a signed-in customer", async () => {
   const reached = [];
   await inPinnedTransaction(async () => {
@@ -174,16 +210,16 @@ test("no requireUser handler takes a user_id from the request without an admin c
     // check would still report clean while covering less of the surface every
     // time another batch landed. shared/http/endpoints.test.js had the same
     // assumption and caught it by refusing; this now refuses too.
-    let src = null;
-    for (const ext of ["ts", "js"]) {
-      const controller = r.file.replace(/routes\.(js|ts)$/, `controller.${ext}`);
-      try {
-        src = readFileSync(new URL(`../../${controller}`, import.meta.url), "utf8");
-        break;
-      } catch {
-        /* try the other extension */
-      }
-    }
+    // THE HANDLER IS NOT ALWAYS THE ROUTES FILE'S SIBLING, and since wave 3 it
+    // often is not. The order-scoped read family mounts paths under /orders -
+    // the order id is the key the caller holds - while each handler lives in
+    // the feature that owns its TABLE (ruling 13, generalised by ruling 26:
+    // "the route might be /fulfillments/methods but it needs to live in the
+    // methods folder"). A scanner that resolves by sibling convention alone
+    // reports those as unresolved, which is a failure by design here - so it
+    // follows the routes file's own IMPORT of the handler first, and falls
+    // back to the sibling.
+    const src = controllerFor(r);
     if (src === null) {
       unresolved.push(`${r.verb} ${r.url} (no controller file)`);
       continue;

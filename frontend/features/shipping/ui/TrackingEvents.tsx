@@ -78,7 +78,10 @@ export default function TrackingEvents({
             <div className="h-4 bg-card rounded w-1/3" />
             <div className="h-4 bg-card rounded w-1/6" />
           </div>
-          <ol className="relative ml-4">
+          {/* A timeline, not prose - see the note in the order drawer's
+              InTransit: `flex` is what typography.css's layout-intent
+              exemption reads, and it is what this list actually is. */}
+          <ol className="relative ml-4 flex flex-col">
             {MASTER_STAGES.map((_, i) => (
               <li key={i} className="relative pl-6 pb-6 flex items-center">
                 <div className="absolute -left-[10px] w-5 h-5 bg-card rounded-full" />
@@ -108,7 +111,10 @@ export default function TrackingEvents({
             </div>
           </div>
 
-          <ol className="relative ml-4">
+          {/* A timeline, not prose - see the note in the order drawer's
+              InTransit: `flex` is what typography.css's layout-intent
+              exemption reads, and it is what this list actually is. */}
+          <ol className="relative ml-4 flex flex-col">
             {steps.map((step, i) => (
               <li
                 key={step.id}

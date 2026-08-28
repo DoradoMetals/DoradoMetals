@@ -2,9 +2,16 @@
 
 import { Input } from '@/shared/ui/base/input'
 import { cn } from '@/shared/utils/cn'
-import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
-import { usePatchShipment } from '@/features/shipping/queries'
-import { usePatchRefinerItem, usePatchRefinerOrder, useRefinerOrder } from '@/features/refiners/queries'
+import { assignScrapItemNames, PurchaseOrder } from '@/features/orders/purchaseOrders/types'
+import { useOrderItems, nameOf } from '@/features/orders/reads'
+import { useSpotPrices } from '@/features/spots/queries'
+import { usePatchShipment, useOrderShipments, outboundOf } from '@/features/shipping/queries'
+import {
+  usePatchRefinerItem,
+  usePatchRefinerOrder,
+  useRefinerOrder,
+  useRefinerItems,
+} from '@/features/refiners/queries'
 import {
   Table,
   TableBody,
@@ -23,9 +30,20 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
   // The engagement row, by the order id this component holds - its own id is
   // the PATCH's key.
   const { data: refinerOrder } = useRefinerOrder(order.id)
+  const { data: refinerItems = [] } = useRefinerItems(order.id)
 
-  const rawScrap = order.order_items.filter((it) => it.item_type === 'scrap' && it.scrap)
-  const scrapItems = assignScrapItemNames(rawScrap)
+  // A CONTAINER (ruling 14): lines and the parcel are their own reads.
+  const { data: items = [] } = useOrderItems(order.id)
+  const { data: spotPrices = [] } = useSpotPrices()
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const shipment = outboundOf(shipments)
+
+  const scrapItems = assignScrapItemNames(
+    items.filter((it) => it.bullion_id === null),
+    (metal_id) => nameOf(spotPrices, metal_id)
+  )
+  const refinerOf = (order_item_id: string) =>
+    refinerItems.find((r) => r.order_item_id === order_item_id) ?? null
 
   const parseNumber = (raw: string): number | null => {
     const s = raw.replace(/\s+/g, '')
@@ -50,22 +68,26 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
   // by the order line, not to the customer-side scrap row. `content` is not
   // sent: the API derives it from post_melt and purity (and refuses a raw
   // value by name), which is the same arithmetic this component used to do.
+  // THE ASSAY FIGURES ARE THE REFINER'S ROW, not the customer's line. They
+  // rode on the composed order as scrap.purity_actual / post_melt_actual /
+  // content_actual - three fields of refiners.items wearing customer-facing
+  // names - and are their own read now, keyed by order_item_id.
   const mutateActuals = (
-    item: PurchaseOrderItem,
+    item: { id: string },
     fields: Partial<{
       purity_actual: number | null
       post_melt_actual: number | null
     }>
   ) => {
-    const prev = item.scrap!
+    const prev = refinerOf(item.id)
     const { purity_actual, post_melt_actual } = fields
 
     patchRefinerItem.mutate({
       order_item_id: item.id,
       order_id: order.id,
       patch: {
-        purity: purity_actual ?? prev.purity_actual ?? null,
-        post_melt: post_melt_actual ?? prev.post_melt_actual ?? null,
+        purity: purity_actual ?? prev?.purity ?? null,
+        post_melt: post_melt_actual ?? prev?.post_melt ?? null,
       },
     })
   }
@@ -87,8 +109,8 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                 </TableHeader>
                 <TableBody>
                   {scrapItems.map((item) => {
-                    const s = item.scrap!
-                    const label = s.name ?? s.metal ?? 'Scrap'
+                    const label = item.name ?? item.metal ?? 'Scrap'
+                    const s = refinerOf(item.id)
                     return (
                       <TableRow key={item.id} className="hover:bg-transparent">
                         <TableCell className="text-left">{label}</TableCell>
@@ -100,7 +122,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                               inputMode="decimal"
                               className={cn('on-glass no-spinner text-right h-8')}
                               defaultValue={
-                                s.purity_actual != null ? (s.purity_actual * 100).toFixed(1).toString() : ''
+                                s?.purity != null ? (s.purity * 100).toFixed(1).toString() : ''
                               }
                                placeholder="Enter Actual Purity"
                               onBlur={(e) => {
@@ -120,7 +142,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                             inputMode="decimal"
                             step="0.0001"
                             className={cn('on-glass no-spinner text-right h-8')}
-                            defaultValue={s.post_melt_actual ?? ''}
+                            defaultValue={s?.post_melt ?? ''}
                             placeholder="Enter Actual Post-Melt"
                             onBlur={(e) => {
                               const n = parseNumber(e.target.value)
@@ -128,7 +150,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                             }}
                           />
                           <span className="text-sm text-neutral-700 whitespace-nowrap">
-                            {s.gross_unit ?? 't oz'}
+                            {s?.unit ?? item.unit ?? 't oz'}
                           </span>
                         </TableCell>
                       </TableRow>
@@ -153,7 +175,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
             <div className="divide-y">
               <div className="flex items-center justify-between w-full items-center px-3 py-2 text-sm">
                 <div className="truncate">
-                  <span className="text-neutral-800">${order.shipment.shipping_charge}</span>
+                  <span className="text-neutral-800">${shipment?.cost}</span>
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -163,11 +185,14 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                     step="0.01"
                     min="-9999"
                     className={cn('on-glass no-spinner text-right h-8')}
-                    defaultValue={order.shipping_fee_actual ?? 0}
+                    // THE PARCEL'S ACTUAL COST IS THE PARCEL'S. It rode on the
+                    // order document as shipping_fee_actual, a column of
+                    // orders.transactions; the row's own name is actual_cost.
+                    defaultValue={shipment?.actual_cost ?? 0}
                     onBlur={(e) => {
-                      if (!order.shipment.id) return
+                      if (!shipment?.id) return
                       patchShipment.mutate({
-                        shipment_id: order.shipment.id,
+                        shipment_id: shipment.id,
                         order_id: order.id,
                         patch: { shipping_actual: Number(e.target.value) },
                       })
@@ -197,7 +222,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                     step="0.01"
                     min="-9999"
                     className={cn('on-glass no-spinner text-right h-8')}
-                    defaultValue={Number(order.pool_oz_deducted ?? 0).toFixed(3)}
+                    defaultValue={Number(refinerOrder?.pool_oz_deducted ?? 0).toFixed(3)}
                     onBlur={(e) => {
                       if (!refinerOrder?.id) return
                       patchRefinerOrder.mutate({
@@ -216,7 +241,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                     step="0.01"
                     min="-9999"
                     className={cn('on-glass no-spinner text-right h-8')}
-                    defaultValue={Number(order.pool_remediation ?? 0).toFixed(2)}
+                    defaultValue={Number(refinerOrder?.pool_remediation ?? 0).toFixed(2)}
                     onBlur={(e) => {
                       if (!refinerOrder?.id) return
                       patchRefinerOrder.mutate({

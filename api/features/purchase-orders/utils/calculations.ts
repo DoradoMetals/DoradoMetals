@@ -44,14 +44,19 @@
 // nobody has quoted yet correctly has no price. The dangerous version would be
 // a null spot on a priced order, and there are none.
 //
-// The item type is PurchaseOrderItem from the contracts package
+// The item type is ComposedItem, the API's own assembled line
 // (D84: the item's product speaks the schema's names now). `scrap` is always
 // present as an object - the repo builds it with jsonb_build_object, so a
 // bullion line carries a scrap object of nulls rather than null - and the
 // optional chaining stays: it describes what a hand-built test fixture might
 // omit, not what the API sends. `product` is nullable on the Next wire, so
 // its accesses chain too; at runtime the repos still emit an object of nulls.
-import type { PurchaseOrderItem } from "@dorado/contracts";
+// THE COMPOSED LINE IS AN INTERNAL SHAPE, NOT A CONTRACT (wave 3). It was
+// the PurchaseOrderItem wire schema until the order wire slimmed; the wire
+// serves orders.items rows verbatim now, and the assembled line with its
+// scrap and product members survives only inside the API, where pricing and
+// the confirmation email genuinely need an order put back together.
+import type { ComposedItem as PurchaseOrderItem } from "#features/purchase-orders/compose.ts";
 
 // What pricing needs of a spot row. The composed shape (`name` / `ask` /
 // `bid`) - spots/service.getSpotPrices, orders.spots and the order-metals

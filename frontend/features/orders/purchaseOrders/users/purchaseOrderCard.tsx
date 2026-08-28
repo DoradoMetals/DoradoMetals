@@ -8,16 +8,13 @@ import {
   useDownloadReturnPackingList,
 } from '@/features/pdfs/queries'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { packageOptions } from '@/features/packaging/types'
-import { payoutOptions } from '@/features/payouts/types'
 import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
 // The card's total is the server's order quote (Jacob's no-previews ruling).
 import { useOrderQuote } from '@/features/quotes/queries'
 import { DownloadIcon } from '@phosphor-icons/react'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
-import { useSpotPrices } from '@/features/spots/queries'
-import { useOrderSpots, nameSpots } from '@/features/orders/spots'
+import { useOrderItems } from '@/features/orders/reads'
 import { OrderCardShell } from '@/features/orders/ui/OrderCardShell'
 
 export default function PurchaseOrderCard({
@@ -33,19 +30,12 @@ export default function PurchaseOrderCard({
   const downloadInvoice = useDownloadInvoice()
 
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
-  const { data: spotPrices = [] } = useSpotPrices()
-  const { data: orderSpots = [] } = useOrderSpots(order.id)
-  // Display composition, client-side: the rows carry metal_id, the reference
-  // read supplies the names the PDF templates print.
-  const namedOrderSpots = nameSpots(orderSpots, spotPrices)
+  // The card is a CONTAINER for its own lines (ruling 14): one hook next to
+  // what it renders, rather than a composed order drilled in from the tab.
+  const { data: items = [] } = useOrderItems(order.id)
 
   const status = statusConfig[order.status ?? '']
   const Icon = status?.icon
-
-  const packageDetails =
-    packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
-  const payoutDetails =
-    payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
 
   const { data: quote } = useOrderQuote(order.id)
 
@@ -65,22 +55,14 @@ export default function PurchaseOrderCard({
       statuses: ['In Transit'],
       label: 'Shipment Info',
       onClick: () =>
-        downloadPackingList.mutate({
-          purchaseOrder: order,
-          spotPrices,
-          packageDetails,
-          payoutDetails,
-        }),
+        downloadPackingList.mutate({ order_id: order.id, order_number: order.number }),
       isPending: downloadPackingList.isPending,
     },
     {
       statuses: ['Cancelled'],
       label: 'Shipment Info',
       onClick: () =>
-        downloadReturnPackingList.mutate({
-          purchaseOrder: order,
-          spotPrices,
-        }),
+        downloadReturnPackingList.mutate({ order_id: order.id, order_number: order.number }),
       isPending: downloadReturnPackingList.isPending,
     },
     {
@@ -88,9 +70,8 @@ export default function PurchaseOrderCard({
       label: 'Invoice Preview',
       onClick: () =>
         downloadInvoice.mutate({
-          purchaseOrder: order,
-          spotPrices,
-          orderSpots: namedOrderSpots,
+          order_id: order.id,
+          order_number: order.number,
           fileName: 'invoice_preview',
         }),
       isPending: downloadInvoice.isPending,
@@ -100,9 +81,8 @@ export default function PurchaseOrderCard({
       label: 'Invoice',
       onClick: () =>
         downloadInvoice.mutate({
-          purchaseOrder: order,
-          spotPrices,
-          orderSpots: namedOrderSpots,
+          order_id: order.id,
+          order_number: order.number,
           fileName: 'invoice',
         }),
       isPending: downloadInvoice.isPending,
@@ -110,9 +90,7 @@ export default function PurchaseOrderCard({
   ]
 
   const itemsLabel =
-    order.order_items.length === 0
-      ? 'No Items Included'
-      : `${order.order_items.length} ${order.order_items.length === 1 ? 'Item' : 'Items'}`
+    items.length === 0 ? 'No Items Included' : `${items.length} ${items.length === 1 ? 'Item' : 'Items'}`
 
   return (
     <OrderCardShell

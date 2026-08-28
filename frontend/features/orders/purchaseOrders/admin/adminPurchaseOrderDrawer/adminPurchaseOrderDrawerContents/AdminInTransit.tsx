@@ -9,13 +9,24 @@ import {
   useShippingCancelLabel,
   useShippingCancelPickup,
   useTracking,
+  useOrderShipments,
+  useShipmentPickups,
+  useShipmentDisplay,
+  outboundOf,
 } from '@/features/shipping/queries'
+import type { Shipment } from '@dorado/contracts'
 
 export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
+  // A CONTAINER for its own parcel (ruling 14) - see the same note in the
+  // customer drawer's InTransit.
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const shipment = outboundOf(shipments)
+  const { carrier_id } = useShipmentDisplay(shipment)
+
   const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: order.shipment.id ?? '',
-    tracking_number: order.shipment.tracking_number ?? '',
-    carrier_id: order.shipment.carrier_id ?? '',
+    shipment_id: shipment?.id ?? '',
+    tracking_number: shipment?.tracking_number ?? '',
+    carrier_id: carrier_id ?? '',
   })
 
   const color = 'text-primary'
@@ -23,10 +34,10 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
   const border = 'border-primary'
   return (
     <>
-      {order.shipment.shipping_status === 'Label Created' ||
-      order.shipment.shipping_status === 'Cancelled' ? (
+      {shipment?.shipping_status === 'Label Created' ||
+      shipment?.shipping_status === 'Cancelled' ? (
         <div className="flex flex-col w-full gap-5">
-          <PreTransit order={order} color={color} />
+          <PreTransit shipment={shipment} carrierId={carrier_id} color={color} />
         </div>
       ) : (
         <TrackingEvents
@@ -34,21 +45,28 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
           trackingInfo={trackingInfo}
           background_color={baseBg}
           borderColor={border}
-          delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery ?? undefined}
-          shipping_status={order.shipment.shipping_status ?? ''}
+          delivery_date={shipment?.delivered_at ?? shipment?.est_delivery ?? undefined}
+          shipping_status={shipment?.shipping_status ?? ''}
         />
       )}
     </>
   )
 }
 
+// A SMALL CONTAINER (ruling 14): the parcel and its carrier arrive as props;
+// the carrier PICKUP is the parcel's own child and is fetched here.
 export function PreTransit({
-  order,
+  shipment,
+  carrierId,
   color,
 }: {
-  order: PurchaseOrderDrawerContentProps['order']
+  shipment?: Shipment
+  carrierId: string | null
   color?: string
 }) {
+  const { data: pickups = [] } = useShipmentPickups(shipment?.id)
+  const carrierPickup = pickups[0] ?? null
+
   const cancelLabel = useShippingCancelLabel()
   const cancelPickup = useShippingCancelPickup()
 
@@ -56,15 +74,20 @@ export function PreTransit({
     <div className="flex flex-col w-full gap-5">
       <div className="flex w-full justify-between items-center">
         <h3 className="text-base text-neutral-800">Package Not Yet Scanned</h3>
-        {order.carrier_pickup?.confirmation_number && order.carrier_pickup?.pickup_requested_at && (
+        {carrierPickup?.confirmation_number && carrierPickup?.requested_at && (
           <Button
             variant="link"
             className={cn('bg-transparent hover:bg-transparent', color)}
             onClick={() => {
               cancelPickup.mutate({
-                carrier_id: order.shipment.carrier_id ?? '',
-                pickup_id: order?.carrier_pickup?.id ?? '',
-                confirmation_code: order?.carrier_pickup?.confirmation_number ?? undefined,
+                carrier_id: carrierId ?? '',
+                pickup_id: carrierPickup?.id ?? '',
+                // TEXT on shipping.pickups where exchange had a numeric
+                // column - the composed wire cast it back. The cancel input
+                // still wants a number.
+                confirmation_code: carrierPickup?.confirmation_number
+                  ? Number(carrierPickup.confirmation_number)
+                  : undefined,
               })
             }}
           >
@@ -74,7 +97,7 @@ export function PreTransit({
       </div>
       <div className="flex w-full justify-between items-center">
         <div className="">Tracking Number:</div>
-        <div>{order.shipment.tracking_number}</div>
+        <div>{shipment?.tracking_number}</div>
       </div>
       <div className=""></div>
 
@@ -83,19 +106,19 @@ export function PreTransit({
           variant="outline"
           className="text-destructive bg-transparent border border-destructive hover:text-white hover:bg-destructive"
           disabled={
-            !order.shipment.shipping_label ||
-            order.shipment.shipping_status === 'Cancelled' ||
+            !shipment?.label ||
+            shipment?.shipping_status === 'Cancelled' ||
             cancelLabel.isPending
           }
           onClick={() =>
             cancelLabel.mutate({
-              carrier_id: order.shipment.carrier_id ?? '',
-              shipment_id: order.shipment.id ?? '',
-              tracking_number: order.shipment.tracking_number ?? '',
+              carrier_id: carrierId ?? '',
+              shipment_id: shipment?.id ?? '',
+              tracking_number: shipment?.tracking_number ?? '',
             })
           }
         >
-          {order.shipment.shipping_status === 'Cancelled'
+          {shipment?.shipping_status === 'Cancelled'
             ? 'Label Cancelled'
             : cancelLabel.isPending
             ? 'Cancelling'

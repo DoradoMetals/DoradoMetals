@@ -22,7 +22,7 @@ export default function SalesOrderDrawer({ order_id, user }: SalesOrderDrawerPro
   }
 
   return (
-    <Drawer label="Sales order" open={isDrawerOpen} setOpen={closeDrawer} className="glass-panel max-w-full">
+    <Drawer label="Sales order" open={isDrawerOpen} setOpen={closeDrawer} className="max-w-full">
       <SalesOrderDrawerHeader
         order={order}
         username={user?.name ?? ''}

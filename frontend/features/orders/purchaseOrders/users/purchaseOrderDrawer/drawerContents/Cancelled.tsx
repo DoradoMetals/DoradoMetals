@@ -3,13 +3,29 @@ import { Button } from '@/shared/ui/base/button'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
-import { useTracking } from '@/features/shipping/queries'
+import {
+  useTracking,
+  useOrderShipments,
+  useShipmentDisplay,
+  outboundOf,
+  returnOf,
+} from '@/features/shipping/queries'
 
 export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
+  // A CONTAINER for its own parcels (ruling 14). `shipment` and
+  // `return_shipment` were two named slots for one table; shipments are one
+  // read now, filtered on the row's own `direction` column. carrier_id is not
+  // a column of shipping.shipments - the SERVICE knows its carrier - so
+  // useShipmentDisplay resolves it off the cached carrier-services list.
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const shipment = outboundOf(shipments)
+  const returnShipment = returnOf(shipments)
+  const { carrier_id: returnCarrierId } = useShipmentDisplay(returnShipment)
+
   const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: order.return_shipment.id ?? '',
-    tracking_number: order.return_shipment.tracking_number ?? '',
-    carrier_id: order.return_shipment.carrier_id ?? '',
+    shipment_id: returnShipment?.id ?? '',
+    tracking_number: returnShipment?.tracking_number ?? '',
+    carrier_id: returnCarrierId ?? '',
   })
 
 
@@ -18,20 +34,20 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
   return (
     <>
       <div className="flex flex-col w-full h-full">
-        {!order.shipping_paid ? (
+        {!order.totals?.shipping_paid ? (
           <div className="flex flex-col h-full w-full mb-4 gap-6">
             <div className="flex flex-col w-full">
               <div className="flex w-full justify-between items-center mb-1">
                 <div className="text-lg text-neutral-800">Shipping Charges:</div>
                 <div className="text-lg text-neutral-800">
                   <PriceNumberFlow
-                    value={(order.shipment.shipping_charge ?? 0) + (order.return_shipment.shipping_charge ?? 0)}
+                    value={(shipment?.cost ?? 0) + (returnShipment?.cost ?? 0)}
                   />
                 </div>
               </div>
               <Button
                 variant="default"
-                className="text-white raised-off-page w-full p-4 bg-primary"
+                className="text-primary-foreground raised-off-page w-full p-4 bg-primary"
                 onClick={handlePayShipping}
               >
                 Pay Shipping Charges
@@ -43,8 +59,8 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
           <TrackingEvents
             isLoading={isLoading}
             trackingInfo={trackingInfo}
-            delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery ?? undefined}
-            shipping_status={order.shipment.shipping_status ?? ''}
+            delivery_date={shipment?.delivered_at ?? shipment?.est_delivery ?? undefined}
+            shipping_status={shipment?.shipping_status ?? ''}
           />
         )}
       </div>

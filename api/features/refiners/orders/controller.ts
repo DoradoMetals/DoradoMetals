@@ -1,5 +1,6 @@
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as refinerOrdersService from "#features/refiners/orders/service.ts";
+import * as refinerItemsRepo from "#features/refiners/items/repo.ts";
 
 export const patchRefinerOrder = asyncHandler(async (req, res) => {
   const engagement = await refinerOrdersService.patchRefinerOrder(req.params.id, req.body ?? {});
@@ -33,4 +34,17 @@ export const getRefinerSpotsByOrder = asyncHandler(async (req, res) => {
     });
   }
   return res.json(spots);
+});
+
+// GET /api/orders/:orderId/refiners/items - THE REFINERY'S NUMBERS PER LINE,
+// verbatim refiners.items rows, keyed by the customer order.
+//
+// This is where the assay figures live now. The composed order wire carried
+// them as scrap.purity_actual / post_melt_actual / content_actual and the
+// refiner's premium as an item field - four values of a different table,
+// under different names, on a customer-shaped object. They come back as their
+// own rows keyed by order_item_id, which the items read supplies. Admin-only:
+// what the refinery reported decides what the business is paid.
+export const getRefinerItemsByOrder = asyncHandler(async (req, res) => {
+  return res.json(await refinerItemsRepo.getForOrder(req.params.orderId));
 });

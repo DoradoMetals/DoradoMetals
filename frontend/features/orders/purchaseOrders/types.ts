@@ -1,5 +1,7 @@
 import { z } from 'zod/v4'
 
+import type { OrderItem as OrderItemRow } from '@dorado/contracts'
+
 import {
   Truck,
   PackageOpen,
@@ -12,9 +14,7 @@ import {
 import {
   Address as AddressContract,
   UserAddress as UserAddressContract,
-  type PurchaseOrder as PurchaseOrderContract,
-  type PurchaseOrderItem as PurchaseOrderItemContract,
-  type PayoutOnOrder,
+  type Order as OrderContract,
 } from '@dorado/contracts'
 import { pickupSchema } from '@/features/handoff/types'
 import { payoutSchema } from '@/features/payouts/types'
@@ -24,24 +24,24 @@ import { sellCartItemSchema } from '@/features/cart/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User } from '@/features/users/types'
 
-// EIGHTH CONVERTED FEATURE (2026-08-28) - the last one. The order IS the
-// contracts shape: `number` / `status` where the legacy wire said
-// order_number / purchase_order_status, money nested as `totals`, the
-// address a SNAPSHOT (postal facts plus recipient_name), embedded products
-// speaking name/description/type and order spots name/ask/bid. The whole
-// seam layer (orderSpots / orderProducts / orderAddresses) died with this -
-// there is nothing left to map.
-export type PurchaseOrderItem = PurchaseOrderItemContract
-
-// The contract's PayoutSlotOnOrder is built by mapping nullability over
-// PayoutOnOrder at runtime, which erases the field types to `unknown` in
-// inference. Same shape, stated statically: every field, nullable - an order
-// with no payout row carries an object of nulls, not a null.
-export type PayoutSlot = { [K in keyof PayoutOnOrder]: PayoutOnOrder[K] | null }
-
-export type PurchaseOrder = Omit<PurchaseOrderContract, 'payout'> & {
-  payout: PayoutSlot
-}
+// THE ORDER IS THE ROW (wave 3). `PurchaseOrder` is a LOCAL NAME for the one
+// contract shape - orders.orders verbatim plus `totals` - because this tree's
+// components are per-direction and the name reads. There is no purchase
+// order type any more: `direction` is the column that tells the two apart.
+//
+// Everything that used to hang off it is its own hook now:
+//   order_items      useOrderItems(order.id)          features/orders/reads
+//   address          useOrderAddress(order.id)        features/orders/reads
+//   shipment /       useOrderShipments(order.id)      features/shipping
+//   return_shipment    + outboundOf / returnOf
+//   payout           useOrderPayouts(order.id)        features/payouts
+//   carrier_pickup   useShipmentPickups(shipment.id)  features/shipping
+//   user             user_id, mapped off useAdminUsers
+//   the assay        useRefinerItems(order.id)        features/refiners
+// and the money that was flattened onto the order - shipping_paid,
+// waive_shipping_fee, waive_payout_fee, shipping_fee_actual - is on
+// `totals`, which is the orders.transactions row it always came from.
+export type PurchaseOrder = OrderContract
 
 export const purchaseOrderReturnShipmentSchema = z.object({
   address: AddressContract,
@@ -132,37 +132,40 @@ export interface PurchaseOrderActionButtonsProps {
   order: PurchaseOrder
 }
 
-export function assignScrapItemNames(scrapItems: PurchaseOrderItem[]): PurchaseOrderItem[] {
+// "Gold Item 1", "Silver Item 2" - a DISPLAY label for a scrap line, which
+// has no name of its own because a scrap line is a weight and a purity.
+//
+// IT TAKES THE METAL NAME AS DATA NOW. The composed wire carried
+// item.scrap.metal, a joined string; an orders.items row carries metal_id,
+// and the caller maps it against the spots reference list it already caches
+// (features/orders/spots.ts does the same for spot rows). So this is handed
+// `[row, metalName]` pairs and stays a pure function of them - which is why
+// it is the one thing in this file with a unit test.
+export type NamedScrapItem = OrderItemRow & { metal: string; name: string }
+
+export function assignScrapItemNames(
+  scrapItems: OrderItemRow[],
+  metalNameOf: (metal_id: string) => string | null
+): NamedScrapItem[] {
   const metalOrder = ['Gold', 'Silver', 'Platinum', 'Palladium']
 
-  const validScrapItems = scrapItems.filter((item) => item.scrap?.metal)
+  const named = scrapItems
+    .map((item) => ({ item, metal: metalNameOf(item.metal_id) }))
+    .filter((n): n is { item: OrderItemRow; metal: string } => !!n.metal)
 
-  validScrapItems.sort((a, b) => {
-    const indexA = metalOrder.indexOf(a.scrap!.metal!)
-    const indexB = metalOrder.indexOf(b.scrap!.metal!)
-    return indexA - indexB
+  named.sort((a, b) => metalOrder.indexOf(a.metal) - metalOrder.indexOf(b.metal))
+
+  const grouped: Record<string, typeof named> = {}
+  named.forEach((n) => {
+    if (!grouped[n.metal]) grouped[n.metal] = []
+    grouped[n.metal].push(n)
   })
 
-  const grouped: Record<string, PurchaseOrderItem[]> = {}
-  validScrapItems.forEach((item) => {
-    const metal = item.scrap!.metal!
-    if (!grouped[metal]) grouped[metal] = []
-    grouped[metal].push(item)
-  })
-
-  return validScrapItems.map((item) => {
-    const metal = item.scrap!.metal!
-    const group = grouped[metal]
-    const index = group.indexOf(item)
-
-    return {
-      ...item,
-      scrap: {
-        ...item.scrap!,
-        name: `${metal} Item ${index + 1}`,
-      },
-    }
-  })
+  return named.map((n) => ({
+    ...n.item,
+    metal: n.metal,
+    name: `${n.metal} Item ${grouped[n.metal].indexOf(n) + 1}`,
+  }))
 }
 
 // ProfitMetalsDict / ProfitCategoriesDict / PurchaseOrderTotals lived here

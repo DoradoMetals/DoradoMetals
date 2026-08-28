@@ -6,7 +6,6 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import { SalesOrder } from "@dorado/contracts";
 import * as readService from "#features/sales-orders/read.service.ts";
 import * as purchase from "#features/purchase-orders/read.service.ts";
 
@@ -37,10 +36,21 @@ async function inRollback(fn) {
 // The composed query this was compared against died with the read pivot; the
 // CONTRACT is the independent statement of the shape now, and validate:wire
 // parses real rows through it - this pin is the cheap in-suite version.
-test("a sales order carries exactly the contract's fields", async () => {
+// See the note in features/purchase-orders/repo.next.test.js: the contract
+// stopped describing this shape when the order wire slimmed (wave 3). This is
+// the API's OWN composed order - what the PDFs and the supplier email need -
+// pinned against the explicit list compose.ts builds.
+const COMPOSED_FIELDS = [
+  "id", "user_id", "address_id", "supplier_id", "status", "notes",
+  "created_at", "updated_at", "created_by", "updated_by", "number",
+  "review_created", "order_sent", "tracking_updated", "shipping_service",
+  "used_funds", "totals", "order_items", "address", "shipment", "user",
+];
+
+test("the composed order carries exactly the fields compose.ts builds", async () => {
   const [b] = await readService.getAll();
   assert.ok(b, "no orders came back - this proves nothing");
-  assert.deepEqual(Object.keys(b).sort(), Object.keys(SalesOrder.shape).sort());
+  assert.deepEqual(Object.keys(b).sort(), [...COMPOSED_FIELDS].sort());
 });
 
 // The two kinds of order share a table now. A purchase order surfacing in a

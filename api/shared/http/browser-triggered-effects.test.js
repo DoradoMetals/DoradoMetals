@@ -49,7 +49,12 @@ const walk = (dir, out = []) => {
 // Committed rather than derived: a list read out of the file it checks would
 // shrink as the code changed and always agree with itself.
 const ALLOWED = [
-  "onSuccess POST /emails/purchase_order_created",
+  // THE LIST IS EMPTY OF EFFECTS, and that is the point of D91. It carried
+  // "onSuccess POST /emails/purchase_order_created" until wave 3: the order
+  // confirmation was sent BY THE BROWSER, from the browser's own copy of the
+  // order, in a try/catch that only console.error'd. The server sends it at
+  // order creation now, after the commit, rendered from its own read, and the
+  // route is deleted - so what remains here are reads, not effects.
   // READS in plain functions, surfaced when the URL regex learned template
   // literals and `request:` contexts. A failed read loses no user action:
   // the sitemap generator runs at build/request time on the server, and the

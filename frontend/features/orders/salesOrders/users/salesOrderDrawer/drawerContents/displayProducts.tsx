@@ -1,49 +1,56 @@
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { SalesOrderItem } from '@/features/orders/salesOrders/types'
 import Image from 'next/image'
 
-export default function DisplaySalesOrderProducts({ items }: { items: SalesOrderItem[] }) {
+// PRESENTATIONAL (ruling 14): props in, DOM out - no hooks, no fetches, so it
+// renders in isolation. It took SalesOrderItem[] - the composed line with its
+// embedded product - until the order wire slimmed; an orders.items row
+// carries bullion_id and nothing else about the product, so the CONTAINER
+// resolves the catalogue and hands down already-named lines.
+export type SalesOrderLine = {
+  id: string
+  name: string | null
+  mint_name: string | null
+  image_front: string | null
+  quantity: number | null
+  price: number | null
+}
+
+export default function DisplaySalesOrderProducts({ items }: { items: SalesOrderLine[] }) {
   return (
     <div className="w-full">
       {items.map((item, index) => (
         <div
-          key={item?.product?.name}
+          key={item.id}
           className={`flex items-center w-full justify-between gap-2 py-2 ${
             index !== items.length - 1 ? 'border-b border-border' : 'border-none'
           }`}
         >
           <div className="relative w-25 h-25 md:h-30 md:w-30 lg:h-35 lg:w-35 aspect-square -ml-4">
             <Image
-              src={item.product?.image_front || ''}
+              src={item.image_front || ''}
               fill
               className="object-contain"
-              alt={item.product?.name || ''}
+              alt={item.name || ''}
               sizes="(max-width: 640px) 100vw, 33vw"
             />
           </div>
 
           <div className="flex flex-col lg:mx-auto w-full">
             <div className="flex flex-col gap-1 items-start w-full mt-2">
-              <div className="text-base text-neutral-800">
-                {item?.product?.name}
-              </div>
-              <div className="text-sm sm:text-base text-neutral-600">
-                {item?.product?.mint_name}
-              </div>
+              <div className="text-base text-neutral-800">{item.name}</div>
+              <div className="text-sm sm:text-base text-neutral-600">{item.mint_name}</div>
             </div>
 
             <div className="flex justify-between items-center mt-3">
               <div className="flex flex-col items-start">
                 <div className="text-xs  text-neutral-700">Quantity</div>
-                <div className="text-base sm:text-lg text-neutral-800">
-                  {item?.quantity}
-                </div>
+                <div className="text-base sm:text-lg text-neutral-800">{item.quantity}</div>
               </div>
 
               <div className="flex flex-col items-end">
                 <div className="text-xs text-neutral-700">Price</div>
                 <div className="text-base sm:text-lg text-neutral-800">
-                  <PriceNumberFlow value={(item?.price ?? 0) * (item?.quantity ?? 0)} />
+                  <PriceNumberFlow value={(item.price ?? 0) * (item.quantity ?? 0)} />
                 </div>
               </div>
             </div>

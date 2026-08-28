@@ -68,8 +68,8 @@ export function OrderStatusSelector({
                   className={cn(
                     'text-sm px-4 py-1 whitespace-nowrap rounded-lg transition-colors duration-150 flex items-center gap-1 border border-transparent shadow-sm',
                     isSelected
-                      ? 'bg-primary text-white'
-                      : 'bg-card text-primary hover:bg-primary hover:text-white'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-card text-primary hover:bg-primary hover:text-primary-foreground'
                   )}
                 >
                   <Icon
@@ -125,8 +125,8 @@ export function OrderStatusSelector({
                   className={cn(
                     'group h-9 px-3 flex items-center justify-between gap-2 rounded-sm transition-colors duration-150 cursor-pointer',
                     selectedStatus === null
-                      ? 'bg-primary! hover:bg-primary! text-white'
-                      : 'text-neutral-800 hover:bg-primary! hover:text-white'
+                      ? 'bg-primary! hover:bg-primary! text-primary-foreground'
+                      : 'text-neutral-800 hover:bg-primary! hover:text-primary-foreground'
                   )}
                 >
                   <div className="flex items-center gap-2 font-normal">
@@ -168,8 +168,8 @@ export function OrderStatusSelector({
                       className={cn(
                         'group h-9 px-3 flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer',
                         isSelected
-                          ? 'bg-primary! hover:bg-primary! text-white'
-                          : 'text-neutral-800 hover:bg-primary! hover:text-white'
+                          ? 'bg-primary! hover:bg-primary! text-primary-foreground'
+                          : 'text-neutral-800 hover:bg-primary! hover:text-primary-foreground'
                       )}
                     >
                       <div className="flex items-center gap-2 font-normal">

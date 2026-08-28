@@ -29,6 +29,16 @@ export async function getForItems(
   return rows;
 }
 
+// GET /orders/:orderId/refiners/items - every refiner row on one order,
+// verbatim. See sql/get_for_order.sql for why this is its own read rather
+// than three fields smeared onto the order's lines.
+export async function getForOrder(
+  order_id: string, executor?: Executor
+): Promise<RefinerItemRow[]> {
+  const { rows } = await query<RefinerItemRow>(sql("get_for_order"), [order_id], executor);
+  return rows;
+}
+
 // By the line they belong to, for composing without a query per line.
 export async function byOrderItem(
   order_item_ids: string[], executor?: Executor

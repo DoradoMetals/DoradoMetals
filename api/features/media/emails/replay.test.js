@@ -67,7 +67,13 @@ const ATTACKER_ADDRESS = "attacker@example.invalid";
 test("both routes refuse an anonymous caller", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      for (const path of ["purchase_order_created", "purchase_order_priced"]) {
+      // ONE ROUTE, NOT TWO, SINCE D91. /purchase_order_created is deleted:
+      // the confirmation is sent by the server at order creation, after the
+      // commit, from its own read. The redirect attack this file was written
+      // about is UNREACHABLE on that path now - there is no body to put an
+      // address in - so what these tests guard is the one send a browser can
+      // still trigger, which shares recipientFor with the one that left.
+      for (const path of ["purchase_order_priced"]) {
         const res = await request(app).post(`/api/emails/${path}`).send({});
         assert.ok([401, 403].includes(res.status), `${path} answered ${res.status}`);
       }
@@ -94,16 +100,25 @@ test("both routes refuse an anonymous caller", async () => {
 test("an address in the body cannot redirect the order confirmation", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...owner, role: "user" }, async () => {
-      const res = await request(app)
+      // The confirmation route is GONE (D91) - asserted here rather than
+      // deleted, because "the attack surface no longer exists" is the
+      // strongest form this test can take, and a route that came back would
+      // come back with the body-supplied recipient.
+      const gone = await request(app)
         .post("/api/emails/purchase_order_created")
+        .send({ purchaseOrder: { id: order.id } });
+      assert.equal(gone.status, 404, "the browser-triggered confirmation route is back");
+
+      const res = await request(app)
+        .post("/api/emails/purchase_order_priced")
         .send({
-          purchaseOrder: {
+          order: {
             id: order.id,
             number: 1,
             user: { user_email: ATTACKER_ADDRESS, user_name: "whoever" },
           },
-          spotPrices: [],
-          packageDetails: { label: "Medium Box" },
+          order_spots: [],
+          spot_prices: [],
         });
 
       // Whatever happens next, it must not be a delivery to the attacker. The
@@ -157,12 +172,8 @@ test("a stranger cannot trigger mail about someone else's order", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...stranger, role: "user" }, async () => {
       const res = await request(app)
-        .post("/api/emails/purchase_order_created")
-        .send({
-          purchaseOrder: { id: order.id, number: 1, user: {} },
-          spotPrices: [],
-          packageDetails: {},
-        });
+        .post("/api/emails/purchase_order_priced")
+        .send({ order: { id: order.id, number: 1, user: {} }, order_spots: [], spot_prices: [] });
       assert.equal(res.status, 403, `a stranger got ${res.status} for another user's order`);
     });
   });
@@ -174,17 +185,13 @@ test("an unknown or missing order id is refused before anything is built", async
   await inPinnedTransaction(async () => {
     await as({ ...owner, role: "user" }, async () => {
       const missing = await request(app)
-        .post("/api/emails/purchase_order_created")
-        .send({ purchaseOrder: { number: 1 }, spotPrices: [], packageDetails: {} });
+        .post("/api/emails/purchase_order_priced")
+        .send({ order: { number: 1 }, order_spots: [], spot_prices: [] });
       assert.equal(missing.status, 400, `a body with no order id answered ${missing.status}`);
 
       const unknown = await request(app)
-        .post("/api/emails/purchase_order_created")
-        .send({
-          purchaseOrder: { id: randomUUID(), number: 1 },
-          spotPrices: [],
-          packageDetails: {},
-        });
+        .post("/api/emails/purchase_order_priced")
+        .send({ order: { id: randomUUID(), number: 1 }, order_spots: [], spot_prices: [] });
       assert.equal(unknown.status, 404, `an unknown order answered ${unknown.status}`);
     });
   });

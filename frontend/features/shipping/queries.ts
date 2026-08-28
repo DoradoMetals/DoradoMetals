@@ -15,10 +15,77 @@ import {
 } from '@/features/shipping/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
+import { useCarrierServices } from '@/features/carriers/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
+import type { Shipment, ShipmentPickup } from '@dorado/contracts'
+
+// THE ORDER'S PARCELS, BOTH DIRECTIONS IN ONE ARRAY (wave 3):
+// GET /orders/:orderId/shipments, verbatim shipping.shipments rows. This is
+// what replaced order.shipment and order.return_shipment - two named slots
+// for one table that carries its own `direction` column (Inbound / Outbound /
+// Return). Filter on it; do not go looking for the slots.
+//
+// The renames went with the slots. `est_delivery` not estimated_delivery,
+// `cost` not shipping_charge, `label` not shipping_label, `direction` not
+// type; the package and the service are ids the client maps against the
+// cached /shipping package and /carrier_services lists. Owner-or-admin
+// server-side - a customer tracks their own parcel.
+export type { Shipment, ShipmentPickup } from '@dorado/contracts'
+
+export const useOrderShipments = (order_id: string) => {
+  const { user } = useGetSession()
+
+  return useQuery<Shipment[]>({
+    queryKey: ['order_shipments', order_id],
+    queryFn: async () => await apiRequest<Shipment[]>('GET', `/orders/${order_id}/shipments`),
+    enabled: !!user && !!order_id,
+  })
+}
+
+// THE SHIPMENT'S DISPLAY FIELDS, MAPPED CLIENT-SIDE (ruling 12). A
+// shipping.shipments row names its service and its box by ID; the composed
+// wire smeared the service's NAME on as `shipping_service` and the package's
+// LABEL as `package`. Both are reference lists the app already caches, so
+// this is one hook every drawer calls instead of eight copies of the same
+// two `find`s.
+//
+// carrier_id is the same kind of thing: it is not a column of the shipment
+// at all in the new schema - the SERVICE knows its carrier - and useTracking
+// and the two cancel mutations need it, so it is resolved here too.
+export const useShipmentDisplay = (shipment: Shipment | null | undefined) => {
+  const { data: services = [] } = useCarrierServices()
+  const service = services.find((s) => s.id === shipment?.carrier_service_id) ?? null
+
+  return {
+    service_name: service?.name ?? null,
+    carrier_id: service?.carrier_id ?? null,
+  }
+}
+
+// The parcel a customer sent us (or that we sent out) as against the one
+// coming BACK - the two halves the old slot names encoded, now a filter.
+export const outboundOf = (shipments: Shipment[] = []) =>
+  shipments.find((s) => s.direction !== 'Return')
+export const returnOf = (shipments: Shipment[] = []) =>
+  shipments.find((s) => s.direction === 'Return')
+
+// The CARRIER pickups booked against one parcel - GET /shipments/:id/pickups.
+// The parent is the shipment, which is what shipping.pickups.shipment_id
+// says; the composed order hung a single `carrier_pickup` off the ORDER,
+// which was the wrong parent and one row where the table allows several.
+export const useShipmentPickups = (shipment_id: string | null | undefined) => {
+  const { user } = useGetSession()
+
+  return useQuery<ShipmentPickup[]>({
+    queryKey: ['shipment_pickups', shipment_id],
+    queryFn: async () =>
+      await apiRequest<ShipmentPickup[]>('GET', `/shipments/${shipment_id}/pickups`),
+    enabled: !!user && !!shipment_id,
+  })
+}
 
 export const useTracking = (input: ShipmentTrackingInput) => {
   return useApiQuery<ShipmentTracking | null>({

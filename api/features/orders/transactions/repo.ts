@@ -35,15 +35,12 @@ export const AMOUNTS = {
 
 export type Amount = keyof typeof AMOUNTS;
 
-export type OrderTotalsRow = Pick<
-  orders.TransactionsRow,
-  | "id" | "order_id" | "total" | "items" | "shipping" | "surcharge"
-  | "sales_tax" | "funds" | "base_total" | "post_charges_amount"
-  | "subject_to_charges_amount" | "used_funds" | "waive_shipping_fee"
-  | "waive_payout_fee" | "shipping_paid" | "shipping_fee_actual"
-  | "refiner_fee" | "payout_fee" | "pool_remediation" | "pool_oz_deducted"
-  | "shipping_service" | "created_by" | "updated_by" | "created_at" | "updated_at"
->;
+// THE VERBATIM ROW (ruling 12). It was a Pick of twenty-five columns until
+// wave 3, when the order wire slimmed to the row plus `totals` and `totals`
+// became this: a curated projection would have been a hand-written wire shape
+// by another name, and validate:wire parses it against the generated
+// TransactionsRow. The two audit id columns joined the statement with it.
+export type OrderTotalsRow = orders.TransactionsRow;
 
 export async function getFor(
   order_id: string, executor?: Executor

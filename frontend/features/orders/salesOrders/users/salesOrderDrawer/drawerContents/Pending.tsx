@@ -1,8 +1,11 @@
 import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 import DisplaySalesOrderProducts from './displayProducts'
 import { ShineBorder } from '@/features/orders/ui/ShineBorder'
+import { useSalesOrderLines } from './useSalesOrderLines'
 
 export default function PendingSalesOrder({ order }: SalesOrderDrawerContentProps) {
+  const lines = useSalesOrderLines(order.id)
+
   return (
     <div className="relative flex flex-col items-center gap-4 h-full w-full">
       <div className="flex flex-col items-start gap-1">
@@ -17,7 +20,7 @@ export default function PendingSalesOrder({ order }: SalesOrderDrawerContentProp
           borderWidth={2}
           className="z-1"
         />
-        <DisplaySalesOrderProducts items={order.order_items} />
+        <DisplaySalesOrderProducts items={lines} />
       </div>
     </div>
   )

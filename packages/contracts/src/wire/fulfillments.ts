@@ -1,5 +1,10 @@
 import { z } from "zod/v4";
-import { FulfillmentsRow, MethodsRow } from "../generated/fulfillments.js";
+import {
+  DirectsRow,
+  FulfillmentsRow,
+  MethodsRow,
+  PickupsRow,
+} from "../generated/fulfillments.js";
 
 // Fulfillments are the one feature with no legacy wire shape, because nothing
 // consumes them yet. exchange never recorded how an order was handed over
@@ -40,3 +45,18 @@ export type OrderFulfillment = z.infer<typeof OrderFulfillment>;
 // never reaches the wire.
 export const Fulfillment = FulfillmentsRow;
 export type Fulfillment = z.infer<typeof Fulfillment>;
+
+// GET /orders/:orderId/pickups and /orders/:orderId/directs - the
+// fulfillment's own children, VERBATIM rows, resolved from the order id in
+// the server's WHERE clause.
+//
+// US COLLECTING FROM A CUSTOMER (a pickup) and A CUSTOMER COMING TO US (a
+// direct) are the two non-shipment ways an order is handed over. A
+// FulfillmentPickup is not a ShipmentPickup: that one is FedEx coming for a
+// parcel, hangs off the shipment, and lives in the shipping schema. The two
+// tables share a word and nothing else.
+export const FulfillmentPickup = PickupsRow;
+export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>;
+
+export const FulfillmentDirect = DirectsRow;
+export type FulfillmentDirect = z.infer<typeof FulfillmentDirect>;

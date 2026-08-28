@@ -3,6 +3,29 @@ import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
 import { PayoutDetails } from '@/features/payouts/types'
+import type { Payout } from '@dorado/contracts'
+
+// THE ORDER'S PAYOUTS AS THEIR OWN READ (wave 3):
+// GET /orders/:orderId/payouts, LAST FOUR ONLY - ruling 12's single deviation
+// class is security, and this is it. It replaced order.payout, which was an
+// OBJECT OF NULLS whenever the order had none, because a LEFT JOIN fed a
+// jsonb_build_object; an order with no payout answers [] here.
+//
+// Owner-or-admin server-side: a customer sees where their own money is going,
+// which is exactly what the old slot showed them, and never more than the
+// last four digits. The full numbers still have one endpoint,
+// usePayoutDetails, admin-only, one payout at a time.
+export type { Payout } from '@dorado/contracts'
+
+export const useOrderPayouts = (order_id: string) => {
+  const { user } = useGetSession()
+
+  return useQuery<Payout[]>({
+    queryKey: ['order_payouts', order_id],
+    queryFn: async () => await apiRequest<Payout[]>('GET', `/orders/${order_id}/payouts`),
+    enabled: !!user && !!order_id,
+  })
+}
 
 // The payout as its own resource (D87, per-resource form): the payout row's
 // charge and method write here, keyed by order.payout.id off the order wire.

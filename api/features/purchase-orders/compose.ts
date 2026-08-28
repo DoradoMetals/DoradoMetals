@@ -400,3 +400,45 @@ export const newestFirst = (
   const bt = b.created_at ? b.created_at.getTime() : 0;
   return bt - at || b.id.localeCompare(a.id);
 };
+
+// THE COMPOSED ORDER, AS A TYPE - and it is INTERNAL, not a contract (wave 3).
+//
+// It was the PurchaseOrder wire schema until the order wire slimmed to the
+// orders.orders row plus totals. What the frontend receives is now
+// packages/contracts' `Order`; what this describes is what the API assembles
+// for ITSELF - pricing, the confirmation email, the PDFs - and what `diff`
+// compares repo.exchange.js against repo.next.ts on. Timestamps are Dates
+// here rather than strings, because nothing has serialised them yet.
+//
+// The nested members are loosely typed on purpose. They are exchange's
+// projections, reproduced field for field by the compose functions above, and
+// the compiler has never been the thing that checks them - `diff` and
+// verify:orders-decomposition are, against real rows.
+export type ComposedOrder = {
+  id: string;
+  user_id: string | null;
+  address_id: string | null;
+  status: string | null;
+  notes: string | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+  created_by: string | null;
+  updated_by: string | null;
+  number: number | null;
+  spots_locked: boolean | null;
+  waive_shipping_fee: boolean | null;
+  waive_payout_fee: boolean | null;
+  shipping_paid: boolean | null;
+  review_created: boolean | null;
+  shipping_fee_actual: number | null;
+  pool_remediation: number | null;
+  pool_oz_deducted: number | null;
+  totals: Record<string, number | null>;
+  order_items: ComposedItem[];
+  address: ComposedAddress | null;
+  shipment: Record<string, any>;
+  return_shipment: Record<string, any>;
+  carrier_pickup: Record<string, any> | null;
+  payout: Record<string, any>;
+  user: { user_id: string | null; user_name: string | null; user_email: string | null };
+};

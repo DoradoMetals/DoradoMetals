@@ -6,12 +6,16 @@ import { ShineBorder } from '@/features/orders/ui/ShineBorder'
 import { cn } from '@/shared/utils/cn'
 import { useEffect, useRef } from 'react'
 import DisplaySalesOrderProducts from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/displayProducts'
+import { useSalesOrderLines } from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/useSalesOrderLines'
 
 export default function PreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const confettiRef = useRef<ConfettiRef>(null)
+  const lines = useSalesOrderLines(order.id)
 
   const arrival = Object.values(salesOrderServiceOptions)
-    .find((o) => o.label === order.shipping_service)
+    // shipping_service is a column of orders.transactions, so it reads off
+    // `totals` - the order row never had it.
+    .find((o) => o.label === order.totals?.shipping_service)
     ?.time?.toLowerCase()
 
   useEffect(() => {
@@ -68,7 +72,7 @@ export default function PreparingSalesOrder({ order }: SalesOrderDrawerContentPr
           borderWidth={2}
           className="z-1"
         />
-        <DisplaySalesOrderProducts items={order.order_items} />
+        <DisplaySalesOrderProducts items={lines} />
       </div>
     </div>
   )

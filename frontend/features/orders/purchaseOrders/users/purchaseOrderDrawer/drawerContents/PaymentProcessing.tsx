@@ -1,9 +1,19 @@
+import { useOrderPayouts } from '@/features/payouts/queries'
 import { payoutOptions } from '@/features/payouts/types'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 
 export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
-  const payout = payoutOptions.find((p) => p.method === order.payout?.method)
-  const Icon = payout?.icon
+  // A CONTAINER for the order's payout (ruling 14). The composed wire carried
+  // a `payout` member that was an OBJECT OF NULLS when the order had none - a
+  // LEFT JOIN feeding jsonb_build_object - so `payout?.method` read
+  // `undefined` rather than throwing. It is its own read now, last-four only,
+  // and an order with no payout answers [].
+  const { data: payouts = [] } = useOrderPayouts(order.id)
+  const payout = payouts[0] ?? null
+  // The client-side option list (icon, label, expected delay) is UI
+  // vocabulary, not a column - matched on the row's method.
+  const payoutOption = payoutOptions.find((p) => p.method === payout?.method)
+  const Icon = payoutOption?.icon
 
   return (
     <div className="flex flex-col items-center gap-4 h-full">
@@ -12,13 +22,13 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
           <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-1 text-xl text-neutral-800">
               <Icon size={24} className="text-primary" />
-              {payout?.label}
+              {payoutOption?.label}
             </div>
-            <div className="text-sm text-primary">{payout?.time_delay}</div>
+            <div className="text-sm text-primary">{payoutOption?.time_delay}</div>
           </div>
 
           <div className="w-full">
-            {order.payout.method === 'ACH' && (
+            {payout?.method === 'ACH' && (
               <div className="flex flex-col w-full gap-2">
                 <div className="flex gap-1 justify-between w-full text-base text-neutral-800 items-center">
                   <div className="flex flex-col text-left">
@@ -27,15 +37,15 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
                     <p>Account:</p>
                   </div>
                   <div className="flex flex-col text-right">
-                    <p>{order.payout.account_holder_name}</p>
-                    <p>••••{order.payout.routing_last4}</p>
-                    <p>••••{order.payout.account_last4}</p>
+                    <p>{payout?.account_holder_name}</p>
+                    <p>••••{payout?.routing_last4}</p>
+                    <p>••••{payout?.account_last4}</p>
                   </div>
                 </div>
               </div>
             )}
 
-            {order.payout.method === 'WIRE' && (
+            {payout?.method === 'WIRE' && (
               <div className="flex flex-col w-full gap-2">
                 <div className="flex gap-1 justify-between w-full text-base text-neutral-800 items-center">
                   <div className="flex flex-col text-left">
@@ -44,15 +54,15 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
                     <p>Account:</p>
                   </div>
                   <div className="flex flex-col text-right">
-                    <p>{order.payout.account_holder_name}</p>
-                    <p>••••{order.payout.routing_last4}</p>
-                    <p>••••{order.payout.account_last4}</p>
+                    <p>{payout?.account_holder_name}</p>
+                    <p>••••{payout?.routing_last4}</p>
+                    <p>••••{payout?.account_last4}</p>
                   </div>
                 </div>
               </div>
             )}
 
-            {order.payout.method === 'ECHECK' && (
+            {payout?.method === 'ECHECK' && (
               <div className="w-full items-center flex justify-between">
                 <div className="flex flex-col w-full gap-2 w-full">
                   <div className="flex justify-between w-full text-base text-neutral-800 items-center">
@@ -61,15 +71,15 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
                       <p>Email:</p>
                     </div>
                     <div className="flex flex-col text-right">
-                      <p>{order.payout.account_holder_name}</p>
-                      <p>{order.payout.email_to}</p>
+                      <p>{payout?.account_holder_name}</p>
+                      <p>{payout?.email_to}</p>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {order.payout.method === 'DORADO_ACCOUNT' && (
+            {payout?.method === 'DORADO_ACCOUNT' && (
               <div className="w-full items-center flex justify-between">
                 <div className="flex flex-col w-full gap-2 w-full">
                   <div className="flex justify-between w-full text-base text-neutral-800 items-center">
@@ -78,8 +88,8 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
                       <p>Email:</p>
                     </div>
                     <div className="flex flex-col text-right">
-                      <p>{order.payout.account_holder_name}</p>
-                      <p>{order.payout.email_to}</p>
+                      <p>{payout?.account_holder_name}</p>
+                      <p>{payout?.email_to}</p>
                     </div>
                   </div>
                 </div>
@@ -88,30 +98,30 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
           </div>
         </div>
         <div>
-          {order.payout.method === 'ACH' && (
+          {payout?.method === 'ACH' && (
             <div className="text-sm text-neutral-600">
               Once we have initiated your ACH transfer, you will receive it within{' '}
-              {payout?.time_delay}. If you have entered the wrong routing or account number, please
+              {payoutOption?.time_delay}. If you have entered the wrong routing or account number, please
               call us immediately. We are not liable for missing payments due to incorrect input.
             </div>
           )}
 
-          {order.payout.method === 'WIRE' && (
+          {payout?.method === 'WIRE' && (
             <div className="text-sm text-neutral-600">
               Once we have initiated your wire transfer, you will receive it within
-              {payout?.time_delay}. If you have entered the wrong routing or account number, please
+              {payoutOption?.time_delay}. If you have entered the wrong routing or account number, please
               call us immediately. We are not liable for missing payments due to incorrect input.
             </div>
           )}
 
-          {order.payout.method === 'ECHECK' && (
+          {payout?.method === 'ECHECK' && (
             <div className="text-sm text-neutral-600">
               When we send you your eCheck, you will receive it instantly. You will be able to find
               it in your email inbox, and we will have it available for download here as well.
             </div>
           )}
 
-          {order.payout.method === 'DORADO_ACCOUNT' && (
+          {payout?.method === 'DORADO_ACCOUNT' && (
             <div className="text-sm text-neutral-600">
               Your funds should now be available. You can use those funds to purchase bullion from
               us, and they can be withdrawn and sent to you via one of the other payout methods at

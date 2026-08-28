@@ -35,6 +35,7 @@ import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.ts";
+import * as purchaseOrderService from "#features/purchase-orders/service.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
 const ORDER_LOCK = LOCKS.ORDERS;
@@ -172,7 +173,13 @@ test("a clean finalize prices the order from the database's own rows", async () 
           [order.id]
         )
       ).rows;
-      const expected = calculateTotalPrice(res.body, spots);
+      // THE PATCH ANSWERS WITH THE SLIM ORDER NOW (wave 3), so the priced
+      // lines it used to carry come from the API's own composed read - which
+      // is what calculateTotalPrice takes, and what finalizePricing itself
+      // priced from. The property is unchanged: every input is a row, and the
+      // request contributed nothing but the operation's name.
+      const priced = await purchaseOrderService.getById(order.id);
+      const expected = calculateTotalPrice(priced, spots);
 
       assert.equal(
         Number(row.total_price).toFixed(2),

@@ -6,8 +6,11 @@ import {
   useDeleteOrderItem,
   usePatchOrderItem,
 } from '@/features/orders/items'
-import { usePatchShipment } from '@/features/shipping/queries'
-import { usePatchPayout } from '@/features/payouts/queries'
+import { usePatchShipment, useOrderShipments, outboundOf } from '@/features/shipping/queries'
+import { usePatchPayout, useOrderPayouts } from '@/features/payouts/queries'
+import { useOrderItems, nameOf, byId } from '@/features/orders/reads'
+import type { OrderItem } from '@dorado/contracts'
+import type { NamedScrapItem } from '@/features/orders/purchaseOrders/types'
 
 import { cn } from '@/shared/utils/cn'
 import { payoutOptions } from '@/features/payouts/types'
@@ -15,7 +18,6 @@ import { CaretDownIcon } from '@phosphor-icons/react'
 import {
   assignScrapItemNames,
   PurchaseOrderDrawerContentProps,
-  PurchaseOrderItem,
   statusConfig,
   StatusConfigEntry,
 } from '@/features/orders/purchaseOrders/types'
@@ -49,9 +51,20 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   const patchPayout = usePatchPayout()
   const [payoutOpen, setPayoutOpen] = useState(false)
 
-  const rawScrapItems = order.order_items.filter((item) => item.item_type === 'scrap' && item.scrap)
-  const scrapItems = assignScrapItemNames(rawScrapItems)
-  const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
+  // A CONTAINER (ruling 14). bullion_id is the discriminator - null means
+  // scrap - and the parcel and payout are their own reads.
+  const { data: items = [] } = useOrderItems(order.id)
+  const { data: catalogue = [] } = useProducts()
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const { data: payouts = [] } = useOrderPayouts(order.id)
+  const shipment = outboundOf(shipments)
+  const payout = payouts[0] ?? null
+
+  const scrapItems = assignScrapItemNames(
+    items.filter((item) => item.bullion_id === null),
+    (metal_id) => nameOf(spotPrices, metal_id)
+  )
+  const bullionItems = items.filter((item) => item.bullion_id !== null)
 
   const handleUpdateSpot = (spot: NamedOrderSpot, updated_spot: number) => {
     if (!spot.name) return
@@ -147,7 +160,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
               <div className="flex w-full justify-start items-center mb-2">
                 <div className="text-xs tracking-widest text-neutral-600">Bullion</div>
               </div>
-              <BullionTable bullionItems={bullionItems} config={config} order_id={order.id} />
+              <BullionTable bullionItems={bullionItems} catalogue={catalogue} config={config} order_id={order.id} />
             </div>
           )}
           <div className="glass-divider" />
@@ -162,11 +175,11 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                 className={cn(
                   'on-glass no-spinner text-right w-full text-base h-8'
                 )}
-                defaultValue={order.shipment.shipping_charge ?? 0}
+                defaultValue={shipment?.cost ?? 0}
                 onBlur={(e) => {
-                  if (!order.shipment.id) return
+                  if (!shipment?.id) return
                   patchShipment.mutate({
-                    shipment_id: order.shipment.id,
+                    shipment_id: shipment.id,
                     order_id: order.id,
                     patch: { shipping_charge: Number(e.target.value) },
                   })
@@ -182,11 +195,11 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                 className={cn(
                   'on-glass no-spinner text-right w-full text-base h-8'
                 )}
-                defaultValue={order.payout.cost ?? 0}
+                defaultValue={payout?.cost ?? 0}
                 onBlur={(e) => {
-                  if (!order.payout.id) return
+                  if (!payout?.id) return
                   patchPayout.mutate({
-                    payout_id: order.payout.id,
+                    payout_id: payout.id,
                     order_id: order.id,
                     patch: { cost: Number(e.target.value) },
                   })
@@ -210,7 +223,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                     'flex items-center justify-between gap-1 px-4 font-normal text-sm on-glass border-none h-9 w-full'
                   )}
                 >
-                  {payoutOptions.find((m) => m.method === order.payout.method)?.label}
+                  {payoutOptions.find((m) => m.method === payout?.method)?.label}
                   <CaretDownIcon size={20} />
                 </Button>
               </PopoverTrigger>
@@ -226,9 +239,9 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                       <CommandItem
                         key={label}
                         onSelect={() => {
-                          if (order.payout.id) {
+                          if (payout?.id) {
                             patchPayout.mutate({
-                              payout_id: order.payout.id,
+                              payout_id: payout.id,
                               order_id: order.id,
                               patch: { method },
                             })
@@ -262,7 +275,7 @@ function ScrapTable({
   config,
   order_id,
 }: {
-  scrapItems: PurchaseOrderItem[]
+  scrapItems: NamedScrapItem[]
   config: StatusConfigEntry
   order_id: string
 }) {
@@ -277,7 +290,7 @@ function ScrapTable({
   // The write carries the FULL scrap object and the line's premium - the
   // API's scrap op sets every column it knows (see OrderItemScrapPatch).
   const handleUpdateItem = (
-    item: PurchaseOrderItem,
+    item: NamedScrapItem,
     changes: { premium?: number | null; scrap?: Record<string, unknown> }
   ) => {
     patchItem.mutate({
@@ -286,7 +299,18 @@ function ScrapTable({
       patch: {
         scrap: {
           premium: changes.premium !== undefined ? changes.premium : item.premium,
-          scrap: { ...item.scrap!, ...(changes.scrap ?? {}) },
+          // THE FULL SCRAP OBJECT, and the row IS it now: 085 folded
+          // exchange.scrap into orders.items, so the line's own weights and
+          // purity are what the API's full-write op expects.
+          scrap: {
+            metal: item.metal,
+            pre_melt: item.pre_melt,
+            post_melt: item.post_melt,
+            purity: item.purity,
+            content: item.content,
+            gross_unit: item.unit,
+            ...(changes.scrap ?? {}),
+          },
         },
       },
     })
@@ -304,7 +328,7 @@ function ScrapTable({
     }
   }
 
-  const handleResetItem = (item: PurchaseOrderItem) => {
+  const handleResetItem = (item: { id: string }) => {
     patchItem.mutate({ order_item_id: item.id, order_id, patch: { reset: true } })
   }
 
@@ -365,7 +389,7 @@ function ScrapTable({
                       />
                     )}
                   </TableCell>
-                  <TableCell className="text-left">{item.scrap?.name}</TableCell>
+                  <TableCell className="text-left">{item.name}</TableCell>
                   <TableCell className="text-center">
                     {editMode && selectedIds.includes(item.id) ? (
                       <div className="relative flex justify-center">
@@ -376,7 +400,7 @@ function ScrapTable({
                           className={cn(
                             'on-glass no-spinner text-left text-base h-6'
                           )}
-                          defaultValue={item.scrap?.pre_melt ?? ''}
+                          defaultValue={item.pre_melt ?? ''}
                           onBlur={(e) => {
                             const pre_melt = parseFloat(e.target.value)
                             if (!isNaN(pre_melt)) {
@@ -385,13 +409,13 @@ function ScrapTable({
                           }}
                         />
                         <div className="absolute right-1 top-1/2 -translate-y-1/2 hover:bg-transparent">
-                          {item.scrap?.gross_unit}
+                          {item.unit}
                         </div>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 justify-center">
-                        <div>{item.scrap?.pre_melt}</div>
-                        <div>{item.scrap?.gross_unit}</div>
+                        <div>{item.pre_melt}</div>
+                        <div>{item.unit}</div>
                       </div>
                     )}
                   </TableCell>
@@ -405,7 +429,7 @@ function ScrapTable({
                           className={cn(
                             'on-glass no-spinner text-left text-base h-6'
                           )}
-                          defaultValue={item.scrap?.post_melt ?? ''}
+                          defaultValue={item.post_melt ?? ''}
                           onBlur={(e) => {
                             const post_melt = parseFloat(e.target.value)
                             if (!isNaN(post_melt)) {
@@ -414,13 +438,13 @@ function ScrapTable({
                           }}
                         />
                         <div className="absolute right-1 top-1/2 -translate-y-1/2 hover:bg-transparent">
-                          {item.scrap?.gross_unit}
+                          {item.unit}
                         </div>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 justify-center">
-                        <div>{item.scrap?.post_melt}</div>
-                        <div>{item.scrap?.post_melt && item.scrap?.gross_unit}</div>
+                        <div>{item.post_melt}</div>
+                        <div>{item.post_melt && item.unit}</div>
                       </div>
                     )}
                   </TableCell>
@@ -434,7 +458,7 @@ function ScrapTable({
                           className={cn(
                             'on-glass no-spinner text-center text-base h-6'
                           )}
-                          defaultValue={item.scrap?.purity ?? ''}
+                          defaultValue={item.purity ?? ''}
                           onBlur={(e) => {
                             const purity = parseFloat(e.target.value)
                             if (!isNaN(purity)) {
@@ -444,7 +468,7 @@ function ScrapTable({
                         />
                       </div>
                     ) : (
-                      <>{((item.scrap?.purity ?? 0) * 100).toFixed(1)}%</>
+                      <>{((item.purity ?? 0) * 100).toFixed(1)}%</>
                     )}
                   </TableCell>
 
@@ -586,11 +610,7 @@ function ScrapTable({
               <Button
                 disabled={editMode}
                 variant="default"
-                className={cn(
-                  'primary-on-glass',
-                  'hover:bg-primary',
-                  'flex items-center gap-1 p-4 font-normal text-base text-white'
-                )}
+                className={cn('flex items-center gap-1 p-4 font-normal text-base')}
               >
                 Add Scrap to Order
               </Button>
@@ -639,10 +659,14 @@ function ScrapTable({
 
 function BullionTable({
   bullionItems,
+  catalogue,
   config,
   order_id,
 }: {
-  bullionItems: PurchaseOrderItem[]
+  bullionItems: OrderItem[]
+  // Reference data, resolved by the container and passed down - the row
+  // carries bullion_id and nothing else about the product.
+  catalogue: Product[]
   config: StatusConfigEntry
   order_id: string
 }) {
@@ -658,7 +682,7 @@ function BullionTable({
   // Both bullion columns ride every write - the API SETs quantity and
   // premium in one statement (see OrderItemBullionPatch).
   const handleUpdateItem = (
-    item: PurchaseOrderItem,
+    item: OrderItem,
     changes: { quantity?: number | null; premium?: number | null }
   ) => {
     patchItem.mutate({
@@ -683,7 +707,7 @@ function BullionTable({
     }
   }
 
-  const handleResetItem = (item: PurchaseOrderItem) => {
+  const handleResetItem = (item: { id: string }) => {
     patchItem.mutate({ order_item_id: item.id, order_id, patch: { reset: true } })
   }
 
@@ -741,7 +765,7 @@ function BullionTable({
                       />
                     )}
                   </TableCell>
-                  <TableCell className="text-left">{item.product?.name}</TableCell>
+                  <TableCell className="text-left">{nameOf(catalogue, item.bullion_id)}</TableCell>
                   <TableCell className="text-center">
                     {editMode && selectedIds.includes(item.id) ? (
                       <div className=" flex justify-center">
@@ -777,7 +801,7 @@ function BullionTable({
                           className={cn(
                             'on-glass no-spinner text-right text-base h-6'
                           )}
-                          defaultValue={item.premium ?? item.product?.bid_premium ?? ''}
+                          defaultValue={item.premium ?? byId(catalogue, item.bullion_id)?.bid_premium ?? ''}
                           onBlur={(e) => {
                             const premium = parseFloat(e.target.value)
                             if (!isNaN(premium)) {
@@ -788,7 +812,7 @@ function BullionTable({
                       </div>
                     ) : (
                       <div>
-                        {((item.premium ?? item.product?.bid_premium ?? 0) * 100).toFixed(1)}%
+                        {((item.premium ?? byId(catalogue, item.bullion_id)?.bid_premium ?? 0) * 100).toFixed(1)}%
                       </div>
                     )}
                   </TableCell>
@@ -910,11 +934,7 @@ function BullionTable({
               <Button
                 disabled={editMode}
                 variant="default"
-                className={cn(
-                  'primary-on-glass',
-                  'hover:bg-primary',
-                  'flex items-center gap-1 p-4 font-normal text-base text-white'
-                )}
+                className={cn('flex items-center gap-1 p-4 font-normal text-base')}
               >
                 Add Bullion to Order
               </Button>

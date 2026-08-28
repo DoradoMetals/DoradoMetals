@@ -1,10 +1,13 @@
 import { z } from "zod/v4";
 import {
   CarrierServicesRow,
-  ShipmentsRow,
   CarrierPickupsRow,
   TrackingEventsRow,
 } from "../generated/exchange.js";
+import {
+  ShipmentsRow,
+  PickupsRow as ShipmentPickupsRow,
+} from "../generated/shipping.js";
 
 // The repos return a carrier and the organization it is, kept apart - the same
 // shape as Refiner, because a carrier and a refiner are the same kind of thing
@@ -38,22 +41,32 @@ export type CarrierPickup = z.infer<typeof CarrierPickup>;
 export const TrackingEvent = TrackingEventsRow;
 export type TrackingEvent = z.infer<typeof TrackingEvent>;
 
-// There is deliberately no standalone shipment wire schema. No route returns a
-// shipment on its own; the repo's SELECT * reads are internal, and they hand
-// back shipping_label as a raw bytea Buffer. Serialising one would produce
-// {"type":"Buffer","data":[...]} - half a megabyte across 23 rows, versus 13 KB
-// without it. Shipments reach a client only nested on an order, where the query
-// base64-encodes the label. That shape is ShipmentOnOrder below.
+// GET /orders/:orderId/shipments - THE PARCELS OF ONE ORDER, VERBATIM
+// shipping.shipments rows, BOTH DIRECTIONS IN ONE ARRAY.
+//
+// This is what retired ShipmentOnOrder and, with it, the shipment /
+// return_shipment slot pair on the order wire (wave 3). Two named members
+// built by branching on a column the row already carries were two names for
+// one table; the frontend filters on `direction` - shipping.direction, whose
+// values are Inbound / Outbound / Return, NOT orders.direction's
+// purchase / sale.
+//
+// The historical renames went with it: net_charge / service_type became
+// shipping_charge / shipping_service on the way into an order, and the row's
+// own names are `cost` and a `carrier_service_id` the client maps against the
+// cached /carrier_services list. `label` is TEXT in this schema - the bytea
+// and its base64 wrapping were exchange's.
+export const Shipment = ShipmentsRow;
+export type Shipment = z.infer<typeof Shipment>;
 
-// How a shipment appears nested inside a purchase order. The renames are
-// historical; if the SQL aliases are dropped this collapses to ShipmentsRow.
-export const ShipmentOnOrder = ShipmentsRow.omit({
-  net_charge: true,
-  service_type: true,
-  shipping_label: true,
-}).extend({
-  shipping_charge: z.number().nullable(),
-  shipping_service: z.string().nullable(),
-  shipping_label: z.string().nullable(), // base64 via encode()
-});
-export type ShipmentOnOrder = z.infer<typeof ShipmentOnOrder>;
+// GET /shipments/:shipmentId/pickups - the CARRIER pickups booked against one
+// parcel, VERBATIM shipping.pickups rows.
+//
+// The parent is the SHIPMENT, which is what the column says
+// (shipping.pickups.shipment_id); the composed order hung a single
+// `carrier_pickup` off the ORDER, which was a grandchild read keyed on the
+// wrong parent and one row where the table allows several. Not to be confused
+// with FulfillmentPickup - us collecting from a customer is a different act in
+// a different table.
+export const ShipmentPickup = ShipmentPickupsRow;
+export type ShipmentPickup = z.infer<typeof ShipmentPickup>;

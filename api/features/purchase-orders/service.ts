@@ -7,6 +7,7 @@ import * as purchaseOrderRepo from "#features/purchase-orders/repo.dual.js";
 import * as readService from "#features/purchase-orders/read.service.ts";
 import * as next from "#features/purchase-orders/repo.next.ts";
 import * as scrapRepo from "#features/scrap/repo.ts";
+import * as emailService from "#features/media/emails/service.ts";
 import * as transactionsService from "#features/transactions/service.ts";
 import * as usersFunds from "#features/users/service.ts";
 import * as ratesRepo from "#features/rates/service.ts";
@@ -26,7 +27,7 @@ import type {
   OrderMetalRow,
   OrderScrapItemRow,
 } from "#features/purchase-orders/repo.next.ts";
-import type { PurchaseOrderItem } from "@dorado/contracts";
+import type { ComposedItem as PurchaseOrderItem } from "#features/purchase-orders/compose.ts";
 import type { PricingSpot } from "#features/purchase-orders/utils/calculations.ts";
 
 // `order` here is whatever the caller had - a row from getById, or the body of
@@ -479,7 +480,19 @@ export async function createPurchaseOrder(
     throw err;
   }
 
-  return ((await readService.findById(order_id)) ?? undefined) as unknown as PurchaseOrderRow;
+  const created = ((await readService.findById(order_id)) ?? undefined) as unknown as
+    PurchaseOrderRow;
+
+  // THE CONFIRMATION EMAIL, SENT HERE, AFTER THE COMMIT (D91). It was an
+  // await in the browser's create mutation until wave 3 - see
+  // features/media/emails/service.ts for the three reasons that was wrong.
+  // Placed after withTransaction has RETURNED, never inside it: an email
+  // cannot be rolled back, which is the rule
+  // shared/db/transaction-side-effects.test.js fails the build over. It does
+  // not throw; the order is placed either way and a failed send is recorded.
+  await emailService.sendOrderPlacedConfirmation(order_id);
+
+  return created;
 }
 
 // Finalizing an order's pricing is a PRICING event, and ONLY that now. The

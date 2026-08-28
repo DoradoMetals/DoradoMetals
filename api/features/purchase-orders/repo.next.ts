@@ -19,26 +19,19 @@
 // Those features have not been migrated; when they are, these joins move with
 // them and nothing else here changes.
 import query from "#shared/db/query.js";
-import type { PurchaseOrder } from "@dorado/contracts";
+import type { ComposedOrder } from "#features/purchase-orders/compose.ts";
 import type { PoolClient } from "pg";
 
 // Repos take an optional executor so a caller can pull them into its
 // transaction; without one they run on the pool.
 type Executor = PoolClient | undefined;
 
-// The order row is PurchaseOrder - validate:wire parses real rows
-// through it for BOTH implementations, so it is the description of this shape
-// that has been checked against the database rather than read off the SQL.
-//
-// The two timestamps are overridden: a contract describes the WIRE, where a
-// timestamp is a string because JSON made it one, and pg returns a Date.
-export type PurchaseOrderRow = Omit<
-  PurchaseOrder,
-  "created_at" | "updated_at"
-> & {
-  created_at: Date | null;
-  updated_at: Date | null;
-};
+// The order row is ComposedOrder, the API's OWN assembled shape - see
+// compose.ts. It was the PurchaseOrder contract until wave 3, when the wire
+// slimmed to the orders.orders row plus totals and the composition stopped
+// being a response. `diff` still compares this implementation against
+// repo.exchange.js, which is what the shape is checked by.
+export type PurchaseOrderRow = ComposedOrder;
 
 // The per-metal spot row an order carries, from orders.spots or refiners.spots.
 // No contract: it is never returned by a route on its own, only alongside an

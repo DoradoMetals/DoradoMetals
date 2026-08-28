@@ -94,7 +94,7 @@ export function CreateSalesOrderDrawer() {
   }, [defaultAddress, addresses.length, data.address?.id, setData, linkOf])
 
   return (
-    <Drawer label="New sales order" open={isDrawerOpen} setOpen={closeDrawer} anchor="left" className="glass-panel">
+    <Drawer label="New sales order" open={isDrawerOpen} setOpen={closeDrawer} anchor="left">
       <div className="text-base text-neutral-800">{createSalesOrderUser?.name}</div>
 
       <div className="glass-divider" />
@@ -696,7 +696,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
           <div className="flex flex-col gap-3 w-full sticky top-26">
             {!cardNeeded ? (
               <Button
-                className="raised-off-page bg-primary w-full text-white"
+                className="raised-off-page bg-primary w-full text-primary-foreground"
                 disabled={disabled}
                 onClick={handleSubmit}
               >
@@ -710,7 +710,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
               </Button>
             ) : (
               <Button
-                className="raised-off-page bg-primary w-full text-white"
+                className="raised-off-page bg-primary w-full text-primary-foreground"
                 disabled={disabled}
                 type="submit"
                 form="admin-payment-form"

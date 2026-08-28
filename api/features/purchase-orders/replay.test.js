@@ -100,17 +100,21 @@ test("a customer sees only their own rows, and the admin list is served whole", 
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
-      // What AdminPurchaseOrders.tsx and the drawer destructure. A missing key
-      // here renders as blank rather than as an error, which is why it is worth
-      // asserting rather than eyeballing.
+      // THE SLIM WIRE (wave 3): the orders.orders row plus `totals`, and
+      // nothing else. order_items, address, user and payout left this
+      // response - each is its own parent-path read, checked by
+      // validate:wire - so what is asserted here is the row, and that the
+      // slots have genuinely GONE rather than gone quietly nullable.
       const order = res.body[0];
       for (const field of [
-        "id", "number", "status", "created_at",
-        "order_items", "address", "user", "payout", "spots_locked", "totals",
+        "id", "number", "status", "created_at", "direction", "user_id",
+        "spots_locked", "totals",
       ]) {
         assert.ok(field in order, `the admin list is missing ${field}`);
       }
-      assert.ok(Array.isArray(order.order_items), "order_items is not a list");
+      for (const gone of ["order_items", "address", "user", "payout", "shipment"]) {
+        assert.ok(!(gone in order), `the order wire still carries ${gone}`);
+      }
     });
   }, { lock: ORDER_LOCK });
 });

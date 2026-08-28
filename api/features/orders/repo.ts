@@ -11,6 +11,7 @@
 // real callers today.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
+import type { orders } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -46,6 +47,30 @@ export async function directionsById(
     sql("directions"), [ids], executor
   );
   return new Map(rows.map((r) => [r.id, r.direction]));
+}
+
+// THE ORDER ROWS THEMSELVES, VERBATIM (wave 3). One statement for both
+// directions, because orders.orders is one table with a `direction` column -
+// the per-direction read services compose an order for the API's OWN
+// lifecycle work (pricing, emails, PDFs) and are no longer a wire shape.
+//
+// Both narrowings are optional and passed as null to mean "every one": a
+// direction, and an owner. An admin asking for everything passes neither.
+export type OrderRow = orders.OrdersRow;
+
+export async function list(
+  { direction = null, user_id = null }: { direction?: string | null; user_id?: string | null },
+  executor?: Executor
+): Promise<OrderRow[]> {
+  const { rows } = await query<OrderRow>(sql("list"), [direction, user_id], executor);
+  return rows;
+}
+
+export async function getOne(
+  id: string, executor?: Executor
+): Promise<OrderRow | undefined> {
+  const { rows } = await query<OrderRow>(sql("get_one"), [id], executor);
+  return rows[0];
 }
 
 export async function ownerOf(id: string, executor?: Executor): Promise<string | null> {

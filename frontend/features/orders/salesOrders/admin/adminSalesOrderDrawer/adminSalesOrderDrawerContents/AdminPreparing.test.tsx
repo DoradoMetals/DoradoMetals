@@ -31,14 +31,12 @@ const renderWithClient = (ui: React.ReactElement) => {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 };
 
+// THE SLIM WIRE (wave 3). Neither field this fixture used to carry is a
+// column of the order: `supplier_id` was refiners.orders.refiner_id aliased
+// on, and the shipment was a nested slot. Both are their own reads now, and
+// the mock below answers them.
 const order = () =>
-  ({
-    id: "so-1",
-    status: "Preparing",
-    order_sent: false,
-    supplier_id: "",
-    shipment: { carrier_id: "" },
-  } as unknown as SalesOrder);
+  ({ id: "so-1", status: "Preparing", order_sent: false } as unknown as SalesOrder);
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
@@ -54,7 +52,13 @@ beforeEach(() => {
         },
       ];
     if (url === "/carriers/get") return [];
-    return {};
+    // The engagement and the parcels, each its own parent-path read.
+    if (url === "/orders/so-1/refiners") return { id: "ro-1", order_id: "so-1", refiner_id: null };
+    if (url === "/orders/so-1/shipments") return [];
+    if (url === "/carrier_services/get") return [];
+    // A LIST, not an object: every read this component makes now answers with
+    // rows, and a bare `{}` fallback made `services.find` throw.
+    return [];
   });
 });
 

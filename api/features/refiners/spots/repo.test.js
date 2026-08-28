@@ -15,6 +15,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import * as refinerSpots from "#features/refiners/spots/repo.ts";
 
 let client;
@@ -32,9 +33,16 @@ after(async () => {
   await pool.end();
 });
 
+// TAKES THE ORDERS LOCK, and it earned that the way locks.ts says these are
+// always earned: it deadlocked in a full run having passed in isolation every
+// time before. This file writes refiners.spots, which hangs off an order and
+// is written by the order-placing files too; nothing here changed, the suite
+// simply got fast enough (the wire slim took the composed order read off the
+// order paths) to interleave differently.
 async function inRollback(fn) {
   await client.query("BEGIN");
   try {
+    await takeLocks(client, LOCKS.ORDERS);
     await fn(client);
   } finally {
     await client.query("ROLLBACK");

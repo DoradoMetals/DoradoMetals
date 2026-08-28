@@ -22,13 +22,43 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { payoutOptions } from '@/features/payouts/types'
 import { formatRate } from '@/features/rates/utils/resolveRate'
+import { useOrderItems, nameOf } from '@/features/orders/reads'
+import { useOrderPayouts } from '@/features/payouts/queries'
+import {
+  useOrderShipments,
+  useShipmentDisplay,
+  outboundOf,
+  returnOf,
+} from '@/features/shipping/queries'
+import { useProducts } from '@/features/products/queries'
+import { useSpotPrices } from '@/features/spots/queries'
 // Every dollar figure below comes from the order quote - the server prices
 // the order's own items at its own spots (Jacob's no-previews ruling). The
 // client keeps only weight/rate display math.
 import { useOrderQuote } from '@/features/quotes/queries'
 
+// A CONTAINER (ruling 14): it holds the order id and calls each read itself,
+// one hop from what it renders. The composed order that used to carry all of
+// this - order_items, shipment, return_shipment, payout - is gone; each is
+// its own hook keyed by the id this component already has.
 export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
   const valueLabel = statusConfig[order.status ?? '']?.value_label ?? ''
+
+  const { data: items = [] } = useOrderItems(order.id)
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const { data: payouts = [] } = useOrderPayouts(order.id)
+  const { data: catalogue = [] } = useProducts()
+  // The spots reference list: its `id` IS the metal's id, which is how a
+  // scrap line's metal_id becomes "Gold".
+  const { data: spotPrices = [] } = useSpotPrices()
+
+  // ONE ARRAY, FILTERED ON `direction` - shipment / return_shipment were two
+  // names for one table that carries the column.
+  const shipment = outboundOf(shipments)
+  const returnShipment = returnOf(shipments)
+  const { service_name: shipmentService } = useShipmentDisplay(shipment)
+  const { service_name: returnService } = useShipmentDisplay(returnShipment)
+  const payout = payouts[0] ?? null
 
   const { data: quote } = useOrderQuote(order.id)
   // Quote lines pair to order items BY ID - these are stored rows, unlike the
@@ -45,10 +75,14 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
     payout: false,
     total: false,
   })
-  const rawScrapItems = order.order_items.filter((item) => item.item_type === 'scrap' && item.scrap)
-  const scrapItems = assignScrapItemNames(rawScrapItems)
-  const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
-  const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
+  // bullion_id IS the discriminator now - null means scrap. `item_type` was
+  // derived in the compose layer and has no column.
+  const scrapItems = assignScrapItemNames(
+    items.filter((item) => item.bullion_id === null),
+    (metal_id) => nameOf(spotPrices, metal_id)
+  )
+  const bullionItems = items.filter((item) => item.bullion_id !== null)
+  const payoutMethod = payoutOptions.find((p) => p.method === payout?.method)
   const payoutFee = payoutMethod?.cost ?? 0
 
   // 0 until the first quote lands, which is what the old client math showed
@@ -79,19 +113,16 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
             <TableBody>
               {scrapItems.map((item, i) => (
                 <TableRow key={i} className="hover:bg-transparent">
-                  <TableCell className="text-left">{item.scrap?.name}</TableCell>
+                  <TableCell className="text-left">{item.name}</TableCell>
+                  <TableCell className="text-center">{item.content?.toFixed(3)} toz</TableCell>
+                  {/* THE SCRAP LINE'S PREMIUM IS ITS OWN. The composed wire
+                      served scrap.bid_premium FROM item.premium - 085 dropped
+                      the separate column when scrap folded into the items
+                      table - so `item.premium ?? item.scrap?.bid_premium` was
+                      one value read twice. */}
+                  <TableCell className="text-center">{formatRate(item.premium)}</TableCell>
                   <TableCell className="text-center">
-                    {item.scrap?.content?.toFixed(3)} toz
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {formatRate(item.premium ?? item.scrap?.bid_premium)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {(
-                      (item.scrap?.content ?? 0) *
-                      ( item?.premium ?? item?.scrap?.bid_premium ?? 1)
-                    ).toFixed(3)}{' '}
-                    toz
+                    {((item.content ?? 0) * (item.premium ?? 1)).toFixed(3)} toz
                   </TableCell>
                   <TableCell className="text-right">
                     {/* Scrap line_total is the whole line - content is not
@@ -117,7 +148,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
               {bullionItems.map((item, i) => (
                 <TableRow key={i} className="hover:bg-transparent">
                   <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.product?.name}</TableCell>
+                  <TableCell>{nameOf(catalogue, item.bullion_id)}</TableCell>
                   <TableCell className="text-right p-0">
                     {/* line_total is already unit_price * quantity. */}
                     <PriceNumberFlow value={quoteLineById.get(item.id)?.line_total ?? 0} />
@@ -129,28 +160,28 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
         </Accordion>
       )}
 
-      {order.shipment && (
+      {shipment && (
         <Accordion
           label="Shipping Charges"
           open={open.shipment ?? false}
           toggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
-          total={order.shipment.shipping_charge ?? 0}
+          total={shipment.cost ?? 0}
         >
           <Table className="font-normal text-neutral-700 overflow-hidden">
             <TableBody>
               <TableRow className="hover:bg-transparent">
-                <TableCell>{order.shipment.shipping_service}</TableCell>
-                <TableCell>{order.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
+                <TableCell>{shipmentService}</TableCell>
+                <TableCell>{shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                 <TableCell className="text-right p-0">
-                  -<PriceNumberFlow value={order.shipment.shipping_charge ?? 0} />
+                  -<PriceNumberFlow value={shipment.cost ?? 0} />
                 </TableCell>
               </TableRow>
-              {order.status === 'Cancelled' && (
+              {order.status === 'Cancelled' && returnShipment && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell>{order.return_shipment.shipping_service} (Return)</TableCell>
-                  <TableCell>{order.return_shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
+                  <TableCell>{returnService} (Return)</TableCell>
+                  <TableCell>{returnShipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                   <TableCell className="text-right p-0">
-                    -<PriceNumberFlow value={order.return_shipment.shipping_charge ?? 0} />
+                    -<PriceNumberFlow value={returnShipment.cost ?? 0} />
                   </TableCell>
                 </TableRow>
               )}
@@ -204,11 +235,11 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
             </>
           )}
 
-          {(order.shipment?.shipping_charge ?? 0) > 0 && (
+          {(shipment?.cost ?? 0) > 0 && (
             <>
               <div>Shipping:</div>
               <div className="text-right">
-                -<PriceNumberFlow value={order.shipment.shipping_charge ?? 0} />
+                -<PriceNumberFlow value={shipment?.cost ?? 0} />
               </div>
             </>
           )}

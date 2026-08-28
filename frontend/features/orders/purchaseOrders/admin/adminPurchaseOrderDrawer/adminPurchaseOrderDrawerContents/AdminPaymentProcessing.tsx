@@ -1,3 +1,4 @@
+import { useOrderPayouts } from '@/features/payouts/queries'
 'use client'
 
 import { payoutOptions } from '@/features/payouts/types'
@@ -10,18 +11,27 @@ import ActualsEditor from '@/features/orders/purchaseOrders/admin/adminPurchaseO
 export default function AdminPaymentProcessingPurchaseOrder({
   order,
 }: PurchaseOrderDrawerContentProps) {
+  // A CONTAINER for the order's payout (ruling 14). The composed wire carried
+  // a `payout` member that was an OBJECT OF NULLS when the order had none - a
+  // LEFT JOIN feeding jsonb_build_object - so `payout?.method` read
+  // `undefined` rather than throwing. It is its own read now, last-four only,
+  // and an order with no payout answers [].
+  const { data: payouts = [] } = useOrderPayouts(order.id)
+  const payout = payouts[0] ?? null
   const config = statusConfig[order.status ?? '']
-  const payout = payoutOptions.find((p) => p.method === order.payout?.method)
-  const Icon = payout?.icon
+  // The client-side option list (icon, label, expected delay) is UI
+  // vocabulary, not a column - matched on the row's method.
+  const payoutOption = payoutOptions.find((p) => p.method === payout?.method)
+  const Icon = payoutOption?.icon
 
   // Bank details are not carried by the order payload. Fetch them only for the
   // two methods that need them, and only while this drawer is open.
   const needsBankDetails =
-    order.payout?.method === 'ACH' || order.payout?.method === 'WIRE'
+    payout?.method === 'ACH' || payout?.method === 'WIRE'
   // Payout-keyed: GET /payouts/:id/details takes the payout's own id off the
   // order wire.
   const { data: bank, isLoading: bankLoading } = usePayoutDetails(
-    order.payout?.id,
+    payout?.id,
     needsBankDetails
   )
   const show = (value: string | null | undefined) =>
@@ -34,7 +44,7 @@ export default function AdminPaymentProcessingPurchaseOrder({
           <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-1 text-xl text-neutral-800">
               <Icon size={24} className={'text-primary'} />
-              {payout?.label}
+              {payoutOption?.label}
             </div>
             <div className="text-xl text-neutral-900">
               <PriceNumberFlow value={order.totals?.total ?? 0} />
@@ -42,7 +52,7 @@ export default function AdminPaymentProcessingPurchaseOrder({
           </div>
 
           <div className="w-full">
-            {order.payout.method === 'ACH' && (
+            {payout?.method === 'ACH' && (
               <div className="flex flex-col w-full gap-2">
                 <div className="flex gap-1 justify-between w-full text-base text-neutral-800 items-center">
                   <div className="flex flex-col text-left">
@@ -53,9 +63,9 @@ export default function AdminPaymentProcessingPurchaseOrder({
                     <p>Account:</p>
                   </div>
                   <div className="flex flex-col text-right">
-                    <p>{order.payout.account_holder_name}</p>
-                    <p>{order.payout.account_type}</p>
-                    <p>{order.payout.bank_name}</p>
+                    <p>{payout?.account_holder_name}</p>
+                    <p>{payout?.account_type}</p>
+                    <p>{payout?.bank_name}</p>
                     <p>{show(bank?.routing_number)}</p>
                     <p>{show(bank?.account_number)}</p>
                   </div>
@@ -63,7 +73,7 @@ export default function AdminPaymentProcessingPurchaseOrder({
               </div>
             )}
 
-            {order.payout.method === 'WIRE' && (
+            {payout?.method === 'WIRE' && (
               <div className="flex flex-col w-full gap-2">
                 <div className="flex gap-1 justify-between w-full text-base text-neutral-800 items-center">
                   <div className="flex flex-col text-left">
@@ -72,7 +82,7 @@ export default function AdminPaymentProcessingPurchaseOrder({
                     <p>Account:</p>
                   </div>
                   <div className="flex flex-col text-right">
-                    <p>{order.payout.account_holder_name}</p>
+                    <p>{payout?.account_holder_name}</p>
                     <p>{show(bank?.routing_number)}</p>
                     <p>{show(bank?.account_number)}</p>
                   </div>
@@ -80,7 +90,7 @@ export default function AdminPaymentProcessingPurchaseOrder({
               </div>
             )}
 
-            {order.payout.method === 'ECHECK' && (
+            {payout?.method === 'ECHECK' && (
               <div className="w-full items-center flex justify-between">
                 <div className="flex flex-col w-full gap-2 w-full">
                   <div className="flex justify-between w-full text-base text-neutral-800 items-center">
@@ -89,15 +99,15 @@ export default function AdminPaymentProcessingPurchaseOrder({
                       <p>Email:</p>
                     </div>
                     <div className="flex flex-col text-right">
-                      <p>{order.payout.account_holder_name}</p>
-                      <p>{order.payout.email_to}</p>
+                      <p>{payout?.account_holder_name}</p>
+                      <p>{payout?.email_to}</p>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {order.payout.method === 'DORADO_ACCOUNT' && (
+            {payout?.method === 'DORADO_ACCOUNT' && (
               <div className="w-full items-center flex justify-between">
                 <div className="flex flex-col w-full gap-2 w-full">
                   <div className="flex justify-between w-full text-base text-neutral-800 items-center">
@@ -106,8 +116,8 @@ export default function AdminPaymentProcessingPurchaseOrder({
                       <p>Email:</p>
                     </div>
                     <div className="flex flex-col text-right">
-                      <p>{order.payout.account_holder_name}</p>
-                      <p>{order.payout.email_to}</p>
+                      <p>{payout?.account_holder_name}</p>
+                      <p>{payout?.email_to}</p>
                     </div>
                   </div>
                 </div>

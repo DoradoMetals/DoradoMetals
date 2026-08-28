@@ -28,22 +28,17 @@ export default function PurchaseOrderDrawerHeader({
 
   const status = statusConfig[order.status ?? ''] ?? ''
   const Icon = status?.icon ?? CheckCheck
-  const packageDetails =
-    packageOptions.find((pkg) => pkg.label === order.shipment.package) ?? packageOptions[0]
-  const payoutDetails =
-    payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
+  // The package and the payout method are the SERVER's to resolve now: the
+  // download body is { order_id }, and the packing list prints the box the
+  // parcel was actually booked with rather than the first entry of a
+  // hard-coded list when the label failed to match (ruling 10).
 
   const downloadOptions = [
     {
       statuses: ['In Transit'],
       label: 'Download Label + Packing List',
       onClick: () => {
-        downloadPackingList.mutate({
-          purchaseOrder: order,
-          spotPrices,
-          packageDetails,
-          payoutDetails,
-        })
+        downloadPackingList.mutate({ order_id: order.id, order_number: order.number })
       },
       isPending: downloadPackingList.isPending,
     },
@@ -51,10 +46,7 @@ export default function PurchaseOrderDrawerHeader({
       statuses: ['Cancelled'],
       label: 'Download Label + Packing List',
       onClick: () => {
-        downloadReturnPackingList.mutate({
-          purchaseOrder: order,
-          spotPrices,
-        })
+        downloadReturnPackingList.mutate({ order_id: order.id, order_number: order.number })
       },
       isPending: downloadReturnPackingList.isPending,
     },
@@ -63,9 +55,8 @@ export default function PurchaseOrderDrawerHeader({
       label: 'Download Invoice Preview',
       onClick: () =>
         downloadInvoice.mutate({
-          purchaseOrder: order,
-          spotPrices,
-          orderSpots: namedOrderSpots,
+          order_id: order.id,
+          order_number: order.number,
           fileName: 'invoice_preview',
         }),
       isPending: downloadInvoice.isPending,
@@ -75,9 +66,8 @@ export default function PurchaseOrderDrawerHeader({
       label: 'Download Invoice',
       onClick: () =>
         downloadInvoice.mutate({
-          purchaseOrder: order,
-          spotPrices,
-          orderSpots: namedOrderSpots,
+          order_id: order.id,
+          order_number: order.number,
           fileName: 'invoice',
         }),
       isPending: downloadInvoice.isPending,

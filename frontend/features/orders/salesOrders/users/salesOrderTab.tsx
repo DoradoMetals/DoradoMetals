@@ -85,7 +85,7 @@ export function SalesOrdersContent() {
             onClick={() => {
               router.push('/buy')
             }}
-            className="raised-off-page bg-primary text-white hover:bg-primary/90 px-12"
+            className="raised-off-page bg-primary text-primary-foreground hover:bg-primary/90 px-12"
           >
             Start Buying
           </Button>

@@ -74,6 +74,7 @@
 // findMetalsByOrderId, and the live spots from getCurrentSpotPrices. The
 // body's arrays are not ignored, they are refused: order_spots is not a field.
 import query from "#shared/db/query.js";
+import * as orderRead from "#features/orders/read.ts";
 import * as purchaseOrderService from "#features/purchase-orders/service.ts";
 import * as purchaseOrderRepo from "#features/purchase-orders/repo.dual.js";
 import * as salesOrderService from "#features/sales-orders/service.ts";
@@ -278,9 +279,11 @@ export async function patchOrder(
     );
   }
 
-  return direction === "purchase"
-    ? await purchaseOrderService.getById(orderId)
-    : await salesOrderService.getById(orderId);
+  // THE SLIM ORDER (wave 3), the same shape GET /api/orders serves: the
+  // orders.orders row plus totals. It was the composed order until the wire
+  // slimmed - a PATCH answering in a shape no read returns would have been a
+  // second wire for one resource.
+  return await orderRead.getOne(orderId);
 }
 
 // ---------------------------------------------------------------------------

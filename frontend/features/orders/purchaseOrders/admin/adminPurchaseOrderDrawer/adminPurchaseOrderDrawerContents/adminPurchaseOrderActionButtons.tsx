@@ -1,3 +1,5 @@
+import { useOrderPayouts } from '@/features/payouts/queries'
+import { useOrderItems } from '@/features/orders/reads'
 import { Button } from '@/shared/ui/base/button'
 import { PurchaseOrderActionButtonsProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { cn } from '@/shared/utils/cn'
@@ -5,6 +7,14 @@ import { useMemo } from 'react'
 import { usePatchOrder } from '@/features/orders/patch'
 
 export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtonsProps) {
+  // A CONTAINER for the order's payout (ruling 14). The composed wire carried
+  // a `payout` member that was an OBJECT OF NULLS when the order had none - a
+  // LEFT JOIN feeding jsonb_build_object - so `payout.method` read
+  // `undefined` rather than throwing. It is its own read now, last-four only,
+  // and an order with no payout answers [].
+  const { data: items = [] } = useOrderItems(order.id)
+  const { data: payouts = [] } = useOrderPayouts(order.id)
+  const payout = payouts[0] ?? null
   const patchOrder = usePatchOrder()
 
   const handleAction = (action: string, status: string) => {
@@ -19,7 +29,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
     // - completing a DORADO_ACCOUNT payout credits the customer's funds;
     //   add_funds rides the same document, applied before status - the same
     //   order the two legacy requests raced to keep.
-    const addFunds = status === 'Completed' && order.payout.method === 'DORADO_ACCOUNT'
+    const addFunds = status === 'Completed' && payout.method === 'DORADO_ACCOUNT'
     patchOrder.mutate({
       id: order.id,
       patch: {
@@ -30,9 +40,7 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
     })
   }
 
-  const allItemsConfirmed = useMemo(() => {
-    return order.order_items.every((item) => item.confirmed)
-  }, [order.order_items])
+  const allItemsConfirmed = useMemo(() => items.every((item) => item.confirmed), [items])
 
   const getButtonActions = () => {
     switch (order.status) {

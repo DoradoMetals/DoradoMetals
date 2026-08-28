@@ -12,26 +12,18 @@
 // back at checkout and the API resolves it against exchange.addresses.
 // Shipments and users are still read from exchange, unmigrated.
 import query from "#shared/db/query.js";
-import type { SalesOrder } from "@dorado/contracts";
+import type { ComposedSalesOrder } from "#features/sales-orders/compose.ts";
 import type { PoolClient } from "pg";
 
 // Repos take an optional executor so a caller can pull them into its
 // transaction; without one they run on the pool.
 type Executor = PoolClient | undefined;
 
-// The order row is SalesOrder - the converted shape (D84), which
-// validate:wire parses real rows through, so it is the description of this
-// shape that has been checked against the database rather than read off the
-// SQL.
-//
-// Its two timestamps are overridden. A contract describes the WIRE, where a
-// timestamp is a string because JSON made it one; pg returns a Date. The rest
-// of the shape - the nested totals, address, shipment, user and items - is
-// taken exactly as declared.
-export type SalesOrderRow = Omit<SalesOrder, "created_at" | "updated_at"> & {
-  created_at: Date | null;
-  updated_at: Date | null;
-};
+// The order row is ComposedSalesOrder, the API's OWN assembled shape - see
+// compose.ts. It was the SalesOrder contract until wave 3, when the wire
+// slimmed to the orders.orders row plus totals; `diff` and
+// verify:sales-order-decomposition are what check it now.
+export type SalesOrderRow = ComposedSalesOrder;
 
 // The per-metal spot row an order carries. There is deliberately no contract
 // for this one - it is not returned by any route on its own, only alongside an

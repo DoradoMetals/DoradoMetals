@@ -9,8 +9,13 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 
 import { SalesOrderDrawerFooterProps } from '@/features/orders/salesOrders/types'
+import { useSalesOrderLines } from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/useSalesOrderLines'
 
 export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooterProps) {
+  // A CONTAINER (ruling 14): the lines are their own read, named against the
+  // cached catalogue - the order document carries neither.
+  const lines = useSalesOrderLines(order.id)
+
   const [open, setOpen] = useState({
     items: false,
     total: false,
@@ -18,7 +23,7 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
 
   return (
     <div className="flex flex-col w-full gap-2">
-      {order.order_items.length > 0 && (
+      {lines.length > 0 && (
         <Accordion
           label={`Item Prices`}
           open={open.items}
@@ -27,10 +32,10 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
         >
           <Table className="font-normal text-neutral-700 overflow-hidden">
             <TableBody>
-              {order.order_items.map((item, i) => (
+              {lines.map((item, i) => (
                 <TableRow key={i} className="hover:bg-transparent">
                   <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.product?.name}</TableCell>
+                  <TableCell>{item.name}</TableCell>
                   <TableCell className="text-right p-0">
                     <PriceNumberFlow value={(item.quantity ?? 0) * (item.price ?? 0)} />
                   </TableCell>
@@ -48,7 +53,7 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
         total={order.totals?.total ?? 0}
       >
         <div className="flex flex-col gap-2 pr-2">
-          {order.used_funds && (
+          {order.totals?.used_funds && (
             <div className="flex items-center justify-between w-full">
               <div className="text-sm text-neutral-700">Dorado Funds Applied:</div>
               <div className="text-right text-sm text-neutral-800">
@@ -60,7 +65,7 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
           {(order.totals?.subject_to_charges_amount ?? 0) > 0 && (
             <div className="flex items-center justify-between w-full">
               <div className="text-sm text-neutral-700">
-                {order.used_funds ? 'Amount Remaining: ' : 'Before Fees: '}
+                {order.totals?.used_funds ? 'Amount Remaining: ' : 'Before Fees: '}
               </div>
               <div className="text-right text-sm text-neutral-800">
                 <PriceNumberFlow value={order.totals?.subject_to_charges_amount ?? 0} />

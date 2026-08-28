@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
-import type { RefinerOrder, RefinerSpot } from '@dorado/contracts'
+import type { RefinerItem, RefinerOrder, RefinerSpot } from '@dorado/contracts'
 
 // REFINERS IS ITS OWN FEATURE, and the endpoint follows the feature that
 // owns the table (Jacob's rule, fourth D87 correction). The standing rule of
@@ -52,6 +52,26 @@ export const useRefinerMetals = (order_id: string) => {
       await apiRequest<RefinerSpot[]>('GET', `/orders/${order_id}/refiners/spots`),
     enabled: !!user && !!order_id,
     refetchInterval: 60_000,
+  })
+}
+
+// THE REFINERY'S NUMBERS PER CUSTOMER LINE (wave 3):
+// GET /orders/:orderId/refiners/items, verbatim refiners.items rows keyed by
+// order_item_id. The assay report lives here. It used to ride on the composed
+// order as scrap.purity_actual / post_melt_actual / content_actual, plus the
+// refiner's premium as a field of the customer's own line - four values of
+// another table wearing customer-facing names. Map them onto the items read
+// by order_item_id.
+export type { RefinerItem } from '@dorado/contracts'
+
+export const useRefinerItems = (order_id: string) => {
+  const { user } = useGetSession()
+
+  return useQuery<RefinerItem[]>({
+    queryKey: ['refiner_items', order_id],
+    queryFn: async () =>
+      await apiRequest<RefinerItem[]>('GET', `/orders/${order_id}/refiners/items`),
+    enabled: !!user && !!order_id,
   })
 }
 

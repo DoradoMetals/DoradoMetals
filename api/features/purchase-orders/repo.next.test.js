@@ -6,7 +6,6 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import { PurchaseOrder } from "@dorado/contracts";
 import * as readService from "#features/purchase-orders/read.service.ts";
 import * as spotsRepo from "#features/purchase-orders/repo.next.ts";
 
@@ -34,13 +33,27 @@ async function inRollback(fn) {
   }
 }
 
-// The exchange implementation this was compared against is gone; the CONTRACT
-// is the independent statement of the shape now, and validate:wire parses real
-// rows through it - this pin is the cheap in-suite version of the same claim.
-test("an order carries exactly the contract's fields", async () => {
+// THE CONTRACT NO LONGER DESCRIBES THIS SHAPE (wave 3), and the pin changed
+// with it. read.service.ts assembles the API's OWN internal order - what
+// pricing, the confirmation email and the PDFs need - while the WIRE is the
+// orders.orders row plus totals (packages/contracts' `Order`, checked by
+// validate:wire and by features/orders/read.ts's own callers). So this pins
+// the composed shape against ITSELF, as the explicit list compose.ts builds:
+// a member silently disappearing from the assembly is exactly what
+// verify:orders-decomposition and this catch, and there is no longer an
+// external schema that would notice.
+const COMPOSED_FIELDS = [
+  "id", "user_id", "address_id", "status", "notes", "created_at", "updated_at",
+  "created_by", "updated_by", "number", "spots_locked", "waive_shipping_fee",
+  "waive_payout_fee", "shipping_paid", "review_created", "shipping_fee_actual",
+  "pool_remediation", "pool_oz_deducted", "totals", "order_items", "address",
+  "shipment", "return_shipment", "carrier_pickup", "payout", "user",
+];
+
+test("the composed order carries exactly the fields compose.ts builds", async () => {
   const [b] = await readService.getAll();
   assert.ok(b, "no orders came back - this proves nothing");
-  assert.deepEqual(Object.keys(b).sort(), Object.keys(PurchaseOrder.shape).sort());
+  assert.deepEqual(Object.keys(b).sort(), [...COMPOSED_FIELDS].sort());
 });
 
 // The one that would take checkout down. The frontend reads the order

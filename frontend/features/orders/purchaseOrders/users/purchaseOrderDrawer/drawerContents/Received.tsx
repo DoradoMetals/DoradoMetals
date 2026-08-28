@@ -2,12 +2,15 @@
 
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { cn } from '@/shared/utils/cn'
+import { useOrderItems } from '@/features/orders/reads'
 
 export default function ReceivedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const config = statusConfig[order.status ?? '']
 
-  const totalItems = order.order_items.length
-  const confirmedItems = order.order_items.filter((item) => item.confirmed).length
+  // A CONTAINER for the one thing it shows: how many lines are assayed.
+  const { data: items = [] } = useOrderItems(order.id)
+  const totalItems = items.length
+  const confirmedItems = items.filter((item) => item.confirmed).length
   const percent = totalItems > 0 ? Math.round((confirmedItems / totalItems) * 100) : 0
 
   return (

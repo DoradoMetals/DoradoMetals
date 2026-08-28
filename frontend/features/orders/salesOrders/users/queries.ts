@@ -1,28 +1,12 @@
 import { SalesOrder, SalesOrderCheckout } from '@/features/orders/salesOrders/types'
 import { SpotPrice } from '@/features/spots/types'
-import type { OrderAddressSnapshot, SpotOnOrder } from '@dorado/contracts'
-import type { Address, UserAddress } from '@/features/addresses/types'
-import { apiRequest } from '@/shared/queries/axios'
+import { toAddressSnapshot } from '@/features/orders/addressSnapshot'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 
-// The order's address on the wire is a SNAPSHOT built at the mutation edge
-// from the checkout's picked pair - see the note in purchaseOrders/users/
-// queries.ts, the same build.
-export const toAddressSnapshot = (a: Address, ua?: UserAddress | null): OrderAddressSnapshot => ({
-  address_id: a.id ?? null,
-  recipient_name: ua?.label ?? null,
-  line_1: a.line_1,
-  line_2: a.line_2,
-  city: a.city,
-  state: a.state,
-  country: a.country,
-  country_code: a.country_code,
-  zip: a.zip,
-  phone_number: a.phone_number,
-  is_residential: a.is_residential,
-  is_valid: a.is_valid,
-})
+// toAddressSnapshot moved to features/orders/addressSnapshot.ts - one copy
+// for both directions and the cancel op, which had three.
+export { toAddressSnapshot }
 
 export const useSalesOrders = () => {
   return useApiQuery<SalesOrder[]>({

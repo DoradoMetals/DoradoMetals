@@ -12,19 +12,39 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
   default: ({ value }: { value: number }) => React.createElement("span", null, String(value)),
 }));
 
+// THE LINES ARE A READ NOW, NOT A PROP (wave 3). The footer is a CONTAINER:
+// it calls useSalesOrderLines(order.id), which fetches orders.items and names
+// them against the cached catalogue. Stubbing that one hook keeps this a
+// render test - props and stubbed data in, DOM out - rather than turning it
+// into a query-client harness, and it is the seam the container/presentational
+// split creates on purpose.
+vi.mock(
+  "@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/useSalesOrderLines",
+  () => ({
+    useSalesOrderLines: () => [
+      {
+        id: "i-1",
+        name: "Silver Maple Leaf",
+        mint_name: null,
+        image_front: null,
+        quantity: 2,
+        price: 1600,
+      },
+    ],
+  })
+);
+
 import SalesOrderDrawerFooter from "@/features/orders/salesOrders/users/salesOrderDrawer/salesOrderDrawerFooter";
 import type { SalesOrder } from "@/features/orders/salesOrders/types";
 
-// The converted wire: money nested as `totals` with the transactions names,
-// the embedded product speaking `name`.
+// THE SLIM WIRE: the orders.orders row plus `totals`, and nothing else. The
+// order document no longer carries order_items - and `used_funds` is a column
+// of orders.transactions, so it sits on totals where it always came from.
 const order = () =>
   ({
     id: "so-1",
-    used_funds: true,
-    order_items: [
-      { id: "i-1", quantity: 2, price: 1600, product: { id: "p-1", name: "Silver Maple Leaf" } },
-    ],
     totals: {
+      used_funds: true,
       total: 3369.39,
       items: 3200,
       shipping: 25,

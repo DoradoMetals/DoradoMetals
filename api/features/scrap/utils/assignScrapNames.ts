@@ -2,9 +2,12 @@
 // on their packing list and invoice.
 //
 // The names are display only. Nothing stores them, which is why `name` is
-// optional on ScrapOnOrderItem: it is the one field on that object the database
+// optional on the composed scrap object: it is the one field on it the database
 // never supplies.
-import type { PurchaseOrderItem, ScrapOnOrderItem } from "@dorado/contracts";
+import type {
+  ComposedItem as PurchaseOrderItem,
+  ComposedScrap as ScrapOnOrderItem,
+} from "#features/purchase-orders/compose.ts";
 
 // A line that has survived the filter below. Narrowing `metal` to a string is
 // the whole point of that filter, and saying so here is what lets the sort and

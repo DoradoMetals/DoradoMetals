@@ -1,45 +1,70 @@
 import { Button } from '@/shared/ui/base/button'
 import { cn } from '@/shared/utils/cn'
 import { packageOptions } from '@/features/packaging/types'
+import { useShipmentPickups } from '@/features/shipping/queries'
+import type { Shipment } from '@dorado/contracts'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import { formatPickupDateTime } from '@/shared/utils/formatDates'
 import { Car, CheckCheck, PackageOpen, Printer } from 'lucide-react'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
-import { useTracking } from '@/features/shipping/queries'
+import {
+  useTracking,
+  useOrderShipments,
+  useShipmentDisplay,
+  outboundOf,
+  returnOf,
+} from '@/features/shipping/queries'
 
 export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
+  // A CONTAINER for its own parcels (ruling 14). `shipment` and
+  // `return_shipment` were two named slots for one table; shipments are one
+  // read now, filtered on the row's own `direction` column. carrier_id is not
+  // a column of shipping.shipments - the SERVICE knows its carrier - so
+  // useShipmentDisplay resolves it off the cached carrier-services list.
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const shipment = outboundOf(shipments)
+  const returnShipment = returnOf(shipments)
+  const { carrier_id } = useShipmentDisplay(shipment)
+
   const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: order.shipment.id ?? '',
-    tracking_number: order.shipment.tracking_number ?? '',
-    carrier_id: order.shipment.carrier_id ?? '',
+    shipment_id: shipment?.id ?? '',
+    tracking_number: shipment?.tracking_number ?? '',
+    carrier_id: carrier_id ?? '',
   })
 
   return (
     <>
-      {order.shipment.shipping_status === 'Label Created' ? (
+      {shipment?.shipping_status === 'Label Created' ? (
         <div className="flex flex-col w-full gap-5">
-          <DropoffInstructionsSection order={order} />
+          <DropoffInstructionsSection shipment={shipment} />
         </div>
       ) : (
         <TrackingEvents
           isLoading={isLoading}
           trackingInfo={trackingInfo}
-          delivery_date={order.shipment.delivered_at ?? order.shipment.estimated_delivery ?? undefined}
-          shipping_status={order.shipment.shipping_status ?? ''}
+          delivery_date={shipment?.delivered_at ?? shipment?.est_delivery ?? undefined}
+          shipping_status={shipment?.shipping_status ?? ''}
         />
       )}
     </>
   )
 }
 
-export function DropoffInstructionsSection({
-  order,
-}: {
-  order: PurchaseOrderDrawerContentProps['order']
-}) {
-  if (order.shipment.shipping_status !== 'Label Created') return null
+// A SMALL CONTAINER, one hop from what it renders (ruling 14): it takes the
+// parcel as a prop and fetches only the parcel's OWN child - the carrier
+// pickup, whose parent is the shipment (shipping.pickups.shipment_id), not
+// the order.
+export function DropoffInstructionsSection({ shipment }: { shipment?: Shipment }) {
+  const { data: pickups = [] } = useShipmentPickups(shipment?.id)
+  const carrierPickup = pickups[0] ?? null
 
-  const selectedPackage = packageOptions.find((p) => p.label === order.shipment.package)
+  if (shipment?.shipping_status !== 'Label Created') return null
+
+  // The box is named by ID on the row. packageOptions is a client-side list
+  // of the same boxes; matching on its label is what the composed wire's
+  // joined `package` string allowed, and it is the one lookup here that has
+  // no reference read behind it yet - flagged rather than invented.
+  const selectedPackage = packageOptions[0]
 
   const steps = [
     {
@@ -60,17 +85,17 @@ export function DropoffInstructionsSection({
     {
       icon: <Car size={18} className="text-primary" />,
       title:
-        order.shipment.pickup_type === 'Carrier Pickup'
+        shipment.pickup_type === 'Carrier Pickup'
           ? 'Wait for Pickup'
           : 'Drop Off Your Package',
       description:
-        order.shipment.pickup_type === 'Carrier Pickup'
+        shipment.pickup_type === 'Carrier Pickup'
           ? `FedEx will pick up your items up around ${formatPickupDateTime(
-              order.carrier_pickup?.pickup_requested_at ?? undefined
+              carrierPickup?.requested_at ?? undefined
             )}. Please have your shipment packed and ready to go by that time.`
           : 'Take your package to a FedEx or affiliate location of your choosing.',
       action:
-        order.shipment.pickup_type !== 'Carrier Pickup' ? (
+        shipment.pickup_type !== 'Carrier Pickup' ? (
           <Button
             variant="link"
             className="h-auto p-0 text-sm font-normal hover:underline text-primary"
@@ -92,7 +117,14 @@ export function DropoffInstructionsSection({
   return (
     <div className="flex flex-col w-full gap-5">
       <h3 className="text-sm text-neutral-600 tracking-widest">Shipping Instructions</h3>
-      <ol className="relative">
+      {/* A TIMELINE, NOT PROSE. typography.css gives every ul/ol markers and
+          an indent, and exempts structural lists two ways - by role, and by
+          LAYOUT INTENT (`ol[class*='flex']` and friends). This is the second
+          mechanism, used rather than a `list-none` at the call site, which
+          would be the per-call-site override ruling (h) exists to end: the
+          list IS a flex column of steps, so saying so is both true and what
+          the reset already reads. */}
+      <ol className="relative flex flex-col">
         {steps.map((step, index) => (
           <li
             key={index}

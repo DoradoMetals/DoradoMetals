@@ -93,9 +93,12 @@ after(async () => {
 // not: a return packing list, a purchase-order invoice and a sales-order
 // invoice - the documents a customer and a refiner are sent.
 //
-// Each still renders from the request body here: `customer` is an arbitrary
-// non-admin, generally not the order's owner, so serve.ts keeps the store shut
-// and hands back a live render - the pre-paper-trail surface, byte for byte.
+// Each renders LIVE here, FROM THE SERVER'S OWN READ (ruling 10, wave 3):
+// `customer` is an arbitrary non-admin, generally not the order's owner, so
+// serve.ts keeps the store shut and falls back to a render. The BODY is now
+// `{ order_id }` - it used to carry the whole composed order plus the spot
+// feed and the package, which meant the document was rendered from numbers
+// the browser supplied.
 // Nothing that would notice the renderer breaking exists elsewhere, which is
 // what makes rendering them worth asserting rather than assuming.
 //
@@ -103,21 +106,9 @@ after(async () => {
 // error page is still a 200 with content-type application/pdf, so the status
 // alone proves nothing.
 const RENDERS = [
-  [
-    "generate_return_packing_list",
-    "return-packing-list.pdf",
-    () => ({ purchaseOrder: order, spotPrices: spots }),
-  ],
-  [
-    "generate_invoice",
-    "invoice.pdf",
-    () => ({ purchaseOrder: order, spotPrices: spots, orderSpots: spots }),
-  ],
-  [
-    "generate_sales_order_invoice",
-    "invoice.pdf",
-    () => ({ salesOrder, spots }),
-  ],
+  ["generate_return_packing_list", "return-packing-list.pdf", () => ({ order_id: order.id })],
+  ["generate_invoice", "invoice.pdf", () => ({ order_id: order.id })],
+  ["generate_sales_order_invoice", "invoice.pdf", () => ({ order_id: salesOrder.id })],
 ];
 
 for (const [route, filename, body] of RENDERS) {
@@ -192,11 +183,7 @@ test("a signed-in caller gets a real PDF with the headers to download it", async
     await as({ ...customer, role: "user" }, async () => {
       const res = await request(app)
         .post("/api/pdf/generate_packing_list")
-        .send({
-          purchaseOrder: order,
-          spotPrices: spots,
-          packageDetails: { label: "Medium Box" },
-        })
+        .send({ order_id: order.id })
         .buffer(true)
         .parse((res, cb) => {
           const chunks = [];
@@ -257,7 +244,7 @@ test("an owner's download with a stored row still answers with a PDF when the st
     await as({ ...ownerRow[0], role: "user" }, async () => {
       const res = await request(app)
         .post("/api/pdf/generate_return_packing_list")
-        .send({ purchaseOrder: order, spotPrices: spots })
+        .send({ order_id: order.id })
         .buffer(true)
         .parse((r, cb) => {
           const chunks = [];
