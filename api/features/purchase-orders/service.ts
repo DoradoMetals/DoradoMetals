@@ -223,10 +223,13 @@ export async function cancelOrder({
 
   try {
     return await withTransaction(async (client) => {
-      const updatedOrder = await purchaseOrderRepo.cancelOrderById(
-        order.id,
-        client
-      );
+      // No status write. This called cancelOrderById, which set
+      // purchase_order_status = 'Cancelled' on the way through - and statuses
+      // are labels now, never side effects (Jacob, 28 August). What remains
+      // of that statement is the spot unpin; the 'Cancelled' label is the
+      // admin's own explicit status write, which the PATCH runs LAST so a
+      // cancel-and-label document still labels after the pipeline succeeds.
+      await purchaseOrderRepo.toggleSpots(false, order.id, client);
       await purchaseOrderRepo.clearOrderMetals(order.id, client);
 
       const shipment = await shipmentRepo.create(
@@ -263,7 +266,7 @@ export async function cancelOrder({
         client
       );
 
-      return { updatedOrder, returnShipment: updatedShipment };
+      return { returnShipment: updatedShipment };
     });
   } catch (err) {
     await undoLabel(labelData.tracking_number);
@@ -484,20 +487,27 @@ export async function createPurchaseOrder(
   return await purchaseOrderRepo.findById(order_id);
 }
 
-// Accepting an order is a PRICING event, not a status move. The spots are
-// snapshotted (or kept, if already pinned), the refiner's copies updated, every
-// line priced from them, and the total written with the status and the pin in
-// one transaction. 086 removed the offer record this used to update alongside;
-// the pricing half is the order's and stays. ADMIN-ONLY - customers do not
-// control order status.
-export async function acceptOrder({
+// Finalizing an order's pricing is a PRICING event, and ONLY that now. The
+// spots are snapshotted (or kept, if already pinned), the refiner's copies
+// updated, every line priced from them, and the total written with the pin in
+// one transaction. 086 removed the offer record this used to update alongside.
+//
+// This was acceptOrder, and it also moved the status to 'Accepted'. That half
+// is GONE (Jacob, 28 August: "The stages don't really matter for admins...
+// They shouldn't be driving logic AT ALL"): a status is a label the admin
+// writes deliberately, and no status write triggers a pipeline. 'Accepted'
+// itself left the lifecycle in migration 092. ADMIN-ONLY - pricing decides
+// what the business pays.
+export async function finalizePricing({
   order,
   order_spots,
   spot_prices,
 }: {
   order: OrderLike;
-  // The body's spot arrays speak the converted names (`name` / `ask` / `bid`)
-  // since D84; frozen order-spot rows carry more, and only these are read.
+  // The spot arrays speak the converted names (`name` / `ask` / `bid`) since
+  // D84; frozen order-spot rows carry more, and only these are read. Both are
+  // resolved SERVER-side by the PATCH dispatch - the request supplies nothing
+  // but the operation's name.
   order_spots: PricingSpot[];
   spot_prices: PricingSpot[];
 }): Promise<{ purchaseOrder: PurchaseOrderRow | undefined; orderSpots: PricingSpot[] }> {
@@ -516,7 +526,7 @@ export async function acceptOrder({
     );
 
     const total = calculateTotalPrice(order, spots);
-    await purchaseOrderRepo.acceptOrder(order.id, total, client);
+    await purchaseOrderRepo.recordOrderPricing(order.id, total, client);
 
     return spots;
   });
@@ -697,39 +707,13 @@ export async function updateBullion({ item }: { item: Record<string, any> }): Pr
   return await purchaseOrderRepo.updateBullion(item);
 }
 
-export async function autoAcceptOrder(orderId: string): Promise<void> {
-  try {
-    await withTransaction(async (client) => {
-      const spotPrices = await purchaseOrderRepo.getCurrentSpotPrices(client);
-
-      const updatedSpots = await purchaseOrderRepo.updateOrderMetals(
-        orderId,
-        spotPrices,
-        client
-      );
-
-      await purchaseOrderRepo.updateRefinerMetals(orderId, updatedSpots, client);
-
-      const order = await purchaseOrderRepo.findById(orderId, client);
-
-      await purchaseOrderRepo.updateOrderItemPrices(
-        orderId,
-        order.order_items,
-        updatedSpots,
-        client
-      );
-
-      const total = calculateTotalPrice(order, updatedSpots);
-
-      // moveOrderToAccepted also wrote offer_status; with offers gone (086)
-      // what is left is the order's own status, its price and the spot pin.
-      await purchaseOrderRepo.acceptOrder(orderId, total, client);
-    });
-  } catch (err) {
-    console.error("[CRON] Failed to auto-accept order", orderId, err);
-    throw err;
-  }
-}
+// autoAcceptOrder IS GONE. It was the auto-accept cron's pipeline, and no
+// cron - nothing at all - called it: the scheduler never named it, so it was
+// an exported pipeline with no caller whose one distinguishing act was
+// writing 'Accepted', the status migration 092 retires. Dead code that
+// reintroduces a retired label is exactly what to delete rather than keep
+// against a future that would have to rebuild it differently anyway
+// (finalizePricing is the pipeline a future auto-finalize would call).
 
 export async function editShippingCharge({
   order_id,

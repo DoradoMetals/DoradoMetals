@@ -1,10 +1,15 @@
-// POST /api/sales_orders/update_tracking, over real HTTP.
+// The tracking pair of PATCH /api/shipments/:id, over real HTTP - a tracking
+// number is SHIPMENT data, so its endpoint lives with the parcel (the
+// per-resource ruling, 28 August).
 //
-// WHY THIS FILE EXISTS. The route answered 500 on every call. The service
-// awaited shipmentRepo.insertTrackingNumber, which the shipments repo has never
-// exported - checked against master as well as this branch - and `import * as`
-// makes a missing name `undefined` rather than an import error, so nothing
-// failed until the line ran.
+// WHY THIS FILE EXISTS. The route this operation replaced
+// (POST /sales_orders/update_tracking) answered 500 on every call. The
+// service awaited shipmentRepo.insertTrackingNumber, which the shipments repo
+// has never exported - checked against master as well as this branch - and
+// `import * as` makes a missing name `undefined` rather than an import error,
+// so nothing failed until the line ran. The PATCH dispatches to the same
+// service.updateTracking, so the assertion that the write actually lands is
+// exactly as load-bearing as it was.
 //
 // An admin could not record a tracking number against a sales order at all.
 // Found by scripts/lint-namespace-calls.mjs, written after the same class of
@@ -22,6 +27,13 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+
+// The tracking write sets the order's tracking_updated flag as well as the
+// shipment row, so this file writes orders.orders and must serialise with
+// every other file that does - without this it deadlocked in the full run
+// and passed alone, the exact failure the locks registry exists for.
+const ORDER_LOCK = LOCKS.ORDERS;
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -55,10 +67,8 @@ test("an admin can record a tracking number against a sales order", async () => 
   await inPinnedTransaction(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
-        .post("/api/sales_orders/update_tracking")
+        .patch(`/api/shipments/${shipment.id}`)
         .send({
-          order_id: shipment.sales_order_id,
-          shipment_id: shipment.id,
           tracking_number: "E2E-TRACK-000001",
           carrier_id: shipment.carrier_id,
         });
@@ -69,7 +79,7 @@ test("an admin can record a tracking number against a sales order", async () => 
         "the handler called something that does not exist"
       );
     });
-  });
+  }, { lock: ORDER_LOCK });
 });
 
 // A 200 alone would pass against a handler that returned early and wrote
@@ -81,10 +91,8 @@ test("the tracking number actually lands on the shipment", async () => {
   await inPinnedTransaction(async (client) => {
     await as({ ...admin, role: "admin" }, async () => {
       await request(app)
-        .post("/api/sales_orders/update_tracking")
+        .patch(`/api/shipments/${shipment.id}`)
         .send({
-          order_id: shipment.sales_order_id,
-          shipment_id: shipment.id,
           tracking_number: "E2E-TRACK-000002",
           carrier_id: shipment.carrier_id,
         });
@@ -99,5 +107,5 @@ test("the tracking number actually lands on the shipment", async () => {
         "the route answered but the shipment was not updated"
       );
     });
-  });
+  }, { lock: ORDER_LOCK });
 });

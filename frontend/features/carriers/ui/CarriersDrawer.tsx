@@ -8,6 +8,8 @@ import { cn } from '@/shared/utils/cn'
 import { Label } from '@/shared/ui/base/label'
 import { Input } from '@/shared/ui/base/input'
 import { DisplayToggle } from '@/shared/ui/DisplayToggle'
+import StatusChip from '@/shared/ui/StatusChip'
+import UpdatedByline from '@/shared/ui/UpdatedByline'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 
 import type { Carrier, CarrierService } from '@/features/carriers/types'
@@ -68,23 +70,12 @@ function Header({ carrier }: { carrier: Carrier }) {
           )}
         </div>
 
-        <div
-          className={cn(
-            'px-2 py-1 border-1 rounded-lg flex justify-center items-center font-semibold text-base h-fit',
-            active
-              ? 'bg-success/20 text-success border-success'
-              : 'bg-destructive/20 text-destructive border-destructive'
-          )}
-        >
+        <StatusChip positive={active} className="text-base h-fit">
           {active ? 'Active' : 'Inactive'}
-        </div>
+        </StatusChip>
       </div>
 
-      <div className="flex w-full justify-start text-xs gap-1">
-        <span className="text-neutral-600">Updated</span>
-        <span className="text-neutral-600">on</span>
-        <span className="text-neutral-800">{formatFullDate(carrier.updated_at ?? '')}</span>
-      </div>
+      <UpdatedByline date={formatFullDate(carrier.updated_at ?? '')} />
     </div>
   )
 }

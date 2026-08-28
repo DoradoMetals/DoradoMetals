@@ -287,18 +287,11 @@ export async function updateOrderItemPrices(orderId, items, spotRows, client) {
   );
 }
 
-export async function cancelOrderById(orderId, client) {
-  const sql = `
-    UPDATE exchange.purchase_orders
-    SET purchase_order_status = $1,
-        spots_locked = FALSE
-    WHERE id = $2
-    RETURNING *;
-  `;
-  const vals = ["Cancelled", orderId];
-  const { rows } = await query(sql, vals, client);
-  return rows[0];
-}
+// cancelOrderById IS GONE. It wrote purchase_order_status = 'Cancelled' and
+// dropped the spot pin in one statement, and the status half is what killed
+// it: statuses are labels now, never side effects (Jacob, 28 August). The
+// cancel pipeline unpins through toggleSpots and clears the metals; the
+// 'Cancelled' label is the admin's own explicit status write.
 
 export async function clearOrderMetals(orderId, client) {
   const sql = `
@@ -708,18 +701,20 @@ export async function findPayoutDetails(order_id, executor) {
   return rows[0] ?? null;
 }
 
-// The order is accepted: its status, the price agreed, and its spots pinned.
+// The order's pricing is finalized: the price agreed and its spots pinned.
 //
-// This is what moveOrderToAccepted was once offer_status came out of it (086).
-// Renamed because it is an order transition, not an offer one - the auto-accept
-// cron is the only caller.
-export async function acceptOrder(orderId, totalPrice, client) {
+// This was acceptOrder, which also wrote purchase_order_status = 'Accepted' -
+// what moveOrderToAccepted became once offer_status came out of it (086). The
+// status write is GONE (Jacob, 28 August: "The stages don't really matter for
+// admins... They shouldn't be driving logic AT ALL") - a status is a label an
+// admin sets, and pricing is an explicit operation. 'Accepted' itself left the
+// lifecycle in migration 092.
+export async function recordOrderPricing(orderId, totalPrice, client) {
   const sql = `
     UPDATE exchange.purchase_orders
-    SET purchase_order_status = $1,
-        total_price = $2,
+    SET total_price = $1,
         spots_locked = TRUE
-    WHERE id = $3;
+    WHERE id = $2;
   `;
-  await query(sql, ["Accepted", totalPrice, orderId], client);
+  await query(sql, [totalPrice, orderId], client);
 }

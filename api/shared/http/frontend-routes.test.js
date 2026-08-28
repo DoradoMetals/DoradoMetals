@@ -38,11 +38,14 @@ const walk = (dir, out = []) => {
   return out;
 };
 
-// The three shapes this codebase uses to name an endpoint.
+// The three shapes this codebase uses to name an endpoint. PATCH joined the
+// verb lists with the order-mutation consolidation - its paths carry the order
+// id (`/purchase_orders/${id}`), so most PATCH calls are template literals and
+// land in the skip count, but a static one must not be invisible.
 const PATTERNS = [
-  /apiRequest\(\s*'(GET|POST|PUT|DELETE)',\s*'([^']+)'/g,
-  /url:\s*'([^']+)',\s*\n?\s*method:\s*'(GET|POST|PUT|DELETE)'/g,
-  /method:\s*'(GET|POST|PUT|DELETE)',\s*\n?\s*url:\s*'([^']+)'/g,
+  /apiRequest\(\s*'(GET|POST|PUT|PATCH|DELETE)',\s*'([^']+)'/g,
+  /url:\s*'([^']+)',\s*\n?\s*method:\s*'(GET|POST|PUT|PATCH|DELETE)'/g,
+  /method:\s*'(GET|POST|PUT|PATCH|DELETE)',\s*\n?\s*url:\s*'([^']+)'/g,
 ];
 
 const collect = () => {
@@ -58,7 +61,7 @@ const collect = () => {
       }
     }
     // A template-literal endpoint is a skip, not a pass.
-    for (const m of src.matchAll(/apiRequest\(\s*'(?:GET|POST|PUT|DELETE)',\s*`/g)) skipped += 1;
+    for (const m of src.matchAll(/apiRequest\(\s*'(?:GET|POST|PUT|PATCH|DELETE)',\s*`/g)) skipped += 1;
   }
   return { calls, skipped };
 };
@@ -82,8 +85,11 @@ test("every frontend API call names a route the API actually has", () => {
   assert.ok(known.size > 100, `only ${known.size} routes known - the route walk is wrong`);
 
   const { calls, skipped } = collect();
+  // The floor was 40 until the order-mutation consolidation: some twenty
+  // single-field POST calls became PATCH documents whose paths carry the order
+  // id, and a template-literal path lands in the skip count rather than here.
   assert.ok(
-    calls.length >= 40,
+    calls.length >= 30,
     `only ${calls.length} frontend call(s) found - the patterns have stopped ` +
       "matching, and a check that reads nothing accepts everything"
   );

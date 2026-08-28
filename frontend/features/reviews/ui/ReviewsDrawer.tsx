@@ -7,8 +7,8 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { FloatingLabelTextarea } from '@/shared/ui/inputs/FloatingLabelTextarea'
 import { DisplayToggle } from '@/shared/ui/DisplayToggle'
+import StatusChip from '@/shared/ui/StatusChip'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
-import { cn } from '@/shared/utils/cn'
 import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 
 import { useGetSession } from '@/features/auth/queries'
@@ -51,17 +51,10 @@ function Header({ review }: { review: Review }) {
     <div className="flex flex-col gap-3">
       <div className="flex items-end justify-between w-full">
         <div className="text-2xl text-neutral-900">{review.name || 'Unnamed Reviewer'}</div>
-        <div
-          className={cn(
-            'px-2 py-1 border-1 rounded-lg flex items-center gap-1 text-sm font-semibold',
-            review.hidden
-              ? 'bg-destructive/20 text-destructive border-destructive'
-              : 'bg-success/20 text-success border-success'
-          )}
-        >
+        <StatusChip positive={!review.hidden} className="gap-1 text-sm">
           {review.hidden ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
           {review.hidden ? 'Hidden' : 'Public'}
-        </div>
+        </StatusChip>
       </div>
 
       <div className="flex items-center gap-2">

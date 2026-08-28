@@ -27,10 +27,12 @@ export const toAddressSnapshot = (a: Address, ua?: UserAddress | null): OrderAdd
 export const useSalesOrders = () => {
   return useApiQuery<SalesOrder[]>({
     key: queryKeys.salesOrders(),
-    url: '/sales_orders/get_sales_orders',
+    url: '/orders',
     requireUser: true,
     enabled: (user) => !!user?.id,
+    // Self-scoped even for an admin caller - see usePurchaseOrders.
     params: (user) => ({
+      direction: 'sale',
       user_id: user!.id,
     }),
     refetchInterval: 10_000,
@@ -69,6 +71,8 @@ export const useSalesOrderMetals = (sales_order_id: string) => {
   return useApiQuery<SpotOnOrder[]>({
     key: queryKeys.salesOrderMetals(sales_order_id),
     request: async (user) => {
+      // STILL THE LEGACY ROUTE: the API deferred the order-spots read (the
+      // flip-together rule); this moves with the read-deletion wave.
       return await apiRequest<SpotOnOrder[]>('POST', '/sales_orders/get_order_metals', {
         user_id: user!.id,
         sales_order_id,

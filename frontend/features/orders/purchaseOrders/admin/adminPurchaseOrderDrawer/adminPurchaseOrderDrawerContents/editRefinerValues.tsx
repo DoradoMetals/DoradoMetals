@@ -3,12 +3,8 @@
 import { Input } from '@/shared/ui/base/input'
 import { cn } from '@/shared/utils/cn'
 
-import {
-  usePurchaseOrderRefinerMetals,
-  useUpdateOrderRefinerSpotPrice,
-  useUpdateRefinerFee,
-  useUpdateRefinerPremium,
-} from '@/features/orders/purchaseOrders/admin/queries'
+import { usePurchaseOrderRefinerMetals } from '@/features/orders/purchaseOrders/admin/queries'
+import { usePatchRefinerItem, usePatchRefinerOrder } from '@/features/refiners/queries'
 
 import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
 import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
@@ -17,9 +13,12 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
   const { data: refinerSpotPrices = [] } = usePurchaseOrderRefinerMetals(order.id)
 
-  const updateSpot = useUpdateOrderRefinerSpotPrice()
-  const updatePremium = useUpdateRefinerPremium()
-  const updateFee = useUpdateRefinerFee()
+  // Everything here is refiner data: spots and fee are ENGAGEMENT facts on
+  // refiners.orders, premium is per-line on refiners.items. Separate
+  // instances keep the fee and premium inputs' own isPending.
+  const updateSpot = usePatchRefinerOrder()
+  const updatePremium = usePatchRefinerItem()
+  const updateFee = usePatchRefinerOrder()
 
   function parsePercentToDecimal(raw: string): number | null {
     const trimmed = raw.trim()
@@ -60,13 +59,14 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
                       orderSpotPrices?.find((s) => s.name === spot.name)?.bid ??
                       ''
                     }
-                    onBlur={(e) =>
+                    onBlur={(e) => {
+                      if (!spot.name || !order.refiner_order_id) return
                       updateSpot.mutate({
-                        spot,
-                        updated_spot: Number(e.target.value),
-                        purchase_order_id: order.id,
+                        refiner_order_id: order.refiner_order_id,
+                        order_id: order.id,
+                        patch: { spots: [{ name: spot.name, bid: Number(e.target.value) }] },
                       })
-                    }
+                    }}
                   />
                 </div>
               </div>
@@ -113,9 +113,9 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
                       const refiner_premium = parsePercentToDecimal(e.target.value)
                       if (refiner_premium === null || !Number.isNaN(refiner_premium)) {
                         updatePremium.mutate({
-                          purchase_order_id: order.id,
-                          item_id: item.id,
-                          refiner_premium,
+                          order_item_id: item.id,
+                          order_id: order.id,
+                          patch: { premium: refiner_premium },
                         })
                       }
                     }}
@@ -142,12 +142,14 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
               className={cn('on-glass no-spinner text-right w-full text-base h-8')}
               defaultValue={order.totals?.refiner_fee ?? ''}
               disabled={updateFee.isPending}
-              onBlur={(e) =>
+              onBlur={(e) => {
+                if (!order.refiner_order_id) return
                 updateFee.mutate({
-                  purchase_order_id: order.id,
-                  refiner_fee: Number(e.target.value),
+                  refiner_order_id: order.refiner_order_id,
+                  order_id: order.id,
+                  patch: { fee: Number(e.target.value) },
                 })
-              }
+              }}
             />
           </div>
         </div>

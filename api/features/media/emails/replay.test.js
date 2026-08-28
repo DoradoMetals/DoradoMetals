@@ -67,7 +67,7 @@ const ATTACKER_ADDRESS = "attacker@example.invalid";
 test("both routes refuse an anonymous caller", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      for (const path of ["purchase_order_created", "purchase_order_offer_accepted"]) {
+      for (const path of ["purchase_order_created", "purchase_order_priced"]) {
         const res = await request(app).post(`/api/emails/${path}`).send({});
         assert.ok([401, 403].includes(res.status), `${path} answered ${res.status}`);
       }
@@ -123,12 +123,14 @@ test("an address in the body cannot redirect the order confirmation", async () =
 });
 
 // The same claim on the other route, where the field was simply `email`. Same
-// limitation as above; the discriminating tests follow.
-test("an email field in the body cannot redirect the acceptance notice", async () => {
+// limitation as above; the discriminating tests follow. (The route was
+// /purchase_order_offer_accepted until the offers went - same send, priced
+// name.)
+test("an email field in the body cannot redirect the pricing notice", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...owner, role: "user" }, async () => {
       const res = await request(app)
-        .post("/api/emails/purchase_order_offer_accepted")
+        .post("/api/emails/purchase_order_priced")
         .send({
           order: { id: order.id, number: 1, user: {} },
           order_spots: [],

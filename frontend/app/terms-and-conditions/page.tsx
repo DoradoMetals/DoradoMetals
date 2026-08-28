@@ -245,54 +245,33 @@ export default function TermsAndConditions() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <h3 className="text-lg text-neutral-900">Offer &amp; Valuation</h3>
+              <h3 className="text-lg text-neutral-900">Valuation</h3>
               <p className="text-sm text-neutral-700">
                 We determine the value of Products based on: Live market pricing for gold, silver,
                 platinum, and palladium. Purity, weight, and condition of items. Authenticity
-                verification of coins, bars, and bullion. Offers are valid for 24 hours; failure to
-                accept may result in re-evaluation based on market changes.
+                verification of coins, bars, and bullion.
               </p>
             </div>
 
             <div className="flex flex-col gap-1">
-              <h3 className="text-lg text-neutral-900">Accepting Our Offer</h3>
+              <h3 className="text-lg text-neutral-900">Pricing &amp; Payment</h3>
               <p className="text-sm text-neutral-700">
-                After the amount of our offer is calculated for your Products, we will notify you of
-                the offer by sending you (A) an email or text message with a link to your account,
-                and/or (B) provide an offer via telephone. You must accept our offer within 24 hours
-                or, for your convenience, we will deem the offer accepted and issue payment to you
-                via company check. In general, you will receive an offer within one business day of
-                the receipt of your Products.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <h3 className="text-lg text-neutral-900">Rejecting Our Offer</h3>
-              <p className="text-sm text-neutral-700">
-                Please call or text{' '}
-                <Link href="tel:8172034786" className="text-xs text-primary">
-                  (817) 203-4786
-                </Link>
-                , reject your offer through your dashboard, or email{' '}
-                <Link href="mailto:support@doradometals.com" className="text-xs text-primary">
-                  support@doradometals.com
-                </Link>{' '}
-                to reject your offer. We will need to confirm the return address on your account and
-                your information to ensure the safe delivery of your Products. In addition, we
-                reserve the right to make a new offer or return your Products to you in accordance
-                with our Return Policy.
+                After your Products are received and verified, we will price them and notify you by
+                (A) an email or text message with a link to your account, and/or (B) telephone. In
+                general, your Products will be priced within one business day of their receipt, and
+                payment is issued once pricing is finalized.
               </p>
             </div>
 
             <div className="flex flex-col gap-1">
               <h3 className="text-lg text-neutral-900">Return Policy</h3>
               <p className="text-sm text-neutral-700">
-                If you reject our offer, we will return your items at our shipping &amp; insurance
-                cost. Return shipments will be insured for the appraised value + 20% (not exceeding
-                melt value). If your item is valued higher, you must request and pay for additional
-                insurance before shipping. We are not responsible for loss or damage beyond the
-                insured amount once the package is with the carrier. After you reject our offer, we
-                will return your Products to you via FedEx, UPS, USPS or other delivery service
+                If your Products are to be returned, we will return your items at our shipping
+                &amp; insurance cost. Return shipments will be insured for the appraised value + 20%
+                (not exceeding melt value). If your item is valued higher, you must request and pay
+                for additional insurance before shipping. We are not responsible for loss or damage
+                beyond the insured amount once the package is with the carrier. Returned Products
+                are sent to you via FedEx, UPS, USPS or other delivery service
                 ("Carrier") of our choosing. We will require a signature upon delivery. If you
                 choose to receive your Products without signature, we will not be responsible for
                 loss or damage to your Products. Upon delivery of returned Products by the Carrier
@@ -448,8 +427,7 @@ export default function TermsAndConditions() {
           <div className="flex flex-col gap-3">
             <h2 className="text-2xl text-neutral-900">Unclaimed Items &amp; Abandonment</h2>
             <p className="text-sm text-neutral-700">
-              If a customer fails to accept or reject an offer within 7 business days, the
-              transaction is deemed accepted and payment is issued. Items returned twice due to
+              Items returned twice due to
               failed delivery will be considered abandoned after 30 days.
             </p>
           </div>

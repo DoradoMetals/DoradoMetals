@@ -1,4 +1,3 @@
-import AcceptedPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/Accepted'
 import CancelledPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/Cancelled'
 import CompletedPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/Completed'
 import InTransitPurchaseOrder from '@/features/orders/purchaseOrders/users/purchaseOrderDrawer/drawerContents/InTransit'
@@ -13,8 +12,6 @@ export default function PurchaseOrderDrawerContent({ order }: PurchaseOrderDrawe
       return <InTransitPurchaseOrder order={order} />
     case 'Received':
       return <ReceivedPurchaseOrder order={order} />
-    case 'Accepted':
-      return <AcceptedPurchaseOrder order={order} />
     case 'Payment Processing':
       return <PaymentProcessingPurchaseOrder order={order} />
     case 'Cancelled':

@@ -3,9 +3,10 @@
 // This is the screen where metal leaves the building: an admin picks the
 // refiner and the click emails them the order. Same rules as the other
 // converted features - jsdom, real component tree, network mocked by URL.
-// Shape-agnostic like the carriers tests: what is pinned is that supplier
-// names appear, and that the send carries the picked supplier's id -
-// wherever the wire shape puts the name.
+// The send is the unified PATCH now (D87): /orders/:id for both directions,
+// the supplier op as a partial document - and the order's spots resolved
+// SERVER-side, so the body carries no pricing arrays. The URL and the exact
+// document are the pin.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -53,7 +54,6 @@ beforeEach(() => {
         },
       ];
     if (url === "/carriers/get") return [];
-    if (url === "/sales_orders/get_order_metals") return [];
     return {};
   });
 });
@@ -64,7 +64,7 @@ describe("sending a sales order to a supplier", () => {
     await waitFor(() => expect(screen.getAllByText("Elemetal").length).toBeGreaterThan(0));
   });
 
-  test("the send carries the picked supplier's id", async () => {
+  test("the send PATCHes the order with the supplier document", async () => {
     renderWithClient(<AdminPreparingSalesOrder order={order()} />);
     await waitFor(() => expect(screen.getAllByText("Elemetal").length).toBeGreaterThan(0));
 
@@ -76,9 +76,12 @@ describe("sending a sales order to a supplier", () => {
     await waitFor(() => {
       const call = vi
         .mocked(apiRequest)
-        .mock.calls.find(([, url]) => url === "/sales_orders/send_order_to_supplier");
+        .mock.calls.find(([method, url]) => method === "PATCH" && url === "/orders/so-1");
       expect(call).toBeTruthy();
-      expect(JSON.stringify(call![2])).toContain("s-1");
+      // The WHOLE document: the supplier op and nothing else - no spots, no
+      // order copy. toEqual is exact in both directions, so a stray field
+      // fails here before the API refuses it by name.
+      expect(call![2]).toEqual({ supplier: { supplier_id: "s-1", send: true } });
     });
   });
 });

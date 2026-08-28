@@ -1,7 +1,7 @@
 'use client'
 
 import { payoutOptions } from '@/features/payouts/types'
-import { usePayoutDetails } from '@/features/orders/purchaseOrders/admin/queries'
+import { usePayoutDetails } from '@/features/payouts/queries'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import RefinerValues from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editRefinerValues'

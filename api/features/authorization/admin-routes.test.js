@@ -74,9 +74,12 @@ before(async () => {
   assert.ok(customer, "dev has no non-admin user - every assertion below would prove nothing");
 
   // If the scanner ever stops resolving routes, this suite would silently
-  // assert nothing at all and still report green.
+  // assert nothing at all and still report green. The floor was 70 until the
+  // order-mutation consolidation folded twenty-four admin POST routes into the
+  // two PATCH endpoints (of which only the sales-orders one is requireAdmin);
+  // 55 is what remains, and the floor sits just under it.
   assert.ok(
-    routes.length >= 70,
+    routes.length >= 50,
     `only ${routes.length} admin routes resolved - the scanner is not working`
   );
 });

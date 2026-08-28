@@ -6,6 +6,11 @@
 // asked whose it was. These ask the same questions of the sales side, because
 // a hole found once in one direction is worth looking for in the other.
 //
+// The mutations live on the unified PATCH /api/orders/:id since the
+// namespace ruling - the status label and the supplier send, all admin-only,
+// direction-validated as data by features/orders/patch.service.ts. Tracking
+// is PATCH /api/shipments/:id: a tracking number is shipment data.
+//
 // NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction, and
 // the last test proves it from outside.
 import test, { after, before } from "node:test";
@@ -143,27 +148,27 @@ test("a customer cannot move a sales order's status or send it to a refiner", as
   await inPinnedTransaction(async () => {
     await as(stranger, async () => {
       const moved = await request(app)
-        .post("/api/sales_orders/update_status")
-        .send({ order_status: "Completed", order, user_name: stranger.name });
+        .patch(`/api/orders/${order.id}`)
+        .send({ status: "Completed" });
       assert.equal(moved.status, 403);
 
       const sent = await request(app)
-        .post("/api/sales_orders/send_order_to_supplier")
-        .send({ order, spots: [], supplier_id: null });
+        .patch(`/api/orders/${order.id}`)
+        .send({ supplier: { supplier_id: null, send: true } });
       assert.equal(sent.status, 403, "a customer reached the code that emails a refiner");
     });
   }, { lock: ORDER_LOCK });
 });
 
-test("moving a sales order's status takes the body the drawer sends", async () => {
+test("moving a sales order's status takes the document the drawer sends", async () => {
   await inPinnedTransaction(async () => {
     const MOVE_TO = "Preparing";
     assert.notEqual(order.status, MOVE_TO, "the order is already there");
 
     await as(admin, async () => {
       const res = await request(app)
-        .post("/api/sales_orders/update_status")
-        .send({ order_status: MOVE_TO, order, user_name: admin.name });
+        .patch(`/api/orders/${order.id}`)
+        .send({ status: MOVE_TO });
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
       const list = await request(app).get("/api/sales_orders/get_all");

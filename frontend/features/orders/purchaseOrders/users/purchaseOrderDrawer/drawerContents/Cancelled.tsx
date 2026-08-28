@@ -4,12 +4,8 @@ import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrder
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
 import { useTracking } from '@/features/shipping/queries'
-// The offer figure is the server's order quote now, not client spot math.
-import { useOrderQuote } from '@/features/quotes/queries'
 
 export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
-  const { data: quote } = useOrderQuote(order.id)
-
   const { data: trackingInfo, isLoading } = useTracking({
     shipment_id: order.return_shipment.id ?? '',
     tracking_number: order.return_shipment.tracking_number ?? '',
@@ -42,24 +38,6 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
               </Button>
             </div>
 
-            <div className="glass-divider" />
-
-            <div className="flex flex-col w-full">
-              <div className="flex flex-col gap-1 text-left text-xl text-neutral-900 mb-4">
-                It's not too late!
-                <div className="text-sm text-neutral-700">
-                  Instead of paying the shipping charges and waiting for your return shipment, you
-                  can still accept our last offer.
-                </div>
-              </div>
-
-              <div className="flex w-full justify-between items-center mb-1">
-                <div className="text-lg text-neutral-800">Order Total:</div>
-                <div className="text-lg text-neutral-800">
-                  <PriceNumberFlow value={order.totals?.total ?? quote?.total ?? 0} />
-                </div>
-              </div>
-            </div>
           </div>
         ) : (
           <TrackingEvents

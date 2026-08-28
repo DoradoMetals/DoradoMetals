@@ -106,17 +106,19 @@ test("a stranger cannot read the spots frozen on somebody else's order", async (
   }, { lock: ORDER_LOCK });
 });
 
-// The offer routes left with 086. What replaced customer acceptance is an
-// ADMIN route, so the ownership question becomes an authorisation one: a plain
-// user - including the order's own owner - must not be able to accept, because
-// accepting PRICES the order.
-test("a plain user cannot accept an order, even their own", async () => {
+// The offer routes left with 086; the accept route left with the PATCH
+// consolidation; and 'Accepted' itself left the lifecycle with migration 092.
+// What remains of acceptance is the finalize_pricing field of the unified
+// order PATCH, and the whole route is requireAdmin: a plain user - including
+// the order's own owner - is refused outright, because pricing decides what
+// the business pays and customers have no order-management surface at all.
+test("a plain user cannot finalize an order's pricing, even their own", async () => {
   await inPinnedTransaction(async () => {
     await as(victim, async () => {
       const res = await request(app)
-        .post("/api/purchase_orders/accept_order")
-        .send({ purchase_order: order, order_spots: [], spot_prices: [] });
-      assert.equal(res.status, 403, `answered ${res.status} - a customer accepted an order`);
+        .patch(`/api/orders/${order.id}`)
+        .send({ finalize_pricing: true });
+      assert.equal(res.status, 403, `answered ${res.status} - a customer priced an order`);
     });
   }, { lock: ORDER_LOCK });
 });
@@ -127,8 +129,8 @@ test("a stranger cannot cancel somebody else's order", async () => {
   await inPinnedTransaction(async () => {
     await as(stranger, async () => {
       const res = await request(app)
-        .post("/api/purchase_orders/cancel_order")
-        .send({ order, return_shipment: {} });
+        .patch(`/api/orders/${order.id}`)
+        .send({ cancel: { return_shipment: {} } });
       assert.equal(
         res.status,
         403,

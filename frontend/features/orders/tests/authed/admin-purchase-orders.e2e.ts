@@ -5,8 +5,9 @@ import { test, expect } from "@playwright/test";
 // This is the largest surface in the application and the one where money is
 // decided. The drawer carries the whole workflow: locking spot prices, adding
 // and editing scrap and bullion lines, shipping and payout charges, and the
-// status transitions that move an order from Received to Offer Sent to
-// Accepted. Around thirty mutations hang off it.
+// status transitions that move an order from Received to Payment Processing.
+// The whole surface rides one PATCH document now (D87), and offers left the
+// product entirely - pricing is finalized, never offered.
 //
 // READ AND NAVIGATE, DO NOT MUTATE. Every one of these acts on a REAL purchase
 // order in dev - there is no pinned transaction in a browser, and no way to
@@ -45,8 +46,8 @@ test.describe("the admin purchase order drawer", () => {
   test("the spot controls are present, because every figure depends on them", async ({ page }) => {
     const drawer = page.getByRole("dialog", { name: /Purchase order/i }).first();
 
-    // Locking spots is what freezes the prices an offer is computed from. If
-    // this control vanished, an admin could send an offer against moving spot.
+    // Locking spots is what freezes the prices a payout is computed from. If
+    // this control vanished, an admin could price an order against moving spot.
     await expect(drawer.getByRole("button", { name: /Lock Spots/i })).toBeVisible();
 
     // THE METALS ARE NOT ASSERTED HERE, and the reason is worth recording.
@@ -78,7 +79,7 @@ test.describe("the admin purchase order drawer", () => {
     }
   });
 
-  test("the totals an offer is built from are shown", async ({ page }) => {
+  test("the totals a payout is built from are shown", async ({ page }) => {
     const drawer = page.getByRole("dialog", { name: /Purchase order/i }).first();
     const text = await drawer.innerText();
     for (const label of ["Bullion Estimate", "Shipping Charges", "Total Estimate"]) {
@@ -89,7 +90,7 @@ test.describe("the admin purchase order drawer", () => {
   });
 
   // THE ASSERTION MOST WORTH HAVING. The transitions offered must match where
-  // the order actually is - an order in Received offers "Move to Offer Sent"
+  // the order actually is - an order in Received offers "Finalize Pricing"
   // and "Back to In Transit", not a transition from some other stage. A drawer
   // offering the wrong move is how an order ends up in a state the business
   // cannot recover it from.
@@ -101,9 +102,6 @@ test.describe("the admin purchase order drawer", () => {
       "Pending",
       "In Transit",
       "Received",
-      "Offer Sent",
-      "Accepted",
-      "Rejected",
       "Cancelled",
     ];
     const current = STATUSES.find((s) => new RegExp(`\\b${s}\\b`).test(text));

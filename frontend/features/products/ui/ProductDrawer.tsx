@@ -4,7 +4,8 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo } from 'react'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { cn } from '@/shared/utils/cn'
+import StatusChip from '@/shared/ui/StatusChip'
+import UpdatedByline from '@/shared/ui/UpdatedByline'
 import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
 import { Textarea } from '@/shared/ui/base/textarea'
 import { Label } from '@/shared/ui/base/label'
@@ -68,21 +69,11 @@ function Header({ product }: { product: AdminProduct }) {
           <img src={product.image_front ?? ''} alt={`product image`} height={50} width={50} />
           <div className="text-xl text-neutral-900">{product.name}</div>
         </div>
-        <div
-          className={cn(
-            'px-2 py-1 border-1 rounded-lg flex justify-center items-center font-semibold text-base',
-            activeProduct ? 'success-on-glass' : 'destructive-on-glass'
-          )}
-        >
+        <StatusChip positive={activeProduct} glass className="text-base">
           {activeProduct ? 'Active' : 'Inactive'}
-        </div>
+        </StatusChip>
       </div>
-      <div className="flex w-full justify-start text-xs gap-1">
-        <span className="text-neutral-600">Updated by</span>
-        <span className="text-neutral-800">{product.updated_by}</span>
-        <span className="text-neutral-600">on</span>
-        <span className="text-neutral-800">{formatFullDate(product.updated_at)}</span>
-      </div>
+      <UpdatedByline name={product.updated_by} date={formatFullDate(product.updated_at)} />
     </div>
   )
 }

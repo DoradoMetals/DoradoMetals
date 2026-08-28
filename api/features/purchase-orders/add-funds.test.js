@@ -1,14 +1,22 @@
 // Crediting a customer's account from a purchase order, over real HTTP.
 //
-// WHY THIS FILE EXISTS. POST /api/purchase_orders/add_funds_to_account was one
-// of the 46 mounted routes never driven by any test, and reading it showed the
-// balance and the ledger entry explaining it were computed two different ways:
+// WHY THIS FILE EXISTS. add_funds_to_account was one of the 46 mounted routes
+// never driven by any test, and reading it showed the balance and the ledger
+// entry explaining it were computed two different ways:
 //
 //   addFunds(user, order.total_price)                    <- the movement
 //   addTransactionLog(..., calculateTotalPrice(order, spots))  <- the record
 //
 // with `spots` arriving in the request body. In production all NINE Credit
 // entries differ from the total_price of the order they name, three materially.
+//
+// The operation is `add_funds: true` on the unified PATCH /api/orders/:id
+// now, and the document carries NOTHING else the credit could read: the
+// service re-fetches the order and credits totals.total, the order's own
+// stored figure. The old poison vector - spots in the body deciding the
+// ledger amount - is structurally gone; spots have their OWN endpoint, and
+// the second test drives a spot write right before the credit to prove even
+// that changes nothing.
 //
 // The assertion below is that they agree - the balance moved by exactly what the
 // ledger says. That is the property, not a particular number, so it survives the
@@ -23,6 +31,12 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+
+// This file did not need a lock while it only wrote funds and the ledger; the
+// second test now also writes an order's frozen spot through the PATCH
+// document, and orders tables are what ORDERS serialises.
+const ORDER_LOCK = LOCKS.ORDERS;
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -62,15 +76,8 @@ test("the balance moves by exactly what the ledger records", async () => {
       );
 
       const res = await request(app)
-        .post("/api/purchase_orders/add_funds_to_account")
-        .send({
-          // The Next body shape (D84): the order's money rides in `totals`.
-          order: { id: order.id, user_id: order.user_id, totals: { total: order.total_price } },
-          // Sent deliberately. The frontend still posts it and the service must
-          // no longer read it - this is the D1 shape: not accepted rather than
-          // accepted and overwritten.
-          spots: [{ name: "Gold", ask: 1, bid: 1 }],
-        });
+        .patch(`/api/orders/${order.id}`)
+        .send({ add_funds: true });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -96,18 +103,20 @@ test("the balance moves by exactly what the ledger records", async () => {
         `credited ${moved.toFixed(2)} but the ledger says ${Number(logged.rows[0].amount).toFixed(2)}`
       );
     });
-  });
+  }, { lock: ORDER_LOCK });
 });
 
-// The forged spots must change nothing. Before the fix they decided the ledger
-// amount outright.
+// The nearest thing an admin can still do with spots must change nothing:
+// rewrite the order's frozen Gold spot to zero through the spots endpoint,
+// then credit the funds - and the ledger must follow the order's stored
+// total, untouched by the spot write that ran first.
 //
 // THIS COUNTS THE ROWS FIRST, and that is not belt-and-braces. The first version
 // only read the newest Credit row for the order and compared it - and it PASSED
 // against the broken code, because the broken code throws on an order with no
 // order_items, writes nothing, and leaves the newest row being one dev already
 // had. A test that reads a row it did not cause is not testing anything.
-test("spots in the request body do not reach the ledger", async () => {
+test("a spot write just before the credit does not reach the ledger", async () => {
   await inPinnedTransaction(async (client) => {
     await as({ ...admin, role: "admin" }, async () => {
       const countOf = async () =>
@@ -123,12 +132,14 @@ test("spots in the request body do not reach the ledger", async () => {
 
       const before = await countOf();
 
+      const zeroed = await request(app)
+        .put(`/api/orders/${order.id}/spots`)
+        .send({ set: [{ name: "Gold", bid: 0 }] });
+      assert.equal(zeroed.status, 200, `the spot write answered ${zeroed.status}`);
+
       const res = await request(app)
-        .post("/api/purchase_orders/add_funds_to_account")
-        .send({
-          order: { id: order.id, user_id: order.user_id, totals: { total: order.total_price } },
-          spots: [{ name: "Gold", ask: 0, bid: 0 }],
-        });
+        .patch(`/api/orders/${order.id}`)
+        .send({ add_funds: true });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.equal(await countOf(), before + 1, "this request wrote no ledger entry");
 
@@ -141,8 +152,8 @@ test("spots in the request body do not reach the ledger", async () => {
       assert.equal(
         Number(logged.rows[0].amount).toFixed(2),
         Number(order.total_price).toFixed(2),
-        "the ledger amount followed the request body's spots"
+        "the ledger amount followed the spot write in the same document"
       );
     });
-  });
+  }, { lock: ORDER_LOCK });
 });

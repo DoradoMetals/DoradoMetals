@@ -56,7 +56,7 @@ export default function PurchaseOrderDrawerHeader({
       isPending: downloadReturnPackingList.isPending,
     },
     {
-      statuses: ['Received', 'Offer Sent', 'Rejected'],
+      statuses: ['Received'],
       label: 'Download Invoice Preview',
       onClick: () =>
         downloadInvoice.mutate({
@@ -68,7 +68,7 @@ export default function PurchaseOrderDrawerHeader({
       isPending: downloadInvoice.isPending,
     },
     {
-      statuses: ['Accepted', 'Payment Processing', 'Completed'],
+      statuses: ['Payment Processing', 'Completed'],
       label: 'Download Invoice',
       onClick: () =>
         downloadInvoice.mutate({

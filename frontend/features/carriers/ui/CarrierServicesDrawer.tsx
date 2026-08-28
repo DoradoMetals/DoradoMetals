@@ -6,6 +6,8 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { cn } from '@/shared/utils/cn'
 import { formatFullDate } from '@/shared/utils/formatDates'
+import StatusChip from '@/shared/ui/StatusChip'
+import UpdatedByline from '@/shared/ui/UpdatedByline'
 
 import { Label } from '@/shared/ui/base/label'
 import { Input } from '@/shared/ui/base/input'
@@ -104,24 +106,12 @@ function Header({ service, carrier }: { service: CarrierService; carrier: Carrie
           </div>
         </div>
 
-        <div
-          className={cn(
-            'px-2 py-1 border-1 rounded-lg flex justify-center items-center font-semibold text-base',
-            active
-              ? 'bg-success/20 text-success border-success'
-              : 'bg-destructive/20 text-destructive border-destructive'
-          )}
-        >
+        <StatusChip positive={active} className="text-base">
           {active ? 'Active' : 'Inactive'}
-        </div>
+        </StatusChip>
       </div>
 
-      <div className="flex w-full justify-start text-xs gap-1">
-        <span className="text-neutral-600">Updated by</span>
-        <span className="text-neutral-800">{service.updated_by}</span>
-        <span className="text-neutral-600">on</span>
-        <span className="text-neutral-800">{formatFullDate(service.updated_at)}</span>
-      </div>
+      <UpdatedByline name={service.updated_by} date={formatFullDate(service.updated_at)} />
     </div>
   )
 }

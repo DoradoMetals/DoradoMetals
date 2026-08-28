@@ -8283,3 +8283,168 @@ value, genesis verified). Reset-password, change-email and magic-link
 mails remain unrecorded - one label and one sender each when wanted.
 The stored reader refuses under isTestRun like the mail transport, so a
 forgotten stub can neither touch live storage nor break a download.
+
+## D87 — one endpoint per resource (PLANNED below as per-direction; it evolved)
+
+Jacob's ruling: the wire converted but the SURFACE was still the legacy RPC
+zoo - ~21 admin routes plus owner cancel on purchase orders, four more on
+sales orders, each a query in the frontend. Consolidating to
+PATCH /purchase_orders/:id and PATCH /sales_orders/:id, partial documents
+in, with the two properties that make it safe:
+
+1. FIELD-LEVEL AUTHORIZATION, explicit: the zoo encoded who-may-what
+   per-route; the PATCH enforces it per-field (owner may send ONLY
+   {status:"Cancelled", return_shipment}; everything else admin; a refused
+   field 403s BY NAME and nothing in the batch executes).
+2. STATE TRANSITIONS ARE STATUS WRITES: {status:"Accepted"} runs the accept
+   pipeline with spots resolved SERVER-side (the body arrays the old
+   accept_order read are dead - the last body-supplied pricing input);
+   {supplier:{send:true}} runs the send pipeline with its guard stack.
+   Op order within one document: spots -> items -> charges -> pool/funds ->
+   status, each op keeping its own transaction semantics exactly as the
+   services do today - a mid-batch failure names its op and prior ops
+   stand, same as sequential clicking.
+
+The legacy routes DELETE in the same change (Jacob: updating the queries
+with the change IS the point), reads and creates stay, purge_cancelled
+untouched. Frontend collapses to usePatchPurchaseOrder/usePatchSalesOrder
+with ONE invalidation policy replacing the 13-mutation zoo.
+
+## Jacob's rulings, 2026-08-28 afternoon (the surface/UI session)
+
+1. ONE ENDPOINT PER RESOURCE (D87, in flight; evolved through six deltas
+   from "one endpoint per direction"): the order PATCH holds ONLY the
+   order row (status label, notes) + order-level actions
+   (finalize_pricing, cancel, add_funds); orders.items, orders.spots,
+   shipment money+tracking, payout cost/method, and the refiner
+   engagement each get their own endpoint in the feature that owns the
+   table. Field-named 403s, admin-only, legacy RPC routes delete in the
+   same change.
+2. STATUS IS A PURE LABEL - customer-facing progress display ONLY, driving
+   NO logic anywhere, admin or otherwise. Side-effectful transitions became
+   named ops (finalize_pricing, cancel). 'Accepted' left the lifecycle
+   (rows migrate to 'Payment Processing'). OPEN QUESTION for Jacob:
+   'Offer Sent' / 'Rejected' are offer-era vocabulary too, and "Update
+   Offer" is now a no-op - rename/remove or keep, his call.
+3. CUSTOMERS HAVE ZERO ORDER-MANAGEMENT OPTIONS after placing (confirmed:
+   the cancel UI was never wired). The PATCH is fully admin-only; any
+   future customer options are deliberate additions post-migration.
+4. ADMIN ORDER DRAWERS ARE INTERIM UI: future direction is a page showing
+   all statuses/options at once - do not invest in stage-conditional
+   admin display.
+5. LIFT SHARED COMPONENTS as we touch surfaces (structure now, styling
+   later): AccordionTable (5 copies in order drawers), the
+   popover-command selector pattern (hand-rolled in AdminReceived et al.,
+   overlapping shared PopoverSelect), plus whatever the duplication grep
+   finds. Also: drawers move to resource-scoped reads -
+   useOrderItems(id) / useOrderFulfillment(id) with granular API reads
+   mirroring the schema decomposition - instead of drilling the composed
+   order blob.
+
+6. REFINERS.ORDERS IS AN ENTITY (Jacob, same session): the refiner-side
+   engagement, attached to the customer order - refiners.items and
+   refiners.spots belong to IT (order_item_id stays only as the link to
+   the customer line), and every engagement fact lives on it:
+   pool_oz_deducted, pool_remediation, the refiner FEE ("same thing with
+   refiner_fees etc etc"). New migration + guarded backfill: ONE
+   ENGAGEMENT PER ORDER, ALL of them, and the mirrors complete -
+   orders.orders/refiners.orders, orders.items/refiners.items,
+   orders.spots/refiners.spots MATCH ROW COUNTS EXACTLY (Jacob's
+   invariant, pinned by test; the create paths maintain it for new
+   orders); endpoints
+   PATCH /refiners/orders/:id and PATCH /refiners/items/:id; the order
+   PATCH loses the pool fields and charges.refiner_fee; the order wire
+   gains nullable refiner_order_id additively and keeps SERVING the pool
+   /fee reads unchanged this series. refiners.transactions was proposed
+   and WITHDRAWN the same hour ("actually probably don't need") - no
+   table. Also: orders.orders.refinery_id MOVES to
+   refiners.orders.refiner_id (engagement data; backfill seeds from it,
+   column drops). Two principles now on the record:
+   endpoint follows the feature that owns the table, and coupled
+   features convert in the same pass.
+
+7. ORDERS.TRANSACTIONS MAY NOT NEED TO EXIST (Jacob, deferred): most of
+   what it records may be derivable from payments (Stripe intents/
+   attempts) + the dorado-funds ledger. NOT touched now - the order wire's
+   `totals` composes from it and everything works - but when the payments
+   model and funds ledger settle post-migration, revisit whether
+   orders.transactions is a table or a view/derivation. A note, not a
+   plan.
+
+7. ORDERS.TRANSACTIONS MAY NOT NEED TO EXIST (Jacob, deferred): most of
+   what it records may be derivable from payments + the dorado-funds
+   ledger. Not touched now - the order wire's totals composes from it -
+   but revisit as table-or-derivation when payments/ledger settle. A
+   note, not a plan.
+
+8. FULL REWRITE (Jacob): "I no longer care about ANY of the legacy code.
+   I only care about the legacy table, which we have in place." Exchange
+   TABLES sacred, dual-writes continue; legacy READ paths, repo switches,
+   bothWays machinery are disposable - delete as you go, READS INCLUDED
+   ("I don't even want the legacy reads anymore"). Legacy code survives
+   only as test oracles. THE CONDITION: "just verify feature data
+   migration beforehand, and it's all good" - a feature's
+   parity/coverage/decomposition verifies green-or-known BEFORE its
+   legacy code deletes. Consequence: the PO read pivot unblocks (exchange
+   was the damaged copy); order mutation AND read routes unify under
+   /api/orders (the direction-split routes are legacy vocabulary);
+   service restructuring explicitly authorized.
+
+9. RESOURCE READS RETURN THE BARE RESOURCE (Jacob): components never read
+   order.shipment or any embedded slot - a shipment is fetched by order id
+   (server walks order -> fulfillments -> method link -> shipment) and
+   comes back as ITSELF. "That's how prop drilling gets messy and awful."
+   GET /orders/:id/fulfillment lands in the D87 series as the target; the
+   order wire keeps its embedded slots until the NEXT series slims it and
+   converts every drawer reader (same pass as AccordionTable adoption +
+   the drawers-to-resource-reads rebuild). The fulfillments chain itself
+   is honored per the ninth delta: shipments lose their direct order_id
+   (seed-then-drop after the linkage verifies).
+
+10. IDS IN, DATA OUT (Jacob, the general rule): the frontend sends IDs -
+    plus genuine user input (form data, inputs) - and gets data back. The
+    client never round-trips composed/derived objects to the server.
+    This generalizes the $26.81 stance (never prices), the dead accept
+    arrays, and the bare-resource reads. KNOWN REMAINING VIOLATIONS, for
+    the next series: the four PDF download routes still POST the whole
+    composed order as the render body (the stored-document path already
+    keys on id; the live-render fallback should load by id server-side
+    and the body shrink to { order_id }); the email-send controllers'
+    bodies likewise carry composed orders for rendering; sweep all
+    remaining POST bodies for server-loadable data as surfaces are
+    touched (creates keep their form blocks - that IS user input).
+
+### D87 DONE — the order surface rebuilt through nine live deltas
+
+Landed green after Jacob redesigned it live nine times (grab-bag document
+-> per-resource -> unified /orders namespace, statuses to pure labels,
+offers annihilated, the refiners engagement entity, ids-in-data-out). The
+final surface: GET /api/orders + PATCH /api/orders/:id (thin: label +
+finalize_pricing/cancel/add_funds/supplier, direction validated as data) +
+PUT /:id/spots + the items endpoints + PATCH /shipments/:id +
+PATCH /payouts/:id + PATCH /refiners/orders/:id +
+/refiners/items/by-order-item/:id. 28 legacy RPC routes deleted (census
+134->119). Migrations 092 (offer statuses out, email enum renamed) and
+093 (refiners.orders, every-order backfill, 16 sales-bullion mirrors,
+invariant 60=60/57=57/120c124) applied, genesis identical. The
+data-verification runbook (artifact "Orders Parity Ledger") cleared the
+covenant: exchange-only rows ZERO everywhere; ONE new find - the dual
+create draws the order number twice (fix is wave 2's first item; zero
+real orders affected). Reconcile saves worth remembering: the item ops
+dispatch to FULL-WRITE legacy services, so flat patch bodies would have
+nulled scrap rows - the shapes are required-full-object with the reason
+commented; three read hooks reverted to still-mounted legacy routes
+(flip-together); content stays as data, server-derived (Jacob keeps it).
+The browser-effects guard's scan floor caught its own regex blindness
+(template-literal URLs; `request:` contexts) - 37 sites scanned now vs 15
+before, three reads allow-listed with reasons. Priced email is NOT sent
+by finalize_pricing (accept never emailed either) - Jacob's call pending.
+
+## D88 — four shared components, lifted structure-first
+
+AccordionSection, SelectMenu (deliberately NOT a PopoverSelect mode - they
+share no DOM), StatusChip, UpdatedByline in shared/ui; seven adoptions
+outside features/orders with byte-identical classes; the orders-tree
+adoption table deferred to wave 3 (the drawers rebuild there anyway);
+ItemAccordion left for Jacob's styling pass because unifying it changes
+rendering.

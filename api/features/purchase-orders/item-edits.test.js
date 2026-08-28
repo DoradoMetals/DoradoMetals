@@ -4,14 +4,21 @@
 // business believes it received: which lines are confirmed, what a scrap line
 // weighs and assays at, and which lines exist at all.
 //
+// THE SURFACE IS THE LINE'S OWN ENDPOINT NOW - PATCH and DELETE
+// /api/orders/items/:id, under the unified namespace (a line is a resource;
+// orders.items is direction-unified). Each field dispatches to the same
+// service function the old POST route called; the confirmed/reset pair still
+// hardcodes item_status true and false in the dispatch, and the line's order
+// and scrap linkage are resolved SERVER-side rather than taken from the body.
+//
 // ALL PURE DATABASE WORK. Checked each service function before driving it - no
 // email, no FedEx, no Stripe. Two of them open a transaction, and the reasons
 // are recorded in the service: a scrap line's weight and its premium feed the
 // same number, and deleting a line is two deletes plus a re-tier that must not
 // half-happen.
 //
-// DELETING A LINE IS COVERED HERE AND A BULK PURGE IS NOT. delete_order_items
-// removes rows named by id; DELETE /purge_cancelled is
+// DELETING A LINE IS COVERED HERE AND A BULK PURGE IS NOT. The line DELETE
+// removes the row the path names; DELETE /purge_cancelled is
 // `DELETE FROM exchange.purchase_orders WHERE status = 'Cancelled'` with no id
 // at all. The pin would roll either back, but CLAUDE.md's rule about deleting is
 // categorical and a bulk wipe of the live orders table is not something to
@@ -63,11 +70,10 @@ after(async () => {
   await pool.end();
 });
 
-// save_order_items and reset_order_item are the SAME service call with
-// item_status hardcoded true and false, and different body shapes - `ids` for
-// one, a single `id` for the other. That asymmetry is the thing worth covering:
-// it lives in the controller, where no repo test reaches.
-test("save_order_items confirms the named lines", async () => {
+// confirmed and reset are the SAME service call with item_status hardcoded
+// true and false. That asymmetry is the thing worth covering: it lives in the
+// dispatch, where no repo test reaches.
+test("confirmed: true confirms the line", async () => {
   await inPinnedTransaction(async (client) => {
     await as({ ...admin, role: "admin" }, async () => {
       await client.query(
@@ -76,8 +82,8 @@ test("save_order_items confirms the named lines", async () => {
       );
 
       const res = await request(app)
-        .post("/api/purchase_orders/save_order_items")
-        .send({ ids: [item.id], purchase_order_id: item.purchase_order_id });
+        .patch(`/api/orders/items/${item.id}`)
+        .send({ confirmed: true });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -90,7 +96,7 @@ test("save_order_items confirms the named lines", async () => {
   });
 });
 
-test("reset_order_item unconfirms the single line it names", async () => {
+test("reset: true unconfirms the line", async () => {
   await inPinnedTransaction(async (client) => {
     await as({ ...admin, role: "admin" }, async () => {
       await client.query(
@@ -99,8 +105,8 @@ test("reset_order_item unconfirms the single line it names", async () => {
       );
 
       const res = await request(app)
-        .post("/api/purchase_orders/reset_order_item")
-        .send({ id: item.id, purchase_order_id: item.purchase_order_id });
+        .patch(`/api/orders/items/${item.id}`)
+        .send({ reset: true });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -130,14 +136,13 @@ test("get_purchase_order_refiner_metals answers with that order's metals", async
 // line is priced content * spot * premium, so a route that wrote the weight and
 // not the premium would quote from a mix of old and new - which is why the
 // service puts them in one transaction.
-test("update_scrap_item writes the scrap AND the line's premium together", async () => {
+test("the scrap field writes the scrap AND the line's premium together", async () => {
   await inPinnedTransaction(async (client) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
-        .post("/api/purchase_orders/update_scrap_item")
+        .patch(`/api/orders/items/${scrapItem.id}`)
         .send({
-          item: {
-            id: scrapItem.id,
+          scrap: {
             premium: 0.925,
             scrap: {
               id: scrapItem.scrap_id,
@@ -188,20 +193,12 @@ test("update_scrap_item writes the scrap AND the line's premium together", async
 // The delete path the service comments describe: the scrap row and the line go
 // together, or the order keeps a line pointing at nothing and the assay figures
 // exist nowhere.
-test("delete_order_items removes the line and its scrap together", async () => {
+test("DELETE removes the line and its scrap together", async () => {
   await inPinnedTransaction(async (client) => {
     await as({ ...admin, role: "admin" }, async () => {
-      const res = await request(app)
-        .post("/api/purchase_orders/delete_order_items")
-        .send({
-          items: [
-            {
-              id: scrapItem.id,
-              purchase_order_id: scrapItem.purchase_order_id,
-              scrap: { id: scrapItem.scrap_id },
-            },
-          ],
-        });
+      // No body at all: the scrap linkage is the ROW's, resolved server-side,
+      // so the request cannot name a different scrap row to delete.
+      const res = await request(app).delete(`/api/orders/items/${scrapItem.id}`);
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 

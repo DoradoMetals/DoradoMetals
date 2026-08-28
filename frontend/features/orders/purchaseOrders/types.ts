@@ -3,12 +3,9 @@ import { z } from 'zod/v4'
 import {
   Truck,
   PackageOpen,
-  X,
   CreditCard,
   Ban,
   ShieldCheck,
-  Hourglass,
-  Handshake,
   LucideIcon,
 } from 'lucide-react'
 
@@ -42,7 +39,14 @@ export type PurchaseOrderItem = PurchaseOrderItemContract
 // with no payout row carries an object of nulls, not a null.
 export type PayoutSlot = { [K in keyof PayoutOnOrder]: PayoutOnOrder[K] | null }
 
-export type PurchaseOrder = Omit<PurchaseOrderContract, 'payout'> & { payout: PayoutSlot }
+export type PurchaseOrder = Omit<PurchaseOrderContract, 'payout'> & {
+  payout: PayoutSlot
+  // ADDITIVE THIS SERIES (D87 fifth correction): the refiner-side engagement
+  // attached to this order - refiners.orders - which owns the refiner spots,
+  // fee and pool figures. Stated here until the contract regenerates with it;
+  // null when no engagement exists yet.
+  refiner_order_id?: string | null
+}
 
 export const purchaseOrderReturnShipmentSchema = z.object({
   address: AddressContract,
@@ -74,9 +78,6 @@ export type PurchaseOrderCheckout = z.infer<typeof purchaseOrderCheckoutSchema>
 export const PurchaseOrderStatuses = [
   'In Transit',
   'Received',
-  'Offer Sent',
-  'Accepted',
-  'Rejected',
   'Payment Processing',
   'Cancelled',
   'Completed',
@@ -97,18 +98,6 @@ export const statusConfig: StatusConfig = {
   Received: {
     icon: PackageOpen,
     value_label: 'Estimate',
-  },
-  'Offer Sent': {
-    icon: Hourglass,
-    value_label: 'Offer',
-  },
-  Accepted: {
-    icon: Handshake,
-    value_label: 'Payout',
-  },
-  Rejected: {
-    icon: X,
-    value_label: 'Offer',
   },
   'Payment Processing': {
     icon: CreditCard,

@@ -158,9 +158,11 @@ export function renderInvoiceHeader(
   const status = purchaseOrder.status ?? "";
   const userName = purchaseOrder.user?.user_name ?? "";
 
-  const doneStatus = ["Accepted", "Payment Processing", "Completed"];
+  // 'Accepted' left the status lifecycle (migration 092); the offer wording
+  // died with the offers themselves.
+  const doneStatus = ["Payment Processing", "Completed"];
   const isDone = doneStatus.includes(status);
-  const offerLabel = isDone ? "Total Payout" : "Total Estimate";
+  const totalLabel = isDone ? "Total Payout" : "Total Estimate";
 
 
   const metals = ["Gold", "Silver", "Platinum", "Palladium"];
@@ -211,10 +213,10 @@ export function renderInvoiceHeader(
       </div>
 
       <div class="invoice-card">
-        <div class="invoice-card-title">Offer</div>
+        <div class="invoice-card-title">Pricing</div>
         <div class="invoice-card-body">
           <div class="invoice-card-row">
-            <span>${offerLabel}:</span>
+            <span>${totalLabel}:</span>
             <span>${formatCurrency(total)}</span>
           </div>
         </div>

@@ -25,11 +25,11 @@ export const getPurchaseOrderMetals = asyncHandler(async (req, res) => {
   return res.json(metals);
 });
 
-export const cancelOrder = asyncHandler(async (req, res) => {
-  const { order, return_shipment } = req.body;
-  const result = await purchaseOrderService.cancelOrder({ order, return_shipment });
-  return res.status(200).json(result);
-});
+// THE MUTATION SURFACE LEFT THIS FEATURE. Every order write is
+// PATCH /api/orders/:id and its sibling sub-resources - one namespace, both
+// directions, direction validated as data - dispatched by
+// features/orders/patch.service.ts to the same services this file used to
+// front. What remains here are the reads, creation, and the review.
 
 export const createReview = asyncHandler(async (req, res) => {
   const result = await purchaseOrderService.createReview(req.body);
@@ -61,94 +61,6 @@ export const createPurchaseOrder = asyncHandler(async (req, res) => {
   return res.status(200).json(order);
 });
 
-export const acceptOrder = asyncHandler(async (req, res) => {
-  const { purchase_order, order_spots, spot_prices } = req.body;
-  const { purchaseOrder, orderSpots } = await purchaseOrderService.acceptOrder({
-    order: purchase_order,
-    order_spots,
-    spot_prices,
-  });
-  res.json({ purchaseOrder, orderSpots });
-});
-
-export const updateStatus = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.updateStatus(req.body);
-  return res.status(200).json(updated);
-});
-
-export const updateSpot = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.updateSpot(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const lockSpots = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.lockSpots(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const unlockSpots = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.unlockSpots(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const saveOrderItems = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.toggleOrderItemStatus({
-    item_status: true,
-    ids: req.body.ids,
-    purchase_order_id: req.body.purchase_order_id,
-  });
-  return res.status(200).json({ updated });
-});
-
-export const resetOrderItems = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.toggleOrderItemStatus({
-    item_status: false,
-    ids: [req.body.id],
-    purchase_order_id: req.body.purchase_order_id,
-  });
-  return res.status(200).json({ updated });
-});
-
-export const deleteOrderItems = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.deleteOrderItems(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const updateScrapItem = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.updateScrapItem(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const createOrderItem = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.createOrderItem(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const updateBullion = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.updateBullion(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const editShippingCharge = asyncHandler(async (req, res) => {
-  await purchaseOrderService.editShippingCharge(req.body);
-  return res.status(200).json({ success: true });
-});
-
-export const editPayoutCharge = asyncHandler(async (req, res) => {
-  await purchaseOrderService.editPayoutCharge(req.body);
-  return res.status(200).json({ success: true });
-});
-
-export const changePayoutMethod = asyncHandler(async (req, res) => {
-  await purchaseOrderService.changePayoutMethod(req.body);
-  return res.status(200).json({ success: true });
-});
-
-export const addFundsToAccount = asyncHandler(async (req, res) => {
-  await purchaseOrderService.addFundsToAccount(req.body);
-  return res.status(200).json({ success: true });
-});
-
 export const purgeCancelled = asyncHandler(async (req, res) => {
   await purchaseOrderService.purgeCancelled();
   return res.status(200).json({ success: true });
@@ -158,36 +70,6 @@ export const getPurchaseOrderRefinerMetals = asyncHandler(async (req, res) => {
   const { purchase_order_id } = req.body;
   const metals = await purchaseOrderService.getRefinerMetalsForOrder(purchase_order_id);
   return res.json(metals);
-});
-
-export const updateRefinerSpot = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.updateRefinerSpot(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const updateRefinerPremium = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.updateRefinerPremium(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const updateShippingActual = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.updateShippingActual(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const updateRefinerFee = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.updateRefinerFee(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const updatePoolOzDeducted = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.updatePoolOzDeducted(req.body);
-  return res.status(200).json({ updated });
-});
-
-export const updatePoolRemediation = asyncHandler(async (req, res) => {
-  const updated = await purchaseOrderService.updatePoolRemediation(req.body);
-  return res.status(200).json({ updated });
 });
 
 export const getPayoutDetails = asyncHandler(async (req, res) => {

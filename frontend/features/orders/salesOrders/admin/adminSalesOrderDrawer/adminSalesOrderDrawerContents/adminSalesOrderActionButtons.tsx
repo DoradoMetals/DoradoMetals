@@ -1,17 +1,14 @@
-import { useMoveSalesOrderStatus } from '@/features/orders/salesOrders/admin/queries'
+import { usePatchOrder } from '@/features/orders/patch'
 import { Button } from '@/shared/ui/base/button'
 import { cn } from '@/shared/utils/cn'
 
 import { SalesOrderActionButtonsProps, statusConfig } from '@/features/orders/salesOrders/types'
 
 export function SalesOrderActionButtons({ order }: SalesOrderActionButtonsProps) {
-  const movePurchaseOrderStatus = useMoveSalesOrderStatus()
+  const patchOrder = usePatchOrder()
 
-  const handleAction = (action: string, status: string) => {
-    movePurchaseOrderStatus.mutate({
-      order_status: status,
-      order: order,
-    })
+  const handleAction = (_action: string, status: string) => {
+    patchOrder.mutate({ id: order.id, patch: { status } })
   }
 
   const getButtonActions = () => {

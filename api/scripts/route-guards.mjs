@@ -60,7 +60,12 @@ for (const file of walk(join(ROOT, "features"))) {
     routes.push({
       file: rel,
       mount: mountOf.get(key) ?? null,
-      url: mountOf.has(key) ? (mountOf.get(key) + path).replace(/\/+/g, "/") : null,
+      // The trailing-slash trim exists for root-path routes: GET "/" on a
+      // router mounted at /api/orders is /api/orders, not /api/orders/ -
+      // Express treats them alike, and the frontend spells the former.
+      url: mountOf.has(key)
+        ? (mountOf.get(key) + path).replace(/\/+/g, "/").replace(/(.)\/$/, "$1")
+        : null,
       verb: verb.toUpperCase(),
       path,
       guards,

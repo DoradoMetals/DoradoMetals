@@ -86,6 +86,57 @@ export async function updateScrapItem(
   return await query(sql, values, executor);
 }
 
+// A line and its scrap row, by the LINE's id - what the refiner.items patch
+// dispatch merges the refinery's report over. updateScrapItem writes every
+// column it knows, so a caller holding only the changed fields must first hold
+// the rest; this is where it gets them. The line's own premium rides along
+// because service.updateScrapItem re-writes it in the same transaction.
+export async function findScrapLineByItemId(
+  order_item_id: string, executor?: Executor
+): Promise<
+  | {
+      item_id: string;
+      premium: number | null;
+      scrap: {
+        id: string;
+        pre_melt: number | null;
+        post_melt: number | null;
+        purity: number | null;
+        gross_unit: string | null;
+        bid_premium: number | null;
+        purity_actual: number | null;
+        post_melt_actual: number | null;
+      };
+    }
+  | undefined
+> {
+  const sql = `
+    SELECT poi.id AS item_id, poi.premium,
+           s.id, s.pre_melt, s.post_melt, s.purity, s.gross_unit,
+           s.bid_premium, s.purity_actual, s.post_melt_actual
+      FROM exchange.purchase_order_items poi
+      JOIN exchange.scrap s ON s.id = poi.scrap_id
+     WHERE poi.id = $1
+  `;
+  const { rows } = await query(sql, [order_item_id], executor);
+  const row = rows[0];
+  if (!row) return undefined;
+  return {
+    item_id: row.item_id,
+    premium: row.premium,
+    scrap: {
+      id: row.id,
+      pre_melt: row.pre_melt,
+      post_melt: row.post_melt,
+      purity: row.purity,
+      gross_unit: row.gross_unit,
+      bid_premium: row.bid_premium,
+      purity_actual: row.purity_actual,
+      post_melt_actual: row.post_melt_actual,
+    },
+  };
+}
+
 export async function deleteItems(ids: string[], executor?: Executor): Promise<QueryResult> {
   const sql = `
     DELETE FROM exchange.scrap

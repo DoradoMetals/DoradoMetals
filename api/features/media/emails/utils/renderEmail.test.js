@@ -18,7 +18,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   renderSalesOrderToSupplierEmail,
-  renderOfferSentEmail,
+  renderOrderPricedEmail,
 } from "#features/media/emails/utils/renderEmail.ts";
 
 // The wire shape, not a convenience object: SalesOrder says address
@@ -104,12 +104,14 @@ test("a spot with no ask renders rather than throwing", () => {
 
 // The other renderers take a name and a URL and nothing else. This one checks
 // the substitution actually happens, because a template whose marker was
-// renamed would otherwise ship the marker to a customer.
+// renamed would otherwise ship the marker to a customer. It rendered the
+// offer-sent template until the offers went (Jacob, 28 August); the priced
+// mail is the substitution path that remains.
 test("a template with no url falls back rather than emitting an empty href", () => {
-  const html = renderOfferSentEmail({ firstName: "Jacob", offerExpiration: "in 7 days" });
+  const html = renderOrderPricedEmail({ firstName: "Jacob" });
   assert.ok(html.includes("Jacob"), "the name was not substituted");
-  assert.ok(html.includes("in 7 days"), "the expiration was not substituted");
   assert.ok(html.includes("doradometals.com"), "no url was substituted");
   assert.ok(!html.includes("[First Name]"), "a placeholder survived");
   assert.ok(!html.includes("[URL]"), "a placeholder survived");
+  assert.ok(!/offer/i.test(html), "offer language survived in customer mail");
 });

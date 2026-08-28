@@ -8,8 +8,12 @@
 // destructuring a body shape the frontend does not send, a guard that lets the
 // wrong role through, a response the drawer cannot render.
 //
-// Payloads are lifted from frontend/features/orders/purchaseOrders/admin/
-// queries.ts. Where they differ, the frontend is right and this file is wrong.
+// THE SURFACE IS THE UNIFIED /api/orders NAMESPACE NOW (Jacob's rulings, 28
+// August: one endpoint per resource, direction is data). The status label is
+// PATCH /api/orders/:id; the frozen spots are PUT /api/orders/:id/spots.
+// Locking no longer sends the browser's copy of the live spot feed: the
+// server pins its own, which is what the spots_locked assertion below now
+// proves.
 //
 // NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction. The
 // last test proves it from outside.
@@ -145,10 +149,11 @@ test("moving an order's status takes the body the drawer sends", async () => {
     assert.ok(order, "dev has no open purchase order");
 
     await as(admin, async () => {
-      // Exactly useMovePurchaseOrderStatus: { order_status, order, user_name }.
+      // The document form of useMovePurchaseOrderStatus: the id in the path,
+      // the label in the body, the audit name from the session.
       const res = await request(app)
-        .post("/api/purchase_orders/update_status")
-        .send({ order_status: MOVE_TO, order, user_name: admin.name });
+        .patch(`/api/orders/${order.id}`)
+        .send({ status: MOVE_TO });
 
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
@@ -169,8 +174,8 @@ test("a customer cannot move an order's status", async () => {
     const order = await anOrder();
     await as(customer, async () => {
       const res = await request(app)
-        .post("/api/purchase_orders/update_status")
-        .send({ order_status: "Completed", order, user_name: customer.name });
+        .patch(`/api/orders/${order.id}`)
+        .send({ status: "Completed" });
       assert.equal(res.status, 403, "a customer moved their own order to Completed");
     });
   }, { lock: ORDER_LOCK });
@@ -181,18 +186,12 @@ test("locking spots freezes them and unlocking releases them", async () => {
     const order = await anOrder();
 
     await as(admin, async () => {
-      // useLockSpots sends { user_id, spots, purchase_order_id } - the spots
-      // it is locking, not just the order. The first version of this sent
-      // { order, user_name } and got a 500 out of updateOrderMetals, which maps
-      // over spotPrices and reads spot.bid off each one.
-      const metals = await request(app)
-        .post("/api/purchase_orders/get_purchase_order_metals")
-        .send({ purchase_order_id: order.id });
-      assert.equal(metals.status, 200, JSON.stringify(metals.body));
-
+      // { spots: { lock: true } } and nothing else: the server resolves the
+      // live spots itself (getCurrentSpotPrices, the auto-accept cron's own
+      // source) where the old route took the browser's copy of the feed.
       const locked = await request(app)
-        .post("/api/purchase_orders/lock_spots")
-        .send({ user_id: admin.id, spots: metals.body, purchase_order_id: order.id });
+        .put(`/api/orders/${order.id}/spots`)
+        .send({ lock: true });
       assert.equal(locked.status, 200, JSON.stringify(locked.body));
 
       const list = await request(app).get("/api/purchase_orders/get_all_purchase_orders");
@@ -203,8 +202,8 @@ test("locking spots freezes them and unlocking releases them", async () => {
       );
 
       const unlocked = await request(app)
-        .post("/api/purchase_orders/unlock_spots")
-        .send({ user_id: admin.id, purchase_order_id: order.id });
+        .put(`/api/orders/${order.id}/spots`)
+        .send({ lock: false });
       assert.equal(unlocked.status, 200, JSON.stringify(unlocked.body));
 
       const after = await request(app).get("/api/purchase_orders/get_all_purchase_orders");
@@ -230,8 +229,8 @@ test("changing a spot price lands on that order and no other", async () => {
       assert.ok(!("bid_spot" in spot), "the metals response still carries the legacy bid_spot");
 
       const res = await request(app)
-        .post("/api/purchase_orders/update_spot")
-        .send({ user_id: admin.id, spot, updated_spot: sentinel });
+        .put(`/api/orders/${order.id}/spots`)
+        .send({ set: [{ name: spot.name, bid: sentinel }] });
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
       const after = await request(app)

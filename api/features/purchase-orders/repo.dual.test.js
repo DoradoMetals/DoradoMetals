@@ -63,19 +63,23 @@ test("a status change lands in both schemas", async () => {
   });
 });
 
-// 086 removed offers. Accepting is now an order transition and a money write:
-// one statement against exchange.purchase_orders, two tables in the new schema.
-test("accepting an order updates the order and the transaction", async () => {
+// 086 removed offers; the pure-label ruling (28 August) then removed the
+// status from this write too - recordOrderPricing is acceptOrder minus the
+// 'Accepted' label, which left the lifecycle in migration 092. A money write
+// and the pin, one statement against exchange, two tables in the new schema,
+// and the status column UNTOUCHED.
+test("finalizing pricing updates the money and the pin, never the status", async () => {
   await inRollback(async (c) => {
     const id = await anOrder(c);
-    await dual.acceptOrder(id, 1234.56, c);
+    const before = await c.query("SELECT status FROM orders.orders WHERE id = $1", [id]);
+    await dual.recordOrderPricing(id, 1234.56, c);
 
     const order = await c.query(
       "SELECT status, spots_locked FROM orders.orders WHERE id = $1", [id]
     );
     const txn = await c.query("SELECT total FROM orders.transactions WHERE order_id = $1", [id]);
-    assert.equal(order.rows[0].status, "Accepted");
-    assert.equal(order.rows[0].spots_locked, true, "accepting must pin the spots");
+    assert.equal(order.rows[0].status, before.rows[0].status, "pricing moved the label");
+    assert.equal(order.rows[0].spots_locked, true, "pricing must pin the spots");
     assert.equal(Number(txn.rows[0].total), 1234.56);
   });
 });

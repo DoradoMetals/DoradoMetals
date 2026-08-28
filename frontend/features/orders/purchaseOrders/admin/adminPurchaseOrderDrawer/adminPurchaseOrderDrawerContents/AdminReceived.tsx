@@ -1,22 +1,17 @@
 import { Button } from '@/shared/ui/base/button'
 import { Input } from '@/shared/ui/base/input'
+import { useSetOrderSpots } from '@/features/orders/spots'
 import {
-  useAddNewOrderBullionItem,
-  useAddNewOrderScrapItem,
-  useDeleteOrderItems,
-  useEditPayoutCharge,
-  useEditShippingCharge,
-  useLockOrderSpotPrices,
-  useResetOrderItem,
-  useResetOrderSpotPrices,
-  useSaveOrderItems,
-  useUpdateOrderBullionItem,
-  useUpdateOrderScrapItem,
-  useUpdateOrderSpotPrice,
-} from '@/features/orders/purchaseOrders/admin/queries'
+  useCreateOrderItem,
+  useDeleteOrderItem,
+  usePatchOrderItem,
+} from '@/features/orders/items'
+import { usePatchShipment } from '@/features/shipping/queries'
+import { usePatchPayout } from '@/features/payouts/queries'
 
 import { cn } from '@/shared/utils/cn'
-import { SpotPrice } from '@/features/spots/types'
+import { payoutOptions } from '@/features/payouts/types'
+import { CaretDownIcon } from '@phosphor-icons/react'
 import type { SpotOnOrder } from '@dorado/contracts'
 import {
   assignScrapItemNames,
@@ -47,26 +42,29 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
 
-  const updateSpot = useUpdateOrderSpotPrice()
-  const lockSpots = useLockOrderSpotPrices()
-  const resetSpots = useResetOrderSpotPrices()
-  const editShippingCharge = useEditShippingCharge()
-  const editPayoutCharge = useEditPayoutCharge()
+  const setSpots = useSetOrderSpots()
+  const patchShipment = usePatchShipment()
+  const patchPayout = usePatchPayout()
+  const [payoutOpen, setPayoutOpen] = useState(false)
 
   const rawScrapItems = order.order_items.filter((item) => item.item_type === 'scrap' && item.scrap)
   const scrapItems = assignScrapItemNames(rawScrapItems)
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
 
   const handleUpdateSpot = (spot: SpotOnOrder, updated_spot: number) => {
-    updateSpot.mutate({ spot, updated_spot, purchase_order_id: order.id })
+    if (!spot.name) return
+    setSpots.mutate({ order_id: order.id, set: [{ name: spot.name, bid: updated_spot }] })
   }
 
-  const handleLockSpots = (spots: SpotPrice[], purchase_order_id: string) => {
-    lockSpots.mutate({ spots, purchase_order_id })
+  // Locking writes the metal rows - at the live prices the SERVER resolves.
+  // The legacy route took the browser's copy of the feed down with the lock;
+  // the resource takes only the intent.
+  const handleLockSpots = () => {
+    setSpots.mutate({ order_id: order.id, lock: true })
   }
 
-  const handleResetSpots = (purchase_order_id: string) => {
-    resetSpots.mutate({ purchase_order_id })
+  const handleResetSpots = () => {
+    setSpots.mutate({ order_id: order.id, lock: false })
   }
 
   const config = statusConfig[order.status ?? '']
@@ -84,21 +82,17 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                   'text-primary',
                   'p-0 font-normal text-sm h-4 hover:bg-transparent'
                 )}
-                onClick={() =>
-                  order.spots_locked
-                    ? handleResetSpots(order.id)
-                    : handleLockSpots(spotPrices, order.id)
-                }
-                disabled={lockSpots.isPending || resetSpots.isPending}
+                onClick={() => (order.spots_locked ? handleResetSpots() : handleLockSpots())}
+                disabled={setSpots.isPending}
               >
                 {order.spots_locked ? (
                   <div className="flex gap-1 items-center">
-                    {resetSpots.isPending ? 'Unlocking...' : 'Unlock Spots'}
+                    {setSpots.isPending ? 'Unlocking...' : 'Unlock Spots'}
                     <Unlock size={16} />
                   </div>
                 ) : (
                   <div className="flex gap-1 items-center">
-                    {lockSpots.isPending ? 'Locking...' : 'Lock Spots'}
+                    {setSpots.isPending ? 'Locking...' : 'Lock Spots'}
                     <Lock size={16} />
                   </div>
                 )}
@@ -167,12 +161,14 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                   'on-glass no-spinner text-right w-full text-base h-8'
                 )}
                 defaultValue={order.shipment.shipping_charge ?? 0}
-                onBlur={(e) =>
-                  editShippingCharge.mutate({
-                    purchase_order: order,
-                    shipping_charge: Number(e.target.value),
+                onBlur={(e) => {
+                  if (!order.shipment.id) return
+                  patchShipment.mutate({
+                    shipment_id: order.shipment.id,
+                    order_id: order.id,
+                    patch: { shipping_charge: Number(e.target.value) },
                   })
-                }
+                }}
               />
             </div>
             <div className="flex-col items-start">
@@ -185,14 +181,72 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                   'on-glass no-spinner text-right w-full text-base h-8'
                 )}
                 defaultValue={order.payout.cost ?? 0}
-                onBlur={(e) =>
-                  editPayoutCharge.mutate({
-                    purchase_order: order,
-                    payout_charge: Number(e.target.value),
+                onBlur={(e) => {
+                  if (!order.payout.id) return
+                  patchPayout.mutate({
+                    payout_id: order.payout.id,
+                    order_id: order.id,
+                    patch: { cost: Number(e.target.value) },
                   })
-                }
+                }}
               />
             </div>
+          </div>
+          <div className="glass-divider" />
+
+          {/* 'Accepted' left the lifecycle, and the change-payout affordance
+              that keyed on it shows here at Received instead (Jacob's lean) -
+              beside the payout charge it prices. */}
+          <div className="flex flex-col gap-1 items-start w-full">
+            <div className="text-sm text-neutral-600 tracking-wide">Change Payout Method</div>
+            <Popover open={payoutOpen} onOpenChange={setPayoutOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    'text-primary',
+                    'flex items-center justify-between gap-1 px-4 font-normal text-sm on-glass border-none h-9 w-full'
+                  )}
+                >
+                  {payoutOptions.find((m) => m.method === order.payout.method)?.label}
+                  <CaretDownIcon size={20} />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="p-0 w-48 z-70"
+                align="end"
+                side="bottom"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+              >
+                <Command className="bg-card">
+                  <CommandList>
+                    {payoutOptions.map(({ label, method, icon: Icon }) => (
+                      <CommandItem
+                        key={label}
+                        onSelect={() => {
+                          if (order.payout.id) {
+                            patchPayout.mutate({
+                              payout_id: order.payout.id,
+                              order_id: order.id,
+                              patch: { method },
+                            })
+                          }
+                          setPayoutOpen(false)
+                        }}
+                        className={cn(
+                          'group h-9 px-3 flex items-center gap-2 transition-colors duration-150 cursor-pointer',
+                          'text-primary',
+                          'hover:bg-primary'
+                        )}
+                      >
+                        <Icon size={16} className={cn('text-primary')} />
+                        <span className="transition-colors">{label}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="glass-divider" />
         </div>
@@ -214,41 +268,48 @@ function ScrapTable({
   const [editMode, setEditMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
-  const updateOrderItem = useUpdateOrderScrapItem()
-  const deleteOrderItems = useDeleteOrderItems()
-  const resetOrderItem = useResetOrderItem()
-  const saveOrderItems = useSaveOrderItems()
-  const addNewItem = useAddNewOrderScrapItem()
+  const patchItem = usePatchOrderItem()
+  const deleteItem = useDeleteOrderItem()
+  const createItem = useCreateOrderItem()
 
-  const handleUpdateItem = (item: PurchaseOrderItem) => {
-    updateOrderItem.mutate(item)
-  }
-
-  const handleDeleteItems = (ids: string[]) => {
-    deleteOrderItems.mutate({
-      items: scrapItems.filter((item) => ids.includes(item.id)),
-      purchase_order_id: order_id,
+  // The write carries the FULL scrap object and the line's premium - the
+  // API's scrap op sets every column it knows (see OrderItemScrapPatch).
+  const handleUpdateItem = (
+    item: PurchaseOrderItem,
+    changes: { premium?: number | null; scrap?: Record<string, unknown> }
+  ) => {
+    patchItem.mutate({
+      order_item_id: item.id,
+      order_id,
+      patch: {
+        scrap: {
+          premium: changes.premium !== undefined ? changes.premium : item.premium,
+          scrap: { ...item.scrap!, ...(changes.scrap ?? {}) },
+        },
+      },
     })
   }
 
+  // Per-resource means one DELETE per line; the selection is small by
+  // construction (checked rows in one drawer).
+  const handleDeleteItems = (ids: string[]) => {
+    for (const id of ids) deleteItem.mutate({ order_item_id: id, order_id })
+  }
+
   const handleSavedItems = (ids: string[]) => {
-    saveOrderItems.mutate({ ids: ids, purchase_order_id: order_id })
+    for (const id of ids) {
+      patchItem.mutate({ order_item_id: id, order_id, patch: { confirmed: true } })
+    }
   }
 
   const handleResetItem = (item: PurchaseOrderItem) => {
-    resetOrderItem.mutate({ id: item.id, purchase_order_id: order_id })
+    patchItem.mutate({ order_item_id: item.id, order_id, patch: { reset: true } })
   }
 
   const handleAddNew = (metal: string) => {
-    addNewItem.mutate({
-      item: {
-        metal,
-        pre_melt: 1,
-        purity: 1,
-        content: 1,
-        gross_unit: 't oz',
-      },
-      purchase_order_id: order_id,
+    createItem.mutate({
+      order_id,
+      item: { metal, pre_melt: 1, purity: 1, content: 1, gross_unit: 't oz' },
     })
   }
 
@@ -317,14 +378,7 @@ function ScrapTable({
                           onBlur={(e) => {
                             const pre_melt = parseFloat(e.target.value)
                             if (!isNaN(pre_melt)) {
-                              const updatedItem = {
-                                ...item,
-                                scrap: {
-                                  ...item.scrap!,
-                                  pre_melt,
-                                },
-                              }
-                              handleUpdateItem(updatedItem)
+                              handleUpdateItem(item, { scrap: { pre_melt } })
                             }
                           }}
                         />
@@ -353,14 +407,7 @@ function ScrapTable({
                           onBlur={(e) => {
                             const post_melt = parseFloat(e.target.value)
                             if (!isNaN(post_melt)) {
-                              const updatedItem = {
-                                ...item,
-                                scrap: {
-                                  ...item.scrap!,
-                                  post_melt,
-                                },
-                              }
-                              handleUpdateItem(updatedItem)
+                              handleUpdateItem(item, { scrap: { post_melt } })
                             }
                           }}
                         />
@@ -389,14 +436,7 @@ function ScrapTable({
                           onBlur={(e) => {
                             const purity = parseFloat(e.target.value)
                             if (!isNaN(purity)) {
-                              const updatedItem = {
-                                ...item,
-                                scrap: {
-                                  ...item.scrap!,
-                                  purity,
-                                },
-                              }
-                              handleUpdateItem(updatedItem)
+                              handleUpdateItem(item, { scrap: { purity } })
                             }
                           }}
                         />
@@ -420,11 +460,7 @@ function ScrapTable({
                           onBlur={(e) => {
                             const premium = parseFloat(e.target.value)
                             if (!isNaN(premium)) {
-                              const updatedItem = {
-                                ...item,
-                                premium: premium,
-                              }
-                              handleUpdateItem(updatedItem)
+                              handleUpdateItem(item, { premium })
                             }
                           }}
                         />
@@ -611,38 +647,48 @@ function BullionTable({
   const [open, setOpen] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const resetOrderItem = useResetOrderItem()
-  const saveOrderItems = useSaveOrderItems()
   const { data: products = [] } = useProducts()
 
-  const updateOrderItem = useUpdateOrderBullionItem()
-  const deleteOrderItems = useDeleteOrderItems()
-  const addNewItem = useAddNewOrderBullionItem()
+  const patchItem = usePatchOrderItem()
+  const deleteItem = useDeleteOrderItem()
+  const createItem = useCreateOrderItem()
 
-  const handleUpdateItem = (item: PurchaseOrderItem) => {
-    updateOrderItem.mutate(item)
+  // Both bullion columns ride every write - the API SETs quantity and
+  // premium in one statement (see OrderItemBullionPatch).
+  const handleUpdateItem = (
+    item: PurchaseOrderItem,
+    changes: { quantity?: number | null; premium?: number | null }
+  ) => {
+    patchItem.mutate({
+      order_item_id: item.id,
+      order_id,
+      patch: {
+        bullion: {
+          quantity: changes.quantity !== undefined ? changes.quantity : item.quantity,
+          premium: changes.premium !== undefined ? changes.premium : item.premium,
+        },
+      },
+    })
   }
 
   const handleDeleteItems = (ids: string[]) => {
-    deleteOrderItems.mutate({
-      items: bullionItems.filter((item) => ids.includes(item.id)),
-      purchase_order_id: order_id,
-    })
+    for (const id of ids) deleteItem.mutate({ order_item_id: id, order_id })
   }
 
   const handleSavedItems = (ids: string[]) => {
-    saveOrderItems.mutate({ ids: ids, purchase_order_id: order_id })
+    for (const id of ids) {
+      patchItem.mutate({ order_item_id: id, order_id, patch: { confirmed: true } })
+    }
   }
 
   const handleResetItem = (item: PurchaseOrderItem) => {
-    resetOrderItem.mutate({ id: item.id, purchase_order_id: order_id })
+    patchItem.mutate({ order_item_id: item.id, order_id, patch: { reset: true } })
   }
 
+  // A bullion line is created from the catalogue row itself - its id is what
+  // tells the server not to mint a scrap row.
   const handleAddNew = (item: Product) => {
-    addNewItem.mutate({
-      item: item,
-      purchase_order_id: order_id,
-    })
+    createItem.mutate({ order_id, item })
   }
 
   return (
@@ -708,14 +754,7 @@ function BullionTable({
                           onBlur={(e) => {
                             const quantity = parseFloat(e.target.value)
                             if (!isNaN(quantity)) {
-                              const updatedItem = {
-                                ...item,
-                                quantity: quantity,
-                                product: {
-                                  ...item.product!,
-                                },
-                              }
-                              handleUpdateItem(updatedItem)
+                              handleUpdateItem(item, { quantity })
                             }
                           }}
                         />
@@ -740,14 +779,7 @@ function BullionTable({
                           onBlur={(e) => {
                             const premium = parseFloat(e.target.value)
                             if (!isNaN(premium)) {
-                              const updatedItem = {
-                                ...item,
-                                premium: premium,
-                                product: {
-                                  ...item.product!,
-                                },
-                              }
-                              handleUpdateItem(updatedItem)
+                              handleUpdateItem(item, { premium })
                             }
                           }}
                         />

@@ -2,42 +2,32 @@ import { Button } from '@/shared/ui/base/button'
 import { PurchaseOrderActionButtonsProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { cn } from '@/shared/utils/cn'
 import { useMemo } from 'react'
-import { useSpotPrices } from '@/features/spots/queries'
-import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
-import { useAcceptOrder, useAddFundsToAccount, useMovePurchaseOrderStatus } from '@/features/orders/purchaseOrders/admin/queries'
-
+import { usePatchOrder } from '@/features/orders/patch'
 
 export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtonsProps) {
-  const { data: spotPrices = [] } = useSpotPrices()
-  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
-
-  const movePurchaseOrderStatus = useMovePurchaseOrderStatus()
-  const acceptOrder = useAcceptOrder()
-  const addAccountFunds = useAddFundsToAccount()
+  const patchOrder = usePatchOrder()
 
   const handleAction = (action: string, status: string) => {
-    // OFFERS ARE GONE (086). What survives of the accept transition is its
-    // PRICING half: accepting snapshots the spots, prices every line and writes
-    // the total, so it goes through its own route rather than a bare status
-    // move. Every other transition is a status move.
-    if (action === 'move_to_accepted') {
-      acceptOrder.mutate({
-        purchase_order: order,
-        order_spots: orderSpotPrices,
-        spot_prices: spotPrices,
-      })
-    } else if (action === 'move_to_completed' && order.payout.method === 'DORADO_ACCOUNT') {
-      addAccountFunds.mutate({ purchase_order: order, spots: orderSpotPrices })
-      movePurchaseOrderStatus.mutate({
-        order_status: status,
-        order: order,
-      })
-    } else {
-      movePurchaseOrderStatus.mutate({
-        order_status: status,
-        order: order,
-      })
-    }
+    // STATUS IS A PURE LABEL - the pipelines are explicit ops in the same
+    // document, applied before the label lands:
+    //
+    // - finalize_pricing runs the pricing pipeline SERVER-side (the server
+    //   resolves the frozen and live spots itself - the browser's pricing
+    //   arrays no longer exist to send), and the label it advances to is
+    //   sent alongside: offers left the product entirely, so finalizing a
+    //   Received order lands it straight in 'Payment Processing'.
+    // - completing a DORADO_ACCOUNT payout credits the customer's funds;
+    //   add_funds rides the same document, applied before status - the same
+    //   order the two legacy requests raced to keep.
+    const addFunds = status === 'Completed' && order.payout.method === 'DORADO_ACCOUNT'
+    patchOrder.mutate({
+      id: order.id,
+      patch: {
+        ...(action === 'finalize_pricing' ? { finalize_pricing: true as const } : null),
+        ...(addFunds ? { add_funds: true } : null),
+        status,
+      },
+    })
   }
 
   const allItemsConfirmed = useMemo(() => {
@@ -64,9 +54,9 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
       case 'Received':
         return [
           {
-            label: 'Move to Offer Sent',
-            action: 'move_to_offer_sent',
-            status: 'Offer Sent',
+            label: 'Finalize Pricing',
+            action: 'finalize_pricing',
+            status: 'Payment Processing',
             disabled: !allItemsConfirmed,
           },
           {
@@ -82,69 +72,6 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
             disabled: false,
           },
         ]
-      case 'Offer Sent':
-        return [
-          {
-            label: 'Move to Accepted',
-            action: 'move_to_accepted',
-            status: 'Accepted',
-            disabled: false,
-          },
-          {
-            label: 'Move to Rejected',
-            action: 'move_to_rejected',
-            status: 'Rejected',
-            disabled: false,
-          },
-          {
-            label: 'Back to Received',
-            action: 'move_to_received',
-            status: 'Received',
-            disabled: false,
-          },
-        ]
-      case 'Accepted':
-        return [
-          {
-            label: 'Move to Payment Processing',
-            action: 'move_to_payment_processing',
-            status: 'Payment Processing',
-            disabled: false,
-          },
-          {
-            label: 'Back to Offer Sent',
-            action: 'move_to_offer_sent',
-            status: 'Offer Sent',
-            disabled: !allItemsConfirmed,
-          },
-          {
-            label: 'Cancel Order',
-            action: 'move_to_cancelled',
-            status: 'Cancelled',
-            disabled: false,
-          },
-        ]
-      case 'Rejected':
-        return [
-          {
-            label: 'Update Offer',
-            action: 'update_rejected_offer',
-            status: 'Rejected',
-            disabled: false,
-          },
-          {
-            label: 'Cancel Order',
-            action: 'move_to_cancelled',
-            status: 'Cancelled',
-            disabled: false,
-          },
-          {
-            label: 'Back to Offer Sent',
-            action: 'move_to_offer_sent',
-            status: 'Offer Sent',
-            disabled: !allItemsConfirmed,
-          },
-        ]
       case 'Payment Processing':
         return [
           {
@@ -154,9 +81,9 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
             disabled: false,
           },
           {
-            label: 'Back to Accepted',
-            action: 'move_to_accepted',
-            status: 'Accepted',
+            label: 'Back to Received',
+            action: 'move_to_received',
+            status: 'Received',
             disabled: false,
           },
           {

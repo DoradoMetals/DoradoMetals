@@ -1,15 +1,14 @@
 // The offer edits and the item writes an admin makes on a purchase order.
 //
-// Item edits from the undriven list (the offer tests left with 086). All pure database work - checked each
-// service function first, and reissueOffer in particular, because "reissue"
-// sounds like it emails and it does not.
+// Item edits from the undriven list (the offer tests left with 086), driven
+// through the line's own endpoint (PATCH /api/orders/items/:id) and the
+// order's line creation (POST /api/orders/:id/items) since the per-resource
+// re-slice. All pure database work - checked each service function first.
 //
-// THE OFFER ONES ARE A STATE MACHINE, WHICH IS WHY THE ASSERTIONS ARE ON THE
-// TRANSITION RATHER THAN ON A VALUE. update_rejected_offer flips Rejected to
-// Resent and Resent back to Rejected, and clears the item prices and the order
-// total on the way through - so an offer that is re-sent is re-priced rather
-// than carrying the old numbers forward. Asserting only the status would pass
-// against a version that forgot the clearing.
+// The offer state machine this header once described (Rejected/Resent and
+// the price-clearing between them) left with 086, and the offer statuses
+// themselves left the lifecycle in migration 092 - what remains here are the
+// item writes.
 //
 // NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back.
@@ -70,14 +69,12 @@ after(async () => {
   await pool.end();
 });
 
-// requireOwnOrder, so this runs as the order's OWNER rather than as an admin -
-// the one route in this file a customer drives.
-test("update_bullion_item writes the line's quantity", async () => {
+test("the bullion field writes the line's quantity", async () => {
   await inPinnedTransaction(async (client) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
-        .post("/api/purchase_orders/update_bullion_item")
-        .send({ item: { id: bullionItem.id, quantity: 7 } });
+        .patch(`/api/orders/items/${bullionItem.id}`)
+        .send({ bullion: { quantity: 7 } });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -93,7 +90,7 @@ test("update_bullion_item writes the line's quantity", async () => {
 // Creating a scrap line is three writes in one transaction: the scrap row, the
 // order line, and a re-tier of every scrap premium on the order. The count
 // assertion is what distinguishes "created" from "answered 200".
-test("create_order_item adds a scrap line and its scrap row", async () => {
+test("POST :id/items adds a scrap line and its scrap row", async () => {
   await inPinnedTransaction(async (client) => {
     await as({ ...admin, role: "admin" }, async () => {
       const before = await client.query(
@@ -102,9 +99,8 @@ test("create_order_item adds a scrap line and its scrap row", async () => {
       );
 
       const res = await request(app)
-        .post("/api/purchase_orders/create_order_item")
+        .post(`/api/orders/${order.id}/items`)
         .send({
-          purchase_order_id: order.id,
           item: {
             metal: "Gold",
             pre_melt: 1.5,

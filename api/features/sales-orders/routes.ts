@@ -4,9 +4,6 @@ import {
   getSalesOrders,
   getOrderMetals,
   getAllSalesOrders,
-  sendOrderToSupplier,
-  updateOrderTracking,
-  updateStatus,
   adminCreateSalesOrder,
   createReview,
 } from "#features/sales-orders/controller.ts";
@@ -39,9 +36,10 @@ router.post("/create_review", requireUser, requireOwnOrder, createReview);
 
 // admin
 router.get("/get_all", requireAdmin, getAllSalesOrders);
-router.post("/update_status", requireAdmin, updateStatus);
-router.post("/send_order_to_supplier", requireAdmin, sendOrderToSupplier);
-router.post("/update_tracking", requireAdmin, updateOrderTracking);
+// NO MUTATIONS HERE ANY MORE - every order write lives under /api/orders, one
+// namespace for both directions (Jacob, 28 August; the endpoint table is in
+// features/orders/patch.service.ts). These reads stay for this series and
+// move to /api/orders reads in the read-pivot wave.
 router.post("/admin_create_sales_order", requireAdmin, adminCreateSalesOrder);
 
 export default router;

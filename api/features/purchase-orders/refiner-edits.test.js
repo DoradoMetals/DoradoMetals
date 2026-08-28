@@ -1,37 +1,49 @@
-// The refiner-side edits and the payout-details read, over real HTTP.
+// The refiner-side edits and the payout-details read, over real HTTP - on the
+// refiners feature's own endpoints since the resource-ownership ruling (28
+// August): a fact about the refiner engagement lands on refiners.orders, a
+// fact about a line's assay on refiners.items.
 //
-// Three more of the routes no test had ever driven - the list that has now
-// produced four production defects. These are the figures that decide what the
-// REFINER is paid against what the customer was offered: the refiner's own spot
-// for a metal on an order, and the refiner's premium on a line.
+// Three of these routes' ancestors no test had ever driven - the list that
+// produced four production defects. These are the figures that decide what
+// the REFINER is paid against what the customer was offered.
 //
-// ALL THREE ARE PURE DATABASE OPERATIONS. Checked before driving them: no
-// email, no FedEx, no Stripe.
+// THE ENGAGEMENT TESTS APPLY MIGRATION 093 INSIDE THEIR PINNED TRANSACTION.
+// refiners.orders does not exist in dev until the user applies 092+093, and
+// the endpoint honestly 500s without it. Executing the migration file inside
+// the rolled-back transaction gives the tests the real schema - the same
+// trick verify:genesis has always used - and stays a no-op once the
+// migration is really applied (CREATE IF NOT EXISTS + guarded backfill).
+// This is also where the MIRROR INVARIANT is pinned: one engagement per
+// order, items matched one-to-one, spots covered.
 //
-// ONE ROUTE IN THIS FEATURE IS DELIBERATELY NOT DRIVEN. DELETE /purge_cancelled
-// is `DELETE FROM exchange.purchase_orders WHERE purchase_order_status =
-// 'Cancelled'` - a bulk delete of the live table. A pinned transaction would
-// roll it back, and the pin is well proven, but CLAUDE.md's rule about deleting
-// is categorical rather than conditional and the value of covering a cleanup
-// endpoint does not come close to the cost of being wrong about the harness.
-// Recorded in FOLLOWUPS.md.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
-// transaction that is rolled back.
+// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in
+// one transaction that is rolled back.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+
+// The engagement tests ALTER refiners.items/spots on the way through 093, and
+// order-writing files touch those tables through the dual mirror - the ORDERS
+// lock serialises against every one of them.
+const ORDER_LOCK = LOCKS.ORDERS;
 
 await mockSessions();
 const { default: app } = await import("#app");
 
+const MIGRATION = fs.readFileSync(
+  new URL("../../migrations/093_the_refiner_engagement_gets_its_own_orders.sql", import.meta.url),
+  "utf8"
+);
+
 let admin;
 let customer;
-let refinerMetal;
-let orderItem;
+let refinerMetal; // { purchase_order_id, type } - an order with refiner spots
+let scrapItem; // a scrap-backed purchase line
 let payoutOrderId;
 
 before(async () => {
@@ -45,20 +57,27 @@ before(async () => {
       `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
     )
   )[0];
-  assert.ok(customer, "dev has no non-admin user - the refusal test would prove nothing");
+  assert.ok(customer, "dev has no non-admin user - the refusal tests would prove nothing");
 
   refinerMetal = (
     await outside(
       `SELECT purchase_order_id, type FROM exchange.refiner_metals
-        WHERE purchase_order_id IS NOT NULL ORDER BY id LIMIT 1`
+        WHERE purchase_order_id IS NOT NULL
+          AND purchase_order_id IN (SELECT id FROM orders.orders)
+        ORDER BY id LIMIT 1`
     )
   )[0];
-  assert.ok(refinerMetal, "dev needs a refiner_metals row on a purchase order");
+  assert.ok(refinerMetal, "dev needs a refiner_metals row on a mirrored purchase order");
 
-  orderItem = (
-    await outside(`SELECT id FROM exchange.purchase_order_items ORDER BY id LIMIT 1`)
+  scrapItem = (
+    await outside(
+      `SELECT i.id, i.purchase_order_id, s.id AS scrap_id
+         FROM exchange.purchase_order_items i
+         JOIN exchange.scrap s ON s.id = i.scrap_id
+        ORDER BY i.id LIMIT 1`
+    )
   )[0];
-  assert.ok(orderItem, "dev needs a purchase order item");
+  assert.ok(scrapItem, "dev needs a purchase order item with scrap");
 
   payoutOrderId = (
     await outside(
@@ -73,19 +92,51 @@ after(async () => {
   await pool.end();
 });
 
-test("update_refiner_spot writes the refiner's bid for that metal on that order", async () => {
+// 093 inside the pinned transaction, and the engagement row for one order.
+const withEngagement = async (client, orderId) => {
+  await client.query(MIGRATION);
+  const { rows } = await client.query(
+    `SELECT id FROM refiners.orders WHERE order_id = $1`,
+    [orderId]
+  );
+  assert.ok(rows[0], `the backfill made no engagement for order ${orderId}`);
+  return rows[0].id;
+};
+
+test("the mirror invariant: one engagement per order, items matched, spots covered", async () => {
   await inPinnedTransaction(async (client) => {
+    await client.query(MIGRATION);
+    const { rows } = await client.query(`SELECT
+      (SELECT count(*) FROM orders.orders)::int oo,
+      (SELECT count(*) FROM refiners.orders)::int ro,
+      (SELECT count(*) FROM orders.items)::int oi,
+      (SELECT count(*) FROM refiners.items)::int ri,
+      (SELECT count(*) FROM orders.spots os
+        WHERE NOT EXISTS (SELECT 1 FROM refiners.spots rs
+                           WHERE rs.order_id = os.order_id
+                             AND rs.metal_id = os.metal_id))::int spots_uncovered,
+      (SELECT count(*) FROM refiners.items WHERE refiner_order_id IS NULL)::int items_unlinked,
+      (SELECT count(*) FROM refiners.spots WHERE refiner_order_id IS NULL)::int spots_unlinked`);
+    const c = rows[0];
+    assert.equal(c.oo, c.ro, `${c.oo} orders but ${c.ro} engagements`);
+    assert.equal(c.oi, c.ri, `${c.oi} customer lines but ${c.ri} refiner lines`);
+    // Spots CANNOT equal by addition - unlocking clears the customer rows
+    // while the refiner's stay - so the pinned invariant is coverage: no
+    // customer spot without its refiner counterpart, and every refiner row
+    // linked to its engagement.
+    assert.equal(c.spots_uncovered, 0, "a customer spot has no refiner counterpart");
+    assert.equal(c.items_unlinked, 0, "a refiner line is not linked to an engagement");
+    assert.equal(c.spots_unlinked, 0, "a refiner spot is not linked to an engagement");
+  }, { lock: ORDER_LOCK });
+});
+
+test("the engagement PATCH writes the refiner's spot for that metal on that order", async () => {
+  await inPinnedTransaction(async (client) => {
+    const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
-        .post("/api/purchase_orders/update_refiner_spot")
-        .send({
-          // The body's spot speaks the converted names (D84).
-          spot: {
-            purchase_order_id: refinerMetal.purchase_order_id,
-            name: refinerMetal.type,
-          },
-          updated_spot: "1234.56",
-        });
+        .patch(`/api/refiners/orders/${engagementId}`)
+        .send({ spots: [{ name: refinerMetal.type, bid: 1234.56 }] });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -97,37 +148,145 @@ test("update_refiner_spot writes the refiner's bid for that metal on that order"
       assert.ok(rows.length, "no refiner_metals row matched");
       assert.equal(Number(rows[0].bid_spot), 1234.56, "bid_spot did not change");
     });
-  });
+  }, { lock: ORDER_LOCK });
 });
 
-test("update_refiner_premium writes the premium on that line", async () => {
+test("the engagement PATCH lands pool and fee on the engagement AND the exchange shadow", async () => {
+  await inPinnedTransaction(async (client) => {
+    const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
+    await as({ ...admin, role: "admin" }, async () => {
+      const res = await request(app)
+        .patch(`/api/refiners/orders/${engagementId}`)
+        .send({ pool_oz_deducted: 1.2345, pool_remediation: 34.56, fee: 23.45 });
+
+      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+
+      const engagement = (
+        await client.query(
+          `SELECT pool_oz_deducted, pool_remediation, fee FROM refiners.orders WHERE id = $1`,
+          [engagementId]
+        )
+      ).rows[0];
+      assert.equal(Number(engagement.pool_oz_deducted), 1.2345);
+      assert.equal(Number(engagement.pool_remediation), 34.56);
+      assert.equal(Number(engagement.fee), 23.45);
+
+      // The shadow stays level: the existing services still write exchange.
+      const shadow = (
+        await client.query(
+          `SELECT pool_oz_deducted, pool_remediation, refiner_fee
+             FROM exchange.purchase_orders WHERE id = $1`,
+          [refinerMetal.purchase_order_id]
+        )
+      ).rows[0];
+      assert.equal(Number(shadow.pool_oz_deducted), 1.2345, "exchange lost the pool ounces");
+      assert.equal(Number(shadow.pool_remediation), 34.56, "exchange lost the remediation");
+      assert.equal(Number(shadow.refiner_fee), 23.45, "exchange lost the fee");
+    });
+  }, { lock: ORDER_LOCK });
+});
+
+test("the item PATCH writes the refiner premium on that line", async () => {
   await inPinnedTransaction(async (client) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
-        .post("/api/purchase_orders/update_refiner_premium")
-        .send({ item_id: orderItem.id, refiner_premium: "0.875" });
+        .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
+        .send({ premium: 0.875 });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
         `SELECT refiner_premium FROM exchange.purchase_order_items WHERE id = $1`,
-        [orderItem.id]
+        [scrapItem.id]
       );
       assert.equal(Number(rows[0].refiner_premium), 0.875, "refiner_premium did not change");
     });
-  });
+  }, { lock: ORDER_LOCK });
 });
 
-// THE ONE ENDPOINT ALLOWED TO RETURN FULL BANK DETAILS.
-//
-// exchange.payouts holds routing and account numbers in PLAINTEXT. Order
-// responses carry only last-4; this admin-only route is where the full values
-// come from, which is exactly why it is worth knowing it still works.
+test("the item PATCH writes the assay report to the actual columns", async () => {
+  await inPinnedTransaction(async (client) => {
+    await as({ ...admin, role: "admin" }, async () => {
+      const res = await request(app)
+        .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
+        .send({ purity: 0.9, post_melt: 3.0 });
+
+      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+
+      const { rows } = await client.query(
+        `SELECT purity_actual, post_melt_actual, content_actual, purity, pre_melt
+           FROM exchange.scrap WHERE id = $1`,
+        [scrapItem.scrap_id]
+      );
+      assert.equal(Number(rows[0].purity_actual), 0.9, "purity_actual did not land");
+      assert.equal(Number(rows[0].post_melt_actual), 3.0, "post_melt_actual did not land");
+      // content_actual is DERIVED by the same service the drawer always used.
+      assert.ok(rows[0].content_actual !== null, "content_actual was not derived");
+    });
+  }, { lock: ORDER_LOCK });
+});
+
+// The poisoned-body rule on both endpoints: refused by name, nothing written.
+// `content` gets its own message - it is derived, and silently recomputing
+// over a sent value is the admin-mutation-urls bug.
+test("poisoned bodies refuse by name on both refiners endpoints", async () => {
+  await inPinnedTransaction(async (client) => {
+    const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
+    await as({ ...admin, role: "admin" }, async () => {
+      const item = await request(app)
+        .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
+        .send({ premium: 0.9, order_spots: [] });
+      assert.equal(item.status, 400, `answered ${item.status}`);
+      assert.match(item.body?.error?.message ?? "", /"order_spots"/);
+
+      const derived = await request(app)
+        .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
+        .send({ content: 1.5 });
+      assert.equal(derived.status, 400, `answered ${derived.status}`);
+      assert.match(derived.body?.error?.message ?? "", /"content" is derived/);
+
+      const engagement = await request(app)
+        .patch(`/api/refiners/orders/${engagementId}`)
+        .send({ total_price: 100000 });
+      assert.equal(engagement.status, 400, `answered ${engagement.status}`);
+      assert.match(engagement.body?.error?.message ?? "", /"total_price"/);
+
+      const { rows } = await client.query(
+        `SELECT refiner_premium FROM exchange.purchase_order_items WHERE id = $1`,
+        [scrapItem.id]
+      );
+      assert.notEqual(Number(rows[0].refiner_premium), 0.9, "a refused document still wrote");
+    });
+  }, { lock: ORDER_LOCK });
+});
+
+test("both refiners endpoints refuse a customer and an anonymous caller", async () => {
+  await inPinnedTransaction(async (client) => {
+    const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
+    for (const [who, run] of [
+      ["customer", (fn) => as({ ...customer, role: "user" }, fn)],
+      ["anonymous", (fn) => anonymous(fn)],
+    ]) {
+      await run(async () => {
+        const item = await request(app)
+          .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
+          .send({ premium: 0.5 });
+        assert.ok([401, 403].includes(item.status), `${who} was answered ${item.status}`);
+
+        const engagement = await request(app)
+          .patch(`/api/refiners/orders/${engagementId}`)
+          .send({ fee: 1 });
+        assert.ok([401, 403].includes(engagement.status), `${who} was answered ${engagement.status}`);
+      });
+    }
+  }, { lock: ORDER_LOCK });
+});
+
+// THE ONE ENDPOINT ALLOWED TO RETURN FULL BANK DETAILS - unchanged by the
+// re-slice, and staying on its legacy route this series.
 //
 // NOTHING FROM THE BODY IS PRINTED OR INTERPOLATED INTO AN ASSERTION MESSAGE,
-// including on failure. A test that dumps the response on a bad day would put a
-// customer's bank account into a CI log, which is the thing the standing
-// constraint exists to prevent. The assertions are on KEYS and on status.
+// including on failure. The assertions are on KEYS and on status.
 test("get_payout_details answers with the payout's fields", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...admin, role: "admin" }, async () => {
@@ -148,19 +307,6 @@ test("get_payout_details answers with the payout's fields", async () => {
   });
 });
 
-// THE HALF THE TEST ABOVE DOES NOT COVER.
-//
-// It drives get_payout_details as an admin and asserts the shape. That proves
-// the endpoint works; it proves nothing about who may reach it. This is the
-// endpoint CLAUDE.md means by "full values come from an admin-only endpoint" -
-// exchange.payouts holds routing and account numbers in plaintext, and
-// production has fourteen of them - so the guard is the whole point of it.
-//
-// The route does carry requireAdmin today; this asserts that rather than
-// trusting a line in routes.js to stay there.
-//
-// Same rule as above: no response body is printed or interpolated, on any path.
-// Only status codes.
 test("a customer cannot read a payout's bank details", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {

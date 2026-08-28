@@ -1,0 +1,101 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiRequest } from '@/shared/queries/axios'
+import { useGetSession } from '@/features/auth/queries'
+import { invalidateOrderReads } from '@/features/orders/invalidation'
+
+// REFINERS IS ITS OWN FEATURE, and the endpoint follows the feature that
+// owns the table (Jacob's rule, fourth D87 correction). The standing rule of
+// the fifth: ENGAGEMENT FACTS LIVE ON refiners.orders - the refiner-side
+// engagement attached to a customer order owns the refiner spots, the fee,
+// and the pool figures, addressed by the order wire's refiner_order_id. Per-
+// line refiner data (premium + assay) lives on refiners.items. The order
+// PATCH keeps only what orders own; the order READ still serves the pool and
+// fee figures unchanged this series, so displays are untouched.
+//
+// KEYING: /refiners/orders/:id takes the REFINER order's id (the engagement
+// row, not the customer order). /refiners/items/by-order-item/:orderItemId
+// takes the ORDER ITEM's id, and the path says so - the order wire serves
+// refiner values by order line and never exposes refiners.items' own row id,
+// so the line's id is the only key the client honestly holds.
+
+// One refiner row's writable fields. premium: null clears it; the assay
+// fields carry what the refiner actually recovered, null where a figure is
+// not yet known. `content` is DELIBERATELY not a field - the API derives it
+// from post_melt (or pre_melt) and purity and refuses a raw override by
+// name.
+export type RefinerItemPatch = {
+  premium?: number | null
+  pre_melt?: number | null
+  post_melt?: number | null
+  purity?: number | null
+  unit?: string | null
+}
+
+// A refiner spot write: which metal, at what bid - the refiner's copy of the
+// order's metals.
+export type RefinerSpotWrite = {
+  name: string
+  bid: number
+}
+
+// The engagement's writable facts. refiner_id attaches (or moves) the
+// engagement's refiner; no drawer sends it today.
+export type RefinerOrderPatch = {
+  spots?: RefinerSpotWrite[]
+  pool_oz_deducted?: number
+  pool_remediation?: number
+  fee?: number
+  refiner_id?: string
+}
+
+// Settles through the one order cache policy in
+// features/orders/invalidation.ts - refiner values render inside order reads
+// and price the profit breakdown. Nothing is written optimistically; every
+// refiner value is priced or assay data, and priced fields refetch (D83).
+
+export type PatchRefinerItemVars = {
+  // The ORDER item's id - see the keying note above.
+  order_item_id: string
+  // For invalidation only; the URL does not carry it.
+  order_id: string
+  patch: RefinerItemPatch
+}
+
+export const usePatchRefinerItem = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ order_item_id, patch }: PatchRefinerItemVars) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<unknown>('PATCH', `/refiners/items/by-order-item/${order_item_id}`, patch)
+    },
+    onSettled: (_data, _err, { order_id }) => {
+      invalidateOrderReads(queryClient, order_id)
+    },
+  })
+}
+
+export type PatchRefinerOrderVars = {
+  // The ENGAGEMENT row's id - order.refiner_order_id, never the customer
+  // order's own id.
+  refiner_order_id: string
+  // The customer order's id, for invalidation only; the URL does not carry it.
+  order_id: string
+  patch: RefinerOrderPatch
+}
+
+export const usePatchRefinerOrder = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ refiner_order_id, patch }: PatchRefinerOrderVars) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<unknown>('PATCH', `/refiners/orders/${refiner_order_id}`, patch)
+    },
+    onSettled: (_data, _err, { order_id }) => {
+      invalidateOrderReads(queryClient, order_id)
+    },
+  })
+}

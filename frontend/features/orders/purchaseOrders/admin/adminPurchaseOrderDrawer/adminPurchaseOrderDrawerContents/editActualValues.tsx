@@ -3,12 +3,8 @@
 import { Input } from '@/shared/ui/base/input'
 import { cn } from '@/shared/utils/cn'
 import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
-import {
-  useUpdateOrderScrapItem,
-  useUpdatePoolOzDeducted,
-  useUpdatePoolRemediation,
-  useUpdateShippingActual,
-} from '@/features/orders/purchaseOrders/admin/queries'
+import { usePatchShipment } from '@/features/shipping/queries'
+import { usePatchRefinerItem, usePatchRefinerOrder } from '@/features/refiners/queries'
 import {
   Table,
   TableBody,
@@ -19,10 +15,11 @@ import {
 } from '@/shared/ui/base/table'
 
 export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
-  const updateOrderItem = useUpdateOrderScrapItem()
-  const updateShippingFee = useUpdateShippingActual()
-  const updatePoolOz = useUpdatePoolOzDeducted()
-  const updatePoolRemedation = useUpdatePoolRemediation()
+  // Assay actuals are per-line refiner data; the pool figures are ENGAGEMENT
+  // facts on refiners.orders; the shipping actual is the SHIPMENT row's.
+  const patchShipment = usePatchShipment()
+  const patchRefinerItem = usePatchRefinerItem()
+  const patchRefinerOrder = usePatchRefinerOrder()
 
   const rawScrap = order.order_items.filter((it) => it.item_type === 'scrap' && it.scrap)
   const scrapItems = assignScrapItemNames(rawScrap)
@@ -45,39 +42,29 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
     return Math.max(0, Math.min(1, decimal))
   }
 
+  // The assay actuals are REFINER data - what was actually recovered from the
+  // parcel - so they write to the refiners feature's own item endpoint, keyed
+  // by the order line, not to the customer-side scrap row. `content` is not
+  // sent: the API derives it from post_melt and purity (and refuses a raw
+  // value by name), which is the same arithmetic this component used to do.
   const mutateActuals = (
     item: PurchaseOrderItem,
     fields: Partial<{
       purity_actual: number | null
       post_melt_actual: number | null
-      content_actual: number | null
     }>
   ) => {
     const prev = item.scrap!
-    let { purity_actual, post_melt_actual, content_actual } = fields
+    const { purity_actual, post_melt_actual } = fields
 
-    const purityVal = purity_actual ?? prev.purity_actual ?? null
-    const postVal = post_melt_actual ?? prev.post_melt_actual ?? null
-    if (
-      (content_actual == null || Number.isNaN(content_actual)) &&
-      purityVal != null &&
-      postVal != null
-    ) {
-      const calc = postVal * purityVal
-      if (Number.isFinite(calc)) content_actual = calc
-    }
-
-    const updatedItem: PurchaseOrderItem = {
-      ...item,
-      scrap: {
-        ...prev,
-        purity_actual: purity_actual ?? prev.purity_actual ?? null,
-        post_melt_actual: post_melt_actual ?? prev.post_melt_actual ?? null,
-        content_actual: content_actual ?? prev.content_actual ?? null,
+    patchRefinerItem.mutate({
+      order_item_id: item.id,
+      order_id: order.id,
+      patch: {
+        purity: purity_actual ?? prev.purity_actual ?? null,
+        post_melt: post_melt_actual ?? prev.post_melt_actual ?? null,
       },
-    }
-
-    updateOrderItem.mutate(updatedItem)
+    })
   }
 
   return (
@@ -174,12 +161,14 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                     min="-9999"
                     className={cn('on-glass no-spinner text-right h-8')}
                     defaultValue={order.shipping_fee_actual ?? 0}
-                    onBlur={(e) =>
-                      updateShippingFee.mutate({
-                        purchase_order_id: order.id,
-                        shipping_fee_actual: Number(e.target.value),
+                    onBlur={(e) => {
+                      if (!order.shipment.id) return
+                      patchShipment.mutate({
+                        shipment_id: order.shipment.id,
+                        order_id: order.id,
+                        patch: { shipping_actual: Number(e.target.value) },
                       })
-                    }
+                    }}
                   />
                 </div>
               </div>
@@ -206,12 +195,14 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                     min="-9999"
                     className={cn('on-glass no-spinner text-right h-8')}
                     defaultValue={Number(order.pool_oz_deducted ?? 0).toFixed(3)}
-                    onBlur={(e) =>
-                      updatePoolOz.mutate({
-                        purchase_order_id: order.id,
-                        pool_oz_deducted: Number(e.target.value),
+                    onBlur={(e) => {
+                      if (!order.refiner_order_id) return
+                      patchRefinerOrder.mutate({
+                        refiner_order_id: order.refiner_order_id,
+                        order_id: order.id,
+                        patch: { pool_oz_deducted: Number(e.target.value) },
                       })
-                    }
+                    }}
                   />
                 </div>
 
@@ -223,12 +214,14 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                     min="-9999"
                     className={cn('on-glass no-spinner text-right h-8')}
                     defaultValue={Number(order.pool_remediation ?? 0).toFixed(2)}
-                    onBlur={(e) =>
-                      updatePoolRemedation.mutate({
-                        purchase_order_id: order.id,
-                        pool_remediation: Number(e.target.value),
+                    onBlur={(e) => {
+                      if (!order.refiner_order_id) return
+                      patchRefinerOrder.mutate({
+                        refiner_order_id: order.refiner_order_id,
+                        order_id: order.id,
+                        patch: { pool_remediation: Number(e.target.value) },
                       })
-                    }
+                    }}
                   />
                 </div>
               </div>

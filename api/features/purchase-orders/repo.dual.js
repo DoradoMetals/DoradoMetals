@@ -83,13 +83,6 @@ const sync = async (c, orderId, parts) => {
 
 // --------------------------------------------------------- order-level writes
 
-export const cancelOrderById = (orderId, client) =>
-  both(client, async (c) => {
-    const r = await exchange.cancelOrderById(orderId, c);
-    await sync(c, orderId, ["order"]);
-    return r;
-  });
-
 export const createReview = ({ order }, executor) =>
   both(executor, async (c) => {
     const r = await exchange.createReview({ order }, c);
@@ -285,9 +278,9 @@ export const insertOrder = (client, args) =>
     return id;
   });
 
-export const acceptOrder = (orderId, totalPrice, client) =>
+export const recordOrderPricing = (orderId, totalPrice, client) =>
   both(client, async (c) => {
-    const r = await exchange.acceptOrder(orderId, totalPrice, c);
+    const r = await exchange.recordOrderPricing(orderId, totalPrice, c);
     await sync(c, orderId, ["order"]);
     return r;
   });

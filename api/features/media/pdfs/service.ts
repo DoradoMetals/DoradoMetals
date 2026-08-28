@@ -395,7 +395,9 @@ export function buildInvoiceHtml({
   spotPrices = [],
   orderSpots = [],
 }: InvoiceInput): string {
-  const doneStatus = ["Accepted", "Payment Processing", "Completed"];
+  // 'Accepted' left the status lifecycle (migration 092 remapped its rows to
+  // 'Payment Processing'), so the done set no longer names it.
+  const doneStatus = ["Payment Processing", "Completed"];
   const isDone = doneStatus.includes(purchaseOrder.status ?? "");
 
   const browserSpots = purchaseOrder.spots_locked ? orderSpots : spotPrices;
@@ -528,9 +530,11 @@ export function buildInvoiceHtml({
   `;
 
   const title = isDone ? "Purchase Order Invoice" : "Purchase Order Preview";
+  // Offer language died with the offers (Jacob, 28 August): the customer is
+  // told about PRICING now - finalized or still in progress.
   const subtitle = isDone
-    ? "You have accepted our offer. View your final price breakdown below."
-    : "Please note: until our offer has been accepted, prices seen here may not be representative of the final amounts and do not represent an obligation to purchase your items at these amounts.";
+    ? "Your order's pricing has been finalized. View your final price breakdown below."
+    : "Please note: until your order's pricing has been finalized, prices seen here may not be representative of the final amounts and do not represent an obligation to purchase your items at these amounts.";
 
   const htmlContent = renderShell({
     title,

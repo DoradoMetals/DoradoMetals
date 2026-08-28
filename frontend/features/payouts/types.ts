@@ -224,8 +224,8 @@ export const accountTypeOptions = [
   },
 ]
 
-// Returned only by /purchase_orders/get_payout_details (admin only). Order
-// payloads carry account_last4 / routing_last4 instead.
+// Returned only by GET /payouts/:id/details (admin only). Order payloads
+// carry account_last4 / routing_last4 instead.
 export type PayoutDetails = {
   id: string
   order_id: string

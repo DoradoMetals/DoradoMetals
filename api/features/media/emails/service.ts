@@ -4,7 +4,7 @@ import type { Transport } from "#providers/emails/nodemailer.ts";
 
 import {
   renderPurchaseOrderPlacedEmail,
-  renderOfferAcceptedEmail,
+  renderOrderPricedEmail,
   renderSalesOrderToSupplierEmail,
   renderAccountCreatedEmail,
   renderVerifyEmail,
@@ -110,7 +110,7 @@ export async function sendCreatedEmail(
 // controller destructures out of req.body - and maps them onto the pdf
 // service's purchaseOrder / orderSpots / spotPrices below. Renaming either side
 // would be a wire change.
-export async function sendAcceptedEmail(
+export async function sendPricedEmail(
   {
     order,
     order_spots,
@@ -143,9 +143,9 @@ export async function sendAcceptedEmail(
   const orderId = typeof order.id === "string" ? order.id : null;
   const pdfId = await persistPdf({ kind: "invoice", order_id: orderId, bytes: pdfBuffer }, executor);
 
-  const subject = `Offer Accepted - Order ${formatPurchaseOrderNumber(order.number)}`;
+  const subject = `Your Order Has Been Priced - Order ${formatPurchaseOrderNumber(order.number)}`;
   const record = {
-    kind: "purchase_order_accepted" as const,
+    kind: "purchase_order_priced" as const,
     to, subject, order_id: orderId, pdf_id: pdfId,
     user_id: typeof order.user?.user_id === "string" ? order.user.user_id : null,
   };
@@ -154,7 +154,7 @@ export async function sendAcceptedEmail(
     result = await sendEmail({
       to,
       subject,
-      html: renderOfferAcceptedEmail({
+      html: renderOrderPricedEmail({
         firstName: String(order.user?.user_name ?? ""),
         url: `${process.env.FRONTEND_URL}/orders`,
       }),

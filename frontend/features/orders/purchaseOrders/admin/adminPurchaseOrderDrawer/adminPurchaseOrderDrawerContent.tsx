@@ -1,4 +1,3 @@
-import AdminAcceptedPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminAccepted'
 import AdminCancelledPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminCancelled'
 import AdminCompletedPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminCompleted'
 import AdminInTransitPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminInTransit'
@@ -14,8 +13,6 @@ export default function AdminPurchaseOrderDrawerContent({
       return <AdminInTransitPurchaseOrder order={order} />
     case 'Received':
       return <AdminReceivedPurchaseOrder order={order} />
-    case 'Accepted':
-      return <AdminAcceptedPurchaseOrder order={order} />
     case 'Payment Processing':
       return <AdminPaymentProcessingPurchaseOrder order={order} />
     case 'Cancelled':

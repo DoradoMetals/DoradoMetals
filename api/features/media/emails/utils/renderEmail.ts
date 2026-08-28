@@ -12,17 +12,18 @@ import type { SalesOrder, SalesOrderItem } from "@dorado/contracts";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// firstName has a default and the other two are optional, which is what every
-// caller relies on: most send only a name and a URL.
+// firstName has a default and url is optional, which is what every caller
+// relies on: most send only a name and a URL. offerExpiration left with the
+// offers themselves - nothing rendered it but the offer-sent template, and
+// both are gone.
 type TemplateVars = {
   firstName?: string | null;
   url?: string | null;
-  offerExpiration?: string | null;
 };
 
 function renderTemplate(
   contentFile: string,
-  { firstName = "there", url, offerExpiration }: TemplateVars
+  { firstName = "there", url }: TemplateVars
 ): string {
   const templatesDir = path.join(__dirname, "..", "templates"); // <-- key change
 
@@ -37,8 +38,7 @@ function renderTemplate(
   return layout
     .replace("[BODY]", content)
     .replace(/\[First Name\]/g, firstName ?? "there")
-    .replace(/\[URL\]/g, safeUrl)
-    .replace(/\[Offer Expiration\]/g, offerExpiration ?? "");
+    .replace(/\[URL\]/g, safeUrl);
 }
 
 export function renderAccountCreatedEmail({ firstName, url }: TemplateVars): string {
@@ -69,16 +69,12 @@ export function renderSalesOrderPlacedEmail({ firstName, url }: TemplateVars): s
   return renderTemplate("salesOrderPlaced.raw.html", { firstName, url });
 }
 
-export function renderOfferSentEmail({ firstName, url, offerExpiration }: TemplateVars): string {
-  return renderTemplate("offerSent.raw.html", {
-    firstName,
-    url,
-    offerExpiration,
-  });
-}
+// renderOfferSentEmail IS GONE with the offers (Jacob, 28 August: "we're
+// removing ANYTHING related to offers"). Nothing but its own test called it -
+// the offer flow left with 086 - and its template went with it.
 
-export function renderOfferAcceptedEmail({ firstName, url }: TemplateVars): string {
-  return renderTemplate("offerAccepted.raw.html", { firstName, url });
+export function renderOrderPricedEmail({ firstName, url }: TemplateVars): string {
+  return renderTemplate("orderPriced.raw.html", { firstName, url });
 }
 
 // TIMESTAMPS ARE Date HERE, NOT string. Contracts describe the wire, so

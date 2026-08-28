@@ -41,8 +41,8 @@ export const sendCreatedEmail = asyncHandler(async (req, res) => {
   return res.status(200).json({ success: true });
 });
 
-export const sendAcceptedEmail = asyncHandler(async (req, res) => {
+export const sendPricedEmail = asyncHandler(async (req, res) => {
   const to = await recipientFor(req.body?.order?.id, req.user);
-  await emailService.sendAcceptedEmail(req.body, to);
+  await emailService.sendPricedEmail(req.body, to);
   return res.status(200).json({ success: true });
 });

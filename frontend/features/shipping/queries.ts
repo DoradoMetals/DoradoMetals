@@ -15,6 +15,10 @@ import {
 } from '@/features/shipping/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiRequest } from '@/shared/queries/axios'
+import { useGetSession } from '@/features/auth/queries'
+import { invalidateOrderReads } from '@/features/orders/invalidation'
 
 export const useTracking = (input: ShipmentTrackingInput) => {
   return useApiQuery<ShipmentTracking | null>({
@@ -93,5 +97,40 @@ export const useShippingCancelPickup = () => {
     method: 'POST',
     requireAdmin: true,
     body: (input) => ({input}),
+  })
+}
+
+// The shipment as its own resource (D87, per-resource form): everything on
+// the shipment row - the estimated and actual charge, and the tracking pair -
+// writes here, keyed by order.shipment.id off the order wire, whichever
+// direction the order is. Admin-only. Settles through the one order cache
+// policy: the shipment's figures render inside order reads and price the
+// quote.
+export type ShipmentPatch = {
+  shipping_charge?: number
+  shipping_actual?: number
+  tracking_number?: string
+  carrier_id?: string
+}
+
+export type PatchShipmentVars = {
+  shipment_id: string
+  // For the caches; the URL does not carry it.
+  order_id: string
+  patch: ShipmentPatch
+}
+
+export const usePatchShipment = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ shipment_id, patch }: PatchShipmentVars) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<unknown>('PATCH', `/shipments/${shipment_id}`, patch)
+    },
+    onSettled: (_data, _err, { order_id }) => {
+      invalidateOrderReads(queryClient, order_id)
+    },
   })
 }

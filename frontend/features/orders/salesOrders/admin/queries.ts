@@ -1,14 +1,18 @@
 import { AdminSalesOrderCheckout, SalesOrder } from '@/features/orders/salesOrders/types'
-import type { SpotOnOrder } from '@dorado/contracts'
 import { toAddressSnapshot } from '@/features/orders/salesOrders/users/queries'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 
+// The admin mutation surface is per-resource under /orders now (D87 final
+// form) - the order row via features/orders/patch.ts, the shipment via
+// features/shipping/queries.ts. What stays here is the reads and the create.
+
 export const useAdminSalesOrders = () =>
   useApiQuery<SalesOrder[]>({
     key: queryKeys.adminSalesOrders(),
-    url: '/sales_orders/get_all',
+    url: '/orders',
     method: 'GET',
+    params: () => ({ direction: 'sale' }),
     requireUser: true,
     refetchInterval: 10000,
     staleTime: 10000,
@@ -39,89 +43,4 @@ export const useAdminCreateSalesOrder = () =>
       spot_prices: sales_order.order_metals,
       user: sales_order.user,
     }),
-  })
-
-type MoveSalesOrderStatusVars = {
-  order_status: string
-  order: SalesOrder
-}
-
-export const useMoveSalesOrderStatus = () =>
-  useApiMutation<void, MoveSalesOrderStatusVars, SalesOrder[]>({
-    url: '/sales_orders/update_status',
-    method: 'POST',
-    requireUser: true,
-    requireAdmin: true,
-    queryKey: queryKeys.adminSalesOrders(),
-    optimistic: true,
-    optimisticItemKey: 'order',
-    body: ({ order_status, order }, user) => ({
-      order_status,
-      order,
-      user_name: user?.name,
-    }),
-  })
-
-type SendOrderToSupplierVars = {
-  order: SalesOrder
-  spots: SpotOnOrder[]
-  supplier_id: string
-}
-
-export const useSendOrderToSupplier = () =>
-  useApiMutation<void, SendOrderToSupplierVars, SalesOrder[]>({
-    url: '/sales_orders/send_order_to_supplier',
-    method: 'POST',
-    requireUser: true,
-    requireAdmin: true,
-    queryKey: queryKeys.adminSalesOrders(),
-    optimistic: true,
-    // The supplier PDF renders from the converted names now; the live rows
-    // go down as they are.
-    body: ({ order, spots, supplier_id }) => ({
-      order,
-      spots,
-      supplier_id,
-    }),
-    optimisticUpdater: (list, { order, supplier_id }) =>
-      (list ?? []).map((o) =>
-        o.id !== order.id
-          ? o
-          : {
-              ...o,
-              order_sent: true,
-              supplier_id,
-            }
-      ),
-  })
-
-type UpdateTrackingVars = {
-  order_id: string
-  shipment_id: string
-  tracking_number: string
-  carrier_id: string
-}
-
-export const useUpdateTracking = () =>
-  useApiMutation<void, UpdateTrackingVars, SalesOrder[]>({
-    url: '/sales_orders/update_tracking',
-    method: 'POST',
-    requireUser: true,
-    requireAdmin: true,
-    queryKey: queryKeys.adminSalesOrders(),
-    optimistic: true,
-    body: (vars) => vars,
-    optimisticUpdater: (list, { order_id, tracking_number, carrier_id }) =>
-      (list ?? []).map((order) =>
-        order.id !== order_id
-          ? order
-          : {
-              ...order,
-              shipment: {
-                ...(order.shipment ?? {}),
-                tracking_number,
-                carrier_id,
-              },
-            }
-      ),
   })

@@ -60,7 +60,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'email_kind' AND n.nspname = 'media'
   ) THEN
-    CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_accepted', 'sales_order_to_supplier', 'auth_verification');
+    CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_priced', 'sales_order_to_supplier', 'auth_verification');
   END IF;
 END $$;
 
@@ -1076,7 +1076,8 @@ CREATE TABLE IF NOT EXISTS refiners.items (
   content numeric,
   premium numeric,
   quantity numeric DEFAULT 1 NOT NULL,
-  unit text
+  unit text,
+  refiner_order_id uuid
 );
 ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS order_item_id uuid;
@@ -1090,6 +1091,26 @@ ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS content numeric;
 ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS premium numeric;
 ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS quantity numeric DEFAULT 1;
 ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS unit text;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS refiner_order_id uuid;
+
+CREATE TABLE IF NOT EXISTS refiners.orders (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  order_id uuid NOT NULL,
+  refiner_id uuid,
+  pool_oz_deducted numeric,
+  pool_remediation numeric,
+  fee numeric,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE refiners.orders ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE refiners.orders ADD COLUMN IF NOT EXISTS order_id uuid;
+ALTER TABLE refiners.orders ADD COLUMN IF NOT EXISTS refiner_id uuid;
+ALTER TABLE refiners.orders ADD COLUMN IF NOT EXISTS pool_oz_deducted numeric;
+ALTER TABLE refiners.orders ADD COLUMN IF NOT EXISTS pool_remediation numeric;
+ALTER TABLE refiners.orders ADD COLUMN IF NOT EXISTS fee numeric;
+ALTER TABLE refiners.orders ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE refiners.orders ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS refiners.refiners (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1111,7 +1132,8 @@ CREATE TABLE IF NOT EXISTS refiners.spots (
   scrap_percentage numeric,
   bullion_percentage numeric,
   created_at timestamp with time zone,
-  updated_at timestamp with time zone
+  updated_at timestamp with time zone,
+  refiner_order_id uuid
 );
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS metal_id uuid;
@@ -1124,6 +1146,7 @@ ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS scrap_percentage numeric;
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS bullion_percentage numeric;
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS created_at timestamp with time zone;
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone;
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS refiner_order_id uuid;
 
 CREATE TABLE IF NOT EXISTS reviews.reviews (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1957,6 +1980,26 @@ DO $$ BEGIN
     WHERE con.conname = 'refiner_items_pkey' AND c.relname = 'items' AND n.nspname = 'refiners'
   ) THEN
     ALTER TABLE refiners.items ADD CONSTRAINT refiner_items_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'orders_order_id_key' AND c.relname = 'orders' AND n.nspname = 'refiners'
+  ) THEN
+    ALTER TABLE refiners.orders ADD CONSTRAINT orders_order_id_key UNIQUE (order_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'orders_pkey' AND c.relname = 'orders' AND n.nspname = 'refiners'
+  ) THEN
+    ALTER TABLE refiners.orders ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2824,6 +2867,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'items_refiner_order_id_fkey' AND c.relname = 'items' AND n.nspname = 'refiners'
+  ) THEN
+    ALTER TABLE refiners.items ADD CONSTRAINT items_refiner_order_id_fkey FOREIGN KEY (refiner_order_id) REFERENCES refiners.orders(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'refiner_items_bullion_id_fkey' AND c.relname = 'items' AND n.nspname = 'refiners'
   ) THEN
     ALTER TABLE refiners.items ADD CONSTRAINT refiner_items_bullion_id_fkey FOREIGN KEY (bullion_id) REFERENCES products.bullion(id);
@@ -2864,6 +2917,26 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'orders_order_id_fkey' AND c.relname = 'orders' AND n.nspname = 'refiners'
+  ) THEN
+    ALTER TABLE refiners.orders ADD CONSTRAINT orders_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders.orders(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'orders_refiner_id_fkey' AND c.relname = 'orders' AND n.nspname = 'refiners'
+  ) THEN
+    ALTER TABLE refiners.orders ADD CONSTRAINT orders_refiner_id_fkey FOREIGN KEY (refiner_id) REFERENCES refiners.refiners(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'refiners_organization_fk' AND c.relname = 'refiners' AND n.nspname = 'refiners'
   ) THEN
     ALTER TABLE refiners.refiners ADD CONSTRAINT refiners_organization_fk FOREIGN KEY (organization_id) REFERENCES organizations.organizations(id);
@@ -2897,6 +2970,16 @@ DO $$ BEGIN
     WHERE con.conname = 'refiner_spots_refiner_id_fkey' AND c.relname = 'spots' AND n.nspname = 'refiners'
   ) THEN
     ALTER TABLE refiners.spots ADD CONSTRAINT refiner_spots_refiner_id_fkey FOREIGN KEY (refiner_id) REFERENCES refiners.refiners(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'spots_refiner_order_id_fkey' AND c.relname = 'spots' AND n.nspname = 'refiners'
+  ) THEN
+    ALTER TABLE refiners.spots ADD CONSTRAINT spots_refiner_order_id_fkey FOREIGN KEY (refiner_order_id) REFERENCES refiners.orders(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3169,10 +3252,13 @@ CREATE INDEX IF NOT EXISTS idx_refiner_items_order_id ON refiners.items USING bt
 CREATE INDEX IF NOT EXISTS idx_refiner_items_refiner_id ON refiners.items USING btree (refiner_id);
 CREATE INDEX IF NOT EXISTS refiners_items_order_item_id_ix ON refiners.items USING btree (order_item_id);
 CREATE UNIQUE INDEX IF NOT EXISTS refiners_items_order_item_id_key ON refiners.items USING btree (order_item_id);
+CREATE INDEX IF NOT EXISTS refiners_items_refiner_order_id_idx ON refiners.items USING btree (refiner_order_id);
+CREATE INDEX IF NOT EXISTS refiners_orders_order_id_idx ON refiners.orders USING btree (order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS refiners_organization_uniq ON refiners.refiners USING btree (organization_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_metal ON refiners.spots USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_order ON refiners.spots USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_refiner ON refiners.spots USING btree (refiner_id);
+CREATE INDEX IF NOT EXISTS refiners_spots_refiner_order_id_idx ON refiners.spots USING btree (refiner_order_id);
 CREATE INDEX IF NOT EXISTS migration_reviews_hidden_idx ON reviews.reviews USING btree (hidden);
 CREATE INDEX IF NOT EXISTS migration_reviews_order_idx ON reviews.reviews USING btree (order_id);
 CREATE INDEX IF NOT EXISTS migration_reviews_user_idx ON reviews.reviews USING btree (user_id);

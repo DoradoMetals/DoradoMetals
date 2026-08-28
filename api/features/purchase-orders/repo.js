@@ -40,7 +40,6 @@ export const getAll = impl.getAll;
 export const findMetalsByOrderId = impl.findMetalsByOrderId;
 export const updateOrderMetals = impl.updateOrderMetals;
 export const updateOrderItemPrices = impl.updateOrderItemPrices;
-export const cancelOrderById = impl.cancelOrderById;
 export const clearOrderMetals = impl.clearOrderMetals;
 export const createReview = impl.createReview;
 export const insertOrder = impl.insertOrder;
@@ -73,4 +72,4 @@ export const updatePoolOzDeducted = impl.updatePoolOzDeducted;
 export const updatePoolRemediation = impl.updatePoolRemediation;
 export const findPayoutDetails = impl.findPayoutDetails;
 
-export const acceptOrder = impl.acceptOrder;
+export const recordOrderPricing = impl.recordOrderPricing;

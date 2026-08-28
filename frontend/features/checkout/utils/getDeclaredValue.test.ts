@@ -43,7 +43,7 @@ describe("getReturnDeclaredValue", () => {
     expect(value).toBeCloseTo(8100, 10);
   });
 
-  // An order locks its spot prices when the offer is accepted, and those must
+  // An order locks its spot prices when its pricing is finalized, and those must
   // win over whatever the market is doing when the label is printed.
   test("prefers the order's locked spot over the current one", () => {
     const value = getReturnDeclaredValue(

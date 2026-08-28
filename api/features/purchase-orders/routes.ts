@@ -4,43 +4,21 @@ import {
   getPurchaseOrders,
   getPurchaseOrderMetals,
   createPurchaseOrder,
-  cancelOrder,
   createReview,
   getAllPurchaseOrders,
-  acceptOrder,
-  updateStatus,
-  updateSpot,
-  lockSpots,
-  unlockSpots,
-  saveOrderItems,
-  resetOrderItems,
-  deleteOrderItems,
-  updateScrapItem,
-  createOrderItem,
-  updateBullion,
-  editShippingCharge,
-  editPayoutCharge,
-  addFundsToAccount,
-  changePayoutMethod,
   purgeCancelled,
-  updateRefinerSpot,
   getPurchaseOrderRefinerMetals,
-  updateRefinerPremium,
-  updateShippingActual,
-  updateRefinerFee,
-  updatePoolOzDeducted,
-  updatePoolRemediation,
   getPayoutDetails,
 } from "#features/purchase-orders/controller.ts";
 
-import { 
-  requireUser, 
-  requireAdmin 
+import {
+  requireUser,
+  requireAdmin
 } from "#shared/middleware/authMiddleware.ts";
 // requireUser asks whether somebody is signed in; this asks whether the order
-// is theirs. Every route below that takes an order out of the request body
-// needs both, and until this existed a customer could act on any order whose id
-// they had - including cancelling it, which buys a FedEx return label.
+// is theirs. It reads the order id out of the request BODY, which is where
+// every POST below carries it. Until it existed a customer could act on any
+// order whose id they had.
 import { requireOwnOrder } from "#shared/middleware/ownership.ts";
 
 const router = express.Router();
@@ -49,36 +27,16 @@ const router = express.Router();
 router.get('/get_purchase_orders', requireUser, getPurchaseOrders);
 router.post('/get_purchase_order_metals', requireUser, requireOwnOrder, getPurchaseOrderMetals);
 router.post('/create_purchase_order', requireUser, createPurchaseOrder);
-router.post('/cancel_order', requireUser, requireOwnOrder, cancelOrder);
 router.post('/create_review', requireUser, requireOwnOrder, createReview);
 
 // admin
+// NO MUTATIONS HERE ANY MORE. Every order write lives under /api/orders - one
+// namespace, both directions, direction validated as data (Jacob, 28 August;
+// see features/orders/patch.service.ts for the endpoint table). These reads
+// stay for this series and move to /api/orders reads in the read-pivot wave.
 router.get('/get_all_purchase_orders', requireAdmin, getAllPurchaseOrders);
-router.post('/update_status', requireAdmin, updateStatus);
-// Accepting prices the order - it is update_status plus the money, and like
-// every status transition it is admin-only.
-router.post('/accept_order', requireAdmin, acceptOrder);
-router.post('/update_spot', requireAdmin, updateSpot);
-router.post('/lock_spots', requireAdmin, lockSpots);
-router.post('/unlock_spots', requireAdmin, unlockSpots);
-router.post('/save_order_items', requireAdmin, saveOrderItems);
-router.post('/reset_order_item', requireAdmin, resetOrderItems);
-router.post('/delete_order_items', requireAdmin, deleteOrderItems);
-router.post('/create_order_item', requireAdmin, createOrderItem);
-router.post('/update_scrap_item', requireAdmin, updateScrapItem);
-router.post('/update_bullion_item', requireAdmin, updateBullion);
-router.post('/edit_shipping_charge', requireAdmin, editShippingCharge);
-router.post('/edit_payout_charge', requireAdmin, editPayoutCharge);
-router.post('/edit_payout_method', requireAdmin, changePayoutMethod);
-router.post('/add_funds_to_account', requireAdmin, addFundsToAccount);
 router.delete('/purge_cancelled', requireAdmin, purgeCancelled);
 router.post('/get_purchase_order_refiner_metals', requireAdmin, getPurchaseOrderRefinerMetals);
-router.post('/update_refiner_spot', requireAdmin, updateRefinerSpot);
-router.post('/update_refiner_premium', requireAdmin, updateRefinerPremium);
-router.post('/update_shipping_actual', requireAdmin, updateShippingActual);
-router.post('/update_refiner_fee', requireAdmin, updateRefinerFee);
-router.post('/update_pool_oz_deducted', requireAdmin, updatePoolOzDeducted);
-router.post('/update_pool_remediation', requireAdmin, updatePoolRemediation);
 
 // Full bank details, admin only. Kept off the order payloads on purpose.
 router.post('/get_payout_details', requireAdmin, getPayoutDetails);

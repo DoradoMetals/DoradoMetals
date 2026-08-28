@@ -47,7 +47,14 @@ export const FEATURES = {
       "payments.intents", "payments.attempts", "payments.settlements", "payments.details",
     ],
   },
-  refiners: { "exchange.refiner_metals": ["refiners.spots", "refiners.items"] },
+  refiners: {
+    "exchange.refiner_metals": ["refiners.spots", "refiners.items"],
+    // The engagement row (093): the pool values and the refiner fee lived as
+    // columns on exchange.purchase_orders because exchange had nowhere else
+    // to keep them; refiners.orders owns them now, with the exchange columns
+    // (and their orders.transactions mirror) as the dual-written shadow.
+    "exchange.purchase_orders": ["refiners.orders"],
+  },
   users: { "exchange.users": ["auth.users"], "exchange.session": ["auth.sessions"] },
   // The customer credit ledger. Had no target until 060 - January never built
   // one, and because no feature declared it, every audit walked past seventeen
@@ -257,6 +264,20 @@ export const FLOWS = {
         gross: "pre_melt",
         content: ["post_melt", "content"],
         purity: "purity",
+      },
+    },
+  },
+  // The engagement backfill (093) seeds refiners.orders' pool and fee values
+  // from orders.transactions - a value FLOW, not ownership: the transactions
+  // row keeps recording the money's effect on the order, while the engagement
+  // owns the fact. transactions itself mirrors exchange.purchase_orders, so
+  // the exchange columns remain the ultimate source while both schemas serve.
+  refiners: {
+    "orders.transactions": {
+      "refiners.orders": {
+        pool_oz_deducted: "pool_oz_deducted",
+        pool_remediation: "pool_remediation",
+        refiner_fee: "fee",
       },
     },
   },

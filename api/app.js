@@ -23,7 +23,12 @@ import paymentRoutes from "#features/payments/routes.ts";
 import spotRoutes from "#features/spots/routes.ts";
 import transactionRoutes from "#features/transactions/routes.ts";
 import salesOrderRoutes from "#features/sales-orders/routes.ts";
+import ordersRoutes from "#features/orders/routes.ts";
+import shipmentRoutes from "#features/shipping/shipments/routes.ts";
+import payoutRoutes from "#features/payouts/routes.ts";
 import refinerRoutes from "#features/refiners/routes.ts";
+import refinerItemRoutes from "#features/refiners/items/routes.ts";
+import refinerOrderRoutes from "#features/refiners/orders/routes.ts";
 import taxRoutes from "#features/sales-tax/routes.ts";
 import carriersRoutes from "#features/shipping/carriers/routes.ts";
 import recaptchaRoutes from "#features/recaptcha/routes.ts";
@@ -47,7 +52,11 @@ const app = express();
 app.use(
   cors({
     origin: process.env.FRONTEND_URL,
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    // PATCH is here because the order mutation surface is
+    // PATCH /api/purchase_orders/:id and /api/sales_orders/:id now; a browser
+    // preflights PATCH, and a method missing from this list is refused there -
+    // the server-side route would work while every real client 403s.
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   })
 );
@@ -79,11 +88,21 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/emails", emailRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/sales_orders", salesOrderRoutes);
+// The per-resource mutation surface (28 August): the unified order writes,
+// a parcel's money and tracking, a payout's cost and method - each owned by
+// the feature that owns the table.
+app.use("/api/orders", ordersRoutes);
+app.use("/api/shipments", shipmentRoutes);
+app.use("/api/payouts", payoutRoutes);
 // The route stays /api/suppliers: the frontend calls it
 // (frontend/features/products/queries.ts) and renaming a module is not a
 // reason to change the API. The feature is refiners; the path is history, and
 // it moves when the frontend does.
 app.use("/api/suppliers", refinerRoutes);
+// The refiner-side WRITES are new (28 August) and take the feature's real
+// name - only the historical read path above keeps the suppliers spelling.
+app.use("/api/refiners", refinerItemRoutes);
+app.use("/api/refiners", refinerOrderRoutes);
 app.use("/api/tax", taxRoutes);
 app.use("/api/recaptcha", recaptchaRoutes);
 app.use("/api/users", userRoutes);

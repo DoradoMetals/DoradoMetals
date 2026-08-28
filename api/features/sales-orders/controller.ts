@@ -49,20 +49,12 @@ export const adminCreateSalesOrder = asyncHandler(async (req, res) => {
   return res.status(200).json(order);
 });
 
-export const updateStatus = asyncHandler(async (req, res) => {
-  const updated = await salesOrderService.updateStatus(req.body);
-  return res.status(200).json(updated);
-});
-
-export const sendOrderToSupplier = asyncHandler(async (req, res) => {
-  const order = await salesOrderService.sendOrderToSupplier(req.body);
-  return res.status(200).json(order);
-});
-
-export const updateOrderTracking = asyncHandler(async (req, res) => {
-  const order = await salesOrderService.updateTracking(req.body);
-  return res.status(200).json(order);
-});
+// THE MUTATION SURFACE LEFT THIS FEATURE with the unified /api/orders
+// namespace (Jacob, 28 August): the status label and the supplier send are
+// fields of PATCH /api/orders/:id, direction-validated as data; the tracking
+// write is PATCH /api/shipments/:id, because a tracking number is shipment
+// data. features/orders/patch.service.ts dispatches to the same services this
+// file used to front.
 
 export const createReview = asyncHandler(async (req, res) => {
   const result = await salesOrderService.createReview(req.body);

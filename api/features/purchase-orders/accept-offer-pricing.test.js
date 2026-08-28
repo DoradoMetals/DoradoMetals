@@ -1,63 +1,69 @@
-// What the business records that it owes, when the customer accepts the offer.
+// What the business records that it owes, when an order is accepted.
 //
-// FOLLOWUPS records the spot-manipulation finding on the SELL side - `spots`
-// arriving in the request body and pricing a sales order, reaching
-// get_sales_tax, createSalesOrder and updatePaymentIntent, where it became the
-// Stripe charge. Those were fixed by taking the server's spots.
+// THIS FILE USED TO PIN THE BUG IT NOW REFUSES. accept_order took the whole
+// order out of req.body, calculateTotalPrice read `item.price` verbatim, and
+// the two tests here MEASURED that: two requests identical except for the
+// prices in the body, and the recorded total followed the body both times -
+// $1 per line or $100,000 per line, whichever the request claimed. The header
+// said fixing it was a wire-shape question and Jacob's call.
 //
-// THE BUY SIDE IS NOT IN THAT LIST, and it is the same shape pointing the other
-// way. On the sell side a manipulated number makes the customer PAY LESS. Here
-// it makes the business PAY MORE.
+// The call came in stages on 28 August: the PATCH consolidation put accepting
+// behind one endpoint; the pure-label ruling then split the pricing OUT of
+// the status entirely - `finalize_pricing: true` on PATCH /api/orders/:id
+// prices the order and touches no label ('Accepted' itself left the
+// lifecycle, migration 092). The pricing inputs are resolved SERVER-side -
+// the order from the database, its frozen spots from order_metals, the live
+// spots from exchange.metals. The body's arrays are not merely ignored, they
+// are refused by name: `purchase_order`, `order_spots` and `spot_prices` are
+// not fields of the document, and a silently-dropped field is the
+// admin-mutation-urls bug wearing a new route.
 //
-// accept_offer takes the whole order out of req.body. calculateTotalPrice reads
-// `item.price ?? (content * bid_spot * premium)`, so a price in the body is used
-// VERBATIM - no spot lookup even happens - and `shipping_charge` and
-// `payout.cost` are SUBTRACTED from the total, so sending zero for both
-// maximises it. calculateItemPrice does the same, and updateOrderItemPrices
-// writes its result into exchange.purchase_order_items.price. The total lands in
-// purchase_orders.total_price via moveOrderToAccepted.
+// So the two claims worth measuring are now:
+//   a poisoned document is refused, and the order's money does not move
+//   a clean accept records a total derived from the database's own rows
 //
-// The route is requireUser + requireOwnOrder, so this is a customer accepting
-// THEIR OWN offer - which is exactly who benefits from naming the number.
+// The second is asserted as a property rather than a number: total_price must
+// equal calculateTotalPrice over the order AS THE API NOW SERVES IT and the
+// spot rows AS THE DATABASE NOW HOLDS THEM - every input a row, none of them
+// the request's. The fixture can drift and the property holds.
 //
-// THIS TEST MEASURES IT RATHER THAN ARGUING IT. Two requests, identical except
-// for the prices in the body, and the recorded total follows the body both
-// times. It is safe to run: accept_offer is pure database work - no FedEx, no
-// Stripe, no email - and inPinnedTransaction rolls the whole thing back.
-//
-// It asserts the CURRENT behaviour. Fixing it is a wire-shape question and
-// Jacob's call, for the same reason the sell-side one was: see FOLLOWUPS.
+// NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+
+const ORDER_LOCK = LOCKS.ORDERS;
 
 await mockSessions();
 const { default: app } = await import("#app");
 
-let order, owner, items;
+let order, admin, items;
 
 before(async () => {
   const rows = await outside(
-    `SELECT po.id, po.user_id
+    `SELECT po.id, po.user_id, po.total_price
        FROM exchange.purchase_orders po
       WHERE po.user_id IS NOT NULL
         AND (SELECT count(*) FROM exchange.purchase_order_items i
               WHERE i.purchase_order_id = po.id) > 0
+        AND EXISTS (SELECT 1 FROM exchange.order_metals m
+                     WHERE m.purchase_order_id = po.id)
+        AND EXISTS (SELECT 1 FROM exchange.payouts p WHERE p.order_id = po.id)
       ORDER BY po.created_at DESC
       LIMIT 1`
   );
-  assert.ok(rows[0], "dev has no purchase order with items");
+  assert.ok(rows[0], "dev has no purchase order with items, spots and a payout");
   order = rows[0];
 
-  const users = await outside(
-    `SELECT id, name, email FROM exchange.users WHERE id = $1`,
-    [order.user_id]
-  );
-  owner = users[0];
-  assert.ok(owner, "the order's owner is missing from exchange.users");
+  admin = (
+    await outside(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
+  )[0];
+  assert.ok(admin, "dev has no admin user");
 
   items = await outside(
     `SELECT id, quantity FROM exchange.purchase_order_items WHERE purchase_order_id = $1`,
@@ -71,10 +77,11 @@ after(async () => {
   await pool.end();
 });
 
-// Everything acceptOffer reads off `order`, built from the row it is tested
-// against so the fixture cannot drift: id, spots_locked, order_items, and the
-// two figures that are subtracted.
-const bodyClaiming = (pricePerItem) => ({
+// The exact attack the old tests demonstrated worked: the caller names the
+// price. Every vector it used - the order with its priced items, the spot
+// arrays, the zeroed charges - is an unknown field of the document now.
+const poisonedClaiming = (pricePerItem) => ({
+  finalize_pricing: true,
   purchase_order: {
     id: order.id,
     spots_locked: true,
@@ -92,60 +99,86 @@ const bodyClaiming = (pricePerItem) => ({
   spot_prices: [],
 });
 
-const acceptClaiming = async (pricePerItem, client) => {
-  const res = await request(app)
-    .post("/api/purchase_orders/accept_order")
-    .send(bodyClaiming(pricePerItem));
-  assert.equal(res.status, 200, `accept_order answered ${res.status}`);
-
-  // The ROW, not the response. A 200 is not evidence of what was written.
-  const { rows } = await client.query(
-    `SELECT total_price FROM exchange.purchase_orders WHERE id = $1`,
-    [order.id]
-  );
-  return Number(rows[0].total_price);
-};
-
-test("the price in the request body becomes what the business records it owes", async () => {
+test("a document claiming its own prices is refused by name, and the money does not move", async () => {
   await inPinnedTransaction(async (client) => {
-    // Admin, because 086 made acceptance admin-only - customers do not control
-    // order status. The pricing-from-body behaviour this file pins is now an
-    // ADMIN capability, which is why it is pinned rather than fixed.
-    await as({ ...owner, role: "admin" }, async () => {
-      const modest = await acceptClaiming(1, client);
-      const greedy = await acceptClaiming(100000, client);
+    await as({ ...admin, role: "admin" }, async () => {
+      for (const claimed of [1, 100000]) {
+        const res = await request(app)
+          .patch(`/api/orders/${order.id}`)
+          .send(poisonedClaiming(claimed));
 
-      // A SCRAP LINE IS NOT MULTIPLIED BY ITS QUANTITY. calculateTotalPrice
-      // multiplies only the product branch; scrap contributes `price` once.
-      // The first version of this test asserted quantity * price and failed
-      // against a fixture whose single line has quantity 15 - the test was
-      // wrong, not the code, and the claim it exists to make was unaffected.
-      const lines = items.length;
+        assert.equal(res.status, 400, `the poisoned document was answered ${res.status}`);
+        assert.match(
+          res.body?.error?.message ?? "",
+          /"purchase_order"/,
+          "the refusal does not name the field it refused"
+        );
+      }
 
-      assert.equal(modest, lines * 1, "the body's price was not used verbatim");
-      assert.equal(greedy, lines * 100000, "the body's price was not used verbatim");
-      assert.ok(
-        greedy > modest,
-        "the recorded total did not follow the number in the request"
-      );
-    });
-  });
-});
-
-test("the line prices in the database follow the body too", async () => {
-  await inPinnedTransaction(async (client) => {
-    await as({ ...owner, role: "admin" }, async () => {
-      await acceptClaiming(4242, client);
-
+      // Refused means REFUSED: no op ran, so the stored total is exactly what
+      // dev held before either request.
       const { rows } = await client.query(
-        `SELECT DISTINCT price FROM exchange.purchase_order_items WHERE purchase_order_id = $1`,
+        `SELECT total_price FROM exchange.purchase_orders WHERE id = $1`,
         [order.id]
       );
-      assert.deepEqual(
-        rows.map((r) => Number(r.price)),
-        [4242],
-        "the body's price was not written to the item rows"
+      assert.equal(
+        rows[0].total_price === null ? null : Number(rows[0].total_price),
+        order.total_price === null ? null : Number(order.total_price),
+        "a refused document still moved the order's total"
       );
     });
-  });
+  }, { lock: ORDER_LOCK });
+});
+
+test("a clean finalize prices the order from the database's own rows", async () => {
+  await inPinnedTransaction(async (client) => {
+    await as({ ...admin, role: "admin" }, async () => {
+      const before = (
+        await client.query(
+          `SELECT purchase_order_status FROM exchange.purchase_orders WHERE id = $1`,
+          [order.id]
+        )
+      ).rows[0];
+
+      const res = await request(app)
+        .patch(`/api/orders/${order.id}`)
+        .send({ finalize_pricing: true });
+      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+
+      const row = (
+        await client.query(
+          `SELECT total_price, purchase_order_status, spots_locked
+             FROM exchange.purchase_orders WHERE id = $1`,
+          [order.id]
+        )
+      ).rows[0];
+      // THE PURE-LABEL RULING, asserted: pricing moved money and the pin,
+      // and did NOT touch the status.
+      assert.equal(
+        row.purchase_order_status,
+        before.purchase_order_status,
+        "finalize_pricing moved the status - pipelines must not write labels"
+      );
+      assert.equal(row.spots_locked, true, "finalizing pins the spots");
+
+      // The property: the stored total is calculateTotalPrice over what the
+      // API now SERVES (the PATCH answers with the re-read order, lines
+      // priced) and the spot rows the database now HOLDS. Every input is a
+      // row; the request contributed nothing but the operation's name.
+      const spots = (
+        await client.query(
+          `SELECT type AS name, ask_spot AS ask, bid_spot AS bid
+             FROM exchange.order_metals WHERE purchase_order_id = $1`,
+          [order.id]
+        )
+      ).rows;
+      const expected = calculateTotalPrice(res.body, spots);
+
+      assert.equal(
+        Number(row.total_price).toFixed(2),
+        expected.toFixed(2),
+        "the stored total does not derive from the database's own rows"
+      );
+    });
+  }, { lock: ORDER_LOCK });
 });

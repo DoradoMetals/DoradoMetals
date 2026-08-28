@@ -50,3 +50,13 @@ export async function getMany(
   const { rows } = await query<PayoutRow>(sql("get_many"), [order_ids], executor);
   return rows;
 }
+
+// One payout by its OWN id - what PATCH /api/payouts/:id resolves before
+// dispatching its order-keyed writes. Same projection discipline as getFor:
+// last-4 only, the full numbers never leave Postgres on this path.
+export async function getById(
+  id: string, executor?: Executor
+): Promise<PayoutRow | undefined> {
+  const { rows } = await query<PayoutRow>(sql("get_by_id"), [id], executor);
+  return rows[0];
+}

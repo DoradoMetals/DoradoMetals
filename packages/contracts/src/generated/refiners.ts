@@ -17,8 +17,21 @@ export const ItemsRow = z.object({
   "premium": z.number().nullable(),
   "quantity": z.number(),
   "unit": z.string().nullable(),
+  "refiner_order_id": z.string().uuid().nullable(),
 });
 export type ItemsRow = z.infer<typeof ItemsRow>;
+
+export const OrdersRow = z.object({
+  "id": z.string().uuid(),
+  "order_id": z.string().uuid(),
+  "refiner_id": z.string().uuid().nullable(),
+  "pool_oz_deducted": z.number().nullable(),
+  "pool_remediation": z.number().nullable(),
+  "fee": z.number().nullable(),
+  "created_at": z.string(),
+  "updated_at": z.string(),
+});
+export type OrdersRow = z.infer<typeof OrdersRow>;
 
 export const RefinersRow = z.object({
   "id": z.string().uuid(),
@@ -39,6 +52,7 @@ export const SpotsRow = z.object({
   "bullion_percentage": z.number().nullable(),
   "created_at": z.string().nullable(),
   "updated_at": z.string().nullable(),
+  "refiner_order_id": z.string().uuid().nullable(),
 });
 export type SpotsRow = z.infer<typeof SpotsRow>;
 

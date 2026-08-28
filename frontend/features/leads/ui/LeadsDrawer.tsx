@@ -5,10 +5,11 @@ import Drawer from '@/shared/ui/base/drawer'
 import { useMemo, useRef, useState } from 'react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
+import StatusChip from '@/shared/ui/StatusChip'
+import UpdatedByline from '@/shared/ui/UpdatedByline'
 
 import { Lead, LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
-import { cn } from '@/shared/utils/cn'
 import { Label } from '@/shared/ui/base/label'
 import { Input } from '@/shared/ui/base/input'
 import { Textarea } from '@/shared/ui/base/textarea'
@@ -64,23 +65,11 @@ function Header({ lead }: { lead: Lead }) {
     <div className="flex flex-col w-full gap-8">
       <div className="flex w-full items-end justify-between">
         <div className="text-2xl text-neutral-900">{lead.name}</div>
-        <div
-          className={cn(
-            'px-2 py-1 border-1 rounded-lg flex justify-center items-center font-semibold text-sm',
-            lead.converted
-              ? 'bg-success/20 text-success border-success'
-              : 'bg-destructive/20 text-destructive border-destructive'
-          )}
-        >
+        <StatusChip positive={lead.converted} className="text-sm">
           {lead.converted ? 'Converted' : 'Not Converted'}
-        </div>
+        </StatusChip>
       </div>
-      <div className="flex w-full justify-start text-xs gap-1">
-        <span className="text-neutral-600">Updated by</span>
-        <span className="text-neutral-800">{lead.updated_by}</span>
-        <span className="text-neutral-600">on</span>
-        <span className="text-neutral-800">{formatFullDate(lead.updated_at)}</span>
-      </div>
+      <UpdatedByline name={lead.updated_by} date={formatFullDate(lead.updated_at)} />
     </div>
   )
 }

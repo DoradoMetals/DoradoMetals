@@ -109,11 +109,11 @@ test("the order confirmation goes to the customer with its packing list attached
   );
 });
 
-test("the offer acceptance carries the invoice, named for the same order", async () => {
+test("the pricing notice carries the invoice, named for the same order", async () => {
   const order = anOrderWithAUser();
   const t = recorder();
 
-  await emails.sendAcceptedEmail(
+  await emails.sendPricedEmail(
     { order, order_spots: [], spot_prices: spots },
     order.user.user_email,
     t
@@ -168,7 +168,7 @@ test("nothing is sent when the document cannot be built", async () => {
   const t = recorder();
 
   await assert.rejects(
-    () => emails.sendAcceptedEmail(
+    () => emails.sendPricedEmail(
       { order: { number: 1, user: {} }, order_spots: [], spot_prices: spots },
       "x@y.z",
       t

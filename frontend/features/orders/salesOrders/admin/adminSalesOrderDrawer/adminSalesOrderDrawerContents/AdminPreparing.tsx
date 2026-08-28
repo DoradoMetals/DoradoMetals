@@ -5,8 +5,8 @@ import { Button } from '@/shared/ui/base/button'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { RadioGroupImage } from '@/shared/ui/RadioGroupImage'
 import { useAdminSuppliers } from '@/features/products/queries'
-import { useSalesOrderMetals } from '@/features/orders/salesOrders/users/queries'
-import { useSendOrderToSupplier, useUpdateTracking } from '@/features/orders/salesOrders/admin/queries'
+import { usePatchOrder } from '@/features/orders/patch'
+import { usePatchShipment } from '@/features/shipping/queries'
 import { Supplier } from '@/features/products/types'
 import { useCarriers } from '@/features/carriers/queries'
 import { Carrier } from '@/features/carriers/types'
@@ -14,10 +14,11 @@ import { Carrier } from '@/features/carriers/types'
 export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: suppliers = [] } = useAdminSuppliers()
   const { data: carriers = [] } = useCarriers()
-  const { data: orderSpots = [] } = useSalesOrderMetals(order.id)
 
-  const updateTracking = useUpdateTracking()
-  const sendOrder = useSendOrderToSupplier()
+  // Tracking writes to the SHIPMENT resource; the supplier send is the order
+  // document's own pipeline op.
+  const updateTracking = usePatchShipment()
+  const sendOrder = usePatchOrder()
 
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const [selectedCarrier, setSelectedCarrier] = useState<Carrier | null>(null)
@@ -74,10 +75,11 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
           !selectedSupplier || (sendOrder.isPending && 'opacity-30')
         )}
         onClick={() => {
+          // The refiner's copy prints the order's own frozen spots, resolved
+          // SERVER-side - the browser no longer reads them back and posts them.
           sendOrder.mutate({
-            order: order,
-            spots: orderSpots,
-            supplier_id: selectedSupplier?.id ?? '',
+            id: order.id,
+            patch: { supplier: { supplier_id: selectedSupplier?.id ?? '', send: true } },
           })
         }}
         disabled={!selectedSupplier || sendOrder.isPending || !!order.order_sent}
@@ -124,11 +126,14 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
           !selectedCarrier || updateTracking.isPending || (trackingNumber === '' && 'opacity-30')
         )}
         onClick={() => {
+          if (!order.shipment.id) return
           updateTracking.mutate({
+            shipment_id: order.shipment.id,
             order_id: order.id,
-            shipment_id: order.shipment.id ?? '',
-            tracking_number: trackingNumber,
-            carrier_id: selectedCarrier?.id ?? '',
+            patch: {
+              tracking_number: trackingNumber,
+              carrier_id: selectedCarrier?.id ?? '',
+            },
           })
         }}
         disabled={!selectedCarrier || updateTracking.isPending || trackingNumber === ''}

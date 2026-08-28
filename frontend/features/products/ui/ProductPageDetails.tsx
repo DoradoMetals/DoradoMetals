@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
 import { Button } from '@/shared/ui/base/button'
-import { ChevronDown, Equal, Minus, Plus, X } from 'lucide-react'
+import { Equal, Minus, Plus, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 
@@ -28,6 +28,7 @@ import { paymentOptions, salesOrderServiceOptions } from '@/features/orders/sale
 import { useSpotPrices } from '@/features/spots/queries'
 import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import AccordionSection from '@/shared/ui/AccordionSection'
 
 type ProductPageProps = {
   product: Product
@@ -313,19 +314,21 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           </div>
 
           <div className="flex flex-col gap-2 w-full">
-            <Accordion
+            <AccordionSection
+              variant="raised"
               label={`Description`}
               open={open.description}
-              toggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
             >
               <div className="text-sm text-left whitespace-pre-line">
                 {selectedProduct.description}
               </div>
-            </Accordion>
-            <Accordion
+            </AccordionSection>
+            <AccordionSection
+              variant="raised"
               label={`Price Breakdown`}
               open={open.price}
-              toggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
             >
               <div className="text-sm text-left">
                 <div className="flex flex-col gap-2">
@@ -372,11 +375,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </Accordion>
-            <Accordion
+            </AccordionSection>
+            <AccordionSection
+              variant="raised"
               label={`Buyback Breakdown`}
               open={open.buyback}
-              toggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
             >
               <div className="text-sm text-left">
                 <div className="flex flex-col gap-2">
@@ -423,11 +427,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </Accordion>
-            <Accordion
+            </AccordionSection>
+            <AccordionSection
+              variant="raised"
               label={`Shipping`}
               open={open.shipping}
-              toggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
             >
               <div className="flex flex-col w-full gap-3">
                 {Object.entries(salesOrderServiceOptions).map(([serviceType, option]) => (
@@ -456,11 +461,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </Accordion>
-            <Accordion
+            </AccordionSection>
+            <AccordionSection
+              variant="raised"
               label={`Payment Options`}
               open={open.payment}
-              toggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
             >
               <div className="flex flex-col">
                 {paymentOptions
@@ -492,11 +498,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     )
                   })}
               </div>
-            </Accordion>
-            <Accordion
+            </AccordionSection>
+            <AccordionSection
+              variant="raised"
               label={`Product Specifications`}
               open={open.specs}
-              toggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}
             >
               <div className="flex flex-col gap-3 w-full">
                 <div className="flex items-center w-full justify-between">
@@ -518,7 +525,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </Accordion>
+            </AccordionSection>
           </div>
         </div>
       </div>
@@ -745,19 +752,21 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
         {/* accordions */}
         <div className="flex flex-col gap-2 w-full">
           <div className="flex flex-col gap-2 w-full">
-            <Accordion
+            <AccordionSection
+              variant="raised"
               label={`Description`}
               open={open.description}
-              toggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
             >
               <div className="text-sm text-left whitespace-pre-line">
                 {selectedProduct.description}
               </div>
-            </Accordion>
-            <Accordion
+            </AccordionSection>
+            <AccordionSection
+              variant="raised"
               label={`Price Breakdown`}
               open={open.price}
-              toggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
             >
               <div className="text-sm text-left">
                 <div className="flex flex-col gap-2">
@@ -804,11 +813,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </Accordion>
-            <Accordion
+            </AccordionSection>
+            <AccordionSection
+              variant="raised"
               label={`Buyback Breakdown`}
               open={open.buyback}
-              toggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
             >
               <div className="text-sm text-left">
                 <div className="flex flex-col gap-2">
@@ -855,11 +865,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </Accordion>
-            <Accordion
+            </AccordionSection>
+            <AccordionSection
+              variant="raised"
               label={`Shipping`}
               open={open.shipping}
-              toggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
             >
               <div className="flex flex-col w-full gap-3">
                 {Object.entries(salesOrderServiceOptions).map(([serviceType, option]) => (
@@ -888,11 +899,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </Accordion>
-            <Accordion
+            </AccordionSection>
+            <AccordionSection
+              variant="raised"
               label={`Payment Options`}
               open={open.payment}
-              toggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
             >
               <div className="flex flex-col">
                 {paymentOptions
@@ -925,11 +937,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     )
                   })}
               </div>
-            </Accordion>
-            <Accordion
+            </AccordionSection>
+            <AccordionSection
+              variant="raised"
               label={`Product Specifications`}
               open={open.specs}
-              toggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}
+              onToggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}
             >
               <div className="flex flex-col gap-3 w-full">
                 <div className="flex items-center w-full justify-between">
@@ -951,51 +964,10 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </Accordion>
+            </AccordionSection>
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Accordion({
-  label,
-  open,
-  toggle,
-  children,
-}: {
-  label: string
-  open: boolean
-  toggle: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-md bg-card raised-off-page p-2">
-      <button
-        type="button"
-        onClick={toggle}
-        className="w-full p-2 flex justify-between items-center tracking-widest uppercase text-xs lg:text-sm text-neutral-600 font-normal cursor-pointer"
-      >
-        {label}
-
-        <ChevronDown
-          className={cn('h-4 w-4 transition-transform text-neutral-600', open && 'rotate-180')}
-          size={20}
-        />
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden will-change-transform"
-          >
-            <div className="p-2">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }
