@@ -1,0 +1,19 @@
+-- The mail log learns about auth (D78's open question, resolved).
+--
+-- better-auth never sends the verification mail itself - it calls
+-- emailVerification.sendVerificationEmail in features/auth/client.ts, a
+-- callback this codebase owns, which renders our template and posts through
+-- our transport. The seam was there all along; only the enum lacked a label
+-- for it. features/media/emails/service.ts#sendAuthVerificationEmail now
+-- records the send under this kind, both outcomes, like every other sender.
+--
+-- Additive and new-schema only: one label appended to media.email_kind, no
+-- table touched, exchange untouched. IF NOT EXISTS keeps the replay a no-op
+-- on a fresh database, whose 000_genesis_schema.sql already carries the
+-- label after dump:schema.
+--
+-- The reset-password, change-email and magic-link mails remain unrecorded,
+-- deliberately: each is one more label plus one more sender when wanted, and
+-- growing the enum ahead of the code that writes it would only invent kinds
+-- nothing produces.
+ALTER TYPE media.email_kind ADD VALUE IF NOT EXISTS 'auth_verification';

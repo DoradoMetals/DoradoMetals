@@ -154,3 +154,65 @@ test("without a transaction, a test-run send records nothing", async () => {
   );
   assert.equal(rows[0].n, 0, "an executor-less test send committed a real row - the guard rotted");
 });
+
+// THE AUTH MAIL, ON THE TRAIL (D78's open question, migration 091). The
+// verification mail was the one send with no row: better-auth's path - which
+// turns out to be OUR path, a callback in features/auth/client.ts that was
+// already rendering our template through our transport. The callback now goes
+// through sendAuthVerificationEmail, and both outcomes are rows like every
+// other sender's.
+test("a verification mail leaves an auth_verification row with its user", async () => {
+  await inRollback(async (c) => {
+    const order = anOrderWithAUser();
+    const t = recorder();
+    await emails.sendAuthVerificationEmail(
+      {
+        user: { id: order.user.user_id, email: order.user.user_email, name: order.user.user_name },
+        url: "https://example.test/verify-email?token=t",
+        isSignUp: true,
+      },
+      t,
+      c
+    );
+
+    assert.equal(t.sent.length, 1, "nothing left the recorder");
+    assert.equal(t.sent[0].subject, "Welcome to Dorado Metals Exchange");
+
+    const { rows } = await c.query(
+      `SELECT status, to_address, user_id, order_id, pdf_id, provider_message_id
+         FROM media.emails WHERE kind = 'auth_verification'`
+    );
+    assert.equal(rows.length, 1, "one send, one row");
+    assert.equal(rows[0].status, "sent");
+    assert.equal(rows[0].to_address, order.user.user_email);
+    assert.equal(rows[0].user_id, order.user.user_id);
+    assert.equal(rows[0].order_id, null, "a verification mail has no order");
+    assert.equal(rows[0].pdf_id, null, "and no document");
+    assert.equal(rows[0].provider_message_id, "<recorded@test>");
+  });
+});
+
+test("a failed verification mail is a row too, and the throw reaches better-auth unchanged", async () => {
+  await inRollback(async (c) => {
+    await assert.rejects(
+      () =>
+        emails.sendAuthVerificationEmail(
+          {
+            user: { id: null, email: "new-signup@example.test", name: "New Signup" },
+            url: "https://example.test/verify-email?token=t",
+          },
+          failing(),
+          c
+        ),
+      /535 Authentication failed/
+    );
+
+    const { rows } = await c.query(
+      `SELECT status, error, user_id FROM media.emails WHERE kind = 'auth_verification'`
+    );
+    assert.equal(rows.length, 1, "the failure was not recorded");
+    assert.equal(rows[0].status, "failed");
+    assert.match(rows[0].error, /535/, "the record lost the reason");
+    assert.equal(rows[0].user_id, null, "an id-less user records null, not a refused insert");
+  });
+});

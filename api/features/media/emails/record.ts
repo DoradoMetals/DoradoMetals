@@ -20,7 +20,10 @@ type Executor = PoolClient | undefined;
 export type EmailKind =
   | "purchase_order_created"
   | "purchase_order_accepted"
-  | "sales_order_to_supplier";
+  | "sales_order_to_supplier"
+  // migration 091: better-auth's verification mail is sent by a callback this
+  // codebase owns, so it joins the trail like every other send.
+  | "auth_verification";
 
 export type EmailRecord = {
   kind: EmailKind;

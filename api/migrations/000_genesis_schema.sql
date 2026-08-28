@@ -60,7 +60,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'email_kind' AND n.nspname = 'media'
   ) THEN
-    CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_accepted', 'sales_order_to_supplier');
+    CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_accepted', 'sales_order_to_supplier', 'auth_verification');
   END IF;
 END $$;
 

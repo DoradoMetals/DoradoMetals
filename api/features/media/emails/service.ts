@@ -6,6 +6,8 @@ import {
   renderPurchaseOrderPlacedEmail,
   renderOfferAcceptedEmail,
   renderSalesOrderToSupplierEmail,
+  renderAccountCreatedEmail,
+  renderVerifyEmail,
 } from "#features/media/emails/utils/renderEmail.ts";
 import type { SalesOrderForRender, SupplierSpot } from "#features/media/emails/utils/renderEmail.ts";
 
@@ -243,6 +245,65 @@ export async function sendSalesOrderToSupplier(
           contentType: "application/pdf",
         },
       ],
+    }, transport);
+  } catch (err) {
+    await recordEmail({ ...record, status: "failed", error: err instanceof Error ? err.message : String(err) }, executor);
+    throw err;
+  }
+  await recordEmail({ ...record, status: "sent", provider_message_id: messageIdOf(result) }, executor);
+}
+
+// THE VERIFICATION MAIL, RECORDED (D78's open question, answered "yes, there
+// is a seam"). better-auth does not send this mail - it calls
+// emailVerification.sendVerificationEmail in features/auth/client.ts, a
+// callback THIS codebase wrote, which was already rendering our template and
+// calling our sendEmail. That callback now calls this sender, so the send
+// leaves a media.emails row like every other - both outcomes, the failure
+// with its error text and the throw continuing to better-auth unchanged.
+//
+// No order and no PDF: order_id and pdf_id stay null, which media.emails
+// allows. `user.id` is real - better-auth commits the user through its own
+// pool before it asks for the mail - and recordEmail swallows a refused FK
+// to stderr rather than breaking the send either way.
+//
+// (transport, executor) is the same seam pair as every sender above: the
+// paper-trail tests pass a recorder and their pinned transaction; production
+// passes neither and better-auth's callback stays one line.
+export async function sendAuthVerificationEmail(
+  {
+    user,
+    url,
+    isSignUp = false,
+  }: {
+    user: { id?: string | null; email: string; name?: string | null };
+    url: string;
+    isSignUp?: boolean;
+  },
+  transport?: Transport,
+  executor?: PoolClient
+): Promise<void> {
+  // The subject and template split is verbatim from the callback this
+  // replaces: a sign-up gets the welcome mail, everything else the plain
+  // verify mail. Same words, same templates - only the record is new.
+  const subject = isSignUp
+    ? "Welcome to Dorado Metals Exchange"
+    : "Verify Your Email Address";
+
+  const record = {
+    kind: "auth_verification" as const,
+    to: user.email,
+    subject,
+    user_id: typeof user.id === "string" ? user.id : null,
+  };
+  let result: unknown;
+  try {
+    result = await sendEmail({
+      to: user.email,
+      subject,
+      text: `Click the link to verify your email: ${url}`,
+      html: isSignUp
+        ? renderAccountCreatedEmail({ firstName: String(user.name ?? ""), url })
+        : renderVerifyEmail({ firstName: String(user.name ?? ""), url }),
     }, transport);
   } catch (err) {
     await recordEmail({ ...record, status: "failed", error: err instanceof Error ? err.message : String(err) }, executor);

@@ -11,12 +11,18 @@
 // an hour and eleven orphaned processes. Every other test stops at a guard, so
 // nothing else launches a browser.
 //
-// WHAT THESE ROUTES DO NOT DO, recorded because it is a reasonable thing to
-// look for and its absence is deliberate: they take their content from the
-// request body and do not look anything up. That is not the relay problem the
-// email routes had - the caller receives the PDF themselves, so supplying their
-// own content only produces a document for their own eyes. Nothing is emailed
-// and nothing is stored.
+// WHAT THESE ROUTES SERVE. An earlier version of this header said they "do
+// not look anything up... nothing is emailed and nothing is stored", and that
+// stopped being the whole truth when serve.ts landed: for the order's OWNER
+// (or an admin) they now look up the latest media.pdfs row and serve the
+// stored file, falling back to a live render of the body when no stored
+// document exists - persisting that render for a linkable order, so the
+// second download reads the store. For everyone else nothing changed: a
+// render of the body they posted, which is data they already possessed - the
+// selection logic and the ownership gate are pinned in serve.test.js. Over
+// HTTP in a test run the stored branch always falls back (putObject is
+// skipped under isTestRun and the default reader refuses), so every render
+// assertion below still exercises the same path it always did.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -27,6 +33,7 @@ import * as soRepo from "#features/sales-orders/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import query from "#shared/db/query.js";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -86,10 +93,11 @@ after(async () => {
 // not: a return packing list, a purchase-order invoice and a sales-order
 // invoice - the documents a customer and a refiner are sent.
 //
-// Each renders entirely from the request body; none reads the database. So
-// there is nothing here that could leak stored data, and equally nothing that
-// would notice if the renderer stopped working - which is what makes rendering
-// them worth asserting rather than assuming.
+// Each still renders from the request body here: `customer` is an arbitrary
+// non-admin, generally not the order's owner, so serve.ts keeps the store shut
+// and hands back a live render - the pre-paper-trail surface, byte for byte.
+// Nothing that would notice the renderer breaking exists elsewhere, which is
+// what makes rendering them worth asserting rather than assuming.
 //
 // A PDF is checked by its magic bytes and a floor on its length. An empty or
 // error page is still a 200 with content-type application/pdf, so the status
@@ -215,6 +223,51 @@ test("a signed-in caller gets a real PDF with the headers to download it", async
         body.length,
         "Content-Length disagrees with the document - a truncated download"
       );
+    });
+  });
+});
+
+// THE STORED BRANCH, OVER HTTP. serve.test.js proves the selection logic with
+// a stubbed reader; what it cannot prove is the wiring - that the controller
+// hands serve.ts the right order id and caller, and that a stored row can
+// never turn a customer's download into a 500. In a test run the stored read
+// always fails (the default reader refuses, exactly as a deleted object
+// would), so this drives the OWNER through a route whose order HAS a stored
+// row and asserts the fallback still delivers a real PDF. That is the
+// "customer's download must not break over bookkeeping" property, end to end.
+test("an owner's download with a stored row still answers with a PDF when the store cannot", async () => {
+  await inPinnedTransaction(async () => {
+    // The row references orders.orders; an order the new schema does not know
+    // cannot carry one, and then this test would prove nothing - so say so.
+    const known = await outside(`SELECT user_id FROM orders.orders WHERE id = $1`, [order.id]);
+    assert.ok(known.length, "the fixture order is not in orders.orders - pick another");
+    const ownerRow = await outside(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [
+      known[0].user_id,
+    ]);
+    assert.ok(ownerRow.length, "the order's owner is not in exchange.users");
+
+    // Through the shared executor: while pinned, this joins the transaction
+    // that gets rolled back, so the row never outlives the test.
+    await query(
+      `INSERT INTO media.pdfs (kind, order_id, path, size_bytes, checksum)
+       VALUES ('return_packing_list', $1, 'pdfs/replay/never-uploaded.pdf', 5, 'feed')`,
+      [order.id]
+    );
+
+    await as({ ...ownerRow[0], role: "user" }, async () => {
+      const res = await request(app)
+        .post("/api/pdf/generate_return_packing_list")
+        .send({ purchaseOrder: order, spotPrices: spots })
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks = [];
+          r.on("data", (c) => chunks.push(c));
+          r.on("end", () => cb(null, Buffer.concat(chunks)));
+        });
+
+      assert.equal(res.status, 200, "a stored row the storage cannot honour broke the download");
+      assert.equal(res.headers["content-type"], "application/pdf");
+      assert.equal(res.body.subarray(0, 5).toString(), "%PDF-", "the fallback did not render");
     });
   });
 });

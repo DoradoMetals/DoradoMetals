@@ -4,7 +4,7 @@
 // Postgres schema: media
 import { z } from "zod/v4";
 
-export const EmailKind = z.enum(["purchase_order_created", "purchase_order_accepted", "sales_order_to_supplier"]);
+export const EmailKind = z.enum(["purchase_order_created", "purchase_order_accepted", "sales_order_to_supplier", "auth_verification"]);
 export const EmailStatus = z.enum(["sent", "failed"]);
 export const PdfKind = z.enum(["packing_list", "return_packing_list", "invoice", "sales_order_invoice"]);
 

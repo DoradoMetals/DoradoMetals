@@ -6,9 +6,8 @@ import { Pool } from 'pg';
 
 import stripeClient from '#providers/payment/stripe-client.ts';
 import { sendEmail } from '#providers/emails/nodemailer.ts';
+import { sendAuthVerificationEmail } from '#features/media/emails/service.ts';
 import {
-  renderAccountCreatedEmail,
-  renderVerifyEmail,
   renderChangeEmail,
   renderResetPasswordEmail,
   renderCreateAccountEmail,
@@ -76,16 +75,16 @@ export const auth = betterAuth({
   emailVerification: {
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
+    // The one auth mail on the paper trail (D78, migration 091). better-auth
+    // only calls this callback - the render, the send and now the
+    // media.emails record are all ours, in the shared sender. The reset,
+    // change-email and magic-link mails below still go unrecorded: each is a
+    // deliberate enum label away, not a different mechanism.
     sendVerificationEmail: async ({ user, token }, request) => {
-      const isSignUp = request?.url?.includes('/sign-up');
-      const emailUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
-      await sendEmail({
-        to: user.email,
-        subject: isSignUp ? 'Welcome to Dorado Metals Exchange' : 'Verify Your Email Address',
-        text: `Click the link to verify your email: ${emailUrl}`,
-        html: isSignUp
-          ? renderAccountCreatedEmail({ firstName: user.name, url: emailUrl })
-          : renderVerifyEmail({ firstName: user.name, url: emailUrl }),
+      await sendAuthVerificationEmail({
+        user,
+        url: `${process.env.FRONTEND_URL}/verify-email?token=${token}`,
+        isSignUp: request?.url?.includes('/sign-up') ?? false,
       });
     },
   },

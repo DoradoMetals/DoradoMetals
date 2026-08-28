@@ -21,6 +21,7 @@
 // adding again, and the routes file is where somebody looks to answer "who can
 // do this". One line per route, next to the guard it completes.
 import type { NextFunction, Request, Response } from "express";
+import type { PoolClient } from "pg";
 import query from "#shared/db/query.js";
 
 // The four spellings a request body uses for an order id, and the two for a
@@ -48,6 +49,38 @@ function orderIdFrom(body: OrderBody = {}): string | null {
   );
 }
 
+// The question itself, callable from a service as well as from the middleware
+// below. features/media/pdfs/serve.ts asks it before handing out a STORED
+// document: the pdf routes carry only requireUser (their bodies spell the
+// order `purchaseOrder`/`salesOrder`, which orderIdFrom does not read), so the
+// service must ask what the middleware would have asked - one copy of the
+// query, not two drifting ones.
+//
+// Both directions live in one table in the new schema and two in exchange,
+// and this has to answer the same way whichever is serving - so it asks all
+// three rather than depending on ORDERS_SOURCE.
+//
+// `executor` is the usual repo seam: a test passes its pinned transaction,
+// production passes nothing and the pool answers.
+export async function orderOwnedBy(
+  orderId: string,
+  userId: string,
+  executor?: PoolClient
+): Promise<boolean> {
+  const { rows } = await query(
+    `SELECT 1 FROM (
+       SELECT user_id FROM exchange.purchase_orders WHERE id = $1
+       UNION ALL
+       SELECT user_id FROM exchange.sales_orders WHERE id = $1
+       UNION ALL
+       SELECT user_id FROM orders.orders WHERE id = $1
+     ) o WHERE o.user_id = $2 LIMIT 1`,
+    [orderId, userId],
+    executor
+  );
+  return rows.length > 0;
+}
+
 export function requireOwnOrder(req: Request, res: Response, next: NextFunction) {
   // Admins administer every order. requireUser has already run, so req.user is
   // present; a missing one means this was mounted without a guard in front of
@@ -65,23 +98,12 @@ export function requireOwnOrder(req: Request, res: Response, next: NextFunction)
     });
   }
 
-  // Both directions live in one table in the new schema and two in exchange,
-  // and this has to answer the same way whichever is serving - so it asks all
-  // three rather than depending on ORDERS_SOURCE. A missing row is a refusal:
-  // "the order does not exist" and "the order is not yours" are the same answer
-  // to somebody who should not know the difference.
-  query(
-    `SELECT 1 FROM (
-       SELECT user_id FROM exchange.purchase_orders WHERE id = $1
-       UNION ALL
-       SELECT user_id FROM exchange.sales_orders WHERE id = $1
-       UNION ALL
-       SELECT user_id FROM orders.orders WHERE id = $1
-     ) o WHERE o.user_id = $2 LIMIT 1`,
-    [orderId, req.user.id]
-  )
-    .then(({ rows }) => {
-      if (!rows.length) {
+  // A missing row is a refusal: "the order does not exist" and "the order is
+  // not yours" are the same answer to somebody who should not know the
+  // difference.
+  orderOwnedBy(orderId, req.user.id)
+    .then((owned) => {
+      if (!owned) {
         return res.status(403).json({
           error: "Forbidden",
           message: "That order is not yours",

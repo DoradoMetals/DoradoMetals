@@ -8001,11 +8001,8 @@ failures to stderr. Two design notes that cost a debugging loop each:
   real rows and real putObjects). A test exercises it by passing its pinned
   client; paper-trail.test.js pins the guard itself so it cannot rot.
 
-Remaining media wiring, deliberately deferred: the pdf DOWNLOAD endpoints
-still render live rather than reading the stored file - "one render, one
-truth" finishes when those read media.pdfs; and the email kinds enum grows
-as new templates appear (auth verification mail goes through better-auth's
-own path, unrecorded - worth a decision).
+Remaining media wiring, deliberately deferred: CLOSED BY D86 - the
+downloads read the store and auth verification mail records.
 
 ## D79 — the single-schema-source ruling, realized
 
@@ -8260,3 +8257,29 @@ the target and Credit Available reads the server-priced beginning_funds;
 a non-admin naming someone else gets their own funds - the guard is
 semantics, not an error - and the replay fixture asserts a
 different-balance second user exists so the test cannot pass vacuously.
+
+## D86 — downloads serve the document that was sent
+
+One-render-one-truth closes: the four pdf download routes serve the LATEST
+stored media.pdfs document for (order, kind), checksum-verified and
+streamed; a missing row renders live and persists (the migration path for
+pre-trail orders, linkable orders only); a storage miss or checksum
+mismatch falls back to a live render with a stderr note and deliberately
+does NOT persist - the trail records what was SENT, and a fresh render is
+not that.
+
+THE FINDING THAT MATTERS: the pdf routes have been requireUser-only since
+they existed, with bodies the ownership middleware cannot read. Survivable
+while callers only got back a render of what they posted; an IDOR the
+moment stored bytes are keyed on a body order id. The stored path and the
+fallback persist are gated on orderOwnedBy - extracted from the
+requireOwnOrder middleware so the three-table union lives once - with the
+route middleware untouched and the non-widening pinned by a test.
+
+Auth verification mail records: better-auth's sendVerificationEmail was
+already this codebase's own callback, so it now goes through the recorded
+sender under the new kind auth_verification (migration 091, additive enum
+value, genesis verified). Reset-password, change-email and magic-link
+mails remain unrecorded - one label and one sender each when wanted.
+The stored reader refuses under isTestRun like the mail transport, so a
+forgotten stub can neither touch live storage nor break a download.

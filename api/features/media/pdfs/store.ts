@@ -35,6 +35,36 @@ const INSERT = `
   RETURNING id
 `;
 
+// "The order's documents, latest of a kind first" - the read
+// pdfs_order_kind_idx exists to serve (090's own comment). Regeneration
+// INSERTS rather than updating, so the newest row IS the current document.
+const LATEST = `
+  SELECT id, path, size_bytes, checksum, created_at
+    FROM media.pdfs
+   WHERE order_id = $1 AND kind = $2
+   ORDER BY created_at DESC
+   LIMIT 1
+`;
+
+export type PdfRow = {
+  id: string;
+  path: string;
+  size_bytes: number | null;
+  checksum: string | null;
+  created_at: Date;
+};
+
+/** The latest stored document of a kind for an order, or null if the order
+ *  predates the paper trail (or predates dual - media.pdfs.order_id references
+ *  orders.orders, so a pre-dual order can never have a row). */
+export async function latestPdf(
+  { kind, order_id }: { kind: PdfKind; order_id: string },
+  executor?: Executor
+): Promise<PdfRow | null> {
+  const { rows } = await query<PdfRow>(LATEST, [order_id, kind], executor);
+  return rows[0] ?? null;
+}
+
 export async function persistPdf(
   { kind, order_id, bytes }: { kind: PdfKind; order_id?: string | null; bytes: Uint8Array },
   executor?: Executor
