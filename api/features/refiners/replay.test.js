@@ -40,8 +40,9 @@ after(async () => {
   await pool.end();
 });
 
-// Refiners: admin-only, and flattened for the frontend behind REFINERS_WIRE.
-test("refiners are admin-only and come back flat", async () => {
+// Refiners: admin-only. Converted 2026-08-27 - the frontend reads the nested
+// organization from @dorado/contracts.
+test("refiners are admin-only and come back nested", async () => {
   await inPinnedTransaction(async () => {
     await as(customer, async () => {
       const res = await request(app).get("/api/suppliers/get_all");
@@ -54,10 +55,11 @@ test("refiners are admin-only and come back flat", async () => {
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
       const r = res.body[0];
-      // The organization is its own object internally; legacy flattens it.
-      assert.ok(!("organization" in r), "the nested shape reached the frontend");
-      assert.ok("name" in r && r.name, "a refiner came back with no name");
-      assert.ok("is_active" in r, "is_active was renamed on the way out");
+      // The organization is its own object, on the wire as internally.
+      assert.ok("organization" in r, "the flat shape came back after the conversion");
+      assert.ok(r.organization.name, "a refiner came back with no name");
+      assert.ok("enabled" in r.organization, "enabled is missing from the organization");
+      assert.ok(!("is_active" in r), "the flat is_active came back after the conversion");
     });
   });
 });

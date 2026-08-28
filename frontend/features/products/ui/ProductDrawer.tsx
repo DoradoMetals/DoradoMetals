@@ -137,7 +137,7 @@ function Details({ product }: { product: AdminProduct }) {
       <PopoverSelect
         label="Supplier"
         value={product.supplier}
-        options={suppliers?.map((item) => item.name)}
+        options={suppliers?.map((item) => item.organization.name ?? '')}
         onChange={(val) => handleUpdate(product.id, { supplier: val })}
         triggerClass="on-glass"
       />

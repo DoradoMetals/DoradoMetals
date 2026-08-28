@@ -124,6 +124,11 @@ test("no order response carries a full account or routing number", async () => {
 
 test("every purchase order comes back, including any without an offer", async () => {
   await inRollback(async (c) => {
+    // The count runs on this transaction's snapshot and getAll() reads
+    // through the pool on another - under dual, a concurrent test committing
+    // an order between the two makes them disagree by one. Same race as
+    // "reads do not write" below; same lock.
+    await c.query("SELECT pg_advisory_xact_lock(4213)");
     const { rows: [{ n }] } = await c.query(
       "SELECT count(*)::int n FROM orders.orders WHERE direction = 'purchase'"
     );

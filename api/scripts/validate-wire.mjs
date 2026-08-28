@@ -75,7 +75,6 @@ const bothWays = async (name, schema, dir, read, many = true) => {
 };
 
 const po = await import("#features/purchase-orders/repo.js");
-const refinersWire = await import("#features/refiners/wire.ts");
 const addressesWire = await import("#features/places/addresses/wire.ts");
 
 // The public list was checked ONE WAY while the admin list right below it was

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { BullionWire } from '@dorado/contracts'
+import type { BullionWire, RefinerWireNext } from '@dorado/contracts'
 
 // THIRD CONVERTED FEATURE (2026-08-27). The catalogue product is the
 // contracts shape - products.bullion's own names, `name` / `description` /
@@ -56,17 +56,11 @@ export interface AdminProduct {
   metal_type?: string
 }
 
-export interface Supplier {
-  id: string
-  name: string
-  email: string
-  phone: string
-  created_at: Date
-  updated_at: Date
-  shipping_carrier: string
-  logo: string,
-  is_active: boolean,
-}
+// A supplier is a refiner: an organization with a role, and since the
+// refiners conversion (2026-08-27) the frontend reads it nested from
+// @dorado/contracts. The old flat interface also claimed a
+// `shipping_carrier` field no wire ever served - read by nothing, gone.
+export type Supplier = RefinerWireNext
 
 
 

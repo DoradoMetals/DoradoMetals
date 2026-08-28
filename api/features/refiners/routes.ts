@@ -3,16 +3,12 @@ import express from "express";
 import { getAllRefiners } from "#features/refiners/controller.ts";
 
 import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
-import * as refinersWire from "#features/refiners/wire.ts";
-import { wireShape } from "#shared/wire/middleware.ts";
-
 const router = express.Router();
 
-// The wire adapter, mounted once for the whole feature rather than called by
-// hand in every handler - no writes take this entity, so only the response is converted. Controllers return the internal shape
-// and know nothing about the frontend not having caught up. Deleting the
-// adapter is deleting this line.
-router.use(wireShape(refinersWire, { body: false }));
+// NO WIRE ADAPTER. Refiners converted 2026-08-27, the same lift as carriers
+// with different nouns: the frontend reads the nested organization from
+// @dorado/contracts, so the flatten is gone. Addresses still carries its
+// lift until it converts.
 
 router.get("/get_all", requireAdmin, getAllRefiners);
 

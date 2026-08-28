@@ -7869,3 +7869,19 @@ keeps its flat option shape; carriers map into it at each call site.
 Refiners and addresses are the same makeLiftAdapter declaration with
 different nouns - the identical conversion awaits each. Payments' 204-line
 adapter is its own animal; read it before assuming anything.
+
+## D75 — refiners converts: the twin lift, and the send-to-supplier screen gets its pin
+
+Carriers' declaration with different nouns, so the conversion was the same
+shape: Supplier = RefinerWireNext (the old flat interface also claimed a
+`shipping_carrier` field no wire ever served - read by nothing, dropped),
+two consumers hand-converted, REFINERS_WIRE=next, adapter deleted,
+WIRE_FLOOR 3 -> 2. The read-only wire made it the smallest conversion yet -
+one GET, no writes, no round-trip tests to excise.
+
+The render tests landed on AdminPreparing - the screen where metal leaves
+the building. Two pins, shape-agnostic like carriers': the refiners are
+offered by name, and the send carries the picked supplier's id. That is the
+screen in front of sendOrderToSupplier's guard stack (the 404-before-email,
+the no-address refusal, the Dillion Gage no-email refusal), so the frontend
+half of that path is no longer untested.

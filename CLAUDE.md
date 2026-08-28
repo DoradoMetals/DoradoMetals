@@ -232,11 +232,10 @@ The ones that have actually caught things:
   `carrier_services` — the third shared-name false finding on this project.
 - `audit:wire-readiness` — **the other half of the promotion rule.** `*_WIRE`
   moves "when the frontend is ready", and nothing measured that. It counts the
-  legacy field names the frontend still reads: media, spots, products and
-  carriers are CONVERTED (contracts types, render tests, adapters deleted,
-  2026-08-27) - every rename switch is done and the first structural lift
-  with them; the audit reports 0 switches that would break the frontend
-  today. Addresses, refiners and payments still report `?`. The count is
+  legacy field names the frontend still reads: media, spots, products,
+  carriers and refiners are CONVERTED (contracts types, render tests,
+  adapters deleted, 2026-08-27); the audit reports 0 switches that would
+  break the frontend today. Addresses and payments still report `?`. The count is
   **split into product code and test fixtures** — SPOTS_WIRE, before its
   conversion, was 76 real reads and 10 fixtures — because a test spelling the
   legacy name is a real occurrence but not a component reading the wire, and
@@ -245,7 +244,7 @@ The ones that have actually caught things:
   commits, with the product code untouched. The switch this endangered was
   `MEDIA_WIRE`, the one reporting ready at 0. The frontend now imports
   `@dorado/contracts` ONLY in converted features, so `tsc` sees those renames
-  from both sides — everywhere else it still cannot. Three adapters are structural and one rename (`type`) is too
+  from both sides — everywhere else it still cannot. Two adapters are structural and one rename (`type`) is too
   common to count globally — those report `?`, never `yes`, because a scan that
   cannot see something must not call it clean. `--self-test` proves the file
   floor fires; the first version walked zero files and called every switch

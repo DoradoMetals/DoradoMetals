@@ -55,7 +55,12 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
       </p>
       {suppliers && (
         <RadioGroupImage
-          items={suppliers}
+          items={suppliers.map((s) => ({
+            id: s.id,
+            name: s.organization.name ?? '',
+            logo: s.logo ?? '',
+            is_active: !!s.organization.enabled,
+          }))}
           value={selectedSupplier?.id ?? ''}
           onValueChange={handleSupplierChange}
         />
@@ -78,11 +83,11 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
         disabled={!selectedSupplier || sendOrder.isPending || order.order_sent}
       >
         {sendOrder.isPending
-          ? `Sending to ${selectedSupplier?.name}...`
+          ? `Sending to ${selectedSupplier?.organization.name}...`
           : order.order_sent
-          ? `Order sent to ${selectedSupplier?.name}`
+          ? `Order sent to ${selectedSupplier?.organization.name}`
           : selectedSupplier
-          ? `Send Order to ${selectedSupplier?.name}`
+          ? `Send Order to ${selectedSupplier?.organization.name}`
           : 'Select Supplier'}
       </Button>
 
