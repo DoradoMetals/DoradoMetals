@@ -11,6 +11,9 @@ import {
 import type { SalesOrderForRender } from "#features/media/emails/utils/renderEmail.ts";
 
 import { sendEmail } from "#providers/emails/nodemailer.ts";
+import { recordEmail, messageIdOf } from "#features/media/emails/record.ts";
+import { persistPdf } from "#features/media/pdfs/store.ts";
+import type { PoolClient } from "pg";
 import {
   formatPurchaseOrderNumber,
   formatSalesOrderNumber,
@@ -50,7 +53,10 @@ import {
 export async function sendCreatedEmail(
   { purchaseOrder, spotPrices, packageDetails }: PackingListInput,
   to: string,
-  transport?: Transport
+  transport?: Transport,
+  // The paper-trail writes join a test's transaction through this; production
+  // callers omit it and the records go to the pool, after the send.
+  executor?: PoolClient
 ): Promise<void> {
   const pdfBuffer = await pdfService.generatePackingList({
     purchaseOrder,
@@ -58,23 +64,42 @@ export async function sendCreatedEmail(
     packageDetails,
   });
 
-  await sendEmail({
-    to,
-    subject: "Your Order Has Been Placed!",
-    html: renderPurchaseOrderPlacedEmail({
-      firstName: String(purchaseOrder.user?.user_name ?? ""),
-      url: `${process.env.FRONTEND_URL}/account?tab=sold`,
-    }),
-    attachments: [
-      {
-        filename: `${formatPurchaseOrderNumber(
-          purchaseOrder.order_number
-        )}_packing_list.pdf`,
-        content: pdfBuffer,
-        contentType: "application/pdf",
-      },
-    ],
-  }, transport);
+  // The order being placed IS the status event: the document persists here,
+  // once, and the record of the send points at it. Neither may break the
+  // send - both helpers swallow their own failures by design.
+  const orderId = typeof purchaseOrder.id === "string" ? purchaseOrder.id : null;
+  const pdfId = await persistPdf({ kind: "packing_list", order_id: orderId, bytes: pdfBuffer }, executor);
+
+  const subject = "Your Order Has Been Placed!";
+  const record = {
+    kind: "purchase_order_created" as const,
+    to, subject, order_id: orderId, pdf_id: pdfId,
+    user_id: typeof purchaseOrder.user?.user_id === "string" ? purchaseOrder.user.user_id : null,
+  };
+  let result: unknown;
+  try {
+    result = await sendEmail({
+      to,
+      subject,
+      html: renderPurchaseOrderPlacedEmail({
+        firstName: String(purchaseOrder.user?.user_name ?? ""),
+        url: `${process.env.FRONTEND_URL}/account?tab=sold`,
+      }),
+      attachments: [
+        {
+          filename: `${formatPurchaseOrderNumber(
+            purchaseOrder.order_number
+          )}_packing_list.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    }, transport);
+  } catch (err) {
+    await recordEmail({ ...record, status: "failed", error: err instanceof Error ? err.message : String(err) }, executor);
+    throw err;
+  }
+  await recordEmail({ ...record, status: "sent", provider_message_id: messageIdOf(result) }, executor);
 }
 
 // Same change, and this one was more direct: `email` came off the body and went
@@ -95,7 +120,8 @@ export async function sendAcceptedEmail(
     spot_prices?: SpotPriceWire[];
   },
   to: string,
-  transport?: Transport
+  transport?: Transport,
+  executor?: PoolClient
 ): Promise<void> {
   let pdfBuffer: Uint8Array;
   try {
@@ -113,25 +139,39 @@ export async function sendAcceptedEmail(
     throw err;
   }
 
-  await sendEmail({
-    to,
-    subject: `Offer Accepted - Order ${formatPurchaseOrderNumber(
-      order.order_number
-    )}`,
-    html: renderOfferAcceptedEmail({
-      firstName: String(order.user?.user_name ?? ""),
-      url: `${process.env.FRONTEND_URL}/orders`,
-    }),
-    attachments: [
-      {
-        filename: `${formatPurchaseOrderNumber(
-          order.order_number
-        )}_invoice.pdf`,
-        content: pdfBuffer,
-        contentType: "application/pdf",
-      },
-    ],
-  }, transport);
+  const orderId = typeof order.id === "string" ? order.id : null;
+  const pdfId = await persistPdf({ kind: "invoice", order_id: orderId, bytes: pdfBuffer }, executor);
+
+  const subject = `Offer Accepted - Order ${formatPurchaseOrderNumber(order.order_number)}`;
+  const record = {
+    kind: "purchase_order_accepted" as const,
+    to, subject, order_id: orderId, pdf_id: pdfId,
+    user_id: typeof order.user?.user_id === "string" ? order.user.user_id : null,
+  };
+  let result: unknown;
+  try {
+    result = await sendEmail({
+      to,
+      subject,
+      html: renderOfferAcceptedEmail({
+        firstName: String(order.user?.user_name ?? ""),
+        url: `${process.env.FRONTEND_URL}/orders`,
+      }),
+      attachments: [
+        {
+          filename: `${formatPurchaseOrderNumber(
+            order.order_number
+          )}_invoice.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    }, transport);
+  } catch (err) {
+    await recordEmail({ ...record, status: "failed", error: err instanceof Error ? err.message : String(err) }, executor);
+    throw err;
+  }
+  await recordEmail({ ...record, status: "sent", provider_message_id: messageIdOf(result) }, executor);
 }
 
 // `order` IS NEARLY THE CONTRACT, AND THE GAP IS THE TIMESTAMPS.
@@ -157,7 +197,8 @@ export async function sendSalesOrderToSupplier(
   order: SalesOrderForRender,
   spots: SpotPriceWire[],
   email: string,
-  transport?: Transport
+  transport?: Transport,
+  executor?: PoolClient
 ): Promise<void> {
   let pdfBuffer: Uint8Array;
   try {
@@ -174,26 +215,39 @@ export async function sendSalesOrderToSupplier(
     throw err;
   }
 
-  await sendEmail({
-    // `email` here is not from a request body - sendSalesOrderToSupplier is not
-    // a route. It is called with the refiner's address the order was placed
-    // against, and it already took it as an explicit parameter.
-    to: email,
-    subject: `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(
-      order.order_number
-    )}`,
-    html: renderSalesOrderToSupplierEmail({
-      firstName: String(order.user?.user_name ?? ""),
-      url: `${process.env.FRONTEND_URL}/orders`,
-      order,
-      spots,
-    }),
-    attachments: [
-      {
-        filename: `${formatSalesOrderNumber(order.order_number)}_invoice.pdf`,
-        content: pdfBuffer,
-        contentType: "application/pdf",
-      },
-    ],
-  }, transport);
+  const orderId = typeof order.id === "string" ? order.id : null;
+  const pdfId = await persistPdf({ kind: "sales_order_invoice", order_id: orderId, bytes: pdfBuffer }, executor);
+
+  const subject = `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(order.order_number)}`;
+  const record = {
+    kind: "sales_order_to_supplier" as const,
+    to: email, subject, order_id: orderId, pdf_id: pdfId,
+  };
+  let result: unknown;
+  try {
+    result = await sendEmail({
+      // `email` here is not from a request body - sendSalesOrderToSupplier is not
+      // a route. It is called with the refiner's address the order was placed
+      // against, and it already took it as an explicit parameter.
+      to: email,
+      subject,
+      html: renderSalesOrderToSupplierEmail({
+        firstName: String(order.user?.user_name ?? ""),
+        url: `${process.env.FRONTEND_URL}/orders`,
+        order,
+        spots,
+      }),
+      attachments: [
+        {
+          filename: `${formatSalesOrderNumber(order.order_number)}_invoice.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    }, transport);
+  } catch (err) {
+    await recordEmail({ ...record, status: "failed", error: err instanceof Error ? err.message : String(err) }, executor);
+    throw err;
+  }
+  await recordEmail({ ...record, status: "sent", provider_message_id: messageIdOf(result) }, executor);
 }
