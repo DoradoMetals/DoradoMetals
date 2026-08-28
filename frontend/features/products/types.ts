@@ -1,5 +1,5 @@
-import { z } from 'zod'
-import type { BullionWire, RefinerWireNext } from '@dorado/contracts'
+import { z } from 'zod/v4'
+import { BullionWire, type RefinerWireNext } from '@dorado/contracts'
 
 // THIRD CONVERTED FEATURE (2026-08-27). The catalogue product is the
 // contracts shape - products.bullion's own names, `name` / `description` /
@@ -79,32 +79,12 @@ export interface AdminTypes {
   name: string,
 }
 
-// Parsed on the checkout path, so it must accept what the converted client
-// actually holds: the contract's nullability, not the old hand-written
-// optionality. `satisfies` pins it - if BullionWire gains or renames a field,
-// this fails typecheck instead of silently rejecting checkouts at runtime.
-export const productSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string(),
-  type: z.string(),
-  slug: z.string().nullable(),
-  metal_type: z.string(),
-  mint_name: z.string(),
-  gross: z.number(),
-  content: z.number(),
-  purity: z.number(),
-  bid_premium: z.number(),
-  ask_premium: z.number(),
-  image_front: z.string(),
-  image_back: z.string(),
-  shadow_offset: z.number(),
-  variant_group: z.string(),
-  variant_label: z.string().nullable(),
-  is_generic: z.boolean().nullable(),
-  legal_tender: z.boolean().nullable(),
-  domestic_tender: z.boolean().nullable(),
-  sell_display: z.boolean().nullable(),
+// Parsed on the checkout path. DERIVED from the contract now that this file
+// is zod v4 like the contracts: the catalogue shape IS BullionWire, plus the
+// two fields the client adds (`price` from the live spot, `quantity` cart
+// state). `satisfies` still pins the output to Product, so a contract change
+// fails typecheck here rather than silently rejecting checkouts at runtime.
+export const productSchema = BullionWire.extend({
   price: z.number().optional(),
   quantity: z.number().optional(),
 }) satisfies z.ZodType<Product>

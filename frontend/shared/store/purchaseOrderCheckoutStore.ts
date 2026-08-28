@@ -17,7 +17,7 @@ interface PurchaseOrderCheckoutState {
 
 // A deployed customer's localStorage predates the address split: the picked
 // address persisted as one flat row, label under `name`, with `is_default`
-// and `user_id` in among the postal fields - which addressWireSchemaV3 would
+// and `user_id` in among the postal fields - which AddressWireNext would
 // reject at the checkout parse. Version 1 splits it the way the wire now
 // does: `data.address` keeps only the postal row, and the relationship
 // becomes the `data.user_address` sibling.

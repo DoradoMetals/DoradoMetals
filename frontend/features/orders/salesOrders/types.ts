@@ -10,11 +10,10 @@ import {
   BankIcon,
 } from '@phosphor-icons/react'
 
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 import { LucideIcon } from 'lucide-react'
 import { Product, productSchema } from '@/features/products/types'
-import { Address, addressWireSchemaV3, userAddressWireSchemaV3 } from '@/features/addresses/types'
 import { Payout } from '@/features/payouts/types'
 import { Shipment } from '@/features/shipping/types'
 import { packageSchema } from '@/features/packaging/types'
@@ -22,7 +21,7 @@ import { pickupSchema } from '@/features/handoff/types'
 import { serviceSchema } from '@/features/service/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User, userSchema } from '@/features/users/types'
-import type { SpotPriceWireNext } from '@dorado/contracts'
+import { AddressWireNext, SpotPriceWireNext, UserAddressWire } from '@dorado/contracts'
 import { OrderProduct } from '@/features/orders/orderProducts'
 import { OrderAddress } from '@/features/orders/orderAddresses'
 
@@ -81,8 +80,8 @@ export interface SalesOrder {
 }
 
 export const salesOrderReturnShipmentSchema = z.object({
-  address: addressWireSchemaV3,
-  user_address: userAddressWireSchemaV3.optional(),
+  address: AddressWireNext,
+  user_address: UserAddressWire.optional(),
   package: packageSchema,
   pickup: pickupSchema,
   service: serviceSchema,
@@ -304,8 +303,8 @@ export const adminSalesOrderServiceOptions: Record<string, SalesOrderServiceUIOp
 }
 
 export const salesOrderCheckoutSchema = z.object({
-  address: addressWireSchemaV3,
-  user_address: userAddressWireSchemaV3.optional(),
+  address: AddressWireNext,
+  user_address: UserAddressWire.optional(),
   service: salesOrderServiceSchema,
   using_funds: z.boolean(),
   payment_method: paymentMethodTypeSchema,
@@ -313,30 +312,17 @@ export const salesOrderCheckoutSchema = z.object({
 })
 export type SalesOrderCheckout = z.infer<typeof salesOrderCheckoutSchema>
 
-// The live spot shape, in this file's own zod. The contracts export the same
-// schema in zod v4, which cannot be composed into a v3 object - so this is
-// hand-written but PINNED: `satisfies` fails typecheck the moment it drifts
-// from the contract's inferred type.
-const liveSpotSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  ask: z.number().nullable(),
-  bid: z.number().nullable(),
-  percent_change: z.number().nullable(),
-  dollar_change: z.number().nullable(),
-}) satisfies z.ZodType<SpotPriceWireNext>
-
 export const adminSalesOrderCheckoutSchema = z.object({
-  address: addressWireSchemaV3,
-  user_address: userAddressWireSchemaV3.optional(),
+  address: AddressWireNext,
+  user_address: UserAddressWire.optional(),
   service: salesOrderServiceSchema,
   using_funds: z.boolean(),
   payment_method: paymentMethodTypeSchema,
   items: z.array(productSchema).min(1, 'At least one item is required'),
   // Client-side form state: the admin picks the spots the order is
   // quoted at. Both create endpoints price server-side and ignore what
-  // is sent, so this describes the CONVERTED live-spot shape.
-  order_metals: z.array(liveSpotSchema),
+  // is sent, so this embeds the contract's live-spot schema directly.
+  order_metals: z.array(SpotPriceWireNext),
   user: userSchema,
 })
 export type AdminSalesOrderCheckout = z.infer<typeof adminSalesOrderCheckoutSchema>

@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod/v4'
 import { TruckIcon, StorefrontIcon, IconProps } from '@phosphor-icons/react'
 import { format } from 'date-fns'
 
@@ -24,7 +24,7 @@ export type PickupType = {
 export const pickupSchema = z.object({
   label: z.string(),
   name: z.string(),
-  icon: z.any(),
+  icon: z.any().optional(),
   selectedDate: z.string().optional(),
   date: z.string().optional(),
   time: z.string().optional(),

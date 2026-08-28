@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 import {
   Truck,
@@ -12,7 +12,7 @@ import {
   LucideIcon,
 } from 'lucide-react'
 
-import { Address, addressWireSchemaV3, userAddressWireSchemaV3 } from '@/features/addresses/types'
+import { AddressWireNext, UserAddressWire } from '@dorado/contracts'
 import { CarrierPickup, pickupSchema } from '@/features/handoff/types'
 import { Payout, payoutSchema } from '@/features/payouts/types'
 import { packageSchema } from '@/features/packaging/types'
@@ -81,8 +81,8 @@ export interface PurchaseOrder {
 }
 
 export const purchaseOrderReturnShipmentSchema = z.object({
-  address: addressWireSchemaV3,
-  user_address: userAddressWireSchemaV3.optional(),
+  address: AddressWireNext,
+  user_address: UserAddressWire.optional(),
   package: packageSchema,
   pickup: pickupSchema,
   service: serviceSchema,
@@ -92,8 +92,8 @@ export const purchaseOrderReturnShipmentSchema = z.object({
 export type PurchaseOrderReturnShipment = z.infer<typeof purchaseOrderReturnShipmentSchema>
 
 export const purchaseOrderCheckoutSchema = z.object({
-  address: addressWireSchemaV3,
-  user_address: userAddressWireSchemaV3.optional(),
+  address: AddressWireNext,
+  user_address: UserAddressWire.optional(),
   package: packageSchema,
   fedexPackageToggle: z.boolean(),
   pickup: pickupSchema,

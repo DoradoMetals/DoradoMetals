@@ -1,5 +1,5 @@
 import { LucideIcon, Rocket, PackageCheck, Train } from 'lucide-react'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 export interface ShippingService {
   serviceType: string

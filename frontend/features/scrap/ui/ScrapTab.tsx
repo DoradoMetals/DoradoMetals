@@ -29,7 +29,7 @@ export default function ScrapForm() {
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: rates = [] } = useRates()
 
-  const form = useForm<ScrapInput>({
+  const form = useForm<ScrapInput, any, Scrap>({
     resolver: zodResolver(scrapSchema),
     mode: 'onChange',
     defaultValues: {

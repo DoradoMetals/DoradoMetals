@@ -1,4 +1,4 @@
-import * as z from 'zod'
+import { z } from 'zod/v4'
 import { ReactNode } from 'react'
 import { ScalesIcon, SketchLogoIcon, BarbellIcon, IconProps, CoinsIcon } from '@phosphor-icons/react'
 import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/features/navigation/ui/Logo'

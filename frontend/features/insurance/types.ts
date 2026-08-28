@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 export const insuranceSchema = z.object({
   declaredValue: z.object({

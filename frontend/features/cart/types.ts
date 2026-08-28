@@ -1,6 +1,6 @@
 import { Product, productSchema } from '@/features/products/types'
 import { Scrap, scrapSchema } from '@/features/scrap/types'
-import { z } from 'zod';
+import { z } from 'zod/v4'
 
 export type SellCartItem =
   | { type: 'product'; data: Product & { quantity?: number } }

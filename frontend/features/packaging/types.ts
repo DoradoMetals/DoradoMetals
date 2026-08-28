@@ -1,6 +1,6 @@
 import { LucideIcon, Package2, Inbox } from 'lucide-react'
 import { PackageIcon } from '@phosphor-icons/react'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 export interface Package {
   label: string

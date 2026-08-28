@@ -1,4 +1,4 @@
-import * as z from 'zod'
+import { z } from 'zod/v4'
 
 const blockedCities = ['Test', 'Fake City', 'Unknown', 'N/A']
 
@@ -27,41 +27,6 @@ export type UserAddress = UserAddressWire
 export const addressWireSchema = AddressWireNext
 export const userAddressWireSchema = UserAddressWire
 
-// FOR THE V3 CHECKOUT SCHEMA GRAPH ONLY. The checkout schemas (orders,
-// packaging, pickup...) are zod v3 classic and cannot nest the contracts'
-// v4 schema objects, so the two wire shapes are restated once here for
-// them. DIES WITH THE ZOD V4 MIGRATION - when the checkout graph moves to
-// zod/v4, embed AddressWireNext / UserAddressWire directly and delete these.
-export const addressWireSchemaV3 = z.object({
-  id: z.string().uuid(),
-  line_1: z.string().nullable(),
-  line_2: z.string().nullable(),
-  city: z.string().nullable(),
-  state: z.string().nullable(),
-  country: z.string().nullable(),
-  country_code: z.string().nullable(),
-  zip: z.string().nullable(),
-  created_at: z.string().nullable(),
-  updated_at: z.string().nullable(),
-  phone_number: z.string().nullable(),
-  is_valid: z.boolean().nullable(),
-  is_residential: z.boolean().nullable(),
-})
-
-export const userAddressWireSchemaV3 = z.object({
-  address_id: z.string().uuid(),
-  user_id: z.string().uuid().nullable(),
-  label: z.string().nullable(),
-  default_shipping: z.boolean().nullable(),
-})
-
-// One-way pins: the restatements' outputs must BE the contract types, so a
-// contract change fails typecheck here rather than drifting silently.
-const _pinAddress: Address = {} as z.infer<typeof addressWireSchemaV3>
-const _pinLink: UserAddress = {} as z.infer<typeof userAddressWireSchemaV3>
-void _pinAddress
-void _pinLink
-
 // The FORM: what a human submits, one flat set of fields for the UX, split
 // into { address, user_address } at the mutation edge.
 export const addressSchema = z.object({
@@ -88,7 +53,7 @@ export const addressSchema = z.object({
       message: 'Invalid US state.',
     }),
   country: z.literal('United States', {
-    errorMap: () => ({ message: 'Country must be United States' }),
+    error: 'Country must be United States',
   }),
   country_code: z.string(),
   zip: z
