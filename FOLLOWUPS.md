@@ -8038,3 +8038,34 @@ wire features read from @dorado/contracts, rollback would break the
 frontend rather than save it, and promotion work from here is the
 *_SOURCE axis alone. A's correction for the record: AdminPaymentProcessing
 was never a consumer of this wire (it reads payout fields).
+
+## D81 — the quote surface: the server prices every number a customer sees
+
+Three endpoints on the existing pure functions, none of the math copied:
+POST /quotes/catalog (public - the catalogue's prices are as public as the
+catalogue; ask gates on display, bid on sell_display), /quotes/sales_order
+(createSalesOrder's pricing path without the insert, the full OrderPrices
+breakdown), /quotes/purchase_order (rates-banded premiums exactly as
+decompose resolves them, declared_value included). All three carry the
+$26.81 regression pin: a poisoned body riding spots/prices along produces
+the identical server-priced result. Contracts wire/quotes.ts states the
+shapes directly - computed shapes, the permanent quote contract.
+
+Six interpretations, documented in the service where each lives: funds come
+from exchange.users.dorado_funds by SESSION id (get_one.sql deliberately
+projects no balance); declared_value = total UNCAPPED (getDeclaredValue's
+$50,000 cap is FedEx's ceiling and belongs where the label is bought); the
+quote REFUSES where decompose defers (unrecognised lines, bandless scrap,
+spotless metals -> 400 naming the index - a quote that silently omits a
+line understates); scrap content honours a supplied value else derives
+convertTroyOz(pre_melt) * purity; calculateItemBid is stated once as
+calculateItemAsk's mirror (no importable bid function existed); the sales
+quote drops unknown ids because the create path does, and a quote that
+refuses where the order would price quotes a different order.
+
+The endpoint guards earned their keep on their tenth entry: the
+deliberately-public list refused the new catalog route until it was
+declared with reasoning, and the no-public-user-id scan caught the token
+`user_id` in a COMMENT - it slices a handler's body up to the next export,
+so the neighbouring handler's comment is scanned too. Both are the cart
+bug's check working exactly as written.

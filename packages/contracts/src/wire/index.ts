@@ -6,6 +6,7 @@ export * from "./orders.js";
 export * from "./payments.js";
 export * from "./payouts.js";
 export * from "./products.js";
+export * from "./quotes.js";
 export * from "./rates.js";
 export * from "./reviews.js";
 export * from "./shipping.js";

@@ -35,6 +35,12 @@ const PUBLIC = new Set([
   "GET /api/reviews/get_public",
   "GET /api/spots/spot_prices",
   "POST /api/recaptcha/verify-recaptcha",
+  // The catalogue's prices are as public as the catalogue: a signed-out
+  // visitor sees priced product cards, and this is the endpoint that prices
+  // them (Jacob's no-previews ruling - the client computes nothing). It takes
+  // product ids and a side, never a user, and the server prices from its own
+  // spots - the $26.81 pin in features/quotes/replay.test.js holds it there.
+  "POST /api/quotes/catalog",
   // The four cart endpoints used to be here, with the reason "a cart belongs to
   // a browser, not an account - a signed-out visitor has one". That is true of
   // the browser-local store and was NOT true of these endpoints: they took a

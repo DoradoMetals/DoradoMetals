@@ -296,6 +296,56 @@ add("order.shipment", c.ShipmentOnOrder, () => orders.map((o) => o.shipment).fil
 add("order.user", c.UserOnOrder, () => orders.map((o) => o.user).filter((u) => u?.user_id));
 add("order.address", c.AddressOnOrder, () => orders.map((o) => o.address).filter(Boolean));
 
+// Quotes: the pricing surface with nothing stored underneath. COMPUTED
+// shapes, not table rows - there is no repo pair for bothWays to compare, so
+// the service, the only implementation, is called directly like carriers.
+// These are the shapes Jacob's no-client-money-math ruling makes the frontend
+// read every customer-visible number from, so a divergence here is a broken
+// checkout, not a cosmetic one. Priced against real dev rows: two live
+// products, the addresses user resolved above, and a gram-denominated scrap
+// line, so the parse exercises the tax, funds and weight-derivation paths and
+// not just the happy shape.
+const quotesService = await import("#features/quotes/service.ts");
+const { rows: quotable } = await pool.query(
+  `SELECT id, name FROM products.bullion
+    WHERE display AND sell_display AND content IS NOT NULL
+    ORDER BY name LIMIT 2`
+);
+const quoteItems = quotable.map((r, i) => ({ id: r.id, quantity: i + 1 }));
+add("POST /quotes/catalog", c.CatalogQuoteWire, () =>
+  quoteItems.length ? quotesService.catalogQuote({ items: quoteItems, side: "ask" }) : [],
+  false
+);
+
+const { rows: quoteAddresses } = await pool.query(
+  `SELECT id FROM exchange.addresses WHERE user_id = $1 LIMIT 1`,
+  [addressUser]
+);
+add("POST /quotes/sales_order", c.SalesOrderQuoteWire, () =>
+  addressUser && quoteItems.length
+    ? quotesService.salesOrderQuote(addressUser, {
+        items: quoteItems,
+        using_funds: true,
+        shipping_service: "STANDARD",
+        payment_method: "CARD",
+        address_id: quoteAddresses[0]?.id,
+      })
+    : [],
+  false
+);
+
+add("POST /quotes/purchase_order", c.PurchaseOrderQuoteWire, () =>
+  quotable.length
+    ? quotesService.purchaseOrderQuote({
+        items: [
+          { type: "scrap", data: { metal: "Gold", pre_melt: 31.1035, purity: 0.9, gross_unit: "g" } },
+          { type: "product", data: { name: quotable[0].name, quantity: 2 } },
+        ],
+      })
+    : [],
+  false
+);
+
 let pass = 0;
 const failures = [];
 
