@@ -1,10 +1,10 @@
 import { Switch } from '@/shared/ui/base/switch'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
-import { SalesOrderTotals } from '@/features/orders/salesOrders/types'
+import type { SalesOrderQuoteWire } from '@dorado/contracts'
 import { useEffect } from 'react'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 
-export default function PaymentSelect({ orderPrices }: { orderPrices: SalesOrderTotals }) {
+export default function PaymentSelect({ orderPrices }: { orderPrices?: SalesOrderQuoteWire }) {
   const { data, setData } = useSalesOrderCheckoutStore()
 
   const handleFundsToggle = (checked: boolean) => {
@@ -14,14 +14,18 @@ export default function PaymentSelect({ orderPrices }: { orderPrices: SalesOrder
   }
 
   useEffect(() => {
+    // No quote yet means no decision: defaulting the pair to 0 would read
+    // 0 >= 0 and flip the method to CREDIT on first paint.
+    if (!orderPrices) return
+
     const usingFunds = !!data.using_funds
     const prev = data.payment_method
-    const { beginningFunds, baseTotal } = orderPrices
+    const { beginning_funds, base_total } = orderPrices
 
     let next = prev
 
     if (usingFunds) {
-      if (beginningFunds >= baseTotal) {
+      if (beginning_funds >= base_total) {
         next = 'CREDIT'
       } else if (prev === 'CREDIT') {
         next = 'CARD'
@@ -36,14 +40,13 @@ export default function PaymentSelect({ orderPrices }: { orderPrices: SalesOrder
   }, [
     data.using_funds,
     data.payment_method,
-    orderPrices.beginningFunds,
-    orderPrices.baseTotal,
+    orderPrices,
     setData,
   ])
 
   return (
     <>
-      {orderPrices.beginningFunds > 0 && (
+      {orderPrices && orderPrices.beginning_funds > 0 && (
         <div className="">
           <div className="text-xs text-neutral-600 uppercase tracking-widest mb-4">
             Payment Method:
@@ -55,13 +58,13 @@ export default function PaymentSelect({ orderPrices }: { orderPrices: SalesOrder
               <Switch
                 checked={data.using_funds}
                 onCheckedChange={handleFundsToggle}
-                disabled={orderPrices.beginningFunds <= 0}
+                disabled={orderPrices.beginning_funds <= 0}
               />
             </div>
             <div className="flex flex-col gap-1 items-end">
               <div className="text-sm text-neutral-700">Credit Available:</div>
               <div className="text-lg text-neutral-900">
-                <PriceNumberFlow value={orderPrices.beginningFunds} />
+                <PriceNumberFlow value={orderPrices.beginning_funds} />
               </div>
             </div>
           </div>

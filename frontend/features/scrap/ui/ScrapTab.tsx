@@ -9,16 +9,11 @@ import { useEffect, useState } from 'react'
 import { defineStepper } from '@stepperize/react'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useRouter } from 'next/navigation'
-import getScrapPrice from '@/features/scrap/utils/getScrapPrice'
 import { convertTroyOz } from '@/shared/utils/convertWeights'
 import ReviewStep from '@/features/scrap/ui/ReviewStep'
 import MetalStep from '@/features/scrap/ui/MetalStep'
 import WeightStep from '@/features/scrap/ui/WeightStep'
 import PurityStep from '@/features/scrap/ui/PurityStep'
-import { useSpotPrices } from '@/features/spots/queries'
-import { useRates } from '@/features/rates/queries'
-import { getRatePct } from '@/features/rates/utils/resolveRate'
-
 
 const { useStepper, utils } = defineStepper(
   { id: 'itemForm', title: 'Item Details', description: 'Enter your item information.' },
@@ -26,9 +21,6 @@ const { useStepper, utils } = defineStepper(
 )
 
 export default function ScrapForm() {
-  const { data: spotPrices = [] } = useSpotPrices()
-  const { data: rates = [] } = useRates()
-
   const form = useForm<ScrapInput, any, Scrap>({
     resolver: zodResolver(scrapSchema),
     mode: 'onChange',
@@ -64,30 +56,19 @@ export default function ScrapForm() {
   const router = useRouter()
 
   const handleSubmit = (values: Scrap) => {
-    const spot = spotPrices.find((s) => s.name === values.metal)
+    // Only the goods declaration goes into the cart - weight, purity and the
+    // troy-ounce content they resolve to. NO price and NO resolved premium:
+    // every number the customer sees comes from POST /quotes/purchase_order
+    // (ReviewStep, SellCart), the store re-tiers bid_premium from the rates
+    // table on add, and the backend re-resolves both on submit.
     const content =
       convertTroyOz(values.pre_melt ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
-
-    // Premium comes from the rates table, tiered by the total scrap of this
-    // metal already in the cart plus what we're adding. addItem re-tiers all
-    // scrap of the metal, and the backend re-resolves on submit.
-    const existingScrapTotal = sellCartStore
-      .getState()
-      .items.filter((i) => i.type === 'scrap' && (i.data as Scrap).metal === values.metal)
-      .reduce((sum, i) => sum + ((i.data as Scrap).content ?? 0), 0)
-    const metalTotal = existingScrapTotal + content
-
-    const bid_premium = getRatePct(rates, values.metal, metalTotal, 'scrap') ?? 0.75
-
-    const price = getScrapPrice(content, bid_premium, spot)
 
     const item = {
       type: 'scrap' as const,
       data: {
         ...values,
         content,
-        price,
-        bid_premium,
       },
     }
 

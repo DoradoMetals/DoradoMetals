@@ -1,21 +1,30 @@
 import { Button } from '@/shared/ui/base/button'
 import { cartStore } from '@/shared/store/cartStore'
-import { paymentOptions, SalesOrderTotals } from '@/features/orders/salesOrders/types'
-import getProductPrice from '@/features/products/utils/getProductPrice'
+import { paymentOptions } from '@/features/orders/salesOrders/types'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import { QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
-import { useSpotPrices } from '@/features/spots/queries'
+import type { SalesOrderQuoteWire } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
-export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderTotals }) {
+// orderPrices is the server's quote, absent until the first one lands - the
+// summary renders zeros in the meantime, never a client-computed price.
+export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuoteWire }) {
   const { items, addItem, removeOne, removeAll } = cartStore()
   const { data } = useSalesOrderCheckoutStore()
-  const { data: spotPrices = [] } = useSpotPrices()
   const router = useRouter()
+
+  const {
+    shipping_charge = 0,
+    pre_charges_amount = 0,
+    subject_to_charges_amount = 0,
+    post_charges_amount = 0,
+    charges_amount = 0,
+    sales_tax = 0,
+  } = orderPrices ?? {}
 
   const itemContent = (
     <div className="w-full flex-col">
@@ -23,8 +32,8 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
 
       <div className="flex-col gap-10">
         {items.map((item, index) => {
-          const spot = spotPrices.find((s) => s.name === item.metal_type)
-          const price = getProductPrice(item, spot)
+          // The quote prices one line per cart item, matched by product id.
+          const line = orderPrices?.items.find((l) => l.id === item.id)
           const quantity = item.quantity ?? 1
 
           return (
@@ -88,7 +97,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
                     </Button>
                   </div>
                   <div className="text-neutral-800 text-base">
-                    <PriceNumberFlow value={price * quantity} />
+                    <PriceNumberFlow value={line?.line_total ?? 0} />
                   </div>
                 </div>
               </div>
@@ -107,31 +116,31 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
       <div className="w-full flex items-center justify-between">
         <div className="text-sm text-neutral-700">Shipping</div>
         <div className="text-base text-neutral-800">
-          <PriceNumberFlow value={orderPrices.shippingCharge} />
+          <PriceNumberFlow value={shipping_charge} />
         </div>
       </div>
 
-      {orderPrices.appliedFunds > 0 && (
+      {pre_charges_amount > 0 && (
         <div className="w-full flex items-center justify-between">
           <div className="text-sm text-neutral-700">Dorado Funds Applied</div>
           <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={orderPrices.appliedFunds} />
+            <PriceNumberFlow value={pre_charges_amount} />
           </div>
         </div>
       )}
-      {orderPrices.subjectToChargesAmount > 0 && (
+      {subject_to_charges_amount > 0 && (
         <div className="w-full flex items-center justify-between">
           <div className="text-sm text-neutral-700">
             {' '}
-            {orderPrices.appliedFunds > 0 ? 'Amount Remaining' : 'Items'}
+            {pre_charges_amount > 0 ? 'Amount Remaining' : 'Items'}
           </div>
           <div className="text-base text-neutral-800">
-            -<PriceNumberFlow value={orderPrices.subjectToChargesAmount} />
+            -<PriceNumberFlow value={subject_to_charges_amount} />
           </div>
         </div>
       )}
 
-      {orderPrices.surchargeAmount > 0 && (
+      {charges_amount > 0 && (
         <div className="w-full flex items-center justify-between">
           <div className="text-sm text-neutral-700">
             {`${
@@ -143,12 +152,12 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
             })`}
           </div>
           <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={orderPrices.surchargeAmount} />
+            <PriceNumberFlow value={charges_amount} />
           </div>
         </div>
       )}
 
-      {orderPrices.salesTax > 0 && (
+      {sales_tax > 0 && (
         <div className="w-full flex items-center justify-between">
           <div className="flex items-center gap-1">
             <div className="text-sm text-neutral-700">Sales Tax</div>
@@ -157,7 +166,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
             </Button>
           </div>
           <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={orderPrices.salesTax} />
+            <PriceNumberFlow value={sales_tax} />
           </div>
         </div>
       )}
@@ -168,7 +177,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices: SalesOrderT
         <div className="w-full flex items-center justify-between pt-2">
           <div className="text-base text-primary">Order Total</div>
           <div className="text-lg text-neutral-900">
-            <PriceNumberFlow value={orderPrices.postChargesAmount} />
+            <PriceNumberFlow value={post_charges_amount} />
           </div>
         </div>
       </div>

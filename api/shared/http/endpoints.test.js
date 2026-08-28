@@ -41,6 +41,10 @@ const PUBLIC = new Set([
   // product ids and a side, never a user, and the server prices from its own
   // spots - the $26.81 pin in features/quotes/replay.test.js holds it there.
   "POST /api/quotes/catalog",
+  // Same reasoning, bid direction: the anonymous sell cart estimates what the
+  // business would pay. Items and goods declarations in, prices out; nothing
+  // about a user crosses it, which the no-public-user-id scan below enforces.
+  "POST /api/quotes/purchase_order",
   // The four cart endpoints used to be here, with the reason "a cart belongs to
   // a browser, not an account - a signed-out visitor has one". That is true of
   // the browser-local store and was NOT true of these endpoints: they took a

@@ -4,9 +4,10 @@ import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { cn } from '@/shared/utils/cn'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
-import { salesOrderServiceOptions, SalesOrderTotals } from '@/features/orders/salesOrders/types'
+import { salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
+import type { SalesOrderQuoteWire } from '@dorado/contracts'
 
-export default function ServiceSelector({ orderPrices }: { orderPrices: SalesOrderTotals }) {
+export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOrderQuoteWire }) {
   const selected = useSalesOrderCheckoutStore((state) => state.data.service)
   const setData = useSalesOrderCheckoutStore((state) => state.setData)
 
@@ -46,7 +47,11 @@ export default function ServiceSelector({ orderPrices }: { orderPrices: SalesOrd
               <div className="flex items-center w-full justify-between">
                 <div className="text-sm text-neutral-600">{option.time}</div>
                 <div className="text-base text-neutral-800">
-                  <PriceNumberFlow value={orderPrices?.itemTotal > 1000 ? 0 : option.cost} />
+                  {/* Only the selected service is quoted, so the unselected
+                      options' display keys the free-shipping threshold off the
+                      quote's item_total - the same rule getShippingCharge
+                      applies server-side. */}
+                  <PriceNumberFlow value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost} />
                 </div>
               </div>
 

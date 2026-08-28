@@ -7,15 +7,14 @@ import Link from 'next/link'
 import NumberFlow from '@number-flow/react'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useRouter } from 'next/navigation'
-import getScrapPrice from '@/features/scrap/utils/getScrapPrice'
 import { formatRate } from '@/features/rates/utils/resolveRate'
 import { getGrossLabel, getPurityLabel, Scrap } from '@/features/scrap/types'
 import { Product } from '@/features/products/types'
-import getProductBidPrice from '@/features/products/utils/getProductBidPrice'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
-import { useSpotPrices } from '@/features/spots/queries'
+import { usePurchaseOrderQuote } from '@/features/quotes/queries'
+import type { PurchaseOrderQuoteLineWire } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 export default function SellCart() {
@@ -26,27 +25,23 @@ export default function SellCart() {
   const addItem = sellCartStore((state) => state.addItem)
   const removeOne = sellCartStore((state) => state.removeOne)
   const removeAll = sellCartStore((state) => state.removeAll)
-  const { data: spotPrices = [] } = useSpotPrices()
 
-  const productItems = items.filter((item) => item.type === 'product')
-  const scrapItems = items.filter((item) => item.type === 'scrap')
+  // ONE purchase-order quote for the whole cart: it prices products and scrap
+  // alike, banded on each metal's total content across every line. Its lines
+  // come back INDEX-ALIGNED with the store array - sell-cart lines have no
+  // stable id, so `items[i]` answers as `index: i` - which is why the
+  // product/scrap renders below carry their ORIGINAL store index rather than
+  // their position in the filtered list. Gated on the session: the endpoint
+  // is per-caller, so a signed-out cart estimates at zero.
+  const { data: quote } = usePurchaseOrderQuote(items)
+  const lineAt = (storeIndex: number): PurchaseOrderQuoteLineWire | undefined =>
+    quote?.items.find((line) => line.index === storeIndex)
 
-  const total = items.reduce((acc, item) => {
-    if (item.type === 'product') {
-      const spot = spotPrices.find((s) => s.name === item.data.metal_type)
-      const price = getProductBidPrice(item.data, spot)
-      const quantity = item.data.quantity ?? 1
-      return acc + price * quantity
-    }
+  const indexed = items.map((item, storeIndex) => ({ item, storeIndex }))
+  const productItems = indexed.filter(({ item }) => item.type === 'product')
+  const scrapItems = indexed.filter(({ item }) => item.type === 'scrap')
 
-    if (item.type === 'scrap') {
-      const spot = spotPrices.find((s) => s.name === item.data.metal)
-      const price = getScrapPrice(item.data.content ?? 0, item.data.bid_premium ?? 0, spot)
-      return acc + price
-    }
-
-    return acc
-  }, 0)
+  const total = quote?.total ?? 0
 
   const emptyCart = (
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
@@ -76,9 +71,8 @@ export default function SellCart() {
     </div>
   )
 
-  const renderProductItem = (item: Product, index: number) => {
-    const spot = spotPrices.find((s) => s.name === item.metal_type)
-    const price = getProductBidPrice(item, spot)
+  const renderProductItem = (item: Product, index: number, storeIndex: number) => {
+    const lineTotal = lineAt(storeIndex)?.line_total ?? 0
     const quantity = item.quantity ?? 1
 
     return (
@@ -135,7 +129,7 @@ export default function SellCart() {
               </Button>
             </div>
             <div className="text-neutral-800 text-base">
-              <PriceNumberFlow value={price * quantity} />
+              <PriceNumberFlow value={lineTotal} />
             </div>
           </div>
         </div>
@@ -143,9 +137,12 @@ export default function SellCart() {
     )
   }
 
-  const renderScrapItem = (item: Scrap, index: number) => {
-    const spot = spotPrices.find((s) => s.name === item.metal)
-    const price = getScrapPrice(item.content ?? 0, item.bid_premium ?? 0, spot)
+  const renderScrapItem = (item: Scrap, index: number, storeIndex: number) => {
+    // A scrap line's total IS its price - content covers the whole line. The
+    // rate shown prefers the quote's server-resolved band; the store's own
+    // re-tiered bid_premium stands in while there is no quote (signed out).
+    const line = lineAt(storeIndex)
+    const price = line?.line_total ?? 0
 
     return (
       <div
@@ -174,7 +171,9 @@ export default function SellCart() {
             <div className="flex flex-col mr-auto gap-1">
               {getGrossLabel(item.pre_melt, item.gross_unit)}
               {getPurityLabel(item.purity, item.metal)}
-              <div className="text-xs text-neutral-600">Rate: {formatRate(item.bid_premium)}</div>
+              <div className="text-xs text-neutral-600">
+                Rate: {formatRate(line?.premium ?? item.bid_premium)}
+              </div>
             </div>
 
             <div className="ml-auto text-neutral-800 text-base">
@@ -189,10 +188,18 @@ export default function SellCart() {
   const cartContent = (
     <div className="w-full flex-col">
       {productItems.length > 0 && (
-        <div>{productItems.map((item, i) => renderProductItem(item.data as Product, i))}</div>
+        <div>
+          {productItems.map(({ item, storeIndex }, i) =>
+            renderProductItem(item.data as Product, i, storeIndex)
+          )}
+        </div>
       )}
       {scrapItems.length > 0 && (
-        <div>{scrapItems.map((item, i) => renderScrapItem(item.data as Scrap, i))}</div>
+        <div>
+          {scrapItems.map(({ item, storeIndex }, i) =>
+            renderScrapItem(item.data as Scrap, i, storeIndex)
+          )}
+        </div>
       )}
     </div>
   )

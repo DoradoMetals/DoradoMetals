@@ -1,12 +1,12 @@
 // The sales-order checkout summary, rendered - the last thing a customer
 // reads before paying.
 //
-// Written BEFORE the quote switch (Jacob's no-previews ruling): today the
-// totals arrive as a client-computed prop; after the switch they arrive from
-// POST /quotes/sales_order. What is pinned survives that: the items in the
-// cart render by name, the order total renders from the prop, and removing
-// an item goes through the cart store. The fixture is the only thing that
-// speaks the totals' field names, so it converts WITH the switch.
+// The totals arrive as POST /quotes/sales_order's wire shape (Jacob's
+// no-previews ruling), fetched by the checkout and passed down as a prop.
+// What is pinned survived the switch: the items in the cart render by name,
+// the order total renders from the prop, and removing an item goes through
+// the cart store. The fixture speaks the contract's field names and nothing
+// else does.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -35,7 +35,7 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 import { apiRequest } from "@/shared/queries/axios";
 import { cartStore } from "@/shared/store/cartStore";
 import OrderSummary from "@/features/checkout/sales-order-checkout/summary/orderSummary";
-import type { SalesOrderTotals } from "@/features/orders/salesOrders/types";
+import type { SalesOrderQuoteWire } from "@dorado/contracts";
 import type { Product } from "@/features/products/types";
 
 const renderWithClient = (ui: React.ReactElement) => {
@@ -69,27 +69,35 @@ const eagle = (): Product =>
     quantity: 1,
   } as Product);
 
-// Distinct values so an assertion can only match the field it means.
-const prices = (): SalesOrderTotals =>
-  ({
-    itemTotal: 4500,
-    baseTotal: 4577.25,
-    shippingCharge: 25,
-    beginningFunds: 0,
-    appliedFunds: 0,
-    endingFunds: 0,
-    subjectToChargesAmount: 4577.25,
-    postChargesAmount: 4714.57,
-    surchargeAmount: 137.32,
-    salesTax: 52.25,
-    orderTotal: 4714.57,
-  } as unknown as SalesOrderTotals);
+// Distinct values so an assertion can only match the field it means. The
+// quote's line id matches eagle()'s so the item row shows its line_total.
+const prices = (): SalesOrderQuoteWire => ({
+  spots_at: "2026-08-27T00:00:00.000Z",
+  item_total: 4500,
+  base_total: 4577.25,
+  shipping_charge: 25,
+  beginning_funds: 0,
+  ending_funds: 0,
+  pre_charges_amount: 0,
+  subject_to_charges_amount: 4577.25,
+  post_charges_amount: 4714.57,
+  charges_amount: 137.32,
+  sales_tax: 52.25,
+  order_total: 4714.57,
+  items: [{ id: "p-1", quantity: 1, unit_ask: 4500, line_total: 4500, sales_tax_rate: 0.0116 }],
+});
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockResolvedValue([
-    { id: "m-au", name: "Gold", ask: 3000, bid: 2900, dollar_change: 1, percent_change: 0.1 },
-  ]);
+  // Branched by URL: the summary's totals arrive as a prop, but anything in
+  // the tree that fetches the quote gets the same fixture the prop carries.
+  vi.mocked(apiRequest).mockImplementation(async (_method, url) =>
+    String(url).startsWith("/quotes/sales_order")
+      ? (prices() as never)
+      : ([
+          { id: "m-au", name: "Gold", ask: 3000, bid: 2900, dollar_change: 1, percent_change: 0.1 },
+        ] as never)
+  );
   localStorage.clear();
   cartStore.setState({ items: [eagle()] });
 });

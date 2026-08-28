@@ -9,9 +9,18 @@ import { cn } from '@/shared/utils/cn'
 import { Switch } from '@/shared/ui/base/switch'
 import { useSellProducts } from '@/features/products/queries'
 import BullionCard from '@/features/products/ui/BullionCard'
+import { useCatalogQuote } from '@/features/quotes/queries'
+import { catalogQuoteItems, unitPricesById } from '@/features/quotes/catalogPrices'
 
 export default function BullionTab() {
   const { data: bullionProducts = [] } = useSellProducts()
+
+  // ONE bid quote for the whole sell list, filtered or not - quoting the full
+  // list rather than the visible subset keeps the query key stable while the
+  // customer types or filters, and every card reads its selected id out of
+  // the map. Never a quote per card.
+  const { data: quote } = useCatalogQuote(catalogQuoteItems(bullionProducts), 'bid')
+  const unitPrices = unitPricesById(quote)
   const [input, setInput] = useState('')
   const [showGenerics, setShowGenerics] = useState(false)
 
@@ -125,7 +134,12 @@ export default function BullionTab() {
 
       <div className="flex flex-col gap-6 sm:gap-8 mt-4">
         {displayedBullion.map((group) => (
-          <BullionCard key={group.default.id} product={group.default} variants={group.variants} />
+          <BullionCard
+            key={group.default.id}
+            product={group.default}
+            variants={group.variants}
+            unitPrices={unitPrices}
+          />
         ))}
       </div>
     </div>

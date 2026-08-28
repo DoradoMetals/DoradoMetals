@@ -121,13 +121,22 @@ test("a display=false product is refused on the ask side and quoted on the bid s
 
 // ------------------------------------------------------------- sales order
 
-test("the order quotes need a session; the catalogue does not", async () => {
+test("the sales-order quote needs a session; the two goods quotes do not", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      for (const path of ["/api/quotes/sales_order", "/api/quotes/purchase_order"]) {
-        const res = await request(app).post(path).send({ items: [{ id: product.id, quantity: 1 }] });
-        assert.ok([401, 403].includes(res.status), `${path} answered ${res.status} with no session`);
-      }
+      // Funds-priced, so guarded.
+      const res = await request(app)
+        .post("/api/quotes/sales_order")
+        .send({ items: [{ id: product.id, quantity: 1 }] });
+      assert.ok([401, 403].includes(res.status), `sales_order answered ${res.status} with no session`);
+
+      // The purchase quote is public like the catalogue: an anonymous sell
+      // cart estimates what the business would pay.
+      const pub = await request(app)
+        .post("/api/quotes/purchase_order")
+        .send({ items: [{ type: "product", data: { id: product.id, quantity: 1 } }] });
+      assert.equal(pub.status, 200, `purchase_order answered ${pub.status} anonymously`);
+      assert.ok(pub.body.total > 0, "the anonymous estimate priced at nothing");
     });
   });
 });

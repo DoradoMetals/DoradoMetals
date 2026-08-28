@@ -9,14 +9,12 @@ import ShippingSelect from './shipping/shippingSelect'
 
 import { loadStripe } from '@stripe/stripe-js'
 import { salesOrderCheckoutSchema } from '@/features/orders/salesOrders/types'
-import { calculateSalesOrderPrices } from '@/features/orders/salesOrders/utils/calculateSalesOrderPrices'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 import { useGetSession } from '@/features/auth/queries'
 import { useMutationState } from '@tanstack/react-query'
-import { makeEmptyWireAddress } from '@/features/addresses/types'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useAddress } from '@/features/addresses/queries'
-import { useSalesTax } from '@/features/sales-tax/queries'
+import { useSalesOrderQuote } from '@/features/quotes/queries'
 import { useRetrievePaymentIntent, useUpdatePaymentIntent } from '@/features/stripe/queries'
 import PaymentSelect from '@/features/checkout/sales-order-checkout/payment/paymentSelect'
 import StripeWrapper from '@/features/stripe/ui/StripeWrapper'
@@ -28,7 +26,6 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 export default function SalesOrderCheckout() {
   const { user } = useGetSession()
   const [isLoading, setIsLoading] = useState<boolean>(false)
-  const emptyAddress = makeEmptyWireAddress()
 
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -38,12 +35,6 @@ export default function SalesOrderCheckout() {
 
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: addresses = [], isPending: isAddressesPending } = useAddress()
-
-  const { data: salesTax = 0 } = useSalesTax({
-    address: data.address ?? emptyAddress,
-    items: cartItems,
-    spots: spotPrices,
-  })
 
   const createOrder = useCreateSalesOrder()
   const updatePaymentIntent = useUpdatePaymentIntent()
@@ -58,25 +49,22 @@ export default function SalesOrderCheckout() {
       select: () => true,
     }).length > 0
 
-  const orderPrices = useMemo(() => {
-    return calculateSalesOrderPrices(
-      cartItems,
-      data.using_funds ?? true,
-      spotPrices,
-      user?.dorado_funds ?? 0,
-      data.service?.cost ?? 0,
-      data.payment_method ?? 'CARD',
-      salesTax ?? 0
-    )
-  }, [
-    cartItems,
-    data.using_funds,
-    spotPrices,
-    user?.dorado_funds,
-    data.service?.cost,
-    data.payment_method,
-    salesTax,
-  ])
+  // Items and choices only - the server prices from its own spots, the session
+  // user's funds, and the address's state. Until the first quote lands,
+  // orderPrices is undefined and the summary renders zeros; nothing here
+  // computes a fallback.
+  const quoteBody = useMemo(
+    () => ({
+      items: cartItems.map((item) => ({ id: item.id, quantity: item.quantity ?? 1 })),
+      using_funds: data.using_funds ?? true,
+      shipping_service: data.service?.value ?? null,
+      payment_method: data.payment_method ?? 'CARD',
+      address_id: data.address?.id ?? null,
+    }),
+    [cartItems, data.using_funds, data.service?.value, data.payment_method, data.address?.id]
+  )
+
+  const { data: orderPrices } = useSalesOrderQuote(quoteBody)
 
   const cardNeeded = useMemo(() => {
     if (data.payment_method === 'CREDIT') {
@@ -87,7 +75,7 @@ export default function SalesOrderCheckout() {
   }, [data.payment_method])
 
   useEffect(() => {
-    if (clientSecret && orderPrices.baseTotal > 0 && cardNeeded) {
+    if (clientSecret && (orderPrices?.base_total ?? 0) > 0 && cardNeeded) {
       updatePaymentIntent.mutate({
         items: cartItems,
         using_funds: data?.using_funds ?? true,
@@ -104,7 +92,7 @@ export default function SalesOrderCheckout() {
     data.using_funds,
     spotPrices,
     clientSecret,
-    orderPrices.baseTotal,
+    orderPrices?.base_total,
     data.payment_method,
     user,
     cardNeeded,

@@ -5,11 +5,10 @@ import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { cartStore } from '@/shared/store/cartStore'
-import getProductPrice from '@/features/products/utils/getProductPrice'
 import { useRouter } from 'next/navigation'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
-import { useSpotPrices } from '@/features/spots/queries'
+import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 export default function Cart() {
@@ -23,14 +22,15 @@ export default function Cart() {
   const removeOne = cartStore((state) => state.removeOne)
   const removeAll = cartStore((state) => state.removeAll)
 
-  const { data: spotPrices = [] } = useSpotPrices()
-
-  const total = items.reduce((acc, item) => {
-    const spot = spotPrices.find((s) => s.name === item.metal_type)
-    const price = getProductPrice(item, spot)
-    const quantity = item.quantity ?? 1
-    return acc + price * quantity
-  }, 0)
+  // ONE ask quote for the whole cart - every line total and the footer total
+  // are the server's answers, keyed back to the lines by product id. Public
+  // like the catalogue, so a signed-out cart still prices.
+  const { data: quote } = useCatalogQuote(
+    items.map((item) => ({ id: item.id, quantity: item.quantity ?? 1 })),
+    'ask'
+  )
+  const lineTotals = new Map((quote?.items ?? []).map((line) => [line.id, line.line_total]))
+  const total = quote?.total ?? 0
 
   const emptyCart = (
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
@@ -63,8 +63,7 @@ export default function Cart() {
     <div className="w-full flex-col">
       <div className="flex-col gap-10">
         {items.map((item, index) => {
-          const spot = spotPrices.find((s) => s.name === item.metal_type)
-          const price = getProductPrice(item, spot)
+          const lineTotal = lineTotals.get(item.id) ?? 0
           const quantity = item.quantity ?? 1
 
           return (
@@ -128,7 +127,7 @@ export default function Cart() {
                     </Button>
                   </div>
                   <div className="text-neutral-800 text-base">
-                    <PriceNumberFlow value={price * quantity} />
+                    <PriceNumberFlow value={lineTotal} />
                   </div>
                 </div>
               </div>

@@ -8,59 +8,58 @@ import { useReactTable, getCoreRowModel, flexRender, ColumnDef } from '@tanstack
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { cn } from '@/shared/utils/cn'
 import { SellCartItem } from '@/features/cart/types'
-import getScrapPrice from '@/features/scrap/utils/getScrapPrice'
 import { formatRate } from '@/features/rates/utils/resolveRate'
-import getProductBidPrice from '@/features/products/utils/getProductBidPrice'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { payoutOptions } from '@/features/payouts/types'
-import { useSpotPrices } from '@/features/spots/queries'
+import { usePurchaseOrderQuote } from '@/features/quotes/queries'
+import type { PurchaseOrderQuoteLineWire } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
-export default function ReviewItemTables() {
-  const { data: spotPrices = [] } = useSpotPrices()
+// A cart line paired with its quote line. Absent until the first quote lands
+// (or if the server refused the quote) - those rows price at zero, never
+// client-side.
+type QuotedRow<T extends SellCartItem['type']> = {
+  item: Extract<SellCartItem, { type: T }>
+  line: PurchaseOrderQuoteLineWire | undefined
+}
 
+export default function ReviewItemTables() {
   const shippingCost = usePurchaseOrderCheckoutStore((state) => state.data.service?.netCharge)
   const payout = usePurchaseOrderCheckoutStore((state) => state.data.payout)
   const paymentCost = payoutOptions.find((p) => p.method === payout?.method)?.cost ?? 0
 
   const items = sellCartStore((state) => state.items)
-  const bullionItems = items.filter((item) => item.type === 'product')
-  const scrapItems = items.filter((item) => item.type === 'scrap')
+  const { data: quote } = usePurchaseOrderQuote(items)
+
+  // Quote lines carry the request array position, and the store's items array
+  // IS the request array - so the pairing happens by index, BEFORE any
+  // filtering into scrap and bullion.
+  const rows = useMemo(() => {
+    const byIndex = new Map((quote?.items ?? []).map((line) => [line.index, line]))
+    return items.map((item, index) => ({ item, line: byIndex.get(index) }))
+  }, [items, quote])
+
+  const scrapRows = useMemo(
+    () => rows.filter((row): row is QuotedRow<'scrap'> => row.item.type === 'scrap'),
+    [rows]
+  )
+  const bullionRows = useMemo(
+    () => rows.filter((row): row is QuotedRow<'product'> => row.item.type === 'product'),
+    [rows]
+  )
+
+  const scrapTotal = useMemo(
+    () => scrapRows.reduce((acc, row) => acc + (row.line?.line_total ?? 0), 0),
+    [scrapRows]
+  )
+  const bullionTotal = useMemo(
+    () => bullionRows.reduce((acc, row) => acc + (row.line?.line_total ?? 0), 0),
+    [bullionRows]
+  )
 
   const total = useMemo(() => {
-    const baseTotal = items.reduce((acc, item) => {
-      if (item.type === 'product') {
-        const spot = spotPrices.find((s) => s.name === item.data.metal_type)
-        const price = getProductBidPrice(item.data, spot)
-        const quantity = item.data.quantity ?? 1
-        return acc + price * quantity
-      }
-
-      if (item.type === 'scrap') {
-        const spot = spotPrices.find((s) => s.name === item.data.metal)
-        const price = getScrapPrice(item.data.content ?? 0, item.data.bid_premium ?? 0, spot)
-        return acc + price
-      }
-
-      return acc
-    }, 0)
-
-    return baseTotal - (shippingCost ?? 0 + paymentCost)
-  }, [items, spotPrices, shippingCost, paymentCost])
-
-  const scrapTotal = useMemo(() => {
-    return scrapItems.reduce((acc, item) => {
-      const spot = spotPrices.find((s) => s.name === item.data.metal)
-      return acc + getScrapPrice(item.data.content ?? 0, item.data.bid_premium ?? 0, spot)
-    }, 0)
-  }, [scrapItems, spotPrices])
-
-  const bullionTotal = useMemo(() => {
-    return bullionItems.reduce((acc, item) => {
-      const spot = spotPrices.find((s) => s.name === item.data.metal_type)
-      return acc + getProductBidPrice(item.data, spot) * (item.data.quantity ?? 1)
-    }, 0)
-  }, [bullionItems, spotPrices])
+    return (quote?.total ?? 0) - (shippingCost ?? 0 + paymentCost)
+  }, [quote, shippingCost, paymentCost])
 
   const shippingRow = useMemo(() => {
     const label =
@@ -90,24 +89,24 @@ export default function ReviewItemTables() {
         </span>
       </div>
 
-      {scrapItems.length > 0 && (
+      {scrapRows.length > 0 && (
         <ItemAccordion
           label="Scrap"
           total={scrapTotal}
           open={open.scrap}
           toggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
-          rows={scrapItems}
+          rows={scrapRows}
           columns={scrapColumns}
         />
       )}
 
-      {bullionItems.length > 0 && (
+      {bullionRows.length > 0 && (
         <ItemAccordion
           label="Bullion"
           total={bullionTotal}
           open={open.bullion}
           toggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
-          rows={bullionItems}
+          rows={bullionRows}
           columns={bullionColumns}
         />
       )}
@@ -216,65 +215,57 @@ function ItemAccordion<T>({
   )
 }
 
-const scrapColumns: ColumnDef<Extract<SellCartItem, { type: 'scrap' }>>[] = [
+const scrapColumns: ColumnDef<QuotedRow<'scrap'>>[] = [
   {
     header: 'Name',
-    cell: ({ row }) => row.original.data.name || 'Unnamed',
+    cell: ({ row }) => row.original.item.data.name || 'Unnamed',
   },
   {
     header: 'Weight',
     cell: ({ row }) => (
       <div>
-        {row.original.data.pre_melt} {row.original.data.gross_unit}
+        {row.original.item.data.pre_melt} {row.original.item.data.gross_unit}
       </div>
     ),
   },
   {
     header: 'Purity',
-    cell: ({ row }) => <span>{(row.original.data.purity * 100).toFixed(2)}%</span>,
+    cell: ({ row }) => <span>{(row.original.item.data.purity * 100).toFixed(2)}%</span>,
   },
   {
     header: 'Rate',
-    cell: ({ row }) => <span>{formatRate(row.original.data.bid_premium)}</span>,
+    // The quote's premium is the rates-band resolution; the cart's own
+    // bid_premium only shows while no quote has landed.
+    cell: ({ row }) => (
+      <span>{formatRate(row.original.line?.premium ?? row.original.item.data.bid_premium)}</span>
+    ),
   },
   {
     header: 'Est. Value',
-    cell: ({ row }) => {
-      const { data: spotPrices = [] } = useSpotPrices()
-      const spot = spotPrices.find((s) => s.name === row.original.data.metal)
-
-      return (
-        <span className="font-normal text-right block w-full">
-          <PriceNumberFlow value={getScrapPrice(row.original.data.content ?? 0, row.original.data.bid_premium ?? 0, spot)} />
-        </span>
-      )
-    },
+    cell: ({ row }) => (
+      <span className="font-normal text-right block w-full">
+        <PriceNumberFlow value={row.original.line?.line_total ?? 0} />
+      </span>
+    ),
   },
 ]
 
-const bullionColumns: ColumnDef<Extract<SellCartItem, { type: 'product' }>>[] = [
+const bullionColumns: ColumnDef<QuotedRow<'product'>>[] = [
   {
     header: 'Qty',
-    cell: ({ row }) => row.original.data.quantity ?? 1,
+    cell: ({ row }) => row.original.item.data.quantity ?? 1,
   },
   {
     header: 'Name',
-    cell: ({ row }) => row.original.data.name,
+    cell: ({ row }) => row.original.item.data.name,
   },
   {
     header: 'Est. Value',
-    cell: ({ row }) => {
-      const { data: spotPrices = [] } = useSpotPrices()
-      const spot = spotPrices.find((s) => s.name === row.original.data.metal_type)
-
-      return (
-        <span className="font-normal text-right block w-full">
-          <PriceNumberFlow
-            value={getProductBidPrice(row.original.data, spot) * (row.original.data.quantity ?? 1)}
-          />
-        </span>
-      )
-    },
+    cell: ({ row }) => (
+      <span className="font-normal text-right block w-full">
+        <PriceNumberFlow value={row.original.line?.line_total ?? 0} />
+      </span>
+    ),
   },
 ]
 

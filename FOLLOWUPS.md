@@ -8069,3 +8069,48 @@ declared with reasoning, and the no-public-user-id scan caught the token
 `user_id` in a COMMENT - it slices a handler's body up to the next export,
 so the neighbouring handler's comment is scanned too. Both are the cart
 bug's check working exactly as written.
+
+## D82 — the frontend stops computing money
+
+Jacob's no-previews ruling executed across checkout and catalogue. Every
+number a customer sees now arrives from the quote endpoints; the client
+computes nothing. The patterns that made it clean, for the conversions
+still to come:
+
+- **Batch at the grid, never per card**: buy/page.tsx and BullionTab lift
+  ONE catalog quote over every visible product (BullionTab over the FULL
+  sell list so the query key survives filtering) and pass cards a
+  unit-prices-by-id map.
+- **Index alignment is a contract**: the purchase quote prices sell-cart
+  lines by request-array position, and itemTable pairs quote lines to
+  store lines BY INDEX BEFORE FILTERING - the store array IS the request
+  array, commented at every pairing site.
+- **First-paint guards over defaults**: paymentSelect early-returns while
+  no quote exists, because defaulting the total to 0 reads 0 >= funds and
+  wrongly flips a customer to CREDIT.
+- **The purchase quote went public** (my correction after b2's honest
+  gating): it prices what the business would pay, reads nothing about a
+  user, and the anonymous sell cart always showed estimates - the same
+  reasoning as the catalogue's bid side, now asserted in the replay tests
+  as anonymous-200-with-total.
+
+Util fates: getProductPrice, getProductBidPrice, both OverUnderSpot
+helpers, getScrapPrice and cart-getDeclaredValue are DELETED with their
+tests. resolveRate is KEPT for two hard reasons - api/shared/mirror.test.js
+pins it 1:1 against the API's copy, and its consumers (formatRate labels,
+retierScrap banding) are display and store mechanics, not money.
+calculateSalesOrderPrices + SalesOrderTotals + the purchaseOrderTotal
+family survive until the admin create drawer and the order drawers convert
+(slice c).
+
+FOR JACOB, three display-behavior calls preserved or created tonight:
+1. itemTable's fee expression `- (shippingCost ?? 0 + paymentCost)` binds
+   as `shippingCost ?? (0 + paymentCost)` - the payout fee is silently NOT
+   subtracted whenever shippingCost is set. Preserved verbatim: fixing it
+   changes displayed money.
+2. ProductPageDetails now shows Buyback $0.00 for sell_display=false
+   products - previously a client-computed price for something the
+   business would not buy.
+3. The admin create drawer's per-line preview prices at live quotes and no
+   longer reflects locked-spot overrides (the order math itself is
+   untouched and still honours locks).

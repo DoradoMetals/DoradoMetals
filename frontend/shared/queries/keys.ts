@@ -31,6 +31,9 @@ export const queryKeys = {
   address: () => ['address'] as const,
   userAddresses: (userId: string) => ['address', userId] as const,
   userAddressLinks: () => ['address', 'links'] as const,
+  catalogQuote: (items: unknown, side: string) => ['quote', 'catalog', side, JSON.stringify(items)] as const,
+  salesOrderQuote: (body: unknown) => ['quote', 'sales_order', JSON.stringify(body)] as const,
+  purchaseOrderQuote: (items: unknown) => ['quote', 'purchase_order', JSON.stringify(items)] as const,
   userAddressLinksFor: (userId: string) => ['address', 'links', userId] as const,
   places: (input: PlacesSuggestionsInput) => ['places', input] as const,
 

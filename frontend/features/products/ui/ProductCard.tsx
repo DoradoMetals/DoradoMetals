@@ -10,7 +10,6 @@ import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/Float
 
 import { useState } from 'react'
 import { cartStore } from '@/shared/store/cartStore'
-import getProductPrice from '@/features/products/utils/getProductPrice'
 
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Popover } from '@radix-ui/react-popover'
@@ -22,7 +21,6 @@ import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import getProductAskOverUnderSpot from '@/features/products/utils/getProductAskOverUnderSpot'
 import { useRouter } from 'next/navigation'
 import { ProductShadow } from '@/features/products/ui/ProductShadow'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -31,9 +29,13 @@ import { useSpotPrices } from '@/features/spots/queries'
 type ProductCardProps = {
   product: Product
   variants: Product[]
+  // The page's batch catalog quote, unit_price by product id - the page
+  // quotes ONCE for the whole grid and every selectable variant, so a card
+  // never fires its own request (see features/quotes/catalogPrices.ts).
+  unitPrices: Record<string, number>
 }
 
-export default function ProductCard({ product, variants }: ProductCardProps) {
+export default function ProductCard({ product, variants, unitPrices }: ProductCardProps) {
   const router = useRouter()
   const initialVariant =
     variants.length > 0 ? [...variants].sort((a, b) => b.content - a.content)[0] : product
@@ -53,9 +55,15 @@ export default function ProductCard({ product, variants }: ProductCardProps) {
   const { data: spotPrices = [] } = useSpotPrices()
 
   const spot = spotPrices.find((s) => s.name === product.metal_type)
-  const price = getProductPrice(selectedProduct, spot)
+  const price = unitPrices[selectedProduct.id] ?? 0
 
-  const overOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
+  // The popover's premium line, DERIVED: quoted unit_price minus melt
+  // (content * ticker ask). Same number the old client math (content * ask *
+  // (premium - 1)) showed whenever the quote and the ticker read the same
+  // spot tick; between their 10s refreshes it can differ by content * the
+  // spot's movement. Zero until the quote lands, so a loading card never
+  // shows melt as a discount.
+  const overOrUnder = price === 0 ? 0 : price - selectedProduct.content * (spot?.ask ?? 0)
   return (
     <div
       role="button"

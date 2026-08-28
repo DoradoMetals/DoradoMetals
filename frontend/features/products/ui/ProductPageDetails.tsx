@@ -7,17 +7,14 @@ import { ChevronDown, Equal, Minus, Plus, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { cartStore } from '@/shared/store/cartStore'
-import getProductPrice from '@/features/products/utils/getProductPrice'
-import getProductBidPrice from '@/features/products/utils/getProductBidPrice'
 
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import getProductAskOverUnderSpot from '@/features/products/utils/getProductAskOverUnderSpot'
 import {
   CheckCircleIcon,
   CircleIcon,
@@ -28,8 +25,8 @@ import {
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { Lens } from '@/shared/ui/base/lens'
 import { paymentOptions, salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
-import getProductBidOverUnderSpot from '@/features/products/utils/getProductBidOverUnderSpot'
 import { useSpotPrices } from '@/features/spots/queries'
+import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 type ProductPageProps = {
@@ -74,16 +71,30 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
   const spot = spotPrices.find((s) => s.name === product.metal_type)
 
-  const askOverOrUnder = getProductAskOverUnderSpot(selectedProduct, spot)
-  const bidOverOrUnder = getProductBidOverUnderSpot(selectedProduct, spot)
+  // The page's own single-item quotes, one per side, re-quoted when the
+  // selected variant changes. Each side only where the product is live in it:
+  // ask is gated on `display` (already true - the slug read itself filters
+  // it), bid on `sell_display`, because the server refuses the gated side
+  // with a 400 rather than pricing it. A product not for sale back quotes a
+  // buyback of zero.
+  const { data: askQuote } = useCatalogQuote([{ id: selectedProduct.id }], 'ask')
+  const { data: bidQuote } = useCatalogQuote(
+    selectedProduct.sell_display ? [{ id: selectedProduct.id }] : [],
+    'bid'
+  )
 
-  const price = useMemo(() => {
-    return getProductPrice(selectedProduct, spot)
-  }, [spot, selectedProduct])
+  const price = askQuote?.items[0]?.unit_price ?? 0
+  const buybackPrice = bidQuote?.items[0]?.unit_price ?? 0
 
-  const buybackPrice = useMemo(() => {
-    return getProductBidPrice(selectedProduct, spot)
-  }, [spot, selectedProduct])
+  // The breakdowns' premium lines, DERIVED as on the cards: quoted price
+  // minus melt (content * ticker spot). Identical to the old client math
+  // (content * spot * (premium - 1)) whenever the quote and the ticker read
+  // the same spot tick; between their 10s refreshes they can differ by
+  // content * the spot's movement. Zero until a quote lands.
+  const askOverOrUnder =
+    price === 0 ? 0 : price - selectedProduct.content * (spot?.ask ?? 0)
+  const bidOverOrUnder =
+    buybackPrice === 0 ? 0 : buybackPrice - selectedProduct.content * (spot?.bid ?? 0)
 
   return (
     <div>

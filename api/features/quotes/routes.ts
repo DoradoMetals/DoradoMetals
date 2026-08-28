@@ -18,6 +18,10 @@ const router = express.Router();
 // they take requireUser.
 router.post("/catalog", catalogQuote);
 router.post("/sales_order", requireUser, salesOrderQuote);
-router.post("/purchase_order", requireUser, purchaseOrderQuote);
+// Public like the catalogue's bid side, and for the same reason: this prices
+// what the business would pay for goods a visitor is still weighing, reads
+// nothing about a user, and the anonymous sell-cart always showed estimates.
+// The sales-order quote stays guarded - it prices against the caller's funds.
+router.post("/purchase_order", purchaseOrderQuote);
 
 export default router;

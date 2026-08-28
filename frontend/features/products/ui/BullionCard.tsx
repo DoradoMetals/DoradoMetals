@@ -8,12 +8,10 @@ import NumberFlow from '@number-flow/react'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { BullionFloatingButton, BullionFloatingButtonItem } from '@/features/products/ui/FloatingButton'
 import { useState } from 'react'
-import getProductBidPrice from '@/features/products/utils/getProductBidPrice'
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Popover } from '@radix-ui/react-popover'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import getProductBidOverUnderSpot from '@/features/products/utils/getProductBidOverUnderSpot'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useSpotPrices } from '@/features/spots/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -21,9 +19,13 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 type BullionCardProps = {
   product: Product
   variants: Product[]
+  // The page's batch catalog quote (bid side), unit_price by product id - the
+  // page quotes ONCE for the whole list and every selectable variant, so a
+  // card never fires its own request (see features/quotes/catalogPrices.ts).
+  unitPrices: Record<string, number>
 }
 
-export default function BullionCard({ product, variants }: BullionCardProps) {
+export default function BullionCard({ product, variants, unitPrices }: BullionCardProps) {
   const initialVariant =
     variants.length > 0 ? [...variants].sort((a, b) => b.content - a.content)[0] : product
 
@@ -45,9 +47,14 @@ export default function BullionCard({ product, variants }: BullionCardProps) {
   const { data: spotPrices = [] } = useSpotPrices()
 
   const spot = spotPrices.find((s) => s.name === selectedProduct.metal_type)
-  const price = getProductBidPrice(selectedProduct, spot)
+  const price = unitPrices[selectedProduct.id] ?? 0
 
-  const overOrUnder = getProductBidOverUnderSpot(selectedProduct, spot)
+  // DERIVED, like ProductCard's ask popover: quoted unit_price minus melt
+  // (content * ticker bid) is the same over/under the old client math
+  // (content * bid * (premium - 1)) showed whenever the quote and the ticker
+  // read the same spot tick; between their 10s refreshes it can differ by
+  // content * the spot's movement. Zero until the quote lands.
+  const overOrUnder = price === 0 ? 0 : price - selectedProduct.content * (spot?.bid ?? 0)
   const isOver = overOrUnder >= 0
 
   return (

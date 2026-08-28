@@ -21,7 +21,6 @@ import { Product } from '@/features/products/types'
 import Image from 'next/image'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/ui/base/button'
-import getProductPrice from '@/features/products/utils/getProductPrice'
 import NumberFlow from '@number-flow/react'
 import { SpotPrice } from '@/features/spots/types'
 import { useEffect, useMemo, useState, useTransition } from 'react'
@@ -35,6 +34,7 @@ import { Switch } from '@/shared/ui/base/switch'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { useUserAddress, useUserAddressLinks } from '@/features/addresses/queries'
 import { useSpotPrices } from '@/features/spots/queries'
+import { useCatalogQuote } from '@/features/quotes/queries'
 import { useSalesTax } from '@/features/sales-tax/queries'
 import { useProducts } from '@/features/products/queries'
 import { useAdminCreateSalesOrder } from '@/features/orders/salesOrders/admin/queries'
@@ -196,8 +196,17 @@ function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
 function ProductSelector() {
   const { data: products = [] } = useProducts()
   const { data, setData } = useAdminSalesOrderCheckoutStore()
-  const spots = data.order_metals ?? []
   const items = data.items ?? []
+
+  // The per-line preview is the server's ask quote, batched over the picked
+  // items. It prices from LIVE server spots: the drawer's locked spot
+  // overrides feed the order math above (calculateSalesOrderPrices), never
+  // this preview.
+  const { data: quote } = useCatalogQuote(
+    items.map((i) => ({ id: i.id, quantity: i.quantity ?? 1 })),
+    'ask'
+  )
+  const lineTotals = new Map((quote?.items ?? []).map((line) => [line.id, line.line_total]))
 
   function addItem(item: Product) {
     const existing = data.items ?? []
@@ -245,8 +254,7 @@ function ProductSelector() {
       <div className="w-full flex-col">
         <div className="flex-col gap-5">
           {items.map((item, index) => {
-            const spot = spots.find((s) => s.name === item.metal_type)
-            const price = getProductPrice(item, spot)
+            const lineTotal = lineTotals.get(item.id) ?? 0
             const quantity = item.quantity ?? 1
 
             return (
@@ -310,7 +318,7 @@ function ProductSelector() {
                       </Button>
                     </div>
                     <div className="text-neutral-800 text-base">
-                      <PriceNumberFlow value={price * quantity} />
+                      <PriceNumberFlow value={lineTotal} />
                     </div>
                   </div>
                 </div>

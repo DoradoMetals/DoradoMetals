@@ -1,12 +1,13 @@
 // The two catalogue cards, rendered - the buy side and the sell side.
 //
 // Same rules as media and spots: jsdom, real component tree, real zustand
-// stores, real pricing utils, with the network boundary and the heavy
+// stores, real quote hook, with the network boundary and the heavy
 // presentation libraries (swiper, next/image, NumberFlow) shimmed. What is
-// pinned survives the products wire rename: the card shows the product's
-// name, prices it off the LIVE spot side it is for (ask to buy, bid to
-// sell), and add-to-cart puts the product in the right store keyed so a
-// second add increments rather than duplicates.
+// pinned survives the quotes conversion: the card shows the product's name,
+// its price is the SERVER'S QUOTED unit_price for the side it is for (ask to
+// buy, bid to sell) and never a client computation, and add-to-cart puts the
+// product in the right store keyed so a second add increments rather than
+// duplicates.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -43,6 +44,8 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 import { apiRequest } from "@/shared/queries/axios";
 import { cartStore } from "@/shared/store/cartStore";
 import { sellCartStore } from "@/shared/store/sellCartStore";
+import { useCatalogQuote } from "@/features/quotes/queries";
+import { catalogQuoteItems, unitPricesById } from "@/features/quotes/catalogPrices";
 import ProductCard from "@/features/products/ui/ProductCard";
 import BullionCard from "@/features/products/ui/BullionCard";
 import type { Product } from "@/features/products/types";
@@ -52,13 +55,12 @@ const renderWithClient = (ui: React.ReactElement) => {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 };
 
-// One gold eagle, in the CURRENT wire shape. The premiums are exact binary
-// fractions so the price strings render without floating-point tails:
-// ask 3000 * 1.5 = 4500 to buy, bid 2900 * 0.5 = 1450 to sell - distinct
-// enough that a price can only have come from the side it means.
+// One gold eagle, in the CURRENT wire shape. The card's price comes from the
+// quote, so the product's own premiums exist only to feed the accidental
+// client math this file guards against.
 const eagle = (): Product =>
   ({
-    id: "p-1",
+    id: "11111111-1111-4111-8111-111111111111",
     name: "Gold American Eagle",
     description: "One ounce of gold",
     type: "Coin",
@@ -85,24 +87,63 @@ const liveSpots = () => [
   { id: "m-au", name: "Gold", ask: 3000, bid: 2900, dollar_change: 1, percent_change: 0.1 },
 ];
 
+// The quoted unit prices are DELIBERATELY not what the client math would
+// compute from the fixture spots (content * 3000 * 1.5 = 4500 ask,
+// content * 2900 * 0.5 = 1450 bid): a card showing 4501.25 or 1449.75 can
+// only have read the quote, never multiplied premiums itself.
+const quotedLine = (id: string, side: "ask" | "bid") => {
+  const unit_price = side === "ask" ? 4501.25 : 1449.75;
+  return { id, quantity: 1, unit_price, line_total: unit_price };
+};
+
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockResolvedValue(liveSpots());
+  // URL-discriminated: the spot ticker and the quote surface are different
+  // endpoints answering different questions, and the quote answers by side.
+  vi.mocked(apiRequest).mockImplementation(async (_m, url, body) => {
+    if (url === "/spots/spot_prices") return liveSpots();
+    if (url === "/quotes/catalog") {
+      const { items, side } = body as { items: { id: string }[]; side: "ask" | "bid" };
+      const lines = items.map((i) => quotedLine(i.id, side));
+      return {
+        side,
+        spots_at: "2026-08-27T00:00:00.000Z",
+        items: lines,
+        total: lines.reduce((acc, l) => acc + l.line_total, 0),
+      };
+    }
+    return {};
+  });
   localStorage.clear();
   cartStore.setState({ items: [] });
   sellCartStore.setState({ items: [] });
 });
 
+// The cards take their prices as a map the PAGE quotes once for the whole
+// grid (app/buy/page.tsx, BullionTab). These harnesses are that page logic at
+// its smallest: the same hook, the same helpers, one group.
+function QuotedProductCard({ product, variants }: { product: Product; variants: Product[] }) {
+  const { data } = useCatalogQuote(catalogQuoteItems([{ default: product, variants }]), "ask");
+  return <ProductCard product={product} variants={variants} unitPrices={unitPricesById(data)} />;
+}
+
+function QuotedBullionCard({ product, variants }: { product: Product; variants: Product[] }) {
+  const { data } = useCatalogQuote(catalogQuoteItems([{ default: product, variants }]), "bid");
+  return <BullionCard product={product} variants={variants} unitPrices={unitPricesById(data)} />;
+}
+
 describe("the buy card", () => {
-  test("shows the product and prices it at ask * premium", async () => {
-    renderWithClient(<ProductCard product={eagle()} variants={[]} />);
+  test("shows the product and prices it at the quoted ask unit_price", async () => {
+    renderWithClient(<QuotedProductCard product={eagle()} variants={[]} />);
     expect(screen.getAllByText("Gold American Eagle").length).toBeGreaterThan(0);
-    // content 1 * (ask 3000 * ask_premium 1.5)
-    await waitFor(() => expect(screen.getAllByText("4500").length).toBeGreaterThan(0));
+    // The server's number, not content * ask * premium (which would be 4500).
+    await waitFor(() => expect(screen.getAllByText("4501.25").length).toBeGreaterThan(0));
   });
 
   test("add to cart puts the product in the cart store, and a second add increments", async () => {
-    const { container } = renderWithClient(<ProductCard product={eagle()} variants={[]} />);
+    const { container } = renderWithClient(
+      <ProductCard product={eagle()} variants={[]} unitPrices={{}} />
+    );
     // The whole card is role="button" and its accessible name contains every
     // word on it - anchor the match so it can only be the real control.
     await userEvent.click(screen.getByRole("button", { name: /^add to cart$/i }));
@@ -122,15 +163,15 @@ describe("the buy card", () => {
 });
 
 describe("the sell card", () => {
-  test("shows the product and prices it at bid * premium", async () => {
-    renderWithClient(<BullionCard product={eagle()} variants={[]} />);
+  test("shows the product and prices it at the quoted bid unit_price", async () => {
+    renderWithClient(<QuotedBullionCard product={eagle()} variants={[]} />);
     expect(screen.getAllByText("Gold American Eagle").length).toBeGreaterThan(0);
-    // content 1 * (bid 2900 * bid_premium 0.5)
-    await waitFor(() => expect(screen.getAllByText("1450").length).toBeGreaterThan(0));
+    // The server's number, not content * bid * premium (which would be 1450).
+    await waitFor(() => expect(screen.getAllByText("1449.75").length).toBeGreaterThan(0));
   });
 
   test("add to sell cart stores a product-kind line", async () => {
-    renderWithClient(<BullionCard product={eagle()} variants={[]} />);
+    renderWithClient(<BullionCard product={eagle()} variants={[]} unitPrices={{}} />);
     await userEvent.click(screen.getByRole("button", { name: /^add to sell cart$/i }));
     const items = sellCartStore.getState().items;
     expect(items).toHaveLength(1);

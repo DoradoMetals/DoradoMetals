@@ -15,8 +15,7 @@ import { useGetSession } from '@/features/auth/queries'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 
 import { useAddress, useUserAddresses } from '@/features/addresses/queries'
-import { useSpotPrices } from '@/features/spots/queries'
-import { getDeclaredValue } from '@/features/checkout/utils/getDeclaredValue'
+import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 
 import { useShippingRates } from '@/features/shipping/queries'
 import { useGetRatesInput } from '@/features/shipping/utils/getRatesInput'
@@ -38,12 +37,16 @@ export default function CheckoutStepper() {
   const { user } = useGetSession()
   const { data: addresses = [] } = useAddress()
   const { data, setData } = usePurchaseOrderCheckoutStore()
-  const { data: spotPrices = [] } = useSpotPrices()
   const items = sellCartStore((state) => state.items)
 
-  const declaredValue = useMemo(() => {
-    return getDeclaredValue(items, spotPrices)
-  }, [items, spotPrices])
+  // The store's items ARE the quote request array - lines come back matched
+  // by request index, so nothing may filter or reorder between here and there.
+  const { data: quote } = usePurchaseOrderQuote(items)
+
+  // The quote's declared_value is uncapped; $50,000 is FedEx's declared-value
+  // ceiling (PurchaseOrderQuoteWire's own note), applied here because this
+  // number is what the label's insurance is bought with.
+  const declaredValue = Math.min(quote?.declared_value ?? 0, 50000)
 
   useEffect(() => {
     if (!data.insurance?.insured) return
