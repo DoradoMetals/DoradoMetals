@@ -17,6 +17,7 @@ import type {
   CatalogQuoteWire,
   SalesOrderQuoteWire,
   PurchaseOrderQuoteWire,
+  OrderQuoteWire,
 } from '@dorado/contracts'
 
 export type CatalogQuoteItem = { id: string; quantity?: number }
@@ -77,4 +78,19 @@ export const usePurchaseOrderQuote = (items: PurchaseOrderQuoteLine[], enabled =
     placeholderData: (prev) => prev,
     request: async () =>
       apiRequest<PurchaseOrderQuoteWire>('POST', '/quotes/purchase_order', items ? { items } : { items: [] }),
+  })
+
+// An EXISTING purchase order, priced by the server - the order drawers' line
+// prices, subtotals and total. Guarded: the API's requireOwnOrder answers the
+// owner and admins only, so requireUser is true unlike the goods quotes.
+// Stored (accepted) prices come back flagged "stored"; everything else is an
+// estimate at the order's locked spots when it has them, live spots when not.
+export const useOrderQuote = (order_id: string, enabled = true) =>
+  useApiQuery<OrderQuoteWire>({
+    key: queryKeys.orderQuote(order_id),
+    requireUser: true,
+    enabled: enabled && !!order_id,
+    refetchInterval: 10_000,
+    placeholderData: (prev) => prev,
+    request: async () => apiRequest<OrderQuoteWire>('POST', '/quotes/order', { order_id }),
   })

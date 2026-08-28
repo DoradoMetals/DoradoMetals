@@ -346,6 +346,18 @@ add("POST /quotes/purchase_order", c.PurchaseOrderQuoteWire, () =>
   false
 );
 
+// The order quote prices a REAL stored order - the drawers' read behind one
+// id - so it is parsed against the oldest dev purchase order, the same stable
+// fixture the ownership tests pick. Checked one way like the other quotes:
+// computed shape, one implementation, nothing stored underneath the response.
+const { rows: quotableOrders } = await pool.query(
+  `SELECT id FROM exchange.purchase_orders ORDER BY created_at ASC, id ASC LIMIT 1`
+);
+add("POST /quotes/order", c.OrderQuoteWire, () =>
+  quotableOrders.length ? quotesService.orderQuote({ order_id: quotableOrders[0].id }) : [],
+  false
+);
+
 let pass = 0;
 const failures = [];
 

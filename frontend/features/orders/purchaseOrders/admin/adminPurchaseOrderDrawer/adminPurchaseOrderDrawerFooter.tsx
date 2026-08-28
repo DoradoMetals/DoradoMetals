@@ -22,21 +22,23 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
 import { payoutOptions } from '@/features/payouts/types'
-import getPurchaseOrderBullionTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderBullionTotal'
 import { formatRate } from '@/features/rates/utils/resolveRate'
-import getPurchaseOrderScrapTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderScrapTotal'
-import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
-import getPurchaseOrderBullionPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderBullionPrice'
-import getPurchaseOrderScrapPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderScrapPrice'
-import { useSpotPrices } from '@/features/spots/queries'
-import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
+// Every dollar figure below comes from the order quote - the server prices
+// the order's own items at its own spots, honouring a lock (Jacob's
+// no-previews ruling). The client keeps only weight/rate display math.
+import { useOrderQuote } from '@/features/quotes/queries'
 
 export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
   const valueLabel = statusConfig[order.purchase_order_status]?.value_label ?? ''
   const statusColor = 'text-primary'
 
-  const { data: spotPrices = [] } = useSpotPrices()
-  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
+  const { data: quote } = useOrderQuote(order.id)
+  // Quote lines pair to order items BY ID - these are stored rows, unlike the
+  // sell-cart quote's index pairing.
+  const quoteLineById = useMemo(
+    () => new Map((quote?.items ?? []).map((line) => [line.id, line])),
+    [quote]
+  )
 
   const [open, setOpen] = useState({
     scrap: false,
@@ -51,17 +53,11 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
   const payoutMethod = payoutOptions.find((p) => p.method === order.payout?.method)
   const payoutFee = order.payout.cost
 
-  const total = useMemo(() => {
-    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices)
-  }, [order, spotPrices, orderSpotPrices])
-
-  const scrapTotal = useMemo(() => {
-    return getPurchaseOrderScrapTotal(scrapItems, spotPrices, orderSpotPrices)
-  }, [scrapItems, spotPrices, orderSpotPrices])
-
-  const bullionTotal = useMemo(() => {
-    return getPurchaseOrderBullionTotal(bullionItems, spotPrices, orderSpotPrices)
-  }, [bullionItems, spotPrices, orderSpotPrices])
+  // 0 until the first quote lands, which is what the old client math showed
+  // before the spot feed loaded; placeholderData keeps later ticks flicker-free.
+  const total = quote?.total ?? 0
+  const scrapTotal = quote?.scrap_total ?? 0
+  const bullionTotal = quote?.bullion_total ?? 0
 
   return (
     <div className="flex flex-col w-full gap-2">
@@ -101,12 +97,9 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                         ).toFixed(3)}{' '}
                       </TableCell>
                       <TableCell className="text-right">
-                        <PriceNumberFlow
-                          value={
-                            item.price ??
-                            getPurchaseOrderScrapPrice(item, spotPrices, orderSpotPrices)
-                          }
-                        />
+                        {/* Scrap line_total is the whole line - content is not
+                            multiplied by quantity - and honours a stored price. */}
+                        <PriceNumberFlow value={quoteLineById.get(item.id)?.line_total ?? 0} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -129,18 +122,8 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                       <TableCell>{item.quantity}</TableCell>
                       <TableCell>{item.product?.product_name}</TableCell>
                       <TableCell className="text-right p-0">
-                        <PriceNumberFlow
-                          value={
-                            item.quantity *
-                            (item.price ??
-                              getPurchaseOrderBullionPrice(
-                                item.product!,
-                                spotPrices,
-                                orderSpotPrices,
-                                item.premium ?? null
-                              ))
-                          }
-                        />
+                        {/* line_total is already unit_price * quantity. */}
+                        <PriceNumberFlow value={quoteLineById.get(item.id)?.line_total ?? 0} />
                       </TableCell>
                     </TableRow>
                   ))}

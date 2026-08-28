@@ -3,8 +3,14 @@ import {
   catalogQuote,
   salesOrderQuote,
   purchaseOrderQuote,
+  orderQuote,
 } from "#features/quotes/controller.ts";
 import { requireUser } from "#shared/middleware/authMiddleware.ts";
+// The order quote prices an EXISTING order by id, so it needs what every
+// order route needs: not just a session but ownership - a customer may only
+// quote their own order, an admin any. Same guard, same body spelling
+// (order_id is one of the four requireOwnOrder reads).
+import { requireOwnOrder } from "#shared/middleware/ownership.ts";
 
 const router = express.Router();
 
@@ -23,5 +29,9 @@ router.post("/sales_order", requireUser, salesOrderQuote);
 // nothing about a user, and the anonymous sell-cart always showed estimates.
 // The sales-order quote stays guarded - it prices against the caller's funds.
 router.post("/purchase_order", purchaseOrderQuote);
+// GUARDED, unlike the two goods quotes: this one names a stored order and
+// answers with what that order is worth, which is the owner's business and
+// the admins' and nobody else's.
+router.post("/order", requireUser, requireOwnOrder, orderQuote);
 
 export default router;

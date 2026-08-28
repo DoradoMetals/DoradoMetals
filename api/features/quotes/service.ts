@@ -25,6 +25,7 @@ import * as taxService from "#features/sales-tax/service.ts";
 import * as addressService from "#features/places/addresses/service.ts";
 import * as ratesService from "#features/rates/service.ts";
 import * as checkoutRepo from "#features/checkout/repo.next.ts";
+import * as purchaseOrdersService from "#features/purchase-orders/service.ts";
 import {
   calculateItemAsk,
   calculateSalesOrderTotal,
@@ -457,4 +458,162 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
   // D59 records for the client-side pricing family this replaces. A caller
   // insuring a shipment still owes FedEx Math.min(total, 50000).
   return { spots_at, items: quoted, total, declared_value: total };
+}
+
+
+// ------------------------------------------------------- existing order
+
+export type OrderQuoteLine = {
+  id: string;
+  kind: "product" | "scrap";
+  source: "stored" | "estimate";
+  premium: number;
+  unit_price: number;
+  line_total: number;
+};
+
+export type OrderQuote = {
+  order_id: string;
+  spots_at: string;
+  items: OrderQuoteLine[];
+  scrap_total: number;
+  bullion_total: number;
+  total: number;
+};
+
+// An EXISTING purchase order, priced - the order-drawer estimate the
+// frontend's purchaseOrderTotal family computed client-side until this
+// existed. Loaded through purchaseOrdersService.getById, the same repo-switch
+// read GET get_purchase_orders serves the drawers from, so the items and
+// premiums quoted are exactly the ones displayed. The route in front of this
+// carries requireOwnOrder; nothing here re-checks ownership, and nothing in
+// the body is read except the order id.
+//
+// WHICH SPOTS. Per metal: the order's OWN frozen bid (order_metals.bid_spot,
+// via getMetalsForOrder) when it is set, else the live pricing spot. That is
+// the frontend rule this replaces - `orderSpot?.bid ?? globalSpot?.bid ?? 0`
+// in every family member - and it is equivalent to how acceptOrder chooses
+// (`order.spots_locked ? order_spots : spot_prices`), because lockSpots is
+// what writes bid_spot into order_metals and unlockSpots/cancel clear it
+// back to NULL: a non-null frozen bid IS the locked state, per metal. So a
+// locked order estimates at its locked spots, an unlocked one at live, and
+// an admin's per-metal update_spot override is honoured the way the drawer
+// honoured it.
+//
+// STORED BEFORE ESTIMATE. item.price is the number the accept flow froze;
+// where it is set it is returned verbatim and flagged "stored". Estimates
+// mirror the drawers' own fallback chains EXACTLY so no displayed number
+// shifts:
+//   product: content * bid * (item.premium ?? product.bid_premium ?? 0)
+//     (getPurchaseOrderBullionPrice), line_total = unit * (quantity ?? 1)
+//   scrap:   content * bid * (item.premium ?? scrap.bid_premium ?? 1)
+//     (getPurchaseOrderScrapPrice), content covers the whole line so
+//     quantity does not multiply
+// scrap_total and bullion_total are sums of those lines. The legacy
+// purchaseOrderScrapTotal used `premium ?? 1` with NO bid_premium fallback,
+// so its subtotal could disagree with its own lines when premium was null;
+// the sum-of-lines here keeps the subtotal equal to what the rows show.
+// Zero production scrap lines carry a null premium (see the header of
+// purchase-orders/utils/calculations.ts), so no live number moves.
+//
+// A metal with no spot anywhere prices at 0 rather than throwing - the
+// stance of the display math this replaces (`?? 0` in every family member),
+// NOT calculateTotalPrice's deliberate TypeError: this is a drawer estimate
+// for an order that already exists, and the drawer must render. The accept
+// path keeps its throw.
+export async function orderQuote(body: Body): Promise<OrderQuote> {
+  const order_id = body?.order_id;
+  if (typeof order_id !== "string" || !UUID.test(order_id)) {
+    throw badRequest("no order was named");
+  }
+
+  const order = (await purchaseOrdersService.getById(order_id)) as
+    | Record<string, any>
+    | null
+    | undefined;
+  if (!order) {
+    // requireOwnOrder answers 403 for a customer naming an order that is not
+    // theirs or does not exist; only an admin (or a sales-order id, which the
+    // guard also owns) reaches this.
+    const err: HttpError = new Error("no such purchase order");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const [liveSpots, orderSpots] = await Promise.all([
+    spotsService.getPricingSpots(),
+    purchaseOrdersService.getMetalsForOrder(order_id),
+  ]);
+  const spots_at = new Date().toISOString();
+
+  // Exact-match on the metal name, the way the family and calculateTotalPrice
+  // both find their spot rows.
+  const bidFor = (metal: unknown): number => {
+    const pinned = orderSpots.find((s) => s.type === metal)?.bid_spot;
+    if (pinned != null) return Number(pinned);
+    return Number(liveSpots.find((s) => s.type === metal)?.bid_spot ?? 0);
+  };
+
+  const rawItems: Body[] = Array.isArray(order.order_items) ? order.order_items : [];
+  const items: OrderQuoteLine[] = [];
+  let scrap_total = 0;
+  let bullion_total = 0;
+
+  for (const item of rawItems) {
+    if (item?.item_type === "product") {
+      const premium = Number(item.premium ?? item.product?.bid_premium ?? 0);
+      const stored = item.price != null;
+      const unit_price = stored
+        ? Number(item.price)
+        : Number(item.product?.content ?? 0) * (bidFor(item.product?.metal_type) * premium);
+      // A stored price is PER UNIT: every consumer of it - the footers,
+      // purchaseOrderTotal, calculateTotalPrice - multiplies by quantity.
+      const line_total = unit_price * Number(item.quantity ?? 1);
+      bullion_total += line_total;
+      items.push({
+        id: item.id,
+        kind: "product",
+        source: stored ? "stored" : "estimate",
+        premium,
+        unit_price,
+        line_total,
+      });
+      continue;
+    }
+
+    if (item?.item_type === "scrap") {
+      const premium = Number(item.premium ?? item.scrap?.bid_premium ?? 1);
+      const stored = item.price != null;
+      const unit_price = stored
+        ? Number(item.price)
+        : Number(item.scrap?.content ?? 0) * (bidFor(item.scrap?.metal) * premium);
+      const line_total = unit_price;
+      scrap_total += line_total;
+      items.push({
+        id: item.id,
+        kind: "scrap",
+        source: stored ? "stored" : "estimate",
+        premium,
+        unit_price,
+        line_total,
+      });
+      continue;
+    }
+
+    // item_type 'unknown' - a line with neither foreign key. Skipped, which
+    // is purchaseOrderTotal's fall-through: it never displayed and never
+    // priced.
+  }
+
+  // The drawers' bottom line, purchaseOrderTotal's own expression: items
+  // minus the shipping charge and the payout cost, both stored fields of the
+  // order read above. `?? 0` where the frontend wrote `order.payout.cost`
+  // bare - JS subtracts null as zero, and the exchange read builds payout
+  // via jsonb_build_object so an orphaned order carries nulls, not a missing
+  // object.
+  const shipping = Number(order.shipment?.shipping_charge ?? 0);
+  const payoutCost = Number(order.payout?.cost ?? 0);
+  const total = scrap_total + bullion_total - shipping - payoutCost;
+
+  return { order_id, spots_at, items, scrap_total, bullion_total, total };
 }

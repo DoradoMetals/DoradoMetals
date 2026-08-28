@@ -96,3 +96,37 @@ export const PurchaseOrderQuoteWire = z.object({
   declared_value: z.number(),
 });
 export type PurchaseOrderQuoteWire = z.infer<typeof PurchaseOrderQuoteWire>;
+
+// One line of an EXISTING purchase order, priced. `id` is the order item's
+// own id - unlike the sell-cart quote these lines are stored rows, so the
+// pairing key is the row and not the request position. `source` says which
+// side of the accept boundary the number came from: "stored" is the price
+// the accept flow froze onto the item, returned verbatim; "estimate" is
+// content * bid_spot * premium computed on request. `premium` is the
+// resolved fraction that multiplied into an estimate (for a stored line it
+// is the same chain, reported for display); never null - the fallback
+// chains bottom out at the frontend defaults this surface replaced.
+export const OrderQuoteLineWire = z.object({
+  id: z.string().uuid(),
+  kind: z.enum(["product", "scrap"]),
+  source: z.enum(["stored", "estimate"]),
+  premium: z.number(),
+  unit_price: z.number(),
+  line_total: z.number(),
+});
+export type OrderQuoteLineWire = z.infer<typeof OrderQuoteLineWire>;
+
+// POST /quotes/order. What an existing purchase order is worth right now -
+// the order-drawer estimate the purchaseOrderTotal family used to compute
+// client-side. Guarded: a caller may only quote an order they own, admins
+// any. `total` mirrors the drawers' bottom line: scrap_total + bullion_total
+// minus the order's shipping charge and payout cost, both stored fields.
+export const OrderQuoteWire = z.object({
+  order_id: z.string().uuid(),
+  spots_at: z.string(),
+  items: z.array(OrderQuoteLineWire),
+  scrap_total: z.number(),
+  bullion_total: z.number(),
+  total: z.number(),
+});
+export type OrderQuoteWire = z.infer<typeof OrderQuoteWire>;

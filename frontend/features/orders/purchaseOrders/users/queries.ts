@@ -8,8 +8,7 @@ import {
 import { SpotPrice } from '@/features/spots/types'
 import { OrderSpot, OrderSpotWire, orderSpotFromWire } from '@/features/orders/orderSpots'
 import { orderAddressToWire } from '@/features/orders/orderAddresses'
-import getPurchaseOrderItemPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderItemPrice'
-import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
+import { queryKeys } from '@/shared/queries/keys'
 import { payoutOptions } from '@/features/payouts/types'
 import { packageOptions } from '@/features/packaging/types'
 import { useGetSession } from '@/features/auth/queries'
@@ -180,6 +179,9 @@ export const useCancelOrder = () => {
           refetchType: 'active',
         })
       }
+      // Cancelling clears the spot pin, which reprices the estimate; the
+      // quote is the only price source, so refetch it rather than compute.
+      queryClient.invalidateQueries({ queryKey: queryKeys.orderQuotes(), refetchType: 'active' })
     },
   })
 }

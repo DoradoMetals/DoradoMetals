@@ -34,6 +34,10 @@ export const queryKeys = {
   catalogQuote: (items: unknown, side: string) => ['quote', 'catalog', side, JSON.stringify(items)] as const,
   salesOrderQuote: (body: unknown) => ['quote', 'sales_order', JSON.stringify(body)] as const,
   purchaseOrderQuote: (items: unknown) => ['quote', 'purchase_order', JSON.stringify(items)] as const,
+  // One EXISTING order's server-priced estimate; orderQuotes is the prefix
+  // mutations invalidate - only actively-mounted drawers refetch.
+  orderQuote: (order_id: string) => ['quote', 'order', order_id] as const,
+  orderQuotes: () => ['quote', 'order'] as const,
   userAddressLinksFor: (userId: string) => ['address', 'links', userId] as const,
   places: (input: PlacesSuggestionsInput) => ['places', input] as const,
 

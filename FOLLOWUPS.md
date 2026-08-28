@@ -8114,3 +8114,29 @@ FOR JACOB, three display-behavior calls preserved or created tonight:
 3. The admin create drawer's per-line preview prices at live quotes and no
    longer reflects locked-spot overrides (the order math itself is
    untouched and still honours locks).
+
+## D83 — the order drawers read the server's numbers
+
+POST /quotes/order closes the drawer gap: stored item prices come back
+verbatim flagged "stored"; a pending item's estimate prices at
+order_metals.bid_spot when set, else the live pricing spot - which is
+simultaneously the frontend rule it replaces and acceptOrder's own
+spots_locked choice, because lockSpots is what writes bid_spot and unlock
+clears it. Ownership mirrors requireOwnOrder; the poisoned-body pin rides a
+whole fake order object along and changes nothing. Drawer lines pair BY ID
+(stored rows have them - unlike D82's sell-cart index pairing, and the
+distinction is the rule: index for request-shaped arrays, id for stored
+ones). Admin pricing-input mutations invalidate the order quote and
+refetch; nothing optimistically prices anymore.
+
+Six of the purchaseOrderTotal family are deleted with their tests, plus
+the empty calculatePurchaseOrder.ts stray. TWO survivors, both deliberate:
+calculatePurchaseOrderTotals stays because viewProfitBreakdown computes
+THREE-PARTY PROFIT SHARES - customer/dorado/refiner margins - and serving
+that through a customer-reachable endpoint would hand customers the
+business's margins; it needs its own ADMIN-ONLY endpoint (follow-up).
+calculateSalesOrderPrices + SalesOrderTotals stay for
+createSalesOrderDrawer's locked-spot order math (the admin create flow's
+conversion). One unification: the scrap SUBTOTAL now sums the line formula
+(premium ?? scrap.bid_premium ?? 1) instead of the old premium ?? 1 - zero
+production rows have a null premium, so no live number moves.

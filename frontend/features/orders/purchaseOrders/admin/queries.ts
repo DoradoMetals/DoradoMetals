@@ -6,9 +6,16 @@ import { OrderSpot, OrderSpotWire, orderSpotFromWire, orderSpotToWire } from '@/
 import { toOrderProduct } from '@/features/orders/orderProducts'
 import { Product } from '@/features/products/types'
 import { PayoutDetails } from '@/features/payouts/types'
-import getPurchaseOrderItemPrice from '@/features/orders/purchaseOrders/utils/getPurchaseOrderItemPrice'
-import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
 import { useGetSession } from '@/features/auth/queries'
+import { queryKeys } from '@/shared/queries/keys'
+
+// Prices come from the order quote now (Jacob's no-previews ruling), so a
+// mutation that changes a pricing input - spots, locks, items, premiums, the
+// shipping or payout charge - refetches the active drawer's quote instead of
+// computing anything. Optimistic updates keep writing the NON-price fields
+// they always wrote; none of them ever priced a line.
+const invalidateOrderQuotes = (queryClient: ReturnType<typeof useQueryClient>) =>
+  queryClient.invalidateQueries({ queryKey: queryKeys.orderQuotes(), refetchType: 'active' })
 
 export const useAdminPurchaseOrders = () => {
   const { user } = useGetSession()
@@ -53,6 +60,7 @@ export const useAcceptOrder = () => {
       })
     },
     onSettled: () => {
+      invalidateOrderQuotes(queryClient)
       queryClient.invalidateQueries({ queryKey: ['admin_purchase_orders', user] })
     },
   })
@@ -110,6 +118,7 @@ export const useUpdateOrderSpotPrice = () => {
       }
     },
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.queryKey) {
         queryClient.invalidateQueries({
           queryKey: context.queryKey,
@@ -177,6 +186,7 @@ export const useLockOrderSpotPrices = () => {
       }
     },
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.metalsKey) {
         queryClient.invalidateQueries({
           queryKey: context.metalsKey,
@@ -242,6 +252,7 @@ export const useResetOrderSpotPrices = () => {
       }
     },
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.queryKey) {
         queryClient.invalidateQueries({
           queryKey: context.queryKey,
@@ -354,6 +365,7 @@ export const useResetOrderItem = () => {
       }
     },
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.queryKey) {
         queryClient.invalidateQueries({
           queryKey: context.queryKey,
@@ -413,6 +425,7 @@ export const useUpdateOrderScrapItem = () => {
       }
     },
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.queryKey) {
         queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
       }
@@ -464,6 +477,7 @@ export const useDeleteOrderItems = () => {
     },
 
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.queryKey) {
         queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
       }
@@ -545,6 +559,7 @@ export const useAddNewOrderScrapItem = () => {
     },
 
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.queryKey) {
         queryClient.invalidateQueries({
           queryKey: context.queryKey,
@@ -600,6 +615,7 @@ export const useUpdateOrderBullionItem = () => {
       }
     },
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.queryKey) {
         queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
       }
@@ -666,6 +682,7 @@ export const useAddNewOrderBullionItem = () => {
     },
 
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.queryKey) {
         queryClient.invalidateQueries({
           queryKey: context.queryKey,
@@ -725,6 +742,7 @@ export const useEditShippingCharge = () => {
     },
 
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.queryKey) {
         queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
       }
@@ -781,6 +799,7 @@ export const useEditPayoutCharge = () => {
     },
 
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.queryKey) {
         queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
       }
@@ -837,6 +856,7 @@ export const useEditPayoutMethod = () => {
     },
 
     onSettled: (_data, _err, _vars, context) => {
+      invalidateOrderQuotes(queryClient)
       if (context?.queryKey) {
         queryClient.invalidateQueries({ queryKey: context.queryKey, refetchType: 'active' })
       }

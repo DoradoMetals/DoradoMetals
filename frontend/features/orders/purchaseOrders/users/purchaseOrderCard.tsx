@@ -1,6 +1,6 @@
 'use client'
 
-import { MouseEvent, useMemo } from 'react'
+import { MouseEvent } from 'react'
 import { Button } from '@/shared/ui/base/button'
 import {
   useDownloadInvoice,
@@ -12,7 +12,8 @@ import { packageOptions } from '@/features/packaging/types'
 import { payoutOptions } from '@/features/payouts/types'
 import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
+// The card's total is the server's order quote (Jacob's no-previews ruling).
+import { useOrderQuote } from '@/features/quotes/queries'
 import { DownloadIcon } from '@phosphor-icons/react'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useSpotPrices } from '@/features/spots/queries'
@@ -43,10 +44,7 @@ export default function PurchaseOrderCard({
   const payoutDetails =
     payoutOptions.find((payout) => payout.method === order.payout.method) ?? payoutOptions[0]
 
-  const total = useMemo(
-    () => getPurchaseOrderTotal(order, spotPrices, orderSpots),
-    [order, spotPrices, orderSpots]
-  )
+  const { data: quote } = useOrderQuote(order.id)
 
   const handleOpen = () => {
     setActivePurchaseOrder(order.id)
@@ -119,7 +117,7 @@ export default function PurchaseOrderCard({
       orderNumberLabel={formatPurchaseOrderNumber(order.order_number)}
       statusLabel={order.purchase_order_status}
       StatusIcon={Icon}
-      total={total}
+      total={quote?.total ?? 0}
       secondaryInfo={itemsLabel}
       rightContent={null}
       downloadArea={

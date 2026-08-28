@@ -1,17 +1,14 @@
 import { Button } from '@/shared/ui/base/button'
 
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
-import { useMemo } from 'react'
-import getPurchaseOrderTotal from '@/features/orders/purchaseOrders/utils/purchaseOrderTotal'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
 import { useTracking } from '@/features/shipping/queries'
-import { useSpotPrices } from '@/features/spots/queries'
-import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
+// The offer figure is the server's order quote now, not client spot math.
+import { useOrderQuote } from '@/features/quotes/queries'
 
 export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
-  const { data: spotPrices = [] } = useSpotPrices()
-  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
+  const { data: quote } = useOrderQuote(order.id)
 
   const { data: trackingInfo, isLoading } = useTracking({
     shipment_id: order.return_shipment.id,
@@ -19,9 +16,6 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
     carrier_id: order.return_shipment.carrier_id,
   })
 
-  const total = useMemo(() => {
-    return getPurchaseOrderTotal(order, spotPrices, orderSpotPrices)
-  }, [order, spotPrices, orderSpotPrices])
 
   const handlePayShipping = () => {}
 
@@ -62,7 +56,7 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
               <div className="flex w-full justify-between items-center mb-1">
                 <div className="text-lg text-neutral-800">Order Total:</div>
                 <div className="text-lg text-neutral-800">
-                  <PriceNumberFlow value={order.total_price ?? total} />
+                  <PriceNumberFlow value={order.total_price ?? quote?.total ?? 0} />
                 </div>
               </div>
             </div>

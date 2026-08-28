@@ -18,3 +18,10 @@ export const salesOrderQuote = asyncHandler(async (req, res) => {
 export const purchaseOrderQuote = asyncHandler(async (req, res) => {
   res.status(200).json(await quoteService.purchaseOrderQuote(req.body));
 });
+
+// An existing order's estimate. The ownership middleware in front of this has
+// already decided the caller may see the order named in the body; the service
+// reads the order id and nothing else off the request.
+export const orderQuote = asyncHandler(async (req, res) => {
+  res.status(200).json(await quoteService.orderQuote(req.body));
+});
