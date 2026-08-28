@@ -53,13 +53,16 @@ after(async () => {
   await pool.end();
 });
 
-// The flat shape frontend/features/carriers/queries.ts posts.
+// The shape frontend/features/carriers/queries.ts posts since the
+// conversion (2026-08-27): the organization is its own object.
 const newCarrier = () => ({
-  name: `replay-carrier-${randomUUID().slice(0, 8)}`,
-  email: "carrier@example.test",
-  phone: "5550000000",
   logo: "/carriers/replay.png",
-  is_active: true,
+  organization: {
+    name: `replay-carrier-${randomUUID().slice(0, 8)}`,
+    email: "carrier@example.test",
+    phone: "5550000000",
+    enabled: true,
+  },
 });
 
 test("the carrier list is served to a user and refused to nobody", async () => {
@@ -74,15 +77,18 @@ test("the carrier list is served to a user and refused to nobody", async () => {
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
-      // CARRIERS_WIRE=legacy, so the organization has been flattened back out.
-      // The nested shape reaching the frontend would render undefined for every
-      // one of these.
+      // Carriers is CONVERTED (2026-08-27): the frontend reads the nested
+      // organization from @dorado/contracts, and a flat row reaching it would
+      // render undefined for every identity field.
       const c = res.body[0];
-      for (const field of ["id", "name", "email", "phone", "is_active"]) {
+      for (const field of ["id", "logo", "organization"]) {
         assert.ok(field in c, `the carrier list is missing ${field}`);
       }
-      assert.ok(!("organization" in c), "the nested shape reached the frontend");
-      assert.ok(c.name, "a carrier came back with no name - the adapter flattened twice");
+      for (const field of ["name", "email", "phone", "enabled"]) {
+        assert.ok(field in c.organization, `the organization is missing ${field}`);
+      }
+      assert.ok(!("is_active" in c), "the flat shape came back after the conversion");
+      assert.ok(c.organization.name, "a carrier came back with no name");
     });
   });
 });
@@ -98,50 +104,49 @@ test("only an admin may create a carrier", async () => {
   });
 });
 
-// The addresses bug, asked of carriers: a write returning the internal shape
-// where the adapter expects to flatten one, or returning an already-flat row
-// the adapter then nulls.
-test("creating a carrier returns it flat, with its name intact", async () => {
+// The addresses bug, asked of carriers - now with no adapter: the write must
+// return the nested row exactly as stored.
+test("creating a carrier returns it nested, with its name intact", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
       const carrier = newCarrier();
       const res = await request(app).post("/api/carriers/create").send({ carrier });
       assert.equal(res.status, 201, JSON.stringify(res.body));
-      created.push(carrier.name);
+      created.push(carrier.organization.name);
 
       const saved = Array.isArray(res.body) ? res.body[0] : res.body;
-      assert.equal(saved.name, carrier.name, "the name was lost crossing the adapter");
-      assert.equal(saved.email, carrier.email);
-      assert.equal(saved.is_active, true, "is_active was nulled by a second flatten");
+      assert.equal(saved.organization.name, carrier.organization.name, "the name was lost");
+      assert.equal(saved.organization.email, carrier.organization.email);
+      assert.equal(saved.organization.enabled, true, "enabled was nulled on the way through");
       assert.ok(saved.id, "no id came back, so the frontend cannot select it");
-      assert.ok(!("organization" in saved), "the nested shape reached the frontend");
+      assert.ok(!("is_active" in saved), "the flat shape came back after the conversion");
 
       const list = await request(app).get("/api/carriers/get");
       assert.ok(
-        list.body.some((c) => c.name === carrier.name),
+        list.body.some((c) => c.organization.name === carrier.organization.name),
         "the carrier created a moment ago is not in the list"
       );
     });
   });
 });
 
-test("updating a carrier returns the updated row, still flat", async () => {
+test("updating a carrier returns the updated row, still nested", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
       const carrier = newCarrier();
       const made = await request(app).post("/api/carriers/create").send({ carrier });
-      created.push(carrier.name);
+      created.push(carrier.organization.name);
 
       const saved = Array.isArray(made.body) ? made.body[0] : made.body;
-      const renamed = `${carrier.name}-renamed`;
+      const renamed = `${carrier.organization.name}-renamed`;
       const res = await request(app)
         .post("/api/carriers/update")
-        .send({ carrier: { ...saved, name: renamed } });
+        .send({ carrier: { ...saved, organization: { ...saved.organization, name: renamed } } });
       assert.equal(res.status, 200, JSON.stringify(res.body));
       created.push(renamed);
 
       const back = Array.isArray(res.body) ? res.body[0] : res.body;
-      assert.equal(back.name, renamed, "the update response lost the new name");
+      assert.equal(back.organization.name, renamed, "the update response lost the new name");
       assert.equal(back.id, saved.id, "the update returned a different carrier");
     });
   });
@@ -155,7 +160,7 @@ test("deleting a carrier takes the carrier_id the frontend sends", async () => {
     await as(admin, async () => {
       const carrier = newCarrier();
       const made = await request(app).post("/api/carriers/create").send({ carrier });
-      created.push(carrier.name);
+      created.push(carrier.organization.name);
       const saved = Array.isArray(made.body) ? made.body[0] : made.body;
 
       const res = await request(app)

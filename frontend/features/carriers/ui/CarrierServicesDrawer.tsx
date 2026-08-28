@@ -91,7 +91,7 @@ function Header({ service, carrier }: { service: CarrierService; carrier: Carrie
               {carrier?.logo ? (
                 <Image
                   src={carrier.logo}
-                  alt={`${carrier.name} logo`}
+                  alt={`${carrier.organization.name} logo`}
                   height={50}
                   width={50}
                   className="object-cover"
@@ -141,9 +141,9 @@ function Details({ service, carriers }: { service: CarrierService; carriers: Car
         <RadioGroupImage
           items={carriers.map((c) => ({
             id: c.id,
-            name: c.name,
-            logo: c.logo,
-            is_active: c.is_active,
+            name: c.organization.name ?? '',
+            logo: c.logo ?? '',
+            is_active: !!c.organization.enabled,
           }))}
           value={service.carrier_id}
           className="flex items-center w-full"

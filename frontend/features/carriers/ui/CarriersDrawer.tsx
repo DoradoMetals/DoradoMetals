@@ -54,7 +54,7 @@ export default function CarriersDrawer({
 }
 
 function Header({ carrier }: { carrier: Carrier }) {
-  const active = !!carrier.is_active
+  const active = !!carrier.organization.enabled
   const logo = (carrier.logo ?? '').trim()
 
   return (
@@ -62,9 +62,9 @@ function Header({ carrier }: { carrier: Carrier }) {
       <div className="flex w-full items-start justify-between gap-4">
         <div className="flex flex-col gap-3">
           {logo ? (
-            <img src={logo ?? ''} alt={`${carrier.name} logo`} height={100} width={100} />
+            <img src={logo ?? ''} alt={`${carrier.organization.name} logo`} height={100} width={100} />
           ) : (
-            <div className="text-xl text-neutral-900">{carrier.name}</div>
+            <div className="text-xl text-neutral-900">{carrier.organization.name}</div>
           )}
         </div>
 
@@ -83,7 +83,7 @@ function Header({ carrier }: { carrier: Carrier }) {
       <div className="flex w-full justify-start text-xs gap-1">
         <span className="text-neutral-600">Updated</span>
         <span className="text-neutral-600">on</span>
-        <span className="text-neutral-800">{formatFullDate(carrier.updated_at)}</span>
+        <span className="text-neutral-800">{formatFullDate(carrier.updated_at ?? '')}</span>
       </div>
     </div>
   )
@@ -92,8 +92,10 @@ function Header({ carrier }: { carrier: Carrier }) {
 function Details({ carrier }: { carrier: Carrier }) {
   const updateCarrier = useUpdateCarrier()
 
-  const handleUpdate = (patch: Partial<Carrier>) => {
-    updateCarrier.mutate({ ...carrier, ...patch })
+  // The identity fields live on the organization; a patch to one of them
+  // rebuilds the nested object the API stores.
+  const handleOrgUpdate = (patch: Partial<Carrier['organization']>) => {
+    updateCarrier.mutate({ ...carrier, organization: { ...carrier.organization, ...patch } })
   }
 
   return (
@@ -109,8 +111,8 @@ function Details({ carrier }: { carrier: Carrier }) {
           placeholder="Carrier name..."
           type="text"
           className="on-glass"
-          defaultValue={carrier.name ?? ''}
-          onBlur={(e) => handleUpdate({ name: e.target.value })}
+          defaultValue={carrier.organization.name ?? ''}
+          onBlur={(e) => handleOrgUpdate({ name: e.target.value })}
         />
       </div>
 
@@ -124,7 +126,7 @@ function Details({ carrier }: { carrier: Carrier }) {
           type="text"
           className="on-glass"
           defaultValue={carrier.logo ?? ''}
-          onBlur={(e) => handleUpdate({ logo: e.target.value })}
+          onBlur={(e) => updateCarrier.mutate({ ...carrier, logo: e.target.value })}
         />
       </div>
     </div>
@@ -133,8 +135,8 @@ function Details({ carrier }: { carrier: Carrier }) {
 function Contact({ carrier }: { carrier: Carrier }) {
   const updateCarrier = useUpdateCarrier()
 
-  const handleUpdate = (patch: Partial<Carrier>) => {
-    updateCarrier.mutate({ ...carrier, ...patch })
+  const handleOrgUpdate = (patch: Partial<Carrier['organization']>) => {
+    updateCarrier.mutate({ ...carrier, organization: { ...carrier.organization, ...patch } })
   }
 
   return (
@@ -150,8 +152,8 @@ function Contact({ carrier }: { carrier: Carrier }) {
           placeholder="support@carrier.com"
           type="text"
           className="on-glass"
-          defaultValue={carrier.email ?? ''}
-          onBlur={(e) => handleUpdate({ email: e.target.value })}
+          defaultValue={carrier.organization.email ?? ''}
+          onBlur={(e) => handleOrgUpdate({ email: e.target.value })}
         />
       </div>
 
@@ -164,8 +166,8 @@ function Contact({ carrier }: { carrier: Carrier }) {
           placeholder="(555) 555-5555"
           type="text"
           className="on-glass "
-          defaultValue={formatPhoneNumber(carrier.phone ?? '')}
-          onBlur={(e) => handleUpdate({ phone: normalizePhone(e.target.value) })}
+          defaultValue={formatPhoneNumber(carrier.organization.phone ?? '')}
+          onBlur={(e) => handleOrgUpdate({ phone: normalizePhone(e.target.value) })}
         />
       </div>
     </div>
@@ -175,8 +177,8 @@ function Contact({ carrier }: { carrier: Carrier }) {
 function Status({ carrier }: { carrier: Carrier }) {
   const updateCarrier = useUpdateCarrier()
 
-  const handleUpdate = (patch: Partial<Carrier>) => {
-    updateCarrier.mutate({ ...carrier, ...patch })
+  const handleOrgUpdate = (patch: Partial<Carrier['organization']>) => {
+    updateCarrier.mutate({ ...carrier, organization: { ...carrier.organization, ...patch } })
   }
 
   return (
@@ -186,8 +188,8 @@ function Status({ carrier }: { carrier: Carrier }) {
 
         <DisplayToggle
           label=""
-          value={!!carrier.is_active}
-          onChange={(v) => handleUpdate({ is_active: v })}
+          value={!!carrier.organization.enabled}
+          onChange={(v) => handleOrgUpdate({ enabled: v })}
           onClass="success-on-glass rounded-l-lg"
           offClass="destructive-on-glass rounded-r-lg"
           groupClassName="rounded-none"

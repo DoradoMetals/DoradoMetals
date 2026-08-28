@@ -1,13 +1,12 @@
-export interface Carrier {
-  id: string
-  name: string
-  email: string
-  phone: string
-  created_at: Date
-  updated_at: Date
-  logo: string
-  is_active: boolean
-}
+import type { CarrierWireNext } from '@dorado/contracts'
+
+// FOURTH CONVERTED FEATURE (2026-08-27), the first STRUCTURAL one. A carrier
+// is an organization with a role, and the converted shape keeps them apart:
+// the identity fields live under `organization` (with `enabled` where the
+// flat shape said `is_active`), the carrier's own row keeps id / logo /
+// timestamps. The old flat Carrier was the lift adapter's output; the adapter
+// is gone.
+export type Carrier = CarrierWireNext
 export type DeliverySpeed = 'same_day' | 'overnight' | '2_day' | 'ground' | 'economy' | string
 
 export interface CarrierService {

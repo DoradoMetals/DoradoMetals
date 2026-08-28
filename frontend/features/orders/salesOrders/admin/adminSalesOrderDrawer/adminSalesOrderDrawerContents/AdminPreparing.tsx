@@ -90,7 +90,12 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
 
       {carriers && (
         <RadioGroupImage
-          items={carriers}
+          items={carriers.map((c) => ({
+            id: c.id,
+            name: c.organization.name ?? '',
+            logo: c.logo ?? '',
+            is_active: !!c.organization.enabled,
+          }))}
           value={selectedCarrier?.id ?? ''}
           onValueChange={handleCarrierChange}
           disabled={!order.order_sent}
@@ -124,13 +129,13 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
         disabled={!selectedCarrier || updateTracking.isPending || trackingNumber === ''}
       >
         {updateTracking.isPending
-          ? `Updating tracking for ${selectedCarrier?.name}...`
+          ? `Updating tracking for ${selectedCarrier?.organization.name}...`
           : trackingNumber === ''
-          ? `Enter tracking for ${selectedCarrier?.name}`
+          ? `Enter tracking for ${selectedCarrier?.organization.name}`
           : selectedCarrier
           ? order.tracking_updated
-            ? `Resend tracking for ${selectedCarrier?.name}`
-            : `Update tracking for ${selectedCarrier?.name}`
+            ? `Resend tracking for ${selectedCarrier?.organization.name}`
+            : `Update tracking for ${selectedCarrier?.organization.name}`
           : 'Select Carrier'}
       </Button>
     </div>

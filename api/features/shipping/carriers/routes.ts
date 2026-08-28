@@ -13,16 +13,13 @@ import {
   requireUser,
 } from "#shared/middleware/authMiddleware.ts";
 
-import * as carriersWire from "#features/shipping/carriers/wire.ts";
-import { wireShape } from "#shared/wire/middleware.ts";
-
 const router = express.Router();
 
-// The wire adapter, mounted once for the whole feature rather than called by
-// hand in every handler - writes arrive as { carrier }. Controllers return the internal shape
-// and know nothing about the frontend not having caught up. Deleting the
-// adapter is deleting this line.
-router.use(wireShape(carriersWire, { body: "carrier" }));
+// NO WIRE ADAPTER. Carriers is the fourth CONVERTED feature and the first
+// STRUCTURAL one (2026-08-27): the frontend reads the nested organization
+// from @dorado/contracts and writes it back the same way, so the lift that
+// flattened it is gone. Refiners and addresses still carry theirs - the same
+// makeLiftAdapter declaration - until each converts.
 
 router.get("/get", requireUser, getAll);
 

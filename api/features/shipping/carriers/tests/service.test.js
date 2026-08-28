@@ -15,7 +15,6 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as service from "#features/shipping/carriers/service.ts";
-import { toLegacy, fromLegacy } from "#features/shipping/carriers/wire.ts";
 
 let client;
 
@@ -60,27 +59,10 @@ test("getAllCarriers keeps the organization as its own object", async () => {
   ]);
 });
 
-test("the adapter flattens it to the shape the frontend reads", async () => {
-  const [row] = await service.getAllCarriers();
-  const legacy = toLegacy(row);
-  assert.deepEqual(Object.keys(legacy).sort(), [
-    "created_at", "email", "id", "is_active", "logo", "name", "phone", "updated_at",
-  ]);
-  assert.equal(legacy.is_active, row.organization.enabled);
-  assert.equal(legacy.name, row.organization.name);
-  assert.equal("organization" in legacy, false, "the nested object survived flattening");
-});
-
-// Round trip: flattening and nesting again must not lose anything the frontend
-// sends, because a write arrives flat and the service takes the nested shape.
-test("flatten and nest round trip", async () => {
-  const [row] = await service.getAllCarriers();
-  const back = fromLegacy(toLegacy(row));
-  assert.equal(back.organization.name, row.organization.name);
-  assert.equal(back.organization.enabled, row.organization.enabled);
-  assert.equal(back.id, row.id);
-  assert.equal(back.logo, row.logo);
-});
+// The flatten/round-trip tests lived here until the conversion
+// (2026-08-27): carriers' lift adapter was deleted when the frontend switched
+// to the nested contracts shape, so there is no flattening left to prove.
+// replay.test.js asserts the nested shape over HTTP.
 
 // FEDEX_CARRIER_ID is a literal uuid in providers/shipments/constants.ts and
 // exchange.shipments.carrier_id references it. If the id did not survive the

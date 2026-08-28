@@ -23,7 +23,7 @@ export default function CarriersPage() {
     TextColumn<Carrier>({
       id: 'name',
       header: 'Name',
-      accessorKey: 'name',
+      accessorKey: 'organization.name',
       enableHiding: false,
       size: 260,
     }),
@@ -36,7 +36,7 @@ export default function CarriersPage() {
       height: 50,
       width: 50,
       rounded: 'md',
-      getAlt: ({ row }) => `${row.name} logo`,
+      getAlt: ({ row }) => `${row.organization?.name} logo`,
       size: 50,
     }),
     TextColumn<Carrier>({
@@ -54,13 +54,13 @@ export default function CarriersPage() {
     ChipColumn<Carrier>({
       id: 'is_active',
       header: 'Status',
-      accessorKey: 'is_active',
+      accessorKey: 'organization.enabled',
       align: 'center',
       enableHiding: true,
       size: 130,
       getChip: ({ row }) => {
         const carrier = row as Carrier
-        const active = !!carrier.is_active
+        const active = !!carrier.organization.enabled
         return {
           label: active ? 'Active' : 'Inactive',
           className: active
@@ -80,13 +80,10 @@ export default function CarriersPage() {
 
       await createCarrier.mutateAsync({
         id: '',
-        name,
-        email: '',
-        phone: '',
         logo: '',
-        is_active: true,
-        created_at: new Date(),
-        updated_at: new Date(),
+        created_at: null,
+        updated_at: null,
+        organization: { name, email: '', phone: '', enabled: true },
       } as Carrier)
     },
     canSubmit: (values: Record<string, string>) => (values.name ?? '').trim().length > 0,

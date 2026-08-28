@@ -44,7 +44,7 @@ export default function CarrierServicesPage() {
       return {
         key: c.id,
         filter: c.id,
-        header: c.name,
+        header: c.organization.name ?? '',
         label: `${count} services`,
         predicate: (row: CarrierService) => row.carrier_id === c.id,
 
@@ -52,7 +52,7 @@ export default function CarrierServicesPage() {
           <div className="relative flex h-10 md:h-16 pl-3">
             <img
               src={logo}
-              alt={`${c.name} logo`}
+              alt={`${c.organization.name} logo`}
               height={100}
               width={100}
               className="object-contain"
@@ -83,7 +83,7 @@ export default function CarrierServicesPage() {
       },
       getAlt: ({ value }) => {
         const carrierId = String(value ?? '')
-        const name = carrierById.get(carrierId)?.name ?? 'Carrier'
+        const name = carrierById.get(carrierId)?.organization.name ?? 'Carrier'
         return `${name} logo`
       },
     }),
@@ -148,9 +148,9 @@ export default function CarrierServicesPage() {
           <RadioGroupImage
             items={carriers.map((c) => ({
               id: c.id,
-              name: c.name,
-              logo: c.logo,
-              is_active: c.is_active,
+              name: c.organization.name ?? '',
+              logo: c.logo ?? '',
+              is_active: !!c.organization.enabled,
             }))}
             value={value}
             onValueChange={(id) => setValue('carrier_id', id)}

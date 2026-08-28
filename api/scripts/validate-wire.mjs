@@ -76,7 +76,6 @@ const bothWays = async (name, schema, dir, read, many = true) => {
 
 const po = await import("#features/purchase-orders/repo.js");
 const refinersWire = await import("#features/refiners/wire.ts");
-const carriersWire = await import("#features/shipping/carriers/wire.ts");
 const addressesWire = await import("#features/places/addresses/wire.ts");
 
 // The public list was checked ONE WAY while the admin list right below it was
@@ -91,9 +90,6 @@ const addressesWire = await import("#features/places/addresses/wire.ts");
 // what the adapter flattens it to.
 const carriersService = await import("#features/shipping/carriers/service.ts");
 add("GET /carriers", c.CarrierWireNext, () => carriersService.getAllCarriers());
-add("GET /carriers (legacy wire)", c.CarrierWire, async () =>
-  carriersWire.toLegacy(await carriersService.getAllCarriers())
-);
 // Carrier services is restructured - one implementation. Kept as a DIRECT
 // check: it is the feature whose projection renames three columns back, so a
 // contract that stopped being exercised would stop noticing a rename escaping.

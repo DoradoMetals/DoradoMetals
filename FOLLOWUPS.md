@@ -7849,3 +7849,23 @@ keeps its spelling (a parameter the controller reads, not an entity field);
 `AdminProductsTable`'s string-keyed column config (`accessorKey`) was the
 tsc-invisible class again, caught by the grep sweep; both SO create endpoints
 still receive dead `spot_prices` payloads (noted at D70).
+
+## D74 — carriers is the first structural conversion, and the lift pattern holds
+
+The smallest of the four lifts, through the same template: render tests for
+CarriersDrawer first (name renders, edit-on-blur carries the value in the
+update body WHEREVER the shape puts it - written that way so the same three
+tests pass across the flip), `Carrier = CarrierWireNext` (nested
+`organization`, `enabled` where flat said `is_active`), every consumer
+hand-converted (a lift has no rename map for tsc to drive mechanically, but
+tsc still points at every flat read), CARRIERS_WIRE=next, adapter deleted,
+WIRE_FLOOR 4 -> 3. The adapter round-trip tests in service.test.js went with
+the adapter; replay asserts the nested shape over HTTP now. tanstack's
+`accessorKey` takes dot paths, so the admin table's string-keyed columns
+became 'organization.name' / 'organization.enabled' - the same tsc-invisible
+class as products' table, caught by the same grep sweep. RadioGroupImage
+keeps its flat option shape; carriers map into it at each call site.
+
+Refiners and addresses are the same makeLiftAdapter declaration with
+different nouns - the identical conversion awaits each. Payments' 204-line
+adapter is its own animal; read it before assuming anything.
