@@ -8140,3 +8140,54 @@ createSalesOrderDrawer's locked-spot order math (the admin create flow's
 conversion). One unification: the scrap SUBTOTAL now sums the line formula
 (premium ?? scrap.bid_premium ?? 1) instead of the old premium ?? 1 - zero
 production rows have a null premium, so no live number moves.
+
+## D84 (PLAN) — the orders wire conversion, for Jacob's review
+
+The last wire. Orders never had a switch, so this is ONE deliberate
+change per Jacob's conversion mandate - API and frontend land together in
+a single reviewed commit series on the branch (master auto-deploys, the
+branch does not, so atomicity is safe).
+
+**The shape**: PurchaseOrderWireNext / SalesOrderWireNext with the new
+schema's names - `number` (was order_number), `status` (was
+purchase_order_status / sales_order_status; direction is the endpoint's),
+money composed from orders.transactions as today, embeds converted:
+items' products speak name/description/type, order spots speak
+name/ask/bid, and with that the WHOLE seam layer dies - frontend
+orderSpots/orderProducts/orderAddresses, the API's
+features/spots/legacy-shape.ts, and the contracts legacy family
+(AddressOnOrder, ProductOnOrderItem, SpotPriceWire, PurchaseOrderWire,
+SalesOrderWire and kin) all retire in the same series.
+
+**One design decision for Jacob**: the order's ADDRESS SNAPSHOT. The
+book split (D76/rulings) separates the postal address from the person's
+relationship - but an order snapshot is neither: it is "where this
+shipment went and who receives it", and FedEx's personName needs the
+recipient name ON the snapshot. Proposal: the snapshot wire keeps a flat
+postal shape PLUS recipient_name (renamed from `name` so it says what it
+is), no user_address, no is_default. Say yes/no.
+
+**Hidden API surface found by recon**: the email/PDF renderers
+(features/media/emails/utils/renderEmail.ts, features/media/pdfs/
+render/sections.ts + service.ts) read the LEGACY order shape off what
+the services hand them (item.product.product_name, address.name). They
+convert in the same series or refiner emails render blank fields.
+
+**Slices** (each render-tests-first, gated, committed):
+  c2. Contracts: the Next shapes stated/derived + validate:wire wired
+      bothWays-style against both READ paths (repo switch still exists).
+  c3. API: read services compose to Next; renderers/PDF sections
+      convert; replay tests convert.
+  c4. Frontend: 48 consumer files - tsc-position-driven renames off the
+      types flip, fixtures WITH components, seam trio deleted; render
+      pins for the two user drawers + admin drawers FIRST.
+  c5. Retirements: contracts legacy family + legacy-shape.ts + a
+      -WireNext -> plain-name rename pass across contracts (the
+      post-conversion cleanup Jacob asked about, done here where the
+      last consumer moves).
+
+**Blocked/parked**: the PO READ pivot (repo.next deletion) stays behind
+the damaged-shipments ruling - unrelated to the wire shape. The
+createSalesOrderDrawer order math converts inside c4 (its
+calculateSalesOrderPrices/SalesOrderTotals die there). The admin-only
+profit endpoint for viewProfitBreakdown rides c3.
