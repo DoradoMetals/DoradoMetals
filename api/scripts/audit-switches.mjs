@@ -138,7 +138,14 @@ switches.sort((a, b) => a.varName.localeCompare(b.varName));
 // alongside the commit that removes the feature's repo.js, and never to make a
 // red build green - a count that falls on its own is the parser breaking.
 const SOURCE_FLOOR = 3; // + sales orders; was 21
-const WIRE_FLOOR = 1; // six converted 2026-08-27, addresses the last lift; payments is the one left; was 7
+// READY: flip to 0 with PAYMENTS_WIRE. The payments adapter - the last *_WIRE
+// switch - is staged for deletion in the same gate as the frontend conversion,
+// and at 0 the zero-state branch below takes over from the floor:
+// shared/wire/adapter.test.js's precedent, where zero adapters became the
+// ASSERTED state once the last one converted. A *_WIRE switch REAPPEARING
+// after that means someone is adding a legacy shim after the conversion - a
+// deliberate decision, made by flipping this back to a floor.
+const WIRE_FLOOR = 0; // six converted 2026-08-27, addresses the last lift; payments is the one left; was 7
 {
   const sources = switches.filter((s) => s.kind === "source").length;
   const wires = switches.filter((s) => s.kind === "wire").length;
@@ -146,6 +153,16 @@ const WIRE_FLOOR = 1; // six converted 2026-08-27, addresses the last lift; paym
     console.error(
       `only ${sources} *_SOURCE and ${wires} *_WIRE switch(es) found, expected at ` +
         `least ${SOURCE_FLOOR} and ${WIRE_FLOOR} - this parser has stopped understanding an idiom`
+    );
+    process.exit(1);
+  }
+  if (WIRE_FLOOR === 0 && wires !== 0) {
+    console.error(
+      `a *_WIRE switch appeared (${switches
+        .filter((s) => s.kind === "wire")
+        .map((s) => s.varName)
+        .join(", ")}) - every wire adapter is converted; flip WIRE_FLOOR back ` +
+        `to a floor deliberately`
     );
     process.exit(1);
   }

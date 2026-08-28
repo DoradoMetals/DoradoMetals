@@ -28,11 +28,13 @@
 // touches no provider. It had zero success coverage on the strength of a
 // sentence that was true of its three neighbours and not of it.
 //
-// That matters more than one missing assertion, because it was also the only
-// route in this feature that could give the payments WIRE ADAPTER any coverage
-// over real HTTP. The adapter runs as middleware AFTER the controller returns,
-// which is precisely where the addresses bug lived: the repo was correct, the
-// response was not, and no repo test could see it. The success test is below.
+// That matters more than one missing assertion, because it is also the only
+// route in this feature whose response shape can be pinned over real HTTP.
+// While the wire adapter existed (deleted 2026-08-27 with the frontend
+// conversion) this was its only HTTP coverage; what the success test pins now
+// is the nested contract itself - the shape, the dollars, and the absence of
+// the legacy names - at the layer where the addresses bug lived: the repo was
+// correct, the response was not, and no repo test could see it.
 //
 // THE ROUTES ARE MOUNTED AT /api/stripe, NOT /api/payments. The feature was
 // renamed; the path deliberately was not, because the frontend calls it and
@@ -50,8 +52,7 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
-import * as paymentsWire from "#features/payments/wire.ts";
-import { PaymentIntentWire, PaymentIntentWireNext } from "@dorado/contracts";
+import { PaymentIntentWireNext } from "@dorado/contracts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -194,18 +195,17 @@ test("the refused requests created no payment intent", async () => {
 // THE ONE SUCCESS PATH THAT DOES NOT END AT STRIPE.
 //
 // An admin reading a sales order's payment intent. This is a database read, so
-// it can be asserted here, and it is the only HTTP-level coverage the payments
-// wire adapter has: the adapter is middleware that rewrites the body after the
-// controller has returned, and the addresses feature has already been bitten
-// once by a response that was correct until exactly that point.
+// it can be asserted here, and it is the only HTTP-level pin this feature's
+// one repo-row response has - the addresses feature has already been bitten
+// once by a response that was correct until after the controller returned.
 //
-// Asserted three ways, because a 200 alone would pass against an empty body:
-// the response parses through the contract for whichever shape is ACTIVE, it
-// names the intent the database holds for that order, and it does not carry the
-// other shape's field names.
-test("an admin reading a sales order's payment intent gets it, in the active wire shape", async () => {
+// Asserted four ways, because a 200 alone would pass against an empty body:
+// the response parses through the nested contract, it names the intent the
+// database holds for that order, the amounts arrive in DOLLARS, and the legacy
+// flat names are absent - there is no adapter left to put them back.
+test("an admin reading a sales order's payment intent gets it, in the nested wire shape", async () => {
   const [seed] = await outside(
-    `SELECT sales_order_id, payment_intent_id
+    `SELECT sales_order_id, payment_intent_id, amount
        FROM exchange.payment_intents
       WHERE sales_order_id IS NOT NULL AND payment_intent_id IS NOT NULL
       ORDER BY created_at DESC, id
@@ -222,26 +222,39 @@ test("an admin reading a sales order's payment intent gets it, in the active wir
       assert.equal(res.status, 200, `answered ${res.status} to an admin`);
       assert.ok(res.body && typeof res.body === "object", "the body was not an object");
 
-      const shape = paymentsWire.activeShape;
-      const schema = shape === "next" ? PaymentIntentWireNext : PaymentIntentWire;
-      const parsed = schema.safeParse(res.body);
+      const parsed = PaymentIntentWireNext.safeParse(res.body);
       assert.ok(
         parsed.success,
-        `the response does not satisfy the ${shape} contract: ` +
+        "the response does not satisfy the nested contract: " +
           JSON.stringify(parsed.error?.issues?.slice(0, 4))
       );
 
       // The right intent, not merely a well-shaped one.
-      const ref = shape === "next" ? res.body.attempt?.provider_ref : res.body.payment_intent_id;
-      assert.equal(ref, seed.payment_intent_id, "a different intent came back");
+      assert.equal(
+        res.body.attempt?.provider_ref,
+        seed.payment_intent_id,
+        "a different intent came back"
+      );
 
-      // And the other shape's names did not leak through the adapter.
-      if (shape === "legacy") {
-        assert.ok(!("attempt" in res.body), "the nested shape leaked onto the legacy wire");
-        assert.ok(!("status" in res.body), "the nested shape leaked onto the legacy wire");
-      } else {
-        assert.ok(!("payment_intent_id" in res.body), "the legacy names leaked onto the next wire");
+      // DOLLARS. exchange stores cents; the wire is the internal shape now,
+      // and a flatten reappearing would announce itself as a hundredfold error.
+      if (seed.amount != null) {
+        assert.equal(
+          Number(res.body.amount_expected),
+          Number(seed.amount) / 100,
+          "the wire is not in dollars"
+        );
       }
+
+      // The legacy names are gone, and so is the one field that must never
+      // come back: a bank routing number was on the old wire only because the
+      // exchange read was SELECT *.
+      assert.ok(!("payment_intent_id" in res.body), "the legacy names came back to the wire");
+      assert.ok(!("payment_status" in res.body), "the legacy names came back to the wire");
+      assert.ok(
+        !/"routing"/.test(JSON.stringify(res.body)),
+        "a routing key reached the wire"
+      );
     });
   });
 });

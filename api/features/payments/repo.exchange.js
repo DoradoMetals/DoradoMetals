@@ -3,8 +3,9 @@
 // Projected explicitly rather than SELECT *, and composed into the same nested
 // shape repo.next returns, so the two implementations agree whatever the switch
 // says. That is the pattern carriers and addresses follow: the internal shape is
-// the new one on both sides, and features/payments/wire.ts flattens it back for
-// the frontend behind PAYMENTS_WIRE.
+// the new one on both sides - and since 2026-08-27 it is also the wire, the
+// flatten that put exchange's names back having died with the frontend
+// conversion.
 //
 // exchange keeps the intent, the attempt and the instrument in one row. The
 // separation is real - an intent can be attempted more than once, and the same
@@ -14,9 +15,9 @@
 // MONEY UNITS. exchange stores CENTS, because that is Stripe's unit and this
 // table was written straight from Stripe's objects. The new schema stores
 // DOLLARS like everything else in it. The nested shape is the new schema's, so
-// every amount here is divided by 100 on the way out and the adapter multiplies
-// it back for the legacy wire. Getting that backwards is a hundredfold error and
-// it is asserted in both directions.
+// every amount here is divided by 100 on the way out - and DOLLARS is what the
+// frontend reads, the adapter that multiplied them back having died with the
+// conversion. Getting this backwards is a hundredfold error.
 //
 // `routing` is deliberately NOT returned. It is a customer's bank routing
 // number, it is null on every row in dev and in production, and nothing in the
@@ -57,7 +58,8 @@ const FIELDS = `
       -- Normalised to the new schema's vocabulary rather than Stripe's, by the
       -- same mapping repo.next's updateMethod writes - otherwise the two
       -- implementations would disagree here and diff would report it. The
-      -- adapter maps it back to Stripe's spelling for the legacy wire.
+      -- frontend speaks this vocabulary too: paymentOptions matches on its
+      -- method (CARD, ACH), not on Stripe's spelling.
       -- dev holds card and us_bank_account; production holds card and null.
       'type',         CASE method_type
                         WHEN 'us_bank_account' THEN 'ACH'

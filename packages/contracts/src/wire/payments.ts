@@ -2,8 +2,9 @@ import { z } from "zod/v4";
 
 // exchange keeps one row per Stripe intent with everything inline; the new
 // schema separates what was asked for from what was tried from the instrument.
-// Both repos return the nested shape, and features/payments/wire.js flattens it
-// back for the frontend behind PAYMENTS_WIRE.
+// Both repos return the nested shape, and since 2026-08-27 it is the wire:
+// the frontend derives its PaymentIntent from PaymentIntentWireNext, and the
+// adapter that flattened it back behind PAYMENTS_WIRE is deleted.
 //
 // ONE ENDPOINT returns a repo row: GET /stripe/get_sales_order_payment_intent.
 // The other three answer with Stripe's client_secret or Stripe's own object, so
@@ -63,28 +64,8 @@ export const PaymentIntentWireNext = z.object({
 });
 export type PaymentIntentWireNext = z.infer<typeof PaymentIntentWireNext>;
 
-// What the frontend reads today: frontend/features/stripe/types.ts, and
-// AdminPending.tsx destructuring payment_status, payment_intent_id, card_brand,
-// bank_name, bank_account_type and last_four off one flat object. CENTS.
-export const PaymentIntentWire = z.object({
-  id: z.string().uuid(),
-  session_id: z.string().uuid().nullable(),
-  user_id: z.string().uuid().nullable(),
-  type: z.string().nullable(),
-  payment_status: z.string().nullable(),
-  payment_intent_id: z.string().nullable(),
-  sales_order_id: z.string().uuid().nullable(),
-  purchase_order_id: z.string().uuid().nullable(),
-  amount: money,
-  amount_received: money,
-  amount_capturable: money,
-  method_id: z.string().nullable(),
-  method_type: z.string().nullable(),
-  last_four: z.string().nullable(),
-  card_brand: z.string().nullable(),
-  bank_name: z.string().nullable(),
-  bank_account_type: z.string().nullable(),
-  created_at: z.string(),
-  updated_at: z.string(),
-});
-export type PaymentIntentWire = z.infer<typeof PaymentIntentWire>;
+// The legacy PaymentIntentWire shape (one flat object - payment_status,
+// payment_intent_id, the instrument inline, amounts in CENTS) lived here until
+// 2026-08-27, describing what the frontend read. The frontend stopped:
+// features/stripe/types.ts derives from PaymentIntentWireNext, AdminPending
+// reads the nested shape in dollars, and the adapter and its mount are gone.

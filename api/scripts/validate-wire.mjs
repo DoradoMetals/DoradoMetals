@@ -227,8 +227,9 @@ add("GET /fulfillments/get_for_order", c.FulfillmentWire, async () => {
 add("GET /fulfillments/schedule", c.FulfillmentWire, () => fulfillments.getSchedule());
 
 // The one payments response that is a repo row rather than a Stripe object or a
-// client_secret. Both implementations, both shapes.
-const paymentsWire = await import("#features/payments/wire.ts");
+// client_secret. Both implementations, ONE shape: the adapter died with the
+// frontend conversion (2026-08-27), so the nested contract IS the wire, and a
+// legacy flat check would be validating a shape nothing can produce.
 const salesOrderIds = async () => {
   const { rows } = await pool.query(
     `SELECT sales_order_id FROM exchange.payment_intents WHERE sales_order_id IS NOT NULL`
@@ -244,12 +245,6 @@ const intents = async (m) => {
   return out;
 };
 await bothWays("GET /stripe/get_sales_order_payment_intent", c.PaymentIntentWireNext, "payments", intents);
-await bothWays(
-  "GET /stripe/get_sales_order_payment_intent (legacy wire)",
-  c.PaymentIntentWire,
-  "payments",
-  async (m) => paymentsWire.toLegacy(await intents(m))
-);
 
 // The catalogue. The other feature that had no contract, and one the frontend
 // leans on hardest - every price on the site is derived from these numbers.

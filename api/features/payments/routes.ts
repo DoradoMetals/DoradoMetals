@@ -8,18 +8,16 @@ import {
 
 import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.ts";
 
-import * as paymentsWire from "#features/payments/wire.ts";
-import { wireShape } from "#shared/wire/middleware.ts";
-
 const router = express.Router();
 
-// The wire adapter, mounted once for the whole feature rather than called by
-// hand in every handler. `body: false` because no write here carries a payment
-// intent: update_payment_intent posts a cart to be priced and cancel posts a
-// Stripe id, neither of which is this entity. Controllers return the internal
-// shape and know nothing about the frontend not having caught up. Deleting the
-// adapter is deleting this line.
-router.use(wireShape(paymentsWire, { body: false }));
+// NO WIRE ADAPTER. Payments converted 2026-08-27 - the LAST *_WIRE adapter:
+// the frontend reads the nested intent from @dorado/contracts (status,
+// attempt with the provider's reference, details for the instrument), in
+// DOLLARS - the flatten that put exchange's names and cents back is gone.
+// Only get_sales_order_payment_intent ever carried it; the other three routes
+// answer with Stripe's client_secret or Stripe's own object. `routing` left
+// the wire when the exchange read stopped being SELECT *, and it stays gone:
+// never SELECT, log, or return bank details.
 
 router.get("/retrieve_payment_intent", requireUser, retrievePaymentIntent);
 router.get("/get_sales_order_payment_intent", requireAdmin, getPaymentIntentFromSalesOrderId);

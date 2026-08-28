@@ -13,7 +13,6 @@ import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as next from "#features/payments/repo.next.ts";
 import * as exchange from "#features/payments/repo.exchange.js";
-import { toLegacy, fromLegacy } from "#features/payments/wire.ts";
 
 let client;
 
@@ -76,19 +75,14 @@ test("amounts round trip through cents and dollars", async () => {
     );
     assert.equal(Number(stored.amount_expected), 434, "dollars are not cents/100");
 
-    // The read now returns the new schema's unit, because the internal shape is
-    // the new schema's - the cents the frontend expects are put back by the
-    // adapter at the edge, and that half is asserted in "the adapter converts
-    // dollars back to cents and back again".
+    // The read returns the new schema's unit, because the internal shape is
+    // the new schema's - and since the conversion (2026-08-27) that is also
+    // what the frontend reads. Only the WRITE path converts, because a write
+    // arrives from Stripe in cents.
     const read = await next.retrievePaymentIntent(
       "sales_order_checkout", aSession(user.id), user.id, c
     );
     assert.equal(Number(read.amount_expected), 434, "the read did not stay in dollars");
-    assert.equal(
-      Number(toLegacy(read).amount),
-      43400,
-      "the adapter did not put the cents back for the legacy wire"
-    );
   });
 });
 
@@ -190,120 +184,25 @@ test("both implementations find the same Stripe intent", async () => {
 
 // ------------------------------------------------------------------ the wire
 //
-// The repos return the new shape on both sides. These are about the shim that
-// converts it back, and about the two ways it could be catastrophic rather than
-// merely wrong: money by a factor of a hundred, and an object that is not ours
-// being rewritten on its way out.
+// The repos return the new shape on both sides, and since the conversion
+// (2026-08-27) that shape IS the wire - the adapter that flattened it back to
+// exchange's names and cents is deleted, and its round-trip tests went with
+// it. What survives the adapter is the constraint that never belonged to it:
+// no bank detail on the wire, from either implementation.
 
-test("the adapter converts the new shape back to the names the frontend reads", async () => {
-  await inRollback(async (c) => {
-    const rows = await c.query(
-      `SELECT id FROM exchange.payment_intents WHERE method_id IS NOT NULL LIMIT 1`
-    );
-    assert.ok(rows.rows.length, "dev has no intent with an instrument recorded");
-
-    const internal = await exchange.getPaymentIntentFromSalesOrderId(
-      (
-        await c.query(
-          `SELECT sales_order_id FROM exchange.payment_intents
-            WHERE sales_order_id IS NOT NULL LIMIT 1`
-        )
-      ).rows[0].sales_order_id,
-      c
-    );
-    assert.ok(internal, "dev has no intent against a sales order");
-
-    const legacy = toLegacy(internal);
-    // Exactly the names AdminPending.tsx destructures.
-    assert.equal(legacy.payment_status, internal.status);
-    assert.equal(legacy.payment_intent_id, internal.attempt.provider_ref);
-    assert.equal(legacy.sales_order_id, internal.order_id);
-    assert.equal(legacy.purchase_order_id, null);
-    assert.ok(!("attempt" in legacy), "the nested shape leaked to the legacy wire");
-    assert.ok(!("status" in legacy), "the nested shape leaked to the legacy wire");
-  });
-});
-
-// A hundredfold error, in both directions. exchange stores cents; the internal
-// shape is dollars.
-test("the adapter converts dollars back to cents and back again", () => {
-  const internal = {
-    id: "x",
-    status: "succeeded",
-    order_id: "o",
-    direction: "sale",
-    amount_expected: 434,
-    amount_received: 434,
-    amount_capturable: null,
-    attempt: { provider: "stripe", provider_ref: "pi_x", status: "succeeded" },
-    details: null,
-  };
-
-  const legacy = toLegacy(internal);
-  assert.equal(legacy.amount, 43400, "dollars must become cents on the legacy wire");
-  assert.equal(legacy.amount_received, 43400);
-  assert.equal(legacy.amount_capturable, null);
-
-  const back = fromLegacy(legacy);
-  assert.equal(back.amount_expected, 434, "cents must become dollars coming back");
-  assert.equal(back.amount_received, 434);
-  assert.equal(back.attempt.provider_ref, "pi_x");
-  assert.equal(back.order_id, "o");
-  assert.equal(back.direction, "sale");
-});
-
-// exchange has two order columns and the new schema has one. Which one it came
-// out of has to survive the round trip or the adapter files a sale under
-// purchases.
-test("the order id goes back into the column it came from", () => {
-  const sale = toLegacy({ order_id: "o", direction: "sale", attempt: {} });
-  assert.equal(sale.sales_order_id, "o");
-  assert.equal(sale.purchase_order_id, null);
-
-  const purchase = toLegacy({ order_id: "o", direction: "purchase", attempt: {} });
-  assert.equal(purchase.purchase_order_id, "o");
-  assert.equal(purchase.sales_order_id, null);
-
-  const none = toLegacy({ order_id: null, direction: null, attempt: {} });
-  assert.equal(none.sales_order_id, null);
-  assert.equal(none.purchase_order_id, null);
-});
-
-// The reason isOurs exists. cancel_payment_intent answers with Stripe's own
-// object through the same res.json the middleware wraps.
-test("a Stripe object passes through the adapter untouched", () => {
-  const stripeIntent = {
-    id: "pi_3RcYBRCuc07t1nZa1YgtxcS5",
-    object: "payment_intent",
-    status: "canceled",
-    amount: 43400,
-    client_secret: "pi_3RcYBR_secret_xyz",
-    payment_method: "pm_1abc",
-  };
-  assert.deepEqual(
-    toLegacy(stripeIntent),
-    stripeIntent,
-    "the adapter rewrote a Stripe response into a half-null version of itself"
-  );
-
-  // And the strings the other two routes answer with.
-  assert.equal(toLegacy("pi_3RcYBR_secret_xyz"), "pi_3RcYBR_secret_xyz");
-  assert.equal(toLegacy(null), null);
-});
-
-// A bank routing number must not be on the wire, whichever shape it is in.
+// A bank routing number must not be on the wire, whichever repo produced the
+// response. It was there only because the exchange read was SELECT *, and it
+// stays gone: never SELECT, log, or return bank details.
 test("no payments response carries a routing number", async () => {
   await inRollback(async (c) => {
     const { rows } = await c.query(
       `SELECT sales_order_id FROM exchange.payment_intents
         WHERE sales_order_id IS NOT NULL LIMIT 1`
     );
-    const internal = await exchange.getPaymentIntentFromSalesOrderId(
-      rows[0].sales_order_id,
-      c
-    );
-    for (const shape of [internal, toLegacy(internal)]) {
-      const flat = JSON.stringify(shape);
+    for (const impl of [exchange, next]) {
+      const row = await impl.getPaymentIntentFromSalesOrderId(rows[0].sales_order_id, c);
+      if (!row) continue; // the new schema may not hold this order's intent
+      const flat = JSON.stringify(row);
       assert.ok(!/"routing"/.test(flat), `a routing key reached the wire: ${flat}`);
     }
   });

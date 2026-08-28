@@ -7982,3 +7982,59 @@ target user's address ids, hence useUserAddressLinks(userId).
 **Ten cd bites.** Attempt 5's gate ran from api/ and exited 254. The rule
 is in the loop prompt in caps and it still happened - the gate launch must
 be a fresh compound starting at the repo root, never chained after a cd.
+
+## D78 — the paper trail is live: every send a row, every document immutable
+
+Migration 090's tables now get written. The three senders persist their
+document at the status event (render -> putObject -> immutable media.pdfs
+row) and record the send after the transport returns - both outcomes, the
+failure with its error text and the throw continuing unchanged. Neither
+write may break the thing it records: both helpers swallow their own
+failures to stderr. Two design notes that cost a debugging loop each:
+
+- **A refused FK retry poisons the caller's transaction** (25P02): the
+  orders.orders link for a pre-dual order cannot be discovered by failing
+  and retrying inside a test's transaction. `linkableOrderId` pre-checks
+  the link instead - verified, never discovered.
+- **A test run writes NOTHING without a transaction**: the trail takes the
+  transport's own stance (isTestRun refuses real mail; the trail refuses
+  real rows and real putObjects). A test exercises it by passing its pinned
+  client; paper-trail.test.js pins the guard itself so it cannot rot.
+
+Remaining media wiring, deliberately deferred: the pdf DOWNLOAD endpoints
+still render live rather than reading the stored file - "one render, one
+truth" finishes when those read media.pdfs; and the email kinds enum grows
+as new templates appear (auth verification mail goes through better-auth's
+own path, unrecorded - worth a decision).
+
+## D79 — the single-schema-source ruling, realized
+
+@hookform/resolvers 4.1.3 was the wall: subagent B proved with executed
+probes (not assumptions) that it rethrows v4 ZodErrors instead of producing
+field errors, and that v3/v4 schemas cannot nest in either direction - so
+the checkout schema graph (one connected embed component with four
+resolver-bound forms) was all-or-nothing. I bumped to 5.9.1, re-probed both
+ways green, and B converted the graph in one pass: twelve schema files to
+zod/v4, the three pinned restatements DELETED (addressWireSchemaV3,
+userAddressWireSchemaV3, liveSpotSchema), productSchema derived from
+BullionWire with mutual assignability proven. Frontend feature schemas that
+mirror tables now IMPORT the contract schema objects; what remains local is
+form policy. Ripples worth knowing: resolvers 5.x types by Input AND
+Output, so z.coerce/default splits need useForm's third generic
+(ScrapTab) or lose the .default (signInSchema - form supplied it anyway).
+
+## D80 — the last adapter: the wire axis is retired
+
+Payments converted (subagent A prep, my flip): PaymentIntent derives from
+PaymentIntentWireNext, AdminPending reads the nested shape in DOLLARS with
+the cents math deleted and a unit pin ("434" twice, "43400"/"4.34"
+asserted absent - a resurrected /100 in either direction fails), the dead
+`routing` render block is gone with the flat type, and the 204-line
+adapter + its mount are deleted. THE FLIP WAS THE DELETION: with the mount
+gone PAYMENTS_WIRE is inert, so there was no env change to make and no
+flip-dependent tests. WIRE_FLOOR is 0 in its asserted zero-state;
+PROMOTION.md's wire section now records the axis as RETIRED - all seven
+wire features read from @dorado/contracts, rollback would break the
+frontend rather than save it, and promotion work from here is the
+*_SOURCE axis alone. A's correction for the record: AdminPaymentProcessing
+was never a consumer of this wire (it reads payout fields).

@@ -8,9 +8,9 @@
 //
 // This returns the new shape, and repo.exchange composes the same one out of its
 // flat row, so the internal shape does not depend on which switch is selected.
-// features/payments/wire.ts flattens it back for the frontend behind
-// PAYMENTS_WIRE - the frontend reads payment_status and payment_intent_id today
-// and stops when it is migrated, not before.
+// Since 2026-08-27 it is also the wire: the frontend reads status, attempt and
+// details from @dorado/contracts, and the adapter that flattened them back to
+// payment_status and payment_intent_id is deleted.
 //
 // The split was landed projecting the exchange names first, deliberately, so
 // `diff` could compare the two implementations without a reshape in the way.

@@ -326,11 +326,17 @@ Rollback is instant and total in both directions: no data is written differently
 | `ADDRESSES_WIRE` | the postal address separates from the person's relationship to it (`user_address`) |
 | `PAYMENTS_WIRE` | `attempt` and `details` become their own objects; amounts move from cents to dollars |
 
-`PAYMENTS_WIRE` is the one with a unit change in it. exchange stores money in
-**cents** because that table was written straight from Stripe's objects; the new
-schema stores **dollars** like everything else. The adapter multiplies by 100 on
-the way down, and a frontend reading `next` must divide. Nothing else on this
-list changes a value, only names and nesting.
+**THE WIRE AXIS IS RETIRED (2026-08-28).** All seven converted, adapters
+deleted, switches inert: the frontend reads every one of these shapes from
+`@dorado/contracts`, so there is nothing left to flip and no rollback that
+means anything - rolling a wire back now would break the frontend, not save
+it. The rows above stay as the record of what each conversion changed.
+`PAYMENTS_WIRE` was the one with a unit change in it: exchange stores money
+in **cents** because that table was written straight from Stripe's objects,
+the new schema stores **dollars**, and the frontend now reads dollars with
+the cents math deleted (AdminPending.test.tsx pins "434" rendering and
+asserts "43400" and "4.34" absent, in both directions). Promotion work from
+here is the `*_SOURCE` axis alone.
 
 ---
 
