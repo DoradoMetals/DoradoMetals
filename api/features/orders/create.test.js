@@ -103,6 +103,28 @@ test("a checkout becomes an order with its items and its fulfillment", async () 
     );
     assert.equal(f[0].type, "CARRIER DROPOFF");
     assert.equal(f[0].category, "SHIPMENT");
+
+    // Born with its engagement and the refiner counterparts (093's
+    // invariants, maintained by the create path): one refiners.orders row,
+    // one refiners.items row per line, a refiners.spots row per frozen spot.
+    const { rows: eng } = await c.query(
+      `SELECT id, refiner_id FROM refiners.orders WHERE order_id = $1`, [order_id]
+    );
+    assert.equal(eng.length, 1, "the order has no refiners.orders engagement row");
+    const { rows: mirrors } = await c.query(
+      `SELECT
+         (SELECT count(*) FROM refiners.items ri
+           JOIN orders.items oi ON oi.id = ri.order_item_id
+          WHERE oi.order_id = $1 AND ri.refiner_order_id = $2)::int AS items,
+         (SELECT count(*) FROM orders.spots os
+          WHERE os.order_id = $1
+            AND NOT EXISTS (SELECT 1 FROM refiners.spots rs
+                             WHERE rs.order_id = os.order_id
+                               AND rs.metal_id = os.metal_id))::int AS uncovered`,
+      [order_id, eng[0].id]
+    );
+    assert.equal(mirrors[0].items, items.length, "a customer line has no linked refiner counterpart");
+    assert.equal(mirrors[0].uncovered, 0, "a frozen spot has no refiner counterpart");
   });
 });
 

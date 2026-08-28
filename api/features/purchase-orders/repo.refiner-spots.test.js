@@ -16,7 +16,6 @@ import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import * as dual from "#features/purchase-orders/repo.dual.js";
 import * as next from "#features/purchase-orders/repo.next.ts";
-import * as exchange from "#features/purchase-orders/repo.exchange.js";
 
 let client;
 
@@ -52,18 +51,25 @@ const anOrderWithRefinerSpots = async (c) =>
       ORDER BY m.purchase_order_id, m.type LIMIT 1`
   )).rows[0];
 
-test("both implementations read the same refiner spots", async () => {
+// DEMOTED with the read pivot (ruling 8): the exchange read implementation is
+// gone, so the comparison is the READ against the RAW exchange rows the dual
+// write still maintains - same question, one implementation.
+test("the read agrees with the raw exchange rows the dual write maintains", async () => {
   const order = await anOrderWithRefinerSpots(client);
   assert.ok(order, "dev has no refiner metals on a migrated order");
 
-  const [a, b] = [
-    await exchange.findRefinerMetalsByOrderId(order.id),
-    await next.findRefinerMetalsByOrderId(order.id),
-  ];
-  assert.ok(a.length > 0, "exchange returned nothing to compare");
+  const { rows: raw } = await client.query(
+    `SELECT m.id, m.type AS name, m.ask_spot AS ask, m.bid_spot AS bid
+       FROM exchange.refiner_metals m
+      WHERE m.purchase_order_id = $1
+      ORDER BY m.type ASC, m.id ASC`,
+    [order.id]
+  );
+  const b = await next.findRefinerMetalsByOrderId(order.id);
+  assert.ok(raw.length > 0, "exchange returned nothing to compare");
   assert.deepEqual(
-    b.map((r) => ({ ...r, ask: Number(r.ask), bid: Number(r.bid) })),
-    a.map((r) => ({ ...r, ask: Number(r.ask), bid: Number(r.bid) }))
+    b.map((r) => ({ id: r.id, name: r.name, ask: Number(r.ask), bid: Number(r.bid) })),
+    raw.map((r) => ({ id: r.id, name: r.name, ask: Number(r.ask), bid: Number(r.bid) }))
   );
 });
 

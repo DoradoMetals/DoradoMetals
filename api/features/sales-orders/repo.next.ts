@@ -14,14 +14,6 @@
 import query from "#shared/db/query.js";
 import type { SalesOrder } from "@dorado/contracts";
 import type { PoolClient } from "pg";
-// See features/orders/fragments.ts: the shipment and user objects are
-// identical in both directions and are now written once.
-import {
-  shipmentJson,
-  userJson,
-  sharedJoins,
-  newestFirst,
-} from "#features/orders/fragments.ts";
 
 // Repos take an optional executor so a caller can pull them into its
 // transaction; without one they run on the pool.
@@ -61,119 +53,11 @@ export type OrderMetalRow = {
   updated_at: Date | null;
 };
 
-// The columns exchange.sales_orders had, rebuilt from the tables they were
-// split across. Listed rather than selected with *, so a column appearing on
-// one side and not the other shows up as a conflict, not as a quiet change in
-// what the API returns.
-// The Next wire's columns (D84): the schema's own names, no renames left to
-// undo. The money is not here - it nests as `totals` in the query below,
-// under orders.transactions' own names.
-const ORDER_COLUMNS = `
-      o.id,
-      o.user_id,
-      oa.source_address_id AS address_id,
-      o.status,
-      o.notes,
-      o.created_at,
-      o.updated_at,
-      o.created_by,
-      o.updated_by,
-      o.number,
-      o.review_created,
-      t.shipping_service,
-      t.used_funds,
-      o.order_sent,
-      o.tracking_updated,
-      o.refinery_id AS supplier_id`;
+// THE COMPOSED ORDER READS ARE GONE with the read pivot (ruling 8):
+// read.service.ts is THE sales-order read, assembled from the per-table
+// repos. What remains here is the dual-write MIRROR machinery and the
+// per-metal spot read.
 
-function buildOrderQuery({ where = "", limit = "" }: { where?: string; limit?: string } = {}): string {
-  return `
-    SELECT
-      ${ORDER_COLUMNS},
-      -- The money, under orders.transactions' own names (D84). Always an
-      -- object, every key present. refiner_fee is NULL deliberately: exchange
-      -- never had the column for a sales order and the transactions rows hold
-      -- only a literal column default (0) - see compose.ts.
-      jsonb_build_object(
-        'total', t.total,
-        'items', t.items,
-        'shipping', t.shipping,
-        'surcharge', t.surcharge,
-        'sales_tax', t.sales_tax,
-        'funds', t.funds,
-        'refiner_fee', NULL,
-        'base_total', t.base_total,
-        'subject_to_charges_amount', t.subject_to_charges_amount,
-        'post_charges_amount', t.post_charges_amount
-      ) AS totals,
-      json_agg(DISTINCT jsonb_build_object(
-        'id', i.id,
-        'sales_order_id', i.order_id,
-        'price', i.price,
-        'quantity', i.quantity,
-        'premium', i.premium,
-        'product', jsonb_build_object(
-          'id', b.id,
-          'name', b.name,
-          'description', b.description,
-          'type', b.type,
-          'metal_type', bm.name,
-          'content', b.content,
-          'gross', b.gross,
-          'purity', b.purity,
-          'bid_premium', b.bid_premium,
-          'ask_premium', b.ask_premium,
-          'image_front', b.image_front,
-          'image_back', b.image_back,
-          'mint_name', mnt.name
-        )
-      )) AS order_items,
-      -- THE SNAPSHOT SHAPE (D84). address_id is the BOOK id - see the header -
-      -- and recipient_name is what the book's smeared name column always meant on an order.
-      -- CASE keeps "no address" null, exactly as to_jsonb(addr) was.
-      CASE WHEN addr.id IS NULL THEN NULL ELSE jsonb_build_object(
-        'address_id', addr.id,
-        'recipient_name', addr.name,
-        'line_1', addr.line_1,
-        'line_2', addr.line_2,
-        'city', addr.city,
-        'state', addr.state,
-        'country', addr.country,
-        'country_code', addr.country_code,
-        'zip', addr.zip,
-        'phone_number', addr.phone_number,
-        'is_residential', addr.is_residential,
-        'is_valid', addr.is_valid
-      ) END AS address,
-      ${userJson()} AS "user",
-      ${shipmentJson("ship")} AS shipment
-    FROM orders.orders o
-    ${sharedJoins}
-    LEFT JOIN exchange.shipments ship ON ship.sales_order_id = o.id
-    WHERE o.direction = 'sale'${where ? ` AND ${where}` : ""}
-    GROUP BY o.id, t.id, oa.source_address_id, addr.id, u.id, ship.id
-    ${newestFirst}${limit};
-  `;
-}
-
-// `|| null` rather than `?? null`, matching repo.exchange.js exactly.
-export async function findById(id: string): Promise<SalesOrderRow | null> {
-  const { rows } = await query<SalesOrderRow>(
-    buildOrderQuery({ where: "o.id = $1", limit: "\n    LIMIT 1" }),
-    [id]
-  );
-  return rows[0] || null;
-}
-
-export async function findAllByUser(userId: string): Promise<SalesOrderRow[]> {
-  const { rows } = await query<SalesOrderRow>(buildOrderQuery({ where: "o.user_id = $1" }), [userId]);
-  return rows;
-}
-
-export async function getAll(): Promise<SalesOrderRow[]> {
-  const { rows } = await query<SalesOrderRow>(buildOrderQuery(), []);
-  return rows;
-}
 
 // percent_change and dollar_change have no column by design - null on every row
 // in exchange, and nothing writes them - so they are projected to keep the shape.
@@ -214,26 +98,41 @@ export async function findMetalsByOrderId(orderId: string): Promise<OrderMetalRo
 export async function mirrorOrder(orderId: string, executor?: Executor): Promise<void> {
   await query(
     `INSERT INTO orders.orders (
-       id, user_id, refinery_id, direction, status, number, notes,
+       id, user_id, direction, status, number, notes,
        review_created, order_sent, tracking_updated,
        created_by, updated_by, created_at, updated_at
      )
      SELECT
        s.id, s.user_id,
-       (SELECT r.id FROM refiners.refiners r WHERE r.id = s.supplier_id),
        'sale', s.sales_order_status, s.order_number, s.notes, s.review_created,
        s.order_sent, s.tracking_updated, s.created_by, s.updated_by,
        s.created_at AT TIME ZONE 'UTC', s.updated_at AT TIME ZONE 'UTC'
      FROM exchange.sales_orders s
      WHERE s.id = $1
      ON CONFLICT (id) DO UPDATE SET
-       user_id = EXCLUDED.user_id, refinery_id = EXCLUDED.refinery_id,
+       user_id = EXCLUDED.user_id,
        status = EXCLUDED.status, number = EXCLUDED.number, notes = EXCLUDED.notes,
        review_created = EXCLUDED.review_created,
        order_sent = EXCLUDED.order_sent,
        tracking_updated = EXCLUDED.tracking_updated,
        created_by = EXCLUDED.created_by, updated_by = EXCLUDED.updated_by,
        created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at`,
+    [orderId],
+    executor
+  );
+
+  // WHICH REFINERY HAS THE METAL lands on the ENGAGEMENT (refiners.orders,
+  // 093) - orders.orders.refinery_id dropped in 094. The upsert both ensures
+  // the one-engagement-per-order invariant for a row this mirror just created
+  // and re-derives refiner_id from exchange's supplier_id, validated against
+  // refiners.refiners the way the old column's mirror was.
+  await query(
+    `INSERT INTO refiners.orders (order_id, refiner_id)
+     SELECT s.id, (SELECT r.id FROM refiners.refiners r WHERE r.id = s.supplier_id)
+       FROM exchange.sales_orders s
+      WHERE s.id = $1
+     ON CONFLICT (order_id) DO UPDATE
+       SET refiner_id = EXCLUDED.refiner_id, updated_at = now()`,
     [orderId],
     executor
   );

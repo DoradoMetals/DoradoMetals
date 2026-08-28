@@ -294,6 +294,16 @@ const TABLES = [
 // January. A registration is what makes the check cover a table; without one it
 // passes by not looking.
 const NOT_REBUILT = {
+  // The engagement (093) and its completions (094, 096) are numbered schema
+  // migrations with guarded backfills INSIDE them, so this harness's
+  // *backfill*/*seed* name filter never replays them - on a real build the
+  // ledger does, in order. Row-for-row comparison here would also drown in
+  // the known dev strays (orders.orders holds 27 rows exchange does not; see
+  // clean:dual-orphans). What stands in: 096 replays here and seeds
+  // refiner_id from exchange.sales_orders.supplier_id, and
+  // refiner-edits.test.js pins the one-engagement-per-order invariant with
+  // the mirrors linked.
+  "refiners.orders": "created and seeded by 093/094/096 from the ledger; invariant pinned by refiner-edits.test.js",
   "auth.users": "backfilled by 029 but compared per-column there, not row-wise",
   "auth.employees": "seed data, no exchange source",
   "auth.account": "better-auth owns these tables; auth is not migrated",

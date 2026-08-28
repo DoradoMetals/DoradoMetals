@@ -2,17 +2,6 @@ import { useApiMutation, useApiQuery } from "@/shared/queries/base";
 import { queryKeys } from "@/shared/queries/keys";
 import { Lead, NewLead } from "@/features/leads/types";
 
-export const useLead = (leadId: string) =>
-  useApiQuery<Lead[]>({
-    key: queryKeys.adminLead(leadId),
-    url: '/leads/get_one',
-    requireAdmin: true,
-    enabled: !!leadId,
-    params: () => ({
-      lead_id: leadId,
-    }),
-  })
-
 export const useLeads = () =>
   useApiQuery<Lead[]>({
     key: queryKeys.adminLeads(),

@@ -28,6 +28,11 @@ export type Executor = PoolClient | undefined;
 
 // created_by / updated_by / created_by_id / updated_by_id are not projected -
 // who last edited a reference row is not part of the menu.
+// The audit id columns joined the pick with ruling 12: get_one.sql serves
+// the WHOLE row now (the fulfillment chain read returns it verbatim), and
+// the list projections that omit them type the same shape with those fields
+// simply absent at runtime for internal composition - the wire shapes are
+// where presence is enforced, by validate:wire.
 export type MethodRow = Pick<
   fulfillments.MethodsRow,
   | "id" | "type" | "label" | "admin_label" | "category" | "direction"

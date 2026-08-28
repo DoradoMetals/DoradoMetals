@@ -22,10 +22,12 @@ export type LegacyOrderValues = [
   number | null, number | null, number | null, number | null,
 ];
 
+// `order_number` is the number sql/create.sql already drew for orders.orders -
+// passed through so exchange's column DEFAULT never draws the sequence again.
 export async function createOrder(
-  id: string, values: LegacyOrderValues, executor?: Executor
+  id: string, values: LegacyOrderValues, order_number: number, executor?: Executor
 ): Promise<void> {
-  await query(sql("legacy/create"), [id, ...values], executor);
+  await query(sql("legacy/create"), [id, ...values, order_number], executor);
 }
 
 export async function createItem(

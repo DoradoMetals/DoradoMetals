@@ -46,12 +46,6 @@ export const {
   admin,
 } = auth
 
-export const getUser = async () => {
-  const { data, error } = await getSession()
-  if (data) return data.user
-  throw error
-}
-
 export const useUser = () => {
   const { data, error, isPending } = useSession()
   return {

@@ -5,13 +5,18 @@ import { SalesOrderDrawerHeaderProps, statusConfig } from '@/features/orders/sal
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { DownloadIcon } from '@phosphor-icons/react'
-import { useSalesOrderMetals } from '@/features/orders/salesOrders/users/queries'
+import { useOrderSpots, nameSpots } from '@/features/orders/spots'
+import { useSpotPrices } from '@/features/spots/queries'
 
 export default function SalesOrderDrawerHeader({ order }: SalesOrderDrawerHeaderProps) {
   const downloadInvoice = useDownloadSalesOrderInvoice()
 
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
-  const { data: orderSpots = [] } = useSalesOrderMetals(order.id)
+  const { data: orderSpots = [] } = useOrderSpots(order.id)
+  // Display composition, client-side: the rows carry metal_id, the reference
+  // read supplies the names the PDF templates print.
+  const { data: spotPrices = [] } = useSpotPrices()
+  const namedOrderSpots = nameSpots(orderSpots, spotPrices)
 
   const Icon = statusConfig[order.status ?? '']?.icon
 
@@ -20,13 +25,13 @@ export default function SalesOrderDrawerHeader({ order }: SalesOrderDrawerHeader
       statuses: ['Pending'],
       label: 'Invoice Preview',
       onClick: () =>
-        downloadInvoice.mutate({ salesOrder: order, orderSpots, fileName: 'invoice_preview' }),
+        downloadInvoice.mutate({ salesOrder: order, orderSpots: namedOrderSpots, fileName: 'invoice_preview' }),
       isPending: downloadInvoice.isPending,
     },
     {
       statuses: ['Preparing', 'In Transit', 'Completed'],
       label: 'Invoice',
-      onClick: () => downloadInvoice.mutate({ salesOrder: order, orderSpots, fileName: 'invoice' }),
+      onClick: () => downloadInvoice.mutate({ salesOrder: order, orderSpots: namedOrderSpots, fileName: 'invoice' }),
       isPending: downloadInvoice.isPending,
     },
   ]

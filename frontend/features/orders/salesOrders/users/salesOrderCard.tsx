@@ -10,7 +10,8 @@ import { DownloadIcon } from '@phosphor-icons/react'
 import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { OrderCardShell } from '@/features/orders/ui/OrderCardShell'
-import { useSalesOrderMetals } from '@/features/orders/salesOrders/users/queries'
+import { useOrderSpots, nameSpots } from '@/features/orders/spots'
+import { useSpotPrices } from '@/features/spots/queries'
 
 export default function SalesOrderCard({
   order,
@@ -22,7 +23,11 @@ export default function SalesOrderCard({
   const { openDrawer } = useDrawerStore()
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
 
-  const { data: orderSpots = [] } = useSalesOrderMetals(order.id)
+  const { data: orderSpots = [] } = useOrderSpots(order.id)
+  // Display composition, client-side: the rows carry metal_id, the reference
+  // read supplies the names the PDF templates print.
+  const { data: spotPrices = [] } = useSpotPrices()
+  const namedOrderSpots = nameSpots(orderSpots, spotPrices)
   const downloadInvoice = useDownloadSalesOrderInvoice()
 
   const status = statusConfig[order.status ?? '']
@@ -45,7 +50,7 @@ export default function SalesOrderCard({
       onClick: () =>
         downloadInvoice.mutate({
           salesOrder: order,
-          orderSpots,
+          orderSpots: namedOrderSpots,
           fileName: 'invoice_preview',
         }),
       isPending: downloadInvoice.isPending,
@@ -56,7 +61,7 @@ export default function SalesOrderCard({
       onClick: () =>
         downloadInvoice.mutate({
           salesOrder: order,
-          orderSpots,
+          orderSpots: namedOrderSpots,
           fileName: 'invoice',
         }),
       isPending: downloadInvoice.isPending,

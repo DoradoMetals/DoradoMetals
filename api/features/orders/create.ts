@@ -16,6 +16,9 @@ import type { PoolClient } from "pg";
 
 import query from "#shared/db/query.js";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
+import * as refinerOrders from "#features/refiners/orders/repo.ts";
+import * as refinerItems from "#features/refiners/items/repo.ts";
+import * as refinerSpots from "#features/refiners/spots/repo.ts";
 import * as ratesRepo from "#features/rates/service.ts";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 
@@ -244,9 +247,20 @@ export async function createFromCheckout(
   );
   const order_id = created[0].id;
 
+  // ONE ENGAGEMENT PER ORDER, EVERY ORDER (093): the refiner-side engagement
+  // is born with the order, values NULL until a refinery is involved, and the
+  // items and spots below get their refiner counterparts from it.
+  await refinerOrders.ensureForOrder(order_id, executor);
+
   await copyItems(order_id, checkout_id, executor);
   await retierScrapPremiums(order_id, executor);
   await freezeSpots(order_id, executor);
+
+  // The refiner counterparts (093's mirror completion, applied to new
+  // traffic): one refiners.items row per customer line and one unquoted
+  // refiners.spots row per frozen customer spot.
+  await refinerItems.mirrorLinesForOrder(order_id, executor);
+  await refinerSpots.coverFromOrderSpots(order_id, executor);
 
   // Whichever address the checkout recorded is the one the order is about. A
   // purchase records a shipper (the customer posts the metal), a sale a

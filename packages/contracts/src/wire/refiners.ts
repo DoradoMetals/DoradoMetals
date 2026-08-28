@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { OrdersRow, SpotsRow } from "../generated/refiners.js";
 
 // What the repos return: a refiner, and the organization it is, kept apart.
 //
@@ -30,3 +31,15 @@ export type Refiner = z.infer<typeof Refiner>;
 // adapter died with the wire axis; the schema retired when the last legacy
 // vocabulary went. This shape carried the -WireNext suffix until the same
 // day: one shape, one name.
+
+// The refiner ENGAGEMENT on a customer order (093), addressed by the order:
+// GET /orders/:orderId/refiners. The VERBATIM refiners.orders row
+// (ruling 12); its own id is the key PATCH /refiners/orders/:id takes.
+export const RefinerOrder = OrdersRow;
+export type RefinerOrder = z.infer<typeof RefinerOrder>;
+
+// GET /orders/:orderId/refiners/spots - the refinery's quoted spots
+// as VERBATIM refiners.spots rows. The metal is its id; display names come
+// from the spots reference read, client-side.
+export const RefinerSpot = SpotsRow;
+export type RefinerSpot = z.infer<typeof RefinerSpot>;

@@ -41,7 +41,6 @@ const { default: app } = await import("#app");
 let admin;
 let order; // an open purchase order with items, metals and a payout
 let owner; // its customer
-let devMetals; // exchange.metals as committed, to prove the pins rolled back
 
 before(async () => {
   admin = (
@@ -70,7 +69,6 @@ before(async () => {
   )[0];
   assert.ok(owner?.id, `no exchange.users row for ${order.user_id}`);
 
-  devMetals = await outside(`SELECT type, bid_spot FROM exchange.metals ORDER BY type`);
 });
 
 after(async () => {
@@ -376,8 +374,18 @@ test("nothing this file did survived the transactions", async () => {
   );
   assert.equal(status, order.status, "an order's status was really moved in dev");
 
-  // The live spot table is exactly as this file found it - the pinned
-  // sentinels were written inside the rolled-back transactions only.
+  // No PINNED sentinel escaped the rolled-back transactions. NOT an exact
+  // snapshot comparison any more: the dev deployment's spot cron writes
+  // exchange.metals continuously on this shared database, so exact equality
+  // races the live feed whenever the suite runs slowly - it flaked exactly
+  // that way on a slow run. What this file could actually leak is its four
+  // pinned bids, so their absence is the assertion.
   const metalsNow = await outside(`SELECT type, bid_spot FROM exchange.metals ORDER BY type`);
-  assert.deepEqual(metalsNow, devMetals, "a pinned sentinel bid escaped into exchange.metals");
+  for (const row of metalsNow) {
+    assert.notEqual(
+      Number(row.bid_spot),
+      PINNED_BIDS[row.type],
+      `a pinned sentinel bid for ${row.type} escaped into exchange.metals`
+    );
+  }
 });

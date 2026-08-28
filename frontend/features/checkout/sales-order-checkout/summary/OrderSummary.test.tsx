@@ -8,9 +8,9 @@
 // the cart store. The fixture speaks the contract's field names and nothing
 // else does.
 import { describe, expect, test, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithClient } from "@/shared/tests/renderWithClient";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
@@ -37,11 +37,6 @@ import { cartStore } from "@/shared/store/cartStore";
 import OrderSummary from "@/features/checkout/sales-order-checkout/summary/orderSummary";
 import type { SalesOrderQuote } from "@dorado/contracts";
 import type { Product } from "@/features/products/types";
-
-const renderWithClient = (ui: React.ReactElement) => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-};
 
 const eagle = (): Product =>
   ({

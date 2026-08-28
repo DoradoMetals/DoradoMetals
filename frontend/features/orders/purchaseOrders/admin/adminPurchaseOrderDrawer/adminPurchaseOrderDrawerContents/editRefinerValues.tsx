@@ -3,15 +3,24 @@
 import { Input } from '@/shared/ui/base/input'
 import { cn } from '@/shared/utils/cn'
 
-import { usePurchaseOrderRefinerMetals } from '@/features/orders/purchaseOrders/admin/queries'
+import { useRefinerMetals, useRefinerOrder } from '@/features/refiners/queries'
 import { usePatchRefinerItem, usePatchRefinerOrder } from '@/features/refiners/queries'
 
 import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
-import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
+import { useOrderSpots, nameSpots } from '@/features/orders/spots'
+import { useSpotPrices } from '@/features/spots/queries'
 
 export default function RefinerValues({ order }: { order: PurchaseOrder }) {
-  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
-  const { data: refinerSpotPrices = [] } = usePurchaseOrderRefinerMetals(order.id)
+  const { data: orderSpotRows = [] } = useOrderSpots(order.id)
+  // By the ORDER id - the key this component holds. The engagement row rides
+  // along because its own id is what the PATCH addresses.
+  const { data: refinerSpotRows = [] } = useRefinerMetals(order.id)
+  const { data: refinerOrder } = useRefinerOrder(order.id)
+  // Display composition, client-side: the verbatim rows carry metal_id; the
+  // reference read supplies the names this screen shows and mutates by.
+  const { data: spotPrices = [] } = useSpotPrices()
+  const orderSpotPrices = nameSpots(orderSpotRows, spotPrices)
+  const refinerSpotPrices = nameSpots(refinerSpotRows, spotPrices)
 
   // Everything here is refiner data: spots and fee are ENGAGEMENT facts on
   // refiners.orders, premium is per-line on refiners.items. Separate
@@ -60,9 +69,9 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
                       ''
                     }
                     onBlur={(e) => {
-                      if (!spot.name || !order.refiner_order_id) return
+                      if (!spot.name || !refinerOrder?.id) return
                       updateSpot.mutate({
-                        refiner_order_id: order.refiner_order_id,
+                        refiner_order_id: refinerOrder.id,
                         order_id: order.id,
                         patch: { spots: [{ name: spot.name, bid: Number(e.target.value) }] },
                       })
@@ -143,9 +152,9 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
               defaultValue={order.totals?.refiner_fee ?? ''}
               disabled={updateFee.isPending}
               onBlur={(e) => {
-                if (!order.refiner_order_id) return
+                if (!refinerOrder?.id) return
                 updateFee.mutate({
-                  refiner_order_id: order.refiner_order_id,
+                  refiner_order_id: refinerOrder.id,
                   order_id: order.id,
                   patch: { fee: Number(e.target.value) },
                 })

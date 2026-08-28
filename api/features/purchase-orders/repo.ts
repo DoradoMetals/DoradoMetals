@@ -10,13 +10,12 @@
 //
 // So this file is deliberately small. It is the creation path and nothing else.
 //
-// NAMED create.repo.ts, NOT repo.ts, AND ONLY UNTIL THE PIVOT. `repo.js` in
-// this directory is still the *_SOURCE switch, and TypeScript resolves the
-// subpath import `#features/purchase-orders/repo.js` to a sibling `repo.ts` if
-// one exists - so adding repo.ts here silently shadowed the switch for every
-// caller. tsc caught it; the switch guards did not, because the file they walk
-// still existed and still had its exports. This becomes repo.ts when repo.js
-// is deleted, matching sales-orders.
+// NAMED repo.ts SINCE THE PIVOT, matching sales-orders. It was create.repo.ts
+// while repo.js - the *_SOURCE switch - still existed, because TypeScript
+// resolves the subpath import `#features/purchase-orders/repo.js` to a
+// sibling repo.ts and a file of this name would have silently shadowed the
+// switch. The switch died with the read pivot (ruling 8), so the name is
+// finally free.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { PoolClient } from "pg";

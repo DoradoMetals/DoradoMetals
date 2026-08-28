@@ -80,6 +80,8 @@ export async function createSpot(
   await query(sql("create_spot"), [id, order_id, metal_id, ask, bid], executor);
 }
 
+// Writes the ENGAGEMENT (refiners.orders, 093) - orders.orders.refinery_id
+// dropped in 094. See sql/set_refinery.sql for why it is an upsert.
 export async function setRefinery(
   id: string, refinery_id: string | null, executor?: Executor
 ): Promise<{ id: string; supplier_id: string | null } | undefined> {

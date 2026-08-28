@@ -497,7 +497,6 @@ ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS price numeric;
 CREATE TABLE IF NOT EXISTS orders.orders (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   user_id uuid,
-  refinery_id uuid,
   direction orders.direction,
   status text,
   number bigint,
@@ -515,7 +514,6 @@ CREATE TABLE IF NOT EXISTS orders.orders (
 );
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS user_id uuid;
-ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS refinery_id uuid;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS direction orders.direction;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS status text;
 ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS number bigint;
@@ -2457,16 +2455,6 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE con.conname = 'orders_refinery_id_fkey' AND c.relname = 'orders' AND n.nspname = 'orders'
-  ) THEN
-    ALTER TABLE orders.orders ADD CONSTRAINT orders_refinery_id_fkey FOREIGN KEY (refinery_id) REFERENCES refiners.refiners(id);
-  END IF;
-END $$;
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint con
-    JOIN pg_class c ON c.oid = con.conrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'orders_updated_by_id_fkey' AND c.relname = 'orders' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.orders ADD CONSTRAINT orders_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
@@ -3195,7 +3183,6 @@ CREATE INDEX IF NOT EXISTS order_addresses_order_idx ON orders.addresses USING b
 CREATE INDEX IF NOT EXISTS idx_order_items_bullion_id ON orders.items USING btree (bullion_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_metal_id ON orders.items USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON orders.items USING btree (order_id);
-CREATE INDEX IF NOT EXISTS idx_orders_refinery_id ON orders.orders USING btree (refinery_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders.orders USING btree (user_id);
 CREATE INDEX IF NOT EXISTS idx_order_spots_metal ON orders.spots USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_order_spots_order ON orders.spots USING btree (order_id);
@@ -3254,6 +3241,7 @@ CREATE INDEX IF NOT EXISTS refiners_items_order_item_id_ix ON refiners.items USI
 CREATE UNIQUE INDEX IF NOT EXISTS refiners_items_order_item_id_key ON refiners.items USING btree (order_item_id);
 CREATE INDEX IF NOT EXISTS refiners_items_refiner_order_id_idx ON refiners.items USING btree (refiner_order_id);
 CREATE INDEX IF NOT EXISTS refiners_orders_order_id_idx ON refiners.orders USING btree (order_id);
+CREATE INDEX IF NOT EXISTS refiners_orders_refiner_id_idx ON refiners.orders USING btree (refiner_id);
 CREATE UNIQUE INDEX IF NOT EXISTS refiners_organization_uniq ON refiners.refiners USING btree (organization_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_metal ON refiners.spots USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_order ON refiners.spots USING btree (order_id);

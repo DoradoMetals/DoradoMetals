@@ -6,9 +6,9 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import * as next from "#features/sales-orders/repo.next.ts";
-import * as exchange from "#features/sales-orders/read.service.ts";
-import * as purchase from "#features/purchase-orders/repo.next.ts";
+import { SalesOrder } from "@dorado/contracts";
+import * as readService from "#features/sales-orders/read.service.ts";
+import * as purchase from "#features/purchase-orders/read.service.ts";
 
 let client;
 
@@ -34,16 +34,19 @@ async function inRollback(fn) {
   }
 }
 
-test("a sales order carries the same columns it always did", async () => {
-  const [a] = await exchange.getAll();
-  const [b] = await next.getAll();
-  assert.deepEqual(Object.keys(b).sort(), Object.keys(a).sort());
+// The composed query this was compared against died with the read pivot; the
+// CONTRACT is the independent statement of the shape now, and validate:wire
+// parses real rows through it - this pin is the cheap in-suite version.
+test("a sales order carries exactly the contract's fields", async () => {
+  const [b] = await readService.getAll();
+  assert.ok(b, "no orders came back - this proves nothing");
+  assert.deepEqual(Object.keys(b).sort(), Object.keys(SalesOrder.shape).sort());
 });
 
 // The two kinds of order share a table now. A purchase order surfacing in a
 // customer's sales order list would show them someone else's business.
 test("purchase orders and sales orders do not bleed into each other", async () => {
-  const sales = (await next.getAll()).map((o) => o.id);
+  const sales = (await readService.getAll()).map((o) => o.id);
   const purchases = (await purchase.getAll()).map((o) => o.id);
   assert.equal(sales.some((id) => purchases.includes(id)), false);
 
@@ -58,7 +61,7 @@ test("purchase orders and sales orders do not bleed into each other", async () =
 
 test("the money comes back off the transaction, not the order", async () => {
   await inRollback(async (c) => {
-    const all = await next.getAll();
+    const all = await readService.getAll();
     assert.ok(all.length, "getAll returned nothing, so this test asserts nothing");
     for (const o of all) {
       const { rows: [t] } = await c.query(
@@ -81,7 +84,7 @@ test("the money comes back off the transaction, not the order", async () => {
 // during the backfill - a zero balance applied and no balance applied are
 // different things.
 test("used_funds stays a boolean beside the funds amount", async () => {
-  const all = await next.getAll();
+  const all = await readService.getAll();
   assert.ok(all.length, "getAll returned nothing, so this test asserts nothing");
   for (const o of all) {
     assert.equal(typeof o.used_funds, "boolean");
@@ -91,7 +94,7 @@ test("used_funds stays a boolean beside the funds amount", async () => {
 
 test("the address id still resolves in exchange.addresses", async () => {
   await inRollback(async (c) => {
-    const withAddress = (await next.getAll()).filter((o) => o.address_id);
+    const withAddress = (await readService.getAll()).filter((o) => o.address_id);
     assert.ok(withAddress.length);
     for (const o of withAddress) {
       const { rows } = await c.query("SELECT 1 FROM exchange.addresses WHERE id = $1", [o.address_id]);
@@ -102,7 +105,7 @@ test("the address id still resolves in exchange.addresses", async () => {
 
 
 test("every line resolves to a product", async () => {
-  const all = await next.getAll();
+  const all = await readService.getAll();
   assert.ok(all.length, "getAll returned nothing, so this test asserts nothing");
   let lines = 0;
   for (const o of all) {
@@ -119,14 +122,14 @@ test("every line resolves to a product", async () => {
 });
 
 test("orders come back newest first", async () => {
-  const dates = (await next.getAll()).map((o) => new Date(o.created_at).getTime());
+  const dates = (await readService.getAll()).map((o) => new Date(o.created_at).getTime());
   assert.deepEqual(dates, [...dates].sort((a, b) => b - a));
 });
 
 test("reads do not write", async () => {
   await inRollback(async (c) => {
     const before = await c.query("SELECT count(*)::int n FROM orders.transactions");
-    await next.getAll();
+    await readService.getAll();
     const after = await c.query("SELECT count(*)::int n FROM orders.transactions");
     assert.equal(after.rows[0].n, before.rows[0].n);
   });

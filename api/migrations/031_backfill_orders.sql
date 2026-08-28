@@ -49,31 +49,30 @@ END $$;
 -- (direction, number) is unique - exchange enforced that on purchase orders
 -- and, for no particular reason, not on sales orders.
 --
--- refinery_id is deliberately null for purchases. Every purchase order in dev
--- points at Elemetal, but exchange.purchase_orders has no supplier column and
--- refiner_metals has none either, so that is a fact recorded in January and not
--- derivable from anything here. Inventing it for every order on production
--- because it happened to be true of sixteen in dev would be a guess written
--- into the data. See FOLLOWUPS.
+-- refinery_id used to be seeded here and the COLUMN IS GONE (dropped by 094;
+-- the engagement owns which refinery has an order's metal). The value this
+-- used to copy - exchange.sales_orders.supplier_id - lands on
+-- refiners.orders.refiner_id via 096_backfill_engagement_refiners.sql, which
+-- runs after 093 has created the engagement rows. Purchases never had a
+-- source column, which is the same fact this file always recorded.
 
 INSERT INTO orders.orders (
-  id, user_id, refinery_id, direction, status, number, notes, review_created,
+  id, user_id, direction, status, number, notes, review_created,
   created_by, updated_by, created_at, updated_at
 )
 SELECT
-  p.id, p.user_id, NULL, 'purchase', p.purchase_order_status, p.order_number,
+  p.id, p.user_id, 'purchase', p.purchase_order_status, p.order_number,
   p.notes, p.review_created, p.created_by, p.updated_by,
   p.created_at AT TIME ZONE 'UTC', p.updated_at AT TIME ZONE 'UTC'
 FROM exchange.purchase_orders p
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO orders.orders (
-  id, user_id, refinery_id, direction, status, number, notes, review_created,
+  id, user_id, direction, status, number, notes, review_created,
   created_by, updated_by, created_at, updated_at
 )
 SELECT
   s.id, s.user_id,
-  (SELECT r.id FROM refiners.refiners r WHERE r.id = s.supplier_id),
   'sale', s.sales_order_status, s.order_number,
   s.notes, s.review_created, s.created_by, s.updated_by,
   s.created_at AT TIME ZONE 'UTC', s.updated_at AT TIME ZONE 'UTC'

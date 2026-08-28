@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { PurchaseOrder, PurchaseOrderCheckout } from '@/features/orders/purchaseOrders/types'
-import type { OrderAddressSnapshot, SpotOnOrder } from '@dorado/contracts'
+import type { OrderAddressSnapshot } from '@dorado/contracts'
 import type { Address, UserAddress } from '@/features/addresses/types'
 import { payoutOptions } from '@/features/payouts/types'
 import { packageOptions } from '@/features/packaging/types'
@@ -92,25 +92,6 @@ export const useCreatePurchaseOrder = () => {
         console.error('Failed to send confirmation email:', err)
       }
     },
-  })
-}
-
-export const usePurchaseOrderMetals = (purchase_order_id: string) => {
-  const { user } = useGetSession()
-
-  return useQuery<SpotOnOrder[]>({
-    queryKey: ['purchase_orders_metals', purchase_order_id],
-    queryFn: async () => {
-      if (!user?.id) return []
-      // STILL THE LEGACY ROUTE: the API deferred the order-spots read (the
-      // flip-together rule); this moves with the read-deletion wave.
-      return await apiRequest<SpotOnOrder[]>('POST', '/purchase_orders/get_purchase_order_metals', {
-        user_id: user.id,
-        purchase_order_id: purchase_order_id,
-      })
-    },
-    enabled: !!user && !!purchase_order_id,
-    refetchInterval: 60000,
   })
 }
 

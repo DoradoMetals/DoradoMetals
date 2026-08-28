@@ -1,11 +1,10 @@
 // Reading a purchase order, from the tables it was split across.
 //
-// SEPARATE FROM service.ts ON PURPOSE, and only for as long as the restructure
-// is in flight. features/purchase-orders/service.ts is 976 lines of order
-// lifecycle - payouts, labels, emails - and none of it changes here.
-// This file is the read half being rebuilt underneath it, so the two can be
-// compared before anything is repointed. It folds into service.ts when the
-// write paths follow.
+// THE purchase-order read since the pivot (ruling 8): service.ts serves every
+// list and lookup from here, against the new schema, while repo.dual.js
+// writes BOTH schemas. Kept as its own file because service.ts is the order
+// LIFECYCLE - payouts, labels, emails - and the read half is a different kind
+// of thing.
 //
 // ONE READ PER TABLE, batched across every order in the answer. The query it
 // replaces joined thirteen tables and grouped; this issues nine statements and
@@ -165,11 +164,11 @@ async function purchaseOrders(
   where: string, params: unknown[], executor?: Executor
 ): Promise<Parameters<typeof assemble>[0]> {
   const { rows } = await query<Parameters<typeof assemble>[0][number]>(
-    `SELECT id, user_id, status, notes, created_at, updated_at,
-            created_by, updated_by, number, review_created, spots_locked
-       FROM orders.orders
-      WHERE direction = 'purchase'${where ? ` AND ${where}` : ""}
-      ORDER BY created_at DESC, id DESC`,
+    `SELECT o.id, o.user_id, o.status, o.notes, o.created_at, o.updated_at,
+            o.created_by, o.updated_by, o.number, o.review_created, o.spots_locked
+       FROM orders.orders o
+      WHERE o.direction = 'purchase'${where ? ` AND ${where}` : ""}
+      ORDER BY o.created_at DESC, o.id DESC`,
     params,
     executor
   );
@@ -185,12 +184,12 @@ export async function getAll(executor?: Executor): Promise<Record<string, unknow
 export async function findAllByUser(
   userId: string, executor?: Executor
 ): Promise<Record<string, unknown>[]> {
-  return await assemble(await purchaseOrders("user_id = $1", [userId], executor), false, executor);
+  return await assemble(await purchaseOrders("o.user_id = $1", [userId], executor), false, executor);
 }
 
 export async function findById(
   id: string, executor?: Executor
 ): Promise<Record<string, unknown> | null> {
-  const rows = await assemble(await purchaseOrders("id = $1", [id], executor), false, executor);
+  const rows = await assemble(await purchaseOrders("o.id = $1", [id], executor), false, executor);
   return rows[0] ?? null;
 }

@@ -73,6 +73,10 @@ export type SalesOrderParts = {
     review_created: boolean | null;
     order_sent: boolean | null;
     tracking_updated: boolean | null;
+    // From the ENGAGEMENT (refiners.orders, 093) via the read's LEFT JOIN -
+    // orders.orders.refinery_id dropped in 094. The alias keeps the wire's
+    // `supplier_id` spelling below. The engagement's own id is deliberately
+    // NOT here: engagement addressing is GET /orders/:orderId/refiners.
     refinery_id: string | null;
   };
   totals?: OrderTotalsRow;

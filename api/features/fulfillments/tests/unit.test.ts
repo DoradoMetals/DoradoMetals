@@ -8,7 +8,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { sqlFrom } from "#shared/db/sql.ts";
 import {
-  compose, composeAll, byFulfillment, byStartTimeThenId,
+  compose, composeAll, byFulfillment, byStartTimeThenId, toWire,
 } from "#features/fulfillments/compose.ts";
 import type { Details } from "#features/fulfillments/compose.ts";
 
@@ -134,15 +134,22 @@ const details = (over: Partial<Details> = {}): Details => ({
   ...over,
 });
 
-test("a fulfillment carries its method nested and drops method_id", () => {
+test("a fulfillment carries its method nested INTERNALLY, and toWire strips to the bare row", () => {
   const out = compose(base(), details());
   assert.ok(out);
+  // Internal: the service's own logic branches on the category.
   assert.equal(out.method.category, "PICKUP");
-  assert.ok(!("method_id" in out), "method_id reached the wire");
-  // The five nested fields, and no more - enabled, hidden, is_default and the
-  // timestamps were never part of the nested object.
-  assert.deepEqual(Object.keys(out.method).sort(),
-    ["admin_label", "category", "direction", "id", "label", "type"]);
+  assert.equal(out.method_id, "m1", "method_id is part of the verbatim row now");
+
+  // The WIRE is the bare fulfillments.fulfillments row and nothing else
+  // (wave-2 final form): no method object, no child rows.
+  const wire = toWire(out);
+  assert.ok(!("method" in wire), "the method object reached the wire");
+  assert.ok(!("pickup" in wire), "a child row reached the wire");
+  assert.ok(!("direct" in wire), "a child row reached the wire");
+  assert.ok(!("shipment" in wire), "a child row reached the wire");
+  assert.equal(wire.method_id, "m1");
+  assert.equal(wire.order_id, "o1");
 });
 
 // THE METHOD JOIN WAS INNER. A fulfillment whose method row is gone is dropped
@@ -173,8 +180,9 @@ test("a booked pickup is nested under its own key and the others stay null", () 
   assert.equal(out.pickup?.pickup_address_id, "a1");
   assert.equal(out.direct, null);
   assert.equal(out.shipment, null);
-  // fulfillment_id is the join key and is not part of the nested object.
-  assert.ok(!("fulfillment_id" in (out.pickup ?? {})));
+  // The child is the VERBATIM repo row now (wave-2 final form) - and it is
+  // INTERNAL: toWire strips it before anything reaches a response.
+  assert.equal(out.pickup?.fulfillment_id, "f1");
 });
 
 test("composeAll drops what compose drops and keeps the rest", () => {

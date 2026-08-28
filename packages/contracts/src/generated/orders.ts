@@ -35,7 +35,6 @@ export type ItemsRow = z.infer<typeof ItemsRow>;
 export const OrdersRow = z.object({
   "id": z.string().uuid(),
   "user_id": z.string().uuid().nullable(),
-  "refinery_id": z.string().uuid().nullable(),
   "direction": Direction.nullable(),
   "status": z.string().nullable(),
   "number": z.number().int().nullable(),

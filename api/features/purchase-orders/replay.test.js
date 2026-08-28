@@ -82,15 +82,21 @@ const anOrder = async () => {
   return rows[0];
 };
 
-test("the admin list is refused to a customer and served to an admin", async () => {
+test("a customer sees only their own rows, and the admin list is served whole", async () => {
   await inPinnedTransaction(async () => {
+    // The unified list is not refused to a customer - it SCOPES: the
+    // session's own orders, never the business's.
     await as(customer, async () => {
-      const res = await request(app).get("/api/purchase_orders/get_all_purchase_orders");
-      assert.equal(res.status, 403, "a customer reached every order in the business");
+      const res = await request(app).get("/api/orders?direction=purchase");
+      assert.equal(res.status, 200, `answered ${res.status}`);
+      assert.ok(
+        res.body.every((o) => o.user_id === customer.id),
+        "a customer's list carried somebody else's purchase order"
+      );
     });
 
     await as(admin, async () => {
-      const res = await request(app).get("/api/purchase_orders/get_all_purchase_orders");
+      const res = await request(app).get("/api/orders?direction=purchase");
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
@@ -114,7 +120,7 @@ test("the admin list is refused to a customer and served to an admin", async () 
 test("no admin order response carries a full bank number", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
-      const res = await request(app).get("/api/purchase_orders/get_all_purchase_orders");
+      const res = await request(app).get("/api/orders?direction=purchase");
       const body = JSON.stringify(res.body);
 
       assert.ok(!/"routing_number"\s*:\s*"\d{9}"/.test(body), "a full routing number is on the wire");
@@ -157,7 +163,7 @@ test("moving an order's status takes the body the drawer sends", async () => {
 
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
-      const list = await request(app).get("/api/purchase_orders/get_all_purchase_orders");
+      const list = await request(app).get("/api/orders?direction=purchase");
       const moved = list.body.find((o) => o.id === order.id);
       assert.notEqual(
         order.status,
@@ -194,7 +200,7 @@ test("locking spots freezes them and unlocking releases them", async () => {
         .send({ lock: true });
       assert.equal(locked.status, 200, JSON.stringify(locked.body));
 
-      const list = await request(app).get("/api/purchase_orders/get_all_purchase_orders");
+      const list = await request(app).get("/api/orders?direction=purchase");
       assert.equal(
         list.body.find((o) => o.id === order.id).spots_locked,
         true,
@@ -206,7 +212,7 @@ test("locking spots freezes them and unlocking releases them", async () => {
         .send({ lock: false });
       assert.equal(unlocked.status, 200, JSON.stringify(unlocked.body));
 
-      const after = await request(app).get("/api/purchase_orders/get_all_purchase_orders");
+      const after = await request(app).get("/api/orders?direction=purchase");
       assert.equal(after.body.find((o) => o.id === order.id).spots_locked, false);
     });
   }, { lock: ORDER_LOCK });
@@ -217,9 +223,7 @@ test("changing a spot price lands on that order and no other", async () => {
     const order = await anOrder();
 
     await as(admin, async () => {
-      const metals = await request(app)
-        .post("/api/purchase_orders/get_purchase_order_metals")
-        .send({ purchase_order_id: order.id });
+      const metals = await request(app).get(`/api/orders/${order.id}/spots`);
       assert.equal(metals.status, 200, JSON.stringify(metals.body));
       assert.ok(Array.isArray(metals.body) && metals.body.length > 0, "the order has no spots");
 
@@ -227,15 +231,20 @@ test("changing a spot price lands on that order and no other", async () => {
       const sentinel = 1234.56;
       assert.ok("bid" in spot, "the metals response no longer carries bid");
       assert.ok(!("bid_spot" in spot), "the metals response still carries the legacy bid_spot");
+      // VERBATIM rows (ruling 12): the read serves metal_id, never a joined
+      // name - the client maps names from the reference read, and so does
+      // this test, because the PUT's set op still speaks names.
+      assert.ok(!("name" in spot), "the spots read is smearing a joined name onto the row");
+      const [metal] = await outside(
+        `SELECT name FROM metals.metals WHERE id = $1`, [spot.metal_id]
+      );
 
       const res = await request(app)
         .put(`/api/orders/${order.id}/spots`)
-        .send({ set: [{ name: spot.name, bid: sentinel }] });
+        .send({ set: [{ name: metal.name, bid: sentinel }] });
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
-      const after = await request(app)
-        .post("/api/purchase_orders/get_purchase_order_metals")
-        .send({ purchase_order_id: order.id });
+      const after = await request(app).get(`/api/orders/${order.id}/spots`);
       const changed = after.body.find((s) => s.id === spot.id);
       assert.equal(Number(changed.bid), sentinel, "the new price did not stick");
 

@@ -24,9 +24,6 @@ import { Address as AddressContract, UserAddress as UserAddressContract } from '
 export type Address = AddressContract
 export type UserAddress = UserAddressContract
 
-export const addressWireSchema = AddressContract
-export const userAddressWireSchema = UserAddressContract
-
 // The FORM: what a human submits, one flat set of fields for the UX, split
 // into { address, user_address } at the mutation edge.
 export const addressSchema = z.object({

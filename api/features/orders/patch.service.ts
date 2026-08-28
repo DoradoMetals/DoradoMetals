@@ -75,7 +75,7 @@
 // body's arrays are not ignored, they are refused: order_spots is not a field.
 import query from "#shared/db/query.js";
 import * as purchaseOrderService from "#features/purchase-orders/service.ts";
-import * as purchaseOrderRepo from "#features/purchase-orders/repo.js";
+import * as purchaseOrderRepo from "#features/purchase-orders/repo.dual.js";
 import * as salesOrderService from "#features/sales-orders/service.ts";
 
 type Caller = { id: string; name?: string | null; role?: string | null };

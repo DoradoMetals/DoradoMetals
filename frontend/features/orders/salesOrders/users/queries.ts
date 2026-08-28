@@ -67,23 +67,6 @@ export const useCreateSalesOrder = () => {
   })
 }
 
-export const useSalesOrderMetals = (sales_order_id: string) => {
-  return useApiQuery<SpotOnOrder[]>({
-    key: queryKeys.salesOrderMetals(sales_order_id),
-    request: async (user) => {
-      // STILL THE LEGACY ROUTE: the API deferred the order-spots read (the
-      // flip-together rule); this moves with the read-deletion wave.
-      return await apiRequest<SpotOnOrder[]>('POST', '/sales_orders/get_order_metals', {
-        user_id: user!.id,
-        sales_order_id,
-      })
-    },
-    requireUser: true,
-    enabled: (user) => !!user?.id && !!sales_order_id,
-    refetchInterval: 60_000,
-  })
-}
-
 export const useSetReviewCreated = () => {
   return useApiMutation<SalesOrder, { sales_order: SalesOrder }, SalesOrder[]>({
     queryKey: queryKeys.salesOrders(),

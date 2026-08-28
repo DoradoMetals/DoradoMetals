@@ -8448,3 +8448,194 @@ outside features/orders with byte-identical classes; the orders-tree
 adoption table deferred to wave 3 (the drawers rebuild there anyway);
 ItemAccordion left for Jacob's styling pass because unifying it changes
 rendering.
+
+11. POINTERS AND NAMES (Jacob): refiners.orders carries order_id - the
+    child points at the parent, never the reverse - and the wire does not
+    smear join products onto the order (no refiner_order_id field;
+    engagements are fetched by-order as bare resources:
+    GET /refiners/orders/by-order/:orderId). Hook names follow the
+    RESOURCE, not legacy routes: useRefinerMetals, not
+    usePurchaseOrderRefinerMetals; sweep prefixes as surfaces are
+    touched.
+
+12. ROWS ON THE WIRE (Jacob, 2026-08-28): for simplicity, resource reads
+    return the generated table row verbatim where possible - contracts
+    become re-exports of the generated row schemas, not hand-curated
+    projections. Prune what the frontend sees LATER (the app has zero
+    active customers). ONE deviation class only: SECURITY, non-negotiable
+    - payout routing/account numbers and auth tokens/secrets never go on
+    the wire regardless. NO join carve-out (tightened same session): "we
+    shouldn't let UI dictate the API. The frontend can make do" - no
+    scalar joined onto a row (mint_name dies); the frontend maps ids
+    against cached reference reads (GET /mints etc.). Chain-resolving
+    reads returning whole bare rows (orders/:id/fulfillment) survive as
+    resolution, not shape. Extra columns riding along is fine; removing
+    one later is a delete, not a redesign.
+
+13. FULFILLMENT READS LIVE WITH FULFILLMENTS (Jacob): the chain-resolving
+    read is GET /api/fulfillments/by-order/:orderId, owned by the
+    fulfillments feature - never /orders/:id/fulfillment (orders
+    squatting on another feature's resource). Members are verbatim bare
+    rows (method, shipment?, return_shipment?, pickup?). No polymorphic
+    id params - a checkout-keyed lookup, if ever wanted, is its own
+    explicit /fulfillments/by-checkout/:checkoutId. By-order addressing
+    is now the standing convention (refiners engagements, fulfillments).
+
+WAVE 4 ADDITION (Jacob, live): frontend/features/handoff/types.ts
+pickupOptions/pickupSchema die. The two FedEx pickup types
+(DROPOFF_AT_FEDEX_LOCATION / CONTACT_FEDEX_TO_SCHEDULE) are CARRIER
+vocabulary (shipping.shipments.pickup_type), not fulfillment methods -
+Jacob's call: keep them in code, defined ONCE as a typed constant in
+@dorado/contracts; icons stay a client-side map beside the selector
+("we'll figure out the icon thing later"); the dead local pickupSchema
+(the audit:frontend-nullability 0-of-6 offender) is deleted with it.
+Consumers: checkoutStepper, shippingStep, pickupSelector, handoff/types.
+
+WAVE 3 PINNED (Jacob, live, on reading the composed orders contract):
+"We only need the bullion_id for production information. We don't need
+to send all that shit back in the body with it. That was the whole point
+of combining scrap/bullion into just items." The composed
+PurchaseOrder/SalesOrder wire (embedded ProductOnOrderItem/
+ScrapOnOrderItem/SpotOnOrder, payout/shipment/user null-object slots,
+item_type derivation) DIES. End state: GET /orders returns orders.orders
+rows verbatim + totals (transactions is the order's own money);
+GET /orders/:id/items returns orders.items rows verbatim (bullion_id the
+only product reference); frontend maps bullion_id against the cached
+catalogue for display; actuals are refiner-side via /orders/:id/refiners.
+Drawers move to resource reads in the same pass - that coupling is why
+this is wave 3, not wave 2. Jacob also: no separate SpotOnOrder type -
+the one type is the generated orders.spots row (its `name` was a join,
+dies; percent/dollar_change were the dropped 100%-NULL columns); metal
+display names map from the cached metals reference by metal_id.
+
+RULING 12, WORKED EXAMPLE (Jacob, live, on the Fulfillment contract):
+"We should have a method_id, not the method itself!!" - reference data
+is NEVER embedded. fulfillments.methods is 11 seeded rows and
+GET /fulfillments/methods already exists, so the embedded `method`
+object was redundant join output; the row carries method_id and the
+frontend maps it off the cached list. THE LINE THAT SEPARATES THE TWO
+CASES: shared reference data addressable by id -> send the id;
+one-to-one CHILD rows -> I argued for resolving them and JACOB
+OVERRULED IT: children are fetched SEPARATELY too. His reason: "so our
+types don't spiral out of control and we don't have to do fucking prop
+drilling everywhere." NOTHING NESTS ON THE WIRE, ANYWHERE. A read
+returns one table's rows, period; the chain is resolved by the SERVER
+in the WHERE clause, not by nesting in the response.
+
+    THE ORDER-SCOPED READ FAMILY (target, wave 3 finishes it):
+      /orders/:orderId/items          orders.items rows
+      /orders/:orderId/spots          orders.spots rows
+      /orders/:orderId/fulfillments   the fulfillments row (method_id)
+      /orders/:orderId/shipments      shipping.shipments rows, BOTH
+                                      directions in one array - the
+                                      frontend filters on `direction`,
+                                      which retires the shipment /
+                                      return_shipment slot naming
+      /orders/:orderId/pickups        fulfillments.pickups rows
+      /orders/:orderId/directs        fulfillments.directs rows
+      /orders/:orderId/refiners       the refiners.orders row
+      /orders/:orderId/refiners/spots refiners.spots rows
+    Each is one hook, one row type, no props threaded through drawers.
+    Reference data (methods, metals, mints, carriers) is a cached list
+    the frontend maps ids against.
+
+14. CONTAINER / PRESENTATIONAL (Jacob, standing, all frontend work from
+    now): parents hold state - a hook, a fetch, a form - and inject it
+    into children as PROPS; the child is presentational, takes no hooks
+    and fetches nothing, and can therefore be rendered in isolation.
+    "Aiming for component reusability."
+
+    THIS DOES NOT CONTRADICT the no-prop-drilling ruling, and the
+    difference is WHERE THE CONTAINER SITS. Drilling is threading data
+    through components that do not use it, from the top of a drawer to
+    a leaf five levels down. This pattern puts a SMALL container NEXT TO
+    the thing it renders: the section that shows items is its own
+    container calling useOrderItems(orderId) and passing rows to a dumb
+    <ItemsTable rows={...} />. One hop, never five. The order-scoped
+    read family (each read its own hook) is what makes that possible -
+    a container can sit anywhere because every read is addressable by
+    the id it already holds.
+
+    Practical shape: containers know ids and hooks; presentational
+    components know props and nothing else - no useQuery, no router, no
+    context reads. Shared UI (AccordionSection, SelectMenu, StatusChip,
+    UpdatedByline and what follows) is presentational BY DEFINITION,
+    which is also why it is the half that render-tests cheaply under
+    jsdom: props in, DOM out, no query client to stand up.
+
+=== D90: THE STYLING PROGRAM (Jacob's plan, 2026-08-28 night) ===
+Eight workstreams, functionality-neutral by construction:
+  (a) kill custom CSS - inset shadows, glassmorphism, gradients,
+      animations - AT THE CALL SITES TOO, not just the stylesheets.
+  (b) centralize typography: semantic tags (h1-h6/p/a/...) carry
+      weight/size/color from theme.css; call sites converge on them.
+      Where a tag swap is impossible -> RUNBOOK for manual verification.
+  (c) LIGHT MODE DIES. White text on dark/black, Linear.app-style.
+      Token NAMES stay (bg-primary et al) - only VALUES change; raw hex
+      call sites move to theme tokens.
+  (d) standard rounding + border colors from theme.css.
+  (e) div soup -> semantic HTML.
+  (f) standard padding/margin as TOKENS (p-small/p-medium/p-large),
+      not ad-hoc p-N/m-N everywhere.
+  (g) standard surfaces (background/card) - mostly in place, needs a
+      lift after the black-and-white flip.
+  (h) shared components look the SAME everywhere: strip per-call-site
+      style overrides; components may need the new semantic typography.
+Measured surface at dispatch: 258 .tsx; 1082 text-size utilities in 169
+files; 1080 p-/m- utilities; 1834 <div> vs 94 <h1-6>; 276 rounded-*;
+47 files touching glass; 37 dark: variants; 36 raw hex in 8 files; 12
+<section>, 3 <article>, 1 <header>. Tailwind v4, tokens are CSS-first
+in app/styles/theme.css - that file is the whole leverage point.
+SEQUENCING (the constraint that shapes the program): TOKENS EXIST
+BEFORE CALL SITES CONVERT. Foundation agent owns app/styles/** alone
+and touches ZERO .tsx; a read-only inventory agent builds the partition
+map + runbook; only then do sweeps run, partitioned by directory so no
+two agents share a file. Decoration classes are NEUTERED (flat,
+token-based) rather than deleted while 47 files still reference them -
+deletion is the last step, not the first.
+
+15. EMAIL IS MANUAL (Jacob, 2026-08-28, closing the finalize_pricing
+    question): "all emails will be sent manually except for auth ones
+    and order creation." So AUTOMATIC sends are exactly two: auth
+    (better-auth's own: verification, password reset, login) and order
+    creation (the customer's confirmation). Everything else - priced /
+    finalize_pricing, status transitions, supplier sends, shipping
+    notices - is a human pressing a button. finalize_pricing therefore
+    sends NOTHING, which was the open D-item; it is now answered and
+    closed.
+    CONSEQUENCE TO SWEEP (not yet done): audit every automatic send in
+    the tree and delete or gate the ones outside those two. This pairs
+    with ruling 2 (statuses drive no logic) - a status-triggered email
+    IS logic driven by a label, which is precisely what that ruling
+    forbids, so the two rulings agree. The paper trail still RECORDS
+    every send; recording is not sending.
+
+=== D91: THE ORDER CONFIRMATION EMAIL IS SENT BY THE BROWSER, FROM THE
+    BROWSER'S OWN COPY OF THE ORDER ===
+Found while grounding ruling 15. Of the four senders, three are exactly
+where they should be (auth verification, supplier send behind the
+explicit admin op, priced email uncalled - which ruling 15 now makes
+correct on purpose). The fourth is not.
+`sendCreatedEmail` has NO server-side caller. It is an HTTP route,
+POST /emails/purchase_order_created, and the trigger is
+frontend/features/orders/purchaseOrders/users/queries.ts:85 - the
+create mutation's onSuccess. THREE PROBLEMS, each a standing ruling:
+ 1. RULING 10 (ids in, data out): the body is the WHOLE composed order
+    plus spotPrices, packageDetails and payoutDetails. The email's
+    content comes from the browser. This is the PDF/email-body
+    violation already queued, now with a named worst case: the
+    confirmation a customer receives is rendered from data the client
+    supplied.
+ 2. RELIABILITY: it is an await in onSuccess wrapped in a try/catch
+    that only console.errors. Close the tab, lose the network, get a
+    500 - no email, no record, no retry, nobody told. Same SHAPE as
+    D49 (Stripe confirms, then a client-side step can fail silently),
+    on the same checkout path.
+ 3. IT READS SLOTS WAVE 3 DELETES - purchaseOrder.shipment.package and
+    purchaseOrder.payout.method. The composed order wire is going away,
+    so this breaks in wave 3 regardless. Fixing it is not optional
+    extra scope; it is on the critical path.
+FIX (wave 3): the server sends it at order creation, after commit,
+keyed by order_id, rendering from its own read - which also honors the
+transaction rule (email is irreversible, so it goes AFTER the commit,
+never inside it). The route dies with the frontend call.

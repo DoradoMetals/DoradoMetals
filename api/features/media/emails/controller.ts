@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as emailService from "#features/media/emails/service.ts"
-import * as purchaseOrderRepo from "#features/purchase-orders/repo.js";
+import * as purchaseOrderReads from "#features/purchase-orders/read.service.ts";
 
 // WHO THE EMAIL GOES TO IS DECIDED HERE, FROM THE DATABASE.
 //
@@ -23,7 +23,10 @@ async function recipientFor(
 
   if (!orderId) throw fail(400, "an order id is required to send this email");
 
-  const stored = await purchaseOrderRepo.findById(orderId);
+  const stored = (await purchaseOrderReads.findById(orderId)) as {
+    user_id?: string | null;
+    user?: { id?: string | null; user_email?: string | null } | null;
+  } | null;
   if (!stored) throw fail(404, "no such order");
 
   const ownsIt = stored.user?.id === caller?.id || stored.user_id === caller?.id;

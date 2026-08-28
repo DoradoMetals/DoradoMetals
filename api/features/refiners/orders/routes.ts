@@ -14,4 +14,10 @@ const router = express.Router();
 // before it, and the route answers 500 rather than pretending.
 router.patch("/orders/:id", requireAdmin, patchRefinerOrder);
 
+// THE READS LIVE UNDER /api/orders (Jacob's route convention: reads resolve
+// from the PARENT path, writes key by the resource's own id) - see
+// features/orders/routes.ts, which mounts GET /orders/:orderId/refiners and
+// /orders/:orderId/refiners/spots with THIS feature's handlers. The write
+// above keeps the engagement's own id, which those reads serve.
+
 export default router;

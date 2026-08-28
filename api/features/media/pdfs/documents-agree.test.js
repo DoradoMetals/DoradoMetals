@@ -18,7 +18,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import * as poRepo from "#features/purchase-orders/repo.js";
+import * as poRepo from "#features/purchase-orders/read.service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import {
   buildPackingScrapRows,

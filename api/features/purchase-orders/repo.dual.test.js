@@ -153,6 +153,12 @@ test("creating an order gives both schemas the same id and an address", async ()
       "SELECT source_address_id FROM orders.addresses WHERE order_id = $1", [id]
     );
     assert.equal(addr.rows[0].source_address_id, a.id, "the order has no address snapshot");
+
+    // Born with its engagement (093's invariant, ensured by the mirror on the
+    // LIVE create path): one refiners.orders row, no refinery named yet.
+    const ro = await c.query("SELECT refiner_id FROM refiners.orders WHERE order_id = $1", [id]);
+    assert.equal(ro.rows.length, 1, "the order has no refiners.orders engagement row");
+    assert.equal(ro.rows[0].refiner_id, null, "a new engagement names no refinery yet");
   });
 });
 

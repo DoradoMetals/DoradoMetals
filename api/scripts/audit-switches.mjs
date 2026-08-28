@@ -137,7 +137,7 @@ switches.sort((a, b) => a.varName.localeCompare(b.varName));
 // Lowering this is therefore a real decision and not bookkeeping. Do it only
 // alongside the commit that removes the feature's repo.js, and never to make a
 // red build green - a count that falls on its own is the parser breaking.
-const SOURCE_FLOOR = 3; // + sales orders; was 21
+const SOURCE_FLOOR = 2; // purchase orders pivoted with the wave-2 read flip; was 3
 // READY: flip to 0 with PAYMENTS_WIRE. The payments adapter - the last *_WIRE
 // switch - is staged for deletion in the same gate as the frontend conversion,
 // and at 0 the zero-state branch below takes over from the floor:

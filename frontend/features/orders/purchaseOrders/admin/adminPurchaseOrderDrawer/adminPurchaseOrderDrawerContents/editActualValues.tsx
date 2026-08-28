@@ -4,7 +4,7 @@ import { Input } from '@/shared/ui/base/input'
 import { cn } from '@/shared/utils/cn'
 import { assignScrapItemNames, PurchaseOrder, PurchaseOrderItem } from '@/features/orders/purchaseOrders/types'
 import { usePatchShipment } from '@/features/shipping/queries'
-import { usePatchRefinerItem, usePatchRefinerOrder } from '@/features/refiners/queries'
+import { usePatchRefinerItem, usePatchRefinerOrder, useRefinerOrder } from '@/features/refiners/queries'
 import {
   Table,
   TableBody,
@@ -20,6 +20,9 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
   const patchShipment = usePatchShipment()
   const patchRefinerItem = usePatchRefinerItem()
   const patchRefinerOrder = usePatchRefinerOrder()
+  // The engagement row, by the order id this component holds - its own id is
+  // the PATCH's key.
+  const { data: refinerOrder } = useRefinerOrder(order.id)
 
   const rawScrap = order.order_items.filter((it) => it.item_type === 'scrap' && it.scrap)
   const scrapItems = assignScrapItemNames(rawScrap)
@@ -196,9 +199,9 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                     className={cn('on-glass no-spinner text-right h-8')}
                     defaultValue={Number(order.pool_oz_deducted ?? 0).toFixed(3)}
                     onBlur={(e) => {
-                      if (!order.refiner_order_id) return
+                      if (!refinerOrder?.id) return
                       patchRefinerOrder.mutate({
-                        refiner_order_id: order.refiner_order_id,
+                        refiner_order_id: refinerOrder.id,
                         order_id: order.id,
                         patch: { pool_oz_deducted: Number(e.target.value) },
                       })
@@ -215,9 +218,9 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                     className={cn('on-glass no-spinner text-right h-8')}
                     defaultValue={Number(order.pool_remediation ?? 0).toFixed(2)}
                     onBlur={(e) => {
-                      if (!order.refiner_order_id) return
+                      if (!refinerOrder?.id) return
                       patchRefinerOrder.mutate({
-                        refiner_order_id: order.refiner_order_id,
+                        refiner_order_id: refinerOrder.id,
                         order_id: order.id,
                         patch: { pool_remediation: Number(e.target.value) },
                       })

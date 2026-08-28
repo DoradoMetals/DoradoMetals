@@ -74,7 +74,6 @@ const bothWays = async (name, schema, dir, read, many = true) => {
   }
 };
 
-const po = await import("#features/purchase-orders/repo.js");
 
 // The public list was checked ONE WAY while the admin list right below it was
 // checked both. Same table, same contract, and repo.next exports
@@ -196,10 +195,10 @@ if (!ledgerUser) {
 // feature is new capability rather than migrated data, and the only shape it
 // has ever had is the one below. That also means these are the endpoints where
 // a contract is worth the most: nothing else is checking them.
-// Fulfillments is restructured. The SERVICE, not the repos: what these
-// contracts describe is the COMPOSED shape - a fulfillment with its method and
-// one detail nested - and that shape is now assembled in JS from four repos
-// instead of by four joins, which is a new way for a field to go missing.
+// Fulfillments is restructured. The SERVICE, not the repos - through the
+// same toWire the controllers use, because since the wave-2 final form the
+// wire is the BARE fulfillments row: the composed shape (method + children)
+// is internal to the service and must never reach a response.
 const fulfillments = await import("#features/fulfillments/service.ts");
 const fulfillmentMethods = await import("#features/fulfillments/methods/repo.ts");
 
@@ -213,18 +212,21 @@ add("GET /fulfillments/methods/all", c.FulfillmentMethod, () =>
   fulfillmentMethods.getAll()
 );
 
-// Every fulfillment dev holds, read the way the route reads one. The SHIPMENT
-// rows are what exercise the nested detail; pickups and directs are empty
-// everywhere until somebody books one, which is why the two booking shapes are
-// asserted by the repo tests instead.
+// Every fulfillment dev holds, read the way the ROUTE reads one: through
+// toWire, which strips the internal composition (the method object the
+// service's own logic branches on, and the child rows) down to the BARE
+// fulfillments.fulfillments row the contract declares (wave-2 final form).
+const fulfillmentCompose = await import("#features/fulfillments/compose.ts");
 add("GET /fulfillments/get_for_order", c.Fulfillment, async () => {
   const { rows } = await pool.query(`SELECT order_id FROM fulfillments.fulfillments`);
   const out = [];
   for (const r of rows) out.push(await fulfillments.getForOrder(r.order_id, { isAdmin: true }));
-  return out.filter(Boolean);
+  return out.filter(Boolean).map(fulfillmentCompose.toWire);
 });
 
-add("GET /fulfillments/schedule", c.Fulfillment, () => fulfillments.getSchedule());
+add("GET /fulfillments/schedule", c.Fulfillment, async () =>
+  (await fulfillments.getSchedule()).map(fulfillmentCompose.toWire)
+);
 
 // The one payments response that is a repo row rather than a Stripe object or a
 // client_secret. Both implementations, ONE shape: the adapter died with the
@@ -264,34 +266,54 @@ const productsService = await import("#features/products/service.ts");
 add("GET /products", c.Bullion, () => productsService.getAllProducts());
 add("GET /products (sell)", c.Bullion, () => productsService.getSellProducts());
 
-// Orders. The largest surface here and, until now, the only feature checked
-// against exchange alone - everything else goes through bothWays and proves
-// repo.next returns the same shape. That is the wrong way round: orders is the
-// feature whose promotion carries the most risk.
-//
-// `diff` already proves the two implementations agree with each other. What it
-// cannot prove is that either of them still matches what the frontend expects,
-// because if both drift together it stays green. The contract is the
-// independent statement, and it is what has to survive promotion.
-const orders = await po.getAll();
-// THE NEXT SHAPES (D84). Orders never had a *_WIRE switch, so the conversion
-// is one deliberate change - but the SOURCE switch still exists, so bothWays
-// stays: both read implementations must serve the SAME converted shape.
-await bothWays("GET /purchase_orders (admin)", c.PurchaseOrder, "purchase-orders", (m) => m.getAll());
-// Sales orders is restructured - one implementation. Kept as a DIRECT check on
-// the SERVICE, which is where the composed shape is now assembled: the money
-// nested as `totals` under orders.transactions' own names.
+// Orders. The largest surface here, and since the read pivot (ruling 8) a
+// SINGLE implementation each way: read.service.ts per direction, assembled
+// from the per-table repos. bothWays retired with the exchange reads - the
+// contract is the independent statement of the shape, and these are the rows
+// GET /api/orders actually serves.
+const purchaseOrdersService = await import("#features/purchase-orders/read.service.ts");
+const orders = await purchaseOrdersService.getAll();
+add("GET /orders (purchase)", c.PurchaseOrder, () => purchaseOrdersService.getAll());
 const salesOrdersService = await import("#features/sales-orders/read.service.ts");
-add("GET /sales_orders (admin)", c.SalesOrder, () => salesOrdersService.getAll());
+add("GET /orders (sale)", c.SalesOrder, () => salesOrdersService.getAll());
 
 // The items, flattened out of those orders, so a bad line is reported as a bad
 // line rather than as one failing order among sixteen.
-await bothWays("purchase order items", c.PurchaseOrderItem, "purchase-orders", async (m) =>
-  (await m.getAll()).flatMap((o) => o.order_items ?? [])
+add("purchase order items", c.PurchaseOrderItem, async () =>
+  (await purchaseOrdersService.getAll()).flatMap((o) => o.order_items ?? [])
 );
 add("sales order items", c.SalesOrderItem, async () =>
   (await salesOrdersService.getAll()).flatMap((o) => o.order_items ?? [])
 );
+
+// The bare-resource reads the flip landed - VERBATIM table rows (ruling 12),
+// parsed through the generated-row re-exports. Payout DETAILS are
+// deliberately NOT parsed here: a zod failure prints the offending value,
+// and that shape's values are full bank numbers - the one thing this project
+// never logs. Its shape is pinned by refiner-edits.test.js on keys.
+const orderSpotsRepo = await import("#features/orders/spots/repo.ts");
+add("GET /orders/:id/spots", c.OrderSpot, async () => {
+  const lists = await Promise.all(orders.map((o) => orderSpotsRepo.getRowsFor(o.id)));
+  return lists.flat();
+});
+const refinerOrdersService = await import("#features/refiners/orders/service.ts");
+add("GET /orders/:orderId/refiners", c.RefinerOrder, async () => {
+  const reads = await Promise.all(orders.map((o) => refinerOrdersService.getByOrder(o.id)));
+  return reads.filter(Boolean);
+});
+add("GET /orders/:orderId/refiners/spots", c.RefinerSpot, async () => {
+  const lists = await Promise.all(
+    orders.map((o) => refinerOrdersService.getSpotsByOrder(o.id))
+  );
+  return lists.filter(Boolean).flat();
+});
+const orderFulfillmentRead = await import("#features/fulfillments/order-read.ts");
+add("GET /orders/:orderId/fulfillments", c.OrderFulfillment, async () => {
+  const reads = await Promise.all(
+    orders.map((o) => orderFulfillmentRead.getOrderFulfillment(o.id))
+  );
+  return reads.filter(Boolean);
+});
 
 // Nested shapes, taken off a real order.
 add("order.payout", c.PayoutOnOrder, () => orders.map((o) => o.payout).filter((p) => p?.id));

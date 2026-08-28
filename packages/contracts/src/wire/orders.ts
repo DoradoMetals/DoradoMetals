@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { SpotsRow as OrdersSpotsRow } from "../generated/orders.js";
 import { PayoutOnOrder } from "./payouts.js";
 import { ShipmentOnOrder, CarrierPickup } from "./shipping.js";
 import { UserOnOrder } from "./users.js";
@@ -113,9 +114,15 @@ export const ProductOnOrderItem = z.object({
 });
 export type ProductOnOrderItem = z.infer<typeof ProductOnOrderItem>;
 
-// A spot as it appears on an order - the order's locked (or live) prices per
-// metal, speaking the converted names: name / ask / bid, never type /
-// ask_spot / bid_spot.
+// GET /orders/:id/spots - the order's spots as VERBATIM TABLE ROWS (ruling
+// 12): orders.spots' generated row, re-exported, nothing joined on. The metal
+// is its id; display names come from the spots reference read, client-side.
+export const OrderSpot = OrdersSpotsRow;
+export type OrderSpot = z.infer<typeof OrderSpot>;
+
+// A spot as it appears EMBEDDED ON AN ORDER - the legacy composed shape the
+// order wire still carries (name / ask / bid), until the wire slims in the
+// drawer-rebuild wave.
 export const SpotOnOrder = z.object({
   id: z.string().uuid().nullable(),
   name: z.string().nullable(),

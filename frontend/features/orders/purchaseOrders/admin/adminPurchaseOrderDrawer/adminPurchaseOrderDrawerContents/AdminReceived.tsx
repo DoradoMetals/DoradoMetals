@@ -12,7 +12,6 @@ import { usePatchPayout } from '@/features/payouts/queries'
 import { cn } from '@/shared/utils/cn'
 import { payoutOptions } from '@/features/payouts/types'
 import { CaretDownIcon } from '@phosphor-icons/react'
-import type { SpotOnOrder } from '@dorado/contracts'
 import {
   assignScrapItemNames,
   PurchaseOrderDrawerContentProps,
@@ -36,11 +35,14 @@ import { Command, CommandInput, CommandItem, CommandList } from '@/shared/ui/bas
 import { Product } from '@/features/products/types'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useProducts } from '@/features/products/queries'
-import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
+import { useOrderSpots, nameSpots, type NamedOrderSpot } from '@/features/orders/spots'
 
 export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: spotPrices = [] } = useSpotPrices()
-  const { data: orderSpotPrices = [] } = usePurchaseOrderMetals(order.id)
+  const { data: orderSpotRows = [] } = useOrderSpots(order.id)
+  // Display composition, client-side: the rows carry metal_id; the reference
+  // read supplies the names this screen shows and mutates by.
+  const orderSpotPrices = nameSpots(orderSpotRows, spotPrices)
 
   const setSpots = useSetOrderSpots()
   const patchShipment = usePatchShipment()
@@ -51,7 +53,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   const scrapItems = assignScrapItemNames(rawScrapItems)
   const bullionItems = order.order_items.filter((item) => item.item_type === 'product')
 
-  const handleUpdateSpot = (spot: SpotOnOrder, updated_spot: number) => {
+  const handleUpdateSpot = (spot: NamedOrderSpot, updated_spot: number) => {
     if (!spot.name) return
     setSpots.mutate({ order_id: order.id, set: [{ name: spot.name, bid: updated_spot }] })
   }

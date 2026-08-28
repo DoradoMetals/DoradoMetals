@@ -278,9 +278,15 @@ reversible.
 
 | Switch | Feature |
 |---|---|
-| `PURCHASE_ORDERS_SOURCE` | purchase orders |
 | `CHECKOUT_SOURCE` | the cart, which is a checkout session |
 | `PAYMENTS_SOURCE` | Stripe intents, attempts and settlements |
+
+`PURCHASE_ORDERS_SOURCE` was in this table until the wave-2 read flip
+(2026-08-28): purchase orders pivoted - reads from the new schema through
+read.service.ts, writes to BOTH schemas through repo.dual.js, unconditionally -
+so there is no exchange-read mode left for a switch to select. Setting it in
+the environment now does nothing. Rollback for the reads is a code revert, not
+a switch; exchange keeps receiving every write either way.
 
 `LEADS_SOURCE`, `RATES_SOURCE`, `REVIEWS_SOURCE`, `SALES_TAX_SOURCE`,
 `SPOTS_SOURCE`, `MEDIA_SOURCE`, `MINTS_SOURCE`, `REFINERS_SOURCE`,
@@ -289,7 +295,7 @@ reversible.
 `SHIPPING_TRACKING_SOURCE`, `PICKUPS_SOURCE` and `SALES_ORDERS_SOURCE` were all
 listed here
 and **no longer exist** — see the note above. Setting one in the environment now
-does nothing at all; `audit:switches` reports the three that remain and fails if
+does nothing at all; `audit:switches` reports the two that remain and fails if
 its own parser stops finding them.
 
 **Rollback:** set back to `exchange`, redeploy. Safe because `exchange` never
@@ -486,10 +492,12 @@ shipment.
 They match `exchange` rows on `(line_1, city, zip)`, which is what a snapshot
 looks like and not what a duplicate looks like. Nothing here needs cleaning up.
 
-### `PURCHASE_ORDERS_SOURCE` / `SALES_ORDERS_SOURCE` — blocked on the three orders
+### The order backfills — blocked on the three orders
 
-The order backfills refuse while `orders.orders` holds rows `exchange` has no
-order for. Settle that first.
+(The section title used to name `PURCHASE_ORDERS_SOURCE` / `SALES_ORDERS_SOURCE`;
+both switches are gone now - the reads pivoted, the dual writes remain
+unconditional.) The order backfills refuse while `orders.orders` holds rows
+`exchange` has no order for. Settle that first.
 
 ### `SHIPPING_SHIPMENTS_SOURCE` — three orphan shipments
 

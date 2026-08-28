@@ -25,6 +25,7 @@
 // dropped - the same admin-mutation-urls argument the order PATCH makes.
 import * as purchaseOrderService from "#features/purchase-orders/service.ts";
 import * as refinerOrdersRepo from "#features/refiners/orders/repo.ts";
+import * as refinerSpotsRepo from "#features/refiners/spots/repo.ts";
 
 const refuse = (statusCode: number, message: string): never => {
   const err: Error & { statusCode?: number } = new Error(message);
@@ -145,4 +146,30 @@ export async function patchRefinerOrder(
   }
 
   return await refinerOrdersRepo.findById(id);
+}
+
+// THE ENGAGEMENT, ADDRESSED BY THE CUSTOMER ORDER (GET /orders/:orderId/refiners): the order
+// id is the key components actually hold, refiners.orders.order_id is the
+// only edge between the two, and the wire must not smear the join product
+// onto the order document. The bare row - its own id included - is how the
+// engagement PATCH gets its key. Null when the order has no engagement (or
+// does not exist); the controller answers 404, and telling those apart is
+// nobody's business.
+export async function getByOrder(
+  order_id: string
+): Promise<import("#features/refiners/orders/repo.ts").RefinerOrderRow | null> {
+  return (await refinerOrdersRepo.findByOrder(order_id)) ?? null;
+}
+
+// The engagement's spots, by the same order-id key - chosen over the
+// engagement-id spelling because it saves every component a chained read:
+// spots render without waiting on the engagement row, which is only needed
+// when a PATCH is about to be made. Null when there is no engagement; an
+// engagement with no quotes stays a real [] answer.
+export async function getSpotsByOrder(
+  order_id: string
+): Promise<import("#features/refiners/spots/repo.ts").EngagementSpotRow[] | null> {
+  const engagement = await refinerOrdersRepo.findByOrder(order_id);
+  if (!engagement) return null;
+  return await refinerSpotsRepo.getForEngagement(engagement.id);
 }

@@ -7,7 +7,6 @@ import type { Carrier as CarrierContract } from '@dorado/contracts'
 // timestamps. The old flat Carrier was the lift adapter's output; the adapter
 // is gone.
 export type Carrier = CarrierContract
-export type DeliverySpeed = 'same_day' | 'overnight' | '2_day' | 'ground' | 'economy' | string
 
 export interface CarrierService {
   id: string

@@ -2,34 +2,12 @@ import { callerId } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as purchaseOrderService from "#features/purchase-orders/service.ts"
 
-export const getPurchaseOrderById = asyncHandler(async (req, res) => {
-  const orderId = req.params.id;
-  const order = await purchaseOrderService.getById(orderId);
-  return res.json(order);
-});
-
-export const getPurchaseOrders = asyncHandler(async (req, res) => {
-  const userId = callerId(req);
-  const orders = await purchaseOrderService.listOrdersForUser(userId);
-  return res.json(orders);
-});
-
-export const getAllPurchaseOrders = asyncHandler(async (req, res) => {
-  const orders = await purchaseOrderService.getAll();
-  return res.json(orders);
-});
-
-export const getPurchaseOrderMetals = asyncHandler(async (req, res) => {
-  const { purchase_order_id } = req.body;
-  const metals = await purchaseOrderService.getMetalsForOrder(purchase_order_id);
-  return res.json(metals);
-});
-
-// THE MUTATION SURFACE LEFT THIS FEATURE. Every order write is
-// PATCH /api/orders/:id and its sibling sub-resources - one namespace, both
-// directions, direction validated as data - dispatched by
-// features/orders/patch.service.ts to the same services this file used to
-// front. What remains here are the reads, creation, and the review.
+// THE READS LEFT THIS FEATURE with the read-flip wave, the way the mutations
+// left with D87. The lists are GET /api/orders; the spots
+// GET /api/orders/:id/spots; the refiner spots
+// GET /api/refiners/orders/:id/spots; the bank details
+// GET /api/payouts/:id/details. Six read handlers deleted with their routes -
+// what remains is creation, the review flag, and the purge.
 
 export const createReview = asyncHandler(async (req, res) => {
   const result = await purchaseOrderService.createReview(req.body);
@@ -64,15 +42,4 @@ export const createPurchaseOrder = asyncHandler(async (req, res) => {
 export const purgeCancelled = asyncHandler(async (req, res) => {
   await purchaseOrderService.purgeCancelled();
   return res.status(200).json({ success: true });
-});
-
-export const getPurchaseOrderRefinerMetals = asyncHandler(async (req, res) => {
-  const { purchase_order_id } = req.body;
-  const metals = await purchaseOrderService.getRefinerMetalsForOrder(purchase_order_id);
-  return res.json(metals);
-});
-
-export const getPayoutDetails = asyncHandler(async (req, res) => {
-  const details = await purchaseOrderService.getPayoutDetails(req.body);
-  return res.status(200).json(details);
 });

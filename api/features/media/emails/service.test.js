@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import pool from "#db";
 import * as emails from "#features/media/emails/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
-import * as poRepo from "#features/purchase-orders/repo.js";
+import * as poRepo from "#features/purchase-orders/read.service.ts";
 import * as soRepo from "#features/sales-orders/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import { formatPurchaseOrderNumber, formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";

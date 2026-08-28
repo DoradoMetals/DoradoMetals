@@ -28,7 +28,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
-import * as poRepo from "#features/purchase-orders/repo.js";
+import * as poRepo from "#features/purchase-orders/read.service.ts";
 import * as soRepo from "#features/sales-orders/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";

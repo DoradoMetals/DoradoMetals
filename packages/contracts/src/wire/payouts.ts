@@ -13,11 +13,10 @@ export const PayoutOnOrder = PayoutsRow.omit({
 });
 export type PayoutOnOrder = z.infer<typeof PayoutOnOrder>;
 
-// POST /purchase_orders/get_payout_details, admin only. The full values, read
-// one order at a time by someone about to execute a transfer.
-export const PayoutDetails = PayoutsRow.omit({
-  user_id: true,
-  created_at: true,
-  cost: true,
-});
+// GET /payouts/:id/details, admin only - the ONE read allowed to carry the
+// full bank numbers, fetched one payout at a time by someone about to execute
+// a transfer. The VERBATIM exchange.payouts row (ruling 12): the security
+// carve-out applies to every OTHER read, not to the details endpoint that
+// exists to serve them.
+export const PayoutDetails = PayoutsRow;
 export type PayoutDetails = z.infer<typeof PayoutDetails>;

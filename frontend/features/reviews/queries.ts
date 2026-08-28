@@ -2,15 +2,6 @@ import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 import { NewReview, Review, UpdateReviewVars } from '@/features/reviews/types'
 
-export const useReview = (reviewId: string | null) => {
-  return useApiQuery<Review[]>({
-    key: queryKeys.review(reviewId ?? ''),
-    url: '/reviews/get_one',
-    params: () => (reviewId ? { review_id: reviewId } : undefined),
-    enabled: !!reviewId,
-  })
-}
-
 export const useReviews = () => {
   return useApiQuery<Review[]>({
     key: queryKeys.reviews(),
@@ -54,15 +45,3 @@ export const useUpdateReview = () => {
   })
 }
 
-export const useDeleteReview = () => {
-  return useApiMutation<unknown, Review, Review[]>({
-    queryKey: queryKeys.reviews(),
-    method: 'DELETE',
-    url: '/reviews/delete',
-    requireAdmin: true,
-    listAction: 'delete',
-    body: (review) => ({
-      review_id: review.id,
-    }),
-  })
-}

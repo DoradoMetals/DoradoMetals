@@ -29,12 +29,3 @@ export interface NewLead {
   priority: LeadPriority,
   notes?: string,
 }
-
-export type LeadCard = 'Converted' | 'Responded' | 'Contacted' | null
-
-export interface LeadsStats {
-  totalLeads: number
-  respondedCount: number
-  convertedCount: number
-  contactedCount?: number
-}

@@ -65,6 +65,58 @@ export async function create(
   return rows[0];
 }
 
+// The VERBATIM refiners.spots row (ruling 12) - what the by-order spots read
+// serves. Every column, no join products.
+export type EngagementSpotRow = {
+  id: string;
+  metal_id: string;
+  refiner_id: string | null;
+  order_id: string;
+  pool_oz_deducted: number | null;
+  ask: number | null;
+  bid: number | null;
+  scrap_percentage: number | null;
+  bullion_percentage: number | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+  refiner_order_id: string | null;
+};
+
+// By the ENGAGEMENT's id (refiners.orders, 093). The route addresses the
+// CUSTOMER order (GET /orders/:orderId/refiners/spots); the service resolves
+// the engagement and hands its id here.
+export async function getForEngagement(
+  refiner_order_id: string, executor?: Executor
+): Promise<EngagementSpotRow[]> {
+  const { rows } = await query<EngagementSpotRow>(
+    sql("get_for_engagement"), [refiner_order_id], executor
+  );
+  return rows;
+}
+
+// EVERY CUSTOMER SPOT GETS ITS REFINER COUNTERPART - 093's mirror completion,
+// applied to new traffic. Unquoted (ask and bid NULL) until the refiner
+// speaks; refiner_order_id links it to the order's engagement. Idempotent on
+// (order, metal) by the NOT EXISTS guard - the table itself has no unique
+// constraint to name, see sql/create.sql.
+export async function coverFromOrderSpots(
+  order_id: string, executor?: Executor
+): Promise<void> {
+  await query(
+    `INSERT INTO refiners.spots (order_id, refiner_order_id, metal_id)
+     SELECT os.order_id, ro.id, os.metal_id
+       FROM orders.spots os
+       JOIN refiners.orders ro ON ro.order_id = os.order_id
+      WHERE os.order_id = $1
+        AND NOT EXISTS (
+          SELECT 1 FROM refiners.spots rs
+           WHERE rs.order_id = os.order_id AND rs.metal_id = os.metal_id
+        )`,
+    [order_id],
+    executor
+  );
+}
+
 // ONE FUNCTION FOR TWO EXCHANGE ONES - updateRefinerMetals and
 // updateRefinerSpot were the same UPDATE.
 export async function setBid(

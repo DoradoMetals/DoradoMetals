@@ -69,7 +69,7 @@ const READS = [
   ["user", "/api/cart/get_cart"],
   ["admin", "/api/fulfillments/methods/all"],
   ["admin", "/api/fulfillments/schedule"],
-  ["user", "/api/purchase_orders/get_purchase_orders"],
+  ["user", "/api/orders"],
 ];
 
 for (const [who, url] of READS) {

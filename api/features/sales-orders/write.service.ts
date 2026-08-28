@@ -14,6 +14,9 @@
 import { randomUUID } from "node:crypto";
 import * as orders from "#features/sales-orders/repo.ts";
 import * as legacy from "#features/sales-orders/legacy.repo.ts";
+import * as refinerOrders from "#features/refiners/orders/repo.ts";
+import * as refinerItems from "#features/refiners/items/repo.ts";
+import * as refinerSpots from "#features/refiners/spots/repo.ts";
 import type { Flag, Executor } from "#features/sales-orders/repo.ts";
 
 // What the order-creation path has always passed. exchange's names, because
@@ -53,7 +56,16 @@ export async function insertOrder(
   const by = user.name ?? null;
   const p = orderPrices;
 
-  await orders.createOrder(id, user.id, status, by, executor);
+  // The number is drawn ONCE, by the new-schema insert, and handed to the
+  // exchange half below. Before this, exchange's column DEFAULT drew the
+  // shared sequence a second time and the two schemas held different numbers
+  // for the same order - the one find of the wave-1 parity ledger.
+  const { number } = await orders.createOrder(id, user.id, status, by, executor);
+
+  // ONE ENGAGEMENT PER ORDER, EVERY ORDER (093). A sales order gets its
+  // refiners.orders row at birth, values NULL until a refinery is involved -
+  // the invariant the backfill established, maintained for new traffic.
+  await refinerOrders.ensureForOrder(id, executor);
 
   await orders.createTotals(
     randomUUID(),
@@ -101,6 +113,7 @@ export async function insertOrder(
       p.charges_amount ?? null,
       p.sales_tax ?? null,
     ],
+    number,
     executor
   );
 
@@ -150,6 +163,11 @@ export async function insertItems(
       id, orderId, product_id, price, quantity, premium, tax_rate, executor
     );
   }
+
+  // The refiner counterparts, one per line (093's mirror completion applied
+  // to new traffic) - orders.items and refiners.items match counts by
+  // construction, the invariant refiner-edits.test.js pins.
+  await refinerItems.mirrorLinesForOrder(orderId, executor);
 }
 
 // The composed spot shape (`name` / `ask` / `bid`) - what getSpotPrices
@@ -178,6 +196,10 @@ export async function insertOrderMetals(
     // COLUMN's, stated in legacy.repo.ts, not the wire's.
     await legacy.createSpot(orderId, spot.name, spot.ask ?? null, executor);
   }
+
+  // The refiner counterparts, unquoted (093's coverage invariant: no customer
+  // spot without its refiner row).
+  await refinerSpots.coverFromOrderSpots(orderId, executor);
 }
 
 export async function updateStatus(

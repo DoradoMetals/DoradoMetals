@@ -37,9 +37,9 @@ const switches = findSwitches(FEATURES);
 
 test("every feature that has a switch defaults to exchange", () => {
   // See scripts/audit-switches.mjs: the floor drops by one each time a feature is
-  // restructured away from having a switch at all. 14 after leads, reviews,
-  // media, rates, mints, sales-tax and users.
-  assert.ok(switches.length >= 3, `only found ${switches.length} switches`);
+  // restructured away from having a switch at all. 2 since the wave-2 read
+  // flip retired purchase-orders' switch; was 3.
+  assert.ok(switches.length >= 2, `only found ${switches.length} switches`);
 
   for (const { name, source } of switches) {
     // The default is the fallback in `process.env.X_SOURCE ?? ""` ternaries:

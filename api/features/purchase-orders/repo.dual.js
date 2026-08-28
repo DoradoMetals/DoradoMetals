@@ -1,10 +1,8 @@
-// Dual-write phase of the purchase orders migration.
-//
-// Every write goes to exchange first and is then mirrored into the orders
-// schema, both inside one transaction. Reads come from the new schema, so it is
-// exercised by real traffic while exchange stays a complete replica - which is
-// what makes the switch reversible. Reading from the new schema while writing
-// only there is a one-way door.
+// THE order writes: exchange first, mirrored into the orders schema, both
+// inside one transaction. Since the read pivot (ruling 8) this is no longer a
+// phase a switch selects - it is the only write mode, because the dual writes
+// are what keep exchange a complete replica while it remains the recovery
+// copy. The reads live in read.service.ts.
 //
 // The mirror re-derives the whole order from exchange rather than applying the
 // same change twice. There are 29 writes here and a per-write mirror would be
@@ -22,13 +20,11 @@ import withTransaction from "#shared/db/withTransaction.js";
 import * as exchange from "#features/purchase-orders/repo.exchange.js";
 import * as next from "#features/purchase-orders/repo.next.ts";
 
-// Reads come from the new schema: exercising it is the point of this phase.
-export const findAllByUser = next.findAllByUser;
-export const findById = next.findById;
-export const getAll = next.getAll;
-export const findMetalsByOrderId = next.findMetalsByOrderId;
-export const findRefinerMetalsByOrderId = next.findRefinerMetalsByOrderId;
-export const findOrderScrapItems = next.findOrderScrapItems;
+// NO READS HERE ANY MORE. The read pivot (ruling 8) made read.service.ts THE
+// order read; what this file holds is the WRITES - exchange and the new
+// schema in one transaction, which is what dual-writes staying sacred means.
+// getCurrentSpotPrices is not an order read: it is the live metals feed, and
+// it stays with the exchange implementation until spots promote.
 
 // Writes belonging to features that have not moved. exchange.shipments and
 // exchange.payouts are still the only copies of what these touch, so there is
@@ -40,7 +36,6 @@ export const findOrderScrapItems = next.findOrderScrapItems;
 export const editPayoutCharge = exchange.editPayoutCharge;
 export const insertPayout = exchange.insertPayout;
 export const changePayoutMethod = exchange.changePayoutMethod;
-export const findPayoutDetails = exchange.findPayoutDetails;
 export const getCurrentSpotPrices = exchange.getCurrentSpotPrices;
 export const purgeCancelled = exchange.purgeCancelled;
 

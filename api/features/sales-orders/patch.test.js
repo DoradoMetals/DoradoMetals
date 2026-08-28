@@ -93,7 +93,11 @@ test("a refiner with no email is refused, and nothing is written", async () => {
         [order.id]
       );
       await client.query(
-        `UPDATE orders.orders SET order_sent = false, refinery_id = NULL WHERE id = $1`,
+        `UPDATE orders.orders SET order_sent = false WHERE id = $1`,
+        [order.id]
+      );
+      await client.query(
+        `UPDATE refiners.orders SET refiner_id = NULL WHERE order_id = $1`,
         [order.id]
       );
 
@@ -123,12 +127,15 @@ test("a refiner with no email is refused, and nothing is written", async () => {
       assert.equal(after.supplier_id, null, "a refused send still attached the supplier");
       const afterNext = (
         await client.query(
-          `SELECT order_sent, refinery_id FROM orders.orders WHERE id = $1`,
+          `SELECT o.order_sent, ro.refiner_id
+             FROM orders.orders o
+             LEFT JOIN refiners.orders ro ON ro.order_id = o.id
+            WHERE o.id = $1`,
           [order.id]
         )
       ).rows[0];
       assert.equal(afterNext?.order_sent, false, "a refused send marked orders.orders sent");
-      assert.equal(afterNext?.refinery_id, null, "a refused send attached the refinery");
+      assert.equal(afterNext?.refiner_id, null, "a refused send attached the refinery");
 
       const shipmentsAfter = (
         await client.query(
@@ -155,7 +162,11 @@ test("a sent order cannot be moved to a different refiner", async (t) => {
         [order.id, refiners[0].id]
       );
       await client.query(
-        `UPDATE orders.orders SET order_sent = true, refinery_id = $2 WHERE id = $1`,
+        `UPDATE orders.orders SET order_sent = true WHERE id = $1`,
+        [order.id]
+      );
+      await client.query(
+        `UPDATE refiners.orders SET refiner_id = $2 WHERE order_id = $1`,
         [order.id, refiners[0].id]
       );
 
@@ -166,9 +177,9 @@ test("a sent order cannot be moved to a different refiner", async (t) => {
       assert.equal(res.status, 409, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const after = (
-        await client.query(`SELECT refinery_id FROM orders.orders WHERE id = $1`, [order.id])
+        await client.query(`SELECT refiner_id FROM refiners.orders WHERE order_id = $1`, [order.id])
       ).rows[0];
-      assert.equal(after.refinery_id, refiners[0].id, "the order moved to the second refiner");
+      assert.equal(after.refiner_id, refiners[0].id, "the order moved to the second refiner");
     });
   }, { lock: ORDER_LOCK });
 });

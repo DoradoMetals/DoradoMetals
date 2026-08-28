@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import pool from "#db";
 import { serveOrderDocument } from "#features/media/pdfs/serve.ts";
-import * as poRepo from "#features/purchase-orders/repo.js";
+import * as poRepo from "#features/purchase-orders/read.service.ts";
 
 let client;
 let order; // a real dev purchase order that orders.orders knows

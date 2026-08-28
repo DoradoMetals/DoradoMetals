@@ -62,6 +62,45 @@ test("a new order lands in both schemas with the same id", async () => {
   });
 });
 
+test("a new order is born with its refiner engagement - 093's invariant survives new traffic", async () => {
+  await inRollback(async (c) => {
+    const userId = await aUser(c);
+    const addressId = await anAddress(c);
+    assert.ok(userId && addressId, "dev needs a user and an address");
+
+    const id = await writes.insertOrder(c, { userId, addressId, status: "Pending", by: "test" });
+
+    const ro = await c.query(
+      "SELECT id, refiner_id, pool_oz_deducted, fee FROM refiners.orders WHERE order_id = $1", [id]
+    );
+    assert.equal(ro.rows.length, 1, "the order has no refiners.orders engagement row");
+    assert.equal(ro.rows[0].refiner_id, null, "a new engagement names no refinery yet");
+  });
+});
+
+test("both schemas hold the SAME order number - the sequence is drawn once", async () => {
+  await inRollback(async (c) => {
+    const userId = await aUser(c);
+    const addressId = await anAddress(c);
+    assert.ok(userId && addressId, "dev needs a user and an address");
+
+    const id = await writes.insertOrder(c, { userId, addressId, status: "Pending", by: "test" });
+
+    // The dual create used to draw exchange's sequence TWICE - once explicitly
+    // for orders.orders, once through exchange's column DEFAULT - so the same
+    // order wore two numbers. The number is now threaded into the exchange
+    // insert, and this is the pin that keeps it that way.
+    const nx = await c.query("SELECT number FROM orders.orders WHERE id = $1", [id]);
+    const ex = await c.query(
+      "SELECT order_number FROM exchange.purchase_orders WHERE id = $1", [id]
+    );
+    assert.equal(
+      Number(ex.rows[0].order_number), Number(nx.rows[0].number),
+      "exchange and the new schema disagree about the order's number - the sequence was drawn twice"
+    );
+  });
+});
+
 test("a new order carries spots_locked, which is where the offer's one useful column went", async () => {
   await inRollback(async (c) => {
     const userId = await aUser(c);

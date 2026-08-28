@@ -1,7 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
+import type { RefinerOrder, RefinerSpot } from '@dorado/contracts'
 
 // REFINERS IS ITS OWN FEATURE, and the endpoint follows the feature that
 // owns the table (Jacob's rule, fourth D87 correction). The standing rule of
@@ -12,11 +13,47 @@ import { invalidateOrderReads } from '@/features/orders/invalidation'
 // PATCH keeps only what orders own; the order READ still serves the pool and
 // fee figures unchanged this series, so displays are untouched.
 //
-// KEYING: /refiners/orders/:id takes the REFINER order's id (the engagement
-// row, not the customer order). /refiners/items/by-order-item/:orderItemId
-// takes the ORDER ITEM's id, and the path says so - the order wire serves
-// refiner values by order line and never exposes refiners.items' own row id,
-// so the line's id is the only key the client honestly holds.
+// KEYING (Jacob's route convention): READS RESOLVE FROM THE PARENT PATH -
+// GET /orders/:orderId/refiners and /orders/:orderId/refiners/spots take the
+// customer order's id, the key components actually hold; the order wire
+// deliberately does not carry the engagement's id (the join product stays
+// off the order document). WRITES KEY BY THE RESOURCE'S OWN ID - the
+// engagement PATCH takes the engagement row's id, which the read supplies.
+// /refiners/items/by-order-item/:orderItemId takes the ORDER ITEM's id, and
+// the path says so - the order wire serves refiner values by order line and
+// never exposes refiners.items' own row id, so the line's id is the only key
+// the client honestly holds.
+
+// The bare engagement row for one customer order, VERBATIM (the
+// RefinerOrder contract re-exports refiners.orders' generated row). Its `id`
+// is the key usePatchRefinerOrder needs.
+export const useRefinerOrder = (order_id: string) => {
+  const { user } = useGetSession()
+
+  return useQuery<RefinerOrder>({
+    queryKey: ['refiner_order', order_id],
+    queryFn: async () =>
+      await apiRequest<RefinerOrder>('GET', `/orders/${order_id}/refiners`),
+    enabled: !!user && !!order_id,
+  })
+}
+
+// The refinery's quoted spots for the order's engagement - VERBATIM
+// refiners.spots rows; the metal is its id, and a display name is mapped
+// client-side from the spots reference read. Named for the RESOURCE - this
+// replaced usePurchaseOrderRefinerMetals, which was named for the legacy
+// route.
+export const useRefinerMetals = (order_id: string) => {
+  const { user } = useGetSession()
+
+  return useQuery<RefinerSpot[]>({
+    queryKey: ['refiner_metals', order_id],
+    queryFn: async () =>
+      await apiRequest<RefinerSpot[]>('GET', `/orders/${order_id}/refiners/spots`),
+    enabled: !!user && !!order_id,
+    refetchInterval: 60_000,
+  })
+}
 
 // One refiner row's writable fields. premium: null clears it; the assay
 // fields carry what the refiner actually recovered, null where a figure is

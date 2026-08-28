@@ -70,3 +70,12 @@ export async function patchPayout(
 
   return { success: true };
 }
+
+// The full bank details for one payout - the repo's rules apply (see
+// sql/get_details.sql): admin only at the route, never logged, never carried
+// by an order payload.
+export async function getDetails(
+  id: string
+): Promise<payoutsRepo.PayoutDetailsRow | undefined> {
+  return await payoutsRepo.getDetails(id);
+}

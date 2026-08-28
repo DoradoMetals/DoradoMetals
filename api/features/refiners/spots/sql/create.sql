@@ -13,6 +13,9 @@
 -- same order and metal. Dev has none today (124 rows, zero duplicate pairs),
 -- and exchange.refiner_metals had no such constraint either, so this preserves
 -- rather than introduces the gap.
-INSERT INTO refiners.spots (id, order_id, metal_id, refiner_id, ask, bid)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, order_id, metal_id, refiner_id, ask, bid
+-- refiner_order_id is the ENGAGEMENT link (093), resolved here rather than
+-- passed: one engagement per order means the order id determines it, and a
+-- caller cannot hand in a mismatched pair.
+INSERT INTO refiners.spots (id, order_id, refiner_order_id, metal_id, refiner_id, ask, bid)
+VALUES ($1, $2, (SELECT ro.id FROM refiners.orders ro WHERE ro.order_id = $2), $3, $4, $5, $6)
+RETURNING id, order_id, refiner_order_id, metal_id, refiner_id, ask, bid

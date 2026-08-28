@@ -98,9 +98,9 @@ after(async () => {
 test("a stranger cannot read the spots frozen on somebody else's order", async () => {
   await inPinnedTransaction(async () => {
     await as(stranger, async () => {
-      const res = await request(app)
-        .post("/api/purchase_orders/get_purchase_order_metals")
-        .send({ purchase_order_id: order.id });
+      // GET /orders/:id/spots replaced the body-keyed legacy route in the
+      // read-flip wave; requireOwnOrderParam reads the id from the path.
+      const res = await request(app).get(`/api/orders/${order.id}/spots`);
       assert.equal(res.status, 403, `answered ${res.status} with somebody else's spot prices`);
     });
   }, { lock: ORDER_LOCK });
@@ -145,9 +145,7 @@ test("a stranger cannot cancel somebody else's order", async () => {
 test("the order's own customer can still read its spots", async () => {
   await inPinnedTransaction(async () => {
     await as(victim, async () => {
-      const res = await request(app)
-        .post("/api/purchase_orders/get_purchase_order_metals")
-        .send({ purchase_order_id: order.id });
+      const res = await request(app).get(`/api/orders/${order.id}/spots`);
       // The ids are in the message because this failed once in the full suite
       // and passed in isolation, and "403 !== 200" says nothing about which of
       // the three tables the guard looked in or who it thought the caller was.
@@ -167,9 +165,7 @@ test("an admin can still reach any order", async () => {
   await inPinnedTransaction(async () => {
     const admins = await outside(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`);
     await as({ ...admins[0], role: "admin" }, async () => {
-      const res = await request(app)
-        .post("/api/purchase_orders/get_purchase_order_metals")
-        .send({ purchase_order_id: order.id });
+      const res = await request(app).get(`/api/orders/${order.id}/spots`);
       assert.equal(res.status, 200, "an admin was refused an order they administer");
     });
   }, { lock: ORDER_LOCK });

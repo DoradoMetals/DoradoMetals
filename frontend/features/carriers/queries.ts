@@ -2,16 +2,6 @@ import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 import { Carrier, CarrierService, NewCarrierService } from '@/features/carriers/types'
 
-export const useCarrier = (carrier_id: string) => {
-  return useApiQuery<Carrier[]>({
-    key: queryKeys.carrier(carrier_id),
-    url: '/carriers/get_one',
-    requireAdmin: true,
-    params: () => ({ carrier_id }),
-    enabled: !!carrier_id,
-  })
-}
-
 export const useCarriers = () => {
   return useApiQuery<Carrier[]>({
     key: queryKeys.carriers(),
@@ -37,27 +27,6 @@ export const useUpdateCarrier = () => {
     url: '/carriers/update',
     listAction: 'upsert',
     body: (carrier) => ({ carrier }),
-  })
-}
-
-export const useDeleteCarrier = () => {
-  return useApiMutation<void, Carrier, Carrier[]>({
-    queryKey: queryKeys.carriers(),
-    method: 'DELETE',
-    url: '/carriers/delete',
-    requireAdmin: true,
-    listAction: 'delete',
-    body: (carrier) => ({ carrier_id: carrier.id }),
-  })
-}
-
-export const useCarrierService = (service_id: string) => {
-  return useApiQuery<CarrierService>({
-    key: queryKeys.carrierService(service_id),
-    url: '/carrier_services/get_one',
-    requireAdmin: true,
-    params: () => ({ id: service_id }),
-    enabled: !!service_id,
   })
 }
 

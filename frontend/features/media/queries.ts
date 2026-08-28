@@ -14,16 +14,6 @@ export const useTestImage = () =>
     url: '/images/get_test_image',
   })
 
-export const useImage = (id: string) =>
-  useApiQuery<string>({
-    key: queryKeys.image(id),
-    url: '/images/get_url',
-    enabled: !!id,
-    params: () => ({
-      image_id: id,
-    }),
-  })
-
 export const useUploadImage = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()

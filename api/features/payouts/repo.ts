@@ -60,3 +60,30 @@ export async function getById(
   const { rows } = await query<PayoutRow>(sql("get_by_id"), [id], executor);
   return rows[0];
 }
+
+// THE FULL BANK DETAILS, for GET /payouts/:id/details ONLY - see
+// sql/get_details.sql for the rules. The VERBATIM exchange.payouts row
+// (ruling 12). Deliberately a separate type from PayoutRow so a projection
+// cannot pick these fields up by accident, and NEVER logged or embedded in
+// an order payload.
+export type PayoutDetailsRow = {
+  id: string;
+  user_id: string | null;
+  order_id: string | null;
+  method: string | null;
+  account_holder_name: string | null;
+  bank_name: string | null;
+  account_type: string | null;
+  routing_number: string | null;
+  account_number: string | null;
+  created_at: Date | null;
+  email_to: string | null;
+  cost: number | null;
+};
+
+export async function getDetails(
+  id: string, executor?: Executor
+): Promise<PayoutDetailsRow | undefined> {
+  const { rows } = await query<PayoutDetailsRow>(sql("get_details"), [id], executor);
+  return rows[0];
+}

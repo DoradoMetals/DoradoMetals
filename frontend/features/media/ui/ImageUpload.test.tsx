@@ -12,9 +12,9 @@
 // browser-to-storage upload - goes to the presigned url the API returned, not
 // to the API.
 import { describe, expect, test, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithClient } from "@/shared/tests/renderWithClient";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
 // The network boundary, and nothing else.
@@ -37,13 +37,6 @@ vi.stubGlobal("fetch", putSpy);
 
 import { apiRequest } from "@/shared/queries/axios";
 import { ImageUpload } from "@/features/media/ui/ImageUpload";
-
-const renderWithClient = (ui: React.ReactElement) => {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-};
 
 const aFile = () =>
   new File(["png-bytes"], "front.png", { type: "image/png" });

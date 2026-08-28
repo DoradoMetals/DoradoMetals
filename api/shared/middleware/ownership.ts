@@ -114,6 +114,37 @@ export function requireOwnOrder(req: Request, res: Response, next: NextFunction)
     .catch(next);
 }
 
+// The same question for routes that carry the order id in the PATH -
+// GET /api/orders/:id/spots and /:id/fulfillment - where requireOwnOrder's
+// body-reading cannot see it. Same rules: admins pass, a missing row answers
+// exactly like somebody else's row.
+export function requireOwnOrderParam(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  if (req.user.role === "admin") return next();
+
+  const orderId = req.params.id;
+  if (!orderId) {
+    return res.status(400).json({
+      error: "Bad Request",
+      message: "no order was named",
+    });
+  }
+
+  orderOwnedBy(orderId, req.user.id)
+    .then((owned) => {
+      if (!owned) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "That order is not yours",
+        });
+      }
+      next();
+    })
+    .catch(next);
+}
+
 // Whether the caller owns the SHIPMENT they are acting on.
 //
 // requireOwnOrder cannot answer this. It looks for an order id under four

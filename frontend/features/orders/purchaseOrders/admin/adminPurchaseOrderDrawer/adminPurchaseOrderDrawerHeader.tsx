@@ -10,7 +10,7 @@ import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/features/orders/
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { CheckCheck } from 'lucide-react'
 import { useSpotPrices } from '@/features/spots/queries'
-import { usePurchaseOrderMetals } from '@/features/orders/purchaseOrders/users/queries'
+import { useOrderSpots, nameSpots } from '@/features/orders/spots'
 
 export default function PurchaseOrderDrawerHeader({
   order,
@@ -21,7 +21,10 @@ export default function PurchaseOrderDrawerHeader({
   const downloadInvoice = useDownloadInvoice()
   const { formatPurchaseOrderNumber } = useFormatPurchaseOrderNumber()
   const { data: spotPrices = [] } = useSpotPrices()
-  const { data: orderSpots = [] } = usePurchaseOrderMetals(order.id)
+  const { data: orderSpots = [] } = useOrderSpots(order.id)
+  // Display composition, client-side: the rows carry metal_id, the reference
+  // read supplies the names the PDF templates print.
+  const namedOrderSpots = nameSpots(orderSpots, spotPrices)
 
   const status = statusConfig[order.status ?? ''] ?? ''
   const Icon = status?.icon ?? CheckCheck
@@ -62,7 +65,7 @@ export default function PurchaseOrderDrawerHeader({
         downloadInvoice.mutate({
           purchaseOrder: order,
           spotPrices,
-          orderSpots,
+          orderSpots: namedOrderSpots,
           fileName: 'invoice_preview',
         }),
       isPending: downloadInvoice.isPending,
@@ -74,7 +77,7 @@ export default function PurchaseOrderDrawerHeader({
         downloadInvoice.mutate({
           purchaseOrder: order,
           spotPrices,
-          orderSpots,
+          orderSpots: namedOrderSpots,
           fileName: 'invoice',
         }),
       isPending: downloadInvoice.isPending,

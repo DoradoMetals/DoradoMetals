@@ -16,9 +16,7 @@ import {
   listSessions,
   requestPasswordReset,
   resetPassword,
-  revokeOtherSessions,
   revokeSession,
-  revokeSessions,
   sendVerificationEmail,
   signIn,
   signOut,
@@ -398,26 +396,6 @@ export const useRevokeSession = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (token: string) => revokeSession({ token }),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['sessions'], refetchType: 'active' })
-    },
-  })
-}
-
-export const useRevokeOtherSession = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async () => revokeOtherSessions(),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['sessions'], refetchType: 'active' })
-    },
-  })
-}
-
-export const useRevokeAllSessions = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async () => revokeSessions(),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'], refetchType: 'active' })
     },

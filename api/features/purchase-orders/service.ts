@@ -1,5 +1,11 @@
 import withTransaction from "#shared/db/withTransaction.js";
-import * as purchaseOrderRepo from "#features/purchase-orders/repo.js";
+// THE PIVOT (ruling 8): reads come from read.service.ts - the new schema,
+// decomposed, one implementation - and writes go through repo.dual.js
+// unconditionally, exchange and the new schema in one transaction. The
+// repo.js switch is gone: there is no exchange-read mode left to select.
+import * as purchaseOrderRepo from "#features/purchase-orders/repo.dual.js";
+import * as readService from "#features/purchase-orders/read.service.ts";
+import * as next from "#features/purchase-orders/repo.next.ts";
 import * as scrapRepo from "#features/scrap/repo.ts";
 import * as transactionsService from "#features/transactions/service.ts";
 import * as usersFunds from "#features/users/service.ts";
@@ -128,41 +134,30 @@ export async function labelBufferOrUndo(
   return Buffer.from(labelData.labelFile, "base64");
 }
 
-// THE READS STILL GO THROUGH repo.js, AND PIVOTING THEM ALONE WAS A MISTAKE
-// THAT THE SUITE CAUGHT.
-//
-// features/purchase-orders/read.service.ts is finished and proven -
-// `verify:orders-decomposition` reports "nothing else differs" against the
-// implementation serving traffic, across every real order and every nested
-// object. It was pointed at here, and two replay tests failed immediately:
-//
-//   moving an order's status takes the body the drawer sends
-//     expected 'Payment Processing', got 'Pending'
-//   locking spots freezes them and unlocking releases them
-//     the order does not report its spots as locked
-//
-// The reason is the sequencing, not the read. PURCHASE_ORDERS_SOURCE defaults
-// to `exchange`, so every WRITE goes to exchange alone. Reading the new schema
-// while writing the old one means a read cannot see a write that just
-// happened: an admin changes a status and the drawer shows the old one.
-//
-// Reads and writes have to pivot TOGETHER, which is what every other
-// restructured feature did - read the new schema, write both, in one change.
-// The reads move when the write paths land beside them.
+// THE READS PIVOTED WITH THE WRITES, TOGETHER - the sequencing lesson this
+// comment used to record the failure of. An earlier attempt pointed the reads
+// at read.service.ts alone, while PURCHASE_ORDERS_SOURCE=exchange sent every
+// write to exchange only, and two replay tests caught reads that could not
+// see a write that just happened. The pivot now is whole: reads from the new
+// schema (read.service.ts), writes to BOTH schemas (repo.dual.js),
+// unconditionally - the same shape every other restructured feature landed
+// in, with the covenant (data verified green before the legacy reads died)
+// cleared by the wave-1 parity ledger.
 export async function listOrdersForUser(userId: string): Promise<PurchaseOrderRow[]> {
-  return purchaseOrderRepo.findAllByUser(userId);
+  return (await readService.findAllByUser(userId)) as unknown as PurchaseOrderRow[];
 }
 
 export async function getById(orderId: string): Promise<PurchaseOrderRow | undefined> {
-  return purchaseOrderRepo.findById(orderId);
+  return ((await readService.findById(orderId)) ?? undefined) as unknown as
+    PurchaseOrderRow | undefined;
 }
 
 export async function getAll(): Promise<PurchaseOrderRow[]> {
-  return purchaseOrderRepo.getAll();
+  return (await readService.getAll()) as unknown as PurchaseOrderRow[];
 }
 
 export async function getMetalsForOrder(orderId: string): Promise<OrderMetalRow[]> {
-  return purchaseOrderRepo.findMetalsByOrderId(orderId);
+  return next.findMetalsByOrderId(orderId);
 }
 
 // Cancelling an order generates a return label, and a return label is a real
@@ -484,7 +479,7 @@ export async function createPurchaseOrder(
     throw err;
   }
 
-  return await purchaseOrderRepo.findById(order_id);
+  return ((await readService.findById(order_id)) ?? undefined) as unknown as PurchaseOrderRow;
 }
 
 // Finalizing an order's pricing is a PRICING event, and ONLY that now. The
@@ -659,7 +654,7 @@ export async function retierOrderScrapPremiums(orderId: string, executor?: any):
   const rates = await ratesRepo.getAllRates();
   if (!rates?.length) return;
 
-  const scrapItems = await purchaseOrderRepo.findOrderScrapItems(orderId, executor);
+  const scrapItems = await next.findOrderScrapItems(orderId, executor);
   const totalsByMetal = sumContentByMetal(
     scrapItems,
     (i: { metal?: unknown; content?: unknown }) => i.metal,
@@ -796,7 +791,7 @@ export async function purgeCancelled(): Promise<unknown> {
 }
 
 export async function getRefinerMetalsForOrder(orderId: string): Promise<OrderMetalRow[]> {
-  return purchaseOrderRepo.findRefinerMetalsByOrderId(orderId);
+  return next.findRefinerMetalsByOrderId(orderId);
 }
 
 export async function updateRefinerSpot({
@@ -870,8 +865,6 @@ export async function updatePoolRemediation({
   );
 }
 
-// Full bank details for one payout. Admin-only, and deliberately a separate
-// call so the numbers are not carried by every order response.
-export async function getPayoutDetails({ order_id }: { order_id: string }): Promise<unknown> {
-  return purchaseOrderRepo.findPayoutDetails(order_id);
-}
+// getPayoutDetails left with the read flip: the full bank numbers are
+// GET /payouts/:id/details now, owned by features/payouts, payout-keyed, and
+// the radioactive rule is unchanged - details only there, never on an order.

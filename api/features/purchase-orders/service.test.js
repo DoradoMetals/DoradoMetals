@@ -68,6 +68,11 @@ const cleanup = async (c, { orderId, scrapId }) => {
     "DELETE FROM refiners.items WHERE order_item_id IN (SELECT id FROM orders.items WHERE order_id = $1)",
     [orderId]
   );
+  // The ENGAGEMENT (093) and its spot mirrors: every order is born with a
+  // refiners.orders row now, and refiners.orders.order_id has a plain FK -
+  // deleting the order first raises 23503.
+  await c.query("DELETE FROM refiners.spots WHERE order_id = $1", [orderId]);
+  await c.query("DELETE FROM refiners.orders WHERE order_id = $1", [orderId]);
   for (const t of ["orders.items", "orders.spots", "orders.transactions", "orders.addresses"]) {
     await c.query(`DELETE FROM ${t} WHERE order_id = $1`, [orderId]);
   }

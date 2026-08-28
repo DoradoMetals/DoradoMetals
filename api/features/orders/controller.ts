@@ -1,6 +1,7 @@
 import { callerId } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as orderPatch from "#features/orders/patch.service.ts";
+import * as orderSpotsRepo from "#features/orders/spots/repo.ts";
 import * as purchaseOrderService from "#features/purchase-orders/service.ts";
 import * as salesOrderService from "#features/sales-orders/service.ts";
 
@@ -73,4 +74,16 @@ export const putOrderSpots = asyncHandler(async (req, res) => {
 export const createOrderItem = asyncHandler(async (req, res) => {
   const updated = await orderPatch.createOrderItem(req.params.id, req.body ?? {});
   return res.status(200).json({ updated });
+});
+
+// GET /api/orders/:id/spots - the spots an order was quoted at, as VERBATIM
+// TABLE ROWS (rulings 9 + 12). Replaces get_purchase_order_metals AND
+// get_order_metals: orders.spots is one table for both directions, so one
+// read serves both. The metal is its id - a display name is the client's to
+// map from the spots reference read. Ownership-or-admin is the route's
+// requireOwnOrderParam; an order with no spots (unlocked, or no metal quoted)
+// answers [] rather than 404, because "no quotes yet" is an answer about a
+// real order.
+export const getOrderSpots = asyncHandler(async (req, res) => {
+  return res.json(await orderSpotsRepo.getRowsFor(req.params.id));
 });

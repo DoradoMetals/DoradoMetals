@@ -2,17 +2,6 @@ import { z } from 'zod/v4'
 import { TruckIcon, StorefrontIcon, IconProps } from '@phosphor-icons/react'
 import { format } from 'date-fns'
 
-export interface CarrierPickup {
-  id: string
-  user_id: string
-  order_id: string
-  carrier: string
-  pickup_requested_at: string
-  pickup_status: string
-  confirmation_number: number
-  location: string
-}
-
 export type PickupType = {
   label: string
   name: string

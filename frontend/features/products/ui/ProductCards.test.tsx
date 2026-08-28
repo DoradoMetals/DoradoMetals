@@ -9,9 +9,9 @@
 // product in the right store keyed so a second add increments rather than
 // duplicates.
 import { describe, expect, test, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithClient } from "@/shared/tests/renderWithClient";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
@@ -49,11 +49,6 @@ import { catalogQuoteItems, unitPricesById } from "@/features/quotes/catalogPric
 import ProductCard from "@/features/products/ui/ProductCard";
 import BullionCard from "@/features/products/ui/BullionCard";
 import type { Product } from "@/features/products/types";
-
-const renderWithClient = (ui: React.ReactElement) => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-};
 
 // One gold eagle, in the CURRENT wire shape. The card's price comes from the
 // quote, so the product's own premiums exist only to feed the accidental

@@ -44,7 +44,7 @@ let admin;
 let customer;
 let refinerMetal; // { purchase_order_id, type } - an order with refiner spots
 let scrapItem; // a scrap-backed purchase line
-let payoutOrderId;
+let payoutId;
 
 before(async () => {
   admin = (
@@ -79,12 +79,12 @@ before(async () => {
   )[0];
   assert.ok(scrapItem, "dev needs a purchase order item with scrap");
 
-  payoutOrderId = (
+  payoutId = (
     await outside(
-      `SELECT order_id FROM exchange.payouts WHERE order_id IS NOT NULL ORDER BY id LIMIT 1`
+      `SELECT id FROM exchange.payouts WHERE order_id IS NOT NULL ORDER BY id LIMIT 1`
     )
-  )[0]?.order_id;
-  assert.ok(payoutOrderId, "dev needs a payout attached to an order");
+  )[0]?.id;
+  assert.ok(payoutId, "dev needs a payout attached to an order");
 });
 
 after(async () => {
@@ -282,19 +282,18 @@ test("both refiners endpoints refuse a customer and an anonymous caller", async 
   }, { lock: ORDER_LOCK });
 });
 
-// THE ONE ENDPOINT ALLOWED TO RETURN FULL BANK DETAILS - unchanged by the
-// re-slice, and staying on its legacy route this series.
+// THE ONE ENDPOINT ALLOWED TO RETURN FULL BANK DETAILS - payout-keyed now:
+// GET /payouts/:id/details replaced the order-keyed legacy route in the
+// read-flip wave, and the radioactive rule is unchanged.
 //
 // NOTHING FROM THE BODY IS PRINTED OR INTERPOLATED INTO AN ASSERTION MESSAGE,
 // including on failure. The assertions are on KEYS and on status.
-test("get_payout_details answers with the payout's fields", async () => {
+test("GET /payouts/:id/details answers with the payout's fields", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...admin, role: "admin" }, async () => {
-      const res = await request(app)
-        .post("/api/purchase_orders/get_payout_details")
-        .send({ order_id: payoutOrderId });
+      const res = await request(app).get(`/api/payouts/${payoutId}/details`);
 
-      assert.equal(res.status, 200, `get_payout_details answered ${res.status}`);
+      assert.equal(res.status, 200, `the details read answered ${res.status}`);
 
       const payout = Array.isArray(res.body) ? res.body[0] : res.body;
       assert.ok(payout && typeof payout === "object", "no payout object came back");
@@ -310,9 +309,7 @@ test("get_payout_details answers with the payout's fields", async () => {
 test("a customer cannot read a payout's bank details", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {
-      const res = await request(app)
-        .post("/api/purchase_orders/get_payout_details")
-        .send({ order_id: payoutOrderId });
+      const res = await request(app).get(`/api/payouts/${payoutId}/details`);
 
       assert.ok(
         [401, 403].includes(res.status),
@@ -325,9 +322,7 @@ test("a customer cannot read a payout's bank details", async () => {
 test("an anonymous caller cannot read a payout's bank details", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app)
-        .post("/api/purchase_orders/get_payout_details")
-        .send({ order_id: payoutOrderId });
+      const res = await request(app).get(`/api/payouts/${payoutId}/details`);
 
       assert.ok(
         [401, 403].includes(res.status),

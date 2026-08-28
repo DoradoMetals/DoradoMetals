@@ -1,15 +1,14 @@
-// Purchase order reads against real Postgres.
-//
-// A purchase order is four rows here where exchange kept one, and the response
-// has to look identical either way. Most of what can go wrong is in the seams:
-// an id that used to resolve somewhere and no longer does, an object that turns
-// into null, a join that drops a row with no offer. Each test runs inside a
-// transaction that is rolled back.
+// Purchase order reads against real Postgres - THE read since the pivot
+// (ruling 8): read.service.ts, assembled from the per-table repos. Most of
+// what can go wrong is in the seams: an id that used to resolve somewhere and
+// no longer does, an object that turns into null, a join that drops a row.
+// Each test runs inside a transaction that is rolled back.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import * as next from "#features/purchase-orders/repo.next.ts";
-import * as exchange from "#features/purchase-orders/repo.exchange.js";
+import { PurchaseOrder } from "@dorado/contracts";
+import * as readService from "#features/purchase-orders/read.service.ts";
+import * as spotsRepo from "#features/purchase-orders/repo.next.ts";
 
 let client;
 
@@ -35,10 +34,13 @@ async function inRollback(fn) {
   }
 }
 
-test("an order carries the same columns it always did", async () => {
-  const [a] = await exchange.getAll();
-  const [b] = await next.getAll();
-  assert.deepEqual(Object.keys(b).sort(), Object.keys(a).sort());
+// The exchange implementation this was compared against is gone; the CONTRACT
+// is the independent statement of the shape now, and validate:wire parses real
+// rows through it - this pin is the cheap in-suite version of the same claim.
+test("an order carries exactly the contract's fields", async () => {
+  const [b] = await readService.getAll();
+  assert.ok(b, "no orders came back - this proves nothing");
+  assert.deepEqual(Object.keys(b).sort(), Object.keys(PurchaseOrder.shape).sort());
 });
 
 // The one that would take checkout down. The frontend reads the order
@@ -48,7 +50,7 @@ test("an order carries the same columns it always did", async () => {
 // address-book id it was taken from.
 test("the address id still resolves in exchange.addresses", async () => {
   await inRollback(async (c) => {
-    const withAddress = (await next.getAll()).filter((o) => o.address_id);
+    const withAddress = (await readService.getAll()).filter((o) => o.address_id);
     assert.ok(withAddress.length, "no order had an address, so this proves nothing");
     for (const o of withAddress) {
       const { rows } = await c.query(
@@ -64,7 +66,7 @@ test("the address id still resolves in exchange.addresses", async () => {
 // already carries a scrap object full of nulls. Returning null instead would
 // make item.scrap.content throw where it used to give undefined.
 test("a bullion line carries a scrap object of nulls, not null", async () => {
-  const items = (await next.getAll()).flatMap((o) => o.order_items);
+  const items = (await readService.getAll()).flatMap((o) => o.order_items);
   const bullion = items.filter((i) => i.item_type === "product");
   assert.ok(bullion.length, "no bullion lines, so this proves nothing");
   for (const i of bullion) {
@@ -75,7 +77,7 @@ test("a bullion line carries a scrap object of nulls, not null", async () => {
 });
 
 test("a scrap line carries its weights and its metal name", async () => {
-  const scrap = (await next.getAll())
+  const scrap = (await readService.getAll())
     .flatMap((o) => o.order_items)
     .filter((i) => i.item_type === "scrap");
   assert.ok(scrap.length);
@@ -89,11 +91,11 @@ test("a scrap line carries its weights and its metal name", async () => {
 // customer-facing lookups do not. Leaking them would be a change in what a
 // customer can see.
 test("the assay actuals appear for admin and not for a customer", async () => {
-  const [adminOrder] = await next.getAll();
+  const [adminOrder] = await readService.getAll();
   const adminItem = adminOrder.order_items.find((i) => i.item_type === "scrap");
   if (adminItem) assert.ok("purity_actual" in adminItem.scrap);
 
-  const customer = await next.findById(adminOrder.id);
+  const customer = await readService.findById(adminOrder.id);
   const customerItem = customer.order_items.find((i) => i.item_type === "scrap");
   if (customerItem) {
     assert.equal("purity_actual" in customerItem.scrap, false, "actuals leaked to a customer read");
@@ -108,7 +110,7 @@ test("the assay actuals appear for admin and not for a customer", async () => {
 // while checking the single constraint this project puts above every other one.
 // Found by audit:vacuous-tests.
 test("no order response carries a full account or routing number", async () => {
-  const orders = await next.getAll();
+  const orders = await readService.getAll();
   assert.ok(orders.length > 0, "no orders came back - this would prove nothing");
 
   const withPayout = orders.filter((o) => o.payout);
@@ -133,7 +135,7 @@ test("every purchase order comes back, including any without an offer", async ()
     const { rows: [{ n }] } = await c.query(
       "SELECT count(*)::int n FROM orders.orders WHERE direction = 'purchase'"
     );
-    assert.equal((await next.getAll()).length, n);
+    assert.equal((await readService.getAll()).length, n);
   });
 });
 
@@ -141,7 +143,7 @@ test("every purchase order comes back, including any without an offer", async ()
 // a purchase order read would be a serious leak between two customers' orders.
 test("no sales order leaks into a purchase order read", async () => {
   await inRollback(async (c) => {
-    const ids = (await next.getAll()).map((o) => o.id);
+    const ids = (await readService.getAll()).map((o) => o.id);
     const { rows } = await c.query(
       "SELECT id FROM orders.orders WHERE direction = 'sale' AND id = ANY($1)", [ids]
     );
@@ -158,7 +160,7 @@ test("a line with no quantity still reads as null", async () => {
       `SELECT count(*)::int n FROM exchange.purchase_order_items WHERE quantity IS NULL`
     );
     if (!rows[0].n) return;
-    const nulls = (await next.getAll())
+    const nulls = (await readService.getAll())
       .flatMap((o) => o.order_items)
       .filter((i) => i.quantity === null);
     assert.equal(nulls.length, rows[0].n);
@@ -169,8 +171,8 @@ test("spot rows come back per metal with the shape the API returns", async () =>
   // The first order with spots, not merely the first order - and a floor so an
   // empty search cannot pass vacuously.
   let spots = [];
-  for (const order of await next.getAll()) {
-    spots = await next.findMetalsByOrderId(order.id);
+  for (const order of await readService.getAll()) {
+    spots = await spotsRepo.findMetalsByOrderId(order.id);
     if (spots.length) break;
   }
   assert.ok(spots.length, "no purchase order has spot rows, so this asserts nothing");
@@ -190,7 +192,7 @@ test("reads do not write", async () => {
     // file that writes orders.
     await c.query("SELECT pg_advisory_xact_lock(4213)");
     const before = await c.query("SELECT count(*)::int n FROM orders.orders");
-    await next.getAll();
+    await readService.getAll();
     const after = await c.query("SELECT count(*)::int n FROM orders.orders");
     assert.equal(after.rows[0].n, before.rows[0].n);
   });

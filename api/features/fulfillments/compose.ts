@@ -28,60 +28,39 @@ export type NestedMethod = Pick<
   MethodRow, "id" | "type" | "label" | "admin_label" | "category" | "direction"
 >;
 
-export type NestedPickup = Pick<
-  PickupRow, "id" | "pickup_address_id" | "assigned_employee_id" | "start_time" | "end_time"
->;
-
-export type NestedDirect = Pick<
-  DirectRow,
-  "id" | "location_id" | "assigned_employee_id" | "is_appointment" | "start_time" | "end_time"
->;
-
-export type NestedShipment = Pick<
-  ShipmentLinkRow, "id" | "shipment_id" | "recipient_location_id" | "shipper_location_id"
->;
-
-// method_id is DROPPED. It is projected so this file can find the method and
-// is not on the wire - the old projection listed its columns explicitly and
-// method_id was not among them, because the nested `method` object is the
-// answer. validate:wire caught it as an undeclared field the moment the spread
-// carried it through, which is the same mistake products made with metal_id.
-export type ComposedFulfillment = Omit<FulfillmentBaseRow, "method_id"> & {
+// THE CHILDREN ARE VERBATIM ROWS (ruling 12): fulfillments.pickups, .directs
+// and .shipments whole, because each is this fulfillment's OWN one-to-one
+// child - not reference data. The METHOD is the opposite kind of thing:
+// shared reference rows the frontend caches off GET /fulfillments/methods,
+// so the WIRE carries method_id and never the object (Jacob: "we should have
+// a method_id, not the method itself"). It stays nested HERE because the
+// service's own logic branches on method.category; toWire() below is what
+// strips it at the edge.
+export type ComposedFulfillment = FulfillmentBaseRow & {
   method: NestedMethod;
-  pickup: NestedPickup | null;
-  direct: NestedDirect | null;
-  shipment: NestedShipment | null;
+  pickup: PickupRow | null;
+  direct: DirectRow | null;
+  shipment: ShipmentLinkRow | null;
 };
+
+// The wire shape: THE BARE fulfillments.fulfillments row, verbatim, and
+// nothing else (wave-2 final form). The method object and the child rows are
+// internal - the service's own logic branches on method.category and the
+// schedule sorts on the booking's start time - and the children's wire homes
+// are wave 3's parent-path reads (/orders/:orderId/shipments etc.).
+export type FulfillmentWire = Omit<ComposedFulfillment, "method" | "pickup" | "direct" | "shipment">;
+
+export function toWire(
+  { method: _m, pickup: _p, direct: _d, shipment: _s, ...row }: ComposedFulfillment
+): FulfillmentWire {
+  return row;
+}
 
 // The five columns the old projection built into its method object - not the
 // whole row. enabled, hidden, is_default and the timestamps were never nested.
 const nestMethod = (m: MethodRow): NestedMethod => ({
   id: m.id, type: m.type, label: m.label,
   admin_label: m.admin_label, category: m.category, direction: m.direction,
-});
-
-const nestPickup = (p: PickupRow): NestedPickup => ({
-  id: p.id,
-  pickup_address_id: p.pickup_address_id,
-  assigned_employee_id: p.assigned_employee_id,
-  start_time: p.start_time,
-  end_time: p.end_time,
-});
-
-const nestDirect = (d: DirectRow): NestedDirect => ({
-  id: d.id,
-  location_id: d.location_id,
-  assigned_employee_id: d.assigned_employee_id,
-  is_appointment: d.is_appointment,
-  start_time: d.start_time,
-  end_time: d.end_time,
-});
-
-const nestShipment = (s: ShipmentLinkRow): NestedShipment => ({
-  id: s.id,
-  shipment_id: s.shipment_id,
-  recipient_location_id: s.recipient_location_id,
-  shipper_location_id: s.shipper_location_id,
 });
 
 // Everything the details of a set of fulfillments need, keyed by fulfillment_id.
@@ -117,18 +96,12 @@ export function compose(
   // rather than returned with a null where every caller reads a category.
   if (!method) return null;
 
-  const pickup = d.pickups.get(f.id);
-  const direct = d.directs.get(f.id);
-  const shipment = d.shipmentLinks.get(f.id);
-
-  const { method_id: _method_id, ...rest } = f;
-
   return {
-    ...rest,
+    ...f,
     method: nestMethod(method),
-    pickup: pickup ? nestPickup(pickup) : null,
-    direct: direct ? nestDirect(direct) : null,
-    shipment: shipment ? nestShipment(shipment) : null,
+    pickup: d.pickups.get(f.id) ?? null,
+    direct: d.directs.get(f.id) ?? null,
+    shipment: d.shipmentLinks.get(f.id) ?? null,
   };
 }
 

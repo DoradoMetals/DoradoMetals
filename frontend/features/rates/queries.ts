@@ -3,15 +3,6 @@ import { queryKeys } from '@/shared/queries/keys'
 import type { Rate } from '@/features/rates/types'
 
 
-export const useRate = (rate_id: string) => {
-  return useApiQuery<Rate[]>({
-    key: queryKeys.rate(rate_id),
-    url: '/rates/get_one',
-    params: () => ({ rate_id }),
-    enabled: !!rate_id,
-  })
-}
-
 export const useRates = () => {
   return useApiQuery<Rate[]>({
     key: queryKeys.rates(),

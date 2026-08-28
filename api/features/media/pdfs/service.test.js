@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import pool from "#db";
 import * as pdf from "#features/media/pdfs/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
-import * as poRepo from "#features/purchase-orders/repo.js";
+import * as poRepo from "#features/purchase-orders/read.service.ts";
 import * as soRepo from "#features/sales-orders/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.ts";

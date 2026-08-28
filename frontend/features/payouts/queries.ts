@@ -43,16 +43,14 @@ export const usePatchPayout = () => {
 // demand only where an admin is about to execute a transfer, admin-only
 // server-side, and never cached past the render (staleTime 0, gcTime 0).
 //
-// STILL THE LEGACY ROUTE, order-keyed: the API deferred the details read
-// (the flip-together rule); this moves with the read-deletion wave.
-export const usePayoutDetails = (order_id: string | undefined, enabled: boolean) => {
+// PAYOUT-KEYED: GET /payouts/:id/details, the payout's own id off the order
+// wire (order.payout.id). Admin-only server-side.
+export const usePayoutDetails = (payout_id: string | null | undefined, enabled: boolean) => {
   return useQuery<PayoutDetails>({
-    queryKey: ['payout_details', order_id],
+    queryKey: ['payout_details', payout_id],
     queryFn: async () =>
-      await apiRequest<PayoutDetails>('POST', '/purchase_orders/get_payout_details', {
-        order_id,
-      }),
-    enabled: !!order_id && enabled,
+      await apiRequest<PayoutDetails>('GET', `/payouts/${payout_id}/details`),
+    enabled: !!payout_id && enabled,
     staleTime: 0,
     gcTime: 0,
   })

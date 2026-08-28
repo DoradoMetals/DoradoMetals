@@ -41,11 +41,6 @@ export type PayoutSlot = { [K in keyof PayoutOnOrder]: PayoutOnOrder[K] | null }
 
 export type PurchaseOrder = Omit<PurchaseOrderContract, 'payout'> & {
   payout: PayoutSlot
-  // ADDITIVE THIS SERIES (D87 fifth correction): the refiner-side engagement
-  // attached to this order - refiners.orders - which owns the refiner spots,
-  // fee and pool figures. Stated here until the contract regenerates with it;
-  // null when no engagement exists yet.
-  refiner_order_id?: string | null
 }
 
 export const purchaseOrderReturnShipmentSchema = z.object({

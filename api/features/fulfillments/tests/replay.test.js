@@ -121,7 +121,10 @@ test("the order's own customer and an admin can both read it", async () => {
         assert.equal(res.status, 200);
         assert.ok(res.body, `${who.role} was refused a fulfillment they may see`);
         assert.equal(res.body.order_id, order.id);
-        assert.ok(res.body.method, "the method did not come back nested");
+        // The WIRE is the bare row (wave-2 final form): method_id, never the
+        // method object - the client maps it off GET /fulfillments/methods.
+        assert.ok(res.body.method_id, "the row lost its method_id");
+        assert.ok(!("method" in res.body), "the method object reached the wire");
       });
     }
   }, { lock: FULFILLMENT_LOCK });

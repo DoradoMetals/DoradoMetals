@@ -4,10 +4,10 @@
 // job: three tables rather than four, no offer, no payout, no refiner numbers,
 // no scrap.
 //
-// NOT WIRED IN YET. features/sales-orders/service.ts still reads through
-// repo.js, and it stays that way until the write paths land beside it - reading
-// the new schema while writing the old means a read cannot see a write that
-// just happened, which is what broke when it was tried on purchase orders.
+// THE sales-order read: service.ts serves every list and lookup from here,
+// against the new schema, while write.service.ts writes BOTH schemas - the
+// reads and writes pivoted together, which is the sequencing lesson purchase
+// orders learned the hard way.
 import * as totals from "#features/orders/transactions/repo.ts";
 import * as items from "#features/orders/items/repo.ts";
 import * as orderAddresses from "#features/orders/addresses/repo.ts";
@@ -126,13 +126,21 @@ async function assemble(
 async function salesOrders(
   where: string, params: unknown[], executor?: Executor
 ): Promise<OrderRow[]> {
+  // WHICH REFINERY HAS THE METAL lives on the ENGAGEMENT - refiners.orders
+  // (093), one row per order - not on the order row. orders.orders.refinery_id
+  // was engagement data sitting on the order and dropped in 094; the alias
+  // keeps the name compose.ts reads. The engagement's OWN id deliberately
+  // does not ride along: the wire must not smear the join product onto the
+  // order - engagement addressing is GET /orders/:orderId/refiners.
   const { rows } = await query<OrderRow>(
-    `SELECT id, user_id, status, notes, created_at, updated_at,
-            created_by, updated_by, number, review_created,
-            order_sent, tracking_updated, refinery_id
-       FROM orders.orders
-      WHERE direction = 'sale'${where ? ` AND ${where}` : ""}
-      ORDER BY created_at DESC, id DESC`,
+    `SELECT o.id, o.user_id, o.status, o.notes, o.created_at, o.updated_at,
+            o.created_by, o.updated_by, o.number, o.review_created,
+            o.order_sent, o.tracking_updated,
+            ro.refiner_id AS refinery_id
+       FROM orders.orders o
+       LEFT JOIN refiners.orders ro ON ro.order_id = o.id
+      WHERE o.direction = 'sale'${where ? ` AND ${where}` : ""}
+      ORDER BY o.created_at DESC, o.id DESC`,
     params,
     executor
   );
@@ -146,12 +154,12 @@ export async function getAll(executor?: Executor): Promise<Record<string, unknow
 export async function findAllByUser(
   userId: string, executor?: Executor
 ): Promise<Record<string, unknown>[]> {
-  return await assemble(await salesOrders("user_id = $1", [userId], executor), executor);
+  return await assemble(await salesOrders("o.user_id = $1", [userId], executor), executor);
 }
 
 export async function findById(
   id: string, executor?: Executor
 ): Promise<Record<string, unknown> | null> {
-  const rows = await assemble(await salesOrders("id = $1", [id], executor), executor);
+  const rows = await assemble(await salesOrders("o.id = $1", [id], executor), executor);
   return rows[0] ?? null;
 }

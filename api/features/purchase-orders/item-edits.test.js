@@ -119,15 +119,25 @@ test("reset: true unconfirms the line", async () => {
   });
 });
 
-test("get_purchase_order_refiner_metals answers with that order's metals", async () => {
+test("the refiner spots read answers by customer-order id", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...admin, role: "admin" }, async () => {
+      // GET /orders/:orderId/refiners/spots replaced the legacy route in the
+      // read-flip wave - same key the components hold, the engagement
+      // resolved server-side, the path under the parent per the route
+      // convention.
       const res = await request(app)
-        .post("/api/purchase_orders/get_purchase_order_refiner_metals")
-        .send({ purchase_order_id: item.purchase_order_id });
+        .get(`/api/orders/${item.purchase_order_id}/refiners/spots`);
 
       assert.equal(res.status, 200, `answered ${res.status}`);
       assert.ok(Array.isArray(res.body), "expected a list of metals");
+
+      // And the bare engagement row is where a PATCH gets its key.
+      const eng = await request(app)
+        .get(`/api/orders/${item.purchase_order_id}/refiners`);
+      assert.equal(eng.status, 200, `the engagement read answered ${eng.status}`);
+      assert.ok(eng.body.id, "the engagement row carries no id to PATCH by");
+      assert.equal(eng.body.order_id, item.purchase_order_id);
     });
   });
 });

@@ -24,7 +24,9 @@ export const FEATURES = {
   addresses: { "exchange.addresses": ["places.addresses", "places.user_addresses"] },
   orders: {
     "exchange.purchase_orders": ["orders.orders", "orders.transactions"],
-    "exchange.sales_orders": ["orders.orders", "orders.transactions"],
+    // supplier_id lands on the ENGAGEMENT - refiners.orders.refiner_id (093;
+    // orders.orders.refinery_id dropped in 094).
+    "exchange.sales_orders": ["orders.orders", "orders.transactions", "refiners.orders"],
     "exchange.purchase_order_items": ["orders.items", "refiners.items"],
     "exchange.sales_order_items": ["orders.items"],
     "exchange.scrap": ["orders.items", "refiners.items"],
@@ -86,7 +88,7 @@ export const RENAMES = {
     total_price: "total", address_id: "-",
   },
   "exchange.sales_orders": {
-    sales_order_status: "status", order_number: "number", supplier_id: "refinery_id",
+    sales_order_status: "status", order_number: "number", supplier_id: "refiner_id",
     order_total: "total", item_total: "items", shipping_cost: "shipping",
     charges_amount: "surcharge", pre_charges_amount: "funds", address_id: "-",
   },

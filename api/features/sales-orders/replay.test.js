@@ -74,15 +74,22 @@ after(async () => {
   await pool.end();
 });
 
-test("the admin list is refused to anonymous and to a customer", async () => {
+test("the list is refused to anonymous, and a customer sees only their own rows", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/sales_orders/get_all");
+      const res = await request(app).get("/api/orders?direction=sale");
       assert.ok([401, 403].includes(res.status), `answered ${res.status}`);
     });
+    // The unified list is not refused to a customer - it SCOPES: the session's
+    // own orders, never the business's. The stranger owns none of the orders
+    // the owner does, so none of the owner's rows may appear.
     await as(stranger, async () => {
-      const res = await request(app).get("/api/sales_orders/get_all");
-      assert.equal(res.status, 403, "a customer reached every sales order in the business");
+      const res = await request(app).get("/api/orders?direction=sale");
+      assert.equal(res.status, 200, `answered ${res.status}`);
+      assert.ok(
+        res.body.every((o) => o.user_id === stranger.id),
+        "a customer's list carried somebody else's sales order"
+      );
     });
   }, { lock: ORDER_LOCK });
 });
@@ -90,7 +97,7 @@ test("the admin list is refused to anonymous and to a customer", async () => {
 test("the admin list has the fields the drawer destructures", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
-      const res = await request(app).get("/api/sales_orders/get_all");
+      const res = await request(app).get("/api/orders?direction=sale");
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
@@ -106,16 +113,17 @@ test("the admin list has the fields the drawer destructures", async () => {
   }, { lock: ORDER_LOCK });
 });
 
-// getSalesOrders takes the user from the SESSION rather than the query string,
-// which is what the purchase-order side got wrong elsewhere. Worth an assertion
-// rather than a reading of the controller.
+// The unified list takes a customer's scope from the SESSION rather than the
+// query string - a customer naming another user gets their own orders, the
+// subjectOf precedent. Worth an assertion rather than a reading of the
+// controller.
 test("a customer's own list is scoped to them, whatever they ask for", async () => {
   await inPinnedTransaction(async () => {
     await as(owner, async () => {
       const res = await request(app)
-        .get("/api/sales_orders/get_sales_orders")
+        .get("/api/orders")
         // A user_id that is not theirs. It must be ignored.
-        .query({ user_id: stranger.id });
+        .query({ direction: "sale", user_id: stranger.id });
       assert.equal(res.status, 200);
       assert.ok(
         res.body.every((o) => o.user_id === owner.id),
@@ -128,16 +136,14 @@ test("a customer's own list is scoped to them, whatever they ask for", async () 
 test("a stranger cannot read the spots frozen on somebody else's sales order", async () => {
   await inPinnedTransaction(async () => {
     await as(stranger, async () => {
-      const res = await request(app)
-        .post("/api/sales_orders/get_order_metals")
-        .send({ sales_order_id: order.id });
+      // GET /orders/:id/spots replaced the body-keyed legacy route in the
+      // read-flip wave; one spots read serves both directions.
+      const res = await request(app).get(`/api/orders/${order.id}/spots`);
       assert.equal(res.status, 403, `answered ${res.status} with another customer's spots`);
     });
 
     await as(owner, async () => {
-      const res = await request(app)
-        .post("/api/sales_orders/get_order_metals")
-        .send({ sales_order_id: order.id });
+      const res = await request(app).get(`/api/orders/${order.id}/spots`);
       assert.equal(res.status, 200, "the owner was refused their own order");
       assert.ok(Array.isArray(res.body));
     });
@@ -171,7 +177,7 @@ test("moving a sales order's status takes the document the drawer sends", async 
         .send({ status: MOVE_TO });
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
-      const list = await request(app).get("/api/sales_orders/get_all");
+      const list = await request(app).get("/api/orders?direction=sale");
       const moved = list.body.find((o) => o.id === order.id);
       assert.equal(moved.status, MOVE_TO);
     });
@@ -181,7 +187,7 @@ test("moving a sales order's status takes the document the drawer sends", async 
 test("no sales order response carries a full bank number", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
-      const res = await request(app).get("/api/sales_orders/get_all");
+      const res = await request(app).get("/api/orders?direction=sale");
       const body = JSON.stringify(res.body);
       assert.ok(!/"routing_number"\s*:\s*"\d{9}"/.test(body));
 

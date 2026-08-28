@@ -12,9 +12,9 @@
 // the direction of dollar_change decides the trend colour. These survive the
 // wire rename - the fixture is the only thing that speaks field names.
 import { describe, expect, test, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithClient } from "@/shared/tests/renderWithClient";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
 // The network boundary, and nothing else.
@@ -38,13 +38,6 @@ import { apiRequest } from "@/shared/queries/axios";
 import { useSpotTypeStore } from "@/shared/store/spotStore";
 import Spots from "@/features/spots/ui/Spots";
 import MobileSpotTicker from "@/features/spots/ui/MobileSpots";
-
-const renderWithClient = (ui: React.ReactElement) => {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-};
 
 // The wire's shape, one place. Distinct prices per metal and per side of the
 // market, so an assertion on a number can only match the field it means.

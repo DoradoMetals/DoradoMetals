@@ -34,6 +34,28 @@ export async function getFor(
   return rows;
 }
 
+// The VERBATIM table rows (ruling 12) - what GET /orders/:id/spots serves.
+// Every column of orders.spots, no join products; the composed shape above
+// stays for the internal readers that want the metal's name resolved.
+export type OrderSpotRawRow = {
+  id: string;
+  metal_id: string;
+  order_id: string;
+  ask: number | null;
+  bid: number | null;
+  scrap_percentage: number | null;
+  bullion_percentage: number | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+};
+
+export async function getRowsFor(
+  order_id: string, executor?: Executor
+): Promise<OrderSpotRawRow[]> {
+  const { rows } = await query<OrderSpotRawRow>(sql("get_rows_for"), [order_id], executor);
+  return rows;
+}
+
 export async function getMany(
   order_ids: string[], executor?: Executor
 ): Promise<OrderSpotRow[]> {

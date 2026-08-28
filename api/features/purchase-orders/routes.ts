@@ -1,14 +1,9 @@
 import express from 'express';
 
 import {
-  getPurchaseOrders,
-  getPurchaseOrderMetals,
   createPurchaseOrder,
   createReview,
-  getAllPurchaseOrders,
   purgeCancelled,
-  getPurchaseOrderRefinerMetals,
-  getPayoutDetails,
 } from "#features/purchase-orders/controller.ts";
 
 import {
@@ -23,22 +18,17 @@ import { requireOwnOrder } from "#shared/middleware/ownership.ts";
 
 const router = express.Router();
 
-// user
-router.get('/get_purchase_orders', requireUser, getPurchaseOrders);
-router.post('/get_purchase_order_metals', requireUser, requireOwnOrder, getPurchaseOrderMetals);
+// CREATES AND THE REVIEW ONLY. The reads left with the read-flip wave the way
+// the mutations left with D87: the lists live at GET /api/orders, the spots at
+// GET /api/orders/:id/spots, the refiner spots at
+// GET /api/refiners/orders/:id/spots (engagement-keyed), the bank details at
+// GET /api/payouts/:id/details. Eight legacy read routes and their
+// controllers deleted in that change; what remains here is creation - which
+// keeps its form body, that IS user input - the review flag, and the purge.
 router.post('/create_purchase_order', requireUser, createPurchaseOrder);
 router.post('/create_review', requireUser, requireOwnOrder, createReview);
 
 // admin
-// NO MUTATIONS HERE ANY MORE. Every order write lives under /api/orders - one
-// namespace, both directions, direction validated as data (Jacob, 28 August;
-// see features/orders/patch.service.ts for the endpoint table). These reads
-// stay for this series and move to /api/orders reads in the read-pivot wave.
-router.get('/get_all_purchase_orders', requireAdmin, getAllPurchaseOrders);
 router.delete('/purge_cancelled', requireAdmin, purgeCancelled);
-router.post('/get_purchase_order_refiner_metals', requireAdmin, getPurchaseOrderRefinerMetals);
-
-// Full bank details, admin only. Kept off the order payloads on purpose.
-router.post('/get_payout_details', requireAdmin, getPayoutDetails);
 
 export default router;

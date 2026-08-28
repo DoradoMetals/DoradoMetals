@@ -18,8 +18,10 @@ export default function AdminPaymentProcessingPurchaseOrder({
   // two methods that need them, and only while this drawer is open.
   const needsBankDetails =
     order.payout?.method === 'ACH' || order.payout?.method === 'WIRE'
+  // Payout-keyed: GET /payouts/:id/details takes the payout's own id off the
+  // order wire.
   const { data: bank, isLoading: bankLoading } = usePayoutDetails(
-    order.id,
+    order.payout?.id,
     needsBankDetails
   )
   const show = (value: string | null | undefined) =>

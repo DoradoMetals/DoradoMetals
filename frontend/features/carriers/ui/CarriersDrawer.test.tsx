@@ -8,9 +8,9 @@
 // changes shape on, so the test asserts the VALUE arrives, wherever the
 // shape puts it.
 import { describe, expect, test, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithClient } from "@/shared/tests/renderWithClient";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
@@ -22,11 +22,6 @@ import { apiRequest } from "@/shared/queries/axios";
 import { useDrawerStore } from "@/shared/store/drawerStore";
 import CarriersDrawer from "@/features/carriers/ui/CarriersDrawer";
 import type { Carrier } from "@/features/carriers/types";
-
-const renderWithClient = (ui: React.ReactElement) => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-};
 
 const fedex = (): Carrier => ({
   id: "c-1",

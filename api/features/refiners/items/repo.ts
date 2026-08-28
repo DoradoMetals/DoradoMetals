@@ -43,6 +43,26 @@ export async function byOrderItem(
 
 // The refiner's own premium for a line. Ours lives on orders.items; theirs
 // lives here - see sql/set_premium.sql for why the two were split.
+// EVERY CUSTOMER LINE GETS ITS REFINER COUNTERPART - 093's mirror completion,
+// applied to new traffic. Values stay NULL until the refiner reports (the
+// shape 064 chose); bullion_id, metal_id and quantity ride over from the line;
+// refiner_order_id links the row to the order's engagement. Idempotent: a line
+// that already has its counterpart is left alone.
+export async function mirrorLinesForOrder(
+  order_id: string, executor?: Executor
+): Promise<void> {
+  await query(
+    `INSERT INTO refiners.items (order_item_id, refiner_order_id, bullion_id, metal_id, quantity)
+     SELECT oi.id, ro.id, oi.bullion_id, oi.metal_id, coalesce(oi.quantity, 1)
+       FROM orders.items oi
+       JOIN refiners.orders ro ON ro.order_id = oi.order_id
+      WHERE oi.order_id = $1
+        AND NOT EXISTS (SELECT 1 FROM refiners.items ri WHERE ri.order_item_id = oi.id)`,
+    [order_id],
+    executor
+  );
+}
+
 export async function setPremium(
   order_item_id: string, premium: number | null, executor?: Executor
 ): Promise<{ id: string; order_item_id: string; premium: number | null } | undefined> {

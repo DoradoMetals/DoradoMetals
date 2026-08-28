@@ -23,10 +23,10 @@ export const invalidateOrderReads = (queryClient: QueryClient, order_id?: string
     queryKeys.salesOrders(),
     ...(order_id
       ? ([
-          ['purchase_orders_metals', order_id],
-          ['purchase_order_refiner_metals', order_id],
-          queryKeys.salesOrderMetals(order_id),
-          // The fulfillment read (features/orders/fulfillment.ts) serves the
+          ['order_spots', order_id],
+          ['refiner_metals', order_id],
+          ['refiner_order', order_id],
+          // The fulfillment read (features/fulfillments/queries.ts) serves the
           // same rows the shipment mutations write.
           ['order_fulfillment', order_id],
         ] as QueryKey[])

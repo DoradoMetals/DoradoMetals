@@ -75,17 +75,19 @@ test("order_sent and tracking_updated land on the order, not the transaction", a
 });
 
 // The one column a sales order carries that a purchase order does not, and it
-// changes name on the way across.
-test("attaching a supplier becomes refinery_id", async () => {
+// changes home as well as name on the way across: exchange keeps supplier_id
+// on the order row, the new schema keeps refiner_id on the ENGAGEMENT
+// (refiners.orders, 093 - orders.orders.refinery_id dropped in 094).
+test("attaching a supplier becomes the engagement's refiner_id", async () => {
   await inRollback(async (c) => {
     const id = await anOrder(c);
     const { rows: [r] } = await c.query("SELECT id FROM refiners.refiners LIMIT 1");
     await dual.attachSupplierToOrder(id, r.id, c);
 
     const ex = await c.query("SELECT supplier_id FROM exchange.sales_orders WHERE id = $1", [id]);
-    const nx = await c.query("SELECT refinery_id FROM orders.orders WHERE id = $1", [id]);
+    const nx = await c.query("SELECT refiner_id FROM refiners.orders WHERE order_id = $1", [id]);
     assert.equal(ex.rows[0].supplier_id, r.id);
-    assert.equal(nx.rows[0].refinery_id, r.id);
+    assert.equal(nx.rows[0].refiner_id, r.id);
   });
 });
 
@@ -153,6 +155,49 @@ test("creating an order gives both schemas the same id and an address", async ()
     assert.equal(Number(txn.rows[0].items), 90);
     assert.equal(Number(txn.rows[0].shipping), 10);
     assert.equal(txn.rows[0].shipping_service, "Standard");
+
+    // Born with its engagement (093's invariant, maintained by the create
+    // path): one refiners.orders row, no refinery named yet.
+    const ro = await c.query(
+      "SELECT refiner_id FROM refiners.orders WHERE order_id = $1", [id]
+    );
+    assert.equal(ro.rows.length, 1, "the order has no refiners.orders engagement row");
+    assert.equal(ro.rows[0].refiner_id, null, "a new engagement names no refinery yet");
+  });
+});
+
+test("both schemas hold the SAME order number - the sequence is drawn once", async () => {
+  await inRollback(async (c) => {
+    const { rows: [u] } = await c.query("SELECT id FROM exchange.users LIMIT 1");
+    const { rows: [a] } = await c.query("SELECT id FROM exchange.addresses LIMIT 1");
+    const created = await dual.insertOrder(c, {
+      user: { id: u.id },
+      status: "Pending",
+      sales_order: { address: { id: a.id }, service: { label: "Standard" }, using_funds: false },
+      orderPrices: {
+        order_total: 100,
+        shipping_charge: 10,
+        pre_charges_amount: 0,
+        post_charges_amount: 100,
+        subject_to_charges_amount: 90,
+        item_total: 90,
+        base_total: 90,
+        charges_amount: 0,
+        sales_tax: 0,
+      },
+    });
+    const id = created?.id ?? created;
+
+    // The dual create used to draw exchange's sequence TWICE - once explicitly
+    // for orders.orders, once through exchange's column DEFAULT - so the same
+    // order wore two numbers. The number is now threaded into the exchange
+    // insert, and this is the pin that keeps it that way.
+    const nx = await c.query("SELECT number FROM orders.orders WHERE id = $1", [id]);
+    const ex = await c.query("SELECT order_number FROM exchange.sales_orders WHERE id = $1", [id]);
+    assert.equal(
+      Number(ex.rows[0].order_number), Number(nx.rows[0].number),
+      "exchange and the new schema disagree about the order's number - the sequence was drawn twice"
+    );
   });
 });
 

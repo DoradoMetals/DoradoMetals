@@ -105,6 +105,35 @@ const FEATURES = {
   // sales-orders restructured - one implementation, nothing to compare.
   // verify:sales-order-decomposition replaces it and compares against what the
   // switch used to select.
+  // purchase-orders pivoted (ruling 8) - one implementation, nothing to
+  // compare. verify:orders-decomposition replaces it: the read against the
+  // raw new-schema tables, with the exchange half retired alongside the
+  // exchange reads themselves.
+  // restructured - one implementation, nothing to compare.
+  // carriers restructured - one implementation, nothing to compare.
+  // features/shipping/carriers/tests/ replaces it, and asserts what diff never
+  // could: that the write reached exchange too.
+  // users restructured - one implementation, nothing to compare.
+  // carrier services restructured - one implementation, nothing to compare.
+  // features/shipping/services/tests/ replaces it, and asserts what diff never
+  // could: that the twenty-three values line up with BOTH statements.
+  // transactions restructured - one implementation, nothing to compare.
+  // pickups restructured - one implementation, nothing to compare.
+  // features/shipping/pickups/tests/ replaces it.
+  // shipments restructured - one implementation, nothing to compare.
+  // features/shipping/shipments/tests/ replaces it, and asserts what diff never
+  // could: that the order link survives three hops and lands in the column the
+  // direction chooses.
+  // tracking restructured - one implementation, nothing to compare.
+  // features/shipping/tracking/tests/ replaces it - the first tests this feature
+  // has ever had.
+  // addresses restructured - one implementation, nothing to compare.
+  // features/places/addresses/tests/ replaces it, and asserts what diff never
+  // could: that the ownership check survived the split. exchange scoped its
+  // writes with `AND user_id = $2`; places.addresses has no user_id to scope on.
+  // sales-orders restructured - one implementation, nothing to compare.
+  // verify:sales-order-decomposition replaces it and compares against what the
+  // switch used to select.
   "purchase-orders": {
     exchange: () => import("#features/purchase-orders/repo.exchange.js"),
     next: () => import("#features/purchase-orders/repo.next.ts"),

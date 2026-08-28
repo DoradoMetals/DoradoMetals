@@ -1,29 +1,11 @@
-import { callerId } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.js";
 import * as salesOrderService from "#features/sales-orders/service.ts"
 
-export const getSalesOrderById = asyncHandler(async (req, res) => {
-  const orderId = req.params.id;
-  const order = await salesOrderService.getById(orderId);
-  return res.json(order);
-});
-
-export const getSalesOrders = asyncHandler(async (req, res) => {
-  const userId = callerId(req);
-  const orders = await salesOrderService.listOrdersForUser(userId);
-  return res.json(orders);
-});
-
-export const getAllSalesOrders = asyncHandler(async (req, res) => {
-  const orders = await salesOrderService.getAll();
-  return res.json(orders);
-});
-
-export const getOrderMetals = asyncHandler(async (req, res) => {
-  const { sales_order_id } = req.body;
-  const metals = await salesOrderService.getMetalsForOrder(sales_order_id);
-  return res.json(metals);
-});
+// THE READS LEFT THIS FEATURE with the read-flip wave, the way the mutations
+// left with D87. The lists are GET /api/orders; the spots
+// GET /api/orders/:id/spots - one namespace, both directions. Four read
+// handlers (getSalesOrderById, getSalesOrders, getAllSalesOrders,
+// getOrderMetals) deleted with their routes.
 
 // THERE IS NO cancelOrder HERE, AND THERE NEVER WORKED ONE.
 //

@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { MethodsRow } from "../generated/fulfillments.js";
+import { FulfillmentsRow, MethodsRow } from "../generated/fulfillments.js";
 
 // Fulfillments are the one feature with no legacy wire shape, because nothing
 // consumes them yet. exchange never recorded how an order was handed over
@@ -24,66 +24,19 @@ export const FulfillmentMethod = MethodsRow.pick({
 });
 export type FulfillmentMethod = z.infer<typeof FulfillmentMethod>;
 
-// The detail objects are built with jsonb_build_object rather than selected as
-// columns, so their timestamps arrive as STRINGS carrying an offset, not as the
-// Date objects the driver would hand back for a plain timestamptz. That is a
-// real difference in the response and the contract says so rather than papering
-// over it with a coerce.
-const Booking = {
-  id: z.string().uuid(),
-  assigned_employee_id: z.string().uuid().nullable(),
-  start_time: z.string().nullable(),
-  end_time: z.string().nullable(),
-};
+// GET /orders/:orderId/fulfillments - THE BARE fulfillments.fulfillments
+// row, verbatim, and nothing else (rulings 9 + 12, final form). No method
+// embed - methods are reference data the client maps by method_id off
+// GET /fulfillments/methods - and no resolved children: the shipment,
+// pickup and direct reads are wave 3's own parent-path endpoints
+// (/orders/:orderId/shipments etc.), landed when the drawers consume them.
+export const OrderFulfillment = FulfillmentsRow;
+export type OrderFulfillment = z.infer<typeof OrderFulfillment>;
 
-export const FulfillmentPickup = z.object({
-  ...Booking,
-  pickup_address_id: z.string().uuid(),
-});
-export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>;
-
-export const FulfillmentDirect = z.object({
-  ...Booking,
-  location_id: z.string().uuid(),
-  is_appointment: z.boolean(),
-});
-export type FulfillmentDirect = z.infer<typeof FulfillmentDirect>;
-
-export const FulfillmentShipment = z.object({
-  id: z.string().uuid(),
-  shipment_id: z.string().uuid(),
-  recipient_location_id: z.string().uuid().nullable(),
-  shipper_location_id: z.string().uuid().nullable(),
-});
-export type FulfillmentShipment = z.infer<typeof FulfillmentShipment>;
-
-// The method is nested rather than flattened, because a method exists
-// independently of any fulfillment - the same row is referenced by every order
-// that chose it. The detail is nested under the name of its category and
-// exactly one of the three is ever present: a fulfillment has one method, a
-// method has one category, and the category names which table holds the detail.
-export const Fulfillment = z.object({
-  id: z.string().uuid(),
-  order_id: z.string().uuid(),
-  status: z.string(),
-  // Strings, not z.date(): a contract describes the wire, and the wire is what
-  // JSON.stringify produced. These two ARE Date objects in the repo's result -
-  // they are plain columns, unlike the nested detail - and they are strings by
-  // the time anything reads them.
-  created_at: z.string(),
-  updated_at: z.string(),
-  created_by_id: z.string().uuid().nullable(),
-  updated_by_id: z.string().uuid().nullable(),
-  method: z.object({
-    id: z.string().uuid(),
-    type: z.string(),
-    label: z.string(),
-    admin_label: z.string().nullable(),
-    category: z.enum(["SHIPMENT", "PICKUP", "DIRECT"]),
-    direction: z.enum(["purchase", "sale"]).nullable(),
-  }),
-  pickup: FulfillmentPickup.nullable(),
-  direct: FulfillmentDirect.nullable(),
-  shipment: FulfillmentShipment.nullable(),
-});
+// The same row under the name the get_for_order and schedule endpoints have
+// always used. The composed shape - a nested method object plus pickup /
+// direct / shipment members - died with the wave-2 final form above; what the
+// service composes internally (its own logic branches on method.category)
+// never reaches the wire.
+export const Fulfillment = FulfillmentsRow;
 export type Fulfillment = z.infer<typeof Fulfillment>;
