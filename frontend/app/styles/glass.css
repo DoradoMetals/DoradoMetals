@@ -1,33 +1,54 @@
-.glass-panel {
-  @apply bg-highest/65 backdrop-blur-sm border border-neutral-900/20 shadow-2xl;
-}
+/* ============================================================================
+   GLASS — NEUTERED, NOT DELETED. See RETIREMENT.md.
+   ----------------------------------------------------------------------------
+   Glassmorphism is off the design. Every class below keeps its NAME and is now
+   a flat, token-based surface: no backdrop-blur, no translucency, no drop
+   shadows.
 
-.glass-card {
-  @apply bg-highest/65 backdrop-blur-sm border border-neutral-900/20 shadow-md;
-}
+   DELETED at zero call sites: .glass-panel, .glass-card, .secondary-on-glass.
 
+   WHAT IS LEFT IS BLOCKED ON WAVE 3, and only on wave 3 - every remaining
+   occurrence is under features/orders, whose sweep is not done:
+     .on-glass  54   .glass-divider  16   .primary-on-glass  10
+     .success-on-glass  1   .destructive-on-glass  1
+   These carry real colour and geometry (unlike the pure-shadow rules in
+   components.css), so deleting one while a call site spells it produces a
+   silently unstyled element. The file dies when that count reaches zero.
+
+   PRECEDENCE — deliberately unchanged. globals.css imports this file WITHOUT a
+   `layer()`, so these rules are UNLAYERED, and unlayered normal declarations
+   beat every cascade layer including `utilities`. That means `.on-glass` wins
+   over a `text-neutral-600` sitting beside it on the same element — and it did
+   before this pass too. Moving the file into `@layer components` would be more
+   correct going forward but would silently change what 137 `on-glass` elements
+   render as, on top of the colour change already happening here. Two variables
+   at once is how a restyle becomes unreviewable. The sweep should move it; see
+   RETIREMENT.md.
+   ============================================================================ */
+
+/* Was: border-neutral-400 + text-neutral-900 on transparent. The ramp
+   inversion already carries this one: neutral-900 is still "the brightest
+   text". Retuned to the border token so it reads as a hairline. */
 .on-glass {
-  @apply bg-transparent
-      border-1 border-neutral-400
-      text-neutral-900;
+  @apply bg-transparent border border-border text-foreground;
 }
 
+/* Status chips. Semantics kept exactly; the shadow-lg is gone and the tint is
+   dropped from /10 to /15 because a 10% tint over a near-black ground is
+   invisible where it used to sit over a light one. */
 .success-on-glass {
-  @apply bg-success/10 border border-success shadow-lg text-success;
+  @apply bg-success/15 border border-success text-success;
 }
 
 .destructive-on-glass {
-  @apply bg-destructive/10  border border-destructive shadow-lg text-destructive;
+  @apply bg-destructive/15 border border-destructive text-destructive;
 }
 
 .primary-on-glass {
-  @apply bg-primary/10  border border-primary shadow-lg text-primary;
+  @apply bg-primary/15 border border-primary text-primary;
 }
 
-.secondary-on-glass {
-  @apply bg-secondary/10  border border-secondary shadow-lg text-secondary;
-}
-
+/* Was h-[2px]. A hairline is 1px. */
 .glass-divider {
-  @apply w-full h-[2px] bg-border
+  @apply w-full h-px bg-border;
 }

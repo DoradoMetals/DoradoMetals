@@ -65,7 +65,7 @@ export const StoreLocationsMap = () => {
         fillColor: getCssVar('--secondary'),
         fillOpacity: 1,
         strokeWeight: 1,
-        strokeColor: '#fff',
+        strokeColor: getCssVar('--neutral-900'),
       },
       selectedIcon: {
         path: window.google.maps.SymbolPath.CIRCLE,
@@ -73,7 +73,7 @@ export const StoreLocationsMap = () => {
         fillColor: getCssVar('--primary'),
         fillOpacity: 1,
         strokeWeight: 1,
-        strokeColor: '#fff',
+        strokeColor: getCssVar('--neutral-900'),
       },
       userIcon: {
         path: window.google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
@@ -81,7 +81,7 @@ export const StoreLocationsMap = () => {
         fillColor: '#EA4335',
         fillOpacity: 1,
         strokeWeight: 2,
-        strokeColor: '#ffffff',
+        strokeColor: getCssVar('--neutral-900'),
       },
     })
   }, [])
@@ -112,7 +112,7 @@ export const StoreLocationsMap = () => {
   }, [data?.locations, icons.defaultIcon, icons.selectedIcon, selected?.locationId])
 
   return (
-    <div className="rounded-lg overflow-hidden border border-border raised-off-page">
+    <div className="rounded-lg overflow-hidden border border-border">
       <div className="bg-card w-full p-4" />
 
       <GoogleMapDisplay
@@ -130,9 +130,9 @@ export const StoreLocationsMap = () => {
           <ShippingLocationDetailsCard selected={selected} />
         ) : null
       ) : (
-        <div className="rounded-lg bg-card text-card-foreground p-4 border-t border-border text-sm text-center text-muted-foreground">
+        <p className="rounded-lg bg-card p-4 border-t border-border text-center">
           No nearby FedEx locations found.
-        </div>
+        </p>
       )}
     </div>
   )
@@ -167,49 +167,47 @@ function ShippingLocationDetailsCard({ selected }: { selected: ShippingLocation 
   return (
     <div className="rounded-lg bg-card text-card-foreground p-3 border-t border-border flex flex-col">
       <div className="flex justify-between items-center">
-        <h3 className="text-base font-semibold">
-          {selected.contact?.companyName || 'FedEx Location'}
-        </h3>
-        <span className="text-sm text-neutral-800 whitespace-nowrap">
+        <h4>{selected.contact?.companyName || 'FedEx Location'}</h4>
+        <small className="whitespace-nowrap">
           {selected.distance.value?.toFixed(2)} {selected.distance.units?.toLowerCase()}
-        </span>
+        </small>
       </div>
 
       <div className="flex items-center w-full justify-between mt-1">
-        <span className="text-sm">
+        <small>
           {isOpen ? (
-            <span className="text-green-500">
-              Open<span className="text-neutral-700"> until {openUntil}</span>
+            <span className="text-success">
+              Open<span className="text-muted-foreground"> until {openUntil}</span>
             </span>
           ) : nextOpenTime ? (
-            <span className="text-red-500">
-              Closed<span className="text-neutral-700"> until {nextOpenTime}</span>
+            <span className="text-destructive">
+              Closed<span className="text-muted-foreground"> until {nextOpenTime}</span>
             </span>
           ) : (
-            <span className="text-red-500">Closed</span>
+            <span className="text-destructive">Closed</span>
           )}
-        </span>
+        </small>
 
-        <div className="text-sm text-neutral-600">{cityState}</div>
+        <small>{cityState}</small>
       </div>
 
-      <div className="flex justify-between items-center text-sm mt-4">
-        <span className="text-neutral-600 text-sm">
+      <div className="flex justify-between items-center mt-4">
+        <small>
           {selected.contact?.phoneNumber ? (
             <a
               href={`tel:${selected.contact.phoneNumber}`}
-              className="text-neutral-700 underline underline-offset-3 text-sm"
+              className="underline underline-offset-3"
             >
               {formatPhoneNumber(selected.contact.phoneNumber)}
             </a>
           ) : null}
-        </span>
+        </small>
 
         <a
           href={mapsHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary font-normal ml-auto p-0 text-sm"
+          className="text-primary ml-auto"
         >
           Open in Maps
         </a>

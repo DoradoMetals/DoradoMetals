@@ -110,7 +110,6 @@ export default function ProductsPage() {
       enableHiding: true,
       headerClassName: 'hidden sm:flex',
       cellClassName: 'hidden sm:flex',
-      textClassName: 'text-xs sm:text-sm text-neutral-900',
       size: 100,
     }),
     ChipColumn<AdminProduct>({
@@ -122,7 +121,7 @@ export default function ProductsPage() {
       headerFilter: {
         options: ['All', 'Active', 'Inactive'],
         widthClass: 'w-30',
-        triggerClass: 'flex w-full justify-center items-center gap-2 border-none',
+        triggerClass: 'flex w-full justify-center items-center gap-2',
         includeSearch: false,
       },
       filterFnOverride: (row, _columnId, filterValue) => {
@@ -137,12 +136,7 @@ export default function ProductsPage() {
       getChip: ({ row }) => {
         const product = row as AdminProduct
         const active = !!(product.display || product.sell_display)
-        return {
-          label: active ? 'Active' : 'Inactive',
-          className: active
-            ? 'bg-success/20 text-success border-success'
-            : 'bg-destructive/20 text-destructive border-destructive',
-        }
+        return { label: active ? 'Active' : 'Inactive', tone: active ? 'success' : 'danger' } as const
       },
     }),
 
@@ -153,7 +147,6 @@ export default function ProductsPage() {
       align: 'center',
       enableHiding: true,
       formatValue: (raw) => formatPremium(raw as number | null | undefined),
-      textClassName: 'text-xs sm:text-sm text-neutral-900',
       size: 120,
     }),
     TextColumn<AdminProduct>({
@@ -163,7 +156,6 @@ export default function ProductsPage() {
       align: 'center',
       enableHiding: true,
       formatValue: (raw) => formatPremium(raw as number | null | undefined),
-      textClassName: 'text-xs sm:text-sm text-neutral-900',
       size: 120,
     }),
   ]
@@ -198,7 +190,6 @@ export default function ProductsPage() {
         searchPlaceholder="Search products..."
         enableColumnVisibility
         onRowClick={handleRowClick}
-        getRowClassName={() => 'hover:bg-background hover:cursor-pointer'}
         filterCards={metalFilterCards}
         createConfig={createConfig}
       />

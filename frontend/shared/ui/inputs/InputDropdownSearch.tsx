@@ -9,6 +9,14 @@ import { Button } from '@/shared/ui/base/button'
 import { XIcon } from '@phosphor-icons/react'
 import { cn } from '@/shared/utils/cn'
 
+/* THE INNER INPUT HAS ONE APPEARANCE AND NOTHING FORWARDS TO IT (ruling 28).
+
+   This briefly forwarded a `variant` so a caller could ask for the filled
+   field. `Input`'s variant axis is gone - one input, one look - so the
+   forwarding went with it, and a field inside a searchable dropdown can no
+   longer differ from the field beside it at all.
+
+   `inputClassname` survives for LAYOUT ONLY (width, height). */
 export interface SearchableDropdownProps<T> {
   items: T[]
   getLabel: (item: T) => string
@@ -16,6 +24,7 @@ export interface SearchableDropdownProps<T> {
   onSelect: (item: T) => void
   placeholder?: string
   limit?: number
+  /** LAYOUT ONLY - width, height. Never appearance. */
   inputClassname?: string
   inputProps?: InputHTMLAttributes<HTMLInputElement>
 }
@@ -96,7 +105,8 @@ export function SearchableDropdown<T>({
           {query && (
             <Button
               type="button"
-              variant="ghost"
+              variant="tertiary"
+              size="iconXs"
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
@@ -104,7 +114,7 @@ export function SearchableDropdown<T>({
                 setOpen(false)
                 inputRef.current?.focus()
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 grid place-items-center h-7 w-7 rounded-md text-neutral-500"
+              className="absolute right-3 top-1/2 -translate-y-1/2"
               tabIndex={-1}
               aria-label="Clear"
             >
@@ -139,7 +149,10 @@ export function SearchableDropdown<T>({
                     }}
                     className={cn(
                       'flex items-center justify-between px-2 h-8 cursor-pointer',
-                      isHighlighted && 'bg-neutral-700',
+                      /* Was `bg-neutral-700`, which after the ramp inversion is
+                         a LIGHT grey - a near-white band under near-white text.
+                         `--accent` is the token for a raised hover surface. */
+                      isHighlighted && 'bg-accent',
                       isActive && 'font-medium'
                     )}
                   >

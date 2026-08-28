@@ -66,7 +66,7 @@ export default function RatesCard({
   }
 
   return (
-    <div className={cn('rounded-lg p-4 bg-card raised-off-page', className)}>
+    <div className={cn('rounded-lg p-4 bg-card border border-border', className)}>
       <Header
         metal={metal}
         editing={editing}
@@ -129,33 +129,19 @@ function Header({
 }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <div className="text-base tracking-wide text-neutral-600">{metal}</div>
+      <h3>{metal}</h3>
       {!editing ? (
-        <Button
-          size="sm"
-          variant="link"
-          onClick={onEdit}
-          className="gap-1 text-primary hover:text-primary text-sm sm:text-base"
-        >
-          <PencilSimpleIcon size={20} className="text-primary" />
+        <Button size="sm" variant="tertiary" onClick={onEdit} className="gap-1">
+          <PencilSimpleIcon size={20} />
           Edit
         </Button>
       ) : (
         <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="link"
-            onClick={onCancel}
-            className="gap-1 text-sm sm:text-base text-neutral-600 hover:text-neutral-900"
-          >
+          <Button size="sm" variant="tertiary" onClick={onCancel} className="gap-1">
             <XIcon size={20} />
             Cancel
           </Button>
-          <Button
-            size="sm"
-            className="gap-1 bg-primary hover:bg-primary text-white hover:text-white raised-off-page text-sm sm:text-base"
-            onClick={onSaveAll}
-          >
+          <Button size="sm" className="gap-1" onClick={onSaveAll}>
             <FloppyDiskIcon size={20} />
             Save
           </Button>
@@ -169,30 +155,27 @@ function ReadView({ unit, rows }: { unit: string; rows: Rate[] }) {
   const u = unit === 'troy_oz' ? 'oz' : unit
   return (
     <div className="border rounded-lg p-4 bg-neutral-100/50">
-      <div className="flex items-center text-sm text-neutral-700 px-1 mb-4">
-        <div className="basis-0 grow-[2] text-left text-xs text-neutral-600 tracking-widest">
-          Range (oz)
-        </div>
-        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">
-          Scrap
-        </div>
-        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">
-          Bullion
-        </div>
+      <div className="flex items-center px-1 mb-4">
+        <p className="basis-0 grow-[2] text-left eyebrow">Range (oz)</p>
+        <p className="basis-0 grow text-center eyebrow">Scrap</p>
+        <p className="basis-0 grow text-center eyebrow">Bullion</p>
       </div>
 
       <div className="mt-2 space-y-6">
         {rows.map((r) => (
           <div key={r.id} className="flex items-end px-1">
-            <div className="basis-0 grow-[2] text-sm sm:text-base tracking-wide tabular-nums">
+            <p className="basis-0 grow-[2] tabular-nums">
               {r.max_qty == null ? `${r.min_qty}+ ${u}` : `${r.min_qty}–${r.max_qty} ${u}`}
-            </div>
-            <div className="basis-0 grow text-2xl sm:text-3xl font-semibold text-center">
+            </p>
+            {/* Display figures. The scale has no `.metric` utility, so the
+                heading tag is the only way to reach this size without a
+                type utility at the call site - see the report. */}
+            <h3 className="basis-0 grow text-center">
               {Math.round((r.scrap_pct ?? 0) * 100)}%
-            </div>
-            <div className="basis-0 grow text-2xl sm:text-3xl font-semibold text-center">
+            </h3>
+            <h3 className="basis-0 grow text-center">
               {Math.round((r.bullion_pct ?? 0) * 100)}%
-            </div>
+            </h3>
           </div>
         ))}
       </div>
@@ -227,16 +210,10 @@ function EditView({
 
   return (
     <div className="border rounded-lg p-4 bg-background">
-      <div className="flex items-center text-sm text-neutral-700 px-1 mb-4">
-        <div className="basis-0 grow-[2] text-left text-xs text-neutral-600 tracking-widest">
-          Range (oz)
-        </div>
-        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">
-          Scrap
-        </div>
-        <div className="basis-0 grow text-center text-xs text-neutral-600 tracking-widest">
-          Bullion
-        </div>
+      <div className="flex items-center px-1 mb-4">
+        <p className="basis-0 grow-[2] text-left eyebrow">Range (oz)</p>
+        <p className="basis-0 grow text-center eyebrow">Scrap</p>
+        <p className="basis-0 grow text-center eyebrow">Bullion</p>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -293,16 +270,10 @@ function EditView({
       </div>
 
       <div className="mt-4 flex justify-between items-center">
-        <div className="text-xs text-neutral-500">
-          Units: <span className="font-medium">{u}</span>
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1 text-xs sm:text-sm"
-          type="button"
-          onClick={onAdd}
-        >
+        <small>
+          Units: <strong>{u}</strong>
+        </small>
+        <Button size="sm" variant="secondary" className="gap-1" type="button" onClick={onAdd}>
           + Add Band
         </Button>
       </div>
@@ -320,12 +291,12 @@ function PercentBox({
   isDirty?: boolean
 }) {
   return (
-    <div className="flex items-center gap-1">
+    /* The unsaved-edit ring lives on PercentBox, not on the Input's className:
+       Input has no "dirty" state variant and ruling 20 keeps appearance out of
+       a shared component's call site. Reported as a missing Input state. */
+    <div className={cn('flex items-center gap-1 rounded-md', isDirty && 'ring-2 ring-primary/60')}>
       <Input
-        className={cn(
-          'h-10 w-16 text-center text-lg font-semibold no-spinner input-floating-label-form bg-card',
-          isDirty && 'ring-2 ring-primary/60'
-        )}
+        className="h-10 w-16 text-center no-spinner"
         inputMode="decimal"
         type="number"
         value={value}
@@ -357,29 +328,29 @@ function MergedRangeLabels({
   if (close) {
     const mid = clampPct((minPct + maxPct) / 2, 4)
     return (
-      <span
-        className="pointer-events-none absolute -top-2 -translate-x-1/2 text-sm"
+      <small
+        className="pointer-events-none absolute -top-2 -translate-x-1/2"
         style={{ left: `${mid}%` }}
       >
         {min}-{labelFor(max ?? undefined, cap)}
-      </span>
+      </small>
     )
   }
 
   return (
     <>
-      <span
-        className="pointer-events-none absolute -top-2 -translate-x-1/2 text-sm"
+      <small
+        className="pointer-events-none absolute -top-2 -translate-x-1/2"
         style={{ left: `${maxPct}%` }}
       >
         {labelFor(max ?? undefined, cap)}
-      </span>
-      <span
-        className="pointer-events-none absolute -top-2 -translate-x-1/2 text-sm"
+      </small>
+      <small
+        className="pointer-events-none absolute -top-2 -translate-x-1/2"
         style={{ left: `${minPct}%` }}
       >
         {min}
-      </span>
+      </small>
     </>
   )
 }

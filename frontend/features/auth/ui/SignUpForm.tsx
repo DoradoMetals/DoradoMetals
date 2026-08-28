@@ -106,41 +106,33 @@ export default function SignUpForm() {
                           checked={field.value}
                           onCheckedChange={field.onChange}
                           id="terms-checkbox"
-                          className="checkbox-form"
                         />
                       </FormControl>
                       <FormLabel htmlFor="terms-checkbox" className="cursor-pointer">
-                        <div className="flex items-end text-xs text-neutral-600 gap-1">
+                        <span className="flex items-end gap-1">
                           Accept our
-                          <Link
-                            className="text-primary tracking-wide"
-                            href={'/terms-and-conditions'}
-                          >
+                          <Link className="text-primary" href={'/terms-and-conditions'}>
                             Terms and Condtions
                           </Link>
                           and
-                          <Link
-                            className="text-primary tracking-wide"
-                            href={'/privacy-policy'}
-                          >
+                          <Link className="text-primary" href={'/privacy-policy'}>
                             Privacy Policy.
                           </Link>
-                        </div>
+                        </span>
                       </FormLabel>
                     </div>
-                    <FormMessage className="text-xs text-destructive" />
+                    <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
-            <div className="text-red-600 text-sm">{error ? error.message : null}</div>
+            <p className="text-destructive">{error ? error.message : null}</p>
 
             <Button
               type="submit"
-              variant="default"
               disabled={recaptchaPending || signUpPending}
-              className="bg-primary raised-off-page text-white w-full mb-8"
+              className="w-full mb-8"
             >
               {recaptchaPending ? 'Verifying…' : signUpPending ? 'Signing Up…' : 'Sign Up'}
             </Button>

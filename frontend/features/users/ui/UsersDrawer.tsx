@@ -13,6 +13,7 @@ import {
   useUpdateUser,
 } from '@/features/auth/queries'
 import { Button } from '@/shared/ui/base/button'
+import { Separator } from '@/shared/ui/base/separator'
 import { Input } from '@/shared/ui/base/input'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { cn } from '@/shared/utils/cn'
@@ -40,17 +41,17 @@ export default function AdminUsersDrawer({
   return (
     <Drawer label="User" open={isDrawerOpen} setOpen={closeDrawer}>
       <div className="flex items-center justify-between w-full">
-        <div className="text-xl text-neutral-900">{user.name}</div>
-        <div className="text-base text-neutral-800">{formatFullDate(user.created_at)}</div>
+        <h3>{user.name}</h3>
+        <time dateTime={user.created_at}>{formatFullDate(user.created_at)}</time>
       </div>
-      <div className="glass-divider" />
+      <Separator />
       <div className="space-y-8">
         <UserInfo user={user} />
-        <div className="glass-divider" />
+        <Separator />
         <DoradoCredit user={user} />
-        <div className="glass-divider" />
+        <Separator />
         <UserActions user={user} />
-        <div className="glass-divider" />
+        <Separator />
         <UserOrders user={user} />
       </div>
     </Drawer>
@@ -63,12 +64,12 @@ function UserInfo({ user }: { user: AdminUser }) {
 
   return (
     <div className="flex flex-col gap-6 w-full items-start items-stretch">
-      <div className="section-label mb-2">User Information</div>
+      <p className="eyebrow mb-2">User Information</p>
       <FloatingLabelInput
         label="Name"
         type="name"
         autoComplete="name"
-        className="on-glass w-full"
+        className="w-full"
         defaultValue={user.name}
         onBlur={(e) => updateName.mutate({ name: e.target.value })}
       />
@@ -76,15 +77,11 @@ function UserInfo({ user }: { user: AdminUser }) {
         label="Email"
         type="email"
         autoComplete="email"
-        className="on-glass w-full"
+        className="w-full"
         defaultValue={user.email}
         onBlur={(e) => changeEmail.mutate(e.target.value)}
       />
-      <Button
-        variant="default"
-        className="w-full primary-on-glass"
-        disabled={true}
-      >
+      <Button variant="secondary" className="w-full" disabled={true}>
         Upload Identity Images
       </Button>
     </div>
@@ -144,8 +141,10 @@ function DoradoCredit({ user }: { user: AdminUser }) {
   return (
     <div className="flex flex-col gap-6 w-full">
       <div className="flex w-full justify-between items-end">
-        <div className="section-label mb-2">Dorado Credit</div>
-        <PriceNumberFlow value={user.dorado_funds} className="text-lg text-neutral-900 pr-3" />
+        <p className="eyebrow mb-2">Dorado Credit</p>
+        <strong className="pr-3">
+          <PriceNumberFlow value={user.dorado_funds} />
+        </strong>
       </div>
 
       <div className="flex flex-col gap-2 w-full">
@@ -161,21 +160,14 @@ function DoradoCredit({ user }: { user: AdminUser }) {
                 key={m.value}
                 htmlFor={m.value}
                 className={cn(
-                  'w-full',
-                  'text-sm',
-                  mode === m.value ? 'primary-on-glass' : 'on-glass',
-                  'flex items-center justify-center rounded-md cursor-pointer px-2 py-2 transition-colors'
+                  'w-full flex items-center justify-center gap-1 rounded-md cursor-pointer px-2 py-2 border transition-colors',
+                  mode === m.value
+                    ? 'bg-primary/15 border-primary text-primary'
+                    : 'bg-transparent border-border text-foreground'
                 )}
               >
-                <div
-                  className={cn(
-                    'flex items-center gap-1',
-                    mode === m.value ? 'text-white hover:text-white' : 'text-primary'
-                  )}
-                >
-                  {m.label}
-                  <Icon size={20} className={cn(mode === m.value ? 'text-white' : 'text-primary')} />
-                </div>
+                {m.label}
+                <Icon size={20} />
                 <RadioGroupItem id={m.value} value={m.value} className="sr-only" />
               </label>
             )
@@ -187,28 +179,29 @@ function DoradoCredit({ user }: { user: AdminUser }) {
           value={`$${displayAmount}`}
           onChange={handleAmountChange}
           placeholder="$0.00"
-          className="on-glass w-full text-right no-spinner text-lg text-neutral-900"
+          className="w-full text-right no-spinner"
         />
       </div>
 
       <div className="flex flex-col gap-1 w-full">
-        <div className="flex items-center justify-between w-full text-sm text-neutral-700">
-          <div>New:</div>
+        <div className="flex items-center justify-between w-full">
+          <p>New:</p>
 
-          <PriceNumberFlow value={newAmount} className="text-lg text-neutral-900 pr-3" />
+          <strong className="pr-3">
+            <PriceNumberFlow value={newAmount} />
+          </strong>
         </div>
 
         <Button
+          variant="secondary"
           onClick={handleSubmit}
-          className="w-full primary-on-glass"
+          className="w-full"
           disabled={updateCredit.isPending || !amount || wouldBeNegative}
         >
           Update Credit
         </Button>
         {wouldBeNegative && (
-          <div className="text-sm text-destructive text-left">
-            Cannot result in negative credit.
-          </div>
+          <p className="text-left text-destructive">Cannot result in negative credit.</p>
         )}
       </div>
     </div>
@@ -221,10 +214,10 @@ function UserActions({ user }: { user: AdminUser }) {
   const { closeDrawer } = useDrawerStore()
   return (
     <div className="flex flex-col gap-2 w-full items-start items-stretch">
-      <div className="section-label mb-2">Actions</div>
+      <p className="eyebrow mb-2">Actions</p>
       <Button
-        variant="default"
-        className="w-full primary-on-glass"
+        variant="secondary"
+        className="w-full"
         onClick={() => {
           closeDrawer()
           impersonateUser.mutate({ user_id: user.id })
@@ -233,13 +226,11 @@ function UserActions({ user }: { user: AdminUser }) {
         Impersonate User
       </Button>
       <Button
-        variant="default"
-        className="w-full on-glass"
+        variant="secondary"
+        className="w-full"
         onClick={() => requestPasswordReset.mutate(user?.email ?? '')}
       >
-        <div className="text-primary">
-          {requestPasswordReset.isPending ? 'Sending...' : 'Send Password Reset'}
-        </div>
+        {requestPasswordReset.isPending ? 'Sending...' : 'Send Password Reset'}
       </Button>
     </div>
   )
@@ -249,10 +240,10 @@ function UserOrders({ user }: { user: AdminUser }) {
   const { openDrawer, setCreateSalesOrderUser } = useDrawerStore()
   return (
     <div className="flex flex-col gap-2 w-full items-start items-stretch">
-      <div className="section-label mb-2">Orders</div>
+      <p className="eyebrow mb-2">Orders</p>
       <Button
-        variant="default"
-        className="w-full primary-on-glass"
+        variant="secondary"
+        className="w-full"
         onClick={() => {
           setCreateSalesOrderUser(user)
           openDrawer('createSalesOrder')

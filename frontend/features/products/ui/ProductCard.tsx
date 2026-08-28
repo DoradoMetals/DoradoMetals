@@ -6,6 +6,7 @@ import { Button } from '@/shared/ui/base/button'
 import { ChevronLeft, ChevronRight, CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
+import { Label } from '@/shared/ui/base/label'
 import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/FloatingButton'
 
 import { useState } from 'react'
@@ -22,7 +23,6 @@ import 'swiper/css/pagination'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { ProductShadow } from '@/features/products/ui/ProductShadow'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useSpotPrices } from '@/features/spots/queries'
 
@@ -72,6 +72,16 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
       onClick={() => {
         router.push(`/buy/${selectedProduct.slug}`)
       }}
+      onKeyDown={(e) => {
+        // role="button" with tabIndex and no key handler is one of D93's
+        // clickable divs. Guarded on currentTarget so Enter inside the nested
+        // buttons does not also navigate.
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          router.push(`/buy/${selectedProduct.slug}`)
+        }
+      }}
     >
       <div className="h-1/5 rounded-lg mb-8">
         <div className="relative w-full aspect-[4/3]">
@@ -92,7 +102,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
             }}
             className={cn(`w-full product-swiper
             [&.product-swiper_.swiper-pagination]:!absolute
-            [&.product-swiper_.swiper-pagination]:!-top-1"
+            [&.product-swiper_.swiper-pagination]:!-top-1
             [&.product-swiper__.swiper-pagination-bullet]:!bg-neutral-700
             [&.product-swiper__.swiper-pagination-bullet]:!opacity-30
             [&.product-swiper__.swiper-pagination-bullet-active]:!opacity-100`)}
@@ -103,27 +113,19 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                   src={selectedProduct.image_front}
                   width={500}
                   height={500}
-                  className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
+                  className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
                   alt="thumbnail front"
-                />
-                <ProductShadow
-                  productType={selectedProduct.type}
-                  offset={selectedProduct.shadow_offset}
                 />
               </div>
             </SwiperSlide>
 
             <SwiperSlide>
               <div className="flex relative aspect-square pb-4">
-                <ProductShadow
-                  productType={selectedProduct.type}
-                  offset={selectedProduct.shadow_offset}
-                />
                 <Image
                   src={selectedProduct.image_back}
                   width={500}
                   height={500}
-                  className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
+                  className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
                   alt="thumbnail back"
                 />
               </div>
@@ -131,16 +133,12 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
             <div className="absolute top-1/2 -translate-y-1/2 product-swiper-prev z-20">
               <Button
                 size="icon"
-                variant="ghost"
+                variant="tertiary"
+                disabled={isBeginning}
                 onClick={(e) => {
                   e.stopPropagation()
                 }}
-                className={cn(
-                  'z-1',
-                  isBeginning
-                    ? `text-neutral-400 pointer-events-none hover:text-neutral-400`
-                    : 'text-neutral-900'
-                )}
+                className="z-1"
               >
                 <ChevronLeft size={24} />
               </Button>
@@ -149,16 +147,12 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
             <div className="absolute right-0 top-1/2 -translate-y-1/2 product-swiper-next z-20">
               <Button
                 size="icon"
-                variant="ghost"
+                variant="tertiary"
+                disabled={isEnd}
                 onClick={(e) => {
                   e.stopPropagation()
                 }}
-                className={cn(
-                  'z-1',
-                  isEnd
-                    ? `text-neutral-400 pointer-events-none hover:text-neutral-400`
-                    : 'text-neutral-900'
-                )}
+                className="z-1"
               >
                 <ChevronRight size={24} />
               </Button>
@@ -167,7 +161,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
         </div>
       </div>
 
-      <div className="relative h-4/5 bg-card rounded-lg rounded-b-xl -mt-10 flex flex-col justify-end border-2 border-primary raised-off-page">
+      <div className="relative h-4/5 bg-card rounded-lg rounded-b-xl -mt-10 flex flex-col justify-end border border-border">
         <div className="flex items-end justify-between w-full px-3 pr-5 pb-2">
           {variants.length > 0 && (
             <RadioGroup
@@ -182,8 +176,8 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                 setIsOpen={setVariantsOpen}
                 triggerContent={
                   <Button
-                    variant="ghost"
-                    className="flex items-center h-8 w-8 rounded-full items-center justify-center z-10 text-xs bg-primary text-white hover:bg-primary hover:text-white hover:shadow-sm"
+                    size="iconSm"
+                    className="z-10"
                     onClick={(e) => {
                       e.stopPropagation()
                       setVariantsOpen(true)
@@ -197,9 +191,13 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                   .sort((a, b) => b.content - a.content)
                   .map((option) => (
                     <FloatingButtonItem key={option.id}>
-                      <label
+                      {/* Segmented control, hand-rolled - see the report; the
+                          checked appearance has no component to live in yet.
+                          Label's own default IS `text-micro font-medium`, which
+                          is what `text-xs` was reaching for. */}
+                      <Label
                         htmlFor={option.name}
-                        className="h-8 w-10 xs:w-14 sm:w-15 rounded-lg flex items-center justify-center text-xs cursor-pointer border has-[[data-state=checked]]:bg-primary has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:text-white text-neutral-900"
+                        className="h-8 w-10 xs:w-14 sm:w-15 rounded-lg justify-center cursor-pointer border has-[[data-state=checked]]:bg-primary has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:text-primary-foreground"
                         onClick={(e) => {
                           e.stopPropagation()
                         }}
@@ -210,7 +208,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                           className="sr-only"
                         />
                         {option.variant_label}
-                      </label>
+                      </Label>
                     </FloatingButtonItem>
                   ))}
               </FloatingButton>
@@ -233,20 +231,20 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                 <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger asChild>
                     <Button
-                      variant="ghost"
-                      className="text-neutral-500 hover:text-neutral-900 p-0 h-5"
+                      variant="tertiary"
+                      size="iconXs"
                       onClick={(e) => {
                         e.stopPropagation()
                         setOpen(true)
                       }}
                     >
-                      <CircleHelp size={20} className="p-0" />
+                      <CircleHelp size={20} />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
                     align="end"
                     side="top"
-                    className="p-2 bg-background border-border border-1 shadow-lg w-[14rem]"
+                    className="p-2 w-56"
                     onOpenAutoFocus={(e) => e.preventDefault()}
                     forceMount
                   >
@@ -263,43 +261,43 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                       <div className="flex flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                           <div className="flex w-full items-start justify-between pl-8">
-                            <div className="text-xs text-neutral-600">{spot?.name} Spot Price</div>
-                            <div className="text-sm">
+                            <small>{spot?.name} Spot Price</small>
+                            <p>
                               <PriceNumberFlow value={spot?.ask ?? 0} />
-                            </div>
+                            </p>
                           </div>
 
                           <div className="flex w-full items-start">
-                            <X size={16} className="text-neutral-700 px-0" />
+                            <X size={16} className="text-neutral-700" />
                             <div className="flex w-full items-start justify-between pl-4">
-                              <div className="text-xs text-neutral-600">Content (oz)</div>
-                              <div className="text-sm">{selectedProduct.content}</div>
+                              <small>Content (oz)</small>
+                              <p>{selectedProduct.content}</p>
                             </div>
                           </div>
 
                           <div className="flex w-full items-start">
                             {overOrUnder >= 0 ? (
-                              <Plus size={16} className="text-neutral-700 px-0" />
+                              <Plus size={16} className="text-neutral-700" />
                             ) : (
-                              <Minus size={16} className="text-neutral-700 px-0" />
+                              <Minus size={16} className="text-neutral-700" />
                             )}
 
                             <div className="flex w-full items-start justify-between pl-4">
-                              <div className="text-xs text-neutral-600">Premium</div>
-                              <div className="text-sm">
+                              <small>Premium</small>
+                              <p>
                                 <PriceNumberFlow value={Math.abs(overOrUnder)} />
-                              </div>
+                              </p>
                             </div>
                           </div>
                         </div>
 
                         <div className="flex w-full items-start">
-                          <Equal size={16} className="text-neutral-700 px-0" />
+                          <Equal size={16} className="text-neutral-700" />
                           <div className="flex w-full items-start justify-between pl-4">
-                            <div className="text-xs text-neutral-600">Total</div>
-                            <div className="text-sm text-neutral-900">
+                            <small>Total</small>
+                            <strong>
                               <PriceNumberFlow value={price} />
-                            </div>
+                            </strong>
                           </div>
                         </div>
                       </div>
@@ -314,32 +312,27 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
           <div className="px-6">
             <div className="flex items-start">
               <div className="flex flex-col mr-auto">
-                <div className="text-neutral-700 text-sm lg:text-base">
-                  {selectedProduct.name}
-                </div>
-                <div className="text-neutral-500 text-xs lg:text-sm mr-auto">
-                  {selectedProduct.mint_name}
-                </div>
+                <h5>{selectedProduct.name}</h5>
+                <small className="mr-auto">{selectedProduct.mint_name}</small>
               </div>
 
               <div className="flex flex-col items-end gap-1 ml-auto my-0">
-                <PriceNumberFlow value={price} />
+                <strong>
+                  <PriceNumberFlow value={price} />
+                </strong>
               </div>
             </div>
           </div>
 
           <div
-            className={cn(
-              'cursor-default bg-primary w-full rounded-b-lg py-2 text-white',
-            )}
+            className="w-full px-4 pb-4"
             onClick={(e) => {
               e.stopPropagation()
             }}
           >
             {quantity === 0 ? (
               <Button
-                variant="ghost"
-                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
+                className="w-full"
                 onClick={(e) => {
                   e.stopPropagation()
                   addItem(selectedProduct)
@@ -348,10 +341,9 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                 Add to Cart
               </Button>
             ) : (
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center gap-3">
                 <Button
-                  variant="ghost"
-                  className="text-white hover:text-white"
+                  size="icon"
                   onClick={(e) => {
                     e.stopPropagation()
                     removeOne(selectedProduct)
@@ -359,14 +351,9 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                 >
                   <Minus size={20} />
                 </Button>
-                <NumberFlow
-                  value={quantity}
-                  className="text-white text-lg font-semibold"
-                  trend={0}
-                />
+                <NumberFlow value={quantity} trend={0} />
                 <Button
-                  variant="ghost"
-                  className="text-white hover:text-white"
+                  size="icon"
                   onClick={(e) => {
                     e.stopPropagation()
                     addItem(selectedProduct)

@@ -92,10 +92,10 @@ export function DataTable<TData>({
   showHeaders = true,
   getRowClassName,
 
-  wrapperClassName = 'glass-card',
-  searchClass = 'on-glass',
+  wrapperClassName = 'bg-card border border-border',
+  searchClass = 'bg-transparent border border-border',
   shadowClass = '',
-  columnTriggerClass = 'on-glass',
+  columnTriggerClass = 'bg-transparent border border-border',
   addButtonClass,
 
   enableRowSelection = false,

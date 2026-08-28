@@ -17,6 +17,11 @@ import { formatFullDate } from '@/shared/utils/formatDates'
 import { Calendar } from '@/shared/ui/base/calendar'
 import { useUpdateReview } from '@/features/reviews/queries'
 
+// <time dateTime> must be machine-readable; the wire hands these back as
+// either a Date or an ISO string depending on the source switch.
+const machineDate = (d: Date | string | null | undefined) =>
+  d ? new Date(d).toISOString() : undefined
+
 export default function ReviewsDrawer({
   reviews,
   review_id,
@@ -33,11 +38,11 @@ export default function ReviewsDrawer({
   return (
     <Drawer label="Review" open={isDrawerOpen} setOpen={closeDrawer}>
       <Header review={review} />
-      <div className="glass-divider" />
+      <hr />
       <EditFields review={review} />
-      <div className="glass-divider" />
+      <hr />
       <Visibility review={review} />
-      <div className="glass-divider" />
+      <hr />
       <Created review={review} />
       <div className="mt-auto">
         <Footer review={review} />
@@ -50,8 +55,8 @@ function Header({ review }: { review: Review }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-end justify-between w-full">
-        <div className="text-2xl text-neutral-900">{review.name || 'Unnamed Reviewer'}</div>
-        <StatusChip positive={!review.hidden} className="gap-1 text-sm">
+        <h2>{review.name || 'Unnamed Reviewer'}</h2>
+        <StatusChip positive={!review.hidden} size="lg">
           {review.hidden ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
           {review.hidden ? 'Hidden' : 'Public'}
         </StatusChip>
@@ -60,10 +65,10 @@ function Header({ review }: { review: Review }) {
       <div className="flex items-center gap-2">
         <Rating value={Math.round(review.rating)} readOnly>
           {Array.from({ length: 5 }).map((_, i) => (
-            <RatingButton key={i} size={24} className="text-primary" />
+            <RatingButton key={i} size={24} />
           ))}
         </Rating>
-        <div className="text-sm text-neutral-700">{Number(review.rating).toFixed(2)} / 5</div>
+        <p>{Number(review.rating).toFixed(2)} / 5</p>
       </div>
     </div>
   )
@@ -80,14 +85,14 @@ function EditFields({ review }: { review: Review }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="section-label">Details</div>
+      <p className="eyebrow">Details</p>
 
       <div className="relative w-full">
         <FloatingLabelInput
           label="Reviewer Name"
           type="text"
           size="sm"
-          className="on-glass h-10"
+          className="h-10"
           defaultValue={review.name ?? ''}
           onBlur={(e) => handleUpdate({ name: e.target.value })}
         />
@@ -97,7 +102,7 @@ function EditFields({ review }: { review: Review }) {
         <FloatingLabelTextarea
           label="Review Text"
           size="sm"
-          className="on-glass min-h-40"
+          className="min-h-40"
           defaultValue={review.review_text ?? ''}
           onBlur={(e) => handleUpdate({ review_text: e.target.value })}
           placeholder="Input review here..."
@@ -105,13 +110,13 @@ function EditFields({ review }: { review: Review }) {
       </div>
 
       <div className="flex flex-col gap-2 items-center justify-center">
-        <div className="text-xs sm:text-sm text-neutral-600">Rating</div>
+        <p>Rating</p>
         <Rating
           value={review.rating ?? 0}
           onValueChange={(val) => handleUpdate({ rating: val ?? 0 })}
         >
           {Array.from({ length: 5 }).map((_, i) => (
-            <RatingButton key={i} size={48} className="transition-transform text-primary" />
+            <RatingButton key={i} size={48} />
           ))}
         </Rating>
       </div>
@@ -127,7 +132,7 @@ function Visibility({ review }: { review: Review }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="section-label">Visibility</div>
+      <p className="eyebrow">Visibility</p>
       <DisplayToggle
         label="Visibility"
         value={!review.hidden}
@@ -138,7 +143,7 @@ function Visibility({ review }: { review: Review }) {
 
       />
 
-      <div className="text-xs text-neutral-600">Toggle to hide/show this review on your site.</div>
+      <p>Toggle to hide/show this review on your site.</p>
     </div>
   )
 }
@@ -177,7 +182,7 @@ function Created({ review }: { review: Review }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="section-label">Contact Info</div>
+      <p className="eyebrow">Contact Info</p>
 
       <div className="flex flex-col md:flex-row w-full justify-center md:justify-between gap-3 items-start">
         <Calendar
@@ -194,7 +199,7 @@ function Created({ review }: { review: Review }) {
             if (d < minDate || d > maxDate) return
             handleUpdate(d)
           }}
-          className="p-2 on-glass w-full rounded-lg"
+          className="p-2 w-full"
           disabled={[{ before: minDate }, { after: maxDate }]}
         />
       </div>
@@ -205,19 +210,29 @@ function Created({ review }: { review: Review }) {
 function Footer({ review }: { review: Review }) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-1 text-xs text-neutral-600">
-        <span className="text-neutral-600">Created on</span>{' '}
-        <span className="font-medium text-neutral-800">{formatFullDate(review.created_at)}</span>
-        <span className="text-neutral-600">by</span>
-        <span className="font-medium text-neutral-800">{review.created_by || '—'}</span>
-      </div>
+      <p>
+        <small>
+          Created on{' '}
+          <strong>
+            <time dateTime={machineDate(review.created_at)}>
+              {formatFullDate(review.created_at)}
+            </time>
+          </strong>{' '}
+          by <strong>{review.created_by || '—'}</strong>
+        </small>
+      </p>
 
-      <div className="flex items-center gap-1 text-xs text-neutral-600">
-        <span className="text-neutral-600">Updated on</span>{' '}
-        <span className="font-medium text-neutral-800">{formatFullDate(review.updated_at)}</span>
-        <span className="text-neutral-600">by</span>
-        <span className="font-medium text-neutral-800">{review.updated_by || '—'}</span>
-      </div>
+      <p>
+        <small>
+          Updated on{' '}
+          <strong>
+            <time dateTime={machineDate(review.updated_at)}>
+              {formatFullDate(review.updated_at)}
+            </time>
+          </strong>{' '}
+          by <strong>{review.updated_by || '—'}</strong>
+        </small>
+      </p>
     </div>
   )
 }

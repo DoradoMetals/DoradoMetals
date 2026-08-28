@@ -14,14 +14,25 @@ export default function Spots() {
 
   return (
     <>
-      <div className="overflow-x-auto overflow-y-hidden whitespace-nowrap ml-auto liquid-gold w-full py-1">
+      {/* THE ONE PLACE A CALL SITE STILL NAMES A TEXT COLOUR, and it is
+          deliberate: this strip is the only surface in the app that is not the
+          page ground. `liquid-gold` is retired (DELETION-ORDER maps it to
+          `bg-brand`), and every semantic tag in typography.css colours itself
+          for the DARK ground - `<p>`/`<small>` resolve to --muted-foreground,
+          which is unreadable on gold. So the bar sets the on-brand foreground
+          ONCE here and its text leaves stay bare `<span>`s that inherit it
+          (ruling 22, case 2). See the report: a full-bleed --brand bar also
+          collides with ruling 19 and with the success/destructive trend
+          colours it has to display, and wants Jacob's eye. */}
+      <div className="overflow-x-auto overflow-y-hidden whitespace-nowrap ml-auto bg-brand text-primary-foreground w-full py-1">
         <div className="flex items-center justify-center">
           {spots && (
             <div className="hidden md:flex items-center justify-between max-w-7xl w-full">
-              <div className="flex items-center w-full justify-between ml-auto text-white">
+              <div className="flex items-center w-full justify-between ml-auto">
                 <Button
-                  variant="ghost"
-                  className="flex items-center gap-1 p-0 m-0 h-4 text-sm text-white hover:text-white"
+                  variant="primary"
+                  intent="brand"
+                  className="flex items-center gap-1 p-0 m-0 h-4"
                   onClick={() => toggleType()}
                 >
                   <SwapIcon size={20} />
@@ -34,16 +45,14 @@ export default function Spots() {
 
                   return (
                     <div key={spot.id} className="flex items-center gap-3">
-                      <span className="text-sm font-medium uppercase">
-                        {spot.name}:
-                      </span>
+                      <span className="uppercase">{spot.name}:</span>
 
                       <NumberFlowGroup>
-                        <div className="text-sm flex font-medium items-center tracking-wide">
+                        <div className="flex items-center">
                           <PriceNumberFlow value={(type === 'Bid' ? spot.bid : spot.ask) ?? 0} />
                         </div>
 
-                        <div className="flex items-center gap-1 text-xs">
+                        <div className="flex items-center gap-1">
                           <CaretIcon size={16} className={colorClass} />
                           <PriceNumberFlow value={spot.dollar_change ?? 0} className={colorClass} />
                         </div>

@@ -47,7 +47,6 @@ export default function CarriersPage() {
       enableHiding: true,
       headerClassName: 'hidden lg:flex',
       cellClassName: 'hidden lg:flex',
-      textClassName: 'text-xs sm:text-sm text-neutral-900',
       formatValue: (value) => formatPhoneNumber(String(value ?? '')),
       size: 170,
     }),
@@ -61,12 +60,7 @@ export default function CarriersPage() {
       getChip: ({ row }) => {
         const carrier = row as Carrier
         const active = !!carrier.organization.enabled
-        return {
-          label: active ? 'Active' : 'Inactive',
-          className: active
-            ? 'bg-success/20 text-success border-success'
-            : 'bg-destructive/20 text-destructive border-destructive',
-        }
+        return { label: active ? 'Active' : 'Inactive', tone: active ? 'success' : 'danger' } as const
       },
     }),
   ]
@@ -103,13 +97,9 @@ export default function CarriersPage() {
         searchColumnId="name"
         searchPlaceholder="Search carriers..."
         enableColumnVisibility
-        wrapperClassName='glass-card'
-        shadowClass=''
         showCardBackground={false}
         onRowClick={handleRowClick}
-        getRowClassName={() => 'hover:bg-background hover:cursor-pointer'}
         createConfig={createConfig}
-
       />
 
       {activeCarrier && <CarriersDrawer carrier_id={activeCarrier} carriers={carriers} />}

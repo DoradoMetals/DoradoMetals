@@ -1,5 +1,6 @@
 import { FormField, FormItem } from '@/shared/ui/base/form'
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
+import { RadioGroup } from '@/shared/ui/base/radio-group'
+import { RadioCard } from '@/shared/ui/RadioCard'
 import { metalOptions, purityOptions, Scrap } from '@/features/scrap/types'
 import { CheckCircle } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
@@ -39,7 +40,6 @@ export default function PurityStep() {
       name="purity"
       render={() => (
         <FormItem>
-          {/* <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Enter Purity</h2> */}
 
           <RadioGroup
             value={selectedLabel}
@@ -50,31 +50,29 @@ export default function PurityStep() {
               const isSelected = selectedLabel === option.label
 
               return (
-                <motion.label
+                <RadioCard
                   key={option.label}
+                  as={motion.label}
+                  variant="segment"
+                  value={option.label}
                   initial={false}
                   animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
                   transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
-                  className="radio-group-buttons w-full"
+                  className="w-full"
                 >
                   <div className="absolute top-1 right-1">
-                  <CheckCircle
+                    {/* Inherits the card's colour - see MetalStep. */}
+                    <CheckCircle
                       size={12}
                       className={cn(
-                        'text-primary transition-opacity duration-200',
+                        'transition-opacity duration-200',
                         isSelected ? 'opacity-100' : 'opacity-0'
                       )}
                     />
                   </div>
 
                   {option.label}
-
-                  <RadioGroupItem
-                    value={option.label}
-                    id={option.label}
-                    className="sr-only after:absolute after:inset-0"
-                  />
-                </motion.label>
+                </RadioCard>
               )
             })}
           </RadioGroup>
@@ -87,8 +85,8 @@ export default function PurityStep() {
               max={1}
               step={0.001}
             />
-            <div
-              className="absolute top-4 text-sm text-neutral-700"
+            <small
+              className="absolute top-4"
               style={{
                 left: `${purity * 100 + 1}%`,
                 transform: 'translateX(-50%)',
@@ -108,7 +106,7 @@ export default function PurityStep() {
                 trend={0}
                 suffix='%'
               />
-            </div>
+            </small>
           </div>
         </FormItem>
       )}

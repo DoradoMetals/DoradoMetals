@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/shared/ui/base/button'
+import Banner from '@/shared/ui/Banner'
 import { ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
 import { useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
@@ -8,9 +9,13 @@ import { Navigation, Pagination } from 'swiper/modules'
 import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
-import { cn } from '@/shared/utils/cn'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { usePublicReviews } from '@/features/reviews/queries'
+
+// <time dateTime> must be machine-readable; the wire hands these back as
+// either a Date or an ISO string depending on the source switch.
+const machineDate = (d: Date | string | null | undefined) =>
+  d ? new Date(d).toISOString() : undefined
 
 export function Reviews() {
   const { data: reviews = [] } = usePublicReviews()
@@ -21,35 +26,27 @@ export function Reviews() {
     setIsBeginning(s.isBeginning)
     setIsEnd(s.isEnd)
   }
+  /* The band and its hairlines are <Banner>'s; the two gutters below are this
+     section's own (the header row is `px-8`, the swiper `px-2`), so Banner's
+     single default gutter is neutralised rather than fought. */
   return (
-    <>
-      <section aria-label="Reviews" className="w-full">
-        <div className="bg-primary">
-          <div className={cn('mx-auto max-w-7xl px-8')}>
+    <Banner label="Reviews" className="py-0" contentClassName="max-w-none px-0">
+          <div className="mx-auto max-w-7xl px-8">
             <div className="flex flex-col gap-4 md:flex-row items-start justify-between py-4 sm:py-6">
               <div className="flex flex-col gap-1 md:gap-1 items-start w-full">
-                <h2 className="text-white text-xl sm:text-2xl font-semibold">
-                  Don't just take our word for it…
-                </h2>
-                <p className="text-white/80 text-xs sm:text-base">
-                  Read real reviews by real customers.
-                </p>
+                <h2>Don't just take our word for it…</h2>
+                <p>Read real reviews by real customers.</p>
               </div>
               <div className="flex w-full justify-start md:justify-end">
-                <Button
-                  className="border-1 border-white hover:bg-white text-white hover:text-primary"
-                  variant={'ghost'}
-                >
-                  <a href="/reviews" className="text-sm sm:text-base">
-                    See All Reviews
-                  </a>
+                <Button asChild variant="secondary">
+                  <a href="/reviews">See All Reviews</a>
                 </Button>
               </div>
             </div>
 
             <div
               className="md:hidden flex items-center justify-center pb-2 reviews-swiper-pagination
-                    [&_.swiper-pagination-bullet]:!bg-highest/90
+                    [&_.swiper-pagination-bullet]:!bg-muted-foreground
                     [&_.swiper-pagination-bullet]:!opacity-40
                     [&_.swiper-pagination-bullet-active]:!opacity-100
                     [&_.swiper-pagination-bullet]:!w-2.5 [&_.swiper-pagination-bullet]:!h-2.5
@@ -60,26 +57,24 @@ export function Reviews() {
           <div className="relative mx-auto px-2 max-w-7xl pb-6 sm:pb-8">
             <Button
               type="button"
+              variant="secondary"
+              size="icon"
               aria-label="Previous reviews"
-              className={cn(
-                'hidden md:flex items-center justify-center absolute -left-10 top-1/2 -translate-y-1/2 z-10 reviews-swiper-prev',
-                'h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-highest shadow-md hover:shadow-lg hover:bg-highest',
-                isBeginning && 'pointer-events-none opacity-40'
-              )}
+              disabled={isBeginning}
+              className="hidden md:flex absolute -left-10 top-1/2 -translate-y-1/2 z-10 reviews-swiper-prev"
             >
-              <ArrowLeftIcon size={18} className="text-neutral-800" />
+              <ArrowLeftIcon size={18} />
             </Button>
 
             <Button
               type="button"
+              variant="secondary"
+              size="icon"
               aria-label="Next reviews"
-              className={cn(
-                'hidden md:flex items-center justify-center absolute -right-10 top-1/2 -translate-y-1/2 z-10 reviews-swiper-next',
-                'h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-highest shadow-md hover:shadow-lg hover:bg-highest',
-                isEnd && 'pointer-events-none opacity-40'
-              )}
+              disabled={isEnd}
+              className="hidden md:flex absolute -right-10 top-1/2 -translate-y-1/2 z-10 reviews-swiper-next"
             >
-              <ArrowRightIcon size={18} className="text-neutral-800" />
+              <ArrowRightIcon size={18} />
             </Button>
 
             <Swiper
@@ -111,41 +106,37 @@ export function Reviews() {
             >
               {reviews.map((r) => (
                 <SwiperSlide key={r.id} className="!h-auto min-h-56 px-6">
-                  <article className="bg-highest rounded-lg raised-off-page p-4 sm:p-5 h-full flex flex-col">
+                  <article className="bg-highest rounded-lg border border-border p-4 sm:p-5 h-full flex flex-col">
                     <div className="flex items-center justify-between mb-3">
-                      <div className="text-[11px] sm:text-xs text-neutral-500">
-                        {formatFullDate(r.created_at)}
-                      </div>
+                      <small>
+                        <time dateTime={machineDate(r.created_at)}>
+                          {formatFullDate(r.created_at)}
+                        </time>
+                      </small>
                       <div className="flex items-center gap-1">
                         <Rating value={r.rating} readOnly>
                           {Array.from({ length: 5 }).map((_, i) => (
-                            <RatingButton
-                              key={i}
-                              size={24}
-                              className="transition-transform text-primary"
-                            />
+                            <RatingButton key={i} size={24} />
                           ))}
                         </Rating>
                       </div>
                     </div>
 
-                    <p className="text-neutral-700 text-sm leading-relaxed line-clamp-5">
-                      {r.review_text}
-                    </p>
+                    <p className="line-clamp-5">{r.review_text}</p>
 
                     <div className="mt-auto pt-4 flex items-center justify-between">
-                      <h6 className="text-neutral-900 font-semibold">{r.name}</h6>
-                      <a href={`/reviews/${r.id}`} className="text-neutral-500 text-xs underline">
-                        See more
-                      </a>
+                      <h6>{r.name}</h6>
+                      <p>
+                        <small>
+                          <a href={`/reviews/${r.id}`}>See more</a>
+                        </small>
+                      </p>
                     </div>
                   </article>
                 </SwiperSlide>
               ))}
             </Swiper>
           </div>
-        </div>
-      </section>
-    </>
+    </Banner>
   )
 }

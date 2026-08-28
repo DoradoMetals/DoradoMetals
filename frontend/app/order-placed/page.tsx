@@ -27,18 +27,23 @@ export default function Page() {
     })
   }, [])
   return (
-    <div className="flex flex-col justify-center items-center px-4 flex-grow pb-5">
+    <main className="flex flex-col justify-center items-center px-4 flex-grow pb-5">
       
       <Confetti ref={confettiRef} className="absolute left-0 top-0 z-0 size-full" manualstart />
       <div className="px-4 flex flex-col items-center h-full w-full justify-center">
-        <div className="text-2xl text-neutral-800 mb-2">
+        {/* BLOCKED, not skipped: BlurredStagger renders a `motion.div`, and
+            <div> is flow content, so this cannot become <h1> without emitting
+            invalid HTML (ruling 22). The size stays here on the TOKEN scale
+            rather than Tailwind's, so a scale change still reaches it. Fix is
+            one line in shared/ui/BlurredStagger.tsx: motion.div -> motion.span. */}
+        <div className="text-h2 mb-2">
           <BlurredStagger text="Your order has been placed!" delay={2000} />
         </div>
 
         <div className="flex w-full justify-center">
-          <AnimatedScroll size={128} className="mb-6 z-1 text-primary" />
+          <AnimatedScroll size={128} className="mb-6 z-1" />
         </div>
-        <div className="text-sm text-neutral-700 mb-4">
+        <div className="text-small mb-4">
           <BlurredStagger text="View your order by clicking the button below." delay={3200} />
       </div>
       </div>
@@ -61,7 +66,7 @@ export default function Page() {
         className="w-full max-w-xs p-1"
       >
         <Button
-          className="bg-primary raised-off-page w-full text-white hover:text-white"
+          className="w-full"
           onClick={() => {
             router.push('/account?tab=sold')
           }}
@@ -69,6 +74,6 @@ export default function Page() {
           Go to Orders
         </Button>
       </motion.div>
-    </div>
+    </main>
   )
 }

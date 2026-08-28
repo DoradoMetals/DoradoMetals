@@ -89,14 +89,14 @@ export default function SchedulePicker({ value, onChange, minDate, maxDate }: Pr
   }
 
   return (
-    <div className="rounded-lg border border-border on-glass">
+    <div className="rounded-lg border border-border bg-transparent">
       <div className="flex max-sm:flex-col">
         <div className="flex items-center justify-center h-full">
           <Calendar
             mode="single"
             selected={selected ?? undefined}
             onSelect={selectDate}
-            className="p-2 sm:pe-5 bg-transparent"
+            className="p-2 sm:pe-5"
             disabled={max ? [{ before: min }, { after: max }] : [{ before: min }]}
           />
         </div>
@@ -114,10 +114,10 @@ export default function SchedulePicker({ value, onChange, minDate, maxDate }: Pr
                 <Button
                   key={t}
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   className={cn(
-                    'w-full text-neutral-900 font-normal on-glass',
+                    'w-full',
                     selectedTime === t && 'text-primary'
                   )}
                   onClick={() => selectTime(t)}

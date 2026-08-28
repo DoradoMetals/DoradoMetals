@@ -29,12 +29,10 @@ export default function DoradoAccountForm({
           exit={{ height: 0, opacity: 0 }}
           className="overflow-hidden will-change-transform rounded-b-lg"
         >
-          <div className="text-sm text-neutral-800 px-4 pb-2 flex flex-col">
-            <div>
-              Your payout is credited instantly to your Dorado Account. Use these funds to buy
-              bullion with no extra fees, or withdraw them at any time.
-            </div>
-          </div>
+          <p className="px-4 pb-2">
+            Your payout is credited instantly to your Dorado Account. Use these funds to buy bullion
+            with no extra fees, or withdraw them at any time.
+          </p>
         </motion.div>
       )}
     </AnimatePresence>

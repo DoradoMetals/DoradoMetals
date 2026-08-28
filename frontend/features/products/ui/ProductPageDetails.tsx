@@ -103,8 +103,8 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
         <div className="flex flex-col gap-3">
           <div
             className={cn(
-              'w-20 h-20 bg-background raised-off-page rounded-lg cursor-pointer transition-all',
-              selectedImage === selectedProduct.image_front && 'bg-card'
+              'w-20 h-20 bg-background rounded-lg cursor-pointer transition-all border',
+              selectedImage === selectedProduct.image_front ? 'bg-card border-primary' : 'border-border'
             )}
             onClick={() => setSelectedImage(selectedProduct.image_front)}
           >
@@ -112,14 +112,14 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               src={selectedProduct.image_front}
               height={500}
               width={500}
-              className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
+              className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
               alt="Front thumbnail"
             />
           </div>
           <div
             className={cn(
-              'w-20 h-20 bg-background raised-off-page rounded-lg cursor-pointer transition-all',
-              selectedImage === selectedProduct.image_back && 'bg-card'
+              'w-20 h-20 bg-background rounded-lg cursor-pointer transition-all border',
+              selectedImage === selectedProduct.image_back ? 'bg-card border-primary' : 'border-border'
             )}
             onClick={() => setSelectedImage(selectedProduct.image_back)}
           >
@@ -127,13 +127,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               src={selectedProduct.image_back}
               height={500}
               width={500}
-              className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
+              className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
               alt="Back thumbnail"
             />
           </div>
         </div>
         <div className="flex flex-col gap-3 w-full h-full">
-          <div className="flex relative aspect-square bg-card raised-off-page rounded-lg h-full w-full">
+          <div className="flex relative aspect-square bg-card border border-border rounded-lg h-full w-full">
             <AnimatePresence mode="wait">
               <motion.div
                 key={selectedImage}
@@ -148,12 +148,12 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     src={selectedImage}
                     height={1000}
                     width={1000}
-                    className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
+                    className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
                     alt="Selected product view"
                   />
-                  <div className="absolute bottom-0 left-1 flex justify-start section-label p-2">
+                  <p className="absolute bottom-0 left-1 flex justify-start eyebrow p-2">
                     {selectedImage === selectedProduct.image_front ? 'Obverse' : 'Reverse'}
-                  </div>
+                  </p>
                 </Lens>
               </motion.div>
             </AnimatePresence>
@@ -178,9 +178,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
                       transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
                       className={cn(
-                        'relative flex w-full justify-center rounded-md px-3 py-2 font-normal cursor-pointer raised-off-page',
+                        'relative flex w-full justify-center rounded-md px-3 py-2 cursor-pointer',
                         isSelected
-                          ? 'bg-primary text-white hover:text-white'
+                          ? 'bg-primary text-primary-foreground'
                           : 'bg-card text-neutral-800'
                       )}
                     >
@@ -188,13 +188,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <CheckCircleIcon
                           size={16}
                           className={cn(
-                            'transition-opacity duration-200 text-white',
+                            'transition-opacity duration-200 text-primary-foreground',
                             isSelected ? 'opacity-100' : 'opacity-0'
                           )}
                         />
                       </div>
                       <div className="flex flex-col items-center gap-2">
-                        <div className="text-sm">{option.variant_label}</div>
+                        <div>{option.variant_label}</div>
                       </div>
                       <RadioGroupItem
                         id={option.name}
@@ -206,15 +206,10 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 })}
             </RadioGroup>
           )}
-          <div
-            className={cn(
-              'cursor-default bg-primary raised-off-page w-full rounded-lg py-1 text-white',
-            )}
-          >
+          <div className="w-full">
             {quantity === 0 ? (
               <Button
-                variant="ghost"
-                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white text-base"
+                className="w-full"
                 onClick={() => {
                   addItem(selectedProduct)
                 }}
@@ -222,24 +217,18 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 Add to Cart
               </Button>
             ) : (
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center gap-3">
                 <Button
-                  variant="ghost"
-                  className="text-white hover:text-white"
+                  size="icon"
                   onClick={() => {
                     removeOne(selectedProduct)
                   }}
                 >
                   <Minus size={20} />
                 </Button>
-                <NumberFlow
-                  value={quantity}
-                  className="text-white text-lg font-semibold"
-                  trend={0}
-                />
+                <NumberFlow value={quantity} trend={0} />
                 <Button
-                  variant="ghost"
-                  className="text-white hover:text-white"
+                  size="icon"
                   onClick={() => {
                     addItem(selectedProduct)
                   }}
@@ -249,15 +238,10 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </div>
             )}
           </div>
-          <div
-            className={cn(
-              'cursor-default bg-primary raised-off-page w-full rounded-lg py-1 text-white',
-            )}
-          >
+          <div className="w-full">
             {sellQuantity === 0 ? (
               <Button
-                variant="ghost"
-                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white text-base"
+                className="w-full"
                 onClick={() =>
                   addSellItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
                 }
@@ -265,22 +249,16 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 Add to Sell Cart
               </Button>
             ) : (
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center gap-3">
                 <Button
-                  variant="ghost"
-                  className="text-white hover:text-white"
+                  size="icon"
                   onClick={() => removeOneSell({ type: 'product', data: selectedProduct })}
                 >
                   <Minus size={20} />
                 </Button>
-                <NumberFlow
-                  value={sellQuantity}
-                  className="text-white text-lg font-semibold"
-                  trend={0}
-                />
+                <NumberFlow value={sellQuantity} trend={0} />
                 <Button
-                  variant="ghost"
-                  className="text-white hover:text-white"
+                  size="icon"
                   onClick={() =>
                     addSellItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
                   }
@@ -292,23 +270,23 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           </div>
         </div>
         <div className="flex flex-col gap-2 w-full">
-          <div className="bg-card rounded-lg raised-off-page p-4 flex flex-col gap-4">
+          <div className="bg-card rounded-lg border border-border p-4 flex flex-col gap-4">
             <div className="flex flex-col w-full">
-              <h1 className="text-2xl text-neutral-800">{selectedProduct.name}</h1>
-              <div className="text-sm text-neutral-700">{selectedProduct.mint_name}</div>
+              <h1>{selectedProduct.name}</h1>
+              <small>{selectedProduct.mint_name}</small>
             </div>
             <div className="flex w-full justify-between items-center">
               <div className="flex flex-col items-start gap-0">
-                <div className="text-sm text-neutral-700">Price:</div>
-                <div className="text-xl text-neutral-800">
+                <small>Price:</small>
+                <h3>
                   <PriceNumberFlow value={price} />
-                </div>
+                </h3>
               </div>
               <div className="flex flex-col items-start gap-0">
-                <div className="text-sm text-neutral-700">Buyback:</div>
-                <div className="text-xl text-neutral-800">
+                <small>Buyback:</small>
+                <h3>
                   <PriceNumberFlow value={buybackPrice} />
-                </div>
+                </h3>
               </div>
             </div>
           </div>
@@ -320,9 +298,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               open={open.description}
               onToggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
             >
-              <div className="text-sm text-left whitespace-pre-line">
-                {selectedProduct.description}
-              </div>
+              <p className="text-left whitespace-pre-line">{selectedProduct.description}</p>
             </AccordionSection>
             <AccordionSection
               variant="raised"
@@ -330,47 +306,47 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               open={open.price}
               onToggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
             >
-              <div className="text-sm text-left">
+              <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className="flex w-full items-start justify-between pl-8">
-                      <div className="text-xs text-neutral-600">{spot?.name} Ask Spot</div>
-                      <div className="text-sm">
+                      <small>{spot?.name} Ask Spot</small>
+                      <p>
                         <PriceNumberFlow value={spot?.ask ?? 0} />
-                      </div>
+                      </p>
                     </div>
 
                     <div className="flex w-full items-start">
-                      <X size={16} className="text-neutral-700 px-0" />
+                      <X size={16} className="text-neutral-700" />
                       <div className="flex w-full items-start justify-between pl-4">
-                        <div className="text-xs text-neutral-600">Content (oz)</div>
-                        <div className="text-sm">{selectedProduct.content}</div>
+                        <small>Content (oz)</small>
+                        <p>{selectedProduct.content}</p>
                       </div>
                     </div>
 
                     <div className="flex w-full items-start">
                       {askOverOrUnder >= 0 ? (
-                        <Plus size={16} className="text-neutral-700 px-0" />
+                        <Plus size={16} className="text-neutral-700" />
                       ) : (
-                        <Minus size={16} className="text-neutral-700 px-0" />
+                        <Minus size={16} className="text-neutral-700" />
                       )}
 
                       <div className="flex w-full items-start justify-between pl-4">
-                        <div className="text-xs text-neutral-600">Ask Premium</div>
-                        <div className="text-sm">
+                        <small>Ask Premium</small>
+                        <p>
                           <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
-                        </div>
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
-                    <Equal size={16} className="text-neutral-700 px-0" />
+                    <Equal size={16} className="text-neutral-700" />
                     <div className="flex w-full items-start justify-between pl-4">
-                      <div className="text-xs text-neutral-600">Total Ask</div>
-                      <div className="text-sm text-neutral-900">
+                      <small>Total Ask</small>
+                      <strong>
                         <PriceNumberFlow value={price} />
-                      </div>
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -382,47 +358,47 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               open={open.buyback}
               onToggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
             >
-              <div className="text-sm text-left">
+              <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className="flex w-full items-start justify-between pl-8">
-                      <div className="text-xs text-neutral-600">{spot?.name} Bid Spot</div>
-                      <div className="text-sm">
+                      <small>{spot?.name} Bid Spot</small>
+                      <p>
                         <PriceNumberFlow value={spot?.bid ?? 0} />
-                      </div>
+                      </p>
                     </div>
 
                     <div className="flex w-full items-start">
-                      <X size={16} className="text-neutral-700 px-0" />
+                      <X size={16} className="text-neutral-700" />
                       <div className="flex w-full items-start justify-between pl-4">
-                        <div className="text-xs text-neutral-600">Content (oz)</div>
-                        <div className="text-sm">{selectedProduct.content}</div>
+                        <small>Content (oz)</small>
+                        <p>{selectedProduct.content}</p>
                       </div>
                     </div>
 
                     <div className="flex w-full items-start">
                       {bidOverOrUnder >= 0 ? (
-                        <Plus size={16} className="text-neutral-700 px-0" />
+                        <Plus size={16} className="text-neutral-700" />
                       ) : (
-                        <Minus size={16} className="text-neutral-700 px-0" />
+                        <Minus size={16} className="text-neutral-700" />
                       )}
 
                       <div className="flex w-full items-start justify-between pl-4">
-                        <div className="text-xs text-neutral-600">Bid Premium</div>
-                        <div className="text-sm">
+                        <small>Bid Premium</small>
+                        <p>
                           <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
-                        </div>
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
-                    <Equal size={16} className="text-neutral-700 px-0" />
+                    <Equal size={16} className="text-neutral-700" />
                     <div className="flex w-full items-start justify-between pl-4">
-                      <div className="text-xs text-neutral-600">Total Bid</div>
-                      <div className="text-sm text-neutral-900">
+                      <small>Total Bid</small>
+                      <strong>
                         <PriceNumberFlow value={buybackPrice} />
-                      </div>
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -437,28 +413,28 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="flex flex-col w-full gap-3">
                 {Object.entries(salesOrderServiceOptions).map(([serviceType, option]) => (
                   <div key={serviceType} className="flex items-center justify-between w-full">
-                    <div className="text-sm text-neutral-600">
+                    <p>
                       {option.label} {`(${option.time})`}
-                    </div>
-                    <div className="text-base text-neutral-800">
+                    </p>
+                    <strong>
                       <PriceNumberFlow value={option.cost} />
-                    </div>
+                    </strong>
                   </div>
                 ))}
-                <div className="separator-inset" />
+                <div className="h-px w-full bg-border" />
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <ShieldCheckIcon className='text-primary' size={20} />
+                  <p className="flex items-center gap-1">
+                    <ShieldCheckIcon className="text-primary" size={20} />
                     Every shipment is fully insured.
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <ClockIcon className='text-primary' size={20} />
+                  </p>
+                  <p className="flex items-center gap-1">
+                    <ClockIcon className="text-primary" size={20} />
                     Ships the same day we receive your payment.
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <TagIcon className='text-primary' size={20} />
+                  </p>
+                  <p className="flex items-center gap-1">
+                    <TagIcon className="text-primary" size={20} />
                     Free shipping for orders over $1000.
-                  </div>
+                  </p>
                 </div>
               </div>
             </AccordionSection>
@@ -485,15 +461,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <div className="flex w-full gap-2 items-center">
                           <div className="flex items-center gap-1">
                             <Icon className='text-primary' size={20} />
-                            <div className="text-base text-neutral-800">{payment.label}</div>
+                            <h5>{payment.label}</h5>
                           </div>
-                          <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1 pl-4">
+                          <small className="flex items-center gap-2 pt-1 pl-4">
                             <span className="text-left">{payment.time_delay}</span>
-                            <CircleIcon size={6} weight="fill" className="text-neutral-300" />
+                            <CircleIcon size={6} weight="fill" className="text-neutral-500" />
                             <span className="text-right">{payment.surcharge_label}</span>
-                          </div>
+                          </small>
                         </div>
-                        <div className="text-sm text-neutral-600">{payment.description}</div>
+                        <p>{payment.description}</p>
                       </div>
                     )
                   })}
@@ -507,22 +483,16 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             >
               <div className="flex flex-col gap-3 w-full">
                 <div className="flex items-center w-full justify-between">
-                  <div className="text-sm text-neutral-800">Weight (troy oz):</div>
-                  <div className="text-sm text-neutral-600">{selectedProduct.gross.toFixed(4)}</div>
+                  <strong>Weight (troy oz):</strong>
+                  <p>{selectedProduct.gross.toFixed(4)}</p>
                 </div>
                 <div className="flex items-center w-full justify-between">
-                  <div className="text-sm text-neutral-800">Purity:</div>
-                  <div className="text-sm text-neutral-600">
-                    {selectedProduct.purity.toFixed(4)}
-                  </div>
+                  <strong>Purity:</strong>
+                  <p>{selectedProduct.purity.toFixed(4)}</p>
                 </div>
                 <div className="flex items-center w-full justify-between">
-                  <div className="text-sm text-neutral-800">
-                    {selectedProduct.metal_type} Content:
-                  </div>
-                  <div className="text-sm text-neutral-600">
-                    {selectedProduct.content.toFixed(4)}
-                  </div>
+                  <strong>{selectedProduct.metal_type} Content:</strong>
+                  <p>{selectedProduct.content.toFixed(4)}</p>
                 </div>
               </div>
             </AccordionSection>
@@ -532,28 +502,28 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
       {/* mobile */}
       <div className="flex flex-col lg:hidden items-center justify-center w-full gap-4 flex-1">
-        <div className="bg-card rounded-lg raised-off-page p-4 flex flex-col gap-4 w-full">
+        <div className="bg-card rounded-lg border border-border p-4 flex flex-col gap-4 w-full">
           <div className="flex flex-col w-full">
-            <h1 className="text-2xl text-neutral-800">{selectedProduct.name}</h1>
-            <div className="text-sm text-neutral-700">{selectedProduct.mint_name}</div>
+            <h1>{selectedProduct.name}</h1>
+            <small>{selectedProduct.mint_name}</small>
           </div>
           <div className="flex w-full justify-between items-center">
             <div className="flex flex-col items-start gap-0">
-              <div className="text-sm text-neutral-700">Price:</div>
-              <div className="text-xl text-neutral-800">
+              <small>Price:</small>
+              <h3>
                 <PriceNumberFlow value={price} />
-              </div>
+              </h3>
             </div>
             <div className="flex flex-col items-start gap-0">
-              <div className="text-sm text-neutral-700">Buyback:</div>
-              <div className="text-xl text-neutral-800">
+              <small>Buyback:</small>
+              <h3>
                 <PriceNumberFlow value={buybackPrice} />
-              </div>
+              </h3>
             </div>
           </div>
         </div>
         <div className="flex flex-col gap-3 w-full">
-          <div className="flex relative aspect-square bg-card raised-off-page rounded-lg h-full w-full">
+          <div className="flex relative aspect-square bg-card border border-border rounded-lg h-full w-full">
             <AnimatePresence mode="wait">
               <motion.div
                 key={selectedImage}
@@ -568,21 +538,21 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     src={selectedImage}
                     height={1000}
                     width={1000}
-                    className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
+                    className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
                     alt="Selected product view"
                   />
                 </Lens>
-                <div className="absolute bottom-0 left-1 flex justify-start section-label p-2">
+                <p className="absolute bottom-0 left-1 flex justify-start eyebrow p-2">
                   {selectedImage === selectedProduct.image_front ? 'Obverse' : 'Reverse'}
-                </div>
+                </p>
               </motion.div>
             </AnimatePresence>
           </div>
           <div className="flex items-center w-full gap-3 flex-1">
             <div
               className={cn(
-                'w-20 h-20 bg-background raised-off-page rounded-lg cursor-pointer transition-all',
-                selectedImage === selectedProduct.image_front && 'bg-card'
+                'w-20 h-20 bg-background rounded-lg cursor-pointer transition-all border',
+                selectedImage === selectedProduct.image_front ? 'bg-card border-primary' : 'border-border'
               )}
               onClick={() => setSelectedImage(selectedProduct.image_front)}
             >
@@ -590,14 +560,14 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 src={selectedProduct.image_front}
                 height={500}
                 width={500}
-                className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
+                className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
                 alt="Front thumbnail"
               />
             </div>
             <div
               className={cn(
-                'w-20 h-20 bg-background raised-off-page rounded-lg cursor-pointer transition-all',
-                selectedImage === selectedProduct.image_back && 'bg-card'
+                'w-20 h-20 bg-background rounded-lg cursor-pointer transition-all border',
+                selectedImage === selectedProduct.image_back ? 'bg-card border-primary' : 'border-border'
               )}
               onClick={() => setSelectedImage(selectedProduct.image_back)}
             >
@@ -605,7 +575,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 src={selectedProduct.image_back}
                 height={500}
                 width={500}
-                className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none drop-shadow-lg"
+                className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
                 alt="Back thumbnail"
               />
             </div>
@@ -632,9 +602,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
                     transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
                     className={cn(
-                      'relative flex w-full justify-center rounded-md px-3 py-2 font-normal cursor-pointer raised-off-page',
+                      'relative flex w-full justify-center rounded-md px-3 py-2 cursor-pointer',
                       isSelected
-                        ? 'bg-primarytext-white hover:text-white'
+                        ? 'bg-primary text-primary-foreground'
                         : 'bg-card text-neutral-800'
                     )}
                   >
@@ -642,13 +612,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       <CheckCircleIcon
                         size={16}
                         className={cn(
-                          'transition-opacity duration-200 text-white',
+                          'transition-opacity duration-200 text-primary-foreground',
                           isSelected ? 'opacity-100' : 'opacity-0'
                         )}
                       />
                     </div>
                     <div className="flex flex-col items-center gap-2">
-                      <div className="text-sm">{option.variant_label}</div>
+                      <div>{option.variant_label}</div>
                     </div>
                     <RadioGroupItem
                       id={option.name}
@@ -663,15 +633,10 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
         {/* cart buttons */}
         <div className="flex flex-col gap-1 w-full">
-          <div
-            className={cn(
-              'cursor-default bg-primary raised-off-page w-full rounded-lg py-1 text-white',
-            )}
-          >
+          <div className="w-full">
             {quantity === 0 ? (
               <Button
-                variant="ghost"
-                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
+                className="w-full"
                 onClick={() => {
                   addItem(selectedProduct)
                 }}
@@ -679,24 +644,18 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 Add to Cart
               </Button>
             ) : (
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center gap-3">
                 <Button
-                  variant="ghost"
-                  className="text-white hover:text-white"
+                  size="icon"
                   onClick={() => {
                     removeOne(selectedProduct)
                   }}
                 >
                   <Minus size={20} />
                 </Button>
-                <NumberFlow
-                  value={quantity}
-                  className="text-white text-lg font-semibold"
-                  trend={0}
-                />
+                <NumberFlow value={quantity} trend={0} />
                 <Button
-                  variant="ghost"
-                  className="text-white hover:text-white"
+                  size="icon"
                   onClick={() => {
                     addItem(selectedProduct)
                   }}
@@ -706,15 +665,10 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </div>
             )}
           </div>
-          <div
-            className={cn(
-              'cursor-default bg-primary raised-off-page w-full rounded-lg py-1 text-white',
-            )}
-          >
+          <div className="w-full">
             {sellQuantity === 0 ? (
               <Button
-                variant="ghost"
-                className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
+                className="w-full"
                 onClick={() =>
                   addSellItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
                 }
@@ -722,22 +676,16 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 Add to Sell Cart
               </Button>
             ) : (
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center gap-3">
                 <Button
-                  variant="ghost"
-                  className="text-white hover:text-white"
+                  size="icon"
                   onClick={() => removeOneSell({ type: 'product', data: selectedProduct })}
                 >
                   <Minus size={20} />
                 </Button>
-                <NumberFlow
-                  value={sellQuantity}
-                  className="text-white text-lg font-semibold"
-                  trend={0}
-                />
+                <NumberFlow value={sellQuantity} trend={0} />
                 <Button
-                  variant="ghost"
-                  className="text-white hover:text-white"
+                  size="icon"
                   onClick={() =>
                     addSellItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
                   }
@@ -758,9 +706,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               open={open.description}
               onToggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
             >
-              <div className="text-sm text-left whitespace-pre-line">
-                {selectedProduct.description}
-              </div>
+              <p className="text-left whitespace-pre-line">{selectedProduct.description}</p>
             </AccordionSection>
             <AccordionSection
               variant="raised"
@@ -768,47 +714,47 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               open={open.price}
               onToggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
             >
-              <div className="text-sm text-left">
+              <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className="flex w-full items-start justify-between pl-8">
-                      <div className="text-xs text-neutral-600">{spot?.name} Ask Spot</div>
-                      <div className="text-sm">
+                      <small>{spot?.name} Ask Spot</small>
+                      <p>
                         <PriceNumberFlow value={spot?.ask ?? 0} />
-                      </div>
+                      </p>
                     </div>
 
                     <div className="flex w-full items-start">
-                      <X size={16} className="text-neutral-700 px-0" />
+                      <X size={16} className="text-neutral-700" />
                       <div className="flex w-full items-start justify-between pl-4">
-                        <div className="text-xs text-neutral-600">Content (oz)</div>
-                        <div className="text-sm">{selectedProduct.content}</div>
+                        <small>Content (oz)</small>
+                        <p>{selectedProduct.content}</p>
                       </div>
                     </div>
 
                     <div className="flex w-full items-start">
                       {askOverOrUnder >= 0 ? (
-                        <Plus size={16} className="text-neutral-700 px-0" />
+                        <Plus size={16} className="text-neutral-700" />
                       ) : (
-                        <Minus size={16} className="text-neutral-700 px-0" />
+                        <Minus size={16} className="text-neutral-700" />
                       )}
 
                       <div className="flex w-full items-start justify-between pl-4">
-                        <div className="text-xs text-neutral-600">Ask Premium</div>
-                        <div className="text-sm">
+                        <small>Ask Premium</small>
+                        <p>
                           <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
-                        </div>
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
-                    <Equal size={16} className="text-neutral-700 px-0" />
+                    <Equal size={16} className="text-neutral-700" />
                     <div className="flex w-full items-start justify-between pl-4">
-                      <div className="text-xs text-neutral-600">Total Ask</div>
-                      <div className="text-sm text-neutral-900">
+                      <small>Total Ask</small>
+                      <strong>
                         <PriceNumberFlow value={price} />
-                      </div>
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -820,47 +766,47 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               open={open.buyback}
               onToggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
             >
-              <div className="text-sm text-left">
+              <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                     <div className="flex w-full items-start justify-between pl-8">
-                      <div className="text-xs text-neutral-600">{spot?.name} Bid Spot</div>
-                      <div className="text-sm">
+                      <small>{spot?.name} Bid Spot</small>
+                      <p>
                         <PriceNumberFlow value={spot?.bid ?? 0} />
-                      </div>
+                      </p>
                     </div>
 
                     <div className="flex w-full items-start">
-                      <X size={16} className="text-neutral-700 px-0" />
+                      <X size={16} className="text-neutral-700" />
                       <div className="flex w-full items-start justify-between pl-4">
-                        <div className="text-xs text-neutral-600">Content (oz)</div>
-                        <div className="text-sm">{selectedProduct.content}</div>
+                        <small>Content (oz)</small>
+                        <p>{selectedProduct.content}</p>
                       </div>
                     </div>
 
                     <div className="flex w-full items-start">
                       {bidOverOrUnder >= 0 ? (
-                        <Plus size={16} className="text-neutral-700 px-0" />
+                        <Plus size={16} className="text-neutral-700" />
                       ) : (
-                        <Minus size={16} className="text-neutral-700 px-0" />
+                        <Minus size={16} className="text-neutral-700" />
                       )}
 
                       <div className="flex w-full items-start justify-between pl-4">
-                        <div className="text-xs text-neutral-600">Bid Premium</div>
-                        <div className="text-sm">
+                        <small>Bid Premium</small>
+                        <p>
                           <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
-                        </div>
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
-                    <Equal size={16} className="text-neutral-700 px-0" />
+                    <Equal size={16} className="text-neutral-700" />
                     <div className="flex w-full items-start justify-between pl-4">
-                      <div className="text-xs text-neutral-600">Total Bid</div>
-                      <div className="text-sm text-neutral-900">
+                      <small>Total Bid</small>
+                      <strong>
                         <PriceNumberFlow value={buybackPrice} />
-                      </div>
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -875,28 +821,28 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="flex flex-col w-full gap-3">
                 {Object.entries(salesOrderServiceOptions).map(([serviceType, option]) => (
                   <div key={serviceType} className="flex items-center justify-between w-full">
-                    <div className="text-sm text-neutral-600">
+                    <p>
                       {option.label} {`(${option.time})`}
-                    </div>
-                    <div className="text-base text-neutral-800">
+                    </p>
+                    <strong>
                       <PriceNumberFlow value={option.cost} />
-                    </div>
+                    </strong>
                   </div>
                 ))}
-                <div className="separator-inset" />
+                <div className="h-px w-full bg-border" />
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <ShieldCheckIcon className='text-primary' size={20} />
+                  <p className="flex items-center gap-1">
+                    <ShieldCheckIcon className="text-primary" size={20} />
                     Every shipment is fully insured.
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <ClockIcon className='text-primary' size={20} />
+                  </p>
+                  <p className="flex items-center gap-1">
+                    <ClockIcon className="text-primary" size={20} />
                     Ships the same day we receive your payment.
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-neutral-600">
-                    <TagIcon className='text-primary' size={20} />
+                  </p>
+                  <p className="flex items-center gap-1">
+                    <TagIcon className="text-primary" size={20} />
                     Free shipping for orders over $1000.
-                  </div>
+                  </p>
                 </div>
               </div>
             </AccordionSection>
@@ -924,15 +870,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <div className="flex w-full gap-2 items-center">
                           <div className="flex items-center gap-1">
                             <Icon className='text-primary' size={20} />
-                            <div className="text-base text-neutral-800">{payment.label}</div>
+                            <h5>{payment.label}</h5>
                           </div>
-                          <div className="text-neutral-600 text-xs flex items-center gap-2 pt-1 pl-4">
+                          <small className="flex items-center gap-2 pt-1 pl-4">
                             <span className="text-left">{payment.time_delay}</span>
-                            <CircleIcon size={6} weight="fill" className="text-neutral-300" />
+                            <CircleIcon size={6} weight="fill" className="text-neutral-500" />
                             <span className="text-right">{payment.surcharge_label}</span>
-                          </div>
+                          </small>
                         </div>
-                        <div className="text-sm text-neutral-600">{payment.description}</div>
+                        <p>{payment.description}</p>
                       </div>
                     )
                   })}
@@ -946,22 +892,16 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             >
               <div className="flex flex-col gap-3 w-full">
                 <div className="flex items-center w-full justify-between">
-                  <div className="text-sm text-neutral-800">Weight (troy oz):</div>
-                  <div className="text-sm text-neutral-600">{selectedProduct.gross.toFixed(4)}</div>
+                  <strong>Weight (troy oz):</strong>
+                  <p>{selectedProduct.gross.toFixed(4)}</p>
                 </div>
                 <div className="flex items-center w-full justify-between">
-                  <div className="text-sm text-neutral-800">Purity:</div>
-                  <div className="text-sm text-neutral-600">
-                    {selectedProduct.purity.toFixed(4)}
-                  </div>
+                  <strong>Purity:</strong>
+                  <p>{selectedProduct.purity.toFixed(4)}</p>
                 </div>
                 <div className="flex items-center w-full justify-between">
-                  <div className="text-sm text-neutral-800">
-                    {selectedProduct.metal_type} Content:
-                  </div>
-                  <div className="text-sm text-neutral-600">
-                    {selectedProduct.content.toFixed(4)}
-                  </div>
+                  <strong>{selectedProduct.metal_type} Content:</strong>
+                  <p>{selectedProduct.content.toFixed(4)}</p>
                 </div>
               </div>
             </AccordionSection>

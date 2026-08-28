@@ -65,11 +65,11 @@ export default function UserForm() {
 
   if (isPending) {
     return (
-      <section className="w-full bg-card raised-off-page p-4 rounded-lg">
+      <section className="w-full bg-card p-4 rounded-lg">
         <div className="space-y-4">
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-8 w-40" />
-          <div className="h-px w-full bg-neutral-200 my-4" />
+          <div className="h-px w-full bg-border my-4" />
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-10 w-full" />
@@ -103,9 +103,9 @@ export default function UserForm() {
     !emailVerified && !emailSent ? handleEmailVerification : undefined
 
   return (
-    <section className="w-full bg-card raised-off-page p-4 rounded-lg">
-      <div className="border-b border-neutral-200 pb-6 mb-6">
-        <p className="text-xs text-neutral-500 mb-6 uppercase tracking-widest">Details</p>
+    <section className="w-full bg-card p-4 rounded-lg">
+      <div className="border-b border-border pb-6 mb-6">
+        <p className="eyebrow mb-6">Details</p>
 
         <Form {...userForm}>
           <form onSubmit={userForm.handleSubmit(handleUserSubmit)} className="space-y-5">
@@ -114,7 +114,6 @@ export default function UserForm() {
               name="name"
               label="Name"
               type="text"
-              className="bg-highest border-1 border-border"
               showIcon={false}
             />
 
@@ -124,11 +123,10 @@ export default function UserForm() {
                 name="email"
                 label="Email"
                 type="email"
-                className="bg-highest border-1 border-border"
                 showIcon={false}
               />
               {changeEmailMutation.isSuccess && user?.emailVerified === true && (
-                <p className="mt-1 text-xs text-neutral-500">
+                <p className="mt-1">
                   An email has been sent to confirm the change. Follow that link before making
                   further changes.
                 </p>
@@ -138,7 +136,7 @@ export default function UserForm() {
             <Button
               type="submit"
               variant="secondary"
-              className="w-full mb-8 raised-off-page"
+              className="w-full mb-8"
               disabled={updateUserMutation.isPending || changeEmailMutation.isPending}
             >
               {updateUserMutation.isPending || changeEmailMutation.isPending
@@ -149,8 +147,8 @@ export default function UserForm() {
         </Form>
       </div>
 
-      <div className="border-b border-neutral-200 pb-6 mb-6">
-        <p className="text-xs text-neutral-500 mb-4 uppercase tracking-widest">Verification</p>
+      <div className="border-b border-border pb-6 mb-6">
+        <p className="eyebrow mb-4">Verification</p>
 
         <div className="space-y-4">
           <AccountAction
@@ -173,13 +171,13 @@ export default function UserForm() {
       </div>
 
       <div>
-        <p className="text-xs text-neutral-500 mb-2 uppercase tracking-widest">Dorado Credit</p>
+        <p className="eyebrow mb-2">Dorado Credit</p>
 
         <div className="flex items-baseline justify-between">
-          <span className="text-xs text-neutral-500">Current balance</span>
-          <span className="text-lg sm:text-xl font-semibold text-neutral-900">
+          <small>Current balance</small>
+          <strong>
             <PriceNumberFlow value={user?.dorado_funds ?? 0} />
-          </span>
+          </strong>
         </div>
       </div>
     </section>

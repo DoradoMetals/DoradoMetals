@@ -20,6 +20,7 @@ import PaymentSelect from '@/features/checkout/sales-order-checkout/payment/paym
 import StripeWrapper from '@/features/stripe/ui/StripeWrapper'
 import OrderSummary from '@/features/checkout/sales-order-checkout/summary/orderSummary'
 import { useCreateSalesOrder } from '@/features/orders/salesOrders/users/queries'
+import { Separator } from '@/shared/ui/base/separator'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -126,23 +127,22 @@ export default function SalesOrderCheckout() {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10 lg:mt-30">
         <div className="relative mb-5">
-          <ShoppingCartIcon size={80} strokeWidth={1.5} className='text-primary' />
-          <div className="absolute -top-6 right-3.5 border border-borderr text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
-            0
+          <ShoppingCartIcon size={80} strokeWidth={1.5} className="text-primary" />
+          <div className="absolute -top-6 right-3.5 border border-border rounded-full w-10 h-10 flex items-center justify-center">
+            <strong className="text-primary">0</strong>
           </div>
         </div>
 
         <div className="flex-col items-center gap-1 mb-5">
-          <h2 className="text-xl text-neutral-900">Your cart is empty!</h2>
-          <p className="text-xs text-neutral-700">Please add items before checking out.</p>
+          <h2>Your cart is empty!</h2>
+          <p>Please add items before checking out.</p>
         </div>
 
         <Button
-          variant="secondary"
+          size="xl"
           onClick={() => {
             router.push('/buy')
           }}
-          className="raised-off-page bg-primary text-white hover:text-white px-10"
         >
           Start Shopping
         </Button>
@@ -160,7 +160,7 @@ export default function SalesOrderCheckout() {
               isLoading={isAddressesPending}
               orderPrices={orderPrices}
             />
-            <div className="separator-inset" />
+            <Separator />
             <PaymentSelect orderPrices={orderPrices} />
             {clientSecret && data.address && cardNeeded && (
               <StripeWrapper
@@ -177,7 +177,7 @@ export default function SalesOrderCheckout() {
             <OrderSummary orderPrices={orderPrices} />
             {!cardNeeded ? (
               <Button
-                className="raised-off-page bg-primary w-full text-white"
+                className="w-full"
                 disabled={isOrderCreating || isLoading || !data.address?.is_valid || isPending}
                 onClick={handleSubmit}
               >
@@ -185,7 +185,7 @@ export default function SalesOrderCheckout() {
               </Button>
             ) : (
               <Button
-                className="raised-off-page bg-primary w-full text-white"
+                className="w-full"
                 disabled={
                   isOrderCreating ||
                   isLoading ||

@@ -23,13 +23,13 @@ export default function RatesPage() {
     return m
   }, [rates])
 
-  if (isLoading) return <div className="p-6 text-sm text-neutral-600">Loading rates…</div>
-  if (isError) return <div className="p-6 text-sm text-destructive">Failed to load rates.</div>
+  if (isLoading) return <p className="p-6">Loading rates…</p>
+  if (isError) return <p className="p-6 text-destructive">Failed to load rates.</p>
 
   return (
     <div className="w-full grid grid-cols-1 xl:grid-cols-2 gap-6">
       {[...byMetal.entries()].map(([metal, group]) => (
-        <RatesCard key={metal} metal={metal} rates={group} className="raised-off-page" />
+        <RatesCard key={metal} metal={metal} rates={group} />
       ))}
     </div>
   )

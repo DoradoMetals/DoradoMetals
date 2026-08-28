@@ -11,6 +11,7 @@ import ServiceSelector from './serviceSelector'
 import type { SalesOrderQuote } from '@dorado/contracts'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
+import { Separator } from '@/shared/ui/base/separator'
 
 interface ShippingSelectProps {
   addresses: Address[]
@@ -47,13 +48,11 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
 
       {isEmpty ? (
         <div className="flex flex-col items-center gap-4 mb-6">
-          <div className="text-center text-lg text-neutral-800">
-            Create an address to continue checkout.
-          </div>
+          <p className="text-center">Create an address to continue checkout.</p>
           <Button
             type="button"
             effect="expandIcon"
-            variant="outline"
+            variant="secondary"
             size="sm"
             iconPlacement="right"
             icon={Plus}
@@ -61,9 +60,8 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
             onClick={() => {
               openDrawer('address')
             }}
-            className="border-primary text-primary hover:text-neutral-900 hover:bg-primary"
           >
-            <div className="flex items-center gap-2">Add Address</div>
+            Add Address
           </Button>
         </div>
       ) : (
@@ -82,9 +80,9 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
               />
 
               {address && !address.is_valid && (
-                <div className="text-sm text-destructive rounded-md">
+                <p className="text-destructive">
                   Please provide a valid address to continue checkout.
-                </div>
+                </p>
               )}
             </div>
           </div>
@@ -92,7 +90,7 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
       )}
 
       <div className="flex flex-col gap-6">
-        <div className="separator-inset" />
+        <Separator />
         <ServiceSelector orderPrices={orderPrices} />
       </div>
     </div>

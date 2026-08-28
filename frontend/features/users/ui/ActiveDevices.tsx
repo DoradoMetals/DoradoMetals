@@ -16,30 +16,24 @@ export function ActiveDevices() {
   const revokeSession = useRevokeSession()
 
   if (isPending) {
-    return <p className="text-xs text-neutral-500 mt-2">Loading active devices…</p>
+    return <p className="mt-2">Loading active devices…</p>
   }
 
   if (!sessions.length) {
-    return <p className="text-xs text-neutral-500 mt-2">No active devices.</p>
+    return <p className="mt-2">No active devices.</p>
   }
 
   return (
-    <div className=" mt-3 rounded-lg border border-neutral-200 overflow-hidden text-xs">
+    <div className="mt-3 rounded-lg border border-border overflow-hidden">
       <Table>
-        <TableHeader className="bg-neutral-50">
+        <TableHeader surface="card">
           <TableRow className="h-8">
-            <TableHead className="text-xs md:text-sm text-neutral-600 text-center">
-              Device
-            </TableHead>
-            <TableHead className="text-xs md:text-sm text-neutral-600 text-center">
-              Browser
-            </TableHead>
-            <TableHead className="text-xs md:text-sm text-neutral-600 text-center">OS</TableHead>
-            <TableHead className="text-xs md:text-sm text-neutral-600 text-center">IP</TableHead>
-            <TableHead className="text-xs md:text-sm text-neutral-600 text-center">
-              Expires
-            </TableHead>
-            <TableHead className="" />
+            <TableHead className="text-center">Device</TableHead>
+            <TableHead className="text-center">Browser</TableHead>
+            <TableHead className="text-center">OS</TableHead>
+            <TableHead className="text-center">IP</TableHead>
+            <TableHead className="text-center">Expires</TableHead>
+            <TableHead />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -63,27 +57,24 @@ export function ActiveDevices() {
                   </div>
                 </TableCell>
 
-                <TableCell className="text-xs md:text-sm text-neutral-800 text-center">
-                  {ua.browserName}
-                </TableCell>
+                <TableCell className="text-center">{ua.browserName}</TableCell>
 
-                <TableCell className="text-xs md:text-sm text-neutral-800 text-center">
+                <TableCell className="text-center">
                   {ua.osName + ' ' + ua.osVersion}
                 </TableCell>
 
-                <TableCell className="text-xs md:text-sm text-neutral-700 text-center">
+                <TableCell className="text-center">
                   {s.ipAddress === '' ? '—' : s.ipAddress}
                 </TableCell>
 
-                <TableCell className="text-xs md:text-sm text-neutral-800 text-center">
-                  {expiresAt}
-                </TableCell>
+                <TableCell className="text-center">{expiresAt}</TableCell>
 
-                <TableCell className="text-xs md:text-sm text-center">
+                <TableCell className="text-center">
                   <Button
                     type="button"
                     variant="link"
-                    className="text-xs text-destructive"
+                    intent="danger"
+                    size="xs"
                     onClick={() => revokeSession.mutate(s.token)}
                     disabled={revokeSession.isPending}
                   >

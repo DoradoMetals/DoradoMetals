@@ -4,7 +4,6 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo, useState } from 'react'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { cn } from '@/shared/utils/cn'
 import { Label } from '@/shared/ui/base/label'
 import { Input } from '@/shared/ui/base/input'
 import { DisplayToggle } from '@/shared/ui/DisplayToggle'
@@ -38,18 +37,18 @@ export default function CarriersDrawer({
   if (!carrier) return null
 
   return (
-    <Drawer open={isDrawerOpen} setOpen={closeDrawer} className="glass-panel">
+    <Drawer open={isDrawerOpen} setOpen={closeDrawer}>
       <Header carrier={carrier} />
-      <div className="glass-divider" />
+      <hr />
       <div className="space-y-8">
         <Status carrier={carrier} />
-        <div className="glass-divider" />
+        <hr />
         <Details carrier={carrier} />
-        <div className="glass-divider" />
+        <hr />
         <Contact carrier={carrier} />
-        <div className="glass-divider" />
+        <hr />
         <Services carrier={carrier} />
-        <div className="glass-divider" />
+        <hr />
       </div>
     </Drawer>
   )
@@ -66,11 +65,11 @@ function Header({ carrier }: { carrier: Carrier }) {
           {logo ? (
             <img src={logo ?? ''} alt={`${carrier.organization.name} logo`} height={100} width={100} />
           ) : (
-            <div className="text-xl text-neutral-900">{carrier.organization.name}</div>
+            <h2>{carrier.organization.name}</h2>
           )}
         </div>
 
-        <StatusChip positive={active} className="text-base h-fit">
+        <StatusChip positive={active} size="lg" className="h-fit">
           {active ? 'Active' : 'Inactive'}
         </StatusChip>
       </div>
@@ -91,31 +90,29 @@ function Details({ carrier }: { carrier: Carrier }) {
 
   return (
     <div className="flex flex-col w-full gap-4">
-      <div className="section-label mb-4">Details</div>
+      <p className="eyebrow mb-4">Details</p>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="carrier_name" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="carrier_name" className="pl-1">
           Name
         </Label>
         <Input
           id="carrier_name"
           placeholder="Carrier name..."
           type="text"
-          className="on-glass"
           defaultValue={carrier.organization.name ?? ''}
           onBlur={(e) => handleOrgUpdate({ name: e.target.value })}
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="carrier_logo" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="carrier_logo" className="pl-1">
           Logo
         </Label>
         <Input
           id="carrier_logo"
           placeholder="/logos/fedex.svg or https://..."
           type="text"
-          className="on-glass"
           defaultValue={carrier.logo ?? ''}
           onBlur={(e) => updateCarrier.mutate({ ...carrier, logo: e.target.value })}
         />
@@ -132,31 +129,29 @@ function Contact({ carrier }: { carrier: Carrier }) {
 
   return (
     <div className="flex flex-col w-full gap-4">
-      <div className="section-label mb-4">Contact</div>
+      <p className="eyebrow mb-4">Contact</p>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="carrier_email" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="carrier_email" className="pl-1">
           Email
         </Label>
         <Input
           id="carrier_email"
           placeholder="support@carrier.com"
           type="text"
-          className="on-glass"
           defaultValue={carrier.organization.email ?? ''}
           onBlur={(e) => handleOrgUpdate({ email: e.target.value })}
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="carrier_phone" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="carrier_phone" className="pl-1">
           Phone
         </Label>
         <Input
           id="carrier_phone"
           placeholder="(555) 555-5555"
           type="text"
-          className="on-glass "
           defaultValue={formatPhoneNumber(carrier.organization.phone ?? '')}
           onBlur={(e) => handleOrgUpdate({ phone: normalizePhone(e.target.value) })}
         />
@@ -175,16 +170,12 @@ function Status({ carrier }: { carrier: Carrier }) {
   return (
     <div className="flex items-center justify-center w-full">
       <div className="flex flex-col gap-4 w-full">
-        <div className="section-label">Active</div>
+        <p className="eyebrow">Active</p>
 
         <DisplayToggle
           label=""
           value={!!carrier.organization.enabled}
           onChange={(v) => handleOrgUpdate({ enabled: v })}
-          onClass="success-on-glass rounded-l-lg"
-          offClass="destructive-on-glass rounded-r-lg"
-          groupClassName="rounded-none"
-          inactiveClass="on-glass"
         />
       </div>
     </div>
@@ -255,19 +246,15 @@ function Services({ carrier }: { carrier: Carrier }) {
 
         return (
           <Button
-            variant="default"
+            variant="secondary"
+            intent={active ? 'danger' : 'success'}
+            size="xs"
             onClick={(e) => {
               e.stopPropagation()
               toggleActive(svc)
             }}
             disabled={isThisPending}
-            className={cn(
-              'cursor-pointer shadow-lg min-w-24 px-2 py-0 border rounded-lg text-xs font-semibold inline-flex items-center justify-center',
-              active
-                ? 'destructive-on-glass'
-                : 'success-on-glass',
-              isThisPending && 'opacity-60 cursor-not-allowed'
-            )}
+            className="min-w-24"
           >
             {label}
           </Button>
@@ -278,7 +265,7 @@ function Services({ carrier }: { carrier: Carrier }) {
 
   return (
     <div className="space-y-3">
-      <div className="section-label">Services</div>
+      <p className="eyebrow">Services</p>
 
       <DataTable<CarrierService>
         data={services}
@@ -286,11 +273,9 @@ function Services({ carrier }: { carrier: Carrier }) {
         initialPageSize={8}
         showCardBackground={false}
         hidePagination={true}
-        searchClass="on-glass"
-        shadowClass="shadow-none"
-        wrapperClassName="p-1 on-glass"
+        wrapperClassName="p-1 bg-transparent"
         showHeaders={false}
-        getRowClassName={() => 'hover:cursor-default'}
+        getRowClassName={() => 'cursor-default'}
       />
     </div>
   )

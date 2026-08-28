@@ -45,10 +45,8 @@ export function AccountAction({
           />
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-medium text-neutral-900">{label}</span>
-          {description && (
-            <span className="text-xs text-neutral-500 leading-tight">{description}</span>
-          )}
+          <strong>{label}</strong>
+          {description && <small>{description}</small>}
         </div>
       </div>
 
@@ -57,14 +55,12 @@ export function AccountAction({
           type="button"
           size="sm"
           variant="secondary"
-          className="text-xs py-1 h-8 w-20 md:w-22 raised-off-page"
+          className="w-20 md:w-22"
           onClick={onClick}
           disabled={disabled}
         >
-          <span className="flex items-center gap-1">
-            {showCheckOnComplete && disabled && <Check size={16} />}
-            {buttonLabel}
-          </span>
+          {showCheckOnComplete && disabled && <Check size={16} />}
+          {buttonLabel}
         </Button>
       )}
     </div>

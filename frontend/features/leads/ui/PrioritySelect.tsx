@@ -1,12 +1,17 @@
 'use client'
 
 import { cn } from '@/shared/utils/cn'
+import { Button } from '@/shared/ui/base/button'
 import { LEAD_PRIORITIES, LeadPriority } from '@/features/leads/types'
 
-const activeClass: Record<LeadPriority, string> = {
-  High: 'destructive-on-glass',
-  Medium: 'primary-on-glass',
-  Low: 'success-on-glass',
+// The three hand-rolled tinted glass segments are the Button intent axis
+// (ruling 25): High is danger, Low is success, Medium is the neutral middle.
+// Selected = `secondary` (outlined in the intent colour, which is what the
+// tinted glass chip was reaching for); unselected = `tertiary`.
+const PRIORITY_INTENT: Record<LeadPriority, 'danger' | 'neutral' | 'success'> = {
+  High: 'danger',
+  Medium: 'neutral',
+  Low: 'success',
 }
 
 export function PrioritySelect({
@@ -21,18 +26,17 @@ export function PrioritySelect({
   return (
     <div className={cn('grid grid-cols-3 w-full gap-1', className)}>
       {LEAD_PRIORITIES.map((p) => (
-        <button
+        <Button
           key={p}
           type="button"
+          variant={value === p ? 'secondary' : 'tertiary'}
+          intent={value === p ? PRIORITY_INTENT[p] : 'neutral'}
           aria-pressed={value === p}
           onClick={() => onChange(p)}
-          className={cn(
-            'h-10 rounded-lg text-sm font-medium transition-colors cursor-pointer',
-            value === p ? activeClass[p] : 'on-glass text-neutral-600 hover:text-neutral-900'
-          )}
+          className="w-full"
         >
           {p}
-        </button>
+        </Button>
       ))}
     </div>
   )

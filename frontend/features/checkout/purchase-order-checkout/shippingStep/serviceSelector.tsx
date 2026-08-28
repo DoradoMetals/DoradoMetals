@@ -61,31 +61,30 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
               key={serviceType}
               htmlFor={serviceType}
               className={cn(
-                'raised-off-page relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md',
+                'relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card',
                 isDisabled && 'opacity-50 pointer-events-none'
               )}
-
             >
-              <div className="flex items-center gap-2 text-sm font-medium text-neutral-800">
-                {option.icon && <option.icon size={24} className='text-primary' />}
-                {option.serviceDescription}
+              <div className="flex items-center gap-2">
+                {option.icon && <option.icon size={24} className="text-primary" />}
+                <strong>{option.serviceDescription}</strong>
               </div>
 
               <div className="flex items-center w-full justify-between">
-                <div className="text-sm text-neutral-600">
+                <small>
                   {rate?.transitTime
                     ? formatTimeDiff(rate.transitTime)
                     : rate?.deliveryDay
                     ? `Arrives ${rate.deliveryDay}`
                     : 'Getting estimated delivery...'}
-                </div>
-                <div className="text-base text-neutral-800">
+                </small>
+                <strong>
                   {rate?.netCharge != null ? (
                     <PriceNumberFlow value={rate.netCharge} />
                   ) : (
                     <span className="text-neutral-500 select-none">&nbsp;</span>
                   )}
-                </div>
+                </strong>
               </div>
 
               <RadioGroupItem id={serviceType} value={serviceType} className="sr-only" />

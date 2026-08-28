@@ -83,25 +83,24 @@ export function StateComboboxField<TFieldValues extends FieldValues>({
 
         return (
           <div className={cn('space-y-1 py-1', className)}>
-            <Label className="text-xs text-neutral-700">{label}</Label>
+            <Label>{label}</Label>
 
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
                 <Button
                   type="button"
-                  variant="default"
+                  variant="secondary"
+                  size="sm"
                   role="combobox"
                   aria-expanded={open}
                   disabled={disabled}
                   className={cn(
-                    'w-full bg-highest border-1 border-border hover:bg-highest justify-between max-h-9 text-sm md:text-base text-neutral-800 font-normal',
+                    'w-full justify-between',
                     !selectedName && 'text-muted-foreground'
                   )}
                 >
-                  <span className="truncate text-neutral-800">
-                    {selectedName ? selectedName : placeholder}
-                  </span>
-                  <CaretDownIcon className="text-neutral-600" size={16} />
+                  <span className="truncate">{selectedName ? selectedName : placeholder}</span>
+                  <CaretDownIcon size={16} />
                 </Button>
               </PopoverTrigger>
 
@@ -114,8 +113,8 @@ export function StateComboboxField<TFieldValues extends FieldValues>({
                   'max-w-none'
                 )}
               >
-                <Command className="w-full bg-highest">
-                  <CommandInput placeholder={searchPlaceholder} className="w-full bg-highest" />
+                <Command surface="highest" className="w-full">
+                  <CommandInput placeholder={searchPlaceholder} className="w-full" />
 
                   <CommandList className="w-full">
                     <CommandEmpty>No states found.</CommandEmpty>
@@ -131,17 +130,14 @@ export function StateComboboxField<TFieldValues extends FieldValues>({
                               field.onChange(s.code)
                               setOpen(false)
                             }}
-                            className={cn(
-                              'hover:bg-background! cursor-pointer',
-                              isSelected && 'bg-background'
-                            )}
+                            className="cursor-pointer"
                           >
                             <CheckIcon
                               className={cn(isSelected ? 'opacity-100' : 'opacity-0')}
                               size={16}
                             />
-                            <span className="flex-1 text-neutral-800">{s.name}</span>
-                            <span className="text-xs text-neutral-600">{s.code}</span>
+                            <span className="flex-1">{s.name}</span>
+                            <small>{s.code}</small>
                           </CommandItem>
                         )
                       })}
@@ -152,7 +148,7 @@ export function StateComboboxField<TFieldValues extends FieldValues>({
             </Popover>
 
             {fieldState.error?.message ? (
-              <div className="text-xs text-destructive">{fieldState.error.message}</div>
+              <p className="text-destructive">{fieldState.error.message}</p>
             ) : null}
           </div>
         )

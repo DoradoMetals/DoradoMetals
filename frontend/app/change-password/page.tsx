@@ -7,9 +7,9 @@ import ChangePasswordForm from '@/features/auth/ui/ChangePasswordForm'
 export default function Page() {
   return (
     <ProtectedPage requiredRoles={protectedRoutes.changePassword.roles}>
-      <div className="mt-12 lg:mt-32 ">
+      <main className="mt-12 lg:mt-32">
         <ChangePasswordForm />
-      </div>
+      </main>
     </ProtectedPage>
   )
 }

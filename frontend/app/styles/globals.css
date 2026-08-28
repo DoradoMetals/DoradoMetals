@@ -2,8 +2,8 @@
 @plugin "tailwindcss-animate";
 
 @import './theme.css';
-@import './gradients.css';
 @import './base.css';
+@import './typography.css';
 @import './components.css';
 @import './drawer.css';
 @import './icons.css';

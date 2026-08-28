@@ -77,8 +77,7 @@ export default function ReviewsPage() {
         accessorKey: 'review_text',
         align: 'left',
         enableColumnFilter: true,
-        textClassName:
-          'text-xs sm:text-sm text-neutral-900 line-clamp-2 max-w-[38ch]',
+        textClassName: 'line-clamp-2 max-w-[38ch]',
         size: 320,
       }),
 
@@ -169,9 +168,6 @@ export default function ReviewsPage() {
         searchPlaceholder="Search by reviewer name..."
         enableColumnVisibility
         onRowClick={handleRowClick}
-        getRowClassName={() =>
-          'hover:bg-background hover:cursor-pointer'
-        }
         createIcon={PlusIcon}
         createConfig={createConfig}
         filterCards={filterCards}

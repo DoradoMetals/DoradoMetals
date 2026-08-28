@@ -71,13 +71,11 @@ export default function LeadsPage() {
       size: 160,
       getChip: ({ row }) => {
         const priority = (row as Lead).priority
-        const className =
-          priority === 'High'
-            ? 'bg-destructive/20 text-destructive border-destructive'
-            : priority === 'Low'
-            ? 'bg-success/20 text-success border-success'
-            : 'bg-primary/20 text-primary border-primary'
-        return { label: priority ?? 'Medium', className }
+        /* 'Medium' was `bg-primary/20 text-primary` - the neutral tone, which
+           StatusChip fills solid rather than washing (a 15% white wash on a
+           near-black ground is not a state anyone can see). */
+        const tone = priority === 'High' ? 'danger' : priority === 'Low' ? 'success' : 'neutral'
+        return { label: priority ?? 'Medium', tone } as const
       },
     }),
     TextColumn<Lead>({
@@ -98,12 +96,7 @@ export default function LeadsPage() {
       size: 150,
       getChip: ({ row }) => {
         const contacted = !!(row as Lead).contacted
-        return {
-          label: contacted ? 'Yes' : 'No',
-          className: contacted
-            ? 'bg-success/20 text-success border-success'
-            : 'bg-destructive/20 text-destructive border-destructive',
-        }
+        return { label: contacted ? 'Yes' : 'No', tone: contacted ? 'success' : 'danger' } as const
       },
     }),
   ]
@@ -215,7 +208,6 @@ export default function LeadsPage() {
         createIcon={PlusIcon}
         enableColumnVisibility
         onRowClick={handleRowClick}
-        getRowClassName={() => 'hover:bg-background hover:cursor-pointer'}
         filterCards={filterCards}
         createConfig={createConfig}
       />

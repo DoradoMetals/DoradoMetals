@@ -20,7 +20,6 @@ import {
 import { userRoleOptions } from '@/features/users/types'
 import { useGetSession } from '@/features/auth/queries'
 import Drawer from '@/shared/ui/base/drawer'
-import { cn } from '@/shared/utils/cn'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import AddressList from '@/features/addresses/ui/AddressList'
 import UserForm from '@/features/users/ui/UserForm'
@@ -35,21 +34,21 @@ export default function Page() {
   const { user } = useGetSession()
   const router = useRouter()
   return (
-    <div className="flex flex-col h-full items-center gap-4">
+    <main className="flex flex-col h-full items-center gap-4">
       {user ? (
         <AccountShell />
       ) : (
         <div className="w-full h-full flex flex-1 flex-col items-center justify-center text-center my-24 max-w-xs">
           <div className="mb-8">
-            <UserRoundX size={96} className="text-neutral-800" strokeWidth={1} />
+            <UserRoundX size={96} strokeWidth={1} />
           </div>
           <div className="flex-col items-center gap-1 mb-8">
-            <h2 className="text-2xl text-neutral-900 tracking-wide">You're not signed in!</h2>
-            <p className="text-sm text-neutral-600">Please sign in to view your account.</p>
+            <h2>You're not signed in!</h2>
+            <p>Please sign in to view your account.</p>
           </div>
           <Button
-            variant="default"
-            className="px-25 max-w-xl bg-primary raised-off-page text-white"
+            size="xl"
+            className="w-full max-w-xl"
             onClick={() => {
               router.push('/authentication')
             }}
@@ -58,7 +57,7 @@ export default function Page() {
           </Button>
         </div>
       )}
-    </div>
+    </main>
   )
 }
 
@@ -128,7 +127,7 @@ function AccountShell() {
       case 'bought':
         return <SalesOrdersContent />
       case 'ledger':
-        return <div className="text-sm text-neutral-700">TODO: Ledger</div>
+        return <p>TODO: Ledger</p>
       default:
         return null
     }
@@ -140,13 +139,14 @@ function AccountShell() {
     <div className="w-full h-full max-w-4xl">
       <div className="md:hidden">
         <div className="w-full py-2 flex items-center justify-between">
-          <button
+          <Button
+            variant="tertiary"
             onClick={() => openDrawer('accountSidebar')}
-            className="flex items-center gap-2 text-neutral-800 hover:text-primary"
+            className="flex items-center gap-2"
           >
             <CaretLeftIcon size={24} />
-            <span className="text-base font-medium ">{currentLabel}</span>
-          </button>
+            <span>{currentLabel}</span>
+          </Button>
         </div>
       </div>
 
@@ -161,19 +161,19 @@ function AccountShell() {
           roleTitle={user?.name ?? ''}
           roleSubtitle={roleMeta.label ?? 'User'}
           content={<div className="w-full px-4">{content}</div>}
-          navClass="raised-off-page"
+          navClass="bg-card border border-border"
         />
       </div>
 
       <div className="md:hidden p-4">
-        <main className="w-full">{content}</main>
+        <div className="w-full">{content}</div>
       </div>
 
       <Drawer
         open={activeDrawer === 'accountSidebar'}
         setOpen={(o) => (o ? openDrawer('accountSidebar') : closeDrawer())}
         anchor="left"
-        className={cn('fixed top-0 h-full bg-card p-2 shadow-2xl rounded-none')}
+        className="fixed top-0 h-full bg-highest border border-border p-2 rounded-none"
       >
         <SidebarLayout
           sections={sections}

@@ -25,14 +25,33 @@ function Calendar({
     caption_label: 'text-sm font-medium',
     nav: 'absolute top-0 flex w-full justify-between z-10',
     button_previous: cn(
-      buttonVariants({ variant: 'ghost' }),
+      buttonVariants({ variant: 'tertiary' }),
       'size-9 text-muted-foreground/80 hover:text-foreground hover:bg-transparent p-0'
     ),
     button_next: cn(
-      buttonVariants({ variant: 'ghost' }),
+      buttonVariants({ variant: 'tertiary' }),
       'size-9 text-muted-foreground/80 hover:text-foreground hover:bg-transparent p-0'
     ),
     weekday: 'size-9 p-0 text-xs font-medium text-muted-foreground/80',
+
+    /* TWO STATES THAT THE PALETTE FLIP COLLAPSED. Same root cause as D95 - a
+       STATE token and a REST token becoming the same colour - but neither is
+       white-on-white, so no white-on-white scan would ever have found them.
+       NOTE: comments cannot live inside the template literal below; every word
+       in it is emitted as a class name, and a backtick would end the string.
+
+       HOVER did nothing. `hover:bg-transparent` sat after `hover:bg-accent` and
+       cancelled it, and `hover:text-primary` moved the text from #f6f7f9 to
+       #fafafa. A day cell had no hover affordance at all. Now: the accent fill
+       stands, and the text stays `--foreground`.
+
+       SELECTED was indistinguishable from unselected: `bg-transparent` plus
+       `text-primary`, against a rest state of `text-foreground`. On a date
+       picker, "which day did I pick" is the entire point of the control.
+       Selected is now the filled primary surface (ruling 19's primary
+       selection), and the range-middle keeps the quieter accent fill with
+       `--foreground` text so the two read as different depths of the same
+       selection. */
     day_button: `relative flex size-8 items-center justify-center whitespace-nowrap rounded-lg p-0 text-foreground outline-offset-2 cursor-pointer 
 
 
@@ -41,15 +60,15 @@ function Calendar({
       focus-visible:outline focus-visible:outline-2 
       focus-visible:outline-ring/70 
 
-      hover:bg-transparent
-      hover:text-primary
+      hover:text-foreground
 
       group-[[data-selected]:not(.range-middle)]:[transition-property:color,background-color,border-radius,box-shadow] 
       group-[[data-selected]:not(.range-middle)]:duration-150 
       
-      group-data-[selected]:bg-transparent
-      group-data-[selected]:text-primary
-      group-data-[selected]:group-[.range-middle]:bg-accent 
+      group-data-[selected]:bg-primary
+      group-data-[selected]:text-primary-foreground
+      group-data-[selected]:group-[.range-middle]:bg-accent
+      group-data-[selected]:group-[.range-middle]:text-foreground 
       
       group-data-[disabled]:pointer-events-none 
       group-data-[disabled]:cursor-not-allowed 

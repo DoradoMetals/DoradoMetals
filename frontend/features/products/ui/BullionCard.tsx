@@ -6,6 +6,7 @@ import { Button } from '@/shared/ui/base/button'
 import { CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
+import { Label } from '@/shared/ui/base/label'
 import { BullionFloatingButton, BullionFloatingButtonItem } from '@/features/products/ui/FloatingButton'
 import { useState } from 'react'
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
@@ -58,7 +59,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
   const isOver = overOrUnder >= 0
 
   return (
-    <div className="flex flex-col bg-card w-full h-auto group relative items-center mx-auto z-20 raised-off-page rounded-lg">
+    <div className="flex flex-col bg-card w-full h-auto group relative items-center mx-auto z-20 rounded-lg border border-border">
       <div className="flex justify-between w-full h-36 sm:h-44 md:h-52">
         <div className="flex flex-items-center">
           <div className="relative aspect-square w-32 h-36 sm:w-40 sm:h-44 md:w-48 md:h-52">
@@ -72,24 +73,20 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
           </div>
           <div className="flex flex-col h-full justify-between py-2 mr-auto gap-4">
             <div className="flex flex-col gap-1">
-              <div className="text-sm sm:text-base md:text-lg lg:text-xl text-neutral-800">
-                {selectedProduct.name}
-              </div>
-              <div className="flex items-center gap-1 text-xs text-neutral-600">
-                <div className="text-sm sm:text-base text-neutral-600">
-                  <PriceNumberFlow value={Math.abs(overOrUnder)} />
-                </div>
-                <div className="text-sm sm:text-base text-neutral-600">
-                  {isOver ? 'over' : 'under'} spot
-                </div>
-              </div>
+              <h4>{selectedProduct.name}</h4>
+              {/* Was two sibling divs each carrying the same responsive pair;
+                  it is one sentence, so it is one paragraph. */}
+              <p className="flex items-center gap-1">
+                <PriceNumberFlow value={Math.abs(overOrUnder)} />
+                {isOver ? 'over' : 'under'} spot
+              </p>
             </div>
             <div className="flex items-end h-full mt-auto">
-              <div className="flex items-center gap-1">
-                <div className="text-lg sm:text-xl md:text-2xl text-neutral-800 font-semibold">
+              <div className="flex items-baseline gap-1">
+                <h3>
                   <PriceNumberFlow value={price} />
-                </div>
-                <div className="text-base text-neutral-600">per unit</div>
+                </h3>
+                <small>per unit</small>
               </div>
             </div>
           </div>
@@ -111,18 +108,14 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
               >
                 <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="text-neutral-500 hover:text-neutral-900 p-0 h-5"
-                      onClick={() => setOpen(true)}
-                    >
-                      <CircleHelp size={20} className="p-0" />
+                    <Button variant="tertiary" size="iconXs" onClick={() => setOpen(true)}>
+                      <CircleHelp size={20} />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
                     align="end"
                     side="bottom"
-                    className="p-2 bg-background border-border border-1 shadow-lg w-[14rem]"
+                    className="p-2 w-56"
                     onOpenAutoFocus={(e) => e.preventDefault()}
                     forceMount
                   >
@@ -139,43 +132,43 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                       <div className="flex flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
                           <div className="flex w-full items-start justify-between pl-8">
-                            <div className="text-xs text-neutral-600">{spot?.name} Bid Price</div>
-                            <div className="text-sm">
+                            <small>{spot?.name} Bid Price</small>
+                            <p>
                               <PriceNumberFlow value={spot?.bid ?? 0} />
-                            </div>
+                            </p>
                           </div>
 
                           <div className="flex w-full items-start">
-                            <X size={16} className="text-neutral-700 px-0" />
+                            <X size={16} className="text-neutral-700" />
 
                             <div className="flex w-full items-start justify-between pl-4">
-                              <div className="text-xs text-neutral-600">Content (oz)</div>
-                              <div className="text-sm">{selectedProduct.content}</div>
+                              <small>Content (oz)</small>
+                              <p>{selectedProduct.content}</p>
                             </div>
                           </div>
 
                           <div className="flex w-full items-start">
                             {overOrUnder >= 0 ? (
-                              <Plus size={16} className="text-neutral-700 px-0" />
+                              <Plus size={16} className="text-neutral-700" />
                             ) : (
-                              <Minus size={16} className="text-neutral-700 px-0" />
+                              <Minus size={16} className="text-neutral-700" />
                             )}
 
                             <div className="flex w-full items-start justify-between pl-4">
-                              <div className="text-xs text-neutral-600">Premium</div>
-                              <div className="text-sm">
+                              <small>Premium</small>
+                              <p>
                                 <PriceNumberFlow value={Math.abs(overOrUnder)} />
-                              </div>
+                              </p>
                             </div>
                           </div>
                         </div>
                         <div className="flex w-full items-start">
-                          <Equal size={16} className="text-neutral-700 px-0" />
+                          <Equal size={16} className="text-neutral-700" />
                           <div className="flex w-full items-start justify-between pl-4">
-                            <div className="text-xs text-neutral-600">Total</div>
-                            <div className="text-sm text-neutral-900">
+                            <small>Total</small>
+                            <strong>
                               <PriceNumberFlow value={price} />
-                            </div>
+                            </strong>
                           </div>
                         </div>
                       </div>
@@ -199,10 +192,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                   isOpen={variantsOpen}
                   setIsOpen={setVariantsOpen}
                   triggerContent={
-                    <Button
-                      variant="ghost"
-                      className="flex items-center h-7 w-7 rounded-full items-center justify-center z-10 bg-primary text-white hover:text-white p-0 raised-off-page"
-                    >
+                    <Button size="iconXs" className="z-10">
                       <Scale size={16} />
                     </Button>
                   }
@@ -214,11 +204,13 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
 
                       return (
                         <BullionFloatingButtonItem key={option.id}>
-                          <label
+                          {/* Segmented control, hand-rolled - see the report.
+                              Label's default IS `text-micro font-medium`. */}
+                          <Label
                             htmlFor={option.name}
                             className={cn(
-                              'h-5.5 sm:h-7 md:h-8.5 lg:h-9 w-8 xs:w-12 sm:w-14 rounded-lg flex items-center justify-center text-xs cursor-pointer border text-neutral-900 raised-off-page',
-                              isSelected && 'bg-primary text-white'
+                              'h-5.5 sm:h-7 md:h-8.5 lg:h-9 w-8 xs:w-12 sm:w-14 rounded-lg justify-center cursor-pointer border',
+                              isSelected && 'bg-primary text-primary-foreground'
                             )}
                           >
                             <RadioGroupItem
@@ -227,7 +219,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                               className="sr-only"
                             />
                             {option.variant_label}
-                          </label>
+                          </Label>
                         </BullionFloatingButtonItem>
                       )
                     })}
@@ -238,32 +230,25 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
         </div>
       </div>
 
-      <div
-        className={cn(
-          'bg-primary w-full rounded-b-lg text-white',
-        )}
-      >
+      <div className="w-full px-4 pb-4">
         {quantity === 0 ? (
           <Button
-            variant="ghost"
-            className="bg-transparent w-full hover:bg-transparent text-white hover:text-white"
+            className="w-full"
             onClick={() => addItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })}
           >
             Add to Sell Cart
           </Button>
         ) : (
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center gap-3">
             <Button
-              variant="ghost"
-              className="text-white hover:text-white"
+              size="icon"
               onClick={() => removeOne({ type: 'product', data: selectedProduct })}
             >
               <Minus size={20} />
             </Button>
-            <NumberFlow value={quantity} className="text-white text-lg font-semibold" trend={0} />
+            <NumberFlow value={quantity} trend={0} />
             <Button
-              variant="ghost"
-              className="text-white hover:text-white"
+              size="icon"
               onClick={() =>
                 addItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
               }

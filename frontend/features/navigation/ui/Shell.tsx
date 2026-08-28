@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import NavLink from '@/shared/ui/NavLink'
 import { usePathname } from 'next/navigation'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { cartStore } from '@/shared/store/cartStore'
@@ -12,11 +13,9 @@ import { MenuIcon } from '@/features/navigation/ui/NavIcon'
 import { CartIcon } from '@/features/cart/ui/CartIcon'
 
 import { motion } from 'framer-motion'
-import { cn } from '@/shared/utils/cn'
 import { useUser } from '@/features/auth/authClient'
 import { protectedRoutes } from '@/features/routes/types'
-import { MoonIcon, SunIcon } from '@phosphor-icons/react'
-import { useTheme } from 'next-themes'
+import CountBadge from '@/shared/ui/CountBadge'
 import Spots from '@/features/spots/ui/Spots'
 import { Logo } from '@/features/navigation/ui/Logo'
 import AccountMenu from '@/features/navigation/ui/ProfileMenu'
@@ -32,8 +31,6 @@ export default function Shell({ visible }: { visible: boolean }) {
   const items =
     cartStore((state) => state.items.length) + sellCartStore((state) => state.items.length)
 
-  const { theme, setTheme } = useTheme()
-
   useCartAutoSync()
 
   const menuItems = Object.entries(protectedRoutes)
@@ -46,13 +43,7 @@ export default function Shell({ visible }: { visible: boolean }) {
     }))
 
   return (
-    <div
-      className={cn(
-        'z-60 sticky top-0 bg-highest flex flex-col items-center justify-center',
-        isAnyDrawerOpen ? 'shadow-none' : 'raised-off-page'
-        // isAnyDrawerOpen || visible ? 'shadow-none' : 'raised-off-page' - Revert whenever breadcrumb bar is added back...
-      )}
-    >
+    <header className="z-60 sticky top-0 bg-highest flex flex-col items-center justify-center">
       <div className="flex items-start justify-between w-full sticky">
         <Spots />
       </div>
@@ -66,17 +57,18 @@ export default function Shell({ visible }: { visible: boolean }) {
           </div>
 
           <nav aria-label="Primary site navigation" className="hidden lg:flex w-1/3 justify-center">
-            <ul className="flex items-end text-xl uppercase font-medium tracking-widest gap-8">
+            {/* `uppercase tracking-widest` moved off this <ul>: it was the nav
+                typography inherited by descendants, which is why the mobile
+                Sidebar silently disagreed with it. <NavLink> owns it now via
+                `.nav-link`. */}
+            <ul className="flex items-end gap-8">
               {menuItems.map((item) => {
                 const isActive = pathname === item.href
-                const linkClasses = isActive
-                  ? 'text-primary'
-                  : 'text-neutral-500 hover:text-primary'
                 return (
                   <li key={item.key}>
-                    <Link href={item.href} className={linkClasses}>
+                    <NavLink href={item.href} active={isActive}>
                       {item.label}
-                    </Link>
+                    </NavLink>
                   </li>
                 )
               })}
@@ -84,30 +76,22 @@ export default function Shell({ visible }: { visible: boolean }) {
           </nav>
 
           <div className="flex gap-4 items-center w-1/3 justify-end">
-            <Button className="px-0 relative" variant="ghost" onClick={() => openDrawer('cart')}>
-              <CartIcon
-                size={28}
-                isOpen={activeDrawer === 'cart'}
-                className="text-neutral-700 hover:text-neutral-900"
-              />
+            <Button
+              className="relative"
+              variant="tertiary"
+              size="icon"
+              aria-label="Open cart"
+              onClick={() => openDrawer('cart')}
+            >
+              <CartIcon size={28} isOpen={activeDrawer === 'cart'} />
               {items > 0 && (
-                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full bg-primary">
-                  <div className="flex flex-1 items-center text-white justify-center text-[10px]">
-                    {items}
-                  </div>
-                </div>
+                <CountBadge size="sm" className="absolute -top-0 -right-1">
+                  {items}
+                </CountBadge>
               )}
             </Button>
 
             <div className="flex items-center gap-5">
-              <Button
-                variant="ghost"
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                className="p-0 text-neutral-700 hover:text-neutral-900"
-              >
-                {theme === 'light' ? <MoonIcon size={28} /> : <SunIcon size={28} />}
-              </Button>
-
               <AccountMenu />
             </div>
           </div>
@@ -122,8 +106,10 @@ export default function Shell({ visible }: { visible: boolean }) {
         </div>
         <div className="lg:hidden flex items-center gap-2">
           <Button
-            className="px-0 hover:bg-card relative"
-            variant="ghost"
+            className="relative"
+            variant="tertiary"
+            size="icon"
+            aria-label="Open cart"
             onClick={() => openDrawer('cart')}
             disabled={isAnyDrawerOpen}
           >
@@ -133,20 +119,19 @@ export default function Shell({ visible }: { visible: boolean }) {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
               className="relative flex items-center justify-center will-change-transform"
             >
-              <CartIcon size={28} isOpen={false} className="text-neutral-900 hover:bg-card" />
+              <CartIcon size={28} isOpen={false} />
               {items > 0 && (
-                <div className="absolute -top-0 -right-1 h-4 w-4 flex overflow-hidden rounded-full bg-primary">
-                  <div className="flex flex-1 items-center text-white justify-center text-[10px]">
-                    {items}
-                  </div>
-                </div>
+                <CountBadge size="sm" className="absolute -top-0 -right-1">
+                  {items}
+                </CountBadge>
               )}
             </motion.div>
           </Button>
 
           <Button
-            className="p-0 hover:bg-card"
-            variant="ghost"
+            variant="tertiary"
+            size="icon"
+            aria-label={isAnyDrawerOpen ? 'Close menu' : 'Open menu'}
             onClick={() => {
               if (isAnyDrawerOpen) {
                 closeDrawer()
@@ -155,13 +140,13 @@ export default function Shell({ visible }: { visible: boolean }) {
               }
             }}
           >
-            <MenuIcon size={28} isOpen={isAnyDrawerOpen} className="p-0 text-neutral-900 mt-1" />
+            <MenuIcon size={28} isOpen={isAnyDrawerOpen} className="mt-1" />
           </Button>
         </div>
       </div>
 
       <Sidebar />
       <CartTabs />
-    </div>
+    </header>
   )
 }

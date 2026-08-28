@@ -1,19 +1,69 @@
+/* ============================================================================
+   BASE — element resets and document-level chrome.
+   ----------------------------------------------------------------------------
+   TYPOGRAPHY LIVES IN typography.css. This file is the box model, the document
+   ground, scrollbars, autofill, form quirks and third-party widget fixes —
+   everything that is not a decision about how text looks.
+
+   The `@layer base` block here shares a layer with typography.css's, and both
+   are imported after tailwind, so both beat preflight and both lose to any
+   utility. See typography.css's header for the verified cascade argument.
+   ============================================================================ */
+
 @layer base {
   * {
-    @apply border-border
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
   }
 
   body {
     font-family: var(--font-sans), sans-serif;
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    letter-spacing: var(--text-body--letter-spacing);
+    font-weight: var(--text-body--font-weight);
     @apply bg-background text-foreground;
   }
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: var(--font-sans), sans-serif;
+
+}
+
+/* ============================================================================
+   TEMPORARY BRIDGE — REMOVE WITH THE SWEEP. See RETIREMENT.md "primary".
+   ----------------------------------------------------------------------------
+   `--primary` is now WHITE. 52 of the 105 `bg-primary` lines in .tsx also say
+   `text-white`, which is white-on-white — invisible buttons on live checkout
+   and order screens. Those are .tsx files this pass is not allowed to touch.
+
+   These rules repaint exactly that pair and nothing else. They sit in the
+   `utilities` layer so they are in the same layer as `.text-white`, and score
+   (0,2,0) against its (0,1,0), so they win on specificity rather than on
+   emit order.
+
+   The sweep deletes `text-white` from those 52 lines (the `bg-primary` /
+   `--primary-foreground` pairing already handles the colour) and then deletes
+   this block. Grep to confirm it is dead:
+     grep -rn "bg-primary" --include=*.tsx . | grep "text-white"
+   ============================================================================ */
+@layer utilities {
+  .bg-primary.text-white,
+  .bg-primary\!.text-white,
+  .bg-primary.hover\:text-white:hover,
+  .bg-primary\!.hover\:text-white:hover,
+  .hover\:bg-primary.text-white:hover,
+  .hover\:bg-primary\!.text-white:hover,
+  .hover\:bg-primary.hover\:text-white:hover,
+  .hover\:bg-primary\!.hover\:text-white:hover {
+    color: var(--primary-foreground);
+  }
+
+  /* The one `has-[]` spelling of the same collision:
+     features/products/ui/ProductCard.tsx:202, the selected product variant. */
+  .has-\[\[data-state\=checked\]\]\:bg-primary.has-\[\[data-state\=checked\]\]\:text-white:has(*:is([data-state='checked'])) {
+    color: var(--primary-foreground);
   }
 }
 
@@ -23,7 +73,7 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
-  /* overscroll-behavior: none; -revert when breadcrumb bar is added back */ 
+  /* overscroll-behavior: none; -revert when breadcrumb bar is added back */
 }
 
 svg {
@@ -60,8 +110,7 @@ html body[data-scroll-locked] {
 
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-  scrollbar-arrow-color: var(--background) transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-button {
@@ -78,14 +127,15 @@ html body[data-scroll-locked] {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: hsl(0, 0%, 60%);
+  background-color: var(--border-strong);
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 
+/* was `background-color: red` — a leftover debug value, tokenised. */
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: red;
+  background-color: var(--neutral-400);
 }
 
 .gm-style-cc {
@@ -101,8 +151,9 @@ input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   transition: background-color 5000s ease-in-out 0s;
+  -webkit-text-fill-color: var(--foreground);
 }
 
-.grecaptcha-badge { 
-    visibility: hidden !important;
+.grecaptcha-badge {
+  visibility: hidden !important;
 }

@@ -39,7 +39,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       className={`${montserrat.variable} ${poppins.variable}`}
     >
       <body className="bg-background antialiased">
-        <ThemeProvider attribute="class" defaultTheme="light">
+        {/* Light mode is gone (app/styles/theme.css: ":root" IS the dark
+            palette, and the `dark:` variant always matches). `forcedTheme`
+            pins it so a stale `theme` in a returning visitor's localStorage
+            cannot put the app back into a mode that no longer has a palette.
+            The provider itself survives only because next-themes owns the
+            no-flash inline script; the toggle UI is deleted. */}
+        <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark">
           <GoogleRecaptchaProvider>
             <QueryProvider>
               <GoogleMapsProvider>

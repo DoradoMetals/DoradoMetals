@@ -13,17 +13,35 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/shared/ui/base/command'
-import { Button } from '@/shared/ui/base/button'
+import { Button, type ButtonEmphasis, type ButtonIntent } from '@/shared/ui/base/button'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { CheckIcon } from '@phosphor-icons/react'
 
+/* THE TRIGGER'S APPEARANCE IS A VARIANT, NOT A `triggerClass`.
+
+   Every caller that wanted a bordered trigger was writing
+   `triggerClass="border border-border"` by hand - LeadsDrawer still does -
+   because this component hard-coded `variant="ghost"` and then painted over it
+   with `text-neutral-900`, which is ruling 20's "variant contradicted" defect
+   in a shared component rather than at a call site.
+
+   `variant`/`intent` now forward straight to the Button, so a bordered trigger
+   is `variant="secondary"` and nobody spells a border. `triggerClass` survives
+   for LAYOUT ONLY - `shared/ui/table/Columns.tsx` passes `h-8 px-2` to fit a
+   filter into a table header, which is the parent dictating extent. */
 type PopoverSelectProps = {
   label?: string
   value: string | null
   options: string[]
   onChange: (value: string) => void
   placeholder?: string
+  /** Emphasis, forwarded to the trigger Button. `secondary` gives a hairline
+   *  border; `tertiary` (the default) is bare. */
+  variant?: ButtonEmphasis
+  /** Meaning, forwarded to the trigger Button. */
+  intent?: ButtonIntent
+  /** LAYOUT ONLY - height, padding, width. Never appearance. */
   triggerClass?: string
   popoverClass?: string
   includeSearch?: boolean
@@ -43,6 +61,8 @@ export function PopoverSelect({
   options,
   onChange,
   placeholder = 'Select...',
+  variant = 'tertiary',
+  intent,
   triggerClass,
   popoverClass,
   includeSearch = true,
@@ -74,23 +94,23 @@ export function PopoverSelect({
 
   return (
     <div className="w-full flex flex-col gap-1">
-      {label && <span className="text-xs text-neutral-700 font-medium pl-1">{label}</span>}
+      {label && <small className="pl-1 font-medium">{label}</small>}
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             type="button"
-            variant="ghost"
+            variant={variant}
+            intent={intent}
             role="combobox"
             aria-expanded={open}
-            className={cn(
-              'p-0 m-0 px-3 w-full justify-between on-glass hover:on-glass',
-              'text-neutral-900',
-              triggerClass
-            )}
+            className={cn('m-0 w-full justify-between', triggerClass)}
           >
+            {/* Chosen value vs placeholder is a STATE of this control, not an
+                override of the Button's variant - the same distinction
+                `placeholder:text-neutral-500` makes on an Input. */}
             {selected ? (
-              <span className="truncate">{selected}</span>
+              <span className="truncate text-foreground">{selected}</span>
             ) : (
               <span className="text-neutral-500">{placeholder}</span>
             )}
@@ -104,11 +124,11 @@ export function PopoverSelect({
           sideOffset={4}
           className={cn(
             'z-140 w-[var(--radix-popover-trigger-width)] min-w-0 max-w-none',
-            'on-glass',
+            'bg-transparent border border-border',
             popoverClass
           )}
         >
-          <Command className="w-full glass-panel border-none">
+          <Command surface="highest" className="w-full">
             {includeSearch ? (
               <>
                 <CommandInput
@@ -120,7 +140,7 @@ export function PopoverSelect({
               </>
             ) : null}
 
-            <CommandList className="custom-scrollbar max-h-50 overflow-y-auto glass-panel border-none">
+            <CommandList className="custom-scrollbar max-h-50 overflow-y-auto">
               <CommandEmpty>No results found.</CommandEmpty>
 
               <CommandGroup className="border-none">

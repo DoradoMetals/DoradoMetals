@@ -29,7 +29,7 @@ export default function ChangeEmail() {
       {verifyEmailMutation.isSuccess && <p>Email changed! Redirecting...</p>}
       {verifyEmailMutation.isError && (
         <div>
-          <p className="text-red-500">Invalid or expired email change link.</p>
+          <p className="text-destructive">Invalid or expired email change link.</p>
           <Button onClick={() => router.push("/")}>Go to Home</Button>
         </div>
       )}

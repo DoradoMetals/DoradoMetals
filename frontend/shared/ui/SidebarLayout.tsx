@@ -12,6 +12,7 @@ import {
 import { cn } from '@/shared/utils/cn'
 import { CaretDoubleRightIcon, UserIcon } from '@phosphor-icons/react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import CountBadge from '@/shared/ui/CountBadge'
 
 export type Icon = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
 
@@ -37,7 +38,6 @@ export type SidebarLayoutProps = {
   footerEnabled?: boolean
 
   roleIcon?: Icon
-  roleIconClassName?: string
   roleTitle?: string
   roleSubtitle?: string
 
@@ -104,7 +104,6 @@ export function SidebarLayout({
   headerEnabled = true,
   footerEnabled = true,
   roleIcon: RoleIcon,
-  roleIconClassName,
   roleTitle,
   roleSubtitle,
   navOnly = false,
@@ -129,26 +128,34 @@ export function SidebarLayout({
             )}
           >
             <div className={cn('flex items-center justify-center', isOpen ? 'gap-3' : 'gap-0')}>
-              <div className="flex items-center justify-center p-3 rounded-lg bg-primary shadow-sm">
+              {/* D95 — WHITE ICON ON A WHITE TILE, and the audit could not see it.
+                  `--primary` is white now, and the icons resolved to `text-white`
+                  through the cn() below: the fallback won because no caller passes
+                  `roleIconClassName`, so the pair was a DEFAULT, not a call site.
+                  Neither the line-based grep (`bg-primary` and `text-white` were on
+                  different lines) nor base.css's compound `.bg-primary.text-white`
+                  bridge (different ELEMENTS) reached it.
+
+                  Fixed by the program's own mechanical rule — on `bg-primary` the
+                  text token is `--primary-foreground`, never `text-white` — and the
+                  `roleIconClassName` escape hatch is gone: it was appearance passed
+                  as a prop (ruling 20) and no call site used it. `shadow-sm` went
+                  with it (ruling 16 deletes the shadow family). */}
+              <div className="flex items-center justify-center p-3 rounded-lg bg-primary">
                 {RoleIcon ? (
-                  <RoleIcon
-                    size={20}
-                    className={cn('text-neutral-900', roleIconClassName ?? 'text-white')}
-                  />
+                  <RoleIcon size={20} className="text-primary-foreground" />
                 ) : (
-                  <UserIcon
-                    size={20}
-                    className={cn('text-neutral-900', roleIconClassName ?? 'text-white')}
-                  />
+                  <UserIcon size={20} className="text-primary-foreground" />
                 )}
               </div>
 
               {isOpen && (
                 <div className="leading-tight">
-                  {roleTitle && (
-                    <div className="text-sm font-semibold text-neutral-900">{roleTitle}</div>
-                  )}
-                  {roleSubtitle && <div className="text-xs text-neutral-500">{roleSubtitle}</div>}
+                  {/* Semantic tags carry the type (ruling 17/23): <strong> is
+                      already --neutral-900 at weight 600, <small> is already
+                      13px muted. Both were hand-spelling what the tag does. */}
+                  {roleTitle && <strong className="block">{roleTitle}</strong>}
+                  {roleSubtitle && <small className="block">{roleSubtitle}</small>}
                 </div>
               )}
             </div>
@@ -160,9 +167,7 @@ export function SidebarLayout({
         {sections.map((section, si) => (
           <div key={si} className="space-y-1">
             {isOpen && section.label ? (
-              <div className="p-2 text-xs font-medium text-neutral-400 uppercase tracking-wide">
-                {section.label}
-              </div>
+              <div className="eyebrow p-2">{section.label}</div>
             ) : null}
 
             {section.items.map((item) => {
@@ -186,12 +191,10 @@ export function SidebarLayout({
                     <item.icon size={20} />
                   </div>
 
-                  {isOpen && <span className="text-base">{item.label}</span>}
+                  {isOpen && <span>{item.label}</span>}
 
                   {isOpen && item.badge != null && item.badge !== '' && (
-                    <span className="flex ml-auto h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-white">
-                      {item.badge}
-                    </span>
+                    <CountBadge className="ml-auto">{item.badge}</CountBadge>
                   )}
                 </button>
               )
@@ -210,7 +213,7 @@ export function SidebarLayout({
               size={16}
               className={cn('transition-transform', isOpen && 'rotate-180')}
             />
-            {isOpen && <span className="text-sm font-medium">Hide</span>}
+            {isOpen && <small className="font-medium">Hide</small>}
           </button>
         </div>
       )}

@@ -28,14 +28,14 @@ export function AddressDrawer({ onSuccess }: AddressDrawerProps) {
   }, [pathname, closeDrawer])
 
   return (
-    <Drawer label="Address" open={isAddressOpen} setOpen={closeDrawer} className="glass-panel">
+    <Drawer label="Address" open={isAddressOpen} setOpen={closeDrawer}>
       <Button
-        variant="ghost"
+        variant="tertiary"
         size="icon"
-        className="hidden sm:flex items-start justify-start p-0"
+        className="hidden sm:flex items-start justify-start"
         onClick={closeDrawer}
       >
-        <X size={24} className="text-neutral-900" />
+        <X size={24} />
       </Button>
 
       <AddressForm

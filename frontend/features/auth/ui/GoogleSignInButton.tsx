@@ -9,13 +9,13 @@ export default function GoogleButton({buttonLabel} : {buttonLabel: string}) {
 
   return (
     <Button
-      variant="ghost"
-      className="w-full bg-card raised-off-page hover:bg-card"
+      variant="secondary"
+      className="w-full"
       onClick={() => googleSignInMutation.mutate()}
       disabled={googleSignInMutation.isPending}
     >
-      <FcGoogle className="text-4xl" />
-      <span className="text-neutral-700 text-base">{googleSignInMutation.isPending ? "Signing In..." : buttonLabel}</span>
+      <FcGoogle />
+      {googleSignInMutation.isPending ? "Signing In..." : buttonLabel}
     </Button>
   );
 }

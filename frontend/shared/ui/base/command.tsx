@@ -13,15 +13,28 @@ import {
 } from "@/shared/ui/base/dialog"
 import { MagnifyingGlassIcon } from "@phosphor-icons/react"
 
+/* The call-site rule is stated in full in base/button.tsx. Short form:
+   a call site's className is LAYOUT ONLY. Appearance is this file's job.
+
+   `surface` exists because 9 call sites passed a raw `bg-card` / `bg-highest`
+   to choose which rung of the surface ladder the palette sits on. That is a
+   real choice, so it becomes a prop rather than a className. */
 function Command({
   className,
+  surface = 'popover',
   ...props
-}: React.ComponentProps<typeof CommandPrimitive>) {
+}: React.ComponentProps<typeof CommandPrimitive> & {
+  surface?: 'popover' | 'card' | 'highest' | 'transparent'
+}) {
   return (
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        "bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md",
+        "text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md",
+        surface === 'popover' && 'bg-popover',
+        surface === 'card' && 'bg-card',
+        surface === 'highest' && 'bg-highest',
+        surface === 'transparent' && 'bg-transparent',
         className
       )}
       {...props}

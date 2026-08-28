@@ -39,19 +39,19 @@ export const userRoleOptions: UserRoleOption[] = [
     label: 'Admin',
     value: 'admin',
     icon: CrownIcon,
-    colorClass: 'text-blue-500',
+    colorClass: 'text-info',
   },
   {
     label: 'Verified User',
     value: 'verified_user',
     icon: UserCheckIcon,
-    colorClass: 'text-green-500',
+    colorClass: 'text-success',
   },
   {
     label: 'User',
     value: 'user',
     icon: UserIcon,
-    colorClass: 'text-orange-500',
+    colorClass: 'text-warning',
   },
 ]
 

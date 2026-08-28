@@ -7,8 +7,8 @@ function DotBtn({
   label,
   checked,
   onClick,
-  buttonClass = 'h-10 rounded-lg border text-sm font-medium raised-off-page',
-  checkedClass = 'border-0 bg-primary text-white',
+  buttonClass = 'h-10 rounded-full border text-small font-medium',
+  checkedClass = 'border-0 bg-primary text-primary-foreground',
   defaultClass = 'bg-highest text-neutral-800 border-1 border-border',
 }: {
   label: React.ReactNode

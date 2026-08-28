@@ -93,7 +93,7 @@ export function SelectionBar<TData>({
   }
 
   return (
-    <div className={cn('on-glass border-none flex items-center gap-3', barClassName)}>
+    <div className={cn('bg-transparent flex items-center gap-3', barClassName)}>
       <div className={cn('text-sm text-neutral-700', countClassName)}>
         <span className="font-semibold text-neutral-900">{selectedCount}</span> {labelSelected}
       </div>
@@ -104,7 +104,7 @@ export function SelectionBar<TData>({
         <Button
           size="sm"
           variant="ghost"
-          className={cn('on-glass', actionButtonClassName, exportButtonClassName)}
+          className={cn(actionButtonClassName, exportButtonClassName)}
           disabled={disable || !canExport}
           onClick={handleExport}
         >
@@ -114,8 +114,9 @@ export function SelectionBar<TData>({
 
       {showDelete ? (
         <Button
+          variant="destructiveQuiet"
           size="sm"
-          className={cn('destructive-on-glass', actionButtonClassName, deleteButtonClassName)}
+          className={cn(actionButtonClassName, deleteButtonClassName)}
           disabled={disable || !canDelete}
           onClick={handleDelete}
         >
@@ -127,7 +128,7 @@ export function SelectionBar<TData>({
         <Button
           size="sm"
           variant="ghost"
-          className={cn('on-glass', actionButtonClassName, clearButtonClassName)}
+          className={cn(actionButtonClassName, clearButtonClassName)}
           disabled={disable}
           onClick={() => table.resetRowSelection()}
         >

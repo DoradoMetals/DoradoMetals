@@ -152,7 +152,7 @@ export default function PayoutStep({ user }: { user?: User }) {
   }
 
   return (
-    <div className="rounded-lg border border-border raised-off-page">
+    <div className="rounded-lg border border-border">
       {payoutOptions.map((option, index) => {
         const isSelected = selected === option.method
 
@@ -174,18 +174,18 @@ export default function PayoutStep({ user }: { user?: User }) {
                 <div className="flex flex-col w-full">
                   <div className="flex items-center gap-1">
                     <option.icon size={24} className='text-primary' />
-                    <span className="font-medium">{option.label}</span>
-                    <div className="text-neutral-700 text-xs flex items-center gap-2 pt-1 pl-4">
-                      <span>{option.time_delay}</span>
-                      <CircleIcon size={6} weight="fill" className="text-neutral-300" />
-                      <span>
+                    <strong>{option.label}</strong>
+                    <div className="flex items-center gap-2 pt-1 pl-4">
+                      <small>{option.time_delay}</small>
+                      <CircleIcon size={6} weight="fill" className="text-neutral-500" />
+                      <small>
                         {option.cost === 0.0 ? 'Free' : <PriceNumberFlow value={option.cost} />}
-                      </span>
+                      </small>
                     </div>
                   </div>
 
                   <div className="flex items-end w-full justify-between mt-2">
-                    <span className="text-sm text-neutral-600">{option.description}</span>
+                    <small>{option.description}</small>
                   </div>
                 </div>
                 <ChevronDown

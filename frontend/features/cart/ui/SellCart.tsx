@@ -46,24 +46,26 @@ export default function SellCart() {
   const emptyCart = (
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
       <div className="relative mb-5">
-        <ShoppingCartSimpleIcon size={80} strokeWidth={1.5} className='text-primary' />
-        <div className="absolute -top-6 right-3.5 border border-border text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
+        <ShoppingCartSimpleIcon size={80} strokeWidth={1.5} className="text-primary" />
+        {/* Zero-count bubble, same shape as the buy cart's. --border-strong is
+            the token for an edge meant to read as deliberate; the numeral's
+            size and colour come from the tag. */}
+        <p className="absolute -top-6 right-3.5 border border-border-strong rounded-full w-10 h-10 flex items-center justify-center">
           0
-        </div>
+        </p>
       </div>
 
       <div className="flex-col items-center gap-1 mb-5">
-        <h2 className="text-lg text-neutral-800 tracking-wide">Your sell cart is empty!</h2>
-        <p className="text-xs text-neutral-500">Add items to get a price estimate.</p>
+        <h2>Your sell cart is empty!</h2>
+        <small>Add items to get a price estimate.</small>
       </div>
       <Link href="/sell" passHref>
         <Button
-          variant="default"
+          size="xl"
           onClick={() => {
             router.push('/sell')
             closeDrawer()
           }}
-          className="raised-off-page bg-primary text-white hover:text-white px-12"
         >
           Start Selling
         </Button>
@@ -79,7 +81,7 @@ export default function SellCart() {
       <div
         key={index}
         className={`flex items-center justify-between w-full gap-4 py-4 ${
-          index !== items.length - 1 ? 'border-b border-neutral-300' : 'border-none'
+          index !== items.length - 1 ? 'border-b border-border' : 'border-none'
         }`}
       >
         <div className="flex-shrink-0">
@@ -87,7 +89,7 @@ export default function SellCart() {
             src={item.image_front}
             width={80}
             height={80}
-            className="pointer-events-none cursor-auto object-contain focus:outline-none drop-shadow-lg"
+            className="pointer-events-none cursor-auto object-contain focus:outline-none"
             alt={item.name}
           />
         </div>
@@ -95,42 +97,39 @@ export default function SellCart() {
         <div className="flex flex-col flex-grow min-w-0">
           <div className="flex justify-between items-start w-full mt-2">
             <div className="flex flex-col">
-              <div className="text-base text-neutral-700">{item.name}</div>
-              <div className="text-xs text-neutral-500">{item.mint_name}</div>
+              <h5>{item.name}</h5>
+              <small>{item.mint_name}</small>
             </div>
             <Button
-              variant="ghost"
-              size="sm"
-              className="hover:bg-card p-0 pb-2"
+              variant="tertiary"
+              size="iconSm"
               onClick={() => removeAll({ type: 'product', data: item })}
             >
-              <Trash2 size={16} className="text-neutral-500" />
+              <Trash2 size={16} />
             </Button>
           </div>
 
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
-                size="sm"
-                className="hover:bg-card p-1"
+                variant="tertiary"
+                size="iconSm"
                 onClick={() => removeOne({ type: 'product', data: item })}
               >
                 <Minus size={16} />
               </Button>
-              <NumberFlow value={quantity} className="text-base text-neutral-700" trend={0} />
+              <NumberFlow value={quantity} trend={0} />
               <Button
-                variant="ghost"
-                size="sm"
-                className="hover:bg-card p-1"
+                variant="tertiary"
+                size="iconSm"
                 onClick={() => addItem({ type: 'product', data: { ...item, quantity: 1 } })}
               >
                 <Plus size={16} />
               </Button>
             </div>
-            <div className="text-neutral-800 text-base">
+            <strong>
               <PriceNumberFlow value={lineTotal} />
-            </div>
+            </strong>
           </div>
         </div>
       </div>
@@ -148,22 +147,20 @@ export default function SellCart() {
       <div
         key={index}
         className={`flex items-center justify-between w-full gap-4 py-4 ${
-          index !== items.length - 1 ? 'border-b border-neutral-300' : 'border-none'
+          index !== items.length - 1 ? 'border-b border-border' : 'border-none'
         }`}
       >
         <div className="flex flex-col flex-grow">
           <div className="flex justify-between items-start w-full mt-2">
             <div className="flex flex-col">
-              <div className="text-sm text-neutral-800">{item.name || 'Custom Scrap'}</div>
-              <div className="flex items-center text-sm text-neutral-600 gap-5"></div>
+              <h5>{item.name || 'Custom Scrap'}</h5>
             </div>
             <Button
-              variant="ghost"
-              size="sm"
-              className="hover:bg-card p-0 pb-2"
+              variant="tertiary"
+              size="iconSm"
               onClick={() => removeAll({ type: 'scrap', data: item })}
             >
-              <Trash2 size={16} className="text-neutral-500" />
+              <Trash2 size={16} />
             </Button>
           </div>
 
@@ -171,14 +168,12 @@ export default function SellCart() {
             <div className="flex flex-col mr-auto gap-1">
               {getGrossLabel(item.pre_melt, item.gross_unit)}
               {getPurityLabel(item.purity, item.metal)}
-              <div className="text-xs text-neutral-600">
-                Rate: {formatRate(line?.premium ?? item.bid_premium)}
-              </div>
+              <small>Rate: {formatRate(line?.premium ?? item.bid_premium)}</small>
             </div>
 
-            <div className="ml-auto text-neutral-800 text-base">
+            <strong className="ml-auto">
               <PriceNumberFlow value={price} />
-            </div>
+            </strong>
           </div>
         </div>
       </div>
@@ -207,13 +202,13 @@ export default function SellCart() {
   const cartFooter = (
     <div className="w-full mt-2">
       <div className="flex justify-between items-end sm:mb-2">
-        <div className="text-lg text-neutral-800 font-semibold tracking-wide">Price Estimate:</div>
-        <div className="text-xl sm:text-2xl text-neutral-900">
+        <h3>Price Estimate:</h3>
+        <h3>
           <PriceNumberFlow value={total} />
-        </div>
+        </h3>
       </div>
       <Button
-        className="raised-off-page bg-primary hover:bg-primary text-white w-full"
+        className="w-full"
         onClick={() => {
           user ? router.push('/checkout') : router.push('/authentication')
         }}

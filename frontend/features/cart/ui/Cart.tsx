@@ -36,23 +36,28 @@ export default function Cart() {
     <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
       <div className="relative mb-5">
         <ShoppingCart size={80} className="text-neutral-800" strokeWidth={1.5} />
-        <div className="absolute -top-6 right-3.5 border border-secondary text-xl text-secondary rounded-full w-10 h-10 flex items-center justify-center">
+        {/* The zero-count bubble on the empty-cart illustration. It carried
+            `border-secondary text-secondary`, and --secondary stopped being a
+            hue in the palette flip (it is now a dark raised surface), so this
+            rendered dark-on-dark. --border-strong is the token for an edge
+            that must read as deliberate; the numeral's colour comes from the
+            tag. */}
+        <p className="absolute -top-6 right-3.5 border border-border-strong rounded-full w-10 h-10 flex items-center justify-center">
           0
-        </div>
+        </p>
       </div>
 
       <div className="flex-col items-center gap-1 mb-5">
-        <h2 className="text-lg text-neutral-800 tracking-wide">Your cart is empty!</h2>
-        <p className="text-xs text-neutral-500">Add items to get started.</p>
+        <h2>Your cart is empty!</h2>
+        <small>Add items to get started.</small>
       </div>
 
       <Button
-        variant="secondary"
+        size="xl"
         onClick={() => {
           router.push('/buy')
           closeDrawer()
         }}
-        className="raised-off-page bg-primary text-white hover:text-white px-10"
       >
         Start Shopping
       </Button>
@@ -70,7 +75,7 @@ export default function Cart() {
             <div
               key={item.name}
               className={`flex items-center justify-between w-full gap-4 py-4 ${
-                index !== items.length - 1 ? 'border-b border-neutral-300' : 'border-none'
+                index !== items.length - 1 ? 'border-b border-border' : 'border-none'
               }`}
             >
               <div className="flex-shrink-0">
@@ -78,7 +83,7 @@ export default function Cart() {
                   src={item.image_front}
                   width={80}
                   height={80}
-                  className="pointer-events-none cursor-auto object-contain focus:outline-none drop-shadow-lg"
+                  className="pointer-events-none cursor-auto object-contain focus:outline-none"
                   alt={item.name}
                 />
               </div>
@@ -86,49 +91,32 @@ export default function Cart() {
               <div className="flex flex-col flex-grow min-w-0">
                 <div className="flex justify-between items-start w-full mt-2">
                   <div className="flex flex-col">
-                    <div className="text-base text-neutral-700">{item.name}</div>
-                    <div className="text-xs text-neutral-500">{item.mint_name}</div>
+                    <h5>{item.name}</h5>
+                    <small>{item.mint_name}</small>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="hover:bg-card p-0 pb-2"
-                    onClick={() => removeAll(item)}
-                  >
-                    <Trash2 size={16} className="text-neutral-500" />
+                  <Button variant="tertiary" size="iconSm" onClick={() => removeAll(item)}>
+                    <Trash2 size={16} />
                   </Button>
                 </div>
 
                 <div className="flex justify-between items-center mt-3">
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hover:bg-card p-1"
-                      onClick={() => removeOne(item)}
-                    >
+                    <Button variant="tertiary" size="iconSm" onClick={() => removeOne(item)}>
                       <Minus size={16} />
                     </Button>
                     <NumberFlow
                       value={quantity}
                       transformTiming={{ duration: 750, easing: 'ease-in' }}
                       spinTiming={{ duration: 150, easing: 'ease-out' }}
-                      opacityTiming={{ duration: 350, easing: 'ease-out' }}
-                      className="text-base text-neutral-700"
                       trend={0}
                     />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hover:bg-card p-1"
-                      onClick={() => addItem(item)}
-                    >
+                    <Button variant="tertiary" size="iconSm" onClick={() => addItem(item)}>
                       <Plus size={16} />
                     </Button>
                   </div>
-                  <div className="text-neutral-800 text-base">
+                  <strong>
                     <PriceNumberFlow value={lineTotal} />
-                  </div>
+                  </strong>
                 </div>
               </div>
             </div>
@@ -141,13 +129,13 @@ export default function Cart() {
   const cartFooter = (
     <div className="w-full mt-2">
       <div className="flex justify-between items-end sm:mb-2">
-        <div className="text-lg text-neutral-800 font-semibold tracking-wide">Total:</div>
-        <div className="text-xl sm:text-2xl text-neutral-800">
+        <h3>Total:</h3>
+        <h3>
           <PriceNumberFlow value={total} />
-        </div>
+        </h3>
       </div>
       <Button
-        className="raised-off-page w-full bg-primary text-white hover:text-white"
+        className="w-full"
         onClick={() => {
           user ? router.push('/sales-order-checkout') : router.push('/authentication')
         }}

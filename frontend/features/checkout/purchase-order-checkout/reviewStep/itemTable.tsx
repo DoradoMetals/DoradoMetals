@@ -81,12 +81,12 @@ export default function ReviewItemTables() {
   })
 
   return (
-    <div className="rounded-lg border border-border overflow-hidden bg-card raised-off-page">
+    <div className="rounded-lg border border-border overflow-hidden bg-card">
       <div className="flex items-center justify-between p-4 border-b border-border">
-        <h2 className="text-xl text-neutral-800">Estimated Payout</h2>
-        <span className="text-lg font-normal text-neutral-900">
+        <h2>Estimated Payout</h2>
+        <strong>
           <PriceNumberFlow value={total ?? 0} />
-        </span>
+        </strong>
       </div>
 
       {scrapRows.length > 0 && (
@@ -171,9 +171,9 @@ function ItemAccordion<T>({
             size={20}
             className={cn('transition-transform text-neutral-500', open && 'rotate-180')}
           />
-          <span className="text-sm font-normal">{label}</span>
+          <span>{label}</span>
         </div>
-        <span className="text-base text-neutral-800 font-normal">
+        <strong>
           {label === 'Shipping' || label === 'Payout Method Fee' ? (
             <>
               -<PriceNumberFlow value={total} />
@@ -181,7 +181,7 @@ function ItemAccordion<T>({
           ) : (
             <PriceNumberFlow value={total} />
           )}
-        </span>
+        </strong>
       </button>
 
       <AnimatePresence initial={false}>
@@ -197,9 +197,9 @@ function ItemAccordion<T>({
               <Table className="w-full">
                 <TableBody>
                   {table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id} className="border-none">
+                    <TableRow key={row.id} borderless>
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell className="text-left px-2 py-2 text-neutral-600" key={cell.id}>
+                        <TableCell className="text-left" key={cell.id}>
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       ))}
@@ -243,7 +243,7 @@ const scrapColumns: ColumnDef<QuotedRow<'scrap'>>[] = [
   {
     header: 'Est. Value',
     cell: ({ row }) => (
-      <span className="font-normal text-right block w-full">
+      <span className="text-right block w-full">
         <PriceNumberFlow value={row.original.line?.line_total ?? 0} />
       </span>
     ),
@@ -262,7 +262,7 @@ const bullionColumns: ColumnDef<QuotedRow<'product'>>[] = [
   {
     header: 'Est. Value',
     cell: ({ row }) => (
-      <span className="font-normal text-right block w-full">
+      <span className="text-right block w-full">
         <PriceNumberFlow value={row.original.line?.line_total ?? 0} />
       </span>
     ),
@@ -281,7 +281,7 @@ const costSummaryColumns: ColumnDef<{ label: string; cost: number }>[] = [
     cell: ({ getValue }) => {
       const value = getValue<number>()
       return (
-        <span className="font-normal text-right block w-full">
+        <span className="text-right block w-full">
           -<PriceNumberFlow value={value} />
         </span>
       )

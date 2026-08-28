@@ -44,7 +44,6 @@ export default function WireForm({
                   control={form.control}
                   name="account_holder_name"
                   label="Name on Account"
-                  className="input-floating-label-form"
                   inputProps={{
                     autoComplete: 'off',
                     onChange: (e) => {
@@ -57,7 +56,6 @@ export default function WireForm({
                   control={form.control}
                   name="bank_name"
                   label="Bank Name"
-                  className="input-floating-label-form"
                   inputProps={{
                     autoComplete: 'off',
                     onChange: (e) => {
@@ -72,7 +70,7 @@ export default function WireForm({
                     name="routing_number"
                     label="Routing Number"
                     type="number"
-                    className="input-floating-label-form no-spinner"
+                    className="no-spinner"
                     inputProps={{
                       autoComplete: 'off',
                       onChange: (e) => {
@@ -86,7 +84,7 @@ export default function WireForm({
                     name="account_number"
                     label="Account Number"
                     type="number"
-                    className="input-floating-label-form no-spinner"
+                    className="no-spinner"
                     inputProps={{
                       autoComplete: 'off',
                       onChange: (e) => {
@@ -111,14 +109,13 @@ export default function WireForm({
                             syncToStore()
                           }}
                           id={`confirmation-${form.getValues().account_holder_name ?? ''}`}
-                          className="checkbox-form"
                         />
                       </FormControl>
                       <label
                         htmlFor={`confirmation-${form.getValues().account_holder_name ?? ''}`}
-                        className="cursor-pointer text-sm text-neutral-700 font-normal"
+                        className="cursor-pointer"
                       >
-                        I have entered the correct bank information.
+                        <small>I have entered the correct bank information.</small>
                       </label>
                     </div>
                   </FormItem>

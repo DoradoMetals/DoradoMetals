@@ -37,7 +37,6 @@ export default function EcheckForm({
                 control={form.control}
                 name="account_holder_name"
                 label="Addressed To"
-                className="input-floating-label-form"
                 inputProps={{
                   autoComplete: 'off',
                   onChange: (e) => {
@@ -50,7 +49,6 @@ export default function EcheckForm({
                 control={form.control}
                 name="payout_email"
                 label="Email Delivery"
-                className="input-floating-label-form"
                 inputProps={{
                   autoComplete: 'off',
                   onChange: (e) => {

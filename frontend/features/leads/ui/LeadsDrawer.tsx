@@ -43,18 +43,18 @@ export default function LeadsDrawer({ leads, lead_id }: { leads: Lead[]; lead_id
   }
 
   return (
-    <Drawer label="Lead" open={isDrawerOpen} setOpen={closeDrawer} className="glass-panel">
+    <Drawer label="Lead" open={isDrawerOpen} setOpen={closeDrawer}>
       <Header lead={lead} />
-      <div className="glass-divider" />
+      <hr />
       <div className="space-y-8">
         <Details lead={lead} />
-        <div className="glass-divider" />
+        <hr />
         <Booleans lead={lead} />
-        <div className="glass-divider" />
+        <hr />
         <Contacted lead={lead} />
-        <div className="glass-divider" />
+        <hr />
         <Actions lead={lead} />
-        <div className="glass-divider" />
+        <hr />
       </div>
     </Drawer>
   )
@@ -64,8 +64,8 @@ function Header({ lead }: { lead: Lead }) {
   return (
     <div className="flex flex-col w-full gap-8">
       <div className="flex w-full items-end justify-between">
-        <div className="text-2xl text-neutral-900">{lead.name}</div>
-        <StatusChip positive={lead.converted} className="text-sm">
+        <h2>{lead.name}</h2>
+        <StatusChip positive={lead.converted} size="lg">
           {lead.converted ? 'Converted' : 'Not Converted'}
         </StatusChip>
       </div>
@@ -87,10 +87,10 @@ function Details({ lead }: { lead: Lead }) {
 
   return (
     <div className="flex flex-col w-full gap-4">
-      <div className="section-label mb-4">Details</div>
+      <p className="eyebrow mb-4">Details</p>
 
       <div className="flex flex-col gap-1">
-        <Label className="text-xs pl-1 font-medium text-neutral-700">Priority</Label>
+        <Label className="pl-1">Priority</Label>
         <PrioritySelect
           value={(lead.priority ?? 'Medium') as LeadPriority}
           onChange={(v) => handleUpdate({ priority: v })}
@@ -98,7 +98,7 @@ function Details({ lead }: { lead: Lead }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="name" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="name" className="pl-1">
           Name
         </Label>
 
@@ -106,14 +106,13 @@ function Details({ lead }: { lead: Lead }) {
           id="name"
           placeholder="Enter name..."
           type="text"
-          className="on-glass"
           defaultValue={lead.name ?? ''}
           onBlur={(e) => handleUpdate({ name: e.target.value })}
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="phone" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="phone" className="pl-1">
           Phone Number
         </Label>
 
@@ -123,7 +122,6 @@ function Details({ lead }: { lead: Lead }) {
           type="text"
           inputMode="tel"
           autoComplete="tel"
-          className="on-glass"
           defaultValue={formatPhoneNumber(normalizePhone(lead.phone))}
           maxLength={17}
           onChange={(e) => {
@@ -138,7 +136,7 @@ function Details({ lead }: { lead: Lead }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="email" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="email" className="pl-1">
           Email
         </Label>
 
@@ -146,21 +144,20 @@ function Details({ lead }: { lead: Lead }) {
           id="email"
           placeholder="Enter email..."
           type="text"
-          className="on-glass"
           defaultValue={lead.email ?? ''}
           onBlur={(e) => handleUpdate({ email: e.target.value })}
         />
       </div>
 
       <div className="flex flex-col w-full gap-1">
-        <Label htmlFor="notes" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="notes" className="pl-1">
           Notes
         </Label>
         <Textarea
           rows={20}
           id="Notes"
           placeholder="Enter lead notes..."
-          className="on-glass min-w-70"
+          className="min-w-70"
           defaultValue={lead.notes}
           onBlur={(e) => handleUpdate({ notes: e.target.value })}
         />
@@ -180,7 +177,7 @@ function Booleans({ lead }: { lead: Lead }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="section-label">Booleans</div>
+      <p className="eyebrow">Booleans</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 items-stretch justify-items-stretch">
         <DisplayToggle
@@ -188,27 +185,18 @@ function Booleans({ lead }: { lead: Lead }) {
           value={!!lead.contacted}
           onChange={(v) => handleUpdate({ contacted: v })}
           className="w-full"
-          onClass="success-on-glass rounded-l-lg"
-          offClass="destructive-on-glass rounded-r-lg"
-          inactiveClass="on-glass"
         />
         <DisplayToggle
           label="Responded"
           value={!!lead.responded}
           onChange={(v) => handleUpdate({ responded: v })}
           className="w-full"
-          onClass="success-on-glass rounded-l-lg"
-          offClass="destructive-on-glass rounded-r-lg"
-          inactiveClass="on-glass"
         />
         <DisplayToggle
           label="Converted"
           value={!!lead.converted}
           onChange={(v) => handleUpdate({ converted: v })}
           className="w-full"
-          onClass="success-on-glass rounded-l-lg"
-          offClass="destructive-on-glass rounded-r-lg"
-          inactiveClass="on-glass"
         />
       </div>
     </div>
@@ -236,17 +224,17 @@ function Contacted({ lead }: { lead: Lead }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col w-full gap-4 items-start">
         <div className="flex flex-col w-full gap-1">
-          <Label className="text-xs pl-1 font-medium text-neutral-700">Point of Contact</Label>
+          <Label className="pl-1">Point of Contact</Label>
           <PopoverSelect
             value={lead.contact}
             options={admins?.map((a) => a.name)}
             onChange={(val) => handleUpdate({ contact: val })}
-            triggerClass="on-glass w-full"
+            variant="secondary"
           />
         </div>
 
         <div className="flex flex-col w-full gap-1">
-          <Label className="text-xs pl-1 font-medium text-neutral-700">Last Contacted</Label>
+          <Label className="pl-1">Last Contacted</Label>
           <SchedulePicker
             value={lastContacted}
             onChange={(iso) => handleUpdate({ last_contacted: iso ? new Date(iso) : null })}
@@ -285,17 +273,18 @@ function Actions({ lead }: { lead: Lead }) {
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <div className="section-label">Actions</div>
+      <p className="eyebrow">Actions</p>
 
       <div className="flex flex-col w-full gap-3">
         <div className="flex flex-col items-start gap-1">
-          <div className="text-red-600 text-destructive">
+          <p className="text-destructive">
             {createUser.error ? createUser.error.message : null}
-          </div>
+          </p>
 
           <Button
-            variant="ghost"
-            className="flex items-center w-full gap-3 justify-center success-on-glass p-4"
+            variant="secondary"
+            intent="success"
+            className="flex items-center w-full gap-3 justify-center"
             onClick={handleCreateNewUser}
             disabled={!canCreate}
           >
@@ -314,8 +303,9 @@ function Actions({ lead }: { lead: Lead }) {
           <DialogTrigger asChild>
             <div className="flex">
               <Button
-                variant="ghost"
-                className="flex items-center w-full gap-3 justify-center destructive-on-glass p-4"
+                variant="secondary"
+                intent="danger"
+                className="flex items-center w-full gap-3 justify-center"
               >
                 <TrashIcon size={18} />
                 Delete Lead
@@ -326,14 +316,14 @@ function Actions({ lead }: { lead: Lead }) {
             <DialogHeader>
               <DialogTitle>Delete Lead?</DialogTitle>
             </DialogHeader>
-            <div className="text-sm text-neutral-700">
+            <p>
               This will permanently delete <strong>{lead.name || lead.email || lead.phone}</strong>.
-            </div>
+            </p>
             <DialogFooter className="pt-4">
-              <Button variant="ghost" onClick={() => setOpen(false)}>
+              <Button variant="tertiary" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleConfirmDelete}>
+              <Button intent="danger" onClick={handleConfirmDelete}>
                 Delete
               </Button>
             </DialogFooter>

@@ -33,30 +33,36 @@ export function CartTabs() {
       <Drawer label="Cart"
         open={isCartOpen}
         setOpen={closeDrawer}
-        className="bg-card border-t-1 border-border lg:border-none sm:!overflow-hidden"
+        surface="card"
+        className="border-t-1 border-border lg:border-none sm:!overflow-hidden"
       >
         <Button
-          variant="ghost"
+          variant="tertiary"
           size="icon"
-          className="hidden sm:flex hover:bg-card p-3"
+          className="hidden sm:flex"
           onClick={closeDrawer}
         >
-          <X size={24} className="text-neutral-900" />
+          <X size={24} />
         </Button>
         <Tabs
           defaultValue={tab}
           onValueChange={(val) => setTab(val as 'buy' | 'sell')}
           className="w-full h-full"
         >
-          <TabsList className="w-full rounded-none bg-transparent px-0">
-            <TabsTrigger value="buy" className="tab-indicator-secondary">
+          {/* NOTE: "Buy" uses the SUBTLE indicator and "Sell" the primary one,
+              so the two tabs have different active treatments. That predates
+              this pass (tab-indicator-secondary vs tab-indicator-primary) and
+              is preserved exactly rather than harmonised - it looks accidental
+              and the call is Jacob's. */}
+          <TabsList variant="underline" className="w-full">
+            <TabsTrigger value="buy" variant="underlineSubtle">
               Buy Cart {`(${items.length})`}
             </TabsTrigger>
-            <TabsTrigger value="sell" className="tab-indicator-primary">
+            <TabsTrigger value="sell" variant="underline">
               Sell Cart {`(${sellItems.length})`}
             </TabsTrigger>
           </TabsList>
-          <div className="separator-inset -mt-[11px]" />
+          <div className="h-px w-full bg-border -mt-[11px]" />
 
           <TabsContent value="buy">
             <Cart />

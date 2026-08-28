@@ -18,10 +18,10 @@ type RateRow = {
 }
 
 const METAL_ICONS: Record<MetalName, (props: { size?: number }) => React.ReactNode> = {
-  Gold: ({ size = 36 }) => <GoldIcon size={size} className="text-primary" />,
-  Silver: ({ size = 36 }) => <SilverIcon size={size} className="text-primary" />,
-  Platinum: ({ size = 36 }) => <PlatinumIcon size={size} className="text-primary" />,
-  Palladium: ({ size = 36 }) => <PalladiumIcon size={size} className="text-primary" />,
+  Gold: ({ size = 36 }) => <GoldIcon size={size} />,
+  Silver: ({ size = 36 }) => <SilverIcon size={size} />,
+  Platinum: ({ size = 36 }) => <PlatinumIcon size={size} />,
+  Palladium: ({ size = 36 }) => <PalladiumIcon size={size} />,
 }
 
 function LabelWithIcon({
@@ -37,7 +37,7 @@ function LabelWithIcon({
 }) {
   return (
     <span className={className}>
-      {Icon && <Icon size={iconSize} className="text-primary" />}
+      {Icon && <Icon size={iconSize} />}
       {children}
     </span>
   )
@@ -53,10 +53,8 @@ export default function RatesPage() {
     <main className="relative w-full flex flex-col items-center">
       <section className="w-full px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-4">
         <div className="flex flex-col items-start gap-2 max-w-6xl mx-auto mb-4">
-          <h1 className="text-neutral-900 text-2xl sm:text-3xl font-semibold tracking-tight">
-            Industry-Leading Rates
-          </h1>
-          <p className="text-neutral-700 mt-3 max-w-xl text-sm sm:text-base leading-relaxed">
+          <h1>Industry-Leading Rates</h1>
+          <p className="mt-3 max-w-xl">
             We're focused on delivering the best possible return for your metal, often 30-40% higher
             than local shops. Pricing is by volume based on total metal content. Higher volume,
             higher payout. Within each volume band, rates are set separately for bullion and scrap.
@@ -70,7 +68,7 @@ export default function RatesPage() {
             <MetalCard key={metal} metal={metal} data={grouped[metal]!} />
           ))}
           {!rates.length && (
-            <div className="text-center text-neutral-600 text-sm">Loading current rates…</div>
+            <p className="text-center">Loading current rates…</p>
           )}
         </div>
       </section>
@@ -97,7 +95,7 @@ function MetalCard({
 }) {
   const cols = ensureAtLeastFour(data.columns)
   return (
-    <article className="rounded-lg bg-card raised-off-page">
+    <article className="rounded-lg bg-card border border-border">
       <MobileRates metal={metal} cols={cols} />
       <DesktopRates metal={metal} cols={cols} />
     </article>
@@ -114,7 +112,7 @@ function MobileRates({
   return (
     <>
       <div className="px-4 sm:px-6 pt-4 md:hidden">
-        <h2 className="text-neutral-900 text-xl sm:text-2xl font-semibold">
+        <h2>
           <LabelWithIcon
             Icon={() => METAL_ICONS[metal]({ size: 36 })}
             className="flex items-center gap-2"
@@ -149,7 +147,7 @@ function DesktopRates({
 }) {
   return (
     <div className="hidden md:grid px-4 sm:px-6 pt-4 pb-4 grid-cols-5">
-      <h2 className="col-span-1 text-neutral-900 text-xl font-semibold">
+      <h2 className="col-span-1">
         <LabelWithIcon
           Icon={() => METAL_ICONS[metal]({ size: 36 })}
           className="flex items-center gap-2"
@@ -182,7 +180,7 @@ function DesktopRates({
 function BandChips({
   cols,
   className,
-  chipClassName = 'rounded-full border border-border px-3 py-1 text-base text-neutral-800',
+  chipClassName = 'rounded-full border border-border px-3 py-1',
   gridClassName = 'grid grid-cols-4 gap-2',
 }: {
   cols: Array<{ key: string; label: string }>
@@ -208,9 +206,9 @@ function RatesRow({
   values,
   className,
   icon,
-  labelClassName = 'text-neutral-800 text-lg',
+  labelClassName = '',
   cellClassName = 'flex items-center justify-center px-3 py-3.5',
-  valueClassName = 'text-neutral-900 text-4xl font-semibold',
+  valueClassName = 'stat',
   showDividers = true,
 }: {
   label: string
@@ -257,7 +255,7 @@ function RateValueCell({
 }) {
   return (
     <div className={cn(className, withLeftBorder && 'border-l border-border')}>
-      <span className={valueClassName}>{value == null ? '—' : pctLabel(value)}</span>
+      <strong className={valueClassName}>{value == null ? '—' : pctLabel(value)}</strong>
     </div>
   )
 }
@@ -267,9 +265,9 @@ function MobileBandCard({
   scrapPct,
   bullionPct,
   wrapperClassName = 'rounded-lg bg-highest p-4 border border-border',
-  chipClassName = 'inline-flex items-center rounded-full border border-border px-2.5 py-1 text-sm bg-primary text-white',
-  pairLabelClassName = 'text-neutral-800 text-base',
-  pairValueClassName = 'text-neutral-900 text-3xl font-semibold',
+  chipClassName = 'inline-flex items-center rounded-full border border-border px-2.5 py-1 bg-primary text-primary-foreground',
+  pairLabelClassName = '',
+  pairValueClassName = 'stat-sm',
 }: {
   label: string
   scrapPct: number | null
@@ -327,11 +325,13 @@ function RatePair({
     <div className="flex items-center justify-between">
       <dt className={labelClassName}>
         <span className="inline-flex items-center gap-1.5">
-          {Icon && <Icon size={iconSize} className="text-primary" />}
+          {Icon && <Icon size={iconSize} />}
           {label}
         </span>
       </dt>
-      <dd className={valueClassName}>{value == null ? '—' : pctLabel(value)}</dd>
+      <dd>
+        <strong className={valueClassName}>{value == null ? '—' : pctLabel(value)}</strong>
+      </dd>
     </div>
   )
 }

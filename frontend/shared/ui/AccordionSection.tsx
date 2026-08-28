@@ -9,17 +9,17 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 // The collapsible label + optional-total section that was hand-rolled in each
 // order drawer footer and the product page. Styling is copied as-is from the
 // two specimens; `variant` picks between them:
-//   - 'glass'  - the order-drawer footer look (rounded on-glass, total on the
+//   - 'glass' - the order-drawer footer look (hairline-bordered, total on the
 //                right, content inset with pr-9)
 //   - 'raised' - the product-page look (raised card, uppercase tracked label)
 const VARIANTS = {
   glass: {
-    container: 'rounded-md on-glass',
+    container: 'rounded-md border border-border bg-transparent',
     header: 'w-full p-2 flex justify-between items-center text-sm font-normal cursor-pointer',
     content: 'p-2 pr-9',
   },
   raised: {
-    container: 'rounded-md bg-card raised-off-page p-2',
+    container: 'rounded-md bg-card border border-border p-2',
     header:
       'w-full p-2 flex justify-between items-center tracking-widest uppercase text-xs lg:text-sm text-neutral-600 font-normal cursor-pointer',
     content: 'p-2',

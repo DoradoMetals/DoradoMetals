@@ -40,43 +40,37 @@ function VerifyLoginContent() {
 
   if (status === 'verifying') {
     return (
-      <div className="flex flex-col items-center justify-center mt-10">
+      <main className="flex flex-col items-center justify-center mt-10">
         <p>Signing you in...</p>
-      </div>
+      </main>
     )
   }
 
   if (status === 'error') {
     return (
-      <div className="flex flex-col items-center justify-center mt-10 gap-4">
+      <main className="flex flex-col items-center justify-center mt-10 gap-4">
         <p className="text-destructive">Invalid or expired link.</p>
         <Button onClick={() => router.push('/authentication')}>Go to Sign In</Button>
-      </div>
+      </main>
     )
   }
 
   return (
-    <div className="flex w-full justify-center items-center mt-10">
-      <div className="flex flex-col w-full max-w-md items-center justify-center gap-6 p-4 rounded-lg">
-        <div className="flex flex-col gap-1 mr-auto text-left">
-          <div className="text-2xl text-neutral-900">Welcome{user?.name ? `, ${user.name}` : ''}!</div>
-          <div className="text-sm text-neutral-700">
-            We suggest you set your password before doing anything else.
-          </div>
-        </div>
-        <div className="separator-inset" />
+    <main className="flex w-full justify-center items-center mt-10">
+      <div className="flex flex-col w-full max-w-md items-center justify-center gap-6 p-4">
+        <header className="flex flex-col gap-1 mr-auto text-left">
+          <h1>Welcome{user?.name ? `, ${user.name}` : ''}!</h1>
+          <p>We suggest you set your password before doing anything else.</p>
+        </header>
+        <hr className="w-full" />
 
         <SetPasswordForm />
-        <div className="separator-inset" />
-        <Button
-          variant="link"
-          className="text-sm text-neutral-600 mr-auto"
-          onClick={() => router.push('/')}
-        >
+        <hr className="w-full" />
+        <Button variant="link" className="mr-auto" onClick={() => router.push('/')}>
           No thanks, I&apos;ll do it later.
         </Button>
       </div>
-    </div>
+    </main>
   )
 }
 

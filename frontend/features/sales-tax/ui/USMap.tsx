@@ -55,7 +55,10 @@ export default function USMap({ selected, setSelected }: USMapProps) {
     const svg = d3.select(svgRef.current)
     svg.selectAll<SVGPathElement, any>('path').attr('fill', (d) => {
       const fips = String(d.id).padStart(2, '0')
-      return selected?.fips === fips ? 'url(#goldGradientCustom)' : 'var(--card)'
+      // Was a five-stop gold gradient defined inline in <defs> - five raw hex
+      // literals and the gradient family ruling 16 retires. --brand is the
+      // token those spellings converge on (theme.css says so in as many words).
+      return selected?.fips === fips ? 'var(--brand)' : 'var(--card)'
     })
   }, [selected])
 
@@ -67,15 +70,6 @@ export default function USMap({ selected, setSelected }: USMapProps) {
         preserveAspectRatio="xMidYMid meet"
         style={{ width: '100%', height: 'auto', touchAction: 'manipulation' }}
       >
-        <defs>
-          <linearGradient id="goldGradientCustom" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#AE8625" />
-            <stop offset="25%" stopColor="#F5D67D" />
-            <stop offset="50%" stopColor="#D2AC47" />
-            <stop offset="75%" stopColor="#EDC967" />
-            <stop offset="100%" stopColor="#AE8625" />
-          </linearGradient>
-        </defs>
       </svg>
     </div>
   )

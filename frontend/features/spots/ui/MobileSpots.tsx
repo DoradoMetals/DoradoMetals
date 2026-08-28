@@ -41,15 +41,18 @@ export default function MobileSpotTicker({ type }: { type: 'Bid' | 'Ask' }) {
           const CaretIcon = trendUp ? CaretUpIcon : CaretDownIcon
           const colorClass = trendUp ? 'text-success' : 'text-destructive'
 
+          // Rides inside the --brand ticker bar (see Spots.tsx), so it carries
+          // the on-brand foreground and its leaves stay bare spans rather than
+          // semantic tags coloured for the page ground.
           return (
-            <div key={`${spot.id}-${i}`} className="flex items-center gap-2 text-white">
-              <span className="text-sm font-medium uppercase tracking-wide">{spot.name}:</span>
+            <div key={`${spot.id}-${i}`} className="flex items-center gap-2 text-primary-foreground">
+              <span className="uppercase">{spot.name}:</span>
               <NumberFlowGroup>
-                <div className="text-base flex font-medium items-center">
+                <div className="flex items-center">
                   <PriceNumberFlow value={(type === 'Bid' ? spot.bid : spot.ask) ?? 0} />
                 </div>
 
-                <div className="flex items-center gap-1 text-sm">
+                <div className="flex items-center gap-1">
                   <CaretIcon size={16} className={colorClass} />
                   <PriceNumberFlow value={spot.dollar_change ?? 0} className={colorClass} />
                 </div>

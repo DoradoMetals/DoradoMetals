@@ -21,19 +21,17 @@ export function Intake() {
                     <div className="flex items-end gap-2">
                       <Icon size={32} className="text-primary shrink-0 md:hidden" />
 
-                      <h3 className="text-xl sm:text-2xl md:text-3xl md:text-4xl font-semibold text-neutral-900">
-                        {opt.label}
-                      </h3>
+                      {/* Was a four-step responsive ramp (text-xl -> text-4xl).
+                          The scale has one size per tag; h2 (28px) is the
+                          landing-section heading and sits between the old
+                          extremes. */}
+                      <h2>{opt.label}</h2>
                     </div>
 
-                    <p className="mt-2 text-neutral-700 text-sm sm:text-lg max-w-55 md:max-w-sm">
-                      {opt.blurb}
-                    </p>
-                    <Button variant="ghost" className="self-start p-0 mb-0">
-                      <span className="mt-3 inline-flex items-center gap-2 text-neutral-500 text-xs md:text-sm">
-                        Learn More
-                        <ArrowRightIcon size={16} className="text-neutral-500" />
-                      </span>
+                    <p className="mt-2 max-w-55 md:max-w-sm">{opt.blurb}</p>
+                    <Button variant="link" className="self-start mt-3">
+                      Learn More
+                      <ArrowRightIcon size={16} />
                     </Button>
                   </div>
                 </div>

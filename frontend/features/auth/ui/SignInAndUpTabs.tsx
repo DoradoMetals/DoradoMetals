@@ -1,6 +1,7 @@
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/base/tabs'
+import { Separator } from '@/shared/ui/base/separator'
 import SignInForm from './SignInForm'
 import SignUpForm from './SignUpForm'
 
@@ -18,15 +19,15 @@ export function SignInAndUpTabs() {
 
   return (
     <Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="flex w-full px-10 max-w-lg mt-10 lg:mt-10">
-      <TabsList className="justify-center h-auto w-full gap-2 rounded-none bg-transparent px-0 py-1">
-        <TabsTrigger className="tab-indicator-primary" value="sign-in">
+      <TabsList variant="underline" className="justify-center w-full gap-2 py-1">
+        <TabsTrigger variant="underline" value="sign-in">
           Sign In
         </TabsTrigger>
-        <TabsTrigger className="tab-indicator-primary" value="sign-up">
+        <TabsTrigger variant="underline" value="sign-up">
           Sign Up
         </TabsTrigger>
       </TabsList>
-      <div className="separator-inset -mt-[11px] mb-8" />
+      <Separator className="-mt-[11px] mb-8" />
 
       <TabsContent value="sign-in">
         <SignInForm />

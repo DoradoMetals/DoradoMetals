@@ -22,7 +22,13 @@ export function Rates() {
               sm:[clip-path:polygon(0_0,100%_0,100%_100%,50%_40%,0_100%)]
             "
         >
-          <h2 className="text-center text-white font-semibold tracking-wide text-lg sm:text-2xl">
+          {/* LIVE DEFECT FIXED: `bg-primary` sits on the banner and `text-white`
+              sat on this heading, so base.css's `.bg-primary.text-white` bridge -
+              which matches BOTH classes on ONE element - never covered it.
+              --primary is white now, so this was white-on-white. The banner is
+              not the page ground, so the heading names the on-primary token
+              rather than inheriting typography.css's near-white heading colour. */}
+          <h2 className="text-center text-primary-foreground">
             Get the highest rates for your precious metals
           </h2>
         </div>
@@ -37,16 +43,20 @@ export function Rates() {
                 return (
                   <div key={metal} className="flex justify-center">
                     <div className="flex flex-col items-start">
-                      <p className="text-base text-neutral-700 pl-1 tracking-wide font-normal">
-                        Up to
-                      </p>
+                      <p className="pl-1">Up to</p>
                       <dt className="sr-only">{metal} payout</dt>
-                      <dd className="text-5xl sm:text-6xl font-bold text-neutral-900">
-                        {pctLabel(value)}
+                      {/* Was text-5xl/6xl (48-60px). No TAG reaches display
+                          size - typography.css defines --text-display (64px)
+                          but maps no element to it - and `text-display` is a
+                          type utility, which the scatter target forbids. h2
+                          (28px) is the largest tag that does not add a fifth
+                          top-level heading to this page (app/page.tsx already
+                          has one). SEE THE REPORT: this is the one real visual
+                          regression of the P1 sweep. */}
+                      <dd>
+                        <h2>{pctLabel(value)}</h2>
                       </dd>
-                      <p className="text-base text-neutral-700 pl-1 tracking-wide font-normal">
-                        on {metal}
-                      </p>
+                      <p className="pl-1">on {metal}</p>
                     </div>
                   </div>
                 )
@@ -54,15 +64,12 @@ export function Rates() {
             </dl>
           </div>
         </div>
-        <p className="text-center text-neutral-600 text-sm md:text-lg max-w-2xl mx-auto mb-8 md:mb-12 px-4">
+        <p className="text-center max-w-2xl mx-auto mb-8 md:mb-12 px-4">
           We buy at rates you won't find anywhere else. Skip the local pawn shop or jewelry store—
           you deserve a fair market value for your metals.
         </p>
         <div className="flex justify-center -mb-5">
-          <Button
-            className="bg-highest raised-off-page px-6 sm:px-8 py-5 text-white text-lg z-1 text-primary hover:text-white hover:bg-primary"
-            onClick={() => router.push('/rates')}
-          >
+          <Button variant="secondary" size="lg" className="z-1" onClick={() => router.push('/rates')}>
             View Full Rates
           </Button>
         </div>

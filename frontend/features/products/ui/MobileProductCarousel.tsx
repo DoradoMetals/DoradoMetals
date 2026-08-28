@@ -1,5 +1,7 @@
 'use client'
 
+import type React from 'react'
+
 import { useRouter, usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useProductFilterStore } from '@/shared/store/productFilterStore'
@@ -68,24 +70,47 @@ export default function MobileProductCarousel() {
     )
   }
 
+  // A category tile is a control, and both variants were bare `<div onClick>`
+  // (two of D93's eleven clickable divs with no role and no keyboard path).
+  // They stay DIVS rather than becoming `<button>`s because `<button>` accepts
+  // PHRASING content only: the mobile tile holds a `<div>` + `<Image>`, and the
+  // desktop one holds a `<p>`. Same content-model trap ruling 22 flags for
+  // `<span><p>`. role + tabIndex + a key handler is the valid form.
+  const asButton = (onActivate: () => void) => ({
+    role: 'button' as const,
+    tabIndex: 0,
+    onClick: onActivate,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        onActivate()
+      }
+    },
+  })
+
   return (
-    <div className="">
+    <nav aria-label="Product categories">
       <div className={cn("hidden lg:flex w-full justify-center", pathname === '/' ? 'mt-1' : 'my-9')}>
         {categories.map((category, index) => (
           <div
             key={category.name}
-            onClick={() => handleClick(category.name)}
+            {...asButton(() => handleClick(category.name))}
             className={`flex cursor-pointer items-center px-9 ${
-              index !== 0 ? 'border-l border-neutral-300' : ''
+              index !== 0 ? 'border-l border-border' : ''
             }`}
           >
-            <span
-              className={`text-base font-semibold tracking-widest uppercase transition-colors ${
-                isActive(category.name) ? 'text-primary' : 'text-neutral-400 hover:text-primary'
+            {/* Was `text-neutral-400` when inactive - 2.7:1 on the page ground,
+                under AA and under the 3.0 floor RETIREMENT.md audits to. The
+                <p> default (--muted-foreground, 6.96:1) is the muted step the
+                three-tone hierarchy already defines, so the inactive state
+                needs no colour class at all. */}
+            <p
+              className={`uppercase tracking-widest transition-colors ${
+                isActive(category.name) ? 'text-primary' : 'hover:text-primary'
               }`}
             >
               {category.name}
-            </span>
+            </p>
           </div>
         ))}
       </div>
@@ -95,14 +120,18 @@ export default function MobileProductCarousel() {
           {categories.map((category) => (
             <div
               key={category.name}
-              onClick={() => handleClick(category.name)}
+              {...asButton(() => handleClick(category.name))}
               className="flex flex-col items-center w-20 cursor-pointer"
             >
+              {/* LIVE DEFECT FIXED: the selected ring was `border-secondary`,
+                  and --secondary stopped being a hue in the palette flip - it
+                  is now hsl(225,9%,15%), all but identical to the `border-border`
+                  the UNSELECTED thumbnails carry, so "selected" was invisible.
+                  --primary (white) is the monochrome answer MANUAL-VERIFICATION
+                  5.2 names. `shadow-md` goes with ruling 16. */}
               <div
                 className={`bg-card w-18 h-18 rounded-full flex items-center justify-center border ${
-                  isActive(category.name)
-                    ? 'border-secondary border-2 shadow-md'
-                    : 'border-border'
+                  isActive(category.name) ? 'border-primary border-2' : 'border-border'
                 }`}
               >
                 <Image
@@ -113,13 +142,13 @@ export default function MobileProductCarousel() {
                   className="w-16 h-16 object-contain"
                 />
               </div>
-              <span className="text-xs mt-1 text-center w-full whitespace-nowrap overflow-hidden">
+              <small className="mt-1 text-center w-full whitespace-nowrap overflow-hidden">
                 {category.name}
-              </span>
+              </small>
             </div>
           ))}
         </motion.div>
       </div>
-    </div>
+    </nav>
   )
 }

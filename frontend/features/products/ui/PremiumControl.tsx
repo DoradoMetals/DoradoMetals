@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/shared/utils/cn'
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
+import { RadioGroup } from '@/shared/ui/base/radio-group'
+import { RadioCard } from '@/shared/ui/RadioCard'
 import {
   CurrencyDollarIcon,
   PercentIcon,
@@ -10,6 +11,7 @@ import {
   ArrowDownIcon,
 } from '@phosphor-icons/react'
 import { Input } from '@/shared/ui/base/input'
+import { Label } from '@/shared/ui/base/label'
 
 type Unit = 'dollar' | 'percent'
 type Direction = 'over' | 'under'
@@ -95,7 +97,7 @@ export default function PremiumControl({
 
   return (
     <div className={cn('flex flex-col w-full gap-1', className)}>
-      <div className="text-xs font-medium text-neutral-700 pl-1">{label}</div>
+      <Label className="pl-1">{label}</Label>
 
       <div className="flex items-center gap-2">
         <RadioGroup
@@ -105,32 +107,37 @@ export default function PremiumControl({
           }}
           className="flex items-center gap-0 rounded-lg p-0"
         >
-          <RadioPill
+          {/* `rounded-l-lg` / `rounded-r-lg` are the JOINED-END geometry of a
+              two-cell segmented control, not a look: RadioCard's `segment` has
+              no expression for "this cell is an end cap", so the two survive at
+              the call site. Flagged in the report as the one real gap.
+              The unit pair is `intent="neutral"`, which FILLS rather than
+              washing - the old `bg-primary/15` was a 15% white wash on a
+              near-black ground, i.e. a selected state nobody could see. */}
+          <RadioCard
             id={`${label}-unit-dollar`}
             value="dollar"
-            groupValue={unit}
-            activeClass="primary-on-glass rounded-l-lg"
-            inactiveClass="rounded-l-lg on-glass"
+            variant="segment"
+            className="h-10 min-w-10 px-2 rounded-l-lg"
           >
             <CurrencyDollarIcon size={18} />
-          </RadioPill>
+          </RadioCard>
 
-          <RadioPill
+          <RadioCard
             id={`${label}-unit-percent`}
             value="percent"
-            groupValue={unit}
-            activeClass="primary-on-glass rounded-r-lg"
-            inactiveClass="rounded-r-lg on-glass"
+            variant="segment"
+            className="h-10 min-w-10 px-2 rounded-r-lg"
           >
             <PercentIcon size={18} />
-          </RadioPill>
+          </RadioCard>
         </RadioGroup>
 
         <div className="relative flex-1">
           <Input
             inputMode="decimal"
             type="text"
-            className={cn('h-10 text-center hover:on-glass', inputClassName)}
+            className={cn('h-10 text-center', inputClassName)}
             value={display}
             onChange={(e) => {
               const cleaned = e.target.value
@@ -173,58 +180,29 @@ export default function PremiumControl({
           }}
           className="flex items-center gap-0 rounded-lg p-0"
         >
-          <RadioPill
+          <RadioCard
             id={`${label}-dir-over`}
             value="over"
-            groupValue={direction}
-            activeClass="rounded-l-lg success-on-glass"
-            inactiveClass="rounded-l-lg on-glass"
+            variant="segment"
+            intent="success"
+            className="h-10 min-w-10 px-2 rounded-l-lg"
           >
             <ArrowUpIcon size={18} />
-          </RadioPill>
+          </RadioCard>
 
-
-          <RadioPill
+          <RadioCard
             id={`${label}-dir-under`}
             value="under"
-            groupValue={direction}
-            activeClass="rounded-r-lg destructive-on-glass"
-            inactiveClass="rounded-r-lg on-glass"
+            variant="segment"
+            intent="danger"
+            className="h-10 min-w-10 px-2 rounded-r-lg"
           >
             <ArrowDownIcon size={18} />
-          </RadioPill>
+          </RadioCard>
         </RadioGroup>
       </div>
     </div>
   )
 }
 
-function RadioPill({
-  id,
-  value,
-  groupValue,
-  children,
-  activeClass,
-  inactiveClass,
-}: {
-  id: string
-  value: string
-  groupValue: string
-  children: any
-  activeClass: string
-  inactiveClass: string
-}) {
-  const active = groupValue === value
-  return (
-    <label
-      htmlFor={id}
-      className={cn(
-        'h-10 px-2 min-w-10 flex items-center justify-center cursor-pointer select-none transition-colors',
-        active ? activeClass : inactiveClass
-      )}
-    >
-      <RadioGroupItem id={id} value={value} className="sr-only" />
-      {children}
-    </label>
-  )
-}
+

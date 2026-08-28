@@ -8639,3 +8639,999 @@ FIX (wave 3): the server sends it at order creation, after commit,
 keyed by order_id, rendering from its own read - which also honors the
 transaction rule (email is irreversible, so it goes AFTER the commit,
 never inside it). The route dies with the frontend call.
+
+=== D92: THE PALETTE FLIP MAKES 52 CTAs INVISIBLE - PALETTE AND
+    CALL-SITE FIX MUST SHIP IN ONE COMMIT ===
+Found by the inventory agent mid-survey, VERIFIED by the coordinator
+against the files: theme.css now sets --primary: hsl(0,0%,98%) (the
+gold moved to --brand), and 52 lines across 39 .tsx files put
+`bg-primary` and `text-white` on the SAME element. White on white.
+The set is not obscure - homepage CTA, all five auth submit buttons,
+both cart CTAs, both checkout steppers, add-to-cart, and
+shared/ui/DotSelect.tsx:11 where it is a DEFAULT PROP. master
+auto-deploys and there is no staging environment, so a palette-now /
+sweep-later split would ship an app whose buttons cannot be seen.
+RULE ADOPTED: app/styles/** is held out of every commit until the
+call-site fix lands with it. Wave 2's 158 files were staged with
+`git add -A -- . ':(exclude)frontend/app/styles'` for exactly this.
+Mechanical conversion (pending the foundation agent's confirmation
+that the token exists): `bg-primary text-white` -> `bg-primary
+text-background`, i.e. Linear's own primary button - light ground,
+dark text - with bg-brand reserved for genuine brand moments.
+ALSO SURFACED, same class: theme.css made `dark:` always-on, so 38
+previously-DEAD dark: utilities are now live (the document never
+carried .dark; defaultTheme was "light"), 29 of them in Footer.tsx
+alone. And a pre-existing typo, ProductPageDetails.tsx:637
+`bg-primarytext-white`, a selected-state background that has never
+rendered - predates the sweep, gets fixed by it.
+
+=== D93: WHERE THE STYLING PLAN IS HARDER THAN IT LOOKS (measured) ===
+From the inventory (frontend/app/styles/STYLING-INVENTORY.md, 1082
+lines). The counts Jacob and I worked from were close but three were
+materially wrong, and the corrections change the plan:
+ - SPACING IS 1815, NOT 1080 - 735 gap-/space- utilities went
+   uncounted, and gap-1 + gap-2 alone are 392.
+ - text-* is 2816 occurrences of which 239 ARE ALIGNMENT
+   (text-left/center/right). A naive size-sweep regex destroys them.
+ - `raised-off-page` is in 71 of 258 files - removing it is not a
+   local change.
+ - rounded is 292 not 276 (16 are the bare `rounded`); raw hex is 62
+   occurrences on 40 lines, not 36; dark: is 38 and 29 are Footer.tsx.
+ - (e) DIV SOUP: only 320 of 1834 divs have a semantic answer (17%) -
+   269 text-leaf divs, 30 .map() roots, 10 missing <main>, 11
+   clickable divs. The other 1514 stay divs. The 269 are THE SAME
+   ELEMENTS as (b)'s convertible divs, so (b) AND (e) MUST RUN IN THE
+   SAME PASS PER FILE or the same lines get touched twice.
+ - (b) TYPOGRAPHY: of 931 elements carrying a text size only 262 sit
+   on a semantic tag; 669 NEED A HUMAN (150 wrapper divs styling by
+   inheritance, 63 inline spans, 49 labels, 47 buttons, 109 responsive
+   pairs, 62 runtime-conditional classes, 4 cross-origin - Stripe
+   Elements renders in an IFRAME and cannot see theme.css, ON THE
+   MONEY PATH).
+ - (h) IS A DESIGN QUESTION, NOT A SWEEP: 684 of 1040 shared/ui call
+   sites override styling, 422 of them appearance. Button is 185
+   overrides on 190 call sites - either the six variants are wrong or
+   the call sites are, and deleting 185 classNames without fixing the
+   variants FLATTENS EVERY BUTTON IN THE APP. Jacob's call.
+ - SelectMenu has ZERO call sites (written, adopted nowhere) - confirm
+   the deferral is intended.
+ - Cleanest available win: all five StatusChip call sites pass a
+   different text size, and the component's own comment admits it.
+PARTITION (disjoint, from the inventory): P0 foundation serial+alone
+(shared/ui/**, styles half done) containing P0.0 the white-on-white
+fix which crosses every partition; then parallel P1 commerce (1201),
+P2 checkout+identity (1183), P3 shell+admin-lite (1344); P4 HELD BACK
+= orders, payouts, shipping, refiners, fulfillments (1447, 25% of the
+total, every file hot with wave 3).
+
+=== D94: THE API SUITE IS ~20x ITS DOCUMENTED WALL CLOCK - WAVE 3 ===
+Jacob: "those slow tests are problems. Add that to the list to fix in
+wave 3." Measured on the wave-2 gate run: the suite took ~18 minutes
+against the ~120s baseline shared/testing/locks.ts documents, 890 tests
+green throughout. THE SLOWEST TWELVE:
+  467.6s  both paths record the same line, same weights, same premium
+  436.7s  createNewItem derives content from weight and purity
+  424.9s  a scrap line carries its values inline and has no bullion
+  413.5s  getCart returns the wire shape the frontend reads
+  374.5s  the bullion field writes the line's quantity
+  343.9s  POST :id/items adds a scrap line and its scrap row
+  298.3s  ensureSellCart is idempotent too
+  256.3s  the new schema keeps the weights on the item, not behind a join
+  218.7s  finalize + label in one document equals finalize then label
+  206.8s  a sell cart lands under the purchase direction, not the sale
+  195.6s  an order that does not exist is refused before anything runs
+  195.3s  the list is refused to anonymous; a customer sees only their own
+THE LAST TWO ARE THE DIAGNOSIS. "An order that does not exist is refused
+before anything runs" asserts a 404 and touches nothing - 195 seconds of
+that is PURE LOCK WAIT, not work. So the wall clock is queueing, and the
+question is not "why is this test slow" but "who holds the lock, and for
+how long".
+HYPOTHESIS (untested, and the point of the task is to test it rather
+than act on it): wave 2 put the refiner engagement + item/spot mirrors
+on the CREATE path, so (a) each order placement writes more inside the
+lock, and (b) test files that never touched orders.* now do, which means
+MORE FILES MUST TAKE THE ORDERS LOCK and the serial chain got longer.
+(b) would explain a 20x better than (a) does.
+METHOD, in this order: time the suite at 0a201bc0 (before wave 2) for a
+real before/after; then instrument which files take which locks and how
+long each holds; only then change anything. locks.ts's own warning
+stands and is now doubly relevant - partitioning the locks further
+moved the total 123s -> 118s and will not save this; the fix is in what
+happens WHILE a lock is held. Do NOT "fix" it by removing locks: they
+exist because two files writing the same tables deadlocked in a full run
+and passed in isolation, twice.
+COST OF NOT FIXING: every gate from here pays ~18 minutes, and the gate
+is the slowest step in the commit loop.
+MEASURED PROPERLY by the new guard (audit:slow-tests, built to Jacob's
+rule "any test over x threshold above average needs to be targeted"):
+it is not twelve tests, it is ONE HUNDRED AND FORTY-NINE over threshold.
+902 timed tests, 574 db-class, db-class median 1.5s, suite total test-
+time 15,026s (4.2 hours, parallelized into ~18 min wall). The guard
+uses an absolute ceiling (10s) OR 20x the db-class MEDIAN - never the
+mean, because the outliers drag the mean up and "above average" would
+get LOOSER as the suite got worse. ACCEPTED is deliberately EMPTY:
+seeding it with today's violators would pin the regression as the
+baseline and certify the bug. NOT in `pnpm check` while D94 stands
+(precedent: audit:enum-domains, audit:payments); add it when the list
+is empty or genuinely accepted.
+
+16. DELETE, DO NOT NEUTER (Jacob, on the foundation agent's report):
+    glass.css, gradients.css, the shine/backgroundShift/shineMove
+    animations and the shadow pairs are to be DELETED, with their call
+    sites updated in the same pass - not kept as flat token-based
+    stand-ins. "They should be deleted and updated in call-sites."
+    Scale, so nobody underestimates it: glass 227 sites / 47 files,
+    gradients 7 sites, .raised-off-page 126 sites / 71 files, plus the
+    base.css compatibility bridge the foundation agent added for
+    bg-primary+text-white (51 of 52 sites) which is a crutch by its
+    author's own description and dies with them.
+    CONSEQUENCE: the styling program lands as ONE commit, not a
+    foundation commit plus sweeps. A half-swept tree is a tree where a
+    deleted class silently does nothing - no error, no type failure,
+    just an element that quietly loses its styling. There is no staging
+    environment and master auto-deploys, so "mostly swept" is not a
+    shippable state. app/styles/** stays out of every commit until the
+    last call site is converted (see D92).
+
+17. EVERY SEMANTIC TAG GETS STYLING (Jacob): "All semantic html tags
+    should have styling. Anywhere that currently calls typography should
+    have semantic tags. Plain and simple. We're going for uniformity."
+    This overrules leaving ul/ol unstyled. The foundation agent's reason
+    was real - the navbar, Sidebar, images grid and pagination.tsx are
+    all <ul>, so styling `ul` in base puts bullets in the navigation -
+    but the answer is SEMANTIC SCOPING, not abstention: style ul/ol as
+    prose in @layer base, then reset them under `nav ul`,
+    `[role="menu"]` and friends. A navbar stays <ul><li> because that is
+    correct a11y; it simply is not prose. Resetting by semantic context
+    rather than by a list-none utility at each call site is the same
+    principle as ruling (h) - the component/context decides, not the
+    caller.
+
+18. UNLAYERED CSS DIES WITH THE CLASSES (Jacob, on the precedence note):
+    "Needs to be removed from the app and call sites." glass.css and
+    most of components.css sit OUTSIDE any @layer, and unlayered CSS
+    beats every layer regardless of specificity - so `.on-glass` was
+    silently beating an adjacent `text-neutral-600`, and `.shadow`
+    shadows Tailwind's own `shadow` utility and wins. Rather than move
+    them into @layer components and re-check 40 files, delete them
+    (ruling 16) and the precedence question goes with them.
+    THE TRAP WHILE SWEEPING, which is not obvious: because those rules
+    currently WIN, a call site pairing a glass class with a utility is
+    rendering the GLASS value today. Deleting the glass class makes the
+    neighbouring utility live FOR THE FIRST TIME - so the element can
+    change appearance in a way that is not what the file looked like
+    before, and "deletion is a no-op" is false for exactly these pairs.
+
+19. THE VISUAL TARGET IS LINEAR.APP (Jacob sent screenshots, 2026-08-28
+    night). Read from the actual reference, not from the word "Linear":
+    - Ground is true near-black (~#08080a); surfaces differ from it by
+      a FEW POINTS of lightness. Panels read as separated by BORDER,
+      not by fill.
+    - COLOR IS NEARLY ABSENT. The marketing surface is monochrome;
+      hue appears only as small STATUS dots inside product UI. Nothing
+      structural - button, header, border, link, panel - carries a hue.
+      THE ONE DORADO EXCEPTION: --brand gold (#d9b559) is the business's
+      own colour and earns sparing use in chrome. Everything else grey.
+    - Display type is LARGE (~64-72px), line-height ~1.05, letter-
+      spacing NEGATIVE (-0.02/-0.03em), weight MEDIUM (500-600), never
+      black. Tight tracking at large sizes, normal at body sizes.
+    - BODY COPY DEFAULTS TO MUTED, not white. Near-white is for
+      headings, active nav and emphasis only. `p` resolves to
+      --muted-foreground. This single change does more to match the
+      reference than any other.
+    - The two-tone heading is a signature: first sentence --foreground,
+      continuation --muted-foreground, SAME size and weight. Deserves a
+      class rather than hand-rolling.
+    - Monospace eyebrows: uppercase, ~0.1em tracking, small, muted
+      ("POWERING THE COMPANIES BUILDING THE FUTURE", "FIG 0.1").
+    - Buttons are PILLS. Primary light-ground/dark-text (= bg-primary +
+      text-primary-foreground, so D92's conversion is already right);
+      secondary dark-ground + hairline border. These are the two
+      variants workstream (h) should be rebuilt around.
+    - Borders are STRUCTURE: hairline column rules and section dividers,
+      no card fills, no shadows. This is why ruling 16's deletions are
+      not replaced by anything - flat surfaces separated by hairlines
+      IS the design.
+    - Radius restrained (~8px) on containers; pills only on buttons and
+      chips. No large rounded cards.
+
+20. LAYOUT AT THE CALL SITE, APPEARANCE IN THE COMPONENT (Jacob, and
+    this is the rule the whole styling program rests on): "In general
+    the only tailwind that should REALLY live in consuming components
+    is layout like flex/grid padding/margins etc etc." And on Button
+    specifically: "all the Buttons shouldn't have all this styling on
+    them. We should update the base component with variants and have
+    the call sites use those variants instead of tons of fucking
+    classNames."
+    ALLOWED at a call site: flex/grid, gap, padding/margin, width/
+    height/size, position, order, alignment, responsive layout.
+    NOT ALLOWED: bg-*, text-* colour, text-<size>, font-*, border-*,
+    rounded-*, shadow-*, hover:/focus: appearance, opacity, transition.
+    Those belong to the component's variants or to the semantic tag's
+    typography in theme.css.
+    THE EVIDENCE THAT SETTLED IT, from the Button Jacob pasted:
+      "gap-1 bg-primary hover:bg-primary text-primary-foreground
+       hover:text-primary-foreground raised-off-page text-sm sm:text-base"
+    That call site re-asserts the default primary appearance AND
+    CANCELS ITS OWN HOVER (hover:bg-primary set to the same value),
+    adds a shadow ruling 16 deletes, and hand-rolls a responsive type
+    step. Nobody cancels a hover unless the variant's hover is wrong.
+    So the 185 overrides across 190 Button call sites are not fussy
+    callers - they are 185 workarounds for a broken variant set, which
+    answers D93's open question ("either the six variants are wrong or
+    the call sites are"): THE VARIANTS ARE WRONG. Fix the variants and
+    the overrides delete themselves. Size variants must carry the
+    responsive type step too - `text-sm sm:text-base` belongs in the
+    size, not at 190 call sites.
+    A SECOND EXAMPLE FROM JACOB, a different and worse failure:
+      <Button variant="secondary" className="raised-off-page bg-primary
+       text-primary-foreground hover:text-primary-foreground px-10">
+    It DECLARES secondary and then PAINTS IT PRIMARY. The variant prop
+    is decorative - the call site asks for one thing and overrides it
+    into another, so nobody reading the JSX can tell what the button
+    looks like without resolving the cascade. Jacob: "All secondary
+    variants should look the same... Even things like hover:{text} need
+    to live on the variant at the shared component level."
+    THE ONE LEGITIMATE ESCAPE HATCH, in his words: "if we need it to
+    stretch the full length of a drawer or parent or some shit" - i.e.
+    w-full / flex-1 / grid placement, where the PARENT dictates the
+    box. That is the shape of an allowed override: the container
+    deciding the element's extent, never the element deciding its own
+    appearance.
+    REFINEMENT ON PADDING, which "padding/margins are layout" makes
+    ambiguous: for a component that HAS size variants, padding is the
+    SIZE VARIANT'S job (the px-10 above is really "this button is
+    wide"), and only margins and container-driven extent stay at the
+    call site. If a call site needs padding a size does not offer, the
+    size set is incomplete - add the size, do not override.
+    MECHANICALLY CHECKABLE, and should be checked: an appearance class
+    on a shared-component call site is a grep-able defect. Worth a lint
+    once the sweep lands, or the rule decays the first time somebody is
+    in a hurry. A `variant` prop contradicted by a className in the
+    same element is the highest-signal case and should fail loudest.
+
+21. FOUNDATION FIRST, THEN A PROGRAMMATIC SWEEP (Jacob, correcting the
+    approach mid-flight): "rn it seems like you're just replacing
+    text-white everywhere. You should go through every file
+    programmatically and apply the rules we talked about. Probably means
+    you need to finish the foundation in theme.css and typography.css
+    FIRST. As well as go edit shared components/remove the style
+    override when you come across it."
+    MY ORDERING WAS WRONG and this replaces it. Three phases, no phase
+    starting before the previous completes:
+      1. FOUNDATION COMPLETE - theme.css + typography.css: full scale on
+         every semantic tag, the ruling-19 Linear tuning, spacing tokens
+         (1815 utilities, not 1080), radius, borders, surfaces. Done
+         means the tokens can express EVERY appearance the app needs -
+         otherwise the sweep invents one-offs.
+      2. SHARED COMPONENTS GET VARIANTS - all of shared/ui, hover and
+         focus included, typography from the semantic scale. INCLUDING
+         COMPONENTS THAT DO NOT EXIST YET: Jacob's example
+           <span className="flex ml-auto h-5 min-w-5 items-center
+            justify-center rounded-full bg-primary px-1 text-[10px]
+            font-medium text-white">
+         is a COUNT BADGE hand-rolled inline. The fix is not recolouring
+         it; it is that this should be a component. RULE: the same
+         inline appearance pattern seen 3+ times IS A MISSING COMPONENT.
+         Note `text-[10px]` too - arbitrary-value utilities are SCALE
+         GAPS; grep text-[ / bg-[ / w-[ and treat each as one.
+      3. THE SWEEP, file by file, ALL EIGHT WORKSTREAMS PER FILE AT ONCE
+         (D93: (b) and (e) must share a pass or the same lines get
+         touched twice).
+    NEW TOOL, built to make this measurable rather than asserted:
+    `frontend/scripts/lint-call-site-styling.mjs` (pnpm --filter
+    @dorado/frontend lint:call-site-styling, plus --json and
+    --self-test). Walks every .tsx importing shared/ui and reports
+    appearance classes at call sites, split into CONTRADICTED (a variant
+    prop overridden - the variant is decorative there) and
+    OVER-SPECIFIED (no variant; flags self-cancelling hovers), ranked BY
+    COMPONENT so the top names the missing variant set. FIRST RUN: 143
+    files, 555 call sites with a className, 98 CONTRADICTED. Does not
+    flag padding (the size variant's job, and it cannot tell which
+    components have sizes) or text-left/center/right (239 alignment
+    classes a naive regex would destroy). Not in `pnpm check` while the
+    sweep is outstanding; exits non-zero by design, like
+    audit:slow-tests and audit:enum-domains. The number must FALL as the
+    sweep proceeds - that is how the sweep gets proven instead of
+    claimed.
+
+22. SPANS ARE NOT TEXT ELEMENTS - BUT MIND THE CONTENT MODEL (Jacob:
+    "Spans aren't really semantic for text. A span can have a <p> or <h>
+    in it though. Which is what should happen.")
+    THE INTENT IS RIGHT AND THE MECHANISM NEEDS ONE CORRECTION, recorded
+    so nobody applies it literally across 258 files: <span> accepts
+    PHRASING content only; <p> and <h1>-<h6> are FLOW content, so
+    <span><p>...</p></span> is INVALID HTML. Browsers render it, but
+    validators and a11y tooling flag it and it breaks the CSS
+    assumptions of anything expecting a block inside an inline box. A
+    <div>/<section> may contain <p>/<h*>; a <span> may not.
+    THE THREE CASES THAT GET JACOB'S OUTCOME VALIDLY:
+      1. The span/div IS the text (a leaf carrying a size class) ->
+         REPLACE THE ELEMENT with <p>/<h1-6>/<small>. This is the 269
+         text-leaf divs from D93 and it is the bulk of the work.
+      2. Text inline inside a sentence -> <strong>/<em>/<time>/<abbr>,
+         or a bare <span> carrying NO typography, inheriting from the
+         <p> around it.
+      3. The element is a layout box -> it stays div/section, and the
+         TEXT INSIDE IT becomes <p>/<h*>.
+    Jacob's count-badge example is case 2: a chip is genuinely inline,
+    so it stays a <span> - it just stops carrying text-[10px]
+    font-medium text-white and becomes a Badge component whose
+    typography comes from the scale. The appearance moved; the tag did
+    not become a paragraph.
+
+23. ONE PLACE TO UPDATE - THE ACCEPTANCE TEST FOR TYPOGRAPHY (Jacob):
+    "I would prefer to not have text styles scattered all over the app,
+    it feels terrible to deal with. Would much rather just throw those
+    on semantic html, use those semantic html for similar things and
+    then have only one place to update."
+    That is a measurable claim, so it is now measured:
+      pnpm --filter @dorado/frontend lint:typography-scatter
+    counts every type-size/weight utility in every .tsx - not only on
+    shared components - and THE TARGET IS ZERO, not a threshold. Zero
+    means changing a heading size is one line in typography.css, which
+    is the whole point.
+    BASELINE, 2026-08-28: 1123 type utilities + 5 arbitrary sizes
+    (text-[...], each one a SCALE GAP) across 146 of 259 files. 201
+    alignment classes counted separately - alignment is LAYOUT and never
+    in scope. Worst directories: features/orders 231, features/products
+    160, features/checkout 106, app/terms-and-conditions 95, shared/ui
+    67. NOTE features/orders is the biggest single block and belongs to
+    WAVE 3, so the number cannot reach zero until that tree converts -
+    the styling partitions can drive it to ~230 at best.
+
+24. PRICING IS ONE SERVICE, AND ONLY IT PRICES (Jacob, on reading
+    features/purchase-orders/utils/calculations.ts): "This shouldn't
+    live in purchase orders. We should have one area of the app for
+    pricing. And it needs to grab rates/current spots/use content etc.
+    But nowhere else should call pricing except for that one service."
+    MEASURED TODAY - the module lives under purchase-orders and is
+    imported by NINE places across SIX features: sales-orders/utils/
+    calculations.ts, sales-orders/service.ts, purchase-orders/service.ts,
+    purchase-orders/repo.exchange.js, quotes/service.ts,
+    payments/service.ts, media/pdfs/render/sections.ts, and two test
+    files. A pricing function owned by one feature and called by six is
+    not a utility, it is a service in the wrong place - and the header
+    comment already records what that costs: an invoice and a packing
+    list each carried their own copy of the sum, disagreed by $3,236.11
+    on a single order, and the one WITHOUT the fallback was also the
+    declared value on a return shipment, so the item would have been
+    posted back uninsured.
+    TARGET SHAPE: a `pricing` feature that owns every money function,
+    resolves its own inputs (rates, current or frozen spots, content),
+    and is THE only caller-facing surface. features/quotes already
+    exists as the customer-facing HTTP surface for prices (D81-D84 -
+    the frontend computes NO money); quotes becomes a THIN caller of
+    pricing rather than a peer holding its own arithmetic. Everything
+    else - PDF render, emails, payments, both order services - calls
+    pricing and never does arithmetic of its own.
+    ENFORCEABLE, and should be: once pricing is one module, "no money
+    arithmetic outside features/pricing" is a lint of the same family as
+    lint:db and lint:namespace-calls. Worth writing, or the copies come
+    back the way they came back last time.
+    CARE REQUIRED - this is money and the tests are the oracle: the
+    `spot!` non-null assertions are DELIBERATE and pinned by a test that
+    asserts a TypeError ("a metal absent from spots throws"), because
+    `spot?.bid` would turn a loud failure into NaN travelling to a
+    payout. Preserve the throw. Preserve `?? 0` on a nullable bid
+    (behaviour-preserving: null * premium is already 0 in JS). Do not
+    "clean up" either while moving them.
+
+25. BUTTON IS TWO AXES, NOT FUSED NAMES (Jacob, rejecting
+    variant="destructiveQuiet"): "We can have like a type:
+    'primary'/'secondary'/'tertiary' (where primary is full background,
+    secondary is like an outline, and tertiary is a ghost). And then we
+    can have utility: primary/secondary/success/danger/warning/info etc.
+    So if we wanted a destructive button without an outline or color,
+    we'd say type tertiary with danger... you can also change those
+    names to make more sense."
+    WHY HE IS RIGHT: fused names multiply. 3 emphases x 6 intents is 18
+    names to invent and remember (destructiveQuiet, successOutline,
+    warningGhost...); two axes is 3 + 6 = 9 values, and every
+    combination exists for free.
+    TWO NAMING CORRECTIONS, both taken:
+      a. NOT `type`. <button type="submit|button|reset"> is a native
+         attribute and it is what makes forms submit. A prop named
+         `type` shadows it or forces awkward forwarding, and the
+         failure mode is a form that silently stops submitting. Use
+         `variant` for the emphasis axis - it is already the prop name,
+         so the migration is cheaper too.
+      b. THE AXES MUST NOT SHARE VALUE NAMES. Jacob's utility list
+         starts primary/secondary, which are also emphasis names, so
+         `variant="primary" intent="primary"` would be legal and
+         unreadable. Intent values that can only be intents:
+         neutral | brand | success | danger | warning | info.
+         (brand is the gold, ruling 19's one permitted hue.)
+    SO: variant = primary (filled) | secondary (outline) | tertiary
+    (ghost); intent = neutral | brand | success | danger | warning |
+    info; size carries the type scale INCLUDING its responsive step
+    (ruling 20) plus an icon size.
+    HOVER, generalised from Jacob's own sketch ("hover would give it an
+    outline, whereas if it was type secondary it would become filled"):
+    HOVER ESCALATES ONE STEP OF EMPHASIS - tertiary gains the outline,
+    secondary fills. One rule across every intent instead of eighteen
+    hand-tuned hover states, and it composes with the intent's colour
+    automatically.
+
+26. A RESOURCE OWNS ITS OWN CONTROLLER AND ROUTES (Jacob, on
+    fulfillments/controller.ts holding 13 handlers for five different
+    resources): "Routes/controllers for these should live in the actual
+    controllers/routes for whatever it is. The route might be
+    /fulfillments/methods etc but it needs to live in the methods folder
+    in the api. We don't want bloated controllers. Make this a rule and
+    as part of wave 3 factor things that need it. I imagine it's similar
+    elsewhere in the api."
+    THE URL AND THE FILE ARE DIFFERENT QUESTIONS - this is the same
+    separation ruling 13 already made for reads. A path may live under a
+    parent (/fulfillments/methods, /orders/:orderId/fulfillments)
+    because that is the id the caller holds; the HANDLER lives with the
+    table it serves. Mounting is composition, not ownership.
+    MEASURED, and Jacob's hunch was right - THIRTEEN sub-resource
+    folders own a repo but NO controller, so their handlers sit in a
+    parent:
+      fulfillments/{directs,methods,pickups,shipments}
+      orders/{addresses,spots,transactions}
+      shipping/{packages,pickups,tracking}
+      payments/details    places/user-addresses    refiners/spots
+    Worst offenders by handler count: fulfillments 13, products 9,
+    orders 7, rates 6, reviews 6.
+    ENFORCEABLE the same way lint:db and lint:namespace-calls are: a
+    directory holding a repo must hold its own controller and routes,
+    and no controller may import a sibling feature's service to serve a
+    route. Worth writing once the relocations land.
+
+=== D95: THE WHITE-ON-WHITE AUDIT WAS LINE-BASED, AND THE REAL ONES
+    CROSS ELEMENTS ===
+P3 found two live white-on-white bands D92 never counted, and the reason
+generalises: D92's detection was `grep bg-primary | grep text-white`,
+i.e. BOTH CLASSES ON ONE LINE, and the base.css compatibility bridge is
+the COMPOUND SELECTOR `.bg-primary.text-white`, i.e. both classes on ONE
+ELEMENT. A container painted `bg-primary` whose CHILDREN carry
+`text-white` matches NEITHER - invisible to the audit and unprotected by
+the shim. P3's two: app/page.tsx:77 (SupportBanner) and
+features/reviews/ui/ReviewsLandingSection.tsx:250, both now flat
+bg-card + border-y with no colour classes.
+RE-RUN AS A CROSS-ELEMENT CHECK (coordinator, done): EIGHT files pair
+bg-primary and text-white on different lines -
+  features/orders/.../AdminInTransit, AdminReceived (13x/12x!),
+  features/orders/ui/OrderStatusShared, AdminPreparing, AdminPending,
+  features/payouts/ui/PayoutLandingSection,
+  shared/ui/SidebarLayout, shared/ui/ReviewInput.
+TWO ARE STRUCTURAL AND WORSE THAN A CLASS PAIR:
+  - shared/ui/SidebarLayout.tsx:133-142 - a bg-primary tile whose icons
+    resolve to text-white through a cn() where the white wins. White
+    icon on a white tile.
+  - shared/ui/ReviewInput.tsx:41-48 - the values are DEFAULT PROPS
+    (buttonColor='bg-primary', titleTextColor='text-white',
+    subtitleTextcolor='text-white'), so EVERY consumer that does not
+    override inherits the invisible combination. Same class as
+    DotSelect.tsx:11, which D92 did catch - defaults are where this hides.
+    It is also appearance-passed-as-props, which ruling 20 forbids on
+    its own merits.
+LESSON FOR EVERY AUDIT ON THIS PROJECT, and it has now happened twice
+(audit:indexes' uniqueness filter, this): A DETECTOR THAT ONLY SEES ONE
+SHAPE REPORTS CLEAN ON THE OTHERS. Contrast is a property of an ELEMENT
+PAIR IN THE RENDERED TREE, not of a source line, so the only complete
+check is computed contrast in a browser - which nothing here can run (no
+Playwright browsers cached). Until then the cross-element scan above is
+the best available and should be re-run before the styling commit.
+
+=== D96: WHAT THE SWEEPS FOUND THAT NOBODY WAS LOOKING FOR ===
+P1 (commerce) and P3 (shell/pages) both finished; their scatter went
+251->0 and 228->2. The interesting part is not the counts.
+
+SEVEN MORE LIVE INVISIBLE-UI SITES, all cross-element (D95's shape),
+all found by agents reading files rather than by any audit:
+  - RatesLandingSection.tsx:25 - bg-primary banner, text-white <h2>.
+    ON THE HOMEPAGE, white on white, today.
+  - SIX CTA BARS - ProductCard, BullionCard, ProductPageDetails x4 -
+    bg-primary on a WRAPPER DIV with text-white on the <Button>s inside.
+    "Add to Cart" and "Add to Sell Cart" are INVISIBLE right now.
+  - ProductPageDetails' variant-pill check mark: text-white on a
+    bg-primary pill, i.e. invisible exactly when checked.
+Fixed structurally, not by repaint: the wrapper drops its paint and the
+button uses the primary variant, which already IS light-ground/dark-text.
+
+A BUG IN button.tsx THAT MAKES THE CONVERSION TABLE HARMFUL: cva emits
+`size` AFTER `variant`, so twMerge lets the default size (h-10 px-4
+text-small) BEAT variant="link"'s h-auto w-auto p-0. The table tells
+sweepers to delete `p-0 h-auto` from link buttons as redundant - it is
+NOT redundant, and deleting it silently turns every inline link-button
+into a 40px padded box. No type error, no test failure, visual only.
+Routed to the shared/ui agent; sweeps told to keep the classes with a
+comment until it lands.
+
+TWO BUGS IN MY OWN LINT (frontend/scripts/lint-call-site-styling.mjs),
+found by P1 and now FIXED:
+  - the import regex required a COMMA after a default import, so
+    `import Drawer from '...'` was never scanned and Drawer call sites
+    were invisible TREE-WIDE. Scanned files 143 -> 156.
+  - cn() arguments were split on whitespace without stripping quotes, so
+    `text-center'` failed the alignment test and reported as a colour.
+D95's lesson, third instance in one session: A DETECTOR'S BLIND SPOT
+REPORTS AS CLEAN CODE. The lint I wrote to catch this class of defect
+had the same disease.
+
+DESIGN DECISIONS FOR JACOB, both raised by P1 and NOT acted on:
+  1. THE SPOTS TICKER BAR (Spots.tsx) - DELETION-ORDER maps liquid-gold
+     to bg-brand, giving a full-bleed GOLD bar. It collides with three
+     things at once: ruling 19 forbids structural chrome carrying a hue;
+     every semantic tag colours itself for the DARK ground, so <p>/<small>
+     are unreadable on gold (its leaves had to stay bare spans); and the
+     trend colours it must show are ~1.5:1 on gold (--success #3ecc89 on
+     #d9b559). Recommendation from P1, which I endorse: bg-card plus a
+     hairline. THIS IS THE MOST-SEEN CHROME IN THE APP.
+  2. NO DISPLAY/METRIC TYPE ROLE. --text-display (64px) exists with ZERO
+     call sites and NO TAG MAPS TO IT, and a text-display utility is
+     forbidden by the scatter target. So the four homepage rate figures
+     went from 48-60px to <h2> at 28px - a real visual regression, and
+     the same gap forces heading tags onto non-heading numerals in
+     RatesCard, hero payouts and cart totals. NEEDS a .metric/.stat
+     utility or a display tag mapping. Routed to the shared/ui agent.
+  3. A SEGMENTED-CONTROL COMPONENT is the clearest 3+ case in the app:
+     hand-rolled at 9 sites (BullionTab metal filter, PremiumControl
+     unit+direction, ProductCard/BullionCard/ProductPageDetails variant
+     pills), always a <label> wrapping an sr-only radio with checked and
+     unchecked appearance passed as strings.
+
+=== D97: THE "ESTIMATED PAYOUT" ABOVE "CONFIRM AND PLACE ORDER" IS
+    WRONG, AND IT READS HIGH ===
+Found by the P2 styling agent while restyling the file; VERIFIED by the
+coordinator in node. features/checkout/purchase-order-checkout/
+reviewStep/itemTable.tsx:61
+    return (quote?.total ?? 0) - (shippingCost ?? 0 + paymentCost)
+`+` BINDS TIGHTER THAN `??`, so this parses as
+    shippingCost ?? (0 + paymentCost)
+When a shipping service IS selected - the normal case - the whole
+parenthesis evaluates to shippingCost and PAYMENT COST IS SILENTLY
+DISCARDED. When one is not selected, shipping is discarded instead. The
+two deductions can NEVER BOTH APPLY. Intended: (shippingCost ?? 0) +
+paymentCost.
+MEASURED: shipping 12.50, payment fee 20.00 (WIRE), total 1000 ->
+displays 987.50, should be 967.50. THE FIGURE READS $20 HIGH.
+WHY IT MATTERS MORE THAN ITS SIZE: it is the headline number directly
+above the Confirm and Place Order button, it CONTRADICTS the Shipping
+and Payout-Method-Fee rows listed immediately beneath it, and it tells a
+customer they will receive more than they will. A customer who notices
+has been quoted two different numbers on one screen; one who does not
+notice is disappointed at payout.
+TWO FIXES, AND THEY ARE DIFFERENT DECISIONS:
+  1. IMMEDIATE: the parenthesis. One character, restores agreement with
+     the rows beneath it.
+  2. CORRECT, per ruling D82: THE FRONTEND SHOULD NOT COMPUTE THIS AT
+     ALL. Every customer-visible number comes from /quotes/*. This
+     component is doing arithmetic on money, which is exactly the class
+     of defect the quote endpoints were built to end - and the bug is
+     the proof of why. The payout figure should come from the server.
+NOT FIXED BY ME - it is money, and choosing between a stopgap and the
+D82 fix is Jacob's call, not a styling agent's and not mine.
+
+=== D98: TWO MORE MONEY-PATH FINDINGS FROM THE SAME SWEEP ===
+ 1. THE CUSTOMER CREDIT LEDGER IS COMPUTED IN THE BROWSER.
+    features/users/ui/UsersDrawer.tsx DoradoCredit does
+    newAmount = (user.dorado_funds ?? 0) +/- amount, then PUTs the
+    ABSOLUTE result. This is exchange.account_transactions - $66,999.32
+    across 8 customers. Two problems: it violates ruling 10 (the server
+    should take {op, amount}, not a computed total), and it has a
+    LOST-UPDATE RACE - two admins with the drawer open both compute from
+    a stale balance and last-write-wins, silently discarding the other's
+    adjustment. Restyled only; logic untouched.
+ 2. JS READING CSS VARIABLES IS INVISIBLE TO CSS REVIEW.
+    StoreLocations.tsx reads --secondary for the default FedEx map pin.
+    The foundation de-hued --secondary from saturated blue to a dark
+    neutral, so unselected pins are now near-black dots on the map. Same
+    class as the Stripe iframe (which branched on a .dark class that no
+    longer exists). Every getCssVar/getComputedStyle read is a styling
+    dependency that no stylesheet review can see - they need enumerating
+    before the styling commit.
+
+=== D99: THE THIRD INVISIBLE-UI CLASS - A STATE TOKEN AND A REST TOKEN
+    COLLAPSED ONTO EACH OTHER ===
+The shared/ui agent fixed D95's two named defects and then ran the
+general scan. It found three more, and TWO OF THEM NO CONTRAST CHECK OF
+ANY KIND WOULD EVER FIND:
+  - base/calendar.tsx - THE SELECTED DAY WAS INDISTINGUISHABLE FROM AN
+    UNSELECTED ONE. Selected was `bg-transparent text-primary` (#fafafa)
+    against a rest state of text-foreground (#f6f7f9). On a date picker.
+    Its hover was dead too - `hover:bg-transparent` sat after
+    `hover:bg-accent` and cancelled it.
+  - inputs/InputDropdownSearch.tsx - the highlighted row was
+    bg-neutral-700, a LIGHT band under light text after the ramp
+    inversion.
+  - SelectMenu.tsx - text-primary AND hover:bg-primary on one row: the
+    label vanished under the cursor.
+THE GENERALISATION, and it is the important part: D95 framed this as a
+light background with a light foreground ACROSS ELEMENTS. These are a
+STATE token and a REST token that the palette flip collapsed onto the
+same value. Contrast is fine in both states - selected and unselected
+are each perfectly legible. WHAT IS LOST IS THE DIFFERENCE BETWEEN
+THEM, and no contrast metric measures a difference between two states of
+the same element. Only a human looking at a rendered date picker finds
+it, or a test that asserts selected != unselected.
+SO THE PALETTE FLIP HAS THREE DISTINCT FAILURE MODES, found in three
+separate passes by three different agents: (1) same-element class pair
+(D92, grep-able, bridged), (2) cross-element container/child (D95,
+grep-able with effort, unbridged), (3) STATE/REST COLLAPSE (D99, NOT
+grep-able at all). Each was invisible to the detector built for the
+previous one. Table in MANUAL-VERIFICATION.md 5.4b.
+
+=== D100: cn() WAS DELETING THE TYPE SCALE - CONFIRMED AND FIXED ===
+P2's finding, confirmed by probe and fixed by the shared/ui agent:
+shared/utils/cn.ts was stock tailwind-merge, which classifies our
+semantic sizes (text-small/text-h1/text-display) as COLOURS, so a colour
+appended later DELETED the size. Every Button had lost its size
+variant's font-size and was inheriting its parent's, WHILE three sweeps
+deleted ~700 call-site text-sm utilities on the promise the variant
+supplies it. Fixed with extendTailwindMerge + a font-size class group;
+SEMANTIC_TEXT_SIZES exported so a new --text-* token has ONE place to be
+registered; pinned by 15 tests including the exact probe both ways.
+CONSEQUENCE TO EXPECT: every rendered font size in the app moved when
+that fix landed. That IS the fix, not a regression - but it means no
+screenshot taken before it is worth anything.
+DELIBERATELY NOT FIXED: the named SPACING scale (p-md, gap-lg) is
+unregistered too, but its failure mode is milder - both classes survive
+and emit order decides, nothing is deleted. Registering it mid-sweep
+would change which of two paddings wins at sites authored against
+today's behaviour. Needs its own pass. Documented in cn.ts.
+ALSO FIXED: <Button variant="link"> rendered as a 40px padded pill (cva
+emits size after variant; twMerge keeps the last). Moved the box reset
+into a compoundVariant keyed on variant:'link' across all eight sizes,
+using px-0/py-0 because twMerge does not treat a later p-0 as replacing
+an earlier px-4. `p-0 h-auto` at link call sites is now genuinely
+redundant and safe to delete.
+
+27. THE SHADOWS DIE, THEY DO NOT GET TOKENISED (Jacob, on
+    components.css): "These should all be removed and replaced at call
+    sites with the shared components instead. We no longer want those
+    crazy ass shadows. (recessed/raised) so those need to go away
+    everywhere for one. Things like radio group buttons... well those
+    should be replaced by a shared radio group component. Etc. I know
+    those are common in both the checkouts."
+    THIS REVERSES WHAT THE AGENTS DID. They collapsed each `X dark:X`
+    shadow pair onto --shadow-raised / --shadow-recessed tokens - i.e.
+    they PRESERVED the shadows in tidier form, which was a reasonable
+    reading of "standardise" and is not what he wants. The shadows
+    themselves go. Consistent with ruling 19: flat surfaces separated by
+    HAIRLINES is the design; a shadow is not replaced by a softer
+    shadow, it is replaced by a border or by nothing.
+    SO: delete --shadow-raised and --shadow-recessed and every
+    box-shadow using them; delete raised-off-page (15 files),
+    recessed-into-page, checkbox-form (6 - safe now that Checkbox's tick
+    is text-current and inherits either way; IT GATES SIGN-UP, verify),
+    section-label (3 -> .eyebrow), radio-group-buttons (-> RadioCard),
+    input-floating-label-form (-> ValidatedField's default), and
+    separator-inset (already 0 call sites). Also `.shadow`, which
+    COLLIDES WITH TAILWIND'S OWN `shadow` UTILITY and wins because the
+    file is unlayered - a genuine trap sitting in the codebase.
+    Remaining utilities go too: shadow-sm x5, shadow-md x4, shadow-lg
+    x2, shadow-xs x2, shadow-primary x2, and the shadow-none x6 that
+    exist only to cancel them.
+    --shadow-overlay MAY survive for something genuinely floating (a
+    modal lifting off the page) - that is the one judgement call, and it
+    has to be justified rather than assumed.
+    THE PATTERN WORTH NOTING FOR FUTURE PASSES: "standardise X" and
+    "delete X" are different instructions, and an agent asked to tidy
+    something will tidy it rather than remove it. Ruling 16 said DELETE,
+    DO NOT NEUTER about the glass/gradient classes; the shadows got
+    neutered anyway one layer down, as tokens. When the intent is
+    removal, say removal about the VALUES as well as the class names.
+
+28. ONE INPUT, NO VARIANTS (Jacob, on input.tsx's inputVariants
+    default|filled|ghost): "We don't need input variants. In fact, you
+    should get rid of the bg-transparent etc classes everywhere they're
+    used. We only want one input."
+    THIS ANSWERS A QUESTION P2 RAISED: it reported the app has had TWO
+    input treatments all along - a bordered/filled one and a borderless
+    bg-card one - and that ValidatedField only defaults to one of them.
+    The answer is that the second treatment should not exist. Uniformity
+    wins; where the two served different purposes, that difference is
+    now decided.
+    DIES WITH IT: Input's variant prop and cva block; ValidatedField's
+    card|filled|outline axis (added hours earlier by the shared/ui
+    agent, before this ruling); the variant FORWARDING that
+    SearchableDropdown and PopoverSelect were just taught; and the
+    eleven ValidatedField variant="filled" adoptions that were queued -
+    those call sites simply DELETE their appearance classes instead.
+    THE ONE APPEARANCE follows ruling 19: a subtle surface distinguished
+    by a HAIRLINE, not by a fill jump and not by a shadow (ruling 27
+    removes the shadows, so input-floating-label-form's
+    box-shadow: var(--shadow-recessed) goes regardless).
+    SECOND HALF OF THE RULING, broader than inputs: bg-transparent /
+    border-transparent / border-none at a CALL SITE is always one of two
+    things - cancelling a component default, which means THE DEFAULT IS
+    WRONG and the component should be fixed; or hand-rolling a "no
+    chrome" look, which is what a variant or nothing at all should
+    provide. Enumerate before deleting: some are legitimate (an icon
+    button over an image), and a blind sweep would break those.
+    NOTE ON PACE: this is the second ruling in an hour that reverses
+    work an agent had just completed (27 reversed the shadow
+    tokenisation; 28 reverses a variant axis added the same session).
+    That is the cost of building while the design is still being
+    decided, and it is a fair trade - but it argues for asking "should
+    this exist at all" BEFORE building an axis for it. A variant axis is
+    a bet that the difference is real.
+
+=== D101: D94 WAS WRONG. THE SLOW SUITE IS AN N+1 AGAINST A REMOTE
+    DATABASE, AND IT WAS NEVER WAVE 2 ===
+D94 recorded a hypothesis - that wave 2's engagement mirrors made order
+creation heavier and lengthened the ORDERS lock's serial chain - and
+said the point of the task was to TEST it rather than act on it. Wave 3
+tested it. IT IS REFUTED, and so is the coordinator's framing that
+"tests doing no work take 195s, therefore the wall clock is lock wait".
+The lock wait was real; what the lock was HOLDING is the finding.
+THE MEASUREMENT, run alone with nothing contending:
+  20 sequential round trips   3572 ms  =>  178.6 ms EACH
+  composed getAll()          38198 ms  for 48 orders (~214 round trips)
+  slim list()                  351 ms  for 63 orders (2 round trips)
+                                            ONE HUNDRED AND EIGHT TIMES
+THE CAUSE: read.service.ts's assemble() queries the shipment and the
+pickup INSIDE A PER-ORDER LOOP, and each fans out to ~9 more. Every one
+of those is a round trip, and DEV IS REMOTE - a Railway proxy at ~178 ms.
+On a local database this would have been invisible for years; the
+latency is what turns an N+1 into 38 seconds.
+CORRECTED NUMBERS: baseline at wave 2 was 794s wall / 13,041s test-time
+/ 150 tests over threshold. After the wire slim: 580s / 9,084s. The lock
+trace (new opt-in DORADO_LOCK_TRACE in locks.ts) shows ORDERS held 472s
+of a 502s wall - 81% of it one file. So the lock was the SYMPTOM and the
+per-order fan-out was the disease.
+WHAT I GOT WRONG, recorded because the reasoning was plausible and still
+wrong: I inferred causation from COINCIDENCE (the slowdown appeared in
+the gate right after wave 2 landed) and from a SHAPE ARGUMENT (slow
+waiters rather than slow work). Both were consistent with the evidence
+and neither was evidence. The thing that settled it was measuring one
+call in isolation, which nobody had done.
+THE FIX, DELIBERATELY NOT MADE: batch those two reads in assemble() the
+way every other read there already is (WHERE order_id = ANY($1)),
+turning ~214 round trips into ~11. Wave 3 had one verification cycle
+left and this is a money path feeding pricing, emails and PDFs, so it
+left the diagnosis rather than rushing the change. NEXT WAVE'S FIRST
+ITEM - worth ~500s on every gate run.
+ONE REAL BUG SURFACED BY THE SPEEDUP: features/refiners/spots/
+repo.test.js deadlocked in a full run having passed in isolation
+forever - precisely the failure locks.ts documents. Given the ORDERS
+lock, and refiners.* added to that lock's registered coverage.
+
+26b. RULING 26 CORRECTED - "ORCHESTRATES" IS NOT AN EXEMPTION (Jacob):
+    "Methods needs an orchestrator too, that's what I was trying to tell
+    you. Checkout will call fulfillment methods, for instance. We don't
+    need to hit the fulfillments controller for that, we need to hit the
+    fulfillment/methods/controller.ts, etc. That's why controllers/
+    orchestrators are factored the way they are."
+    WHAT WAVE 3 AND I GOT WRONG: wave 3 concluded that getForOrder and
+    getSchedule should stay in fulfillments/controller.ts because they
+    "compose across resources and belong to the orchestrator", and the
+    coordinator relayed that approvingly as the interesting judgement
+    call. The error is treating ORCHESTRATION AS A REASON TO STAY IN A
+    PARENT CONTROLLER.
+    THE ACTUAL STRUCTURE: EVERY resource folder gets the FULL STACK -
+    routes.ts, controller.ts, and its own service/orchestrator over its
+    repo. A sub-resource is not a passive table hanging off its parent;
+    it has consumers of its own. CHECKOUT ASKS FOR FULFILLMENT METHODS,
+    and it must reach fulfillments/methods/ directly, never through
+    fulfillments/controller.ts. So getMethods/getAllMethods/updateMethod
+    move because METHODS ORCHESTRATES FOR ITSELF - not conditionally on
+    whether a handler looked orchestral.
+    THE PARENT CONTROLLER IS THE THIN REMAINDER: only what genuinely
+    spans its children. getForOrder and getSchedule may still qualify
+    (they branch on method.category across pickups/directs/shipments) -
+    but that is now a narrow test applied AFTER every resource has its
+    own stack, not a blanket excuse applied before.
+    WHY IT MATTERS BEYOND TIDINESS: the whole point is that a CONSUMER
+    IN ANOTHER FEATURE can depend on one resource without depending on
+    its parent. checkout -> fulfillments/methods is a thin edge;
+    checkout -> fulfillments/controller.ts drags in pickups, directs,
+    shipments and the schedule. The factoring is what keeps the
+    dependency graph honest, which is also why the proposed lint's
+    second half - no controller may import a sibling feature's service -
+    is the half that actually enforces it.
+    WAVE 4: factor ALL of them on this reading, starting with
+    fulfillments/methods since checkout is about to depend on it.
+
+26c. THE PATTERN, STATED ONCE FOR EVERY RESOURCE (Jacob): "Same thing
+    with for example with like, order.items. If we want to update an
+    order's items... that should hit the order/items orchestrator
+    (controller) and call the domain logic (service), not the orders
+    ones."
+    THE FULL STACK PER RESOURCE FOLDER:
+      routes.ts  - declares its own paths; the parent MOUNTS them
+      controller.ts - HTTP in, HTTP out
+      service.ts - the domain logic / orchestrator for THIS resource
+      repo.ts + sql/ - the table
+    THE PATHS DO NOT CHANGE. PATCH /orders/items/:id stays exactly that
+    (ruling 13: the URL and the file are different questions). What
+    changes is that the call runs controller -> orders/items/service.ts
+    and THE ORDER SERVICE IS NOT IN THE PATH AT ALL.
+    MEASURED STATE OF THE ORDERS TREE, which shows three stages of the
+    same incompleteness:
+      items/        controller + service + repo, NO routes.ts - its
+                    paths are declared in orders/routes.ts:57,99,100,103
+      addresses/    repo only
+      spots/        repo only
+      transactions/ repo only
+    So wave 2 got items half-way (the orchestrator exists, the parent
+    still declares the paths) and the other three are bare repos whose
+    handlers live in the parent. All four get the full stack; the
+    parent's routes.ts shrinks to mounting.
+    THE TEST FOR THE PARENT, applied AFTER every child has its stack:
+    does this handler genuinely span children? Almost nothing does.
+
+=== D102: WHAT purchase-orders/ AND sales-orders/ STILL HOLD, AND THE
+    ORDER THEY COME APART IN ===
+Jacob asked whether they can be yanked yet; answer is not yet, and the
+reason differs per file. Authorised: "Yes you should separate the logic
+where it makes sense." MEASURED - 88 imports across six features.
+  MOVES OUT (wave 4 and its follow-on):
+    utils/calculations.ts  17 imports  -> features/pricing (ruling 24).
+      Eleven functions across the two files; `quotes` imports from BOTH,
+      so it is already the de facto pricing service wearing an HTTP hat.
+    read.service.ts + compose.ts  22 imports  -> the composed order is
+      now the API's INTERNAL lifecycle read (pricing, email, PDFs) and
+      is typed as ComposedOrder rather than as a contract. It needs a
+      home where orders actually live, not inside a direction-named
+      feature. NOTE its N+1 is D101's 108x finding - move it and fix the
+      batching in the same pass, since both touch assemble().
+    write.service.ts - the creates, which wave 4's checkout work unifies
+      anyway.
+  STAYS UNTIL JACOB PROMOTES, AND IS NOT A REFACTORING QUESTION:
+    repo.dual.js / legacy.repo.ts - THE DUAL-WRITE MIRRORS. They are
+    what keeps `exchange` a level shadow. They go when a *_SOURCE switch
+    is promoted past `dual`, which is a data decision and a ONE-WAY DOOR
+    (CLAUDE.md): once exchange stops receiving writes, flipping back
+    loses everything written in between. No wave deletes these.
+  ALREADY SPENT: the oracle tests pinned to the old implementation, and
+    repo.exchange.js's remainder now that wave 3 deleted its read paths.
+  END STATE: these two stop being FEATURES once pricing and the composed
+  read move out - what remains is a thin dual-write shim pair - and they
+  stop EXISTING at promotion. The unification landed on the read and
+  route surface first precisely because the write path touches the
+  mirrors, and the mirrors are the data covenant.
+
+29. NECESSARY LEGACY GETS GROUPED; UNNECESSARY LEGACY GETS DELETED
+    (Jacob, on purchase-orders/ and sales-orders/): "they should be
+    moved to a legacy folder so we can keep all the necessary legacy
+    code grouped together. But whatever is not necessary legacy code
+    anymore should be removed entirely."
+    So the decomposition in D102 has a destination for each half:
+      MOVES TO ITS REAL HOME (it is not legacy, it was just filed under
+      a direction-named feature): utils/calculations.ts -> the pricing
+      service (ruling 24); read.service.ts + compose.ts -> wherever the
+      internal composed order belongs now that orders is one feature;
+      write.service.ts -> the creates, which checkout unifies.
+      MOVES TO A LEGACY FOLDER, because it is genuinely legacy and
+      genuinely still needed: repo.dual.js and legacy.repo.ts - the
+      dual-write mirrors that keep `exchange` a level shadow. Grouped
+      so that the day a *_SOURCE switch is promoted, the thing to delete
+      is one directory rather than a hunt through six features.
+      DELETED OUTRIGHT: repo.exchange.js's remainder now that its read
+      paths are gone, and the oracle tests pinned to an implementation
+      that no longer runs. Legacy code that protects nothing is not
+      legacy code, it is dead code.
+    THE TEST FOR WHICH PILE SOMETHING GOES IN: does it still receive
+    writes, or is it still the oracle for something live? If yes, it is
+    necessary legacy and it gets grouped. If no, it goes. "It might be
+    useful someday" is what the git history is for.
+
+30. ONE RADIO GROUP, NOT A RADIO CARD (Jacob): "we don't need a radio
+    card, we need a radio group component. That will serve all the
+    radios across the app. You can use children pass through for when
+    custom styling is needed..."
+    THE STATE HE IS CORRECTING - THREE radio things already exist:
+    shared/ui/base/radio-group.tsx (the shadcn primitive),
+    shared/ui/RadioCard.tsx (built and adopted at 6 sites hours ago),
+    and shared/ui/RadioGroupImage.tsx (pre-existing). Radios appear in
+    12+ files - scrap's Metal/Purity/Weight steps, all four checkout
+    selectors (service x2, package, pickup), achForm, AddressSelect,
+    BullionTab, UsersDrawer, and two order drawers.
+    THE TARGET: ONE RadioGroup owning the radio semantics, state and
+    keyboard behaviour, with CHILDREN PASS-THROUGH for the cases whose
+    option rendering genuinely differs (an image tile, a card with a
+    price, a plain row). RadioCard and RadioGroupImage collapse into it
+    as usages, not as components. The group is the abstraction; the
+    option's appearance is a child.
+    BOTH DIE (Jacob, confirming): "fuck radio card and radio group
+    image. Need to be coalesced so we don't have so much code in the
+    consumers." So the measure of success is NOT that one component
+    exists - it is that THE CALL SITES GET SMALL. Today: 298 lines
+    across the three radio components (RadioCard 177, RadioGroupImage
+    76, base/radio-group 45), 11 consumer files, and the four checkout
+    selectors alone are 307 lines of mostly option-rendering
+    boilerplate (serviceSelector 96, packageSelector 104,
+    pickupSelector 45, sales serviceSelector 62). A consumer should
+    hand the group its options and a way to render one, not re-implement
+    label/sr-only-input/checkmark/selected-state each time.
+    KEEP WHAT RADIOCARD LEARNED, because it was not wasted: it supplies
+    `relative` plus the after:absolute after:inset-0 overlay that makes
+    the whole option clickable, adds the htmlFor that four call sites
+    never had, and fixes a D99 state-collapse where a checked card's
+    <strong> ignored the inherited colour and went white-on-white when
+    selected only. All of that is behaviour the group must keep.
+
+=== THE META-RULE THESE KEEP POINTING AT ===
+Rulings 25, 28 and 30 are the same correction three times: TWO AXES not
+eighteen fused names; ONE input not three variants; ONE radio group not
+a card plus an image variant plus a primitive. Each time an agent
+proposed MORE components or MORE variants, and each time Jacob's answer
+was FEWER AND MORE GENERAL, with the difference expressed by
+composition - a prop axis, a child, a pass-through - rather than by a
+new named thing.
+WHY THE AGENTS KEEP GETTING IT WRONG: they build BOTTOM-UP from
+call-site clusters. Cluster the overrides, name each cluster, ship a
+component per cluster. That reliably produces one component per
+situation the app happens to contain, which is exactly what the app
+already had before the sweep - just with tidier names.
+THE RULE TO APPLY FIRST, NEXT TIME: before adding a component or a
+variant, ask whether the difference is a DIFFERENT THING or the SAME
+THING WITH DIFFERENT CONTENT. Different content is children. A
+different degree is a prop axis. Only a genuinely different behaviour
+earns a new component. A variant axis is a bet that a difference is
+real, and three bets have now been called wrong.
+
+31. TESTS GET GROUPED UNDER tests/ PER FEATURE (Jacob): "all tests need
+    to be colocated to features (which they are) but they need to be
+    grouped under a tests/ folder so it doesn't look so terrible in the
+    file explorer."
+    MEASURED: 107 test files; 27 ALREADY live under a tests/ folder, so
+    the convention exists and is HALF-ADOPTED - ten features already do
+    it (fulfillments, leads, media/images, metals, places/addresses,
+    products, reviews, sales-tax, shipping/carriers, shipping/pickups).
+    80 to move. Worst: purchase-orders 15 loose, sales-orders 7,
+    orders 6, payments 5, users 4, checkout 4.
+    Mechanical, but NOT a blind `git mv`: subpath imports (#features/*)
+    are unaffected, RELATIVE imports and any fixture paths are not. Move
+    a feature at a time and run that feature's tests after each.
+    DO IT WITH THE FACTORING, NOT BEFORE IT: ruling 26c gives every
+    sub-resource its own folder, so a test's home changes anyway when
+    orders/spots and friends get their stack. Moving twice is wasted
+    work and a doubled diff.
+
+32. AND THE DEAD ONES GO (Jacob: "do we need all those old tests? those
+    are probably dead code too no?").
+    HONEST ANSWER, MEASURED: nothing is TRIVIALLY dead - no test imports
+    a module that no longer exists, and the suite is 890/890 green. But
+    GREEN IS NOT THE SAME AS VALUABLE. A test can pass forever while
+    pinning behaviour whose callers we deleted, and this session created
+    exactly that: wave 3 retired the composed read's contract and
+    re-pointed two repo.next.test.js shape pins at compose.ts, and the
+    orders read pivot deleted the implementations several oracle tests
+    were written against.
+    SIX purchase-orders tests still mention offers, which ruling 3
+    declared FULLY dead (tables, statuses, vocabulary): offer-and-items,
+    ownership, refiner-edits, repo.dual, repo.next, write.service. Some
+    of those are load-bearing tests that merely NAME an offer status in
+    a fixture - the fixture is stale, the test is not - so this needs
+    per-file judgement, not a grep.
+    THE TEST FOR EACH FILE, matching ruling 29's: does it pin behaviour
+    that still runs, or is it the oracle for an implementation nothing
+    calls? An oracle for deleted code is dead weight that still costs
+    ~600 seconds of gate time. Related existing tooling:
+    audit:vacuous-tests already flags 13 LOOP / 9 SKIP cases, all
+    assessed; this is a different question (dead SUBJECT, not weak
+    ASSERTION) and deserves the same kind of pass.
+
+33. THE TESTS ARE JAVASCRIPT BY HISTORY, AND IT COSTS TYPE COVERAGE
+    (Jacob: "why are all the tests written in js").
+    MEASURED: 114 .test.js vs 11 .test.ts, against source that is now
+    223 .ts vs 11 .js. The API was JS-first and TypeScript was added
+    WITHOUT converting anything (commit "build: add TypeScript to the
+    API without converting it yet"); tests were written on the JS side
+    and stayed.
+    NO TECHNICAL BARRIER REMAINS: Node 25 strips types natively - no
+    loader, no build step - and the 11 existing .test.ts files already
+    run under the same plain `node --test`.
+    THE ACTUAL COST, in api/tsconfig.json: `checkJs: false` and
+    `exclude: [..., "**/*.test.js", ...]`. SO 114 TEST FILES ARE
+    INVISIBLE TO tsc. They import TypeScript modules and nothing checks
+    the calls. A test can pass a wrong-shaped argument, pass, and report
+    nothing - while the 11 .test.ts files ARE checked, so the two halves
+    of one suite are held to different standards. The tests are where
+    the contracts between modules get exercised, and they are the only
+    part of the API with no type checking at all.
+    CONVERTING IS MECHANICAL BUT NOT FREE - expect the conversion itself
+    to surface real defects (that is the point), and budget for them
+    rather than being surprised. Sequence it with rulings 31 (group
+    under tests/) and 26c (sub-resources get their own folders) so each
+    file moves ONCE: factor -> move -> rename. Three passes over the
+    same file is three diffs and three chances to lose a test.
+    NOT EVERYTHING CONVERTS: CLAUDE.md's standing constraint keeps
+    query.js, withTransaction.js and asyncHandler.js as JS, so their
+    tests may reasonably stay JS too.

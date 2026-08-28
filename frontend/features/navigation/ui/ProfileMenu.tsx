@@ -37,29 +37,27 @@ export default function AccountMenu() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" className="p-0">
+        <Button variant="tertiary" size="icon" aria-label="Account menu">
           <Avatar className="flex items-center">
-            <UserIcon size={28} className="text-neutral-700 hover:text-neutral-900" />
+            <UserIcon size={28} />
           </Avatar>
         </Button>
       </PopoverTrigger>
       {user ? (
-        <PopoverContent className="w-fit max-w-2xs z-90 bg-highest rounded-lg p-2 space-y-1 border-border border-1">
-          <PopoverHeader className="">
+        <PopoverContent className="w-fit max-w-2xs z-90 p-2 space-y-1">
+          <PopoverHeader>
             <div className="flex flex-col items-center space-x-3">
-              <PopoverTitle className="text-lg text-neutral-900">{user?.name}</PopoverTitle>
-              <PopoverDescription className="text-xs text-neutral-700">
-                {user?.email}
-              </PopoverDescription>
+              <PopoverTitle>{user?.name}</PopoverTitle>
+              <PopoverDescription>{user?.email}</PopoverDescription>
             </div>
           </PopoverHeader>
-          <div className="separator-inset" />
+          <hr />
           <PopoverBody className="flex justify-center">
             <div className="flex flex-col items-start gap-1 w-full">
               <Button
-                variant="ghost"
+                variant="tertiary"
                 size="sm"
-                className="w-full justify-start gap-2 p-0 text-neutral-700 hover:text-neutral-900"
+                className="w-full justify-start"
                 onClick={() => router.push('/account?tab=details')}
               >
                 <UserCircleIcon size={24} />
@@ -67,9 +65,9 @@ export default function AccountMenu() {
               </Button>
 
               <Button
-                variant="ghost"
+                variant="tertiary"
                 size="sm"
-                className="w-full justify-start gap-2 p-0 text-neutral-700 hover:text-neutral-900"
+                className="w-full justify-start"
                 onClick={() => router.push('/account?tab=sold')}
               >
                 <ListIcon size={24} />
@@ -77,9 +75,9 @@ export default function AccountMenu() {
               </Button>
 
               <Button
-                variant="ghost"
+                variant="tertiary"
                 size="sm"
-                className="w-full justify-start gap-2 p-0 text-neutral-700 hover:text-neutral-900"
+                className="w-full justify-start"
                 onClick={() => router.push('/account?tab=security')}
               >
                 <LockIcon size={24} />
@@ -87,10 +85,12 @@ export default function AccountMenu() {
               </Button>
             </div>
           </PopoverBody>
-          <div className="separator-inset" />
+          <hr />
           <PopoverFooter>
             <Button
-              className="flex items-center gap-1 w-full bg-highest hover:bg-destructive border-1 border-destructive hover:border-destructive text-destructive hover:text-white"
+              variant="secondary"
+              intent="danger"
+              className="flex items-center gap-1 w-full"
               size="sm"
               onClick={async () => {
                 try {
@@ -106,19 +106,13 @@ export default function AccountMenu() {
           </PopoverFooter>
         </PopoverContent>
       ) : (
-        <PopoverContent className="w-fit z-90 bg-highest rounded-lg">
+        <PopoverContent className="w-fit z-90">
           <PopoverBody className="space-y-3 p-4">
-            <Link
-              className="p-0 flex gap-3 items-center text-neutral-800"
-              href={'/authentication?tab=sign-in'}
-            >
+            <Link className="flex gap-3 items-center" href={'/authentication?tab=sign-in'}>
               <SignInIcon size={24} />
               Sign In
             </Link>
-            <Link
-              className="p-0 flex gap-3 items-center text-neutral-800"
-              href={'/authentication?tab=sign-up'}
-            >
+            <Link className="flex gap-3 items-center" href={'/authentication?tab=sign-up'}>
               <UserPlusIcon size={24} />
               Register
             </Link>

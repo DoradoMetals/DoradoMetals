@@ -55,10 +55,10 @@ export function ImageUpload({ path }: { path: string }) {
   )
 
   return (
-    <div className="w-full max-w-md space-y-6 rounded-lg raised-off-page bg-card p-6">
+    <div className="w-full max-w-md space-y-6 rounded-lg border border-border bg-card p-6">
       <div className="space-y-2">
-        <h3 className="text-lg text-neutral-800">Image Upload</h3>
-        <p className="text-xs text-neutral-500">Supported formats: JPG, PNG</p>
+        <h3>Image Upload</h3>
+        <p>Supported formats: JPG, PNG</p>
       </div>
 
       <Input
@@ -71,22 +71,33 @@ export function ImageUpload({ path }: { path: string }) {
 
       {!previewUrl ? (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Select an image to upload"
           onClick={handleThumbnailClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              handleThumbnailClick()
+            }
+          }}
           onDragOver={handleDragOver}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            'flex h-64 cursor-pointer flex-col items-center justify-center gap-4 rounded-lg recessed-into-page bg-background transition-colors hover:bg-neutral-100',
-            isDragging && 'border-primary/50 bg-primary/10'
+            'flex h-64 cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border bg-background transition-colors hover:bg-muted',
+            isDragging && 'border-primary bg-primary/10'
           )}
         >
-          <div className="rounded-full bg-card p-3 raised-off-page">
-            <ImagePlus className="h-6 w-6 text-neutral-700" />
+          <div className="rounded-full bg-card p-3 border border-border">
+            <ImagePlus className="h-6 w-6" />
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-neutral-800">Click to select</p>
-            <p className="text-xs text-neutral-600">or drag and drop file here</p>
+            <p>
+              <strong>Click to select</strong>
+            </p>
+            <p>or drag and drop file here</p>
           </div>
         </div>
       ) : (
@@ -100,30 +111,35 @@ export function ImageUpload({ path }: { path: string }) {
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
             <div className="absolute inset-0 bg-neutral-300/50 opacity-0 transition-opacity group-hover:opacity-100 " />
-            <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 transition-opacity group-hover:opacity-100 hover:backdrop-blur-[2px]">
+            <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
               <Button
-                variant="ghost"
+                variant="secondary"
+                size="icon"
+                aria-label="Replace image"
                 onClick={handleThumbnailClick}
-                className="raised-off-page bg-card/50 hover:bg-card rounded-lg py-2"
               >
-                <UploadIcon size={32} className="text-neutral-900" />
+                <UploadIcon size={32} />
               </Button>
               <Button
-                variant="ghost"
+                variant="secondary"
+                intent="danger"
+                size="icon"
+                aria-label="Remove image"
                 onClick={handleRemove}
-                className="raised-off-page bg-card/50 hover:bg-card rounded-lg py-2"
               >
-                <TrashIcon size={32} className="text-destructive" />
+                <TrashIcon size={32} />
               </Button>
             </div>
           </div>
           {fileName && (
-            <div className="mt-2 flex items-center gap-2 text-sm text-neutral-600">
-              <span className="truncate">{fileName}</span>
+            <div className="mt-2 flex items-center gap-2">
+              <small className="truncate">{fileName}</small>
               <Button
-                variant={'ghost'}
+                variant="tertiary"
+                size="iconXs"
+                aria-label="Remove image"
                 onClick={handleRemove}
-                className="ml-auto rounded-full p-1 text-neutral-700 hover:text-neutral-900"
+                className="ml-auto"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -132,17 +148,17 @@ export function ImageUpload({ path }: { path: string }) {
         </div>
       )}
 
-      {uploadMutation.isPending && <p className="text-sm text-neutral-600">Uploading…</p>}
+      {uploadMutation.isPending && <p>Uploading…</p>}
       {uploadMutation.isError && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.5 }}
-          className="flex items-center gap-2 rounded-xl text-sm px-4 py-2 bg-destructive/15 border-2 border-destructive will-change-transform shadow-sm"
+          className="flex items-center gap-2 rounded-lg px-4 py-2 bg-destructive/15 border border-destructive will-change-transform"
         >
           <XCircleIcon size={24} className="text-destructive" />
-          <p className="text-sm sm:text-base text-destructive">Upload failed.</p>
+          <p className="text-destructive">Upload failed.</p>
         </motion.div>
       )}
       {uploadMutation.isSuccess && (
@@ -151,10 +167,10 @@ export function ImageUpload({ path }: { path: string }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.5 }}
-          className="flex items-center gap-2 rounded-xl text-sm px-4 py-2 bg-success/15 border-2 border-success will-change-transform shadow-sm"
+          className="flex items-center gap-2 rounded-lg px-4 py-2 bg-success/15 border border-success will-change-transform"
         >
           <CheckCircleIcon size={24} className="text-success" />
-          <p className="text-sm sm:text-base text-success">Image Uploaded!</p>
+          <p className="text-success">Image Uploaded!</p>
         </motion.div>
       )}
     </div>

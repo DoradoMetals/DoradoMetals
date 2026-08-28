@@ -23,6 +23,7 @@ import {
 } from '@/features/products/queries'
 import { AdminProduct } from '@/features/products/types'
 import DotSelect from '@/shared/ui/DotSelect'
+import { Separator } from '@/shared/ui/base/separator'
 
 export default function ProductDrawer({
   products,
@@ -43,17 +44,17 @@ export default function ProductDrawer({
   return (
     <Drawer label="Product" open={isDrawerOpen} setOpen={closeDrawer}>
       <Header product={product} />
-      <div className="glass-divider" />
+      <Separator />
       <Details product={product} />
-      <div className="glass-divider" />
+      <Separator />
       <Inventory product={product} />
-      <div className="glass-divider" />
+      <Separator />
       <Specifications product={product} />
-      <div className="glass-divider" />
+      <Separator />
       <Displays product={product} />
-      <div className="glass-divider" />
+      <Separator />
       <Dev product={product} />
-      <div className="glass-divider" />
+      <Separator />
       <Images product={product} />
     </Drawer>
   )
@@ -67,9 +68,9 @@ function Header({ product }: { product: AdminProduct }) {
       <div className="flex w-full items-center justify-between">
         <div className="flex items-center gap-1">
           <img src={product.image_front ?? ''} alt={`product image`} height={50} width={50} />
-          <div className="text-xl text-neutral-900">{product.name}</div>
+          <h3>{product.name}</h3>
         </div>
-        <StatusChip positive={activeProduct} glass className="text-base">
+        <StatusChip positive={activeProduct} size="lg">
           {activeProduct ? 'Active' : 'Inactive'}
         </StatusChip>
       </div>
@@ -92,9 +93,9 @@ function Details({ product }: { product: AdminProduct }) {
 
   return (
     <div className="flex flex-col w-full gap-4">
-      <div className="section-label mb-4">Details</div>
+      <p className="eyebrow mb-4">Details</p>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="name" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="name" className="pl-1">
           Product Name
         </Label>
 
@@ -102,7 +103,6 @@ function Details({ product }: { product: AdminProduct }) {
           id="name"
           placeholder="Enter name..."
           type="text"
-          className="on-glass"
           defaultValue={product.name ?? ''}
           onBlur={(e) => handleUpdate(product.id, { name: e.target.value })}
         />
@@ -113,7 +113,7 @@ function Details({ product }: { product: AdminProduct }) {
           value={product.metal}
           options={metals?.map((m) => m.name)}
           onChange={(val) => handleUpdate(product.id, { metal: val })}
-          triggerClass="on-glass"
+          variant="secondary"
           includeSearch={false}
         />
         <PopoverSelect
@@ -121,7 +121,7 @@ function Details({ product }: { product: AdminProduct }) {
           value={product.type}
           options={types?.map((item) => item.name)}
           onChange={(val) => handleUpdate(product.id, { type: val })}
-          triggerClass="on-glass"
+          variant="secondary"
           includeSearch={false}
         />
       </div>
@@ -130,25 +130,25 @@ function Details({ product }: { product: AdminProduct }) {
         value={product.supplier}
         options={suppliers?.map((item) => item.organization.name ?? '')}
         onChange={(val) => handleUpdate(product.id, { supplier: val })}
-        triggerClass="on-glass"
+        variant="secondary"
       />
       <PopoverSelect
         label="Mint"
         value={product.mint}
         options={mints?.map((item) => item.name)}
         onChange={(val) => handleUpdate(product.id, { mint: val })}
-        triggerClass="on-glass"
+        variant="secondary"
       />
 
       <div className="flex flex-col w-full gap-1">
-        <Label htmlFor="description" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="description" className="pl-1">
           Description
         </Label>
         <Textarea
           rows={20}
           id="description"
           placeholder="Enter product description..."
-          className="on-glass min-w-70"
+          className="min-w-70"
           defaultValue={product.description}
           onBlur={(e) => handleUpdate(product.id, { description: e.target.value })}
         />
@@ -169,7 +169,7 @@ function Inventory({ product }: { product: AdminProduct }) {
   const spot = spots.find((s) => s.name === product.metal)
   return (
     <div className="flex flex-col gap-4">
-      <div className="section-label">Inventory</div>
+      <p className="eyebrow">Inventory</p>
 
       <PremiumControl
         label="Bid Premium"
@@ -206,10 +206,10 @@ function Specifications({ product }: { product: AdminProduct }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="section-label">Specifications</div>
+      <p className="eyebrow">Specifications</p>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="content" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="content" className="pl-1">
           Content
         </Label>
 
@@ -218,7 +218,7 @@ function Specifications({ product }: { product: AdminProduct }) {
           inputMode="decimal"
           placeholder="Enter content..."
           type="number"
-          className="on-glass text-left no-spinner"
+          className="text-left no-spinner"
           defaultValue={product.content ?? ''}
           onBlur={(e) => {
             const n = e.currentTarget.valueAsNumber
@@ -231,7 +231,7 @@ function Specifications({ product }: { product: AdminProduct }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
-          <Label htmlFor="purity" className="text-xs pl-1 font-medium text-neutral-700">
+          <Label htmlFor="purity" className="pl-1">
             Purity
           </Label>
 
@@ -240,7 +240,7 @@ function Specifications({ product }: { product: AdminProduct }) {
             placeholder="Enter purity..."
             inputMode="decimal"
             type="number"
-            className="on-glass text-left no-spinner"
+            className="text-left no-spinner"
             defaultValue={product.purity ?? ''}
             onBlur={(e) => {
               const n = e.currentTarget.valueAsNumber
@@ -251,7 +251,7 @@ function Specifications({ product }: { product: AdminProduct }) {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="gross" className="text-xs pl-1 font-medium text-neutral-700">
+          <Label htmlFor="gross" className="pl-1">
             Gross
           </Label>
 
@@ -260,7 +260,7 @@ function Specifications({ product }: { product: AdminProduct }) {
             placeholder="Enter gross..."
             inputMode="decimal"
             type="number"
-            className="on-glass text-left no-spinner"
+            className="text-left no-spinner"
             defaultValue={product.gross ?? ''}
             onBlur={(e) => {
               const n = e.currentTarget.valueAsNumber
@@ -283,7 +283,7 @@ function Displays({ product }: { product: AdminProduct }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="section-label">Displays</div>
+      <p className="eyebrow">Displays</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 items-stretch justify-items-stretch">
         <DisplayToggle
@@ -293,10 +293,6 @@ function Displays({ product }: { product: AdminProduct }) {
           className="w-full"
           onLabel="Yes"
           offLabel="No"
-          onClass="success-on-glass rounded-l-lg"
-          offClass="destructive-on-glass rounded-r-lg"
-          inactiveClass="on-glass"
-          groupClassName="rounded-none"
         />
         <DisplayToggle
           label="Sell"
@@ -305,10 +301,6 @@ function Displays({ product }: { product: AdminProduct }) {
           className="w-full"
           onLabel="Yes"
           offLabel="No"
-          onClass="success-on-glass rounded-l-lg"
-          offClass="destructive-on-glass rounded-r-lg"
-          inactiveClass="on-glass"
-          groupClassName="rounded-none"
         />
         <DisplayToggle
           label="Featured"
@@ -317,10 +309,6 @@ function Displays({ product }: { product: AdminProduct }) {
           className="w-full"
           onLabel="Yes"
           offLabel="No"
-          onClass="success-on-glass rounded-l-lg"
-          offClass="destructive-on-glass rounded-r-lg"
-          inactiveClass="on-glass"
-          groupClassName="rounded-none"
         />
       </div>
     </div>
@@ -336,19 +324,17 @@ function Dev({ product }: { product: AdminProduct }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="section-label">Dev</div>
+      <p className="eyebrow">Dev</p>
 
       <DotSelect
         label="Shadow Offset"
         count={10}
         value={product.shadow_offset ?? 0}
         onChange={(n) => handleUpdate({ shadow_offset: n })}
-        buttonClass="on-glass rounded-lg"
-        checkedClass='primary-on-glass rounded-lg'
       />
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="variant_group" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="variant_group" className="pl-1">
           Variant Group
         </Label>
 
@@ -356,14 +342,13 @@ function Dev({ product }: { product: AdminProduct }) {
           id="variant_group"
           placeholder="Enter variant group..."
           type="text"
-          className="on-glass"
           defaultValue={product.variant_group ?? ''}
           onBlur={(e) => handleUpdate({ variant_group: e.target.value })}
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="variant_label" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="variant_label" className="pl-1">
           Variant Label
         </Label>
 
@@ -371,14 +356,13 @@ function Dev({ product }: { product: AdminProduct }) {
           id="variant_label"
           placeholder="Enter variant label..."
           type="text"
-          className="on-glass"
           defaultValue={product.variant_label ?? ''}
           onBlur={(e) => handleUpdate({ variant_label: e.target.value })}
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="filter_category" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="filter_category" className="pl-1">
           Filter Category
         </Label>
 
@@ -386,14 +370,13 @@ function Dev({ product }: { product: AdminProduct }) {
           id="filter_category"
           placeholder="Enter category..."
           type="text"
-          className="on-glass"
           defaultValue={product.filter_category ?? ''}
           onBlur={(e) => handleUpdate({ filter_category: e.target.value })}
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="slug" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="slug" className="pl-1">
           Slug
         </Label>
 
@@ -401,7 +384,6 @@ function Dev({ product }: { product: AdminProduct }) {
           id="slug"
           placeholder="Enter slug..."
           type="text"
-          className="on-glass"
           defaultValue={product.slug ?? ''}
           onBlur={(e) => handleUpdate({ slug: e.target.value })}
         />
@@ -419,30 +401,28 @@ function Images({ product }: { product: AdminProduct }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="section-label">Images</div>
+      <p className="eyebrow">Images</p>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="image_front" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="image_front" className="pl-1">
           Image Front
         </Label>
 
         <Input
           id="image_front"
           type="text"
-          className="on-glass"
           defaultValue={product.image_front ?? ''}
           onBlur={(e) => handleUpdate({ image_front: e.target.value })}
         />
       </div>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="image_back" className="text-xs pl-1 font-medium text-neutral-700">
+        <Label htmlFor="image_back" className="pl-1">
           Image Back
         </Label>
 
         <Input
           id="image_back"
           type="text"
-          className="on-glass"
           defaultValue={product.image_back ?? ''}
           onBlur={(e) => handleUpdate({ image_back: e.target.value })}
         />

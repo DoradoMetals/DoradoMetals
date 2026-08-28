@@ -23,8 +23,8 @@ export function TableColumnVisibility<TData>({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-fit space-y-2 rounded-lg" align="center" side="bottom">
-        <div className="flex justify-center text-xs text-neutral-600 p-2 glass-panel rounded-t-lg font-light">
+      <PopoverContent className="w-fit space-y-2" align="center" side="bottom">
+        <div className="flex justify-center text-micro text-neutral-600 p-2 bg-highest border border-border rounded-t-lg">
           Toggle Displayed
         </div>
 
@@ -38,7 +38,7 @@ export function TableColumnVisibility<TData>({
                 id={`col-${column.id}`}
                 checked={column.getIsVisible()}
                 onCheckedChange={() => column.toggleVisibility()}
-                className="text-primary cursor-pointer on-glass data-[state=checked]:text-primary"
+                className="text-primary cursor-pointer bg-transparent border border-border data-[state=checked]:text-primary"
               />
               <label
                 htmlFor={`col-${column.id}`}

@@ -74,12 +74,11 @@ export default function SignInForm() {
                         checked={field.value}
                         onCheckedChange={field.onChange}
                         id="remember-me"
-                        className="checkbox-form"
                       />
                     </FormControl>
                     <FormLabel
                       htmlFor="remember-me"
-                      className="text-neutral-600 text-xs cursor-pointer"
+                      className="cursor-pointer"
                     >
                       Remember Me
                     </FormLabel>
@@ -89,15 +88,14 @@ export default function SignInForm() {
               <ForgotPasswordDialog />
             </div>
 
-            <div className="flex mb-0 p-0 text-xs text-destructive ml-auto">
-              <p className="ml-auto">{error ? error.message : null}</p>
+            <div className="flex ml-auto">
+              <p className="ml-auto text-destructive">{error ? error.message : null}</p>
             </div>
 
             <Button
               type="submit"
-              variant="default"
               disabled={recaptchaPending || signInPending}
-              className="bg-primary raised-off-page text-white w-full mb-8"
+              className="w-full mb-8"
             >
               {recaptchaPending ? 'Verifying…' : signInPending ? 'Signing In…' : 'Sign In'}
             </Button>

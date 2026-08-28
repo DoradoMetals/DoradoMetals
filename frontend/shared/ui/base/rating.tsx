@@ -93,6 +93,17 @@ export const RatingButton = ({
   return (
     <button
       className={cn(
+        /* THE STAR COLOUR IS THE COMPONENT'S, NOT THE CALL SITE'S.
+
+           Five call sites spelled `text-primary transition-transform`, and the
+           sweep started deleting it because it is a NO-OP TODAY - `--primary`
+           and `--foreground` are both near-white, so a star with no colour
+           class looks identical. That is true and it is exactly the trap: the
+           moment `--primary` moves off white (it was gold until this pass, and
+           `--brand` still is), every deleted call site silently stops tracking
+           it while the ones that kept the class do. Owning the default here
+           makes the deletions safe AND correct. */
+        'text-primary transition-transform',
         'rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         'p-0.5',
         readOnly && 'cursor-default',

@@ -266,25 +266,16 @@ const productsService = await import("#features/products/service.ts");
 add("GET /products", c.Bullion, () => productsService.getAllProducts());
 add("GET /products (sell)", c.Bullion, () => productsService.getSellProducts());
 
-// Orders. The largest surface here, and since the read pivot (ruling 8) a
-// SINGLE implementation each way: read.service.ts per direction, assembled
-// from the per-table repos. bothWays retired with the exchange reads - the
-// contract is the independent statement of the shape, and these are the rows
-// GET /api/orders actually serves.
-const purchaseOrdersService = await import("#features/purchase-orders/read.service.ts");
-const orders = await purchaseOrdersService.getAll();
-add("GET /orders (purchase)", c.PurchaseOrder, () => purchaseOrdersService.getAll());
-const salesOrdersService = await import("#features/sales-orders/read.service.ts");
-add("GET /orders (sale)", c.SalesOrder, () => salesOrdersService.getAll());
-
-// The items, flattened out of those orders, so a bad line is reported as a bad
-// line rather than as one failing order among sixteen.
-add("purchase order items", c.PurchaseOrderItem, async () =>
-  (await purchaseOrdersService.getAll()).flatMap((o) => o.order_items ?? [])
-);
-add("sales order items", c.SalesOrderItem, async () =>
-  (await salesOrdersService.getAll()).flatMap((o) => o.order_items ?? [])
-);
+// Orders. ONE SHAPE, BOTH DIRECTIONS, since the wire slimmed (wave 3): an
+// order on the wire is its orders.orders row plus `totals`, and every other
+// piece of it is a parent-path read checked on its own below. The composed
+// PurchaseOrder / SalesOrder contracts died with the slot family they
+// described; features/*/read.service.ts still assembles an order for the
+// API's own pricing and email work, and `diff` plus the decomposition
+// verifiers are what check THAT.
+const orderRead = await import("#features/orders/read.ts");
+const orders = await orderRead.list({ direction: "purchase" });
+add("GET /orders", c.Order, () => orderRead.list({}));
 
 // The bare-resource reads the flip landed - VERBATIM table rows (ruling 12),
 // parsed through the generated-row re-exports. Payout DETAILS are
@@ -301,6 +292,11 @@ add("GET /orders/:orderId/refiners", c.RefinerOrder, async () => {
   const reads = await Promise.all(orders.map((o) => refinerOrdersService.getByOrder(o.id)));
   return reads.filter(Boolean);
 });
+const refinerItemsRepo = await import("#features/refiners/items/repo.ts");
+add("GET /orders/:orderId/refiners/items", c.RefinerItem, async () => {
+  const lists = await Promise.all(orders.map((o) => refinerItemsRepo.getForOrder(o.id)));
+  return lists.flat();
+});
 add("GET /orders/:orderId/refiners/spots", c.RefinerSpot, async () => {
   const lists = await Promise.all(
     orders.map((o) => refinerOrdersService.getSpotsByOrder(o.id))
@@ -315,12 +311,46 @@ add("GET /orders/:orderId/fulfillments", c.OrderFulfillment, async () => {
   return reads.filter(Boolean);
 });
 
-// Nested shapes, taken off a real order.
-add("order.payout", c.PayoutOnOrder, () => orders.map((o) => o.payout).filter((p) => p?.id));
-add("order.shipment", c.ShipmentOnOrder, () => orders.map((o) => o.shipment).filter((s) => s?.id));
-add("order.user", c.UserOnOrder, () => orders.map((o) => o.user).filter((u) => u?.user_id));
-add("order.address", c.OrderAddressSnapshot, () => orders.map((o) => o.address).filter(Boolean));
-add("order.totals", c.OrderTotals, () => orders.map((o) => o.totals).filter(Boolean));
+// The rest of the order-scoped read family, each one its own table's rows.
+// They were "nested shapes, taken off a real order" until wave 3; the reads
+// are the shapes now, and checking them here is checking what the drawers
+// actually receive.
+const orderItemsRepo = await import("#features/orders/items/repo.ts");
+add("GET /orders/:id/items", c.OrderItem, async () => {
+  const lists = await Promise.all(orders.map((o) => orderItemsRepo.getFor(o.id)));
+  return lists.flat();
+});
+const shipmentOrderRead = await import("#features/shipping/shipments/order-read.ts");
+add("GET /orders/:orderId/shipments", c.Shipment, async () => {
+  const lists = await Promise.all(orders.map((o) => shipmentOrderRead.getForOrder(o.id)));
+  return lists.flat();
+});
+add("GET /orders/:orderId/pickups", c.FulfillmentPickup, async () => {
+  const lists = await Promise.all(orders.map((o) => orderFulfillmentRead.getOrderPickups(o.id)));
+  return lists.flat();
+});
+add("GET /orders/:orderId/directs", c.FulfillmentDirect, async () => {
+  const lists = await Promise.all(orders.map((o) => orderFulfillmentRead.getOrderDirects(o.id)));
+  return lists.flat();
+});
+// PAYOUTS ARE NOT PARSED HERE, and the reason is the same one that keeps
+// PayoutDetails out: a zod failure prints the offending value, and these rows
+// are bank data. The shape is pinned on keys by refiner-edits.test.js.
+const orderAddressesRepo = await import("#features/orders/addresses/repo.ts");
+const placeAddressesRepo = await import("#features/places/addresses/repo.ts");
+add("GET /orders/:id/address", c.OrderAddress, async () => {
+  const links = await Promise.all(orders.map((o) => orderAddressesRepo.getFor(o.id)));
+  const rows = await Promise.all(
+    links.filter(Boolean).map((l) => placeAddressesRepo.getOne(l.address_id))
+  );
+  return rows.filter(Boolean);
+});
+// The CARRIER pickups, whose parent is the shipment rather than the order.
+const carrierPickupsRepo = await import("#features/shipping/pickups/repo.ts");
+add("GET /shipments/:id/pickups", c.ShipmentPickup, async () => {
+  const lists = await Promise.all(orders.map((o) => shipmentOrderRead.getForOrder(o.id)));
+  return await carrierPickupsRepo.getByShipments(lists.flat().map((s) => s.id));
+});
 
 // Quotes: the pricing surface with nothing stored underneath. COMPUTED
 // shapes, not table rows - there is no repo pair for bothWays to compare, so

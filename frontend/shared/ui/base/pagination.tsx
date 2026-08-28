@@ -40,11 +40,15 @@ const PaginationLink = ({
   <a
     aria-current={isActive ? 'page' : undefined}
     className={cn(
+      /* The active page is the emphasised one, so it is `secondary` (outlined)
+         and the rest are `tertiary` (quiet). This was previously
+         `isActive ? 'ghost' : 'ghost'` — a dead ternary — with the real
+         distinction carried by two text-colour classes beside it. The emphasis
+         axis says it properly and the colours come off the call site. */
       buttonVariants({
-        variant: isActive ? 'ghost' : 'ghost',
+        variant: isActive ? 'secondary' : 'tertiary',
         size,
       }),
-      isActive ? 'text-neutral-800' : 'text-neutral-600',
       className
     )}
     {...props}

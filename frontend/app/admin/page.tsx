@@ -28,7 +28,7 @@ import {
 import { userRoleOptions } from '@/features/users/types'
 import { useGetSession } from '@/features/auth/queries'
 import Drawer from '@/shared/ui/base/drawer'
-import { cn } from '@/shared/utils/cn'
+import { Button } from '@/shared/ui/base/button'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import { UsersPage } from '@/features/users/ui/UsersAdminTable'
@@ -48,11 +48,11 @@ import CarrierServicesPage from '@/features/carriers/ui/CarrierServicesAdminTabl
 export default function Page() {
   return (
     <ProtectedPage requiredRoles={protectedRoutes.admin.roles}>
-      <div className="flex flex-col items-center px-5">
+      <main className="flex flex-col items-center px-5">
         <Suspense fallback={<p>Loading...</p>}>
           <AdminShell />
         </Suspense>
-      </div>
+      </main>
     </ProtectedPage>
   )
 }
@@ -140,11 +140,11 @@ function AdminShell() {
       case 'sales-orders':
         return <SalesOrdersPage />
       case 'profits':
-        return <div className="text-sm text-neutral-700">TODO: Profit and Loss</div>
+        return <p>TODO: Profit and Loss</p>
       case 'expenses':
-        return <div className="text-sm text-neutral-700">TODO: Expenses</div>
+        return <p>TODO: Expenses</p>
       case 'metrics':
-        return <div className="text-sm text-neutral-700">TODO: Metrics</div>
+        return <p>TODO: Metrics</p>
       case 'users':
         return <UsersPage />
       case 'leads':
@@ -156,7 +156,7 @@ function AdminShell() {
       case 'rates':
         return <RatesPage />
       case 'appointments':
-        return <div className="text-sm text-neutral-700">TODO: Appointments</div>
+        return <p>TODO: Appointments</p>
       case 'carriers':
         return <CarriersPage />
       case 'carrier_services':
@@ -172,13 +172,14 @@ function AdminShell() {
     <div className="w-full h-full">
       <div className="md:hidden">
         <div className="mx-auto w-full max-w-7xl py-2 flex items-center justify-between">
-          <button
+          <Button
+            variant="tertiary"
             onClick={() => openDrawer('adminSidebar')}
-            className="flex items-center gap-2 text-neutral-800 hover:text-primary"
+            className="flex items-center gap-2"
           >
             <CaretLeftIcon size={24} />
-            <span className="text-base font-medium ">{currentLabel}</span>
-          </button>
+            <span>{currentLabel}</span>
+          </Button>
         </div>
       </div>
 
@@ -193,7 +194,7 @@ function AdminShell() {
           roleTitle="Dorado Admin"
           roleSubtitle={roleMeta.label ?? 'Admin'}
           content={content}
-          navClass="glass-card"
+          navClass="bg-card border border-border"
         />
       </div>
 
@@ -205,7 +206,7 @@ function AdminShell() {
         open={activeDrawer === 'adminSidebar'}
         setOpen={(o) => (o ? openDrawer('adminSidebar') : closeDrawer())}
         anchor="left"
-        className={cn('fixed top-0 h-full bg-card p-2 shadow-2xl rounded-none')}
+        className="fixed top-0 h-full bg-highest border border-border p-2 rounded-none"
       >
         <SidebarLayout
           sections={sections}

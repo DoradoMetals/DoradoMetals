@@ -8,6 +8,8 @@ import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import { formatRate } from '@/features/rates/utils/resolveRate'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import StatusChip from '@/shared/ui/StatusChip'
+import { Separator } from '@/shared/ui/base/separator'
 
 export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const form = useFormContext<Scrap>()
@@ -53,24 +55,24 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CoinsIcon className='text-primary' size={24} />
-              <span className="text-base text-neutral-600">Metal:</span>
+              <CoinsIcon className="text-primary" size={24} />
+              <p>Metal:</p>
             </div>
-            <span className="text-lg text-neutral-800">{metal}</span>
+            <strong>{metal}</strong>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ScalesIcon className='text-primary' size={24} />
-              <span className="text-base text-neutral-600">Pre Melt:</span>
+              <ScalesIcon className="text-primary" size={24} />
+              <p>Pre Melt:</p>
             </div>
             {getGrossLabel(pre_melt, unit)}
           </div>
 
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
-              <PercentIcon className='text-primary' size={24} />
-              <span className="text-base text-neutral-600">Purity:</span>
+              <PercentIcon className="text-primary" size={24} />
+              <p>Purity:</p>
             </div>
             {getPurityLabel(purity, metal)}
           </div>
@@ -78,19 +80,19 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <PercentIcon className="text-primary" size={24} />
-              <span className="text-base text-neutral-600">Rate:</span>
+              <p>Rate:</p>
             </div>
-            <span className="text-lg text-neutral-800">{formatRate(bid_premium)}</span>
+            <strong>{formatRate(bid_premium)}</strong>
           </div>
         </div>
 
-        <div className="separator-inset" />
+        <Separator />
 
         <div className="flex items-end justify-between">
-          <span className="text-base text-neutral-800 ">Price Estimate:</span>
-          <span className="text-xl text-neutral-900">
+          <p>Price Estimate:</p>
+          <strong>
             <PriceNumberFlow value={price} />
-          </span>
+          </strong>
         </div>
 
         {showBanner && (
@@ -99,10 +101,12 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.5 }}
-            className="flex items-center gap-2 rounded-xl text-green-800 text-sm px-4 py-2 border border-green-800 mb-4 will-change-transform"
+            className="mb-4 will-change-transform"
           >
-            <CheckCircle className="w-4 h-4" />
-            Item submitted!
+            <StatusChip tone="positive" size="lg">
+              <CheckCircle className="w-4 h-4" />
+              Item submitted!
+            </StatusChip>
           </motion.div>
         )}
       </div>

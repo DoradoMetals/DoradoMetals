@@ -64,7 +64,7 @@ export function TableBase<TData>({
                 return (
                   <TableHead
                     key={col.id}
-                    className="h-10 text-xs font-normal text-neutral-600"
+                    className="h-10"
                     style={widthStyle(col.id)}
                   >
                     {header?.isPlaceholder
@@ -104,12 +104,17 @@ export function TableBase<TData>({
             )
 
             return (
+              /* `interactive` IS DERIVED, NOT PASSED. A row is interactive
+                 exactly when it has an onRowClick - there is no third state -
+                 so asking a call site to declare it a second time is asking it
+                 to get it wrong. Six DataTable call sites were hand-rolling
+                 `getRowClassName={() => 'cursor-pointer hover:bg-accent'}`,
+                 which is byte-for-byte what TableRow's own `interactive` prop
+                 emits; those call sites are now straight deletions. */
               <TableRow
                 key={row.id}
-                className={cn(
-                  onRowClick ? 'cursor-pointer' : 'cursor-default',
-                  getRowClassName?.(row)
-                )}
+                interactive={!!onRowClick}
+                className={cn(!onRowClick && 'cursor-default', getRowClassName?.(row))}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {orderedColIds.map((colId) => {

@@ -10,6 +10,26 @@ import { Dispatch, SetStateAction } from 'react'
 import { cn } from '@/shared/utils/cn'
 import ShowPasswordButton from '@/shared/ui/form/ShowPasswordButton'
 
+/* THE FIELD HAS NO SURFACE OF ITS OWN. It renders an `Input`, and `Input` has
+   exactly one appearance (ruling 28) - so this component adds none.
+
+   WHAT WAS HERE. Two defects, then briefly a third:
+
+     1. There was no variant, so the nine call sites that wanted a filled field
+        on a panel wrote `bg-highest border-1 border-border` by hand.
+     2. `className` DEFAULTED to the appearance (`'border-none bg-card'`) and
+        was passed straight through, so a caller adding one layout class
+        REPLACED the field's entire surface. Five more call sites re-spelled
+        the default just to append something. That is not an override, it is a
+        default with no way to keep it.
+     3. The fix for both was a `card | filled | outline` axis. That was still
+        three looks for one control, and Jacob's ruling on `Input` applies with
+        the same force here: "We only want one input."
+
+   So the axis is gone and `className` is LAYOUT ONLY. Every field in the app
+   is now the single hairline field defined in `base/input.tsx`, whether it is
+   reached directly, through here, or through a searchable dropdown. */
+
 type ValidatedFieldProps<T extends FieldValues> = {
   control: Control<T>
   name: FieldPath<T>
@@ -24,6 +44,7 @@ type ValidatedFieldProps<T extends FieldValues> = {
   showPassword?: boolean
   setShowPassword?: Dispatch<SetStateAction<boolean>>
 
+  /** LAYOUT ONLY - width, alignment, grid placement. Never appearance. */
   className?: string
   size?: 'sm' | 'md' | 'lg'
   showIcon?: boolean
@@ -46,10 +67,10 @@ export function ValidatedField<T extends FieldValues>({
   showPasswordButton = false,
   showPassword,
   setShowPassword,
-  className = 'input-floating-label-form',
+  className,
   size = 'sm',
   showIcon = true,
-  messageClassName = 'absolute right-0 -bottom-5.5 -translate-y-1/2 text-xs text-destructive',
+  messageClassName = 'absolute right-0 -bottom-5.5 -translate-y-1/2 text-micro text-destructive',
   showOnTouch = false,
   showFormError = true,
   floating = true,
@@ -92,14 +113,18 @@ export function ValidatedField<T extends FieldValues>({
                       onChange={mergedOnChange}
                       type={type}
                       label={label}
-                      className={cn(className, rightAligned ? 'text-right' : 'text-left', 'pr-12')}
+                      className={cn(
+                        rightAligned ? 'text-right' : 'text-left',
+                        'pr-12',
+                        className
+                      )}
                       size={size}
                       pattern={type === 'number' ? '[0-9]*' : undefined}
                       disabled={disabled}
                     />
                   ) : (
                     <div className="space-y-1">
-                      <Label className="text-xs text-neutral-700">{label}</Label>
+                      <Label >{label}</Label>
                       <Input
                         {...field}
                         {...(inputProps as React.InputHTMLAttributes<HTMLInputElement>)}
@@ -107,9 +132,9 @@ export function ValidatedField<T extends FieldValues>({
                         type={type}
                         disabled={disabled}
                         className={cn(
-                          className,
                           rightAligned ? 'text-right' : 'text-left',
-                          'pr-12'
+                          'pr-12',
+                          className
                         )}
                       />
                     </div>

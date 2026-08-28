@@ -1,68 +1,55 @@
-.input-floating-label-form {
-  @apply border-none
-    bg-card 
-    shadow-[inset_0_-2px_0px_hsla(0,0%,99%,1),inset_0_2px_2px_hsla(0,0%,0%,0.2)]
-    dark:shadow-[inset_0_-2px_0px_hsla(0,0%,100%,0.1),inset_0_2px_2px_hsla(0,0%,0%,0.3)];
-}
+/* ============================================================================
+   COMPONENTS
+   ----------------------------------------------------------------------------
+   Light mode is gone, so every `X dark:X` shadow pair in this file has been
+   COLLAPSED to its dark half and moved onto the --shadow-* tokens in theme.css.
+   The light halves were 1px pure-white inset highlights (hsla(0,0%,99%,1)) —
+   on a near-black ground those render as bright wires across every raised
+   surface in the app, and there are 126 of them.
+
+   PRECEDENCE: most of this file is UNLAYERED and therefore beats `utilities`.
+   That is pre-existing and left alone. Only the `.floating-label` block at the
+   bottom was already in `@layer components`; it stays there.
+
+   DELETED (ruling 16 / ruling 27), each verified at ZERO call sites first:
+     .input-floating-label-form  -> the one input appearance (ruling 28)
+     .radio-group-buttons        -> <RadioCard> (shared/ui/RadioCard.tsx)
+     .separator-inset            -> <Separator />
+     .shadow                     -> nothing. It collided with Tailwind's own
+                                    `shadow` utility and WON, because this file
+                                    is unlayered. Zero bare `shadow` spellings
+                                    in the tree, so the trap is gone with it.
+
+   STILL HERE, AND WHY - each still has live call sites in features/orders,
+   which is wave 3's tree and NOT swept. Deleting any of these now would
+   silently unstyle those elements:
+     .checkbox-form       2 sites  (AdminReceived.tsx:388,764)
+     .section-label       5 sites  (carries real typography, not just a shadow)
+     .raised-off-page    22 sites  } pure `box-shadow` rules. Ruling 27 deletes
+     .recessed-into-page  1 site   } the shadows outright, and because these
+                                     carry NOTHING else, deleting the RULE
+                                     removes only the shadow and cannot unstyle
+                                     anything. Left for the next styling pass
+                                     alongside the --shadow-* token removal so
+                                     the two land together.
+   ============================================================================ */
 
 .checkbox-form {
   @apply border-none
-    text-primary 
+    text-primary
     cursor-pointer
     data-[state=checked]:text-primary
     data-[state=checked]:bg-card
-    bg-card 
-    shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
-    dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)];
-}
-
-.radio-group-buttons {
-  @apply relative 
-    flex 
-    items-center 
-    bg-background
-    justify-center
-    rounded-md
-    px-3
-    py-2
-    text-sm
-    font-medium
-    cursor-pointer
-    transition-colors
-    has-[[data-state=checked]]:bg-card
-    will-change-transform
-    /* has-[[data-state=checked]]:border-primary */
-    /* has-[[data-state=checked]]:shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
-    has-[[data-state=checked]]:dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)] */
-    has-[[data-state=checked]]:shadow-none
-    has-[[data-state=checked]]:dark:shadow-none
-    shadow-[inset_0px_1px_0px_hsla(0,0%,99%,1),0px_1px_3px_hsla(0,0%,0%,.2)]
-    dark:shadow-[inset_0px_1px_0px_hsla(0,0%,100%,.1),0px_1px_3px_hsla(0,0%,0%,.2)];
+    bg-card;
+  box-shadow: var(--shadow-recessed);
 }
 
 .raised-off-page {
-  @apply shadow-[inset_0px_1px_0px_hsla(0,0%,99%,1),0px_1px_3px_hsla(0,0%,0%,.2)]
-  dark:shadow-[inset_0px_1px_0px_hsla(0,0%,100%,.1),0px_1px_3px_hsla(0,0%,0%,.2)];
-}
-
-.shadow {
-  -webkit-filter: drop-shadow( 3px 3px 2px rgba(0, 0, 0, .7));
-  filter: drop-shadow( 3px 3px 2px rgba(0, 0, 0, .7));
-  /* Similar syntax to box-shadow */
-}
-
-.separator-inset {
-  @apply h-[3px]
-    rounded-full
-    w-full
-    bg-card
-    shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
-    dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)];
+  box-shadow: var(--shadow-raised);
 }
 
 .recessed-into-page {
-  @apply shadow-[inset_0_-1px_0px_hsla(0,0%,99%,1),inset_0_1px_1px_hsla(0,0%,0%,0.2)]
-    dark:shadow-[inset_0_-1px_0px_hsla(0,0%,100%,0.1),inset_0_1px_1px_hsla(0,0%,0%,0.3)];
+  box-shadow: var(--shadow-recessed);
 }
 
 .section-label {

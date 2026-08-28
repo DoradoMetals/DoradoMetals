@@ -10,6 +10,13 @@ interface Props {
   setOpen: (open: boolean) => void
   children: ReactNode
   anchor?: Anchor
+  /** The drawer's surface. `highest` is the top of the stack (modals, drawers)
+   *  and carries its own hairline; `card` is a fill only, for a sheet that
+   *  draws its own edges; `none` paints nothing. */
+  surface?: 'highest' | 'card' | 'none'
+  /** LAYOUT ONLY - width, position, padding. It MERGES with `surface` now;
+   *  it used to REPLACE the whole surface, so a caller adding `max-w-full`
+   *  silently un-painted the drawer. */
   className?: string
   /**
    * What this drawer is showing, e.g. "User". Becomes its accessible name.
@@ -32,12 +39,20 @@ interface Props {
 //
 // Found while writing a test that waits for a drawer to appear and could not
 // name one, which is exactly the difficulty a screen reader has.
+//
+// THE SURFACE IS A PROP, AND `className` NOW MERGES. It used to be
+// `className = 'bg-highest border border-border'` - a default PARAMETER, so
+// any caller passing a class replaced the drawer's entire surface with it. Four
+// call sites therefore re-spelled the surface just to add a width, and one
+// (CartTabs) spelled a different one. Same defect as ValidatedField and
+// SelectMenu, and the same fix: name the surfaces, merge the layout.
 const Drawer: FC<Props> = ({
   open,
   setOpen,
   children,
   anchor = 'right',
-  className = 'glass-panel',
+  surface = 'highest',
+  className,
   label,
 }) => {
   // Escape closes it. A modal that can only be dismissed by clicking a specific
@@ -80,6 +95,8 @@ const Drawer: FC<Props> = ({
             className={cn(
               'drawer-layout custom-scrollbar',
               anchor === 'right' ? 'right-0' : 'left-0',
+              surface === 'highest' && 'bg-highest border border-border',
+              surface === 'card' && 'bg-card',
               className
             )}
           >

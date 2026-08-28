@@ -100,9 +100,9 @@ export function AddNewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogOverlay>
-        <DialogContent className={cn('glass-panel', className)}>
+        <DialogContent className={cn('bg-highest', className)}>
           <DialogHeader>
-            <DialogTitle className="tracking-widest text-xs text-neutral-600 uppercase mr-auto mb-2">
+            <DialogTitle className="eyebrow mr-auto mb-2">
               {createConfig.title}
             </DialogTitle>
           </DialogHeader>
@@ -155,11 +155,7 @@ export function AddNewDialog({
                         onValueChange={(val) => setValue(field.name, String(val ?? 0))}
                       >
                         {Array.from({ length: 5 }).map((_, i) => (
-                          <RatingButton
-                            key={i}
-                            size={32}
-                            className="transition-transform text-primary"
-                          />
+                          <RatingButton key={i} size={32} />
                         ))}
                       </Rating>
                     </div>
@@ -176,7 +172,7 @@ export function AddNewDialog({
                         <Textarea
                           id={fieldId}
                           name={field.name}
-                          className="on-glass min-h-[80px]"
+                          className="min-h-20"
                           value={value}
                           onChange={(e) => setValue(field.name, e.target.value)}
                           maxLength={field.maxLength}
@@ -209,7 +205,7 @@ export function AddNewDialog({
                         type={field.inputType ?? 'text'}
                         inputMode={field.inputMode}
                         autoComplete={field.autoComplete}
-                        className="on-glass h-10"
+                        className="h-10"
                         maxLength={field.maxLength}
                         value={value}
                         onChange={(e) => {
@@ -235,8 +231,8 @@ export function AddNewDialog({
               })}
 
               <Button
-                variant="default"
-                className={cn('p-4 w-full', 'primary-on-glass', 'hover:bg-primary/30!')}
+                variant="primaryQuiet"
+                className={'p-4 w-full'}
                 disabled={!canSubmit}
                 onClick={handleSubmit}
               >

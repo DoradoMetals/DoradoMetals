@@ -46,7 +46,7 @@ export function PasswordRequirements<T extends Record<string, any>>({
                     animate={{ scaleX: ok ? 1 : 0 }}
                     transition={{ type: 'tween', duration: 0.2 }}
                     style={{ transformOrigin: 'left' }}
-                    className="absolute inset-0 bg-success border-1 border-success"
+                    className="absolute inset-0 bg-success"
                   />
                 </div>
               )
@@ -54,12 +54,12 @@ export function PasswordRequirements<T extends Record<string, any>>({
           </div>
 
           {/* rule list */}
-          <ul className="space-y-1 text-xs md:text-sm">
+          <ul className="space-y-1">
             {rules.map(({ label, validate }) => {
               const ok = validate(pw)
               return (
                 <li key={label} className="flex items-center justify-between">
-                  <span className={ok ? 'text-success' : 'text-destructive'}>{label}</span>
+                  <small className={ok ? 'text-success' : 'text-destructive'}>{label}</small>
                   {ok ? (
                     <CircleCheckIcon size={16} className="text-success" />
                   ) : (

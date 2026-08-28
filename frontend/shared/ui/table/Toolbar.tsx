@@ -96,7 +96,7 @@ export function TableToolbar<TData>({
       ) : null}
 
       {showNormalTopRow ? (
-        <div className="on-glass border-none flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between w-full">
+        <div className="bg-transparent flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between w-full">
           <div className="flex flex-col gap-2 w-full">
             <div className="flex w-full gap-2">
               {createConfig ? (

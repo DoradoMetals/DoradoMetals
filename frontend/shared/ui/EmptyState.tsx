@@ -68,7 +68,7 @@ export function EmptyState({
         type="button"
         variant={buttonVariant}
         onClick={onClick}
-        className={cn('mt-6 h-10 px-8 raised-off-page', buttonClassName)}
+        className={cn('mt-6', buttonClassName)}
       >
         <span className="flex items-center gap-2">
           {ButtonIcon ? <ButtonIcon size={buttonIconSize} /> : null}

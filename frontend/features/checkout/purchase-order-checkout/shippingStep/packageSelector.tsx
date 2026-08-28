@@ -2,7 +2,7 @@
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
 import { Switch } from '@/shared/ui/base/switch'
-import { cn } from '@/shared/utils/cn'
+
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { packageOptions } from '@/features/packaging/types'
@@ -72,10 +72,10 @@ export function PackageSelector() {
 
   return (
     <div className="space-y-2">
-      <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Package Selection</h2>
+      <h2 className="eyebrow mb-4">Package Selection</h2>
 
       <div className="flex items-center justify-end gap-2 mb-4">
-        <span className="text-sm text-neutral-600">Use FedEx Packaging?</span>
+        <p>Use FedEx Packaging?</p>
         <Switch checked={fedexPackageToggle} onCheckedChange={handleFedExToggle} />
       </div>
 
@@ -88,13 +88,11 @@ export function PackageSelector() {
           <label
             key={pkg.label}
             htmlFor={pkg.label}
-            className={cn(
-              'raised-off-page relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md'
-            )}
+            className="relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card"
           >
             <div className="flex flex-col items-center gap-2">
-              {pkg.icon && <pkg.icon size={20} className='text-primary' />}
-              <div className="text-xs sm:text-sm text-neutral-800 font-medium">{pkg.label}</div>
+              {pkg.icon && <pkg.icon size={20} className="text-primary" />}
+              <strong>{pkg.label}</strong>
             </div>
 
             <RadioGroupItem id={pkg.label} value={pkg.label} className="sr-only" />

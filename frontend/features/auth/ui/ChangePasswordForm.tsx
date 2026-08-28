@@ -54,16 +54,13 @@ export default function ChangePasswordForm({
     <div className="flex justify-center w-full">
       <div className="flex flex-col w-full gap-6">
         {showTitle && (
-          <p className="text-xs text-neutral-600 tracking-widest mr-auto uppercase">
-            Reset Password
-          </p>
+          <p className="eyebrow mr-auto">Reset Password</p>
         )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <div className="space-y-6">
               <ValidatedField
-                className="bg-highest border-1 border-border"
                 control={form.control}
                 name="currentPassword"
                 label="Current Password"
@@ -77,7 +74,6 @@ export default function ChangePasswordForm({
 
               <div className="flex flex-col gap-1 mb-4">
                 <ValidatedField
-                  className="bg-highest border-1 border-border"
                   control={form.control}
                   name="newPassword"
                   label="New Password"
@@ -103,7 +99,7 @@ export default function ChangePasswordForm({
               type="submit"
               variant="secondary"
               disabled={changePassword.isPending}
-              className="w-full mb-8 raised-off-page"
+              className="w-full mb-8"
             >
               {changePassword.isPending ? 'Changing...' : 'Change Password'}
             </Button>

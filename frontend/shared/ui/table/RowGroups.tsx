@@ -91,7 +91,7 @@ export function RowGroups<TData>({
                   leafRows.forEach((r) => r.toggleSelected(next))
                 }}
                 aria-label="Select group"
-                className="cursor-pointer on-glass"
+                className="cursor-pointer bg-transparent border border-border"
               />
             </TableCell>
           )

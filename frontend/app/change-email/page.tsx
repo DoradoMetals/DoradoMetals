@@ -10,7 +10,9 @@ import ChangeEmail from '@/features/auth/ui/ChangeEmailSucess'
 export default function Page() {
   return (
     <Suspense fallback={<p>Loading...</p>}>
-      <ChangeEmail />
+      <main>
+        <ChangeEmail />
+      </main>
     </Suspense>
   )
 }

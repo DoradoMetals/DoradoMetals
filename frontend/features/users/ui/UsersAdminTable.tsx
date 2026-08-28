@@ -36,7 +36,7 @@ export function UsersPage() {
         accessorKey: 'name',
         align: 'left',
         enableHiding: false,
-        textClassName: 'inline-flex items-center gap-2 text-xs sm:text-sm',
+        textClassName: 'inline-flex items-center gap-2',
         formatValue: (_value, row) => {
           const role =
             userRoleOptions.find((r) => r.value === row.role) ?? userRoleOptions[1]
@@ -59,7 +59,7 @@ export function UsersPage() {
         enableHiding: false,
         hideOnSmall: true,
         textClassName:
-          'hidden sm:block w-full overflow-hidden text-ellipsis whitespace-nowrap text-xs sm:text-sm text-neutral-900',
+          'hidden sm:block w-full overflow-hidden text-ellipsis whitespace-nowrap',
         size: 260,
       }),
 
@@ -135,9 +135,6 @@ export function UsersPage() {
         searchPlaceholder="Search by user name..."
         enableColumnVisibility
         onRowClick={handleRowClick}
-        getRowClassName={() =>
-          'hover:bg-background hover:cursor-pointer'
-        }
         createIcon={PlusIcon}
         createConfig={createConfig}
       />

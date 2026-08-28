@@ -142,21 +142,17 @@ export default function CheckoutStepper() {
       <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10 lg:mt-30">
         <div className="relative mb-5">
           <ShoppingCartIcon size={80} strokeWidth={1.5} className="text-primary" />
-          <div className="absolute -top-6 right-3.5 border border-borderr text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
-            0
+          <div className="absolute -top-6 right-3.5 border border-border rounded-full w-10 h-10 flex items-center justify-center">
+            <strong className="text-primary">0</strong>
           </div>
         </div>
 
         <div className="flex-col items-center gap-1 mb-5">
-          <h2 className="text-xl text-neutral-900">Your cart is empty!</h2>
-          <p className="text-xs text-neutral-700">Please add items before checking out.</p>
+          <h2>Your cart is empty!</h2>
+          <p>Please add items before checking out.</p>
         </div>
 
-        <Button
-          variant="secondary"
-          onClick={() => router.push('/sell')}
-          className="raised-off-page bg-primary text-white hover:text-white px-10"
-        >
+        <Button size="xl" onClick={() => router.push('/sell')}>
           Start Shopping
         </Button>
       </div>
@@ -171,8 +167,8 @@ export default function CheckoutStepper() {
             <div className="flex items-center gap-3">
               <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
               <div className="flex flex-col">
-                <h2 className="text-xl text-neutral-900">{stepper.current.title}</h2>
-                <p className="text-sm text-neutral-600">{stepper.current.description}</p>
+                <h2>{stepper.current.title}</h2>
+                <p>{stepper.current.description}</p>
               </div>
             </div>
           </div>
@@ -181,8 +177,8 @@ export default function CheckoutStepper() {
             <div className="flex items-center gap-3">
               <StepIndicator currentStep={currentIndex + 1} totalSteps={stepper.all.length} />
               <div className="flex flex-col">
-                <h2 className="text-xl text-neutral-900">{stepper.current.title}</h2>
-                <p className="text-sm text-neutral-600">{stepper.current.description}</p>
+                <h2>{stepper.current.title}</h2>
+                <p>{stepper.current.description}</p>
               </div>
             </div>
           </div>
@@ -206,10 +202,9 @@ export default function CheckoutStepper() {
             {stepper.current.id !== 'shipping' && (
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={stepper.prev}
                 disabled={stepper.isFirst}
-                className="bg-card hover:bg-card raised-off-page"
               >
                 {stepper.current.id === 'payout'
                   ? 'Back to Shipping'
@@ -222,7 +217,7 @@ export default function CheckoutStepper() {
             {stepper.current.id !== 'review' && (
               <Button
                 type="button"
-                className="ml-auto raised-off-page bg-primary text-white"
+                className="ml-auto"
                 onClick={stepper.next}
                 disabled={
                   (stepper.current.id === 'shipping' && !isShippingStepComplete) ||
@@ -261,34 +256,25 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
           fill="none"
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-neutral-300"
+          className="text-neutral-500"
         />
-        <defs>
-          <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#AE8625" />
-            <stop offset="25%" stopColor="#F5D67D" />
-            <stop offset="50%" stopColor="#D2AC47" />
-            <stop offset="75%" stopColor="#EDC967" />
-            <stop offset="100%" stopColor="#AE8625" />
-          </linearGradient>
-        </defs>
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="url(#goldGradient)"
+          stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="transition-all duration-300 ease-in-out"
+          className="text-brand transition-all duration-300 ease-in-out"
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-medium" aria-live="polite">
+        <small aria-live="polite">
           {currentStep} of {totalSteps}
-        </span>
+        </small>
       </div>
     </div>
   )

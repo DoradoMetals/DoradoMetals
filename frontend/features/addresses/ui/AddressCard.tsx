@@ -27,7 +27,6 @@ export interface AddressCardProps {
   showEdit?: boolean
   showRemove?: boolean
   showSetDefault?: boolean
-  raised?: boolean
 }
 
 export const AddressCard: React.FC<AddressCardProps> = ({
@@ -42,7 +41,6 @@ export const AddressCard: React.FC<AddressCardProps> = ({
   showEdit = true,
   showRemove = true,
   showSetDefault = true,
-  raised = true,
 }) => {
   const clickable = Boolean(onClick)
   const showActions = showEdit || showRemove || showSetDefault
@@ -59,6 +57,10 @@ export const AddressCard: React.FC<AddressCardProps> = ({
   }
 
   const busy = deleteAddressMutation.isPending || setDefaultAddressMutation.isPending
+
+  // The card title's LEVEL carries its size, per ruling 17 — a compact card
+  // is an h4, a full one an h3. No type utility, no runtime-conditional class.
+  const Title = variant === 'default' ? 'h3' : 'h4'
 
   const size = variant === 'default' ? 28 : 24
   const renderIcon = () => {
@@ -88,15 +90,14 @@ export const AddressCard: React.FC<AddressCardProps> = ({
           'relative flex w-full bg-card transition-all duration-300 rounded-md overflow-hidden border-1 border-border',
           variant === 'default' ? 'p-4' : 'p-3',
           clickable && 'cursor-pointer hover:-translate-y-[1px] active:translate-y-0',
-          className,
-          raised === true && 'raised-off-page'
+          className
         )}
       >
         {showDefaultBanner && userAddress?.default_shipping && (
           <>
-            <span className="pointer-events-none absolute -right-14 top-3 rotate-45 bg-primary text-white text-xs px-15 py-1">
+            <small className="pointer-events-none absolute -right-14 top-3 rotate-45 bg-primary text-primary-foreground px-15 py-1">
               Default
-            </span>
+            </small>
           </>
         )}
 
@@ -104,40 +105,21 @@ export const AddressCard: React.FC<AddressCardProps> = ({
           <div className="flex items-start justify-between w-full">
             <div className="flex items-center gap-2">
               {renderIcon()}
-              <div
-                className={cn(
-                  'text-neutral-900',
-                  variant === 'default' ? 'text-xl md:text-2xl' : 'text-base md:text-lg'
-                )}
-              >
-                {userAddress?.label}
-              </div>
+              <Title>{userAddress?.label}</Title>
             </div>
           </div>
 
           {!!address.phone_number && (
-            <div
-              className={cn(
-                'text-neutral-700',
-                variant === 'default' ? 'text-sm md:text-base mt-4' : 'text-xs mt-3'
-              )}
-            >
+            <p className={variant === 'default' ? 'mt-4' : 'mt-3'}>
               {formatPhoneNumber(address.phone_number)}
-            </div>
+            </p>
           )}
 
-          <div
-            className={cn(
-              'text-neutral-700',
-              variant === 'default' ? 'text-sm md:text-base mt-4' : 'text-xs mt-3'
-            )}
-          >
-            <p>
-              {address.line_1}
-              {address.line_2 ? ` ${address.line_2}` : ''}
-              {`, ${address.city}, ${address.state} ${address.zip}`}
-            </p>
-          </div>
+          <p className={variant === 'default' ? 'mt-4' : 'mt-3'}>
+            {address.line_1}
+            {address.line_2 ? ` ${address.line_2}` : ''}
+            {`, ${address.city}, ${address.state} ${address.zip}`}
+          </p>
 
           {showActions && (
             <div
@@ -152,7 +134,7 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                     type="button"
                     variant="secondary"
                     size="sm"
-                    className="px-4 py-0 min-w-22 text-sm md:text-base"
+                    className="min-w-22"
                     disabled={busy || !onEdit}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -165,9 +147,9 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                 {showRemove && (
                   <Button
                     type="button"
-                    variant="default"
+                    variant="secondary"
                     size="sm"
-                    className="px-4 py-0 min-w-22 text-sm md:text-base border-1 border-neutral-700 bg-card text-neutral-700 hover:bg-neutral-900 hover:text-neutral-100"
+                    className="min-w-22"
                     disabled={busy}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -193,7 +175,6 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                   type="button"
                   variant="link"
                   size="sm"
-                  className="p-0 h-auto text-neutral-700 hover:text-neutral-900"
                   disabled={busy}
                   onClick={(e) => {
                     e.stopPropagation()
@@ -220,7 +201,7 @@ export const AddressCard: React.FC<AddressCardProps> = ({
         </div>
       </div>
 
-      {error && <div className="mt-1 text-xs text-destructive font-normal">{error}</div>}
+      {error && <p className="mt-1 text-destructive">{error}</p>}
     </div>
   )
 }

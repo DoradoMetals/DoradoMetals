@@ -71,7 +71,25 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
 
   return (
     <>
-      <div className={cn('flex flex-col min-h-screen', pathname === '/' ? 'bg-card' : '')}>
+      {/* THE HOMEPAGE GROUND IS `--background`, LIKE EVERY OTHER PAGE.
+
+          `bg-card` used to be applied HERE, keyed on `pathname === '/'`, AND
+          again on `app/page.tsx`'s own root - the same fill spelled twice, in
+          two files, one of which is a layout provider making a decision about
+          one specific route. The sweep removed the page's copy; this one goes
+          too, and the reason is not tidiness.
+
+          Ruling 19: the ground is the darkest thing on screen and panels
+          separate by BORDER, not by fill. The homepage's bands - SupportBanner,
+          the reviews strip - are `bg-card border-y border-border`, and a band
+          that is the same colour as the page it interrupts is not a band. The
+          two invisible white-on-white bands D95 found were on this page, and
+          painting the whole route `bg-card` would make their fixed versions
+          disappear a second way.
+
+          The `max-w-7xl` exception two elements down STAYS: the homepage is
+          deliberately full-bleed, and extent is layout. */}
+      <div className="flex flex-col min-h-screen">
         <AnimatePresence>
           {isAnyDrawerOpen && (
             <motion.div
@@ -96,20 +114,19 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
         {/* <BreadcrumbBar visible={visible} setVisible={setVisible} /> */}
 
         {session?.impersonatedBy && (
-          <div className="z-50 sticky top-24 bg-destructive w-full raised-off-page">
+          <div className="z-50 sticky top-24 bg-destructive w-full">
             <div className="flex w-full items-center justify-between px-3 lg:px-20 py-1">
               <div className="flex flex-col gap-1 items-start">
-                <div className="text-lg font-medium lg:text-xl lg:font-bold lg:tracking-widest text-white">
+                <div className="text-lg font-medium lg:text-xl lg:font-bold lg:tracking-widest text-destructive-foreground">
                   Impersonating {user?.name}
                 </div>
-                <div className="hidden lg:block text-sm text-white font-normal">
+                <div className="hidden lg:block text-sm text-destructive-foreground font-normal">
                   Please be very careful of any changes you make while impersonating a user.
                 </div>
               </div>
               <Button
-                variant="ghost"
+                variant="default"
                 size="sm"
-                className="text-destructive bg-white raised-off-page hover:bg-white hover:text-destructive"
                 onClick={() => stopImpersonation.mutate()}
               >
                 Stop Impersonating
@@ -191,7 +208,7 @@ function BreadcrumbBar({
       <FloatingNav
         className={cn(
           'inset-x-0 flex bg-highest items-center justify-center border-0 border-none lg:border-t-1 lg:border-border z-55',
-          isAnyDrawerOpen ? 'shadow-none' : 'raised-off-page'
+          isAnyDrawerOpen ? 'shadow-none' : ''
         )}
         visible={visible}
         setVisible={setVisible}

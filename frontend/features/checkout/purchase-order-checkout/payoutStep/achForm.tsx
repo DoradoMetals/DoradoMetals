@@ -7,7 +7,8 @@ import { UseFormReturn } from 'react-hook-form'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { FormField, FormItem } from '@/shared/ui/base/form'
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
+import { RadioGroup } from '@/shared/ui/base/radio-group'
+import { RadioCard } from '@/shared/ui/RadioCard'
 import { accountTypeOptions } from '@/features/payouts/types'
 import { cn } from '@/shared/utils/cn'
 import { Checkbox } from '@/shared/ui/base/checkbox'
@@ -45,7 +46,6 @@ export default function ACHForm({
                 control={form.control}
                 name="account_holder_name"
                 label="Name on Account"
-                className="input-floating-label-form"
                 inputProps={{
                   autoComplete: 'off',
                   onChange: (e) => {
@@ -68,25 +68,20 @@ export default function ACHForm({
                       className="gap-3 w-full flex justify-between"
                     >
                       {accountTypeOptions.map((option) => (
-                        <label
+                        <RadioCard
                           key={option.value}
-                          htmlFor={option.value}
-                          className={cn(
-                            'radio-group-buttons raised-off-page justify-center grow-1'
-                          )}
+                          variant="segment"
+                          value={option.value}
+                          className="grow-1"
                         >
                           <div className="flex flex-col items-center gap-2">
-                            {option.icon && <option.icon size={24} className='text-primary' />}
-                            <div className="text-xs sm:text-sm text-neutral-800 font-medium">
-                              {option.label}
-                            </div>
+                            {/* Inherits the card's colour: `text-primary` would
+                                be a near-white glyph on the near-white selected
+                                fill. */}
+                            {option.icon && <option.icon size={24} />}
+                            <strong>{option.label}</strong>
                           </div>
-                          <RadioGroupItem
-                            id={option.value}
-                            value={option.value}
-                            className="sr-only"
-                          />
-                        </label>
+                        </RadioCard>
                       ))}
                     </RadioGroup>
                   </FormItem>
@@ -110,7 +105,7 @@ export default function ACHForm({
                   name="routing_number"
                   label="Routing Number"
                   type="number"
-                  className="input-floating-label-form no-spinner"
+                  className="no-spinner"
                   inputProps={{
                     autoComplete: 'off',
                     onChange: (e) => {
@@ -124,7 +119,7 @@ export default function ACHForm({
                   name="account_number"
                   label="Account Number"
                   type="number"
-                  className="input-floating-label-form no-spinner"
+                  className="no-spinner"
                   inputProps={{
                     autoComplete: 'off',
                     onChange: (e) => {
@@ -150,14 +145,13 @@ export default function ACHForm({
                             syncToStore()
                           }}
                           id={`confirmation-${form.getValues().account_holder_name ?? ''}`}
-                          className="checkbox-form"
                         />
                       </FormControl>
                       <label
                         htmlFor={`confirmation-${form.getValues().account_holder_name ?? ''}`}
-                        className="cursor-pointer text-sm text-neutral-700 font-normal"
+                        className="cursor-pointer"
                       >
-                        I have entered the correct bank information.
+                        <small>I have entered the correct bank information.</small>
                       </label>
                     </div>
                   </FormItem>

@@ -11,7 +11,9 @@ import { Suspense } from 'react'
 export default function Page() {
   return (
     <Suspense fallback={<p>Loading...</p>}>
-      <VerifyEmail />
+      <main>
+        <VerifyEmail />
+      </main>
     </Suspense>
   )
 }

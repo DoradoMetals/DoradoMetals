@@ -19,7 +19,7 @@ type AddNewTriggerProps = {
 export function AddNewTrigger({
   onOpen,
   icon: Icon = RowsPlusTopIcon,
-  className = 'on-glass',
+  className = 'bg-transparent border border-border',
   label,
 }: AddNewTriggerProps) {
   // AN ICON-ONLY BUTTON NEEDS AN ACCESSIBLE NAME. Without one a screen reader

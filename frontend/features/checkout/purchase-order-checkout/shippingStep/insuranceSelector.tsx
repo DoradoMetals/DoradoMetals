@@ -1,7 +1,7 @@
 'use client'
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { cn } from '@/shared/utils/cn'
+
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { ShieldCheckIcon, ShieldSlashIcon } from '@phosphor-icons/react'
 
@@ -28,7 +28,7 @@ export function InsuranceSelector() {
 
   return (
     <div className="space-y-2">
-      <h2 className="text-xs text-neutral-600 tracking-widest mb-4">Insurance</h2>
+      <h2 className="eyebrow mb-4">Insurance</h2>
       <RadioGroup
         value={insured ? 'insured' : 'uninsured'}
         onValueChange={handleChange}
@@ -41,15 +41,11 @@ export function InsuranceSelector() {
             <label
               key={option}
               htmlFor={option}
-              className={cn(
-                'raised-off-page relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md'
-              )}
+              className="relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card"
             >
-              <Icon size={28} className='text-primary' />
+              <Icon size={28} className="text-primary" />
 
-              <div className="text-xs sm:text-sm text-neutral-800 font-medium capitalize">
-                {option}
-              </div>
+              <strong className="capitalize">{option}</strong>
               <RadioGroupItem id={option} value={option} className="sr-only" />
             </label>
           )

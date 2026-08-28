@@ -21,6 +21,7 @@ import { PickupSelector } from '@/features/checkout/purchase-order-checkout/ship
 import PickupScheduler from '@/features/checkout/purchase-order-checkout/shippingStep/pickupScheduler'
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 import { StoreLocationsMap } from '@/features/checkout/purchase-order-checkout/shippingStep/StoreLocations'
+import { Separator } from '@/shared/ui/base/separator'
 
 interface ShippingStepProps {
   addresses: Address[]
@@ -79,13 +80,11 @@ export default function ShippingStep({
 
       {isEmpty ? (
         <div className="flex flex-col items-center gap-4">
-          <div className="text-center text-lg text-neutral-800">
-            Create an address to continue checkout.
-          </div>
+          <p className="text-center">Create an address to continue checkout.</p>
           <Button
             type="button"
             effect="expandIcon"
-            variant="outline"
+            variant="secondary"
             size="sm"
             iconPlacement="right"
             icon={Plus}
@@ -94,9 +93,8 @@ export default function ShippingStep({
               setDraftAddress({ ...emptyAddress })
               openDrawer('address')
             }}
-            className="border-primary text-primary hover:text-neutral-900 hover:bg-primary"
           >
-            <div className="flex items-center gap-2">Add Address</div>
+            Add Address
           </Button>
         </div>
       ) : (
@@ -111,23 +109,23 @@ export default function ShippingStep({
             />
 
             {address && !address.is_valid && (
-              <div className="text-sm text-destructive rounded-md">
+              <p className="text-destructive">
                 Please provide a valid address to continue checkout.
-              </div>
+              </p>
             )}
           </div>
         </div>
       )}
 
-      <div className="separator-inset" />
+      <Separator />
 
       {address?.is_valid && (
         <>
           <InsuranceSelector />
-          <div className="separator-inset" />
+          <Separator />
 
           <PackageSelector />
-          <div className="separator-inset" />
+          <Separator />
         </>
       )}
 
@@ -135,7 +133,7 @@ export default function ShippingStep({
       {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
         <>
           <PickupSelector />
-          <div className="separator-inset" />
+          <Separator />
         </>
       )}
 
@@ -143,7 +141,7 @@ export default function ShippingStep({
       {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
         <>
           <ServiceSelector rates={rates} isLoading={isLoading} />
-          <div className="separator-inset" />
+          <Separator />
         </>
       )}
 
@@ -159,7 +157,7 @@ export default function ShippingStep({
               times.length > 0 ? (
                 <PickupScheduler times={times} />
               ) : (
-                <div className="text-sm text-muted-foreground py-4">No pickup times available.</div>
+                <p className="py-4">No pickup times available.</p>
               )
             ) : (
               <StoreLocationsMap />

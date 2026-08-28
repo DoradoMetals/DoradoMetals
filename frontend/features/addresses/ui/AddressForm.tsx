@@ -154,9 +154,7 @@ export default function AddressForm({
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-neutral-600 tracking-widest">
-              {!!address?.id ? 'Edit Address' : 'Add New Address'}
-            </div>
+            <p className="eyebrow">{!!address?.id ? 'Edit Address' : 'Add New Address'}</p>
           </div>
 
           <ValidatedField
@@ -164,7 +162,6 @@ export default function AddressForm({
             name="label"
             label="Address Name"
             type="text"
-            className="bg-highest border-1 border-border"
             inputProps={{
               inputMode: 'text',
               autoComplete: 'name',
@@ -179,7 +176,6 @@ export default function AddressForm({
             name="phone_number"
             label="Phone Number"
             type="text"
-            className="bg-highest border-1 border-border"
             showIcon={false}
             inputProps={{
               placeholder: '(555) 555-5555',
@@ -201,7 +197,7 @@ export default function AddressForm({
           {mode === 'auto' ? (
             <>
               <div className="w-full space-y-1">
-                <Label className="text-xs text-neutral-700">Find Address</Label>
+                <Label>Find Address</Label>
 
                 <AddressSearchInput
                   placesReady={ac.placesReady}
@@ -239,7 +235,6 @@ export default function AddressForm({
                 control={form.control}
                 name="line_1"
                 label="Line 1"
-                className="bg-highest border-1 border-border"
                 type="text"
                 inputProps={{
                   inputMode: 'text',
@@ -254,7 +249,6 @@ export default function AddressForm({
                 control={form.control}
                 name="line_2"
                 label="Line 2"
-                className="bg-highest border-1 border-border"
                 type="text"
                 inputProps={{
                   inputMode: 'text',
@@ -270,7 +264,6 @@ export default function AddressForm({
                   control={form.control}
                   name="city"
                   label="City"
-                  className="bg-highest border-1 border-border"
                   inputProps={{
                     inputMode: 'text',
                     autoComplete: 'address-level2',
@@ -299,7 +292,6 @@ export default function AddressForm({
                   control={form.control}
                   name="zip"
                   label="Zip"
-                  className="bg-highest border-1 border-border"
                   type="text"
                   showIcon={false}
                   inputProps={{
@@ -314,7 +306,6 @@ export default function AddressForm({
                   control={form.control}
                   name="country"
                   label="Country"
-                  className="bg-highest border-1 border-border"
                   type="text"
                   showIcon={false}
                   inputProps={{
@@ -335,7 +326,7 @@ export default function AddressForm({
               render={({ field }) => (
                 <FormItem className="w-full">
                   <div className="space-y-1">
-                    <Label className="text-xs text-neutral-700">Default Address</Label>
+                    <Label>Default Address</Label>
                     <Switch
                       checked={mustBeDefault ? true : !!field.value}
                       disabled={mustBeDefault}
@@ -351,20 +342,20 @@ export default function AddressForm({
             <Button
               type="button"
               variant="link"
+              size="sm"
               onClick={() => setMode(mode === 'manual' ? 'auto' : 'manual')}
-              className="text-xs md:text-sm p-0 text-neutral-800"
             >
               {mode === 'manual' ? 'Search for Address' : 'Manual Entry'}
             </Button>
           </div>
 
           {formError && (
-            <div className="text-xs text-destructive font-normal mb-1 text-left">{formError}</div>
+            <p className="mb-1 text-left text-destructive">{formError}</p>
           )}
 
           <Button
             type="submit"
-            className="w-full text-white raised-off-page bg-primary hover:bg-primary"
+            className="w-full"
             disabled={isSaving}
           >
             {isSaving ? 'Saving...' : !!address?.id ? 'Save Address' : 'Save New Address'}

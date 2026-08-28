@@ -65,13 +65,13 @@ export function AddressSelect({
   return (
     <div className={cn('w-full', className)}>
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-xs text-neutral-600 tracking-widest">{title}</div>
+        <p className="eyebrow">{title}</p>
 
         {onAddNew ? (
           <Button
-            size="sm"
+            size="xs"
             variant="secondary"
-            className="h-7 px-2 gap-2 text-xs"
+            className="gap-2"
             onClick={onAddNew}
           >
             <Plus size={16} />
@@ -82,7 +82,7 @@ export function AddressSelect({
         )}
       </div>
 
-      <div className="rounded-lg overflow-hidden bg-background raised-off-page border border-border">
+      <div className="rounded-lg overflow-hidden bg-background border border-border">
         <div
           role="button"
           tabIndex={0}
@@ -119,7 +119,6 @@ export function AddressSelect({
                   showEdit={false}
                   showRemove={false}
                   showSetDefault={false}
-                  raised={false}
                   className="bg-transparent border-none p-0"
                 />
               </div>
@@ -176,7 +175,6 @@ export function AddressSelect({
                       showEdit={false}
                       showRemove={false}
                       showSetDefault={false}
-                      raised={false}
                       className="bg-transparent border-0 p-0 pr-10"
                     />
 

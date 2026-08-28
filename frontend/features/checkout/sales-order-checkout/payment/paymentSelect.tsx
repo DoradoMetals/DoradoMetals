@@ -47,14 +47,12 @@ export default function PaymentSelect({ orderPrices }: { orderPrices?: SalesOrde
   return (
     <>
       {orderPrices && orderPrices.beginning_funds > 0 && (
-        <div className="">
-          <div className="text-xs text-neutral-600 uppercase tracking-widest mb-4">
-            Payment Method:
-          </div>
+        <div>
+          <p className="eyebrow mb-4">Payment Method:</p>
 
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1 items-start">
-              <div className="text-sm text-neutral-700">Use Bullion Credit?</div>
+              <p>Use Bullion Credit?</p>
               <Switch
                 checked={data.using_funds}
                 onCheckedChange={handleFundsToggle}
@@ -62,10 +60,10 @@ export default function PaymentSelect({ orderPrices }: { orderPrices?: SalesOrde
               />
             </div>
             <div className="flex flex-col gap-1 items-end">
-              <div className="text-sm text-neutral-700">Credit Available:</div>
-              <div className="text-lg text-neutral-900">
+              <p>Credit Available:</p>
+              <strong>
                 <PriceNumberFlow value={orderPrices.beginning_funds} />
-              </div>
+              </strong>
             </div>
           </div>
         </div>

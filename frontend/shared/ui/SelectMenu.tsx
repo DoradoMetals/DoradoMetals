@@ -28,20 +28,28 @@ type SelectMenuProps = {
   align?: 'start' | 'center' | 'end'
   side?: 'top' | 'bottom' | 'left' | 'right'
   sideOffset?: number
-  /** Replaces the default PopoverContent classes when provided. */
+  /** LAYOUT ONLY, and it MERGES with the default rather than replacing it -
+   *  `?? DEFAULT` meant one added class silently deleted the whole surface. */
   contentClassName?: string
-  /** Replaces the default CommandItem classes when provided. */
+  /** LAYOUT ONLY. Merges, for the same reason. */
   itemClassName?: string
   /** Appended to the CommandList. */
   listClassName?: string
 }
 
+/* D95, THIRD INSTANCE — the row said `text-primary` AND `hover:bg-primary`.
+   Both tokens are near-white now, so hovering a menu row filled it white
+   underneath white text and the label vanished under the cursor. Same shape as
+   SidebarLayout and ReviewInput: two classes, one element pair, no line a grep
+   for `bg-primary.*text-white` could ever have matched.
+
+   `--accent` is the token for a raised hover surface (every other hover in the
+   app uses it), and the row's text is `--foreground`. Menu rows are chrome and
+   ruling 19 says chrome carries no hue - `text-primary` was never saying
+   anything here anyway. */
 const DEFAULT_CONTENT = 'p-0 w-48 z-70'
-const DEFAULT_ITEM = cn(
-  'group h-9 px-3 flex items-center gap-2 transition-colors duration-150 cursor-pointer',
-  'text-primary',
-  'hover:bg-primary'
-)
+const DEFAULT_ITEM =
+  'group h-9 px-3 flex items-center gap-2 transition-colors duration-150 cursor-pointer text-foreground hover:bg-accent'
 
 export default function SelectMenu({
   items,
@@ -64,13 +72,13 @@ export default function SelectMenu({
     <Popover open={isOpen} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
-        className={contentClassName ?? DEFAULT_CONTENT}
+        className={cn(DEFAULT_CONTENT, contentClassName)}
         align={align}
         side={side}
         sideOffset={sideOffset}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <Command className="bg-card">
+        <Command surface="card">
           <CommandList className={cn(listClassName)}>
             {items.map(({ label, value, icon: Icon }) => (
               <CommandItem
@@ -79,9 +87,9 @@ export default function SelectMenu({
                   onSelect(value)
                   setOpen(false)
                 }}
-                className={itemClassName ?? DEFAULT_ITEM}
+                className={cn(DEFAULT_ITEM, itemClassName)}
               >
-                {Icon && <Icon size={16} className="text-primary" />}
+                {Icon && <Icon size={16} className="text-muted-foreground" />}
                 <span className="transition-colors">{label}</span>
               </CommandItem>
             ))}

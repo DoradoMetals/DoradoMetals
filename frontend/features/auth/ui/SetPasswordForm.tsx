@@ -46,7 +46,7 @@ export default function SetPasswordForm() {
   return (
     <div className="flex justify-center w-full">
       <div className="flex flex-col w-full max-w-lg gap-6">
-        <p className="text-xs text-neutral-600 tracking-widest mr-auto uppercase">Set Password</p>
+        <p className="eyebrow mr-auto">Set Password</p>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-6">
@@ -86,9 +86,8 @@ export default function SetPasswordForm() {
 
             <Button
               type="submit"
-              variant="default"
               disabled={setPasswordMutation.isPending}
-              className="w-full text-white raised-off-page bg-primary hover:bg-primary"
+              className="w-full"
             >
               {setPasswordMutation.isPending ? 'Saving...' : 'Set Password'}
             </Button>

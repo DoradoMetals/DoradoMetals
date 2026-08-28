@@ -7,9 +7,9 @@ import { protectedRoutes } from '@/features/routes/types'
 export default function Page() {
   return (
     <ProtectedPage requiredRoles={protectedRoutes.salesOrderCheckout.roles}>
-      <div className="flex flex-col h-full items-center gap-4">
+      <main className="flex flex-col h-full items-center gap-4">
         <SalesOrderCheckout />
-      </div>
+      </main>
     </ProtectedPage>
   )
 }

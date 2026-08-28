@@ -4,6 +4,7 @@ import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { purityOptions, ScrapInput, scrapSchema, type Scrap } from '@/features/scrap/types'
 import { Button } from '@/shared/ui/base/button'
+import { Separator } from '@/shared/ui/base/separator'
 import { Form } from '@/shared/ui/base/form'
 import { useEffect, useState } from 'react'
 import { defineStepper } from '@stepperize/react'
@@ -108,16 +109,12 @@ export default function ScrapForm() {
           <div className="flex justify-end gap-4">
             {stepper.current.id === 'review' && (
               <>
-                <Button
-                  type="button"
-                  onClick={handleAddAnother}
-                  className="raised-off-page hover:bg-card bg-card"
-                >
-                  <div className="text-primary">Add Another</div>
+                <Button variant="secondary" type="button" onClick={handleAddAnother}>
+                  Add Another
                 </Button>
                 <Button
                   type="button"
-                  className="ml-auto raised-off-page bg-primary text-white"
+                  className="ml-auto"
                   onClick={() => router.push('/checkout')}
                 >
                   Go to Checkout
@@ -136,29 +133,29 @@ function ItemFormStep() {
     <div className="flex flex-col gap-6">
       <div className="w-full lg:flex lg:justify-between">
         <div className="hidden lg:block flex flex-col">
-          <div className="section-label text-primary">Select Metal</div>
+          <p className="eyebrow">Select Metal</p>
         </div>
         <div className="w-full lg:w-3/5">
           <MetalStep />
         </div>
       </div>
 
-      <div className="separator-inset" />
+      <Separator />
 
       <div className="w-full lg:flex lg:justify-between">
         <div className="hidden lg:block flex flex-col">
-          <div className="section-label text-primary">Select Weight</div>
+          <p className="eyebrow">Select Weight</p>
         </div>
         <div className="w-full lg:w-3/5">
           <WeightStep />
         </div>
       </div>
 
-      <div className="separator-inset" />
+      <Separator />
 
       <div className="lg:flex lg:justify-between">
         <div className="hidden lg:block flex flex-col">
-          <div className="section-label text-primary">Select Purity</div>
+          <p className="eyebrow">Select Purity</p>
           <div className="Select "></div>
         </div>
         <div className="w-full lg:w-3/5">
@@ -166,10 +163,7 @@ function ItemFormStep() {
         </div>
       </div>
       <div className="lg:flex lg:justify-between lg:w-3/5 lg:ml-auto">
-        <Button
-          type="submit"
-          className="raised-off-page w-full bg-primary text-white"
-        >
+        <Button type="submit" className="w-full">
           Add Item
         </Button>
       </div>

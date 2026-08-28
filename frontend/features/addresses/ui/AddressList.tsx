@@ -76,15 +76,12 @@ export default function AddressList() {
                     value={query}
                     onChange={(v) => setQuery(String(v))}
                     placeholder="Search Addresses..."
-                    inputClassname="bg-card"
                   />
                 </div>
 
-                <Button variant="secondary" className="h-9 px-2" onClick={handleAdd}>
-                  <div className="flex items-center gap-1">
-                    <Plus size={16} />
-                    <span className="text-xs md:text-sm">Add New</span>
-                  </div>
+                <Button variant="secondary" size="sm" onClick={handleAdd}>
+                  <Plus size={16} />
+                  Add New
                 </Button>
               </div>
 
@@ -114,8 +111,7 @@ export default function AddressList() {
               description="Add an address so we can save it to your account."
               buttonLabel="Add New Address"
               onClick={handleAdd}
-              buttonVariant="outline"
-              buttonClassName="border-primary text-primary bg-card hover:text-neutral-900 hover:bg-primary hover:text-white hover:border-none"
+              buttonVariant="secondary"
             />
           )}
 

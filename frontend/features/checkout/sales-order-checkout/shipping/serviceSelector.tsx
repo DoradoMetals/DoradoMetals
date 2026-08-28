@@ -1,7 +1,6 @@
 'use client'
 
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { cn } from '@/shared/utils/cn'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import { salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
@@ -23,7 +22,7 @@ export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOr
 
   return (
     <div className="space-y-2">
-      <div className="text-xs text-neutral-600 uppercase tracking-widest">Shipping Service:</div>
+      <p className="eyebrow">Shipping Service:</p>
 
       <RadioGroup
         value={selected?.value ?? ''}
@@ -35,24 +34,22 @@ export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOr
             <label
               key={serviceKey}
               htmlFor={serviceKey}
-              className={cn(
-                'raised-off-page relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md'
-              )}
+              className="relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card"
             >
-              <div className="flex items-center gap-2 text-base font-medium text-neutral-800">
+              <div className="flex items-center gap-2">
                 {option.icon && <option.icon size={24} className="text-primary" />}
-                {option.label}
+                <strong>{option.label}</strong>
               </div>
 
               <div className="flex items-center w-full justify-between">
-                <div className="text-sm text-neutral-600">{option.time}</div>
-                <div className="text-base text-neutral-800">
+                <small>{option.time}</small>
+                <strong>
                   {/* Only the selected service is quoted, so the unselected
                       options' display keys the free-shipping threshold off the
                       quote's item_total - the same rule getShippingCharge
                       applies server-side. */}
                   <PriceNumberFlow value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost} />
-                </div>
+                </strong>
               </div>
 
               <RadioGroupItem id={serviceKey} value={serviceKey} className="sr-only" />

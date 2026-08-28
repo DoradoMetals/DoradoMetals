@@ -116,7 +116,15 @@ export default function AdminStripeWrapper({
     }
   }
 
-  const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  /* DARK, UNCONDITIONALLY. Light mode is gone (ruling 19 / the dark-only
+     rebrand) and there is no `.dark` class on the document any more — this
+     branch evaluated to 'light' and embedded a LIGHT Stripe payment form in a
+     near-black checkout. Stripe Elements renders in an iframe on Stripe's
+     origin and cannot see theme.css, so this JS object is the ONLY way the
+     palette reaches it; a CSS fix cannot help here.
+     ON THE MONEY PATH — must be re-verified against a live Stripe render, not
+     a unit test. See MANUAL-VERIFICATION.md R12. */
+  const theme = 'dark' as const
   const appearance = createStripeAppearance(theme)
 
   const loader = 'auto'

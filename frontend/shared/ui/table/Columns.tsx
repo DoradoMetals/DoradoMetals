@@ -6,13 +6,19 @@ import { cn } from '@/shared/utils/cn'
 import { ReactNode } from 'react'
 import { Checkbox } from '@/shared/ui/base/checkbox'
 import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
+import StatusChip, { type ChipTone } from '@/shared/ui/StatusChip'
 
 export type Align = 'left' | 'center' | 'right'
 
+/* ALIGNMENT ONLY. The size and colour used to be spelled here too
+   (`text-sm text-neutral-600`), which is exactly what `TableHead`'s own default
+   already is - so every column header was re-asserting the default at a
+   smaller, non-responsive size. `text-left/center/right` stays: alignment is
+   LAYOUT, and there are 205 of them in the tree. */
 function headerAlignClass(align: Align) {
-  if (align === 'center') return 'flex justify-center text-sm text-neutral-600'
-  if (align === 'right') return 'flex justify-end text-sm text-neutral-600'
-  return 'flex justify-start text-sm text-neutral-600'
+  if (align === 'center') return 'flex justify-center'
+  if (align === 'right') return 'flex justify-end'
+  return 'flex justify-start'
 }
 
 function cellAlignClass(align: Align) {
@@ -183,7 +189,11 @@ type TextColumnOptions<TData> = BaseColumnOptions<TData> & {
 
 export function TextColumn<TData>({
   header,
-  textClassName = 'text-xs sm:text-sm text-neutral-900 block truncate whitespace-nowrap',
+  /* Size comes from `TableCell` (`text-micro md:text-small`); only the
+     BRIGHTNESS is this column's own decision - a value reads one step above the
+     cell default. Was `text-xs sm:text-sm`, a second, disagreeing responsive
+     step layered on top of the cell's. */
+  textClassName = 'text-neutral-900 block truncate whitespace-nowrap',
   formatValue,
   ...base
 }: TextColumnOptions<TData>): ColumnDef<TData> {
@@ -219,7 +229,7 @@ export function DateColumn<TData>({
     renderCellContent: ({ value }) => {
       const raw = value as string | number | Date | null
       if (!raw) {
-        return <span className="text-xs sm:text-sm text-neutral-900">-</span>
+        return <span className="text-neutral-900">-</span>
       }
 
       const date = raw instanceof Date ? raw : new Date(raw)
@@ -231,7 +241,7 @@ export function DateColumn<TData>({
           day: 'numeric',
         })
 
-      return <span className="text-xs sm:text-sm text-neutral-900">{formatted}</span>
+      return <span className="text-neutral-900">{formatted}</span>
     },
   })
 }
@@ -256,7 +266,7 @@ export function RatingColumn<TData>({
       return (
         <Rating value={rating} readOnly>
           {Array.from({ length: 5 }).map((_, i) => (
-            <RatingButton key={i} size={16} className="transition-transform text-primary" />
+            <RatingButton key={i} size={16} />
           ))}
         </Rating>
       )
@@ -289,10 +299,28 @@ export function IconColumn<TData>({
 /* CHIP COLUMN                                                                */
 /* -------------------------------------------------------------------------- */
 
+/* A CHIP IN A TABLE CELL IS THE SAME CHIP AS ANYWHERE ELSE.
+
+   This used to hand-roll its own pill and let `getChip` return a raw
+   `className`, so all four call sites wrote strings like
+   `'bg-success/20 text-success border-success'` - the exact appearance-at-the-
+   call-site pattern ruling 20 forbids, spelled in a table column definition
+   where no lint was looking. It was also a SECOND chip implementation
+   (`rounded-lg`, `text-xs`, `font-semibold`) sitting beside `StatusChip`, so
+   the same status looked different in a table and in a drawer.
+
+   `getChip` now returns a `tone` from the shared vocabulary - the same six
+   values `Button` takes as `intent` - and renders a real `StatusChip`. Chips
+   in tables are pills now, like every other chip (ruling 19).
+
+   `className` survives on the returned chip for LAYOUT ONLY. */
 type ChipColumnOptions<TData> = BaseColumnOptions<TData> & {
   header: string
   getChip: (args: { value: unknown; row: TData }) => {
     label: ReactNode
+    /** neutral | brand | success | danger | warning | info. */
+    tone?: ChipTone
+    /** LAYOUT ONLY (w-full, ml-auto). Never appearance. */
     className?: string
   }
 }
@@ -304,14 +332,9 @@ export function ChipColumn<TData>({ header, getChip, ...base }: ChipColumnOption
     renderCellContent: ({ value, row }) => {
       const chip = getChip({ value, row })
       return (
-        <span
-          className={cn(
-            'px-2 py-0.5 border rounded-lg text-xs font-semibold inline-flex items-center justify-center',
-            chip.className
-          )}
-        >
+        <StatusChip tone={chip.tone ?? 'neutral'} className={chip.className}>
           {chip.label}
-        </span>
+        </StatusChip>
       )
     },
   })
@@ -349,7 +372,7 @@ function OrderNumberCellComponent({
   const raw = value as number | null | undefined
   const formatted = format(raw)
 
-  return <span className="text-xs sm:text-sm text-neutral-900">{formatted}</span>
+  return <span className="text-neutral-900">{formatted}</span>
 }
 
 export function OrderNumberColumn<TData>({
@@ -466,7 +489,7 @@ export function SelectionColumn<TData>(): ColumnDef<TData, unknown> {
         checked={table.getIsAllPageRowsSelected()}
         onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
         aria-label="Select all rows on page"
-        className="cursor-pointer on-glass"
+        className="cursor-pointer bg-transparent border border-border"
       />
     ),
     cell: ({ row }) => (
@@ -475,7 +498,7 @@ export function SelectionColumn<TData>(): ColumnDef<TData, unknown> {
         disabled={!row.getCanSelect()}
         onCheckedChange={(v) => row.toggleSelected(!!v)}
         aria-label="Select row"
-        className="cursor-pointer on-glass"
+        className="cursor-pointer bg-transparent border border-border"
       />
     ),
   }

@@ -21,8 +21,8 @@ export default function BuyPage() {
   const unitPrices = unitPricesById(quote)
 
   return (
-    <div className="flex justify-center">
-      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 justify-items-center mb-6 bg-transparent">
+    <main className="flex justify-center">
+      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 justify-items-center mb-6">
         {groupedProducts.map(({ default: product, variants }) => (
           <ProductCard
             key={product.name}
@@ -32,6 +32,6 @@ export default function BuyPage() {
           />
         ))}
       </div>
-    </div>
+    </main>
   )
 }

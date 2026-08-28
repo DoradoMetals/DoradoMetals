@@ -59,7 +59,7 @@ export default function CarrierServicesPage() {
             />
           </div>
         ) : (
-          <div className="" />
+          <div />
         ),
       }
     })
@@ -127,12 +127,7 @@ export default function CarrierServicesPage() {
       getChip: ({ row }) => {
         const svc = row as CarrierService
         const active = !!svc.is_active
-        return {
-          label: active ? 'Active' : 'Inactive',
-          className: active
-            ? 'bg-success/20 text-success border-success'
-            : 'bg-destructive/20 text-destructive border-destructive',
-        }
+        return { label: active ? 'Active' : 'Inactive', tone: active ? 'success' : 'danger' } as const
       },
     }),
   ]
@@ -188,14 +183,9 @@ export default function CarrierServicesPage() {
         searchPlaceholder="Search services..."
         enableColumnVisibility
         onRowClick={handleRowClick}
-        getRowClassName={() => 'hover:bg-transparent hover:cursor-pointer'}
         filterCards={carrierFilterCards}
         createConfig={createConfig}
         showCardBackground={false}
-        searchClass='on-glass'
-        wrapperClassName="glass-card"
-        columnTriggerClass="on-glass"
-        addButtonClass="on-glass"
       />
 
       {activeService && (

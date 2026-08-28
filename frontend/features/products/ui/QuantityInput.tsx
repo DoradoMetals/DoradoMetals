@@ -1,5 +1,6 @@
 import { Button } from '@/shared/ui/base/button'
 import { Input } from '@/shared/ui/base/input'
+import { Label } from '@/shared/ui/base/label'
 import { cn } from '@/shared/utils/cn'
 import { MinusIcon, PlusIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
@@ -14,8 +15,8 @@ export default function QuantityBar({
   wrapperClassName,
   labelClassName,
   controlsClassName,
-  inputClassName = 'on-glass',
-  buttonClassName = 'on-glass hover:on-glass',
+  inputClassName = '',
+  buttonClassName = '',
   decButtonClassName,
   incButtonClassName,
 }: {
@@ -58,23 +59,18 @@ export default function QuantityBar({
 
   return (
     <div className={cn('flex flex-col w-full gap-1', className, wrapperClassName)}>
-      <div className={cn('text-xs font-medium text-neutral-700 pl-1', labelClassName)}>
-        {label}
-      </div>
+      {/* `text-xs font-medium text-neutral-700` was the hand-rolled spelling of
+          Label's own default (37 identical call sites made it the default). */}
+      <Label className={cn('pl-1', labelClassName)}>{label}</Label>
 
       <div className={cn('flex gap-2 w-full', controlsClassName)}>
         <Button
           type="button"
-          variant="ghost"
+          variant="secondary"
           size="icon"
           onClick={dec}
           disabled={!canDec}
-          className={cn(
-            'h-10 w-10 rounded-md disabled:opacity-40 disabled:cursor-not-allowed',
-            'raised-off-page',
-            buttonClassName,
-            decButtonClassName
-          )}
+          className={cn(buttonClassName, decButtonClassName)}
           aria-label="Decrease quantity"
         >
           <MinusIcon size={16} />
@@ -103,25 +99,15 @@ export default function QuantityBar({
               commit((e.target as HTMLInputElement).value)
             }
           }}
-          className={cn(
-            'flex-1 h-10 text-center',
-            'outline-none focus:outline-none',
-            'focus-visible:ring-0 focus-visible:outline-none',
-            inputClassName
-          )}
+          className={cn('flex-1 h-10 text-center', inputClassName)}
         />
 
         <Button
           type="button"
-          variant="ghost"
+          variant="secondary"
           size="icon"
           onClick={inc}
-          className={cn(
-            'h-10 w-10 rounded-md disabled:opacity-40 disabled:cursor-not-allowed',
-            'raised-off-page',
-            buttonClassName,
-            incButtonClassName
-          )}
+          className={cn(buttonClassName, incButtonClassName)}
           aria-label="Increase quantity"
         >
           <PlusIcon size={16} />

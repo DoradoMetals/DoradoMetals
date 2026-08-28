@@ -69,10 +69,7 @@ export function AddressSearchInput({
       <MapPinIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
 
       <Input
-        className={cn(
-          'bg-highest border-1 border-border px-9',
-          !placesReady && 'opacity-70'
-        )}
+        className={cn('px-9', !placesReady && 'opacity-70')}
         placeholder={placesReady ? 'Search...' : 'Loading'}
         value={value}
         onChange={(e) => onChangeValue(e.target.value)}
@@ -92,20 +89,20 @@ export function AddressSearchInput({
       )}
 
       {dropdownOpen && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full rounded-md border border-border bg-card shadow-lg overflow-hidden">
+        <div className="absolute z-50 w-full rounded-md border border-border bg-card overflow-hidden">
           {suggestions.map((s, idx) => (
             <button
               key={s.placeId}
               type="button"
               className={cn(
-                'cursor-pointer w-full text-left px-3 py-2 text-sm hover:bg-highest flex flex-col gap-0.5',
+                'cursor-pointer w-full text-left px-3 py-2 hover:bg-highest flex flex-col gap-0.5',
                 idx === activeIndex && 'bg-highest'
               )}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => void onSelect(s)}
             >
-              <div className="text-neutral-800">{s.main}</div>
-              {!!s.secondary && <div className="text-xs text-neutral-500">{s.secondary}</div>}
+              <strong>{s.main}</strong>
+              {!!s.secondary && <small>{s.secondary}</small>}
             </button>
           ))}
         </div>

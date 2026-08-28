@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import fuzzysort from 'fuzzysort'
 import { Button } from '@/shared/ui/base/button'
+import { Label } from '@/shared/ui/base/label'
 import { X } from 'lucide-react'
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
+import { RadioGroup } from '@/shared/ui/base/radio-group'
+import { RadioCard } from '@/shared/ui/RadioCard'
 import { motion } from 'framer-motion'
 import { cn } from '@/shared/utils/cn'
 import { Switch } from '@/shared/ui/base/switch'
@@ -63,9 +65,7 @@ export default function BullionTab() {
   return (
     <div className="relative flex flex-col gap-2 mt-8 mb-8 w-full">
       <div className="flex items-center justify-between w-full gap-2">
-        <label htmlFor="show-generics" className="text-sm font-medium text-neutral-700">
-          Show All Products
-        </label>
+        <Label htmlFor="show-generics">Show All Products</Label>
         <Switch
           id="show-generics"
           checked={isShowAll}
@@ -85,29 +85,24 @@ export default function BullionTab() {
           const isSelected = selectedMetal === label
 
           return (
-            <motion.label
+            <RadioCard
               key={label}
+              as={motion.label}
+              variant="segment"
+              value={label}
               initial={false}
               animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent) => {
                 if (isSelected) {
                   e.preventDefault() // prevents Radix from swallowing the click
                   setSelectedMetal('All')
                 }
               }}
-              className={cn(
-                'radio-group-buttons w-full',
-                isSelected ? 'bg-primary! text-white' : 'text-neutral-700 !bg-card'
-              )}
+              className="w-full"
             >
               {label}
-              <RadioGroupItem
-                value={label}
-                id={label}
-                className="sr-only after:absolute after:inset-0"
-              />
-            </motion.label>
+            </RadioCard>
           )
         })}
       </RadioGroup>
@@ -116,15 +111,20 @@ export default function BullionTab() {
         <FloatingLabelInput
           label="Search Products"
           size="sm"
-          className="input-floating-label-form"
+          /* `input-floating-label-form` unpacked to the two tokens it carried
+             (its recessed shadow goes with ruling 16). It cannot move onto a
+             filled variant because FloatingLabelInput has no variant axis yet -
+             CONVERSION-TABLE lists it as still needing its pass. Reported. */
+          className="bg-card border-none"
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />
         {input && (
           <Button
-            variant="ghost"
+            variant="tertiary"
+            size="icon"
             onClick={handleClear}
-            className="absolute right-1 top-1/2 -translate-y-1/2 text-neutral-600 hover:bg-transparent"
+            className="absolute right-1 top-1/2 -translate-y-1/2"
             tabIndex={-1}
           >
             <X size={16} />

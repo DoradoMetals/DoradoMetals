@@ -6,7 +6,7 @@ import { Button } from '@/shared/ui/base/button'
 import type { ShippingPickupTimes } from '@/features/shipping/types'
 import { parseISO } from 'date-fns'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
-import { cn } from '@/shared/utils/cn'
+
 import {
   formatPickupDate,
   formatPickupDateShort,
@@ -57,7 +57,7 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
   return (
     <div>
       {pickup?.label === 'CONTACT_FEDEX_TO_SCHEDULE' && (
-        <div className="rounded-lg border border-border bg-card raised-off-page">
+        <div className="rounded-lg border border-border bg-card">
           <div className="flex max-sm:flex-col">
             <div className="flex items-center justify-center">
               <Calendar
@@ -93,10 +93,8 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
 
             <div className="w-full border-border border-t sm:border-t-0 sm:border-s sm:w-40">
               <div className="h-9 bg-card border-b border-border flex items-center justify-center px-5">
-                <p className="block sm:hidden text-sm text-neutral-700 text-center">
-                  {formatPickupDate(selectedDateStr)}
-                </p>
-                <p className="hidden sm:block text-sm text-neutral-700 text-center">
+                <p className="block sm:hidden text-center">{formatPickupDate(selectedDateStr)}</p>
+                <p className="hidden sm:block text-center">
                   {formatPickupDateShort(selectedDateStr)}
                 </p>
               </div>
@@ -106,12 +104,9 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
                   {availableSlots.map((slot) => (
                     <Button
                       key={slot}
-                      variant="outline"
+                      variant={pickup?.time === slot ? 'primary' : 'secondary'}
                       size="sm"
-                      className={cn(
-                        'w-full text-neutral-700 font-normal raised-off-page bg-card hover:bg-card',
-                        pickup?.time === slot && 'text-primary'
-                      )}
+                      className="w-full"
                       onClick={() =>
                         setData({
                           pickup: {
@@ -127,9 +122,7 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
                   ))}
 
                   {availableSlots.length === 0 && (
-                    <div className="text-xs text-center text-muted-foreground py-4 col-span-full">
-                      No time slots available
-                    </div>
+                    <p className="text-center py-4 col-span-full">No time slots available</p>
                   )}
                 </div>
               </ScrollArea>
