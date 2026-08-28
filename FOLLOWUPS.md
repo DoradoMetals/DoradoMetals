@@ -7954,3 +7954,31 @@ Captured verbatim-in-spirit so no future block relitigates them:
    with a type enum, and a record of every email sent from go-live. THE
    NEXT DISCUSSION: Jacob asked to stop after addresses lands to design
    this together ("so we can discuss media").
+
+## D77 — the addresses split: redesigned live, and the constraint that earned its keep in a day
+
+Addresses landed (73645b31) after Jacob redesigned it mid-conversion - the
+full story is the rulings section above. What the record needs beyond it:
+
+**Migration 089 paid for itself twice on day one.** The one-default-per-user
+partial unique index (a) caught a LIVE bug - service.create/update with the
+default flag never cleared the existing default, only setDefault did, so a
+second flagged address left two defaults and the UI showed whichever id won
+the sort tiebreak - and (b) exposed the one-statement swap as unsound:
+`SET default_shipping = (address_id = $2)` transiently holds two defaults
+and a non-deferrable partial unique index checks per row, so 23505 fired on
+heap-visit order - a flake that passed standalone and failed in the suite.
+Both fixed properly: clear-then-set in the service on both schemas, and
+set_default split into clear+mark statements. LESSON (bx): WHEN A NEW
+CONSTRAINT MAKES A TEST FAIL, THE CONSTRAINT IS USUALLY RIGHT - read the
+code path it refuses before touching either.
+
+**The subagent caught a real one too**: AddressForm's onSuccess dropped the
+saved relationship, so a freshly created address in checkout kept the STALE
+user_address from the previous pick - the wrong name on the FedEx label.
+And its admin drawer fix matters: an admin's OWN links can never match a
+target user's address ids, hence useUserAddressLinks(userId).
+
+**Ten cd bites.** Attempt 5's gate ran from api/ and exited 254. The rule
+is in the loop prompt in caps and it still happened - the gate launch must
+be a fresh compound starting at the repo root, never chained after a cd.
