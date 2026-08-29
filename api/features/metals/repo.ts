@@ -7,12 +7,11 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { metals } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type MetalRow = metals.MetalsRow;
-export type Executor = PoolClient | undefined;
+type MetalRow = metals.MetalsRow;
 
 export async function getAll(executor?: Executor): Promise<MetalRow[]> {
   const { rows } = await query<MetalRow>(sql("get_all"), [], executor);

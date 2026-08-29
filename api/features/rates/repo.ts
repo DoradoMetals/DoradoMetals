@@ -7,12 +7,11 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { rates } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 export type RateRow = rates.RatesRow;
-export type Executor = PoolClient | undefined;
 
 export type RateInput = Pick<RateRow, "metal_id" | "unit" | "min_qty" | "max_qty" | "scrap_pct" | "bullion_pct"> &
   Partial<Pick<RateRow, "created_by" | "updated_by">>;

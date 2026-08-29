@@ -46,7 +46,7 @@ const LATEST = `
    LIMIT 1
 `;
 
-export type PdfRow = {
+type PdfRow = {
   id: string;
   path: string;
   size_bytes: number | null;

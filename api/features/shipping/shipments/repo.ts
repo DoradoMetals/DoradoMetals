@@ -9,11 +9,9 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-export type Executor = PoolClient | undefined;
 
 // `direction` is projected as text, because exchange's `type` is text and the
 // wire has always carried a string.

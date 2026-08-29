@@ -8,11 +8,9 @@
 // silently.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-export type Executor = PoolClient | undefined;
 
 // The fourteen values exchange.sales_orders takes after the id, in its order.
 export type LegacyOrderValues = [

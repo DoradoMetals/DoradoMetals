@@ -40,7 +40,7 @@ type MaybeSession = PaymentSession | null;
 // The Stripe objects these functions hand back. Only the fields this service and
 // its callers read are named - not Stripe's whole type, which would be a claim
 // about a shape we do not own.
-export type StripeIntent = {
+type StripeIntent = {
   id: string;
   status?: string | null;
   amount?: number | null;

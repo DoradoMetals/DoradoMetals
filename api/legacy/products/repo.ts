@@ -5,7 +5,8 @@
 // and the statements differ only in that.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Executor, ProductValues } from "#features/products/repo.ts";
+import type { ProductValues } from "#features/products/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

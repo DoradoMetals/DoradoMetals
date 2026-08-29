@@ -23,7 +23,7 @@ const sql = sqlFrom(import.meta.dirname);
 const CREATE = sql("create");
 const SET_METHOD = sql("set_method_for_order");
 
-export type PayoutAccount = {
+type PayoutAccount = {
   user_id: string;
   method: string;
   account_holder?: string | null;

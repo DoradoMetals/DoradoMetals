@@ -10,11 +10,9 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-export type Executor = PoolClient | undefined;
 
 export type PickupBaseRow = Pick<
   shipping.PickupsRow,
@@ -43,7 +41,7 @@ export async function getByShipments(
   return rows;
 }
 
-export type PickupWrite = {
+type PickupWrite = {
   requested_at: Date | string | null;
   status: string | null;
   confirmation_number: string | null;

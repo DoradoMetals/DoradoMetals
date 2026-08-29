@@ -4,9 +4,7 @@
 // creating one is a single INSERT where the new schema takes two.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { PoolClient } from "pg";
-
-export type Executor = PoolClient | undefined;
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

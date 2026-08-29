@@ -11,7 +11,7 @@ import withTransaction from "#shared/db/withTransaction.js";
 import * as ledger from "#features/transactions/repo.ts";
 import * as legacy from "#legacy/transactions/repo.ts";
 import { toWire, type TransactionWire } from "#features/transactions/compose.ts";
-import type { Executor } from "#features/transactions/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 // ONE ROW, NOT THE HISTORY - AND THAT IS DELIBERATE, though it is wrong.
 //

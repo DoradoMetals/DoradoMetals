@@ -45,7 +45,16 @@
 import type { OrderItemRow } from "#features/orders/items/repo.ts";
 import type { OrderTotalsRow } from "#features/orders/transactions/repo.ts";
 import type { OrderAddressRow } from "#features/orders/addresses/repo.ts";
-import type { RefinerItemRow } from "#features/refiners/items/repo.ts";
+// The refiner's assay row comes from the CONTRACT rather than from the
+// refiners feature's repo, where it is a one-line alias of exactly this.
+// Same type, one less hop, and one less type edge between two features.
+import type { refiners } from "@dorado/contracts";
+// PayoutRow is NOT an alias and is NOT swapped for wire/payouts.ts's `Payout`.
+// The contract derives itself from exchange.payouts by omitting the two
+// columns known to be sensitive today, so a THIRD sensitive column added to
+// that table would be admitted automatically. The repo's hand-written list
+// refuses by default, which on the most sensitive table in the database is
+// the property worth keeping. See features/payouts/repo.ts's header.
 import type { PayoutRow } from "#features/payouts/repo.ts";
 
 // The bullion half of a line, when there is one. The Next wire's names (D84):
@@ -103,7 +112,7 @@ export type ItemContext = {
   // metal_id -> the metal's name, for a scrap line.
   metalNames: Map<string, string>;
   // order_item_id -> what the refiner reported. Admin reads only.
-  refinerItems: Map<string, RefinerItemRow>;
+  refinerItems: Map<string, refiners.ItemsRow>;
 };
 
 // THE SCRAP OBJECT IS BUILT FOR EVERY LINE, INCLUDING BULLION ONES, WITH EVERY
@@ -185,7 +194,7 @@ export function composePurchaseItem(
 // The order's own columns, gathered from the four tables they were split
 // across. Named explicitly rather than spread, so a column appearing on one
 // side and not the other is a conflict rather than a silent change.
-export type OrderParts = {
+type OrderParts = {
   order: {
     id: string;
     user_id: string | null;

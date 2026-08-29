@@ -11,12 +11,11 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { reviews } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 export type ReviewRow = reviews.ReviewsRow;
-export type Executor = PoolClient | undefined;
 
 export type ReviewInput = Partial<
   Pick<ReviewRow, "review_text" | "rating" | "created_by" | "updated_by" | "name" | "hidden">

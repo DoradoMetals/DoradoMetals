@@ -8,12 +8,11 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { places } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 export type UserAddressRow = places.UserAddressesRow;
-export type Executor = PoolClient | undefined;
 
 export async function getForUser(
   user_id: string, executor?: Executor

@@ -13,11 +13,9 @@
 // answered. Adding a writer here would make that easier to do by accident.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-export type Executor = PoolClient | undefined;
 
 // account_last4 and routing_last4, NEVER account_number or routing_number. The
 // type says so as much as the statement does.

@@ -6,7 +6,8 @@
 // service.ts is the cutover, and that is a one-way door.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { ReviewInput, Executor } from "#features/reviews/repo.ts";
+import type { ReviewInput } from "#features/reviews/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

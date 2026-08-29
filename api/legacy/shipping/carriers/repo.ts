@@ -4,7 +4,7 @@
 // both halves. is_active is exchange's name for the organization's `enabled`.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Executor } from "#features/shipping/carriers/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

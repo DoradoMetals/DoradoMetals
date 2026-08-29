@@ -22,7 +22,7 @@ const sql = sqlFrom(import.meta.dirname);
 type Executor = PoolClient | undefined;
 
 // The verbatim row, with `direction` as text - see sql/get_for_order.sql.
-export type OrderShipmentRow = Omit<shipping.ShipmentsRow, "direction"> & {
+type OrderShipmentRow = Omit<shipping.ShipmentsRow, "direction"> & {
   direction: string;
 };
 

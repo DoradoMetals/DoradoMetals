@@ -3,7 +3,8 @@
 // Writes only; reads come from media.images via repo.ts.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { NewImage, Executor } from "#features/media/images/repo.ts";
+import type { NewImage } from "#features/media/images/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

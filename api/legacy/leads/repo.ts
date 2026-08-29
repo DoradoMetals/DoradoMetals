@@ -14,7 +14,8 @@
 // exchange, because the whole direction of travel is that it stops being read.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { LeadRow, NewLead, Executor } from "#features/leads/repo.ts";
+import type { LeadRow, NewLead } from "#features/leads/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

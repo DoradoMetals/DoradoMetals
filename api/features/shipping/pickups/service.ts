@@ -23,7 +23,8 @@ import * as carriers from "#features/shipping/carriers/service.ts";
 import * as orders from "#features/orders/repo.ts";
 import * as compose from "#features/shipping/pickups/compose.ts";
 import type { ComposedPickup, Lookups, ShipmentContext } from "#features/shipping/pickups/compose.ts";
-import type { PickupBaseRow, Executor } from "#features/shipping/pickups/repo.ts";
+import type { PickupBaseRow } from "#features/shipping/pickups/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 import type { LegacyPickup } from "#legacy/shipping/pickups/repo.ts";
 
 // What a caller supplies. exchange's shape, because that is what every call

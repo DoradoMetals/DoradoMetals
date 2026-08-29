@@ -14,17 +14,24 @@
 // refiner without one would put nulls where a caller reads a name.
 import * as organizations from "#features/organizations/repo.ts";
 import type { RefinerRow } from "#features/refiners/repo.ts";
-import type { OrganizationRow } from "#features/organizations/repo.ts";
+// THE ROW TYPE COMES FROM THE CONTRACT, NOT FROM THE OTHER FEATURE'S REPO.
+// It used to be imported as `OrganizationRow` from
+// #features/organizations/repo.ts, where it is declared as a one-line alias
+// of exactly this. Naming the contract directly is the same type with one
+// less hop, and it removes a type edge between two features that have no
+// other reason to depend on each other - this file already reads the
+// organizations repo for its VALUES, which is the dependency that is real.
+import type { organizations as organizationTables } from "@dorado/contracts";
 
 export type ComposedRefiner = {
   id: string;
   logo: string | null;
-  created_at: OrganizationRow["created_at"];
-  updated_at: OrganizationRow["updated_at"];
-  organization: Pick<OrganizationRow, "id" | "name" | "email" | "phone" | "enabled">;
+  created_at: organizationTables.OrganizationsRow["created_at"];
+  updated_at: organizationTables.OrganizationsRow["updated_at"];
+  organization: Pick<organizationTables.OrganizationsRow, "id" | "name" | "email" | "phone" | "enabled">;
 };
 
-const compose = (r: RefinerRow, o: OrganizationRow): ComposedRefiner => ({
+const compose = (r: RefinerRow, o: organizationTables.OrganizationsRow): ComposedRefiner => ({
   id: r.id,
   logo: r.logo,
   // created_at and updated_at come from the ORGANIZATION, not the refiner -

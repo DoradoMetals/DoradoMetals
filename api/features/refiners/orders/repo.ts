@@ -12,9 +12,7 @@
 // layer above pairs each write with its shadow so the schemas stay level
 // while both serve.
 import query from "#shared/db/query.js";
-import type { PoolClient } from "pg";
-
-export type Executor = PoolClient | undefined;
+import type { Executor } from "#shared/db/executor.ts";
 
 export type RefinerOrderRow = {
   id: string;
@@ -85,7 +83,7 @@ const ENGAGEMENT_COLUMNS = {
   refiner_id: "refiner_id",
 } as const;
 
-export type EngagementColumn = keyof typeof ENGAGEMENT_COLUMNS;
+type EngagementColumn = keyof typeof ENGAGEMENT_COLUMNS;
 
 export async function setEngagementValue(
   id: string,

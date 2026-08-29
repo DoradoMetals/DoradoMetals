@@ -5,14 +5,12 @@
 // carried scan_time.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type Executor = PoolClient | undefined;
-
 // A scan event as the wire carries it - scan_time, not time.
-export type ScanEventRow = {
+type ScanEventRow = {
   id: string;
   shipment_id: string;
   status: string | null;

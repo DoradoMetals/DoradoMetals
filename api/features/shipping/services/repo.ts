@@ -6,11 +6,9 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-export type Executor = PoolClient | undefined;
 
 // created_by_id and updated_by_id are dropped because no statement projects
 // them; the three renamed columns are dropped and re-added under exchange's
@@ -57,7 +55,7 @@ export async function getOne(id: string, executor?: Executor): Promise<ServiceRo
 
 // THE INSURANCE CEILING, per service, for one carrier. Read on its own rather
 // than folded into the row reads - see sql/get_insurance_ceilings.sql.
-export type InsuranceCeiling = { name: string; max_insured_value: number };
+type InsuranceCeiling = { name: string; max_insured_value: number };
 
 export async function getInsuranceCeilings(
   carrier_id: string, executor?: Executor

@@ -49,7 +49,7 @@ function renderHeader(): string {
   `;
 }
 
-export interface ShellInput {
+interface ShellInput {
   title: string;
   /** Optional - the caller passes a falsy value when there is no subtitle, and
    *  the template omits the element rather than rendering an empty one. */

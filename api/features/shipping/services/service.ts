@@ -27,7 +27,8 @@ import {
   resolveCarrier,
 } from "#features/shipping/operations/resolver.ts";
 import * as legacy from "#legacy/shipping/services/repo.ts";
-import type { ServiceRow, ServiceValues, Executor } from "#features/shipping/services/repo.ts";
+import type { ServiceRow, ServiceValues } from "#features/shipping/services/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 // From the contracts, which is where the shape is declared - not via the
 // adapter, which merely re-exports it for a reader of that file.
 import type { CarrierServiceOption } from "@dorado/contracts";

@@ -4,7 +4,8 @@
 // metal's own row and identifies it by `type`.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Quote, Executor } from "#features/spots/repo.ts";
+import type { Quote } from "#features/spots/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

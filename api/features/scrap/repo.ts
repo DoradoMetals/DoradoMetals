@@ -14,7 +14,7 @@ import type { PoolClient, QueryResult } from "pg";
 
 type Executor = PoolClient | undefined;
 
-export type ScrapValues = {
+type ScrapValues = {
   id: string;
   pre_melt?: number | null;
   post_melt?: number | null;
@@ -145,7 +145,7 @@ export async function deleteItems(ids: string[], executor?: Executor): Promise<Q
   return await query(sql, [ids], executor);
 }
 
-export type NewScrap = {
+type NewScrap = {
   metal: string;
   pre_melt?: number | null;
   purity?: number | null;

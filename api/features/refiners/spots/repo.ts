@@ -5,17 +5,15 @@
 // composed the same way - the difference is whose price it is.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-export type Executor = PoolClient | undefined;
 
 // The per-metal spot row an order carries. No contract: it is never returned by
 // a route on its own, only alongside an order.
 //
 // percent_change and dollar_change are projected as NULL - see sql/get_for.sql.
-export type OrderSpotRow = {
+type OrderSpotRow = {
   id: string;
   purchase_order_id: string | null;
   type: string;

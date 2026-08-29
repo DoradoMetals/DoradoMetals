@@ -11,11 +11,10 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type Executor = PoolClient | undefined;
 export type OrderItemRow = orders.ItemsRow;
 
 export async function getFor(
@@ -42,7 +41,7 @@ export async function getByIds(
 }
 
 // The thirteen values sql/create.sql takes, after the id.
-export type ItemValues = [
+type ItemValues = [
   string, string | null, string, number | null, number | null, number | null,
   number | null, number | null, number | null, boolean, number,
   string | null, number | null,

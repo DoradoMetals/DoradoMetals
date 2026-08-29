@@ -3,7 +3,7 @@
 Where the rewrite is. Bars first, plan below, findings at the end.
 
 ```
-OVERALL   █████████████████░░░░░░░░░░░░░░░░░░░   ~48%
+OVERALL   ██████████████████░░░░░░░░░░░░░░░░░░   ~51%
 ```
 
 | | phase | | |
@@ -11,7 +11,7 @@ OVERALL   █████████████████░░░░░░�
 | ✅ | **shipped** ten commits, `0a201bc0` → `af8bc790` | `██████████████████` | landed |
 | 🔄 | **phase 1** the write pivot, and the instruments | `██████████████░░░░` ~79% | IN FLIGHT, three lanes |
 | ⬜ | **phase 2** checkout, then payments — the last two | `░░░░░░░░░░░░░░░░░░` ~0% | queued |
-| 🔄 | **phase 3** one home for every type — 347 declarations | `████████░░░░░░░░░░` ~43% | frontend half landed |
+| 🔄 | **phase 3** one home for every type — 347 declarations | `██████████░░░░░░░░` ~53% | frontend half landed |
 | ⬜ | **phase 4** production, and three decisions | `░░░░░░░░░░░░░░░░░░` ~0% | Jacob's |
 
 ## Phase 1 — IN FLIGHT
@@ -90,7 +90,7 @@ Detail: `docs/waves/phase3-api.md` · `docs/waves/phase3-frontend.md`. Both bloc
 below are the lanes' own task lists, copied from their files.
 
 ```
-A0. Executor: 35 declarations become one    ░░░░░░░░░░░░░░░░░░    0%
+A0. Executor: 35 declarations become one    ██████████████████  100%
 A1. API: 118 cross-file types out of features/  ░░░░░░░░░░░░░░░░░░    0%
 A2. API: 70 single-file types stop exporting  ░░░░░░░░░░░░░░░░░░    0%
 A3. API: 29 input/patch shapes into contracts  ░░░░░░░░░░░░░░░░░░    0%
@@ -185,7 +185,13 @@ five bars below are a picture of a plan, not progress.
 7. Money at rest                            ░░░░░░░░░░░░░░░░░░    0%
 8. The silence problem                      ░░░░░░░░░░░░░░░░░░    0%
 9. Checkout, properly                       ░░░░░░░░░░░░░░░░░░    0%
+10. Component library and theming        ░░░░░░░░░░░░░░░░░░    0%
 ```
+
+**Phases 5–9 APPROVED by Jacob 2026-08-29** (*"Those phases all sound good"*);
+10 is his own addition. They keep the `## Phases` heading — and so stay out of
+OVERALL — until each is given its own `## Phase N` section and a table row as it
+starts.
 
 ### Phase 5 — the verification loop gets fast (D180)
 
@@ -262,6 +268,45 @@ work).
 **Last because it is the only one that needs product decisions**, and because
 doing it before phase 5 means paying 90 minutes per iteration on the most
 iterative work in the project.
+
+### Phase 10 — the design system (Jacob's, 2026-08-29)
+
+*"I want to do components and themeing right... creating and updating old
+components which will be the basis of our new design system"*, against a Figma
+component library, plus a new sell/checkout form design.
+
+```
+10. Component library and theming        ░░░░░░░░░░░░░░░░░░    0%
+```
+
+**BLOCKED ON ACCESS, not on effort.** There is no Figma MCP server configured in
+this session and Figma design URLs are authenticated — `WebFetch` returns 403 on
+both files, refreshed link included. Nothing about the phase is hard; I simply
+cannot see the designs. Two ways to unblock, either is fine:
+
+1. **Export the frames as PNG** into `docs/design/` in the repo. Images can be
+   read directly, and this needs no setup. Fastest path, and enough to build
+   from.
+2. **Configure a Figma MCP server** (`claude mcp add …`) — the Dev Mode MCP that
+   ships with the Figma desktop app, or the hosted one with a personal access
+   token. Durable, and lets tokens be re-read as the library evolves rather than
+   re-exported. Needs a session restart to pick up.
+
+**What does NOT need the designs, and is therefore where this starts:** the
+codebase already has a styling program with rulings behind it — dark-only,
+components own their appearance, shared primitives carry both axes, one input,
+`shared/ui` excluded from the call-site styling lint. The first task is an
+inventory: every component in `frontend/shared/ui`, what appearance props it
+takes, and where call sites still override it. `lint-call-site-styling.mjs
+--scatter` already measures the last of those. That inventory is what makes the
+Figma library actionable instead of a second parallel vocabulary — and it is the
+half most likely to be wrong in a way a picture cannot show.
+
+**One caution worth stating up front**, because it is the failure mode of every
+design-system project: a component library is only real if the old components are
+*deleted* as the new ones land. Two libraries is worse than one bad library, and
+this project already has the discipline for that — see `api/legacy/`'s entry
+criteria, which are the same idea applied to repos rather than pixels.
 
 ### Two I considered and did not propose
 

@@ -32,7 +32,7 @@ import type { RenderableOrder, SpotPart } from "#features/media/pdfs/render/sect
 // Every field named is one these builders actually read.
 
 /** The box a parcel ships in. Coerced with Number(), so strings are legal. */
-export interface PackageDimensions {
+interface PackageDimensions {
   length?: number | string | null;
   width?: number | string | null;
   height?: number | string | null;
@@ -52,7 +52,7 @@ export interface PackingListInput {
   packageDetails?: PackageDetails;
 }
 
-export interface ReturnPackingListInput {
+interface ReturnPackingListInput {
   purchaseOrder: RenderableOrder;
   spotPrices?: SpotPart[];
 }
@@ -65,7 +65,7 @@ export interface InvoiceInput {
 }
 
 /** A sales order carries its own items and is not a purchase order. */
-export interface SalesOrderInvoiceInput {
+interface SalesOrderInvoiceInput {
   salesOrder: RenderableOrder;
   spots?: SpotPart[];
 }

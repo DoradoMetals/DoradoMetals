@@ -31,8 +31,8 @@ export type { MethodRow, MethodInput } from "#features/fulfillments/methods/repo
 // fulfillments.category enum and dropped the default; these are now derived
 // from the generated row, so widening the enum is a compile error rather than a
 // runtime surprise.
-export type Direction = NonNullable<fulfillments.MethodsRow["direction"]>;
-export type Category = fulfillments.MethodsRow["category"];
+type Direction = NonNullable<fulfillments.MethodsRow["direction"]>;
+type Category = fulfillments.MethodsRow["category"];
 
 // `direction` is CHECKED rather than declared, because it arrives as a query
 // string. The narrow type is what the guard produces, not what it receives.

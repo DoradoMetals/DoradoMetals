@@ -65,7 +65,7 @@ const readFromStorage: StoredReader = async (path) => {
   return Buffer.concat(chunks);
 };
 
-export type ServeInput = {
+type ServeInput = {
   kind: PdfKind;
   /** The order id off the request body - untrusted until orderOwnedBy says
    *  otherwise. Anything that is not a uuid string is treated as absent. */
@@ -77,7 +77,7 @@ export type ServeInput = {
   render: () => Promise<Uint8Array>;
 };
 
-export type ServedDocument = {
+type ServedDocument = {
   bytes: Uint8Array;
   /** Which truth answered: the stored file, or a fresh render. */
   source: "stored" | "rendered";

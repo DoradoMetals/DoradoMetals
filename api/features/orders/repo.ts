@@ -15,11 +15,9 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-export type Executor = PoolClient | undefined;
 
 // THE THREE WORKFLOW FLAGS, AS A CLOSED SET. sql/set_flag.sql interpolates a
 // column name, which is safe only because it can be one of exactly these three
@@ -183,7 +181,7 @@ export async function createSalesOrder(
 
 // The twelve money values, in sql/create_totals.sql's order. The five renames
 // from exchange's names are stated in that file.
-export type TotalsValues = [
+type TotalsValues = [
   number | null, number | null, string | null, number | null,
   number | null, number | null, boolean | null,
   number | null, number | null, number | null, number | null,

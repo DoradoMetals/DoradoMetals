@@ -40,11 +40,22 @@ export interface SpotPart {
   ask?: number | null;
   bid?: number | null;
 }
-/** The scrap half of a line, when item_type is "scrap". */
-export interface ScrapPart {
+/** The scrap half of a line, when item_type is "scrap".
+ *
+ * `content` WAS DECLARED `number`, REQUIRED, and it was the only field here
+ * that claimed to be present. It is not: every source of it admits null
+ * (ComposedScrap.content, orders.items.content, exchange.scrap.content), and
+ * the line builder below reaches this interface through
+ * `item.scrap ?? ({} as ScrapPart)` - a cast over an empty object, which is
+ * how a missing `content` typed as `number` got past the compiler. Both
+ * templates already guard `scrap.content != null` before calling `.toFixed`,
+ * and getItemPrice takes `number | null | undefined`, so the guards were
+ * right and the type was wrong. Declaring it as it is stops the next reader
+ * deleting a guard the compiler was calling redundant. */
+interface ScrapPart {
   name?: unknown;
   metal?: unknown;
-  content: number;
+  content?: number | null;
   purity?: number | null;
   pre_melt?: unknown;
   post_melt?: unknown;
@@ -53,7 +64,7 @@ export interface ScrapPart {
 }
 
 /** The bullion half of a line, when item_type is "product". */
-export interface ProductPart {
+interface ProductPart {
   name?: unknown;
   metal_type?: unknown;
   content?: number | null;
@@ -76,7 +87,7 @@ export interface OrderItem {
 
 /** The address snapshot fields printed on a label block (D84):
  * recipient_name is who receives the shipment. */
-export interface AddressPart {
+interface AddressPart {
   recipient_name?: string | null;
   line_1?: string | null;
   line_2?: string | null;
@@ -89,7 +100,7 @@ export interface AddressPart {
 }
 
 /** The shipment fields the shipping table prints. */
-export interface ShipmentPart {
+interface ShipmentPart {
   insured?: boolean | null;
   package?: string | null;
   shipping_charge?: number | null;
@@ -526,7 +537,7 @@ export function buildPackingScrapRows(orderItems: OrderItem[], spotPrices: SpotP
 
   return scrapItemsWithNames
     .map((item) => {
-      const scrap: ScrapPart = item.scrap ?? ({} as ScrapPart);
+      const scrap: ScrapPart = item.scrap ?? {};
       const spot = spotPrices.find((s) => s.name === scrap.metal);
       const premium = item.premium ?? item.scrap?.bid_premium;
       const price =
@@ -595,7 +606,7 @@ export function buildInvoiceScrapRows(
 
   const rowsHtml = scrapItemsWithNames
     .map((item) => {
-      const scrap: ScrapPart = item.scrap ?? ({} as ScrapPart);
+      const scrap: ScrapPart = item.scrap ?? {};
 
       // THE SAME FALLBACK THE PACKING LIST USES. This row had none, and the two
       // documents disagreed: on order 239 the packing list showed 75.0% and the

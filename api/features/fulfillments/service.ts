@@ -61,7 +61,7 @@ type Executor = PoolClient | undefined;
 export type { MethodRow } from "#features/fulfillments/methods/service.ts";
 // The composed shape is what every caller of this feature reads, so it keeps
 // the name the old row type had.
-export type FulfillmentRow = ComposedFulfillment;
+type FulfillmentRow = ComposedFulfillment;
 
 // DIRECTION AND CATEGORY COME FROM THE DATABASE, NOT FROM THIS FILE (D103).
 //
@@ -75,8 +75,8 @@ export type FulfillmentRow = ComposedFulfillment;
 // fulfillments.category enum and dropped the default; these are now derived
 // from the generated row, so widening the enum is a compile error rather than a
 // runtime surprise.
-export type Direction = NonNullable<fulfillmentTables.MethodsRow["direction"]>;
-export type Category = fulfillmentTables.MethodsRow["category"];
+type Direction = NonNullable<fulfillmentTables.MethodsRow["direction"]>;
+type Category = fulfillmentTables.MethodsRow["category"];
 
 // EVERY REFUSAL CARRIES A STATUS, AND THAT IS WHY THE MESSAGES ARE WORTH
 // WRITING.

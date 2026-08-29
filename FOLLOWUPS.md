@@ -11904,3 +11904,66 @@ cost being paid.
 **Recorded, not attempted.** Installing a database server is an environment
 change on Jacob's machine, and ruling 39's grant covers the codebase rather than
 his workstation.
+
+## D181 — the disputed order line is a stale January snapshot, and the backfill CANNOT repair it
+
+Jacob asked me to investigate `d16b7c32`, where two copies of one production order
+line disagree on the two numbers a customer is paid on. It is not corruption and
+not a migration defect. It is worse in one specific way, and better in another.
+
+**What the two copies say.** The id is a `purchase_order_items` row; the weights
+live in `exchange.scrap 11f54b5d` behind its `scrap_id`.
+
+| | `exchange.scrap` (legacy) | `orders.items` (new) |
+|---|---|---|
+| pre_melt | **18.662** | **20.000** |
+| purity | 0.570 declared, **0.563 actual** | **0.563** |
+| content | 0.342 (0.338 actual) | **0.362** |
+| confirmed | true | false |
+
+The new copy's `content` is internally consistent with its own wrong weight
+(20.000 g × 0.563 ÷ 31.1035 = 0.362), so this is one wrong input propagated, not
+three independent errors.
+
+**It did not come from our backfill.** Migration 031 writes
+`coalesce(s.pre_melt, pr.gross)` and `coalesce(poi.confirmed, false)`, which for
+this row would produce 18.662 and `true`. It produced neither.
+
+**It came from the abandoned January refactor, and the dates prove it.** The
+order was created 2026-01-07 in both schemas. `exchange.purchase_orders` was
+updated **2026-01-21**; the `orders.orders` copy still reads **2026-01-07**.
+Production's `orders.orders` has nothing newer than **2026-01-12** while
+`exchange` runs to **2026-08-27**. So the line was corrected on 21 January —
+weight 20.000 → 18.662, purity measured at 0.563, confirmed set — nine days
+after the January code stopped writing the new schema. **`exchange` holds the
+right answer. The customer was paid correctly.**
+
+**THE PART THAT MATTERS: `ON CONFLICT (id) DO NOTHING`.** All four of 031's
+inserts use it. That is correct for re-running a backfill against rows it wrote
+itself, and **wrong for rows a different writer created with different values**.
+Production's new schemas are not empty — they hold January's output — so when
+the documented sequence finally runs there, the backfill **skips every row that
+already exists** and the stale values survive. The backfill is idempotent by
+skipping, which silently means "cannot repair".
+
+**Measured against production, read-only:**
+
+- 62 purchase orders in `exchange`; **47 already have an `orders.orders` row**.
+- **6 of those 47 were edited after the January snapshot froze** — their
+  order-level columns are stale and would be skipped.
+- 89 purchase order items; **62 already in `orders.items`**.
+- Of 57 comparable scrap lines, **1 disagrees on `pre_melt` and 1 on `purity`** —
+  d16b7c32, the line Jacob named. So the item-level damage really is one row.
+
+**The remedy is Jacob's to run and it is not a code change.** The clean move is
+to DELETE the January rows from the new schemas before backfilling — they are
+`orders.*`/`payments.*`, **not `exchange`**, so the covenant does not protect
+them, and they are a stale derivative of data `exchange` still holds in full. Then
+031 rebuilds them correctly from source. The alternative — switching the inserts
+to `ON CONFLICT DO UPDATE` — is worse: after promotion it would overwrite rows
+the new code legitimately wrote.
+
+**This also sharpens the standing deploy warning.** CLAUDE.md says merging early
+would "serve customers a January snapshot". It is now measured: 47 of 62 orders
+would come back as their January selves, 6 of them demonstrably out of date, and
+**running the backfill would not fix it.**

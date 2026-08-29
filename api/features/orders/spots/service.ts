@@ -42,7 +42,7 @@ export async function rowsFor(
   return await spotsRepo.getRowsFor(orderId, executor);
 }
 
-export type OrderSpotsPut = {
+type OrderSpotsPut = {
   lock?: boolean;
   set?: { name: string; bid: number }[];
 };

@@ -4,7 +4,8 @@
 // one is_default all on one row, so every function here takes both halves.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { AddressValues, Executor } from "#features/places/addresses/repo.ts";
+import type { AddressValues } from "#features/places/addresses/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

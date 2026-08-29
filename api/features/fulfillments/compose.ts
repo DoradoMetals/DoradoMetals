@@ -24,7 +24,7 @@ import type { ShipmentLinkRow } from "#features/fulfillments/shipments/repo.ts";
 // The method as it is nested. A method exists independently of any fulfillment -
 // the same row is referenced by every order that chose it - so it is its own
 // object, by the same test that keeps organizations out of carriers.
-export type NestedMethod = Pick<
+type NestedMethod = Pick<
   MethodRow, "id" | "type" | "label" | "admin_label" | "category" | "direction"
 >;
 
@@ -48,7 +48,7 @@ export type ComposedFulfillment = FulfillmentBaseRow & {
 // internal - the service's own logic branches on method.category and the
 // schedule sorts on the booking's start time - and the children's wire homes
 // are wave 3's parent-path reads (/orders/:orderId/shipments etc.).
-export type FulfillmentWire = Omit<ComposedFulfillment, "method" | "pickup" | "direct" | "shipment">;
+type FulfillmentWire = Omit<ComposedFulfillment, "method" | "pickup" | "direct" | "shipment">;
 
 export function toWire(
   { method: _m, pickup: _p, direct: _d, shipment: _s, ...row }: ComposedFulfillment

@@ -20,11 +20,9 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { fulfillments } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-export type Executor = PoolClient | undefined;
 
 // created_by / updated_by / created_by_id / updated_by_id are not projected -
 // who last edited a reference row is not part of the menu.

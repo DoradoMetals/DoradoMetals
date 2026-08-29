@@ -6,14 +6,13 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { fulfillments } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type Executor = PoolClient | undefined;
 export type PickupRow = fulfillments.PickupsRow;
 
-export type Window = { from?: string | null; to?: string | null; employee_id?: string | null };
+type Window = { from?: string | null; to?: string | null; employee_id?: string | null };
 
 export async function getFor(
   fulfillment_id: string, executor?: Executor

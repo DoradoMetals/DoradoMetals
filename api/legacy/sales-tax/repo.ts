@@ -4,7 +4,7 @@
 // reference data that no application code writes, so there is nothing to mirror.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Executor } from "#features/sales-tax/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

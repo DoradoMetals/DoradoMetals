@@ -83,7 +83,7 @@ export async function syncCart(user_id: string, items: SaleItemsInput[]): Promis
 
 // A sell cart line is either scrap or a product, told apart by `type`, and the
 // two carry different data. The union is what the frontend already switches on.
-export type SellCartLine =
+type SellCartLine =
   | { type: "scrap"; data: PurchaseScrapRow & { id: string } }
   | { type: "product"; data: PurchaseProductRow };
 

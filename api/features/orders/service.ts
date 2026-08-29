@@ -1066,7 +1066,7 @@ export async function updatePoolRemediation({
 // The order as the browser sends it. This is req.body, so every field is
 // whatever arrived - which is the point of re-fetching the items and the
 // address by id, and of pricing against the server's spots rather than these.
-export type SalesOrderInput = {
+type SalesOrderInput = {
   address: { id: string };
   items: { id: string; quantity: number }[];
   using_funds?: boolean | null;

@@ -6,7 +6,8 @@ import * as products from "#features/products/repo.ts";
 import * as legacy from "#legacy/products/repo.ts";
 import * as compose from "#features/products/compose.ts";
 import type { StorefrontProduct, AdminProduct } from "#features/products/compose.ts";
-import type { Executor, ProductValues, Liveness } from "#features/products/repo.ts";
+import type { ProductValues, Liveness } from "#features/products/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -46,7 +47,7 @@ const EXCHANGE_CREATE_DEFAULTS = {
 
 // What the admin form sends. Three of its fields are NAMES that the update
 // resolves back to ids.
-export type ProductInput = {
+type ProductInput = {
   id?: string;
   metal?: string;
   supplier?: string;

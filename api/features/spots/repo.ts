@@ -1,11 +1,10 @@
 // spots.spots, and nothing else.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 import type { spots } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
-export type Executor = PoolClient | undefined;
 
 // DERIVED FROM THE TABLE, NOT RESTATED (D103). Five of these six fields were
 // hand-written copies of spots.spots columns; a rename or a widened nullability

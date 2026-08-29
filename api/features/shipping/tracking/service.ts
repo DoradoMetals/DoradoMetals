@@ -13,7 +13,8 @@ import withTransaction from "#shared/db/withTransaction.js";
 import * as tracking from "#features/shipping/tracking/repo.ts";
 import * as legacy from "#legacy/shipping/tracking/repo.ts";
 import * as shipmentService from "#features/shipping/shipments/service.ts";
-import type { ScanEvent, TrackingInfo, Executor } from "#features/shipping/tracking/repo.ts";
+import type { ScanEvent, TrackingInfo } from "#features/shipping/tracking/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 import type { ComposedShipment } from "#features/shipping/shipments/compose.ts";
 
 export type { ScanEvent, TrackingInfo } from "#features/shipping/tracking/repo.ts";

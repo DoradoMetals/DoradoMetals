@@ -5,11 +5,9 @@
 // whole order rather than displaying something odd.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-export type Executor = PoolClient | undefined;
 
 // The per-metal spot row an order carries. No contract: it is never returned by
 // a route on its own, only alongside an order.

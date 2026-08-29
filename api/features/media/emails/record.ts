@@ -25,7 +25,7 @@ export type EmailKind =
   // codebase owns, so it joins the trail like every other send.
   | "auth_verification";
 
-export type EmailRecord = {
+type EmailRecord = {
   kind: EmailKind;
   status: "sent" | "failed";
   to: string;

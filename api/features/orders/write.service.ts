@@ -33,13 +33,14 @@ import * as legacySales from "#legacy/sales-orders/repo.ts";
 import * as refinerOrders from "#features/refiners/orders/repo.ts";
 import * as refinerItems from "#features/refiners/items/repo.ts";
 import * as refinerSpots from "#features/refiners/spots/repo.ts";
-import type { Flag, Executor } from "#features/orders/repo.ts";
+import type { Flag } from "#features/orders/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 // ===========================================================================
 // THE PURCHASE DIRECTION
 // ===========================================================================
 
-export type NewPurchaseOrder = {
+type NewPurchaseOrder = {
   userId: string;
   addressId: string | null;
   status: string;
@@ -74,7 +75,7 @@ export async function insertPurchaseOrder(
 
 // What the order-creation path has always passed. exchange's names, because
 // that is the shape every call site builds.
-export type OrderPrices = {
+type OrderPrices = {
   order_total?: number | null;
   shipping_charge?: number | null;
   pre_charges_amount?: number | null;
@@ -86,7 +87,7 @@ export type OrderPrices = {
   sales_tax?: number | null;
 };
 
-export type NewSalesOrder = {
+type NewSalesOrder = {
   user: { id: string; name?: string | null };
   status: string;
   sales_order: {
@@ -172,7 +173,7 @@ export async function insertSalesOrder(
 // The four fields actually read are pulled out where they are used, and the
 // two that MUST be present - the product id and its metal - are the ones the
 // caller resolves and the ones that throw by name when missing.
-export type PricedItem = Record<string, unknown> & {
+type PricedItem = Record<string, unknown> & {
   id?: unknown;
   quantity?: unknown;
   ask_premium?: unknown;
@@ -217,7 +218,7 @@ export async function insertSalesItems(
 
 // The composed spot shape (`name` / `ask` / `bid`) - what getSpotPrices
 // returns since D84 retired the legacy spellings.
-export type QuotedSpot = { name: string; ask?: number | null; bid?: number | null };
+type QuotedSpot = { name: string; ask?: number | null; bid?: number | null };
 
 // The quoted spots. exchange keys them by metal NAME and the new schema by
 // metal id, so the caller supplies the resolution - it already holds the map.

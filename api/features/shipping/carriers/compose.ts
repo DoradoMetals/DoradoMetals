@@ -15,17 +15,25 @@
 // "Unsupported carrier" - later, and further from the cause, than dropping it.
 import * as organizations from "#features/organizations/repo.ts";
 import type { CarrierRow } from "#features/shipping/carriers/repo.ts";
-import type { OrganizationRow } from "#features/organizations/repo.ts";
+// THE ROW TYPE COMES FROM THE CONTRACT, NOT FROM THE OTHER FEATURE'S REPO.
+// It used to be imported as `OrganizationRow` from
+// #features/organizations/repo.ts, where it is declared as a one-line alias
+// of exactly this. Naming the contract directly is the same type with one
+// less hop, and it removes a type edge between two features that have no
+// other reason to depend on each other - this file already reads the
+// organizations repo for its VALUES, which is the dependency that is real.
+import type { organizations as organizationTables } from "@dorado/contracts";
+import type { Executor } from "#shared/db/executor.ts";
 
 export type ComposedCarrier = {
   id: string;
   logo: string | null;
-  created_at: OrganizationRow["created_at"];
-  updated_at: OrganizationRow["updated_at"];
-  organization: Pick<OrganizationRow, "id" | "name" | "email" | "phone" | "enabled">;
+  created_at: organizationTables.OrganizationsRow["created_at"];
+  updated_at: organizationTables.OrganizationsRow["updated_at"];
+  organization: Pick<organizationTables.OrganizationsRow, "id" | "name" | "email" | "phone" | "enabled">;
 };
 
-const compose = (c: CarrierRow, o: OrganizationRow): ComposedCarrier => ({
+const compose = (c: CarrierRow, o: organizationTables.OrganizationsRow): ComposedCarrier => ({
   id: c.id,
   logo: c.logo,
   // From the ORGANIZATION, not the carrier - that is what the old projection
@@ -54,7 +62,7 @@ export async function all(rows: CarrierRow[]): Promise<ComposedCarrier[]> {
 }
 
 export async function one(
-  row: CarrierRow, executor?: organizations.Executor
+  row: CarrierRow, executor?: Executor
 ): Promise<ComposedCarrier | null> {
   const o = row.organization_id === null
     ? undefined

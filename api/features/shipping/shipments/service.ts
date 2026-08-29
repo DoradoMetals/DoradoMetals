@@ -20,7 +20,8 @@ import * as fulfillmentShipments from "#features/fulfillments/shipments/service.
 import * as orders from "#features/orders/repo.ts";
 import * as compose from "#features/shipping/shipments/compose.ts";
 import type { ComposedShipment, Lookups, OrderLink } from "#features/shipping/shipments/compose.ts";
-import type { Executor, ShipmentBaseRow, ShipmentValues } from "#features/shipping/shipments/repo.ts";
+import type { ShipmentBaseRow, ShipmentValues } from "#features/shipping/shipments/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -34,7 +35,7 @@ function badRequest(message: string): HttpError {
 
 // What a caller supplies to create one. This is exchange's shape, because that
 // is what every call site has always sent.
-export type ShipmentCreate = {
+type ShipmentCreate = {
   purchase_order_id?: string | null;
   sales_order_id?: string | null;
   carrier_id?: string | null;
@@ -55,7 +56,7 @@ export type ShipmentCreate = {
 // label as a base64 buffer and one call site passes it through unconverted.
 // That is worth a second look one day - it is stored in a text column - but it
 // is what happens today and the type says so rather than pretending.
-export type ShipmentUpdate = {
+type ShipmentUpdate = {
   id: string;
   tracking_number?: string | null;
   shipping_status?: string | null;

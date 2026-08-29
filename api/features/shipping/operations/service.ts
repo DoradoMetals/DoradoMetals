@@ -46,7 +46,7 @@ export type FetchTracking = (
 // values is eventually stored in. Not to be confused with orders.direction
 // (purchase / sale); the two are different enums and both are called
 // "direction", which is precisely why neither should be spelled by hand.
-export type ShippingType = shipping.ShipmentsRow["direction"];
+type ShippingType = shipping.ShipmentsRow["direction"];
 
 // Cancelling a label held a transaction open across the FedEx call, so a
 // failure in the update that follows rolled the row back with the label already

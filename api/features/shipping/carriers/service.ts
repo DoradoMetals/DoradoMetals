@@ -20,12 +20,12 @@ import * as legacy from "#legacy/shipping/carriers/repo.ts";
 import * as organizations from "#features/organizations/repo.ts";
 import * as compose from "#features/shipping/carriers/compose.ts";
 import type { ComposedCarrier } from "#features/shipping/carriers/compose.ts";
-import type { Executor } from "#features/shipping/carriers/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 // What a caller supplies. This arrives as req.body, so every field is optional
 // and the queries pass undefined through as null - the same latitude the
 // implementation it replaces had.
-export type CarrierInput = {
+type CarrierInput = {
   id?: string;
   logo?: string | null;
   organization?: {

@@ -5,7 +5,8 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { columnsOf } from "#features/shipping/tracking/repo.ts";
-import type { Executor, ScanEvent } from "#features/shipping/tracking/repo.ts";
+import type { ScanEvent } from "#features/shipping/tracking/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

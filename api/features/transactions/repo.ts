@@ -2,12 +2,11 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { payments } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 export type LedgerRow = payments.LedgerRow;
-export type Executor = PoolClient | undefined;
 
 export async function byUser(user_id: string, executor?: Executor): Promise<LedgerRow[]> {
   const { rows } = await query<LedgerRow>(sql("by_user"), [user_id], executor);

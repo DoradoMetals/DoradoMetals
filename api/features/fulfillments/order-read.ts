@@ -12,7 +12,8 @@
 // PATH lives under /api/orders per the route convention - reads resolve from
 // the parent path, writes key by the resource's own id.
 import * as fulfillments from "#features/fulfillments/repo.ts";
-import type { FulfillmentBaseRow, Executor } from "#features/fulfillments/repo.ts";
+import type { FulfillmentBaseRow } from "#features/fulfillments/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 // Null when the order has no fulfillment - a real state (nothing has been
 // handed over yet, or the order predates the chain) that the controller

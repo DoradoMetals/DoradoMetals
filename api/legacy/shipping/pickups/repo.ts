@@ -10,7 +10,7 @@
 // from them would carry the process timezone into a column that has none.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Executor } from "#features/shipping/pickups/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

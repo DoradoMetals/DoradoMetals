@@ -146,7 +146,7 @@ type CheckoutId = checkout.CheckoutsRow["id"];
 
 const SALE = "sale";
 const PURCHASE = "purchase";
-export type Direction = typeof SALE | typeof PURCHASE;
+type Direction = typeof SALE | typeof PURCHASE;
 
 // One checkout per user per direction, created on first use. 068 added the
 // unique index this upserts on.

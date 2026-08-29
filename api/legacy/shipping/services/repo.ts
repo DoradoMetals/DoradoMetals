@@ -5,7 +5,8 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { updateParams } from "#features/shipping/services/repo.ts";
-import type { Executor, ServiceValues } from "#features/shipping/services/repo.ts";
+import type { ServiceValues } from "#features/shipping/services/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 

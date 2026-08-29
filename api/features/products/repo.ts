@@ -8,11 +8,9 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { products } from "@dorado/contracts";
-import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-export type Executor = PoolClient | undefined;
 
 // The public row: what any visitor may see, plus the two ids compose.ts turns
 // into labels and then drops.
@@ -100,7 +98,7 @@ export async function getByIds(ids: string[], executor?: Executor): Promise<Publ
 // products with no metal, and every product has one.
 //
 // metal_id rather than the metal's NAME: see the header of sql/get_filtered.sql.
-export type ProductFilterIds = {
+type ProductFilterIds = {
   metal_id?: string;
   filter_category?: string;
   product_type?: string;
@@ -163,7 +161,7 @@ export async function getTypes(executor?: Executor): Promise<{ name: string }[]>
 
 // The six values exchange defaults and products.bullion does not - see the
 // header of sql/create.sql.
-export type ProductDefaults = {
+type ProductDefaults = {
   metal_id: string; mint_id: string; supplier_id: string;
   image_front: string; image_back: string; stock: number; quantity: number;
 };

@@ -20,7 +20,8 @@ import * as userAddresses from "#features/places/user-addresses/repo.ts";
 import * as legacy from "#legacy/places/addresses/repo.ts";
 import * as compose from "#features/places/addresses/compose.ts";
 import type { ComposedAddress } from "#features/places/addresses/compose.ts";
-import type { AddressValues, Executor } from "#features/places/addresses/repo.ts";
+import type { AddressValues } from "#features/places/addresses/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -46,7 +47,7 @@ export type AddressInput = {
   phone_number?: string | null;
 };
 
-export type UserAddressInput = {
+type UserAddressInput = {
   label?: string | null;
   default_shipping?: boolean | null;
 };
