@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation'
 import { cartStore } from '@/shared/store/cartStore'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useCreateSalesOrder } from '@/features/orders/salesOrders/users/queries'
+import { paidButNoOrder } from '@/features/stripe/paidButNoOrder'
 
 export default function SalesOrderStripeForm({
   address,
@@ -67,33 +68,50 @@ export default function SalesOrderStripeForm({
       redirect: 'if_required',
     })
     if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
-      const liveItems = cartStore.getState().items
+      // *** THE CUSTOMER'S MONEY IS GONE FROM HERE ON (D179). ***
+      // Everything below runs AFTER the charge succeeded, so any failure leaves
+      // a paid customer with no order. Before this try existed, the parse threw
+      // into an async handler with no catch and no ErrorBoundary anywhere in the
+      // app - the button spun forever and nothing was reported.
+      try {
+        const liveItems = cartStore.getState().items
 
-      const checkoutPayload = {
-        ...orderData,
-        address: orderData.address!,
-        service: orderData.service!,
-        items: liveItems,
-      }
-
-      const validated = salesOrderCheckoutSchema.parse(checkoutPayload)
-
-      createOrder.mutate(
-        {
-          paymentIntentId: paymentIntent.id,
-          sales_order: validated,
-          spotPrices: spotPrices,
-        },
-        {
-          onSuccess: async () => {
-            startTransition(() => {
-              router.push('/order-placed')
-            })
-            cartStore.getState().clearCart()
-            useSalesOrderCheckoutStore.getState().clear()
-          },
+        const checkoutPayload = {
+          ...orderData,
+          address: orderData.address!,
+          service: orderData.service!,
+          items: liveItems,
         }
-      )
+
+        const validated = salesOrderCheckoutSchema.parse(checkoutPayload)
+
+        createOrder.mutate(
+          {
+            paymentIntentId: paymentIntent.id,
+            sales_order: validated,
+            spotPrices: spotPrices,
+          },
+          {
+            onSuccess: async () => {
+              startTransition(() => {
+                router.push('/order-placed')
+              })
+              cartStore.getState().clearCart()
+              useSalesOrderCheckoutStore.getState().clear()
+            },
+            // Without this the failure was SILENT: useApiMutation's own onError
+            // only rolls back an optimistic cache entry, and this mutation is
+            // optimistic: false, so it did nothing whatsoever.
+            onError: () => {
+              setMessage(paidButNoOrder(paymentIntent.id))
+            },
+          }
+        )
+      } catch {
+        // The parse threw, or mutate() threw synchronously. The cart is left
+        // alone deliberately: clearCart() lives in onSuccess and stays there.
+        setMessage(paidButNoOrder(paymentIntent.id))
+      }
     } else if (error?.type === 'card_error' || error?.type === 'validation_error') {
       setMessage(error.message ?? 'A payment error occurred.')
     } else if (error) {

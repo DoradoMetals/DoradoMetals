@@ -13,6 +13,7 @@ import {
 import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAdminCreateSalesOrder } from '@/features/orders/salesOrders/admin/queries'
+import { paidButNoOrder } from '@/features/stripe/paidButNoOrder'
 
 export default function AdminStripeForm({
   address,
@@ -66,33 +67,47 @@ export default function AdminStripeForm({
       redirect: 'if_required',
     })
     if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
-      const checkoutPayload = {
-        ...data,
-        address: data.address!,
-        service: data.service!,
-        using_funds: data.using_funds,
-        payment_method: data.payment_method,
-        items: data.items,
-        order_metals: data.order_metals,
-        user: data.user,
-      }
-
-      const validated = adminSalesOrderCheckoutSchema.parse(checkoutPayload)
-
-      createOrder.mutate(
-        {
-          paymentIntentId: paymentIntent.id,
-          sales_order: validated,
-        },
-        {
-          onSuccess: async () => {
-            startTransition(() => {
-              closeDrawer()
-            })
-            useAdminSalesOrderCheckoutStore.getState().clear()
-          },
+      // *** THE CARD IS ALREADY CHARGED HERE (D179). ***
+      // An admin placing an order for a customer hits the same trap: a throw
+      // between the charge and the order leaves money taken and nothing
+      // recorded. adminSalesOrderCheckoutSchema is the STRICTER of the two
+      // schemas (D173), so this parse is the likelier of the two to throw.
+      try {
+        const checkoutPayload = {
+          ...data,
+          address: data.address!,
+          service: data.service!,
+          using_funds: data.using_funds,
+          payment_method: data.payment_method,
+          items: data.items,
+          order_metals: data.order_metals,
+          user: data.user,
         }
-      )
+
+        const validated = adminSalesOrderCheckoutSchema.parse(checkoutPayload)
+
+        createOrder.mutate(
+          {
+            paymentIntentId: paymentIntent.id,
+            sales_order: validated,
+          },
+          {
+            onSuccess: async () => {
+              startTransition(() => {
+                closeDrawer()
+              })
+              useAdminSalesOrderCheckoutStore.getState().clear()
+            },
+            // Same silence as the customer form had (D179): useApiMutation's
+            // onError only rolls back an optimistic entry and this is not one.
+            onError: () => {
+              setMessage(paidButNoOrder(paymentIntent.id))
+            },
+          }
+        )
+      } catch {
+        setMessage(paidButNoOrder(paymentIntent.id))
+      }
     } else if (error?.type === 'card_error' || error?.type === 'validation_error') {
       setMessage(error.message ?? 'A payment error occurred.')
     } else if (error) {
