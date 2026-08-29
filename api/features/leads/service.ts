@@ -24,7 +24,7 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.js";
 import * as leads from "#features/leads/repo.ts";
-import * as legacy from "#features/leads/legacy.repo.ts";
+import * as legacy from "#legacy/leads/repo.ts";
 import { toWire, listToWire, type LeadWire } from "#features/leads/wire.ts";
 import type { LeadRow, NewLead } from "#features/leads/repo.ts";
 

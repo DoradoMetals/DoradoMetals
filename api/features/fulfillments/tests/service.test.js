@@ -19,6 +19,8 @@ import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 // unchanged, because the behaviour is.
 import * as methods from "#features/fulfillments/methods/repo.ts";
 import * as service from "#features/fulfillments/service.ts";
+import * as pickupService from "#features/fulfillments/pickups/service.ts";
+import * as directService from "#features/fulfillments/directs/service.ts";
 const repo = service;
 
 let client;
@@ -184,7 +186,7 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
     const { rows: addr } = await c.query(`SELECT id FROM places.addresses LIMIT 1`);
     const start = "2026-09-01T15:00:00Z";
 
-    const booked = await repo.schedulePickup(
+    const booked = await pickupService.schedule(
       { fulfillment_id: f.id, pickup_address_id: addr[0].id, start_time: start },
       c
     );
@@ -214,7 +216,7 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
     assert.match(JSON.stringify(booked.pickup.start_time), /[+-]\d{2}:\d{2}"$|Z"$/);
 
     // Rescheduling is an upsert, not a second row: one pickup per fulfillment.
-    const moved = await repo.schedulePickup(
+    const moved = await pickupService.schedule(
       { fulfillment_id: f.id, pickup_address_id: addr[0].id, start_time: "2026-09-02T15:00:00Z" },
       c
     );
@@ -237,7 +239,7 @@ test("an appointment is scheduled at a location", async () => {
     const { rows: loc } = await c.query(
       `SELECT id FROM places.locations WHERE type = 'DORADO_OFFICE' LIMIT 1`
     );
-    const booked = await repo.scheduleDirect(
+    const booked = await directService.schedule(
       {
         fulfillment_id: f.id,
         location_id: loc[0].id,
@@ -263,7 +265,7 @@ test("a pickup cannot be booked against a method that is not a pickup", async ()
     const { rows: addr } = await c.query(`SELECT id FROM places.addresses LIMIT 1`);
 
     await assert.rejects(
-      () => repo.schedulePickup({ fulfillment_id: f.id, pickup_address_id: addr[0].id }, c),
+      () => pickupService.schedule({ fulfillment_id: f.id, pickup_address_id: addr[0].id }, c),
       /is a SHIPMENT, not a PICKUP/
     );
   });
@@ -277,7 +279,7 @@ test("changing the method takes the booking with it", async () => {
     const f = await repo.chooseById({ order_id: order.id, method_id: pickup.id }, c);
 
     const { rows: addr } = await c.query(`SELECT id FROM places.addresses LIMIT 1`);
-    await repo.schedulePickup(
+    await pickupService.schedule(
       { fulfillment_id: f.id, pickup_address_id: addr[0].id, start_time: "2026-09-01T15:00:00Z" },
       c
     );
@@ -318,7 +320,7 @@ test("the schedule lists only what somebody is due to attend", async () => {
     const method = await methodOf(c, "PICKUP", "purchase");
     const f = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
     const { rows: addr } = await c.query(`SELECT id FROM places.addresses LIMIT 1`);
-    await repo.schedulePickup(
+    await pickupService.schedule(
       { fulfillment_id: f.id, pickup_address_id: addr[0].id, start_time: "2026-09-01T15:00:00Z" },
       c
     );

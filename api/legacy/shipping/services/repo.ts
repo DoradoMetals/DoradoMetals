@@ -12,15 +12,15 @@ const sql = sqlFrom(import.meta.dirname);
 export async function create(
   id: string, values: ServiceValues, executor?: Executor
 ): Promise<void> {
-  await query(sql("legacy/create"), [id, ...values], executor);
+  await query(sql("create"), [id, ...values], executor);
 }
 
 export async function update(
   id: string, values: ServiceValues, executor?: Executor
 ): Promise<void> {
-  await query(sql("legacy/update"), updateParams(id, values), executor);
+  await query(sql("update"), updateParams(id, values), executor);
 }
 
 export async function remove(id: string, executor?: Executor): Promise<void> {
-  await query(sql("legacy/delete"), [id], executor);
+  await query(sql("delete"), [id], executor);
 }

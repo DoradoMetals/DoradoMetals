@@ -8,7 +8,6 @@ import {
   CreditCard,
   Ban,
   ShieldCheck,
-  LucideIcon,
 } from 'lucide-react'
 
 import {
@@ -24,36 +23,33 @@ import { sellCartItemSchema } from '@/features/cart/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User } from '@/features/users/types'
 
-// THE ORDER IS THE ROW (wave 3). `PurchaseOrder` is a LOCAL NAME for the one
-// contract shape - orders.orders verbatim plus `totals` - because this tree's
-// components are per-direction and the name reads. There is no purchase
-// order type any more: `direction` is the column that tells the two apart.
-//
-// Everything that used to hang off it is its own hook now:
-//   order_items      useOrderItems(order.id)          features/orders/reads
-//   address          useOrderAddress(order.id)        features/orders/reads
-//   shipment /       useOrderShipments(order.id)      features/shipping
-//   return_shipment    + outboundOf / returnOf
-//   payout           useOrderPayouts(order.id)        features/payouts
-//   carrier_pickup   useShipmentPickups(shipment.id)  features/shipping
-//   user             user_id, mapped off useAdminUsers
-//   the assay        useRefinerItems(order.id)        features/refiners
-// and the money that was flattened onto the order - shipping_paid,
-// waive_shipping_fee, waive_payout_fee, shipping_fee_actual - is on
-// `totals`, which is the orders.transactions row it always came from.
-export type PurchaseOrder = OrderContract
+// THE SHARED HALF LIVES IN ../types.ts. Wave 3 collapsed the two directions
+// into one contract shape, and these were the leftovers of the old pair: the
+// order type, the return-shipment schema, the status-config types and the four
+// drawer prop interfaces were declared identically in this file and in
+// salesOrders/types.ts. They are declared ONCE now and re-exported here under
+// the names this tree's components already use (CLAUDE.md: the frontend keeps
+// local names for UI concerns).
+export type { Order as PurchaseOrder } from '@/features/orders/types'
+export {
+  orderReturnShipmentSchema as purchaseOrderReturnShipmentSchema,
+} from '@/features/orders/types'
+export type {
+  OrderReturnShipment as PurchaseOrderReturnShipment,
+  StatusConfigEntry,
+  StatusConfig,
+  OrderDrawerProps as PurchaseOrderDrawerProps,
+  OrderDrawerHeaderProps as PurchaseOrderDrawerHeaderProps,
+  OrderDrawerContentProps as PurchaseOrderDrawerContentProps,
+  OrderDrawerFooterProps as PurchaseOrderDrawerFooterProps,
+  OrderActionButtonsProps as PurchaseOrderActionButtonsProps,
+} from '@/features/orders/types'
 
-export const purchaseOrderReturnShipmentSchema = z.object({
-  address: AddressContract,
-  user_address: UserAddressContract.optional(),
-  package: packageSchema,
-  pickup: pickupSchema,
-  service: serviceSchema,
-  insurance: insuranceSchema,
-})
+import type { StatusConfig } from '@/features/orders/types'
 
-export type PurchaseOrderReturnShipment = z.infer<typeof purchaseOrderReturnShipmentSchema>
-
+// THE CHECKOUT FORM, which stays here because it is purchase-direction FORM
+// POLICY rather than a table-derived shape - deliberately stricter than the
+// columns (CLAUDE.md: the frontend keeps only UI-policy schemas of its own).
 export const purchaseOrderCheckoutSchema = z.object({
   address: AddressContract,
   user_address: UserAddressContract.optional(),
@@ -78,13 +74,6 @@ export const PurchaseOrderStatuses = [
   'Completed',
 ]
 
-export type StatusConfigEntry = {
-  icon: LucideIcon
-  value_label: string
-}
-
-export type StatusConfig = Record<string, StatusConfigEntry>
-
 export const statusConfig: StatusConfig = {
   'In Transit': {
     icon: Truck,
@@ -106,30 +95,6 @@ export const statusConfig: StatusConfig = {
     icon: ShieldCheck,
     value_label: 'Payout',
   },
-}
-
-export interface PurchaseOrderDrawerProps {
-  user_id?: string
-  order_id: string
-  user?: User
-}
-
-export interface PurchaseOrderDrawerHeaderProps {
-  order: PurchaseOrder
-  username: string
-  setIsOrderActive: (open: boolean) => void
-}
-
-export interface PurchaseOrderDrawerContentProps {
-  order: PurchaseOrder
-}
-
-export interface PurchaseOrderDrawerFooterProps {
-  order: PurchaseOrder
-}
-
-export interface PurchaseOrderActionButtonsProps {
-  order: PurchaseOrder
 }
 
 // "Gold Item 1", "Silver Item 2" - a DISPLAY label for a scrap line, which

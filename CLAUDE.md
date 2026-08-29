@@ -21,6 +21,34 @@ That invariant covers the whole migration up until a feature is promoted past
 `dual`. After that, new rows live only in the new schema, and `exchange` being
 intact no longer protects them.
 
+**Legacy CODE and legacy DATA are now different rules, and conflating them is
+what made this section read as more restrictive than it is (Jacob, 2026-08-28).**
+
+- **Legacy code is disposable once proven.** Read paths, dual-write mirrors,
+  `*_SOURCE` switches, oracle tests: delete them when the feature's data
+  migration has been verified. Git has them. Orders is proven and its read
+  paths are already gone.
+- **Legacy TABLES stay.** No migration drops an `exchange` schema or table -
+  not on dev, not on prod. They cost disk and nothing else, and they are the
+  source every backfill reads from.
+
+**THE DEPLOY HAS A REQUIRED ORDER, and it is not a code problem.** The orders
+read pivot landed in `a12b76ed`: there is no fallback to `exchange` any more.
+Production's new schemas hold the abandoned January refactor - `orders.orders`
+has 60 rows whose newest is 2026-01-12, while `exchange` has 72 orders with
+writes through 2026-08-24. So merging this branch to `master`, which
+auto-deploys, would serve customers a January snapshot. Removing the
+dual-writes makes it worse: `exchange` also stops receiving writes, so the
+business's history and its new orders end up in different tables.
+
+Before this branch is deployed:
+
+1. `pg_dump` production. Still outstanding, and the prerequisite for the rest.
+2. Run the migrations against production.
+3. **Run the backfills.** This is the step that makes the read pivot safe.
+4. `verify:parity` and `compare:databases` against production.
+5. Only then merge.
+
 This applies from the moment anything touches the database. Concretely:
 
 - **Never `DROP` or `DELETE` without explicit confirmation**, and verify nothing
@@ -61,7 +89,109 @@ frontend imported the contracts nowhere and its hand-written types were
 `audit:wire-readiness` was built to measure; the audit now measures a
 finished thing.
 
-`api` uses subpath imports — `#features/*`, `#shared/*`, `#providers/*`, `#db`.
+`api` uses subpath imports — `#features/*`, `#shared/*`, `#providers/*`,
+`#legacy/*`, `#db`. Never a relative path that crosses between two of those
+roots.
+
+## How a feature is laid out
+
+**Every RESOURCE gets the full stack, and the parent MOUNTS rather than
+declares** (Jacob, rulings 26b/26c). A sub-resource is not a passive table
+hanging off its parent; it has consumers of its own, and the whole point is
+that a consumer in another feature can depend on one resource without dragging
+in its siblings.
+
+```
+features/fulfillments/
+  routes.ts        mounts the children, declares only what SPANS them
+  controller.ts    HTTP in, HTTP out - the thin remainder
+  service.ts       the domain logic that genuinely spans children
+  repo.ts + sql/   the fulfillments.fulfillments table
+  methods/
+    routes.ts      its own paths;  the parent does router.use("/methods", …)
+    controller.ts
+    service.ts     the orchestrator for THIS resource
+    repo.ts + sql/
+  pickups/ directs/ shipments/   … same shape
+```
+
+Checkout asks for fulfillment methods and reaches `fulfillments/methods/`
+**directly**, never through `fulfillments/controller.ts`. That is the edge the
+factoring exists to keep thin.
+
+**THE PATHS DO NOT CHANGE** (ruling 13 — the URL and the file answer different
+questions). `POST /api/fulfillments/schedule_pickup` is declared in
+`fulfillments/pickups/routes.ts` and mounted at `/`; `PATCH
+/api/orders/items/:id` is declared in `orders/items/routes.ts`. Factoring a file
+is never a reason to move a URL.
+
+**The parent's test, applied AFTER every child has its stack**: does this
+handler genuinely span children? Very little does. `cancelSchedule` does (a
+booking is a pickup *or* a direct and the caller does not say which);
+`getSchedule` does (both tables, one timeline); `setMethod` does (it deletes the
+detail row of the category being left). Everything else moved.
+
+**A resource with no HTTP surface gets a service and says so in its header.**
+`fulfillments/shipments`, `orders/transactions`, `refiners/spots` have one
+consumer each and it is another service. Writing empty `routes.ts` files for
+them would be ceremony. The header states the decision so the next session does
+not read the gap as unfinished work.
+
+**Reads resolve from the parent path; writes key by the resource's own id.**
+`GET /api/orders/:orderId/pickups` is declared by `orders/routes.ts` because the
+order id is the key the caller holds — but the HANDLER lives in
+`fulfillments/pickups/controller.ts`, because that feature owns the table.
+
+**Tests live with their feature, grouped under `tests/`** (ruling 31):
+`features/<feature>/tests/*.test.*`. A test whose subject moves moves with it,
+in the same pass — factor, move, rename is one diff per file, not three.
+
+## `api/legacy/` — the dual-write mirrors, in one place
+
+Jacob, refining ruling 29: *"Move all legacy code to a folder called `legacy`
+that is a sibling to `features`."* One directory, mirroring the feature names,
+so that **promotion deletes one directory** rather than hunting thirteen.
+
+```
+legacy/<feature>/repo.ts     the exchange half of that feature's dual write
+legacy/<feature>/sql/*.sql   its statements
+legacy/README.md             entry and exit criteria, in full
+```
+
+Imported as `#legacy/<feature>/repo.ts`. `features/` may import `legacy/`;
+`legacy/` should not import `features/`, and the threads that remain are named
+in `legacy/README.md`.
+
+**What is NOT in there**: legacy TABLES (they never move and never drop), and
+anything still load-bearing for a live path. `features/checkout/repo.exchange.js`
+and `features/payments/repo.exchange.js` are still the implementation their
+`*_SOURCE` switch selects, so they are not legacy yet whatever they are named.
+Moving something into `legacy/` is a statement that it is on death row.
+
+### Before deleting a feature's legacy code — the checklist
+
+Jacob: *"delete as we go. If it hasn't been completed it shouldn't be deleted."*
+Completion is about DATA, not about the suite being green.
+
+1. **`pnpm --filter @dorado/api verify:parity`** for every table pair the
+   feature owns — and read the exchange-only row count, which is the number that
+   matters. Zero means the new schema has everything.
+2. **`pnpm --filter @dorado/api audit:coverage`** — every populated column has
+   somewhere to go. Orders had matching row counts and was missing 21 columns of
+   live data; row counts are not evidence.
+3. **The decomposition gate**, where the feature has one
+   (`verify:orders-decomposition`, `verify:sales-order-decomposition`).
+4. **The reads have pivoted** — the feature reads the new schema and there is no
+   fallback left.
+5. **Only then** delete its read paths, its `*_SOURCE` machinery and its oracle
+   tests, and move what still dual-writes into `legacy/<feature>/`.
+6. **The WRITE half is a separate, later decision, and it is Jacob's.** Deleting
+   a dual-write is a ONE-WAY DOOR: `exchange` stops receiving that feature's
+   writes and flipping back loses everything written in between. It is gated on
+   promotion past `dual`, which is gated on the production backfills having run.
+
+**"The tests pass" is not evidence that data migrated.** A test reads its own
+writes either way.
 
 ## Two things to know before touching the database
 
@@ -128,7 +258,9 @@ the user.
 ## Tests
 
 The API's tests run against real Postgres, each inside a transaction that is
-rolled back, and need `TZ=UTC` — `pnpm --filter @dorado/api test`.
+rolled back, and need `TZ=UTC` — `pnpm --filter @dorado/api test`. They live
+with their feature, grouped under `features/<feature>/tests/` (ruling 31), and
+a test whose subject moves moves with it in the same pass.
 
 The frontend uses vitest, `pnpm --filter @dorado/frontend test`, in two lanes:
 pure functions and contract shapes run in plain node, and component render

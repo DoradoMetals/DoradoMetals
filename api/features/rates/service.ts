@@ -7,7 +7,7 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.js";
 import * as rates from "#features/rates/repo.ts";
-import * as legacy from "#features/rates/legacy.repo.ts";
+import * as legacy from "#legacy/rates/repo.ts";
 import * as wire from "#features/rates/wire.ts";
 import type { RateInput } from "#features/rates/repo.ts";
 

@@ -17,9 +17,9 @@
 // genuinely needs an order assembled. They are internal, and no longer a wire
 // shape; features/purchase-orders/read.service.ts says so in its header.
 import * as ordersRepo from "#features/orders/repo.ts";
-import * as transactions from "#features/orders/transactions/repo.ts";
+import * as transactions from "#features/orders/transactions/service.ts";
 import type { OrderRow } from "#features/orders/repo.ts";
-import type { OrderTotalsRow } from "#features/orders/transactions/repo.ts";
+import type { OrderTotalsRow } from "#features/orders/transactions/service.ts";
 import type { PoolClient } from "pg";
 
 type Executor = PoolClient | undefined;
@@ -29,8 +29,7 @@ type Executor = PoolClient | undefined;
 // and the contract declares it nullable for exactly those.
 export type Order = OrderRow & { totals: OrderTotalsRow | null };
 
-function attach(orders: OrderRow[], totals: OrderTotalsRow[]): Order[] {
-  const by = new Map(totals.map((t) => [t.order_id, t]));
+function attach(orders: OrderRow[], by: Map<string, OrderTotalsRow>): Order[] {
   return orders.map((o) => ({ ...o, totals: by.get(o.id) ?? null }));
 }
 
@@ -40,7 +39,7 @@ export async function list(
 ): Promise<Order[]> {
   const rows = await ordersRepo.list(narrowing, executor);
   if (rows.length === 0) return [];
-  return attach(rows, await transactions.getMany(rows.map((o) => o.id), executor));
+  return attach(rows, await transactions.byOrderId(rows.map((o) => o.id), executor));
 }
 
 export async function getOne(
@@ -48,5 +47,5 @@ export async function getOne(
 ): Promise<Order | null> {
   const row = await ordersRepo.getOne(id, executor);
   if (!row) return null;
-  return attach([row], await transactions.getMany([row.id], executor))[0];
+  return attach([row], await transactions.byOrderId([row.id], executor))[0];
 }

@@ -37,6 +37,17 @@ export async function exists(id: string, executor?: Executor): Promise<boolean> 
   return rows[0]?.present === true;
 }
 
+// The direction of ONE order - which of the two an id names, asked of the
+// table that now answers it (see sql/direction_of.sql for what this replaced).
+export async function directionOf(
+  id: string, executor?: Executor
+): Promise<string | null> {
+  const { rows } = await query<{ direction: string }>(
+    sql("direction_of"), [id], executor
+  );
+  return rows[0]?.direction ?? null;
+}
+
 // The direction of several orders at once. Hop THREE of putting an order id
 // back onto a shipment - see sql/directions.sql.
 export async function directionsById(

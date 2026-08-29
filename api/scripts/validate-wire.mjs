@@ -288,6 +288,9 @@ add("GET /orders/:id/spots", c.OrderSpot, async () => {
   return lists.flat();
 });
 const refinerOrdersService = await import("#features/refiners/orders/service.ts");
+// The engagement's SPOTS moved to their own resource when refiners/spots was
+// given its own stack (ruling 26c) - the URL is unchanged, the owner is not.
+const refinerSpotsService = await import("#features/refiners/spots/service.ts");
 add("GET /orders/:orderId/refiners", c.RefinerOrder, async () => {
   const reads = await Promise.all(orders.map((o) => refinerOrdersService.getByOrder(o.id)));
   return reads.filter(Boolean);
@@ -299,11 +302,15 @@ add("GET /orders/:orderId/refiners/items", c.RefinerItem, async () => {
 });
 add("GET /orders/:orderId/refiners/spots", c.RefinerSpot, async () => {
   const lists = await Promise.all(
-    orders.map((o) => refinerOrdersService.getSpotsByOrder(o.id))
+    orders.map((o) => refinerSpotsService.forOrder(o.id))
   );
   return lists.filter(Boolean).flat();
 });
 const orderFulfillmentRead = await import("#features/fulfillments/order-read.ts");
+// The two bookings are their own resources (ruling 26c) - each read lives with
+// the table it returns.
+const fulfillmentPickups = await import("#features/fulfillments/pickups/service.ts");
+const fulfillmentDirects = await import("#features/fulfillments/directs/service.ts");
 add("GET /orders/:orderId/fulfillments", c.OrderFulfillment, async () => {
   const reads = await Promise.all(
     orders.map((o) => orderFulfillmentRead.getOrderFulfillment(o.id))
@@ -326,11 +333,11 @@ add("GET /orders/:orderId/shipments", c.Shipment, async () => {
   return lists.flat();
 });
 add("GET /orders/:orderId/pickups", c.FulfillmentPickup, async () => {
-  const lists = await Promise.all(orders.map((o) => orderFulfillmentRead.getOrderPickups(o.id)));
+  const lists = await Promise.all(orders.map((o) => fulfillmentPickups.forOrder(o.id)));
   return lists.flat();
 });
 add("GET /orders/:orderId/directs", c.FulfillmentDirect, async () => {
-  const lists = await Promise.all(orders.map((o) => orderFulfillmentRead.getOrderDirects(o.id)));
+  const lists = await Promise.all(orders.map((o) => fulfillmentDirects.forOrder(o.id)));
   return lists.flat();
 });
 // PAYOUTS ARE NOT PARSED HERE, and the reason is the same one that keeps

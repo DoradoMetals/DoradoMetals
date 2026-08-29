@@ -1,5 +1,24 @@
 // What a fulfillment means, as opposed to how it is stored.
 //
+// THE THIN REMAINDER (ruling 26b/26c). Every sub-resource now has its own full
+// stack and orchestrates for itself - methods/, pickups/, directs/ and
+// shipments/ each hold their own service, and the first three their own routes
+// and controller. What is left here is what genuinely SPANS those children:
+//
+//   getForOrder / getById  the fulfillment row itself, composed with whichever
+//                          detail row exists - the parent resource
+//   getSchedule            everyone due somewhere: pickups AND directs, merged
+//                          and sorted on one timeline
+//   setMethod              moving between categories, which deletes the detail
+//                          row of the category being left
+//   cancelSchedule         a booking removed whichever of the two it was
+//   assertCategory         the invariant the children check themselves against
+//   choose / chooseById / chooseDefault / setStatus
+//                          the fulfillment's own lifecycle
+//
+// The test for a handler being here is "does it span children", applied AFTER
+// every child has its stack - not "does it look orchestral".
+//
 // THE GUARDS LIVE HERE, and after the split that is not a stylistic choice -
 // every one of them is a question about a table this feature's own repo does
 // not own. Whether the order exists (orders.orders), whether the method exists
@@ -26,19 +45,19 @@
 // implementation.
 import { randomUUID } from "node:crypto";
 import * as fulfillments from "#features/fulfillments/repo.ts";
-import * as methodsRepo from "#features/fulfillments/methods/repo.ts";
+import * as methodService from "#features/fulfillments/methods/service.ts";
 import * as pickups from "#features/fulfillments/pickups/repo.ts";
 import * as directs from "#features/fulfillments/directs/repo.ts";
 import * as shipmentLinks from "#features/fulfillments/shipments/repo.ts";
 import * as orders from "#features/orders/repo.ts";
 import * as compose from "#features/fulfillments/compose.ts";
 import type { ComposedFulfillment, Details } from "#features/fulfillments/compose.ts";
-import type { MethodRow } from "#features/fulfillments/methods/repo.ts";
+import { refuse } from "#shared/http/refuse.ts";
 import type { PoolClient } from "pg";
 
 type Executor = PoolClient | undefined;
 
-export type { MethodRow } from "#features/fulfillments/methods/repo.ts";
+export type { MethodRow } from "#features/fulfillments/methods/service.ts";
 // The composed shape is what every caller of this feature reads, so it keeps
 // the name the old row type had.
 export type FulfillmentRow = ComposedFulfillment;
@@ -58,15 +77,9 @@ export type Category = "SHIPMENT" | "PICKUP" | "DIRECT";
 // "cancel the shipment first".
 //
 // 404 for "that does not exist", 409 for "the current state forbids this".
-interface HttpError extends Error {
-  statusCode?: number;
-}
-
-function refuse(status: number, message: string): HttpError {
-  const err: HttpError = new Error(message);
-  err.statusCode = status;
-  return err;
-}
+// refuse() is shared/http/refuse.ts now - the same three lines lived here, in
+// features/orders/patch.service.ts and in features/checkout/service.ts, and the
+// 26c factoring would have made it five copies.
 
 // ------------------------------------------------------------- composition
 
@@ -77,7 +90,7 @@ async function detailsFor(
 ): Promise<Details> {
   const ids = rows.map((f) => f.id);
   const [methods, p, d, s] = await Promise.all([
-    methodsRepo.byId(executor),
+    methodService.byId(executor),
     pickups.getMany(ids, executor),
     directs.getMany(ids, executor),
     shipmentLinks.getMany(ids, executor),
@@ -97,29 +110,11 @@ async function composeOne(
   return compose.compose(row, await detailsFor([row], executor));
 }
 
-// ------------------------------------------------------------------ methods
-
-// `direction` is checked rather than declared, because it arrives as a query
-// string. The narrow type is what the guard produces, not what it receives.
-export async function listMethods(direction: unknown): Promise<MethodRow[]> {
-  if (direction !== "purchase" && direction !== "sale") {
-    throw refuse(400, `direction must be "purchase" or "sale", got ${direction}`);
-  }
-  return await methodsRepo.getAvailable(direction);
-}
-
-export async function listAllMethods(): Promise<MethodRow[]> {
-  return await methodsRepo.getAll();
-}
-
-// Requires the id, because the UPDATE keys on it. Without it the statement
-// matches nothing and returns null, which reads as "not found" rather than
-// "you forgot to say which one".
-export async function updateMethod(
-  method: methodsRepo.MethodInput
-): Promise<MethodRow | null> {
-  return (await methodsRepo.update(method)) ?? null;
-}
+// THE METHODS SECTION MOVED to features/fulfillments/methods/service.ts
+// (ruling 26b: "Checkout will call fulfillment methods... we need to hit the
+// fulfillment/methods/controller.ts"). listMethods/listAllMethods/updateMethod
+// are listAvailable/listAll/update there, and the offered-method check that
+// made the customer menu mean something is assertOffered.
 
 // ------------------------------------------------------------------- reads
 
@@ -220,14 +215,7 @@ export async function choose(
     { order_id: string; method_id: string; direction: Direction; created_by_id?: string | null },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
-  const offered = await methodsRepo.getAvailable(direction, executor);
-  if (!offered.some((m) => m.id === method_id)) {
-    throw refuse(
-      409,
-      `fulfillment method ${method_id} is not available for a ${direction} - ` +
-        `it is disabled, hidden, or belongs to the other direction`
-    );
-  }
+  await methodService.assertOffered({ method_id, direction }, executor);
   return await createFulfillment({ order_id, method_id, created_by_id }, executor);
 }
 
@@ -259,8 +247,7 @@ export async function chooseDefault(
     },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
-  const method = await methodsRepo.getDefault({ direction, category }, executor);
-  if (!method) throw refuse(404, `no default ${category} method for a ${direction}`);
+  const method = await methodService.getDefault({ direction, category }, executor);
   return await createFulfillment(
     { order_id, method_id: method.id, created_by_id }, executor
   );
@@ -294,13 +281,13 @@ export async function setMethod(
     { id: string; method_id: string; updated_by_id?: string | null },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
-  const target = await methodsRepo.getOne(method_id, executor);
+  const target = await methodService.getOne(method_id, executor);
   if (!target) throw refuse(404, `no such fulfillment method: ${method_id}`);
 
   const current = await fulfillments.getOne(id, executor);
   if (!current) throw refuse(404, `no such fulfillment: ${id}`);
 
-  const currentMethod = await methodsRepo.getOne(current.method_id, executor);
+  const currentMethod = await methodService.getOne(current.method_id, executor);
   if (
     currentMethod?.category === "SHIPMENT" &&
     target.category !== "SHIPMENT" &&
@@ -325,12 +312,12 @@ export async function setMethod(
 // pickup row for a fulfillment whose method is DROPSHIP produces a row every
 // read attaches and no read expects, and the constraint that would have caught
 // it does not exist in the schema.
-async function assertCategory(
+export async function assertCategory(
   fulfillment_id: string, category: Category, executor?: Executor
 ): Promise<void> {
   const row = await fulfillments.getOne(fulfillment_id, executor);
   if (!row) throw refuse(404, `no such fulfillment: ${fulfillment_id}`);
-  const method = await methodsRepo.getOne(row.method_id, executor);
+  const method = await methodService.getOne(row.method_id, executor);
   const found = method?.category;
   if (!found) throw refuse(404, `no such fulfillment: ${fulfillment_id}`);
   if (found !== category) {
@@ -342,42 +329,25 @@ async function assertCategory(
   }
 }
 
-export async function schedulePickup(
-  input: { fulfillment_id: string } & pickups.PickupInput,
-  executor?: Executor
-): Promise<ComposedFulfillment | null> {
-  await assertCategory(input.fulfillment_id, "PICKUP", executor);
-  await pickups.upsert(randomUUID(), input.fulfillment_id, input, executor);
-  return await getById(input.fulfillment_id, executor);
-}
-
-export async function scheduleDirect(
-  input: { fulfillment_id: string } & directs.DirectInput,
-  executor?: Executor
-): Promise<ComposedFulfillment | null> {
-  await assertCategory(input.fulfillment_id, "DIRECT", executor);
-  await directs.upsert(randomUUID(), input.fulfillment_id, input, executor);
-  return await getById(input.fulfillment_id, executor);
-}
+// schedulePickup / scheduleDirect / linkShipment MOVED to the resources that
+// own their tables - fulfillments/pickups/service.ts, fulfillments/directs/
+// service.ts and fulfillments/shipments/service.ts. Each is one table's write
+// plus assertCategory, which is exactly the shape ruling 26c describes; the
+// callers (features/orders/create.ts, features/shipping/shipments/service.ts)
+// reach those directly rather than through this file.
 
 // Cancelling a booking removes the appointment, not the fulfillment. The order
 // is still going to be fulfilled somehow; what changed is that nobody is due
 // anywhere yet.
+//
+// THIS ONE GENUINELY SPANS CHILDREN, which is why it stays: a fulfillment
+// carries at most one booking and the caller does not say which kind it was, so
+// cancelling means clearing BOTH tables. Pushing it into either child would
+// leave the other's row behind.
 export async function cancelSchedule(
   fulfillment_id: string, executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await pickups.remove(fulfillment_id, executor);
   await directs.remove(fulfillment_id, executor);
   return await getById(fulfillment_id, executor);
-}
-
-// Linking a parcel to a fulfillment. Called by features/shipping when a label
-// is bought; the parcel itself belongs there.
-export async function linkShipment(
-  input: { fulfillment_id: string } & shipmentLinks.ShipmentLinkInput,
-  executor?: Executor
-): Promise<ComposedFulfillment | null> {
-  await assertCategory(input.fulfillment_id, "SHIPMENT", executor);
-  await shipmentLinks.upsert(randomUUID(), input.fulfillment_id, input, executor);
-  return await getById(input.fulfillment_id, executor);
 }

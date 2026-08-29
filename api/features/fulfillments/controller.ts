@@ -5,28 +5,11 @@ import * as fulfillmentService from "#features/fulfillments/service.ts";
 import * as orderRead from "#features/fulfillments/order-read.ts";
 import * as compose from "#features/fulfillments/compose.ts";
 
-// The menu a customer is offered, per direction. Guarded rather than public:
-// which methods exist and which are hidden is operational information, and a
-// signed-out visitor has no order to fulfil.
-export const getMethods = asyncHandler(async (req, res) => {
-  const { direction } = req.query;
-  const rows = await fulfillmentService.listMethods(direction);
-  return res.status(200).json(rows);
-});
-
-export const getAllMethods = asyncHandler(async (req, res) => {
-  const rows = await fulfillmentService.listAllMethods();
-  return res.status(200).json(rows);
-});
-
-export const updateMethod = asyncHandler(async (req, res) => {
-  const { method } = req.body;
-  const saved = await fulfillmentService.updateMethod({
-    ...method,
-    updated_by_id: req.user?.id ?? null,
-  });
-  return res.status(200).json(saved);
-});
+// THE THIN REMAINDER (ruling 26b). The methods handlers live in
+// fulfillments/methods/controller.ts, the two booking handlers in
+// fulfillments/pickups/ and fulfillments/directs/. What is here is what spans
+// children: the fulfillment itself, the merged schedule, the method change and
+// the booking cancel.
 
 // BARE ROWS ON THE WIRE (wave-2 final form): what the service composes -
 // the nested method its own logic branches on - never leaves the API.
@@ -49,22 +32,10 @@ export const getSchedule = asyncHandler(async (req, res) => {
   const to = oneString(req.query.to);
   const employee_id = oneString(req.query.employee_id);
   // The schedule is COMPOSED internally (the sort is by the booking's start
-  // time) and wired down to bare rows - the booking details become wave 3's
-  // own child reads.
+  // time) and wired down to bare rows - the booking details are the children's
+  // own reads.
   const rows = await fulfillmentService.getSchedule({ from, to, employee_id });
   return res.status(200).json(rows.map(compose.toWire));
-});
-
-export const schedulePickup = asyncHandler(async (req, res) => {
-  const { pickup } = req.body;
-  const saved = await fulfillmentService.schedulePickup(pickup);
-  return res.status(200).json(saved);
-});
-
-export const scheduleDirect = asyncHandler(async (req, res) => {
-  const { direct } = req.body;
-  const saved = await fulfillmentService.scheduleDirect(direct);
-  return res.status(200).json(saved);
 });
 
 export const cancelSchedule = asyncHandler(async (req, res) => {
@@ -93,8 +64,8 @@ export const setStatus = asyncHandler(async (req, res) => {
   return res.status(200).json(saved);
 });
 
-// GET /api/orders/:orderId/fulfillments - the chain, resolved to BARE
-// verbatim rows (see order-read.ts). Mounted from the orders routes - reads
+// GET /api/orders/:orderId/fulfillments - the chain, resolved to the BARE
+// verbatim row (see order-read.ts). Mounted from the orders routes - reads
 // resolve from the parent path - with the handler here because fulfillments
 // owns the chain. No fulfillment answers 404, because the resource asked for
 // does not exist.
@@ -107,16 +78,4 @@ export const getFulfillmentByOrder = asyncHandler(async (req, res) => {
     });
   }
   return res.json(fulfillment);
-});
-
-// GET /api/orders/:orderId/pickups - fulfillments.pickups rows, VERBATIM.
-// [] when the order has no fulfillment or its method is not a pickup; see
-// order-read.ts.
-export const getPickupsByOrder = asyncHandler(async (req, res) => {
-  return res.json(await orderRead.getOrderPickups(req.params.orderId));
-});
-
-// GET /api/orders/:orderId/directs - fulfillments.directs rows, VERBATIM.
-export const getDirectsByOrder = asyncHandler(async (req, res) => {
-  return res.json(await orderRead.getOrderDirects(req.params.orderId));
 });

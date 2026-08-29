@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.js";
 import * as products from "#features/products/repo.ts";
-import * as legacy from "#features/products/legacy.repo.ts";
+import * as legacy from "#legacy/products/repo.ts";
 import * as compose from "#features/products/compose.ts";
 import type { StorefrontProduct, AdminProduct } from "#features/products/compose.ts";
 import type { Executor, ProductValues, Liveness } from "#features/products/repo.ts";

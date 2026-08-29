@@ -44,6 +44,57 @@ const mountOf = new Map();
   }
 }
 
+// NESTED MOUNTS, resolved transitively (ruling 26c). A parent's routes.ts now
+// MOUNTS its children rather than declaring their paths -
+// features/orders/routes.ts does `router.use("/", itemRoutes)` and
+// features/fulfillments/routes.ts does `router.use("/methods", methodRoutes)` -
+// so a child's prefix is the parent's mount plus the segment the parent mounted
+// it at, and it is not in app.js at all.
+//
+// WITHOUT THIS every child router resolved to `mount: null` and `url: null`,
+// exactly the silent-null failure this file already records once (the .js/.ts
+// rename). The guards were still reported, so the count stayed right and the
+// URLs quietly went missing - which is the failure mode worth naming twice.
+{
+  const routeFiles = walk(join(ROOT, "features"));
+  // file key -> [{ at, childKey }]
+  const nested = new Map();
+  for (const file of routeFiles) {
+    const src = readFileSync(file, "utf8");
+    const imports = new Map();
+    const ire = /import\s+(\w+)\s+from\s+["']#features\/([^"']+)\/routes\.(?:js|ts)["']/g;
+    let m;
+    while ((m = ire.exec(src))) imports.set(m[1], `features/${m[2]}/routes`);
+    const ure = /router\s*\.\s*use\(\s*["']([^"']*)["']\s*,\s*(\w+)\s*\)/g;
+    while ((m = ure.exec(src))) {
+      const childKey = imports.get(m[2]);
+      if (!childKey) continue;
+      const key = relative(ROOT, file).replace(/\.(js|ts)$/, "");
+      if (!nested.has(key)) nested.set(key, []);
+      nested.get(key).push({ at: m[1], childKey });
+    }
+  }
+  // Fixpoint, so a child of a child resolves too. Bounded by the number of
+  // edges: nothing can gain a mount twice, so this terminates.
+  let changed = true;
+  let guard = 0;
+  while (changed && guard++ < 20) {
+    changed = false;
+    for (const [parentKey, children] of nested) {
+      const parentMount = mountOf.get(parentKey);
+      if (parentMount === undefined) continue;
+      for (const { at, childKey } of children) {
+        if (mountOf.has(childKey)) continue;
+        mountOf.set(
+          childKey,
+          `${parentMount}${at}`.replace(/\/+/g, "/").replace(/(.)\/$/, "$1")
+        );
+        changed = true;
+      }
+    }
+  }
+}
+
 const routes = [];
 for (const file of walk(join(ROOT, "features"))) {
   const src = readFileSync(file, "utf8");

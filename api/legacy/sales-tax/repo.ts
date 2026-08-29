@@ -9,5 +9,5 @@ import type { Executor } from "#features/sales-tax/repo.ts";
 const sql = sqlFrom(import.meta.dirname);
 
 export async function accrue(amount: number, state: string, executor?: Executor): Promise<void> {
-  await query(sql("legacy/accrue"), [amount, state], executor);
+  await query(sql("accrue"), [amount, state], executor);
 }

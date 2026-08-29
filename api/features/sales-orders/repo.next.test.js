@@ -6,6 +6,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import * as readService from "#features/sales-orders/read.service.ts";
 import * as purchase from "#features/purchase-orders/read.service.ts";
 
@@ -136,8 +137,17 @@ test("orders come back newest first", async () => {
   assert.deepEqual(dates, [...dates].sort((a, b) => b - a));
 });
 
+// COUNTED UNDER THE ORDERS LOCK, and that is not caution - it is the fix for a
+// real flake. This file declared no lock, so it counted orders.transactions
+// across a read while the order-PLACING files were committing rows on their own
+// connections: the gate reported 55 !== 56 and the same test passed alone. A
+// row appearing during a read of an unrelated feature is not this read writing,
+// and an assertion that cannot tell the two apart is not measuring what it
+// claims to. See shared/testing/locks.ts - the ORDERS lock is exactly the
+// serialisation that makes a count meaningful.
 test("reads do not write", async () => {
   await inRollback(async (c) => {
+    await takeLocks(c, [LOCKS.ORDERS]);
     const before = await c.query("SELECT count(*)::int n FROM orders.transactions");
     await readService.getAll();
     const after = await c.query("SELECT count(*)::int n FROM orders.transactions");

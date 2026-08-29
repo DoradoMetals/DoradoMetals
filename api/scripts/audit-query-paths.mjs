@@ -132,7 +132,11 @@ const scan = (sql, file, line) => {
   for (const g of groups) if (/\b(FROM|UPDATE|JOIN|WHERE)\b/i.test(g)) scan(g, file, line);
 };
 
-for (const f of walk(path.join(ROOT, "features")).concat(walk(path.join(ROOT, "shared")))) {
+for (const f of walk(path.join(ROOT, "features"))
+  .concat(walk(path.join(ROOT, "shared")))
+  // legacy/ holds the dual-write mirrors since the 26c factoring; their
+  // statements are as live as any other until promotion.
+  .concat(walk(path.join(ROOT, "legacy")))) {
   const src = fs.readFileSync(f, "utf8");
   // A .sql file IS the statement; a .ts file carries them in backticks.
   const blobs = f.endsWith(".sql")

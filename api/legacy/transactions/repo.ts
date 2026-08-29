@@ -10,6 +10,6 @@ export async function create(
   purchase_order_id: string | null, sales_order_id: string | null,
   amount: number | null, executor?: Executor
 ): Promise<void> {
-  await query(sql("legacy/create"),
+  await query(sql("create"),
     [id, user_id, transaction_type, purchase_order_id, sales_order_id, amount], executor);
 }

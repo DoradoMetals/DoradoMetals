@@ -29,6 +29,14 @@ import path from "node:path";
 
 const ROOT = path.join(import.meta.dirname, "..");
 const FEATURES = path.join(ROOT, "features");
+// legacy/ MIRRORS features/ AND IS SCANNED WITH IT. The dual-write mirrors
+// moved out of features/ in the 26c factoring (ruling 29 - one directory to
+// delete at promotion). Leaving them unscanned would make this audit QUIETER:
+// a table whose only second writer was its legacy mirror would report as
+// single-writer, which is the failure mode this file warns about in its own
+// header. The directory layout mirrors features/ exactly, so the feature name
+// is derived the same way from whichever root the file is under.
+const LEGACY = path.join(ROOT, "legacy");
 
 // A table with more than one writing feature, where that is correct and why.
 // Pinned from BOTH sides like audit:indexes: an entry that stops being true
@@ -98,7 +106,8 @@ const walk = (dir, out = []) => {
 // The feature a file belongs to: the path under features/ with any sql/ segment
 // and the filename removed. features/shipping/shipments/sql/x.sql -> shipping/shipments
 const featureOf = (file) => {
-  const rel = path.relative(FEATURES, file);
+  const root = file.startsWith(LEGACY + path.sep) ? LEGACY : FEATURES;
+  const rel = path.relative(root, file);
   const parts = rel.split(path.sep).slice(0, -1).filter((p) => p !== "sql" && p !== "legacy");
   return parts.join("/") || "(root)";
 };
@@ -110,7 +119,7 @@ const strip = (src) =>
 
 const WRITE = /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:ONLY\s+)?([a-z_]+)\.([a-z_]+)/gi;
 
-const files = walk(FEATURES);
+const files = [...walk(FEATURES), ...walk(LEGACY)];
 const writers = new Map();   // "schema.table" -> Map(feature -> Set(file))
 let statements = 0;
 

@@ -8485,6 +8485,30 @@ WAVE 4 ADDITION (Jacob, live): frontend/features/handoff/types.ts
 pickupOptions/pickupSchema die. The two FedEx pickup types
 (DROPOFF_AT_FEDEX_LOCATION / CONTACT_FEDEX_TO_SCHEDULE) are CARRIER
 vocabulary (shipping.shipments.pickup_type), not fulfillment methods -
+
+    *** CORRECTION (Jacob, and the coordinator caused the confusion):
+    "Pickup Options has nothing to do with Fedex. Pickups are internal
+    dorado pickups. I know it's confusing because carriers also have
+    carrier_pickups."
+    TWO DIFFERENT THINGS SHARE ONE WORD:
+      fulfillments.pickups   - DORADO'S OWN pickup. The business
+                               collects the metal itself. A fulfillment
+                               METHOD, alongside directs and shipments.
+      exchange.carrier_pickups / shipping pickup_type - THE CARRIER's
+                               pickup. FedEx either collects the parcel
+                               or the customer drops it at a FedEx
+                               location. A property of a SHIPMENT.
+    The database already keeps them apart; the collision is in how we
+    TALK about them, and the coordinator filed the FedEx pickup_type
+    constants under "pickups" as though they were one thing. They are
+    not, and no code should be reorganised on the assumption that they
+    are. Jacob is open to renaming the Dorado one but has no better
+    name; RECOMMENDATION: keep `pickups` for the Dorado concept (it is
+    the domain's own word and the table already owns it) and never say
+    "pickup" unqualified about a carrier - it is always a CARRIER
+    pickup, which the column is already called. Vocabulary discipline,
+    not a migration. ***
+
 Jacob's call: keep them in code, defined ONCE as a typed constant in
 @dorado/contracts; icons stay a client-side map beside the selector
 ("we'll figure out the icon thing later"); the dead local pickupSchema
@@ -9497,11 +9521,26 @@ where it makes sense." MEASURED - 88 imports across six features.
       service (ruling 24); read.service.ts + compose.ts -> wherever the
       internal composed order belongs now that orders is one feature;
       write.service.ts -> the creates, which checkout unifies.
-      MOVES TO A LEGACY FOLDER, because it is genuinely legacy and
-      genuinely still needed: repo.dual.js and legacy.repo.ts - the
-      dual-write mirrors that keep `exchange` a level shadow. Grouped
-      so that the day a *_SOURCE switch is promoted, the thing to delete
-      is one directory rather than a hunt through six features.
+      MOVES TO api/legacy/ - ONE TOP-LEVEL DIRECTORY, A SIBLING OF
+      features/ (Jacob, refining this ruling: "Move all legacy code to
+      a folder called 'legacy' that is a sibling to 'features'"). NOT a
+      legacy/ subfolder inside each feature - thirteen scattered
+      legacy/ folders is the same hunt we have today with better names.
+      One directory is a single deletion and a single grep to prove
+      nothing imports it. Mirror the feature names inside
+      (api/legacy/purchase-orders/...) so origin stays obvious.
+      What goes there: the dual-write mirrors (repo.dual.js,
+      legacy.repo.ts), repo.exchange.js's remainder, sql/legacy/.
+      MECHANICS: add a #legacy/* subpath import to api/package.json
+      rather than relative paths crossing between the trees, and check
+      lint:imports / lint:namespace-calls still pass. THE DEPENDENCY
+      DIRECTION IS THE POINT: features/ may import legacy/ during the
+      dual-write period; legacy/ must not import features/, or the
+      directory cannot be deleted in one move. Every place legacy
+      reaches into a feature is a thread to cut before promotion.
+      ENTRY CRITERIA: a module moves to legacy/ only when it is genuinely
+      on death row - verified data migration, pivoted reads. Something
+      still load-bearing for a live path is not legacy yet.
       DELETED OUTRIGHT: repo.exchange.js's remainder now that its read
       paths are gone, and the oracle tests pinned to an implementation
       that no longer runs. Legacy code that protects nothing is not
@@ -9635,3 +9674,254 @@ real, and three bets have now been called wrong.
     NOT EVERYTHING CONVERTS: CLAUDE.md's standing constraint keeps
     query.js, withTransaction.js and asyncHandler.js as JS, so their
     tests may reasonably stay JS too.
+
+34. THE PRICING API RETURNS PRICES, AND PRICE STOPS BEING A COLUMN
+    (Jacob): "the pricing API should return arrays of prices. Not the
+    items themselves. We don't want price stored on items, as we're
+    dropping that column later because it's derived." Plus, on the
+    earlier pricing-split question: "I meant the split as more like, now
+    we have unified items so it will be way easier."
+    SO THREE THINGS:
+    a. ARRAY IN, ARRAY OUT. One call prices thirty items; a single item
+       is an array of one. No N calls for N lines.
+    b. IT RETURNS PRICES, NOT ENRICHED ITEMS. The caller already has the
+       items - it sent them. Echoing them back is the composed-wire
+       mistake in another costume (rulings 10 and 12).
+    c. UNIFIED ITEMS MAKE IT SIMPLE. orders.items is one shape, so
+       pricing branches on `bullion_id IS NULL` rather than maintaining
+       parallel scrap and product paths. Sales-order bullion stays a
+       branch inside the one module, not a second module.
+    STILL ONE MODULE SERVER-SIDE, though - the PDF renderer and the
+    confirmation email need prices without an HTTP hop, so the endpoint
+    is a thin caller of the module, not the only way to price.
+
+    *** A TRAP TO CHECK BEFORE THE COLUMN IS DROPPED - flagged, not
+    resolved, because the investigation was cut short. `price` is not
+    obviously purely derived TODAY: every pricing function reads
+    `item.price ?? computed`, i.e. A STORED PRICE WINS OVER THE
+    CALCULATION. If an admin has ever been able to override a line's
+    price (features/purchase-orders/money-edits.test.js exists and the
+    order PATCH surface has money fields), then the column is
+    AUTHORITATIVE for those rows, not derived, and dropping it silently
+    reprices historical orders. Before any migration drops
+    orders.items.price: count production rows where price IS NOT NULL
+    AND price <> the computed value. If that count is zero the column is
+    genuinely derived and safe to drop; if it is not zero, those rows
+    are overrides and the drop loses them. This is the same class as
+    D61's purity rounding - a value that looks derived until you check
+    which side is authoritative. ***
+
+=== WAVE 4 PLAN (Jacob, 2026-08-28 night, before going away) ===
+"wave 4 can continue on with the styling stuff. Just follow the rules
+I've been sending (and the original ones as well)." So wave 4 carries
+BOTH lanes. He stops after wave 4 if he is not back.
+  LANE A - API LOGIC (owns api/** + packages/contracts/**):
+    1. THE BATCHING FIX (D101) FIRST. assemble() queries the shipment
+       and the pickup inside a per-order loop; ~214 round trips against
+       a database 178ms away vs 2 for the slim list. 108x. Batch with
+       WHERE order_id = ANY($1). Prove equivalence with `diff` and both
+       decomposition gates - it feeds pricing, email and PDFs. ~500s per
+       gate run.
+    2. PRICING: one module, ARRAY IN / ARRAY OUT, RETURNS PRICES NOT
+       ITEMS (ruling 34). Branches on bullion_id IS NULL because items
+       are unified. The endpoint is a thin caller; the module is what
+       the PDF renderer and the email use without an HTTP hop.
+    3. D97 - the Estimated Payout figure comes from the server (D82),
+       not from browser arithmetic that currently reads $20 high.
+    4. D98 - the credit ledger takes {op, amount} applied in a
+       transaction, not an absolute total computed in the browser.
+  LANE B - STYLING (owns frontend/** styling; must NOT collide with
+  lane A's frontend re-pointing - partition before dispatching):
+    ruling 27 (the shadows die, not tokenised), ruling 30 (ONE radio
+    group; RadioCard and RadioGroupImage deleted; the measure is the
+    four checkout selectors' 307 lines shrinking), the orders tree's
+    263 remaining scatter utilities, and THE D99 AUDIT NOBODY HAS RUN -
+    selected-vs-unselected across order rows, drawer tabs, status chips,
+    chosen services. Contrast metrics cannot answer that question.
+  THEN CHECKOUT PROPER, which Jacob sizes as "a big lift just like
+  orders": creates unify, scrap and bullion legacy layers delete after
+  covenant verification, and the shipping mess - the frontend matches
+  FedEx service types DIRECTLY, which is the same defect class as the
+  wire work (the frontend should not know carrier vocabulary at all).
+  It may be too big for wave 4; if so it becomes wave 5 rather than
+  being half-done.
+
+=== D103: A HAND-WRITTEN UNION IS EITHER A DUPLICATE OR AN UNENFORCED
+    CONSTRAINT, AND WE HAVE ONE OF EACH ===
+Jacob, on `export type Direction = "purchase" | "sale"` and
+`export type Category = "SHIPMENT" | "PICKUP" | "DIRECT"`: "These should
+come from shared contracts, no?" Yes - and the two are different
+problems wearing the same clothes.
+  DIRECTION IS ALREADY GENERATED. packages/contracts/src/generated/
+  orders.ts:7 emits z.enum(["purchase","sale"]) from the real Postgres
+  enum (payments.ts emits its own copy of the same). SIX hand-written
+  duplicates exist across api/features/fulfillments/service.ts,
+  fulfillments/methods/service.ts and checkout/repo.next.ts. Pure
+  duplication - import the generated one and delete them.
+  CATEGORY IS NOT GENERATED BECAUSE THE DATABASE DOES NOT CONSTRAIN IT.
+  fulfillments.methods.category is plain `text`, so the generator
+  correctly emits z.string(). The three-value union exists ONLY in
+  TypeScript and is enforced nowhere.
+  *** AND THE COLUMN'S DEFAULT IS 'OTHER' *** - a value the
+  hand-written type says cannot exist and which the WIRE CONTRACT'S
+  z.enum(["SHIPMENT","PICKUP","DIRECT"]) WOULD REJECT AT PARSE TIME. So
+  any insert omitting category produces a row the API cannot serve. Dev
+  holds only the three real values (6 SHIPMENT, 4 DIRECT, 1 PICKUP), so
+  it is latent, not live - the same shape as D39's sales-tax
+  product_type: a text column meeting an enum somewhere else, with the
+  mismatch surfacing only at runtime.
+  THE FIX THAT SOLVES BOTH: make category a real Postgres enum on the
+  NEW schema (fulfillments - allowed, it is not exchange), drop the
+  'OTHER' default, regenerate. The generator then emits the union and
+  all six hand-written copies get DELETED rather than re-pointed.
+  THE GENERAL RULE WORTH ENFORCING: a hand-written union of string
+  literals in this codebase is always one of two defects - a duplicate
+  of a generated enum, or a constraint the database does not have.
+  Neither should survive. Grep-able, and a candidate for the same
+  treatment as lint:db and lint:namespace-calls.
+
+=== D104: THE ORDER SPOT LOCK WAS PINNING A STALE TABLE ===
+Found by the wave-3.5 agent while re-pointing legacy reads. Two live spot
+feeds still read `exchange.metals`, and that table has drifted from
+`spots.spots`: on dev, Gold bid 4449.43 vs 4600.06 - about $150 an ounce.
+ONE OF THOSE FEEDS IS THE ORDER SPOT LOCK, i.e. the number a customer is
+PAID on. Re-pointed to spots/service.getSpotPrices(). CONFIRMED BY THE COORDINATOR, and it is all four metals, not one
+(dev, columns are bid_spot/ask_spot on exchange.metals):
+                exchange.metals      spots.spots      delta
+  Gold             4449.43            4600.06       -150.63
+  Silver              64.30              67.26         -2.96
+  Platinum          1810.50            1838.20        -27.70
+  Palladium         1394.46            1323.80        +70.66
+THE DRIFT RUNS BOTH WAYS, which matters for what it costs. On a PURCHASE
+order the business buys from the customer at the BID, so reading the
+stale table UNDERPAYS by $150.63 an ounce on gold, $2.96 on silver and
+$27.70 on platinum - and OVERPAYS by $70.66 on palladium. Not a rounding
+error and not one-directional, so no reconciliation shortcut exists: an
+affected order is wrong by whatever the two tables disagreed by at the
+moment its spots were locked. The drift itself is the known
+spots-staleness thread (the dev cron writing one table and not the
+other); what is new is that a MONEY path was reading the stale side.
+
+=== D105: THE LEGACY WRITE PATH IS A REWRITE, NOT A DELETION ===
+Wave 3.5 was authorised to remove proven legacy write paths and removed
+NONE, for any feature. Its reason is better than the instruction it was
+given, and it changes the plan:
+`repo.dual.js` does not write the mirror independently - it RE-DERIVES it
+with `INSERT ... SELECT FROM exchange.*`. So deleting the exchange half
+leaves the NEW rows with no source. All 29 writes need native statements
+plus argument conversion (metal NAME -> metal_id); native repos exist for
+24 of 29, missing `spots_locked`, `order_total` and `purgeCancelled`.
+AND IT CANNOT BE CHECKED AFTERWARDS: verify:parity compares source to
+target, so once the source stops being written there is nothing to
+compare. THE LEDGER MUST RUN BEFORE, NOT AFTER.
+So "remove the legacy writers" is not a deletion task at all. Sequence:
+write the 5 missing native statements -> run the covenant ledger ->
+switch the create path to native -> only then delete. That is a wave of
+its own, not a task inside one.
+Legacy READS were removed for orders only (verified: D87 ledger, zero
+exchange-only rows, reads pivoted at a12b76ed).
+
+=== D106: I WAS WRONG ABOUT TWO TESTS, AND THE AGENT CHECKED ===
+I listed accept-offer-pricing.test.js as an offers-era corpse to delete.
+Ruling 32 says judge per file, and the agent did: that test pins LIVE
+behaviour - `finalize_pricing` on PATCH /api/orders/:id, asserting a
+poisoned document is refused and the total derives from database rows.
+It is the $26.81 pin. offer-and-items.test.js likewise - its header
+records that the offer machine left with 086, and what remains are item
+writes on the CURRENT endpoints. Both want a RENAME, not a deletion.
+THE LESSON, third time this session: a name is not evidence. "Offer" in
+a filename meant offers-era to me and meant a stale fixture in fact.
+audit:vacuous-tests, audit:indexes' uniqueness filter, and now this.
+
+=== D107: A NEW GUARD - lint:legacy-boundary ===
+Built by wave 3.5 in response to the hazard I flagged (two files named
+repo.ts per feature, one writing the new schema and one writing
+exchange, distinguished only by an import prefix). It asserts three
+things lint:imports cannot: legacy SQL names ONLY `exchange`; every
+#legacy/* import binds to a `legacy...` namespace; and nothing in
+legacy/ imports a feature at runtime (2 accepted edges, pinned with
+reasons). Has --self-test. THE POINT lint:imports MISSES: it proves a
+specifier RESOLVES, and with both files existing a wrong prefix resolves
+perfectly and writes the wrong schema.
+
+=== D108: audit:test-leaks WAS LOOKING AT THE WRONG HALF OF THE DATABASE
+    (fixed) ===
+THE GATE WENT RED on wave 3.5 with one real failure:
+features/purchase-orders/repo.next.test.js "reads do not write",
+64 != 63. It counts `orders.orders` before and after a read and asserts
+the count did not move. IT ALREADY HOLDS THE ORDERS ADVISORY LOCK, so
+this is not the missing-lock case the sales-orders twin had.
+A COUNT ONLY MOVES FOR ANOTHER CONNECTION WHEN SOMETHING COMMITS. And an
+advisory lock does not serialise a service that opens its OWN pool
+connection - which is exactly the leak shape CLAUDE.md describes: "A
+test that calls a service does not contain it: the service opens its own
+transaction on its own pool connection and commits, while the test's
+rolls back." That is how tracking.test.js once deleted the real FedEx
+history of five dev shipments.
+*** SO WHY DID audit:test-leaks NOT CATCH IT? BECAUSE IT ONLY LOOKED AT
+`exchange`. *** Its table query was `WHERE n.nspname = 'exchange'`. The
+same leak into exchange.purchase_orders would have been caught; into
+orders.orders it was invisible - and orders PIVOTED ITS READS at
+a12b76ed, so the new schemas are where the authoritative rows now live.
+The detector was written when exchange was the whole database and was
+never revisited when that stopped being true.
+FIXED: it now fingerprints every schema the app writes - 90 tables
+across 18 schemas, up from ~38. Two guards added with it: it REFUSES
+when a schema EXISTS but yields no readable tables (a permissions gap
+reports identically to "nothing leaked" - the mistake audit:non-finite
+made against production's `core`), while a schema that is simply ABSENT
+is skipped with a printed note (`auctions` has no tables on dev).
+--self-test still proves the detector fires.
+THIRD INSTANCE OF ONE LESSON IN ONE SESSION: a detector that only sees
+one shape reports clean on the others. D95 (cross-element contrast),
+D99 (state/rest collapse), and now this. Worth asking of every audit in
+scripts/: what does it NOT look at, and was that deliberate or merely
+true when it was written?
+
+=== D109: THE FAILING ASSERTION WAS RACY BY CONSTRUCTION, NOT A LEAK ===
+The widened audit (D108) answered the question it was widened to answer:
+*** "no table changed - the suite leaves nothing behind in dev" ***
+across 90 tables in 18 schemas. SO THERE IS NO LEAK. The count moved
+because another file COMMITS an order and then CLEANS IT UP - net zero
+by the end of the suite, plainly visible in the middle of it.
+Which means the assertion could never have been reliable: no advisory
+lock serialises a service that opens its own pool connection, and the
+test was measuring other files' traffic rather than its own read.
+REWRITTEN, and stronger rather than weaker: it now fingerprints the rows
+that EXIST BEFORE the read and proves none of them changed or vanished.
+Concurrent inserts are invisible to it by construction, so it cannot
+flake - and it catches something a count never could, AN IN-PLACE
+UPDATE. That is the same reasoning audit:test-leaks uses when it hashes
+contents instead of counting rows: the tracking bug that deleted five
+shipments' FedEx history ALSO overwrote two columns in place, and a row
+count sees neither.
+NOTE ON MY OWN RUN: the leak audit reported a second failure,
+shared/testing/is-test-run.test.js "the harness really does satisfy both
+detectors". That one was MINE - I invoked the script directly instead of
+through `pnpm audit:test-leaks`, so it ran without TZ=UTC NODE_ENV=test
+and a harness self-check correctly noticed. Not a defect; a reminder to
+use the package script, which exists precisely to carry that env.
+
+=== D110: THE FACTORING BROKE A GATE SCRIPT, AND THE AGENT'S OWN GATE
+    RUN DID NOT SEE IT ===
+Second red gate on wave 3.5, and this one was a real regression rather
+than a race: validate:wire failed with
+  `refinerOrdersService.getSpotsByOrder is not a function`
+Ruling 26c gave refiners/spots its own stack, and the function moved to
+features/refiners/spots/service.ts as `forOrder()`. The source comment
+recording the move was written; the CALLER IN scripts/ WAS NOT UPDATED.
+Fixed - validate-wire.mjs now imports the spots service directly.
+27 endpoint shapes match, 0 diverge.
+WHY IT SLIPPED, and it is worth naming because it will recur: the agent
+reported "validate:wire still 27/27" and had run it - BEFORE the last
+tranche of moves. A factoring pass invalidates every caller, and the
+callers that hurt are the ones OUTSIDE features/: scripts/, the gate's
+own tooling, anything importing a service by path. `lint:imports` did
+not catch it because the specifier still RESOLVES - the module exists,
+the named export does not, and that is a runtime failure by
+construction.
+THE HABIT TO ADOPT: after a factoring pass, re-run the members that
+IMPORT application code - validate:wire, verify:genesis, the
+decomposition gates - not just the tests. Tests import their subject
+directly and so tend to fail loudly; scripts import a service by
+namespace and fail only when the function is called.

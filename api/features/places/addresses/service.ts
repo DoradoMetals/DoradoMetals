@@ -17,7 +17,7 @@ import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.js";
 import * as addresses from "#features/places/addresses/repo.ts";
 import * as userAddresses from "#features/places/user-addresses/repo.ts";
-import * as legacy from "#features/places/addresses/legacy.repo.ts";
+import * as legacy from "#legacy/places/addresses/repo.ts";
 import * as compose from "#features/places/addresses/compose.ts";
 import type { ComposedAddress } from "#features/places/addresses/compose.ts";
 import type { AddressValues, Executor } from "#features/places/addresses/repo.ts";

@@ -16,20 +16,20 @@
 //   PATCH  /api/orders/:id           this file - status (a pure label, both
 //                                    directions), finalize_pricing / cancel /
 //                                    add_funds (purchase), supplier (sale)
-//   PUT    /api/orders/:id/spots     this file - the order's frozen spots:
-//                                    lock / unlock / set (purchase direction;
-//                                    no sales spot edit exists to dispatch)
-//   POST   /api/orders/:id/items     this file - a new line (purchase)
+//   GET/PUT /api/orders/:id/spots    features/orders/spots - the frozen spots
+//   GET/POST /api/orders/:id/items   features/orders/items - the lines
 //   PATCH  /api/orders/items/:id     features/orders/items - a line's edits
 //   DELETE /api/orders/items/:id     features/orders/items - a line's removal
+//   GET    /api/orders/:id/address   features/orders/addresses - the snapshot
 //   PATCH  /api/shipments/:id        shipping - the parcel's money + tracking
 //   PATCH  /api/payouts/:id          payouts - cost and method
 //   PATCH  /api/refiners/orders/:id  refiners - the engagement
 //   PATCH  /api/refiners/items/...   refiners - premium + assay report
 //
-// The legacy READ routes stay under /purchase_orders and /sales_orders for
-// this series - the frontend reads through them today - and move to
-// /api/orders reads in the read-pivot wave.
+// THIS FILE IS THE ORDER ROW'S SERVICE AND NOTHING ELSE (ruling 26c). The
+// spots PUT and the item POST that used to live here are in
+// features/orders/spots/service.ts and features/orders/items/service.ts, with
+// their own controllers and routes; their paths did not move.
 //
 // STATUS IS A PURE LABEL. Jacob, verbatim: "The stages don't really matter
 // for admins... They shouldn't be driving logic AT ALL." A `status` field
@@ -73,10 +73,11 @@
 // Here the order comes from the database, its frozen spots from
 // findMetalsByOrderId, and the live spots from getCurrentSpotPrices. The
 // body's arrays are not ignored, they are refused: order_spots is not a field.
-import query from "#shared/db/query.js";
+import * as ordersRepo from "#features/orders/repo.ts";
 import * as orderRead from "#features/orders/read.ts";
+import * as spotsFeed from "#features/spots/service.ts";
+import { refuseWith as refuse } from "#shared/http/refuse.ts";
 import * as purchaseOrderService from "#features/purchase-orders/service.ts";
-import * as purchaseOrderRepo from "#features/purchase-orders/repo.dual.js";
 import * as salesOrderService from "#features/sales-orders/service.ts";
 
 type Caller = { id: string; name?: string | null; role?: string | null };
@@ -87,31 +88,11 @@ type Direction = "purchase" | "sale";
 // getById, one of the two shapes that comment names.
 type OrderArg = Parameters<typeof purchaseOrderService.finalizePricing>[0]["order"];
 
-const refuse = (statusCode: number, message: string): never => {
-  const err: Error & { statusCode?: number } = new Error(message);
-  err.statusCode = statusCode;
-  throw err;
-};
-
-// Which direction an order is - asked of ALL the order tables, the way
-// orderOwnedBy asks ownership: this must answer the same whichever *_SOURCE
-// is serving, and it is not this service's business to know which. In
-// production today orders.orders is empty (no migration has run there), so
-// the exchange halves are what answer; under dev's dual they agree.
+// Which direction an order is. orders.orders answers it since the read pivot
+// (a12b76ed) - see features/orders/sql/direction_of.sql for the three-table
+// UNION this replaced and why it was a legacy read.
 export async function directionOf(orderId: string): Promise<Direction | null> {
-  const { rows } = await query(
-    `SELECT direction FROM (
-       SELECT 'purchase'::text AS direction FROM exchange.purchase_orders WHERE id = $1
-       UNION ALL
-       SELECT 'sale'::text FROM exchange.sales_orders WHERE id = $1
-       UNION ALL
-       -- ::text because orders.orders.direction is the orders.direction ENUM,
-       -- and a UNION of an enum against text refuses (42804).
-       SELECT direction::text FROM orders.orders WHERE id = $1
-     ) d LIMIT 1`,
-    [orderId]
-  );
-  return (rows[0]?.direction as Direction | undefined) ?? null;
+  return (await ordersRepo.directionOf(orderId)) as Direction | null;
 }
 
 export type OrderPatch = {
@@ -225,7 +206,7 @@ export async function patchOrder(
       const fresh = await purchaseOrderService.getById(orderId);
       if (!fresh) refuse(404, `no purchase order ${orderId}`);
       const order_spots = await purchaseOrderService.getMetalsForOrder(orderId);
-      const spot_prices = await purchaseOrderRepo.getCurrentSpotPrices();
+      const spot_prices = await spotsFeed.getSpotPrices();
       return purchaseOrderService.finalizePricing({
         order: fresh as OrderArg, order_spots, spot_prices,
       });
@@ -286,108 +267,7 @@ export async function patchOrder(
   return await orderRead.getOne(orderId);
 }
 
-// ---------------------------------------------------------------------------
-// PUT /api/orders/:id/spots - the order's frozen spots as their own
-// sub-resource. Purchase direction only: unlocking clears and locking pins
-// through the purchase pipelines, and no sales spot edit exists to dispatch -
-// a sale's quoted spots are frozen at checkout and stay.
-//
-// lock: true pins the LIVE spots, resolved server-side (the old route took
-// the browser's copy of the feed); lock: false unpins and clears; set writes
-// named metals' bids on the frozen rows. lock runs before set, so one
-// document can pin and then adjust - the sequence the drawer clicks.
-// ---------------------------------------------------------------------------
-
-export type OrderSpotsPut = {
-  lock?: boolean;
-  set?: { name: string; bid: number }[];
-};
-
-const SPOT_FIELDS = ["lock", "set"] as const;
-
-export function refusedSpotsField(
-  body: Record<string, unknown>
-): { statusCode: number; message: string } | null {
-  const present = Object.keys(body ?? {});
-  for (const field of present) {
-    if (!(SPOT_FIELDS as readonly string[]).includes(field)) {
-      return { statusCode: 400, message: `"${field}" is not a field of the order spots PUT` };
-    }
-  }
-  if (present.length === 0) {
-    return { statusCode: 400, message: "the document names no field to write" };
-  }
-  if (body.set !== undefined) {
-    if (!Array.isArray(body.set)) {
-      return { statusCode: 400, message: `"set" must be a list of { name, bid }` };
-    }
-    for (const spot of body.set as unknown[]) {
-      const s = spot as { name?: unknown; bid?: unknown } | null;
-      if (!s || typeof s.name !== "string" || typeof s.bid !== "number") {
-        return { statusCode: 400, message: `"set" entries are { name, bid }` };
-      }
-    }
-  }
-  return null;
-}
-
-export async function putOrderSpots(
-  orderId: string,
-  body: OrderSpotsPut & Record<string, unknown>
-): Promise<unknown> {
-  const direction = await directionOf(orderId);
-  if (!direction) refuse(404, `no order ${orderId}`);
-  if (direction !== "purchase") {
-    refuse(400, `the spots PUT is a purchase-direction operation and this is a ${direction} order`);
-  }
-
-  const refusal = refusedSpotsField(body);
-  if (refusal) refuse(refusal.statusCode, refusal.message);
-
-  if (body.lock === true) {
-    await op("lock", async () => {
-      const spots = await purchaseOrderRepo.getCurrentSpotPrices();
-      return purchaseOrderService.lockSpots({ spots, purchase_order_id: orderId });
-    });
-  } else if (body.lock === false) {
-    await op("lock", () => purchaseOrderService.unlockSpots({ purchase_order_id: orderId }));
-  }
-
-  for (const edit of body.set ?? []) {
-    await op("set", () =>
-      purchaseOrderService.updateSpot({
-        // The repos key the UPDATE on (purchase_order_id, name) and read
-        // nothing else off the row; the cast states that this partial is
-        // deliberate.
-        spot: { purchase_order_id: orderId, name: edit.name } as never,
-        updated_spot: edit.bid,
-      })
-    );
-  }
-
-  return await purchaseOrderService.getMetalsForOrder(orderId);
-}
-
-// ---------------------------------------------------------------------------
-// POST /api/orders/:id/items - a new line on the order. Purchase direction
-// only: sales lines exist from checkout and no sales line-creation service
-// exists to dispatch.
-// ---------------------------------------------------------------------------
-
-export async function createOrderItem(
-  orderId: string,
-  body: Record<string, unknown>
-): Promise<unknown> {
-  const direction = await directionOf(orderId);
-  if (!direction) refuse(404, `no order ${orderId}`);
-  if (direction !== "purchase") {
-    refuse(400, `line creation is a purchase-direction operation and this is a ${direction} order`);
-  }
-  if (!body?.item || typeof body.item !== "object") {
-    refuse(400, `"item" is required`);
-  }
-  return await purchaseOrderService.createOrderItem({
-    item: body.item as Record<string, unknown>,
-    purchase_order_id: orderId,
-  });
-}
+// PUT /api/orders/:id/spots MOVED to features/orders/spots/service.ts and
+// POST /api/orders/:id/items to features/orders/items/service.ts (ruling
+// 26c: "that should hit the order/items orchestrator (controller) and call the
+// domain logic (service), not the orders ones"). Both paths are unchanged.

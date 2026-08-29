@@ -7,9 +7,13 @@
 // number into the logo column and read back clean.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sqlFrom } from "#shared/db/sql.ts";
+import { sqlWithLegacy } from "#shared/testing/sql.ts";
 
-const sql = sqlFrom(new URL(".", import.meta.url).pathname.replace(/\/tests\/$/, ""));
+// features/shipping/carriers/sql AND legacy/shipping/carriers/sql - the two halves of the
+// dual write, pinned against each other in one file (ruling 29 moved the
+// mirror out of this feature; the pin did not follow it, because the pin IS
+// the comparison between the two).
+const sql = sqlWithLegacy("shipping/carriers");
 
 const body = (name: string): string =>
   sql(name).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");

@@ -71,14 +71,59 @@ if (!SAFE.has(dbName)) {
 
 const pool = new pg.Pool({ connectionString: url });
 
+// EVERY schema the app writes, not just `exchange`.
+//
+// THIS AUDIT WAS EXCHANGE-ONLY UNTIL 2026-08-29, and by then that was the wrong
+// half of the database. Orders pivoted their reads to `orders.*` in a12b76ed,
+// so the authoritative rows for a migrated feature live in the new schemas -
+// and a test leaking a committed row into `orders.orders` was invisible here
+// while the same leak into `exchange.purchase_orders` would have been caught.
+//
+// Found by the failure it caused rather than by review: purchase-orders'
+// "reads do not write" asserts that a count of `orders.orders` is unchanged
+// across a read, and it failed 64 != 63 in a full run while holding the ORDERS
+// advisory lock. A count only moves for another connection when something
+// COMMITS, and an advisory lock does not serialise a service that opens its own
+// pool connection - which is the exact leak shape this audit exists to find.
+//
+// Same lesson as D95 and D99: a detector that only looks at one shape reports
+// clean on every other one.
+const SCHEMAS = [
+  "exchange",
+  "orders", "payments", "fulfillments", "shipping", "refiners", "tax",
+  "places", "auth", "products", "organizations", "metals", "spots",
+  "media", "leads", "rates", "reviews", "checkout", "auctions",
+];
+
 async function tables(client) {
   const { rows } = await client.query(
-    `SELECT c.relname AS name
+    `SELECT n.nspname AS schema, c.relname AS name
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'exchange' AND c.relkind = 'r'
-      ORDER BY c.relname`
+      WHERE n.nspname = ANY($1) AND c.relkind = 'r'
+      ORDER BY n.nspname, c.relname`,
+    [SCHEMAS]
   );
-  return rows.map((r) => r.name);
+  // A schema can contribute nothing for two very different reasons, and only
+  // one of them is fine. ABSENT is fine - `auctions` has no tables on dev.
+  // PRESENT BUT CONTRIBUTING NOTHING is not: that is either a permissions gap
+  // or a schema this audit cannot see, and it reports identically to "nothing
+  // leaked". audit:non-finite learned this the hard way against production's
+  // `core`, where the read-only role had no USAGE and nine tables vanished
+  // from the measurement without a word.
+  const { rows: present } = await client.query(
+    `SELECT nspname FROM pg_namespace WHERE nspname = ANY($1)`, [SCHEMAS]
+  );
+  const existing = new Set(present.map((r) => r.nspname));
+  const seen = new Set(rows.map((r) => r.schema));
+  const blind = [...existing].filter((s) => !seen.has(s));
+  if (blind.length) {
+    console.error(`REFUSING TO REPORT: ${blind.join(", ")} exist(s) but yielded no readable tables.`);
+    console.error("A schema that contributes nothing looks identical to one that leaked nothing.");
+    process.exit(1);
+  }
+  const absent = SCHEMAS.filter((s) => !existing.has(s));
+  if (absent.length) console.log(`(not present in this database, skipped: ${absent.join(", ")})`);
+  return rows.map((r) => `${r.schema}.${r.name}`);
 }
 
 // md5 over every row's own text, ordered by that text. Independent of physical
@@ -90,7 +135,7 @@ async function fingerprint(client, names) {
     const { rows } = await client.query(
       `SELECT count(*)::int AS n,
               md5(coalesce(string_agg(t::text, '|' ORDER BY t::text), '')) AS sum
-         FROM exchange."${name}" t`
+         FROM ${name.split(".")[0]}."${name.split(".").slice(1).join(".")}" t`
     );
     out[name] = { n: rows[0].n, sum: rows[0].sum };
   }
@@ -103,15 +148,15 @@ function compare(before, after) {
     const a = before[name];
     const b = after[name];
     if (!b) {
-      changed.push(`exchange.${name} disappeared`);
+      changed.push(`${name} disappeared`);
     } else if (a.n !== b.n) {
-      changed.push(`exchange.${name}: ${a.n} rows -> ${b.n} rows (${b.n - a.n >= 0 ? "+" : ""}${b.n - a.n})`);
+      changed.push(`${name}: ${a.n} rows -> ${b.n} rows (${b.n - a.n >= 0 ? "+" : ""}${b.n - a.n})`);
     } else if (a.sum !== b.sum) {
-      changed.push(`exchange.${name}: ${a.n} rows, contents changed in place`);
+      changed.push(`${name}: ${a.n} rows, contents changed in place`);
     }
   }
   for (const name of Object.keys(after)) {
-    if (!before[name]) changed.push(`exchange.${name} appeared`);
+    if (!before[name]) changed.push(`${name} appeared`);
   }
   return changed;
 }
@@ -180,7 +225,7 @@ function runSuite() {
 
 async function audit() {
   const names = await tables(pool);
-  console.log(`fingerprinting ${names.length} exchange tables`);
+  console.log(`fingerprinting ${names.length} tables across ${SCHEMAS.length} schemas`);
   const before = await fingerprint(pool, names);
 
   console.log("running the suite\n");

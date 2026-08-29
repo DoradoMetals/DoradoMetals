@@ -18,7 +18,7 @@ const writable = (r: ReviewInput) => [
 ];
 
 export async function create(id: string, review: ReviewInput, executor?: Executor): Promise<void> {
-  await query(sql("legacy/create"), [id, ...writable(review)], executor);
+  await query(sql("create"), [id, ...writable(review)], executor);
 }
 
 export async function update(
@@ -27,7 +27,7 @@ export async function update(
   executor?: Executor
 ): Promise<void> {
   await query(
-    sql("legacy/update"),
+    sql("update"),
     [review.name ?? null, review.review_text ?? null, review.rating ?? null,
      review.hidden ?? false, review.created_by ?? null, user_name, review.id],
     executor
@@ -35,5 +35,5 @@ export async function update(
 }
 
 export async function remove(id: string, executor?: Executor): Promise<void> {
-  await query(sql("legacy/delete"), [id], executor);
+  await query(sql("delete"), [id], executor);
 }

@@ -8,10 +8,14 @@
 // in TypeScript.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sqlFrom } from "#shared/db/sql.ts";
+import { sqlWithLegacy } from "#shared/testing/sql.ts";
 import { toWire, listToWire } from "#features/leads/wire.ts";
 
-const sql = sqlFrom(new URL(".", import.meta.url).pathname.replace(/\/tests\/$/, ""));
+// features/leads/sql AND legacy/leads/sql - the two halves of the
+// dual write, pinned against each other in one file (ruling 29 moved the
+// mirror out of this feature; the pin did not follow it, because the pin IS
+// the comparison between the two).
+const sql = sqlWithLegacy("leads");
 
 // COMMENTS STRIPPED BEFORE ANY ASSERTION ABOUT THE STATEMENT. The first version
 // of the projection test below failed on get_one.sql - not because the query

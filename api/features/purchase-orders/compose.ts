@@ -388,32 +388,6 @@ export function composeOrder(p: OrderParts): Record<string, unknown> {
   };
 }
 
-// ORDER BY o.created_at DESC, o.id DESC - the id breaks the tie because
-// created_at is not unique, and a read whose ORDER BY is not unique returns
-// physical order, which makes two implementations look like they disagree when
-// they do not.
-export const newestFirst = (
-  a: { created_at: Date | null; id: string },
-  b: { created_at: Date | null; id: string }
-): number => {
-  const at = a.created_at ? a.created_at.getTime() : 0;
-  const bt = b.created_at ? b.created_at.getTime() : 0;
-  return bt - at || b.id.localeCompare(a.id);
-};
-
-// THE COMPOSED ORDER, AS A TYPE - and it is INTERNAL, not a contract (wave 3).
-//
-// It was the PurchaseOrder wire schema until the order wire slimmed to the
-// orders.orders row plus totals. What the frontend receives is now
-// packages/contracts' `Order`; what this describes is what the API assembles
-// for ITSELF - pricing, the confirmation email, the PDFs - and what `diff`
-// compares repo.exchange.js against repo.next.ts on. Timestamps are Dates
-// here rather than strings, because nothing has serialised them yet.
-//
-// The nested members are loosely typed on purpose. They are exchange's
-// projections, reproduced field for field by the compose functions above, and
-// the compiler has never been the thing that checks them - `diff` and
-// verify:orders-decomposition are, against real rows.
 export type ComposedOrder = {
   id: string;
   user_id: string | null;

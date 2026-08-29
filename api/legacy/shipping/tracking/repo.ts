@@ -10,7 +10,7 @@ import type { Executor, ScanEvent } from "#features/shipping/tracking/repo.ts";
 const sql = sqlFrom(import.meta.dirname);
 
 export async function remove(shipment_id: string, executor?: Executor): Promise<number> {
-  const r = await query(sql("legacy/delete"), [shipment_id], executor);
+  const r = await query(sql("delete"), [shipment_id], executor);
   return r.rowCount ?? 0;
 }
 
@@ -18,6 +18,6 @@ export async function insert(
   events: ScanEvent[], shipment_id: string, executor?: Executor
 ): Promise<number> {
   if (!events.length) return 0;
-  await query(sql("legacy/insert"), columnsOf(events, shipment_id), executor);
+  await query(sql("insert"), columnsOf(events, shipment_id), executor);
   return events.length;
 }

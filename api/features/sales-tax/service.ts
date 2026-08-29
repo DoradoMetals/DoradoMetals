@@ -10,7 +10,7 @@
 // every state. Preserved exactly rather than simplified: turning the flag on is
 // a business decision and the branch has to still be there when it happens.
 import * as tax from "#features/sales-tax/repo.ts";
-import * as legacy from "#features/sales-tax/legacy.repo.ts";
+import * as legacy from "#legacy/sales-tax/repo.ts";
 import { rateFor, type TaxableFacts } from "#features/sales-tax/match.ts";
 import withTransaction from "#shared/db/withTransaction.js";
 import type { Executor, TaxRule } from "#features/sales-tax/repo.ts";

@@ -166,10 +166,7 @@ export async function getByOrder(
 // spots render without waiting on the engagement row, which is only needed
 // when a PATCH is about to be made. Null when there is no engagement; an
 // engagement with no quotes stays a real [] answer.
-export async function getSpotsByOrder(
-  order_id: string
-): Promise<import("#features/refiners/spots/repo.ts").EngagementSpotRow[] | null> {
-  const engagement = await refinerOrdersRepo.findByOrder(order_id);
-  if (!engagement) return null;
-  return await refinerSpotsRepo.getForEngagement(engagement.id);
-}
+// getSpotsByOrder MOVED to features/refiners/spots/service.ts as forOrder()
+// (ruling 26c): it reads refiners.spots, so it belongs to that resource. The
+// engagement lookup it does first is this feature's repo, which is a normal
+// child-to-parent read.

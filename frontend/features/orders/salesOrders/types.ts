@@ -12,7 +12,6 @@ import {
 
 import { z } from 'zod/v4'
 
-import { LucideIcon } from 'lucide-react'
 import { productSchema } from '@/features/products/types'
 import { packageSchema } from '@/features/packaging/types'
 import { pickupSchema } from '@/features/handoff/types'
@@ -26,35 +25,34 @@ import {
   type Order as OrderContract,
 } from '@dorado/contracts'
 
-// THE ORDER IS THE ROW (wave 3), and it is the SAME row a purchase order is:
-// one orders.orders shape plus `totals`, with `direction` telling them apart.
-// `SalesOrder` is a local name for this tree's components. See
-// features/orders/purchaseOrders/types.ts for the full map of what moved to
-// its own hook - items, shipments, the address, the payout - and note the
-// two this tree read off the order document: `used_funds` and
-// `shipping_service` are columns of orders.transactions, so they are
-// `order.totals?.used_funds` and `order.totals?.shipping_service`; the
+// THE SHARED HALF LIVES IN ../types.ts - the order type, the return-shipment
+// schema, the status-config types and the drawer prop interfaces, declared once
+// and re-exported here under the names this tree already uses. Wave 3 made a
+// sales order and a purchase order ONE row with a `direction` column; these
+// were the last place the old pair survived.
+//
+// Two fields this tree reads off the order document are NOT on the order row:
+// `used_funds` and `shipping_service` are columns of orders.transactions, so
+// they are `order.totals?.used_funds` and `order.totals?.shipping_service`; the
 // refinery is the ENGAGEMENT's refiner_id, useRefinerOrder(order.id).
-export type SalesOrder = OrderContract
+export type { Order as SalesOrder } from '@/features/orders/types'
+export {
+  orderReturnShipmentSchema as salesOrderReturnShipmentSchema,
+} from '@/features/orders/types'
+export type {
+  OrderReturnShipment as SalesOrderReturnShipment,
+  StatusConfigEntry,
+  StatusConfig,
+  OrderDrawerProps as SalesOrderDrawerProps,
+  OrderDrawerHeaderProps as SalesOrderDrawerHeaderProps,
+  OrderDrawerContentProps as SalesOrderDrawerContentProps,
+  OrderDrawerFooterProps as SalesOrderDrawerFooterProps,
+  OrderActionButtonsProps as SalesOrderActionButtonsProps,
+} from '@/features/orders/types'
 
-export const salesOrderReturnShipmentSchema = z.object({
-  address: AddressContract,
-  user_address: UserAddressContract.optional(),
-  package: packageSchema,
-  pickup: pickupSchema,
-  service: serviceSchema,
-  insurance: insuranceSchema,
-})
-export type SalesOrderReturnShipment = z.infer<typeof salesOrderReturnShipmentSchema>
+import type { StatusConfig } from '@/features/orders/types'
 
 export const SalesOrderStatuses = ['Pending', 'Preparing', 'In Transit', 'Completed']
-
-export type StatusConfigEntry = {
-  icon: LucideIcon
-  value_label: string
-}
-
-export type StatusConfig = Record<string, StatusConfigEntry>
 
 export const statusConfig: StatusConfig = {
   Pending: {
@@ -73,30 +71,6 @@ export const statusConfig: StatusConfig = {
     icon: ShieldCheckIcon,
     value_label: 'Price',
   },
-}
-
-export interface SalesOrderDrawerProps {
-  user_id?: string
-  order_id: string
-  user?: User
-}
-
-export interface SalesOrderDrawerHeaderProps {
-  order: SalesOrder
-  username: string
-  setIsOrderActive: (open: boolean) => void
-}
-
-export interface SalesOrderDrawerContentProps {
-  order: SalesOrder
-}
-
-export interface SalesOrderDrawerFooterProps {
-  order: SalesOrder
-}
-
-export interface SalesOrderActionButtonsProps {
-  order: SalesOrder
 }
 
 export interface PaymentMethod {

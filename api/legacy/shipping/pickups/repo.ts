@@ -64,7 +64,7 @@ export async function create(
   id: string, p: LegacyPickup, executor?: Executor
 ): Promise<Written | undefined> {
   const { rows } = await query<Written>(
-    sql("legacy/create"), values(id, p, "Scheduled"), executor
+    sql("create"), values(id, p, "Scheduled"), executor
   );
   return rows[0];
 }
@@ -72,10 +72,10 @@ export async function create(
 export async function update(
   id: string, p: LegacyPickup, executor?: Executor
 ): Promise<Written | undefined> {
-  const { rows } = await query<Written>(sql("legacy/update"), values(id, p, null), executor);
+  const { rows } = await query<Written>(sql("update"), values(id, p, null), executor);
   return rows[0];
 }
 
 export async function remove(id: string, executor?: Executor): Promise<void> {
-  await query(sql("legacy/delete"), [id], executor);
+  await query(sql("delete"), [id], executor);
 }

@@ -16,6 +16,11 @@ import type { PoolClient } from "pg";
 
 import query from "#shared/db/query.js";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
+// The two bookings are their own resources (ruling 26b): checkout reaches
+// fulfillments/pickups and fulfillments/directs directly, never through the
+// fulfillments parent controller or service.
+import * as fulfillmentPickups from "#features/fulfillments/pickups/service.ts";
+import * as fulfillmentDirects from "#features/fulfillments/directs/service.ts";
 import * as refinerOrders from "#features/refiners/orders/repo.ts";
 import * as refinerItems from "#features/refiners/items/repo.ts";
 import * as refinerSpots from "#features/refiners/spots/repo.ts";
@@ -306,7 +311,7 @@ export async function createFromCheckout(
   }
 
   if (fulfillment.method.category === "PICKUP" && checkout.pickup_address_id) {
-    await fulfillmentService.schedulePickup(
+    await fulfillmentPickups.schedule(
       {
         fulfillment_id: fulfillment.id,
         pickup_address_id: checkout.pickup_address_id,
@@ -317,7 +322,7 @@ export async function createFromCheckout(
   }
 
   if (fulfillment.method.category === "DIRECT" && checkout.appointment_location_id) {
-    await fulfillmentService.scheduleDirect(
+    await fulfillmentDirects.schedule(
       {
         fulfillment_id: fulfillment.id,
         location_id: checkout.appointment_location_id,

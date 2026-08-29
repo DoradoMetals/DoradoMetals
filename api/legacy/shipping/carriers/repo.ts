@@ -14,15 +14,15 @@ export type LegacyCarrier = {
 };
 
 export async function create(id: string, c: LegacyCarrier, executor?: Executor): Promise<void> {
-  await query(sql("legacy/create"),
+  await query(sql("create"),
     [id, c.name ?? null, c.email ?? null, c.phone ?? null, c.logo ?? null, c.enabled ?? null], executor);
 }
 
 export async function update(id: string, c: LegacyCarrier, executor?: Executor): Promise<void> {
-  await query(sql("legacy/update"),
+  await query(sql("update"),
     [id, c.name ?? null, c.email ?? null, c.phone ?? null, c.logo ?? null, c.enabled ?? null], executor);
 }
 
 export async function remove(id: string, executor?: Executor): Promise<void> {
-  await query(sql("legacy/delete"), [id], executor);
+  await query(sql("delete"), [id], executor);
 }

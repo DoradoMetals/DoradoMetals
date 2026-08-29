@@ -12,6 +12,8 @@
     "lint:imports": "node scripts/lint-imports.mjs",
     "lint:namespace-calls": "node scripts/lint-namespace-calls.mjs",
     "lint:row-vs-list": "node scripts/lint-row-vs-list.mjs",
+    "lint:legacy-boundary": "node scripts/lint-legacy-boundary.mjs",
+    "lint:legacy-boundary:self-test": "node scripts/lint-legacy-boundary.mjs --self-test",
     "audit:routes": "node scripts/route-guards.mjs --list",
     "audit:switches": "node scripts/audit-switches.mjs",
     "audit:wire-readiness": "node scripts/audit-wire-readiness.mjs",
@@ -70,6 +72,7 @@
     "#app": "./app.js",
     "#shared/*": "./shared/*",
     "#features/*": "./features/*",
+    "#legacy/*": "./legacy/*",
     "#providers/*": "./providers/*"
   },
   "keywords": [],

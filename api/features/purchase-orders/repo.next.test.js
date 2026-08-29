@@ -198,15 +198,36 @@ test("spot rows come back per metal with the shape the API returns", async () =>
 
 test("reads do not write", async () => {
   await inRollback(async (c) => {
-    // The ORDERS advisory lock, because this assertion is "the count did not
-    // change across my read" - under the dual default, other suite files
-    // legitimately COMMIT orders concurrently, and a count taken twice across
-    // that is a race, not a finding. Holding the lock serialises us with every
-    // file that writes orders.
-    await c.query("SELECT pg_advisory_xact_lock(4213)");
-    const before = await c.query("SELECT count(*)::int n FROM orders.orders");
+    // WHAT THIS USED TO DO, AND WHY IT FLAKED: it took the ORDERS advisory lock
+    // and asserted a count of orders.orders was unchanged across the read. It
+    // failed 64 != 63 in a full run on 2026-08-29, and the lock was not the
+    // problem - AN ADVISORY LOCK CANNOT SERIALISE A SERVICE THAT OPENS ITS OWN
+    // POOL CONNECTION. Another file legitimately commits an order and cleans it
+    // up again; a global count taken twice across that window is a race, and
+    // the suite-wide audit:test-leaks (widened to all 18 schemas the same day)
+    // confirmed the suite leaves nothing behind. So the count was measuring
+    // other files' traffic, not this read.
+    //
+    // WHAT IT DOES NOW: fingerprints the rows THAT EXIST BEFORE THE READ and
+    // proves none of them changed or vanished. Concurrent inserts by other
+    // files are invisible to it by construction, so it cannot flake - and it is
+    // STRICTLY STRONGER on the question it exists to answer, because a count
+    // cannot see an in-place UPDATE. That is the same reason audit:test-leaks
+    // hashes contents rather than counting rows: the tracking bug that deleted
+    // five shipments' history also overwrote two columns in place.
+    const snapshot = async () =>
+      (await c.query(
+        `SELECT id, md5(o::text) AS sum FROM orders.orders o ORDER BY id`
+      )).rows;
+
+    const before = await snapshot();
+    assert.ok(before.length > 0, "fixture: orders.orders must not be empty");
     await readService.getAll();
-    const after = await c.query("SELECT count(*)::int n FROM orders.orders");
-    assert.equal(after.rows[0].n, before.rows[0].n);
+    const after = new Map((await snapshot()).map((r) => [r.id, r.sum]));
+
+    for (const row of before) {
+      assert.ok(after.has(row.id), `the read removed order ${row.id}`);
+      assert.equal(after.get(row.id), row.sum, `the read modified order ${row.id}`);
+    }
   });
 });

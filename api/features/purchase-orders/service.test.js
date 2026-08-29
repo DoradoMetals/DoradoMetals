@@ -25,9 +25,29 @@ before(async () => {
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
   client = await pool.connect();
+
+  // THE ORDERS LOCK, HELD FOR THE WHOLE FILE - and a SESSION lock, not the
+  // transaction-scoped one every other file uses.
+  //
+  // locks.ts records this file as one of the eight that "were given their
+  // locks". It was given the IMPORT and never the CALL; `takeLocks` has been
+  // imported and unused since the file was written, in HEAD as well as here.
+  // It stayed latent exactly as that file predicts - "a missing lock is latent
+  // until timing changes, and timing changes for reasons that have nothing to
+  // do with the file that fails" - and surfaced on 2026-08-29 as a DEADLOCK in
+  // refiner-edits.test.js, which applies a migration (DDL locks) while this
+  // file's cleanup deletes refiners.items / refiners.spots / refiners.orders.
+  //
+  // takeLocks() cannot be used here: it takes pg_advisory_xact_lock, and THIS
+  // FILE HAS NO TRANSACTIONS. Every statement autocommits, so a
+  // transaction-scoped lock would be released before the next statement ran.
+  // A session lock contends in the same lock space, so it serialises correctly
+  // against every file that takes ORDERS the ordinary way.
+  await client.query("SELECT pg_advisory_lock($1)", [LOCKS.ORDERS]);
 });
 
 after(async () => {
+  await client.query("SELECT pg_advisory_unlock($1)", [LOCKS.ORDERS]);
   client.release();
   await pool.end();
 });

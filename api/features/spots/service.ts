@@ -1,6 +1,6 @@
 import axios from "axios";
 import * as spots from "#features/spots/repo.ts";
-import * as legacy from "#features/spots/legacy.repo.ts";
+import * as legacy from "#legacy/spots/repo.ts";
 import * as metals from "#features/metals/repo.ts";
 import { toWire } from "#features/spots/compose.ts";
 import withTransaction from "#shared/db/withTransaction.js";

@@ -11,6 +11,6 @@ const sql = sqlFrom(import.meta.dirname);
 export async function adjustCredit(
   user_id: string, mode: CreditMode, amount: number, executor?: Executor
 ): Promise<number> {
-  const r = await query(sql("legacy/adjust_credit"), [amount, mode, user_id], executor);
+  const r = await query(sql("adjust_credit"), [amount, mode, user_id], executor);
   return r.rowCount ?? 0;
 }

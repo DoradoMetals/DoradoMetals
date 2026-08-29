@@ -1,4 +1,13 @@
-// PATCH and DELETE /api/orders/items/:id - a line's own edits.
+// THE ORDER'S LINES, as their own resource (ruling 26c).
+//
+//   GET    /api/orders/:id/items    the VERBATIM orders.items rows
+//   POST   /api/orders/:id/items    a new line
+//   PATCH  /api/orders/items/:id    a line's own edits
+//   DELETE /api/orders/items/:id    a line's removal
+//
+// Jacob, stating the pattern: "If we want to update an order's items... that
+// should hit the order/items orchestrator (controller) and call the domain
+// logic (service), not the orders ones." THE ORDER SERVICE IS NOT IN THE PATH.
 //
 // orders.items is direction-unified (a purchase line and a sales line are one
 // table), so the endpoint lives on the ORDERS feature rather than either
@@ -21,13 +30,50 @@
 // the scrap id, and a caller-supplied linkage could name somebody else's
 // rows. The request contributes values; the database contributes identity.
 import query from "#shared/db/query.js";
+import * as ordersRepo from "#features/orders/repo.ts";
+import * as itemsRepo from "#features/orders/items/repo.ts";
 import * as purchaseOrderService from "#features/purchase-orders/service.ts";
+import { refuseWith as refuse } from "#shared/http/refuse.ts";
+import type { OrderItemRow } from "#features/orders/items/repo.ts";
+import type { PoolClient } from "pg";
 
-const refuse = (statusCode: number, message: string): never => {
-  const err: Error & { statusCode?: number } = new Error(message);
-  err.statusCode = statusCode;
-  throw err;
-};
+type Executor = PoolClient | undefined;
+
+export type { OrderItemRow } from "#features/orders/items/repo.ts";
+
+// GET /api/orders/:id/items - the order's LINES as VERBATIM orders.items rows
+// (rulings 9 + 12). One table, both directions, scrap and bullion alike:
+// bullion_id is the only product reference a line carries and null means
+// scrap, which is what "combining scrap/bullion into just items" was for. A
+// display name is the client's to map from the catalogue it already caches.
+// An order with no lines answers [] - a real answer about a real order, not a
+// 404.
+export async function forOrder(
+  orderId: string, executor?: Executor
+): Promise<OrderItemRow[]> {
+  return await itemsRepo.getFor(orderId, executor);
+}
+
+// POST /api/orders/:id/items - a new line. Purchase direction only: sales
+// lines exist from checkout and no sales line-creation service exists to
+// dispatch.
+export async function createForOrder(
+  orderId: string,
+  body: Record<string, unknown>
+): Promise<unknown> {
+  const direction = await ordersRepo.directionOf(orderId);
+  if (!direction) refuse(404, `no order ${orderId}`);
+  if (direction !== "purchase") {
+    refuse(400, `line creation is a purchase-direction operation and this is a ${direction} order`);
+  }
+  if (!body?.item || typeof body.item !== "object") {
+    refuse(400, `"item" is required`);
+  }
+  return await purchaseOrderService.createOrderItem({
+    item: body.item as Record<string, unknown>,
+    purchase_order_id: orderId,
+  });
+}
 
 export type OrderItemPatch = {
   /** The scrap-and-premium edit: { premium?, scrap: { pre_melt, purity, ... } } */

@@ -1,5 +1,5 @@
 import * as users from "#features/users/repo.ts";
-import * as legacy from "#features/users/legacy.repo.ts";
+import * as legacy from "#legacy/users/repo.ts";
 import withTransaction from "#shared/db/withTransaction.js";
 import type { UserRow } from "#features/users/repo.ts";
 

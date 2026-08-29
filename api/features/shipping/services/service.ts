@@ -22,7 +22,7 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.js";
 import * as services from "#features/shipping/services/repo.ts";
-import * as legacy from "#features/shipping/services/legacy.repo.ts";
+import * as legacy from "#legacy/shipping/services/repo.ts";
 import type { ServiceRow, ServiceValues, Executor } from "#features/shipping/services/repo.ts";
 
 // Arrives as req.body, so everything is optional and nothing can be trusted to

@@ -73,7 +73,22 @@ export const LOCKS = {
 // addresses/repo.dual, checkout/repo.dual, checkout/repo.exchange,
 // orders/parity, purchase-orders/repo.dual, purchase-orders/repo.refiner-spots,
 // purchase-orders/service, sales-orders/repo.dual. Four were false positives
-// and were left alone. orders/parity was one of the eight, and it creates
+// and were left alone.
+//
+// *** ONE OF THOSE EIGHT NEVER ACTUALLY GOT ITS LOCK. *** purchase-orders/
+// service.test.js was given the IMPORT and never the CALL - `takeLocks` sat
+// imported and unused from the day it was written. It deadlocked against
+// refiner-edits.test.js on 2026-08-29, which applies a migration (DDL locks)
+// while service.test.js's cleanup deletes refiners.items/spots/orders. Latent
+// for months, exactly as the paragraph below says, and surfaced only when the
+// wire slim changed the interleaving.
+// IT ALSO COULD NOT HAVE USED takeLocks: that file has NO TRANSACTIONS - every
+// statement autocommits - so a pg_advisory_xact_lock would release before the
+// next statement. It now takes a SESSION lock in before() and releases it in
+// after(). If you find another lockless file that never calls BEGIN, that is
+// the pattern it needs.
+// THE LESSON FOR THIS FILE'S OWN RECORD-KEEPING: "was given its lock" was
+// written from the intent, not from the code. An import is not a call. orders/parity was one of the eight, and it creates
 // exchange.scrap - so the file written to prove the two order paths agree was
 // itself missing a lock.
 //

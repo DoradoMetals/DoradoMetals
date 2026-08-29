@@ -8,12 +8,15 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.js";
 import * as shipments from "#features/shipping/shipments/repo.ts";
-import * as legacy from "#features/shipping/shipments/legacy.repo.ts";
+import * as legacy from "#legacy/shipping/shipments/repo.ts";
 import * as services from "#features/shipping/services/repo.ts";
 import * as packages from "#features/shipping/packages/repo.ts";
 import * as fulfillmentLinks from "#features/fulfillments/shipments/repo.ts";
 import * as fulfillmentsRepo from "#features/fulfillments/repo.ts";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
+// The LINK table is its own resource (ruling 26c) - this reaches it directly
+// rather than through the fulfillments parent.
+import * as fulfillmentShipments from "#features/fulfillments/shipments/service.ts";
 import * as orders from "#features/orders/repo.ts";
 import * as compose from "#features/shipping/shipments/compose.ts";
 import type { ComposedShipment, Lookups, OrderLink } from "#features/shipping/shipments/compose.ts";
@@ -197,7 +200,7 @@ export async function create(
         { order_id, direction, category: "SHIPMENT" }, c
       );
       if (fulfillment) {
-        await fulfillmentService.linkShipment(
+        await fulfillmentShipments.link(
           { fulfillment_id: fulfillment.id, shipment_id: id }, c
         );
       }

@@ -3,9 +3,13 @@
 // SQL are the one transcription error the generator cannot prevent.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sqlFrom } from "#shared/db/sql.ts";
+import { sqlWithLegacy } from "#shared/testing/sql.ts";
 
-const sql = sqlFrom(new URL(".", import.meta.url).pathname.replace(/\/tests\/$/, ""));
+// features/media/images/sql AND legacy/media/images/sql - the two halves of the
+// dual write, pinned against each other in one file (ruling 29 moved the
+// mirror out of this feature; the pin did not follow it, because the pin IS
+// the comparison between the two).
+const sql = sqlWithLegacy("media/images");
 const body = (n: string) => sql(n).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
 test("every statement loads and is not empty", () => {

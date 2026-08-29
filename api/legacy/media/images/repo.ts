@@ -11,7 +11,7 @@ const sql = sqlFrom(import.meta.dirname);
 // sql/create.sql. A retried upload therefore updates the same row on both sides.
 export async function create(id: string, image: NewImage, executor?: Executor): Promise<void> {
   await query(
-    sql("legacy/create"),
+    sql("create"),
     [id, image.user_id, image.bucket, image.path, image.filename,
      image.mime_type ?? null, image.size_bytes ?? null],
     executor
@@ -19,5 +19,5 @@ export async function create(id: string, image: NewImage, executor?: Executor): 
 }
 
 export async function remove(user_id: string, id: string, executor?: Executor): Promise<void> {
-  await query(sql("legacy/delete"), [id, user_id], executor);
+  await query(sql("delete"), [id, user_id], executor);
 }

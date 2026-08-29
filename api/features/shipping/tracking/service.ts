@@ -11,7 +11,7 @@
 // transaction, so the two cannot drift apart between polls.
 import withTransaction from "#shared/db/withTransaction.js";
 import * as tracking from "#features/shipping/tracking/repo.ts";
-import * as legacy from "#features/shipping/tracking/legacy.repo.ts";
+import * as legacy from "#legacy/shipping/tracking/repo.ts";
 import * as shipmentService from "#features/shipping/shipments/service.ts";
 import type { ScanEvent, TrackingInfo, Executor } from "#features/shipping/tracking/repo.ts";
 import type { ComposedShipment } from "#features/shipping/shipments/compose.ts";
@@ -49,30 +49,14 @@ export async function getEvents(
   };
 }
 
-// A carrier poll: forget what we had and record what the carrier says now.
-//
-// THE ORDER MATTERS AND SO DOES THE TRANSACTION. Deleting from one schema and
-// failing to insert into the other would leave a customer looking at an empty
-// tracking history for a parcel that is moving.
-export async function replaceEvents(
-  trackingInfo: TrackingInfo | null | undefined,
-  shipment_id: string,
-  executor?: Executor
-): Promise<number> {
-  const events: ScanEvent[] = trackingInfo?.scanEvents ?? [];
+// replaceEvents IS DELETED (wave 3.5). It was the "forget what we had and
+// record what the carrier says now" wrapper, and it had ZERO callers: the live
+// carrier poll is features/shipping/operations/service.ts, which does the same
+// two writes itself behind the guard that stops an unrecognised response from
+// emptying a real parcel's history - the bug that deleted five dev shipments'
+// FedEx history. Keeping an unguarded second implementation of a write that
+// once destroyed data is not caution, it is a loaded gun in a drawer.
 
-  const run = async (c: Executor): Promise<number> => {
-    await legacy.remove(shipment_id, c);
-    await tracking.remove(shipment_id, c);
-    const n = await legacy.insert(events, shipment_id, c);
-    await tracking.insert(events, shipment_id, c);
-    return n;
-  };
-  return executor ? await run(executor) : await withTransaction(run);
-}
-
-// The two halves separately, because the carrier integration calls them that
-// way: it clears the history before it knows whether the poll succeeded.
 export async function removeEvents(
   shipment_id: string, executor?: Executor
 ): Promise<boolean> {

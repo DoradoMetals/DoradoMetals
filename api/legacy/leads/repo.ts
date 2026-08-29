@@ -20,7 +20,7 @@ const sql = sqlFrom(import.meta.dirname);
 
 export async function create(id: string, lead: NewLead, executor?: Executor): Promise<void> {
   await query(
-    sql("legacy/create"),
+    sql("create"),
     [id, lead.name, lead.phone, lead.email, lead.created_by, lead.updated_by,
      lead.priority, lead.notes ?? null],
     executor
@@ -29,7 +29,7 @@ export async function create(id: string, lead: NewLead, executor?: Executor): Pr
 
 export async function update(lead: LeadRow, user_name: string, executor?: Executor): Promise<void> {
   await query(
-    sql("legacy/update"),
+    sql("update"),
     [lead.name, lead.phone, lead.email, user_name, lead.last_contacted,
      lead.converted, lead.contacted, lead.responded, lead.contact,
      lead.notes, lead.priority, lead.id],
@@ -38,5 +38,5 @@ export async function update(lead: LeadRow, user_name: string, executor?: Execut
 }
 
 export async function remove(id: string, executor?: Executor): Promise<void> {
-  await query(sql("legacy/delete"), [id], executor);
+  await query(sql("delete"), [id], executor);
 }

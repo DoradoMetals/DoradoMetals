@@ -20,12 +20,27 @@
 // line's id. The route says so in its path (/items/by-order-item/:id).
 import * as purchaseOrderService from "#features/purchase-orders/service.ts";
 import * as scrapRepo from "#features/scrap/repo.ts";
+import * as refinerItemsRepo from "#features/refiners/items/repo.ts";
 
 const refuse = (statusCode: number, message: string): never => {
   const err: Error & { statusCode?: number } = new Error(message);
   err.statusCode = statusCode;
   throw err;
 };
+
+// GET /api/orders/:orderId/refiners/items - THE REFINERY'S NUMBERS PER LINE,
+// verbatim refiners.items rows, keyed by the customer order.
+//
+// This is where the assay figures live now. The composed order wire carried
+// them as scrap.purity_actual / post_melt_actual / content_actual and the
+// refiner's premium as an item field - four values of a different table, under
+// different names, on a customer-shaped object. They come back as their own
+// rows keyed by order_item_id, which the items read supplies.
+export async function forOrder(
+  order_id: string, executor?: import("pg").PoolClient
+): Promise<import("#features/refiners/items/repo.ts").RefinerItemRow[]> {
+  return await refinerItemsRepo.getForOrder(order_id, executor);
+}
 
 export type RefinerItemPatch = {
   premium?: number | null;

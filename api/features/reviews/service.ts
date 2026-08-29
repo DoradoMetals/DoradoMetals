@@ -12,7 +12,7 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.js";
 import * as reviews from "#features/reviews/repo.ts";
-import * as legacy from "#features/reviews/legacy.repo.ts";
+import * as legacy from "#legacy/reviews/repo.ts";
 import { toWire, listToWire, type ReviewWire } from "#features/reviews/wire.ts";
 import type { ReviewInput } from "#features/reviews/repo.ts";
 

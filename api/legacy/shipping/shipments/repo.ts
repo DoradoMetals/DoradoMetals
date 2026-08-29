@@ -20,7 +20,7 @@ export async function create(
   id: string, s: LegacyCreate, executor?: Executor
 ): Promise<void> {
   await query(
-    sql("legacy/create"),
+    sql("create"),
     [id, s.purchase_order_id ?? null, s.sales_order_id ?? null,
      s.carrier_id ?? null, s.type ?? null],
     executor
@@ -41,7 +41,7 @@ export type LegacyValues = [
 export async function update(
   id: string, values: LegacyValues, executor?: Executor
 ): Promise<void> {
-  await query(sql("legacy/update"), [...values, id], executor);
+  await query(sql("update"), [...values, id], executor);
 }
 
 // net_charge is what exchange calls `cost`.
@@ -49,11 +49,11 @@ export async function setChargeForOrder(
   orderId: string, cost: number | null, executor?: Executor
 ): Promise<string[]> {
   const { rows } = await query<{ id: string }>(
-    sql("legacy/set_charge_for_order"), [cost, orderId], executor
+    sql("set_charge_for_order"), [cost, orderId], executor
   );
   return rows.map((r) => r.id);
 }
 
 export async function remove(id: string, executor?: Executor): Promise<void> {
-  await query(sql("legacy/delete"), [id], executor);
+  await query(sql("delete"), [id], executor);
 }

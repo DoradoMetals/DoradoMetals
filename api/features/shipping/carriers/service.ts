@@ -16,7 +16,7 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.js";
 import * as carriers from "#features/shipping/carriers/repo.ts";
-import * as legacy from "#features/shipping/carriers/legacy.repo.ts";
+import * as legacy from "#legacy/shipping/carriers/repo.ts";
 import * as organizations from "#features/organizations/repo.ts";
 import * as compose from "#features/shipping/carriers/compose.ts";
 import type { ComposedCarrier } from "#features/shipping/carriers/compose.ts";

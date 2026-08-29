@@ -10,7 +10,7 @@ const sql = sqlFrom(import.meta.dirname);
 
 export async function upsert(metal_name: string, q: Quote, executor?: Executor): Promise<void> {
   await query(
-    sql("legacy/upsert"),
+    sql("upsert"),
     [metal_name, q.ask ?? null, q.bid ?? null, q.dollarChange ?? null, q.percentChange ?? null],
     executor
   );

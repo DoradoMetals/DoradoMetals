@@ -15,7 +15,7 @@ export async function create(
 ): Promise<void> {
   const [line_1, line_2, city, state, country, zip, country_code, phone_number] = values;
   await query(
-    sql("legacy/create"),
+    sql("create"),
     [id, user_id, line_1, line_2, city, state, country, zip, label,
      isDefault, phone_number, true, country_code, false],
     executor
@@ -31,7 +31,7 @@ export async function update(
 ): Promise<boolean> {
   const [line_1, line_2, city, state, country, zip, country_code, phone_number] = values;
   const r = await query(
-    sql("legacy/update"),
+    sql("update"),
     [id, user_id, line_1, line_2, city, state, country, zip, label,
      isDefault, phone_number, country_code, false],
     executor
@@ -42,17 +42,17 @@ export async function update(
 export async function updateValidation(
   id: string, is_valid: boolean, is_residential: boolean, executor?: Executor
 ): Promise<void> {
-  await query(sql("legacy/update_validation"), [is_valid, is_residential, id], executor);
+  await query(sql("update_validation"), [is_valid, is_residential, id], executor);
 }
 
 export async function setDefault(
   user_id: string, address_id: string, executor?: Executor
 ): Promise<void> {
-  await query(sql("legacy/set_default"), [user_id, address_id], executor);
+  await query(sql("set_default"), [user_id, address_id], executor);
 }
 
 export async function remove(
   id: string, user_id: string, executor?: Executor
 ): Promise<void> {
-  await query(sql("legacy/delete"), [id, user_id], executor);
+  await query(sql("delete"), [id, user_id], executor);
 }

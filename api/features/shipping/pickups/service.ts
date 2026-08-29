@@ -17,14 +17,14 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.js";
 import * as pickups from "#features/shipping/pickups/repo.ts";
-import * as legacy from "#features/shipping/pickups/legacy.repo.ts";
+import * as legacy from "#legacy/shipping/pickups/repo.ts";
 import * as shipmentService from "#features/shipping/shipments/service.ts";
 import * as carriers from "#features/shipping/carriers/service.ts";
 import * as orders from "#features/orders/repo.ts";
 import * as compose from "#features/shipping/pickups/compose.ts";
 import type { ComposedPickup, Lookups, ShipmentContext } from "#features/shipping/pickups/compose.ts";
 import type { PickupBaseRow, Executor } from "#features/shipping/pickups/repo.ts";
-import type { LegacyPickup } from "#features/shipping/pickups/legacy.repo.ts";
+import type { LegacyPickup } from "#legacy/shipping/pickups/repo.ts";
 
 // What a caller supplies. exchange's shape, because that is what every call
 // site has always sent - an order and a carrier NAME, with the date and time

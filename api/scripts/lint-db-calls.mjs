@@ -87,7 +87,14 @@ const problems = [];
 let filesScanned = 0;
 let callsChecked = 0;
 
-for (const file of sourceFiles(path.join(ROOT, "features"))) {
+// legacy/ IS SCANNED TOO. The dual-write mirrors moved out of features/ in
+// the 26c factoring (ruling 29 - one directory to delete at promotion), and
+// they are exactly the code this lint exists for: a mirror that forgets its
+// executor commits while the caller rolls back.
+for (const file of [
+  ...sourceFiles(path.join(ROOT, "features")),
+  ...sourceFiles(path.join(ROOT, "legacy")),
+]) {
   const src = fs.readFileSync(file, "utf8");
   filesScanned++;
   const rel = path.relative(ROOT, file);
