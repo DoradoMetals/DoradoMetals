@@ -11869,10 +11869,30 @@ what happens to unpaid orders — Jacob's call, and it belongs with the checkout
 overhaul in phase 2. This change makes the existing ordering survivable, and says
 so rather than pretending it is a fix for the ordering.
 
-## D180 — the 90-minute gate is structural, and the obvious fix is unsafe
+## D180 — the "90-minute gate" was never measured. It is 10-13 minutes. [CORRECTED]
 
-Every `pnpm check` costs roughly ninety minutes, and almost all of it is the API
-suite. The cause is not the tests: **all three databases live on Railway's public
+**CORRECTION, 2026-08-29, and this is the fourth carried-forward number to be
+wrong today.** This said "every `pnpm check` costs roughly ninety minutes". I
+never measured one. The figure came from a lane's estimate — *"budget ninety
+minutes at this environment's ~160-200 ms round trip"* — which I repeated into a
+finding, then into a phase proposal, then into three separate reports to Jacob,
+including an ask to install a database server on his machine.
+
+**Measured, across four complete runs: 10, 13, 10 minutes** (gate3, gate4 which
+went green end to end, gate5). The two runs I *had* timed were 203 s and 51 s
+and both had been killed, so I knew I had no complete measurement and
+extrapolated anyway.
+
+**Why it looked slow.** Wall clock varied hugely between runs, and I attributed
+that to network latency. It was contention — my own concurrent gates, plus an
+orphaned `next dev` server. The suite parallelises across ~26 processes, so
+128 minutes of summed test time compresses into ~10 of wall clock when nothing
+else is competing. The number that does not change between runs is the SUM
+(124.5 min vs 127.9 min across two runs) — which is the real measurement, and
+which I should have been quoting all along.
+
+**What remains true**, and it is the part worth keeping: the API
+suite The cause is not the tests: **all three databases live on Railway's public
 proxy** (`switchback.proxy.rlwy.net`), so every statement pays 160–200 ms of
 network round trip. A test that opens a transaction, writes four rows and rolls
 back does maybe thirty round trips — six seconds of wall clock for microseconds
@@ -11898,10 +11918,11 @@ database, because they compare against its actual content; it is only
 `@dorado/api test` that wants a local engine, and it wants one because every
 test already rolls itself back and therefore needs no shared state at all.
 
-Expected effect: the suite's wall clock is currently dominated by a per-statement
-constant, so removing it should take the gate from ~90 minutes to single digits.
-That changes how many times a day this project can be verified, which is the real
-cost being paid.
+**Expected effect, restated honestly.** It does NOT rescue the gate, which is
+already 10-13 minutes. It fixes ITERATION: a single test file costs minutes, and
+the slowest individual test is 180 seconds, so anyone working on orders or
+checkout pays that per attempt. That is a real cost and a good reason to do it —
+just not the emergency I described.
 
 **Recorded, not attempted.** Installing a database server is an environment
 change on Jacob's machine, and ruling 39's grant covers the codebase rather than
@@ -12005,3 +12026,69 @@ timestamps are `z.string()` while pg hands the server a `Date`.
 what the server knows.* They answer different questions, and collapsing them
 loses information — which means "one home for every type" cannot mean "one type".
 Jacob's ruling stands; the naive reading of it was mine, not his.
+
+## D183 — every contract timestamp is a `string` the server holds as a `Date`
+
+The generated contracts type every timestamp as `z.string()`. `api/db.js`
+registers parsers for NUMERIC and INT8 and **none for timestamps**, so pg hands
+the server a `Date`. Both halves are individually correct: the contract
+describes the WIRE, where `JSON.stringify` turns that `Date` into an ISO string,
+and `validate:wire` compares `JSON.parse(JSON.stringify(row))` so it sees a
+string and agrees.
+
+**There is no bug today, and I checked rather than assumed.** Every server-side
+read of a contract-typed timestamp — `refiners/compose.ts`,
+`shipping/carriers/compose.ts`, `orders/compose.ts` — only *passes the value
+through* into a response object. Nothing does string work on one: a grep for
+`.created_at.slice(` / `.split(` / `.startsWith(` across `api/features` returns
+nothing.
+
+**The hazard is latent and shaped like a trap.** The moment someone writes
+`row.created_at.slice(0, 10)` on a contract-typed row, it compiles — the type
+says `string` — and throws at runtime, because the value is a `Date`. TypeScript
+will actively encourage it.
+
+**Not fixed, deliberately, and the options are unequal:**
+
+- Registering a timestamp parser in `db.js` to return ISO strings would make the
+  type true everywhere, and would change the runtime type of every date in the
+  application — every comparison, every `date-fns` call, every arithmetic on a
+  timestamp. That is a large blast radius for a latent problem.
+- Widening the contract to `z.string() | z.date()` is wrong: the contract
+  describes the wire, and a `Date` never appears there.
+
+**So this is the structural reason D182's rule holds** — *contracts parse the
+wire; feature types are what the server knows* — and it wants a decision of its
+own rather than a fix smuggled into a sweep. The cheapest real guard, if one is
+wanted, is a lint that refuses string methods on a contract-typed `*_at` field.
+
+## D184 — I edited a file a running lane still owned
+
+The PATCH lane's gate failed on `item-writes.test.ts`. I read the failure,
+decided the fix, and edited the file — **while the lane was still running and
+still owned it**. The lane then found its own failure, went to fix it, and
+discovered the file had been changed underneath it at 17:58:57 by "a concurrent
+writer". It verified my diff, agreed it was correct, and deliberately did not
+touch it. Then it told me, which is exactly right.
+
+**"One writer per file" is a rule I wrote and then broke within the day**, and
+the reason it exists is not tidiness. Two writers who both believe they fixed
+something produce a green gate that neither can account for — and on this
+project the whole discipline rests on being able to say *why* a check passed,
+not just that it did. It is the same failure as two agents editing one shared
+file, which is how two of Jacob's rulings were lost on 2026-08-28.
+
+**What made it tempting is worth naming**, because the next session will feel
+it too: the lane looked finished (it had reported), the fix was small, and the
+gate was already burning ninety minutes. All three are arguments for speed, and
+none of them is an argument that the file was free. A lane owns its files until
+it is *dispatched-and-collected*, not until it has said something useful.
+
+**No harm this time**, and only because the lane happened to re-read the file
+rather than trusting its own earlier view. The failure mode where this bites is
+the opposite: the lane rewrites the file from memory, silently reverting the
+coordinator's fix, and the gate goes green on a change nobody made deliberately.
+
+**Rule, sharpened:** if a lane is running, the coordinator does not edit its
+files — it sends the lane a message instead. If the coordinator must edit, the
+lane is stopped first and told why.

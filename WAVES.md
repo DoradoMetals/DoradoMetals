@@ -203,16 +203,19 @@ starts.
 
 ### Phase 5 — the verification loop gets fast (D180)
 
-`pnpm check` costs ~90 minutes and the API suite is ~70 of it. Not the tests:
-**every database is on Railway's public proxy at 160–200 ms per statement**, so
-147 tests take over 10 seconds and the twelve slowest take 150–166 s each while
-doing almost no work. A local **PostgreSQL 16** for the test suite alone —
-`verify:genesis`, `verify:parity` and `compare:databases` must keep reading real
-dev — should take the gate to single digits.
+**CORRECTED 2026-08-29: the gate is 10–13 minutes, not 90.** I never measured
+one and repeated a lane's estimate into this proposal — see D180. What is real
+is **128 minutes of summed test time across 947 tests, 153 of them over ten
+seconds**, on databases behind Railway's public proxy at 160–200 ms per
+statement. The wall clock varies with contention, not latency, because the suite
+parallelises across ~26 processes.
 
-**First because it is a multiplier, not a feature.** Every phase below is
-rate-limited by how often the project can be verified, and at 90 minutes a day
-holds maybe four honest gate runs. It is also the cheapest phase here.
+So this phase is about **iteration cost, not gate cost**: the slowest single test
+is 180 seconds, and anyone working on orders or checkout pays that per attempt.
+A local **PostgreSQL 16** for the test suite alone would fix that —
+`verify:genesis`, `verify:parity` and `compare:databases` must keep reading real
+dev. **It should no longer outrank phases 6 and 7**, which was an ordering I
+argued for on the strength of a number that was wrong.
 
 *Needs Jacob for one step*: installing PG16 is a change to his machine, not the
 codebase (ruling 39 covers the latter).
