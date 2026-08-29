@@ -9,7 +9,7 @@
 //
 //   node scripts/waves.mjs          rewrite WAVES.md from the lane files
 //   node scripts/waves.mjs --check  print what it would change, write nothing
-import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
@@ -85,37 +85,69 @@ for (const lane of lanes) {
 }
 
 // REFUSE ON A DUPLICATE HEADING. Two `## Wave 6` headings appeared when a
-// section was relocated, and the matcher below takes the FIRST block after each
-// heading - so the second one rolled up a different wave's bars and the row read
-// 58% against a true 93%. THE EXISTING WARNING COULD NOT SEE IT: every task
-// still matched a line, so the unmatched list was empty and the script reported
-// clean. Same shape as everything else found tonight - a check answering a
-// narrower question than the one being asked of it.
+// section was relocated, and the roll-up attributed another wave's bars to a
+// row that read 58% against a true 93%. THE EXISTING WARNING COULD NOT SEE IT:
+// every task still matched a line, so the unmatched list was empty.
+//
+// THE HEADING WORD IS READ, NOT ASSUMED. This said `Wave` and the file was
+// rewritten into `Phase` sections - so from that commit the roll-up matched
+// NOTHING, and every phase row plus OVERALL silently froze at whatever was last
+// typed by hand while the task bars underneath them went on updating correctly.
+// A page that is half live and half stale is worse than one that is plainly
+// stale, because the live half is the evidence you trust the other half on.
+const HEADINGS = [...index.matchAll(/^## (Phase \d+|Wave [\d.]+)/gm)].map((m) => m[1]);
 {
-  const headings = [...index.matchAll(/^## (Wave [\d.]+)/gm)].map((m) => m[1]);
-  const dupes = headings.filter((h, i) => headings.indexOf(h) !== i);
+  const dupes = HEADINGS.filter((h, i) => HEADINGS.indexOf(h) !== i);
   if (dupes.length) {
     console.error(`REFUSING TO ROLL UP: duplicate heading(s) ${[...new Set(dupes)].join(", ")}.`);
-    console.error("The roll-up takes the first block after each heading, so a second");
-    console.error("heading silently attributes another wave's bars to this row.");
+    console.error("A second heading of the same name silently attributes another");
+    console.error("section's bars to this row.");
     process.exit(1);
   }
 }
 
-// Roll each wave's row up from its own task block, then the overall bar from the rows.
-for (const [, label, block] of index.matchAll(/## (Wave [\d.]+)[^\n]*\n[\s\S]*?```\n([\s\S]*?)```/g)) {
-  const pcts = [...block.matchAll(/\s(\d{1,3})%\s*$/gm)].map((m) => Number(m[1]));
-  if (!pcts.length) continue;
-  const avg = Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
-  const num = label.replace("Wave ", "").replace(".", "\\.");
-  const rowRe = new RegExp(`(\\| \\*\\*wave ${num}\\*\\*[^|]*\\| \`)[█░]+(\` \\| )~?\\d+%`);
-  if (rowRe.test(index)) index = index.replace(rowRe, `$1${bar(avg)}$2~${avg}%`);
+// EVERY fenced block under a heading, not just the first. Phase 1 carries three
+// lanes in three blocks; taking the first rolled the row up from one of them and
+// called it the phase. The old pattern stopped at the first ``` pair because
+// that is what a lazy match does, and with one block per section it was right.
+function sections(md) {
+  const out = [];
+  const parts = md.split(/^## /m);
+  for (const part of parts.slice(1)) {
+    const label = /^(Phase \d+|Wave [\d.]+)/.exec(part);
+    if (!label) continue;
+    const pcts = [];
+    for (const [, block] of part.matchAll(/```\n([\s\S]*?)```/g)) {
+      for (const m of block.matchAll(/\s(\d{1,3})%\s*$/gm)) pcts.push(Number(m[1]));
+    }
+    if (pcts.length) out.push({ label, name: label[1], pcts });
+  }
+  return out;
 }
 
-const rows = [...index.matchAll(/\| `[█░]+` \| ~?(\d+)%/g)].map((m) => Number(m[1]));
-if (rows.length) {
-  const overall = Math.round(rows.reduce((a, b) => a + b, 0) / rows.length);
+const secs = sections(index);
+for (const sec of secs) {
+  const avg = Math.round(sec.pcts.reduce((a, b) => a + b, 0) / sec.pcts.length);
+  const num = sec.name.replace(/^(Phase|Wave) /, "").replace(".", "\\.");
+  const word = sec.name.startsWith("Phase") ? "phase" : "wave";
+  // The status cell carries prose ("IN FLIGHT, two lanes"), so the percentage
+  // rides in the bar's own cell rather than replacing anything worth reading.
+  const rowRe = new RegExp(`(\\| \\*\\*${word} ${num}\\*\\*[^|]*\\| \`)[█░]+(\`)(?: ~\\d+%)?`);
+  if (rowRe.test(index)) index = index.replace(rowRe, `$1${bar(avg)}$2 ~${avg}%`);
+  else unmatched.push(`WAVES.md: heading "${sec.name}" rolls up to ${avg}% but no table row matches`);
+}
+
+// OVERALL POOLS THE TASKS, not the phase averages. A mean of means makes a
+// five-task phase weigh the same as a twelve-task one, so finishing a big phase
+// moves the number less than finishing a small one. Pooling is not a true
+// measure of remaining WORK either - tasks are not equal units - and the bar
+// should be read as "how much of what we wrote down is done", nothing finer.
+// It was a HAND-TYPED ~88% before this, derived from nothing and never recomputed.
+const pooled = secs.flatMap((s) => s.pcts);
+if (pooled.length) {
+  const overall = Math.round(pooled.reduce((a, b) => a + b, 0) / pooled.length);
   index = index.replace(/OVERALL   [█░]+   ~\d+%/, `OVERALL   ${bar(overall, 36)}   ~${overall}%`);
+  console.log(`overall: ${overall}% pooled from ${pooled.length} task(s) across ${secs.length} section(s)`);
 }
 
 // A lane file for a CLOSED phase is history, not a live report - its tasks
@@ -123,13 +155,44 @@ if (rows.length) {
 // Only warn about lanes the index is actually tracking, or every finished
 // wave's file shouts forever and the warning stops being read. That is the
 // same failure as a metric whose target cannot be reached (ruling 35).
-const LIVE = new Set(["write-pivot.md", "instruments.md"]);
-const liveUnmatched = unmatched.filter((u) => LIVE.has(u.split(":")[0]));
+// LIVE IS DERIVED, NOT LISTED. This was a hardcoded set of two filenames, and
+// when two new lanes were dispatched their tasks were filtered out AS HISTORY -
+// so the index sat unchanged for an hour while both lanes reported progress,
+// and the warning that would have said so was the thing suppressing it.
+// A list of what is current has to be maintained to stay true; an mtime cannot
+// go stale. Same lesson as every hardcoded assumption found this week
+// (D120's three, D157's one word): the check was right and its premise rotted.
+const SIX_HOURS = 6 * 60 * 60 * 1000;
+
+// A PROPOSED phase has a brief before it has approval, and its tasks correctly
+// have no row in the index - the index tracks committed work. Warning about
+// those trains the reader to skip the warning, which is how the hardcoded LIVE
+// list came to hide two real lanes in the first place. A lane file opts out by
+// saying so in its own header; nothing infers it.
+const isProposal = (file) => {
+  try {
+    return /\(PROPOSED\)|\*\*Not approved yet\*\*/.test(
+      readFileSync(join(LANES, file), "utf8").slice(0, 600)
+    );
+  } catch {
+    return false;
+  }
+};
+
+const isLive = (file) => {
+  if (isProposal(file)) return false;
+  try {
+    return Date.now() - statSync(join(LANES, file)).mtimeMs < SIX_HOURS;
+  } catch {
+    return false;
+  }
+};
+const liveUnmatched = unmatched.filter((u) => isLive(u.split(":")[0]));
 if (liveUnmatched.length) {
   console.error(`WARNING - ${liveUnmatched.length} reported task(s) matched no line in the index:`);
   for (const u of liveUnmatched) console.error(`  ${u}`);
 } else if (unmatched.length) {
-  console.log(`(${unmatched.length} task line(s) from closed phases' lane files, not tracked - expected)`);
+  console.log(`(${unmatched.length} task line(s) from closed or PROPOSED phases' lane files, not tracked - expected)`);
 }
 
 if (process.argv.includes("--check")) {

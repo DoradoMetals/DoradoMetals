@@ -11502,3 +11502,405 @@ THE GENERAL FORM, now seen at least five times: A COUNT IS A CLAIM ABOUT
 WHAT WAS COUNTED, and the denominator is where the error hides - not the
 arithmetic. D165 was two correct numbers with different denominators;
 this is one number whose denominator quietly grew.
+
+=== D172: A CONTRACT NOBODY IMPORTS HAS NEVER BEEN CHECKED ===
+The phase-3 frontend lane found `CreateReviewBody` and `CreateLeadBody`
+ALREADY IN `@dorado/contracts`, ADOPTED BY NOBODY, AND BOTH WRONG.
+The review one OMITTED `hidden` - the column `get_public.sql` calls "the
+ENTIRE difference between this and get_all", and which the admin table
+sends as `true` so that seeding a review does not publish it.
+*** NARROWING THE ADMIN TABLE ONTO THAT CONTRACT WOULD HAVE PUBLISHED
+EVERY ADMIN-CREATED REVIEW. *** The contract was the thing we would
+normally trust to prevent that.
+THE GENERALISATION IS THE FINDING: a contract is validated by USE. An
+unimported one has never been compared against anything - not the SQL,
+not the caller, not the row - so it carries exactly the authority of a
+comment while looking like a guarantee. `validate:wire` checks contracts
+against real responses for the shapes that ARE served; a request-body
+contract nobody sends through has no such check at all.
+SO "MOVE IT INTO THE CONTRACTS" IS NOT THE END OF THE JOB. A shape that
+lands there unadopted is not safer than the hand-written one it
+replaced; it is less safe, because the next person assumes it was
+checked. Move and ADOPT in the same pass, or leave it where it is.
+
+=== D173: TWO DIFFERENT THINGS ARE CALLED A USER, AND THE CHECKOUT
+    SCHEMA WAS SILENTLY STRIPPING FIELDS ===
+`setCreateSalesOrderUser` hands a snake_case `/users` row into a slot
+typed as better-auth's camelCase SESSION user. It compiled because the
+form schema's fields are nearly all optional - so
+`adminSalesOrderCheckoutSchema.user` was SILENTLY STRIPPING THREE FIELDS
+from every admin sales order, and would have thrown a ZodError AT THE
+STRIPE CONFIRM for any customer with a NULL name.
+That is the D49 shape: a throw between the Stripe confirm and the order
+create means CHARGED, NO ORDER. This one had a data precondition - a
+null name - rather than a network failure, which is worse, because it
+would have looked like a customer-specific mystery.
+Fixed onto the contracts' `User`, and VERIFIED SAFE rather than assumed:
+the server reads exactly `id` and `dorado_funds`, per its own parameter
+types in `orders/service.ts` and `payments/service.ts`.
+ALSO FOUND, and it is the same disease benign: `RatesAdminTable` sorted
+on `r.material`, A FIELD THAT EXISTS ON NO WIRE SHAPE AND IN NO COLUMN.
+The hand-written type declared it, so it compiled; both operands were
+`undefined`, so that `localeCompare` branch HAS NEVER EXECUTED. A
+hand-written type does not just fail to catch errors - IT MANUFACTURES
+THEM, by making a nonexistent field look real.
+
+=== D174: THE NULLABILITY AUDIT'S REGEX READS COMMENTS ===
+`audit:frontend-nullability` builds its "parsed at runtime" closure with
+a `\w+Schema` regex over a schema's body - AND THAT REGEX READS
+COMMENTS. The lane's replacement mentioned the old identifier in a
+comment inside the object, and the audit went on reporting a finding
+after the code had stopped having it.
+Same shape as D171 (a library counted as a test because it matched a
+glob) and as D161's near-miss (three scripts whose only `.test.js`
+mentions were prose). THE PATTERN: a matcher over source text cannot
+tell code from prose unless it is told to, and every one of these was
+found by someone noticing a number that would not move.
+
+## D175 — the progress tracker was reporting progress it could not see
+
+Jacob, looking at the page: *"is the waves file still being updated...? seems to
+be the same progress as from an hour ago."* It was not being updated, and there
+were two independent reasons, both mine.
+
+**One: the live set was a hardcoded list of two filenames.** `waves.mjs` warns
+when a lane reports a task the index has no line for — the loud check added after
+the 43-character-name bug. To stop finished phases' files shouting forever I
+filtered that warning to a `LIVE` set, and wrote the two filenames that were
+current that day. When two new lanes were dispatched, their task lines matched no
+row in the index **and the warning that existed to say so classified them as
+history.** The suppressor swallowed exactly the case it was built for. Now
+derived from mtime: a list of what is current has to be maintained to stay true,
+a timestamp cannot go stale.
+
+**Two, and worse: the roll-up had been dead since the file was rewritten.** The
+heading and row regexes matched `## Wave N` and `**wave N**`. I rewrote WAVES.md
+into `Phase` sections and never touched them, so from that commit **no phase row
+and no OVERALL bar was computed at all** — they sat at whatever I last typed by
+hand, while the task bars underneath them went on updating correctly from the
+lane files. A page that is half live and half stale is worse than one that is
+plainly stale, because the live half is what earns your trust in the other half.
+Fixed by reading the heading word instead of assuming it.
+
+**A third, found while fixing the second:** the roll-up took the FIRST fenced
+block under each heading. That was right when a section held one lane and wrong
+the moment phase 1 held three — the row would have averaged one lane and called
+it the phase.
+
+**OVERALL was ~88% and is now ~49%.** The old number was hand-typed and derived
+from nothing. Nothing regressed; the arithmetic arrived. It now pools all 28 task
+lines, and the file says in its own text that tasks are not equal units of work
+so the bar means "how much of what we wrote down is done" and nothing finer.
+
+**The pattern, for the fourth time in this file:** every one of these is a check
+whose premise rotted while the check itself stayed correct — D120's three, D157's
+one word in a tsconfig, and now three in the one script whose entire job is to
+report honestly. The tell is the same each time: something kept passing while the
+thing it described moved out from under it. Worth noting that the detection
+mechanism was Jacob reading the page and comparing it against his memory of an
+hour earlier, which is the same mechanism that caught the three wrong numbers in
+D160 — a human re-deriving a number the tool had given them.
+
+## D176 — 47 of 128 contract exports are imported by nothing
+
+D172 found `CreateReviewBody` sitting in `@dorado/contracts`, adopted by nobody,
+and wrong in a way that would have published every admin-created review. That
+raised the obvious question, which nobody had asked: **how many others are
+there?** Measured rather than guessed — 128 exports, **47 reached by no import**
+in `api/features`, `api/shared`, `frontend/features`, `frontend/shared` or
+`frontend/app`.
+
+**38 of the 47 are generated `*Row` shapes and are not the finding.** The
+generator emits one per table whether or not a consumer exists yet; an unused
+`AuctionsRow` is inventory, not drift.
+
+**Nine are hand-named types somebody sat down and wrote, and nothing adopted.**
+`AccountTransaction`, `CarrierPickup`, `EmailStatus`, `FulfillmentMethod`,
+`PaymentAttempt`, `PaymentDetails`, `SalesTaxMetalCategory`,
+`SalesTaxProductType`, `TrackingEvent`. Three of the nine are exercised by
+`validate:wire` (`AccountTransaction`, `CarrierPickup`, `FulfillmentMethod`), so
+they are checked despite having no importer. **Six are checked by nothing at
+all.**
+
+**AND UNADOPTED DOES NOT MEAN WRONG — I checked, expecting it would.** I read
+`PaymentDetails` as declaring a `type` field that is not a column of
+`payments.details` (the column is `account_type`) and was ready to write it up as
+a manufactured field, the same shape as `RatesAdminTable` sorting on a
+non-existent `r.material`. It is not. `type` comes from `pm.type` on a joined
+`payments.methods`, and the contract's seven fields mirror the
+`jsonb_build_object` in `features/payments/repo.next.ts` exactly. The contract is
+correct today.
+
+**So the hazard is subtler than D172 made it look, and worth stating precisely:**
+a hand-written contract and the projection it mirrors agree only by coincidence
+of authorship. Nothing ties `PaymentDetails` to that `jsonb_build_object` — not
+an import, not `validate:wire`, not a test. Either can be edited without the
+other. The contract is not wrong; it is *unenforced*, which is the state that
+precedes being wrong and is invisible while it lasts.
+
+**Consequence for phase 3.** The wave moves ~150 declarations into the contracts.
+Every one lands in exactly the state described above unless it is adopted at the
+same time. **Moving a type and adopting it are one commit, not two** — a type
+parked in the contracts with its old definition still in use is strictly worse
+than leaving it alone, because it looks migrated.
+
+### And the scan that produced this found nothing the first time
+
+My first pass reported all nine as unchecked by `validate:wire`. It had grepped
+`api/scripts/validate-wire.mjs` — **a file that does not exist**; the script is
+`.ts`. An empty scan reports exactly like a clean one, which is D95, D99, D108,
+D115, D157 and the first version of `audit:wire-readiness`, and I have now
+written that sentence enough times that the tooling should assert it rather than
+me remembering: **a scan that reads zero bytes must refuse, not report.**
+
+## D177 — a subagent's cleanup killed the coordinator's gate, twice
+
+Two `pnpm check` runs died mid-suite with `Killed` and no `CHECK_EXIT` line. I
+diagnosed OOM (the machine really is under pressure — 3 GB of 4 GB swap in use at
+rest), then corrected to "the lane's cleanup", then had to correct again when a
+second run died with nothing else running. **Both corrections were guesses.** The
+measurement that settled it: a detached run sailed past the exact point the other
+two died, with memory flat.
+
+What actually happened: I stopped the lane's duplicate gate with `TaskStop`; its
+SIGTERM left 23 orphaned workers; the lane then dutifully cleaned those up **by
+killing `node --test` processes**, which is a pattern, not a pid list — so it
+killed mine too. Neither side was wrong on its own. The coordinator and a
+subagent were operating on the same process namespace with no way to tell whose
+workers were whose.
+
+**Two costs, and the second is the one that matters.** The cheap one: two wasted
+gate runs at ~90 minutes apiece budgeted. The real one: **the kill left a
+committed order in dev** — `exchange.purchase_orders 9ef2d27e`, order_number
+13520, two items and one `exchange.scrap` row, no `orders.orders` mirror. That is
+`audit:test-leaks`'s exact scenario caught live: the service committed on its own
+pool connection while the test's rolling-back transaction never got to run. The
+lane recorded it and **did not delete it**, which is right — it is a test artefact
+rather than customer data, but removing it means deciding what happens to a scrap
+row, and "never DELETE without explicit confirmation" is not a rule an agent gets
+to interpret away on its own mess. **For Jacob**, and `audit:test-leaks` should
+run before dev row counts are trusted again.
+
+**Rule going forward: only the coordinator kills processes.** A subagent that
+finds orphans reports them.
+
+## D178 — one type, thirty-five identical declarations
+
+Jacob: *"if we have types randomly living in files, then we have failed"*. The
+sharpest instance is not a subtle one. **`export type Executor = PoolClient |
+undefined;` is declared 35 times**, in 35 separate `repo.ts` files across
+`features/`, and all 35 definitions are **byte-identical**. It is referenced in
+69 files — the single most widely used type in the API.
+
+It is the argument that lets a repo call join its caller's transaction, i.e. the
+one convention CLAUDE.md calls out as load-bearing (*"the third argument is what
+lets a repo call join its caller's transaction. Getting it wrong broke checkout
+in August 2026"*). So the type that expresses the project's most important
+database convention has no home at all; each feature re-derives it.
+
+**Nothing is wrong today, and that is the point.** Thirty-five identical
+definitions behave exactly like one until someone widens theirs — and the failure
+would be silent and local, because each file believes its own. There is no
+mechanism by which they can be found to disagree; `tsc` is content, and the
+duplication is invisible from inside any single file.
+
+**The fix is the safest edit in the wave**: one declaration in `shared/db/`,
+35 imports, 35 deletions, and no behaviour change whatsoever. It should be the
+API lane's first task rather than its last, because it converts a 118-item
+judgement exercise into a 117-item one while proving the mechanics end to end on
+something that cannot break.
+
+**Twelve more names are declared more than once** — `Direction` (3),
+then `Window`, `SpotRow`, `Quote`, `PriceableLine`, `PickupInput`,
+`OrderSpotRow`, `OrderPrices`, `Lookups`, `ComposedAddress`, `Category` at 2
+each. Those are NOT the same finding and must not be swept with it: two types
+sharing a name may legitimately describe different things (`Category` in
+products is not `Category` in sales-tax, and `audit:frontend-nullability` has
+already produced three false findings on exactly that shared-name confusion).
+Each needs the DATA-or-UI question asked of it individually, and the duplicates
+compared before either is moved.
+
+## Ruling 39 — purview widened to "fix what is not best practice" (Jacob, 2026-08-29)
+
+*"if you see things that are NOT best practice (even things as broad reaching as
+like, DB architecture...) feel free to change them. That includes API/Frontend
+code. I'm giving you purview to do so. Just obviously be careful and record
+decisions you make so I can review them tomorrow."*
+
+Given alongside *"I'm not gonna be around today so you can't wait on me"* and
+*"I'm sure you can find things to work [on] without me having to tell you what to
+do"*.
+
+**What this changes.** Previously the standing posture was to FIND and REPORT —
+D59's three-rules-for-one-premium, D49's charge-then-parse ordering, D63's 27
+money-nullability constraints and D117's payout fee were all left unfixed and
+marked "business call" or "Jacob's". That deference is now wrong for anything
+that is a *quality* judgement rather than a *business* judgement.
+
+**What it does NOT change, and these are not reinterpretable:**
+
+- **The covenant.** No `DROP`/`DELETE`/truncate of `exchange` schemas, tables,
+  columns or rows. "Best practice" is not a licence to normalise away a table
+  holding the only copy of something.
+- **Production stays untouched.** Migrations run against dev. The `pg_dump` →
+  migrate → backfill → verify → merge sequence is Jacob's to run.
+- **`purge_cancelled` stays untouched** — a standing explicit instruction, and a
+  later general grant does not silently revoke a specific prior prohibition. It
+  is *reported* (D177 and `docs/waves/seams.md`), not modified.
+- **Never print or move a secret's value.** The bank-detail columns are the
+  obvious temptation for a "fix the encryption" task; building the encryption
+  path must not log, echo or copy a plaintext value.
+- **The distinction between a quality call and a business call.** Whether
+  `getPurchaseOrderItemPrice` should throw where its siblings return 0 is a
+  quality call and now mine. Whether a WIRE payout costs $20 or $0 (D117) is the
+  business's, and measuring four rows that disagree does not make it mine.
+
+**The obligation attached to the grant is the record**, not the caution: every
+judgement call gets a D-number saying what was changed, what it was before, and
+what evidence justified it — because Jacob is reviewing tomorrow, and an
+unexplained diff is worse than no diff.
+
+### Session mechanics, confirmed by Jacob the same day
+
+*"if you need to turn loop on you can. But it's been messing up recently, like
+the wakeups get scheduled but don't actually happen"* — which is exactly what
+CLAUDE.md already records: **`ScheduleWakeup` timers die when WSL idles; task
+notifications have never failed.** So the heartbeat is a chained background task
+(`sleep`/poll with `run_in_background`), not `/loop`. Do not spend a session
+diagnosing the wakeup; use the mechanism that works.
+
+## D179 — the charge-then-fail path, fully traced (supersedes D49's description)
+
+D49 recorded *"Stripe confirms -> `schema.parse(...)` -> `createOrder.mutate(...)`.
+A throw between = CUSTOMER CHARGED, NO ORDER"* and left it unfixed. Under ruling
+39 it is now mine to fix. Tracing it properly first, because the mechanism is
+worse than the note and there are **two** distinct failure modes, not one.
+
+`features/stripe/ui/SalesOrderStripeForm.tsx`, `handleSubmit`:
+
+1. `stripe.confirmPayment(...)` — **the customer's money is gone from here on.**
+2. `salesOrderCheckoutSchema.parse(checkoutPayload)` — throws on bad data.
+3. `createOrder.mutate(..., { onSuccess })` — **`onSuccess` only.**
+4. `setIsLoading(false)` — the last statement of the handler.
+
+**Failure mode A — the parse throws.** It is an async handler with no `try`, so
+the rejection is unhandled, and because step 4 sits after the throw `isLoading`
+is never cleared: the button spins forever. The customer is charged, sees a
+spinner, and has no order.
+
+**SECOND CORRECTION, and it cuts both ways.** I wrote "no `error.tsx` and no
+ErrorBoundary anywhere in `frontend/`", from a `find -name "error.tsx"` that
+could not match the file that exists: **`app/global-error.tsx`**, which reports
+to **Sentry** (initialised in `instrumentation-client.ts`). A scan that names the
+wrong file reports absence — the same defect as D176's `.mjs`/`.ts` miss, twice
+in one day.
+
+**But the conclusion gets STRONGER, not weaker.** React error boundaries do not
+catch errors thrown in event handlers, and `handleSubmit` is one — so
+`global-error.tsx` would never have fired for this no matter what it contained.
+An error boundary was never the fix and adding an `error.tsx` would have been
+cargo cult. **The `try`/`catch` is the only construct that catches this.**
+
+**What Sentry does and does not see, which splits the two modes apart:**
+mode A raises an unhandled rejection, which the Sentry browser SDK captures — so
+the business could see it even though the customer could not. Mode B does not:
+React Query's `onError` handles the rejection and does not rethrow, so nothing
+reaches the global handler. **Mode B is silent to the customer AND to Sentry** —
+a paid order lost with no trace anywhere except Stripe's own dashboard. That
+makes B the more dangerous of the two, which is the reverse of how it looks.
+
+**Failure mode B — the mutation fails, and this one is architectural.**
+`useApiMutation`'s config type is
+`Omit<UseMutationOptions<...>, 'mutationFn' | 'onMutate' | 'onError' | 'onSettled'>`
+— **`onError` is omitted, so no caller can supply one at the hook level.** The
+one global `onError` in `shared/queries/base.ts` rolls back the optimistic cache
+entry and returns. It does not rethrow, toast, log or surface anything. This
+mutation is `optimistic: false`, so that handler does *nothing at all*.
+
+The call site passes `onSuccess` and no per-call `onError`. So a failed
+`POST /sales_orders/create_sales_order` after a successful charge produces:
+no redirect, no message, no retry, no record — the spinner stops and the page
+sits there. **The customer has paid and there is no order, and nothing anywhere
+knows.**
+
+**CORRECTION, made before implementing rather than after.** The paragraph that
+stood here said a shared wrapper *structurally forbids* error handling, so
+"nothing `useApiMutation` writes can report its own failure". **That is too
+strong and I checked it rather than shipping it.** React Query is v5, where
+`mutate(vars, { onError })` is supported per call and runs IN ADDITION to the
+hook's own callbacks — and `features/addresses/ui/AddressForm.tsx:134` already
+does exactly that. So the mechanism is available and in use elsewhere.
+
+What is true is narrower and still worth fixing: **hook-level** `onError` is
+omitted from `ApiMutationConfig`, so a mutation cannot carry its own default
+error handling next to its definition — every call site must remember
+separately, and `...rest` is spread AFTER the internal `onError` (line 222 vs
+206), so simply un-omitting it would let a caller silently REPLACE the optimistic
+rollback rather than add to it. That is the trap to avoid in the fix: compose,
+never override.
+
+**So the money defect is a missing four lines at one call site**, not an
+application-wide inability to report failures. The wrapper change is a
+maintainability improvement that makes the next call site's omission less likely
+— worth doing, and not the thing standing between a customer and a lost order.
+
+**The fix, in the order it will be made** (recorded before implementing so the
+diff can be reviewed against the intent):
+
+1. **Stop swallowing.** `useApiMutation`'s `onError` keeps the rollback and stops
+   omitting the caller's `onError` — compose, don't replace. This is the
+   architectural half and it touches every mutation in the app.
+2. **Never lose a paid order.** Post-charge work goes in a `try`/`finally` with
+   the loading flag cleared in `finally`, and the failure path surfaces the
+   `paymentIntent.id` to the customer with instructions to contact support. **The
+   cart is NOT cleared on failure** — today `clearCart()` is inside `onSuccess`,
+   which is correct and must stay that way.
+3. ~~A root `error.tsx`~~ — **NOT DONE, deliberately.** `app/global-error.tsx`
+   already exists, and no boundary catches an event handler's throw anyway.
+4. **The same shape exists in `AdminStripeForm.tsx`** and gets the same
+   treatment.
+
+**What I am NOT doing.** Reordering to create-then-charge is the architecturally
+correct answer and is NOT this change: it means an order that exists before it is
+paid for, which needs a pending state, a reconciliation path and a decision about
+what happens to unpaid orders — Jacob's call, and it belongs with the checkout
+overhaul in phase 2. This change makes the existing ordering survivable, and says
+so rather than pretending it is a fix for the ordering.
+
+## D180 — the 90-minute gate is structural, and the obvious fix is unsafe
+
+Every `pnpm check` costs roughly ninety minutes, and almost all of it is the API
+suite. The cause is not the tests: **all three databases live on Railway's public
+proxy** (`switchback.proxy.rlwy.net`), so every statement pays 160–200 ms of
+network round trip. A test that opens a transaction, writes four rows and rolls
+back does maybe thirty round trips — six seconds of wall clock for microseconds
+of work. That is why `audit:slow-tests` sees twelve tests over 195 seconds and
+why `locks.ts` describes order-placing tests at 11–14 s.
+
+**The obvious fix is a local Postgres, and I am not taking it.** A server binary
+is installed — **PostgreSQL 14.24** — while dev and production run **16.15**.
+Two major versions apart. `MERGE`, `security_invoker` views, the SQL/JSON
+functions and several planner behaviours differ between them, so a suite that
+went green against 14 would be asserting something about a database this project
+does not run. **A fast suite that tests the wrong engine is worse than a slow one
+that tests the right engine**, because its green is the thing you would act on.
+Docker is installed but its daemon is not running, which is the same constraint
+CLAUDE.md already records.
+
+**What would actually fix it, for Jacob** (needs his machine, so it is not mine
+to do): a local **PostgreSQL 16** — either `apt install postgresql-16` from the
+PGDG repo, or starting the Docker daemon and running the `postgres:16` image —
+pointed at by the test suite only. `verify:genesis`, `verify:parity`,
+`audit:coverage` and `compare:databases` must keep pointing at the real dev
+database, because they compare against its actual content; it is only
+`@dorado/api test` that wants a local engine, and it wants one because every
+test already rolls itself back and therefore needs no shared state at all.
+
+Expected effect: the suite's wall clock is currently dominated by a per-statement
+constant, so removing it should take the gate from ~90 minutes to single digits.
+That changes how many times a day this project can be verified, which is the real
+cost being paid.
+
+**Recorded, not attempted.** Installing a database server is an environment
+change on Jacob's machine, and ruling 39's grant covers the codebase rather than
+his workstation.

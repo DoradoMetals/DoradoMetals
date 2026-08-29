@@ -3,20 +3,21 @@
 Where the rewrite is. Bars first, plan below, findings at the end.
 
 ```
-OVERALL   ████████████████████████████████░░░░   ~88%
+OVERALL   █████████████████░░░░░░░░░░░░░░░░░░░   ~48%
 ```
 
 | | phase | | |
 |---|---|---|---|
 | ✅ | **shipped** ten commits, `0a201bc0` → `af8bc790` | `██████████████████` | landed |
-| 🔄 | **phase 1** the write pivot, and the instruments | `░░░░░░░░░░░░░░░░░░` | IN FLIGHT, two lanes |
-| ⬜ | **phase 2** checkout, then payments — the last two | `░░░░░░░░░░░░░░░░░░` | queued |
-| ⬜ | **phase 3** one home for every type — 347 declarations | `░░░░░░░░░░░░░░░░░░` | queued, its own wave |
-| ⬜ | **phase 4** production, and three decisions | `░░░░░░░░░░░░░░░░░░` | Jacob's |
+| 🔄 | **phase 1** the write pivot, and the instruments | `██████████████░░░░` ~79% | IN FLIGHT, three lanes |
+| ⬜ | **phase 2** checkout, then payments — the last two | `░░░░░░░░░░░░░░░░░░` ~0% | queued |
+| 🔄 | **phase 3** one home for every type — 347 declarations | `████████░░░░░░░░░░` ~43% | frontend half landed |
+| ⬜ | **phase 4** production, and three decisions | `░░░░░░░░░░░░░░░░░░` ~0% | Jacob's |
 
 ## Phase 1 — IN FLIGHT
 
-Detail: `docs/waves/write-pivot.md` · `docs/waves/instruments.md`
+Detail: `docs/waves/write-pivot.md` · `docs/waves/instruments.md` ·
+`docs/waves/seams.md`
 
 Task names below are the lanes' own, copied from their files rather than
 invented for this page — when the index and a lane file disagree, the lane file
@@ -30,11 +31,26 @@ wins.
 ```
 
 ```
-1. Type coverage for scripts/ (D157)        ████████████░░░░░░   65%
-2. The 28 remaining .test.js files          ░░░░░░░░░░░░░░░░░░    0%
-3. ComposedOrder probe (D159, report only)  ░░░░░░░░░░░░░░░░░░    0%
-4. The meta-guard's missing half (D5)       ░░░░░░░░░░░░░░░░░░    0%
+1. Type coverage for scripts/ (D157)        ██████████████░░░░   75%
+2. The 28 remaining .test.js files          ██████████████████  100%
+3. ComposedOrder probe (D159, report only)  ██████████████████  100%
+4. The meta-guard's missing half (D5)       ██████████████████  100%
 ```
+
+```
+1. SEAM 2 - exchange.users, the inverted direction  ██████████████████  100%
+2. The remaining native gaps                ██████████████████  100%
+3. SEAM 1 - exchange.payouts, a reachable destination  ███████████████░░░   85%
+4. SEAM 3 - purgeCancelled, write-up only   ██████████████████  100%
+```
+
+**The seams are the writes that had nowhere to land.** Three tables whose
+successor could not receive them: `exchange.users` (the credit BALANCE, not the
+ledger), `exchange.payouts`, and `purge_cancelled`. Two are closed and the third
+is deliberately untouched. The lane also found a native gap nobody had listed —
+`editPayoutCharge` wrote `exchange.payouts.cost` while its successor
+`orders.transactions.payout_fee` had existed since 072, and **the two agree today
+only because no admin has edited a charge since the backfill**.
 
 **The one-way door is open.** Jacob, 2026-08-29: *"Yes exchange can stop
 receiving those writes."* That is ruling 36, and it is what thirteen
@@ -70,13 +86,23 @@ was rewritten last night. It goes last and slowly.
 
 ## Phase 3 — one home for every type
 
+Detail: `docs/waves/phase3-api.md` · `docs/waves/phase3-frontend.md`. Both blocks
+below are the lanes' own task lists, copied from their files.
+
 ```
-1. API: 118 cross-file types out of features/ ░░░░░░░░░░░░░░░░░░  0%
-2. API: 70 single-file types stop exporting   ░░░░░░░░░░░░░░░░░░  0%
-3. API: 31 input/patch shapes into contracts  ░░░░░░░░░░░░░░░░░░  0%
-4. Frontend: 22 zod schemas into contracts    ░░░░░░░░░░░░░░░░░░  0%
-5. Frontend: 137 remaining declarations       ░░░░░░░░░░░░░░░░░░  0%
-6. lint: a type has exactly one home          ░░░░░░░░░░░░░░░░░░  0%
+A0. Executor: 35 declarations become one    ░░░░░░░░░░░░░░░░░░    0%
+A1. API: 118 cross-file types out of features/  ░░░░░░░░░░░░░░░░░░    0%
+A2. API: 70 single-file types stop exporting  ░░░░░░░░░░░░░░░░░░    0%
+A3. API: 29 input/patch shapes into contracts  ░░░░░░░░░░░░░░░░░░    0%
+A4. lint: a type has exactly one home       ░░░░░░░░░░░░░░░░░░    0%
+```
+
+```
+1. Census: DATA or UI, asked per declaration  ██████████████████  100%
+2. The zod schemas                          ██████████████████  100%
+3. Data types that duplicate a contract     ██████████████████  100%
+4. Request bodies into the contracts        ██████░░░░░░░░░░░░   33%
+5. Single-file types stop exporting         ██████████████████  100%
 ```
 
 Jacob: *"if we have types randomly living in files, then we have failed"* and
@@ -141,6 +167,112 @@ new writes land in schemas that do not exist — 42P01 on the write path, and no
 `exchange` row written either. The safety net that made a premature deploy
 merely embarrassing is the thing phase 1 removes.
 
+## Phases 5–9 — PROPOSED, awaiting Jacob's approval
+
+Written 2026-08-29 under ruling 39. Each is grounded in something already
+measured, not invented; the D-number beside it is the evidence. **The ordering
+is itself the proposal** — argued below, and the part most worth overruling.
+
+These bars are **deliberately excluded from OVERALL** — the heading is
+`## Phases 5–9`, which the roll-up does not match, so proposed work cannot drag
+down a number that measures committed work. Approving a phase means giving it
+its own `## Phase N` heading and a row in the table at the top; until then the
+five bars below are a picture of a plan, not progress.
+
+```
+5. The verification loop gets fast          ░░░░░░░░░░░░░░░░░░    0%
+6. The new schema enforces what exchange did ░░░░░░░░░░░░░░░░░░    0%
+7. Money at rest                            ░░░░░░░░░░░░░░░░░░    0%
+8. The silence problem                      ░░░░░░░░░░░░░░░░░░    0%
+9. Checkout, properly                       ░░░░░░░░░░░░░░░░░░    0%
+```
+
+### Phase 5 — the verification loop gets fast (D180)
+
+`pnpm check` costs ~90 minutes and the API suite is ~70 of it. Not the tests:
+**every database is on Railway's public proxy at 160–200 ms per statement**, so
+147 tests take over 10 seconds and the twelve slowest take 150–166 s each while
+doing almost no work. A local **PostgreSQL 16** for the test suite alone —
+`verify:genesis`, `verify:parity` and `compare:databases` must keep reading real
+dev — should take the gate to single digits.
+
+**First because it is a multiplier, not a feature.** Every phase below is
+rate-limited by how often the project can be verified, and at 90 minutes a day
+holds maybe four honest gate runs. It is also the cheapest phase here.
+
+*Needs Jacob for one step*: installing PG16 is a change to his machine, not the
+codebase (ruling 39 covers the latter).
+
+### Phase 6 — the new schema enforces what exchange did (D63, D45, D39)
+
+`audit:constraints`: **27 NOT NULL constraints that promotion would drop**, and
+they are not incidental — `sales_orders.order_total`, `sales_tax`,
+`shipping_cost`, `payouts.method`, `payouts.account_holder_name`,
+`account_transactions.occurred_at`. Plus **7 of 16 unique indexes with no exact
+counterpart**, including `purchase_orders(order_number)`, where the audit's own
+line is *"WIDER is not the same as equal"*.
+
+The audit has **no `ACCEPTED` map and is not in `pnpm check`** — upside down,
+since `audit:indexes` and `audit:query-paths` have both, and those guard latency
+while this one guards whether an order can exist without a total. Also folds in
+D45's missing FK and D39's enum-domain coupling.
+
+*Split point*: whether a given column should be NOT NULL is mostly a quality
+call and mine; the four rows where the payout fee disagrees with the constants
+table (D117) is a business call and stays Jacob's.
+
+### Phase 7 — money at rest
+
+Bank details are plaintext, and worse than the standing note said: **production
+holds them in two tables** — `exchange.payouts` (10 ACH + 8 WIRE) and
+`payments.details` (10 rows), 8 customers. Migration 071 was written to remove
+the second copy and has never run. `scripts/encrypt-payout-details.mjs` is
+described by 073 and `verify-backfill.mjs` as the mechanism that writes those
+columns and **does not exist**.
+
+Buildable and testable on dev without touching production (dev holds none), so
+the code half is mine; running it against production is Jacob's, in his
+sequence.
+
+### Phase 8 — the silence problem
+
+**This project's characteristic failure is not breakage, it is silence**, and it
+recurs across unrelated systems: an `UPDATE` matching zero rows raises nothing
+(D168, the payout link that resolved for 0 of 16); a mutation whose failure
+reaches no handler (D179, mode B — invisible to the customer *and* to Sentry);
+a webhook that leaves production with no record of **$126.48 it was paid**; a
+scan that reads the wrong filename and reports clean (D176, and twice more by me
+in one day). Each was found by accident.
+
+The phase is to make the class detectable rather than to fix five instances:
+`rowCount` assertions where zero is wrong, error paths that reach Sentry, and
+the standing rule this file keeps re-learning — **a check that reads zero bytes
+must refuse, not report**.
+
+### Phase 9 — checkout, properly
+
+Phase 2 makes checkout *work* against the new API; Jacob has said it needs a
+real overhaul. This is that: **create-then-charge instead of charge-then-create**
+(D179 makes the current ordering survivable and explicitly does not fix it),
+which needs a pending-order state, a reconciliation path, and a decision about
+what happens to unpaid orders — all Jacob's calls. Plus the cart as honest
+device-sync (`checkout.*` is not a ledger; losing it is fine, it only has to
+work).
+
+**Last because it is the only one that needs product decisions**, and because
+doing it before phase 5 means paying 90 minutes per iteration on the most
+iterative work in the project.
+
+### Two I considered and did not propose
+
+- **Deleting `api/legacy/`.** It is 12 directories of dead weight, but the
+  covenant makes the *tables* permanent and the write pivot (phase 1) already
+  removes the code. A phase for it would be ceremony.
+- **A performance phase.** `audit:indexes` and `audit:query-paths` are both
+  green and gated, dev holds tens of rows, and the honest answer is that nothing
+  is known to be slow except the test suite, which is phase 5. Inventing one
+  would be measuring for its own sake.
+
 ## Blocked on Jacob
 
 - **The payout fee is not a function of the payout method.** Production: WIRE 20
@@ -193,9 +325,14 @@ answering a narrower question than the one being asked of it.
 
 Run `node scripts/waves.mjs` (`--check` to preview) — it regenerates the bars
 from every task line in `docs/waves/*.md`, so the numbers are whatever the lanes
-last wrote about themselves. It refuses on a duplicate heading, because the
-roll-up takes the first block after each one and a second silently attributes
-another phase's bars.
+last wrote about themselves. It refuses on a duplicate heading, because a second
+one of the same name silently attributes another section's bars to a row.
+
+**OVERALL is pooled across every task line, and it is a rough measure.** Tasks
+are not equal units of work, so read it as "how much of what we wrote down is
+done" and nothing finer. It read ~88% until 2026-08-29 — hand-typed, derived
+from nothing, and never once recomputed. The drop to ~49% is the arithmetic
+arriving, not the project going backwards.
 
 One writer per file: the coordinator owns this index, each agent owns exactly
 one file under `docs/waves/`, and `FOLLOWUPS.md` is the coordinator's alone and

@@ -105,15 +105,32 @@ cited — is in the lane file. Do not expect to be able to re-derive it.
 them.** Each has no mirror because it has no destination:
 
 - **`exchange.payouts`** — its successor `payments.details` deliberately stores
-  no routing or account number (encryption at rest is outstanding), *and* its
-  order link walks `order -> payments.intents -> details`, a path that does not
-  exist for a purchase order: dev has 8 intents, all on sales orders, against 48
-  purchase orders. A payout is money going out; an intent is money coming in.
-- **`exchange.users`** — the direction is INVERTED here. The
-  `mirror_users_to_auth` trigger makes `exchange.users` the SOURCE and
-  `auth.users` the mirror, so the *legacy* statement is the live one and
-  `features/users/repo.ts` `adjustCredit` is called by nothing but tests.
-  Stopping this write freezes every customer's credit balance.
+  no routing or account number (encryption at rest is outstanding). **Its order
+  link is now BUILT**: the successor walked `order -> payments.intents ->
+  details`, and an intent is money coming IN while a payout is money going OUT,
+  so that join resolved for **0 of 16** dev payouts and neither statement raised
+  on the empty update. Migrations 099/100 put the link on the order side
+  (`orders.transactions.payout_details_id`), where the fee it is charged for
+  already lives — 16/16 on dev, justified against production's 62 payouts whose
+  `max(count) GROUP BY order_id` is 1. **No bank details moved**; routing and
+  account numbers stay in `exchange.payouts` and nowhere else.
+- **`exchange.users`** — the direction is INVERTED here, and this is now
+  RESOLVED rather than outstanding. The `mirror_users_to_auth` trigger
+  (migration 056) makes `exchange.users` the SOURCE and `auth.users` the mirror,
+  so the statement writing `exchange` is the live one. **Proven by experiment,
+  not argument**: a $1000 credit written to `auth.users` was silently reverted by
+  an unrelated `UPDATE exchange.users SET "updatedAt" = now()`, because the
+  trigger's `ON CONFLICT DO UPDATE` takes `dorado_funds` from exchange's row. No
+  error is raised. Stopping this write still freezes every customer's credit
+  balance.
+  **`legacy/users/` was therefore MISFILED and is gone** — it held the live
+  write, which its own entry criteria disqualify. The statement moved into
+  `features/users/` unchanged (verified byte-identical), the dead `auth.users`
+  version was deleted, and `features/users/service.ts` calls it. Two test files
+  and 11 assertions had been pinning the dead statement. Reversing the direction
+  for real is the auth cutover, which is Jacob's: better-auth is configured with
+  `modelName: 'exchange.users'` and writes through its own pool, so nothing in
+  this application is on that path.
 - **`purgeCancelled`** — a DELETE, behind a live admin button, that today
   destroys the `exchange` copy of cancelled orders while leaving the
   `orders.orders` rows the admin is actually looking at. A native port needs a
@@ -658,8 +675,25 @@ Full detail in FOLLOWUPS.md; these are the ones that block other work.
 - **Bank details are unencrypted at rest, and production has fourteen of
   them.** Confirmed against production: of 61 payouts, the 10 ACH and 8 WIRE
   rows carry real routing and account numbers in plaintext. Dev has none, which
-  made them look vestigial — they are not. The payments migration must not copy
-  them into `payments.details`, which would double the exposure.
+  made them look vestigial — they are not.
+  **This said the payments migration "must not copy them into `payments.details`,
+  which would double the exposure". IT ALREADY IS DOUBLED**: production's
+  `payments.details` holds ten rows with plaintext routing and account numbers,
+  every one matching an `exchange.payouts` row on (user_id, account_holder),
+  across eight customers. Migration 071 was written to remove them and has never
+  run there. The instruction was written as a future precaution about a migration
+  that had already happened.
+  **And `scripts/encrypt-payout-details.mjs` does not exist**, though 073 and
+  `verify-backfill.mjs` both describe it as the mechanism that writes those
+  columns. **An earlier version of this paragraph said `verify-backfill.mjs`
+  skips comparing them "on the strength of it", implying the verification has a
+  hole. It does not** — the exclusion is justified by the BACKFILL not writing
+  those columns at all, which is true whether or not the script exists, and
+  comparing them would assert that a rebuild reproduces plaintext bank details.
+  The exclusion is correct. What is missing is narrower and still real: the
+  encryption path was designed, documented in two places as though it existed,
+  and never built, so the plaintext stays plaintext and 073's comment describes a
+  mechanism nobody can run.
 - **One feature genuinely blocked**: auth. better-auth writes `exchange`
   directly via `modelName` through its own pool, so there is no reversible
   middle state to sit in. Payments was listed here as blocked and is not — it is
