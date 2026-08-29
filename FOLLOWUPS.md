@@ -10629,3 +10629,27 @@ it can, while the hard question is unanswered, teaches everyone that the
 gate is advisory. Three agents stopped at seams tonight and all three
 were right; this is the fourth and the most disciplined, because nothing
 was stopping it.
+
+=== D142: A SWITCH IS NOT THE ONLY THING THAT REACHES A NEW SCHEMA ===
+Sharpened by the tracker, which checked the import rather than relaying
+D137's summary. The quotes path does not merely lack a switch - it
+BYPASSES ONE THAT EXISTS. `features/quotes/service.ts:27` imports
+`#features/checkout/repo.next.ts` DIRECTLY, going around the `repo.js`
+that `CHECKOUT_SOURCE` selects, and line 276 of that file is
+`SELECT id FROM products.bullion`.
+So `audit:switches` can report a feature switched to `exchange` and be
+telling the truth about the switch while the feature reads the new
+schema anyway. The switch describes `repo.js`; it says nothing about who
+imports around it.
+CHECK FOR DIRECT `repo.next` IMPORTS before trusting a switch to
+describe what a feature reads. That is a grep, and it belongs in
+`audit:switches` itself - a switch audit that cannot see a bypass is
+another instrument answering a narrower question than the one being
+asked of it, which is the night's theme in its last costume.
+
+ALSO CORRECTED IN CLAUDE.md: it claimed TWENTY-ONE `*_SOURCE` switches;
+`audit:switches` reports TWO (`PAYMENTS_SOURCE`, `CHECKOUT_SOURCE`). The
+sentence had been wrong for several waves - each feature's switch was
+deleted along with the `repo.js` that read it as its reads pivoted, so
+the count fell while the sentence naming it did not. The retired ones
+were never promoted; they ceased to exist.

@@ -232,12 +232,25 @@ customers, $66,999.32, with no destination in any of the eighteen.**
 `audit:coverage` now reports every exchange table no feature claims, so this
 cannot go unnoticed again.
 
-**Every feature with data to migrate now has one, and none is promoted.** There
-are **twenty-one** `*_SOURCE` switches, all defaulting to `exchange`, so nothing
-has changed for live traffic: leads, rates, reviews, sales-tax, spots+metals,
-media, refiners, carriers, services, pickups, shipments, tracking, products,
-mints, purchase-orders, sales-orders, addresses, transactions, checkout, users,
-payments. Promotion is deliberate and is the user's call.
+**TWO `*_SOURCE` SWITCHES SURVIVE, NOT TWENTY-ONE.** `audit:switches` reports
+`PAYMENTS_SOURCE` and `CHECKOUT_SOURCE`, both still defaulting to `exchange`.
+This paragraph said twenty-one until 2026-08-29 and had been wrong for several
+waves: as each feature's reads pivoted, its switch was deleted along with the
+`repo.js` that read it, so the count fell without anyone updating the sentence
+that named it. The retired ones are not promoted — they no longer exist, because
+the feature reads its own schema unconditionally now.
+
+**That makes the two survivors the whole of the remaining promotion decision,**
+and it is still the user's call and still a one-way door: once `exchange` stops
+receiving writes, flipping back loses everything written in between.
+
+**A switch is not the only thing that can reach a new schema.** `features/quotes/
+service.ts:27` imports `#features/checkout/repo.next.ts` DIRECTLY — bypassing
+the `repo.js` that `CHECKOUT_SOURCE` selects — and line 276 of that file is
+`SELECT id FROM products.bullion`. Production has no `products` schema, so that
+is a 42P01 on first request, on the endpoints that price every customer-visible
+number. Grep for direct `repo.next` imports before trusting a switch to describe
+what a feature actually reads.
 
 **Two things are not a `*_SOURCE` switch and never will be.** `fulfillments`
 (methods, pickups, directs) is capability `exchange` never recorded — there is

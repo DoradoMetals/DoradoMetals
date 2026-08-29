@@ -4,7 +4,16 @@ Where the rewrite is. Bars first, descriptions below. Every sha in the table was
 checked against `git log`; every status word was checked against the lane files
 and the working tree, not against what this page said an hour ago.
 
-> ## STOP — THE SCRAP/BULLION COVENANT IS REFUTED. NOTHING GETS DELETED.
+**All lanes are finished and both waves are committed.** Wave 4 at `a2599311`,
+wave 5 at `cae90da7`. Nothing is in flight; the bars below are final until
+someone starts wave 6.
+
+> ## THE SCRAP/BULLION COVENANT WAS TESTED AND IT FAILED. NOTHING WAS DELETED.
+>
+> **This is a RESULT, not a gap.** Wave 5 shipped with its second task refused on
+> evidence, which is the outcome the covenant rule exists to produce. The bar
+> reads 0% because nothing was deleted, and nothing was deleted because the
+> evidence said not to.
 >
 > Lane 5c measured the claim that scrap and bullion lines "are `checkout.items`
 > now". **They are not. `checkout.checkouts` and `checkout.items` hold ZERO rows,
@@ -38,9 +47,11 @@ and the working tree, not against what this page said an hour ago.
 > and `checkout.checkouts`/`checkout.items` want the same plus a backfill. That
 > is a migration and Jacob's call; 5c wrote none.
 >
-> **Wave 5's task 2 is therefore not merely unstarted — it must not start.** 5c
-> stopped, which is the whole reason the covenant is run first. Deleting those
-> layers would have destroyed the only copy of 23 customers' declared metal.
+> **Task 2 did not merely go unstarted — it must not start.** Deleting those
+> layers would have destroyed the only copy of 23 customers' declared metal. 5c
+> also left a file it had *proven* dead (`scrap/service.ts`, zero importers)
+> untouched, because the covenant had not cleared: the gate applies to everything
+> or it is a formality.
 
 > **WAVE 4 IS COMMITTED: `a2599311`** — 167 files, +5563/-2509, on a green
 > 21-member gate (`CHECK_EXIT=0`, zero failures, and the newly added `next build`
@@ -54,9 +65,9 @@ and the working tree, not against what this page said an hour ago.
 > `{ user_id, op: mode, amount }` with `newAmount` surviving only as the
 > on-screen preview.
 >
-> **It is committed, not finished.** A5 — dissolving `purchase-orders/` and
-> `sales-orders/` — is untouched at 0%, and A6 is partial at 30%. Both were
-> deliberate stops, both carry into wave 5, and neither is hidden by the bar.
+> **It was committed, not finished** — A5 untouched at 0%, A6 partial at 30%,
+> both deliberate stops. **Wave 5 finished A5**: `purchase-orders/` and
+> `sales-orders/` no longer exist. A6 carries on as 5a's task 2, still partial.
 
 ```
 OVERALL   █████████████████████████████████░░░   ~93%
@@ -70,8 +81,8 @@ OVERALL   ███████████████████████�
 | ✅ | **styling** dark-only, components own appearance | `██████████████████` | 100% · `9de7d283` |
 | ✅ | **wave 3** the order wire slims | `██████████████████` | 100% · `2208932e` |
 | 🟡 | **wave 3.5** factor, delete legacy, co-locate | `██████████░░░░░░░░` | COMMITTED `a9b7dd61` · 58% of its scope |
-| 🟡 | **wave 4** batching, pricing, styling lane B | `███████████████░░░` | ~83% · COMMITTED `a2599311` · A5 untouched, A6 partial |
-| 🔄 | **wave 5** orders, carriers, scrap covenant | `█████████████░░░░░` | ~70% · IN FLIGHT · COVENANT REFUTED, deletion cancelled |
+| 🟡 | **wave 4** batching, pricing, styling lane B | `███████████████░░░` | ~83% · COMMITTED `a2599311` · A5/A6 finished in wave 5 |
+| 🟡 | **wave 5** orders, carriers, scrap covenant | `█████████████░░░░░` | ~70% · COMMITTED `cae90da7` · DELETION REFUSED ON EVIDENCE |
 
 All five green shas exist in the log, in that order, `a9b7dd61` at HEAD.
 **Nothing since `a9b7dd61` has been committed** — wave 4's ~64% lives entirely
@@ -233,7 +244,7 @@ confirmation email and the PDFs sit behind.
 
 **Lane A also found a gate that had not run for ten commits** — see Found.
 
-## Wave 5 — IN FLIGHT, three lanes (5c's covenant stopped task 2)
+## Wave 5 — COMMITTED at `cae90da7`, with one task refused on evidence
 
 All three lane files are live and every bar below is a lane's own number, in its
 own words. **5b was not stalled after all** — it reported at 23:07 with task 1 at
@@ -289,15 +300,20 @@ byte-identical**. It also wrote a new guard, `lint:carrier-vocabulary` — with 
 376 files. The 6 unresolved calls `lint:namespace-calls` reports are 5a's
 in-flight dissolution, not 5b's change.
 
-**5c reported, and its numbers stopped the wave's second task dead.** Its task 1 is the covenant: the evidence that scrap and bullion data is
+**5c's numbers stopped the wave's second task dead, and that is how it shipped.** Its task 1 is the covenant: the evidence that scrap and bullion data is
 genuinely migrated. **Nothing gets deleted from `features/scrap` or
 `features/checkout` until that evidence clears** — exchange-only rows, value
 agreement, per-direction counts. 5b gathered none of it (D128), so 5c starts from
 zero, and its file currently says so honestly rather than implying otherwise.
-That is exactly what happened: **the evidence does not clear, so task 2 stays at
+That is exactly what happened: **the evidence did not clear, so task 2 stays at
 0% and the legacy layers stay.** 5c's own file ends "Task 2 — NOT STARTED, AND
-NOT STARTING". Its task 1 sits at 80% because the measuring is nearly done, not
-because the answer is in doubt — the answer is settled and it is *no*.
+NOT STARTING". Read the bar as a decision, not a shortfall.
+
+**5a's task 2 is genuinely partial**, by contrast: 5 of 28 test files converted
+to TypeScript, 23 remaining — and those are the large ones (`parity` 402 lines,
+`sales-service` 392, `patch` 391, `create` 356), each carrying `let admin;`-style
+fixtures needing a declared structural subset. That is where the next defects of
+this class will be, on the evidence of the four already found this way.
 
 **5b named the four files it touched outside its own partition, rather than
 burying them** — which is what makes a three-lane shared tree workable. One
@@ -405,7 +421,34 @@ The waves keep producing findings that outlive them. These are the live ones,
 newest first; each is in `FOLLOWUPS.md` under its number, or in the lane file
 named beside it.
 
-- **5c fixed the instrument rather than only reporting it could not answer** —
+## What tonight actually found
+
+**Almost every defect was a check that reported success while looking at the
+wrong thing.** Not broken code — broken instruments. The list reads the same way
+end to end: a leak detector fingerprinting the wrong half of the database; a
+contrast scan that knew one spelling of a class pair; a route census answering
+about a subset of routes and exiting 0; a suite spawned without half of the guard
+that keeps tests off live Stripe, FedEx and mail; a parity tool that had never
+covered the feature whose deletion it was supposed to authorise; a comparison
+that joins on an id the target does not keep. Each was green. Each was green
+about the wrong question.
+
+**D135 is the sharpest single expression of it**: the identical filename bug in
+two files on the same night — silent in the report, loud in the assertion. One
+stopped the suite; one stopped nothing. If a check can be wrong, make it assert
+rather than print.
+
+The corollary is the reason this page exists. **A number is not evidence of the
+thing it appears to measure**, and the ones that mattered tonight only became
+true when someone re-derived them: the wave-4 seam where both money fixes were
+fully built and fully inert with green gates on either side saying so; two counts
+that were repeated rather than checked; two bars that would have read 0% for a
+task already finished. The finding sections below are what a reader cannot
+reconstruct from the code — the code will still be there next month, but nobody
+will rebuild *why* a fix that looked right had never applied.
+
+- **D138 — 5c fixed the instrument rather than only reporting it could not
+  answer** —
   and then wrote down what the fix still cannot tell you. `verify:parity` went
   from 11 pairs to 15, the four cart pairs all print `>> NOT SAFE`, and it is
   deliberately **not** a `pnpm check` member, so it cannot redden another lane's
@@ -424,21 +467,21 @@ named beside it.
   4612.06, silver 68.45 against 71.41. Dev's spot poller updates one side and not
   the other, so that pair drifts by construction. Same family as D104, and named
   by 5c precisely so it is not read as new breakage.
-- **A SECOND D124 instance, and this one is on the money path.**
+- **D139 — a SECOND D124 instance, and this one is on the money path.**
   `api/features/quotes/` belongs to no lane in wave 5, and it holds an unswitched
   new-schema read — quotes being the endpoints that price every customer-visible
   number since D81–D84. Found by 5c while walking its own boundaries. The
   partition question is not answered once at dispatch: **every wave needs the
   task list walked against the ownership map, and this one has a gap nobody
   noticed until an agent looked sideways.**
-- **The two order directions disagree about the premium on a cart line.**
+- **D140 — the two order directions disagree about the premium on a cart line.**
   `addItems` (sale) writes no premium at all; `replaceSellItems` (purchase,
   product branch) writes `b.bid_premium` as the premium. Reported by 5c, not
   touched. It sits directly beside the `bid_premium` finding above — the column
   with no home, which for 23 production rows is the only premium recorded
   anywhere.
-- **One thing in 5c's tree could be deleted on evidence alone, and it was left
-  alone anyway.** `api/features/scrap/service.ts` has **zero importers** — its
+- **D141 — one thing in 5c's tree could be deleted on evidence alone, and it was
+  left alone anyway.** `api/features/scrap/service.ts` has **zero importers** — its
   two functions are pass-throughs and all three live callers import the repo or
   the util directly, so it is dead by ruling 29's test with no data argument
   needed. 5c left it because task 1 did not clear. That is the covenant being
@@ -823,18 +866,47 @@ named beside it.
 Verified against `FOLLOWUPS.md` and the tree this pass. Nothing here has been
 resolved.
 
-- **The production deploy order.** No migration has run against prod and no
-  `pg_dump` exists. The orders read pivot has landed, so merging to `master`
-  before prod is migrated *and backfilled* serves customers a January snapshot
-  (`orders.orders` in prod: 60 rows, newest 2026-01-12; `exchange`: 72 orders
-  through 2026-08-24). `master` auto-deploys and there is no staging. The
-  sequence is written out in CLAUDE.md; the dump comes first.
+- **THE DEPLOY BLOCKER, in its corrected form. PRODUCTION IS MISSING EIGHT OF
+  THE EIGHTEEN SCHEMAS ENTIRELY** — products, organizations, metals, spots,
+  media, leads, rates, reviews — verified read-only against production. This is
+  not missing *data*; **most of genesis has never run there.** So the sequence is
+  not "migrate and backfill", it is "the schemas do not exist yet".
+  **`features/quotes/service.ts:416` does `SELECT id FROM products.bullion` with
+  no switch**, on the endpoint that prices every customer-visible number. The
+  tracker verified this one directly rather than relaying it: line 27 imports
+  `#features/checkout/repo.next.ts` — the new-schema repo — **bypassing the
+  `repo.js` that `CHECKOUT_SOURCE` selects**, and line 276 of that file is the
+  `products.bullion` read. On deploy that is a **42P01, on the money path, on
+  first request.** `master` auto-deploys and there is no staging. No migration
+  has run against prod and **no `pg_dump` exists; the dump comes first.**
+- **23 production `exchange.scrap` rows, across 12 sell carts and 12 distinct
+  customers, exist nowhere else.** Real declared parcels — 459.374 g of 0.900,
+  272.228 t oz of sterling, 13.419 g of 0.203. `checkout.items` has no row for
+  any of them and holds zero rows in both databases. This is why wave 5's
+  deletion was refused.
+- **A production order line's two copies disagree on the weight and purity a
+  customer is PAID on.** Order item `d16b7c32` (order `117265cc`): `pre_melt`
+  18.662 against 20.000, `post_melt` 18.662 against NULL, `purity` 0.570 against
+  0.563, `content` 0.342 against 0.362. Dev is clean at 20 pairs / 0 differences,
+  so this is January-refactor drift with a specific row on it. Also 27 of
+  production's 89 `purchase_order_items` have no `orders.items` row at all —
+  expected, since the backfills have never run there.
 - **Promotion of the two remaining `*_SOURCE` switches.** Confirmed by reading
   the code, not the docs: exactly two survive — `PAYMENTS_SOURCE`
   (`features/payments/repo.js`) and `CHECKOUT_SOURCE`
   (`features/checkout/repo.js`), both defaulting to `exchange`. Every other
   switch is gone with its feature's pivot. One-way door. (CLAUDE.md still says
   twenty-one; that file is the coordinator's to correct.)
+- **D117 — the payout fee is not a function of the payout method.** Eleven of 61
+  production `exchange.payouts` rows disagree with the frontend's table: ECHECK
+  is 0 on 39 rows but 75 on one and 125 on another; WIRE is 20 on six and 0 on
+  two. Were the zero-fee WIREs waived deliberately? If so a fee is per-order
+  data, not reference data, and the constants file models the wrong thing.
+- **D138 — the checkout schema needs a source-id column before parity can ever
+  answer again.** The four new cart pairs are exact only while the target is
+  empty, because the comparison joins on `id` and a checkout row gets a fresh
+  `gen_random_uuid()`. `orders.addresses.source_address_id` is the shape that
+  already exists for this. A migration, and yours.
 - **The T&C legal copy** edited by the offers purge — unreviewed, and it ships
   the moment master deploys.
 - **D39** — two production products carrying `E'\n\tBar'`, a newline and a tab
@@ -961,6 +1033,10 @@ place that rule did not reach: two writers, one numbering space, no lock. The
 procedure now is to take the next number after the highest in `FOLLOWUPS.md` at
 that moment AND say so, or to describe the finding without a number and let the
 coordinator assign one. Describing without a number is the safer of the two.
+
+**Everything on this page is final as of `cae90da7`.** All six lane files under
+`docs/waves/` are closed records; the bars regenerate from them and will not move
+again until a wave 6 lane file appears.
 
 The tracker owns this file and the published artifact. Each agent owns exactly
 one file under `docs/waves/` and updates only that one — never this index, never
