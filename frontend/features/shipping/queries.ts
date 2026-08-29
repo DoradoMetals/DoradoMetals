@@ -22,7 +22,7 @@ import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { useCarrierServices } from '@/features/carriers/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
-import type { Shipment, ShipmentPickup } from '@dorado/contracts'
+import type { Shipment, ShipmentPatch, ShipmentPickup } from '@dorado/contracts'
 
 // THE ORDER'S PARCELS, BOTH DIRECTIONS IN ONE ARRAY (wave 3):
 // GET /orders/:orderId/shipments, verbatim shipping.shipments rows. This is
@@ -209,12 +209,14 @@ export const useShippingCancelPickup = () => {
 // direction the order is. Admin-only. Settles through the one order cache
 // policy: the shipment's figures render inside order reads and price the
 // quote.
-export type ShipmentPatch = {
-  shipping_charge?: number
-  shipping_actual?: number
-  tracking_number?: string
-  carrier_id?: string
-}
+// THE REQUEST BODY IS THE CONTRACT'S NOW (phase 3, A3). It was declared here
+// AND in api/features/shipping/shipments/patch.service.ts, and the two
+// disagreed on `shipping_charge`: the API said `number | null`, this said
+// `number`, so the API advertised a CLEAR no client could compile a call to.
+// The null is gone rather than this widened - nothing under the API ever
+// honoured it (editShippingCharge takes `number`), and null and 0 price
+// identically because every reader is `?? 0`. "Free" is 0.
+export type { ShipmentPatch } from '@dorado/contracts'
 
 type PatchShipmentVars = {
   shipment_id: string

@@ -123,6 +123,16 @@ export const resetOrderTotal = (client, orderId) =>
     return r;
   });
 
+// The waive flag is a column of exchange.purchase_orders, so the mirror
+// re-derives orders.transactions.waive_payout_fee from it - one write, both
+// schemas, exactly like every order-level write below.
+export const setWaivePayoutFee = (order_id, waived, executor) =>
+  both(executor, async (c) => {
+    const r = await legacyExchange.setWaivePayoutFee(order_id, waived, c);
+    await sync(c, order_id, ["order"]);
+    return r;
+  });
+
 export const updateShippingActual = (purchase_order_id, shipping_fee_actual, executor) =>
   both(executor, async (c) => {
     const r = await legacyExchange.updateShippingActual(purchase_order_id, shipping_fee_actual, c);

@@ -7,7 +7,7 @@ One writer per file: whoever takes this lane owns this file and nothing else.
 A0. Executor: 37 declarations become one   ██████████████████  100%
 A1. API: 8 boundary-crossing types (was '118')  █████████████░░░░░   70%
 A2. API: single-file types stop exporting    ██████████████░░░░   80%
-A3. API: 29 input/patch shapes into contracts   ░░░░░░░░░░░░░░░░░░    0%
+A3. API: input/patch shapes into contracts   ███████░░░░░░░░░░░   40%
 A4. lint: a type has exactly one home           ░░░░░░░░░░░░░░░░░░    0%
 ```
 
@@ -271,3 +271,33 @@ which is already the contract.
    the value. Nothing is broken that was looked at; it is the reason A1 cannot
    simply adopt wire contracts internally, and it is worth a decision of its
    own.
+
+## A3 — the six PATCH bodies are done; fourteen `*Input` remain
+
+Owned by the patch-surface lane, **2026-08-29**. Full record, including the
+per-field null decision and four defects it turned up, in
+`docs/waves/patch-surface.md`. In brief:
+
+- **The six `*Patch` bodies now have one definition each**, in
+  `packages/contracts/src/wire/patches.ts`, adopted on BOTH sides in the same
+  diff — types, and at runtime too: each service's `FIELDS` is
+  `Object.keys(<Contract>.shape)` and each `refusedField` ends by parsing the
+  document through the contract.
+- **The unknown-field refusal runs BEFORE the parse**, because zod strips
+  unknown keys rather than rejecting them; and no dispatch reads `parsed.data`,
+  because a patch body distinguishes absent from null from a value (D182).
+- **Finding 4's null question resolved four-to-one, not either way.**
+  `shipping_charge`, `pool_oz_deducted`, `pool_remediation` and `fee` lost their
+  null (their exchange shadows are all typed `number` and were reached by cast;
+  every reader is `?? 0`). `refiner_id` kept it — a nullable FK is not a fee,
+  and every engagement starts null. `RefinerItemPatch`, whose two declarations
+  already agreed, keeps all five of its nulls and is the control.
+
+**So A3 is not 29 any more and it never was six.** Re-derived after this pass:
+**zero `*Patch` remain and fourteen `*Input` do**, and the suffix scan flatters
+them — most are repo INSERT shapes (`DirectInput`, `MethodInput`,
+`ShipmentLinkInput`, `RateInput`, `ReviewInput`), not request bodies that cross
+to a client. `InvoiceInput` / `PackingListInput` are PDF render arguments and
+cross nothing. Whoever takes the remainder should apply this pass's test rather
+than the suffix: **is this shape declared on both sides of a wire?** For the six
+above the answer was yes for all six, which is why they were worth moving.

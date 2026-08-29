@@ -4,6 +4,7 @@ import {
   calculateTotalPrice,
   calculateItemPrice,
   calculateReturnDeclaredValue,
+  effectivePayoutFee,
   getBullionTotal,
   getScrapTotal,
 } from "#features/pricing/service.ts";
@@ -228,4 +229,46 @@ test("an explicit premium still beats the scrap row's", () => {
 test("a scrap line with no premium anywhere is worth zero, not NaN", () => {
   const item = { item_type: "scrap", premium: null, scrap: { metal: "Gold", content: 1 } };
   assert.equal(calculateItemPrice(item, spots), 0);
+});
+
+// ---------------------------------------------------------------------------
+// THE WAIVER (Jacob, 2026-08-29). A fee that is waived is not deducted, and the
+// stored fee is NOT rewritten - which is the whole reason the flag exists
+// rather than an UPDATE to zero. D117: a stored fee is a record.
+// ---------------------------------------------------------------------------
+
+test("a waived payout fee is not deducted, and the stored fee still says what it was", () => {
+  const o = order({
+    order_items: [scrapItem()],
+    payout: { cost: 20 },
+    waive_payout_fee: true,
+  });
+  assert.equal(calculateTotalPrice(o, spots), 7200, "the waived fee was still deducted");
+  // The RECORD is untouched: nothing above rewrote it, and un-waiving reads
+  // the same 20 back rather than re-deriving it from the method table.
+  assert.equal(o.payout.cost, 20, "waiving overwrote the stored fee");
+  assert.equal(effectivePayoutFee(o), 0);
+});
+
+test("an unwaived fee is deducted, whatever the flag's other spellings", () => {
+  const priced = (waive: unknown) =>
+    calculateTotalPrice(
+      order({ order_items: [scrapItem()], payout: { cost: 20 }, waive_payout_fee: waive }),
+      spots
+    );
+  // Every production row holds `false` today, and null is what an order with
+  // no transactions row composes to. Only `true` waives.
+  assert.equal(priced(false), 7180);
+  assert.equal(priced(null), 7180);
+  assert.equal(priced(undefined), 7180);
+});
+
+// The three surfaces that price a payout fee go through ONE expression, so a
+// waived order cannot show a deduction on the drawer estimate and none on the
+// invoice. This pins the helper's own contract rather than the callers'.
+test("effectivePayoutFee is the stored fee unless the order waives it", () => {
+  assert.equal(effectivePayoutFee({ payout: { cost: 125 } }), 125);
+  assert.equal(effectivePayoutFee({ payout: { cost: 125 }, waive_payout_fee: true }), 0);
+  assert.equal(effectivePayoutFee({ payout: null, waive_payout_fee: true }), 0);
+  assert.equal(effectivePayoutFee({}), 0);
 });

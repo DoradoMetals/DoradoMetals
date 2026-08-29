@@ -127,6 +127,11 @@ type PricedOrder = {
   // request body can omit the key entirely. Both are now expressible, which
   // means `- order.payout.cost` no longer compiles and cannot come back.
   payout?: { cost?: number | null } | null;
+  // THE WAIVER (Jacob, 2026-08-29). Optional because most callers here are
+  // hand-assembled orders - the PDF and email renderers - and an order that
+  // does not mention it is an order whose fee is not waived, which is the
+  // right default and the state every production row is in today.
+  waive_payout_fee?: boolean | null;
 };
 
 // EVERY MONEY FIGURE THIS MODULE RETURNS IS A NUMBER OR AN EXCEPTION. NEVER NaN.
@@ -190,6 +195,34 @@ function fee(value: unknown, what: string): number {
   return n;
 }
 
+// THE EFFECTIVE PAYOUT FEE - what the order actually prices at, which is not
+// always what the payout row says.
+//
+// The comment above says "ABSENT -> 0… and it is NOT waiving the fee (D117:
+// the fee is data on the row)". That was correct and it left a real capability
+// with nowhere to live: Jacob waives the fee on real orders, and production
+// shows it - two WIRE payouts stored at 0 against a $20 method fee. There was
+// no way to say so, so it was said by overwriting the record.
+//
+// THE FLAG IS THE PLACE. `waive_payout_fee` is already a column of
+// orders.transactions and of exchange.purchase_orders; it was read, composed
+// and mirrored, and had no writer and no UI. Waiving it makes THIS return 0
+// while `payout.cost` keeps the number the fee would have been, so un-waiving
+// restores it exactly rather than re-deriving it from a table of defaults that
+// four production rows already disagree with.
+//
+// Exported because three surfaces price a payout - the stored total
+// (calculateTotalPrice), the drawer estimate (quotes' orderQuote) and the
+// customer's line in the profit breakdown - and three copies of one condition
+// is how they would come to disagree.
+export function effectivePayoutFee(order: {
+  payout?: { cost?: number | null } | null;
+  waive_payout_fee?: boolean | null;
+}): number {
+  if (order.waive_payout_fee === true) return 0;
+  return fee(order.payout?.cost, "the payout fee");
+}
+
 // The last gate, and it earns its place independently of the fees: migration
 // 087 had to clean up two `content = 'NaN'` rows that reached the wire as the
 // STRING "NaN", so a non-finite line total is a thing this database has
@@ -233,7 +266,7 @@ export function calculateTotalPrice(order: PricedOrder, spots: Spots): number {
   // Both subtrahends through the same function, which is the point: the
   // asymmetry between these two lines is how the NaN got in.
   const shipping = fee(order.shipment?.shipping_charge, "the shipping charge");
-  const payout = fee(order.payout?.cost, "the payout fee");
+  const payout = effectivePayoutFee(order);
 
   return finite(baseTotal - shipping - payout, "the order total");
 }

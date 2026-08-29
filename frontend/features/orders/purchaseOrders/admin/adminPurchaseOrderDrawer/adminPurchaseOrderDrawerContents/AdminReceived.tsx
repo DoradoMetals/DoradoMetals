@@ -210,6 +210,38 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
               />
             </div>
           </div>
+
+          {/* WAIVING THE PAYOUT FEE (Jacob, 2026-08-29: "Would actually be
+              somewhat nice to have a checkbox for waiving fee or something").
+              It sits beside the charge it waives and stays an ordinary
+              Checkbox + label, the surrounding pattern in this file.
+
+              IT DOES NOT CLEAR THE CHARGE ABOVE, and that is the point: the
+              stored fee is a RECORD (D117), so waiving leaves it reading
+              whatever it would have been and only stops the server deducting
+              it. Un-waiving therefore restores the same number rather than
+              guessing one out of the payout-method table - which four
+              production rows already disagree with, in both directions.
+
+              The state is read from the ORDER's money, not from the payout:
+              the flag's column is orders.transactions.waive_payout_fee, which
+              the order wire serves as `totals`. The write is keyed by the
+              payout, like the two controls above it. */}
+          <label className="flex items-center gap-2 w-full cursor-pointer">
+            <Checkbox
+              checked={order.totals?.waive_payout_fee === true}
+              disabled={!payout?.id}
+              onCheckedChange={(checked) => {
+                if (!payout?.id) return
+                patchPayout.mutate({
+                  payout_id: payout.id,
+                  order_id: order.id,
+                  patch: { waive_payout_fee: checked === true },
+                })
+              }}
+            />
+            <small>Waive Payout Fee</small>
+          </label>
           <Separator />
 
           {/* 'Accepted' left the lifecycle, and the change-payout affordance

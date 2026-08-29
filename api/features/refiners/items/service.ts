@@ -21,6 +21,8 @@
 import * as purchaseOrderService from "#features/orders/service.ts";
 import * as scrapRepo from "#features/scrap/repo.ts";
 import * as refinerItemsRepo from "#features/refiners/items/repo.ts";
+import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
+import { RefinerItemPatch } from "@dorado/contracts";
 
 const refuse = (statusCode: number, message: string): never => {
   const err: Error & { statusCode?: number } = new Error(message);
@@ -42,38 +44,33 @@ export async function forOrder(
   return await refinerItemsRepo.getForOrder(order_id, executor);
 }
 
-export type RefinerItemPatch = {
-  premium?: number | null;
-  pre_melt?: number | null;
-  post_melt?: number | null;
-  purity?: number | null;
-  unit?: string | null;
-};
-
+// THE BODY IS THE CONTRACT'S (A3). This is the one patch of the six whose two
+// declarations already AGREED, and it is the reason the other four were decided
+// on their own facts rather than by a rule: here `null` is a real value the
+// admin drawer really sends. An assay figure that is not yet known IS null, and
+// the merge below reads the current row and writes the document over it, so a
+// null means "not measured" rather than "leave alone".
+//
 // `content` is deliberately NOT a field. refiners.items.content is DERIVED -
 // the existing service computes it from post_melt (or pre_melt) and purity,
 // exactly as the actual-values drawer has always had it computed - and a raw
 // content override would need a new write path, which this feature refuses to
 // open. The refusal names the field so nothing is silently recomputed over.
-const FIELDS = ["premium", "pre_melt", "post_melt", "purity", "unit"] as const;
+export type { RefinerItemPatch } from "@dorado/contracts";
 
-export function refusedField(
-  body: Record<string, unknown>
-): { statusCode: number; message: string } | null {
-  const present = Object.keys(body ?? {});
-  for (const field of present) {
-    if (!(FIELDS as readonly string[]).includes(field)) {
-      const why =
-        field === "content"
-          ? `"content" is derived from post_melt and purity, not written`
-          : `"${field}" is not a field of a refiner item PATCH`;
-      return { statusCode: 400, message: why };
-    }
-  }
-  if (present.length === 0) {
+const FIELDS = Object.keys(RefinerItemPatch.shape);
+
+export function refusedField(body: Record<string, unknown>): Refusal | null {
+  const unknown = refusedUnknownField(body, FIELDS, "a refiner item PATCH", (field) =>
+    field === "content"
+      ? `"content" is derived from post_melt and purity, not written`
+      : null
+  );
+  if (unknown) return unknown;
+  if (Object.keys(body ?? {}).length === 0) {
     return { statusCode: 400, message: "the document names no field to write" };
   }
-  return null;
+  return refusedValue(RefinerItemPatch, body ?? {});
 }
 
 export async function patchRefinerItem(
@@ -88,7 +85,7 @@ export async function patchRefinerItem(
   if (body.premium !== undefined) {
     await purchaseOrderService.updateRefinerPremium({
       item_id: orderItemId,
-      refiner_premium: body.premium as number,
+      refiner_premium: body.premium,
     });
   }
 

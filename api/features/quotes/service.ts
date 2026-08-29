@@ -30,6 +30,7 @@ import * as purchaseOrdersService from "#features/orders/service.ts";
 import {
   calculateItemAsk,
   calculateSalesOrderTotal,
+  effectivePayoutFee,
   type OrderPrices,
 } from "#features/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
@@ -729,7 +730,13 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
   // via jsonb_build_object so an orphaned order carries nulls, not a missing
   // object.
   const shipping = Number(order.shipment?.shipping_charge ?? 0);
-  const payoutCost = Number(order.payout?.cost ?? 0);
+  // THE EFFECTIVE FEE, NOT THE STORED ONE. An admin who has waived the payout
+  // fee has not changed `payout.cost` - the record stands (D117) - so reading
+  // the row here would quote the customer a deduction the business is not
+  // taking. calculateTotalPrice, which prices the SAME order when it is
+  // finalised, goes through the same helper, and the two agreeing is the whole
+  // reason the condition is not written out twice.
+  const payoutCost = effectivePayoutFee(order);
   const total = scrap_total + bullion_total - shipping - payoutCost;
 
   return { order_id, spots_at, items, scrap_total, bullion_total, total };
@@ -1101,9 +1108,16 @@ export async function profitBreakdown(body: Body): Promise<ProfitBreakdown> {
       bullion: bullion.customer,
       total: total.customer,
       shipping_net: shipping.dorado - shipping.customer,
-      refiner_fee_net: -Math.abs(Number(order.payout?.cost ?? 0)),
+      // Same effective fee the order total and the drawer estimate use: a
+      // waived fee is not deducted from what the customer nets.
+      refiner_fee_net: -Math.abs(effectivePayoutFee(order)),
       spot_net: spotNet.customer,
-      total_profit: getTotalProfit(total.customer, shipping.customer, spotNet.customer, order.payout?.cost),
+      total_profit: getTotalProfit(
+        total.customer,
+        shipping.customer,
+        spotNet.customer,
+        effectivePayoutFee(order)
+      ),
     },
   };
 }

@@ -34,6 +34,8 @@ import * as ordersRepo from "#features/orders/repo.ts";
 import * as itemsRepo from "#features/orders/items/repo.ts";
 import * as purchaseOrderService from "#features/orders/service.ts";
 import { refuseWith as refuse } from "#shared/http/refuse.ts";
+import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
+import { OrderItemPatch } from "@dorado/contracts";
 import type { OrderItemRow } from "#features/orders/items/repo.ts";
 import type { PoolClient } from "pg";
 
@@ -75,30 +77,25 @@ export async function createForOrder(
   });
 }
 
-export type OrderItemPatch = {
-  /** The scrap-and-premium edit: { premium?, scrap: { pre_melt, purity, ... } } */
-  scrap?: Record<string, unknown>;
-  /** The bullion edit: { quantity?, premium? } */
-  bullion?: { quantity?: number | null; premium?: number | null };
-  confirmed?: boolean;
-  reset?: boolean;
-};
+// THE BODY IS THE CONTRACT'S (A3). It was declared here and again in
+// frontend/features/orders/items.ts, and the frontend's was the more accurate
+// of the two: `scrap` is not an open record, it is `{ premium, scrap }` with
+// BOTH members required, because updateScrapItem writes every column it knows
+// and updateBullion's statement is `SET quantity = $1, premium = $2`
+// unconditionally. A partial document does not leave the rest alone here - it
+// NULLS it, which on a bullion line is how many coins the customer sent. The
+// contract requires what the statement writes.
+export type { OrderItemPatch, OrderItemScrapPatch, OrderItemBullionPatch } from "@dorado/contracts";
 
-const FIELDS = ["scrap", "bullion", "confirmed", "reset"] as const;
+const FIELDS = Object.keys(OrderItemPatch.shape);
 
-export function refusedField(
-  body: Record<string, unknown>
-): { statusCode: number; message: string } | null {
-  const present = Object.keys(body ?? {});
-  for (const field of present) {
-    if (!(FIELDS as readonly string[]).includes(field)) {
-      return { statusCode: 400, message: `"${field}" is not a field of an order item PATCH` };
-    }
-  }
-  if (present.length === 0) {
+export function refusedField(body: Record<string, unknown>): Refusal | null {
+  const unknown = refusedUnknownField(body, FIELDS, "an order item PATCH");
+  if (unknown) return unknown;
+  if (Object.keys(body ?? {}).length === 0) {
     return { statusCode: 400, message: "the document names no field to write" };
   }
-  return null;
+  return refusedValue(OrderItemPatch, body ?? {});
 }
 
 // The line's identity: its order and its scrap row, from the database.

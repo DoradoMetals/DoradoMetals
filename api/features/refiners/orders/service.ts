@@ -26,6 +26,8 @@
 import * as purchaseOrderService from "#features/orders/service.ts";
 import * as refinerOrdersRepo from "#features/refiners/orders/repo.ts";
 import * as refinerSpotsRepo from "#features/refiners/spots/repo.ts";
+import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
+import { RefinerOrderPatch } from "@dorado/contracts";
 
 const refuse = (statusCode: number, message: string): never => {
   const err: Error & { statusCode?: number } = new Error(message);
@@ -33,27 +35,30 @@ const refuse = (statusCode: number, message: string): never => {
   throw err;
 };
 
-export type RefinerOrderPatch = {
-  /** The refinery's spot per metal - dispatched to the same updateRefinerSpot
-   *  path the old route used, addressed by the engagement now. */
-  spots?: { name: string; bid: number }[];
-  pool_oz_deducted?: number | null;
-  pool_remediation?: number | null;
-  fee?: number | null;
-  refiner_id?: string | null;
-};
+// THE BODY IS THE CONTRACT'S (A3), AND THE NULL QUESTION SPLIT FOUR-TO-ONE.
+// This file typed all four writable values `| null` while
+// frontend/features/refiners/queries.ts typed all four non-null, so the API
+// advertised four CLEARs that no client could compile.
+//
+// The three pool/fee numbers lost their null: their exchange shadows -
+// updatePoolOzDeducted, updatePoolRemediation, updateRefinerFee - are each
+// typed `number` and this file reached them through `as number`, so the null
+// was a cast rather than a capability, and every reader defaults them to 0.
+// Clearing a pool deduction and setting it to 0 are the same order.
+//
+// `refiner_id` KEPT its null, and here the frontend was the side that was
+// wrong. It is a nullable foreign key, not a fee: ensureForOrder inserts
+// `(order_id)` alone so every engagement STARTS null, detaching an engagement
+// from a refinery is a real operation, setEngagementValue already admits null,
+// and there is no exchange shadow to disagree with.
+export type { RefinerOrderPatch, RefinerSpotWrite } from "@dorado/contracts";
 
-const FIELDS = ["spots", "pool_oz_deducted", "pool_remediation", "fee", "refiner_id"] as const;
+const FIELDS = Object.keys(RefinerOrderPatch.shape);
 
-export function refusedField(
-  body: Record<string, unknown>
-): { statusCode: number; message: string } | null {
+export function refusedField(body: Record<string, unknown>): Refusal | null {
+  const unknown = refusedUnknownField(body, FIELDS, "a refiner order PATCH");
+  if (unknown) return unknown;
   const present = Object.keys(body ?? {});
-  for (const field of present) {
-    if (!(FIELDS as readonly string[]).includes(field)) {
-      return { statusCode: 400, message: `"${field}" is not a field of a refiner order PATCH` };
-    }
-  }
   if (present.length === 0) {
     return { statusCode: 400, message: "the document names no field to write" };
   }
@@ -68,7 +73,7 @@ export function refusedField(
       }
     }
   }
-  return null;
+  return refusedValue(RefinerOrderPatch, body ?? {});
 }
 
 async function op<T>(name: string, run: () => Promise<T>): Promise<T> {
@@ -112,7 +117,7 @@ export async function patchRefinerOrder(
       await refinerOrdersRepo.setEngagementValue(id, "pool_oz_deducted", body.pool_oz_deducted!);
       await purchaseOrderService.updatePoolOzDeducted({
         purchase_order_id: orderId,
-        pool_oz_deducted: body.pool_oz_deducted as number,
+        pool_oz_deducted: body.pool_oz_deducted!,
       });
     });
   }
@@ -122,7 +127,7 @@ export async function patchRefinerOrder(
       await refinerOrdersRepo.setEngagementValue(id, "pool_remediation", body.pool_remediation!);
       await purchaseOrderService.updatePoolRemediation({
         purchase_order_id: orderId,
-        pool_remediation: body.pool_remediation as number,
+        pool_remediation: body.pool_remediation!,
       });
     });
   }
@@ -132,7 +137,7 @@ export async function patchRefinerOrder(
       await refinerOrdersRepo.setEngagementValue(id, "fee", body.fee!);
       await purchaseOrderService.updateRefinerFee({
         purchase_order_id: orderId,
-        refiner_fee: body.fee as number,
+        refiner_fee: body.fee!,
       });
     });
   }

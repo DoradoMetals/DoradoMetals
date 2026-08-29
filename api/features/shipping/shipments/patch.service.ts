@@ -24,6 +24,8 @@
 import * as shipmentsService from "#features/shipping/shipments/service.ts";
 import * as purchaseOrderService from "#features/orders/service.ts";
 import * as salesOrderService from "#features/orders/service.ts";
+import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
+import { ShipmentPatch } from "@dorado/contracts";
 
 const refuse = (statusCode: number, message: string): never => {
   const err: Error & { statusCode?: number } = new Error(message);
@@ -31,24 +33,23 @@ const refuse = (statusCode: number, message: string): never => {
   throw err;
 };
 
-export type ShipmentPatch = {
-  shipping_charge?: number | null;
-  shipping_actual?: number;
-  tracking_number?: string;
-  carrier_id?: string;
-};
+// THE BODY IS THE CONTRACT'S (A3), AND ONE FIELD CHANGED MEANING IN THE MOVE.
+// `shipping_charge` was `number | null` here and `number` in
+// frontend/features/shipping/queries.ts, so the API advertised a CLEAR the only
+// client could not compile a call to. The null is gone rather than the
+// frontend's type being widened, because nothing below this line ever honoured
+// it: editShippingCharge takes `shipping_charge: number` and this file reached
+// it through `as number`. And a cleared charge is not distinguishable from a
+// zero one - every reader is `?? 0` - so the capability was a second spelling
+// of 0, on a stored fee that D117 says is a record.
+export type { ShipmentPatch } from "@dorado/contracts";
 
-const FIELDS = ["shipping_charge", "shipping_actual", "tracking_number", "carrier_id"] as const;
+const FIELDS = Object.keys(ShipmentPatch.shape);
 
-export function refusedField(
-  body: Record<string, unknown>
-): { statusCode: number; message: string } | null {
+export function refusedField(body: Record<string, unknown>): Refusal | null {
+  const unknown = refusedUnknownField(body, FIELDS, "a shipment PATCH");
+  if (unknown) return unknown;
   const present = Object.keys(body ?? {});
-  for (const field of present) {
-    if (!(FIELDS as readonly string[]).includes(field)) {
-      return { statusCode: 400, message: `"${field}" is not a field of a shipment PATCH` };
-    }
-  }
   if (present.length === 0) {
     return { statusCode: 400, message: "the document names no field to write" };
   }
@@ -60,7 +61,7 @@ export function refusedField(
       message: `"tracking_number" and "carrier_id" travel together`,
     };
   }
-  return null;
+  return refusedValue(ShipmentPatch, body ?? {});
 }
 
 export async function patchShipment(
@@ -83,7 +84,7 @@ export async function patchShipment(
     }
     await purchaseOrderService.editShippingCharge({
       order_id: orderId!,
-      shipping_charge: body.shipping_charge as number,
+      shipping_charge: body.shipping_charge,
     });
   }
 

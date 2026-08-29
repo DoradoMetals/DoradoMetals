@@ -169,6 +169,38 @@ export async function resetOrderTotal(client, orderId) {
   return query(sql, [orderId], client);
 }
 
+// THE PAYOUT FEE, WAIVED - Jacob, 2026-08-29: "Yes those are cases we have
+// waived it. Would actually be somewhat nice to have a checkbox for waiving fee
+// or something."
+//
+// THE STORED FEE IS NOT TOUCHED. exchange.payouts.cost (and its successor
+// orders.transactions.payout_fee) keeps what the fee would have been; this
+// flag is what makes the EFFECTIVE fee zero. D117's rule is that a stored fee
+// is a record and must never be re-derived, and un-waiving must not have to
+// guess what the number used to be.
+//
+// WRITTEN TO exchange RATHER THAN TO orders.transactions, and that is not a
+// preference. waive_payout_fee IS a column of exchange.purchase_orders, so
+// mirrorPurchaseOrder re-derives orders.transactions.waive_payout_fee from it
+// on EVERY subsequent order write - a native write here would be silently
+// reverted by the next status change. That is exactly why editPayoutCharge has
+// to write orders.transactions itself (payout_fee is not a column of this
+// table) and why this one must not.
+//
+// RETURNING id so the caller can tell "no such purchase order" from "done":
+// a sales-order id matches nothing here, and a silent no-op on a money flag is
+// the failure mode this project cannot afford.
+export async function setWaivePayoutFee(order_id, waived, executor) {
+  const sql = `
+    UPDATE exchange.purchase_orders
+    SET waive_payout_fee = $1,
+        updated_at = NOW()
+    WHERE id = $2
+    RETURNING id;
+  `;
+  return await query(sql, [waived, order_id], executor);
+}
+
 export async function updateStatus(order, order_status, user_name, executor) {
   const sql = `
     UPDATE exchange.purchase_orders

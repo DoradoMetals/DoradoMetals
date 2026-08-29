@@ -2,7 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
-import type { RefinerItem, RefinerOrder, RefinerSpot } from '@dorado/contracts'
+import type {
+  RefinerItem,
+  RefinerItemPatch,
+  RefinerOrder,
+  RefinerOrderPatch,
+  RefinerSpot,
+} from '@dorado/contracts'
 
 // REFINERS IS ITS OWN FEATURE, and the endpoint follows the feature that
 // owns the table (Jacob's rule, fourth D87 correction). The standing rule of
@@ -75,35 +81,30 @@ export const useRefinerItems = (order_id: string) => {
   })
 }
 
-// One refiner row's writable fields. premium: null clears it; the assay
-// fields carry what the refiner actually recovered, null where a figure is
-// not yet known. `content` is DELIBERATELY not a field - the API derives it
-// from post_melt (or pre_melt) and purity and refuses a raw override by
-// name.
-export type RefinerItemPatch = {
-  premium?: number | null
-  pre_melt?: number | null
-  post_melt?: number | null
-  purity?: number | null
-  unit?: string | null
-}
-
-// A refiner spot write: which metal, at what bid - the refiner's copy of the
-// order's metals.
-export type RefinerSpotWrite = {
-  name: string
-  bid: number
-}
-
-// The engagement's writable facts. refiner_id attaches (or moves) the
-// engagement's refiner; no drawer sends it today.
-export type RefinerOrderPatch = {
-  spots?: RefinerSpotWrite[]
-  pool_oz_deducted?: number
-  pool_remediation?: number
-  fee?: number
-  refiner_id?: string
-}
+// THE REQUEST BODIES ARE THE CONTRACT'S NOW (phase 3, A3), and the engagement
+// one is where the null question was actually decided.
+//
+// `RefinerItemPatch` had not drifted and moves verbatim: premium: null clears
+// it, and the assay fields carry what the refiner actually recovered, null
+// where a figure is not yet known. `content` is DELIBERATELY not a field - the
+// API derives it from post_melt (or pre_melt) and purity and refuses a raw
+// override by name.
+//
+// `RefinerOrderPatch` had drifted on all four writable values - nullable in the
+// API, non-null here - and it resolved four-to-one rather than either way:
+//   - pool_oz_deducted / pool_remediation / fee LOST the null. Their exchange
+//     shadows are each typed `number`, the API reached them through
+//     `as number`, and every reader defaults them to 0, so clearing one and
+//     setting it to 0 were the same order.
+//   - refiner_id KEPT the null, and this side was the one that was wrong. It
+//     is a nullable foreign key, not a fee: every engagement starts with it
+//     null, and detaching one from a refinery is a real operation. No drawer
+//     sends it today.
+export type {
+  RefinerItemPatch,
+  RefinerSpotWrite,
+  RefinerOrderPatch,
+} from '@dorado/contracts'
 
 // Settles through the one order cache policy in
 // features/orders/invalidation.ts - refiner values render inside order reads

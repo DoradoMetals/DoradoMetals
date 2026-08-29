@@ -77,9 +77,10 @@ import * as ordersRepo from "#features/orders/repo.ts";
 import * as orderRead from "#features/orders/read.ts";
 import * as spotsFeed from "#features/spots/service.ts";
 import { refuseWith as refuse } from "#shared/http/refuse.ts";
+import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
 import * as purchaseOrderService from "#features/orders/service.ts";
 import * as salesOrderService from "#features/orders/service.ts";
-import type { orders } from "@dorado/contracts";
+import { OrderPatch, type orders } from "@dorado/contracts";
 
 type Caller = { id: string; name?: string | null; role?: string | null };
 // An order's direction is the `orders.direction` enum, read from the generated
@@ -99,20 +100,19 @@ export async function directionOf(orderId: string): Promise<Direction | null> {
   return (await ordersRepo.directionOf(orderId)) as Direction | null;
 }
 
-export type OrderPatch = {
-  add_funds?: boolean;
-  finalize_pricing?: boolean;
-  cancel?: { return_shipment: Record<string, unknown> };
-  supplier?: { supplier_id: string; send: boolean };
-  /** A label and its audit name, nothing else - never a pipeline. */
-  status?: string;
-};
+// THE BODY IS THE CONTRACT'S (A3). It was declared here and again in
+// frontend/features/orders/patch.ts, and the two had drifted: this file said
+// `finalize_pricing?: boolean` and `supplier.send: boolean` while refusedField
+// below has always refused anything but `true`, so the type was describing an
+// endpoint that does not exist. wire/patches.ts states it once, both sides
+// import it, and the literals now say what the runtime always did.
+export type { OrderPatch } from "@dorado/contracts";
 
-// The fields the document may name, and which direction each belongs to.
-// `notes` is deliberately absent: no notes write exists today - the column is
-// written at creation and projected on every read - and this endpoint does
-// not invent one.
-const FIELDS = ["add_funds", "finalize_pricing", "cancel", "supplier", "status"] as const;
+// The fields the document may name - THE CONTRACT'S OWN KEYS, so a field added
+// to one and not the other is not expressible. `notes` is deliberately absent
+// from both: no notes write exists today - the column is written at creation
+// and projected on every read - and this endpoint does not invent one.
+const FIELDS = Object.keys(OrderPatch.shape);
 const DIRECTION_OF_FIELD: Record<string, Direction | "both"> = {
   add_funds: "purchase",
   finalize_pricing: "purchase",
@@ -127,11 +127,14 @@ const DIRECTION_OF_FIELD: Record<string, Direction | "both"> = {
 export function refusedField(
   direction: Direction,
   body: Record<string, unknown>
-): { statusCode: number; message: string } | null {
+): Refusal | null {
+  const unknown = refusedUnknownField(body, FIELDS, "an order PATCH");
+  if (unknown) return unknown;
+
+  // DIRECTION IS DATA, and it is checked here rather than in the contract:
+  // which fields a document may carry depends on the ORDER, which no schema
+  // can see.
   for (const field of Object.keys(body ?? {})) {
-    if (!(FIELDS as readonly string[]).includes(field)) {
-      return { statusCode: 400, message: `"${field}" is not a field of an order PATCH` };
-    }
     const owner = DIRECTION_OF_FIELD[field];
     if (owner !== "both" && owner !== direction) {
       return {
@@ -141,8 +144,14 @@ export function refusedField(
     }
   }
 
+  // The bespoke messages run BEFORE the contract, because each says something
+  // a schema's "invalid input" cannot: what the operation is for. The contract
+  // then catches everything these three do not name.
   if (body.finalize_pricing !== undefined && body.finalize_pricing !== true) {
     return { statusCode: 400, message: `"finalize_pricing" is the operation's name: send true or omit it` };
+  }
+  if (body.add_funds !== undefined && body.add_funds !== true) {
+    return { statusCode: 400, message: `"add_funds" is the operation's name: send true or omit it` };
   }
 
   if (body.cancel !== undefined) {
@@ -161,7 +170,7 @@ export function refusedField(
     }
   }
 
-  return null;
+  return refusedValue(OrderPatch, body ?? {});
 }
 
 // One field's dispatch, named in the error when it fails. Deliberate 4xx

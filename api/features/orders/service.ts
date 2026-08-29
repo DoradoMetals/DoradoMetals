@@ -901,6 +901,33 @@ async function recordPayoutInNewSchema(
   );
 }
 
+// WAIVING THE PAYOUT FEE (Jacob, 2026-08-29). The flag, and only the flag: the
+// stored fee stays exactly where it is, on exchange.payouts.cost and
+// orders.transactions.payout_fee, so un-waiving does not have to reconstruct a
+// number nobody kept. What changes is what the order PRICES at -
+// pricing/bid.ts's effectivePayoutFee returns 0 while this is true, and the
+// order quote and the profit breakdown read the same helper.
+//
+// ONE WRITE, BOTH SCHEMAS, unlike editPayoutCharge below - see
+// legacy/purchase-orders/repo.exchange.js's setWaivePayoutFee for why the
+// mirror can carry this one and could not carry the fee.
+//
+// An empty result means no exchange.purchase_orders row matched, which for a
+// caller holding a payout means the payout hangs off a SALES order. The caller
+// decides what that is; this says which it was.
+export async function setWaivePayoutFee({
+  order_id,
+  waived,
+}: {
+  order_id: string;
+  waived: boolean;
+}): Promise<{ written: boolean }> {
+  const result = (await purchaseOrderRepo.setWaivePayoutFee(order_id, waived)) as
+    | { rowCount?: number | null }
+    | undefined;
+  return { written: (result?.rowCount ?? 0) > 0 };
+}
+
 export async function editPayoutCharge({
   order_id,
   payout_charge,
@@ -995,12 +1022,19 @@ export async function updateRefinerSpot({
   return await purchaseOrderRepo.updateRefinerSpot({ spot, updated_spot });
 }
 
+// `refiner_premium` IS NULLABLE, and the type said otherwise until A3. The
+// refiners item PATCH declares `premium: number | null` on both sides of the
+// wire and the admin drawer really sends the null - clearing the input is how a
+// premium that was entered by mistake comes back off - while the statement
+// underneath is a plain `SET refiner_premium = $1` that has always written it.
+// The caller was reaching this through `as number`, which is a cast asserting
+// something the data disproves rather than a conversion.
 export async function updateRefinerPremium({
   item_id,
   refiner_premium,
 }: {
   item_id: string;
-  refiner_premium: number;
+  refiner_premium: number | null;
 }): Promise<unknown> {
   return await purchaseOrderRepo.updateRefinerPremium(item_id, refiner_premium);
 }

@@ -7,6 +7,7 @@ import {
   optimisticallyUpdateSalesOrder,
   rollbackOrderLists,
 } from '@/features/orders/invalidation'
+import type { OrderPatch } from '@dorado/contracts'
 import type {
   PurchaseOrder,
   PurchaseOrderReturnShipment,
@@ -27,49 +28,35 @@ import type { OrderAddressInput } from '@/features/orders/addressSnapshot'
 // (the pricing pipeline, spots resolved server-side), cancel (buys the FedEx
 // return label), supplier (the send pipeline with its guard stack).
 
-// THE `*Patch` SHAPES BELOW ARE REQUEST BODIES, AND THEY STAY EXPORTED ON
-// PURPOSE (phase 3, ruling 39 + ruling 37).
+// THE REQUEST BODY IS THE CONTRACT'S NOW (phase 3, A3). The remainder this
+// file declared has been taken: `OrderPatch` was written here AND in
+// api/features/orders/patch.service.ts, and the two had drifted - the API's
+// said `finalize_pricing?: boolean` and `supplier.send: boolean` while its own
+// refusedField had always refused anything but `true`. One definition, pinned
+// to what the endpoint actually accepts, in @dorado/contracts/wire/patches.ts.
 //
-// Each is DATA - it describes what crosses the network - so its home is
-// @dorado/contracts, imported by the API to parse and by this file to
-// construct. It is not moved in this wave because an input contract is only
-// worth having if it is pinned to what the endpoint ACTUALLY accepts, and
-// this wave found the cost of the alternative: `CreateReviewBody` and
-// `CreateLeadBody` had both been sitting in the contracts, adopted by
-// NOBODY, and both were wrong - the review one omitted `hidden`, which is
-// the entire difference between a published review and a hidden one. Adding
-// unvalidated input contracts at scale would multiply that.
-//
-// Pinning these means reading the API's own service and SQL for each, and
-// api/features is another lane's this session. Listed in
-// docs/waves/phase3-frontend.md as the wave's declared remainder.
-//
-// The mutation VARIABLE bundles beside them (`Patch*Vars`) are a different
-// thing and stopped being exported: an id plus a patch plus whatever the
-// cache needs is react-query plumbing, used in one file, and never crosses
-// the wire as a unit.
+// The mutation VARIABLE bundles beside it (`Patch*Vars`) are a different
+// thing and are not exported: an id plus a patch plus whatever the cache
+// needs is react-query plumbing, used in one file, and never crosses the wire
+// as a unit.
+export type { OrderPatch } from '@dorado/contracts'
 
 // The return shipment as the wire speaks it: the checkout's picked pair
 // (book address + relationship) collapses to the immutable SNAPSHOT at the
-// mutation edge, recipient_name included. It rides only inside the cancel
-// op. No UI sends cancel today; the customer-facing cancel was never wired.
+// mutation edge, recipient_name included. It rides only inside the cancel op.
+//
+// A LOCAL NARROWING, DELIBERATELY NOT IN THE CONTRACT. The wire admits any
+// object here because the API does: patchOrder hands `cancel.return_shipment`
+// straight to the cancel pipeline without reading a field of it, and the
+// shape below is assembled from this app's own package / pickup / service /
+// insurance FORM schemas, which are UI policy and not table-derived. Naming it
+// in the contracts would drag four form schemas into a package the API
+// imports. No UI sends cancel today; the customer-facing cancel was never
+// wired, and this is the record of what to build when one is.
 export type ReturnShipmentOnPatch = Omit<
   PurchaseOrderReturnShipment,
   'address' | 'user_address'
 > & { address: OrderAddressInput }
-
-export type OrderPatch = {
-  // A pure label - every status write is only the word. Advancing the label
-  // after an op means sending it alongside.
-  status?: string
-  finalize_pricing?: true
-  cancel?: { return_shipment: ReturnShipmentOnPatch }
-  add_funds?: boolean
-  supplier?: {
-    supplier_id: string
-    send: true
-  }
-}
 
 type PatchOrderVars = {
   id: string

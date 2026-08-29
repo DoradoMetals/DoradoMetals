@@ -36,7 +36,7 @@ const { default: app } = await import("#app");
 // query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type OrderFixture = { id: string; user_id: string };
-type ItemFixture = { id: string; purchase_order_id: string };
+type ItemFixture = { id: string; purchase_order_id: string; premium: string | number | null };
 
 let admin: UserFixture;
 let customer: UserFixture;
@@ -65,7 +65,7 @@ before(async () => {
   // A bullion line - one with a product rather than scrap.
   bullionItem = (
     await outside<ItemFixture>(
-      `SELECT id, purchase_order_id FROM exchange.purchase_order_items
+      `SELECT id, purchase_order_id, premium FROM exchange.purchase_order_items
         WHERE product_id IS NOT NULL ORDER BY id LIMIT 1`
     )
   )[0];
@@ -77,12 +77,21 @@ after(async () => {
   await pool.end();
 });
 
+// SENDS BOTH FIELDS, and that is the point rather than an accident. The
+// statement is `SET quantity = $1, premium = $2` unconditionally, so a document
+// naming only one NULLS the other - on a bullion line, how many of the coin the
+// customer sent. A3 made both required and refuses a partial edit by name.
+//
+// Nothing loses a capability here: the only client, AdminReceived.tsx, has
+// always sent both, filling the unchanged one from the row it is editing. The
+// partial path this test used to exercise was reachable from no UI and did
+// nothing but write a NULL. The refusal itself is pinned in patch-bodies.test.ts.
 test("the bullion field writes the line's quantity", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
         .patch(`/api/orders/items/${bullionItem.id}`)
-        .send({ bullion: { quantity: 7 } });
+        .send({ bullion: { quantity: 7, premium: Number(bullionItem.premium ?? 1) } });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 

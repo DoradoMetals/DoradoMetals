@@ -3,7 +3,7 @@ import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
 import { PayoutDetails } from '@/features/payouts/types'
-import type { Payout } from '@dorado/contracts'
+import type { Payout, PayoutPatch } from '@dorado/contracts'
 
 // THE ORDER'S PAYOUTS AS THEIR OWN READ (wave 3):
 // GET /orders/:orderId/payouts, LAST FOUR ONLY - ruling 12's single deviation
@@ -33,10 +33,13 @@ export const useOrderPayouts = (order_id: string) => {
 // (usePayoutDetails) and no write surface here at all. Admin-only. Settles
 // through the one order cache policy: the payout renders inside order reads
 // and its cost prices the quote.
-export type PayoutPatch = {
-  cost?: number
-  method?: string
-}
+// THE REQUEST BODY IS THE CONTRACT'S NOW (phase 3, A3), and it gained a field
+// there rather than in two places. `waive_payout_fee` is Jacob's checkbox
+// (2026-08-29): waiving does NOT rewrite `cost`, which stays the record of
+// what the fee would have been (D117) - it sets a flag the server prices
+// against, so the effective fee is 0 and un-waiving restores the stored number
+// exactly. Read back off the order wire as `order.totals.waive_payout_fee`.
+export type { PayoutPatch } from '@dorado/contracts'
 
 type PatchPayoutVars = {
   payout_id: string
