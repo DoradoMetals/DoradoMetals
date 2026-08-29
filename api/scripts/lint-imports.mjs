@@ -43,7 +43,7 @@ const ROOT = process.env.LINT_IMPORTS_ROOT
   : path.resolve(import.meta.dirname, "..");
 
 if (process.argv.includes("--self-test")) {
-  const { selfTest } = await import("./lib/self-test.mjs");
+  const { selfTest } = await import("./lib/self-test-harness.ts");
   // FIXTURES ARE BUILT, NOT WRITTEN OUT. This lint walks api/ ENTIRELY -
   // scripts/ included - so a literal `from "./gone.js"` inside a fixture string
   // in this very file is indistinguishable from a real broken import, and the

@@ -220,10 +220,26 @@ try {
     console.error("");
   }
 
-  // NON-VACUITY. A run that compared nothing - wrong database, empty target, a
-  // role that can see no tables - would otherwise print success.
-  if (compared === 0) {
-    console.error("compared 0 tables. That is a failure, not a match.");
+  // NON-VACUITY, AND IT IS A FLOOR RATHER THAN A ZERO-CHECK (D135). `=== 0` is
+  // blind to PARTIAL breakage, which is the failure that actually happens: a
+  // role with USAGE on two schemas out of twenty compares four tables, finds
+  // them identical and prints success. This script exists for the step where
+  // `test` is restored from a production dump, and `pg_restore` can exit 0
+  // having dropped a table's data - so "it compared something" is not evidence.
+  // MEASURED, NOT GUESSED. The first version of this line said "both databases
+  // hold well over a hundred tables" and set the floor at 100. A real run
+  // compares SEVENTY-SIX - the two share 76 comparable tables, and nine more
+  // cannot be read at all under the read-only role - so the floor would have
+  // fired on every clean run. That is D160 committed while writing the guard
+  // against it: a number taken from a sentence instead of from a run.
+  // 70, from `compare:databases` on 2026-08-29: 76 compared, 9 unreadable.
+  const TABLE_FLOOR = Number(process.env.COMPARE_DB_FLOOR ?? 70);
+  if (compared < TABLE_FLOOR) {
+    console.error(
+      `compared ${compared} table(s), expected at least ${TABLE_FLOOR}. A comparison ` +
+        `that saw a fraction of the database reports the same "identical" as one that ` +
+        `saw all of it. Set COMPARE_DB_FLOOR deliberately for a narrower run.`
+    );
     process.exitCode = 1;
   } else if (differences.length || unreadable.length) {
     process.exitCode = 1;

@@ -42,7 +42,7 @@ const prod = useProd
   : null;
 if (prod) await prod.connect();
 
-import { FEATURES, RENAMES, DELIBERATE, BLOCKED } from "./lib/feature-map.mjs";
+import { FEATURES, RENAMES, DELIBERATE, BLOCKED } from "./lib/feature-map.ts";
 
 const q = async (sql, params = []) => (await pool.query(sql, params)).rows;
 
@@ -124,6 +124,11 @@ for (const [source, targets] of globalTargets) {
 // number of features that happen to mention a table is not a number anyone can
 // act on.
 const gapSet = new Set();
+// What the walk actually looked at, so the floor below can be about the WALK
+// rather than about the findings. `gaps` being 0 is the good outcome and is
+// also what an empty walk prints.
+let columnsWalked = 0;
+let tablesWalked = 0;
 
 for (const [feature, sources] of Object.entries(features)) {
   const lines = [];
@@ -156,7 +161,9 @@ for (const [feature, sources] of Object.entries(features)) {
 
     const elsewhere = globalColumns.get(source) ?? new Set();
 
+    tablesWalked += 1;
     for (const { column_name: col } of cols) {
+      columnsWalked += 1;
       const mapped = renames[col];
       if (mapped === "-") continue;
       if (available.has(mapped ?? col)) continue;
@@ -243,6 +250,34 @@ if (undeclared.length) {
         (t.why ? `   (${t.why})` : `   UNDECLARED`)
     );
   }
+}
+
+// THE FLOOR (D135), AND IT WAS MISSING. lint:script-guards excused this file
+// with "a floor guards the walk", and there was no floor in it: the word
+// appears once, in the header, meaning something else entirely - "it cannot
+// know whether a mapping is CORRECT, only whether one exists. It is a floor,
+// not a ceiling." Two senses of one word, one of them load-bearing in an
+// excuse that nothing checked (D165's shape).
+//
+// It matters here more than almost anywhere. This is the audit CLAUDE.md says
+// to run before splitting any repo, written because orders had matching row
+// counts and twenty-one missing columns; and "every populated column has
+// somewhere to go" is exactly what it prints when it walked nothing.
+//
+// Measured on the run that added this: 331 columns across 44 source tables in
+// dev. The count moves as the feature map grows, never down, unless a source
+// table is dropped from exchange - which the do-not-lose-data rule forbids.
+const COLUMN_FLOOR = Number(process.env.AUDIT_COVERAGE_FLOOR ?? (only ? 1 : 250));
+if (columnsWalked < COLUMN_FLOOR) {
+  console.error(
+    `audit:coverage walked ${columnsWalked} column(s) across ${tablesWalked} table(s), ` +
+      `expected at least ${COLUMN_FLOOR}. "every populated column has somewhere to go" ` +
+      `is what this prints when it examined nothing, and it is the check that runs ` +
+      `before a repo is split.`
+  );
+  if (prod) await prod.end();
+  await pool.end();
+  process.exit(1);
 }
 
 const gaps = gapSet.size;

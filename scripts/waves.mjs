@@ -118,9 +118,18 @@ if (rows.length) {
   index = index.replace(/OVERALL   [█░]+   ~\d+%/, `OVERALL   ${bar(overall, 36)}   ~${overall}%`);
 }
 
-if (unmatched.length) {
-  console.error(`WARNING - ${unmatched.length} reported task(s) matched no line in the index:`);
-  for (const u of unmatched) console.error(`  ${u}`);
+// A lane file for a CLOSED phase is history, not a live report - its tasks
+// have no line in the index because the index moved on, which is correct.
+// Only warn about lanes the index is actually tracking, or every finished
+// wave's file shouts forever and the warning stops being read. That is the
+// same failure as a metric whose target cannot be reached (ruling 35).
+const LIVE = new Set(["write-pivot.md", "instruments.md"]);
+const liveUnmatched = unmatched.filter((u) => LIVE.has(u.split(":")[0]));
+if (liveUnmatched.length) {
+  console.error(`WARNING - ${liveUnmatched.length} reported task(s) matched no line in the index:`);
+  for (const u of liveUnmatched) console.error(`  ${u}`);
+} else if (unmatched.length) {
+  console.log(`(${unmatched.length} task line(s) from closed phases' lane files, not tracked - expected)`);
 }
 
 if (process.argv.includes("--check")) {

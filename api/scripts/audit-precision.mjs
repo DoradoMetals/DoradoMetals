@@ -30,7 +30,7 @@
 import "#env";
 import pg from "pg";
 import pool from "#db";
-import { FEATURES, RENAMES, FLOWS } from "./lib/feature-map.mjs";
+import { FEATURES, RENAMES, FLOWS } from "./lib/feature-map.ts";
 
 const useProd = process.argv.includes("--prod");
 const prod = useProd
@@ -180,6 +180,20 @@ async function sampleOf(schema, table, column, type) {
 function quote(ident) {
   if (!/^[a-z_][a-z0-9_]*$/.test(ident)) throw new Error(`unsafe identifier: ${ident}`);
   return `"${ident}"`;
+}
+
+// THE FLOOR (D135). CLAUDE.md's account of this audit ends "Both now report 0",
+// and a zero from a walk that examined nothing reads exactly the same. 59 type
+// differences examined against dev on 2026-08-29 - re-measured here rather than
+// carried forward; CLAUDE.md's "57" is an older reading of the same number.
+const PRECISION_FLOOR = Number(process.env.AUDIT_PRECISION_FLOOR ?? (only ? 1 : 45));
+if (checked < PRECISION_FLOOR) {
+  console.error(
+    `audit:precision examined only ${checked} type difference(s), expected at least ` +
+      `${PRECISION_FLOOR}. "0 columns would change" from a walk that compared nothing ` +
+      `is indistinguishable from "0 columns would change", which is why this refuses.`
+  );
+  process.exit(1);
 }
 
 const where = useProd ? "production" : "dev";

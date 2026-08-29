@@ -44,7 +44,17 @@
 //      self-test fails; a listed script that GAINS one also fails, so the list
 //      can only shrink. An exclusion that outlives its subject silently
 //      excuses the next one.
-//   4. THE ENVIRONMENTAL RULE (D123). A --self-test proves the DETECTOR works
+//   4. A SCRIPT EXCUSED AS A **REPORT** MUST CARRY A FLOOR. This is the half of
+//      D5 that was outstanding: the rule was meant to be "neither a self-test
+//      nor a floor", and only the self-test half was enforced. D135's practical
+//      rule is PREFER AN ASSERTION TO A REPORT, and where a script must report,
+//      GIVE IT A FLOOR - a report with a floor is an assertion about its own
+//      coverage. So every excuse now declares a `kind`, and a `report` must name
+//      a floor constant in its source. It found a real one immediately:
+//      `audit-coverage.mjs` was excused with "a floor guards the walk" and HAD
+//      NO FLOOR. The word appears once in that file, in its header, meaning
+//      something else entirely.
+//   5. THE ENVIRONMENTAL RULE (D123). A --self-test proves the DETECTOR works
 //      and says nothing about the ENVIRONMENT THE SUBJECT RUNS IN. Any script
 //      that runs the test suite must read the invocation from package.json
 //      rather than assembling one.
@@ -56,6 +66,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { stripTypeScriptTypes } from "node:module";
 
 const REPO = process.env.SCRIPT_GUARDS_ROOT
   ? path.resolve(process.env.SCRIPT_GUARDS_ROOT)
@@ -75,108 +86,181 @@ const DIRS = [
 // its entire output is the database's answer to a question. Where a script
 // counts anything, it needs a floor and a self-test, and the entry says so.
 // ---------------------------------------------------------------------------
+// A `kind` on every entry:
+//   "action"    - it DOES something (migrates, dumps, restores). Nothing to count.
+//   "assertion" - it fails on its own subject; a broken run does not exit 0.
+//   "library"   - imported by other scripts; covered by their runs and its own tests.
+//   "report"    - it COUNTS something and prints the count. MUST CARRY A FLOOR.
 const REAL_EXCUSED = {
   // --- actions, not detectors. There is nothing to plant a violation in. ---
-  "api/scripts/migrate.mjs":
-    "applies migrations. An action, and one that must never be exercised " +
+  "api/scripts/migrate.mjs": {
+    kind: "action",
+    why:"applies migrations. An action, and one that must never be exercised " +
     "speculatively - its self-test would be a migration run.",
-  "api/scripts/backup.mjs":
-    "shells out to pg_dump. What it produces is a file; what would be tested is " +
+  },
+  "api/scripts/backup.mjs": {
+    kind: "action",
+    why:"shells out to pg_dump. What it produces is a file; what would be tested is " +
     "pg_dump.",
-  "api/scripts/refresh-from-backup.mjs":
-    "restores a database from an archive. Every path it has WRITES, so there is " +
+  },
+  "api/scripts/refresh-from-backup.mjs": {
+    kind: "action",
+    why:"restores a database from an archive. Every path it has WRITES, so there is " +
     "no safe self-test; its guards are refusals (allowlisted target names, a " +
     "pg_restore --list check) which fire before anything happens.",
-  "api/scripts/seed-e2e-users.mjs":
-    "creates the e2e fixtures. An action against the test database.",
-  "api/scripts/generate-feature.mjs":
-    "scaffolds files. It already refuses to overwrite anything that exists, " +
+  },
+  "api/scripts/seed-e2e-users.mjs": {
+    kind: "action",
+    why:"creates the e2e fixtures. An action against the test database.",
+  },
+  "api/scripts/generate-feature.mjs": {
+    kind: "action",
+    why:"scaffolds files. It already refuses to overwrite anything that exists, " +
     "which is the only assertion it can make about a codebase it is adding to.",
-  "api/scripts/clean-dual-run-orphans.mjs":
-    "deletes orphaned dual-run rows. An action, and a destructive one - it is " +
+  },
+  "api/scripts/clean-dual-run-orphans.mjs": {
+    kind: "action",
+    why:"deletes orphaned dual-run rows. An action, and a destructive one - it is " +
     "interactive and refuses on any reference it finds.",
+  },
 
   // --- dumps: the output IS the subject, and it is inspected by a human. ---
-  "api/scripts/dump-schema.mjs": "prints DDL. The output is the artifact.",
-  "api/scripts/dump-seed.mjs": "prints seed SQL. The output is the artifact.",
-  "api/scripts/dump-stripe-reconciliation.mjs":
-    "one-shot export reader for the payments migration. Carries a column floor " +
+  "api/scripts/dump-schema.mjs": {
+    kind: "action",
+    why:"prints DDL. The output is the artifact.",
+  },
+  "api/scripts/dump-seed.mjs": {
+    kind: "action",
+    why:"prints seed SQL. The output is the artifact.",
+  },
+  "api/scripts/dump-stripe-reconciliation.mjs": {
+    kind: "action",
+    why:"one-shot export reader for the payments migration. Carries a column floor " +
     "on the Stripe export it parses.",
-  "api/scripts/plan-migration.mjs":
-    "prints a plan for a human to read. It asserts nothing and is not consulted " +
+  },
+  "api/scripts/plan-migration.mjs": {
+    kind: "action",
+    why:"prints a plan for a human to read. It asserts nothing and is not consulted " +
     "by anything automated.",
+  },
 
   // --- pure database questions: the answer is the database's, not a parser's ---
-  "api/scripts/audit-nullability.mjs":
-    "asks production which columns are 100% NULL. There is no parser to break - " +
+  "api/scripts/audit-nullability.mjs": {
+    kind: "assertion",
+    why:"asks production which columns are 100% NULL. There is no parser to break - " +
     "it refuses when the catalogue holds a table it cannot read, which is the " +
     "only way it can be wrong.",
-  "api/scripts/audit-payments.mjs":
-    "lists the Stripe intents production has no record of. Exits non-zero by " +
+  },
+  "api/scripts/audit-payments.mjs": {
+    kind: "assertion",
+    why:"lists the Stripe intents production has no record of. Exits non-zero by " +
     "design while that is outstanding.",
-  "api/scripts/audit-item-price.mjs":
-    "one-shot answer to ruling 34 (D116), kept for the record.",
-  "api/scripts/audit-guards.mjs":
-    "asks each backfill guard whether it would refuse against production. The " +
+  },
+  "api/scripts/audit-item-price.mjs": {
+    kind: "action",
+    why:"one-shot answer to ruling 34 (D116), kept for the record.",
+  },
+  "api/scripts/audit-guards.mjs": {
+    kind: "assertion",
+    why:"asks each backfill guard whether it would refuse against production. The " +
     "guards are the subject and they have their own tests.",
-  "api/scripts/compare-tables.mjs":
-    "prints two tables side by side for a human. compare-databases is the " +
+  },
+  "api/scripts/compare-tables.mjs": {
+    kind: "action",
+    why:"prints two tables side by side for a human. compare-databases is the " +
     "asserting version.",
-  "api/scripts/verify-genesis-production.mjs":
-    "builds genesis against a read-only production connection. Cannot be run " +
+  },
+  "api/scripts/verify-genesis-production.mjs": {
+    kind: "assertion",
+    why:"builds genesis against a read-only production connection. Cannot be run " +
     "speculatively.",
-  "api/scripts/verify-orders-decomposition.mjs":
-    "compares the composed order against its parts, in the database. Its subject " +
+  },
+  "api/scripts/verify-orders-decomposition.mjs": {
+    kind: "assertion",
+    why:"compares the composed order against its parts, in the database. Its subject " +
     "is rows, and it fails on any mismatch.",
-  "api/scripts/verify-sales-order-decomposition.mjs":
-    "the sales-order half of the same comparison.",
+  },
+  "api/scripts/verify-sales-order-decomposition.mjs": {
+    kind: "assertion",
+    why:"the sales-order half of the same comparison.",
+  },
 
   // --- the libraries, exercised through every script that imports them ---
-  "api/scripts/lib/self-test.mjs":
-    "IS the self-test harness. Every --self-test this file executes is a run of " +
+  "api/scripts/lib/self-test-harness.ts": {
+    kind: "library",
+    why:"IS the self-test harness. Every --self-test this file executes is a run of " +
     "it, and it refuses a suite with no `pass` case as well as no `fail` case.",
-  "api/scripts/lib/suite-invocation.mjs":
-    "read by audit-test-leaks and audit-slow-tests; its three refusals are " +
+  },
+  "api/scripts/lib/suite-invocation.ts": {
+    kind: "library",
+    why:"read by audit-test-leaks and audit-slow-tests; its three refusals are " +
     "attacked directly (no test script, a non-node runner, a missing NODE_ENV).",
-  "api/scripts/lib/baseline.mjs": "has baseline.test.js.",
-  "api/scripts/lib/feature-map.mjs": "has feature-map.test.js.",
+  },
+  "api/scripts/lib/baseline.ts": {
+    kind: "library",
+    why:"has scripts/lib/tests/baseline.test.ts.",
+  },
+  "api/scripts/lib/feature-map.ts": {
+    kind: "library",
+    why:"has scripts/lib/tests/feature-map.test.ts.",
+  },
 
   // --- floors, but no detector to attack ---
-  "api/scripts/audit-constraints.mjs":
-    "compares constraints between schemas; carries a floor, and the floor firing " +
+  "api/scripts/audit-constraints.mjs": {
+    kind: "report",
+    why:"compares constraints between schemas; carries a floor, and the floor firing " +
     "is what proved it (see its own header).",
-  "api/scripts/audit-coverage.mjs":
-    "every populated exchange column with nowhere to go. The subject is the " +
+  },
+  "api/scripts/audit-coverage.mjs": {
+    kind: "report",
+    why:"every populated exchange column with nowhere to go. The subject is the " +
     "database catalogue; a floor guards the walk.",
-  "api/scripts/audit-indexes.mjs":
-    "reads pg_index on both sides. audit:query-paths is the code-walking half " +
+  },
+  "api/scripts/audit-indexes.mjs": {
+    kind: "report",
+    why:"reads pg_index on both sides. audit:query-paths is the code-walking half " +
     "and that one has both a floor and a control.",
-  "api/scripts/audit-precision.mjs":
-    "casts source values into target types in the database. No parser.",
-  "api/scripts/audit-enum-domains.mjs":
-    "compares text values against enum labels in the database. Exits non-zero by " +
+  },
+  "api/scripts/audit-precision.mjs": {
+    kind: "report",
+    why:"casts source values into target types in the database. No parser.",
+  },
+  "api/scripts/audit-enum-domains.mjs": {
+    kind: "report",
+    why:"compares text values against enum labels in the database. Exits non-zero by " +
     "design while D39 is outstanding.",
-  "api/scripts/compare-databases.mjs":
-    "refuses when it compared no tables, and when both URLs resolve to the same " +
+  },
+  "api/scripts/compare-databases.mjs": {
+    kind: "report",
+    why:"refuses when it compared no tables, and when both URLs resolve to the same " +
     "database - a comparison of something with itself always passes.",
-  "api/scripts/verify-parity.mjs":
-    "source table against target, type-aware, in the database.",
-  "api/scripts/verify-genesis.mjs":
-    "builds the whole schema into renamed schemas inside a rolled-back " +
+  },
+  "api/scripts/verify-parity.mjs": {
+    kind: "report",
+    why:"source table against target, type-aware, in the database.",
+  },
+  "api/scripts/verify-genesis.mjs": {
+    kind: "assertion",
+    why:"builds the whole schema into renamed schemas inside a rolled-back " +
     "transaction. The build either succeeds or it does not.",
-  "api/scripts/verify-backfill.mjs":
-    "runs every backfill into empty tables, re-runs for idempotency, then checks " +
+  },
+  "api/scripts/verify-backfill.mjs": {
+    kind: "assertion",
+    why:"runs every backfill into empty tables, re-runs for idempotency, then checks " +
     "the guard refuses. It is already three assertions deep.",
-  "api/scripts/validate-wire.mjs":
-    "parses real responses through the contracts. It now carries a REGISTRATION " +
+  },
+  "api/scripts/validate-wire.ts": {
+    kind: "report",
+    why:"parses real responses through the contracts. It now carries a REGISTRATION " +
     "floor and a PARSE floor - the quiet failure is a case that skips, and a " +
     "skip is now printed and counted rather than folded into the match count.",
+  },
 };
 
 // Scripts whose --self-test is real but must not be run from here, with the
 // reason. PINNED: an entry that no longer names a real script fails.
 const REAL_NOT_EXECUTED_HERE = {
-  "api/scripts/audit-test-leaks.mjs":
+  "api/scripts/audit-test-leaks.ts":
     "its --self-test writes a row inside a transaction it rolls back, and " +
     "fingerprints every exchange table first. Correct, but this file must not " +
     "issue a write on a gate run. Run `pnpm --filter @dorado/api " +
@@ -203,12 +287,24 @@ const NOT_EXECUTED_HERE = process.env.SCRIPT_GUARDS_DEFERRED
 
 // ---------------------------------------------------------------------------
 
+// WHAT COUNTS AS A SCRIPT. This filtered `.mjs` alone, which is D120's
+// hardcoded `routes.ts` wearing a different hat: the moment a script became
+// TypeScript it left the census - no parse check, no self-test run, no EXCUSED
+// pin - and the only thing that would have noticed is SCRIPT_FLOOR, five
+// conversions later. D157's fix converts these files, so the census has to
+// follow them. `.d.ts` is a declaration, and `*.test.ts` belongs to the suite.
+const TS = /\.(m|c)?ts$/;
+const isScript = (name) =>
+  (name.endsWith(".mjs") || TS.test(name)) &&
+  !name.endsWith(".d.ts") &&
+  !/\.test\.(m|c)?[tj]s$/.test(name);
+
 const listScripts = () => {
   const out = [];
   for (const dir of DIRS) {
     if (!fs.existsSync(dir)) continue;
     for (const name of fs.readdirSync(dir)) {
-      if (!name.endsWith(".mjs")) continue;
+      if (!isScript(name)) continue;
       out.push(path.join(dir, name));
     }
   }
@@ -236,13 +332,15 @@ if (process.argv.includes("--list")) {
   for (const f of scripts) {
     const src = fs.readFileSync(f, "utf8");
     const has = /process\.argv[^\n]*--self-test|args\.includes\("--self-test"\)/.test(src);
-    console.log(`${has ? "self-test" : EXCUSED[rel(f)] ? "excused  " : "NOTHING  "}  ${rel(f)}`);
+    const ex = EXCUSED[rel(f)];
+    const tag = has ? "self-test" : ex ? `excused:${ex.kind}`.padEnd(9) : "NOTHING  ";
+    console.log(`${tag}  ${rel(f)}${!has && ex ? (hasFloor(src) ? "  [floor]" : "") : ""}`);
   }
   process.exit(0);
 }
 
 if (process.argv.includes("--self-test")) {
-  const { selfTest } = await import("./lib/self-test.mjs");
+  const { selfTest } = await import("./lib/self-test-harness.ts");
   const Q = String.fromCharCode(34);
   // A script that verifies itself, in the fixture's terms: recognises the flag,
   // announces the run, exits 0.
@@ -250,9 +348,13 @@ if (process.argv.includes("--self-test")) {
     `if (process.argv.includes(${Q}--self-test${Q})) {\n` +
     `  console.log(${Q}self-test ok: ${name}${Q});\n  process.exit(0);\n}\n` +
     `console.log(${Q}${name} ran${Q});\n`;
+  // `delta.ts` is here so EVERY case below walks a TypeScript script. Without
+  // one in the clean tree, "a clean set passes" would pass just as happily with
+  // the .ts leg of the walk deleted.
   const base = (over = {}) => ({
     "api/scripts/alpha.mjs": good("alpha"),
     "api/scripts/beta.mjs": good("beta"),
+    "api/scripts/delta.ts": `const n: number = 1;\n` + good("delta"),
     "frontend/scripts/gamma.mjs": good("gamma"),
     ...over,
   });
@@ -279,15 +381,95 @@ if (process.argv.includes("--self-test")) {
         expect: "fail", mustPrint: "PARSE",
       },
       {
+        // THE ATTACK THAT FOUND THE HOLE. `node --check` exits 0 on this file,
+        // so before the type stripper went in, this case PASSED - the census
+        // reported every script parsing while one of them could not.
+        name: "a TypeScript script that does not PARSE is caught (node --check cannot see it)",
+        rootEnv: "SCRIPT_GUARDS_ROOT", env: FLOOR,
+        files: base({ "api/scripts/broken.ts": "export const F: Record<string, string> = {\n  a: \"b\",\n" }),
+        expect: "fail", mustPrint: "PARSE",
+      },
+      {
+        // `.mts` IS THE FRONTEND'S SPELLING, because frontend/package.json has
+        // no `"type": "module"`. `".mts".endsWith(".ts")` is false, so a check
+        // written for `.ts` alone routes these straight back to `node --check`,
+        // which sees nothing. Pinned separately for that reason.
+        name: "a broken .mts is caught too (frontend/ cannot use plain .ts)",
+        rootEnv: "SCRIPT_GUARDS_ROOT", env: FLOOR,
+        files: base({ "frontend/scripts/broken.mts": "const y: = 2;\n" }),
+        expect: "fail", mustPrint: "PARSE",
+      },
+      {
         name: "a script with neither a self-test nor an excuse is caught",
         rootEnv: "SCRIPT_GUARDS_ROOT", env: FLOOR,
         files: base({ "api/scripts/naked.mjs": "console.log('I audit things');\n" }),
         expect: "fail", mustPrint: "NO-GUARD",
       },
       {
+        // THE HALF OF D5 THAT WAS OUTSTANDING. A script excused as a report is
+        // claiming it counts something; a count with no floor prints a smaller
+        // number and exits 0, which is the only failure mode of a report.
+        name: "a report excused with no floor is caught (D5's floor half)",
+        rootEnv: "SCRIPT_GUARDS_ROOT",
+        env: {
+          ...FLOOR,
+          SCRIPT_GUARDS_EXCUSED: JSON.stringify({
+            "api/scripts/counter.mjs": { kind: "report", why: "counts things" },
+          }),
+        },
+        files: base({ "api/scripts/counter.mjs": "console.log('counted 3 things');\n" }),
+        expect: "fail", mustPrint: "NO-FLOOR",
+      },
+      {
+        name: "the same script WITH a floor is accepted",
+        rootEnv: "SCRIPT_GUARDS_ROOT",
+        env: {
+          ...FLOOR,
+          SCRIPT_GUARDS_EXCUSED: JSON.stringify({
+            "api/scripts/counter.mjs": { kind: "report", why: "counts things, and has a floor" },
+          }),
+        },
+        files: base({
+          "api/scripts/counter.mjs":
+            "const THING_FLOOR = 2;\nconst n = 3;\nif (n < THING_FLOOR) process.exit(1);\n",
+        }),
+        expect: "pass", mustPrint: "either self-tested here or excused by name",
+      },
+      {
+        // A FLOOR IS NOT A COMMENT ABOUT ONE. The file's own history: the
+        // environmental rule was satisfied by prose mentioning the library.
+        name: "a comment saying FLOOR does not count as having one",
+        rootEnv: "SCRIPT_GUARDS_ROOT",
+        env: {
+          ...FLOOR,
+          SCRIPT_GUARDS_EXCUSED: JSON.stringify({
+            "api/scripts/counter.mjs": { kind: "report", why: "counts things" },
+          }),
+        },
+        files: base({
+          "api/scripts/counter.mjs": "// THE FLOOR is discussed at length here.\nconsole.log('counted 3');\n",
+        }),
+        expect: "fail", mustPrint: "NO-FLOOR",
+      },
+      {
+        name: "an excuse claiming nothing to count, on a script with a floor, is caught",
+        rootEnv: "SCRIPT_GUARDS_ROOT",
+        env: {
+          ...FLOOR,
+          SCRIPT_GUARDS_EXCUSED: JSON.stringify({
+            "api/scripts/counter.mjs": { kind: "action", why: "does a thing" },
+          }),
+        },
+        files: base({
+          "api/scripts/counter.mjs":
+            "const THING_FLOOR = 2;\nconst n = 3;\nif (n < THING_FLOOR) process.exit(1);\n",
+        }),
+        expect: "fail", mustPrint: "MISCLASSIFIED",
+      },
+      {
         name: "an excuse that outlives its subject is caught - the pin works both ways",
         rootEnv: "SCRIPT_GUARDS_ROOT",
-        env: { ...FLOOR, SCRIPT_GUARDS_EXCUSED: JSON.stringify({ "api/scripts/alpha.mjs": "no detector" }) },
+        env: { ...FLOOR, SCRIPT_GUARDS_EXCUSED: JSON.stringify({ "api/scripts/alpha.mjs": { kind: "action", why: "no detector" } }) },
         files: base(), expect: "fail", mustPrint: "STALE-EXCUSE",
       },
       {
@@ -334,12 +516,36 @@ const problems = [];
 const note = (kind, file, detail) => problems.push({ kind, file: rel(file), detail });
 
 // --- 1. EVERYTHING PARSES (D118) -------------------------------------------
+//
+// `node --check` DOES NOT PARSE TYPESCRIPT. It exits 0 on a .ts file whatever
+// is in it - including an object literal missing its closing brace, which is
+// D118 exactly. So the arrival of the first .ts script would have silently
+// retired this assertion while the census went on reporting the same count.
+// TypeScript goes through the type stripper instead, which throws on a syntax
+// error; a self-test case below plants one so this leg is pinned by attack.
+const parseFailure = (f) => {
+  // `.mts` AS WELL AS `.ts`, and the distinction is not cosmetic: frontend/ has
+  // no `"type": "module"`, so a TypeScript script there must be `.mts` to be
+  // read as ESM without a reparse warning - and `".mts".endsWith(".ts")` is
+  // FALSE, which would have quietly routed exactly those files back to the
+  // blind `node --check`.
+  if (TS.test(f)) {
+    try {
+      stripTypeScriptTypes(fs.readFileSync(f, "utf8"), { mode: "strip" });
+      return null;
+    } catch (err) {
+      return String(err?.message ?? err).split("\n").slice(0, 3).join(" ").trim();
+    }
+  }
+  const r = spawnSync(process.execPath, ["--check", f], { encoding: "utf8" });
+  return r.status === 0 ? null : (r.stderr || "").split("\n").slice(0, 3).join(" ").trim();
+};
+
 let parsed = 0;
 for (const f of scripts) {
-  const r = spawnSync(process.execPath, ["--check", f], { encoding: "utf8" });
-  if (r.status !== 0) {
-    note("PARSE", f, (r.stderr || "").split("\n").slice(0, 3).join(" ").trim());
-  } else parsed += 1;
+  const why = parseFailure(f);
+  if (why) note("PARSE", f, why);
+  else parsed += 1;
 }
 
 // --- 2. THE ENVIRONMENTAL RULE (D115/D123) ---------------------------------
@@ -356,7 +562,7 @@ for (const f of scripts) {
   // the library. So the attack that put a hand-assembled `node --test` back
   // into that exact file PASSED, because the prose above it still mentioned the
   // library. A guard satisfied by a comment about itself is not a guard.
-  const usesLibrary = /\bfrom\s*["'][^"']*lib\/suite-invocation\.mjs["']/.test(src);
+  const usesLibrary = /\bfrom\s*["'][^"']*lib\/suite-invocation\.(mjs|ts)["']/.test(src);
   if (usesLibrary) viaLibrary += 1;
   // A hand-assembled `node --test`. The literal is matched as a QUOTED argument
   // so that prose about --test, and this file's own --self-test handling, do not
@@ -370,7 +576,7 @@ for (const f of scripts) {
         "audit:test-leaks did exactly this and ran the suite with NODE_ENV unset, " +
         "leaving isTestRun() on one of its two legs, so the guard that keeps tests " +
         "off the live mail, FedEx and Stripe clients ran on half its legs (D115). " +
-        "Import scripts/lib/suite-invocation.mjs and read the invocation from " +
+        "Import scripts/lib/suite-invocation.ts and read the invocation from " +
         "package.json instead."
     );
   }
@@ -386,12 +592,26 @@ const SUITE_LIBRARY_FLOOR = Number(process.env.SCRIPT_GUARDS_SUITE_FLOOR ?? 2);
 if (viaLibrary < SUITE_LIBRARY_FLOOR) {
   note(
     "ENV",
-    path.join(REPO, "api/scripts/lib/suite-invocation.mjs"),
+    path.join(REPO, "api/scripts/lib/suite-invocation.ts"),
     `only ${viaLibrary} script(s) read the suite invocation from package.json, ` +
       `expected at least ${SUITE_LIBRARY_FLOOR}. Either a script that runs the suite ` +
       `has gone back to assembling its own (D115), or the library has lost its callers.`
   );
 }
+
+// A FLOOR, RECOGNISED BY BEING NAMED. Any constant whose name contains FLOOR,
+// used in a comparison. Requiring the NAME rather than trying to recognise the
+// shape is deliberate: `checked < 50` is a perfectly good floor and this could
+// not tell it from any other comparison against a literal, so the convention is
+// that a floor is spelled out. `audit-constraints.mjs` had exactly that literal
+// and was renamed to `CONSTRAINT_FLOOR` when this went in.
+//
+// ITS BLIND SPOT, stated (D6): it cannot tell a floor that FIRES from a constant
+// that is declared and never compared. What it can tell you is that a file
+// excused with the words "carries a floor" has one, which is more than anything
+// checked before - and each floor is separately proved by attack, by running the
+// script with its own `*_FLOOR` env override set absurdly high.
+const hasFloor = (src) => /\b[A-Z][A-Z0-9_]*FLOOR[A-Z0-9_]*\b/.test(src);
 
 // --- 3. EVERY SCRIPT IS VERIFIED OR EXCUSED, PINNED BOTH WAYS --------------
 const hasSelfTest = new Map();
@@ -413,12 +633,38 @@ for (const f of scripts) {
         "subject silently excuses the next one."
     );
   }
+  // THE FLOOR HALF OF THE RULE. A script excused as a REPORT counts something
+  // and prints the count, which is the one shape that fails silently: it prints
+  // a smaller number and exits 0. It must carry a floor. An excuse of any other
+  // kind is asserting there is nothing to count.
+  if (!has && excused && excused.kind === "report" && !hasFloor(fs.readFileSync(f, "utf8"))) {
+    note(
+      "NO-FLOOR",
+      f,
+      "is excused as a REPORT and names no floor. D135: an assertion that cannot " +
+        "see its subject FAILS; a report that cannot see its subject PRINTS A SMALLER " +
+        "NUMBER AND EXITS 0. Give it a constant whose name contains FLOOR, compared " +
+        "against what it actually walked, or change its kind if it counts nothing."
+    );
+  }
+  // AND THE OTHER DIRECTION, so the classification can only get more honest: a
+  // script excused as having nothing to count, which has grown a floor, is
+  // counting something and its entry is out of date.
+  if (!has && excused && excused.kind !== "report" && hasFloor(fs.readFileSync(f, "utf8"))) {
+    note(
+      "MISCLASSIFIED",
+      f,
+      `is excused as "${excused.kind}" - nothing to count - and names a floor. ` +
+        "Either the floor is vestigial or the script became a report. Change the " +
+        "kind to \"report\" in EXCUSED, which subjects it to the floor rule above."
+    );
+  }
   if (!has && !excused) {
     note(
       "NO-GUARD",
       f,
       "has no --self-test and no entry in EXCUSED. Give it one (see " +
-        "scripts/lib/self-test.mjs - it spawns the whole script against a synthetic " +
+        "scripts/lib/self-test-harness.ts - it spawns the whole script against a synthetic " +
         "tree, so the WALK is in the blast radius, which is where three of the five " +
         "rots lived), or excuse it with a reason that says why there is no detector " +
         "to attack."
@@ -473,15 +719,21 @@ for (const f of scripts) {
 }
 
 // ---------------------------------------------------------------------------
+const byKind = {};
+for (const e of Object.values(EXCUSED)) byKind[e.kind] = (byKind[e.kind] ?? 0) + 1;
+const kinds = Object.entries(byKind).sort().map(([k, n]) => `${n} ${k}`).join(", ");
 console.log(
   `${scripts.length} script(s) under scripts/: ${parsed} parse, ${ran} --self-test(s) run, ` +
-    `${skipped.length} deferred, ${Object.keys(EXCUSED).length} excused, ` +
+    `${skipped.length} deferred, ${Object.keys(EXCUSED).length} excused (${kinds}), ` +
     `${viaLibrary} reading the suite invocation from package.json`
 );
 for (const k of skipped) console.log(`  deferred  ${k}\n            ${NOT_EXECUTED_HERE[k]}`);
 
 if (!problems.length) {
-  console.log("\nevery script parses, and every one is either self-tested here or excused by name");
+  console.log(
+    "\nevery script parses, every one is either self-tested here or excused by name, " +
+      "and every script excused as a REPORT carries a floor"
+  );
   process.exit(0);
 }
 

@@ -17,5 +17,5 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["**/*.js", "**/*.ts"],
-  "exclude": ["node_modules", "migrations", "**/*.test.js", "scripts"]
+  "exclude": ["node_modules", "migrations", "**/*.test.js"]
 }

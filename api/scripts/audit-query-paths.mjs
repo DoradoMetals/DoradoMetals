@@ -57,7 +57,7 @@ const S = SCHEMAS.join("|");
 // attacked here: the literal floor without a database (it is checked before the
 // first query, deliberately), and the control against the real tree.
 if (process.argv.includes("--self-test")) {
-  const { selfTest } = await import("./lib/self-test.mjs");
+  const { selfTest } = await import("./lib/self-test-harness.ts");
   await selfTest({
     script: import.meta.filename,
     cases: [

@@ -303,7 +303,7 @@ const NOT_REBUILT = {
   // refiner_id from exchange.sales_orders.supplier_id, and
   // refiner-edits.test.js pins the one-engagement-per-order invariant with
   // the mirrors linked.
-  "refiners.orders": "created and seeded by 093/094/096 from the ledger; invariant pinned by refiner-edits.test.js",
+  "refiners.orders": "created and seeded by 093/094/096 from the ledger; invariant pinned by refiner-edits.test.ts",
   "auth.users": "backfilled by 029 but compared per-column there, not row-wise",
   "auth.employees": "seed data, no exchange source",
   "auth.account": "better-auth owns these tables; auth is not migrated",

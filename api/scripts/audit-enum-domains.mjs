@@ -116,6 +116,21 @@ for (const c of COUPLINGS) {
   for (const r of rows) bad.push({ ...c, value: r.value, n: r.n, labels });
 }
 
+// THE FLOOR (D135). Four couplings on 2026-08-29, measured on the run that
+// added this. The couplings are declared in this file, so a count below four
+// means one stopped RESOLVING - the column was renamed, the enum moved, the
+// catalogue query changed - not that a coupling was removed. Removing one is a
+// deliberate edit here, on the same commit that lowers this.
+const COUPLING_FLOOR = Number(process.env.AUDIT_ENUM_FLOOR ?? 4);
+if (checked < COUPLING_FLOOR) {
+  console.error(
+    `audit:enum-domains resolved only ${checked} coupling(s), expected at least ` +
+      `${COUPLING_FLOOR}. This is the audit that found two products carrying ` +
+      `E'\\n\\tBar'; a coupling that stops resolving reports as a clean sweep.`
+  );
+  process.exit(1);
+}
+
 console.log(`${prod ? "production" : "dev"}: ${checked} value coupling(s) checked against their enum`);
 if (skipped.length) for (const s of skipped) console.log(`  skipped: ${s}`);
 

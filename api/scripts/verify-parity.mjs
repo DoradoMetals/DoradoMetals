@@ -225,7 +225,11 @@ async function verify(from, to, options = {}) {
   const [ca, cb] = [await columnsOf(a.schema, a.table), await columnsOf(b.schema, b.table)];
   if (!ca.length || !cb.length) {
     console.log(`${from} -> ${to}\n   MISSING TABLE\n`);
-    return false;
+    // NULL, NOT FALSE. A pair whose table is absent was not compared, and the
+    // floor below counts comparisons - folding it in as a `false` would let a
+    // run where every table had vanished satisfy a floor on pair COUNT while
+    // comparing nothing at all. It still makes the run unclean.
+    return null;
   }
 
   // Columns a migration deliberately does not carry. Declaring one is a
@@ -298,8 +302,28 @@ const [from, to] = process.argv.slice(2);
 const pairs = from && to ? [[from, to]] : PAIRS;
 
 let allClean = true;
+let comparedPairs = 0;
 for (const [a, b, options] of pairs) {
-  if (!(await verify(a, b, options))) allClean = false;
+  const clean = await verify(a, b, options);
+  if (clean !== null) comparedPairs += 1;
+  if (!clean) allClean = false;
+}
+
+// THE FLOOR (D135). "all pairs identical" is what this prints when it compared
+// nothing, and this is the instrument the covenant names before any migration
+// touches a table pair. 15 pairs resolved on 2026-08-29, re-measured here - the
+// eleven recorded in D130 predate the four checkout pairs wave 5C added. A pair
+// whose TABLE has gone prints MISSING TABLE and does not count towards this, so
+// the floor is on what was really compared rather than on the length of a list
+// declared in this same file (which could never fall for the reason that matters).
+const PAIR_FLOOR = Number(process.env.VERIFY_PARITY_FLOOR ?? (from && to ? 1 : 12));
+if (comparedPairs < PAIR_FLOOR) {
+  console.error(
+    `verify:parity compared only ${comparedPairs} pair(s), expected at least ${PAIR_FLOOR}. ` +
+      `A backfill is only safe while the old schema is authoritative, and this is the ` +
+      `evidence for that; a comparison of nothing exits 0 and reads as agreement.`
+  );
+  process.exit(1);
 }
 
 console.log(allClean ? "all pairs identical" : "review the warnings above before migrating");

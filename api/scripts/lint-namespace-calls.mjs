@@ -57,7 +57,7 @@ const ROOT = process.env.LINT_NS_ROOT
   : path.resolve(import.meta.dirname, "..");
 
 if (process.argv.includes("--self-test")) {
-  const { selfTest } = await import("./lib/self-test.mjs");
+  const { selfTest } = await import("./lib/self-test-harness.ts");
   // Specifiers assembled at runtime, not written out: this file is itself
   // inside the walk, and a literal one here becomes a finding in the real run.
   const Q = String.fromCharCode(34);

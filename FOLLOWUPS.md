@@ -11247,3 +11247,258 @@ Fixed: duplicate headings now REFUSE rather than roll up, verified by
 planting one. That is the fourth tool of mine found blind tonight (the
 scatter matcher, the task-name spacing twice, this) - and every one was
 found by someone re-computing a number the tool had already given them.
+
+35. SHARED PRIMITIVES MAY CARRY BOTH (Jacob, resolving D166): "shared
+    primitives can carry both" - raw Tailwind sizes AND semantic scale
+    tokens are acceptable inside a `shared/ui` component.
+    So the 28 remaining "scatter" utilities are NOT a gap. They are
+    ruling 20 working: appearance lives in the component. The metric was
+    counting correct code as debt, which is worse than not counting it -
+    a target of zero that can never be reached teaches everyone to
+    ignore the number.
+    ACTION: `lint:typography-scatter` excludes `shared/ui` and says why.
+    The target of ZERO now applies where it means something - FEATURE
+    and APP code, where a type utility really is a call site hardcoding
+    what typography.css should own.
+
+36. `exchange` MAY STOP RECEIVING WRITES (Jacob, 2026-08-29): "Yes
+    exchange can stop receiving those writes."
+    THIS IS THE ONE-WAY DOOR AND IT IS NOW OPEN. It unblocks what
+    thirteen `api/legacy/` directories and fourteen dual-writing
+    features have been waiting on, and it is one decision rather than
+    fourteen because the per-feature switches that would have gated them
+    individually were deleted as each feature's reads pivoted (D146).
+    *** THE CONSEQUENCE THAT MUST NOT BE LOST: THIS MAKES THE DEPLOY
+    PREREQUISITE ABSOLUTE. *** Production is missing EIGHT of the
+    eighteen schemas and its `orders.orders` is a January snapshot. With
+    dual-writes in place, deploying early would have served stale reads;
+    WITHOUT them, deploying early means new writes land in schemas that
+    DO NOT EXIST - 42P01 on the write path, and no `exchange` row
+    written either. The safety net that made a premature deploy merely
+    embarrassing is the thing being removed.
+    SO THE ORDER IS FIXED AND NOT NEGOTIABLE: pg_dump -> migrate
+    production -> backfill -> verify -> and only then may this branch
+    deploy. CLAUDE.md already says this; it now says it about a tree
+    with no fallback.
+    SEQUENCE FOR THE REMOVAL ITSELF (D105, unchanged): five native
+    statements are missing (`spots_locked`, `order_total`,
+    `purgeCancelled`), and `verify:parity` CANNOT check the result
+    afterwards because the source it compares against stops being
+    written. THE LEDGER RUNS BEFORE THE SWITCH, NOT AFTER.
+
+37. INPUT SHAPES BELONG IN THE CONTRACTS TOO (Jacob, on
+    `ServiceInput` in shipping/services/service.ts): "Inputs like this
+    should be part of shared contracts, so they only have to be updated
+    in one place."
+    THE GAP IN THE CONTRACTS STORY: `@dorado/contracts` holds table ROWS
+    and WIRE shapes - everything that comes OUT. Nothing describes what
+    goes IN. So every request body is declared twice: once as a
+    hand-written `*Input` in the API feature that receives it, once
+    implicitly in the frontend that sends it, and the two agree only by
+    inspection.
+    MEASURED: THIRTY-ONE hand-written `*Input` / `*Values` / `*Patch`
+    types across api/features, and eight frontend files hand-typing
+    POST/PATCH bodies.
+    WHY IT IS THE SAME DEFECT AS D103, one layer over: a hand-written
+    type describing a shape the database (or the API) already knows is
+    either a DUPLICATE or an UNENFORCED CONSTRAINT. `ServiceInput`'s own
+    comment says it "arrives as req.body, so everything is optional and
+    nothing can be trusted" - which is exactly a case for a zod schema
+    in the contracts that BOTH sides import: the API to parse, the
+    frontend to construct.
+    NOTE THE ONE THING NOT TO LOSE IN THE MOVE: `ServiceInput` is
+    deliberately all-optional-and-untrusted, and the `flag()` helper
+    beside it distinguishes `false` (a value) from `undefined` (absent)
+    because the old update statement made that distinction and a plain
+    `??` would flatten it. A contract that types these as required, or
+    as plain booleans, would silently delete that behaviour - the same
+    class of loss as D145's `?? 0`.
+    QUEUED INTO PHASE 3, which is already "one source of truth for
+    shapes" on the frontend side. The two halves are the same job:
+    24 frontend `types.ts` files and 31 API input types, both
+    duplicating what the contracts should own.
+
+38. TYPES DO NOT LIVE WHEREVER THEY WERE FIRST NEEDED (Jacob, on
+    `ShipmentCreate`/`ShipmentUpdate` declared inside a service file):
+    "if we have types randomly living in files, then we have failed."
+    MEASURED: 188 exported types are declared in `api/features`.
+    *** 118 OF THEM ARE USED IN MORE THAN ONE FILE. *** Seventy are used
+    in exactly one.
+    That split IS the rule, and it makes "randomly" impossible by
+    construction:
+      - USED IN MORE THAN ONE FILE -> it crosses a boundary, so it
+        belongs in `@dorado/contracts` and both sides import it. This is
+        ruling 37 generalised: not just request bodies, ANY shape two
+        files agree about.
+      - USED IN EXACTLY ONE FILE -> it is an implementation detail and
+        MUST NOT BE EXPORTED. `Lookups`, `HttpError`, a local `Executor`
+        alias: these are not contracts and moving them into one would
+        make the contracts a dumping ground. The fix for these is to
+        stop exporting them, not to relocate them.
+    SO EVERY EXPORTED TYPE IN `features/` IS EITHER IN THE WRONG PLACE
+    OR SHOULD NOT BE EXPORTED. There is no third case, which is what
+    makes it checkable: a lint can walk the exports, count the importing
+    files, and fail on both arms. That belongs beside lint:db and
+    lint:namespace-calls.
+    THE ONE THING TO PRESERVE THROUGH THE MOVE, because it is where this
+    goes wrong: several of these types are deliberately WIDER than they
+    look. `ShipmentUpdate` types every timestamp as `Date | string`
+    because callers spread a row pg has already parsed; `shipping_label`
+    is `string | Buffer` because FedEx returns a buffer and one call
+    site passes it through. `ServiceInput` is all-optional-and-untrusted
+    because it is `req.body`. A contract that "cleans these up" into
+    narrow types is not tidying, it is asserting something about callers
+    that the compiler already disproved - the same class of loss as
+    D145's `?? 0` and D149's rejected blanket throw.
+
+39. THE SAME DISEASE ON THE FRONTEND, AND IT GETS ITS OWN WAVE (Jacob,
+    on a checkout file importing seven schemas from seven feature
+    `types.ts` files ALONGSIDE its `@dorado/contracts` import): "Lets
+    add a whole another wave to address this. We shouldn't have types
+    (except for like, reasonable things i.e a client only onClick
+    handler or something) living in feature code."
+    MEASURED, frontend: 159 exported types/schemas declared in
+    `features/`, TWENTY-TWO OF THEM ZOD SCHEMAS, and 162 import
+    statements reaching into 23 different feature `types.ts` files.
+    WITH THE API'S 188 (118 cross-file), THAT IS 347 DECLARATIONS, and
+    the two halves are the same job: a shape that two files agree about
+    is a contract, wherever it happens to live today.
+    THE ZOD SCHEMAS ARE THE SHARP END. Twenty-two of them validate data
+    that crosses the wire, and three are `.parse()`d on the checkout
+    path - so a frontend schema can REJECT the API's own response
+    (that is what `audit:frontend-nullability` exists to measure: 77
+    fields compared, 31 stricter than their column, 17 in schemas parsed
+    at runtime). A schema that both sides import cannot disagree with
+    itself; two hand-written ones agree only by inspection.
+    JACOB'S EXCEPTION, and it is the whole boundary: "reasonable things
+    i.e a client only onClick handler". A type describing UI BEHAVIOUR -
+    a handler signature, a component's props, a local discriminated
+    union for a reducer - is genuinely local and stays. A type
+    describing DATA is not local, wherever it sits.
+    SO THE TEST IS "IS THIS DATA OR IS THIS UI", and it is asked per
+    declaration. It cannot be automated the way ruling 38's file-count
+    rule can, which is exactly why it is a wave and not a sweep: 347
+    declarations, each needing one judgement, and the wrong call in
+    either direction is silent - a UI type in the contracts is clutter,
+    a data type left in a feature is the drift we have spent six waves
+    removing.
+
+=== D168: RULING 36 AUTHORISED STOPPING *DUAL* WRITES. THREE OF THEM ARE
+    NOT DUAL WRITES. ===
+The write-pivot lane captured the covenant ledger (15 pairs, 10
+byte-identical, `only_in_target` = 0 on all fifteen - the number that
+would have blocked the wave, since a target-only row is one a backfill
+overwrites), closed three of the five native gaps, and then STOPPED at
+three writes to `exchange` that HAVE NO MIRROR BECAUSE THEY HAVE NO
+DESTINATION. Applying ruling 36 to these would not have removed a
+redundant write; it would have removed the ONLY write.
+  1. `exchange.payouts`. The successor reaches its order through
+     `order -> payments.intents -> details`, and DEV HAS EIGHT INTENTS,
+     ALL ON SALES ORDERS, AGAINST FORTY-EIGHT PURCHASE ORDERS. A payout
+     is money going OUT; an intent is money coming IN. The join the
+     successor needs DOES NOT EXIST for the row it must serve, and it
+     fails SILENTLY. This is bigger than the known bank-details problem
+     and sits underneath it.
+  2. *** `exchange.users` - THE DIRECTION IS INVERTED. *** The
+     `mirror_users_to_auth` trigger makes `exchange` the SOURCE, so the
+     statement filed under "legacy" is THE LIVE ONE, and
+     `features/users/repo.ts adjustCredit` is called by nothing but
+     tests. STOPPING THIS WRITE FREEZES EVERY CUSTOMER CREDIT BALANCE -
+     the $66,999.32 ledger across eight customers. The word "legacy" on
+     a directory was doing the reasoning, and it was wrong.
+  3. `purgeCancelled` already points at the WRONG COPY: it destroys the
+     `exchange` backup and leaves the `orders.orders` rows the admin is
+     looking at. A native port needs a six-table cascade AND a
+     `direction = 'purchase'` predicate the old statement got free from
+     its table name - and DEV HAS NO CANCELLED SALES ORDERS, which is
+     exactly the condition under which that ships green.
+CONSEQUENCE FOR `api/legacy/`: its promise that "promotion deletes one
+directory" DOES NOT HOLD. Two of its residents are SOLE IMPLEMENTATIONS
+OF LIVE WRITES, which its own entry criteria disqualify. The folder was
+built on the assumption that everything in it was a mirror; two things
+in it are not.
+THE LESSON, and it is the one this project keeps relearning in new
+costumes: A LABEL IS NOT EVIDENCE. "legacy" described where the code sat
+in a directory tree, not what it did, and the ledger is what found the
+difference. Same shape as D129 (a display label steering a courier),
+D103 (a hand-written union that was really an unenforced constraint) and
+D163 (a rename read as a loss).
+
+=== D169: THE PARSE CHECK WENT BLIND EXACTLY WHERE IT WAS ABOUT TO BE
+    NEEDED - AND I FAILED TWICE TRYING TO REFUTE IT ===
+`lint-script-guards.mjs` assertion 1 is "every script parses", written
+for D118 (`diff` unparseable for ten commits while every run exited 0
+before opening a connection). It ran `node --check <file>`.
+*** `node --check` EXITS 0 ON A `.ts` FILE CONTAINING AN UNCLOSED OBJECT
+LITERAL *** - the precise shape D118 was. Confirmed against the lane's
+own fixture:
+    export const F: Record<string,string> = {
+      a: "b",
+  -> exit 0.
+So the scripts-to-TypeScript conversion WOULD HAVE SILENTLY DISABLED THE
+PARSE CHECK FOR EVERY SCRIPT IT CONVERTED, while the census went on
+printing "54 parse". It was caught only because the fix landed before
+the conversion did. Fixed by parsing `.ts` through `node:module`'s
+`stripTypeScriptTypes()`, pinned by a planted broken `.ts`.
+*** AND THE PART THAT IS MINE. *** I doubted the claim and tested it
+twice, badly, both times in the way this session has spent two days
+cataloguing:
+  1. `node --check f.ts 2>&1 | head -3 && echo ok` - the `&&` and a
+     later `$?` read HEAD's exit status through the pipe, never node's.
+     A check that could not see its subject, built to check a check that
+     could not see its subject.
+  2. A fixture of `const x: number = 1;` with no `export`. That takes a
+     different module-detection path and exits 1, so I concluded the
+     opposite of the truth from an unrepresentative case.
+THE LESSON I HAD ALREADY WRITTEN DOWN AND DID NOT APPLY: a detector's
+result is only as good as the fixture, and a pipeline's exit status is
+the LAST command's. D160 said a number you did not compute is a claim;
+this is the same rule for a test you did not construct carefully. The
+lane's evidence was better than my refutation, and the record should say
+so plainly.
+
+=== D170: TWO ORPHANED ITEMS, BOTH TYPES THAT DISAGREE WITH THEIR OWN
+    TESTS ===
+Both lanes have stopped; neither of these has an owner, and both live in
+`api/shared/` or `api/features/` where the write-pivot lane's scope
+ended. Recorded so they are not lost between phases.
+  I-10: `WireData` in `shared/wire/rename.ts` is
+  `WireRow | WireRow[] | null | undefined`, and
+  `shared/wire/tests/adapter.test.ts` has a test called "nothing, and
+  things that are not rows, pass through" WHICH FEEDS IT A BOOLEAN, A
+  STRING AND A NUMBER. All three are outside the declared domain, and
+  `rename()` guards for exactly that case and passes them through. SO
+  THE TYPE FORBIDS WHAT THE CODE DELIBERATELY SUPPORTS AND A TEST
+  PROVES. That is the mirror of D145: there a type ASSERTED something
+  false and the compiler was talked out of noticing; here a type DENIES
+  something true and the test is the only record of it. Both are a
+  declaration disagreeing with behaviour; only one of them fails loudly.
+  TASK 3 / D159 IS A TWO-FILE CHANGE, NOT ONE. `compose.ts` discards
+  the type at its OWN boundary - `composePurchaseOrder` and
+  `composeSalesOrder` both return `Record<string, unknown>` - so
+  narrowing `read.service.ts` alone would move the cast rather than
+  remove it. The probe also surfaced three real mismatches, the sharpest
+  being `ScrapPart.content: number` against a NULLABLE column, with
+  `{} as ScrapPart` disabling the constraint ONE LINE from where it
+  would have fired.
+BOTH BELONG TO PHASE 3, which is now "one home for every type" - and
+both are instances of its thesis: a type is only worth having if it is
+the single place the shape is stated. A type contradicted by its own
+test is not a source of truth, it is a second opinion.
+
+=== D171: THE SUITE HAD BEEN COUNTING A LIBRARY AS A TEST ===
+`node --test`'s default glob matches `*-test.mjs`, and
+`scripts/lib/self-test.mjs` matches it. So the suite had been loading a
+LIBRARY as a test file and counting it as a passing one: 942 was 941
+tests plus one module that asserts nothing.
+Small, and worth recording for two reasons. First, it explains a
+discrepancy that would otherwise have been chased later - the suite
+count moved by one for a reason unrelated to any test. Second, IT IS
+THE SAME SHAPE AS D160: a number that everyone quoted and nobody
+derived. "942 tests" was true of the runner's output and false about the
+suite, and the difference only became visible when a file was added to a
+directory nobody expected the runner to look in.
+THE GENERAL FORM, now seen at least five times: A COUNT IS A CLAIM ABOUT
+WHAT WAS COUNTED, and the denominator is where the error hides - not the
+arithmetic. D165 was two correct numbers with different denominators;
+this is one number whose denominator quietly grew.

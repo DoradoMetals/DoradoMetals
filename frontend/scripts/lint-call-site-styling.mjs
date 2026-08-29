@@ -305,7 +305,19 @@ export const X = () => (<>
 // separately: alignment is LAYOUT and never in scope, while `text-[10px]` is a
 // SCALE GAP - each one is a size the token set failed to offer.
 if (process.argv.includes("--scatter")) {
-  const all = walk(ROOT).filter((f) => !f.includes("/scripts/"));
+  // `shared/ui` IS EXCLUDED, by Jacob's ruling 35: "shared primitives can
+  // carry both" - raw Tailwind sizes and semantic scale tokens are equally
+  // acceptable INSIDE a component, because that is ruling 20 working rather
+  // than failing. A Dialog deciding it is `text-lg` owns its appearance; a
+  // FEATURE file deciding it is `text-lg` is hardcoding what typography.css
+  // should own, and that is the whole distinction this metric exists to draw.
+  //
+  // Counting the primitives made the target unreachable, and a target that
+  // cannot be reached is a number everyone learns to ignore. It reported 28
+  // for exactly this reason.
+  const all = walk(ROOT)
+    .filter((f) => !f.includes("/scripts/"))
+    .filter((f) => !f.includes("/shared/ui/"));
   const perDir = {}; let sized = 0, arbitrary = 0, alignment = 0, filesWith = 0;
   const ARB = /\b(?:sm:|md:|lg:|xl:|hover:|focus:|dark:)*text-\[[^\]]+\]/g;
   for (const f of all) {

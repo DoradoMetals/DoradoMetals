@@ -39,7 +39,7 @@
 
 import "#env";
 import pool from "#db";
-import { FEATURES, RENAMES } from "./lib/feature-map.mjs";
+import { FEATURES, RENAMES } from "./lib/feature-map.ts";
 
 const indexesOf = async (table) => {
   const [schema, name] = table.split(".");
@@ -212,6 +212,23 @@ for (const [feature, tables] of Object.entries(features)) {
       else absent.push(row);
     }
   }
+}
+
+// THE FLOOR (D135). This is a REPORT, and a report that cannot see its subject
+// prints a smaller number and exits 0 - which for an index audit means "every
+// access path survived" when the truth is that none was looked at. 50 indexes
+// across 18 features on 2026-08-29, re-measured on the run that added this. It
+// only ever grows as the new schema does; a count that falls means the walk or
+// the catalogue query broke, not that exchange lost indexes.
+const INDEX_FLOOR = Number(process.env.AUDIT_INDEXES_FLOOR ?? (only ? 1 : 40));
+if (checked < INDEX_FLOOR) {
+  console.error(
+    `audit:indexes compared only ${checked} index(es), expected at least ${INDEX_FLOOR}. ` +
+      `Nothing downstream would notice: diff compares output not plans, verify:parity ` +
+      `compares rows, validate:wire compares shapes, and all three pass against a table ` +
+      `with no indexes whatsoever. The only symptom is latency, in production.`
+  );
+  process.exit(1);
 }
 
 console.log(

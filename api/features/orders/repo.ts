@@ -128,6 +128,23 @@ export async function setFlag(
   return rows[0]?.id;
 }
 
+// Whether the order's quoted spots are pinned. NOT setFlag: that writes `true`
+// and only `true`, because its three columns are one-way latches. This one
+// toggles - the pricing path locks, the cancel path unlocks - so it takes the
+// value. See sql/set_spots_locked.sql.
+//
+// exchange's half was toggleSpots(locked, order_id), and the argument order is
+// deliberately the other way round here: every other write in this repo takes
+// the id first.
+export async function setSpotsLocked(
+  id: string, locked: boolean, executor?: Executor
+): Promise<{ id: string; spots_locked: boolean } | undefined> {
+  const { rows } = await query<{ id: string; spots_locked: boolean }>(
+    sql("set_spots_locked"), [locked, id], executor
+  );
+  return rows[0];
+}
+
 // --------------------------------------------------------------- THE CREATES
 //
 // `number` comes from EXCHANGE's sequence in both statements - see

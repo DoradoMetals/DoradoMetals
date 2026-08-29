@@ -44,7 +44,7 @@
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
-import { suiteInvocation } from "./lib/suite-invocation.mjs";
+import { suiteInvocation } from "./lib/suite-invocation.ts";
 
 // A test is flagged when it exceeds EITHER bound. Both are absolute statements
 // about what this suite should be, not percentages of what it currently is.

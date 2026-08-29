@@ -68,7 +68,7 @@ const ROOT = process.env.AUDIT_SWITCHES_ROOT
 const FEATURES = path.join(ROOT, "features");
 
 if (process.argv.includes("--self-test")) {
-  const { selfTest } = await import("./lib/self-test.mjs");
+  const { selfTest } = await import("./lib/self-test-harness.ts");
   const Q = String.fromCharCode(34);
   const facade = (env) => `import * as exchange from ${Q}./repo.exchange.js${Q};
 import * as dual from ${Q}./repo.dual.js${Q};

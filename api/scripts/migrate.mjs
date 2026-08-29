@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import pg from "pg";
-import { parseBaseline, coveredBy } from "./lib/baseline.mjs";
+import { parseBaseline, coveredBy } from "./lib/baseline.ts";
 
 const MIGRATIONS_DIR = path.join(import.meta.dirname, "..", "migrations");
 const LOCK_KEY = 8451723; // arbitrary, just has to be stable

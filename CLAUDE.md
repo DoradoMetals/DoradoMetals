@@ -55,13 +55,78 @@ ten of the eighteen schemas and **lacks eight outright** — `products`,
 eventual sequence is not "migrate and backfill", it is "most of
 `000_genesis_schema.sql` has never run there", and code touching a missing
 schema raises 42P01 rather than returning empty. One such path exists today:
-`features/quotes/service.ts:27` imports `#features/checkout/repo.next.ts`
-directly — around the `repo.js` that `CHECKOUT_SOURCE` selects — and that file
-does `SELECT id FROM products.bullion`.
+the quote surface resolves a product by name, and that read is
+`SELECT id FROM products.bullion`. **The BYPASS that used to describe it is
+closed** — `features/quotes/service.ts` no longer imports
+`#features/checkout/repo.next.ts`; D147 moved the read to its owner,
+`features/products/service.ts` `findProductIdByName`, and un-exported the
+handle rather than routing it. `audit:switches` confirms: "no import reaches
+around a switch". **The deploy hazard survived the fix**, because it was never
+about the bypass — the table read is still `products.bullion` and production
+still has no `products` schema. Verified 2026-08-29.
 
 When that day comes: `pg_dump` first, then the migrations, then the backfills,
 then `verify:parity` and `compare:databases`, then merge. Not before, and not
 by an agent.
+
+### The safety net is being removed on purpose, and that makes the order above absolute
+
+**`exchange` MAY STOP RECEIVING WRITES** (Jacob, 2026-08-29, ruling 36: *"Yes
+exchange can stop receiving those writes."*). The one-way door is open. It is
+one decision rather than fourteen because the per-feature switches that would
+have gated them individually were deleted as each feature's reads pivoted
+(D146), so there is no per-feature ceremony left to perform.
+
+**WHAT THAT COSTS, AND IT IS THE REASON THE SEQUENCE ABOVE STOPPED BEING
+ADVICE.** With dual-writes in place, deploying this branch early was
+*embarrassing*: customers were served the January snapshot while `exchange`
+quietly kept the real rows, and the fix was a backfill. Without them, deploying
+early means **new writes land in schemas that DO NOT EXIST** — production is
+missing eight of the eighteen — so the write path raises **42P01 and no
+`exchange` row is written either.** The order is lost rather than misplaced.
+There is no undo, and this project has exactly one rule that outranks the
+others.
+
+**So `pg_dump` → migrate → backfill → verify → merge is not a checklist to work
+through in a convenient order. It is the only sequence in which nothing is
+lost.** Every step before the merge exists to make the merge survivable, and
+each one is the user's to run.
+
+### The pivot is IN PROGRESS, not done — read `docs/waves/write-pivot.md`
+
+The covenant ledger has been taken and it is the important artefact: once
+`exchange` stops being written, `verify:parity` compares two frozen tables and
+its green stops meaning anything, so **the evidence could only ever be captured
+before the switch**. That record — 15 pairs, 10 byte-identical, `only_in_target`
+zero on all fifteen, and every one of the five exceptions measured rather than
+cited — is in the lane file. Do not expect to be able to re-derive it.
+
+**Three writes to `exchange` are NOT dual writes, and ruling 36 does not reach
+them.** Each has no mirror because it has no destination:
+
+- **`exchange.payouts`** — its successor `payments.details` deliberately stores
+  no routing or account number (encryption at rest is outstanding), *and* its
+  order link walks `order -> payments.intents -> details`, a path that does not
+  exist for a purchase order: dev has 8 intents, all on sales orders, against 48
+  purchase orders. A payout is money going out; an intent is money coming in.
+- **`exchange.users`** — the direction is INVERTED here. The
+  `mirror_users_to_auth` trigger makes `exchange.users` the SOURCE and
+  `auth.users` the mirror, so the *legacy* statement is the live one and
+  `features/users/repo.ts` `adjustCredit` is called by nothing but tests.
+  Stopping this write freezes every customer's credit balance.
+- **`purgeCancelled`** — a DELETE, behind a live admin button, that today
+  destroys the `exchange` copy of cancelled orders while leaving the
+  `orders.orders` rows the admin is actually looking at. A native port needs a
+  six-table cascade, a `direction = 'purchase'` predicate that the exchange
+  statement got for free from its table name, and a prior decision about whether
+  the button should exist at all.
+
+**Consequence for `api/legacy/`**: its README promises that *"promotion deletes
+one directory"*, and two of its residents are sole implementations of live
+writes — which its own entry criteria disqualify (*"a module that is still the
+only implementation of a read or a write is not legacy yet, whatever it is
+named"*). They were filed by feature name rather than by that test. **The
+directory cannot be deleted in one move until they leave it.**
 
 ## Not all data is equally precious
 
@@ -220,10 +285,15 @@ Completion is about DATA, not about the suite being green.
    fallback left.
 5. **Only then** delete its read paths, its `*_SOURCE` machinery and its oracle
    tests, and move what still dual-writes into `legacy/<feature>/`.
-6. **The WRITE half is a separate, later decision, and it is Jacob's.** Deleting
-   a dual-write is a ONE-WAY DOOR: `exchange` stops receiving that feature's
-   writes and flipping back loses everything written in between. It is gated on
-   promotion past `dual`, which is gated on the production backfills having run.
+6. **The WRITE half was a separate, later decision, and it has now been made.**
+   Deleting a dual-write is a ONE-WAY DOOR: `exchange` stops receiving that
+   feature's writes and flipping back loses everything written in between.
+   **Ruling 36 (2026-08-29) opened that door** — one decision for all of them,
+   because the per-feature switches that would have gated them individually no
+   longer exist (D146). What that does NOT authorise is dropping anything:
+   `exchange` keeps every table and every row it has. See the deploy section
+   above for what the removal costs, and `docs/waves/write-pivot.md` for the
+   ledger and the three writes ruling 36 does not reach.
 
 **"The tests pass" is not evidence that data migrated.** A test reads its own
 writes either way.
@@ -259,13 +329,18 @@ the feature reads its own schema unconditionally now.
 and it is still the user's call and still a one-way door: once `exchange` stops
 receiving writes, flipping back loses everything written in between.
 
-**A switch is not the only thing that can reach a new schema.** `features/quotes/
-service.ts:27` imports `#features/checkout/repo.next.ts` DIRECTLY — bypassing
-the `repo.js` that `CHECKOUT_SOURCE` selects — and line 276 of that file is
-`SELECT id FROM products.bullion`. Production has no `products` schema, so that
-is a 42P01 on first request, on the endpoints that price every customer-visible
-number. Grep for direct `repo.next` imports before trusting a switch to describe
-what a feature actually reads.
+**A switch is not the only thing that can reach a new schema.** The instance
+that taught this — `features/quotes/service.ts` importing
+`#features/checkout/repo.next.ts` directly, around the `repo.js` that
+`CHECKOUT_SOURCE` selects — **is closed** (D147: the read moved to
+`features/products/service.ts` and the handle was un-exported, so there is no
+door to reach through). `audit:switches` now scans for the shape and reports
+"no import reaches around a switch". The habit stays: grep for direct
+`repo.next` imports before trusting a switch to describe what a feature reads.
+**What did NOT go away is the 42P01** — the read is still
+`SELECT id FROM products.bullion`, on the endpoints that price every
+customer-visible number, and production has no `products` schema. Closing a
+bypass changed who calls the query, not which table it names.
 
 **Two things are not a `*_SOURCE` switch and never will be.** `fulfillments`
 (methods, pickups, directs) is capability `exchange` never recorded — there is

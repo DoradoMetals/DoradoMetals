@@ -74,3 +74,36 @@ export async function setAmount(
   );
   return rows[0];
 }
+
+// THE ORDER'S TOTAL - what the customer is paid on a purchase order.
+//
+// Separate from setAmount ON PURPOSE. That function serves a closed set of
+// five ADJUSTABLE FEES; this one writes the number those fees add up into,
+// and a call site that cannot tell the two apart is a call site one keystroke
+// away from editing the wrong thing. sql/set_total.sql states it at length.
+//
+// `total` IS NULLABLE AND NULL IS MEANINGFUL: it is "this order is no longer
+// priced", which is what clearing an order's pricing does before re-deriving
+// it. Passed straight through, never coalesced. exchange's resetOrderTotal
+// wrote exactly that.
+//
+// `by` behaves as it does in setAmount - null leaves the previous author
+// alone rather than erasing them.
+//
+// NOTE FOR THE CALLER, and it is the reason this returns a row rather than
+// void: this is an UPDATE, so an order with no orders.transactions row is a
+// silent no-op. Under the dual write the mirror INSERTed that row from
+// exchange; a native create path has to write it with createTotals. An
+// undefined return means there was no row to write to, which is a caller's
+// bug rather than a missing order.
+export async function setTotal(
+  order_id: string,
+  total: number | null,
+  by: string | null = null,
+  executor?: Executor
+): Promise<{ id: string; order_id: string; total: number | null } | undefined> {
+  const { rows } = await query<{ id: string; order_id: string; total: number | null }>(
+    sql("set_total"), [total, by, order_id], executor
+  );
+  return rows[0];
+}

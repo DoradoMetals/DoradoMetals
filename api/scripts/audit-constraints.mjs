@@ -31,7 +31,7 @@
 
 import "#env";
 import pool from "#db";
-import { FEATURES, RENAMES } from "./lib/feature-map.mjs";
+import { FEATURES, RENAMES } from "./lib/feature-map.ts";
 
 const describe = async (table) => {
   const [schema, name] = table.split(".");
@@ -108,10 +108,14 @@ console.log(
 // first version applied this floor unconditionally, so `audit:constraints leads`
 // compared its 8 pairs correctly and then exited 1 for having found only 8.
 // That run is also what proved the floor fires.
-if (!only && checked < 50) {
+// NAMED, so the meta-guard can see it. It was the literal `50`, which is a
+// floor in every sense except the one that lets `lint:script-guards` verify
+// that this file's excuse ("carries a floor") is true rather than claimed.
+const CONSTRAINT_FLOOR = Number(process.env.AUDIT_CONSTRAINTS_FLOOR ?? 50);
+if (!only && checked < CONSTRAINT_FLOOR) {
   console.error(
-    `only ${checked} pair(s) compared - the feature map or the schema has moved ` +
-      `and this is no longer looking at anything`
+    `only ${checked} pair(s) compared, expected at least ${CONSTRAINT_FLOOR} - the ` +
+      `feature map or the schema has moved and this is no longer looking at anything`
   );
   process.exit(1);
 }
