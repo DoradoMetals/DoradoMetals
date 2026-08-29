@@ -6,7 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 // ----------------------------------------------------------------------
 
 const floatingLabelVariant = cva(
-	"cursor-text peer-focus:text-primary text-neutral-700 absolute z-10 duration-300 peer-placeholder-shown:start-3 font-medium leading-4 text-xs peer-focus:text-xs start-1 peer-focus:start-1 -top-4 peer-focus:-top-4",
+	"select-none pointer-events-none transition-all cursor-text peer-focus:text-primary text-neutral-700 absolute z-10 duration-300 peer-placeholder-shown:start-3 font-medium leading-4 text-xs peer-focus:text-xs start-1 peer-focus:start-1 -top-4 peer-focus:-top-4",
 	{
 		variants: {
 			size: {
@@ -28,7 +28,7 @@ interface FloatingLabelProps extends React.ComponentPropsWithoutRef<typeof Label
 const FloatingLabel = React.forwardRef<React.ElementRef<typeof Label>, FloatingLabelProps>(({ size = "sm", className, ...props }, ref) => {
 	return (
 		<Label
-			className={cn("select-none pointer-events-none transition-all", floatingLabelVariant({ size, className }))}
+			className={cn(floatingLabelVariant({ size, className }))}
 			ref={ref}
 			{...props}
 		/>

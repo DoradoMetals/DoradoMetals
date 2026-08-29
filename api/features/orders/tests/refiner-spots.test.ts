@@ -75,7 +75,7 @@ test("the read agrees with the raw exchange rows the dual write maintains", asyn
 });
 
 test("a spot write reaches both schemas", async () => {
-  await inRollback(async (c) => {
+  await inRollback(async (c: PoolClient) => {
     const order = await anOrderWithRefinerSpots(c);
     // THE GUARD THE FIRST TEST HAD AND THESE THREE DID NOT, found by the
     // TypeScript conversion rather than by a failure: without it a dev
@@ -108,7 +108,7 @@ test("a spot write reaches both schemas", async () => {
 // The mirror keys on the source id, so a row must not be duplicated by a second
 // write to the same order and metal.
 test("mirroring twice does not duplicate a spot", async () => {
-  await inRollback(async (c) => {
+  await inRollback(async (c: PoolClient) => {
     const order = await anOrderWithRefinerSpots(c);
     // THE GUARD THE FIRST TEST HAD AND THESE THREE DID NOT, found by the
     // TypeScript conversion rather than by a failure: without it a dev
@@ -137,7 +137,7 @@ test("mirroring twice does not duplicate a spot", async () => {
 // exchange has never recorded which refinery an order went to. The mirror must
 // not overwrite a refiner_id that is already there with a null.
 test("the mirror does not clear a refiner_id it cannot derive", async () => {
-  await inRollback(async (c) => {
+  await inRollback(async (c: PoolClient) => {
     const order = await anOrderWithRefinerSpots(c);
     // THE GUARD THE FIRST TEST HAD AND THESE THREE DID NOT, found by the
     // TypeScript conversion rather than by a failure: without it a dev

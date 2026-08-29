@@ -179,7 +179,7 @@ export function AddNewDialog({
                         />
                         {value !== '' && (
                           <Button
-                            variant="ghost"
+                            variant="tertiary"
                             onClick={() => setValue(field.name, '')}
                             className="absolute right-1 top-1 text-neutral-600 hover:bg-transparent"
                             tabIndex={-1}
@@ -216,7 +216,7 @@ export function AddNewDialog({
                       />
                       {value !== '' && (
                         <Button
-                          variant="ghost"
+                          variant="tertiary"
                           onClick={() => setValue(field.name, '')}
                           className="absolute right-1 top-1/2 -translate-y-1/2 text-neutral-600 hover:bg-transparent"
                           tabIndex={-1}
@@ -231,7 +231,7 @@ export function AddNewDialog({
               })}
 
               <Button
-                variant="primaryQuiet"
+                variant="secondary"
                 className={'p-4 w-full'}
                 disabled={!canSubmit}
                 onClick={handleSubmit}

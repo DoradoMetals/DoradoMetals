@@ -53,7 +53,7 @@ export function DebouncedInputSearch({
 
       {value !== '' && (
         <Button
-          variant="ghost"
+          variant="tertiary"
           onClick={handleClear}
           className="absolute right-1 top-1/2 -translate-y-1/2 text-neutral-600 hover:bg-transparent"
           tabIndex={-1}

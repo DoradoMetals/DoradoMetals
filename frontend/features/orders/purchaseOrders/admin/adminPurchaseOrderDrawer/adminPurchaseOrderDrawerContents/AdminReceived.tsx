@@ -33,12 +33,17 @@ import {
   TableRow,
 } from '@/shared/ui/base/table'
 import { Checkbox } from '@/shared/ui/base/checkbox'
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
-import { Command, CommandInput, CommandItem, CommandList } from '@/shared/ui/base/command'
+import SelectMenu from '@/shared/ui/SelectMenu'
+import { Field } from '@/shared/ui/Field'
 import { Product } from '@/features/products/types'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useProducts } from '@/features/products/queries'
 import { useOrderSpots, nameSpots, type NamedOrderSpot } from '@/features/orders/spots'
+
+const METAL_ITEMS = ['Gold', 'Silver', 'Platinum', 'Palladium'].map((metal) => ({
+  label: metal,
+  value: metal,
+}))
 
 export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const { data: spotPrices = [] } = useSpotPrices()
@@ -210,10 +215,30 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
           {/* 'Accepted' left the lifecycle, and the change-payout affordance
               that keyed on it shows here at Received instead (Jacob's lean) -
               beside the payout charge it prices. */}
-          <div className="flex flex-col gap-1 items-start w-full">
-            <small className="tracking-wide">Change Payout Method</small>
-            <Popover open={payoutOpen} onOpenChange={setPayoutOpen}>
-              <PopoverTrigger asChild>
+          {/* One of FIVE hand-rolled Popover+Command menus in this file, every
+              one of them `text-primary` over `hover:bg-primary` - two
+              near-white tokens, so the label vanished under the cursor (D95).
+              `shared/ui/SelectMenu` was written for exactly this and had zero
+              importers. */}
+          <Field label="Change Payout Method" className="w-full items-start">
+            <SelectMenu
+              open={payoutOpen}
+              onOpenChange={setPayoutOpen}
+              value={payout?.method}
+              items={payoutOptions.map(({ label, method, icon }) => ({
+                label,
+                value: method,
+                icon,
+              }))}
+              onSelect={(method) => {
+                if (!payout?.id) return
+                patchPayout.mutate({
+                  payout_id: payout.id,
+                  order_id: order.id,
+                  patch: { method },
+                })
+              }}
+              trigger={
                 <Button
                   variant="secondary"
                   className="flex items-center justify-between gap-1 h-9 w-full"
@@ -221,43 +246,9 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                   {payoutOptions.find((m) => m.method === payout?.method)?.label}
                   <CaretDownIcon size={20} />
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="p-0 w-48 z-70"
-                align="end"
-                side="bottom"
-                onOpenAutoFocus={(e) => e.preventDefault()}
-              >
-                <Command surface="card">
-                  <CommandList>
-                    {payoutOptions.map(({ label, method, icon: Icon }) => (
-                      <CommandItem
-                        key={label}
-                        onSelect={() => {
-                          if (payout?.id) {
-                            patchPayout.mutate({
-                              payout_id: payout.id,
-                              order_id: order.id,
-                              patch: { method },
-                            })
-                          }
-                          setPayoutOpen(false)
-                        }}
-                        className={cn(
-                          'group h-9 px-3 flex items-center gap-2 transition-colors duration-150 cursor-pointer',
-                          'text-primary',
-                          'hover:bg-primary'
-                        )}
-                      >
-                        <Icon size={16} className={cn('text-primary')} />
-                        <span className="transition-colors">{label}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
+              }
+            />
+          </Field>
           <Separator />
         </div>
       </div>
@@ -353,17 +344,14 @@ function ScrapTable({
               {scrapItems.map((item, i) => (
                 <TableRow
                   key={i}
-                  className={cn(
-                    'transition-colors hover:bg-transparent',
-                    editMode && !selectedIds.includes(item.id) && 'opacity-50 pointer-events-none',
-                    editMode && selectedIds.includes(item.id) && 'hover:bg-muted/30',
-                    item.confirmed === true ? 'bg-success/10 hover:bg-success/20' : ''
-                  )}
+                  disabled={editMode && !selectedIds.includes(item.id)}
+                  interactive={editMode && selectedIds.includes(item.id)}
+                  intent={item.confirmed === true ? 'success' : 'neutral'}
                 >
                   <TableCell className="text-left">
                     {item.confirmed ? (
                       <Button
-                        variant="ghost"
+                        variant="tertiary"
                         className="h-4 w-2 p-0 pl-2 m-0 flex justify-center"
                         onClick={() => handleResetItem(item)}
                       >
@@ -529,8 +517,13 @@ function ScrapTable({
                 Remove
               </Button>
             </div>
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
+            <SelectMenu
+              open={open}
+              onOpenChange={setOpen}
+              items={METAL_ITEMS}
+              onSelect={handleAddNew}
+              contentClassName="w-20"
+              trigger={
                 <Button
                   disabled={editMode}
                   variant="link"
@@ -539,93 +532,25 @@ function ScrapTable({
                   <Plus size={16} />
                   Add New
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="p-0 w-20 h-full z-70"
-                align="end"
-                side="bottom"
-                onOpenAutoFocus={(e) => e.preventDefault()}
-              >
-                <Command surface="card">
-                  <CommandList>
-                    {['Gold', 'Silver', 'Platinum', 'Palladium'].map((metal) => (
-                      <CommandItem
-                        key={metal}
-                        onSelect={() => {
-                          handleAddNew(metal)
-                          setOpen(false)
-                        }}
-                        className={cn(
-                          'group h-9 px-3 flex items-center gap-2 transition-colors duration-150 cursor-pointer',
-                          'text-primary',
-                          'hover:bg-primary'
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'transition-colors',
-                            'text-primary',
-                            'group-hover:text-white'
-                          )}
-                        >
-                          {metal}
-                        </span>
-                      </CommandItem>
-                    ))}
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+              }
+            />
           </div>
         </div>
       ) : (
         <div className="flex justify-center items-center">
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                disabled={editMode}
-                variant="default"
-                className="flex items-center gap-1 p-4"
-              >
+          <SelectMenu
+            open={open}
+            onOpenChange={setOpen}
+            items={METAL_ITEMS}
+            onSelect={handleAddNew}
+            align="center"
+            contentClassName="max-w-42"
+            trigger={
+              <Button disabled={editMode} size="lg">
                 Add Scrap to Order
               </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="p-0 max-w-42 h-full z-70"
-              align="center"
-              side="bottom"
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-              <Command surface="card">
-                <CommandList>
-                  {['Gold', 'Silver', 'Platinum', 'Palladium'].map((metal) => (
-                    <CommandItem
-                      key={metal}
-                      onSelect={() => {
-                        handleAddNew(metal)
-                        setOpen(false)
-                      }}
-                      className={cn(
-                        'group h-9 px-3 flex items-center gap-2 transition-colors duration-150 cursor-pointer',
-                        'text-primary',
-                        'hover:bg-primary'
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'transition-colors',
-                          'text-primary',
-                          'group-hover:text-white'
-                        )}
-                      >
-                        {metal}
-                      </span>
-                    </CommandItem>
-                  ))}
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+            }
+          />
         </div>
       )}
     </>
@@ -687,9 +612,17 @@ function BullionTable({
   }
 
   // A bullion line is created from the catalogue row itself - its id is what
-  // tells the server not to mint a scrap row.
-  const handleAddNew = (item: Product) => {
-    createItem.mutate({ order_id, item })
+  // tells the server not to mint a scrap row. The menu is keyed by id, so the
+  // catalogue row is looked back up here rather than being carried through a
+  // shared component that has no business knowing what a product is.
+  const productItems = products.map((product) => ({
+    label: product.name,
+    value: product.id,
+  }))
+
+  const handleAddNewById = (id: string) => {
+    const item = products.find((product) => product.id === id)
+    if (item) createItem.mutate({ order_id, item })
   }
 
   return (
@@ -709,17 +642,14 @@ function BullionTable({
               {bullionItems.map((item, i) => (
                 <TableRow
                   key={i}
-                  className={cn(
-                    'transition-colors hover:bg-transparent',
-                    editMode && !selectedIds.includes(item.id) && 'opacity-50 pointer-events-none',
-                    editMode && selectedIds.includes(item.id) && 'hover:bg-muted/30',
-                    item.confirmed === true ? 'bg-success/10 hover:bg-success/20' : ''
-                  )}
+                  disabled={editMode && !selectedIds.includes(item.id)}
+                  interactive={editMode && selectedIds.includes(item.id)}
+                  intent={item.confirmed === true ? 'success' : 'neutral'}
                 >
                   <TableCell className="text-left">
                     {item.confirmed ? (
                       <Button
-                        variant="ghost"
+                        variant="tertiary"
                         className="h-4 w-2 p-0 pl-2 m-0 flex justify-center"
                         onClick={() => handleResetItem(item)}
                       >
@@ -830,8 +760,14 @@ function BullionTable({
                 Remove
               </Button>
             </div>
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
+            <SelectMenu
+              open={open}
+              onOpenChange={setOpen}
+              items={productItems}
+              onSelect={handleAddNewById}
+              searchPlaceholder="Search products..."
+              listClassName="h-50"
+              trigger={
                 <Button
                   disabled={editMode}
                   variant="link"
@@ -840,99 +776,27 @@ function BullionTable({
                   <Plus size={16} />
                   Add New
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="p-0 h-50 z-70"
-                align="end"
-                side="bottom"
-                onOpenAutoFocus={(e) => e.preventDefault()}
-              >
-                <Command surface="card">
-                  <CommandInput
-                    placeholder="Search products..."
-                    className="h-8"
-                  />
-                  <CommandList>
-                    {products.map((product) => (
-                      <CommandItem
-                        key={product.id}
-                        onSelect={() => {
-                          handleAddNew(product)
-                          setOpen(false)
-                        }}
-                        className={cn(
-                          'group h-9 px-3 flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer',
-                          'text-primary',
-                          'hover:bg-primary'
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'transition-colors group-hover:text-white',
-                            'text-primary'
-                          )}
-                        >
-                          {product.name}
-                        </span>
-                      </CommandItem>
-                    ))}
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+              }
+            />
           </div>
         </div>
       ) : (
         <div className="flex items-center justify-center">
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                disabled={editMode}
-                variant="default"
-                className="flex items-center gap-1 p-4"
-              >
+          <SelectMenu
+            open={open}
+            onOpenChange={setOpen}
+            items={productItems}
+            onSelect={handleAddNewById}
+            searchPlaceholder="Search products..."
+            align="center"
+            contentClassName="max-w-70"
+            listClassName="h-50"
+            trigger={
+              <Button disabled={editMode} size="lg">
                 Add Bullion to Order
               </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="p-0 max-w-70 h-50 z-70"
-              align="center"
-              side="bottom"
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-              <Command surface="card">
-                <CommandInput
-                  placeholder="Search products..."
-                  className="h-8"
-                />
-                <CommandList>
-                  {products.map((product) => (
-                    <CommandItem
-                      key={product.id}
-                      onSelect={() => {
-                        handleAddNew(product)
-                        setOpen(false)
-                      }}
-                      className={cn(
-                        'group h-9 px-3 flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer',
-                        'text-primary',
-                        'hover:bg-primary'
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'transition-colors group-hover:text-white',
-                          'text-primary'
-                        )}
-                      >
-                        {product.name}
-                      </span>
-                    </CommandItem>
-                  ))}
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+            }
+          />
         </div>
       )}
     </>

@@ -78,6 +78,17 @@ export async function getBySlug(slug: string, executor?: Executor): Promise<Publ
   return rows;
 }
 
+// A product by NAME. See sql/find_id_by_name.sql - the caller is the quote
+// surface, which takes a name off a request body when no id was sent.
+export async function findIdByName(
+  name: string, executor?: Executor
+): Promise<products.BullionRow["id"] | null> {
+  const { rows } = await query<Pick<products.BullionRow, "id">>(
+    sql("find_id_by_name"), [name], executor
+  );
+  return rows[0]?.id ?? null;
+}
+
 export async function getByIds(ids: string[], executor?: Executor): Promise<PublicProductRow[]> {
   if (ids.length === 0) return [];
   const { rows } = await query<PublicProductRow>(sql("get_by_ids"), [ids], executor);

@@ -11,6 +11,7 @@
 // which becomes a savepoint inside it.
 import test, { before } from "node:test";
 import assert from "node:assert/strict";
+import type { PoolClient } from "pg";
 import request from "supertest";
 import { mockSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
@@ -42,7 +43,7 @@ test("a customer cannot reach any lead route", async () => {
 });
 
 test("create writes BOTH schemas, in one transaction, with the same id", async () => {
-  await inPinnedTransaction(async (client) => {
+  await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app).post("/api/leads/create").send({ lead: NEW_LEAD });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
@@ -60,7 +61,7 @@ test("create writes BOTH schemas, in one transaction, with the same id", async (
 });
 
 test("the read comes from the new schema", async () => {
-  await inPinnedTransaction(async (client) => {
+  await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app).post("/api/leads/create").send({ lead: NEW_LEAD });
       const id = res.body.id;
@@ -78,7 +79,7 @@ test("the read comes from the new schema", async () => {
 });
 
 test("update writes both, and delete removes from both", async () => {
-  await inPinnedTransaction(async (client) => {
+  await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const created = (await request(app).post("/api/leads/create").send({ lead: NEW_LEAD })).body;
 

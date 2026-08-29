@@ -103,7 +103,7 @@ export function SelectionBar<TData>({
       {showExport ? (
         <Button
           size="sm"
-          variant="ghost"
+          variant="tertiary"
           className={cn(actionButtonClassName, exportButtonClassName)}
           disabled={disable || !canExport}
           onClick={handleExport}
@@ -114,7 +114,7 @@ export function SelectionBar<TData>({
 
       {showDelete ? (
         <Button
-          variant="destructiveQuiet"
+          variant="tertiary" intent="danger"
           size="sm"
           className={cn(actionButtonClassName, deleteButtonClassName)}
           disabled={disable || !canDelete}
@@ -127,7 +127,7 @@ export function SelectionBar<TData>({
       {showClear ? (
         <Button
           size="sm"
-          variant="ghost"
+          variant="tertiary"
           className={cn(actionButtonClassName, clearButtonClassName)}
           disabled={disable}
           onClick={() => table.resetRowSelection()}

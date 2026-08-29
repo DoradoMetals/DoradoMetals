@@ -1,80 +1,106 @@
 'use client'
 
-import { Button } from '@/shared/ui/base/button'
+import type { ReactNode } from 'react'
 import { cn } from '@/shared/utils/cn'
-import { Icon } from '@phosphor-icons/react'
+import type { Icon } from '@phosphor-icons/react'
 
-type Props = {
-  // main icon
+/* ============================================================================
+   EMPTY STATE — an icon, a message, and optionally something to do about it.
+   ----------------------------------------------------------------------------
+   THERE WERE EIGHT OF THESE. This component, `OrderStatusEmptyState` in
+   `features/orders/ui/OrderStatusShared`, and SIX hand-rolled copies of one
+   layout found by diffing className strings across the tree:
+
+     features/cart/ui/Cart.tsx                     "Your cart is empty!"
+     features/cart/ui/SellCart.tsx                 "Your sell cart is empty!"
+     features/checkout/sales-order-checkout/…      "Your cart is empty!"
+     features/checkout/purchase-order-checkout/…   "Your cart is empty!"
+     features/orders/…/purchaseOrderTab.tsx        "No Orders Yet!"
+     features/orders/…/salesOrderTab.tsx           "No Orders Yet!"
+
+   All eight are: a large outline icon, a small badge pinned to its corner, a
+   heading, a line of copy, and sometimes a button. A badge is CONTENT and an
+   action is OPTIONAL — content and a degree, which under the meta-rule beneath
+   ruling 30 is one component, not eight.
+
+   THE SIX HAD ALREADY DRIFTED, which is the argument for the component rather
+   than a decoration on top of it. Four spelled the badge `border-border` and
+   two `border-border-strong` — the two carrying a comment explaining WHY
+   `--border-strong` is the right token for an edge that must read as
+   deliberate. Headings were `h2` at four and `h3` at two; the body copy was
+   `<p>` at some and `<small>` at others; the icon was 128px on the order lists
+   and 80px in the carts. Nobody chose any of that. It is what six copies of
+   one layout look like after a year.
+
+   FIVE PROPS BECAME ONE CHILD. `buttonLabel`, `buttonIcon`, `buttonIconSize`,
+   `buttonVariant` and `buttonClassName` were this component re-declaring
+   Button's whole API through a keyhole — and `buttonVariant` still listed the
+   RETIRED one-axis names (`default | outline | ghost | destructive`), so the
+   one call site was asking for a variant that no longer exists. The action is
+   `children` now: a call site passes a real `<Button>` and gets every axis.
+
+   THREE MORE APPEARANCE PROPS DELETED (ruling 20): `iconClassName`,
+   `titleClassName`, `descriptionClassName`. Nothing passed them.
+
+   AND THE TYPOGRAPHY WAS SCATTERED HERE WITHOUT SHOWING UP ANYWHERE. The
+   title carried `text-lg md:text-xl font-medium text-neutral-900` and the
+   description `text-xs text-neutral-600 leading-relaxed`, both inside `cn()`
+   calls — and `lint:typography-scatter` read `className="…"` literals and not
+   `cn()` arguments, so this file counted as ZERO while spelling seven type
+   utilities. They are an `<h2>` and a `<p>` now (ruling 22, case 1: the
+   element IS the text), and both take their size from typography.css.
+   ============================================================================ */
+
+export type EmptyStateProps = {
   icon: Icon
+  /** 128 on a full page, 80 inside a drawer. A degree, not a second look. */
   iconSize?: number
-  iconClassName?: string
+  /** Pinned to the icon's corner in a hairline bubble. CONTENT: a `0` count,
+   *  or a `<SearchX />` for the difference between "you have none" and "none
+   *  MATCHED". One bubble treatment, because there was never a reason for two. */
+  badge?: ReactNode
   title: string
   description?: string
-  buttonLabel: string
-  onClick: () => void
-  buttonIcon?: Icon
-  buttonIconSize?: number
-
+  /** The action, usually a `<Button>`. Omit where there is nothing to do. */
+  children?: ReactNode
+  /** LAYOUT ONLY — vertical rhythm, width, grid placement. */
   className?: string
-  buttonVariant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'link' | 'destructive'
-  buttonClassName?: string
-  titleClassName?: string
-  descriptionClassName?: string
 }
 
 export function EmptyState({
   icon: Icon,
   iconSize = 128,
-  iconClassName = 'text-primary',
+  badge,
   title,
   description,
-  buttonLabel,
-  onClick,
-  buttonIcon: ButtonIcon,
-  buttonIconSize = 18,
+  children,
   className,
-  buttonVariant = 'default',
-  buttonClassName,
-
-  titleClassName,
-  descriptionClassName,
-}: Props) {
+}: EmptyStateProps) {
   return (
-    <div className={cn('w-full px-6 py-10 flex flex-col items-center text-center', className)}>
-      <Icon className={cn(iconClassName)} size={iconSize} />
-
-      <div
-        className={cn(
-          'mt-4 text-lg md:text-xl font-medium text-neutral-900',
-          titleClassName
-        )}
-      >
-        {title}
+    <div
+      className={cn(
+        'w-full px-6 py-10 flex flex-col items-center gap-1 text-center',
+        className
+      )}
+    >
+      <div className="relative mb-4">
+        <Icon className="text-primary" size={iconSize} strokeWidth={1.5} />
+        {badge !== undefined && badge !== null ? (
+          /* `--border-strong` is the token for an edge meant to read as
+             deliberate, and it is the spelling the two copies that thought
+             about it used. The numeral's size and colour come from the tag
+             inside, so nothing here paints text. */
+          <p className="absolute -top-6 right-3.5 flex h-10 w-10 items-center justify-center rounded-full border border-border-strong">
+            {badge}
+          </p>
+        ) : null}
       </div>
 
-      {description ? (
-        <div
-          className={cn(
-            'mt-1 text-xs text-neutral-600 leading-relaxed max-w-xs',
-            descriptionClassName
-          )}
-        >
-          {description}
-        </div>
-      ) : null}
-
-      <Button
-        type="button"
-        variant={buttonVariant}
-        onClick={onClick}
-        className={cn('mt-6', buttonClassName)}
-      >
-        <span className="flex items-center gap-2">
-          {ButtonIcon ? <ButtonIcon size={buttonIconSize} /> : null}
-          {buttonLabel}
-        </span>
-      </Button>
+      <h2>{title}</h2>
+      {description ? <p className="max-w-xs">{description}</p> : null}
+      {children ? <div className="mt-6">{children}</div> : null}
     </div>
   )
 }
+
+export default EmptyState

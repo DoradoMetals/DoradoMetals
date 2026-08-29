@@ -1,4 +1,3 @@
-import { Button } from '@/shared/ui/base/button'
 import {
   useDownloadInvoice,
   useDownloadPackingList,
@@ -11,6 +10,7 @@ import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrde
 import { CheckCheck } from 'lucide-react'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useOrderSpots, nameSpots } from '@/features/orders/spots'
+import { OrderDrawerHeader } from '@/features/orders/ui/OrderDrawerHeader'
 
 export default function PurchaseOrderDrawerHeader({
   order,
@@ -75,38 +75,12 @@ export default function PurchaseOrderDrawerHeader({
   ]
 
   return (
-    <div className="flex flex-col w-full gap-6 border-b-1 border-border">
-      <div className="flex w-full justify-between items-center">
-        <strong>
-          {formatPurchaseOrderNumber(order.number)}
-        </strong>
-        <strong>{username}</strong>
-      </div>
-      <div className="flex w-full justify-between items-center">
-        <div className="flex items-center gap-2">
-          {status && Icon && (
-            <div className={`${'text-primary'}`}>
-              <Icon size={24} />
-            </div>
-          )}
-          <strong className="stat-sm">{order.status}</strong>
-        </div>
-        <div className="flex ml-auto">
-          {downloadOptions.map(({ statuses, label, onClick, isPending }, index) =>
-            statuses.includes(order.status ?? '') ? (
-              <Button
-                key={index}
-                variant="link"
-                className="px-0"
-                onClick={onClick}
-                disabled={isPending}
-              >
-                {isPending ? 'Loading...' : label}
-              </Button>
-            ) : null
-          )}
-        </div>
-      </div>
-    </div>
+    <OrderDrawerHeader
+      primary={formatPurchaseOrderNumber(order.number)}
+      secondary={username}
+      status={order.status}
+      icon={status ? Icon : undefined}
+      downloads={downloadOptions}
+    />
   )
 }

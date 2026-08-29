@@ -67,9 +67,18 @@ import type { CarrierHandoff, CarrierServiceOption } from "@dorado/contracts";
 // documented there, including why `name` is not a display string.
 export type { CarrierHandoff, CarrierServiceOption };
 
+// THE CARRIER'S HALF OF A SERVICE OPTION, WHICH IS NOT ALL OF ONE.
+//
+// `max_insured_value` is on the wire shape and is deliberately NOT here: it is
+// DORADO's policy (shipping.services.max_insured_value, migration 097), not
+// FedEx's vocabulary, and a carrier adapter that could state it would be the
+// same defect this file exists to fix in the other direction.
+// features/shipping/services/service.ts joins the two.
+export type CarrierServiceVocabulary = Omit<CarrierServiceOption, "max_insured_value">;
+
 export type CarrierCatalogue = {
   handoffs: CarrierHandoff[];
-  services: CarrierServiceOption[];
+  services: CarrierServiceVocabulary[];
 };
 
 // Order is the order the selectors render in, and it is the order the browser

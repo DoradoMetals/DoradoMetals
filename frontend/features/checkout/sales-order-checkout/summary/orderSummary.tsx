@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import type { SalesOrderQuote } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { Separator } from '@/shared/ui/base/separator'
+import { DetailRow } from '@/shared/ui/DetailRow'
 
 // orderPrices is the server's quote, absent until the first one lands - the
 // summary renders zeros in the meantime, never a client-computed price.
@@ -98,28 +99,19 @@ export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrder
       <Separator />
       <p className="eyebrow my-4">Payment Details</p>
 
-      <div className="w-full flex items-center justify-between">
-        <p>Shipping</p>
-        <strong>
-          <PriceNumberFlow value={shipping_charge} />
-        </strong>
-      </div>
+      <DetailRow label="Shipping">
+        <PriceNumberFlow value={shipping_charge} />
+      </DetailRow>
 
       {pre_charges_amount > 0 && (
-        <div className="w-full flex items-center justify-between">
-          <p>Dorado Funds Applied</p>
-          <strong>
-            <PriceNumberFlow value={pre_charges_amount} />
-          </strong>
-        </div>
+        <DetailRow label="Dorado Funds Applied">
+          <PriceNumberFlow value={pre_charges_amount} />
+        </DetailRow>
       )}
       {subject_to_charges_amount > 0 && (
-        <div className="w-full flex items-center justify-between">
-          <p>{pre_charges_amount > 0 ? 'Amount Remaining' : 'Items'}</p>
-          <strong>
-            -<PriceNumberFlow value={subject_to_charges_amount} />
-          </strong>
-        </div>
+        <DetailRow label={pre_charges_amount > 0 ? 'Amount Remaining' : 'Items'}>
+          -<PriceNumberFlow value={subject_to_charges_amount} />
+        </DetailRow>
       )}
 
       {charges_amount > 0 && (
@@ -161,12 +153,9 @@ export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrder
       <div className="pt-2">
         <Separator />
 
-        <div className="w-full flex items-center justify-between pt-2">
-          <strong>Order Total</strong>
-          <strong>
-            <PriceNumberFlow value={post_charges_amount} />
-          </strong>
-        </div>
+        <DetailRow label="Order Total" variant="total" className="pt-2">
+          <PriceNumberFlow value={post_charges_amount} />
+        </DetailRow>
       </div>
     </div>
   )

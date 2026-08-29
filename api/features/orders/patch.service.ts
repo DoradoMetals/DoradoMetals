@@ -79,9 +79,13 @@ import * as spotsFeed from "#features/spots/service.ts";
 import { refuseWith as refuse } from "#shared/http/refuse.ts";
 import * as purchaseOrderService from "#features/orders/service.ts";
 import * as salesOrderService from "#features/orders/service.ts";
+import type { orders } from "@dorado/contracts";
 
 type Caller = { id: string; name?: string | null; role?: string | null };
-type Direction = "purchase" | "sale";
+// An order's direction is the `orders.direction` enum, read from the generated
+// row rather than restated (D103). It was `"purchase" | "sale"` here, one of
+// four hand-written copies of one database type.
+type Direction = NonNullable<orders.OrdersRow["direction"]>;
 
 // The purchase service's own OrderLike, derived rather than restated - see
 // its header: "whatever the caller had", and here the caller has a row from

@@ -32,12 +32,21 @@ type Executor = PoolClient | undefined;
 // do not exist - which is true of TrackingInfo and false of what actually
 // arrives. ParsedTracking is the parser's own exported return, and it is
 // assignable to TrackingInfo where insertEvents wants it.
+import type { shipping } from "@dorado/contracts";
+
 export type FetchTracking = (
   shipment: ShipmentRow,
   client?: Executor
 ) => Promise<ParsedTracking>;
 
-export type ShippingType = "Inbound" | "Outbound" | "Return";
+// THE THREE DIRECTIONS A PARCEL MOVES, READ FROM THE COLUMN THAT HOLDS THEM
+// (D103). This was `"Inbound" | "Outbound" | "Return"` written out here - an
+// exact duplicate of the `shipping.direction` enum, which is what
+// shipping.shipments.direction is declared as and what every one of these
+// values is eventually stored in. Not to be confused with orders.direction
+// (purchase / sale); the two are different enums and both are called
+// "direction", which is precisely why neither should be spelled by hand.
+export type ShippingType = shipping.ShipmentsRow["direction"];
 
 // Cancelling a label held a transaction open across the FedEx call, so a
 // failure in the update that follows rolled the row back with the label already

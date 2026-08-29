@@ -13,13 +13,26 @@ import * as methods from "#features/fulfillments/methods/repo.ts";
 import { refuse } from "#shared/http/refuse.ts";
 import type { MethodRow, MethodInput } from "#features/fulfillments/methods/repo.ts";
 import type { PoolClient } from "pg";
+import type { fulfillments } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
 export type { MethodRow, MethodInput } from "#features/fulfillments/methods/repo.ts";
 
-export type Direction = "purchase" | "sale";
-export type Category = "SHIPMENT" | "PICKUP" | "DIRECT";
+// DIRECTION AND CATEGORY COME FROM THE DATABASE, NOT FROM THIS FILE (D103).
+//
+// Both were hand-written unions here - `"purchase" | "sale"` and
+// `"SHIPMENT" | "PICKUP" | "DIRECT"` - which D103 says is always one of two
+// defects. Direction was the first kind: an exact duplicate of the
+// `orders.direction` enum, spelled three times across the API. Category was the
+// second: the column was `text NOT NULL DEFAULT 'OTHER'`, so the database
+// admitted a fourth value no code here could represent, and the type was
+// asserting a constraint that did not exist. Migration 098 made it a real
+// fulfillments.category enum and dropped the default; these are now derived
+// from the generated row, so widening the enum is a compile error rather than a
+// runtime surprise.
+export type Direction = NonNullable<fulfillments.MethodsRow["direction"]>;
+export type Category = fulfillments.MethodsRow["category"];
 
 // `direction` is CHECKED rather than declared, because it arrives as a query
 // string. The narrow type is what the guard produces, not what it receives.

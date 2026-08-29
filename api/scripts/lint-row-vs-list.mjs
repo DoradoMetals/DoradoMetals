@@ -17,10 +17,89 @@
 //
 // Property reads only. `x.length`, `x[0]`, `x.map(...)`, `x.filter(...)` and
 // the rest of the array surface are all legitimate uses of a list.
-import { readFileSync, readdirSync, statSync } from "node:fs";
+//
+// *** WHAT IT CANNOT SEE. The pattern it matches is narrow on purpose, and the
+// narrowness is the blind spot: ***
+//   - A DESTRUCTURED RESULT: `const { state } = await repo.getFromId(id)`. That
+//     is the same bug and yields undefined the same way.
+//   - A RESULT CHAINED IMMEDIATELY: `(await repo.getFromId(id)).state`.
+//   - A RESULT PASSED ON and read by the callee - there is no name here to
+//     misread, which is the stated scope, but the bug survives the journey.
+//   - A REPO FUNCTION WHOSE RETURN IS NOT LITERALLY `return rows;` - a mapped
+//     list (`return rows.map(...)`) is a list and is not classified as one.
+//   - ANY FEATURE WITHOUT a repo.exchange/repo.next pair. Most features are
+//     restructured now, so this knows about very few functions - which is what
+//     the known-present control below exists to keep honest.
+//
+// Run: pnpm --filter @dorado/api lint:row-vs-list
+//      pnpm --filter @dorado/api lint:row-vs-list:self-test
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = process.env.LINT_ROW_ROOT
+  ? process.env.LINT_ROW_ROOT.replace(/\/?$/, "/")
+  : new URL("..", import.meta.url).pathname;
+
+if (process.argv.includes("--self-test")) {
+  const { selfTest } = await import("./lib/self-test.mjs");
+  const Q = String.fromCharCode(34);
+  const repo = `export async function getAll(id) {
+  const { rows } = await query("SELECT 1", [id]);
+  return rows;
+}
+export async function getOne(id) {
+  const { rows } = await query("SELECT 1", [id]);
+  return rows[0];
+}
+`;
+  const caller = (body) =>
+    `import * as addressRepo from ${Q}#features/addresses/repo.exchange.js${Q};\n` +
+    `export async function run(id) {\n${body}\n}\n`;
+  const LOW = { LINT_ROW_CONTROL: "addresses" };
+  const base = { "features/addresses/repo.exchange.js": repo };
+  await selfTest({
+    script: import.meta.filename,
+    cases: [
+      {
+        name: "a list read as a row is seen - the sales-tax bug itself",
+        rootEnv: "LINT_ROW_ROOT", env: LOW,
+        files: { ...base, "features/orders/service.ts": caller(
+          "  const address = await addressRepo.getAll(id);\n  return address.state;") },
+        expect: "fail", mustPrint: "returns a list, but",
+      },
+      {
+        name: "the array surface on a list is legitimate and not reported",
+        rootEnv: "LINT_ROW_ROOT", env: LOW,
+        files: { ...base, "features/orders/service.ts": caller(
+          "  const rowsOut = await addressRepo.getAll(id);\n  return rowsOut.map((r) => r.state);") },
+        expect: "pass", mustPrint: "0 read as a row",
+      },
+      {
+        name: "a row-returning function read as a row passes",
+        rootEnv: "LINT_ROW_ROOT", env: LOW,
+        // The list call is present too, and used correctly - without it the
+        // zero-call floor fires and the case would pass for the wrong reason.
+        files: { ...base, "features/orders/service.ts": caller(
+          "  const all = await addressRepo.getAll(id);\n" +
+          "  const address = await addressRepo.getOne(id);\n" +
+          "  return all.length + address.state;") },
+        expect: "pass", mustPrint: "0 read as a row",
+      },
+      {
+        name: "the known-present control fires when the repo parser stops seeing lists",
+        rootEnv: "LINT_ROW_ROOT",
+        files: { ...base, "features/orders/service.ts": caller(
+          "  const address = await addressRepo.getOne(id);\n  return address.state;") },
+        expect: "fail", mustPrint: "known-present control",
+      },
+    ],
+  });
+}
+
+if (!existsSync(join(ROOT, "features"))) {
+  console.error(`lint:row-vs-list cannot read ${join(ROOT, "features")} - the walk is broken`);
+  process.exit(2);
+}
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
@@ -124,6 +203,23 @@ const fnCount = [...listReturning.values()].reduce((n, s) => n + s.size, 0);
 console.log(
   `${listReturning.size} feature(s) with ${fnCount} list-returning repo function(s) known`
 );
+
+// A KNOWN-PRESENT CONTROL, not just a zero-check. audit:query-paths' lesson
+// (D142's neighbour): a bare floor is blind to PARTIAL breakage, and this
+// script's numbers are small enough that "some" and "all" look alike. `checkout`
+// is the feature whose repo.exchange.js has list-returning exports today; if
+// the repo parser stops seeing them, this reports zero findings and exits 0
+// while auditing nothing.
+const CONTROL = process.env.LINT_ROW_CONTROL ?? "checkout";
+if (!listReturning.has(CONTROL)) {
+  console.error(
+    `the known-present control "${CONTROL}" contributed no list-returning repo ` +
+      `function - the repo parser has broken, not the codebase gone clean. ` +
+      `If ${CONTROL} genuinely lost its list-returning exports, move the control ` +
+      `to another feature deliberately.`
+  );
+  process.exit(2);
+}
 
 if (!callsChecked) {
   console.error("lint:row-vs-list resolved no calls at all - the check is not working");

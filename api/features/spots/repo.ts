@@ -2,14 +2,22 @@
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { PoolClient } from "pg";
+import type { spots } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 export type Executor = PoolClient | undefined;
 
-export type SpotRow = {
-  metal_id: string;
-  ask: number | null; bid: number | null;
-  percent_change: number | null; dollar_change: number | null;
+// DERIVED FROM THE TABLE, NOT RESTATED (D103). Five of these six fields were
+// hand-written copies of spots.spots columns; a rename or a widened nullability
+// would have compiled here and failed at runtime.
+//
+// TWO DELIBERATE DIFFERENCES, both of which the Omit makes visible:
+//   - `id` is not projected. sql/get_all.sql does not select it and nothing
+//     downstream keys on it - a spot is identified by its metal.
+//   - `updated_at` is a Date and not a string. The contracts describe the WIRE,
+//     where a timestamp is JSON and therefore text; this is what node-postgres
+//     hands back, before any serialisation.
+export type SpotRow = Omit<spots.SpotsRow, "id" | "updated_at"> & {
   updated_at: Date;
 };
 

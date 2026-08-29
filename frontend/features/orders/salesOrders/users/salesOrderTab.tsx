@@ -12,13 +12,14 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/shared/ui/base/pagination'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ClipboardTextIcon } from '@phosphor-icons/react'
 
 import { SalesOrderStatuses, statusConfig } from '@/features/orders/salesOrders/types'
 import { useGetSession } from '@/features/auth/queries'
-import { OrderStatusEmptyState, OrderStatusSelector } from '@/features/orders/ui/OrderStatusShared'
+import { OrderStatusSelector } from '@/features/orders/ui/OrderStatusShared'
+import { EmptyState } from '@/shared/ui/EmptyState'
+import { SearchX } from 'lucide-react'
 import { useSalesOrders } from '@/features/orders/salesOrders/users/queries'
 import SalesOrderCard from '@/features/orders/salesOrders/users/salesOrderCard'
 import SalesOrderDrawer from '@/features/orders/salesOrders/users/salesOrderDrawer/salesOrderDrawer'
@@ -61,36 +62,17 @@ export function SalesOrdersContent() {
 
   if (orders.length === 0) {
     return (
-      <div className="flex flex-col flex-grow items-center justify-center gap-4 py-20">
-        <div className="relative mb-5">
-          <ClipboardTextIcon
-            size={128}
-            className='text-primary'
-            strokeWidth={1.5}
-          />
-          <div className="absolute -top-6 right-3.5 border border-border rounded-full w-10 h-10 flex items-center justify-center">
-            0
-          </div>
-        </div>
-
-        <div className="flex flex-col items-center justify-center gap-1 mb-5 w-50">
-          <h2 className="tracking-wide">No Orders Yet!</h2>
-          <p className="text-center">
-            Create an order by adding your items and completing checkout.
-          </p>
-        </div>
-        <Link href="/buy" passHref>
-          <Button
-            variant="default"
-            onClick={() => {
-              router.push('/buy')
-            }}
-            size="xl"
-          >
-            Start Buying
-          </Button>
-        </Link>
-      </div>
+      <EmptyState
+        icon={ClipboardTextIcon}
+        badge={0}
+        title="No Orders Yet!"
+        description="Create an order by adding your items and completing checkout."
+        className="flex-grow justify-center"
+      >
+        <Button size="xl" onClick={() => router.push('/buy')}>
+          Start Buying
+        </Button>
+      </EmptyState>
     )
   }
 
@@ -117,13 +99,10 @@ export function SalesOrdersContent() {
               transition={{ duration: 0.25, ease: 'easeInOut' }}
               className="py-2 flex flex-col gap-2"
             >
-              <OrderStatusEmptyState
-                statusLabel={selectedStatus ?? 'Orders'}
-                Icon={
-                  selectedStatus
-                    ? statusConfig[selectedStatus].icon
-                    : ClipboardTextIcon
-                }
+              <EmptyState
+                icon={selectedStatus ? statusConfig[selectedStatus].icon : ClipboardTextIcon}
+                badge={<SearchX size={18} />}
+                title={`No ${selectedStatus ?? 'Orders'} Orders Found`}
               />
             </motion.div>
           </div>
@@ -141,7 +120,7 @@ export function SalesOrdersContent() {
               />
 
               <Button
-                variant="ghost"
+                variant="tertiary"
                 className="p-0 h-4 flex justify-start gap-1 pl-1"
                 onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
               >

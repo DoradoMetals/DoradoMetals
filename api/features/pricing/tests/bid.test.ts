@@ -93,13 +93,88 @@ test("bullion and scrap subtotals split the order", () => {
   assert.equal(getBullionTotal([items[1]], spots), 48);
 });
 
-// The two below document fragility rather than desired behaviour. Both throw on
-// input the database can produce today: payout is a LEFT JOIN so it can be null,
-// and spots comes from the caller. Tests exist so that making them defensive is
-// a deliberate change with a failing assertion, not a silent one.
-test("a missing payout throws rather than defaulting the fee", () => {
+// ---------------------------------------------------------------------------
+// THE INVOICE IS A NUMBER OR AN EXCEPTION. NEVER NaN.
+//
+// The predecessor of this block asked for exactly what happened here: "tests
+// exist so that making them defensive is a deliberate change with a failing
+// assertion, not a silent one". It pinned `payout: null` -> TypeError and said
+// so was fragility rather than desired behaviour. It also could not see the
+// case that mattered - `payout: {}`, which produced NaN SILENTLY and had no
+// test at all, because the type asserted `cost: number` and nobody writes a
+// test against a shape the compiler says is impossible.
+//
+// The split is by MEANING (see features/pricing/bid.ts): an ABSENT payout is
+// no payout fee, a PRESENT but unusable one throws. Every case below is one
+// arm of that, so reversing the decision fails a named assertion rather than
+// quietly changing an invoice.
+// ---------------------------------------------------------------------------
+
+// THE DEFECT ITSELF. This returned NaN, and the NaN reached the invoice, the
+// packing list and the stored total finalizePricing writes.
+test("a payout object with no cost is the fee-less case, not NaN", () => {
+  const o = order({ order_items: [scrapItem()], payout: {} });
+  const total = calculateTotalPrice(o, spots);
+  assert.ok(!Number.isNaN(total), "the whole invoice became NaN");
+  assert.equal(total, 7200);
+});
+
+// What every real read produces for an order with no payout row: compose.ts
+// builds EMPTY_PAYOUT, whose `cost` is null. Five dev purchase orders are in
+// this state and the app already invoices them.
+test("a null payout cost is no payout fee", () => {
+  const o = order({ order_items: [scrapItem()], payout: { cost: null } });
+  assert.equal(calculateTotalPrice(o, spots), 7200);
+});
+
+// CHANGED DELIBERATELY. This threw a TypeError until 2026-08-29. A null payout
+// has a well-defined meaning - the customer has not chosen one - and refusing
+// to invoice every order in that state is not a protection. The `spot!` throw
+// below is different in kind: an item with no spot cannot be valued at all.
+test("a missing payout is no payout fee, and does not throw", () => {
   const o = order({ order_items: [scrapItem()], payout: null });
+  assert.equal(calculateTotalPrice(o, spots), 7200);
+  assert.equal(calculateTotalPrice(order({ order_items: [scrapItem()], payout: undefined }), spots), 7200);
+});
+
+// THE OTHER ARM. A value arrived and could not be made into a number, which is
+// not the same as one not arriving. Defaulting this to zero is what would
+// silently invoice as though no payout fee applied when one did (D117: the fee
+// is DATA on the row).
+test("a payout cost that is not a number throws rather than defaulting", () => {
+  const o = order({ order_items: [scrapItem()], payout: { cost: "not a fee" } });
   assert.throws(() => calculateTotalPrice(o, spots), TypeError);
+});
+
+// The shipping side had the `?? 0` all along; it goes through the same function
+// now, so it gains the same second arm. Same line, same class of bug.
+test("a shipping charge that is not a number throws rather than defaulting", () => {
+  const o = order({ order_items: [scrapItem()], shipment: { shipping_charge: "free" } });
+  assert.throws(() => calculateTotalPrice(o, spots), TypeError);
+});
+
+// A numeric string still works. NUMERIC comes back as a number through the
+// parsers in db.ts, but a hand-assembled order or a fixture can carry a string,
+// and turning that into a throw would be a regression rather than a guard.
+test("a numeric string is still a fee", () => {
+  const o = order({ order_items: [scrapItem()], payout: { cost: "50" } });
+  assert.equal(calculateTotalPrice(o, spots), 7200 - 50);
+});
+
+// The last gate, and it is not hypothetical: migration 087 cleaned up two rows
+// whose stored content was literally 'NaN' and which reached the wire as the
+// STRING "NaN". A total that cannot be computed must stop rather than be
+// printed on a document a customer is paid against.
+test("a line total that cannot be computed stops the invoice", () => {
+  const o = order({ order_items: [scrapItem({ price: Number.NaN })] });
+  assert.throws(() => calculateTotalPrice(o, spots), TypeError);
+});
+
+// The same gate on the return, where a NaN posts a customer's metal back
+// uninsured - the failure bid.ts's header opens with.
+test("a return declared value that cannot be computed stops the label", () => {
+  const o = order({ order_items: [scrapItem({ scrap: { metal: "Gold", content: Number.NaN } })] });
+  assert.throws(() => calculateReturnDeclaredValue(o, spots), TypeError);
 });
 
 test("a metal absent from spots throws", () => {

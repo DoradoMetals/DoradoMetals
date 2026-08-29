@@ -25,12 +25,12 @@ import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNum
 import { formatAddressSearchText, placeToAddressFields } from '../utils/places'
 import { applyAddressFieldsToForm, clearAddressFields, verifyAddress } from '../utils/form'
 import { GoogleMapDisplay } from '@/shared/ui/GoogleMapDisplay'
-import { Label } from '@/shared/ui/base/label'
 import { StateComboboxField } from './StateSelect'
 import { useAddress, useCreateAddress, useUpdateAddress , type SavedAddress } from '@/features/addresses/queries'
 import { useGeocodeAddress } from '@/features/addresses/hooks/useGeocoder'
 import { usePlacesAutocompleteController } from '@/features/addresses/hooks/useAutocomplete'
 import { AddressSearchInput } from '@/features/addresses/ui/AutocompleteInput'
+import { Field } from '@/shared/ui/Field'
 
 const US_CENTER = { lat: 39.8283, lng: -98.5795 }
 const US_ZOOM = 3
@@ -196,9 +196,7 @@ export default function AddressForm({
 
           {mode === 'auto' ? (
             <>
-              <div className="w-full space-y-1">
-                <Label>Find Address</Label>
-
+              <Field label="Find Address" className="w-full">
                 <AddressSearchInput
                   placesReady={ac.placesReady}
                   value={ac.searchText}
@@ -215,7 +213,7 @@ export default function AddressForm({
                   onSelect={ac.selectSuggestion}
                   onClear={clearAutoSelected}
                 />
-              </div>
+              </Field>
               <div className="overflow-hidden rounded-lg border border-border">
                 <GoogleMapDisplay
                   center={center ?? US_CENTER}
@@ -325,8 +323,7 @@ export default function AddressForm({
               name="default_shipping"
               render={({ field }) => (
                 <FormItem className="w-full">
-                  <div className="space-y-1">
-                    <Label>Default Address</Label>
+                  <Field label="Default Address">
                     <Switch
                       checked={mustBeDefault ? true : !!field.value}
                       disabled={mustBeDefault}
@@ -335,7 +332,7 @@ export default function AddressForm({
                         field.onChange(v)
                       }}
                     />{' '}
-                  </div>
+                  </Field>
                 </FormItem>
               )}
             />

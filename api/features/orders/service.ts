@@ -45,6 +45,7 @@ import * as shipmentRepo from "#features/shipping/shipments/service.ts";
 // the user and the carrier it reports are reconstructed through one.
 import * as pickupRepo from "#features/shipping/pickups/service.ts";
 import * as shippingOps from "#features/shipping/operations/handler.ts";
+import * as carrierServices from "#features/shipping/services/service.ts";
 
 import type {
   PurchaseOrderRow,
@@ -58,11 +59,25 @@ import type { PricingSpot } from "#features/pricing/service.ts";
 // a request. The functions below read a handful of fields off it, and those are
 // what this names. It is deliberately not PurchaseOrderRow: several callers are
 // controllers handing over req.body.
+//
+// *** THE MEMBERS BELOW ARE ASSERTIONS, NOT GUARANTEES, AND `payout` IS THE ONE
+//     THAT COST SOMETHING. *** `payout: { cost: number }` said a number was
+//     always there, about an object that is sometimes `req.body`. Nothing
+//     checked it, so `baseTotal - shipping - order.payout.cost` compiled and
+//     silently produced NaN for an order whose payout carried no cost - the
+//     whole invoice, on a purchase order, which is what a customer is PAID
+//     against. features/pricing/bid.ts holds the full account and the fix.
+//
+//     Narrowed to what the data can be. `payout` is a LEFT JOIN, and the
+//     composed read gives an absent one an all-null object (compose.ts's
+//     EMPTY_PAYOUT), so both `null` and a null `cost` are real states of a real
+//     order. A type that admits them is what makes the compiler able to see the
+//     next one of these.
 type OrderLike = PurchaseOrderRow &
   Record<string, any> & {
     order_items: PurchaseOrderItem[];
     shipment?: { shipping_charge?: number | null } | null;
-    payout: { cost: number };
+    payout?: { cost?: number | null } | null;
   };
 
 import {
@@ -454,6 +469,28 @@ export async function createPurchaseOrder(
   purchase_order: Record<string, any>,
   user_id: string
 ): Promise<PurchaseOrderRow | undefined> {
+  // WHAT THE LABEL IS INSURED FOR IS THE SERVER'S ANSWER, NOT THE BODY'S (D132).
+  //
+  // `insurance.declaredValue.amount` arrives in req.body. The browser used to
+  // cap it at a literal 50000; migration 097 made the cap a column, and
+  // /quotes/purchase_order already returns a capped figure - but a quote is not
+  // a contract and this is the request that BUYS the cover. A body claiming a
+  // million dollars of gold would otherwise be declared to FedEx verbatim, on
+  // the label AND on shipments.declared_value, which is what a lost-parcel
+  // claim is settled against.
+  //
+  // Clamped ONCE, here, before anything reads it: `purchase_order` is the same
+  // object createLabel and recordPurchaseOrder are both handed below, so the
+  // label, the shipment row and the order agree by construction rather than by
+  // three call sites remembering. Narrowed to the service the customer chose -
+  // `service.serviceType` is CarrierServiceOption.code round-tripped back.
+  if (purchase_order.insurance?.declaredValue) {
+    purchase_order.insurance.declaredValue.amount = await carrierServices.clampInsuredValue(
+      purchase_order.insurance.declaredValue.amount,
+      purchase_order.service?.serviceType
+    );
+  }
+
   const shipper = {
     contact: {
       // Snapshot shape (D84): recipient_name is the person on the label.

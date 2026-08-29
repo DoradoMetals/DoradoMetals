@@ -429,8 +429,32 @@ add("POST /quotes/profit_breakdown", c.ProfitBreakdown, () =>
   false
 );
 
+// THE REGISTRATION FLOOR, checked BEFORE anything is parsed.
+//
+// D110: this file called `refinerOrdersService.getSpotsByOrder`, which a
+// factoring pass had moved to `features/refiners/spots/service.ts` as
+// `forOrder()`. `lint:imports` could not see it - the specifier still RESOLVES,
+// the named export does not exist, and that is a runtime failure by
+// construction. It failed loudly THAT time because the call is on the critical
+// path. The quiet version is a `bothWays` whose implementation cannot be found:
+// it is skipped, `pass` comes back smaller, and "N endpoint shape(s) match, 0
+// diverge" reads exactly like success.
+//
+// So the subject is counted before it is examined. 32 cases are registered
+// today (27 with rows, 5 skipped for want of a fixture).
+const CASE_FLOOR = Number(process.env.WIRE_CASE_FLOOR ?? 30);
+if (cases.length < CASE_FLOOR) {
+  console.error(
+    `validate:wire registered only ${cases.length} case(s), expected at least ` +
+      `${CASE_FLOOR}. A case that fails to register is a shape nobody checked, and ` +
+      `the summary line cannot tell that from a shape that matched.`
+  );
+  process.exit(1);
+}
+
 let pass = 0;
 const failures = [];
+const skipped = [];
 
 const undeclaredTotal = new Map();
 
@@ -445,6 +469,7 @@ for (const { name, schema, load } of cases) {
   const list = Array.isArray(rows) ? rows : [rows];
   if (!list.length) {
     console.log(`  skip  ${name}  (no rows)`);
+    skipped.push(name);
     continue;
   }
 
@@ -500,6 +525,25 @@ if (undeclaredTotal.size) {
   console.log();
   process.exitCode = 1;
 }
-console.log(`${pass} endpoint shape(s) match, ${failures.length} diverge`);
+// A SKIP IS NOT A PASS, and it used to be invisible in the summary. A case with
+// no rows proves nothing about its contract; a run where half the fixtures went
+// missing would print a smaller "match" count and still say "0 diverge".
+console.log(
+  `${pass} endpoint shape(s) match, ${failures.length} diverge, ${skipped.length} skipped for want of a fixture` +
+    (skipped.length ? `: ${skipped.join(", ")}` : "")
+);
+
+// THE PARSE FLOOR. 27 shapes are actually parsed today. This is the number that
+// says the run did work, as opposed to registering cases and skipping them all.
+const PASS_FLOOR = Number(process.env.WIRE_PASS_FLOOR ?? 25);
+if (pass + failures.length < PASS_FLOOR) {
+  console.error(
+    `only ${pass + failures.length} of ${cases.length} registered case(s) had rows to ` +
+      `parse, expected at least ${PASS_FLOOR}. The fixtures this depends on are gone, ` +
+      `or the loaders are failing quietly - either way the contracts were not checked.`
+  );
+  process.exitCode = 1;
+}
+
 if (failures.length) process.exitCode = 1;
 await pool.end();

@@ -17,6 +17,7 @@ import {
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { AccountAction } from '@/features/users/ui/AccountAction'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { DetailRow } from '@/shared/ui/DetailRow'
 
 export default function UserForm() {
   const { user, isPending } = useGetSession()
@@ -173,12 +174,9 @@ export default function UserForm() {
       <div>
         <p className="eyebrow mb-2">Dorado Credit</p>
 
-        <div className="flex items-baseline justify-between">
-          <small>Current balance</small>
-          <strong>
-            <PriceNumberFlow value={user?.dorado_funds ?? 0} />
-          </strong>
-        </div>
+        <DetailRow label="Current balance" variant="subtotal" className="items-baseline">
+          <PriceNumberFlow value={user?.dorado_funds ?? 0} />
+        </DetailRow>
       </div>
     </section>
   )

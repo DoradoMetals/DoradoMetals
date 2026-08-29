@@ -23,33 +23,60 @@ import { cn } from '@/shared/utils/cn'
    their size and colour from typography.css and NOTHING here carries a type
    utility — which is what makes the scatter count fall rather than move.
 
-   `total` is a DEGREE, not a second component (the meta-rule under ruling 30):
-   the summary line at the bottom of a breakdown is the same row with more
-   weight, so it is a prop axis and its value gets `.stat-sm` for tabular
-   figures, which the animated NumberFlow totals need.
+   ──────────────────────────────────────────────────────────────────────────
+   THE `total` BOOLEAN IS NOW A FOUR-STEP AXIS, and that is FEWER concepts
+   rather than more. Wave 4 stopped at 31 adoptions and left 47 rows alone,
+   reasoning that they were "already semantic and layout-only". Two halves of
+   that were wrong:
+
+     * the `pl-4`/`pl-8` indent hierarchy it was protecting is LAYOUT, and
+       `className` already carries layout, so nothing was ever going to flatten;
+     * the sizes were not arbitrary. Sorted, the 47 rows spell exactly FOUR
+       combinations, and they form a monotone ramp — each step makes exactly
+       one of the two elements heavier:
+
+           detail    <small> / <p>        a line inside a nested breakdown
+           subtotal  <small> / <strong>   that breakdown's own total
+           row       <p>     / <strong>   an ordinary summary line  (default)
+           total     <strong>/ <strong>   the grand total, tabular figures
+
+   So it is ONE axis of degree, which is what the meta-rule beneath ruling 30
+   permits, and not four components or a pair of booleans whose four
+   combinations include two nobody wants.
 
    `label` is CONTENT — this component supplies the tag. Do not pass a `<p>`.
    ============================================================================ */
 
+export type DetailRowVariant = 'detail' | 'subtotal' | 'row' | 'total'
+
+const TAGS = {
+  detail: ['small', 'p'],
+  subtotal: ['small', 'strong'],
+  row: ['p', 'strong'],
+  total: ['strong', 'strong'],
+} as const
+
 export function DetailRow({
   label,
   children,
-  total = false,
+  variant = 'row',
   className,
 }: {
   label: ReactNode
   /** The value. Usually a `<PriceNumberFlow>` or a formatted string. */
   children: ReactNode
-  /** The summary line of a breakdown — heavier label, tabular figure. */
-  total?: boolean
-  /** LAYOUT ONLY — margin, alignment, grid placement. */
+  /** The step of the ramp. See the table above. */
+  variant?: DetailRowVariant
+  /** LAYOUT ONLY — margin, indent, alignment, grid placement. */
   className?: string
 }) {
-  const Label = total ? 'strong' : 'p'
+  const [Label, Value] = TAGS[variant]
   return (
     <div className={cn('flex w-full items-center justify-between gap-2', className)}>
       <Label>{label}</Label>
-      <strong className={total ? 'stat-sm' : undefined}>{children}</strong>
+      {/* `.stat-sm` is tabular figures, which the animated NumberFlow grand
+          total needs so its digits stop shifting as they count. */}
+      <Value className={variant === 'total' ? 'stat-sm' : undefined}>{children}</Value>
     </div>
   )
 }

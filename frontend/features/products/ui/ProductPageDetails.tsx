@@ -28,6 +28,7 @@ import { useSpotPrices } from '@/features/spots/queries'
 import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import AccordionSection from '@/shared/ui/AccordionSection'
+import { DetailRow } from '@/shared/ui/DetailRow'
 
 type ProductPageProps = {
   product: Product
@@ -99,38 +100,37 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   return (
     <div>
       <div className="hidden lg:flex items-start w-5xl flex-1 gap-4">
-        <div className="flex flex-col gap-3">
-          <div
-            className={cn(
-              'w-20 h-20 bg-background rounded-lg cursor-pointer transition-all border',
-              selectedImage === selectedProduct.image_front ? 'bg-card border-primary' : 'border-border'
-            )}
-            onClick={() => setSelectedImage(selectedProduct.image_front)}
-          >
+        {/* THE PRODUCT-IMAGE PICKER IS A RADIO GROUP, and this is the exact case
+            ruling 30 deleted `RadioGroupImage` for: "it was this control with an
+            <Image> in the option, which is CONTENT, and content is children."
+            It was hand-rolled TWICE in this file, once for each breakpoint, with
+            the checked appearance spelled as a string at four call sites.
+            `intent="brand"` rather than the neutral fill: neutral FILLS with
+            --primary, which is near-white, and a white ground behind a product
+            photograph is not a selection cue, it is a different photograph.
+            Gold is ruling 19's one permitted hue and this is the business's own
+            catalogue - FLAGGED for Jacob as the one colour judgement in this pass. */}
+        <RadioGroup
+          value={selectedImage}
+          onValueChange={setSelectedImage}
+          options={[selectedProduct.image_front, selectedProduct.image_back]}
+          getValue={(src) => src}
+          variant="tile"
+          intent="brand"
+          aria-label="Product images"
+          className="flex flex-col gap-3"
+          optionClassName="h-20 w-20 p-0"
+        >
+          {(src) => (
             <Image
-              src={selectedProduct.image_front}
+              src={src}
               height={500}
               width={500}
-              className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
-              alt="Front thumbnail"
+              className="pointer-events-none h-full w-full object-contain"
+              alt={src === selectedProduct.image_front ? 'Front thumbnail' : 'Back thumbnail'}
             />
-          </div>
-          <div
-            className={cn(
-              'w-20 h-20 bg-background rounded-lg cursor-pointer transition-all border',
-              selectedImage === selectedProduct.image_back ? 'bg-card border-primary' : 'border-border'
-            )}
-            onClick={() => setSelectedImage(selectedProduct.image_back)}
-          >
-            <Image
-              src={selectedProduct.image_back}
-              height={500}
-              width={500}
-              className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
-              alt="Back thumbnail"
-            />
-          </div>
-        </div>
+          )}
+        </RadioGroup>
         <div className="flex flex-col gap-3 w-full h-full">
           <div className="flex relative aspect-square bg-card border border-border rounded-lg h-full w-full">
             <AnimatePresence mode="wait">
@@ -276,19 +276,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <div className="flex w-full items-start justify-between pl-8">
-                      <small>{spot?.name} Ask Spot</small>
-                      <p>
-                        <PriceNumberFlow value={spot?.ask ?? 0} />
-                      </p>
-                    </div>
+                    <DetailRow label={<>{spot?.name} Ask Spot</>} variant="detail" className="items-start pl-8">
+                      <PriceNumberFlow value={spot?.ask ?? 0} />
+                    </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-neutral-700" />
-                      <div className="flex w-full items-start justify-between pl-4">
-                        <small>Content (oz)</small>
-                        <p>{selectedProduct.content}</p>
-                      </div>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -298,23 +292,17 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-neutral-700" />
                       )}
 
-                      <div className="flex w-full items-start justify-between pl-4">
-                        <small>Ask Premium</small>
-                        <p>
-                          <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
-                        </p>
-                      </div>
+                      <DetailRow label="Ask Premium" variant="detail" className="items-start pl-4">
+                        <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
+                      </DetailRow>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-neutral-700" />
-                    <div className="flex w-full items-start justify-between pl-4">
-                      <small>Total Ask</small>
-                      <strong>
-                        <PriceNumberFlow value={price} />
-                      </strong>
-                    </div>
+                    <DetailRow label="Total Ask" variant="subtotal" className="items-start pl-4">
+                      <PriceNumberFlow value={price} />
+                    </DetailRow>
                   </div>
                 </div>
               </div>
@@ -328,19 +316,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <div className="flex w-full items-start justify-between pl-8">
-                      <small>{spot?.name} Bid Spot</small>
-                      <p>
-                        <PriceNumberFlow value={spot?.bid ?? 0} />
-                      </p>
-                    </div>
+                    <DetailRow label={<>{spot?.name} Bid Spot</>} variant="detail" className="items-start pl-8">
+                      <PriceNumberFlow value={spot?.bid ?? 0} />
+                    </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-neutral-700" />
-                      <div className="flex w-full items-start justify-between pl-4">
-                        <small>Content (oz)</small>
-                        <p>{selectedProduct.content}</p>
-                      </div>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -350,23 +332,17 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-neutral-700" />
                       )}
 
-                      <div className="flex w-full items-start justify-between pl-4">
-                        <small>Bid Premium</small>
-                        <p>
-                          <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
-                        </p>
-                      </div>
+                      <DetailRow label="Bid Premium" variant="detail" className="items-start pl-4">
+                        <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
+                      </DetailRow>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-neutral-700" />
-                    <div className="flex w-full items-start justify-between pl-4">
-                      <small>Total Bid</small>
-                      <strong>
-                        <PriceNumberFlow value={buybackPrice} />
-                      </strong>
-                    </div>
+                    <DetailRow label="Total Bid" variant="subtotal" className="items-start pl-4">
+                      <PriceNumberFlow value={buybackPrice} />
+                    </DetailRow>
                   </div>
                 </div>
               </div>
@@ -515,38 +491,37 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </motion.div>
             </AnimatePresence>
           </div>
-          <div className="flex items-center w-full gap-3 flex-1">
-            <div
-              className={cn(
-                'w-20 h-20 bg-background rounded-lg cursor-pointer transition-all border',
-                selectedImage === selectedProduct.image_front ? 'bg-card border-primary' : 'border-border'
-              )}
-              onClick={() => setSelectedImage(selectedProduct.image_front)}
-            >
+          {/* THE PRODUCT-IMAGE PICKER IS A RADIO GROUP, and this is the exact case
+              ruling 30 deleted `RadioGroupImage` for: "it was this control with an
+              <Image> in the option, which is CONTENT, and content is children."
+              It was hand-rolled TWICE in this file, once for each breakpoint, with
+              the checked appearance spelled as a string at four call sites.
+              `intent="brand"` rather than the neutral fill: neutral FILLS with
+              --primary, which is near-white, and a white ground behind a product
+              photograph is not a selection cue, it is a different photograph.
+              Gold is ruling 19's one permitted hue and this is the business's own
+              catalogue - FLAGGED for Jacob as the one colour judgement in this pass. */}
+          <RadioGroup
+            value={selectedImage}
+            onValueChange={setSelectedImage}
+            options={[selectedProduct.image_front, selectedProduct.image_back]}
+            getValue={(src) => src}
+            variant="tile"
+            intent="brand"
+            aria-label="Product images"
+            className="flex items-center w-full gap-3 flex-1"
+            optionClassName="h-20 w-20 p-0"
+          >
+            {(src) => (
               <Image
-                src={selectedProduct.image_front}
+                src={src}
                 height={500}
                 width={500}
-                className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
-                alt="Front thumbnail"
+                className="pointer-events-none h-full w-full object-contain"
+                alt={src === selectedProduct.image_front ? 'Front thumbnail' : 'Back thumbnail'}
               />
-            </div>
-            <div
-              className={cn(
-                'w-20 h-20 bg-background rounded-lg cursor-pointer transition-all border',
-                selectedImage === selectedProduct.image_back ? 'bg-card border-primary' : 'border-border'
-              )}
-              onClick={() => setSelectedImage(selectedProduct.image_back)}
-            >
-              <Image
-                src={selectedProduct.image_back}
-                height={500}
-                width={500}
-                className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
-                alt="Back thumbnail"
-              />
-            </div>
-          </div>
+            )}
+          </RadioGroup>
         </div>
 
         {variants.length > 0 && (
@@ -652,19 +627,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <div className="flex w-full items-start justify-between pl-8">
-                      <small>{spot?.name} Ask Spot</small>
-                      <p>
-                        <PriceNumberFlow value={spot?.ask ?? 0} />
-                      </p>
-                    </div>
+                    <DetailRow label={<>{spot?.name} Ask Spot</>} variant="detail" className="items-start pl-8">
+                      <PriceNumberFlow value={spot?.ask ?? 0} />
+                    </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-neutral-700" />
-                      <div className="flex w-full items-start justify-between pl-4">
-                        <small>Content (oz)</small>
-                        <p>{selectedProduct.content}</p>
-                      </div>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -674,23 +643,17 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-neutral-700" />
                       )}
 
-                      <div className="flex w-full items-start justify-between pl-4">
-                        <small>Ask Premium</small>
-                        <p>
-                          <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
-                        </p>
-                      </div>
+                      <DetailRow label="Ask Premium" variant="detail" className="items-start pl-4">
+                        <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
+                      </DetailRow>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-neutral-700" />
-                    <div className="flex w-full items-start justify-between pl-4">
-                      <small>Total Ask</small>
-                      <strong>
-                        <PriceNumberFlow value={price} />
-                      </strong>
-                    </div>
+                    <DetailRow label="Total Ask" variant="subtotal" className="items-start pl-4">
+                      <PriceNumberFlow value={price} />
+                    </DetailRow>
                   </div>
                 </div>
               </div>
@@ -704,19 +667,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <div className="flex w-full items-start justify-between pl-8">
-                      <small>{spot?.name} Bid Spot</small>
-                      <p>
-                        <PriceNumberFlow value={spot?.bid ?? 0} />
-                      </p>
-                    </div>
+                    <DetailRow label={<>{spot?.name} Bid Spot</>} variant="detail" className="items-start pl-8">
+                      <PriceNumberFlow value={spot?.bid ?? 0} />
+                    </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-neutral-700" />
-                      <div className="flex w-full items-start justify-between pl-4">
-                        <small>Content (oz)</small>
-                        <p>{selectedProduct.content}</p>
-                      </div>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -726,23 +683,17 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-neutral-700" />
                       )}
 
-                      <div className="flex w-full items-start justify-between pl-4">
-                        <small>Bid Premium</small>
-                        <p>
-                          <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
-                        </p>
-                      </div>
+                      <DetailRow label="Bid Premium" variant="detail" className="items-start pl-4">
+                        <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
+                      </DetailRow>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-neutral-700" />
-                    <div className="flex w-full items-start justify-between pl-4">
-                      <small>Total Bid</small>
-                      <strong>
-                        <PriceNumberFlow value={buybackPrice} />
-                      </strong>
-                    </div>
+                    <DetailRow label="Total Bid" variant="subtotal" className="items-start pl-4">
+                      <PriceNumberFlow value={buybackPrice} />
+                    </DetailRow>
                   </div>
                 </div>
               </div>

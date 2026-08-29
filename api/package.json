@@ -65,7 +65,20 @@
     "test:sandbox": "TZ=UTC NODE_ENV=test node --test --test-timeout=60000 sandbox/*.sandbox.js",
     "seed:e2e": "NODE_ENV=test node scripts/seed-e2e-users.mjs",
     "audit:table-owners": "node scripts/audit-table-owners.mjs",
-    "audit:non-finite": "node scripts/audit-non-finite.mjs"
+    "audit:non-finite": "node scripts/audit-non-finite.mjs",
+    "lint:script-guards": "node scripts/lint-script-guards.mjs",
+    "lint:script-guards:self-test": "node scripts/lint-script-guards.mjs --self-test",
+    "lint:db:self-test": "node scripts/lint-db-calls.mjs --self-test",
+    "lint:imports:self-test": "node scripts/lint-imports.mjs --self-test",
+    "lint:namespace-calls:self-test": "node scripts/lint-namespace-calls.mjs --self-test",
+    "lint:row-vs-list:self-test": "node scripts/lint-row-vs-list.mjs --self-test",
+    "lint:migrations:self-test": "node scripts/lint-migrations.mjs --self-test",
+    "audit:switches:self-test": "node scripts/audit-switches.mjs --self-test",
+    "audit:query-paths:self-test": "TZ=UTC node scripts/audit-query-paths.mjs --self-test",
+    "audit:routes:self-test": "node scripts/route-guards.mjs --self-test",
+    "audit:frontend-nullability:self-test": "node scripts/audit-frontend-nullability.mjs --self-test",
+    "diff:list": "TZ=UTC node scripts/diff-source.mjs --list",
+    "diff:self-test": "TZ=UTC node scripts/diff-source.mjs --self-test"
   },
   "imports": {
     "#env": "./env.ts",

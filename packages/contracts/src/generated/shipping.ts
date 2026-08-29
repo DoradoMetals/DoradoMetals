@@ -67,6 +67,7 @@ export const ServicesRow = z.object({
   "updated_by": z.string().nullable(),
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
+  "max_insured_value": z.number(),
 });
 export type ServicesRow = z.infer<typeof ServicesRow>;
 

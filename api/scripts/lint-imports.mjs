@@ -23,11 +23,85 @@
 // package.json. Bare package specifiers are node_modules' problem and are
 // skipped.
 //
+// *** WHAT IT CANNOT SEE: a specifier that is not a literal. A dynamic
+// `import(`./${name}.js`)` has no path to resolve, and neither does a specifier
+// assembled from a variable. Bare package specifiers are skipped by design.
+// Everything inside a string literal is preserved by the comment stripper, so a
+// path mentioned in prose INSIDE quotes reads as an import - which is exactly
+// how this file's own self-test fixtures made the real run report five
+// unresolved specifiers until they were assembled at runtime instead. ***
+//
 // Run: pnpm --filter @dorado/api lint:imports
+//      pnpm --filter @dorado/api lint:imports:self-test
 import fs from "node:fs";
 import path from "node:path";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
+// Overridable ONLY for the self-test, which points the whole script - walk,
+// comment stripper, resolver and exit code - at a synthetic tree (D134).
+const ROOT = process.env.LINT_IMPORTS_ROOT
+  ? path.resolve(process.env.LINT_IMPORTS_ROOT)
+  : path.resolve(import.meta.dirname, "..");
+
+if (process.argv.includes("--self-test")) {
+  const { selfTest } = await import("./lib/self-test.mjs");
+  // FIXTURES ARE BUILT, NOT WRITTEN OUT. This lint walks api/ ENTIRELY -
+  // scripts/ included - so a literal `from "./gone.js"` inside a fixture string
+  // in this very file is indistinguishable from a real broken import, and the
+  // first version of this self-test made the real run report five unresolved
+  // specifiers that did not exist. The quote is assembled at runtime so the
+  // scanner's own pattern cannot match this file's source.
+  const Q = String.fromCharCode(34);
+  const imp = (what, spec) => `import ${what} from ${Q}${spec}${Q};\n`;
+  const base = {
+    "package.json": JSON.stringify({ imports: { "#shared/*": "./shared/*", "#features/*": "./features/*" } }),
+    "shared/db/query.js": "export default function query() {}\n",
+    "features/a/service.js": imp("query", "#shared/db/query.js") + "export const a = () => query();\n",
+  };
+  const LOW = { LINT_IMPORTS_FLOOR: "1" };
+  await selfTest({
+    script: import.meta.filename,
+    cases: [
+      {
+        name: "a relative specifier pointing at nothing is seen",
+        rootEnv: "LINT_IMPORTS_ROOT", env: LOW,
+        files: { ...base, "features/b/service.js": imp("x", "./gone.js") + "export default x;\n" },
+        expect: "fail", mustPrint: "file does not exist",
+      },
+      {
+        name: "a #subpath with no package.json entry is seen",
+        rootEnv: "LINT_IMPORTS_ROOT", env: LOW,
+        files: { ...base, "features/b/service.js": imp("x", "#nope/thing.js") + "export default x;\n" },
+        expect: "fail", mustPrint: "no matching entry in package.json imports",
+      },
+      {
+        name: "a .js specifier is NOT satisfied by a .ts file - the miss the negative control caught",
+        rootEnv: "LINT_IMPORTS_ROOT", env: LOW,
+        files: {
+          ...base,
+          "features/b/service.ts": "export const b = 1;\n",
+          "features/c/controller.js": imp("{ b }", "../b/service.js") + "export default b;\n",
+        },
+        expect: "fail", mustPrint: "file does not exist",
+      },
+      {
+        name: "a commented-out import is not evidence",
+        rootEnv: "LINT_IMPORTS_ROOT", env: LOW,
+        files: { ...base, "features/b/service.js": "// " + imp("x", "./gone.js") + "export const b = 1;\n" },
+        expect: "pass", mustPrint: "0 unresolved",
+      },
+      {
+        name: "a clean tree passes",
+        rootEnv: "LINT_IMPORTS_ROOT", env: LOW, files: base,
+        expect: "pass", mustPrint: "0 unresolved",
+      },
+      {
+        name: "the floor itself fires on a tree far below it",
+        rootEnv: "LINT_IMPORTS_ROOT", files: base,
+        expect: "fail", mustPrint: "the walk is broken",
+      },
+    ],
+  });
+}
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 const SUBPATHS = pkg.imports ?? {};
 
@@ -149,10 +223,19 @@ for (const file of sourceFiles(ROOT)) {
   }
 }
 
-// A run that checked nothing is a broken run, not a clean one - the same reason
-// compare:databases fails when it compares no tables.
-if (checked === 0) {
-  console.error("lint:imports resolved no specifiers at all - the walk is broken");
+// A LITERAL FLOOR, not a zero-check. `checked === 0` only catches a walk that
+// found NOTHING; it is blind to a walk that found a tenth of the tree, which is
+// the shape D120 actually took - route-guards matched one filename and reported
+// success on a subset. 1309 internal specifiers resolve today and the number
+// only grows with the codebase, so anything under 900 is the walk breaking.
+const FLOOR = process.env.LINT_IMPORTS_ROOT
+  ? Number(process.env.LINT_IMPORTS_FLOOR ?? 900)
+  : 900;
+if (checked < FLOOR) {
+  console.error(
+    `lint:imports resolved only ${checked} specifier(s), expected at least ${FLOOR} - ` +
+      `the walk is broken, not the codebase clean`
+  );
   process.exit(1);
 }
 

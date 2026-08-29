@@ -26,6 +26,7 @@
 
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 import type { Rate } from "@dorado/contracts";
+import type { fulfillments } from "@dorado/contracts";
 
 // The handoff options the frontend actually offers, mapped to the fulfillment
 // methods 047 seeded. Both are SHIPMENT - a customer choosing between dropping
@@ -44,7 +45,11 @@ import type { Rate } from "@dorado/contracts";
 // otherwise in a type would be a claim this file exists to avoid making. Every
 // read of it below is already guarded with `?.` and `??`, which is the real
 // check; the type just declines to lie about what arrived.
-type Category = "SHIPMENT" | "PICKUP" | "DIRECT";
+// The category a handoff maps to is the DATABASE's vocabulary, not this
+// file's (D103). It was `"SHIPMENT" | "PICKUP" | "DIRECT"` here, one of three
+// copies, against a column that was `text DEFAULT 'OTHER'` and so admitted a
+// fourth value none of them could hold. 098 made it an enum; this reads it.
+type Category = fulfillments.MethodsRow["category"];
 type HandoffMethod = { type: string; category: Category };
 
 type ProductItem = {

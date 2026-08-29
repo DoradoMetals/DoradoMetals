@@ -288,22 +288,17 @@ const buttonVariants = cva(
 )
 
 /* ----------------------------------------------------------------------------
-   BACK-COMPAT SHIM — delete when every partition has swept.
-   Maps the retired one-axis names onto the two-axis API so the ~140 call sites
-   in features/** that this pass does not own keep rendering correctly instead
-   of becoming type errors all at once. See CONVERSION-TABLE.md.
-   -------------------------------------------------------------------------- */
-const LEGACY_VARIANTS = {
-  default: { variant: 'primary', intent: 'neutral' },
-  outline: { variant: 'secondary', intent: 'neutral' },
-  ghost: { variant: 'tertiary', intent: 'neutral' },
-  destructive: { variant: 'primary', intent: 'danger' },
-  destructiveQuiet: { variant: 'tertiary', intent: 'danger' },
-  primaryQuiet: { variant: 'secondary', intent: 'neutral' },
-  brand: { variant: 'primary', intent: 'brand' },
-} as const
+   THE BACK-COMPAT SHIM IS GONE, and the sweep it was waiting for is done.
 
-type LegacyVariant = keyof typeof LEGACY_VARIANTS
+   It mapped seven retired one-axis names (`default`, `outline`, `ghost`,
+   `destructive`, `destructiveQuiet`, `primaryQuiet`, `brand`) onto the two
+   axes so ~140 unswept call sites would keep rendering. 28 were left when this
+   pass started, across 15 files, and every one of them is now spelled on the
+   axes. Keeping the shim past that point costs more than it saves: a legacy
+   name TYPECHECKS, so nothing tells the next person the vocabulary changed,
+   and `variant="ghost"` reads as a variant that exists. With it deleted the
+   compiler is the documentation.
+   -------------------------------------------------------------------------- */
 
 export type ButtonEmphasis = 'primary' | 'secondary' | 'tertiary' | 'link'
 export type ButtonIntent = 'neutral' | 'brand' | 'success' | 'danger' | 'warning' | 'info'
@@ -311,8 +306,8 @@ export type ButtonIntent = 'neutral' | 'brand' | 'success' | 'danger' | 'warning
 export interface ButtonProps
   extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'type'>,
     Omit<VariantProps<typeof buttonVariants>, 'variant' | 'intent'> {
-  /** Emphasis. Legacy one-axis names still resolve; see LEGACY_VARIANTS. */
-  variant?: ButtonEmphasis | LegacyVariant
+  /** Emphasis (ruling 25). Orthogonal to `intent`; they share no value names. */
+  variant?: ButtonEmphasis
   intent?: ButtonIntent
   asChild?: boolean
   /** The NATIVE button type. Never shadowed by the emphasis axis. */
@@ -351,17 +346,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps & ButtonIconProps
   ) => {
     const Comp = asChild ? Slot : 'button'
 
-    const legacy = variant && variant in LEGACY_VARIANTS
-      ? LEGACY_VARIANTS[variant as LegacyVariant]
-      : undefined
-    const emphasis = (legacy?.variant ?? variant) as ButtonEmphasis | undefined
-    const resolvedIntent = intent ?? legacy?.intent
-
     return (
       <Comp
-        className={cn(
-          buttonVariants({ variant: emphasis, intent: resolvedIntent, effect, size, className })
-        )}
+        className={cn(buttonVariants({ variant, intent, effect, size, className }))}
         ref={ref}
         {...props}
       >

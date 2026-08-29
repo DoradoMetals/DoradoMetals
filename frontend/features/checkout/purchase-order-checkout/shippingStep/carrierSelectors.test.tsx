@@ -51,9 +51,14 @@ const handoffs = (): CarrierHandoff[] => [
   },
 ];
 
+// max_insured_value arrived with migration 097 (the insurance ceiling stopped
+// being `Math.min(..., 50000)` in checkoutStepper). Two DIFFERENT values on
+// purpose: nothing in these components may read the field, so a component that
+// started clamping with it would have to pick one and the difference would
+// show. The clamp is the server's - see the note on CarrierServiceOption.
 const services = (): CarrierServiceOption[] => [
-  { code: "SLOW_ONE", name: "Economy", carrier_code: "ZZZE", display_order: 0 },
-  { code: "FAST_ONE", name: "Overnight", carrier_code: "ZZZP", display_order: 1 },
+  { code: "SLOW_ONE", name: "Economy", carrier_code: "ZZZE", display_order: 0, max_insured_value: 7500 },
+  { code: "FAST_ONE", name: "Overnight", carrier_code: "ZZZP", display_order: 1, max_insured_value: 10000 },
 ];
 
 const rates = (): ShippingRate[] => [

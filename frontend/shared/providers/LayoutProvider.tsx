@@ -125,7 +125,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
                 </small>
               </div>
               <Button
-                variant="default"
+                variant="primary"
                 size="sm"
                 onClick={() => stopImpersonation.mutate()}
               >
@@ -231,7 +231,7 @@ function BreadcrumbBar({
               </div>
               {input !== '' && (
                 <Button
-                  variant="ghost"
+                  variant="tertiary"
                   onClick={() => setInput('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-600 hover:bg-transparent"
                   tabIndex={-1}

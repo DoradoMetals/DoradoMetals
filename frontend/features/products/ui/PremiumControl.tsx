@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { cn } from '@/shared/utils/cn'
-import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
 import {
   CurrencyDollarIcon,
   PercentIcon,
@@ -10,9 +9,10 @@ import {
   ArrowDownIcon,
 } from '@phosphor-icons/react'
 import { Input } from '@/shared/ui/base/input'
-import { Label } from '@/shared/ui/base/label'
+import { Field } from '@/shared/ui/Field'
 
 type Unit = 'dollar' | 'percent'
+const UNITS: Unit[] = ['dollar', 'percent']
 type Direction = 'over' | 'under'
 
 export interface PremiumControlProps {
@@ -21,8 +21,8 @@ export interface PremiumControlProps {
   onChange: (multiplier: number) => void
   spotPerOz: number
   contentOz: number
+  /** LAYOUT ONLY - the field's width and placement. */
   className?: string
-  inputClassName?: string
 }
 
 const clamp = (n: number, min = 0, max = Number.POSITIVE_INFINITY) =>
@@ -66,7 +66,6 @@ export default function PremiumControl({
   spotPerOz,
   contentOz,
   className,
-  inputClassName,
 }: PremiumControlProps) {
   const initialDirection: Direction = value >= 1 ? 'over' : 'under'
   const initialPercentAbs = Math.abs(value - 1) * 100
@@ -95,9 +94,7 @@ export default function PremiumControl({
   }
 
   return (
-    <div className={cn('flex flex-col w-full gap-1', className)}>
-      <Label className="pl-1">{label}</Label>
-
+    <Field label={label} className={className}>
       <div className="flex items-center gap-2">
         {/* The `rounded-l-lg` / `rounded-r-lg` end caps are GONE rather than
             given a fourth `joined` variant for one control. Two adjacent
@@ -107,35 +104,28 @@ export default function PremiumControl({
             `intent="neutral"` FILLS rather than washing: the old
             `bg-primary/15` was a 15% white wash on a near-black ground, i.e. a
             selected state nobody could see. */}
-        <RadioGroupRoot
+        {/* The unit pair is a plain two-option group, so it is the mapping
+            form. The DIRECTION pair below stays hand-placed, and the reason is
+            real rather than habitual: its two cells carry DIFFERENT intents
+            (success up, danger down), and `intent` is a property of the group.
+            That is the case `RadioOption` is exported for. */}
+        <RadioGroup
+          variant="segment"
           value={unit}
           onValueChange={(v) => setUnit(v as Unit)}
+          options={UNITS}
+          getValue={(u) => u}
           className="flex items-center gap-1"
+          optionClassName="h-10 min-w-10 px-2"
         >
-          <RadioOption
-            id={`${label}-unit-dollar`}
-            value="dollar"
-            variant="segment"
-            className="h-10 min-w-10 px-2"
-          >
-            <CurrencyDollarIcon size={18} />
-          </RadioOption>
-
-          <RadioOption
-            id={`${label}-unit-percent`}
-            value="percent"
-            variant="segment"
-            className="h-10 min-w-10 px-2"
-          >
-            <PercentIcon size={18} />
-          </RadioOption>
-        </RadioGroupRoot>
+          {(u) => (u === 'dollar' ? <CurrencyDollarIcon size={18} /> : <PercentIcon size={18} />)}
+        </RadioGroup>
 
         <div className="relative flex-1">
           <Input
             inputMode="decimal"
             type="text"
-            className={cn('h-10 text-center', inputClassName)}
+            className="h-10 text-center"
             value={display}
             onChange={(e) => {
               const cleaned = e.target.value
@@ -199,7 +189,7 @@ export default function PremiumControl({
           </RadioOption>
         </RadioGroupRoot>
       </div>
-    </div>
+    </Field>
   )
 }
 

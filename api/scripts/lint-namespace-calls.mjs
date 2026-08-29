@@ -23,11 +23,81 @@
 //   - only members that are CALLED - `ns.fn(` - since a bare `ns.thing`
 //     reference may legitimately be a re-export probe or a type position
 //
+// *** WHAT IT CANNOT SEE, and D110 could recur through any of these: ***
+//   - A DESTRUCTURED NAMESPACE: `const { forOrder } = spotsService`. That IS an
+//     error at load time for a static named import, but not for a destructure of
+//     a namespace object - it yields undefined exactly like the case this
+//     catches.
+//   - A MEMBER PASSED RATHER THAN CALLED: `router.get("/x", spots.forOrder)`.
+//     The scope note above says only called members are checked, deliberately -
+//     but a route handler that does not exist 404s at request time.
+//   - A COMPUTED MEMBER: `impl[name]()`. This is what every repo.js facade does
+//     with `SOURCES[SOURCE]`, so a switch selecting an implementation missing a
+//     function is invisible here. shared/db/switch-surface.test.js is what
+//     covers that axis.
+//   - A MODULE WHOSE EXPORTS DO NOT PARSE. `exportsOf` returning an empty set is
+//     SKIPPED rather than reported - saying nothing about a file it could not
+//     read is right, but it means a parser regression shows up as a lower
+//     `checked` count and nothing else. That is what the floor below is for.
+//
 // Run: pnpm --filter @dorado/api lint:namespace-calls
+//      pnpm --filter @dorado/api lint:namespace-calls:self-test
+//
+// THIS IS THE D110 GUARD, and it is worth naming: the factoring pass that moved
+// `getSpotsByOrder` to `features/refiners/spots/service.ts` left the caller in
+// scripts/ pointing at a namespace that no longer had it, and validate:wire
+// died at runtime with "is not a function". lint:imports could not see it - the
+// specifier still RESOLVED. This walks api/ ENTIRELY, scripts/ included, which
+// is the only reason a script's stale namespace call is visible to anything.
 import fs from "node:fs";
 import path from "node:path";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
+const ROOT = process.env.LINT_NS_ROOT
+  ? path.resolve(process.env.LINT_NS_ROOT)
+  : path.resolve(import.meta.dirname, "..");
+
+if (process.argv.includes("--self-test")) {
+  const { selfTest } = await import("./lib/self-test.mjs");
+  // Specifiers assembled at runtime, not written out: this file is itself
+  // inside the walk, and a literal one here becomes a finding in the real run.
+  const Q = String.fromCharCode(34);
+  const base = {
+    "package.json": JSON.stringify({ imports: { "#shared/*": "./shared/*", "#features/*": "./features/*" } }),
+    "features/spots/service.js": "export function forOrder() {}\nexport const other = 1;\n",
+  };
+  const caller = (call) =>
+    `import * as spots from ${Q}#features/spots/service.js${Q};\n${call}\n`;
+  const LOW = { LINT_NS_FLOOR: "1" };
+  await selfTest({
+    script: import.meta.filename,
+    cases: [
+      {
+        name: "a namespace call to a member that moved away is seen (D110)",
+        rootEnv: "LINT_NS_ROOT", env: LOW,
+        files: { ...base, "scripts/validate.mjs": caller("export const r = spots.getSpotsByOrder();") },
+        expect: "fail", mustPrint: "not exported by",
+      },
+      {
+        name: "scripts/ is inside the walk - the caller that hurt lived there",
+        rootEnv: "LINT_NS_ROOT", env: LOW,
+        files: { ...base, "scripts/only-here.mjs": caller("export const r = spots.vanished();") },
+        expect: "fail", mustPrint: "scripts/only-here.mjs",
+      },
+      {
+        name: "a member that does exist passes",
+        rootEnv: "LINT_NS_ROOT", env: LOW,
+        files: { ...base, "features/x/caller.js": caller("export const r = spots.forOrder();") },
+        expect: "pass", mustPrint: "0 unresolved",
+      },
+      {
+        name: "the floor itself fires on a tree far below it",
+        rootEnv: "LINT_NS_ROOT",
+        files: { ...base, "features/x/caller.js": caller("export const r = spots.forOrder();") },
+        expect: "fail", mustPrint: "the walk is broken",
+      },
+    ],
+  });
+}
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 const SUBPATHS = pkg.imports ?? {};
 
@@ -242,9 +312,15 @@ for (const file of sourceFiles(ROOT)) {
   }
 }
 
-// A run that checked nothing is a broken run, not a clean one.
-if (checked === 0) {
-  console.error("lint:namespace-calls found no namespace calls at all - the walk is broken");
+// A LITERAL FLOOR rather than a zero-check, for D120's reason: a walk that
+// found a fraction of the tree reports a smaller number and exits 0. 1269
+// namespace calls resolve today across api/ including scripts/.
+const FLOOR = process.env.LINT_NS_ROOT ? Number(process.env.LINT_NS_FLOOR ?? 900) : 900;
+if (checked < FLOOR) {
+  console.error(
+    `lint:namespace-calls checked only ${checked} namespace call(s), expected at least ` +
+      `${FLOOR} - the walk is broken, not the codebase clean`
+  );
   process.exit(1);
 }
 

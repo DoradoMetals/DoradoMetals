@@ -24,7 +24,7 @@ import * as spotsService from "#features/spots/service.ts";
 import * as taxService from "#features/sales-tax/service.ts";
 import * as addressService from "#features/places/addresses/service.ts";
 import * as ratesService from "#features/rates/service.ts";
-import * as checkoutRepo from "#features/checkout/repo.next.ts";
+import * as servicesService from "#features/shipping/services/service.ts";
 import { payoutFee, PAYOUT_METHOD_FEES } from "#features/payouts/constants.ts";
 import * as purchaseOrdersService from "#features/orders/service.ts";
 import {
@@ -413,7 +413,15 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
         // data.product_name before it, and top-level product_name from the
         // oldest shape. Reading only one made product lines vanish silently.
         const name = line?.product_name ?? data.name ?? data.product_name;
-        if (name != null) id = await checkoutRepo.findProductIdByName(String(name));
+        // RESOLVED BY THE FEATURE THAT OWNS THE TABLE (D142). This was
+        // `checkoutRepo.findProductIdByName`, imported from
+        // `#features/checkout/repo.next.ts` DIRECTLY - around the repo.js that
+        // CHECKOUT_SOURCE selects - so audit:switches could report checkout on
+        // `exchange` while this line read products.bullion regardless. The id
+        // has to be a products.bullion id anyway: refuseProductsThatAreNotLive
+        // and getItemsFromServer below both key on that table. Same statement,
+        // asked of its owner, and no second implementation to diverge from.
+        if (name != null) id = await productService.findProductIdByName(String(name));
       }
       if (!id) throw badRequest(`item ${index} names no product the server recognises`);
       // Quantity rides on the line's data in the frontend's shape; top-level
@@ -532,19 +540,32 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
 
   const total = quoted.reduce((acc, l) => acc + l.line_total, 0);
 
-  // declared_value IS the total, as specified for this surface. VERIFIED
-  // against frontend/features/checkout/utils/getDeclaredValue.ts, and the two
-  // differ in two ways worth naming: the frontend caps at $50,000 - FedEx's
-  // declared-value ceiling, a shipping constraint that belongs where the
-  // label is bought - and it prices from the cart line's own bid_premium
-  // (?? 1 for scrap) where this prices from rates bands, the same divergence
-  // D59 records for the client-side pricing family this replaces. A caller
-  // insuring a shipment still owes FedEx Math.min(total, 50000).
+  // DECLARED VALUE IS THE TOTAL, CAPPED BY WHAT WE WILL INSURE (D132).
+  //
+  // It was the bare total until 097, with the cap applied in the browser as
+  // `Math.min(quote.declared_value, 50000)` - FedEx's ceiling, spelled as a
+  // literal in React, deciding what a parcel of metal is covered for. Both
+  // halves of that were wrong: the number is money, so the server owes it
+  // (D82), and the limit is data, so a column owes it. It is now
+  // shipping.services.max_insured_value, 10,000 on every row (Jacob,
+  // 2026-08-29), and this is the same place in the flow the browser applied it.
+  //
+  // SERVICE-AGNOSTIC BY NECESSITY: a quote is priced before the customer picks
+  // a service, so `insuranceCeiling` answers with the LOWEST ceiling among the
+  // services we offer. The label path narrows to the chosen one
+  // (features/orders/service.ts), which can only ever lower it further.
+  //
+  // The other divergence from the browser's old getDeclaredValue stands and is
+  // deliberate: that summed the cart line's own bid_premium (?? 1 for scrap)
+  // where this prices from rates bands, the same divergence D59 records for the
+  // client-side pricing family this replaces.
+  const declared_value = Math.min(total, await servicesService.insuranceCeiling());
+
   return {
     spots_at,
     items: quoted,
     total,
-    declared_value: total,
+    declared_value,
     shipping_charge,
     payout_charge,
     // What the customer is actually paid. Never below zero: a small order whose

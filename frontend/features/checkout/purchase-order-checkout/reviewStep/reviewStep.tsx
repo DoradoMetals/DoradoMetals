@@ -10,6 +10,7 @@ import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 import { useCreatePurchaseOrder } from '@/features/orders/purchaseOrders/users/queries'
+import { DetailRow } from '@/shared/ui/DetailRow'
 
 export default function ReviewStep() {
   const data = usePurchaseOrderCheckoutStore((state) => state.data)
@@ -86,18 +87,9 @@ export default function ReviewStep() {
         {(data.payout?.method === 'ACH' || data.payout?.method === 'WIRE') && (
           <>
             <div className="flex flex-col gap-1">
-              <div className="flex justify-between">
-                <p>Account Holder:</p>
-                <strong>{data.payout.account_holder_name}</strong>
-              </div>
-              <div className="flex justify-between">
-                <p>Routing Number:</p>
-                <strong>{data.payout.routing_number}</strong>
-              </div>
-              <div className="flex justify-between">
-                <p>Account Number:</p>
-                <strong>{data.payout.account_number}</strong>
-              </div>
+              <DetailRow label="Account Holder:">{data.payout.account_holder_name}</DetailRow>
+              <DetailRow label="Routing Number:">{data.payout.routing_number}</DetailRow>
+              <DetailRow label="Account Number:">{data.payout.account_number}</DetailRow>
             </div>
           </>
         )}
@@ -105,14 +97,8 @@ export default function ReviewStep() {
         {data.payout?.method === 'ECHECK' ||
           (data.payout?.method === 'DORADO_ACCOUNT' && (
             <div className="flex flex-col gap-1 mt-3">
-              <div className="flex justify-between">
-                <p>Name:</p>
-                <strong>{data.payout.account_holder_name}</strong>
-              </div>
-              <div className="flex justify-between">
-                <p>Email:</p>
-                <strong>{data.payout.payout_email}</strong>
-              </div>
+              <DetailRow label="Name:">{data.payout.account_holder_name}</DetailRow>
+              <DetailRow label="Email:">{data.payout.payout_email}</DetailRow>
             </div>
           ))}
       </div>

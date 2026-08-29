@@ -268,7 +268,13 @@ export async function getPurchaseProductItems(
   return rows;
 }
 
-export async function findProductIdByName(
+// INTERNAL. Not exported, and that is the point: this function was the handle
+// features/quotes/service.ts grabbed when it imported this file directly,
+// around the repo.js that CHECKOUT_SOURCE selects (D142). The quote surface
+// asks features/products for a product by name now - the feature that owns the
+// table - and nothing outside this file has ever needed it. Un-exporting is
+// what stops the same reach happening again.
+async function findProductIdByName(
   product_name: string,
   client?: Executor
 ): Promise<products.BullionRow["id"] | null> {

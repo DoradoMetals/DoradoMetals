@@ -11,7 +11,7 @@ export default function ShowPasswordButton({
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant="tertiary"
       size="icon"
       onClick={() => setShowPassword(!showPassword)}
       className="absolute right-3 top-1/2 -translate-y-1/2 hover:bg-transparent"

@@ -86,10 +86,35 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   )
 }
 
+/* THE ROW'S TWO REMAINING STATES, both of which were className strings at the
+   two order drawers until now.
+
+   `intent` is the HOUSE AXIS (ruling 25), generated from one rule rather than
+   hand-tuned per colour: a tinted ground at 10% and a hover one step up at
+   20%. Only `success` has a caller today (a confirmed scrap or bullion line),
+   and that is exactly why it should not be a `confirmed` boolean - the next
+   one will be a rejected line, and a second boolean is how a component ends up
+   with four states and two of them meaningless.
+
+   `disabled` replaces `opacity-50 pointer-events-none` spelled at the call
+   site, and carries `aria-disabled` with it so the visual state and the
+   assistive one cannot disagree - the same pairing `NavLink` makes for
+   `aria-current`. */
+const ROW_INTENTS = {
+  neutral: "",
+  brand: "bg-brand/10 hover:bg-brand/20",
+  success: "bg-success/10 hover:bg-success/20",
+  danger: "bg-destructive/10 hover:bg-destructive/20",
+  warning: "bg-warning/10 hover:bg-warning/20",
+  info: "bg-info/10 hover:bg-info/20",
+} as const
+
 function TableRow({
   className,
   interactive = false,
   borderless = false,
+  intent = "neutral",
+  disabled = false,
   ...props
 }: React.ComponentProps<"tr"> & {
   /** Clickable: pointer cursor + a hover fill. Opt-in, never inferred. */
@@ -98,14 +123,22 @@ function TableRow({
    *  `<table>` for alignment rather than to present a grid of records.
    *  Previously spelled `border-none`/`border-b-0` at call sites. */
   borderless?: boolean
+  /** Tints the row to MEAN something - a confirmed line, a rejected one. */
+  intent?: keyof typeof ROW_INTENTS
+  /** Dimmed and not addressable, e.g. a row outside the current selection
+   *  while a table is in edit mode. */
+  disabled?: boolean
 }) {
   return (
     <tr
       data-slot="table-row"
+      aria-disabled={disabled || undefined}
       className={cn(
         "data-[state=selected]:bg-muted transition-colors",
         borderless ? "border-b-0" : "border-b border-border",
         interactive && "cursor-pointer hover:bg-accent",
+        ROW_INTENTS[intent],
+        disabled && "pointer-events-none opacity-50",
         className
       )}
       {...props}

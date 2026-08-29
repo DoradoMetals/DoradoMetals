@@ -23,6 +23,7 @@
 // transaction that is rolled back.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
+import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
@@ -101,7 +102,7 @@ test("an admin can record a tracking number against a sales order", async () => 
 test("the tracking number actually lands on the shipment", async () => {
   // inPinnedTransaction hands the pinned client to its callback, which is how
   // the read below sees the route's uncommitted write.
-  await inPinnedTransaction(async (client) => {
+  await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       await request(app)
         .patch(`/api/shipments/${shipment.id}`)

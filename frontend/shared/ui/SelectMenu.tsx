@@ -1,16 +1,34 @@
 'use client'
 
 import { useState } from 'react'
+import { CheckIcon } from '@phosphor-icons/react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
-import { Command, CommandItem, CommandList } from '@/shared/ui/base/command'
+import {
+  Command,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/shared/ui/base/command'
 import { cn } from '@/shared/utils/cn'
 
 // The hand-rolled Popover + Command menu (the payout-method-picker style): a
 // custom trigger opening a short list of options, each optionally carrying an
 // icon, selection closing the menu. Distinct from PopoverSelect, which is a
-// searchable string combobox (CommandInput + fuzzysort + check marks) - the
-// two share no DOM beyond the Popover shell, so this is a separate component
-// rather than a mode of that one.
+// FIELD - it renders its own labelled trigger showing the current value. This
+// is an ACTION MENU: the caller supplies the trigger, and choosing a row does
+// something rather than filling in a form.
+//
+// IT HAD ZERO IMPORTERS. Built in D88 and never adopted, while SIX hand-rolled
+// copies of it stayed in the tree - five in `AdminReceived` and the status
+// filter in `OrderStatusShared` - every one of them carrying the D95 defect
+// this component's own header describes. A shared component nobody imports is
+// worth exactly as much as no shared component at all.
+//
+// TWO PROPS WERE ADDED TO ABSORB THEM, and both are degrees rather than new
+// components (the meta-rule under ruling 30): `searchPlaceholder` turns on the
+// CommandInput two of the six needed for a long product list, and `value`
+// marks the current row for the one of the six that is a filter rather than an
+// action. Neither is a variant axis; a menu with a search box is the same menu.
 export type SelectMenuItem = {
   label: string
   value: string
@@ -35,6 +53,11 @@ type SelectMenuProps = {
   itemClassName?: string
   /** Appended to the CommandList. */
   listClassName?: string
+  /** Renders a search box above the list. Omit for a short menu. */
+  searchPlaceholder?: string
+  /** The currently chosen value, for a menu that is a FILTER rather than an
+   *  action. Marks the row and shows a tick. Omit for an action menu. */
+  value?: string
 }
 
 /* D95, THIRD INSTANCE — the row said `text-primary` AND `hover:bg-primary`.
@@ -49,7 +72,16 @@ type SelectMenuProps = {
    anything here anyway. */
 const DEFAULT_CONTENT = 'p-0 w-48 z-70'
 const DEFAULT_ITEM =
-  'group h-9 px-3 flex items-center gap-2 transition-colors duration-150 cursor-pointer text-foreground hover:bg-accent'
+  'group h-9 px-3 flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer text-foreground hover:bg-accent'
+/* THE CHOSEN ROW FILLS (D99: is selected VISIBLY DIFFERENT from unselected,
+   not merely legible). `--accent` is already the hover fill, so re-using it
+   here would make hover and chosen identical - the exact collapse wave 4 found
+   in `AddressSelect`. Neutral fills with `--primary` instead, which is what
+   every other selection control in the app does, and the `!` beats the base
+   `data-[selected=true]:bg-card` cmdk puts on the row under the cursor.
+   The icon must NOT keep `text-muted-foreground` here: #9499a4 on #fafafa is
+   2.4:1, which is the D95 shape all over again. */
+const CHOSEN_ITEM = 'bg-primary! hover:bg-primary! text-primary-foreground'
 
 export default function SelectMenu({
   items,
@@ -63,6 +95,8 @@ export default function SelectMenu({
   contentClassName,
   itemClassName,
   listClassName,
+  searchPlaceholder,
+  value,
 }: SelectMenuProps) {
   const [selfOpen, setSelfOpen] = useState(false)
   const isOpen = open ?? selfOpen
@@ -79,20 +113,32 @@ export default function SelectMenu({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <Command surface="card">
+          {searchPlaceholder ? (
+            <CommandInput placeholder={searchPlaceholder} className="h-8" />
+          ) : null}
           <CommandList className={cn(listClassName)}>
-            {items.map(({ label, value, icon: Icon }) => (
-              <CommandItem
-                key={value}
-                onSelect={() => {
-                  onSelect(value)
-                  setOpen(false)
-                }}
-                className={cn(DEFAULT_ITEM, itemClassName)}
-              >
-                {Icon && <Icon size={16} className="text-muted-foreground" />}
-                <span className="transition-colors">{label}</span>
-              </CommandItem>
-            ))}
+            {items.map((item) => {
+              const chosen = value !== undefined && value === item.value
+              const Icon = item.icon
+              return (
+                <CommandItem
+                  key={item.value}
+                  onSelect={() => {
+                    onSelect(item.value)
+                    setOpen(false)
+                  }}
+                  className={cn(DEFAULT_ITEM, chosen && CHOSEN_ITEM, itemClassName)}
+                >
+                  <span className="flex items-center gap-2">
+                    {Icon && (
+                      <Icon size={16} className={chosen ? undefined : 'text-muted-foreground'} />
+                    )}
+                    <span>{item.label}</span>
+                  </span>
+                  {chosen && <CheckIcon size={16} />}
+                </CommandItem>
+              )
+            })}
           </CommandList>
         </Command>
       </PopoverContent>

@@ -43,6 +43,17 @@ END $$;
 DROP TABLE IF EXISTS orders.offers;
 
 -- 4. The exchange columns go, except spots_locked which stays where it is.
+--
+-- allow-destructive: the five offer columns below. Marker added RETROACTIVELY
+-- on 2026-08-29, after `lint:migrations` was taught to see statements split
+-- across lines - this ALTER wraps, so the guard never saw it and never demanded
+-- a marker when the migration landed. The change itself was intended and
+-- authorised: offers are fully dead by Jacob's ruling 3 (tables, statuses,
+-- vocabulary, T&C language), 092 migrated the surviving rows off the retired
+-- statuses first, and this has only ever run against DEV - no migration has
+-- ever been applied to production. Backup: the columns' contents are in the
+-- pre-086 dev state and in git history; production still holds its own copy of
+-- every one of them, untouched.
 ALTER TABLE exchange.purchase_orders
   DROP COLUMN IF EXISTS offer_status,
   DROP COLUMN IF EXISTS offer_notes,

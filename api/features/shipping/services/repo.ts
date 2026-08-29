@@ -17,7 +17,16 @@ export type Executor = PoolClient | undefined;
 // names, because that is what comes back.
 export type ServiceRow = Omit<
   shipping.ServicesRow,
-  "supports_pickups" | "supports_dropoffs" | "max_weight_lb" | "created_by_id" | "updated_by_id"
+  | "supports_pickups"
+  | "supports_dropoffs"
+  | "max_weight_lb"
+  | "created_by_id"
+  | "updated_by_id"
+  // max_insured_value is 097's, and it is NOT on this wire. See
+  // sql/get_insurance_ceilings.sql for why: this shape is validated against
+  // exchange.carrier_services, which has no such column. getInsuranceCeilings
+  // reads it instead.
+  | "max_insured_value"
 > & {
   supports_pickup: shipping.ServicesRow["supports_pickups"];
   supports_dropoff: shipping.ServicesRow["supports_dropoffs"];
@@ -44,6 +53,19 @@ export async function getAll(executor?: Executor): Promise<ServiceRow[]> {
 export async function getOne(id: string, executor?: Executor): Promise<ServiceRow | undefined> {
   const { rows } = await query<ServiceRow>(sql("get_one"), [id], executor);
   return rows[0];
+}
+
+// THE INSURANCE CEILING, per service, for one carrier. Read on its own rather
+// than folded into the row reads - see sql/get_insurance_ceilings.sql.
+export type InsuranceCeiling = { name: string; max_insured_value: number };
+
+export async function getInsuranceCeilings(
+  carrier_id: string, executor?: Executor
+): Promise<InsuranceCeiling[]> {
+  const { rows } = await query<InsuranceCeiling>(
+    sql("get_insurance_ceilings"), [carrier_id], executor
+  );
+  return rows;
 }
 
 export async function getByCarrier(

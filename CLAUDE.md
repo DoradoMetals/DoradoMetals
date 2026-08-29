@@ -41,33 +41,48 @@ auto-deploys, would serve customers a January snapshot. Removing the
 dual-writes makes it worse: `exchange` also stops receiving writes, so the
 business's history and its new orders end up in different tables.
 
-**PRODUCTION IS MISSING EIGHT OF THE EIGHTEEN SCHEMAS ENTIRELY** — not
-missing data, missing the schemas: `products`, `organizations`, `metals`,
-`spots`, `media`, `leads`, `rates`, `reviews`. It has ten: orders, payments,
-fulfillments, shipping, refiners, tax, places, auth, checkout, auctions.
-Verified read-only against `PROD_READONLY_DATABASE_URL` on 2026-08-29.
+**PRODUCTION IS NOT BEING TOUCHED, AND WILL NOT BE UNTIL THIS REFACTOR IS
+PROVEN** (Jacob, 2026-08-29). No migration has ever run there and none will run
+there on a schedule anyone but Jacob sets. Do not treat production state as a
+blocker on this branch's work, do not plan around a deploy date, and do not
+report production facts as though something is on fire — this section previously
+read as a deploy checklist, which is why prod findings kept arriving as
+blockers. They are not blockers. They are what will need doing eventually.
 
-So this is not "deploy and backfill". Code that queries a missing schema raises
-**42P01 immediately**, and at least one such path is on the money:
-`features/quotes/service.ts:416` calls `checkoutRepo.findProductIdByName`,
-which is `SELECT id FROM products.bullion` **with no switch in front of it** —
-on the endpoint that prices every customer-visible number. It arrived in
-`d2926fd0`, which is on this branch and has never been deployed, so it is a
-deploy blocker rather than a live outage. Deploying without step 2 below turns
-it into one.
+Recorded for that eventual day, verified read-only 2026-08-29: production holds
+ten of the eighteen schemas and **lacks eight outright** — `products`,
+`organizations`, `metals`, `spots`, `media`, `leads`, `rates`, `reviews`. So the
+eventual sequence is not "migrate and backfill", it is "most of
+`000_genesis_schema.sql` has never run there", and code touching a missing
+schema raises 42P01 rather than returning empty. One such path exists today:
+`features/quotes/service.ts:27` imports `#features/checkout/repo.next.ts`
+directly — around the `repo.js` that `CHECKOUT_SOURCE` selects — and that file
+does `SELECT id FROM products.bullion`.
 
-Before this branch is deployed:
+When that day comes: `pg_dump` first, then the migrations, then the backfills,
+then `verify:parity` and `compare:databases`, then merge. Not before, and not
+by an agent.
 
-1. `pg_dump` production. Still outstanding, and the prerequisite for the rest.
-2. Run the migrations against production — **including the eight missing
-   schemas**, which is most of `000_genesis_schema.sql`.
-3. **Run the backfills.** This is the step that makes the read pivot safe.
-4. `verify:parity` and `compare:databases` against production. Note that
-   `verify:parity` only covers the pairs listed in its own `PAIRS` array — it
-   was fifteen at the time of writing, and it had never included the carts or
-   scrap, which is how a covenant came to name an instrument that could not
-   answer (D130).
-5. Only then merge.
+## Not all data is equally precious
+
+The covenant is about **irreplaceable** rows, and treating every table as
+irreplaceable made a wave stop dead on one that is not (Jacob, 2026-08-29):
+
+- **`checkout.*` is device-sync, not a ledger.** A cart exists so a customer
+  sees the same basket on their phone as on their laptop. Empty is fine, losing
+  it is fine — *"we'd store checkout fully locally otherwise"*. What matters is
+  that it **works**, not that it is preserved. `checkout.checkouts` and
+  `checkout.items` holding zero rows is not a finding.
+- **`exchange.scrap`, orders, items, payouts and the transaction ledger ARE
+  irreplaceable.** A declared parcel, an order, a payout record: there is no
+  second copy and no way to recreate one. 23 production `exchange.scrap` rows
+  across 12 customers exist nowhere else. That is what the covenant is for.
+
+So before invoking the covenant, ask which kind of table it is. Verify either
+way; refuse to delete only when the rows cannot be recreated.
+
+**Checkout is not "done" and will be overhauled.** The bar for now is that the
+current version works against the new API and database — not that it is right.
 
 This applies from the moment anything touches the database. Concretely:
 

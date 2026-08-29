@@ -109,10 +109,11 @@ export default function AddressList() {
               icon={MapPinIcon}
               title="No Addresses Found!"
               description="Add an address so we can save it to your account."
-              buttonLabel="Add New Address"
-              onClick={handleAdd}
-              buttonVariant="secondary"
-            />
+            >
+              <Button variant="secondary" onClick={handleAdd}>
+                Add New Address
+              </Button>
+            </EmptyState>
           )}
 
           <AddressDrawer />

@@ -76,15 +76,15 @@ export default function AdminPendingSalesOrder({ order }: SalesOrderDrawerConten
 
       {/* DOLLARS on the wire, not cents - the /100 died with the adapter,
           and putting one back here is a hundredfold error on money. */}
-      <DetailRow label="Total Due:" total>
+      <DetailRow label="Total Due:" variant="total">
         <PriceNumberFlow value={Number(paymentIntent.amount_expected ?? 0)} />
       </DetailRow>
 
-      <DetailRow label="Amount Paid:" total>
+      <DetailRow label="Amount Paid:" variant="total">
         <PriceNumberFlow value={Number(paymentIntent.amount_received ?? 0)} />
       </DetailRow>
 
-      <DetailRow label="Remaining Balance:" total>
+      <DetailRow label="Remaining Balance:" variant="total">
         <PriceNumberFlow
           value={
             Number(paymentIntent.amount_expected ?? 0) -

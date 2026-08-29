@@ -8,12 +8,11 @@ import StatusChip from '@/shared/ui/StatusChip'
 import UpdatedByline from '@/shared/ui/UpdatedByline'
 import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
 import { Textarea } from '@/shared/ui/base/textarea'
-import { Label } from '@/shared/ui/base/label'
 import { Input } from '@/shared/ui/base/input'
 import { useSpotPrices } from '@/features/spots/queries'
 import PremiumControl from '@/features/products/ui/PremiumControl'
 import QuantityBar from '@/features/products/ui/QuantityInput'
-import { DisplayToggle } from '@/shared/ui/DisplayToggle'
+import { SegmentedField } from '@/shared/ui/SegmentedField'
 import {
   useAdminTypes,
   useSaveProduct,
@@ -22,8 +21,8 @@ import {
   useAdminSuppliers,
 } from '@/features/products/queries'
 import { AdminProduct } from '@/features/products/types'
-import DotSelect from '@/shared/ui/DotSelect'
 import { Separator } from '@/shared/ui/base/separator'
+import { Field } from '@/shared/ui/Field'
 
 export default function ProductDrawer({
   products,
@@ -94,11 +93,7 @@ function Details({ product }: { product: AdminProduct }) {
   return (
     <div className="flex flex-col w-full gap-4">
       <p className="eyebrow mb-4">Details</p>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="name" className="pl-1">
-          Product Name
-        </Label>
-
+      <Field label="Product Name" htmlFor="name">
         <Input
           id="name"
           placeholder="Enter name..."
@@ -106,7 +101,7 @@ function Details({ product }: { product: AdminProduct }) {
           defaultValue={product.name ?? ''}
           onBlur={(e) => handleUpdate(product.id, { name: e.target.value })}
         />
-      </div>
+      </Field>
       <div className="flex w-full justify-between items-center gap-4">
         <PopoverSelect
           label="Metal"
@@ -140,10 +135,7 @@ function Details({ product }: { product: AdminProduct }) {
         variant="secondary"
       />
 
-      <div className="flex flex-col w-full gap-1">
-        <Label htmlFor="description" className="pl-1">
-          Description
-        </Label>
+      <Field label="Description" htmlFor="description" className="w-full">
         <Textarea
           rows={20}
           id="description"
@@ -152,7 +144,7 @@ function Details({ product }: { product: AdminProduct }) {
           defaultValue={product.description}
           onBlur={(e) => handleUpdate(product.id, { description: e.target.value })}
         />
-      </div>
+      </Field>
     </div>
   )
 }
@@ -208,11 +200,7 @@ function Specifications({ product }: { product: AdminProduct }) {
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Specifications</p>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="content" className="pl-1">
-          Content
-        </Label>
-
+      <Field label="Content" htmlFor="content">
         <Input
           id="content"
           inputMode="decimal"
@@ -227,14 +215,10 @@ function Specifications({ product }: { product: AdminProduct }) {
             }
           }}
         />
-      </div>
+      </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="purity" className="pl-1">
-            Purity
-          </Label>
-
+        <Field label="Purity" htmlFor="purity">
           <Input
             id="purity"
             placeholder="Enter purity..."
@@ -249,12 +233,8 @@ function Specifications({ product }: { product: AdminProduct }) {
               }
             }}
           />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="gross" className="pl-1">
-            Gross
-          </Label>
-
+        </Field>
+        <Field label="Gross" htmlFor="gross">
           <Input
             id="gross"
             placeholder="Enter gross..."
@@ -269,7 +249,7 @@ function Specifications({ product }: { product: AdminProduct }) {
               }
             }}
           />
-        </div>
+        </Field>
       </div>
     </div>
   )
@@ -286,29 +266,20 @@ function Displays({ product }: { product: AdminProduct }) {
       <p className="eyebrow">Displays</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 items-stretch justify-items-stretch">
-        <DisplayToggle
+        <SegmentedField
           label="Buy"
           value={!!product.display}
           onChange={(v) => handleUpdate({ display: v })}
-          className="w-full"
-          onLabel="Yes"
-          offLabel="No"
         />
-        <DisplayToggle
+        <SegmentedField
           label="Sell"
           value={!!product.sell_display}
           onChange={(v) => handleUpdate({ sell_display: v })}
-          className="w-full"
-          onLabel="Yes"
-          offLabel="No"
         />
-        <DisplayToggle
+        <SegmentedField
           label="Featured"
           value={!!product.homepage_display}
           onChange={(v) => handleUpdate({ homepage_display: v })}
-          className="w-full"
-          onLabel="Yes"
-          offLabel="No"
         />
       </div>
     </div>
@@ -326,18 +297,15 @@ function Dev({ product }: { product: AdminProduct }) {
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Dev</p>
 
-      <DotSelect
+      <SegmentedField
         label="Shadow Offset"
-        count={10}
         value={product.shadow_offset ?? 0}
         onChange={(n) => handleUpdate({ shadow_offset: n })}
+        options={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}
+        rowClassName="grid grid-cols-5 gap-2"
       />
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="variant_group" className="pl-1">
-          Variant Group
-        </Label>
-
+      <Field label="Variant Group" htmlFor="variant_group">
         <Input
           id="variant_group"
           placeholder="Enter variant group..."
@@ -345,13 +313,9 @@ function Dev({ product }: { product: AdminProduct }) {
           defaultValue={product.variant_group ?? ''}
           onBlur={(e) => handleUpdate({ variant_group: e.target.value })}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="variant_label" className="pl-1">
-          Variant Label
-        </Label>
-
+      <Field label="Variant Label" htmlFor="variant_label">
         <Input
           id="variant_label"
           placeholder="Enter variant label..."
@@ -359,13 +323,9 @@ function Dev({ product }: { product: AdminProduct }) {
           defaultValue={product.variant_label ?? ''}
           onBlur={(e) => handleUpdate({ variant_label: e.target.value })}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="filter_category" className="pl-1">
-          Filter Category
-        </Label>
-
+      <Field label="Filter Category" htmlFor="filter_category">
         <Input
           id="filter_category"
           placeholder="Enter category..."
@@ -373,13 +333,9 @@ function Dev({ product }: { product: AdminProduct }) {
           defaultValue={product.filter_category ?? ''}
           onBlur={(e) => handleUpdate({ filter_category: e.target.value })}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="slug" className="pl-1">
-          Slug
-        </Label>
-
+      <Field label="Slug" htmlFor="slug">
         <Input
           id="slug"
           placeholder="Enter slug..."
@@ -387,7 +343,7 @@ function Dev({ product }: { product: AdminProduct }) {
           defaultValue={product.slug ?? ''}
           onBlur={(e) => handleUpdate({ slug: e.target.value })}
         />
-      </div>
+      </Field>
     </div>
   )
 }
@@ -403,30 +359,22 @@ function Images({ product }: { product: AdminProduct }) {
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Images</p>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="image_front" className="pl-1">
-          Image Front
-        </Label>
-
+      <Field label="Image Front" htmlFor="image_front">
         <Input
           id="image_front"
           type="text"
           defaultValue={product.image_front ?? ''}
           onBlur={(e) => handleUpdate({ image_front: e.target.value })}
         />
-      </div>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="image_back" className="pl-1">
-          Image Back
-        </Label>
-
+      </Field>
+      <Field label="Image Back" htmlFor="image_back">
         <Input
           id="image_back"
           type="text"
           defaultValue={product.image_back ?? ''}
           onBlur={(e) => handleUpdate({ image_back: e.target.value })}
         />
-      </div>
+      </Field>
     </div>
   )
 }

@@ -242,7 +242,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
             </DetailRow>
           )}
 
-          <DetailRow label="Total:" total>
+          <DetailRow label="Total:" variant="total">
             <PriceNumberFlow value={total} />
           </DetailRow>
         </div>

@@ -177,7 +177,15 @@ export const RENAMES = {
     // there is nothing to carry, and if there ever were it would want the same
     // encryption treatment as exchange.payouts rather than a plain copy.
     routing: "-",
-    bank_account_type: "-",
+    // `bank_account_type` WAS DECLARED TWICE IN THIS OBJECT - mapped to
+    // `account_type` twelve lines above, and dropped here. JavaScript takes the
+    // last one, so the real mapping was silently discarded and audit:coverage
+    // was told the column had been deliberately dropped. `payments.details`
+    // HAS an `account_type` column, so the mapping above is the true one and
+    // this entry was the mistake; it was swept in with `routing` under a
+    // comment that is only about routing numbers. Removed 2026-08-29.
+    // THIS FILE EXISTS SO THE COVERAGE REPORT STAYS HONEST (CLAUDE.md), which
+    // makes a silently-shadowed entry the worst possible defect for it to have.
     amount_capturable: "-",
   },
   "exchange.payouts": {

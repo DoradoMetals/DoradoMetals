@@ -147,6 +147,19 @@ export async function getAllTypes(): Promise<{ name: string }[]> {
   return await products.getTypes();
 }
 
+// The id of the product with this exact name, or null.
+//
+// Lives here rather than in features/checkout because the id it returns is a
+// products.bullion id and this feature owns that table. The quote surface read
+// it through `#features/checkout/repo.next.ts` until 2026-08-29, which was a
+// direct import around a `*_SOURCE` switch (D142); moving the read to its owner
+// is what closes that, since there is now only one implementation to reach.
+export async function findProductIdByName(
+  name: string, executor?: Executor
+): Promise<string | null> {
+  return await products.findIdByName(name, executor);
+}
+
 export async function getLiveness(ids: string[], executor?: Executor): Promise<Liveness[]> {
   return await products.getLiveness(ids, executor);
 }

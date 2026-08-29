@@ -85,6 +85,82 @@ function classifies(token) {
   return null;
 }
 
+// EVERY CLASS STRING A className CARRIES, WHATEVER SPELLING IT ARRIVES IN.
+//
+// WHY THIS EXISTS, and it is the sharpest finding of the guard-hardening pass.
+// `--scatter` used to match two spellings only:
+//
+//     className="text-sm"          and          className={`text-${n}`}
+//
+// The tree has 205 call sites spelled `className={cn('text-sm', ...)}` and NOT
+// ONE OF THEM WAS EVER READ. So the scan reported 0 type-size utilities across
+// 263 files, and that zero was quoted in a commit message as evidence the
+// typography sweep was finished. It meant "zero of the ones I can see".
+//
+// That is D95's lesson and D135's in one instrument: a detector's blind spot
+// reports as CLEAN, and a report that cannot see part of its subject prints a
+// smaller number and exits 0. The sibling default mode had already handled
+// `{cn(...)}` for the same reason - the machinery was in this very file and
+// --scatter did not use it.
+//
+// HOW IT READS THEM NOW: take the whole balanced `{...}` expression after
+// `className=`, then pull every STRING LITERAL out of it. That covers cn(),
+// clsx(), ternaries, nested calls, template literals and any combination -
+// because the class names are always literals somewhere inside, whatever
+// function is arranging them.
+//
+// *** WHAT IT STILL CANNOT SEE, stated here because a blind spot nobody wrote
+// down is a blind spot that reports as clean: ***
+//   - A CLASS STRING HELD IN A VARIABLE OR IMPORTED: `className={styles.head}`,
+//     `const heading = "text-lg"` used elsewhere, or a cva()/tv() variant map
+//     defined at module scope. The literal is real but it is not inside the
+//     className expression, so nothing here attributes it to a call site.
+//     Arbitrary sizes (`text-[10px]`) are exempt from this gap: they are matched
+//     against the WHOLE file, not just className expressions.
+//   - A CLASS NAME ASSEMBLED FROM FRAGMENTS: `text-${size}` yields no literal
+//     token to classify, and `"text-" + size` yields "text-" alone.
+//   - ANYTHING OUTSIDE .tsx. Class strings in .ts helpers are not walked.
+// Each of those is a real occurrence this number does not include. The count is
+// a floor on the scatter, never a proof of zero.
+function classNameExpressions(src) {
+  const out = [];
+  const re = /\bclassName=/g;
+  let m;
+  while ((m = re.exec(src))) {
+    let i = m.index + m[0].length;
+    if (src[i] === '"' || src[i] === "'") {
+      const quote = src[i];
+      const end = src.indexOf(quote, i + 1);
+      if (end === -1) continue;
+      out.push(src.slice(i + 1, end));
+      continue;
+    }
+    if (src[i] !== "{") continue;
+    // Balanced braces, so a nested object or a second cn() does not truncate it.
+    let depth = 0;
+    const start = i;
+    for (; i < src.length; i += 1) {
+      if (src[i] === "{") depth += 1;
+      else if (src[i] === "}") {
+        depth -= 1;
+        if (depth === 0) break;
+      }
+    }
+    out.push(src.slice(start + 1, i));
+  }
+  return out;
+}
+
+// The class tokens inside one className expression. A bare attribute value is
+// itself the class list; an expression is mined for its string literals.
+function classTokens(expr) {
+  const literals = [...expr.matchAll(/"([^"]*)"|'([^']*)'|`([^`]*)`/g)].map(
+    (m) => m[1] ?? m[2] ?? m[3] ?? ""
+  );
+  const source = literals.length ? literals.join(" ") : expr;
+  return source.split(/\s+/).filter(Boolean);
+}
+
 function walk(dir, out = []) {
   for (const e of readdirSync(dir)) {
     if (e === "node_modules" || e === ".next" || e === "test-results" || e.startsWith(".")) continue;
@@ -126,9 +202,18 @@ function elements(src, names) {
     while ((m = re.exec(src))) {
       const attrs = m[1];
       const line = src.slice(0, m.index).split("\n").length;
-      const cls = /className=(?:"([^"]*)"|\{`([^`]*)`\}|\{cn\(([^)]*)\)\})/.exec(attrs);
-      if (!cls) continue;
-      const blob = cls[1] ?? cls[2] ?? cls[3] ?? "";
+      // THE SAME EXTRACTOR --scatter USES. This spelled out three forms - a
+      // quoted string, a bare template literal, and `cn(...)` matched with
+      // `[^)]*`, which TRUNCATES at the first close paren and so lost everything
+      // after a nested call. clsx() and a plain ternary were not handled at all.
+      // Three spellings enumerated by hand is how --scatter came to report zero.
+      //
+      // BLIND SPOT WORTH NAMING HERE TOO: the element regex above stops the
+      // attribute blob at the first `>`, so a call site whose attributes contain
+      // an arrow function (`onClick={() => ...}`) is read only up to that point.
+      const exprs = classNameExpressions(attrs);
+      if (!exprs.length) continue;
+      const blob = exprs.flatMap((e) => classTokens(e)).join(" ");
       found.push({ name, line, blob, hasVariant: /\bvariant\s*=/.test(attrs) });
     }
   }
@@ -158,8 +243,47 @@ export const X = () => (<>
   if (!els[0].hasVariant || els[1].hasVariant) {
     console.error("SELF-TEST FAILED: variant detection wrong"); process.exit(1);
   }
+  // THE cn() BLIND SPOT, pinned so it cannot reopen. --scatter matched
+  // `className="..."` and a bare template literal only, so the 205 call sites
+  // spelled `className={cn(...)}` were never read and the mode reported 0 type
+  // sizes across 263 files. That zero was quoted as evidence the typography
+  // sweep was finished; the real number was 28.
+  const CN_CASES = [
+    [`<div className={cn("flex", active && "text-2xl font-bold")} />`, ["text-2xl", "font-bold"]],
+    [`<div className={cn(clsx("gap-2", "text-sm"))} />`, ["text-sm"]],
+    [`<div className={active ? "text-lg" : "text-xs"} />`, ["text-lg", "text-xs"]],
+    [`<div className={cn("p-2", { "font-medium": on })} />`, ["font-medium"]],
+    // Must NOT flag: alignment is layout, and pure layout is the allowed case.
+    [`<div className={cn("text-center", "flex w-full")} />`, []],
+  ];
+  for (const [markup, want] of CN_CASES) {
+    const exprs = classNameExpressions(markup);
+    if (exprs.length !== 1) {
+      console.error(`SELF-TEST FAILED: ${exprs.length} className expression(s) in ${markup}`);
+      process.exit(1);
+    }
+    const got = classTokens(exprs[0])
+      .map((t) => t.replace(/^[`'",]+|[`'",]+$/g, ""))
+      .filter((t) => {
+        const bare = t.replace(/^(?:[a-z-]+:)+/, "");
+        return !TEXT_LAYOUT.test(bare) && TYPE_SIZES.test(bare);
+      });
+    if (String(got) !== String(want)) {
+      console.error(`SELF-TEST FAILED: ${markup}\n  saw [${got}], expected [${want}]`);
+      console.error("  This is the cn() blind spot reopening - --scatter reported 0 for months.");
+      process.exit(1);
+    }
+  }
+  // And the balanced-brace reader must not truncate on a nested object.
+  const nested = classNameExpressions(`<div className={cn("a", { "text-sm": x })} data-x="y" />`);
+  if (nested.length !== 1 || !nested[0].includes("text-sm")) {
+    console.error("SELF-TEST FAILED: nested braces truncated the className expression");
+    process.exit(1);
+  }
+
   console.log("self-test ok: sees shared imports, flags appearance and colour,");
-  console.log("leaves layout and text-center alone, and separates contradicted from over-specified.");
+  console.log("leaves layout and text-center alone, separates contradicted from over-specified,");
+  console.log(`and reads class strings out of ${CN_CASES.length} cn()/clsx()/ternary spellings.`);
   process.exit(0);
 }
 
@@ -187,8 +311,11 @@ if (process.argv.includes("--scatter")) {
   for (const f of all) {
     const src = readFileSync(f, "utf8");
     let n = 0;
-    for (const m of src.matchAll(/\bclassName=(?:"([^"]*)"|\{`([^`]*)`\})/g)) {
-      for (const tok of (m[1] ?? m[2] ?? "").split(/\s+/)) {
+    for (const expr of classNameExpressions(src)) {
+      for (const raw of classTokens(expr)) {
+        // Strip the punctuation that survives splitting a cn() argument list -
+        // the same clean-up classifies() needed for exactly this reason.
+        const tok = raw.replace(/^[`'",]+|[`'",]+$/g, "");
         const bare = tok.replace(/^(?:[a-z-]+:)+/, "");
         if (TEXT_LAYOUT.test(bare)) { alignment++; continue; }
         if (TYPE_SIZES.test(bare)) { sized++; n++; }
@@ -209,6 +336,11 @@ if (process.argv.includes("--scatter")) {
   for (const [dir, n] of Object.entries(perDir).sort((a, b) => b[1] - a[1]).slice(0, 15))
     console.log(`  ${String(n).padStart(5)}  ${dir}`);
   console.log(`\n  Zero here means a heading size changes in ONE line of typography.css.`);
+  console.log(
+    `  It does NOT mean zero exist: a class held in a variable, an imported\n` +
+      `  variant map, or a name assembled from fragments is invisible to this.\n` +
+      `  See the blind-spot list above classNameExpressions().`
+  );
   process.exit(sized + arbitrary ? 1 : 0);
 }
 

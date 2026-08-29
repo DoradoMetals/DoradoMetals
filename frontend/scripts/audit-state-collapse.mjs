@@ -47,9 +47,30 @@
    ============================================================================ */
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 
-const ROOT = process.cwd().endsWith("/frontend") ? process.cwd() : join(process.cwd(), "frontend");
+// *** WHAT THIS SCANNER CAN AND CANNOT SEE. Worth stating next to its sibling's
+// failure: lint-call-site-styling's --scatter enumerated three spellings of
+// `className` and so never read the 205 call sites written as
+// `className={cn(...)}`, reporting 0 where the answer was 28. THIS file does not
+// have that gap, and not by luck - it matches any QUOTED STRING that looks like
+// a class list (see the pattern near classStrings), so a class inside cn(),
+// clsx(), a ternary or an object literal is read the same as one in an
+// attribute. What it still cannot see: a class name assembled from fragments
+// (`bg-${tone}`), a colour arriving through a CSS variable set at runtime, and
+// any file that is not .tsx. ***
+//
+// ANCHORED TO THIS FILE, NOT TO cwd. This read
+//   process.cwd().endsWith("/frontend") ? process.cwd() : join(process.cwd(), "frontend")
+// which is true of the two places it happened to be invoked from and false
+// everywhere else - run from frontend/scripts it resolved
+// frontend/scripts/frontend/app/styles/theme.css and died on ENOENT. That is
+// the same shape as D120's three hardcoded assumptions: correct about the
+// invocation the code happened to have, and silently wrong about any other.
+// A script's root is a property of where the script IS.
+const ROOT = process.env.STATE_COLLAPSE_ROOT
+  ? resolve(process.env.STATE_COLLAPSE_ROOT)
+  : resolve(import.meta.dirname, "..");
 const THEME = join(ROOT, "app/styles/theme.css");
 const MARGIN = 1.25;
 

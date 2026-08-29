@@ -226,18 +226,47 @@ if (unmapped.length) {
     );
   }
 }
-// --self-test: the detector must still report a finding known to be true.
-// spotPriceSchema requires bid_spot; exchange.metals.bid_spot permits NULL.
-// If that stops being reported, the parser or the mapping has broken and every
-// other "yes" on this list is worthless.
+// --self-test: the detector must still report findings known to be true.
+//
+// IT WAS PINNED TO A SINGLE SCHEMA AND THAT SCHEMA IS GONE. The control was
+// `spotPriceSchema` requiring `bid_spot` against a nullable `exchange.metals`
+// column (D33) - and the 2026-08-28 conversion deleted it, because the frontend
+// now imports its spot shapes from @dorado/contracts rather than declaring its
+// own. So this self-test FAILED on a codebase that was working perfectly: the
+// finding was not missed, the subject was retired.
+//
+// That is the right failure - an assertion that cannot see its subject fails
+// (D135) - and it is also why a self-test needs MORE THAN ONE control. A single
+// control makes the guard exactly as durable as the most deletable thing it
+// points at, and this one was pointing at a schema the conversion was always
+// going to remove. Two survive today; if one goes, the other still proves the
+// parser works while the failure names the one that left.
+const CONTROLS = [
+  // The address form is the longest-lived hand-written schema in the frontend,
+  // and exchange.addresses.line_1 has permitted NULL since the table was made.
+  ["addressSchema", "line_1"],
+  // A payout schema requiring a bank field the column permits to be absent.
+  // These are the plaintext bank details; whatever else changes, they stay.
+  ["achSchema", "routing_number"],
+];
 if (process.argv.includes("--self-test")) {
-  const hits = found.get("spotPriceSchema") ?? [];
-  console.log(`\nself-test: spotPriceSchema reports [${hits.join(", ")}]`);
-  if (!hits.includes("bid_spot")) {
-    console.error("self-test FAILED - the known bid_spot finding was not reported");
+  const missed = [];
+  for (const [schema, field] of CONTROLS) {
+    const hits = found.get(schema) ?? [];
+    console.log(`\nself-test: ${schema} reports [${hits.join(", ")}]`);
+    if (!hits.includes(field)) missed.push(`${schema}.${field}`);
+  }
+  if (missed.length) {
+    console.error(
+      `self-test FAILED - ${missed.length} known finding(s) not reported: ${missed.join(", ")}\n` +
+        `  Either the parser or the mapping has broken and every other verdict on this\n` +
+        `  list is worthless, OR the schema was deliberately deleted (which is what\n` +
+        `  happened to spotPriceSchema in the contracts conversion). Check which, then\n` +
+        `  repoint CONTROLS - never just remove the entry.`
+    );
     process.exit(1);
   }
-  console.log("self-test: PASS - the detector still fires on a known case");
+  console.log("\nself-test: PASS - the detector still fires on every known case");
 }
 
 if (compared < 20) {

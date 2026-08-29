@@ -23,8 +23,21 @@
 // Repaired by restoring the engine from `93ecdf80`, the last commit at which
 // it parsed.
 //
+// WHAT NOW STOPS IT HAPPENING AGAIN, in two parts, because the failure had two:
+//   1. IT DID NOT PARSE. `lint:script-guards` runs `node --check` over every
+//      file in scripts/ on every gate run, so a truncated file is a red gate
+//      rather than a script nobody ran. That covers the actual casualty here -
+//      the runner, not a caller - which no import lint could ever see.
+//   2. IT WOULD HAVE PASSED AT ZERO. Even repaired, an empty FEATURES object
+//      prints "0 operation(s) identical, 0 diverge" and exits 0 - a report that
+//      cannot see its subject printing a smaller number (D135). There is now a
+//      floor, and `--list` enumerates the subject WITHOUT a database so the
+//      structure can be checked for the price of a process start.
+//
 //   pnpm --filter @dorado/api diff            all features
 //   pnpm --filter @dorado/api diff leads      one feature
+//   pnpm --filter @dorado/api diff --list     what would be compared, no database
+//   pnpm --filter @dorado/api diff:self-test  prove the floor and the engine exist
 import "#env";
 import pool from "#db";
 
@@ -169,7 +182,72 @@ const FEATURES = {
 // which would hide an ordering regression.
 const norm = (v) => JSON.stringify(v);
 
-const requested = process.argv.slice(2);
+// THE FLOOR. `diff` is the gate for flipping a *_SOURCE switch, so a run that
+// compares nothing must not read as a run that found no divergence.
+//
+// The number falls DELIBERATELY as features restructure - a feature with one
+// implementation has no second one to compare against, and its entry is removed
+// in the same commit as its repo.exchange.js. So this is a floor on what is
+// left, and lowering it is a decision made alongside such a commit, never to
+// make a red run green. Payments is the last pair.
+const FEATURE_FLOOR = Number(process.env.DIFF_FEATURE_FLOOR ?? 1);
+const READ_FLOOR = Number(process.env.DIFF_READ_FLOOR ?? 1);
+
+const declaredReads = Object.values(FEATURES).reduce((n, f) => n + (f.reads?.length ?? 0), 0);
+if (Object.keys(FEATURES).length < FEATURE_FLOOR || declaredReads < READ_FLOOR) {
+  console.error(
+    `diff declares ${Object.keys(FEATURES).length} feature(s) and ${declaredReads} read(s), ` +
+      `expected at least ${FEATURE_FLOOR} and ${READ_FLOOR}. An empty comparison exits 0 ` +
+      `and reads as agreement; that is what "0 operation(s) identical, 0 diverge" ` +
+      `would have said for the ten commits this file did not parse.`
+  );
+  process.exit(1);
+}
+
+// --list ENUMERATES THE SUBJECT WITHOUT A DATABASE. It is what makes the
+// structure of this file checkable on every gate run: the object literal has to
+// be well-formed, every entry has to carry loaders and reads, and the engine
+// below has to still be here for the file to have parsed at all.
+if (process.argv.includes("--list")) {
+  for (const [name, f] of Object.entries(FEATURES)) {
+    console.log(`${name}: ${f.reads.length} read(s)`);
+    for (const [label] of f.reads) console.log(`    ${label}`);
+    for (const key of ["exchange", "next"]) {
+      if (typeof f[key] !== "function") {
+        console.error(`  ${name} has no ${key} loader - the entry is malformed`);
+        process.exit(1);
+      }
+    }
+  }
+  console.log(`\n${Object.keys(FEATURES).length} feature(s), ${declaredReads} read(s) declared`);
+  process.exit(0);
+}
+
+if (process.argv.includes("--self-test")) {
+  const { spawnSync } = await import("node:child_process");
+  const run = (env, args = ["--list"]) =>
+    spawnSync(process.execPath, [import.meta.filename, ...args], {
+      env: { ...process.env, ...env }, encoding: "utf8",
+    });
+  const cases = [
+    ["--list enumerates the subject without a database", {}, (r) => r.status === 0 && /read\(s\) declared/.test(r.stdout)],
+    ["the feature floor fires when the object empties out", { DIFF_FEATURE_FLOOR: "99" },
+      (r) => r.status !== 0 && /reads as agreement/.test(r.stderr)],
+    ["the read floor fires independently of the feature floor", { DIFF_READ_FLOOR: "9999" },
+      (r) => r.status !== 0 && /reads as agreement/.test(r.stderr)],
+  ];
+  let bad = 0;
+  for (const [name, env, ok] of cases) {
+    const r = run(env);
+    if (ok(r)) console.log(`  ok   ${name}`);
+    else { bad += 1; console.error(`  FAIL ${name}\n${r.stdout}${r.stderr}`); }
+  }
+  if (bad) { console.error(`\nself-test FAILED: ${bad} case(s)`); process.exit(1); }
+  console.log("\nself-test passed: the floor fires and the engine is present");
+  process.exit(0);
+}
+
+const requested = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const names = requested.length ? requested : Object.keys(FEATURES);
 
 let pass = 0;

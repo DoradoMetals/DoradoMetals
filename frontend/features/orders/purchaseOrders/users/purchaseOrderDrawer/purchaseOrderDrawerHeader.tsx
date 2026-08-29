@@ -1,4 +1,3 @@
-import { Button } from '@/shared/ui/base/button'
 import {
   useDownloadInvoice,
   useDownloadPackingList,
@@ -9,9 +8,9 @@ import { payoutOptions } from '@/features/payouts/types'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
-import { DownloadIcon } from '@phosphor-icons/react'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useOrderSpots, nameSpots } from '@/features/orders/spots'
+import { OrderDrawerHeader } from '@/features/orders/ui/OrderDrawerHeader'
 
 export default function PurchaseOrderDrawerHeader({ order }: PurchaseOrderDrawerHeaderProps) {
   const downloadPackingList = useDownloadPackingList()
@@ -74,40 +73,12 @@ export default function PurchaseOrderDrawerHeader({ order }: PurchaseOrderDrawer
   ]
 
   return (
-    <div className="flex flex-col w-full border-b-1 gap-3 border-border">
-      <div className="flex w-full justify-between items-center">
-        <strong>{formatFullDate(order.created_at ?? undefined)}</strong>
-
-        <small>
-          {formatPurchaseOrderNumber(order.number)}
-        </small>
-      </div>
-      <div className="flex w-full justify-between items-center">
-        <div className="flex items-center gap-2">
-          {status && Icon && (
-            <div className="text-primary">
-              <Icon size={24} />
-            </div>
-          )}
-          <strong className="stat-sm">{order.status}</strong>
-        </div>
-        <div className="flex ml-auto">
-          {downloadOptions.map(({ statuses, label, onClick, isPending }, index) =>
-            statuses.includes(order.status ?? '') ? (
-              <Button
-                key={index}
-                variant="link"
-                className='flex items-center justify-start gap-2 px-0'
-                onClick={onClick}
-                disabled={isPending}
-              >
-                <DownloadIcon size={20} className="text-primary" />
-                {isPending ? 'Loading...' : label}
-              </Button>
-            ) : null
-          )}
-        </div>
-      </div>
-    </div>
+    <OrderDrawerHeader
+      primary={formatFullDate(order.created_at ?? undefined)}
+      secondary={formatPurchaseOrderNumber(order.number)}
+      status={order.status}
+      icon={status ? Icon : undefined}
+      downloads={downloadOptions}
+    />
   )
 }

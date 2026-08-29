@@ -109,7 +109,7 @@ export function RowGroups<TData>({
           return (
             <TableCell key={colId} className={cn('h-10 py-2 align-left w-20', s.className)}>
               <Button
-                variant="ghost"
+                variant="tertiary"
                 onClick={(e) => {
                   e.stopPropagation()
                   ;(row as any).getToggleExpandedHandler?.()()

@@ -10,16 +10,16 @@ import UpdatedByline from '@/shared/ui/UpdatedByline'
 
 import { Lead, LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
-import { Label } from '@/shared/ui/base/label'
 import { Input } from '@/shared/ui/base/input'
 import { Textarea } from '@/shared/ui/base/textarea'
 import { useCreateUser, useGetSession } from '@/features/auth/queries'
-import { DisplayToggle } from '@/shared/ui/DisplayToggle'
+import { SegmentedField } from '@/shared/ui/SegmentedField'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import SchedulePicker from '@/shared/ui/SchedulePicker'
 import { Button } from '@/shared/ui/base/button'
 import { TrashIcon, UserPlusIcon } from '@phosphor-icons/react'
 import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
+import { Field } from '@/shared/ui/Field'
 import {
   Dialog,
   DialogContent,
@@ -89,19 +89,14 @@ function Details({ lead }: { lead: Lead }) {
     <div className="flex flex-col w-full gap-4">
       <p className="eyebrow mb-4">Details</p>
 
-      <div className="flex flex-col gap-1">
-        <Label className="pl-1">Priority</Label>
+      <Field label="Priority">
         <PrioritySelect
           value={(lead.priority ?? 'Medium') as LeadPriority}
           onChange={(v) => handleUpdate({ priority: v })}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="name" className="pl-1">
-          Name
-        </Label>
-
+      <Field label="Name" htmlFor="name">
         <Input
           id="name"
           placeholder="Enter name..."
@@ -109,13 +104,9 @@ function Details({ lead }: { lead: Lead }) {
           defaultValue={lead.name ?? ''}
           onBlur={(e) => handleUpdate({ name: e.target.value })}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="phone" className="pl-1">
-          Phone Number
-        </Label>
-
+      <Field label="Phone Number" htmlFor="phone">
         <Input
           ref={inputRef}
           id="phone"
@@ -133,13 +124,9 @@ function Details({ lead }: { lead: Lead }) {
             handleUpdate({ phone: digits })
           }}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="email" className="pl-1">
-          Email
-        </Label>
-
+      <Field label="Email" htmlFor="email">
         <Input
           id="email"
           placeholder="Enter email..."
@@ -147,12 +134,9 @@ function Details({ lead }: { lead: Lead }) {
           defaultValue={lead.email ?? ''}
           onBlur={(e) => handleUpdate({ email: e.target.value })}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col w-full gap-1">
-        <Label htmlFor="notes" className="pl-1">
-          Notes
-        </Label>
+      <Field label="Notes" htmlFor="notes" className="w-full">
         <Textarea
           rows={20}
           id="Notes"
@@ -161,7 +145,7 @@ function Details({ lead }: { lead: Lead }) {
           defaultValue={lead.notes}
           onBlur={(e) => handleUpdate({ notes: e.target.value })}
         />
-      </div>
+      </Field>
     </div>
   )
 }
@@ -180,19 +164,19 @@ function Booleans({ lead }: { lead: Lead }) {
       <p className="eyebrow">Booleans</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 items-stretch justify-items-stretch">
-        <DisplayToggle
+        <SegmentedField
           label="Contacted"
           value={!!lead.contacted}
           onChange={(v) => handleUpdate({ contacted: v })}
           className="w-full"
         />
-        <DisplayToggle
+        <SegmentedField
           label="Responded"
           value={!!lead.responded}
           onChange={(v) => handleUpdate({ responded: v })}
           className="w-full"
         />
-        <DisplayToggle
+        <SegmentedField
           label="Converted"
           value={!!lead.converted}
           onChange={(v) => handleUpdate({ converted: v })}
@@ -223,25 +207,23 @@ function Contacted({ lead }: { lead: Lead }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col w-full gap-4 items-start">
-        <div className="flex flex-col w-full gap-1">
-          <Label className="pl-1">Point of Contact</Label>
+        <Field label="Point of Contact" className="w-full">
           <PopoverSelect
             value={lead.contact}
             options={admins?.map((a) => a.name)}
             onChange={(val) => handleUpdate({ contact: val })}
             variant="secondary"
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col w-full gap-1">
-          <Label className="pl-1">Last Contacted</Label>
+        <Field label="Last Contacted" className="w-full">
           <SchedulePicker
             value={lastContacted}
             onChange={(iso) => handleUpdate({ last_contacted: iso ? new Date(iso) : null })}
             minDate={minDate}
             maxDate={maxDate}
           />
-        </div>
+        </Field>
       </div>
     </div>
   )

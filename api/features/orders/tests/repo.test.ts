@@ -48,7 +48,7 @@ const orderRow = async (c: PoolClient, id: string) =>
   )).rows[0] as Record<string, unknown>;
 
 test("a status change records the status and its author", async () => {
-  await inRollback(async (c) => {
+  await inRollback(async (c: PoolClient) => {
     const id = await anOrder(c);
     assert.ok(id, "orders.orders is empty - this test proves nothing");
     // A sentinel, so a pass cannot come from the value already being there.
@@ -67,7 +67,7 @@ test("a status change records the status and its author", async () => {
 // overwrote it unconditionally. This pins that, so a later "improvement" to
 // coalesce it has to be a deliberate decision rather than a silent one.
 test("a status change with no author clears the author", async () => {
-  await inRollback(async (c) => {
+  await inRollback(async (c: PoolClient) => {
     const id = await anOrder(c);
     assert.ok(id, "orders.orders is empty");
     await c.query("UPDATE orders.orders SET updated_by = 'alice' WHERE id = $1", [id]);
@@ -82,7 +82,7 @@ test("a status change with no author clears the author", async () => {
 });
 
 test("each of the three flags sets its own column and no other", async () => {
-  await inRollback(async (c) => {
+  await inRollback(async (c: PoolClient) => {
     const id = await anOrder(c);
     assert.ok(id, "orders.orders is empty");
 

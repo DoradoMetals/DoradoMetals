@@ -58,6 +58,15 @@ CREATE SCHEMA IF NOT EXISTS tax;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'category' AND n.nspname = 'fulfillments'
+  ) THEN
+    CREATE TYPE fulfillments.category AS ENUM ('SHIPMENT', 'PICKUP', 'DIRECT');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE t.typname = 'email_kind' AND n.nspname = 'media'
   ) THEN
     CREATE TYPE media.email_kind AS ENUM ('purchase_order_created', 'purchase_order_priced', 'sales_order_to_supplier', 'auth_verification');
@@ -288,7 +297,7 @@ CREATE TABLE IF NOT EXISTS fulfillments.methods (
   updated_by text,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
-  category text DEFAULT 'OTHER'::text NOT NULL,
+  category fulfillments.category NOT NULL,
   hidden boolean DEFAULT false NOT NULL,
   admin_label text,
   is_default boolean DEFAULT false NOT NULL,
@@ -304,7 +313,7 @@ ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS created_by text;
 ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS updated_by text;
 ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
-ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS category text DEFAULT 'OTHER'::text;
+ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS category fulfillments.category;
 ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS hidden boolean DEFAULT false;
 ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS admin_label text;
 ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS is_default boolean DEFAULT false;
@@ -1253,7 +1262,8 @@ CREATE TABLE IF NOT EXISTS shipping.services (
   created_by text,
   updated_by text,
   created_by_id uuid,
-  updated_by_id uuid
+  updated_by_id uuid,
+  max_insured_value numeric DEFAULT 10000 NOT NULL
 );
 ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS carrier_id uuid;
@@ -1282,6 +1292,7 @@ ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS created_by text;
 ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS updated_by text;
 ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+ALTER TABLE shipping.services ADD COLUMN IF NOT EXISTS max_insured_value numeric DEFAULT 10000;
 
 CREATE TABLE IF NOT EXISTS shipping.shipments (
   id uuid DEFAULT gen_random_uuid() NOT NULL,

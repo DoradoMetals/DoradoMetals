@@ -4,9 +4,8 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo, useState } from 'react'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { Label } from '@/shared/ui/base/label'
 import { Input } from '@/shared/ui/base/input'
-import { DisplayToggle } from '@/shared/ui/DisplayToggle'
+import { SegmentedField } from '@/shared/ui/SegmentedField'
 import StatusChip from '@/shared/ui/StatusChip'
 import UpdatedByline from '@/shared/ui/UpdatedByline'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
@@ -21,6 +20,7 @@ import { ColumnDef } from '@tanstack/react-table'
 import { ChipColumn, IconColumn, TextColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
 import { Button } from '@/shared/ui/base/button'
+import { Field } from '@/shared/ui/Field'
 
 export default function CarriersDrawer({
   carriers,
@@ -92,10 +92,7 @@ function Details({ carrier }: { carrier: Carrier }) {
     <div className="flex flex-col w-full gap-4">
       <p className="eyebrow mb-4">Details</p>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="carrier_name" className="pl-1">
-          Name
-        </Label>
+      <Field label="Name" htmlFor="carrier_name">
         <Input
           id="carrier_name"
           placeholder="Carrier name..."
@@ -103,12 +100,9 @@ function Details({ carrier }: { carrier: Carrier }) {
           defaultValue={carrier.organization.name ?? ''}
           onBlur={(e) => handleOrgUpdate({ name: e.target.value })}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="carrier_logo" className="pl-1">
-          Logo
-        </Label>
+      <Field label="Logo" htmlFor="carrier_logo">
         <Input
           id="carrier_logo"
           placeholder="/logos/fedex.svg or https://..."
@@ -116,7 +110,7 @@ function Details({ carrier }: { carrier: Carrier }) {
           defaultValue={carrier.logo ?? ''}
           onBlur={(e) => updateCarrier.mutate({ ...carrier, logo: e.target.value })}
         />
-      </div>
+      </Field>
     </div>
   )
 }
@@ -131,10 +125,7 @@ function Contact({ carrier }: { carrier: Carrier }) {
     <div className="flex flex-col w-full gap-4">
       <p className="eyebrow mb-4">Contact</p>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="carrier_email" className="pl-1">
-          Email
-        </Label>
+      <Field label="Email" htmlFor="carrier_email">
         <Input
           id="carrier_email"
           placeholder="support@carrier.com"
@@ -142,12 +133,9 @@ function Contact({ carrier }: { carrier: Carrier }) {
           defaultValue={carrier.organization.email ?? ''}
           onBlur={(e) => handleOrgUpdate({ email: e.target.value })}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="carrier_phone" className="pl-1">
-          Phone
-        </Label>
+      <Field label="Phone" htmlFor="carrier_phone">
         <Input
           id="carrier_phone"
           placeholder="(555) 555-5555"
@@ -155,7 +143,7 @@ function Contact({ carrier }: { carrier: Carrier }) {
           defaultValue={formatPhoneNumber(carrier.organization.phone ?? '')}
           onBlur={(e) => handleOrgUpdate({ phone: normalizePhone(e.target.value) })}
         />
-      </div>
+      </Field>
     </div>
   )
 }
@@ -172,8 +160,8 @@ function Status({ carrier }: { carrier: Carrier }) {
       <div className="flex flex-col gap-4 w-full">
         <p className="eyebrow">Active</p>
 
-        <DisplayToggle
-          label=""
+        <SegmentedField
+          label="Accepting shipments"
           value={!!carrier.organization.enabled}
           onChange={(v) => handleOrgUpdate({ enabled: v })}
         />

@@ -6,7 +6,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { FloatingLabelTextarea } from '@/shared/ui/inputs/FloatingLabelTextarea'
-import { DisplayToggle } from '@/shared/ui/DisplayToggle'
+import { SegmentedField } from '@/shared/ui/SegmentedField'
 import StatusChip from '@/shared/ui/StatusChip'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
 import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
@@ -133,14 +133,14 @@ function Visibility({ review }: { review: Review }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Visibility</p>
-      <DisplayToggle
+      <SegmentedField
         label="Visibility"
         value={!review.hidden}
         onChange={(v) => handleUpdate(!v)}
-        className="w-full"
-        onLabel="Public"
-        offLabel="Hidden"
-
+        options={[
+          { value: true, label: 'Public' },
+          { value: false, label: 'Hidden' },
+        ]}
       />
 
       <p>Toggle to hide/show this review on your site.</p>

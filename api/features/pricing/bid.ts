@@ -112,8 +112,95 @@ export type { PricingSpot, Spots } from "#features/pricing/spot.ts";
 type PricedOrder = {
   order_items: PurchaseOrderItem[];
   shipment?: { shipping_charge?: number | null } | null;
-  payout: { cost: number };
+  // `payout: { cost: number }` until 2026-08-29, and that was a LIE THE TYPE
+  // SYSTEM WAS REPEATING. Every caller reaches here through
+  // features/orders/service.ts's `OrderLike`, whose own header says the order
+  // is "whatever the caller had… several callers are controllers handing over
+  // req.body". So the compiler believed `cost` was a number because a type
+  // ASSERTED it, not because anything checked - the same shape as D103 and
+  // D129, a coupling nothing enforces dressed as a guarantee.
+  //
+  // Widened to what the data can actually be. The composed read builds
+  // EMPTY_PAYOUT for an order with no payout row (compose.ts), so `cost` is
+  // genuinely null on 32 of dev's 48 purchase orders today; a hand-assembled
+  // fixture or a
+  // request body can omit the key entirely. Both are now expressible, which
+  // means `- order.payout.cost` no longer compiles and cannot come back.
+  payout?: { cost?: number | null } | null;
 };
+
+// EVERY MONEY FIGURE THIS MODULE RETURNS IS A NUMBER OR AN EXCEPTION. NEVER NaN.
+//
+// THE DEFECT THIS REPLACES, found by lane B on 2026-08-29: the total ended
+//
+//     const shipping = order.shipment?.shipping_charge ?? 0;
+//     return baseTotal - shipping - order.payout.cost;
+//
+// - one subtrahend defended, the next one not, on consecutive lines. Three
+// inputs, three different answers to the same question, and only one of them
+// was deliberate:
+//
+//   payout null            -> TypeError. Loud, and pinned by a test below.
+//   payout { cost: null }  -> 0, because JS reads `x - null` as `x - 0`. This
+//                             is what EVERY real read produces for an order
+//                             with no payout, and it is what the invoice
+//                             template itself does one line under the call
+//                             (`purchaseOrder.payout?.cost ?? 0`).
+//   payout { }             -> *** NaN, SILENTLY, ALL THE WAY TO THE INVOICE. ***
+//
+// MEASURED BEFORE CHOOSING: `getPurchaseById` on dev's purchase orders with no
+// payout row - 32 OF 48 - returns `{ …, cost: null }`, never undefined, so the NaN
+// is not reachable through the API's own reads TODAY. It is reachable through
+// every hand-assembled order - features/media/pdfs/service.ts casts one with
+// `as unknown as`, the emails do the same - and it is one key away at any time,
+// because nothing owns the invariant that EMPTY_PAYOUT lists `cost`.
+// compose.ts's own header SAID "order.payout.cost therefore gives undefined
+// today", which is false for `cost` and true for anything not in that list. An
+// invariant nobody owns is not an invariant; that comment is corrected and now
+// says the key list is load-bearing and why.
+//
+// SO THE SPLIT IS BY MEANING, NOT BY NULLISHNESS, and the two halves are:
+//
+//   ABSENT -> 0. An order with no payout has no payout fee. That is what the
+//   data means, it is what the app already does, and it is NOT "waiving the
+//   fee" (D117: the fee is data on the row): a payout row carrying a real cost
+//   still subtracts it. Defaulting here cannot invoice as though no fee applied
+//   when one did, because a row that says 50 says 50.
+//
+//   PRESENT BUT UNUSABLE -> throw. A value arrived and could not be made into a
+//   number. That is the `spot!` case two functions down, where the deliberate
+//   TypeError exists precisely because turning a loud failure into a quiet
+//   wrong number is the worse trade on a money path.
+//
+// This DOES change the `payout: null` case from TypeError to 0, deliberately
+// and with the failing assertion the old test asked for. The throw there was
+// not protecting a number - a null payout has a well-defined meaning, and
+// throwing on it would refuse to invoice every order placed before a customer
+// picks a payout method. `spot!` is different in kind: an item with no spot
+// price cannot be valued at all, so the total would be meaningless rather than
+// merely missing a subtrahend. And the scale is the argument: THIRTY-TWO of
+// dev's forty-eight purchase orders have no payout row. Throwing would refuse
+// to invoice two thirds of them.
+function fee(value: unknown, what: string): number {
+  if (value == null) return 0;
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    throw new TypeError(`${what} is not a number: ${String(value)}`);
+  }
+  return n;
+}
+
+// The last gate, and it earns its place independently of the fees: migration
+// 087 had to clean up two `content = 'NaN'` rows that reached the wire as the
+// STRING "NaN", so a non-finite line total is a thing this database has
+// actually produced. A total that cannot be computed must stop here rather than
+// be printed on a document a customer is paid against.
+function finite(total: number, what: string): number {
+  if (!Number.isFinite(total)) {
+    throw new TypeError(`${what} did not come out as a number (${String(total)})`);
+  }
+  return total;
+}
 
 
 export function calculateTotalPrice(order: PricedOrder, spots: Spots): number {
@@ -143,9 +230,12 @@ export function calculateTotalPrice(order: PricedOrder, spots: Spots): number {
     return acc;
   }, 0);
 
-  const shipping = order.shipment?.shipping_charge ?? 0;
+  // Both subtrahends through the same function, which is the point: the
+  // asymmetry between these two lines is how the NaN got in.
+  const shipping = fee(order.shipment?.shipping_charge, "the shipping charge");
+  const payout = fee(order.payout?.cost, "the payout fee");
 
-  return baseTotal - shipping - order.payout.cost;
+  return finite(baseTotal - shipping - payout, "the order total");
 }
 
 export function calculateReturnDeclaredValue(order: PricedOrder, spots: Spots): number {
@@ -173,7 +263,11 @@ export function calculateReturnDeclaredValue(order: PricedOrder, spots: Spots): 
     return acc;
   }, 0);
 
-  return total;
+  // Deducts neither fee - a return is insured for what the metal is worth. The
+  // finite check still applies, and here it matters most: this number is the
+  // declared value on a return shipment, so a NaN posts a customer's metal back
+  // uninsured. That is the failure this file's header opens with.
+  return finite(total, "the return declared value");
 }
 
 export function calculateItemPrice(

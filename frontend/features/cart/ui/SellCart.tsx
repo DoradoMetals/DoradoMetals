@@ -3,7 +3,6 @@
 import { Button } from '@/shared/ui/base/button'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
-import Link from 'next/link'
 import NumberFlow from '@number-flow/react'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useRouter } from 'next/navigation'
@@ -16,6 +15,7 @@ import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import type { PurchaseOrderQuoteLine } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { EmptyState } from '@/shared/ui/EmptyState'
 
 export default function SellCart() {
   const router = useRouter()
@@ -44,33 +44,24 @@ export default function SellCart() {
   const total = quote?.total ?? 0
 
   const emptyCart = (
-    <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
-      <div className="relative mb-5">
-        <ShoppingCartSimpleIcon size={80} strokeWidth={1.5} className="text-primary" />
-        {/* Zero-count bubble, same shape as the buy cart's. --border-strong is
-            the token for an edge meant to read as deliberate; the numeral's
-            size and colour come from the tag. */}
-        <p className="absolute -top-6 right-3.5 border border-border-strong rounded-full w-10 h-10 flex items-center justify-center">
-          0
-        </p>
-      </div>
-
-      <div className="flex-col items-center gap-1 mb-5">
-        <h2>Your sell cart is empty!</h2>
-        <small>Add items to get a price estimate.</small>
-      </div>
-      <Link href="/sell" passHref>
-        <Button
-          size="xl"
-          onClick={() => {
-            router.push('/sell')
-            closeDrawer()
-          }}
-        >
-          Start Selling
-        </Button>
-      </Link>
-    </div>
+    <EmptyState
+      icon={ShoppingCartSimpleIcon}
+      iconSize={80}
+      badge={0}
+      title="Your sell cart is empty!"
+      description="Add items to get a price estimate."
+      className="h-full justify-center pb-10"
+    >
+      <Button
+        size="xl"
+        onClick={() => {
+          router.push('/sell')
+          closeDrawer()
+        }}
+      >
+        Start Selling
+      </Button>
+    </EmptyState>
   )
 
   const renderProductItem = (item: Product, index: number, storeIndex: number) => {

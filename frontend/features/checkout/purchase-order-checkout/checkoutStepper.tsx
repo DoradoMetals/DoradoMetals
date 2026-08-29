@@ -61,10 +61,16 @@ export default function CheckoutStepper() {
   // by request index, so nothing may filter or reorder between here and there.
   const { data: quote } = usePurchaseOrderQuote(items)
 
-  // The quote's declared_value is uncapped; $50,000 is FedEx's declared-value
-  // ceiling (PurchaseOrderQuote's own note), applied here because this
-  // number is what the label's insurance is bought with.
-  const declaredValue = Math.min(quote?.declared_value ?? 0, 50000)
+  // THE SERVER SAYS WHAT THE PARCEL IS INSURED FOR. This line was
+  // `Math.min(quote.declared_value, 50000)` until migration 097 - a carrier's
+  // ceiling hard-coded in the browser, and the browser deciding what a parcel
+  // of metal is covered for, which is money math D82 forbids (D132).
+  //
+  // `quote.declared_value` now arrives already capped at
+  // shipping.services.max_insured_value, and the order-creation request caps it
+  // again against the service actually chosen. Nothing here may re-apply a
+  // limit: a second clamp in the browser is the defect, not the safety net.
+  const declaredValue = quote?.declared_value ?? 0
 
   useEffect(() => {
     if (!data.insurance?.insured) return

@@ -21,6 +21,7 @@ import StripeWrapper from '@/features/stripe/ui/StripeWrapper'
 import OrderSummary from '@/features/checkout/sales-order-checkout/summary/orderSummary'
 import { useCreateSalesOrder } from '@/features/orders/salesOrders/users/queries'
 import { Separator } from '@/shared/ui/base/separator'
+import { EmptyState } from '@/shared/ui/EmptyState'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -125,28 +126,18 @@ export default function SalesOrderCheckout() {
 
   if (cartItems.length === 0) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10 lg:mt-30">
-        <div className="relative mb-5">
-          <ShoppingCartIcon size={80} strokeWidth={1.5} className="text-primary" />
-          <div className="absolute -top-6 right-3.5 border border-border rounded-full w-10 h-10 flex items-center justify-center">
-            <strong className="text-primary">0</strong>
-          </div>
-        </div>
-
-        <div className="flex-col items-center gap-1 mb-5">
-          <h2>Your cart is empty!</h2>
-          <p>Please add items before checking out.</p>
-        </div>
-
-        <Button
-          size="xl"
-          onClick={() => {
-            router.push('/buy')
-          }}
-        >
+      <EmptyState
+        icon={ShoppingCartIcon}
+        iconSize={80}
+        badge={0}
+        title="Your cart is empty!"
+        description="Please add items before checking out."
+        className="h-full justify-center pb-10 mt-10 lg:mt-30"
+      >
+        <Button size="xl" onClick={() => router.push('/buy')}>
           Start Shopping
         </Button>
-      </div>
+      </EmptyState>
     )
   }
 

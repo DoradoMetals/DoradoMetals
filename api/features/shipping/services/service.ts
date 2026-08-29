@@ -124,8 +124,88 @@ export async function getOfferedServices(
 ): Promise<CarrierServiceOption[]> {
   const id = await carrierIdOr(carrier_id, client);
   const { catalogue } = await resolveCarrier(id, client);
+  const ceilings = await ceilingsByName(id, client as Executor);
 
-  return [...catalogue.services].sort((a, b) => a.display_order - b.display_order);
+  return [...catalogue.services]
+    .sort((a, b) => a.display_order - b.display_order)
+    .map((s) => ({ ...s, max_insured_value: ceilingOr(ceilings, s.name) }));
+}
+
+// ---------------------------------------------------------- insurance ceiling
+//
+// WHAT A PARCEL MAY BE INSURED FOR IS A ROW NOW, NOT A LITERAL IN THE BROWSER.
+// D132: `checkoutStepper.tsx` held `Math.min(quote.declared_value, 50000)` -
+// FedEx's ceiling, hard-coded in React, deciding what a parcel of metal is
+// covered for. Migration 097 puts the number on shipping.services and Jacob set
+// it to 10,000 for every row, which is Dorado's policy and not FedEx's limit.
+//
+// TWO CALLERS, AND THEY ANSWER DIFFERENT QUESTIONS:
+//   - `insuranceCeiling()` is service-AGNOSTIC and is what /quotes/purchase_order
+//     uses. A quote is priced before a service is chosen, so the honest answer
+//     is the LOWEST ceiling among the services we offer: the quote may not
+//     promise cover that the cheapest option would not carry.
+//   - `insuranceCeilingFor(code)` narrows to one service and is what the label
+//     path uses, where the customer has chosen. It cannot be resolved by `code`
+//     today (NULL on every row, D125) so it resolves through the catalogue's
+//     name, and falls back to the agnostic answer when the code is unknown.
+//
+// NEITHER RETURNS Infinity ON A MISS. A missing ceiling is a misconfiguration,
+// and the only safe reading of "we do not know what this is covered for" is the
+// most conservative number we do know.
+async function ceilingsByName(
+  carrier_id: string, executor?: Executor
+): Promise<Map<string, number>> {
+  const rows = await services.getInsuranceCeilings(carrier_id, executor);
+  return new Map(rows.map((r) => [r.name, Number(r.max_insured_value)]));
+}
+
+// The lowest ceiling we know about, used both as the agnostic answer and as the
+// fallback for a service with no row. Zero rows means the carrier has no active
+// service at all, in which case nothing can be shipped and nothing is insured.
+function lowestCeiling(ceilings: Map<string, number>): number {
+  const values = [...ceilings.values()].filter((v) => Number.isFinite(v));
+  return values.length ? Math.min(...values) : 0;
+}
+
+function ceilingOr(ceilings: Map<string, number>, name: string): number {
+  const own = ceilings.get(name);
+  return own !== undefined && Number.isFinite(own) ? own : lowestCeiling(ceilings);
+}
+
+export async function insuranceCeiling(
+  carrier_id?: string | null, client?: unknown
+): Promise<number> {
+  const id = await carrierIdOr(carrier_id, client);
+  return lowestCeiling(await ceilingsByName(id, client as Executor));
+}
+
+// `code` is the carrier's service type - CarrierServiceOption.code, which is
+// what the browser round-trips back as `service.serviceType`.
+export async function insuranceCeilingFor(
+  code: string | null | undefined, carrier_id?: string | null, client?: unknown
+): Promise<number> {
+  const id = await carrierIdOr(carrier_id, client);
+  const ceilings = await ceilingsByName(id, client as Executor);
+  if (!code) return lowestCeiling(ceilings);
+
+  const { catalogue } = await resolveCarrier(id, client);
+  // Bound to a local first: `catalogue.services.find(...)` reads as a call on
+  // the `services` repo namespace imported at the top of this file, and
+  // lint:namespace-calls says so.
+  const offeredServices = catalogue.services;
+  const offered = offeredServices.find((s) => s.code === code);
+  return offered ? ceilingOr(ceilings, offered.name) : lowestCeiling(ceilings);
+}
+
+// The clamp itself, in one place so the two call sites cannot disagree. A
+// non-finite or absent amount insures nothing rather than everything.
+export async function clampInsuredValue(
+  amount: unknown, code?: string | null, carrier_id?: string | null, client?: unknown
+): Promise<number> {
+  const ceiling = await insuranceCeilingFor(code, carrier_id, client);
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(n, ceiling);
 }
 
 export async function getServiceById(

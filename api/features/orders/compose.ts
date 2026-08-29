@@ -224,10 +224,20 @@ export type OrderParts = {
 //
 // Every one of these came from a LEFT JOIN feeding a jsonb_build_object, so an
 // order with no payout gets `{id: null, cost: null, ...}` rather than `null`.
-// `order.payout.cost` therefore gives `undefined` today. Returning `null`
-// instead would make that same expression THROW, at every call site that reads
-// through one - which is a wire change of the worst kind, because it does not
-// show up until the one order without a payout is opened.
+// Returning `null` instead would make `order.payout.cost` THROW, at every call
+// site that reads through one - a wire change of the worst kind, because it
+// does not show up until the one order without a payout is opened.
+//
+// *** THE KEY LIST BELOW IS LOAD-BEARING, AND UNTIL 2026-08-29 NOTHING SAID SO.
+//     An earlier version of this comment claimed `order.payout.cost` "gives
+//     undefined today". That is FALSE for `cost` - it is in the list, so the
+//     value is null and `x - null` is `x` - and true for any key that is NOT.
+//     features/pricing/bid.ts subtracted `order.payout.cost` undefended, so a
+//     key dropped from this list would have turned the whole invoice into NaN,
+//     silently. That call site defends itself now, and this note stays because
+//     the general hazard does: a member missing from one of these arrays is
+//     `undefined` where every reader expects null, and undefined is the value
+//     that poisons arithmetic instead of behaving as zero.
 //
 // The keys are the ones each projection built, in its order.
 const allNull = <T extends readonly string[]>(keys: T): Record<string, null> =>

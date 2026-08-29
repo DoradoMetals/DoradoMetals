@@ -14,10 +14,10 @@ import {
   CommandItem,
   CommandList,
 } from '@/shared/ui/base/command'
-import { Label } from '@/shared/ui/base/label'
 
 import { CaretDownIcon, CheckIcon } from '@phosphor-icons/react'
 import { reverseStateMap, stateMap, states } from '@/features/addresses/types'
+import { Field } from '@/shared/ui/Field'
 
 type StateItem = { code: string; name: string }
 
@@ -82,9 +82,7 @@ export function StateComboboxField<TFieldValues extends FieldValues>({
         const selectedName = getStateNameFromCode(code)
 
         return (
-          <div className={cn('space-y-1 py-1', className)}>
-            <Label>{label}</Label>
-
+          <Field label={label} className={cn('py-1', className)}>
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -94,10 +92,7 @@ export function StateComboboxField<TFieldValues extends FieldValues>({
                   role="combobox"
                   aria-expanded={open}
                   disabled={disabled}
-                  className={cn(
-                    'w-full justify-between',
-                    !selectedName && ''
-                  )}
+                  className="w-full justify-between"
                 >
                   <span className="truncate">{selectedName ? selectedName : placeholder}</span>
                   <CaretDownIcon size={16} />
@@ -150,7 +145,7 @@ export function StateComboboxField<TFieldValues extends FieldValues>({
             {fieldState.error?.message ? (
               <p className="text-destructive">{fieldState.error.message}</p>
             ) : null}
-          </div>
+          </Field>
         )
       }}
     />

@@ -42,7 +42,9 @@
 // already produces; running the suite fresh costs what the suite costs.
 
 import { readFileSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
+
+import { suiteInvocation } from "./lib/suite-invocation.mjs";
 
 // A test is flagged when it exceeds EITHER bound. Both are absolute statements
 // about what this suite should be, not percentages of what it currently is.
@@ -133,19 +135,26 @@ let text;
 if (from) {
   text = readFileSync(from, "utf8");
 } else {
-  console.log("running the suite (no --from given); this costs what the suite costs...");
-  try {
-    text = execSync("TZ=UTC NODE_ENV=test node --test", {
-      cwd: new URL("..", import.meta.url).pathname,
-      encoding: "utf8",
-      maxBuffer: 256 * 1024 * 1024,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-  } catch (e) {
-    // A failing suite still produced timings; measure what we got and say so.
-    text = `${e.stdout ?? ""}${e.stderr ?? ""}`;
-    console.log("(the suite did not exit 0 - timings below are from that run)");
-  }
+  // READ FROM package.json, NOT RETYPED (D115/D123). The invocation was spelled
+  // out here as a string, which is the same defect audit:test-leaks shipped:
+  // two hand-copied invocations of one suite, free to drift from it and from
+  // each other. A script that runs the suite must run it the way `pnpm test`
+  // does, and the only way to guarantee that is to read the definition.
+  const invocation = suiteInvocation();
+  console.log(
+    `running the suite as ${invocation.source} defines it (no --from given); ` +
+      `this costs what the suite costs...`
+  );
+  const r = spawnSync(invocation.command, invocation.args, {
+    cwd: new URL("..", import.meta.url).pathname,
+    env: { ...process.env, ...invocation.env },
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  // A failing suite still produced timings; measure what we got and say so.
+  text = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+  if (r.status !== 0) console.log("(the suite did not exit 0 - timings below are from that run)");
 }
 
 const tests = parse(text);

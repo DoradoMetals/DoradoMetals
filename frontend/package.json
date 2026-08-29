@@ -17,7 +17,9 @@
     "typecheck": "tsc --noEmit",
     "test": "TZ=UTC vitest run",
     "e2e": "playwright test",
-    "e2e:ui": "playwright test --ui"
+    "e2e:ui": "playwright test --ui",
+    "lint:list-fanout": "node scripts/lint-list-fanout.mjs",
+    "lint:list-fanout:self-test": "node scripts/lint-list-fanout.mjs --self-test"
   },
   "dependencies": {
     "@better-auth/stripe": "^1.4.9",

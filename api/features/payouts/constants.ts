@@ -17,7 +17,11 @@
 //   WIRE           20     x6,    0  x2
 //
 // So the method does NOT determine the fee for a payout that already exists;
-// eleven of those rows disagree with the table below. A quote for a cart has no
+// FOUR of those 62 rows disagree with the table below - the two zero-fee WIREs,
+// and the ECHECKs at 75 and 125. (This comment said ELEVEN until 2026-08-29;
+// that was the x11 on the ACH line, which is a count of rows that AGREE.
+// Corrected by recomputing against the table rather than re-reading the
+// summary.) A quote for a cart has no
 // payout row yet and this is the right default for it, but nothing here may be
 // used to re-derive the fee of a stored payout - that number is on the row, and
 // features/quotes' orderQuote already reads it from there.

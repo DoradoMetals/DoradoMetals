@@ -1,5 +1,15 @@
 // Runs HTTP requests against the real app without leaving anything behind.
 //
+// THERE WAS A `pinned-pool.d.ts` BESIDE THIS FILE AND IT IS GONE (2026-08-29).
+// It was written when this harness was JavaScript, so that `.test.ts` files
+// could get real types without converting it. This file is TypeScript now, and
+// a `.ts` shadows a `.d.ts` of the same name - so tsc had stopped reading the
+// declaration entirely while the declaration went on drifting from the code.
+// It had `assertNothingEscaped` returning `Promise<void>`; the implementation
+// returns a COUNT. A hand-written type that nothing checks and nothing reads is
+// not documentation, it is a second source of truth that cannot be wrong out
+// loud. The exported signatures here are now the only ones.
+//
 // THE PROBLEM. Every repo test here runs inside a transaction that is rolled
 // back, because it holds the client and passes it down. A request through
 // supertest cannot do that: the controller calls the service, the service calls

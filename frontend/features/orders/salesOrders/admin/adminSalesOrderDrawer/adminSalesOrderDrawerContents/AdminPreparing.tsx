@@ -95,11 +95,18 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
         </RadioGroup>
       )}
 
+      {/* The className used to read
+            cn('p-4 w-full', !selectedSupplier || (sendOrder.isPending && 'opacity-30'))
+          which is a `||` between a boolean and a string: when no supplier is
+          picked the expression is literally `true` and `cn(true)` contributes
+          NOTHING, so the dimming it was written for never applied in the state
+          it was written for. It did not matter, because the button already
+          carries a correct `disabled` and Button's base handles
+          `disabled:opacity-50` - which is the point. `p-4` went too: it
+          duplicated the default size's `px-4` and set a vertical padding a
+          fixed-height button ignores. */}
       <Button
-        className={cn(
-          'p-4 w-full',
-          !selectedSupplier || (sendOrder.isPending && 'opacity-30')
-        )}
+        className="w-full"
         onClick={() => {
           // The refiner's copy prints the order's own frozen spots, resolved
           // SERVER-side - the browser no longer reads them back and posts them.
@@ -158,10 +165,7 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
       />
 
       <Button
-        className={cn(
-          'p-4 w-full',
-          !selectedCarrier || updateTracking.isPending || (trackingNumber === '' && 'opacity-30')
-        )}
+        className="w-full"
         onClick={() => {
           if (!shipment?.id) return
           updateTracking.mutate({

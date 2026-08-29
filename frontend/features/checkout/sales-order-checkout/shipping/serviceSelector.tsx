@@ -5,6 +5,7 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import { salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
 import type { SalesOrderQuote } from '@dorado/contracts'
+import { DetailRow } from '@/shared/ui/DetailRow'
 
 export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
   const selected = useSalesOrderCheckoutStore((state) => state.data.service)
@@ -26,16 +27,13 @@ export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOr
               {option.icon && <option.icon size={24} />}
               <strong>{option.label}</strong>
             </div>
-            <div className="flex w-full items-center justify-between">
-              <small>{option.time}</small>
-              <strong>
-                {/* Only the selected service is quoted, so the unselected
-                    options' display keys the free-shipping threshold off the
-                    quote's item_total - the same rule getShippingCharge
-                    applies server-side. */}
-                <PriceNumberFlow value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost} />
-              </strong>
-            </div>
+            <DetailRow label={option.time} variant="subtotal">
+              {/* Only the selected service is quoted, so the unselected
+                  options' display keys the free-shipping threshold off the
+                  quote's item_total - the same rule getShippingCharge
+                  applies server-side. */}
+              <PriceNumberFlow value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost} />
+            </DetailRow>
           </>
         )}
       </RadioGroup>

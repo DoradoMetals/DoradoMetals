@@ -8,10 +8,9 @@ import { formatFullDate } from '@/shared/utils/formatDates'
 import StatusChip from '@/shared/ui/StatusChip'
 import UpdatedByline from '@/shared/ui/UpdatedByline'
 
-import { Label } from '@/shared/ui/base/label'
 import { Input } from '@/shared/ui/base/input'
 import { Textarea } from '@/shared/ui/base/textarea'
-import { DisplayToggle } from '@/shared/ui/DisplayToggle'
+import { SegmentedField } from '@/shared/ui/SegmentedField'
 
 import type { Carrier, CarrierService } from '@/features/carriers/types'
 import {
@@ -20,8 +19,8 @@ import {
   useCarrierServicesByCarrier,
 } from '@/features/carriers/queries'
 import { RadioGroup } from '@/shared/ui/RadioGroup'
-import DotSelect from '@/shared/ui/DotSelect'
 import { Button } from '@/shared/ui/base/button'
+import { Field } from '@/shared/ui/Field'
 import Image from 'next/image'
 
 // <time dateTime> must be machine-readable; the wire hands these back as
@@ -154,10 +153,7 @@ function Details({ service, carriers }: { service: CarrierService; carriers: Car
           )}
         </RadioGroup>
       </div>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="name" className="pl-1">
-          Service Name
-        </Label>
+      <Field label="Service Name" htmlFor="name">
         <Input
           id="name"
           placeholder="Enter service name..."
@@ -165,13 +161,10 @@ function Details({ service, carriers }: { service: CarrierService; carriers: Car
           defaultValue={service.name ?? ''}
           onBlur={(e) => handlePatch({ name: e.target.value })}
         />
-      </div>
+      </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="code" className="pl-1">
-            Code
-          </Label>
+        <Field label="Code" htmlFor="code">
           <Input
             id="code"
             placeholder="UI code (e.g. Express Saver)"
@@ -179,12 +172,9 @@ function Details({ service, carriers }: { service: CarrierService; carriers: Car
             defaultValue={service.code ?? ''}
             onBlur={(e) => handlePatch({ code: e.target.value })}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="provider_code" className="pl-1">
-            Provider Code
-          </Label>
+        <Field label="Provider Code" htmlFor="provider_code">
           <Input
             id="provider_code"
             placeholder="FedEx/UPS internal code..."
@@ -192,13 +182,10 @@ function Details({ service, carriers }: { service: CarrierService; carriers: Car
             defaultValue={service.provider_code ?? ''}
             onBlur={(e) => handlePatch({ provider_code: e.target.value })}
           />
-        </div>
+        </Field>
       </div>
 
-      <div className="flex flex-col w-full gap-1">
-        <Label htmlFor="description" className="pl-1">
-          Description
-        </Label>
+      <Field label="Description" htmlFor="description" className="w-full">
         <Textarea
           rows={10}
           id="description"
@@ -207,7 +194,7 @@ function Details({ service, carriers }: { service: CarrierService; carriers: Car
           defaultValue={service.description ?? ''}
           onBlur={(e) => handlePatch({ description: e.target.value || null })}
         />
-      </div>
+      </Field>
     </div>
   )
 }
@@ -223,17 +210,17 @@ function Handoffs({ service }: { service: CarrierService }) {
       <p className="eyebrow">Handoffs</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6 items-stretch">
-        <DisplayToggle
+        <SegmentedField
           label="Supports Pickup"
           value={!!service.supports_pickup}
           onChange={(v) => handlePatch({ supports_pickup: v })}
         />
-        <DisplayToggle
+        <SegmentedField
           label="Supports Dropoff"
           value={!!service.supports_dropoff}
           onChange={(v) => handlePatch({ supports_dropoff: v })}
         />
-        <DisplayToggle
+        <SegmentedField
           label="Supports Returns"
           value={!!service.supports_returns}
           onChange={(v) => handlePatch({ supports_returns: v })}
@@ -253,10 +240,7 @@ function TransitTime({ service }: { service: CarrierService }) {
       <p className="eyebrow">Transit Time</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="min_transit_days" className="pl-1">
-            Min Transit Days
-          </Label>
+        <Field label="Min Transit Days" htmlFor="min_transit_days">
           <Input
             id="min_transit_days"
             type="number"
@@ -268,12 +252,9 @@ function TransitTime({ service }: { service: CarrierService }) {
               handlePatch({ min_transit_days: Number(e.target.value) ?? null })
             }}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="max_transit_days" className="pl-1">
-            Max Transit Days
-          </Label>
+        <Field label="Max Transit Days" htmlFor="max_transit_days">
           <Input
             id="max_transit_days"
             type="number"
@@ -285,7 +266,7 @@ function TransitTime({ service }: { service: CarrierService }) {
               handlePatch({ max_transit_days: Number(e.target.value) ?? null })
             }}
           />
-        </div>
+        </Field>
       </div>
     </div>
   )
@@ -301,16 +282,13 @@ function Insurance({ service }: { service: CarrierService }) {
       <p className="eyebrow">Insurance</p>
 
       <div className="flex flex-col gap-6 w-full items-stretch">
-        <DisplayToggle
+        <SegmentedField
           label="Supports Insurance"
           value={!!service.supports_insurance}
           onChange={(v) => handlePatch({ supports_insurance: v })}
         />
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="max_declared_value" className="pl-1">
-            Max Declared Value ($)
-          </Label>
+        <Field label="Max Declared Value ($)" htmlFor="max_declared_value">
           <Input
             id="max_declared_value"
             type="number"
@@ -322,7 +300,7 @@ function Insurance({ service }: { service: CarrierService }) {
               handlePatch({ max_declared_value: Number(e.target.value) ?? null })
             }}
           />
-        </div>
+        </Field>
       </div>
     </div>
   )
@@ -338,10 +316,7 @@ function Packaging({ service }: { service: CarrierService }) {
       <p className="eyebrow">Packaging</p>
 
       <div className="flex items-center items-stretch justify-center w-full">
-        <div className="flex flex-col gap-1 w-full">
-          <Label htmlFor="max_weight_lbs" className="pl-1">
-            Max Weight (lbs)
-          </Label>
+        <Field label="Max Weight (lbs)" htmlFor="max_weight_lbs" className="w-full">
           <Input
             id="max_weight_lbs"
             type="number"
@@ -353,16 +328,13 @@ function Packaging({ service }: { service: CarrierService }) {
               handlePatch({ max_weight_lbs: Number(e.target.value) ?? null })
             }}
           />
-        </div>
+        </Field>
 
         <div className="hidden sm:block" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="max_length_in" className="pl-1">
-            Max Length (in)
-          </Label>
+        <Field label="Max Length (in)" htmlFor="max_length_in">
           <Input
             id="max_length_in"
             type="number"
@@ -374,12 +346,9 @@ function Packaging({ service }: { service: CarrierService }) {
               handlePatch({ max_length_in: Number(e.target.value) ?? null })
             }}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="max_width_in" className="pl-1">
-            Max Width (in)
-          </Label>
+        <Field label="Max Width (in)" htmlFor="max_width_in">
           <Input
             id="max_width_in"
             type="number"
@@ -391,12 +360,9 @@ function Packaging({ service }: { service: CarrierService }) {
               handlePatch({ max_width_in: Number(e.target.value) ?? null })
             }}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="max_height_in" className="pl-1">
-            Max Height (in)
-          </Label>
+        <Field label="Max Height (in)" htmlFor="max_height_in">
           <Input
             id="max_height_in"
             type="number"
@@ -408,7 +374,7 @@ function Packaging({ service }: { service: CarrierService }) {
               handlePatch({ max_height_in: Number(e.target.value) ?? null })
             }}
           />
-        </div>
+        </Field>
       </div>
     </div>
   )
@@ -424,17 +390,17 @@ function Flags({ service }: { service: CarrierService }) {
       <p className="eyebrow">Flags</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6 items-stretch">
-        <DisplayToggle
+        <SegmentedField
           label="International"
           value={!!service.is_international}
           onChange={(v) => handlePatch({ is_international: v })}
         />
-        <DisplayToggle
+        <SegmentedField
           label="Residential"
           value={!!service.is_residential}
           onChange={(v) => handlePatch({ is_residential: v })}
         />
-        <DisplayToggle
+        <SegmentedField
           label="Active"
           value={!!service.is_active}
           onChange={(v) => handlePatch({ is_active: v })}
@@ -455,12 +421,12 @@ function Dev({ service }: { service: CarrierService }) {
     <div className="flex flex-col gap-6">
       <p className="eyebrow">Dev</p>
 
-      <DotSelect
+      <SegmentedField
         label="Display Order"
-        count={services.length}
         value={service.display_order ?? 0}
         onChange={(n) => handlePatch({ display_order: n })}
-        getLabel={(n) => n}
+        options={services.map((_, i) => i)}
+        rowClassName="grid grid-cols-5 gap-2"
       />
     </div>
   )

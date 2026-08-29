@@ -18,7 +18,7 @@ export function TableColumnVisibility<TData>({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className={cn(triggerClass)}>
+        <Button variant="tertiary" size="sm" className={cn(triggerClass)}>
           <ColumnsIcon size={28} />
         </Button>
       </PopoverTrigger>

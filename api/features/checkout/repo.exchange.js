@@ -157,7 +157,13 @@ export async function getSellCartProductItems(cart_id) {
   return result.rows;
 }
 
-export async function findProductIdByName(product_name, client) {
+// INTERNAL. Not exported, and that is the point: this function was the handle
+// features/quotes/service.ts grabbed when it imported this file directly,
+// around the repo.js that CHECKOUT_SOURCE selects (D142). The quote surface
+// asks features/products for a product by name now - the feature that owns the
+// table - and nothing outside this file has ever needed it. Un-exporting is
+// what stops the same reach happening again.
+async function findProductIdByName(product_name, client) {
   const result = await query(
     `SELECT id FROM exchange.products WHERE product_name = $1 LIMIT 1`,
     [product_name]

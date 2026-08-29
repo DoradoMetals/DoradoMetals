@@ -17,14 +17,116 @@
 //      result.rows is undefined, so the next line throws reading '0'. Silent
 //      for months behind a swallowed catch.
 //
+// *** WHAT IT CANNOT SEE. Written down because a detector's blind spot reports
+// as CLEAN (D95), and this one guards the executor that keeps a repo call inside
+// its caller's transaction. ***
+//   - IT WALKS features/ AND legacy/ ONLY. shared/ and providers/ are not
+//     scanned. Checked at the time of writing: the only `query(`/`pool.query(`
+//     outside those two are the executor itself (shared/db/query.js), the
+//     transaction helper's own BEGIN/COMMIT/ROLLBACK, and the test pool - all
+//     legitimate. A repo that moved into shared/ would leave the scan silently.
+//   - A CALL REACHED THROUGH ANOTHER NAME: `const q = query; q(sql, client)`,
+//     or a member call `repo[name](sql, client)`. It matches the literal
+//     identifier `query(`.
+//   - `.query(` ON ANYTHING BUT `pool`. `client.query` is legitimate inside
+//     withTransaction; a NEW long-lived handle called something else would look
+//     like it.
+//   - AWAIT-DETECTION IS TEXTUAL: `const p = query(...); await p;` reads as
+//     unawaited (a false positive, and none exists today), and
+//     `Promise.all([query(...)])` reads as awaited because `return`/`await`
+//     precede the array, not the call.
+//
 // Run: pnpm --filter @dorado/api lint:db
+//      pnpm --filter @dorado/api lint:db:self-test
 import fs from "node:fs";
 import path from "node:path";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
+// The root is overridable ONLY so the self-test can point the whole script at a
+// synthetic tree and confirm it still sees a planted violation (D134). Nothing
+// in the real run sets it.
+const ROOT = process.env.LINT_DB_ROOT
+  ? path.resolve(process.env.LINT_DB_ROOT)
+  : path.resolve(import.meta.dirname, "..");
+
+if (process.argv.includes("--self-test")) {
+  const { selfTest } = await import("./lib/self-test.mjs");
+  const clean = `import query from "#shared/db/query.js";
+export async function getOne(id, client) {
+  const { rows } = await query("SELECT 1", [id], client);
+  return rows[0];
+}`;
+  // Every case carries the SAME clean file plus one planted defect, so a case
+  // that fails proves the defect was seen rather than that the fixture was
+  // malformed. `legacy/` is present in all of them because its absence is now
+  // itself a failure.
+  const LOW = { LINT_DB_FILE_FLOOR: "0", LINT_DB_CALL_FLOOR: "0" };
+  const with_ = (extra) => ({
+    "features/thing/repo.exchange.js": clean + "\n" + extra,
+    "legacy/keep.js": clean,
+  });
+  await selfTest({
+    script: import.meta.filename,
+    cases: [
+      {
+        name: "pool.query bypassing the shared executor is seen",
+        rootEnv: "LINT_DB_ROOT",
+        env: LOW,
+        files: with_(`export const bad = async () => await pool.query("SELECT 1");`),
+        expect: "fail",
+        mustPrint: "bypasses the shared executor",
+      },
+      {
+        name: "an executor passed in the params slot is seen",
+        rootEnv: "LINT_DB_ROOT",
+        env: LOW,
+        files: with_(`export const bad = async (client) => await query("SELECT 1", client);`),
+        expect: "fail",
+        mustPrint: "executor passed as params",
+      },
+      {
+        name: "an unawaited query is seen",
+        rootEnv: "LINT_DB_ROOT",
+        env: LOW,
+        files: with_(`export const bad = () => { const r = query("SELECT 1", []); return r.rows; };`),
+        expect: "fail",
+        mustPrint: "never awaited",
+      },
+      {
+        name: "a clean tree passes",
+        rootEnv: "LINT_DB_ROOT",
+        env: LOW,
+        files: with_(""),
+        expect: "pass",
+        mustPrint: "db call check passed",
+      },
+      {
+        name: "the floor itself fires on a tree far below it",
+        rootEnv: "LINT_DB_ROOT",
+        files: with_(""),
+        expect: "fail",
+        mustPrint: "A smaller number is not a cleaner codebase",
+      },
+      {
+        name: "a missing legacy/ is a broken walk, not a clean one",
+        rootEnv: "LINT_DB_ROOT",
+        env: LOW,
+        files: { "features/thing/repo.exchange.js": clean },
+        expect: "fail",
+        mustPrint: "the walk is broken",
+      },
+    ],
+  });
+}
 
 function sourceFiles(dir) {
   const out = [];
+  // A directory that has stopped existing is a BROKEN WALK, not an empty one.
+  // `features/` or `legacy/` vanishing is exactly the shape of D120's rot:
+  // walk nothing, find nothing, exit 0.
+  if (!fs.existsSync(dir)) {
+    console.error(`lint:db cannot read ${dir} - the walk is broken, not the codebase clean`);
+    process.exit(1);
+  }
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === "node_modules") continue;
     const full = path.join(dir, entry.name);
@@ -134,6 +236,32 @@ for (const file of [
   }
 }
 
+// FLOORS, because a report that cannot see its subject prints a smaller number
+// and exits 0 while an assertion fails (D135). Both halves of the walk have to
+// be checked: a matcher that stopped recognising `query(` would leave
+// filesScanned intact and callsChecked at zero, and the file count alone would
+// call that clean. The numbers at the time of writing are 338 files and 203
+// calls; these floors are set well below so that ordinary churn does not move
+// them, and a drop past them means the parser broke rather than the repo did.
+//
+// SELF_TEST_FLOORS is the escape: under --self-test the tree is synthetic and
+// deliberately tiny, so the floors would fire on every case and every case
+// would "detect" a violation that was never planted.
+// The floors are lowerable ONLY in the same breath as the root override, so a
+// self-test case can exercise the detector on a three-file tree - and one case
+// deliberately omits the override to prove THE FLOOR ITSELF still fires. A
+// floor nothing ever trips is a floor nobody has checked.
+const FILE_FLOOR = process.env.LINT_DB_ROOT ? Number(process.env.LINT_DB_FILE_FLOOR ?? 200) : 200;
+const CALL_FLOOR = process.env.LINT_DB_ROOT ? Number(process.env.LINT_DB_CALL_FLOOR ?? 120) : 120;
+if (filesScanned < FILE_FLOOR || callsChecked < CALL_FLOOR) {
+  console.error(
+    `lint:db walked ${filesScanned} file(s) and checked ${callsChecked} query() call(s), ` +
+      `expected at least ${FILE_FLOOR} and ${CALL_FLOOR} - the walk or the call parser ` +
+      `has broken. A smaller number is not a cleaner codebase.`
+  );
+  process.exit(1);
+}
+
 if (problems.length) {
   console.error(`db call check failed (${problems.length}):\n`);
   for (const p of problems) console.error("  " + p);
@@ -143,3 +271,4 @@ if (problems.length) {
 console.log(
   `db call check passed (${callsChecked} query() call(s) in ${filesScanned} file(s))`
 );
+

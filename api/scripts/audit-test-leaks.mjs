@@ -26,7 +26,15 @@
 // Exits non-zero if any table changed, naming it.
 import "#env";
 import pg from "pg";
+import path from "node:path";
 import { spawn } from "node:child_process";
+
+import { suiteInvocation } from "./lib/suite-invocation.mjs";
+
+// The suite must be spawned from api/, not from wherever this was invoked -
+// `node --test` discovers its files relative to cwd, and a run started from the
+// repo root would silently test a different (smaller) set.
+const SUITE_CWD = path.resolve(import.meta.dirname, "..");
 
 const SELF_TEST = process.argv.includes("--self-test");
 
@@ -212,7 +220,7 @@ async function selfTest() {
   }
 }
 
-// THE SAME ENVIRONMENT `pnpm test` USES, and NODE_ENV is not decoration.
+// THE SAME ENVIRONMENT `pnpm test` USES - READ FROM package.json, NOT RETYPED.
 //
 // This spawned `node --test` with TZ alone, while package.json's test script is
 // `TZ=UTC NODE_ENV=test node --test`. So the audit that exists to prove the
@@ -220,19 +228,26 @@ async function selfTest() {
 // of `isTestRun()` missing - and `isTestRun()` is what stops a test reaching
 // the mail transport, the FedEx client and the Stripe client. The `--test`
 // execArgv leg still held, which is why nothing ever escaped, but a guard
-// written with two legs precisely because "either alone can be defeated" was
-// being exercised on one.
+// running on half its legs is not the guard the comment describes.
 //
-// It also made a real assertion fail: shared/testing/is-test-run.test.js's
-// control - "the harness really does satisfy both detectors" - checks
-// NODE_ENV directly, so the suite reported 915/916 under this audit and
-// 916/916 under `pnpm test`. A gate whose own run disagrees with the gate it
-// is auditing cannot tell a regression from its own environment.
+// THE FIX IS NOT "REMEMBER NODE_ENV" (D123). It is to stop assembling an
+// invocation at all: scripts/lib/suite-invocation.mjs reads
+// `package.json scripts.test` and refuses if it cannot understand it, so this
+// script cannot drift from the suite again without something throwing. The tell
+// that found the original was the audit DISAGREEING WITH THE SUITE IT AUDITS -
+// 915/916 against 916/916 - and the disagreement is now impossible rather than
+// merely noticeable.
 function runSuite() {
+  const invocation = suiteInvocation();
+  console.log(
+    `running the suite as ${invocation.source} defines it: ` +
+      `${Object.entries(invocation.env).map(([k, v]) => `${k}=${v}`).join(" ")} ` +
+      `node ${invocation.args.join(" ")}`
+  );
   return new Promise((resolve) => {
-    const child = spawn("node", ["--test"], {
-      cwd: process.cwd(),
-      env: { ...process.env, TZ: "UTC", NODE_ENV: "test" },
+    const child = spawn(invocation.command, invocation.args, {
+      cwd: SUITE_CWD,
+      env: { ...process.env, ...invocation.env },
       stdio: ["ignore", "inherit", "inherit"],
     });
     child.on("close", (code) => resolve(code));

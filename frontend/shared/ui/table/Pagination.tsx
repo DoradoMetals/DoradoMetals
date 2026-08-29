@@ -18,7 +18,7 @@ export function TablePagination<TData>({
 
       <div className="flex items-center justify-center gap-4">
         <Button
-          variant="ghost"
+          variant="tertiary"
           size="icon"
           disabled={!table.getCanPreviousPage()}
           onClick={() => table.previousPage()}
@@ -32,7 +32,7 @@ export function TablePagination<TData>({
         </small>
 
         <Button
-          variant="ghost"
+          variant="tertiary"
           size="icon"
           disabled={!table.getCanNextPage()}
           onClick={() => table.nextPage()}

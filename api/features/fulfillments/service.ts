@@ -54,6 +54,7 @@ import * as compose from "#features/fulfillments/compose.ts";
 import type { ComposedFulfillment, Details } from "#features/fulfillments/compose.ts";
 import { refuse } from "#shared/http/refuse.ts";
 import type { PoolClient } from "pg";
+import type { fulfillments as fulfillmentTables } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
@@ -62,8 +63,20 @@ export type { MethodRow } from "#features/fulfillments/methods/service.ts";
 // the name the old row type had.
 export type FulfillmentRow = ComposedFulfillment;
 
-export type Direction = "purchase" | "sale";
-export type Category = "SHIPMENT" | "PICKUP" | "DIRECT";
+// DIRECTION AND CATEGORY COME FROM THE DATABASE, NOT FROM THIS FILE (D103).
+//
+// Both were hand-written unions here - `"purchase" | "sale"` and
+// `"SHIPMENT" | "PICKUP" | "DIRECT"` - which D103 says is always one of two
+// defects. Direction was the first kind: an exact duplicate of the
+// `orders.direction` enum, spelled three times across the API. Category was the
+// second: the column was `text NOT NULL DEFAULT 'OTHER'`, so the database
+// admitted a fourth value no code here could represent, and the type was
+// asserting a constraint that did not exist. Migration 098 made it a real
+// fulfillments.category enum and dropped the default; these are now derived
+// from the generated row, so widening the enum is a compile error rather than a
+// runtime surprise.
+export type Direction = NonNullable<fulfillmentTables.MethodsRow["direction"]>;
+export type Category = fulfillmentTables.MethodsRow["category"];
 
 // EVERY REFUSAL CARRIES A STATUS, AND THAT IS WHY THE MESSAGES ARE WORTH
 // WRITING.

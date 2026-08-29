@@ -33,7 +33,7 @@ export function AddNewTrigger({
   const accessibleName = label ? `Create ${label}` : 'Create new'
   return (
     <Button
-      variant="ghost"
+      variant="tertiary"
       size="sm"
       className={cn(className)}
       onClick={onOpen}

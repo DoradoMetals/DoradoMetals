@@ -5,6 +5,7 @@
 import { z } from "zod/v4";
 
 export const Direction = z.enum(["purchase", "sale"]);
+export const Category = z.enum(["SHIPMENT", "PICKUP", "DIRECT"]);
 
 export const DirectsRow = z.object({
   "id": z.string().uuid(),
@@ -41,7 +42,7 @@ export const MethodsRow = z.object({
   "updated_by": z.string().nullable(),
   "created_at": z.string(),
   "updated_at": z.string(),
-  "category": z.string(),
+  "category": Category,
   "hidden": z.boolean(),
   "admin_label": z.string().nullable(),
   "is_default": z.boolean(),

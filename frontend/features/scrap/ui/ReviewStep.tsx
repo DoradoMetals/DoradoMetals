@@ -10,6 +10,7 @@ import { sellCartStore } from '@/shared/store/sellCartStore'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import StatusChip from '@/shared/ui/StatusChip'
 import { Separator } from '@/shared/ui/base/separator'
+import { DetailRow } from '@/shared/ui/DetailRow'
 
 export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const form = useFormContext<Scrap>()
@@ -88,12 +89,9 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
         <Separator />
 
-        <div className="flex items-end justify-between">
-          <p>Price Estimate:</p>
-          <strong>
-            <PriceNumberFlow value={price} />
-          </strong>
-        </div>
+        <DetailRow label="Price Estimate:" className="items-end">
+          <PriceNumberFlow value={price} />
+        </DetailRow>
 
         {showBanner && (
           <motion.div

@@ -269,7 +269,7 @@ function ProductSelector() {
                       <small>{item.mint_name}</small>
                     </div>
                     <Button
-                      variant="ghost"
+                      variant="tertiary"
                       size="sm"
                       className="p-0 pb-2"
                       onClick={() => removeAll(item)}
@@ -281,7 +281,7 @@ function ProductSelector() {
                   <div className="flex justify-between items-center mt-3">
                     <div className="flex items-center gap-2">
                       <Button
-                        variant="ghost"
+                        variant="tertiary"
                         size="sm"
                         className="p-1"
                         onClick={() => removeOne(item)}
@@ -296,7 +296,7 @@ function ProductSelector() {
                         trend={0}
                       />
                       <Button
-                        variant="ghost"
+                        variant="tertiary"
                         size="sm"
                         className="p-1"
                         onClick={() => addItem(item)}
@@ -402,12 +402,9 @@ function ServiceSelector() {
               {option.icon && <option.icon size={24} />}
               <strong>{option.label}</strong>
             </div>
-            <div className="flex w-full items-center justify-between">
-              <small>{option.time}</small>
-              <strong>
-                <PriceNumberFlow value={option.cost} />
-              </strong>
-            </div>
+            <DetailRow label={option.time} variant="subtotal">
+              <PriceNumberFlow value={option.cost} />
+            </DetailRow>
           </>
         )}
       </RadioGroup>
@@ -479,7 +476,7 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
       <div className="pt-2">
         <Separator />
 
-        <DetailRow label="Order Total" total className="pt-2">
+        <DetailRow label="Order Total" variant="total" className="pt-2">
           <PriceNumberFlow value={orderPrices?.post_charges_amount ?? 0} />
         </DetailRow>
       </div>

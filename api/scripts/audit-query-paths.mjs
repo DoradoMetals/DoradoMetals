@@ -41,13 +41,44 @@ import fs from "node:fs";
 import path from "node:path";
 import pool from "#db";
 
-const ROOT = path.join(import.meta.dirname, "..");
+const ROOT = process.env.AUDIT_QP_ROOT
+  ? path.resolve(process.env.AUDIT_QP_ROOT)
+  : path.join(import.meta.dirname, "..");
 const SCHEMAS = [
   "orders", "payments", "fulfillments", "shipping", "refiners", "tax", "places",
   "auth", "products", "organizations", "metals", "spots", "media", "leads",
   "rates", "reviews", "checkout", "auctions",
 ];
 const S = SCHEMAS.join("|");
+
+// THE EXEMPLAR OWED ITSELF ONE. This file is the reason `lint:script-guards`
+// can point at "a floor AND a known-present control" as the shape to copy, and
+// it had neither a --self-test nor any proof its own two guards fire. Both are
+// attacked here: the literal floor without a database (it is checked before the
+// first query, deliberately), and the control against the real tree.
+if (process.argv.includes("--self-test")) {
+  const { selfTest } = await import("./lib/self-test.mjs");
+  await selfTest({
+    script: import.meta.filename,
+    cases: [
+      {
+        name: "the literal floor fires on a tree with no statements in it",
+        rootEnv: "AUDIT_QP_ROOT",
+        files: { "features/x/service.ts": "export const noop = () => 1;\n", "shared/keep.ts": "export const k = 1;\n", "legacy/keep.ts": "export const l = 1;\n" },
+        expect: "fail", mustPrint: "the walk is broken, not the schema",
+      },
+      {
+        name: "the floor is not the only guard: a control it cannot find also fails",
+        env: { AUDIT_QP_CONTROL: "media.images|a_column_no_query_filters_on" },
+        expect: "fail", mustPrint: "the scan is broken rather than the schema clean",
+      },
+      {
+        name: "the real tree clears both its floor and its control",
+        expect: "pass", mustPrint: "distinct query filters checked",
+      },
+    ],
+  });
+}
 
 // Queries that legitimately have no index to enter by. Pinned from both sides:
 // an unnamed one fails, and a name that no longer reports fails too.
@@ -155,7 +186,8 @@ for (const f of walk(path.join(ROOT, "features"))
 // 113 literals and the run reported clean - so a known-present control has to be
 // found as well. getUserImages is the query migration 081 was written for; if
 // this scan cannot see it, it cannot see anything and must say so.
-if (literals < 100) {
+const LITERAL_FLOOR = Number(process.env.AUDIT_QP_LITERAL_FLOOR ?? 100);
+if (literals < LITERAL_FLOOR) {
   console.error(`only ${literals} SQL literals found against the new schemas - the walk is broken, not the schema`);
   process.exit(1);
 }
@@ -200,7 +232,7 @@ for (const f of found) {
   seen.get(key).sites.add(`${f.file}:${f.line}`);
 }
 
-const CONTROL = "media.images|user_id";
+const CONTROL = process.env.AUDIT_QP_CONTROL ?? "media.images|user_id";
 if (![...seen.keys()].includes(CONTROL)) {
   console.error(
     `the known-present control ${CONTROL} was not found - features/media/sql/by_user.sql ` +

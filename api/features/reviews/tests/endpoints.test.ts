@@ -8,6 +8,7 @@
 // is rolled back, including the service's own, which becomes a savepoint.
 import test, { before } from "node:test";
 import assert from "node:assert/strict";
+import type { PoolClient } from "pg";
 import request from "supertest";
 import { mockSessions, as, anonymous } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
@@ -37,7 +38,7 @@ test("a customer cannot reach the admin routes", async () => {
 });
 
 test("create writes BOTH schemas, in one transaction, with the same id", async () => {
-  await inPinnedTransaction(async (client) => {
+  await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app).post("/api/reviews/create").send({ review: NEW });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
@@ -54,7 +55,7 @@ test("create writes BOTH schemas, in one transaction, with the same id", async (
 
 // Proves the read direction rather than assuming it.
 test("the read comes from the new schema", async () => {
-  await inPinnedTransaction(async (client) => {
+  await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const id = (await request(app).post("/api/reviews/create").send({ review: NEW })).body.id;
       await client.query(`UPDATE reviews.reviews SET name = $1 WHERE id = $2`, ["FROM-NEW-SCHEMA", id]);
@@ -68,7 +69,7 @@ test("the read comes from the new schema", async () => {
 });
 
 test("update and delete both reach both schemas", async () => {
-  await inPinnedTransaction(async (client) => {
+  await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const created = (await request(app).post("/api/reviews/create").send({ review: NEW })).body;
 
@@ -94,7 +95,7 @@ test("update and delete both reach both schemas", async () => {
 // it, so the statement is the only thing standing between an anonymous visitor
 // and a hidden review.
 test("an anonymous visitor sees public reviews and never a hidden one", async () => {
-  await inPinnedTransaction(async (client) => {
+  await inPinnedTransaction(async (client: PoolClient) => {
     let hiddenId: string;
     await as({ ...admin, role: "admin" }, async () => {
       hiddenId = (await request(app).post("/api/reviews/create")

@@ -11,9 +11,29 @@ declare module "supertest" {
     status: number;
     body: any;
     text: string;
+    // Superagent hangs the originating request off the response, and
+    // features/leads/tests/replay.test.ts reads it to name which call failed
+    // in a loop over several. Declared narrowly, like everything else here:
+    // only the two fields a test actually reads.
+    request: { method: string; url: string };
+    // Response headers, lowercased by superagent. The PDF tests assert
+    // content-type and content-disposition, which is how they prove a browser
+    // will save the file rather than render it.
+    headers: Record<string, string | undefined>;
   }
   interface Test extends Promise<Response> {
     send(data?: unknown): Test;
+    // The binary pair. A PDF route returns bytes, and superagent's default
+    // parser would decode them as text - so the PDF tests turn buffering on
+    // and supply their own parser. Declared narrowly like the rest of this
+    // file: `parse` takes the raw response stream and a node-style callback.
+    buffer(yes?: boolean): Test;
+    parse(
+      fn: (
+        res: import("node:stream").Readable,
+        cb: (err: Error | null, body: unknown) => void
+      ) => void
+    ): Test;
     query(params: Record<string, unknown>): Test;
     set(field: string, value: string): Test;
     expect(status: number): Test;

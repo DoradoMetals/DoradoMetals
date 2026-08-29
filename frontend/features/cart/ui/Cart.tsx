@@ -10,6 +10,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { EmptyState } from '@/shared/ui/EmptyState'
 
 export default function Cart() {
   const router = useRouter()
@@ -33,25 +34,14 @@ export default function Cart() {
   const total = quote?.total ?? 0
 
   const emptyCart = (
-    <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10">
-      <div className="relative mb-5">
-        <ShoppingCart size={80} className="text-neutral-800" strokeWidth={1.5} />
-        {/* The zero-count bubble on the empty-cart illustration. It carried
-            `border-secondary text-secondary`, and --secondary stopped being a
-            hue in the palette flip (it is now a dark raised surface), so this
-            rendered dark-on-dark. --border-strong is the token for an edge
-            that must read as deliberate; the numeral's colour comes from the
-            tag. */}
-        <p className="absolute -top-6 right-3.5 border border-border-strong rounded-full w-10 h-10 flex items-center justify-center">
-          0
-        </p>
-      </div>
-
-      <div className="flex-col items-center gap-1 mb-5">
-        <h2>Your cart is empty!</h2>
-        <small>Add items to get started.</small>
-      </div>
-
+    <EmptyState
+      icon={ShoppingCart}
+      iconSize={80}
+      badge={0}
+      title="Your cart is empty!"
+      description="Add items to get started."
+      className="h-full justify-center pb-10"
+    >
       <Button
         size="xl"
         onClick={() => {
@@ -61,7 +51,7 @@ export default function Cart() {
       >
         Start Shopping
       </Button>
-    </div>
+    </EmptyState>
   )
 
   const cartContent = (

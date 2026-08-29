@@ -24,6 +24,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useSpotPrices } from '@/features/spots/queries'
+import { DetailRow } from '@/shared/ui/DetailRow'
 
 type ProductCardProps = {
   product: Product
@@ -255,19 +256,13 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                     >
                       <div className="flex flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                          <div className="flex w-full items-start justify-between pl-8">
-                            <small>{spot?.name} Spot Price</small>
-                            <p>
-                              <PriceNumberFlow value={spot?.ask ?? 0} />
-                            </p>
-                          </div>
+                          <DetailRow label={<>{spot?.name} Spot Price</>} variant="detail" className="items-start pl-8">
+                            <PriceNumberFlow value={spot?.ask ?? 0} />
+                          </DetailRow>
 
                           <div className="flex w-full items-start">
                             <X size={16} className="text-neutral-700" />
-                            <div className="flex w-full items-start justify-between pl-4">
-                              <small>Content (oz)</small>
-                              <p>{selectedProduct.content}</p>
-                            </div>
+                            <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
                           </div>
 
                           <div className="flex w-full items-start">
@@ -277,23 +272,17 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                               <Minus size={16} className="text-neutral-700" />
                             )}
 
-                            <div className="flex w-full items-start justify-between pl-4">
-                              <small>Premium</small>
-                              <p>
-                                <PriceNumberFlow value={Math.abs(overOrUnder)} />
-                              </p>
-                            </div>
+                            <DetailRow label="Premium" variant="detail" className="items-start pl-4">
+                              <PriceNumberFlow value={Math.abs(overOrUnder)} />
+                            </DetailRow>
                           </div>
                         </div>
 
                         <div className="flex w-full items-start">
                           <Equal size={16} className="text-neutral-700" />
-                          <div className="flex w-full items-start justify-between pl-4">
-                            <small>Total</small>
-                            <strong>
-                              <PriceNumberFlow value={price} />
-                            </strong>
-                          </div>
+                          <DetailRow label="Total" variant="subtotal" className="items-start pl-4">
+                            <PriceNumberFlow value={price} />
+                          </DetailRow>
                         </div>
                       </div>
                     </motion.div>

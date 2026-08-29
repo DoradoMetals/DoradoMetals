@@ -136,5 +136,19 @@ export const CarrierServiceOption = z.object({
   name: z.string(),
   carrier_code: z.string(),
   display_order: z.number(),
+  // THE ONE FIELD HERE THAT IS A ROW AND NOT A CONSTANT (migration 097).
+  //
+  // What Dorado will insure a parcel moving on this service for, in USD -
+  // `shipping.services.max_insured_value`, joined onto the adapter's catalogue
+  // by (carrier_id, name) because `code` is still NULL on every row (D125).
+  // NOT the carrier's own ceiling: FedEx allows $50,000, this is 10,000
+  // (Jacob, 2026-08-29).
+  //
+  // *** THE CLIENT MUST NOT CLAMP WITH IT. *** This number is here so a screen
+  // can SAY what a parcel is covered for. The clamp itself is applied by the
+  // server, in /quotes/purchase_order and again when the label is bought -
+  // `Math.min(quote.declared_value, 50000)` in checkoutStepper.tsx is the
+  // defect 097 removes (D132, and D82: the frontend computes no money).
+  max_insured_value: z.number(),
 });
 export type CarrierServiceOption = z.infer<typeof CarrierServiceOption>;

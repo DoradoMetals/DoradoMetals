@@ -10151,9 +10151,21 @@ the weight of metal a customer was paid for. NO MIGRATION WAS WRITTEN.
 === D117: THE PAYOUT FEE IS NOT A FUNCTION OF THE PAYOUT METHOD ===
 Found by lane A while building D97's server-side fee resolution, and it
 qualifies that fix. In production `exchange.payouts`:
-  WIRE   = 20 on six rows, 0 on two.
-  ECHECK = 0 on thirty-nine rows, 75 on one, 125 on one.
-ELEVEN ROWS DISAGREE WITH THE FRONTEND'S CONSTANT TABLE. So a fee cannot
+  ACH            0 x11   (table: 0)  agrees
+  DORADO_ACCOUNT 0 x2    (table: 0)  agrees
+  ECHECK         0 x39   (table: 0)  agrees
+  ECHECK        75 x1    (table: 0)  DISAGREES
+  ECHECK       125 x1    (table: 0)  DISAGREES
+  WIRE           0 x2    (table: 20) DISAGREES
+  WIRE          20 x6    (table: 20) agrees
+                                     62 rows total
+*** FOUR ROWS DISAGREE, NOT ELEVEN. *** This entry said eleven until
+2026-08-29 and said 61 rows; both were the coordinator's error, caught
+by the tracker recomputing against PAYOUT_METHOD_FEES instead of
+relaying the summary. The "eleven" was the x11 off the ACH line - the
+count of rows that AGREE. Recorded rather than quietly corrected,
+because a finding whose numbers move without explanation is a finding
+nobody can trust twice. So a fee cannot
 be derived from a method name for an EXISTING order - the stored value is
 the truth, and `features/payouts/constants.ts` is a DEFAULT FOR A NEW
 ORDER ONLY. It must never re-derive a stored one.
@@ -10653,3 +10665,534 @@ sentence had been wrong for several waves - each feature's switch was
 deleted along with the `repo.js` that read it as its reads pivoted, so
 the count fell while the sentence naming it did not. The retired ones
 were never promoted; they ceased to exist.
+
+=== D143: A CLAIM IN MY OWN COMMIT MESSAGE IS UNPROVEN - THE SCATTER
+    SCAN CANNOT SEE `cn()` ARGUMENTS ===
+Found by lane C, routed to lane D, and CONFIRMED BY THE COORDINATOR BY
+ATTACK: planted `className={cn('text-sm', 'flex')}` in a new file and
+`lint:typography-scatter` still reported ZERO. Blind by construction -
+its scatter matcher handles `className="..."` and template literals
+only, and `className={cn(...)}` is neither. The DEFAULT mode of the same
+file parses `cn()` correctly (it was fixed for exactly this in wave 4);
+--scatter never used that machinery.
+*** SO "TYPOGRAPHY SCATTER 306 -> 0" IS UNPROVEN. *** That number is in
+the commit messages of `9de7d283` and `a2599311`, and what the zero
+actually means is "zero of the spellings I can see". Lane C already
+found three files that passed the scan while carrying what it exists to
+find.
+THIS IS THE NIGHT'S PATTERN LANDING ON MY OWN WORK, and it is the fourth
+place it has appeared in a tool rather than in product code: a detector
+that only recognises one shape reports clean on the others (D95, D99,
+D108, D120), and I wrote this one WHILE RECORDING THAT LESSON. Writing
+the rule down does not exempt you from it.
+THE COMMIT MESSAGES STAY AS THEY ARE - they are the record of what was
+believed at the time, and rewriting history to match a later measurement
+is falsification. This entry is the correction; the corrected count
+lands when lane D re-runs it.
+THE GENERAL RULE, now earned three times: BEFORE QUOTING A TOOL'S NUMBER
+AS EVIDENCE, PLANT A VIOLATION AND CONFIRM IT FAILS. Thirty seconds.
+Every number in a commit message is a claim someone will rely on later.
+
+=== D144: THE ORPHANED SEAM - `api/shared/` BELONGED TO NO LANE, AND THE
+    DECLARATION FILES IT HELD WERE DEAD AND WRONG ===
+THIRD cross-lane seam of the night, found by the tracker checking a lane
+report against every lane's declared scope rather than assuming somebody
+owned it. Lane B found two `.d.ts` files in `api/shared/testing/` whose
+signatures contradict their implementations - `assertNothingEscaped`
+declared `Promise<void>` while the implementation `return rows[0].n`, a
+COUNT - named it, and correctly stopped. `api/shared/**` is in NO lane's
+scope: A owns features/legacy/contracts, B owns test files plus
+`api/types/*.d.ts` (a different directory), C is frontend, D is scripts.
+"Another lane's" was in fact "nobody's".
+RESOLVED BY THE COORDINATOR, and the fix was deletion rather than
+correction. BOTH `.d.ts` FILES HAVE `.ts` SIBLINGS, and a `.ts` SHADOWS
+a `.d.ts` of the same name - so tsc had stopped reading them entirely
+while they went on drifting. Their own header explains they were written
+when the harness was JavaScript, "so the JavaScript tests keep working
+untouched while TypeScript ones get real types"; the harness was
+converted in `3f4cfa16` and the declarations were not removed with it.
+A hand-written type that nothing checks and nothing reads is not
+documentation - it is a second source of truth that CANNOT BE WRONG OUT
+LOUD. Deleted, with the reasoning left in `pinned-pool.ts` where the
+next reader will look.
+THREE SEAMS, ONE PARTITION: one RESOLVED (A/D, the switch bypass - both
+halves landed within three minutes once named), one OPEN (C found a
+blind spot in a linter D owns), one ORPHANED (this). All three are the
+D119 shape: the partition gave every SIDE an owner and gave no SEAM one.
+THE MECHANISM THAT FOUND ALL THREE was an agent whose whole job is
+reading what the others wrote and checking it against the map. That is
+the argument for the tracker existing, and it is a stronger one than
+keeping a progress bar current.
+
+=== D145: A MISSING PAYOUT COST MAKES THE WHOLE INVOICE `NaN`, AND THE
+    TYPE SYSTEM WAS TALKED OUT OF NOTICING ===
+Found by lane B while converting tests, verified by the coordinator in
+source and by reproducing the arithmetic.
+`api/features/pricing/bid.ts:148`:
+    return baseTotal - shipping - order.payout.cost;
+The line ABOVE defends the other subtrahend - `shipping_charge ?? 0` -
+and the return line does not defend `payout.cost`. An order with a
+missing payout row, or a `cost` of undefined, yields `number -
+undefined` and THE ENTIRE INVOICE IS `NaN`. Silently.
+THE ASYMMETRY IS THE TELL: someone considered a missing shipment on one
+line and not a missing payout on the next.
+AND THE COMPILER WAS PREVENTED FROM CATCHING IT. `orders/service.ts:62`
+intersects `{ payout: { cost: number } }` onto `OrderLike`, a type whose
+own comment says it is "whatever the caller had... several callers are
+controllers handing over req.body". So `cost` is a number because THE
+TYPE ASSERTS IT, not because anything checked. Same shape as D103 and
+D129: a coupling nothing enforces, wearing the costume of a guarantee.
+THE FIX IS NOT OBVIOUSLY `?? 0`, and that is why it went to lane A as a
+decision rather than a patch. D117 established the payout fee is DATA on
+the row, not a function of the method - so defaulting a missing cost to
+zero would invoice as though NO PAYOUT FEE APPLIED, which is a quiet
+wrong number rather than a loud failure. Two files away, `spot!` throws
+on purpose and a test PINS the TypeError for exactly this reason. On a
+money path a loud failure beats a plausible total.
+
+=== D146: `api/legacy/`'s OWN EXIT CRITERIA ARE UNSATISFIABLE, AND THE
+    REAL QUESTION IS ONE QUESTION ASKED ONCE ===
+`legacy/README.md` step 3 requires a `*_SOURCE` switch promoted past
+`dual` before a directory may be deleted. ELEVEN OF THE FOURTEEN
+DIRECTORIES NO LONGER HAVE A SWITCH - as each feature's reads pivoted,
+its switch was deleted along with the `repo.js` that read it (the same
+drift that left CLAUDE.md claiming twenty-one switches when two survive,
+D142). So the folder's own exit criteria can never be met by eleven of
+its residents, and "legacy is deletable when its switch is promoted"
+quietly became "legacy is never deletable".
+WHAT REPLACES IT IS SIMPLER AND IS JACOB'S TO ANSWER, ONCE, FOR ALL
+ELEVEN: *may `exchange` stop receiving these writes?* That is the whole
+of it. There is no per-feature ceremony left to perform, because the
+per-feature switches that would have performed it are gone.
+THE EVIDENCE IS ALREADY GATHERED so it can be ANSWERED rather than
+researched: 10 of 15 parity pairs byte-identical, and all five
+exceptions already explained (the metals spot drift, the four cart
+pairs whose targets are empty by design, D138's id-join caveat).
+STILL A ONE-WAY DOOR: once exchange stops receiving writes, flipping
+back loses everything written in between. The question being simple does
+not make the answer reversible.
+
+=== D147: THE BYPASS WAS CLOSED BY REMOVAL, WHICH IS THE STRONGER FIX ===
+D142's `features/quotes/service.ts` bypass - importing
+`#features/checkout/repo.next.ts` directly, around the switch - is
+closed, and lane A chose the better of the two available fixes. Instead
+of routing the call through `repo.js`, it UN-EXPORTED
+`findProductIdByName` from both repos: THE HANDLE NO LONGER EXISTS TO
+GRAB. A bypass that is routed can be re-bypassed by the next person in a
+hurry; a bypass whose door is bricked up cannot.
+Also worth recording: lane A closed it by EDITING LANE D's FILE, and
+disclosed it as crossing #3 of three with the `--self-test` result
+(8/8). That is D119 working exactly as intended - the partition does not
+prevent every crossing, it makes each one visible and argued.
+
+=== D148: THE DO-NOT-LOSE-DATA GUARD WAS BLIND TO A WRAPPED STATEMENT,
+    AND AN UNMARKED DESTRUCTIVE CHANGE HAD ALREADY PASSED THROUGH IT ===
+The most serious finding of the night, and the last one anybody would
+have looked for.
+CLAUDE.md's first rule is that nothing may overwrite, truncate or delete
+any of `exchange`, and it names `lint:migrations` as the thing that
+"enforces this statically and runs in CI". Lane D documented that the
+scan is LINE-BY-LINE and therefore cannot see a statement split across
+lines. The coordinator planted one to check:
+    DROP
+      TABLE exchange.payouts;
+*** THE GUARD PRINTED "105 files, no destructive writes to exchange". ***
+CLOSING IT FOUND A REAL ONE THAT WAS ALREADY IN THE TREE.
+`086_offers_go_away.sql:46` is
+    ALTER TABLE exchange.purchase_orders
+      DROP COLUMN IF EXISTS offer_status,
+      ... four more ...
+FIVE COLUMNS DROPPED FROM `exchange.purchase_orders`, WITH NO
+`-- allow-destructive:` MARKER, because the statement wraps and the
+guard never saw it and so never demanded one. The change itself was
+intended and authorised - offers are fully dead by ruling 3, 092 moved
+the surviving rows off the retired statuses first, and it has only ever
+run against DEV. What was missing was the RECORD, which is the entire
+point of the marker. Added retroactively and labelled as retroactive.
+TWO FIXES, both verified by attack: the scan now also matches
+whitespace-normalised three-line windows; and the waiver lookback went
+from 6 lines to 20, because a marker that actually explains itself is a
+paragraph and 086's is twelve lines - a window shorter than the waivers
+people really write REJECTS THE WELL-DOCUMENTED CHANGES AND ACCEPTS THE
+TERSE ONES, which is exactly backwards. Clean run passes 104 files, a
+planted wrapped DROP fires, self-test 7/7.
+WHAT THIS SAYS ABOUT THE NIGHT: every audit was found looking at a
+narrower question than the one being asked of it, and the LAST one
+checked was the one guarding the rule that outranks all the others. The
+gap was not hidden - lane D had written it into the header hours
+earlier, following D95's rule to state a detector's blind spots. WRITING
+DOWN A BLIND SPOT IS NOT THE SAME AS CLOSING IT, and on the
+do-not-lose-data guard the difference is the whole thing.
+
+=== D149: THE NaN INVOICE, RESOLVED BY MEASURING FIRST ===
+D145 handed lane A a choice rather than a patch, and it measured before
+choosing. THREE INPUTS GAVE THREE DIFFERENT ANSWERS:
+  `payout: null`        -> TypeError
+  `payout: {cost: null}` -> 0
+  `payout: {}`           -> NaN, SILENTLY, into the invoice
+That third arm could never have been covered by a test, because the type
+said it was impossible - `OrderLike` intersects `{ payout: { cost:
+number } }` onto `req.body`.
+THE FIX SPLITS BY MEANING RATHER THAN BY SYMMETRY: absent -> 0,
+present-but-unusable -> throw. A blanket `?? 0` was REJECTED because it
+would have silently deleted the existing `null` guard, turning a loud
+failure into a plausible total - which is the trade D145 warned about
+and the reason `spot!` throws two files away. Both subtrahends now go
+through one `fee()`, both totals end in `finite()`.
+SWEPT AGAINST THE DATABASE, not just unit-tested: 48 dev orders priced,
+0 threw, 0 NaN. D117's concern (a stored fee must never be re-derived)
+explicitly checked and untouched.
+
+=== D150: SIX ROTTED GATE SCRIPTS, AND THE COUNT ONLY STOPPED BECAUSE
+    SOMEONE WENT LOOKING ===
+The tally, because the number is the finding: `diff` (unparsed for ten
+commits), `audit:test-leaks` (suite spawned without NODE_ENV, half the
+live-service guard dead), `validate:wire`'s moved caller, `route-guards`
+(six routes missing from a SECURITY audit while exiting 0),
+`audit:frontend-nullability` (its --self-test had been FAILING and
+nothing ran it - its single control was a schema the contracts
+conversion deleted), `audit-state-collapse` (worked from two directories
+and died on ENOENT elsewhere). And `lint:migrations` blind to a wrapped
+statement (D148), which is seven if you count the guard on the first
+rule.
+NONE was found by the gate. All were found by an agent whose job was to
+go and look. The generalisation for the next session: TOOLING UNDER
+`scripts/` IS THE LEAST-EXAMINED CODE IN THE REPOSITORY AND THE MOST
+TRUSTED - nothing typechecks it, nothing imports it, no test covers it,
+and every green it prints is taken as evidence about something else.
+`lint:script-guards` (gate member 9, gate now 23) exists so this class
+cannot silently return: a `--self-test` is RUN rather than counted, and
+must exit 0 AND say it ran, because a script ignoring an unknown flag
+exits 0 too.
+
+=== D151: CHECKOUT_SOURCE HAS ITS EVIDENCE, AND THE AGENT DECLINED TO
+    PROMOTE ANYWAY ===
+Jacob's bar for checkout is FUNCTION, not preservation (`checkout.*` is
+device-sync; empty is fine). Nothing in the gate tested that, so lane A
+exercised the dual path directly in a rolled-back transaction: 8 passed,
+0 failed.
+IT THEN DID NOT PROMOTE, citing D141: "an agent that promotes a switch
+because the evidence looks good teaches everyone the gate is advisory."
+The flip is one environment variable and it remains Jacob's.
+That is the fifth time tonight an agent stopped at a line it could have
+crossed, and the pattern is worth naming: EVERY ONE OF THOSE STOPS
+PRODUCED A BETTER ARTEFACT THAN CROSSING WOULD HAVE - a survey, a
+recipe, a refutation, a measured seam. Stopping is not the absence of
+work; on this project it has been most of the value.
+
+=== D152: WE JUST MADE THE TERMS AND CONDITIONS DISAGREE WITH THE
+    DATABASE, ON INSURANCE ===
+`app/terms-and-conditions/page.tsx:177` promises insurance "up to
+$50,000". Tonight's migration 097 sets `shipping.services
+.max_insured_value` to **10000** on all eight rows, and the clamp is now
+server-side and authoritative. So the site's LEGAL COPY promises five
+times what the system will actually insure.
+NEITHER SIDE IS OBVIOUSLY WRONG, WHICH IS WHY IT IS JACOB'S:
+ - 10000 is what he asked for, verbatim: "make it 10,000 for all of them
+   at the moment". "At the moment" suggests a placeholder.
+ - 50000 was the browser literal we removed, and it is the CARRIER'S
+   declared-value ceiling - a different quantity from what Dorado
+   chooses to insure. Lane A kept them separate deliberately and did not
+   seed `max_declared_value`, because that column is dual-written to
+   `exchange` and seeding it would mean writing `exchange` from a
+   migration.
+ - The T&C is contractual. A customer who reads $50,000 and ships
+   $30,000 of metal has been told something the system will not honour.
+NOTHING WAS TOUCHED. Legal copy is Jacob's and already has one
+outstanding review (the offers purge deleted both deemed-acceptance
+clauses, the "Rejecting Our Offer" section and the 7-business-day term,
+leaving the Return Policy with no trigger). This is the second item on
+that same review.
+THE GENERAL POINT WORTH KEEPING: moving a number out of the browser and
+into the database makes it AUTHORITATIVE, and anything that was quietly
+agreeing with the old literal now has to agree with the new column or be
+wrong out loud. Grep for the number, not just the code, when a constant
+becomes data.
+
+=== D153: A COMPONENT WITH ZERO IMPORTERS, AND SIX HAND-ROLLED COPIES OF
+    IT IN THE TREE - EVERY ONE CARRYING THE SAME LIVE DEFECT ===
+`SelectMenu` was lifted during the D88 component push and NEVER ADOPTED -
+zero importers, noted as such three separate times across three waves
+and each time left alone. Meanwhile SIX hand-rolled popover menus sat in
+the tree, FIVE OF THEM IN ONE FILE, and EVERY ONE carried the exact
+defect `SelectMenu`'s own header describes: `text-primary` over
+`hover:bg-primary`, both near-white after the palette flip. HOVERING A
+ROW MADE ITS LABEL VANISH - live, on the admin purchase-order drawer.
+So the extraction was done, the lesson was written into the component,
+and the defect it existed to prevent went on multiplying six feet away.
+THE FAILURE MODE IS NOT "NOBODY EXTRACTED IT". It is EXTRACTED AND NOT
+ADOPTED, which looks like success in every metric that counts components
+rather than call sites - and it is why lane C was briefed to measure at
+the call sites. Three waves reported `SelectMenu` at zero importers as a
+curiosity; none asked why six copies of it existed.
+WHAT TO DO WITH IT: a component with zero importers is either DEAD (and
+should be deleted) or UNADOPTED (and its call sites are hiding
+somewhere). Never leave it as "worth confirming later" - that is the
+state in which it was reported three times.
+
+=== D154: LANE C RE-BASELINED ITS OWN NUMBERS MID-RUN, WHICH IS WHY THEY
+    ARE TRUE ===
+Lane D fixed both frontend linters WHILE LANE C WAS USING THEM. So the
+`0` lane C started from was "zero of the ones the linter could see" -
+the same wrong zero that reached two of my commit messages (D143).
+Lane C re-ran lane D's FIXED linters against a pristine `002c0f0f` to
+get a real baseline, and reported call-site styling 6 -> 0 and scatter
+34 -> 28 against that instead of against the number it had been handed.
+Worth recording as practice: WHEN A TOOL IS FIXED MID-WORK, EVERY NUMBER
+TAKEN FROM IT BEFORE THE FIX IS RETROSPECTIVELY WRONG - including the
+starting baseline, which is the one nobody re-checks because it is
+"just" where you began.
+
+=== D155: THE HONESTY MACHINERY HAD A SILENTLY SHADOWED ENTRY ===
+Found by the tracker reading `feature-map.mjs` rather than trusting it.
+`bank_account_type` WAS DECLARED TWICE IN ONE OBJECT LITERAL: mapped to
+`account_type` at line 166, and declared dropped (`"-"`) at line 180.
+JavaScript takes the last one, so THE REAL MAPPING WAS SILENTLY
+DISCARDED AND `audit:coverage` WAS TOLD THE COLUMN HAD BEEN
+DELIBERATELY DROPPED.
+CLAUDE.md's own words for this file: it exists so "the report stays
+honest". A shadowed entry is the worst defect it can have, because the
+whole point of the map is to be the place where a deliberate drop is
+DECLARED - and a declaration that overwrites a mapping cannot be told
+apart from a decision.
+RESOLVED: `payments.details` HAS an `account_type` column, so the
+mapping was the true entry and the drop was the mistake - it had been
+swept in beside `routing` under a comment that is only about routing
+numbers never being populated. Removed, with the reasoning left in the
+file.
+SWEPT FOR MORE, properly: a crude same-indent scan reports seven names
+appearing twice, but those are the same column in DIFFERENT features'
+maps, which is legitimate. Tracking brace depth to compare keys WITHIN
+each object literal: NO OTHER DUPLICATES. The crude scan would have sent
+someone chasing six false positives, which is its own small lesson about
+the shape of a check.
+WORTH A GUARD: a duplicate key inside one of these maps is invisible to
+every tool - it is valid JavaScript, `audit:coverage` reads the survivor
+without complaint, and only reading the source finds it. The
+brace-depth check above is ten lines and belongs in
+`lint:script-guards`.
+
+=== D156: THE PAYMENTS PARITY TEST - THE EVIDENCE FOR PROMOTING THE
+    SWITCH - WAS COMPARING NOTHING ===
+Found by lane B's conversion, VERIFIED TWO WAYS by the tracker and again
+by the coordinator. This one matters more than the other ten because of
+what it was being used for.
+`PAYMENTS_SOURCE` is one of the two surviving switches, and its parity
+test is the evidence that it can be promoted. Both of its assertions
+compare fields THAT DO NOT EXIST ON EITHER SIDE:
+ - `repo.exchange.js:45` projects `(amount::numeric / 100) AS
+   amount_expected` - there is no `amount`.
+ - line 52 puts the intent id inside
+   `jsonb_build_object('provider_ref', payment_intent_id)` - it surfaces
+   as `attempt.provider_ref`, not `.payment_intent_id`.
+Both reads were converted to the wire shape; THE TEST WAS NOT. So
+`.payment_intent_id` and `.amount` are `undefined` on BOTH
+implementations, and undefined equals undefined.
+*** AND `NaN` PASSES. *** Confirmed at the console: under
+`node:assert/strict`, `assert.equal` is strictEqual, strictEqual uses
+`Object.is`, and `Object.is(NaN, NaN)` is TRUE. `Number(undefined)` is
+`NaN`. So a numeric comparison of two absent fields is a GREEN
+ASSERTION. The one deep-equality idiom most people assume is safe is the
+one that makes this invisible.
+TWO GREEN ASSERTIONS, NEITHER COMPARING ANYTHING, on the feature holding
+FOURTEEN SETS OF UNENCRYPTED BANK DETAILS. Ninth vacuous-test instance
+on this project, second tonight, and the second found by THE COMPILER
+rather than by a person - which is the argument for ruling 33 in one
+line.
+FOR JACOB: if "payments parity is green" was part of why promoting
+`PAYMENTS_SOURCE` felt safe, it was not evidence until a few minutes
+ago. It is a real comparison now, but the green is HOURS OLD rather than
+months - let it run before leaning on it.
+
+=== D157: THE ROOT CAUSE OF EVERY ROTTED GATE SCRIPT IS ONE WORD IN
+    tsconfig.json ===
+Mentioned in passing by lane B, verified by the tracker and again here.
+`api/tsconfig.json`:
+    "exclude": ["node_modules", "migrations", "**/*.test.js", "scripts"]
+                                                               ^^^^^^^
+FORTY-SIX SCRIPTS, ZERO TYPE COVERAGE, BY CONFIGURATION. Nothing imports
+them, no test covered them, and `tsc` is explicitly told not to look.
+That is the whole mechanism behind D110, D115, D118, D120, D148 and the
+two lane D found - not carelessness, not haste, ONE WORD IN A CONFIG
+FILE that removed the only automatic check they could have had.
+AND IT MEANS "JUST CONVERT THE SCRIPTS TOO" BUYS NOTHING while the
+exclusion stands: all 46 are `.mjs`, `checkJs` is false, so even
+un-excluding them changes nothing until they are either `.ts` or covered
+by `checkJs`. The fix is two moves, and doing only the obvious one would
+produce the appearance of coverage without any.
+NOT DONE TONIGHT, DELIBERATELY: lane B is mid-conversion with 444
+typecheck errors in flight, and changing what `tsc` looks at while the
+error count is moving would make it impossible to tell whose errors are
+whose. QUEUED as the first item of the next wave, in this order: convert
+`scripts/lib/*` first (they are imported by other scripts, so they have
+real consumers to check against), then un-exclude, then work the errors
+down.
+THE PATTERN, one last time: the reason nobody found this in six
+incidents is that each looked like a bug in a script. A shared root
+cause in configuration is invisible from any single instance - you only
+see it by counting the instances and asking what they have in common.
+
+=== D158: A HANDOFF TABLE GOES STALE WHILE YOU WRITE IT ===
+The tracker checked lane B's "for the lanes that own source" table
+against the tree and found THREE OF SEVEN ROWS ALREADY DONE OR WRONG:
+the two `.d.ts` deletions had happened at 01:24; the `payout.cost` row
+was done and more thoroughly than it asked (both public totals now end
+in `finite()`); and the `payments/repo.next.ts` row rests on L-B9, which
+had already been refuted.
+NOBODY WAS SLOPPY. Lane B appends findings as it goes, other lanes fix
+things concurrently, and no lane re-reads another's file - there is no
+mechanism by which it could have known. This is the ordinary cost of
+four lanes in one tree.
+THE CONSEQUENCE IS CONCRETE: someone opening that table at 7am redoes
+two completed fixes and acts on one false premise. A stale handoff is
+worse than no handoff, because it carries authority.
+SO A HANDOFF TABLE NEEDS AN OWNER WHO RE-VERIFIES IT AT HANDOVER, and
+that is the tracker - the only agent whose job is reading what everyone
+else wrote. Third distinct thing it has caught that no lane could
+(D114's seam, D124's orphan, this).
+
+=== D159: THE ORDER READ DISCARDS THE TYPE IT ALREADY KNOWS ===
+`features/orders/read.service.ts` returns
+`Promise<Record<string, unknown>[]>` from four exported functions, while
+internally composing objects that `compose.ts` already describes as
+`ComposedOrder`. THE SERVICE THROWS AWAY WHAT IT KNOWS AT ITS OWN
+BOUNDARY.
+The cost is measurable and lane B paid it: FIVE TEST FILES HAD TO
+RE-DECLARE THE ORDER SHAPE, because the service would not tell them.
+Every one of those declarations is a copy that can drift from the thing
+it describes - which is D103's rule ("a hand-written type is a duplicate
+or an unenforced constraint") arriving by a different road.
+NOT CHANGED TONIGHT, DELIBERATELY: lane B is mid-conversion with 444
+typecheck errors in flight, and altering a widely-consumed return type
+while that number moves makes it impossible to tell whose errors are
+whose. Same reasoning as D157's deferral. QUEUED: narrow the four
+signatures to `ComposedOrder[]` / `ComposedSalesOrder[]`, then delete
+the five re-declarations - and expect the narrowing itself to surface
+mismatches, because a type nobody has checked in a year rarely fits on
+the first try.
+
+=== D160: THREE WRONG NUMBERS TONIGHT, ALL WRONG THE SAME WAY ===
+Not three mistakes. One mistake, made three times, by three different
+agents including the coordinator:
+  1. D117's "ELEVEN rows disagree" - actually FOUR. The eleven was the
+     x11 on the ACH line, which is a count of rows that AGREE. Mine.
+  2. The tracker's "224 uncommitted paths" - actually 215. Typed from
+     memory of an earlier reading instead of re-running the command.
+     Caught and published by the tracker against itself.
+  3. Lane B comparing vacuous-test counts against "CLAUDE.md's 13 LOOP /
+     9 SKIP" - CLAUDE.md DOES NOT MENTION audit:vacuous-tests, LOOP or
+     SKIP anywhere. The real baseline, in FOLLOWUPS.md, is 21 LOOP and
+     10 SKIP. So the movement is 21->24 and 10->8, and SKIP WENT DOWN
+     where the quoted baseline implied a jump.
+EVERY ONE IS A FIGURE CARRIED FORWARD INSTEAD OF RE-DERIVED. None was a
+miscalculation; each was a number remembered, or read from the wrong
+place, and then reasoned from. All three were harmless-looking. All
+three were in documents whose purpose is to be trusted later.
+THE RULE, and it is cheap: A NUMBER YOU DID NOT COMPUTE IN THIS SESSION
+IS A CLAIM, NOT A FACT. Re-derive it, or cite where it came from so the
+next reader can. The tracker's practice of stating whose number a figure
+is, and when it was taken, is the working form of this.
+NOTE ALSO WHAT SURVIVED EACH TIME: all three conclusions held. The
+disagreement was real, the tree was dirty, the suite had drifted. Wrong
+numbers attached to right conclusions are the hardest kind to catch,
+because nothing downstream misbehaves.
+
+=== D161: A NEGATIVE RESULT WORTH RECORDING - THE MASS RENAME BLINDED
+    NOTHING ===
+The session's largest single change was renaming 89 `.test.js` files to
+`.ts`. THE RISK: a script matching the old extension goes silently blind
+over the conversion - and the one that matters is `audit:test-leaks`,
+which exists because `tracking.test.js` deleted the real FedEx history
+of five dev shipments.
+CHECKED, by lane B and again by the tracker: three scripts still contain
+the literal `.test.js` - audit-test-leaks, audit-switches,
+audit-vacuous-tests - and EVERY OCCURRENCE IS INSIDE A COMMENT. No
+load-bearing matcher is extension-locked: two use
+`/\.test\.(js|ts)$/`, two filter on `.includes(".test.")`, two delegate
+discovery to `node --test`.
+Recorded because a checked-and-clear risk is evidence, and because the
+alternative - discovering in three months that a leak detector had been
+walking zero files since the night of the conversion - is exactly the
+shape of six other findings tonight.
+
+=== D162: A TEST WHOSE CLOSING ASSERTION PASSED BECAUSE ITS SUBJECT NEVER
+    HAPPENED ===
+Lane B's L-B8, and the clearest case yet of green meaning nothing.
+`places/addresses/tests/service`: ten of thirteen `service.create` calls
+spread `draft()`; THREE WRAPPED IT AGAIN as `{ address: draft() }`. So
+`default_shipping: true` never reached the service, `first` was never
+made the default, and the test named "setting a default clears the
+others" CLEARED NOTHING - its closing assertion passed BECAUSE THE
+ADDRESS HAD NEVER BEEN THE DEFAULT.
+tsc named it in one line the moment the file became TypeScript:
+"`AddressInput` has no properties in common with...". Fixed; 13/13 now
+pass for real.
+AND THE SHARPEST ONE: `check-pickup-date` needed a `@ts-expect-error`
+pinning the bug where the frontend's ISO string reached `getHours`. THE
+SIGNATURE ALREADY FORBADE IT. tsc would have caught that bug THE DAY IT
+WAS WRITTEN had the test been TypeScript. That is ruling 33's whole
+argument, demonstrated rather than asserted.
+SYSTEMIC, not incidental: L-B5 found 46 UNGUARDED NULLABLE DEREFERENCES
+ACROSS NINE FILES, the same guard-one-and-not-the-others shape as
+`parity.test` guarding a nullable fixture in 1 of 9 tests. The
+conversion did not find one bad file; it found a habit.
+
+=== D163: L-B9 IS CONTESTED AND MUST NOT BE ACTED ON AS WRITTEN ===
+Lane B reports `amount_capturable` AND `amount_received` have no column
+in `payments.*`. The tracker traced `amount_received` end to end and
+found it DOES have a home - `payments.settlements.settled_amount`,
+declared at `feature-map.mjs:156`, WRITTEN by `updatePaymentIntent`'s
+settlement insert, and READ BACK by `repo.next.ts:96` as
+`st.settled_amount AS amount_received`.
+BOTH CAN BE TRUE: lane B looked for a column on the INTENT; the
+destination is a rename onto a DIFFERENT TABLE. That is exactly the trap
+CLAUDE.md names - "a reported gap is often a rename or a relocation
+rather than a loss".
+WHAT SURVIVES AND IS REAL: `amount_capturable` genuinely has no home.
+And the subtler point, which is worth more than the original claim: the
+settlement row is only written WHEN `amount_received > 0`, so "received
+zero" and "never recorded" ARE INDISTINGUISHABLE in the new schema.
+Given the open $126.48 thread is precisely about intents reading null or
+0, that is the question actually worth asking.
+DO NOT act on L-B9 as filed. Two agents, two answers, and the more
+thorough trace wins.
+
+=== D164: A CROSSING DISCLOSED FROM BOTH SIDES AT ONCE ===
+The best thing partition discipline did tonight, and nobody designed it.
+Lane A fixed the invoice NaN in `pricing/bid.ts` and pinned it in
+`features/pricing/tests/bid.test.ts` - a TEST file, which is lane B's
+partition. BOTH LANES WROTE THE CROSSING DOWN INDEPENDENTLY AND NEITHER
+KNEW THE OTHER HAD: lane A's crossings list grew to four and names the
+file with its reason; lane B noticed the suite count move, traced it,
+and flagged it "only so the coordinator knows the boundary was crossed
+and the result is good."
+THAT IS STRONGER THAN ONE LANE CONFESSING. A crossing recorded by the
+crosser survives only if the crosser remembers; a crossing visible from
+BOTH sides survives either way. Worth asking for explicitly at dispatch:
+when you notice another lane in your territory, WRITE IT DOWN EVEN IF
+YOU ASSUME THEY DID.
+And the crossing itself was right: splitting it would have put a
+money-path fix in one commit and its only proof in another.
+
+=== D165: TWO CORRECT NUMBERS, DIFFERENT DENOMINATORS - THE THIRD TIME
+    TONIGHT ===
+Lane A says it wrote NINE tests. Lane B measured the suite moving
+934 -> 942, EIGHT. Neither is wrong: `bid.test.ts` holds 24 tests, eight
+of them new payout/shipping arms, and THE NINTH WAS A REWRITE - the old
+test pinning `payout: null` -> TypeError became "a null payout cost is
+no payout fee", because lane A changed that arm deliberately. NINE
+AUTHORED, EIGHT NET NEW.
+Same shape as lane B's 117-vs-108 test baseline (api-scoped vs
+whole-repo) and lane A's 444-vs-92 typecheck errors (a count taken at
+different moments while another lane worked). THREE TIMES TONIGHT two
+agents reported different figures for the same thing and BOTH WERE
+RIGHT.
+SO WHEN TWO NUMBERS DISAGREE, THE FIRST QUESTION IS NOT WHICH IS WRONG -
+IT IS WHAT EACH COUNTED. That is a different failure from D160's carried
+figures, and the fix is different too: D160 wants re-derivation, this
+wants the denominator stated. A number without its denominator is half a
+fact.
+Also worth keeping, from `bid.ts:115` - the comment lane A left where
+the bad type used to be: `payout: { cost: number }` was "A LIE THE TYPE
+TOLD". That is L-B2 in three words, written by the lane that FIXED it
+rather than the one that found it.
