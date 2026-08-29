@@ -69,7 +69,8 @@ export function AddressSearchInput({
       <MapPinIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
 
       <Input
-        className={cn('px-9', !placesReady && 'opacity-70')}
+        className="px-9"
+        disabled={!placesReady}
         placeholder={placesReady ? 'Search...' : 'Loading'}
         value={value}
         onChange={(e) => onChangeValue(e.target.value)}

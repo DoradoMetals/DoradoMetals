@@ -65,20 +65,21 @@ export function OrderStatusSelector({
                 <Button
                   variant="ghost"
                   onClick={() => setSelectedStatus(isSelected ? null : status)}
+                  /* ⚠ D99 — THE ICON DISAPPEARED WHEN THE PILL WAS SELECTED.
+                     A selected pill is `bg-primary`, which is WHITE, and the
+                     icon was pinned to `text-white` in exactly that branch:
+                     1.04:1, and only in the selected state, so no screenshot of
+                     an unselected filter shows it. Nothing paints the icon now
+                     - it inherits the pill's own colour, which is what flips.
+                     `shadow-sm` went with ruling 27. */
                   className={cn(
-                    'text-sm px-4 py-1 whitespace-nowrap rounded-lg transition-colors duration-150 flex items-center gap-1 border border-transparent shadow-sm',
+                    'px-4 py-1 whitespace-nowrap rounded-lg transition-colors duration-150 flex items-center gap-1 border border-transparent',
                     isSelected
                       ? 'bg-primary text-primary-foreground'
-                      : 'bg-card text-primary hover:bg-primary hover:text-primary-foreground'
+                      : 'bg-card hover:bg-primary hover:text-primary-foreground'
                   )}
                 >
-                  <Icon
-                    size={16}
-                    className={cn(
-                      'transition-colors',
-                      isSelected ? 'text-white' : 'text-primary group-hover:text-white'
-                    )}
-                  />{' '}
+                  <Icon size={16} className="transition-colors" />{' '}
                   <span>{status}</span>
                 </Button>
               </SwiperSlide>
@@ -91,21 +92,22 @@ export function OrderStatusSelector({
       <div className="hidden lg:flex">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
+            {/* `hover:bg-card` sat on a `bg-card` element - a hover cancelling
+                itself, which is the shape ruling 20 calls out. Now a real
+                hover, and the shadow is gone (ruling 27). */}
             <Button
-              variant="ghost"
-              className={cn(
-                'px-2 hover:bg-transparent raised-off-page w-60 bg-card hover:bg-card flex items-center justify-between font-normal h-8'
-              )}
+              variant="secondary"
+              className="px-2 w-60 flex items-center justify-between h-8"
             >
-              <div className="flex items-center gap-3">
+              <span className="flex items-center gap-3">
                 {selectedStatus === null ? (
-                  <ListIcon size={14} className="text-neutral-700" />
+                  <ListIcon size={14} />
                 ) : (
-                  SelectedIcon && <SelectedIcon size={14} className="text-neutral-700" />
+                  SelectedIcon && <SelectedIcon size={14} />
                 )}
                 <span>{selectedStatus ?? 'All Orders'}</span>
-              </div>
-              <CaretDownIcon size={14} className="ml-1 text-neutral-700" />
+              </span>
+              <CaretDownIcon size={14} className="ml-1" />
             </Button>
           </PopoverTrigger>
 
@@ -115,7 +117,7 @@ export function OrderStatusSelector({
             className="p-0 w-60"
             onOpenAutoFocus={(e) => e.preventDefault()}
           >
-            <Command className="bg-card h-full">
+            <Command surface="card" className="h-full">
               <CommandList className="h-full">
                 <CommandItem
                   onSelect={() => {
@@ -129,28 +131,17 @@ export function OrderStatusSelector({
                       : 'text-neutral-800 hover:bg-primary! hover:text-primary-foreground'
                   )}
                 >
-                  <div className="flex items-center gap-2 font-normal">
-                    <ListIcon
-                      size={20}
-                      className={cn(
-                        'transition-colors',
-                        selectedStatus === null
-                          ? 'text-white'
-                          : 'text-primary group-hover:text-white'
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        'transition-colors',
-                        selectedStatus === null
-                          ? 'text-white'
-                          : 'text-neutral-800 group-hover:text-white'
-                      )}
-                    >
-                      All Orders
-                    </span>
-                  </div>
-                  {selectedStatus === null && <CheckIcon size={16} className="text-white" />}
+                  {/* ⚠ D99 — THE SELECTED ROW WENT WHITE ON WHITE. The row fills
+                      with `bg-primary!` when selected, and the icon, the label
+                      and the tick were all pinned to `text-white` in that same
+                      branch. Selecting a status made the row you had just
+                      chosen unreadable. Nothing paints them now: they inherit
+                      the row's `text-primary-foreground`. */}
+                  <span className="flex items-center gap-2">
+                    <ListIcon size={20} className="transition-colors" />
+                    <span className="transition-colors">All Orders</span>
+                  </span>
+                  {selectedStatus === null && <CheckIcon size={16} />}
                 </CommandItem>
 
                 {statuses.map((status) => {
@@ -172,24 +163,12 @@ export function OrderStatusSelector({
                           : 'text-neutral-800 hover:bg-primary! hover:text-primary-foreground'
                       )}
                     >
-                      <div className="flex items-center gap-2 font-normal">
-                        <Icon
-                          size={20}
-                          className={cn(
-                            'transition-colors',
-                            isSelected ? 'text-white' : 'text-primary group-hover:text-white'
-                          )}
-                        />
-                        <span
-                          className={cn(
-                            'transition-colors',
-                            isSelected ? 'text-white' : 'text-neutral-800 group-hover:text-white'
-                          )}
-                        >
-                          {status}
-                        </span>
-                      </div>
-                      {isSelected && <CheckIcon size={16} className="text-white" />}
+                      {/* Same D99 collapse as the "All Orders" row above. */}
+                      <span className="flex items-center gap-2">
+                        <Icon size={20} className="transition-colors" />
+                        <span className="transition-colors">{status}</span>
+                      </span>
+                      {isSelected && <CheckIcon size={16} />}
                     </CommandItem>
                   )
                 })}
@@ -214,7 +193,7 @@ export function OrderStatusEmptyState({ statusLabel, Icon }: EmptyStateProps) {
         <Icon size={128} className="text-primary" />
         <SearchX className="absolute -top-2 -right-2 text-neutral-500" size={32} />
       </div>
-      <p className="text-lg font-medium text-muted-foreground">No {statusLabel} Orders Found</p>
+      <h3>No {statusLabel} Orders Found</h3>
     </div>
   )
 }

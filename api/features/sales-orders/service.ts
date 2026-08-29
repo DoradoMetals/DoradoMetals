@@ -18,7 +18,7 @@ import * as readService from "#features/sales-orders/read.service.ts";
 import * as salesOrderWrites from "#features/sales-orders/write.service.ts";
 import * as orderSpots from "#features/orders/spots/repo.ts";
 import * as metalsRepo from "#features/metals/repo.ts";
-import { calculateItemAsk } from "#features/sales-orders/utils/calculations.ts";
+import { calculateItemAsk } from "#features/pricing/service.ts";
 import * as stripeRepo from "#features/payments/repo.js";
 import * as transactionsService from "#features/transactions/service.ts";
 import * as usersService from "#features/users/service.ts";
@@ -33,14 +33,14 @@ import * as taxService from "#features/sales-tax/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import * as productService from "#features/products/service.ts";
 
-import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";
+import { calculateSalesOrderTotal } from "#features/pricing/service.ts";
 
 import type { SalesOrderRow, OrderMetalRow } from "#features/sales-orders/repo.next.ts";
 import type { PoolClient } from "pg";
 import type { PaymentSession } from "#features/payments/service.ts";
 import type { IncomingHttpHeaders } from "node:http";
 import type { Transport } from "#providers/emails/nodemailer.ts";
-import type { PricingSpot } from "#features/sales-orders/utils/calculations.ts";
+import type { PricingSpot } from "#features/pricing/service.ts";
 
 // The order as the browser sends it. This is req.body, so every field is
 // whatever arrived - which is the point of re-fetching the items and the

@@ -212,11 +212,27 @@ async function selfTest() {
   }
 }
 
+// THE SAME ENVIRONMENT `pnpm test` USES, and NODE_ENV is not decoration.
+//
+// This spawned `node --test` with TZ alone, while package.json's test script is
+// `TZ=UTC NODE_ENV=test node --test`. So the audit that exists to prove the
+// suite touches nothing live was running that suite with ONE OF THE TWO LEGS
+// of `isTestRun()` missing - and `isTestRun()` is what stops a test reaching
+// the mail transport, the FedEx client and the Stripe client. The `--test`
+// execArgv leg still held, which is why nothing ever escaped, but a guard
+// written with two legs precisely because "either alone can be defeated" was
+// being exercised on one.
+//
+// It also made a real assertion fail: shared/testing/is-test-run.test.js's
+// control - "the harness really does satisfy both detectors" - checks
+// NODE_ENV directly, so the suite reported 915/916 under this audit and
+// 916/916 under `pnpm test`. A gate whose own run disagrees with the gate it
+// is auditing cannot tell a regression from its own environment.
 function runSuite() {
   return new Promise((resolve) => {
     const child = spawn("node", ["--test"], {
       cwd: process.cwd(),
-      env: { ...process.env, TZ: "UTC" },
+      env: { ...process.env, TZ: "UTC", NODE_ENV: "test" },
       stdio: ["ignore", "inherit", "inherit"],
     });
     child.on("close", (code) => resolve(code));

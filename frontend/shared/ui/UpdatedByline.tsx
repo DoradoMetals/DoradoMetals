@@ -10,7 +10,7 @@ type UpdatedBylineProps = {
 
 export default function UpdatedByline({ name, date }: UpdatedBylineProps) {
   return (
-    <div className="flex w-full justify-start text-xs gap-1">
+    <small className="flex w-full justify-start gap-1">
       {name !== undefined ? (
         <>
           <span className="text-neutral-600">Updated by</span>
@@ -24,6 +24,6 @@ export default function UpdatedByline({ name, date }: UpdatedBylineProps) {
         </>
       )}
       <span className="text-neutral-800">{date}</span>
-    </div>
+    </small>
   )
 }

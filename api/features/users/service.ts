@@ -2,6 +2,7 @@ import * as users from "#features/users/repo.ts";
 import * as legacy from "#legacy/users/repo.ts";
 import withTransaction from "#shared/db/withTransaction.js";
 import type { UserRow } from "#features/users/repo.ts";
+import type { PoolClient } from "pg";
 
 // The controller's error handler reads statusCode off the thrown error, so it
 // is declared rather than assigned onto a bare Error.
@@ -43,6 +44,35 @@ export async function getAdminUsers(): Promise<UserRow[]> {
 // prevented is an UNRECOGNISED mode, so a denylist could not have caught it.
 const CREDIT_MODES = new Set(["add", "subtract", "edit"]);
 
+// THE OPERATION IS NAMED `op`, AND `mode` IS THE OLD SPELLING (D98).
+//
+// Ruling 10 - ids in, data out - says the server takes `{op, amount}` and does
+// the arithmetic. It always could; what it was actually SENT was `mode: 'edit'`
+// with an absolute total the browser had computed from a balance it had
+// fetched. Both spellings are accepted while the frontend is re-pointed,
+// because this lane may not edit frontend/**; `op` wins when both arrive.
+function operationOf(body: { op?: unknown; mode?: unknown }): unknown {
+  return body.op !== undefined ? body.op : body.mode;
+}
+
+// What each operation makes of a balance. The repo's CASE does this in SQL;
+// this is the same three arms in JavaScript, used ONLY to decide whether the
+// result would be negative - the write itself is still the single statement,
+// so nothing here can disagree with what lands.
+//
+// ROUNDED, BECAUSE POSTGRES AND JAVASCRIPT DO NOT AGREE ON DECIMALS.
+// dorado_funds is NUMERIC and Postgres is exact; JavaScript is not, so
+// subtracting a balance from itself can leave -1e-16 rather than 0 depending
+// on how the two decimals landed in binary. Unrounded, that would refuse a
+// customer withdrawing their whole balance - a real operation - on a
+// difference eleven orders of magnitude below a cent. Six places is far finer
+// than money and far coarser than float error, the same reasoning
+// features/users/tests/replay.test.js's `sameMoney` is built on.
+function resultOf(op: string, current: number, amount: number): number {
+  const raw = op === "add" ? current + amount : op === "subtract" ? current - amount : amount;
+  return Number(raw.toFixed(6));
+}
+
 // The same shape features/addresses uses: a plain Error carrying a statusCode.
 // errorHandler treats a deliberate 4xx as safe to show the caller and returns a
 // generic message for everything else, so the text here is written to be read.
@@ -58,6 +88,15 @@ function notFound(message: string): HttpError {
   return err;
 }
 
+// 422: the request is well-formed and the caller may make it, but the ledger
+// will not hold the result. Distinct from the 400s above, which are malformed
+// input, and from the 404, which is a subject that does not exist.
+function unprocessable(message: string): HttpError {
+  const err: HttpError = new Error(message);
+  err.statusCode = 422;
+  return err;
+}
+
 // `mode` and `amount` are typed as UNKNOWN on the way in, not as the narrow
 // types they end up being. They arrive as req.body: claiming `mode: string`
 // here would tell a reader the allowlist below is redundant, and claiming
@@ -66,16 +105,19 @@ function notFound(message: string): HttpError {
 // admits what actually arrives.
 export async function adjustDoradoCredit({
   user_id,
+  op,
   mode,
   amount,
 }: {
   user_id?: string;
+  op?: unknown;
   mode?: unknown;
   amount?: unknown;
-}): Promise<{ rowCount: number }> {
-  if (typeof mode !== "string" || !CREDIT_MODES.has(mode)) {
+}): Promise<{ rowCount: number; dorado_funds: number | null }> {
+  const operation = operationOf({ op, mode });
+  if (typeof operation !== "string" || !CREDIT_MODES.has(operation)) {
     throw badRequest(
-      `unknown credit mode ${JSON.stringify(mode)}. Expected one of ${[...CREDIT_MODES].join(", ")}.`
+      `unknown credit mode ${JSON.stringify(operation)}. Expected one of ${[...CREDIT_MODES].join(", ")}.`
     );
   }
 
@@ -118,8 +160,44 @@ export async function adjustDoradoCredit({
   // mirroring already exists and works for users; better-auth writing exchange
   // through its own pool is fine, because the trigger carries it across without
   // better-auth's cooperation. Noted for the report.
-  const rowCount = await legacy.adjustCredit(user_id, mode as users.CreditMode, value);
-  const result = { rowCount };
+  // AND IT ALL HAPPENS UNDER ONE ROW LOCK (D98).
+  //
+  // The statement itself was already a delta - `COALESCE(dorado_funds, 0) + $1`
+  // - so two concurrent ADDs could not lose each other even before this. What
+  // could, and what the drawer actually did, is the read-modify-write the
+  // BROWSER performed around it: fetch the balance, compute the total, PUT the
+  // total as `edit`. Two admins with the drawer open, and the second write
+  // discards the first with no error on either side.
+  //
+  // Taking the row FOR UPDATE first closes the remaining window - the floor
+  // check below is itself a read-then-write, and an unguarded one would let two
+  // subtractions each pass a check only one of them can honour. Everything in
+  // here is database work, so a transaction is the right tool (CLAUDE.md's rule
+  // is about irreversible side effects, and there are none).
+  const result = await withTransaction(async (client: PoolClient) => {
+    const current = await legacy.balanceForUpdate(user_id, client);
+    if (current === undefined) {
+      throw notFound(
+        `no user ${user_id} - the credit adjustment was not applied to anybody`
+      );
+    }
+
+    // THE FLOOR WAS ONLY EVER CHECKED IN THE BROWSER. UsersDrawer refuses to
+    // submit a subtraction that would go below zero and a negative `edit`;
+    // nothing on the server did, so any other caller could drive a customer's
+    // balance negative. The column is NOT NULL and has no CHECK, so the
+    // database would have taken it.
+    const next = resultOf(operation, Number(current ?? 0), value);
+    if (next < 0) {
+      throw unprocessable(
+        `that would leave a balance of ${next.toFixed(2)}; a credit balance cannot go below zero`
+      );
+    }
+
+    return await legacy.adjustCredit(
+      user_id, operation as users.CreditMode, value, client
+    );
+  });
 
   // A CREDIT NOBODY RECEIVED USED TO ANSWER 200.
   //

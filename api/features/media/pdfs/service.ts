@@ -3,7 +3,7 @@ import {
   calculateTotalPrice,
   getBullionTotal,
   getScrapTotal,
-} from "#features/purchase-orders/utils/calculations.ts";
+} from "#features/pricing/service.ts";
 
 import { renderPdf } from "#providers/pdfs/puppeteer.ts";
 import { renderShell } from "#features/media/pdfs/render/layout.ts";

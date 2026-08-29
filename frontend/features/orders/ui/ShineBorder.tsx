@@ -54,7 +54,10 @@ export function ShineBorder({
         } as React.CSSProperties
       }
       className={cn(
-        "pointer-events-none absolute inset-0 size-full rounded-[inherit] will-change-[background-position] motion-safe:animate-shine",
+        // `motion-safe:animate-shine` is gone with ruling 16: the `shine`
+        // keyframes had already been neutered to animate a value to itself, so
+        // this was a named no-op keeping a dead keyframe block alive.
+        "pointer-events-none absolute inset-0 size-full rounded-[inherit]",
         className,
       )}
       {...props}

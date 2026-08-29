@@ -36,24 +36,24 @@ export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDraw
     <>
       <div className="flex flex-col w-full h-full">
         {!order.totals?.shipping_paid ? (
-          <div className="flex flex-col w-full h-auto on-glass p-4 rounded-lg">
+          <div className="flex flex-col w-full h-auto border border-border p-4 rounded-lg">
             <div className="flex w-full justify-between items-center mb-1">
-              <div className="text-lg text-neutral-800">Customer Payment:</div>
-              <div className="text-lg text-neutral-800">
+              <strong className="stat-sm">Customer Payment:</strong>
+              <strong className="stat-sm">
                 {order.totals?.shipping_paid ? 'Complete' : 'Incomplete'}
-              </div>
+              </strong>
             </div>
             <div className="flex w-full justify-between items-center mb-3">
-              <div className="text-lg text-neutral-800">Payment Due:</div>
-              <div className="text-lg text-neutral-800">
+              <strong className="stat-sm">Payment Due:</strong>
+              <strong className="stat-sm">
                 <PriceNumberFlow
                   value={(shipment?.cost ?? 0) + (returnShipment?.cost ?? 0)}
                 />
-              </div>
+              </strong>
             </div>
             <Button
               variant="link"
-              className={cn('text-primary', 'p-0 text-sm font-normal ml-auto')}
+              className="p-0 ml-auto"
               onClick={() => {
                 handleMarkShippingPaid
               }}
@@ -65,8 +65,6 @@ export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDraw
           <TrackingEvents
             isLoading={isLoading}
             trackingInfo={trackingInfo}
-            background_color={'bg-primary'}
-            borderColor={'border-primary'}
             delivery_date={shipment?.delivered_at ?? shipment?.est_delivery ?? undefined}
             shipping_status={shipment?.shipping_status ?? ''}
           />

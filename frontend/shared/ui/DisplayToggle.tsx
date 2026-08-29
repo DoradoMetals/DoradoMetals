@@ -66,7 +66,7 @@ export function DisplayToggle({
 
   return (
     <div className={cn('flex flex-col gap-1 w-full', className)}>
-      <div className="text-xs font-medium text-neutral-700 pl-1">{label}</div>
+      <small className="pl-1">{label}</small>
 
       <div
         role="radiogroup"

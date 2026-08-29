@@ -1,11 +1,7 @@
 import { FormField, FormItem, FormMessage } from '@/shared/ui/base/form'
-import { RadioGroup } from '@/shared/ui/base/radio-group'
-import { RadioCard } from '@/shared/ui/RadioCard'
+import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { Scrap, weightOptions } from '@/features/scrap/types'
-import { CheckCircle } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
-import { motion } from 'framer-motion'
-import { cn } from '@/shared/utils/cn'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 
 export default function WeightStep() {
@@ -23,41 +19,18 @@ export default function WeightStep() {
             <RadioGroup
               value={field.value}
               onValueChange={field.onChange}
-              className="gap-3 w-full flex"
+              options={weightOptions}
+              getValue={(weight) => weight.unit}
+              variant="tile"
+              className="flex w-full gap-3"
+              optionClassName="w-full"
             >
-              {weightOptions.map((weight) => {
-                const isSelected = field.value === weight.unit
-
-                return (
-                  <RadioCard
-                    key={weight.id}
-                    as={motion.label}
-                    variant="segment"
-                    value={weight.unit}
-                    id={weight.id}
-                    initial={false}
-                    animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
-                    className="w-full"
-                  >
-                    <div className="absolute top-1 right-1">
-                      {/* Inherits the card's colour - see MetalStep. */}
-                      <CheckCircle
-                        size={12}
-                        className={cn(
-                          'transition-opacity duration-200',
-                          isSelected ? 'opacity-100' : 'opacity-0'
-                        )}
-                      />
-                    </div>
-                    <div className="flex flex-col items-center gap-2">
-                      <weight.icon size={20} />
-
-                      <strong>{weight.label}</strong>
-                    </div>
-                  </RadioCard>
-                )
-              })}
+              {(weight) => (
+                <>
+                  <weight.icon size={20} />
+                  <strong>{weight.label}</strong>
+                </>
+              )}
             </RadioGroup>
             <FormMessage />
           </FormItem>
@@ -76,7 +49,7 @@ export default function WeightStep() {
                 inputMode="decimal"
                 pattern="[0-9]*"
                 size="sm"
-                className="w-full border-none bg-card no-spinner"
+                className="w-full no-spinner"
                 value={field.value === 0 ? '' : field.value}
                 onChange={(e) => {
                   const val = e.target.value

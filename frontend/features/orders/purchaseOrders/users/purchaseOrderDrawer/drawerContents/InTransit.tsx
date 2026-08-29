@@ -98,7 +98,7 @@ export function DropoffInstructionsSection({ shipment }: { shipment?: Shipment }
         shipment.pickup_type !== 'Carrier Pickup' ? (
           <Button
             variant="link"
-            className="h-auto p-0 text-sm font-normal hover:underline text-primary"
+            className="h-auto p-0"
           >
             Find Store
           </Button>
@@ -116,7 +116,7 @@ export function DropoffInstructionsSection({ shipment }: { shipment?: Shipment }
 
   return (
     <div className="flex flex-col w-full gap-5">
-      <h3 className="text-sm text-neutral-600 tracking-widest">Shipping Instructions</h3>
+      <h3 className="eyebrow">Shipping Instructions</h3>
       {/* A TIMELINE, NOT PROSE. typography.css gives every ul/ol markers and
           an indent, and exempts structural lists two ways - by role, and by
           LAYOUT INTENT (`ol[class*='flex']` and friends). This is the second
@@ -137,17 +137,17 @@ export function DropoffInstructionsSection({ shipment }: { shipment?: Shipment }
               {step.icon}
             </div>
             <div className="pl-6">
-              <h3 className="text-xl text-neutral-800">{step.title}</h3>
-              <p className="text-xs lg:text-sm text-neutral-600">{step.description}</p>
+              <h3>{step.title}</h3>
+              <p>{step.description}</p>
               {step.action && <div className="mt-1">{step.action}</div>}
             </div>
           </li>
         ))}
       </ol>
       <div className="flex flex-col gap-1">
-        <div className="flex mr-auto text-xs lg:text-sm text-neutral-600">
+        <small className="flex mr-auto">
           Please call us if you need to make shipping changes.
-        </div>
+        </small>
       </div>
     </div>
   )

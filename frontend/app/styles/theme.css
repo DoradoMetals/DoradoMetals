@@ -378,17 +378,27 @@
      the gradients have a token to converge on. */
   --brand: hsl(43, 63%, 60%); /* #d9b559  10.14:1 */
 
-  /* --- ELEVATION -----------------------------------------------------------
-     Dark-tuned. On a light ground a "raised" edge is a white inset highlight
-     over a soft drop shadow; on a near-black ground the highlight has to drop
-     to ~6% or it reads as a glowing wire, and the drop shadow has to get
-     DARKER than the surface to register at all. These three replace the
-     hand-written hsla() pairs that were duplicated across components.css. */
-  --shadow-raised: inset 0 1px 0 hsla(0, 0%, 100%, 0.06),
-    0 1px 2px hsla(0, 0%, 0%, 0.4);
-  --shadow-recessed: inset 0 1px 2px hsla(0, 0%, 0%, 0.45),
-    inset 0 -1px 0 hsla(0, 0%, 100%, 0.04);
-  --shadow-overlay: 0 8px 24px hsla(0, 0%, 0%, 0.5);
+  /* --- ELEVATION: THERE IS NONE. ------------------------------------------
+     `--shadow-raised`, `--shadow-recessed` and `--shadow-overlay` are DELETED,
+     and this note is here so nobody re-adds them thinking the omission was an
+     oversight.
+
+     Jacob, ruling 27: "We no longer want those crazy ass shadows.
+     (recessed/raised) so those need to go away everywhere." An earlier pass
+     had collapsed each `X dark:X` pair onto these three tokens, which
+     PRESERVED the shadows in tidier form - the opposite of the instruction,
+     and the reason the ruling had to be written twice.
+
+     THE REPLACEMENT IS NOT A SOFTER SHADOW. Ruling 19: panels read as
+     separated by BORDER, not by fill and not by elevation, so a shadow that
+     was doing separation work became `border border-border` and a shadow that
+     was decoration became nothing at all.
+
+     `--shadow-overlay` was the one judgement call the ruling left open, for
+     "something genuinely floating". Its only user was the drawer, and a drop
+     shadow works by darkening the ground beneath it - this ground is #09090c.
+     Black on black is not an elevation cue; it is an unrendered declaration.
+     See the note in drawer.css. */
 
   /* Containers and thumbnails sit at 8px — small and restrained (ruling 19).
      Pills (`rounded-full`) are for buttons and chips ONLY, and are carried by

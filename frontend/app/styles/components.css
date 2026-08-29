@@ -1,71 +1,43 @@
 /* ============================================================================
-   COMPONENTS
+   COMPONENTS — what is LEFT, which is almost nothing, and that is the point.
    ----------------------------------------------------------------------------
-   Light mode is gone, so every `X dark:X` shadow pair in this file has been
-   COLLAPSED to its dark half and moved onto the --shadow-* tokens in theme.css.
-   The light halves were 1px pure-white inset highlights (hsla(0,0%,99%,1)) —
-   on a near-black ground those render as bright wires across every raised
-   surface in the app, and there are 126 of them.
+   Ruling 16 said DELETE, DO NOT NEUTER; ruling 27 said the same about the
+   shadows' VALUES and not only their class names. Both are now carried out.
 
-   PRECEDENCE: most of this file is UNLAYERED and therefore beats `utilities`.
-   That is pre-existing and left alone. Only the `.floating-label` block at the
-   bottom was already in `@layer components`; it stays there.
+   DELETED IN WAVE 4 LANE B, each at zero call sites first:
+     .raised-off-page      22 sites -> nothing, or `border border-border` where
+                                       the shadow was doing SEPARATION work.
+                                       Flat surfaces separated by hairlines IS
+                                       the design (ruling 19).
+     .recessed-into-page    1 site  -> `border border-border`
+     .checkbox-form         2 sites -> nothing. Checkbox's own default is
+                                       correct now (its tick is text-current).
+     .section-label         5 sites -> `.eyebrow` in typography.css
+     --shadow-raised / --shadow-recessed  -> deleted from theme.css with them.
+     --shadow-overlay      -> deleted too, and that was the one judgement call
+                              ruling 27 left open. Its only user was the
+                              drawer. A drop shadow separates an overlay from
+                              what it covers by DARKENING the ground beneath
+                              it — and this ground is #09090c. Black on black
+                              renders as nothing, which is exactly why the
+                              comment in drawer.css had to explain that
+                              Tailwind's own `shadow-2xl` "registers as nothing
+                              at all" there. Replacing an invisible shadow with
+                              a differently-tuned invisible shadow is not a
+                              decision, so the drawer separates the way every
+                              other surface does: a hairline edge.
 
-   DELETED (ruling 16 / ruling 27), each verified at ZERO call sites first:
-     .input-floating-label-form  -> the one input appearance (ruling 28)
-     .radio-group-buttons        -> <RadioCard> (shared/ui/RadioCard.tsx)
-     .separator-inset            -> <Separator />
-     .shadow                     -> nothing. It collided with Tailwind's own
-                                    `shadow` utility and WON, because this file
-                                    is unlayered. Zero bare `shadow` spellings
-                                    in the tree, so the trap is gone with it.
+   EARLIER DELETIONS, kept in the record: .input-floating-label-form,
+   .radio-group-buttons (-> shared/ui/RadioGroup.tsx), .separator-inset, and
+   `.shadow`, which collided with Tailwind's own `shadow` utility and won
+   because this file is unlayered.
 
-   STILL HERE, AND WHY - each still has live call sites in features/orders,
-   which is wave 3's tree and NOT swept. Deleting any of these now would
-   silently unstyle those elements:
-     .checkbox-form       2 sites  (AdminReceived.tsx:388,764)
-     .section-label       5 sites  (carries real typography, not just a shadow)
-     .raised-off-page    22 sites  } pure `box-shadow` rules. Ruling 27 deletes
-     .recessed-into-page  1 site   } the shadows outright, and because these
-                                     carry NOTHING else, deleting the RULE
-                                     removes only the shadow and cannot unstyle
-                                     anything. Left for the next styling pass
-                                     alongside the --shadow-* token removal so
-                                     the two land together.
+   WHAT SURVIVES, and why each is not decoration:
+     .floating-label + its two peer selectors — the label's focus colour, which
+       has no utility spelling (it keys off a sibling input's :focus).
+     number-flow-react part padding — the animated-numeral component clips its
+       own glyphs without it.
    ============================================================================ */
-
-.checkbox-form {
-  @apply border-none
-    text-primary
-    cursor-pointer
-    data-[state=checked]:text-primary
-    data-[state=checked]:bg-card
-    bg-card;
-  box-shadow: var(--shadow-recessed);
-}
-
-.raised-off-page {
-  box-shadow: var(--shadow-raised);
-}
-
-.recessed-into-page {
-  box-shadow: var(--shadow-recessed);
-}
-
-.section-label {
-  @apply text-neutral-600
-    text-xs
-    tracking-widest
-    uppercase;
-}
-
-number-flow-react::part(left),
-number-flow-react::part(right),
-number-flow-react::part(left)::after,
-number-flow-react::part(right)::after,
-number-flow-react::part(symbol) {
-  padding: calc(var(--number-flow-mask-height, 0.25em) / 2) 0;
-}
 
 @layer components {
   .floating-label {
@@ -76,4 +48,12 @@ number-flow-react::part(symbol) {
   .peer:not(:placeholder-shown) ~ .floating-label {
     @apply text-primary;
   }
+}
+
+number-flow-react::part(left),
+number-flow-react::part(right),
+number-flow-react::part(left)::after,
+number-flow-react::part(right)::after,
+number-flow-react::part(symbol) {
+  padding: calc(var(--number-flow-mask-height, 0.25em) / 2) 0;
 }

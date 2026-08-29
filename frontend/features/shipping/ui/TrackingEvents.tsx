@@ -4,22 +4,21 @@ import { formatDateWithTimeInParens } from '@/shared/utils/formatDates'
 
 const MASTER_STAGES = ['Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'] as const
 
+/* `background_color`, `borderColor` and `useStatusColor` are GONE. They were
+   appearance passed as props, which ruling 20 forbids, and all six call sites
+   resolved them to the same two values - four passed nothing, and the two admin
+   ones assigned `const baseBg = 'bg-primary'` a line above the call. Three
+   props, one appearance, zero callers disagreeing. */
 export default function TrackingEvents({
   isLoading,
   trackingInfo,
-  background_color = 'bg-primary',
-  borderColor = 'border-primary',
   delivery_date,
   shipping_status,
-  useStatusColor = true,
 }: {
   isLoading: boolean
   trackingInfo: ShipmentTracking | null | undefined
-  background_color?: string
-  borderColor?: string
   delivery_date?: string
   shipping_status: string
-  useStatusColor?: boolean
 }) {
   const scanEvents = trackingInfo?.scan_events ?? []
 
@@ -98,16 +97,16 @@ export default function TrackingEvents({
         <div>
           <div className="flex items-end justify-between w-full mb-8">
             <div className="flex flex-col items-start">
-              <div className="text-sm text-neutral-600">Tracking #:</div>
-              <div className="text-lg text-neutral-900">{trackingInfo?.tracking_number}</div>
+              <small>Tracking #:</small>
+              <strong className="stat-sm">{trackingInfo?.tracking_number}</strong>
             </div>
             <div className="flex flex-col items-end">
-              <div className="text-sm text-neutral-600">
+              <small>
                 {delivery_date && `${shipping_status === 'Delivered' ? 'Delivered' : 'ETA'}:`}
-              </div>
-              <span className="text-lg text-neutral-900">
+              </small>
+              <strong className="stat-sm">
                 {delivery_date ? `${formatDateWithTimeInParens(delivery_date)}` : 'TBD'}
-              </span>
+              </strong>
             </div>
           </div>
 
@@ -121,26 +120,24 @@ export default function TrackingEvents({
                 className={cn(
                   'relative pl-6 pb-6 flex justify-between items-start',
                   i < steps.length - 1 && 'border-l',
-                  step.active
-                    ? useStatusColor
-                      ? borderColor
-                      : 'border-primary'
-                    : 'border-card'
+                  step.active ? 'border-primary' : 'border-card'
                 )}
               >
+                {/* The shadow is gone (ruling 27). A dot on a timeline needs no
+                    elevation; the fill is the whole signal. */}
                 <div
                   className={cn(
-                    'absolute -left-[10px] w-5 h-5 rounded-full raised-off-page',
-                    step.active ? useStatusColor ? background_color : 'bg-primary' : 'bg-card'
+                    'absolute -left-[10px] w-5 h-5 rounded-full',
+                    step.active ? 'bg-primary' : 'bg-card'
                   )}
                 />
 
                 <div>
-                  <p className="text-sm text-neutral-600">{step.key}</p>
-                  {step.location && <p className="text-lg text-neutral-800">{step.location}</p>}
+                  <small>{step.key}</small>
+                  {step.location && <strong className="block">{step.location}</strong>}
                 </div>
 
-                <div className="ml-auto text-sm text-neutral-500">{step.date}</div>
+                <small className="ml-auto">{step.date}</small>
               </li>
             ))}
           </ol>

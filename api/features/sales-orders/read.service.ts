@@ -100,9 +100,14 @@ async function assemble(
     itemsBy.get(i.order_id)!.push(i);
   }
 
+  // ONE READ FOR EVERY ORDER'S SHIPMENT, not one per order. D101 - see the
+  // longer note in features/purchase-orders/read.service.ts. Sales orders have
+  // no pickup, so this is the only loop-borne read there was.
+  const shipmentByOrder = await shipmentService.getByOrders(ids, executor);
+
   const out: Record<string, unknown>[] = [];
   for (const order of orderRows) {
-    const shipment = await shipmentService.getByOrder(order.id, executor);
+    const shipment = shipmentByOrder.get(order.id) ?? null;
     const link = linkBy.get(order.id);
     out.push(
       compose.composeOrder({

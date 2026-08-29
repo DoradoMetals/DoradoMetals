@@ -31,7 +31,13 @@ export const queryKeys = {
   userAddressLinks: () => ['address', 'links'] as const,
   catalogQuote: (items: unknown, side: string) => ['quote', 'catalog', side, JSON.stringify(items)] as const,
   salesOrderQuote: (body: unknown) => ['quote', 'sales_order', JSON.stringify(body)] as const,
-  purchaseOrderQuote: (items: unknown) => ['quote', 'purchase_order', JSON.stringify(items)] as const,
+  // The deductions are part of the key, not just the body. A quote priced
+  // with one shipping service is a DIFFERENT quote from the same items
+  // priced with another, and keying on items alone serves the first one
+  // from cache after the customer changes their choice - a stale payout
+  // figure on the confirm screen, which is the defect D97 is about.
+  purchaseOrderQuote: (items: unknown, deductions: unknown = {}) =>
+    ['quote', 'purchase_order', JSON.stringify(items), JSON.stringify(deductions)] as const,
   // One EXISTING order's server-priced estimate; orderQuotes is the prefix
   // mutations invalidate - only actively-mounted drawers refetch.
   orderQuote: (order_id: string) => ['quote', 'order', order_id] as const,

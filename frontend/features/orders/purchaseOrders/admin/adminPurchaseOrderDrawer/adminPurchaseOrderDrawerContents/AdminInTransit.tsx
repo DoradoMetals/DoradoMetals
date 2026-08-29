@@ -30,8 +30,6 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
   })
 
   const color = 'text-primary'
-  const baseBg = 'bg-primary'
-  const border = 'border-primary'
   return (
     <>
       {shipment?.shipping_status === 'Label Created' ||
@@ -43,8 +41,6 @@ export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDraw
         <TrackingEvents
           isLoading={isLoading}
           trackingInfo={trackingInfo}
-          background_color={baseBg}
-          borderColor={border}
           delivery_date={shipment?.delivered_at ?? shipment?.est_delivery ?? undefined}
           shipping_status={shipment?.shipping_status ?? ''}
         />
@@ -73,11 +69,10 @@ export function PreTransit({
   return (
     <div className="flex flex-col w-full gap-5">
       <div className="flex w-full justify-between items-center">
-        <h3 className="text-base text-neutral-800">Package Not Yet Scanned</h3>
+        <h3>Package Not Yet Scanned</h3>
         {carrierPickup?.confirmation_number && carrierPickup?.requested_at && (
           <Button
             variant="link"
-            className={cn('bg-transparent hover:bg-transparent', color)}
             onClick={() => {
               cancelPickup.mutate({
                 carrier_id: carrierId ?? '',
@@ -103,8 +98,8 @@ export function PreTransit({
 
       <div className="flex flex-col gap-2">
         <Button
-          variant="outline"
-          className="text-destructive bg-transparent border border-destructive hover:text-white hover:bg-destructive"
+          variant="secondary"
+          intent="danger"
           disabled={
             !shipment?.label ||
             shipment?.shipping_status === 'Cancelled' ||

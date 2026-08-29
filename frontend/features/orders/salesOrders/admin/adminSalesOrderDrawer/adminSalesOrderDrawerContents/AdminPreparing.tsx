@@ -1,9 +1,11 @@
+import { Separator } from '@/shared/ui/base/separator'
 import { useEffect, useState } from 'react'
 import { cn } from '@/shared/utils/cn'
 import { SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/salesOrders/types'
 import { Button } from '@/shared/ui/base/button'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
-import { RadioGroupImage } from '@/shared/ui/RadioGroupImage'
+import { RadioGroup } from '@/shared/ui/RadioGroup'
+import Image from 'next/image'
 import { useAdminSuppliers } from '@/features/products/queries'
 import { usePatchOrder } from '@/features/orders/patch'
 import {
@@ -63,21 +65,34 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
 
   return (
     <div className="flex flex-col w-full gap-5">
-      <p className="text-sm">
+      <p>
         Order has been paid and is ready to be sent to a supplier. Please select the supplier to
         fill this order.
       </p>
       {suppliers && (
-        <RadioGroupImage
-          items={suppliers.map((s) => ({
-            id: s.id,
-            name: s.organization.name ?? '',
-            logo: s.logo ?? '',
-            is_active: !!s.organization.enabled,
-          }))}
+        <RadioGroup
           value={selectedSupplier?.id ?? ''}
           onValueChange={handleSupplierChange}
-        />
+          options={suppliers}
+          getValue={(s) => s.id}
+          isOptionDisabled={(s) => !s.organization.enabled}
+          variant="tile"
+          className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2"
+        >
+          {(s) => (
+            <>
+              <div className="relative flex h-20 w-full items-center justify-center">
+                <Image
+                  src={s.logo ?? ''}
+                  fill
+                  alt={`${s.organization.name ?? ''} logo`}
+                  className="object-contain p-1"
+                />
+              </div>
+              <strong>{s.organization.name}</strong>
+            </>
+          )}
+        </RadioGroup>
       )}
 
       <Button
@@ -104,25 +119,38 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
           : 'Select Supplier'}
       </Button>
 
-      <div className="glass-divider" />
+      <Separator />
 
       {carriers && (
-        <RadioGroupImage
-          items={carriers.map((c) => ({
-            id: c.id,
-            name: c.organization.name ?? '',
-            logo: c.logo ?? '',
-            is_active: !!c.organization.enabled,
-          }))}
+        <RadioGroup
           value={selectedCarrier?.id ?? ''}
           onValueChange={handleCarrierChange}
+          options={carriers}
+          getValue={(c) => c.id}
+          isOptionDisabled={(c) => !c.organization.enabled}
           disabled={!order.order_sent}
-        />
+          variant="tile"
+          className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2"
+        >
+          {(c) => (
+            <>
+              <div className="relative flex h-20 w-full items-center justify-center">
+                <Image
+                  src={c.logo ?? ''}
+                  fill
+                  alt={`${c.organization.name ?? ''} logo`}
+                  className="object-contain p-1"
+                />
+              </div>
+              <strong>{c.organization.name}</strong>
+            </>
+          )}
+        </RadioGroup>
       )}
 
       <FloatingLabelInput
         type="text"
-        className="on-glass min-w-48"
+        className="min-w-48"
         label="Tracking Number"
         value={trackingNumber}
         disabled={!selectedCarrier || updateTracking.isPending}

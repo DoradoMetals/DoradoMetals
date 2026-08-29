@@ -86,7 +86,10 @@ export function ImageUpload({ path }: { path: string }) {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            'flex h-64 cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border bg-background transition-colors hover:bg-muted',
+            // ⚠ D99: the hover was `bg-background` -> `bg-muted`, a 1.22:1 step on the
+            // one affordance whose whole job is to say "you can drop here". The
+            // border moves with it now, which is the visible half.
+            'flex h-64 cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border bg-background transition-colors hover:bg-muted hover:border-border-strong',
             isDragging && 'border-primary bg-primary/10'
           )}
         >

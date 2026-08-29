@@ -27,9 +27,9 @@ export function TablePagination<TData>({
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        <span className="text-sm text-muted-foreground">
+        <small>
           Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
-        </span>
+        </small>
 
         <Button
           variant="ghost"

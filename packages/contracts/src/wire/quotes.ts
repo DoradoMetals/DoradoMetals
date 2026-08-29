@@ -89,11 +89,19 @@ export type PurchaseOrderQuoteLine = z.infer<typeof PurchaseOrderQuoteLine>;
 // declared_value is the total, uncapped - the $50,000 FedEx ceiling the
 // frontend's getDeclaredValue applies is a shipping constraint, applied where
 // the label is bought (see the note in features/quotes/service.ts).
+// `total` is what the GOODS are worth; `estimated_payout` is what the customer
+// receives, which is that minus the two deductions returned beside it. The
+// three travel together deliberately (D97): the checkout printed a headline
+// figure and two rows underneath it that contradicted each other, because the
+// headline was computed in the browser and the rows were not.
 export const PurchaseOrderQuote = z.object({
   spots_at: z.string(),
   items: z.array(PurchaseOrderQuoteLine),
   total: z.number(),
   declared_value: z.number(),
+  shipping_charge: z.number(),
+  payout_charge: z.number(),
+  estimated_payout: z.number(),
 });
 export type PurchaseOrderQuote = z.infer<typeof PurchaseOrderQuote>;
 

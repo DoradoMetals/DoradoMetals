@@ -45,7 +45,6 @@ type DataTableProps<TData> = {
   wrapperClassName?: string
   getRowClassName?: (row: Row<TData>) => string | undefined
   searchClass?: string
-  shadowClass?: string
   columnTriggerClass?: string
   addButtonClass?: string
 
@@ -94,7 +93,6 @@ export function DataTable<TData>({
 
   wrapperClassName = 'bg-card border border-border',
   searchClass = 'bg-transparent border border-border',
-  shadowClass = '',
   columnTriggerClass = 'bg-transparent border border-border',
   addButtonClass,
 
@@ -178,7 +176,6 @@ export function DataTable<TData>({
     <div
       className={cn(
         'flex flex-col overflow-hidden min-h-[75vh] max-h-[75vh] w-full min-w-0 max-w-full space-y-4 p-4 rounded-lg custom-scrollbar',
-        shadowClass,
         wrapperClassName
       )}
     >

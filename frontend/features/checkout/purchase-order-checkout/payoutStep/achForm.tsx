@@ -7,8 +7,7 @@ import { UseFormReturn } from 'react-hook-form'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { FormField, FormItem } from '@/shared/ui/base/form'
-import { RadioGroup } from '@/shared/ui/base/radio-group'
-import { RadioCard } from '@/shared/ui/RadioCard'
+import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { accountTypeOptions } from '@/features/payouts/types'
 import { cn } from '@/shared/utils/cn'
 import { Checkbox } from '@/shared/ui/base/checkbox'
@@ -65,24 +64,17 @@ export default function ACHForm({
                         field.onChange(val)
                         syncToStore()
                       }}
-                      className="gap-3 w-full flex justify-between"
+                      options={accountTypeOptions}
+                      variant="tile"
+                      className="flex w-full justify-between gap-3"
+                      optionClassName="grow-1"
                     >
-                      {accountTypeOptions.map((option) => (
-                        <RadioCard
-                          key={option.value}
-                          variant="segment"
-                          value={option.value}
-                          className="grow-1"
-                        >
-                          <div className="flex flex-col items-center gap-2">
-                            {/* Inherits the card's colour: `text-primary` would
-                                be a near-white glyph on the near-white selected
-                                fill. */}
-                            {option.icon && <option.icon size={24} />}
-                            <strong>{option.label}</strong>
-                          </div>
-                        </RadioCard>
-                      ))}
+                      {(option) => (
+                        <>
+                          {option.icon && <option.icon size={24} />}
+                          <strong>{option.label}</strong>
+                        </>
+                      )}
                     </RadioGroup>
                   </FormItem>
                 )}

@@ -23,16 +23,11 @@ export default function AdminInTransitSalesOrder({ order }: SalesOrderDrawerCont
     carrier_id: carrier_id ?? '',
   })
 
-  const baseBg = 'bg-primary'
-  const border = 'border-primary'
-
   return (
     <>
       <TrackingEvents
         isLoading={isLoading}
         trackingInfo={trackingInfo}
-        background_color={baseBg}
-        borderColor={border}
         delivery_date={shipment?.delivered_at ?? shipment?.est_delivery ?? undefined}
         shipping_status={shipment?.shipping_status ?? ''}
       />

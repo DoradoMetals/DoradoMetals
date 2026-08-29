@@ -18,15 +18,15 @@ export function TableColumnVisibility<TData>({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className={cn('text-neutral-800 h-10', triggerClass)}>
+        <Button variant="ghost" size="sm" className={cn(triggerClass)}>
           <ColumnsIcon size={28} />
         </Button>
       </PopoverTrigger>
 
       <PopoverContent className="w-fit space-y-2" align="center" side="bottom">
-        <div className="flex justify-center text-micro text-neutral-600 p-2 bg-highest border border-border rounded-t-lg">
+        <small className="flex justify-center p-2 bg-highest border border-border rounded-t-lg">
           Toggle Displayed
-        </div>
+        </small>
 
         <div className="flex flex-col gap-2 px-2">
           {table.getAllLeafColumns().map((column) => (
@@ -38,11 +38,11 @@ export function TableColumnVisibility<TData>({
                 id={`col-${column.id}`}
                 checked={column.getIsVisible()}
                 onCheckedChange={() => column.toggleVisibility()}
-                className="text-primary cursor-pointer bg-transparent border border-border data-[state=checked]:text-primary"
+                className="cursor-pointer"
               />
               <label
                 htmlFor={`col-${column.id}`}
-                className="text-xs cursor-pointer text-left text-neutral-800 tracking-wide font-normal"
+                className="cursor-pointer text-left tracking-wide"
               >
                 {typeof column.columnDef.header === 'function'
                   ? column.id
@@ -55,12 +55,12 @@ export function TableColumnVisibility<TData>({
           ))}
         </div>
 
-        <div className="flex items-center gap-1 justify-center text-xs text-neutral-600 py-1 px-2 rounded-b-lg pb-2 font-light">
+        <small className="flex items-center gap-1 justify-center py-1 px-2 rounded-b-lg pb-2">
           <span className="text-neutral-900">
             {table.getAllLeafColumns().filter((col) => !col.getIsVisible()).length}
           </span>
           <span>hidden</span>
-        </div>
+        </small>
       </PopoverContent>
     </Popover>
   )

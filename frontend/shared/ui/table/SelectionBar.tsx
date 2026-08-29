@@ -94,9 +94,9 @@ export function SelectionBar<TData>({
 
   return (
     <div className={cn('bg-transparent flex items-center gap-3', barClassName)}>
-      <div className={cn('text-sm text-neutral-700', countClassName)}>
-        <span className="font-semibold text-neutral-900">{selectedCount}</span> {labelSelected}
-      </div>
+      <p className={cn(countClassName)}>
+        <strong>{selectedCount}</strong> {labelSelected}
+      </p>
 
       <div className="flex-1" />
 

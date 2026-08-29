@@ -116,10 +116,10 @@ export function RowGroups<TData>({
                 }}
                 className="inline-flex items-center gap-1 p-0"
               >
-                <span className="font-semibold text-base text-neutral-900">{label}</span>
-                <span className="text-sm text-neutral-600">
+                <strong>{label}</strong>
+                <small>
                   ({(row as any).subRows?.length ?? 0})
-                </span>
+                </small>
                 {(row as any).getIsExpanded?.() ? (
                   <CaretDownIcon size={16} />
                 ) : (

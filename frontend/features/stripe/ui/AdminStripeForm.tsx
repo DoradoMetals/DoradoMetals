@@ -157,9 +157,9 @@ export default function AdminStripeForm({
           handleChangePaymentMethod(e.value.type)
         }}
       />
-      <div className="text-xs text-destructive mt-1">
-        {message && <div id="admin-payment-message">{message}</div>}
-      </div>
+      <small className="text-destructive mt-1">
+        {message && <span id="admin-payment-message">{message}</span>}
+      </small>
     </form>
   )
 }

@@ -128,11 +128,24 @@ async function assemble(
   }
 
   // The shipment, the return shipment and the pickup, each through the service
-  // that owns it now rather than a cross-schema join.
+  // that owns it now rather than a cross-schema join - AND EACH BATCHED ACROSS
+  // EVERY ORDER, like every other read above.
+  //
+  // D101. These two were the only reads in this function still issued inside
+  // the loop, and each fans out to about nine more. Against a database 178 ms
+  // away that made a 48-order admin list ~214 round trips and 38 seconds,
+  // versus 351 ms for the slim list - one hundred and eight times. The batched
+  // forms walk the identical hops with `= ANY($1)` at each, so the composed
+  // order is unchanged and the cost no longer scales with the answer.
+  const [shipmentByOrder, pickupsByOrder] = await Promise.all([
+    shipmentService.getByOrders(ids, executor),
+    pickupService.getByOrders(ids, executor),
+  ]);
+
   const out: Record<string, unknown>[] = [];
   for (const order of orderRows) {
-    const shipment = await shipmentService.getByOrder(order.id, executor);
-    const pickups = await pickupService.getByOrder(order.id, executor);
+    const shipment = shipmentByOrder.get(order.id) ?? null;
+    const pickups = pickupsByOrder.get(order.id) ?? [];
     const link = linkBy.get(order.id);
 
     out.push(

@@ -103,7 +103,7 @@ export default function SchedulePicker({ value, onChange, minDate, maxDate }: Pr
 
         <div className="w-full border-border">
           <div className="h-9 bg-transparent border-b border-border flex items-center justify-center px-5">
-            <p className="text-sm text-neutral-700 text-center">
+            <p className="text-center">
               {selectedDateISO ? formatPickupDateShort(selectedDateISO) : 'Select date'}
             </p>
           </div>
@@ -118,7 +118,7 @@ export default function SchedulePicker({ value, onChange, minDate, maxDate }: Pr
                   size="sm"
                   className={cn(
                     'w-full',
-                    selectedTime === t && 'text-primary'
+                    selectedTime === t && ''
                   )}
                   onClick={() => selectTime(t)}
                 >

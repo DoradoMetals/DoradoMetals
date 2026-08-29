@@ -89,6 +89,19 @@ export async function ownerOf(id: string, executor?: Executor): Promise<string |
   return rows[0]?.user_id ?? null;
 }
 
+// Who several orders belong to - ownerOf, batched. See sql/owners.sql; a pickup
+// reconstructs its user through its shipment's order, and D101 found that asked
+// one order at a time.
+export async function ownersById(
+  ids: string[], executor?: Executor
+): Promise<Map<string, string | null>> {
+  if (ids.length === 0) return new Map();
+  const { rows } = await query<{ id: string; user_id: string | null }>(
+    sql("owners"), [ids], executor
+  );
+  return new Map(rows.map((r) => [r.id, r.user_id]));
+}
+
 // THE WRITES, for both directions.
 //
 // orders.orders is one table where exchange had two, so it gets one statement

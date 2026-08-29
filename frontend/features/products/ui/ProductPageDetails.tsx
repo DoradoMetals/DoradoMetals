@@ -5,7 +5,7 @@ import { Product } from '@/features/products/types'
 import { Button } from '@/shared/ui/base/button'
 import { Equal, Minus, Plus, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
+import { RadioGroup } from '@/shared/ui/RadioGroup'
 
 import { useState } from 'react'
 import { cartStore } from '@/shared/store/cartStore'
@@ -16,7 +16,6 @@ import 'swiper/css/pagination'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  CheckCircleIcon,
   CircleIcon,
   ClockIcon,
   ShieldCheckIcon,
@@ -165,45 +164,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 const variant = variants.find((v) => v.name === val)
                 if (variant) setSelectedProduct(variant)
               }}
-              className="gap-3 w-full flex"
+              options={[...variants].sort((a, b) => b.content - a.content)}
+              getValue={(option) => option.name}
+              variant="segment"
+              className="flex w-full gap-3"
+              optionClassName="w-full"
             >
-              {[...variants]
-                .sort((a, b) => b.content - a.content)
-                .map((option) => {
-                  const isSelected = option.name === selectedProduct.name
-                  return (
-                    <motion.label
-                      key={option.id}
-                      initial={false}
-                      animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
-                      transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
-                      className={cn(
-                        'relative flex w-full justify-center rounded-md px-3 py-2 cursor-pointer',
-                        isSelected
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-card text-neutral-800'
-                      )}
-                    >
-                      <div className="absolute top-1 right-1">
-                        <CheckCircleIcon
-                          size={16}
-                          className={cn(
-                            'transition-opacity duration-200 text-primary-foreground',
-                            isSelected ? 'opacity-100' : 'opacity-0'
-                          )}
-                        />
-                      </div>
-                      <div className="flex flex-col items-center gap-2">
-                        <div>{option.variant_label}</div>
-                      </div>
-                      <RadioGroupItem
-                        id={option.name}
-                        value={option.name}
-                        className="sr-only"
-                      />
-                    </motion.label>
-                  )
-                })}
+              {(option) => option.variant_label}
             </RadioGroup>
           )}
           <div className="w-full">
@@ -293,7 +260,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
           <div className="flex flex-col gap-2 w-full">
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Description`}
               open={open.description}
               onToggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
@@ -301,7 +268,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <p className="text-left whitespace-pre-line">{selectedProduct.description}</p>
             </AccordionSection>
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Price Breakdown`}
               open={open.price}
               onToggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
@@ -353,7 +320,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </div>
             </AccordionSection>
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Buyback Breakdown`}
               open={open.buyback}
               onToggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
@@ -405,7 +372,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </div>
             </AccordionSection>
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Shipping`}
               open={open.shipping}
               onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
@@ -439,7 +406,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </div>
             </AccordionSection>
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Payment Options`}
               open={open.payment}
               onToggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
@@ -476,7 +443,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </div>
             </AccordionSection>
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Product Specifications`}
               open={open.specs}
               onToggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}
@@ -589,45 +556,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               const variant = variants.find((v) => v.name === val)
               if (variant) setSelectedProduct(variant)
             }}
-            className="gap-3 w-full flex"
+            options={[...variants].sort((a, b) => b.content - a.content)}
+            getValue={(option) => option.name}
+            variant="segment"
+            className="flex w-full gap-3"
+            optionClassName="w-full"
           >
-            {[...variants]
-              .sort((a, b) => b.content - a.content)
-              .map((option) => {
-                const isSelected = option.name === selectedProduct.name
-                return (
-                  <motion.label
-                    key={option.id}
-                    initial={false}
-                    animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
-                    className={cn(
-                      'relative flex w-full justify-center rounded-md px-3 py-2 cursor-pointer',
-                      isSelected
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-card text-neutral-800'
-                    )}
-                  >
-                    <div className="absolute top-1 right-1">
-                      <CheckCircleIcon
-                        size={16}
-                        className={cn(
-                          'transition-opacity duration-200 text-primary-foreground',
-                          isSelected ? 'opacity-100' : 'opacity-0'
-                        )}
-                      />
-                    </div>
-                    <div className="flex flex-col items-center gap-2">
-                      <div>{option.variant_label}</div>
-                    </div>
-                    <RadioGroupItem
-                      id={option.name}
-                      value={option.name}
-                      className="sr-only"
-                    />
-                  </motion.label>
-                )
-              })}
+            {(option) => option.variant_label}
           </RadioGroup>
         )}
 
@@ -701,7 +636,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
         <div className="flex flex-col gap-2 w-full">
           <div className="flex flex-col gap-2 w-full">
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Description`}
               open={open.description}
               onToggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
@@ -709,7 +644,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <p className="text-left whitespace-pre-line">{selectedProduct.description}</p>
             </AccordionSection>
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Price Breakdown`}
               open={open.price}
               onToggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
@@ -761,7 +696,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </div>
             </AccordionSection>
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Buyback Breakdown`}
               open={open.buyback}
               onToggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
@@ -813,7 +748,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </div>
             </AccordionSection>
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Shipping`}
               open={open.shipping}
               onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
@@ -847,7 +782,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </div>
             </AccordionSection>
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Payment Options`}
               open={open.payment}
               onToggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
@@ -885,7 +820,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </div>
             </AccordionSection>
             <AccordionSection
-              variant="raised"
+              variant="card"
               label={`Product Specifications`}
               open={open.specs}
               onToggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}

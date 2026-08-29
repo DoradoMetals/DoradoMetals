@@ -30,7 +30,6 @@ export default function InTransitSalesOrder({ order }: SalesOrderDrawerContentPr
         trackingInfo={trackingInfo}
         delivery_date={shipment?.delivered_at ?? shipment?.est_delivery ?? undefined}
         shipping_status={shipment?.shipping_status ?? ''}
-        useStatusColor={false}
       />
     </>
   )

@@ -100,7 +100,7 @@ export function AddNewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogOverlay>
-        <DialogContent className={cn('bg-highest', className)}>
+        <DialogContent className={className}>
           <DialogHeader>
             <DialogTitle className="eyebrow mr-auto mb-2">
               {createConfig.title}
@@ -135,7 +135,7 @@ export function AddNewDialog({
                 if (field.render) {
                   return (
                     <div key={field.name} className="w-full">
-                      <label htmlFor={fieldId} className="block text-xs text-neutral-600 mb-1">
+                      <label htmlFor={fieldId} className="block mb-1">
                         {field.label}
                       </label>
                       {field.render({ value, values, setValue })}
@@ -147,7 +147,7 @@ export function AddNewDialog({
                   const numeric = Number(value) || 0
                   return (
                     <div key={field.name} className="w-full flex flex-col items-center gap-2">
-                      <label htmlFor={fieldId} className="block text-xs text-neutral-600 mb-1 w-full">
+                      <label htmlFor={fieldId} className="block mb-1 w-full">
                         {field.label}
                       </label>
                       <Rating
@@ -165,7 +165,7 @@ export function AddNewDialog({
                 if (field.multiline) {
                   return (
                     <div key={field.name} className="w-full">
-                      <label htmlFor={fieldId} className="block text-xs text-neutral-600 mb-1">
+                      <label htmlFor={fieldId} className="block mb-1">
                         {field.label}
                       </label>
                       <div className="relative w-full">
@@ -195,7 +195,7 @@ export function AddNewDialog({
 
                 return (
                   <div key={field.name} className="w-full">
-                    <label htmlFor={fieldId} className="block text-xs text-neutral-600 mb-1">
+                    <label htmlFor={fieldId} className="block mb-1">
                       {field.label}
                     </label>
                     <div className="relative w-full">

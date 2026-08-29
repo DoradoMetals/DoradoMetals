@@ -39,9 +39,9 @@ export default function AdminSalesOrderDrawerHeader({ order }: SalesOrderDrawerH
   return (
     <div className="flex flex-col w-full border-b-1 gap-3 border-border">
       <div className="flex w-full justify-between items-center">
-        <div className="text-base text-neutral-800">{formatFullDate(order.created_at ?? undefined)}</div>
+        <strong>{formatFullDate(order.created_at ?? undefined)}</strong>
 
-        <div className="text-sm text-neutral-700">{formatSalesOrderNumber(order.number)}</div>
+        <small>{formatSalesOrderNumber(order.number)}</small>
       </div>
       <div className="flex w-full justify-between items-center">
         <div className="flex items-center gap-2">
@@ -50,7 +50,7 @@ export default function AdminSalesOrderDrawerHeader({ order }: SalesOrderDrawerH
               <Icon size={24} />
             </div>
           )}
-          <span className="text-lg text-neutral-800">{order.status}</span>
+          <strong className="stat-sm">{order.status}</strong>
         </div>
         <div className="flex ml-auto">
           {downloadOptions.map(({ statuses, label, onClick, isPending }, index) =>
@@ -58,7 +58,7 @@ export default function AdminSalesOrderDrawerHeader({ order }: SalesOrderDrawerH
               <Button
                 key={index}
                 variant="link"
-                className={`font-normal text-sm bg-transparent hover:bg-transparent ${'text-primary'} px-0`}
+                className="px-0"
                 onClick={onClick}
                 disabled={isPending}
               >

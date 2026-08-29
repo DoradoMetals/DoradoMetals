@@ -38,16 +38,15 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
           <div className="flex flex-col h-full w-full mb-4 gap-6">
             <div className="flex flex-col w-full">
               <div className="flex w-full justify-between items-center mb-1">
-                <div className="text-lg text-neutral-800">Shipping Charges:</div>
-                <div className="text-lg text-neutral-800">
+                <strong className="stat-sm">Shipping Charges:</strong>
+                <strong className="stat-sm">
                   <PriceNumberFlow
                     value={(shipment?.cost ?? 0) + (returnShipment?.cost ?? 0)}
                   />
-                </div>
+                </strong>
               </div>
               <Button
-                variant="default"
-                className="text-primary-foreground raised-off-page w-full p-4 bg-primary"
+                className="w-full p-4"
                 onClick={handlePayShipping}
               >
                 Pay Shipping Charges

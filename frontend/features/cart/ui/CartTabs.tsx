@@ -34,7 +34,7 @@ export function CartTabs() {
         open={isCartOpen}
         setOpen={closeDrawer}
         surface="card"
-        className="border-t-1 border-border lg:border-none sm:!overflow-hidden"
+        className="sm:!overflow-hidden"
       >
         <Button
           variant="tertiary"

@@ -19,8 +19,8 @@ import {
   calculateSalesTax,
   calculateItemTotals,
   calculateItemAsk,
-} from "#features/sales-orders/utils/calculations.ts";
-import type { PricingSpot } from "#features/sales-orders/utils/calculations.ts";
+} from "#features/pricing/service.ts";
+import type { PricingSpot } from "#features/pricing/service.ts";
 
 export async function isNexus(state: string, executor?: Executor): Promise<boolean> {
   return await tax.reachedNexus(state, executor);

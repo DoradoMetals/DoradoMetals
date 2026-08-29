@@ -31,21 +31,21 @@ export default function Page() {
       
       <Confetti ref={confettiRef} className="absolute left-0 top-0 z-0 size-full" manualstart />
       <div className="px-4 flex flex-col items-center h-full w-full justify-center">
-        {/* BLOCKED, not skipped: BlurredStagger renders a `motion.div`, and
-            <div> is flow content, so this cannot become <h1> without emitting
-            invalid HTML (ruling 22). The size stays here on the TOKEN scale
-            rather than Tailwind's, so a scale change still reaches it. Fix is
-            one line in shared/ui/BlurredStagger.tsx: motion.div -> motion.span. */}
-        <div className="text-h2 mb-2">
-          <BlurredStagger text="Your order has been placed!" delay={2000} />
-        </div>
+        {/* UNBLOCKED. The comment that used to sit here said this could not
+            become a heading because BlurredStagger hard-rendered a
+            `motion.div`. It takes an `as` now, so the staggered text IS the
+            heading and the last type utility in the tree goes with it. */}
+        <BlurredStagger as="h2" className="mb-2" text="Your order has been placed!" delay={2000} />
 
         <div className="flex w-full justify-center">
           <AnimatedScroll size={128} className="mb-6 z-1" />
         </div>
-        <div className="text-small mb-4">
-          <BlurredStagger text="View your order by clicking the button below." delay={3200} />
-      </div>
+        <BlurredStagger
+          as="p"
+          className="mb-4"
+          text="View your order by clicking the button below."
+          delay={3200}
+        />
       </div>
       <motion.div
         initial={{

@@ -1,7 +1,6 @@
 'use client'
 
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { cn } from '@/shared/utils/cn'
+import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { serviceOptions } from '@/features/service/types'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { formatTimeDiff } from '@/shared/utils/formatDates'
@@ -13,7 +12,7 @@ interface ServiceSelectorProps {
   isLoading: boolean
 }
 
-export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoading }) => {
+export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates }) => {
   const selected = usePurchaseOrderCheckoutStore((state) => state.data.service)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
   const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
@@ -46,52 +45,36 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates, isLoadi
   }
 
   return (
-    <div className="space-y-2">
-      <RadioGroup
-        value={selected?.serviceType ?? ''}
-        onValueChange={handleSelect}
-        className="gap-3 w-full flex flex-col"
-      >
-        {Object.entries(serviceOptions).map(([serviceType, option]) => {
-          const rate = rateMap.get(serviceType)
-          const isDisabled = rate?.netCharge == null
-
-          return (
-            <label
-              key={serviceType}
-              htmlFor={serviceType}
-              className={cn(
-                'relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card',
-                isDisabled && 'opacity-50 pointer-events-none'
-              )}
-            >
-              <div className="flex items-center gap-2">
-                {option.icon && <option.icon size={24} className="text-primary" />}
-                <strong>{option.serviceDescription}</strong>
-              </div>
-
-              <div className="flex items-center w-full justify-between">
-                <small>
-                  {rate?.transitTime
-                    ? formatTimeDiff(rate.transitTime)
-                    : rate?.deliveryDay
-                    ? `Arrives ${rate.deliveryDay}`
-                    : 'Getting estimated delivery...'}
-                </small>
-                <strong>
-                  {rate?.netCharge != null ? (
-                    <PriceNumberFlow value={rate.netCharge} />
-                  ) : (
-                    <span className="text-neutral-500 select-none">&nbsp;</span>
-                  )}
-                </strong>
-              </div>
-
-              <RadioGroupItem id={serviceType} value={serviceType} className="sr-only" />
-            </label>
-          )
-        })}
-      </RadioGroup>
-    </div>
+    <RadioGroup
+      value={selected?.serviceType ?? ''}
+      onValueChange={handleSelect}
+      options={serviceOptions}
+      isOptionDisabled={(_, serviceType) => rateMap.get(serviceType)?.netCharge == null}
+      className="flex w-full flex-col gap-3"
+    >
+      {(option, _checked, serviceType) => {
+        const rate = rateMap.get(serviceType)
+        return (
+          <>
+            <div className="flex items-center gap-2">
+              {option.icon && <option.icon size={24} />}
+              <strong>{option.serviceDescription}</strong>
+            </div>
+            <div className="flex w-full items-center justify-between">
+              <small>
+                {rate?.transitTime
+                  ? formatTimeDiff(rate.transitTime)
+                  : rate?.deliveryDay
+                  ? `Arrives ${rate.deliveryDay}`
+                  : 'Getting estimated delivery...'}
+              </small>
+              <strong>
+                {rate?.netCharge != null ? <PriceNumberFlow value={rate.netCharge} /> : <>&nbsp;</>}
+              </strong>
+            </div>
+          </>
+        )
+      }}
+    </RadioGroup>
   )
 }

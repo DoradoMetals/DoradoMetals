@@ -49,16 +49,18 @@ export function OrderCardShell({
       onClick={onOpen}
       onKeyDown={handleKeyDown}
       className={cn(
-        'flex flex-col w-full bg-card rounded-lg p-4 raised-off-page h-auto',
+        'flex flex-col w-full bg-card rounded-lg border border-border p-4 h-auto',
         'cursor-pointer outline-none',
-        'transition-shadow transition-colors duration-150',
-        'hover:shadow-md hover:bg-highest'
+        'transition-colors duration-150',
+        // The hover was a shadow plus a surface step; the shadow goes (ruling 27)
+        // and the hairline strengthens instead, which is the ruling-19 idiom.
+        'hover:border-border-strong hover:bg-highest'
       )}
     >
       <div className="border-b border-border mb-3">
         <div className="flex items-center justify-between w-full pb-4">
-          <div className="text-sm text-neutral-600">{createdAtLabel}</div>
-          <div className="text-sm text-neutral-600 tracking-wide">{orderNumberLabel}</div>
+          <small>{createdAtLabel}</small>
+          <small className="tracking-wide">{orderNumberLabel}</small>
         </div>
       </div>
 

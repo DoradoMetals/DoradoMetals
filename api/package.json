@@ -38,6 +38,7 @@
     "audit:coverage": "TZ=UTC node scripts/audit-coverage.mjs",
     "dump:seed": "node scripts/dump-seed.mjs",
     "audit:coverage:prod": "TZ=UTC node scripts/audit-coverage.mjs --prod",
+    "audit:item-price": "TZ=UTC node scripts/audit-item-price.mjs",
     "audit:precision": "TZ=UTC node scripts/audit-precision.mjs",
     "audit:constraints": "node scripts/audit-constraints.mjs",
     "audit:indexes": "TZ=UTC node scripts/audit-indexes.mjs",

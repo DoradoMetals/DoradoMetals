@@ -26,34 +26,17 @@ const AvatarCircles = ({ items, maxDisplay = 3, className }: AvatarCirclesProps)
         >
           <Image fill src={url} alt={`Avatar ${i + 1}`} className="w-full h-full object-cover" />
           {count > 1 && (
-            <div
-              className="
-              absolute -top-2 left-2
-              raised-off-page
-              bg-highest
-              text-xs
-              rounded-full
-              px-1
-              -translate-x-1/3 translate-y-1/3
-            "
-            >
+            <small className="absolute -top-2 left-2 bg-highest rounded-full px-1 -translate-x-1/3 translate-y-1/3">
               {count}
-            </div>
+            </small>
           )}
         </div>
       ))}
 
       {extra > 0 && (
-        <div
-          className="
-            w-14 h-14 rounded-full z-50
-            flex items-center justify-center
-            bg-gray-200 text-sm font-medium
-            border-2 border-card
-          "
-        >
+        <small className="w-14 h-14 rounded-full z-50 flex items-center justify-center bg-gray-200 border-2 border-card">
           +{extra}
-        </div>
+        </small>
       )}
     </div>
   )

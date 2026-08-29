@@ -33,31 +33,57 @@ export type PickupInput = LegacyPickup & { id?: string };
 
 // --------------------------------------------------------------- composition
 
-// What each shipment can tell its pickups. One pass, batched.
+// What each shipment can tell its pickups. One pass, genuinely batched.
+//
+// IT SAID "batched" AND LOOPED (D101). The loop asked the shipments service for
+// one shipment and the orders repo for one owner, per pickup, and every one of
+// those is a round trip. Both reads have a batched form now, so the whole map
+// costs a fixed number regardless of how many pickups are being composed.
 async function contextFor(
   rows: PickupBaseRow[], executor?: Executor
 ): Promise<Lookups> {
-  const byShipment = new Map<string, ShipmentContext>();
   const ids = [...new Set(rows.map((p) => p.shipment_id).filter((id): id is string => !!id))];
-  if (ids.length === 0) return { byShipment };
+  if (ids.length === 0) return { byShipment: new Map() };
 
   // The shipments service already reconstructs the order link and resolves the
   // carrier, so this asks it rather than walking fulfillments again.
-  const carrierNames = new Map(
-    (await carriers.getAllCarriers()).map((c) => [c.id, c.organization.name])
+  const [carrierRows, shipments] = await Promise.all([
+    carriers.getAllCarriers(),
+    shipmentService.getManyById(ids, executor),
+  ]);
+  return {
+    byShipment: await contextFromShipments(carrierRows, shipments, executor),
+  };
+}
+
+// The context map itself, given the shipments already composed. Split out so
+// that a caller which HAS those shipments - getByOrders below, which resolved
+// them to find the pickups at all - does not read them a second time.
+async function contextFromShipments(
+  carrierRows: Awaited<ReturnType<typeof carriers.getAllCarriers>>,
+  shipments: Awaited<ReturnType<typeof shipmentService.getManyById>>,
+  executor?: Executor
+): Promise<Map<string, ShipmentContext>> {
+  const byShipment = new Map<string, ShipmentContext>();
+  const carrierNames = new Map(carrierRows.map((c) => [c.id, c.organization.name]));
+
+  const orderOf = new Map(
+    shipments.map((s) => [s.id, s.purchase_order_id ?? s.sales_order_id ?? null])
+  );
+  const owners = await orders.ownersById(
+    [...new Set([...orderOf.values()].filter((id): id is string => !!id))],
+    executor
   );
 
-  for (const id of ids) {
-    const shipment = await shipmentService.getById(id, executor);
-    if (!shipment) continue;
-    const order_id = shipment.purchase_order_id ?? shipment.sales_order_id ?? null;
-    byShipment.set(id, {
+  for (const shipment of shipments) {
+    const order_id = orderOf.get(shipment.id) ?? null;
+    byShipment.set(shipment.id, {
       order_id,
-      user_id: order_id ? await orders.ownerOf(order_id, executor) : null,
+      user_id: order_id ? (owners.get(order_id) ?? null) : null,
       carrier: shipment.carrier_id ? (carrierNames.get(shipment.carrier_id) ?? null) : null,
     });
   }
-  return { byShipment };
+  return byShipment;
 }
 
 // ------------------------------------------------------------------- reads
@@ -88,6 +114,49 @@ export async function getByOrder(
   if (!shipment) return [];
   const rows = await pickups.getByShipments([shipment.id], executor);
   return compose.composeAll(rows, await contextFor(rows, executor));
+}
+
+// THE SAME READ FOR A LIST OF ORDERS. D101: the composed order read called
+// getByOrder inside a per-order loop, and getByOrder is itself nine round
+// trips before it reads a single pickup.
+//
+// EQUIVALENT TO CALLING getByOrder PER ORDER. Each order resolves to the same
+// shipment `shipmentService.getByOrders` gives it - which is `getByOrder`
+// batched, hop for hop - and get_by_shipments.sql orders by
+// `requested_at DESC, id ASC`, so grouping one statement's rows by shipment
+// yields each order's pickups in the order a per-order query gave them. An
+// order with no shipment gets `[]`, exactly as before.
+export async function getByOrders(
+  order_ids: string[], executor?: Executor
+): Promise<Map<string, ComposedPickup[]>> {
+  const out = new Map<string, ComposedPickup[]>();
+  if (order_ids.length === 0) return out;
+
+  const shipmentOf = await shipmentService.getByOrders(order_ids, executor);
+  for (const order_id of order_ids) out.set(order_id, []);
+  if (shipmentOf.size === 0) return out;
+
+  const shipments = [...new Map([...shipmentOf.values()].map((s) => [s.id, s])).values()];
+  const rows = await pickups.getByShipments(shipments.map((s) => s.id), executor);
+  if (rows.length === 0) return out;
+
+  const lookups: Lookups = {
+    byShipment: await contextFromShipments(
+      await carriers.getAllCarriers(), shipments, executor
+    ),
+  };
+
+  const byShipment = new Map<string, ComposedPickup[]>();
+  for (const row of rows) {
+    if (row.shipment_id === null) continue;
+    if (!byShipment.has(row.shipment_id)) byShipment.set(row.shipment_id, []);
+    byShipment.get(row.shipment_id)!.push(compose.compose(row, lookups));
+  }
+
+  for (const [order_id, shipment] of shipmentOf) {
+    out.set(order_id, byShipment.get(shipment.id) ?? []);
+  }
+  return out;
 }
 
 // ------------------------------------------------------------------ writes

@@ -35,7 +35,7 @@ export function AddNewTrigger({
     <Button
       variant="ghost"
       size="sm"
-      className={cn('text-neutral-800 h-10', className)}
+      className={cn(className)}
       onClick={onOpen}
       aria-label={accessibleName}
       title={accessibleName}

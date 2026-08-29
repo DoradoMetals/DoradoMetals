@@ -9925,3 +9925,207 @@ IMPORT application code - validate:wire, verify:genesis, the
 decomposition gates - not just the tests. Tests import their subject
 directly and so tend to fail loudly; scripts import a service by
 namespace and fail only when the function is called.
+
+=== D111: WHY THE RESOURCE SPLIT IS NOT THE N+1 IT RESEMBLES, AND THE
+    ONE CASE WHERE IT WOULD BE ===
+Jacob, on reading D101: "I'm starting to see the issue with not
+combining resources on the api returns lol." Fair instinct, and the
+distinction is worth stating because the answer is not "trust me".
+D101 WAS SERIAL SERVER->DATABASE: `await` inside a for loop, 214 round
+trips, each waiting on the last, at 130ms across a Railway proxy - the
+dev database is REMOTE (switchback.proxy.rlwy.net), measured today at
+130ms per `SELECT 1`. On a local Postgres those 214 trips are ~43ms and
+invisible; the latency is what turned a code smell into 38 seconds.
+Note the file already batched everything ELSE correctly - two
+Promise.all blocks fetch totals, items, products, metals, refiners,
+payouts, users and addresses for the whole page. Only two calls stayed
+in the loop, and its own header claimed "the same number of round trips
+whether one order is assembled or fifty", which was true of everything
+above the loop and false of the loop.
+THE RESOURCE SPLIT IS PARALLEL CLIENT->SERVER, and holds for four
+reasons that are rulings rather than luck:
+  1. React Query fires the reads CONCURRENTLY - six reads cost about one
+     read's latency, not six.
+  2. CONSTANT COUNT per view, not per row. The N+1 scaled with orders.
+  3. NO WATERFALLS: every order-scoped read keys off `orderId`, which the
+     client already holds, so they all start at once. This is exactly why
+     the engagement read is /orders/:orderId/refiners rather than
+     fetch-engagement-then-fetch-its-spots - that version SERIALISES, and
+     Jacob rejected it on other grounds before the latency was known.
+  4. CACHEABLE, and the composed wire was not: it embedded product and
+     metal rows INSIDE every item of every order, re-sending the same
+     reference data dozens of times per page. Split, the catalogue and
+     metals are fetched once and shared.
+*** THE CASE THAT WOULD BITE, and the signal to watch for: A LIST VIEW
+WHERE EACH ROW FETCHES ITS OWN SUB-RESOURCE. Fifty rows each calling
+useFulfillment(order.id) is a client-side N+1 with precisely the shape
+D101 fixed on the server. THE RULE: list reads return ROWS; per-resource
+reads belong to the DETAIL view. If a table row starts wanting a
+sub-resource, add the column to the LIST read - do not fan out. ***
+
+=== D111b: THE LIST FAN-OUT IS MEASURED, AND IT IS ESSENTIALLY EMPTY ===
+Built `frontend/scripts/lint-list-fanout.mjs` to make D111's concern
+checkable rather than a comment someone rediscovers. It finds components
+rendered inside a `.map()` and reports the ones that call a data hook
+KEYED BY A PER-ROW ID.
+THE DISTINCTION THAT MATTERS, and the first version got it wrong: a hook
+called with NO ARGUMENT is one query key, so React Query dedupes it -
+fifty ProductCards calling `useSpotPrices()` make ONE request, which is
+the "cacheable" property of D111 working as designed. Only
+`useX(row.id)` fans out. The loose version reported six components; the
+correct one reports ONE, and that one is a product DETAIL page rather
+than a list. Mutations and zustand stores are excluded too - a mutation
+fires on a click, not on render.
+JACOB'S OWN ANSWER, which is better than a guard: "I guess we could
+solve it by just not doing that. Prob bad UI anyway. I know admin table
+needs shipments cuz it asks for them in the column of the table. But
+instead we could take that out and just have a shipments table." That
+dissolves the problem rather than optimising it - a column that needs a
+per-row fetch is usually a sign the row is carrying someone else's
+resource, and the fix is a view of THAT resource. Recorded as the
+preferred resolution; the lint stays as the thing that notices if it
+comes back.
+
+=== WAVE 5 PLAN (Jacob amended the stop point: "go ahead and queue up
+    wave 5 as well once you get through finishing wave 3.5 and 4") ===
+So the sequence is: gate -> commit wave 4 -> DISPATCH WAVE 5, rather
+than stopping after 4.
+  CARRIED IN, whatever wave 4 does not finish:
+    A5 - dissolving purchase-orders/ and sales-orders/ (the one bar
+    still at zero; ~2000 lines, a merge at every name collision).
+    A6 - test co-location and the TypeScript conversion, which ride with
+    A5 one pass per file.
+  WAVE 5 PROPER - checkout, which Jacob sizes as orders-scale:
+    1. The creates unify off the legacy routes.
+    2. The scrap and bullion legacy API layers delete AFTER covenant
+       verification (they are checkout.items now; the scrap DECLARATION
+       forms stay - that is UI, not an API layer).
+    3. THE SHIPPING MESS: the frontend matches FedEx service types
+       DIRECTLY. Same defect class as the wire work - the frontend
+       should not know carrier vocabulary at all. Note ruling 26's
+       correction while doing it: fulfillments.pickups (Dorado collects)
+       and carrier pickups (FedEx collects) are DIFFERENT THINGS sharing
+       a word, and must not be unified.
+  SCOPING DECISION, made deliberately and recorded so it can be
+  overruled: CHECKOUT IS THE MONEY PATH AND JACOB IS ASLEEP. The wave is
+  briefed to STOP AT SEAMS rather than half-rewrite a flow that takes
+  customer payments - the same discipline that made wave 3.5 stop at the
+  legacy writers, which was the right call. A named seam handed over is
+  worth more than a checkout in pieces. Three frontend schemas are
+  `.parse()`d on that path and a Stripe confirm sits one step before the
+  order create (D49: a throw between them means CHARGED, NO ORDER).
+  THE ONE THING WAVE 5 MUST NOT DO: the legacy WRITE path rewrite
+  (D105). Five native statements, then the covenant ledger BEFORE the
+  switch, because verify:parity cannot check it afterwards. That is its
+  own wave with its own verification, not a task inside a checkout wave.
+
+=== D112: A FOURTH INVISIBLE-UI FAILURE MODE - A REPAINTED CONTAINER
+    CANNOT REACH CHILDREN THAT DECLARE THEIR OWN COLOUR ===
+Lane B built `audit:state-collapse` and found FOURTEEN real defects. One
+of them breaks a pattern three earlier agents used and I endorsed.
+THE PATTERN WE KEPT USING: when a container was painted a light ground
+with light text on its children, "fix it structurally" - drop the
+container's paint, set `text-primary-foreground` on the CONTAINER, let
+the children INHERIT. That was the recommended fix in D95 and was
+applied in several places.
+IT DOES NOT WORK, and PayoutLandingSection.tsx proves it: the container
+carried text-primary-foreground and the section was STILL white-on-white
+and STILL LIVE, with a comment above it saying it had been fixed.
+Reason: typography.css colours `h3` and `p` in `@layer base`, and A
+DECLARED RULE BEATS AN INHERITED VALUE. Inheritance only reaches a child
+that declares nothing. The moment the type scale started colouring
+semantic tags - which is ruling 17, our own work - every "let the
+children inherit" fix silently stopped reaching `<h3>`, `<p>`, `<small>`
+and friends.
+SO THE FOUR MODES ARE NOW: (1) same-element class pair, grep-able;
+(2) cross-element container/child, grep-able with effort; (3) STATE/REST
+COLLAPSE, not grep-able - selected looks like unselected; (4) INHERITED
+FIX BLOCKED BY A DECLARED BASE RULE, which LOOKS fixed in the source and
+is not. Each was invisible to the detector built for the one before it.
+THE OTHER THIRTEEN worth naming: the status-filter dropdown row went
+white-on-white WHEN SELECTED on both order lists; viewProfitBreakdown's
+three tabs rendered IDENTICALLY so no tab ever looked active (its
+inactive style never applied because `.primary-on-glass` was unlayered
+and beat it); AddressSelect's hover was byte-identical to its selected
+state; five checkout selectors marked selection with a 1.05:1 step.
+Pinned by shared/ui/state-contrast.test.ts (26 assertions).
+
+=== D113: `next build` IS A GATE THAT `pnpm check` IS NOT ===
+Lane B: a stray `'use client'` on line 3 broke `app/admin` compilation
+while typecheck was clean and all 155 tests passed. `pnpm check` runs
+`frontend typecheck` and `frontend test` and NEITHER compiles the app.
+DONE - `pnpm --filter @dorado/frontend build` is now the 21st and LAST
+member of `pnpm check`, added before wave 4's gate run so that run has
+the coverage. Last, deliberately: it is the most expensive member
+(~90s), so the cheap ones get their chance to fail first.
+INDEPENDENTLY CONFIRMED by the tracker agent, which read the root
+`check` script rather than trusting the report: contracts build,
+verify:fresh, validate, six API lints, API typecheck, API tests,
+frontend typecheck, frontend tests, verify:genesis, validate:wire, six
+audits - and no compile of the app.
+WHAT IT MEANS FOR EVERY GREEN GATE BEFORE TONIGHT: none of them proved
+the frontend builds. Twenty-one commits landed on that basis. The app
+evidently does build, so nothing was broken by it - but "the tests pass"
+had been standing in for "it compiles" for the whole project.
+It is the only member that would have caught this class, and the class
+is "the app does not build", which is worth more than most of what the
+chain does check. Cost: a production build per gate run, which is real -
+so it belongs at the END of the chain, after the cheap members have had
+their chance to fail.
+
+=== D114: THE PARTITION LEFT BOTH MONEY FIXES HALF-DONE, AND ONLY THE
+    TRACKER NOTICED ===
+Wave 4 gated green on lane A's side with A3 and A4 reported at 95%, and
+BOTH MONEY DEFECTS WERE STILL LIVE IN THE PRODUCT. Lane A built the API
+halves - `/quotes/purchase_order` now takes `shipping_charge` and
+`payout_method` and returns `estimated_payout`; `/users/update_credit`
+now takes `{op, amount}` and applies a delta under a row lock - and
+could not write the frontend halves, because I had scoped it to api/**
+to stop it colliding with lane B. Lane B was styling-only and finished
+before the handoff existed. So the work fell in the GAP BETWEEN TWO
+PARTITIONS, each lane correctly declining to cross it.
+THE TRACKER CAUGHT IT by checking the tree instead of the bars - it read
+itemTable.tsx and UsersDrawer.tsx and found the old expressions still
+there. A progress agent that only aggregated numbers would have reported
+83% and been right about the numbers and wrong about the product.
+FIXED BY ME (frontend/** was free once lane B finished): the query key
+now includes the deductions - without that a customer changing shipping
+service is served the CACHED quote, which is the same stale-number
+defect one layer up; itemTable takes `quote.estimated_payout` and its
+own arithmetic is deleted; UsersDrawer sends `{user_id, op, amount}` and
+keeps `newAmount` only as the on-screen preview. Typecheck clean, 155
+tests pass.
+THE LESSON FOR EVERY FUTURE PARTITION: a change that spans two lanes
+belongs to ONE of them, or to the coordinator, and must be NAMED as
+such when the lanes are dispatched. "Hand me the frontend change" is
+not an owner. Both agents behaved correctly and the work still nearly
+shipped half-finished - and it would have LOOKED complete, because the
+API side was tested and green.
+
+=== D115: THE LEAK AUDIT RAN THE SUITE WITH HALF THE LIVE-SERVICE GUARD
+    TURNED OFF ===
+Lane A's last finding, and the strongest of the wave.
+`shared/testing/is-test-run.ts` is what stops a test reaching the real
+mail transport, the FedEx client and the Stripe client. Its own header
+says it detects a test run TWO ways "because either alone can be
+defeated": `NODE_ENV === "test"`, and a `--test` flag in `execArgv`.
+`scripts/audit-test-leaks.mjs` was spawning `node --test` with `TZ` set
+and NOT `NODE_ENV=test`. So during the audit whose entire purpose is
+proving the suite touches nothing live, THE GUARD RAN WITH ONE OF ITS
+TWO LEGS DEAD. Nothing escaped - the execArgv leg held, which is exactly
+why the file has two - but the safety margin the comment describes was
+gone every time that audit ran.
+THE TELL, and it is a good one: the audit DISAGREED WITH THE SUITE IT
+AUDITS - 915/916 under audit:test-leaks against 916/916 under
+`pnpm test`. A gate whose own run disagrees with the gate it is auditing
+cannot distinguish a regression from its own environment, which is
+precisely how this survived. Fixed by putting NODE_ENV: "test" in the
+spawn env.
+SECOND GATE SCRIPT FOUND BROKEN THIS WAVE, after `diff` had not parsed
+for ten commits, and the third counting D110's validate-wire caller.
+ALL THREE ARE THE SAME CLASS: tooling under scripts/ that nothing
+typechecks, nothing imports, and no test covers - so it rots silently
+while the things it audits stay green. THE PATTERN IS WORTH A GUARD OF
+ITS OWN: every script in scripts/ should be exercised by something, even
+if only a --self-test, and any script that RUNS the suite should run it
+the same way `pnpm test` does rather than assembling its own invocation.

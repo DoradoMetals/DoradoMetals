@@ -34,7 +34,7 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
-import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.ts";
+import { calculateTotalPrice } from "#features/pricing/service.ts";
 import * as purchaseOrderService from "#features/purchase-orders/service.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 

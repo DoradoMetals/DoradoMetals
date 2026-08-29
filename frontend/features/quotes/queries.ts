@@ -72,9 +72,18 @@ export type PurchaseOrderQuoteLine =
       }
     }
 
-export const usePurchaseOrderQuote = (items: PurchaseOrderQuoteLine[], enabled = true) =>
+// `deductions` are the customer's two choices that the payout figure subtracts:
+// the shipping service and the payout method. They are optional because three
+// of the four call sites quote GOODS rather than a payout - the sell cart and
+// the scrap review step want "what is this metal worth", not "what will land in
+// your account".
+export const usePurchaseOrderQuote = (
+  items: PurchaseOrderQuoteLine[],
+  deductions: { shipping_charge?: number; payout_method?: string } = {},
+  enabled = true
+) =>
   useApiQuery<PurchaseOrderQuote>({
-    key: queryKeys.purchaseOrderQuote(items),
+    key: queryKeys.purchaseOrderQuote(items, deductions),
     // Public like the catalogue: the anonymous sell cart estimates what the
     // business would pay, exactly as the client math it replaced did.
     requireUser: false,
@@ -82,7 +91,11 @@ export const usePurchaseOrderQuote = (items: PurchaseOrderQuoteLine[], enabled =
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
     request: async () =>
-      apiRequest<PurchaseOrderQuote>('POST', '/quotes/purchase_order', items ? { items } : { items: [] }),
+      apiRequest<PurchaseOrderQuote>('POST', '/quotes/purchase_order', {
+        items: items ?? [],
+        ...(deductions.shipping_charge != null && { shipping_charge: deductions.shipping_charge }),
+        ...(deductions.payout_method != null && { payout_method: deductions.payout_method }),
+      }),
   })
 
 // An EXISTING purchase order, priced by the server - the order drawers' line

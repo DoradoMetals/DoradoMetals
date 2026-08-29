@@ -5,7 +5,9 @@ import { Address, UserAddress, makeEmptyWireAddress } from '@/features/addresses
 import { Skeleton } from '@/shared/ui/base/skeleton'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
+import { RadioGroup } from '@/shared/ui/RadioGroup'
+import { Separator } from '@/shared/ui/base/separator'
+import { DetailRow } from '@/shared/ui/DetailRow'
 import { cn } from '@/shared/utils/cn'
 
 import {
@@ -95,14 +97,14 @@ export function CreateSalesOrderDrawer() {
 
   return (
     <Drawer label="New sales order" open={isDrawerOpen} setOpen={closeDrawer} anchor="left">
-      <div className="text-base text-neutral-800">{createSalesOrderUser?.name}</div>
+      <strong>{createSalesOrderUser?.name}</strong>
 
-      <div className="glass-divider" />
+      <Separator />
 
       <div className="flex flex-col gap-2 items-start">
         <Button
           variant="link"
-          className="text-primary p-0 font-normal text-sm h-4 hover:bg-transparent ml-auto"
+          className="ml-auto"
           onClick={() => setSpotsLocked((prev) => !prev)}
         >
           {spotsLocked ? (
@@ -122,7 +124,7 @@ export function CreateSalesOrderDrawer() {
         <ProductSelector />
       </div>
 
-      <div className="glass-divider" />
+      <Separator />
       <div className="flex flex-col gap-3">
         <AddressSelector
           user={createSalesOrderUser}
@@ -133,7 +135,7 @@ export function CreateSalesOrderDrawer() {
         <ServiceSelector />
       </div>
 
-      <div className="glass-divider" />
+      <Separator />
       <div className="flex flex-col gap-3">
         <OrderSummary orderPrices={orderPrices} />
         <CreditSelect
@@ -159,9 +161,7 @@ function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
     <div className="grid grid-cols-2 w-full gap-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
       {spots.map((spot) => (
         <div key={spot.id} className="flex flex-col w-full">
-          <div className="flex items-center justify-between w-full text-sm text-neutral-700">
-            {spot.name}
-          </div>
+          <p>{spot.name}</p>
 
           <div className="flex items-center gap-1 w-full">
             <Input
@@ -170,7 +170,7 @@ function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
               inputMode="decimal"
               readOnly={!spotsLocked}
               className={cn(
-                'on-glass no-spinner text-center w-full text-base h-8',
+                'no-spinner text-center w-full h-8',
                 !spotsLocked && 'cursor-not-allowed'
               )}
               value={spot?.ask ?? ''}
@@ -238,7 +238,6 @@ function ProductSelector() {
         onSelect={addItem}
         placeholder="Search products…"
         limit={50}
-        inputClassname="on-glass"
       />
       <div className="w-full flex-col">
         <div className="flex-col gap-5">
@@ -258,7 +257,7 @@ function ProductSelector() {
                     src={item.image_front}
                     width={80}
                     height={80}
-                    className="pointer-events-none cursor-auto object-contain focus:outline-none drop-shadow-lg"
+                    className="pointer-events-none cursor-auto object-contain focus:outline-none"
                     alt={item.name}
                   />
                 </div>
@@ -266,16 +265,16 @@ function ProductSelector() {
                 <div className="flex flex-col flex-grow min-w-0">
                   <div className="flex justify-between items-start w-full mt-2">
                     <div className="flex flex-col">
-                      <div className="text-base text-neutral-700">{item.name}</div>
-                      <div className="text-xs text-neutral-500">{item.mint_name}</div>
+                      <strong>{item.name}</strong>
+                      <small>{item.mint_name}</small>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="hover:bg-card p-0 pb-2"
+                      className="p-0 pb-2"
                       onClick={() => removeAll(item)}
                     >
-                      <Trash2 size={16} className="text-neutral-500" />
+                      <Trash2 size={16} />
                     </Button>
                   </div>
 
@@ -284,7 +283,7 @@ function ProductSelector() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="hover:bg-card p-1"
+                        className="p-1"
                         onClick={() => removeOne(item)}
                       >
                         <Minus size={16} />
@@ -294,21 +293,20 @@ function ProductSelector() {
                         transformTiming={{ duration: 750, easing: 'ease-in' }}
                         spinTiming={{ duration: 150, easing: 'ease-out' }}
                         opacityTiming={{ duration: 350, easing: 'ease-out' }}
-                        className="text-base text-neutral-700"
                         trend={0}
                       />
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="hover:bg-card p-1"
+                        className="p-1"
                         onClick={() => addItem(item)}
                       >
                         <Plus size={16} />
                       </Button>
                     </div>
-                    <div className="text-neutral-800 text-base">
+                    <strong>
                       <PriceNumberFlow value={lineTotal} />
-                    </div>
+                    </strong>
                   </div>
                 </div>
               </div>
@@ -363,13 +361,13 @@ function AddressSelector({ user, addresses, userAddresses, isLoading }: AddressS
               />
             </div>
           ) : user ? (
-            <div className="flex items-center justify-center text-base text-neutral-600">
+            <p className="flex items-center justify-center">
               Please create an address for this user.
-            </div>
+            </p>
           ) : (
-            <div className="flex items-center justify-center text-base text-neutral-600">
+            <p className="flex items-center justify-center">
               Select a user to see addresses.
-            </div>
+            </p>
           )}
         </>
       )}
@@ -395,33 +393,23 @@ function ServiceSelector() {
       <RadioGroup
         value={data.service?.value ?? ''}
         onValueChange={handleServiceChange}
-        className="gap-3 w-full flex flex-col"
+        options={adminSalesOrderServiceOptions}
+        className="flex w-full flex-col gap-3"
       >
-        {Object.entries(adminSalesOrderServiceOptions).map(([serviceKey, option]) => {
-          return (
-            <label
-              key={serviceKey}
-              htmlFor={serviceKey}
-              className={cn(
-                'raised-off-page relative peer flex flex-col items-start justify-center w-full gap-1 rounded-lg bg-background px-4 py-3 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card has-[[data-state=checked]]:shadow-md'
-              )}
-            >
-              <div className="flex items-center gap-2 text-base font-medium text-neutral-800">
-                {option.icon && <option.icon size={24} className="text-primary" />}
-                {option.label}
-              </div>
-
-              <div className="flex items-center w-full justify-between">
-                <div className="text-sm text-neutral-600">{option.time}</div>
-                <div className="text-base text-neutral-800">
-                  <PriceNumberFlow value={option.cost} />
-                </div>
-              </div>
-
-              <RadioGroupItem id={serviceKey} value={serviceKey} className="sr-only" />
-            </label>
-          )
-        })}
+        {(option) => (
+          <>
+            <div className="flex items-center gap-2">
+              {option.icon && <option.icon size={24} />}
+              <strong>{option.label}</strong>
+            </div>
+            <div className="flex w-full items-center justify-between">
+              <small>{option.time}</small>
+              <strong>
+                <PriceNumberFlow value={option.cost} />
+              </strong>
+            </div>
+          </>
+        )}
       </RadioGroup>
     </div>
   )
@@ -440,82 +428,67 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
 
   const paymentContent = (
     <div className="w-full flex-col">
-      <div className="section-label text-primary my-4">Payment Details</div>
+      <h2 className="eyebrow my-4">Payment Details</h2>
 
-      <div className="w-full flex items-center justify-between">
-        <div className="text-sm text-neutral-700">Shipping</div>
-        <div className="text-base text-neutral-800">
-          <PriceNumberFlow value={orderPrices?.shipping_charge ?? 0} />
-        </div>
-      </div>
+      <DetailRow label="Shipping">
+        <PriceNumberFlow value={orderPrices?.shipping_charge ?? 0} />
+      </DetailRow>
 
       {appliedFunds > 0 && (
-        <div className="w-full flex items-center justify-between">
-          <div className="text-sm text-neutral-700">Dorado Funds Applied</div>
-          <div className="text-base text-neutral-800">
-            -<PriceNumberFlow value={appliedFunds} />
-          </div>
-        </div>
+        <DetailRow label="Dorado Funds Applied">
+          -<PriceNumberFlow value={appliedFunds} />
+        </DetailRow>
       )}
       {subjectToCharges > 0 && (
-        <div className="w-full flex items-center justify-between">
-          <div className="text-sm text-neutral-700">
-            {' '}
-            {appliedFunds > 0 ? 'Amount Remaining' : 'Items'}
-          </div>
-          <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={subjectToCharges} />
-          </div>
-        </div>
+        <DetailRow label={appliedFunds > 0 ? 'Amount Remaining' : 'Items'}>
+          <PriceNumberFlow value={subjectToCharges} />
+        </DetailRow>
       )}
 
       {surcharge > 0 && (
-        <div className="w-full flex items-center justify-between">
-          <div className="text-sm text-neutral-700">
-            {`${
-              paymentOptions.find((option) => option.method === data.payment_method)?.label
-            } Surcharge `}
-            {`(${
-              paymentOptions.find((option) => option.method === data.payment_method)
-                ?.surcharge_label
-            })`}
-          </div>
-          <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={surcharge} />
-          </div>
-        </div>
+        <DetailRow
+          label={`${
+            paymentOptions.find((option) => option.method === data.payment_method)?.label
+          } Surcharge (${
+            paymentOptions.find((option) => option.method === data.payment_method)?.surcharge_label
+          })`}
+        >
+          <PriceNumberFlow value={surcharge} />
+        </DetailRow>
       )}
 
       {salesTax > 0 && (
-        <div className="w-full flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <div className="text-sm text-neutral-700">Sales Tax</div>
-            <Button variant="ghost" className="h-4 p-0" onClick={() => router.push('/sales-tax')}>
-              <QuestionIcon size={16} className="text-neutral-500" />
-            </Button>
-          </div>
-          <div className="text-base text-neutral-800">
-            <PriceNumberFlow value={salesTax} />
-          </div>
-        </div>
+        <DetailRow
+          label={
+            <span className="flex items-center gap-1">
+              Sales Tax
+              <Button
+                variant="tertiary"
+                size="iconInline"
+                onClick={() => router.push('/sales-tax')}
+              >
+                <QuestionIcon size={16} />
+              </Button>
+            </span>
+          }
+        >
+          <PriceNumberFlow value={salesTax} />
+        </DetailRow>
       )}
 
       <div className="pt-2">
-        <div className="glass-divider" />
+        <Separator />
 
-        <div className="w-full flex items-center justify-between pt-2">
-          <div className="text-base text-primary">Order Total</div>
-          <div className="text-lg text-neutral-900">
-            <PriceNumberFlow value={orderPrices?.post_charges_amount ?? 0} />
-          </div>
-        </div>
+        <DetailRow label="Order Total" total className="pt-2">
+          <PriceNumberFlow value={orderPrices?.post_charges_amount ?? 0} />
+        </DetailRow>
       </div>
     </div>
   )
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <div className="flex w-full on-glass rounded-lg p-4">
+      <div className="flex w-full rounded-lg border border-border p-4">
         <div className="flex flex-col w-full gap-3">{paymentContent}</div>
       </div>
     </div>
@@ -568,13 +541,11 @@ function CreditSelect({
     <>
       {funds > 0 && (
         <div className="">
-          <div className="text-xs text-neutral-600 uppercase tracking-widest mb-4">
-            Payment Method:
-          </div>
+          <h2 className="eyebrow mb-4">Payment Method:</h2>
 
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1 items-start">
-              <div className="text-sm text-neutral-700">Use Bullion Credit?</div>
+              <p>Use Bullion Credit?</p>
               <Switch
                 checked={data.using_funds}
                 onCheckedChange={handleFundsToggle}
@@ -582,10 +553,10 @@ function CreditSelect({
               />
             </div>
             <div className="flex flex-col gap-1 items-end">
-              <div className="text-sm text-neutral-700">Credit Available:</div>
-              <div className="text-lg text-neutral-900">
+              <p>Credit Available:</p>
+              <strong className="stat-sm">
                 <PriceNumberFlow value={funds} />
-              </div>
+              </strong>
             </div>
           </div>
         </div>
@@ -696,7 +667,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
           <div className="flex flex-col gap-3 w-full sticky top-26">
             {!cardNeeded ? (
               <Button
-                className="raised-off-page bg-primary w-full text-primary-foreground"
+                className="w-full"
                 disabled={disabled}
                 onClick={handleSubmit}
               >
@@ -710,7 +681,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
               </Button>
             ) : (
               <Button
-                className="raised-off-page bg-primary w-full text-primary-foreground"
+                className="w-full"
                 disabled={disabled}
                 type="submit"
                 form="admin-payment-form"

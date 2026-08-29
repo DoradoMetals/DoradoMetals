@@ -12,8 +12,7 @@ import {
 } from '@/shared/ui/base/table'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { cn } from '@/shared/utils/cn'
-import { ChevronDown } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
+import AccordionSection from '@/shared/ui/AccordionSection'
 
 // The breakdown is the server's admin-only quote (POST /quotes/
 // profit_breakdown) - the last client money math (computePurchaseOrderTotals)
@@ -26,50 +25,6 @@ type Bucket = 'scrap' | 'bullion' | 'total'
 type MetalLabel = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
 const METALS: MetalLabel[] = ['Gold', 'Silver', 'Platinum', 'Palladium']
 
-function AccordionItem({
-  label,
-  value,
-  children,
-  open,
-  onToggle,
-}: {
-  label: string
-  value: number
-  children: React.ReactNode
-  open: boolean
-  onToggle: () => void
-}) {
-  return (
-    <div className="rounded-md border-border border-1">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full p-2 flex justify-between items-center text-sm font-normal cursor-pointer"
-      >
-        <span>{label}</span>
-        <div className="flex items-center gap-2 text-base text-lg text-neutral-900">
-          <PriceNumberFlow value={value} />
-          <ChevronDown
-            className={cn('h-4 w-4 transition-transform text-neutral-600', open && 'rotate-180')}
-          />
-        </div>
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div className="p-2 pr-9">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
 
 export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
   const { data: totals } = useProfitBreakdown(order.id)
@@ -156,9 +111,9 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
     const label = bucket === 'total' ? 'Type' : 'Metal'
 
     return (
-      <Table className="font-normal text-neutral-700 overflow-hidden">
-        <TableHeader className="text-sm text-neutral-800 hover:bg-transparent">
-          <TableRow className="hover:bg-transparent">
+      <Table className="overflow-hidden">
+        <TableHeader>
+          <TableRow>
             <TableHead className="text-left">{label}</TableHead>
             <TableHead className="text-center">Content</TableHead>
             <TableHead className="text-center">Percent</TableHead>
@@ -169,7 +124,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
           {visibleMetals.map((label) => {
             const v = pick(label)!
             return (
-              <TableRow key={label} className="hover:bg-transparent">
+              <TableRow key={label}>
                 <TableCell className="text-left">{bucket === 'total' ? `${label} Net` : label}</TableCell>
                 <TableCell className="text-center">{v.content.toFixed(3)} toz</TableCell>
                 <TableCell className="text-center">{v.percentage.toFixed(2)}%</TableCell>
@@ -181,8 +136,8 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
           })}
 
           {showShipping && (
-            <TableRow className="hover:bg-transparent">
-              <TableCell className="text-left text-neutral-800">Shipping Net</TableCell>
+            <TableRow>
+              <TableCell className="text-left">Shipping Net</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
@@ -192,8 +147,8 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
           )}
 
           {showFee && (
-            <TableRow className="hover:bg-transparent">
-              <TableCell className="text-left text-neutral-800">Refiner Fee</TableCell>
+            <TableRow>
+              <TableCell className="text-left">Refiner Fee</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
@@ -203,8 +158,8 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
           )}
 
           {showSpotNet && (
-            <TableRow className="hover:bg-transparent">
-              <TableCell className="text-left text-neutral-800">Spot Net</TableCell>
+            <TableRow>
+              <TableCell className="text-left">Spot Net</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
@@ -214,11 +169,11 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
           )}
 
           {showNetRow && (
-            <TableRow className="hover:bg-transparent">
-              <TableCell className="text-left font-medium text-neutral-900">Total Net</TableCell>
+            <TableRow>
+              <TableCell className="text-left"><strong>Total Net</strong></TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
-              <TableCell className="text-right font-medium text-neutral-900">
+              <TableCell className="text-right">
                 <PriceNumberFlow value={totals[party].total_profit} />
               </TableCell>
             </TableRow>
@@ -241,49 +196,54 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
 
   const renderBucket = (bucket: Bucket) => (
     <div className="flex flex-col gap-2">
-      <AccordionItem
+      <AccordionSection
         label="Dorado"
-        value={accordionValue('dorado', bucket)}
+        total={accordionValue('dorado', bucket)}
         open={isOpen(bucket, 'dorado')}
         onToggle={() => toggle(bucket, 'dorado')}
       >
         {renderTableBody('dorado', bucket)}
-      </AccordionItem>
+      </AccordionSection>
 
-      <AccordionItem
+      <AccordionSection
         label="Customer"
-        value={accordionValue('customer', bucket)}
+        total={accordionValue('customer', bucket)}
         open={isOpen(bucket, 'customer')}
         onToggle={() => toggle(bucket, 'customer')}
       >
         {renderTableBody('customer', bucket)}
-      </AccordionItem>
+      </AccordionSection>
 
-      <AccordionItem
+      <AccordionSection
         label="Refiner"
-        value={accordionValue('refiner', bucket)}
+        total={accordionValue('refiner', bucket)}
         open={isOpen(bucket, 'refiner')}
         onToggle={() => toggle(bucket, 'refiner')}
       >
         {renderTableBody('refiner', bucket)}
-      </AccordionItem>
+      </AccordionSection>
     </div>
   )
 
   return (
     <div className="flex w-full">
       <div className="flex flex-col gap-4 w-full">
-        <div className="text-xl text-neutral-900">Profit Breakdown</div>
+        <h2>Profit Breakdown</h2>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as Bucket)} className="w-full">
-          <TabsList className="w-full justify-start gap-2 bg-transparent px-0">
+          {/* ⚠ D99 — NO TAB LOOKED ACTIVE. Rest was `primary-on-glass`
+              (bg-primary/15, border-primary, text-primary); active added
+              `text-white`, which is #ffffff against text-primary's #fafafa
+              (1.04:1); and inactive's `bg-neutral-200` never applied at all,
+              because `.primary-on-glass` lives in an UNLAYERED stylesheet and
+              unlayered rules beat every cascade layer including `utilities`.
+              So all three triggers rendered the identical pill whichever one
+              was selected. `underline` is the variant that exists for this. */}
+          <TabsList variant="underline" className="w-full justify-start gap-2">
             {availableBuckets.includes('total') && (
               <TabsTrigger
                 value="total"
-                className={cn(
-                  'primary-on-glass',
-                  'data-[state=active]:text-white data-[state=inactive]:bg-neutral-200 data-[state=inactive]:text-neutral-900 raised-off-page cursor-pointer py-2'
-                )}
+                variant="underline"
               >
                 Total
               </TabsTrigger>
@@ -291,10 +251,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
             {availableBuckets.includes('scrap') && (
               <TabsTrigger
                 value="scrap"
-                className={cn(
-                  'primary-on-glass',
-                  'data-[state=active]:text-white data-[state=inactive]:bg-neutral-200 data-[state=inactive]:text-neutral-900 raised-off-page cursor-pointer py-2'
-                )}
+                variant="underline"
               >
                 Scrap
               </TabsTrigger>
@@ -302,10 +259,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
             {availableBuckets.includes('bullion') && (
               <TabsTrigger
                 value="bullion"
-                className={cn(
-                  'primary-on-glass',
-                  'data-[state=active]:text-white data-[state=inactive]:bg-neutral-200 data-[state=inactive]:text-neutral-900 raised-off-page cursor-pointer py-2'
-                )}
+                variant="underline"
               >
                 Bullion
               </TabsTrigger>

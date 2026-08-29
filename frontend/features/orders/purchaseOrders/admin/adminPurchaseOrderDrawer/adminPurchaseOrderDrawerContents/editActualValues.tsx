@@ -1,5 +1,6 @@
 'use client'
 
+import { Separator } from '@/shared/ui/base/separator'
 import { Input } from '@/shared/ui/base/input'
 import { cn } from '@/shared/utils/cn'
 import { assignScrapItemNames, PurchaseOrder } from '@/features/orders/purchaseOrders/types'
@@ -97,11 +98,11 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
       <div className="flex flex-col gap-4 w-full mb-4">
         {scrapItems.length > 0 && (
           <div className="flex flex-col gap-4 w-full">
-            <div className="w-full section-label">Scrap Actuals</div>
-            <div className="rounded-xl on-glass overflow-hidden">
-              <Table className="font-normal text-neutral-700 overflow-hidden">
-                <TableHeader className="text-xs text-neutral-700 bg-muted/40">
-                  <TableRow className="hover:bg-transparent">
+            <div className="w-full eyebrow">Scrap Actuals</div>
+            <div className="rounded-xl border border-border overflow-hidden">
+              <Table className="overflow-hidden">
+                <TableHeader surface="card">
+                  <TableRow>
                     <TableHead className="text-left">Scrap Item</TableHead>
                     <TableHead className="text-center">Actual Purity</TableHead>
                     <TableHead className="text-center">Actual Post Melt</TableHead>
@@ -112,7 +113,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                     const label = item.name ?? item.metal ?? 'Scrap'
                     const s = refinerOf(item.id)
                     return (
-                      <TableRow key={item.id} className="hover:bg-transparent">
+                      <TableRow key={item.id}>
                         <TableCell className="text-left">{label}</TableCell>
 
                         <TableCell className="text-right">
@@ -120,7 +121,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                             <Input
                               type="text"
                               inputMode="decimal"
-                              className={cn('on-glass no-spinner text-right h-8')}
+                              className={cn('no-spinner text-right h-8')}
                               defaultValue={
                                 s?.purity != null ? (s.purity * 100).toFixed(1).toString() : ''
                               }
@@ -130,9 +131,9 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                                 mutateActuals(item, { purity_actual: parsed })
                               }}
                             />
-                            <span className="text-sm text-neutral-700 select-none whitespace-nowrap">
+                            <small className="select-none whitespace-nowrap">
                               %
-                            </span>
+                            </small>
                           </div>
                         </TableCell>
 
@@ -141,7 +142,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                             type="number"
                             inputMode="decimal"
                             step="0.0001"
-                            className={cn('on-glass no-spinner text-right h-8')}
+                            className={cn('no-spinner text-right h-8')}
                             defaultValue={s?.post_melt ?? ''}
                             placeholder="Enter Actual Post-Melt"
                             onBlur={(e) => {
@@ -149,9 +150,9 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                               mutateActuals(item, { post_melt_actual: n })
                             }}
                           />
-                          <span className="text-sm text-neutral-700 whitespace-nowrap">
+                          <small className="whitespace-nowrap">
                             {s?.unit ?? item.unit ?? 't oz'}
-                          </span>
+                          </small>
                         </TableCell>
                       </TableRow>
                     )
@@ -162,18 +163,18 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
           </div>
         )}
 
-        <div className="glass-divider" />
+        <Separator />
         <div className="flex flex-col gap-4 w-full">
-          <div className="w-full section-label">Shipping Actual</div>
+          <div className="w-full eyebrow">Shipping Actual</div>
 
-          <div className="rounded-xl on-glass overflow-hidden">
-            <div className="flex items-center justify-between w-full px-3 py-2 text-xs tracking-widest text-neutral-600 bg-muted/40">
+          <div className="rounded-xl border border-border overflow-hidden">
+            <div className="flex items-center justify-between w-full px-3 py-2 eyebrow bg-muted/40">
               <div>Estimate</div>
               <div className="text-right">Actual</div>
             </div>
 
             <div className="divide-y">
-              <div className="flex items-center justify-between w-full items-center px-3 py-2 text-sm">
+              <div className="flex items-center justify-between w-full items-center px-3 py-2">
                 <div className="truncate">
                   <span className="text-neutral-800">${shipment?.cost}</span>
                 </div>
@@ -184,7 +185,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                     inputMode="decimal"
                     step="0.01"
                     min="-9999"
-                    className={cn('on-glass no-spinner text-right h-8')}
+                    className={cn('no-spinner text-right h-8')}
                     // THE PARCEL'S ACTUAL COST IS THE PARCEL'S. It rode on the
                     // order document as shipping_fee_actual, a column of
                     // orders.transactions; the row's own name is actual_cost.
@@ -203,25 +204,25 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
             </div>
           </div>
         </div>
-        <div className="glass-divider" />
+        <Separator />
         <div className="flex flex-col gap-4 w-full">
-          <div className="w-full section-label">Pool</div>
+          <div className="w-full eyebrow">Pool</div>
 
-          <div className="rounded-xl on-glass overflow-hidden">
-            <div className="flex items-center justify-between w-full px-3 py-2 text-xs tracking-widest text-neutral-600 bg-muted/40">
+          <div className="rounded-xl border border-border overflow-hidden">
+            <div className="flex items-center justify-between w-full px-3 py-2 eyebrow bg-muted/40">
               <div>Pool Deduction (t oz)</div>
               <div className="text-right">Pool Remediation ($)</div>
             </div>
 
             <div className="divide-y">
-              <div className="flex items-center justify-between w-full items-center px-3 py-2 text-sm gap-2">
+              <div className="flex items-center justify-between w-full items-center px-3 py-2 gap-2">
                 <div className="truncate">
                   <Input
                     type="number"
                     inputMode="decimal"
                     step="0.01"
                     min="-9999"
-                    className={cn('on-glass no-spinner text-right h-8')}
+                    className={cn('no-spinner text-right h-8')}
                     defaultValue={Number(refinerOrder?.pool_oz_deducted ?? 0).toFixed(3)}
                     onBlur={(e) => {
                       if (!refinerOrder?.id) return
@@ -240,7 +241,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
                     inputMode="decimal"
                     step="0.01"
                     min="-9999"
-                    className={cn('on-glass no-spinner text-right h-8')}
+                    className={cn('no-spinner text-right h-8')}
                     defaultValue={Number(refinerOrder?.pool_remediation ?? 0).toFixed(2)}
                     onBlur={(e) => {
                       if (!refinerOrder?.id) return

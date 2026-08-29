@@ -20,7 +20,7 @@ export default function PurchaseOrderDrawerContent({ order }: PurchaseOrderDrawe
       return <CompletedPurchaseOrder order={order} />
     default:
       return (
-        <div className="p-4 text-sm text-neutral-800">No content available for this status.</div>
+        <strong className="p-4">No content available for this status.</strong>
       )
   }
 }

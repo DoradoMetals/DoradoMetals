@@ -4,7 +4,7 @@ import * as productService from "#features/products/service.ts";
 import * as addressService from "#features/places/addresses/service.ts";
 import * as taxService from "#features/sales-tax/service.ts";
 import * as spotsService from "#features/spots/service.ts";
-import { calculateSalesOrderTotal } from "#features/sales-orders/utils/calculations.ts";
+import { calculateSalesOrderTotal } from "#features/pricing/service.ts";
 
 import { auth } from "#features/auth/client.ts";
 import { fromNodeHeaders } from "better-auth/node";

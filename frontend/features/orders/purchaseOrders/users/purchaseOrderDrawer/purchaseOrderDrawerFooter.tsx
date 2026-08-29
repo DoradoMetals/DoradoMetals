@@ -6,9 +6,8 @@ import {
   PurchaseOrderDrawerFooterProps,
   statusConfig,
 } from '@/features/orders/purchaseOrders/types'
-import { cn } from '@/shared/utils/cn'
-import { ChevronDown } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
+import AccordionSection from '@/shared/ui/AccordionSection'
+import { DetailRow } from '@/shared/ui/DetailRow'
 
 import {
   Table,
@@ -94,15 +93,15 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
   return (
     <div className="flex flex-col w-full gap-2">
       {scrapItems.length > 0 && (
-        <Accordion
+        <AccordionSection
           label={`Scrap ${valueLabel}`}
           open={open.scrap}
-          toggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
+          onToggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
           total={scrapTotal}
         >
-          <Table className="font-normal text-neutral-700 overflow-hidden">
-            <TableHeader className="text-xs text-neutral-700 hover:bg-transparent">
-              <TableRow className="hover:bg-transparent">
+          <Table className="overflow-hidden">
+            <TableHeader>
+              <TableRow>
                 <TableHead className="text-left">Line Item</TableHead>
                 <TableHead className="text-center">Content</TableHead>
                 <TableHead className="text-center">Rate</TableHead>
@@ -112,7 +111,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
             </TableHeader>
             <TableBody>
               {scrapItems.map((item, i) => (
-                <TableRow key={i} className="hover:bg-transparent">
+                <TableRow key={i}>
                   <TableCell className="text-left">{item.name}</TableCell>
                   <TableCell className="text-center">{item.content?.toFixed(3)} toz</TableCell>
                   {/* THE SCRAP LINE'S PREMIUM IS ITS OWN. The composed wire
@@ -133,20 +132,20 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
               ))}
             </TableBody>
           </Table>
-        </Accordion>
+        </AccordionSection>
       )}
 
       {bullionItems.length > 0 && (
-        <Accordion
+        <AccordionSection
           label={`Bullion ${valueLabel}`}
           open={open.bullion}
-          toggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
+          onToggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
           total={bullionTotal}
         >
-          <Table className="font-normal text-neutral-700 overflow-hidden">
+          <Table className="overflow-hidden">
             <TableBody>
               {bullionItems.map((item, i) => (
-                <TableRow key={i} className="hover:bg-transparent">
+                <TableRow key={i}>
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>{nameOf(catalogue, item.bullion_id)}</TableCell>
                   <TableCell className="text-right p-0">
@@ -157,19 +156,20 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
               ))}
             </TableBody>
           </Table>
-        </Accordion>
+        </AccordionSection>
       )}
 
       {shipment && (
-        <Accordion
+        <AccordionSection
           label="Shipping Charges"
+          negative
           open={open.shipment ?? false}
-          toggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
+          onToggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
           total={shipment.cost ?? 0}
         >
-          <Table className="font-normal text-neutral-700 overflow-hidden">
+          <Table className="overflow-hidden">
             <TableBody>
-              <TableRow className="hover:bg-transparent">
+              <TableRow>
                 <TableCell>{shipmentService}</TableCell>
                 <TableCell>{shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                 <TableCell className="text-right p-0">
@@ -177,7 +177,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
                 </TableCell>
               </TableRow>
               {order.status === 'Cancelled' && returnShipment && (
-                <TableRow className="hover:bg-transparent">
+                <TableRow>
                   <TableCell>{returnService} (Return)</TableCell>
                   <TableCell>{returnShipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                   <TableCell className="text-right p-0">
@@ -187,19 +187,20 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
               )}
             </TableBody>
           </Table>
-        </Accordion>
+        </AccordionSection>
       )}
 
       {payoutFee > 0 && (
-        <Accordion
+        <AccordionSection
           label="Payout Fee"
+          negative
           open={open.payout ?? false}
-          toggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
+          onToggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
           total={payoutFee}
         >
-          <Table className="font-normal text-neutral-700 overflow-hidden">
+          <Table className="overflow-hidden">
             <TableBody>
-              <TableRow className="hover:bg-transparent">
+              <TableRow>
                 <TableCell>{payoutMethod?.label ?? 'Unknown Method'}</TableCell>
                 <TableCell className="text-right p-0">
                   -<PriceNumberFlow value={payoutFee} />
@@ -207,120 +208,52 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
               </TableRow>
             </TableBody>
           </Table>
-        </Accordion>
+        </AccordionSection>
       )}
 
-      <Accordion
+      <AccordionSection
         label={`Total ${valueLabel}`}
         open={open.total}
-        toggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
+        onToggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
         total={total}
       >
-        <div className="grid grid-cols-2 gap-2 text-sm text-neutral-700">
+        <div className="flex flex-col gap-2">
           {scrapItems.length > 0 && (
-            <>
-              <div>Scrap:</div>
-              <div className="text-right">
-                <PriceNumberFlow value={scrapTotal} />
-              </div>
-            </>
+            <DetailRow label="Scrap:">
+              <PriceNumberFlow value={scrapTotal} />
+            </DetailRow>
           )}
 
           {bullionItems.length > 0 && (
-            <>
-              <div>Bullion:</div>
-              <div className="text-right">
-                <PriceNumberFlow value={bullionTotal} />
-              </div>
-            </>
+            <DetailRow label="Bullion:">
+              <PriceNumberFlow value={bullionTotal} />
+            </DetailRow>
           )}
 
           {(shipment?.cost ?? 0) > 0 && (
-            <>
-              <div>Shipping:</div>
-              <div className="text-right">
-                -<PriceNumberFlow value={shipment?.cost ?? 0} />
-              </div>
-            </>
+            <DetailRow label="Shipping:">
+              -<PriceNumberFlow value={shipment?.cost ?? 0} />
+            </DetailRow>
           )}
 
           {payoutFee > 0 && (
-            <>
-              <div>Payout Fee:</div>
-              <div className="text-right">
-                -<PriceNumberFlow value={payoutFee} />
-              </div>
-            </>
+            <DetailRow label="Payout Fee:">
+              -<PriceNumberFlow value={payoutFee} />
+            </DetailRow>
           )}
 
-          <div className="font-medium">Total:</div>
-          <div className="font-medium text-right">
+          <DetailRow label="Total:" total>
             <PriceNumberFlow value={total} />
-          </div>
+          </DetailRow>
         </div>
-      </Accordion>
+      </AccordionSection>
 
       <div className="flex w-full justify-between items-center mt-3">
-        <div className="text-sm text-neutral-700">Questions? Give us a call.</div>
-        <a
-          href={`tel:+${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`}
-          className={cn('text-sm hover:underline text-primary')}
-        >
+        <p>Questions? Give us a call.</p>
+        <a href={`tel:+${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`}>
           {formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}
         </a>
       </div>
-    </div>
-  )
-}
-
-function Accordion({
-  label,
-  open,
-  toggle,
-  children,
-  total,
-}: {
-  label: string
-  open: boolean
-  toggle: () => void
-  children: React.ReactNode
-  total: number
-}) {
-  return (
-    <div className="rounded-md on-glass">
-      <button
-        type="button"
-        onClick={toggle}
-        className="w-full p-2 flex justify-between items-center text-sm font-normal cursor-pointer"
-      >
-        {label}
-        <div className="flex items-center gap-2 text-base">
-          {label === 'Shipping Charges' || label === 'Payout Fee' ? (
-            <div className="flex items-center gap-0">
-              -<PriceNumberFlow value={total} />
-            </div>
-          ) : (
-            <PriceNumberFlow value={total} />
-          )}
-          <div className="text-base"></div>
-          <ChevronDown
-            className={cn('h-4 w-4 transition-transform text-neutral-600', open && 'rotate-180')}
-            size={20}
-          />
-        </div>
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden will-change-transform"
-          >
-            <div className="p-2 pr-9">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

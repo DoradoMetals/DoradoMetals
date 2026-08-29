@@ -94,7 +94,7 @@ export function PopoverSelect({
 
   return (
     <div className="w-full flex flex-col gap-1">
-      {label && <small className="pl-1 font-medium">{label}</small>}
+      {label && <small className="pl-1">{label}</small>}
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -143,7 +143,7 @@ export function PopoverSelect({
             <CommandList className="custom-scrollbar max-h-50 overflow-y-auto">
               <CommandEmpty>No results found.</CommandEmpty>
 
-              <CommandGroup className="border-none">
+              <CommandGroup>
                 {filtered.map((option) => (
                   <CommandItem
                     key={option}

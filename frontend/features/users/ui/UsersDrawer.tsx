@@ -15,7 +15,7 @@ import {
 import { Button } from '@/shared/ui/base/button'
 import { Separator } from '@/shared/ui/base/separator'
 import { Input } from '@/shared/ui/base/input'
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
+import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { cn } from '@/shared/utils/cn'
 import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -127,12 +127,10 @@ function DoradoCredit({ user }: { user: AdminUser }) {
       return
     }
 
-    const updatedUser: AdminUser = {
-      ...user,
-      dorado_funds: newAmount,
-    }
-
-    updateCredit.mutate(updatedUser)
+    // Send what the admin DID, not what we think the balance becomes. The
+    // server applies the delta under a row lock; `newAmount` above stays as the
+    // PREVIEW rendered below, which is fine - previewing is not writing.
+    updateCredit.mutate({ user_id: user.id, op: mode, amount })
 
     setAmount(0)
     setDisplayAmount('0.00')
@@ -148,30 +146,25 @@ function DoradoCredit({ user }: { user: AdminUser }) {
       </div>
 
       <div className="flex flex-col gap-2 w-full">
+        {/* ⚠ D99 — WAS A SELECTED STATE NOBODY COULD SEE. The checked row was
+            `bg-primary/15 border-primary text-primary`: a 15% white wash on a
+            near-black ground, with `text-primary` (#fafafa) against a rest
+            state of `text-foreground` (#f6f7f9). Two of the three signals were
+            invisible and the third was a border. `intent="neutral"` FILLS. */}
         <RadioGroup
           value={mode}
           onValueChange={(val) => setMode(val as 'add' | 'subtract' | 'edit')}
-          className="flex items-center w-full gap-1"
+          options={modes}
+          variant="segment"
+          className="flex w-full items-center gap-1"
+          optionClassName="w-full gap-1"
         >
-          {modes.map((m) => {
-            const Icon = m.icon
-            return (
-              <label
-                key={m.value}
-                htmlFor={m.value}
-                className={cn(
-                  'w-full flex items-center justify-center gap-1 rounded-md cursor-pointer px-2 py-2 border transition-colors',
-                  mode === m.value
-                    ? 'bg-primary/15 border-primary text-primary'
-                    : 'bg-transparent border-border text-foreground'
-                )}
-              >
-                {m.label}
-                <Icon size={20} />
-                <RadioGroupItem id={m.value} value={m.value} className="sr-only" />
-              </label>
-            )
-          })}
+          {(m) => (
+            <>
+              {m.label}
+              <m.icon size={20} />
+            </>
+          )}
         </RadioGroup>
         <Input
           type="text"

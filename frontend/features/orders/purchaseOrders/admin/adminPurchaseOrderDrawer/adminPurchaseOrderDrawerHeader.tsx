@@ -77,10 +77,10 @@ export default function PurchaseOrderDrawerHeader({
   return (
     <div className="flex flex-col w-full gap-6 border-b-1 border-border">
       <div className="flex w-full justify-between items-center">
-        <div className="text-base text-neutral-800">
+        <strong>
           {formatPurchaseOrderNumber(order.number)}
-        </div>
-        <div className="text-sm text-neutral-800">{username}</div>
+        </strong>
+        <strong>{username}</strong>
       </div>
       <div className="flex w-full justify-between items-center">
         <div className="flex items-center gap-2">
@@ -89,7 +89,7 @@ export default function PurchaseOrderDrawerHeader({
               <Icon size={24} />
             </div>
           )}
-          <span className="text-lg text-neutral-800">{order.status}</span>
+          <strong className="stat-sm">{order.status}</strong>
         </div>
         <div className="flex ml-auto">
           {downloadOptions.map(({ statuses, label, onClick, isPending }, index) =>
@@ -97,7 +97,7 @@ export default function PurchaseOrderDrawerHeader({
               <Button
                 key={index}
                 variant="link"
-                className={`font-normal text-sm bg-transparent hover:bg-transparent ${'text-primary'} px-0`}
+                className="px-0"
                 onClick={onClick}
                 disabled={isPending}
               >

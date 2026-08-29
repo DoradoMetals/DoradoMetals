@@ -35,15 +35,24 @@ export const useAdminRoleUsers = () =>
     params: (user) => ({ user }),
   })
 
+// THE OPERATION, NOT THE RESULT (ruling 10, D98).
+//
+// This used to send `amount: user.dorado_funds` - the balance the BROWSER had
+// computed - and the server stored it verbatim. Two problems on a ledger
+// holding $66,999.32 across eight customers: the client was doing the
+// arithmetic, and two admins with the drawer open both read the same starting
+// balance and the second write silently discarded the first. Sending {op,
+// amount} lets the server apply a DELTA inside a transaction, where the row is
+// locked and the outcome does not depend on what the browser last saw.
 export const useUpdateCredit = () =>
-  useApiMutation<void, AdminUser, AdminUser[]>({
+  useApiMutation<
+    { rowCount: number; dorado_funds: number | null },
+    { user_id: string; op: 'add' | 'subtract' | 'edit'; amount: number },
+    AdminUser[]
+  >({
     method: 'POST',
     url: '/users/update_credit',
     requireAdmin: true,
     queryKey: queryKeys.adminAllUsers(),
-    body: (user, _sessionUser) => ({
-      user_id: user.id,
-      mode: 'edit',
-      amount: user.dorado_funds ?? 0,
-    }),
+    body: (input) => input,
   })

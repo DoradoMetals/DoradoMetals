@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/shared/utils/cn'
-import { RadioGroup } from '@/shared/ui/base/radio-group'
-import { RadioCard } from '@/shared/ui/RadioCard'
+import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
 import {
   CurrencyDollarIcon,
   PercentIcon,
@@ -100,38 +99,37 @@ export default function PremiumControl({
       <Label className="pl-1">{label}</Label>
 
       <div className="flex items-center gap-2">
-        <RadioGroup
+        {/* The `rounded-l-lg` / `rounded-r-lg` end caps are GONE rather than
+            given a fourth `joined` variant for one control. Two adjacent
+            `segment` cells with a small gap is what every other segmented
+            control in the app is (BullionTab, UsersDrawer, the product variant
+            pills), and uniformity is the ruling.
+            `intent="neutral"` FILLS rather than washing: the old
+            `bg-primary/15` was a 15% white wash on a near-black ground, i.e. a
+            selected state nobody could see. */}
+        <RadioGroupRoot
           value={unit}
-          onValueChange={(v) => {
-            setUnit(v as Unit)
-          }}
-          className="flex items-center gap-0 rounded-lg p-0"
+          onValueChange={(v) => setUnit(v as Unit)}
+          className="flex items-center gap-1"
         >
-          {/* `rounded-l-lg` / `rounded-r-lg` are the JOINED-END geometry of a
-              two-cell segmented control, not a look: RadioCard's `segment` has
-              no expression for "this cell is an end cap", so the two survive at
-              the call site. Flagged in the report as the one real gap.
-              The unit pair is `intent="neutral"`, which FILLS rather than
-              washing - the old `bg-primary/15` was a 15% white wash on a
-              near-black ground, i.e. a selected state nobody could see. */}
-          <RadioCard
+          <RadioOption
             id={`${label}-unit-dollar`}
             value="dollar"
             variant="segment"
-            className="h-10 min-w-10 px-2 rounded-l-lg"
+            className="h-10 min-w-10 px-2"
           >
             <CurrencyDollarIcon size={18} />
-          </RadioCard>
+          </RadioOption>
 
-          <RadioCard
+          <RadioOption
             id={`${label}-unit-percent`}
             value="percent"
             variant="segment"
-            className="h-10 min-w-10 px-2 rounded-r-lg"
+            className="h-10 min-w-10 px-2"
           >
             <PercentIcon size={18} />
-          </RadioCard>
-        </RadioGroup>
+          </RadioOption>
+        </RadioGroupRoot>
 
         <div className="relative flex-1">
           <Input
@@ -171,35 +169,35 @@ export default function PremiumControl({
           />
         </div>
 
-        <RadioGroup
+        <RadioGroupRoot
           value={direction}
           onValueChange={(v) => {
             const next = v as Direction
             setDirection(next)
             commit(input, next)
           }}
-          className="flex items-center gap-0 rounded-lg p-0"
+          className="flex items-center gap-1"
         >
-          <RadioCard
+          <RadioOption
             id={`${label}-dir-over`}
             value="over"
             variant="segment"
             intent="success"
-            className="h-10 min-w-10 px-2 rounded-l-lg"
+            className="h-10 min-w-10 px-2"
           >
             <ArrowUpIcon size={18} />
-          </RadioCard>
+          </RadioOption>
 
-          <RadioCard
+          <RadioOption
             id={`${label}-dir-under`}
             value="under"
             variant="segment"
             intent="danger"
-            className="h-10 min-w-10 px-2 rounded-r-lg"
+            className="h-10 min-w-10 px-2"
           >
             <ArrowDownIcon size={18} />
-          </RadioCard>
-        </RadioGroup>
+          </RadioOption>
+        </RadioGroupRoot>
       </div>
     </div>
   )

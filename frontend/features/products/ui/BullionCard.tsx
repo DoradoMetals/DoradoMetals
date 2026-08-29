@@ -5,8 +5,7 @@ import { Product } from '@/features/products/types'
 import { Button } from '@/shared/ui/base/button'
 import { CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { Label } from '@/shared/ui/base/label'
+import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
 import { BullionFloatingButton, BullionFloatingButtonItem } from '@/features/products/ui/FloatingButton'
 import { useState } from 'react'
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
@@ -181,7 +180,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
 
           {variants.length > 0 && (
             <div className="mt-auto">
-              <RadioGroup
+              <RadioGroupRoot
                 value={selectedProduct.name}
                 onValueChange={(val) => {
                   const variant = variants.find((v) => v.name === val)
@@ -199,32 +198,23 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                 >
                   {[...variants]
                     .sort((a, b) => b.content - a.content)
-                    .map((option) => {
-                      const isSelected = selectedProduct.name === option.name
-
-                      return (
-                        <BullionFloatingButtonItem key={option.id}>
-                          {/* Segmented control, hand-rolled - see the report.
-                              Label's default IS `text-micro font-medium`. */}
-                          <Label
-                            htmlFor={option.name}
-                            className={cn(
-                              'h-5.5 sm:h-7 md:h-8.5 lg:h-9 w-8 xs:w-12 sm:w-14 rounded-lg justify-center cursor-pointer border',
-                              isSelected && 'bg-primary text-primary-foreground'
-                            )}
-                          >
-                            <RadioGroupItem
-                              id={option.name}
-                              value={option.name}
-                              className="sr-only"
-                            />
-                            {option.variant_label}
-                          </Label>
-                        </BullionFloatingButtonItem>
-                      )
-                    })}
+                    .map((option) => (
+                      <BullionFloatingButtonItem key={option.id}>
+                        {/* Composed from `RadioOption` rather than
+                            `<RadioGroup options>` because each option is
+                            wrapped in a BullionFloatingButtonItem, and a render
+                            prop cannot wrap the label it is rendered inside. */}
+                        <RadioOption
+                          value={option.name}
+                          variant="segment"
+                          className="h-5.5 w-8 px-0 xs:w-12 sm:h-7 sm:w-14 md:h-8.5 lg:h-9"
+                        >
+                          {option.variant_label}
+                        </RadioOption>
+                      </BullionFloatingButtonItem>
+                    ))}
                 </BullionFloatingButton>
-              </RadioGroup>
+              </RadioGroupRoot>
             </div>
           )}
         </div>

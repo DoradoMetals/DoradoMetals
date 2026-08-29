@@ -5,8 +5,7 @@ import { Product } from '@/features/products/types'
 import { Button } from '@/shared/ui/base/button'
 import { ChevronLeft, ChevronRight, CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
-import { Label } from '@/shared/ui/base/label'
+import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
 import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/FloatingButton'
 
 import { useState } from 'react'
@@ -164,7 +163,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
       <div className="relative h-4/5 bg-card rounded-lg rounded-b-xl -mt-10 flex flex-col justify-end border border-border">
         <div className="flex items-end justify-between w-full px-3 pr-5 pb-2">
           {variants.length > 0 && (
-            <RadioGroup
+            <RadioGroupRoot
               value={selectedProduct.name}
               onValueChange={(val) => {
                 const variant = variants.find((v) => v.name === val)
@@ -191,28 +190,24 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                   .sort((a, b) => b.content - a.content)
                   .map((option) => (
                     <FloatingButtonItem key={option.id}>
-                      {/* Segmented control, hand-rolled - see the report; the
-                          checked appearance has no component to live in yet.
-                          Label's own default IS `text-micro font-medium`, which
-                          is what `text-xs` was reaching for. */}
-                      <Label
-                        htmlFor={option.name}
-                        className="h-8 w-10 xs:w-14 sm:w-15 rounded-lg justify-center cursor-pointer border has-[[data-state=checked]]:bg-primary has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:text-primary-foreground"
+                      {/* Composed from `RadioOption` rather than
+                          `<RadioGroup options>` because each option is wrapped
+                          in a FloatingButtonItem, and a render prop cannot wrap
+                          the label it is rendered inside. */}
+                      <RadioOption
+                        value={option.name}
+                        variant="segment"
+                        className="h-8 w-10 px-0 xs:w-14 sm:w-15"
                         onClick={(e) => {
                           e.stopPropagation()
                         }}
                       >
-                        <RadioGroupItem
-                          id={option.name}
-                          value={option.name}
-                          className="sr-only"
-                        />
                         {option.variant_label}
-                      </Label>
+                      </RadioOption>
                     </FloatingButtonItem>
                   ))}
               </FloatingButton>
-            </RadioGroup>
+            </RadioGroupRoot>
           )}
 
           <AnimatePresence>

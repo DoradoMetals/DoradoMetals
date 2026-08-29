@@ -1,5 +1,7 @@
-import { useOrderPayouts } from '@/features/payouts/queries'
 'use client'
+
+import { Separator } from '@/shared/ui/base/separator'
+import { useOrderPayouts } from '@/features/payouts/queries'
 
 import { payoutOptions } from '@/features/payouts/types'
 import { usePayoutDetails } from '@/features/payouts/queries'
@@ -39,22 +41,22 @@ export default function AdminPaymentProcessingPurchaseOrder({
 
   return (
     <div className="flex flex-col items-center w-full gap-4 h-full">
-      <div className="h-auto w-full p-4 rounded-lg flex flex-col gap-3 on-glass">
+      <div className="h-auto w-full p-4 rounded-lg flex flex-col gap-3 border border-border">
         <div className="flex flex-col items-start gap-4 w-full">
           <div className="flex w-full items-center justify-between">
-            <div className="flex items-center gap-1 text-xl text-neutral-800">
-              <Icon size={24} className={'text-primary'} />
+            <strong className="flex items-center gap-1 stat-sm">
+              <Icon size={24} />
               {payoutOption?.label}
-            </div>
-            <div className="text-xl text-neutral-900">
+            </strong>
+            <strong className="stat-sm">
               <PriceNumberFlow value={order.totals?.total ?? 0} />
-            </div>
+            </strong>
           </div>
 
           <div className="w-full">
             {payout?.method === 'ACH' && (
               <div className="flex flex-col w-full gap-2">
-                <div className="flex gap-1 justify-between w-full text-base text-neutral-800 items-center">
+                <div className="flex gap-1 justify-between w-full items-center">
                   <div className="flex flex-col text-left">
                     <p>Name:</p>
                     <p>Type:</p>
@@ -75,7 +77,7 @@ export default function AdminPaymentProcessingPurchaseOrder({
 
             {payout?.method === 'WIRE' && (
               <div className="flex flex-col w-full gap-2">
-                <div className="flex gap-1 justify-between w-full text-base text-neutral-800 items-center">
+                <div className="flex gap-1 justify-between w-full items-center">
                   <div className="flex flex-col text-left">
                     <p>Name:</p>
                     <p>Routing:</p>
@@ -93,7 +95,7 @@ export default function AdminPaymentProcessingPurchaseOrder({
             {payout?.method === 'ECHECK' && (
               <div className="w-full items-center flex justify-between">
                 <div className="flex flex-col w-full gap-2 w-full">
-                  <div className="flex justify-between w-full text-base text-neutral-800 items-center">
+                  <div className="flex justify-between w-full items-center">
                     <div className="flex flex-col text-left">
                       <p>Name:</p>
                       <p>Email:</p>
@@ -110,7 +112,7 @@ export default function AdminPaymentProcessingPurchaseOrder({
             {payout?.method === 'DORADO_ACCOUNT' && (
               <div className="w-full items-center flex justify-between">
                 <div className="flex flex-col w-full gap-2 w-full">
-                  <div className="flex justify-between w-full text-base text-neutral-800 items-center">
+                  <div className="flex justify-between w-full items-center">
                     <div className="flex flex-col text-left">
                       <p>Name:</p>
                       <p>Email:</p>
@@ -126,9 +128,9 @@ export default function AdminPaymentProcessingPurchaseOrder({
           </div>
         </div>
       </div>
-      <div className="glass-divider" />
+      <Separator />
       <RefinerValues order={order} />
-      <div className="glass-divider" />
+      <Separator />
       <ActualsEditor order={order} />
     </div>
   )

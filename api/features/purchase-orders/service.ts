@@ -11,7 +11,7 @@ import * as emailService from "#features/media/emails/service.ts";
 import * as transactionsService from "#features/transactions/service.ts";
 import * as usersFunds from "#features/users/service.ts";
 import * as ratesRepo from "#features/rates/service.ts";
-import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.ts";
+import { calculateTotalPrice } from "#features/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 
 // The SERVICE, not a repo: a shipment is composed from six tables now, and
@@ -28,7 +28,7 @@ import type {
   OrderScrapItemRow,
 } from "#features/purchase-orders/repo.next.ts";
 import type { ComposedItem as PurchaseOrderItem } from "#features/purchase-orders/compose.ts";
-import type { PricingSpot } from "#features/purchase-orders/utils/calculations.ts";
+import type { PricingSpot } from "#features/pricing/service.ts";
 
 // `order` here is whatever the caller had - a row from getById, or the body of
 // a request. The functions below read a handful of fields off it, and those are

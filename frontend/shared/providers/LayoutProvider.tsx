@@ -117,12 +117,12 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
           <div className="z-50 sticky top-24 bg-destructive w-full">
             <div className="flex w-full items-center justify-between px-3 lg:px-20 py-1">
               <div className="flex flex-col gap-1 items-start">
-                <div className="text-lg font-medium lg:text-xl lg:font-bold lg:tracking-widest text-destructive-foreground">
+                <strong className="lg:tracking-widest text-destructive-foreground stat-sm">
                   Impersonating {user?.name}
-                </div>
-                <div className="hidden lg:block text-sm text-destructive-foreground font-normal">
+                </strong>
+                <small className="hidden lg:block text-destructive-foreground">
                   Please be very careful of any changes you make while impersonating a user.
-                </div>
+                </small>
               </div>
               <Button
                 variant="default"
@@ -208,7 +208,7 @@ function BreadcrumbBar({
       <FloatingNav
         className={cn(
           'inset-x-0 flex bg-highest items-center justify-center border-0 border-none lg:border-t-1 lg:border-border z-55',
-          isAnyDrawerOpen ? 'shadow-none' : ''
+          ''
         )}
         visible={visible}
         setVisible={setVisible}
@@ -244,7 +244,7 @@ function BreadcrumbBar({
             <div className="hidden lg:flex w-1/3 justify-end">
               <a
                 href={`tel:+${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`}
-                className="flex text-base text-neutral-800 gap-2 items-center justify-end"
+                className="flex gap-2 items-center justify-end"
               >
                 <PhoneIcon size={24} />
                 {formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}
@@ -262,7 +262,7 @@ function BreadcrumbBar({
 // it was just standing in front of everything else.
 function NavSkeleton() {
   return (
-    <div className="sticky top-0 z-50 mb-6 shadow-lg bg-card w-full">
+    <div className="sticky top-0 z-50 mb-6 border-b border-border bg-card w-full">
       <div className="w-full bg-background py-2 px-4 sm:px-32 flex gap-6 overflow-x-auto animate-pulse">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="flex w-full gap-1 justify-between">

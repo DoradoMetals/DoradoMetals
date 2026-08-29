@@ -46,6 +46,22 @@ export async function getMany(
   return rows;
 }
 
+// The fulfillments of several ORDERS at once - getByOrder, batched.
+//
+// `fulfillments_order_uniq` still makes it one row per order, so the caller can
+// key the result by order_id without losing anything. Added for D101: every
+// hop of "which shipment does this order have" started at getByOrder, and the
+// composed order read called it inside a per-order loop.
+export async function getByOrders(
+  order_ids: string[], executor?: Executor
+): Promise<FulfillmentBaseRow[]> {
+  if (order_ids.length === 0) return [];
+  const { rows } = await query<FulfillmentBaseRow>(
+    sql("get_by_orders"), [order_ids], executor
+  );
+  return rows;
+}
+
 // Returns undefined when the order already had one - ON CONFLICT DO NOTHING
 // returns no row. That is the normal case for a second call rather than an
 // error, and the service reads the existing one back.

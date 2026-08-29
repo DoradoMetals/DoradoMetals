@@ -118,7 +118,7 @@ export default function PurchaseOrdersPage() {
   const purgeButton = (
     <Button
       variant="ghost"
-      className="p-0 gap-1 text-destructive/80 text-sm hover:text-destructive"
+      className="p-0 gap-1"
       onClick={() => purgeCancelled.mutate()}
       disabled={purgeCancelled.isPending}
     >

@@ -6,22 +6,27 @@ import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
-// The collapsible label + optional-total section that was hand-rolled in each
-// order drawer footer and the product page. Styling is copied as-is from the
-// two specimens; `variant` picks between them:
-//   - 'glass' - the order-drawer footer look (hairline-bordered, total on the
-//                right, content inset with pr-9)
-//   - 'raised' - the product-page look (raised card, uppercase tracked label)
+// The collapsible label + optional-total section, hand-rolled in each of the
+// four order-drawer footers and again on the product page - the reverse of the
+// 3+ rule: five call sites re-implementing something shared/ui already had.
+//
+// `variant` is a DEGREE OF PROMINENCE, not two components: the same section,
+// unfilled in a drawer footer and filled on a product page. Its values used to
+// be named `glass` and `raised` after a glassmorphism and a shadow that were
+// both deleted (MANUAL-VERIFICATION.md 5.5); they now say what they are.
+//
+// NO TYPE UTILITIES HERE. The header's label is a `<strong>` (plain) or an
+// `.eyebrow` (card) and the total is a `<strong>`, so both take their size
+// from typography.css and a heading size still changes in one place.
 const VARIANTS = {
-  glass: {
+  plain: {
     container: 'rounded-md border border-border bg-transparent',
-    header: 'w-full p-2 flex justify-between items-center text-sm font-normal cursor-pointer',
+    header: 'w-full p-2 flex justify-between items-center cursor-pointer',
     content: 'p-2 pr-9',
   },
-  raised: {
+  card: {
     container: 'rounded-md bg-card border border-border p-2',
-    header:
-      'w-full p-2 flex justify-between items-center tracking-widest uppercase text-xs lg:text-sm text-neutral-600 font-normal cursor-pointer',
+    header: 'w-full p-2 flex justify-between items-center cursor-pointer',
     content: 'p-2',
   },
 } as const
@@ -48,7 +53,7 @@ export default function AccordionSection({
   open,
   onToggle,
   defaultOpen = false,
-  variant = 'glass',
+  variant = 'plain',
   children,
 }: AccordionSectionProps) {
   const [selfOpen, setSelfOpen] = useState(defaultOpen)
@@ -66,19 +71,19 @@ export default function AccordionSection({
   return (
     <div className={styles.container}>
       <button type="button" onClick={toggle} className={styles.header}>
-        {label}
+        {variant === 'card' ? (
+          <span className="eyebrow">{label}</span>
+        ) : (
+          <strong>{label}</strong>
+        )}
         {total !== undefined ? (
-          <div className="flex items-center gap-2 text-base">
-            {negative ? (
-              <div className="flex items-center gap-0">
-                -<PriceNumberFlow value={total} />
-              </div>
-            ) : (
+          <span className="flex items-center gap-2">
+            <strong>
+              {negative && '-'}
               <PriceNumberFlow value={total} />
-            )}
-            <div className="text-base"></div>
+            </strong>
             {chevron}
-          </div>
+          </span>
         ) : (
           chevron
         )}

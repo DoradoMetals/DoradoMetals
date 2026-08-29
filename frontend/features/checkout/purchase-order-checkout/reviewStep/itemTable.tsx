@@ -29,7 +29,10 @@ export default function ReviewItemTables() {
   const paymentCost = payoutOptions.find((p) => p.method === payout?.method)?.cost ?? 0
 
   const items = sellCartStore((state) => state.items)
-  const { data: quote } = usePurchaseOrderQuote(items)
+  const { data: quote } = usePurchaseOrderQuote(items, {
+    shipping_charge: shippingCost ?? undefined,
+    payout_method: payout?.method,
+  })
 
   // Quote lines carry the request array position, and the store's items array
   // IS the request array - so the pairing happens by index, BEFORE any
@@ -57,9 +60,21 @@ export default function ReviewItemTables() {
     [bullionRows]
   )
 
-  const total = useMemo(() => {
-    return (quote?.total ?? 0) - (shippingCost ?? 0 + paymentCost)
-  }, [quote, shippingCost, paymentCost])
+  // THE SERVER'S NUMBER, not ours (D82, D97).
+  //
+  // This was `(quote?.total ?? 0) - (shippingCost ?? 0 + paymentCost)`, and `+`
+  // binds tighter than `??`, so it parsed as `shippingCost ?? (0 + paymentCost)`
+  // - when a service was selected the whole parenthesis collapsed to the
+  // shipping charge and THE PAYOUT FEE WAS SILENTLY DISCARDED. The headline
+  // figure above Confirm and Place Order read up to $20 high, and it
+  // contradicted the Shipping and Payout Method Fee rows printed directly
+  // beneath it.
+  //
+  // The fix is not the missing parenthesis. It is that this component has no
+  // business subtracting anything: the quote endpoint now applies both
+  // deductions and returns `estimated_payout`, so the arithmetic exists in one
+  // place that is tested rather than in a component.
+  const total = quote?.estimated_payout ?? 0
 
   const shippingRow = useMemo(() => {
     const label =

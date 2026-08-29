@@ -19,7 +19,7 @@ import {
   useDeleteCarrierService,
   useCarrierServicesByCarrier,
 } from '@/features/carriers/queries'
-import { RadioGroupImage } from '@/shared/ui/RadioGroupImage'
+import { RadioGroup } from '@/shared/ui/RadioGroup'
 import DotSelect from '@/shared/ui/DotSelect'
 import { Button } from '@/shared/ui/base/button'
 import Image from 'next/image'
@@ -132,19 +132,27 @@ function Details({ service, carriers }: { service: CarrierService; carriers: Car
       <p className="eyebrow mb-4">Details</p>
 
       <div className="flex flex-col gap-2">
-        <RadioGroupImage
-          items={carriers.map((c) => ({
-            id: c.id,
-            name: c.organization.name ?? '',
-            logo: c.logo ?? '',
-            is_active: !!c.organization.enabled,
-          }))}
+        <RadioGroup
           value={service.carrier_id}
-          className="flex items-center w-full"
-          imageContainerClass="h-12"
           onValueChange={(id) => handlePatch({ carrier_id: id })}
-          showName={false}
-        />
+          options={carriers}
+          getValue={(c) => c.id}
+          isOptionDisabled={(c) => !c.organization.enabled}
+          variant="tile"
+          className="flex w-full items-center gap-4"
+          optionClassName="flex-1"
+        >
+          {(c) => (
+            <div className="relative flex h-12 w-full items-center justify-center">
+              <Image
+                src={c.logo ?? ''}
+                fill
+                alt={`${c.organization.name ?? ''} logo`}
+                className="object-contain p-1"
+              />
+            </div>
+          )}
+        </RadioGroup>
       </div>
       <div className="flex flex-col gap-1">
         <Label htmlFor="name" className="pl-1">

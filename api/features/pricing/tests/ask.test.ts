@@ -7,7 +7,7 @@ import {
   getShippingCharge,
   calculateSalesTax,
   calculateSalesOrderTotal,
-} from "#features/sales-orders/utils/calculations.ts";
+} from "#features/pricing/service.ts";
 
 // The composed spot shape (`name` / `ask`) - what getSpotPrices serves and
 // what the calculations read since D84.

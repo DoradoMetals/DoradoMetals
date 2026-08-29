@@ -4,9 +4,7 @@ import fuzzysort from 'fuzzysort'
 import { Button } from '@/shared/ui/base/button'
 import { Label } from '@/shared/ui/base/label'
 import { X } from 'lucide-react'
-import { RadioGroup } from '@/shared/ui/base/radio-group'
-import { RadioCard } from '@/shared/ui/RadioCard'
-import { motion } from 'framer-motion'
+import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
 import { cn } from '@/shared/utils/cn'
 import { Switch } from '@/shared/ui/base/switch'
 import { useSellProducts } from '@/features/products/queries'
@@ -74,48 +72,38 @@ export default function BullionTab() {
         />
       </div>
 
-      <RadioGroup
+      {/* Composed from `RadioOption` rather than `<RadioGroup options>` for one
+          reason: clicking the SELECTED metal clears the filter back to "All",
+          which needs the click event and not the value change - radix does not
+          fire onValueChange when the value has not changed, so there would
+          otherwise be no way back to "All". */}
+      <RadioGroupRoot
         value={selectedMetal}
-        onValueChange={(val) => {
-          setSelectedMetal(val)
-        }}
+        onValueChange={setSelectedMetal}
         className="grid grid-cols-4 gap-2"
       >
-        {metalOptions.map((label) => {
-          const isSelected = selectedMetal === label
-
-          return (
-            <RadioCard
-              key={label}
-              as={motion.label}
-              variant="segment"
-              value={label}
-              initial={false}
-              animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
-              onClick={(e: React.MouseEvent) => {
-                if (isSelected) {
-                  e.preventDefault() // prevents Radix from swallowing the click
-                  setSelectedMetal('All')
-                }
-              }}
-              className="w-full"
-            >
-              {label}
-            </RadioCard>
-          )
-        })}
-      </RadioGroup>
+        {metalOptions.map((label) => (
+          <RadioOption
+            key={label}
+            value={label}
+            variant="segment"
+            className="w-full"
+            onClick={(e) => {
+              if (selectedMetal === label) {
+                e.preventDefault() // prevents Radix from swallowing the click
+                setSelectedMetal('All')
+              }
+            }}
+          >
+            {label}
+          </RadioOption>
+        ))}
+      </RadioGroupRoot>
 
       <div className="relative w-full mt-4">
         <FloatingLabelInput
           label="Search Products"
           size="sm"
-          /* `input-floating-label-form` unpacked to the two tokens it carried
-             (its recessed shadow goes with ruling 16). It cannot move onto a
-             filled variant because FloatingLabelInput has no variant axis yet -
-             CONVERSION-TABLE lists it as still needing its pass. Reported. */
-          className="bg-card border-none"
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />

@@ -9,6 +9,20 @@
 // Read-only: only the read paths are compared. Write paths are covered
 // per-feature where the operation can be safely undone; see diff-leads.mjs.
 //
+// THIS FILE DID NOT PARSE FOR TEN COMMITS, and that is worth recording because
+// nothing noticed. Each restructuring pass deleted the feature entry it had
+// just retired, and `8cc176ee` took the closing `};` and the ENTIRE COMPARISON
+// ENGINE with the last of them - so from `8cc176ee` through `a9b7dd61` the gate
+// died on a SyntaxError before it opened a connection. Nine further commits
+// edited a file that could not run.
+//
+// WHY IT WENT UNSEEN: `diff` is NOT in `pnpm check`. It is the D110 failure
+// mode - a gate script invalidated by a factoring pass, invisible to
+// lint:imports because nothing imports it - except that here the casualty was
+// the runner rather than a caller, so there was no error message to read.
+// Repaired by restoring the engine from `93ecdf80`, the last commit at which
+// it parsed.
+//
 //   pnpm --filter @dorado/api diff            all features
 //   pnpm --filter @dorado/api diff leads      one feature
 import "#env";
@@ -134,40 +148,93 @@ const FEATURES = {
   // sales-orders restructured - one implementation, nothing to compare.
   // verify:sales-order-decomposition replaces it and compares against what the
   // switch used to select.
-  "purchase-orders": {
-    exchange: () => import("#features/purchase-orders/repo.exchange.js"),
-    next: () => import("#features/purchase-orders/repo.next.ts"),
-    // Values this migration deliberately changed. Keyed by read, because an
-    // `id` means something different in each one.
-    //
-    // A scrap line's id was the scrap row's; there is no scrap row now, so it
-    // is the line's instead. A spot row's id was order_metals'; orders.spots
-    // generates its own, and nothing keys on it - updateSpot matches on
-    // (purchase_order_id, type), which is why it was safe to regenerate.
-    // Neither is read by anything; both are declared rather than hidden.
-    ignore: {
-      "*": ["order_items[].scrap.id"],
-      "findMetalsByOrderId(first)": ["id"],
-    },
-    reads: [
-      ["getAll", (m) => m.getAll()],
-      ["findById(first)", (m, ctx) => (ctx.id ? m.findById(ctx.id) : [])],
-      ["findAllByUser(first)", (m, ctx) => (ctx.userId ? m.findAllByUser(ctx.userId) : [])],
-      ["findMetalsByOrderId(first)", (m, ctx) => (ctx.id ? m.findMetalsByOrderId(ctx.id) : [])],
-      // The refiner's spot for the order. Unlike orders.spots, refiners.spots
-      // keeps the source id, so this one is compared including the id.
-      ["findRefinerMetalsByOrderId(first)", (m, ctx) => (ctx.id ? m.findRefinerMetalsByOrderId(ctx.id) : [])],
-      ["findOrderScrapItems(first)", (m, ctx) => (ctx.id ? m.findOrderScrapItems(ctx.id) : [])],
-      ["findExpiredOffers", (m) => m.findExpiredOffers()],
-    ],
-    context: async (m) => {
-      const [first] = await m.getAll();
-      return { id: first?.id, userId: first?.user_id };
-    },
-  },
   // restructured - one implementation, nothing to compare.
   // products restructured - one implementation, nothing to compare.
   // features/products/tests/ replaces it, and asserts what diff never could:
   // that the three labels compose.ts attaches are the ones the three JOINs
   // produced, product for product.
   // rates is restructured - one implementation, nothing to compare.
+
+  // ORDERS IS THE REASON THIS OBJECT IS NEARLY EMPTY, and its entry lived here
+  // until it was removed with this repair. The reads it named - getAll,
+  // findById, findAllByUser, findMetalsByOrderId, findExpiredOffers - were
+  // deleted from repo.exchange.js when the reads pivoted (ruling 8), so the
+  // gate had been pointing at functions that no longer existed on either side.
+  // The comment twenty lines above already said so; the entry outlived the
+  // sentence that retired it.
+};
+
+// Row order is only meaningful where the query states an ORDER BY, and both
+// implementations carry the same one - so compare as-is rather than sorting,
+// which would hide an ordering regression.
+const norm = (v) => JSON.stringify(v);
+
+const requested = process.argv.slice(2);
+const names = requested.length ? requested : Object.keys(FEATURES);
+
+let pass = 0;
+const failures = [];
+
+for (const name of names) {
+  const feature = FEATURES[name];
+  if (!feature) {
+    console.log(`  ?     ${name} is not a known feature`);
+    continue;
+  }
+
+  const [ex, co] = [await feature.exchange(), await feature.next()];
+  // context is optional: a feature whose reads take no arguments - mints, say -
+  // has nothing to look up first.
+  const ctx = feature.context ? await feature.context(ex) : {};
+
+  // Values a migration deliberately changed, declared per feature. Dropped from
+  // both sides before comparing, so the gate keeps meaning something instead of
+  // being a wall of known noise. `order_items[].scrap.id` reads as: for each
+  // element of order_items, delete scrap.id.
+  const drop = (value, pathParts) => {
+    if (value == null || !pathParts.length) return;
+    const [head, ...rest] = pathParts;
+    if (head.endsWith("[]")) {
+      const arr = value[head.slice(0, -2)];
+      if (Array.isArray(arr)) for (const el of arr) drop(el, rest);
+      return;
+    }
+    if (!rest.length) delete value[head];
+    else drop(value[head], rest);
+  };
+  const strip = (rows, label) => {
+    const paths = [...(feature.ignore?.["*"] ?? []), ...(feature.ignore?.[label] ?? [])];
+    if (!paths.length || rows == null) return rows;
+    const copy = structuredClone(rows);
+    for (const row of Array.isArray(copy) ? copy : [copy]) {
+      for (const path of paths) drop(row, path.split("."));
+    }
+    return copy;
+  };
+
+  for (const [label, run] of feature.reads) {
+    const [a, b] = [strip(await run(ex, ctx), label), strip(await run(co, ctx), label)];
+    const size = Array.isArray(a) ? `${a.length} vs ${b?.length}` : "1";
+    if (norm(a) === norm(b)) {
+      pass++;
+      console.log(`  ok    ${name}.${label}  (${size})`);
+    } else {
+      failures.push({ name: `${name}.${label}`, a: norm(a), b: norm(b) });
+      console.log(`  FAIL  ${name}.${label}  (${size})`);
+    }
+  }
+}
+
+if (failures.length) {
+  console.log();
+  for (const f of failures) {
+    console.log(`FAIL  ${f.name}`);
+    console.log(`  exchange: ${f.a.slice(0, 300)}`);
+    console.log(`  core:     ${f.b.slice(0, 300)}`);
+  }
+}
+
+console.log();
+console.log(`${pass} operation(s) identical, ${failures.length} diverge`);
+if (failures.length) process.exitCode = 1;
+await pool.end();

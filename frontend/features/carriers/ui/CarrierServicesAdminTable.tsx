@@ -12,7 +12,8 @@ import {
   useCreateCarrierService,
 } from '@/features/carriers/queries'
 import type { Carrier, CarrierService } from '@/features/carriers/types'
-import { RadioGroupImage } from '@/shared/ui/RadioGroupImage'
+import { RadioGroup } from '@/shared/ui/RadioGroup'
+import Image from 'next/image'
 import CarrierServiceDrawer from '@/features/carriers/ui/CarrierServicesDrawer'
 import { useMemo, useState } from 'react'
 import { CreateConfig } from '@/shared/ui/table/CreateDialog'
@@ -140,16 +141,29 @@ export default function CarrierServicesPage() {
         name: 'carrier_id',
         label: '',
         render: ({ value, setValue }) => (
-          <RadioGroupImage
-            items={carriers.map((c) => ({
-              id: c.id,
-              name: c.organization.name ?? '',
-              logo: c.logo ?? '',
-              is_active: !!c.organization.enabled,
-            }))}
+          <RadioGroup
             value={value}
             onValueChange={(id) => setValue('carrier_id', id)}
-          />
+            options={carriers}
+            getValue={(c) => c.id}
+            isOptionDisabled={(c) => !c.organization.enabled}
+            variant="tile"
+            className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2"
+          >
+            {(c) => (
+              <>
+                <div className="relative flex h-20 w-full items-center justify-center">
+                  <Image
+                    src={c.logo ?? ''}
+                    fill
+                    alt={`${c.organization.name ?? ''} logo`}
+                    className="object-contain p-1"
+                  />
+                </div>
+                <strong>{c.organization.name}</strong>
+              </>
+            )}
+          </RadioGroup>
         ),
       },
       { name: 'name', label: 'Name', inputType: 'text' },

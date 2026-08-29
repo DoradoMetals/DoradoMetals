@@ -143,6 +143,21 @@ export async function getById(
   return compose.compose(row, await lookupsFor([row], executor));
 }
 
+// Several shipments by id - getById, batched, and missing ids simply absent.
+//
+// `lookupsFor` was always keyed by shipment id, so composing n rows together
+// resolves each one exactly as composing it alone did. Its caller is
+// features/shipping/pickups, which reconstructs a pickup's order and carrier
+// through its shipment and did so one shipment at a time until D101.
+export async function getManyById(
+  ids: string[], executor?: Executor
+): Promise<ComposedShipment[]> {
+  if (ids.length === 0) return [];
+  const rows = await shipments.getMany([...new Set(ids)], executor);
+  if (rows.length === 0) return [];
+  return compose.composeAll(rows, await lookupsFor(rows, executor));
+}
+
 // Returns ONE shipment, not a list, matching the implementation it replaces -
 // an order can legitimately have more than one and both implementations took
 // the first.
@@ -161,6 +176,62 @@ export async function getByOrder(
   if (!link) return null;
 
   return await getById(link.shipment_id, executor);
+}
+
+// THE SAME READ FOR A LIST OF ORDERS, IN A FIXED NUMBER OF ROUND TRIPS.
+//
+// D101. `getByOrder` is four statements plus the five `getById` costs, and the
+// composed order read called it once per order - on a database 178 ms away
+// that made a 48-order list 38 seconds. This walks the identical three hops
+// with `= ANY($1)` at every one, so the cost is the same whether one order is
+// asked for or fifty.
+//
+// EQUIVALENT TO CALLING getByOrder PER ORDER, deliberately and in every
+// detail. `fulfillments_order_uniq` gives at most one fulfillment per order;
+// get_many.sql now orders by id ASC like get_for.sql, so "the first parcel" is
+// the same parcel; and `lookupsFor` was already batched, keyed by shipment id,
+// so composing many rows at once resolves each exactly as composing one did.
+// An order with no fulfillment, or a fulfillment with no parcel, is ABSENT
+// from the map rather than present with null - which is what `null` meant.
+export async function getByOrders(
+  order_ids: string[], executor?: Executor
+): Promise<Map<string, ComposedShipment>> {
+  const out = new Map<string, ComposedShipment>();
+  const ids = [...new Set(order_ids)];
+  if (ids.length === 0) return out;
+
+  // Hop 1: the fulfillment of each order.
+  const fulfillments = await fulfillmentsRepo.getByOrders(ids, executor);
+  if (fulfillments.length === 0) return out;
+
+  // Hop 2: its parcels, and the FIRST of them - `getFor(...)[0]` batched.
+  const links = await fulfillmentLinks.getMany(fulfillments.map((f) => f.id), executor);
+  const firstLinkOf = new Map<string, string>();
+  for (const link of links) {
+    if (!firstLinkOf.has(link.fulfillment_id)) {
+      firstLinkOf.set(link.fulfillment_id, link.shipment_id);
+    }
+  }
+
+  // Hop 3: the parcels themselves, composed together.
+  const shipmentOf = new Map<string, string>();
+  for (const f of fulfillments) {
+    const shipment_id = firstLinkOf.get(f.id);
+    if (shipment_id && f.order_id !== null) shipmentOf.set(f.order_id, shipment_id);
+  }
+  const wanted = [...new Set(shipmentOf.values())];
+  if (wanted.length === 0) return out;
+
+  const rows = await shipments.getMany(wanted, executor);
+  const composed = new Map(
+    compose.composeAll(rows, await lookupsFor(rows, executor)).map((c) => [c.id, c])
+  );
+
+  for (const [order_id, shipment_id] of shipmentOf) {
+    const c = composed.get(shipment_id);
+    if (c) out.set(order_id, c);
+  }
+  return out;
 }
 
 // ------------------------------------------------------------------ writes

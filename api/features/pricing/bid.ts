@@ -1,3 +1,11 @@
+// WHAT THE BUSINESS PAYS FOR METAL - the bid side of features/pricing.
+//
+// Moved here from features/purchase-orders/utils/calculations.ts under ruling
+// 24: "We should have one area of the app for pricing... nowhere else should
+// call pricing except for that one service." It was a module owned by ONE
+// feature and imported by SIX, which is a service in the wrong place. Nothing
+// below changed in the move - see service.ts for what was added around it.
+//
 // What an order is worth.
 //
 // Every scrap branch here used to read `item.premium` on its own while every
@@ -56,18 +64,46 @@
 // serves orders.items rows verbatim now, and the assembled line with its
 // scrap and product members survives only inside the API, where pricing and
 // the confirmation email genuinely need an order put back together.
-import type { ComposedItem as PurchaseOrderItem } from "#features/purchase-orders/compose.ts";
-
-// What pricing needs of a spot row. The composed shape (`name` / `ask` /
-// `bid`) - spots/service.getSpotPrices, orders.spots and the order-metals
-// endpoints all speak it since the orders conversion (D84). The frozen
-// order-spot rows carry more (purchase_order_id, timestamps); only these
-// three fields are read.
-export type PricingSpot = {
-  name?: string | null;
-  ask?: number | null;
-  bid?: number | null;
+// WHAT THESE FUNCTIONS NEED OF A LINE, rather than the whole assembled shape.
+//
+// This was `ComposedItem`, which declares ten required fields where the sums
+// below read six - all through optional chaining, because a hand-built fixture
+// and an /orders/:id/items body do not carry a whole composed line. tsc never
+// saw the mismatch: **/*.test.js is excluded from the project, so the fixtures
+// that prove it were invisible (ruling 33). Renaming the tests to TypeScript
+// produced eleven errors, every one of them this.
+//
+// The ask side has always declared the subset it reads, for exactly this reason
+// - see `PriceableItem` in ask.ts - so this is the bid side catching up rather
+// than a new stance. A ComposedItem still satisfies it; nothing about what is
+// READ has changed, and every assertion in tests/bid.test.ts passed unedited
+// across the change.
+export type PriceableLine = {
+  item_type?: string | null;
+  price?: number | null;
+  premium?: number | null;
+  quantity?: number | null;
+  product?: {
+    metal_type?: string | null;
+    content?: number | null;
+    bid_premium?: number | null;
+  } | null;
+  scrap?: {
+    metal?: string | null;
+    content?: number | null;
+    bid_premium?: number | null;
+  } | null;
 };
+
+// The name the sums below were written against, kept so the expressions read
+// unchanged from the file they moved out of.
+type PurchaseOrderItem = PriceableLine;
+import type { PricingSpot, Spots } from "#features/pricing/spot.ts";
+
+// Declared once, in spot.ts - it was written out identically here and on the
+// ask side, and re-exported so every existing importer of this module keeps
+// working.
+export type { PricingSpot, Spots } from "#features/pricing/spot.ts";
 
 // What these functions need of an order, rather than the whole wire shape. A
 // caller passing a full PurchaseOrder satisfies it; the PDF and email code
@@ -79,7 +115,6 @@ type PricedOrder = {
   payout: { cost: number };
 };
 
-type Spots = PricingSpot[] | null | undefined;
 
 export function calculateTotalPrice(order: PricedOrder, spots: Spots): number {
   const baseTotal = order.order_items.reduce((acc: number, item: PurchaseOrderItem) => {

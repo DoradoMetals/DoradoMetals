@@ -1,12 +1,8 @@
 import { FormField, FormItem } from '@/shared/ui/base/form'
-import { RadioGroup } from '@/shared/ui/base/radio-group'
-import { RadioCard } from '@/shared/ui/RadioCard'
+import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { metalOptions, purityOptions, Scrap } from '@/features/scrap/types'
-import { CheckCircle } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
-import { motion } from 'framer-motion'
 import NumberFlow from '@number-flow/react'
-import { cn } from '@/shared/utils/cn'
 import { Slider } from '@/shared/ui/base/slider'
 
 export default function PurityStep() {
@@ -44,37 +40,12 @@ export default function PurityStep() {
           <RadioGroup
             value={selectedLabel}
             onValueChange={handleRadioChange}
+            options={options}
+            getValue={(option) => option.label}
+            variant="segment"
             className="grid grid-cols-3 gap-3"
           >
-            {options.map((option) => {
-              const isSelected = selectedLabel === option.label
-
-              return (
-                <RadioCard
-                  key={option.label}
-                  as={motion.label}
-                  variant="segment"
-                  value={option.label}
-                  initial={false}
-                  animate={isSelected ? { scale: 1, y: 2 } : { scale: 1, y: 0 }}
-                  transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
-                  className="w-full"
-                >
-                  <div className="absolute top-1 right-1">
-                    {/* Inherits the card's colour - see MetalStep. */}
-                    <CheckCircle
-                      size={12}
-                      className={cn(
-                        'transition-opacity duration-200',
-                        isSelected ? 'opacity-100' : 'opacity-0'
-                      )}
-                    />
-                  </div>
-
-                  {option.label}
-                </RadioCard>
-              )
-            })}
+            {(option) => option.label}
           </RadioGroup>
 
           <div className="relative mt-6 mb-12 w-full">

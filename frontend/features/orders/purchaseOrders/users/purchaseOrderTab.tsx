@@ -56,24 +56,23 @@ export function PurchaseOrdersContent() {
       <div className="flex flex-col flex-grow items-center justify-center gap-4 py-20">
         <div className="relative mb-5">
           <CurrencyDollarIcon size={128} className='text-primary' strokeWidth={1.5} />
-          <div className="absolute -top-6 right-3.5 border border-border text-xl text-primary rounded-full w-10 h-10 flex items-center justify-center">
+          <div className="absolute -top-6 right-3.5 border border-border rounded-full w-10 h-10 flex items-center justify-center">
             0
           </div>
         </div>
 
         <div className="flex flex-col items-center justify-center gap-1 mb-5 w-50">
-          <h2 className="text-lg text-neutral-800 tracking-wide">No Orders Yet!</h2>
-          <p className="text-xs text-neutral-500 text-center">
+          <h2 className="tracking-wide">No Orders Yet!</h2>
+          <p className="text-center">
             Create an order by adding your items and completing checkout.
           </p>
         </div>
         <Link href="/sell" passHref>
           <Button
-            variant="default"
+            size="xl"
             onClick={() => {
               router.push('/sell')
             }}
-            className="raised-off-page bg-primary text-primary-foreground hover:bg-primary/90 px-12"
           >
             Get a Price Estimate
           </Button>
@@ -103,7 +102,7 @@ export function PurchaseOrdersContent() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25, ease: 'easeInOut' }}
-              className="py-2 flex flex-col gap-2 text-sm text-neutral-800"
+              className="py-2 flex flex-col gap-2"
             >
               <OrderStatusEmptyState
                 statusLabel={selectedStatus ?? 'Orders'}
@@ -133,7 +132,7 @@ export function PurchaseOrdersContent() {
                 className="p-0 h-4 flex justify-start gap-1 pl-1"
                 onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
               >
-                <div className="flex items-center text-sm text-neutral-700 font-normal p-0">
+                <span className="flex items-center p-0">
                   <motion.span
                     key={sortOrder}
                     initial={{ opacity: 0 }}
@@ -143,11 +142,11 @@ export function PurchaseOrdersContent() {
                   >
                     {sortOrder === 'asc' ? 'Oldest' : 'Most Recent'}
                   </motion.span>
-                </div>
+                </span>
                 <motion.div
                   animate={{ rotate: sortOrder === 'asc' ? 180 : 0 }}
                   transition={{ duration: 0.15 }}
-                  className="text-neutral-700 will-change-transform"
+                  className="will-change-transform"
                 >
                   <ChevronDown size={16} />
                 </motion.div>
@@ -161,7 +160,7 @@ export function PurchaseOrdersContent() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25, ease: 'easeInOut' }}
-                className="py-2 flex flex-col gap-2 text-sm text-neutral-800"
+                className="py-2 flex flex-col gap-2"
               >
                 <PurchaseOrderCard
                   order={order}

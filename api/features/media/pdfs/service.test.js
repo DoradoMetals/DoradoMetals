@@ -19,7 +19,7 @@ import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as poRepo from "#features/purchase-orders/read.service.ts";
 import * as soRepo from "#features/sales-orders/service.ts";
 import * as spotsService from "#features/spots/service.ts";
-import { calculateTotalPrice } from "#features/purchase-orders/utils/calculations.ts";
+import { calculateTotalPrice } from "#features/pricing/service.ts";
 import { formatCurrency } from "#features/media/pdfs/render/format.ts";
 
 let orders;

@@ -25,16 +25,17 @@ import * as taxService from "#features/sales-tax/service.ts";
 import * as addressService from "#features/places/addresses/service.ts";
 import * as ratesService from "#features/rates/service.ts";
 import * as checkoutRepo from "#features/checkout/repo.next.ts";
+import { payoutFee, PAYOUT_METHOD_FEES } from "#features/payouts/constants.ts";
 import * as purchaseOrdersService from "#features/purchase-orders/service.ts";
 import {
   calculateItemAsk,
   calculateSalesOrderTotal,
   type OrderPrices,
-} from "#features/sales-orders/utils/calculations.ts";
+} from "#features/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 import query from "#shared/db/query.js";
 import { convertTroyOz } from "#shared/utils/convertWeights.ts";
-import type { PricingSpot } from "#features/sales-orders/utils/calculations.ts";
+import type { PricingSpot } from "#features/pricing/service.ts";
 
 // req.body, typed the way intake.ts types its block: whatever arrived,
 // guarded at every read rather than trusted by declaration.
@@ -81,7 +82,7 @@ async function refuseProductsThatAreNotLive(
 }
 
 // The bid-side mirror of calculateItemAsk, stated once. There is nothing to
-// import for it: calculateTotalPrice (purchase-orders/utils/calculations.ts)
+// import for it: calculateTotalPrice (pricing/bid.ts)
 // prices SAVED order lines - it honours a frozen item.price and deliberately
 // throws on a missing spot - and the frontend's getProductBidPrice is exactly
 // what this surface exists to replace. Same expression as the ask, same ?? 0
@@ -288,6 +289,13 @@ export type PurchaseOrderQuote = {
   items: PurchaseOrderQuoteLine[];
   total: number;
   declared_value: number;
+  // The three below are the CHECKOUT's bottom line, and they exist because the
+  // browser was computing it (D97). `estimated_payout` is the headline figure
+  // above "Confirm and Place Order"; the other two are the rows printed
+  // underneath it, returned together so the three cannot disagree.
+  shipping_charge: number;
+  payout_charge: number;
+  estimated_payout: number;
 };
 
 // What the business would pay for a sell cart, priced the way intake.ts's
@@ -312,9 +320,81 @@ export type PurchaseOrderQuote = {
 //     metal at nothing.
 //   - a metal with no spot is refused by index, calculateTotalPrice's
 //     refuse-to-price stance as a 400 rather than its TypeError.
+//
+// AND IT RETURNS THE PAYOUT, NOT JUST THE GOODS TOTAL (D97). The checkout's
+// "Estimated Payout" figure was `(quote?.total ?? 0) - (shippingCost ?? 0 +
+// paymentCost)`, and `+` binds tighter than `??`, so that parses as
+// `shippingCost ?? (0 + paymentCost)`: whichever deduction the ?? chose, the
+// OTHER ONE WAS SILENTLY DISCARDED, and the two could never both apply. With a
+// shipping service selected - the normal case - the payout fee vanished and
+// the number above the Confirm button read $20 high on a WIRE payout, while
+// the Shipping and Payout-Method-Fee rows immediately beneath it said
+// otherwise. The fix is not the parenthesis (ruling D82): the frontend does not
+// compute money, so the server returns the figure and the component displays
+// it. Same subtraction orderQuote already does for a SAVED order -
+// `scrap_total + bullion_total - shipping - payoutCost` - which is why the two
+// surfaces now agree by construction rather than by two people writing the
+// same expression twice.
+//
+// THE PAYOUT FEE IS RESOLVED FROM THE METHOD NAME, never taken as a number
+// from the body - ruling 10, ids in, data out. features/payouts/constants.ts
+// owns the table, and its header records that production's stored
+// payouts.cost disagrees with it on eleven rows, which is why that table is
+// the default for a NEW order and never a way to re-derive an old one.
+//
+// THE SHIPPING CHARGE IS THE ONE NUMBER THIS TAKES FROM THE BODY, and it is
+// worth being honest about why rather than pretending otherwise. It is the
+// carrier's quoted net charge, which the server cannot reproduce without
+// re-quoting FedEx - non-deterministic, slow, and a second charge for a rate
+// the caller already holds from the shipping endpoint. It is DISPLAY ONLY: the
+// payout an order actually pays is computed at accept time from the shipment
+// row's own net_charge, so understating it here buys a caller a bigger number
+// on their own screen and nothing else. Refused unless it is a finite number
+// that is not negative.
 export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote> {
   const raw = Array.isArray(body?.items) ? body.items : [];
   if (raw.length === 0) throw badRequest("a quote needs at least one item");
+
+  // Both deductions are OPTIONAL: the review step quotes before a service or a
+  // payout method has been chosen, and a quote of the goods alone is a real
+  // answer. Absent means zero deducted, which is what the screen shows.
+  const payout_charge = (() => {
+    if (body?.payout_method === undefined || body?.payout_method === null) return 0;
+    const fee = payoutFee(body.payout_method);
+    if (fee === null) {
+      throw badRequest(
+        `${JSON.stringify(body.payout_method)} is not a payout method - expected one of `
+          + Object.keys(PAYOUT_METHOD_FEES).join(", ")
+      );
+    }
+    return fee;
+  })();
+
+  const shipping_charge = (() => {
+    const v = body?.shipping_charge;
+    if (v === undefined || v === null || v === "") return 0;
+    // NARROWED TO THE TWO THINGS A CALLER CAN LEGITIMATELY SEND - a real
+    // number, or a non-empty string that parses to one - rather than passed
+    // through Number().
+    //
+    // `Number([])` is 0. So is `Number("")` and `Number(null)`. A bare
+    // Number() check accepts all three as a finite, non-negative charge, and
+    // zero shipping quotes a payout that is TOO HIGH, which is the exact class
+    // of bug this whole change exists to end. Caught by the test below, which
+    // sends each of them. Same trap, same fix, as
+    // features/users/service.ts's credit amount (D98) - and it was written the
+    // wrong way here first, which is why the test sends `[]`.
+    const n =
+      typeof v === "number"
+        ? v
+        : typeof v === "string" && v.trim() !== ""
+          ? Number(v)
+          : NaN;
+    if (!Number.isFinite(n) || n < 0) {
+      throw badRequest(`shipping_charge ${JSON.stringify(v)} is not a charge`);
+    }
+    return n;
+  })();
 
   type Parsed =
     | { index: number; kind: "product"; id: string; quantity: number }
@@ -460,7 +540,19 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
   // (?? 1 for scrap) where this prices from rates bands, the same divergence
   // D59 records for the client-side pricing family this replaces. A caller
   // insuring a shipment still owes FedEx Math.min(total, 50000).
-  return { spots_at, items: quoted, total, declared_value: total };
+  return {
+    spots_at,
+    items: quoted,
+    total,
+    declared_value: total,
+    shipping_charge,
+    payout_charge,
+    // What the customer is actually paid. Never below zero: a small order whose
+    // shipping and payout fee exceed it does not owe the business money, and a
+    // negative headline above "Confirm and Place Order" is not a number anyone
+    // should be shown.
+    estimated_payout: Math.max(0, total - shipping_charge - payout_charge),
+  };
 }
 
 
@@ -518,7 +610,7 @@ export type OrderQuote = {
 // so its subtotal could disagree with its own lines when premium was null;
 // the sum-of-lines here keeps the subtotal equal to what the rows show.
 // Zero production scrap lines carry a null premium (see the header of
-// purchase-orders/utils/calculations.ts), so no live number moves.
+// pricing/bid.ts), so no live number moves.
 //
 // A metal with no spot anywhere prices at 0 rather than throwing - the
 // stance of the display math this replaces (`?? 0` in every family member),

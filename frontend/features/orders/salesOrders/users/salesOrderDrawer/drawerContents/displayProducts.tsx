@@ -37,21 +37,21 @@ export default function DisplaySalesOrderProducts({ items }: { items: SalesOrder
 
           <div className="flex flex-col lg:mx-auto w-full">
             <div className="flex flex-col gap-1 items-start w-full mt-2">
-              <div className="text-base text-neutral-800">{item.name}</div>
-              <div className="text-sm sm:text-base text-neutral-600">{item.mint_name}</div>
+              <strong>{item.name}</strong>
+              <small>{item.mint_name}</small>
             </div>
 
             <div className="flex justify-between items-center mt-3">
               <div className="flex flex-col items-start">
-                <div className="text-xs  text-neutral-700">Quantity</div>
-                <div className="text-base sm:text-lg text-neutral-800">{item.quantity}</div>
+                <small>Quantity</small>
+                <strong className="stat-sm">{item.quantity}</strong>
               </div>
 
               <div className="flex flex-col items-end">
-                <div className="text-xs text-neutral-700">Price</div>
-                <div className="text-base sm:text-lg text-neutral-800">
+                <small>Price</small>
+                <strong className="stat-sm">
                   <PriceNumberFlow value={(item.price ?? 0) * (item.quantity ?? 0)} />
-                </div>
+                </strong>
               </div>
             </div>
           </div>

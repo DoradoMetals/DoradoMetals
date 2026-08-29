@@ -1,6 +1,6 @@
 'use client'
 
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/base/radio-group'
+import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { Switch } from '@/shared/ui/base/switch'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
@@ -82,22 +82,18 @@ export function PackageSelector() {
       <RadioGroup
         value={selectedPackage?.label ?? ''}
         onValueChange={handleChange}
-        className="flex items-center w-full justify-between"
+        options={filteredOptions}
+        getValue={(pkg) => pkg.label}
+        variant="tile"
+        className="flex w-full items-stretch justify-between gap-2"
+        optionClassName="flex-1"
       >
-        {filteredOptions.map((pkg) => (
-          <label
-            key={pkg.label}
-            htmlFor={pkg.label}
-            className="relative peer flex flex-col items-center justify-center flex-1 gap-2 text-center rounded-lg bg-background px-1 pt-4 pb-2 cursor-pointer transition-colors has-[[data-state=checked]]:bg-card"
-          >
-            <div className="flex flex-col items-center gap-2">
-              {pkg.icon && <pkg.icon size={20} className="text-primary" />}
-              <strong>{pkg.label}</strong>
-            </div>
-
-            <RadioGroupItem id={pkg.label} value={pkg.label} className="sr-only" />
-          </label>
-        ))}
+        {(pkg) => (
+          <>
+            {pkg.icon && <pkg.icon size={20} />}
+            <strong>{pkg.label}</strong>
+          </>
+        )}
       </RadioGroup>
     </div>
   )

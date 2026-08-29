@@ -1,3 +1,4 @@
+import { Separator } from '@/shared/ui/base/separator'
 import { Button } from '@/shared/ui/base/button'
 import { Input } from '@/shared/ui/base/input'
 import { useSetOrderSpots } from '@/features/orders/spots'
@@ -90,13 +91,10 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
         <div className="flex flex-col gap-4 w-full">
           <div className="flex flex-col gap-2 w-full">
             <div className="flex w-full justify-between items-center mb-2">
-              <div className="text-xs tracking-widest text-neutral-600">Order Spots</div>
+              <small className="tracking-widest">Order Spots</small>
               <Button
                 variant="link"
-                className={cn(
-                  'text-primary',
-                  'p-0 font-normal text-sm h-4 hover:bg-transparent'
-                )}
+                className="p-0 h-4"
                 onClick={() => (order.spots_locked ? handleResetSpots() : handleLockSpots())}
                 disabled={setSpots.isPending}
               >
@@ -117,9 +115,9 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
             <div className="grid grid-cols-2 w-full gap-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
               {orderSpotPrices.map((spot) => (
                 <div key={spot.id} className="flex flex-col w-full">
-                  <div className="flex items-center justify-between w-full text-sm text-neutral-700">
+                  <small className="flex items-center justify-between w-full">
                     {spot.name}
-                  </div>
+                  </small>
 
                   <div className="flex items-center gap-1 w-full">
                     <Input
@@ -128,7 +126,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                       inputMode="decimal"
                       readOnly={!order.spots_locked}
                       className={cn(
-                        'on-glass no-spinner text-center w-full text-base h-8',
+                        'no-spinner text-center w-full h-8',
                         !order?.spots_locked && 'cursor-not-allowed'
                       )}
                       defaultValue={
@@ -147,33 +145,33 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
           {scrapItems && (
             <div className="flex flex-col w-full gap-3">
               <div className="flex w-full justify-start items-center mb-2">
-                <div className="text-xs tracking-widest text-neutral-600">Scrap</div>
+                <small className="tracking-widest">Scrap</small>
               </div>
 
               <ScrapTable scrapItems={scrapItems} config={config} order_id={order.id} />
             </div>
           )}
-          <div className="glass-divider" />
+          <Separator />
 
           {bullionItems && (
             <div className="flex flex-col w-full gap-3">
               <div className="flex w-full justify-start items-center mb-2">
-                <div className="text-xs tracking-widest text-neutral-600">Bullion</div>
+                <small className="tracking-widest">Bullion</small>
               </div>
               <BullionTable bullionItems={bullionItems} catalogue={catalogue} config={config} order_id={order.id} />
             </div>
           )}
-          <div className="glass-divider" />
+          <Separator />
 
           <div className="flex items-center justify-between w-full gap-3">
             <div className="flex-col items-start">
-              <div className="text-sm text-neutral-600">Shipping Charge</div>
+              <small>Shipping Charge</small>
               <Input
                 type="number"
                 pattern="[0-9]*"
                 inputMode="decimal"
                 className={cn(
-                  'on-glass no-spinner text-right w-full text-base h-8'
+                  'no-spinner text-right w-full h-8'
                 )}
                 defaultValue={shipment?.cost ?? 0}
                 onBlur={(e) => {
@@ -187,13 +185,13 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
               />
             </div>
             <div className="flex-col items-start">
-              <div className="text-sm text-neutral-600">Payout Charge</div>
+              <small>Payout Charge</small>
               <Input
                 type="number"
                 pattern="[0-9]*"
                 inputMode="decimal"
                 className={cn(
-                  'on-glass no-spinner text-right w-full text-base h-8'
+                  'no-spinner text-right w-full h-8'
                 )}
                 defaultValue={payout?.cost ?? 0}
                 onBlur={(e) => {
@@ -207,21 +205,18 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
               />
             </div>
           </div>
-          <div className="glass-divider" />
+          <Separator />
 
           {/* 'Accepted' left the lifecycle, and the change-payout affordance
               that keyed on it shows here at Received instead (Jacob's lean) -
               beside the payout charge it prices. */}
           <div className="flex flex-col gap-1 items-start w-full">
-            <div className="text-sm text-neutral-600 tracking-wide">Change Payout Method</div>
+            <small className="tracking-wide">Change Payout Method</small>
             <Popover open={payoutOpen} onOpenChange={setPayoutOpen}>
               <PopoverTrigger asChild>
                 <Button
-                  variant="ghost"
-                  className={cn(
-                    'text-primary',
-                    'flex items-center justify-between gap-1 px-4 font-normal text-sm on-glass border-none h-9 w-full'
-                  )}
+                  variant="secondary"
+                  className="flex items-center justify-between gap-1 h-9 w-full"
                 >
                   {payoutOptions.find((m) => m.method === payout?.method)?.label}
                   <CaretDownIcon size={20} />
@@ -233,7 +228,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                 side="bottom"
                 onOpenAutoFocus={(e) => e.preventDefault()}
               >
-                <Command className="bg-card">
+                <Command surface="card">
                   <CommandList>
                     {payoutOptions.map(({ label, method, icon: Icon }) => (
                       <CommandItem
@@ -263,7 +258,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
               </PopoverContent>
             </Popover>
           </div>
-          <div className="glass-divider" />
+          <Separator />
         </div>
       </div>
     </>
@@ -343,9 +338,9 @@ function ScrapTable({
     <>
       {scrapItems.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <Table className="font-normal text-neutral-700 overflow-hidden">
-            <TableHeader className="text-xs text-neutral-700 hover:bg-transparent">
-              <TableRow className="hover:bg-transparent">
+          <Table className="overflow-hidden">
+            <TableHeader>
+              <TableRow>
                 <TableHead className="text-left"></TableHead>
                 <TableHead className="text-left">Line Item</TableHead>
                 <TableHead className="text-center">Pre Melt</TableHead>
@@ -362,14 +357,14 @@ function ScrapTable({
                     'transition-colors hover:bg-transparent',
                     editMode && !selectedIds.includes(item.id) && 'opacity-50 pointer-events-none',
                     editMode && selectedIds.includes(item.id) && 'hover:bg-muted/30',
-                    item.confirmed === true ? 'bg-success/10 hover:bg-success/10' : ''
+                    item.confirmed === true ? 'bg-success/10 hover:bg-success/20' : ''
                   )}
                 >
                   <TableCell className="text-left">
                     {item.confirmed ? (
                       <Button
                         variant="ghost"
-                        className="h-4 w-2 p-0 pl-2 m-0 text-muted-foreground hover:text-foreground flex justify-center"
+                        className="h-4 w-2 p-0 pl-2 m-0 flex justify-center"
                         onClick={() => handleResetItem(item)}
                       >
                         <RotateCcw size={16} className="p-0 m-0" />
@@ -385,7 +380,6 @@ function ScrapTable({
                             setSelectedIds((prev) => prev.filter((id) => id !== item.id))
                           }
                         }}
-                        className="checkbox-form"
                       />
                     )}
                   </TableCell>
@@ -398,7 +392,7 @@ function ScrapTable({
                           pattern="[0-9]*"
                           inputMode="decimal"
                           className={cn(
-                            'on-glass no-spinner text-left text-base h-6'
+                            'no-spinner text-left h-6'
                           )}
                           defaultValue={item.pre_melt ?? ''}
                           onBlur={(e) => {
@@ -427,7 +421,7 @@ function ScrapTable({
                           pattern="[0-9]*"
                           inputMode="decimal"
                           className={cn(
-                            'on-glass no-spinner text-left text-base h-6'
+                            'no-spinner text-left h-6'
                           )}
                           defaultValue={item.post_melt ?? ''}
                           onBlur={(e) => {
@@ -456,7 +450,7 @@ function ScrapTable({
                           pattern="[0-9]*"
                           inputMode="decimal"
                           className={cn(
-                            'on-glass no-spinner text-center text-base h-6'
+                            'no-spinner text-center h-6'
                           )}
                           defaultValue={item.purity ?? ''}
                           onBlur={(e) => {
@@ -480,7 +474,7 @@ function ScrapTable({
                           pattern="[0-9]*"
                           inputMode="decimal"
                           className={cn(
-                            'on-glass no-spinner text-center text-base h-6'
+                            'no-spinner text-center h-6'
                           )}
                           defaultValue={item.premium ?? ''}
                           onBlur={(e) => {
@@ -505,13 +499,8 @@ function ScrapTable({
                 <Button
                   onClick={() => setEditMode(true)}
                   disabled={selectedIds.length === 0}
-                  variant="default"
-                  className={cn(
-                    'raised-off-page w-16 text-white h-8 hover:text-white',
-                    'primary-on-glass',
-                    'hover:bg-primary',
-                    selectedIds.length === 0 && 'opacity-50 cursor-not-allowed'
-                  )}
+                  variant="secondary"
+                  className="w-16 h-8"
                 >
                   Edit
                 </Button>
@@ -523,13 +512,8 @@ function ScrapTable({
                     setSelectedIds([])
                   }}
                   disabled={selectedIds.length === 0}
-                  variant="default"
-                  className={cn(
-                    'raised-off-page w-16 text-white h-8 hover:text-white',
-                    'primary-on-glass',
-                    'hover:bg-primary',
-                    editMode || (selectedIds.length === 0 && 'opacity-50 cursor-not-allowed')
-                  )}
+                  variant="secondary"
+                  className="w-16 h-8"
                 >
                   Done
                 </Button>
@@ -538,14 +522,9 @@ function ScrapTable({
               <Button
                 onClick={() => handleDeleteItems(selectedIds)}
                 disabled={selectedIds.length === 0}
-                variant="outline"
-                className={cn(
-                  'raised-off-page w-16 on-glass h-8 hover:text-white hover:border-none',
-                  'border-primary',
-                  'text-primary',
-                  'hover:bg-primary',
-                  (editMode || selectedIds.length === 0) && 'opacity-50 cursor-not-allowed'
-                )}
+                variant="secondary"
+                intent="danger"
+                className="w-16 h-8"
               >
                 Remove
               </Button>
@@ -555,11 +534,7 @@ function ScrapTable({
                 <Button
                   disabled={editMode}
                   variant="link"
-                  className={cn(
-                    'text-primary',
-                    'flex items-center gap-1 p-0 font-normal text-sm h-4 hover:bg-transparent',
-                    editMode && 'opacity-50 cursor-not-allowed'
-                  )}
+                  className="flex items-center gap-1 p-0 h-4"
                 >
                   <Plus size={16} />
                   Add New
@@ -571,7 +546,7 @@ function ScrapTable({
                 side="bottom"
                 onOpenAutoFocus={(e) => e.preventDefault()}
               >
-                <Command className="bg-card">
+                <Command surface="card">
                   <CommandList>
                     {['Gold', 'Silver', 'Platinum', 'Palladium'].map((metal) => (
                       <CommandItem
@@ -610,7 +585,7 @@ function ScrapTable({
               <Button
                 disabled={editMode}
                 variant="default"
-                className={cn('flex items-center gap-1 p-4 font-normal text-base')}
+                className="flex items-center gap-1 p-4"
               >
                 Add Scrap to Order
               </Button>
@@ -621,7 +596,7 @@ function ScrapTable({
               side="bottom"
               onOpenAutoFocus={(e) => e.preventDefault()}
             >
-              <Command className="bg-card">
+              <Command surface="card">
                 <CommandList>
                   {['Gold', 'Silver', 'Platinum', 'Palladium'].map((metal) => (
                     <CommandItem
@@ -721,9 +696,9 @@ function BullionTable({
     <>
       {bullionItems.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <Table className="font-normal text-neutral-700 overflow-hidden">
-            <TableHeader className="text-xs text-neutral-700 hover:bg-transparent">
-              <TableRow className="hover:bg-transparent">
+          <Table className="overflow-hidden">
+            <TableHeader>
+              <TableRow>
                 <TableHead className="text-left"></TableHead>
                 <TableHead className="text-left">Name</TableHead>
                 <TableHead className="text-center">Quantity</TableHead>
@@ -738,14 +713,14 @@ function BullionTable({
                     'transition-colors hover:bg-transparent',
                     editMode && !selectedIds.includes(item.id) && 'opacity-50 pointer-events-none',
                     editMode && selectedIds.includes(item.id) && 'hover:bg-muted/30',
-                    item.confirmed === true ? 'bg-success/10 hover:bg-success/10' : ''
+                    item.confirmed === true ? 'bg-success/10 hover:bg-success/20' : ''
                   )}
                 >
                   <TableCell className="text-left">
                     {item.confirmed ? (
                       <Button
                         variant="ghost"
-                        className="h-4 w-2 p-0 pl-2 m-0 text-muted-foreground hover:text-foreground flex justify-center"
+                        className="h-4 w-2 p-0 pl-2 m-0 flex justify-center"
                         onClick={() => handleResetItem(item)}
                       >
                         <RotateCcw size={16} className="p-0 m-0" />
@@ -761,7 +736,6 @@ function BullionTable({
                             setSelectedIds((prev) => prev.filter((id) => id !== item.id))
                           }
                         }}
-                        className="checkbox-form"
                       />
                     )}
                   </TableCell>
@@ -774,7 +748,7 @@ function BullionTable({
                           pattern="[0-9]*"
                           inputMode="decimal"
                           className={cn(
-                            'on-glass no-spinner text-center text-base h-6'
+                            'no-spinner text-center h-6'
                           )}
                           defaultValue={item.quantity ?? ''}
                           onBlur={(e) => {
@@ -799,7 +773,7 @@ function BullionTable({
                           pattern="[0-9]*"
                           inputMode="decimal"
                           className={cn(
-                            'on-glass no-spinner text-right text-base h-6'
+                            'no-spinner text-right h-6'
                           )}
                           defaultValue={item.premium ?? byId(catalogue, item.bullion_id)?.bid_premium ?? ''}
                           onBlur={(e) => {
@@ -826,13 +800,8 @@ function BullionTable({
                 <Button
                   onClick={() => setEditMode(true)}
                   disabled={selectedIds.length === 0}
-                  variant="default"
-                  className={cn(
-                    'raised-off-page w-16 text-white h-8 hover:text-white',
-                    'primary-on-glass',
-                    'hover:bg-primary',
-                    selectedIds.length === 0 && 'opacity-50 cursor-not-allowed'
-                  )}
+                  variant="secondary"
+                  className="w-16 h-8"
                 >
                   Edit
                 </Button>
@@ -844,13 +813,8 @@ function BullionTable({
                     setSelectedIds([])
                   }}
                   disabled={selectedIds.length === 0}
-                  variant="default"
-                  className={cn(
-                    'raised-off-page w-16 text-white h-8 hover:text-white',
-                    'primary-on-glass',
-                    'hover:bg-primary',
-                    editMode || (selectedIds.length === 0 && 'opacity-50 cursor-not-allowed')
-                  )}
+                  variant="secondary"
+                  className="w-16 h-8"
                 >
                   Done
                 </Button>
@@ -859,14 +823,9 @@ function BullionTable({
               <Button
                 onClick={() => handleDeleteItems(selectedIds)}
                 disabled={selectedIds.length === 0}
-                variant="outline"
-                className={cn(
-                  'raised-off-page w-16 on-glass h-8 hover:text-white hover:border-none',
-                  'border-primary',
-                  'text-primary',
-                  'hover:bg-primary',
-                  (editMode || selectedIds.length === 0) && 'opacity-50 cursor-not-allowed'
-                )}
+                variant="secondary"
+                intent="danger"
+                className="w-16 h-8"
               >
                 Remove
               </Button>
@@ -876,11 +835,7 @@ function BullionTable({
                 <Button
                   disabled={editMode}
                   variant="link"
-                  className={cn(
-                    'text-primary',
-                    'flex items-center gap-1 p-0 font-normal text-sm h-4 hover:bg-transparent',
-                    editMode && 'opacity-50 cursor-not-allowed'
-                  )}
+                  className="flex items-center gap-1 p-0 h-4"
                 >
                   <Plus size={16} />
                   Add New
@@ -892,10 +847,10 @@ function BullionTable({
                 side="bottom"
                 onOpenAutoFocus={(e) => e.preventDefault()}
               >
-                <Command className="bg-card">
+                <Command surface="card">
                   <CommandInput
                     placeholder="Search products..."
-                    className="h-8 text-xs text-neutral-600"
+                    className="h-8"
                   />
                   <CommandList>
                     {products.map((product) => (
@@ -934,7 +889,7 @@ function BullionTable({
               <Button
                 disabled={editMode}
                 variant="default"
-                className={cn('flex items-center gap-1 p-4 font-normal text-base')}
+                className="flex items-center gap-1 p-4"
               >
                 Add Bullion to Order
               </Button>
@@ -945,10 +900,10 @@ function BullionTable({
               side="bottom"
               onOpenAutoFocus={(e) => e.preventDefault()}
             >
-              <Command className="bg-card">
+              <Command surface="card">
                 <CommandInput
                   placeholder="Search products..."
-                  className="h-8 text-xs text-neutral-600"
+                  className="h-8"
                 />
                 <CommandList>
                   {products.map((product) => (

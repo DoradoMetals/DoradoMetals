@@ -1,4 +1,29 @@
-# Deletion order — when each retired class is safe to delete
+# Deletion order — CLOSED, 2026-08-28 (wave 4 lane B)
+
+> **EVERY ROW BELOW IS ZERO AND EVERY RULE IS DELETED.** `glass.css` is gone
+> from the repo and from `globals.css`; `gradients.css` was already gone;
+> `components.css` is down to `.floating-label` and the `number-flow-react`
+> part padding; `base.css`'s `bg-primary`+`text-white` bridge is gone; and
+> `--shadow-raised` / `--shadow-recessed` / `--shadow-overlay` are deleted from
+> `theme.css` — the values, not only the class names (ruling 27, which had to
+> be written twice because the first pass tokenised the shadows instead of
+> removing them).
+>
+> Regenerate the counts with the loop below before believing any table here:
+> all twenty names now print 0.
+>
+> **The one judgement call ruling 27 left open is decided.** `--shadow-overlay`
+> is DELETED. Its only user was the drawer, and a drop shadow works by
+> darkening the ground beneath it — this ground is `#09090c`. Black on black is
+> not an elevation cue; it is an unrendered declaration, which is exactly what
+> the old `drawer.css` comment was admitting when it said Tailwind's own
+> `shadow-2xl` "registers as nothing at all" here. The drawer separates by a
+> hairline, like every other surface.
+>
+> What follows is the original manifest, kept as the record of what was
+> deleted and what each class became.
+
+---
 
 Ruling 16: *"They should be deleted and updated in call-sites."* Not neutered.
 

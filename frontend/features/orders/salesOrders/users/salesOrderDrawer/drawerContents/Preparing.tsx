@@ -35,7 +35,7 @@ export default function PreparingSalesOrder({ order }: SalesOrderDrawerContentPr
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative flex flex-col items-center gap-4 h-auto justify-center rounded-lg raised-off-page">
+      <div className="relative flex flex-col items-center gap-4 h-auto justify-center rounded-lg border border-border">
         <ShineBorder
           shineColor={['#ae8625', '#f5d67d', '#d2ac47', '#edc967', '#ae8625']}
           borderWidth={2}
@@ -52,21 +52,19 @@ export default function PreparingSalesOrder({ order }: SalesOrderDrawerContentPr
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)] dark:bg-black rounded-lg" />
         <Confetti ref={confettiRef} className="absolute left-0 top-0 z-0 size-full" manualstart />
         <div className="p-4">
-          <div className="text-2xl text-neutral-800 mb-2">
-            <BlurredStagger text={`Your order has been placed!`} delay={2000} />
-          </div>
-          <div className="text-sm text-neutral-700 mb-6 text-left">
-            <BlurredStagger
-              text={`Please give our team some time to prepare your for order for shipment. Once your items have been sent, they should arrive within ${arrival}.`}
-              delay={2200}
-            />
-          </div>
+          <BlurredStagger as="h2" className="mb-2" text={`Your order has been placed!`} delay={2000} />
+          <BlurredStagger
+            as="p"
+            className="mb-6 text-left"
+            text={`Please give our team some time to prepare your for order for shipment. Once your items have been sent, they should arrive within ${arrival}.`}
+            delay={2200}
+          />
           <div className="flex w-full justify-center">
             <AnimatedScroll size={128} className="mb-6 z-1 text-primary" />
           </div>
         </div>
       </div>
-      <div className="relative flex flex-col on-glass p-4 rounded-lg">
+      <div className="relative flex flex-col border border-border p-4 rounded-lg">
         <ShineBorder
           shineColor={['#ae8625', '#f5d67d', '#d2ac47', '#edc967', '#ae8625']}
           borderWidth={2}

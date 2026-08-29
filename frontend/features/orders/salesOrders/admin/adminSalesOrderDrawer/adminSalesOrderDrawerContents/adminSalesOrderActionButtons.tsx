@@ -80,16 +80,13 @@ export function SalesOrderActionButtons({ order }: SalesOrderActionButtonsProps)
           <Button
             key={index}
             onClick={() => handleAction(button.action, button.status)}
-            variant={button.label === 'Adjust Price' ? 'outline' : 'default'}
+            /* Three hand-painted looks became the three EMPHASIS steps
+               (ruling 25): the retired `on-glass` / `primary-on-glass` pair
+               were both an outlined button, and the third spelled a bare link
+               with a hover it then cancelled. */
+            variant={isTertiaryStyle ? 'link' : 'secondary'}
             disabled={button.disabled}
-            className={cn(
-              'w-full transition-colors',
-              isSecondaryStyle
-                ? 'on-glass'
-                : isTertiaryStyle
-                ? 'bg-transparent text-primary flex justify-start p-0 h-4 hover:bg-transparent'
-                : 'primary-on-glass'
-            )}
+            className={cn('w-full', isTertiaryStyle && 'justify-start')}
           >
             {button.label}
           </Button>

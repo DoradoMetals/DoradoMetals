@@ -96,7 +96,7 @@ export function StateComboboxField<TFieldValues extends FieldValues>({
                   disabled={disabled}
                   className={cn(
                     'w-full justify-between',
-                    !selectedName && 'text-muted-foreground'
+                    !selectedName && ''
                   )}
                 >
                   <span className="truncate">{selectedName ? selectedName : placeholder}</span>

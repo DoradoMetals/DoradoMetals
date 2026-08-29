@@ -50,22 +50,27 @@ const tabsTriggerVariants = cva(
   {
     variants: {
       variant: {
+        /* ⚠ D99 — THE ACTIVE TAB WAS A SHADOW. Its only non-text signal was
+           `data-[state=active]:shadow-sm`, which ruling 27 deletes, and the
+           text step alone (muted -> foreground) is a 2.6:1 move on two words.
+           The active tab now RECESSES to the page ground inside the list's
+           `bg-muted` bar, which is the same affordance without a shadow. */
         default:
-          'data-[state=active]:text-foreground rounded-md py-1 text-small data-[state=active]:shadow-sm',
+          'data-[state=active]:text-foreground data-[state=active]:bg-background rounded-md py-1 text-small',
         /* The rule is an ::after so the trigger's own box never resizes when it
            becomes active - a border-bottom would shift every sibling by 1px.
            `after:content-['']` is spelled explicitly rather than relying on the
            variant's implicit default, because a pseudo-element with no content
            does not render at all and the failure is silent. */
         underline: [
-          'relative cursor-pointer rounded-none bg-transparent py-1 text-small text-neutral-600 shadow-none',
-          'data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground',
+          'relative cursor-pointer rounded-none bg-transparent py-1 text-small text-neutral-600',
+          'data-[state=active]:bg-transparent data-[state=active]:text-foreground',
           "after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-px after:bg-transparent after:transition-colors",
           'data-[state=active]:after:bg-primary',
         ].join(' '),
         underlineSubtle: [
-          'relative cursor-pointer rounded-none bg-transparent py-1 text-small text-neutral-600 shadow-none',
-          'data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground',
+          'relative cursor-pointer rounded-none bg-transparent py-1 text-small text-neutral-600',
+          'data-[state=active]:bg-transparent data-[state=active]:text-foreground',
           "after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:-mb-1 after:h-px after:bg-transparent after:transition-colors",
           'data-[state=active]:after:bg-border-strong',
         ].join(' '),

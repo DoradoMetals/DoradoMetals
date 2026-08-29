@@ -1,4 +1,24 @@
-# Style retirement manifest
+# Style retirement manifest — DISCHARGED, 2026-08-28 (wave 4 lane B)
+
+> **NOTHING IN THIS FILE IS STILL NEUTERED.** Every class it describes as
+> "kept, retuned, no-op" has since been DELETED along with its call sites, and
+> `glass.css` no longer exists. Two measurable things that were open when this
+> was written are now zero:
+>
+> | | when written | now |
+> |---|---:|---:|
+> | `lint:typography-scatter` | 1123 | **0** |
+> | `lint:call-site-styling` | 555 flagged / 98 contradicted | **0** |
+>
+> §5's advice — *"If flat-everything is the goal, point all three tokens at
+> `none` in theme.css — one edit, no .tsx churn"* — is the thing ruling 27 was
+> written to overrule. The tokens are deleted, not pointed at `none`, and the
+> ~150 call sites were converted rather than left spelling a dead class.
+>
+> Kept as the record of what each retired class WAS, which is what makes a
+> regression identifiable.
+
+---
 
 What the CSS foundation pass (dark-only rebrand) **neutered but did not delete**,
 and what the `.tsx` sweep has to finish. Nothing in this list is gone: every

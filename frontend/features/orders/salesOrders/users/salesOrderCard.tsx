@@ -95,7 +95,7 @@ export default function SalesOrderCard({
               <Button
                 key={index}
                 variant="link"
-                className="flex items-center justify-start gap-2 text-sm bg-transparent px-0"
+                className="flex items-center justify-start gap-2 px-0"
                 onClick={stopAnd(onClick, isPending)}
                 disabled={isPending}
               >

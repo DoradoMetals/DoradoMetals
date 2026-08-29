@@ -108,7 +108,7 @@ export default function PurchaseOrderCard({
               <Button
                 key={index}
                 variant="link"
-                className="flex items-center justify-start gap-2 text-sm bg-transparent px-0"
+                className="flex items-center justify-start gap-2 px-0"
                 onClick={mkClick(onClick, isPending)}
                 disabled={isPending}
               >

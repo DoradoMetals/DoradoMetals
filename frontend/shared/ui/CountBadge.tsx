@@ -11,22 +11,28 @@ import { cn } from '@/shared/utils/cn'
      features/navigation/ui/Shell.tsx:94    cart count
      features/navigation/ui/Shell.tsx:138   cart count
 
-   The original, hand-rolled, and Jacob's own example of the problem:
+   The original, hand-rolled, was Jacob's own example of the problem: an
+   ml-auto pill, 20px tall, rounded-full, painted with the primary background
+   and white text at an arbitrary ten-pixel medium weight.
 
-     <span className="flex ml-auto h-5 min-w-5 items-center justify-center
-       rounded-full bg-primary px-1 text-[10px] font-medium text-white">
+   Three things wrong with it, all fixed here: white text on the primary
+   background is the D92 inversion (white on white); the arbitrary ten-pixel
+   size had no place in the scale — it was the only arbitrary text size in the
+   codebase, and the reason the micro token exists; and the whole appearance
+   was inline at three sites, so a change had to be made three times.
 
-   Three things wrong with it, all fixed here: `text-white` on `bg-primary` is
-   the D92 inversion (white on white); `text-[10px]` is an arbitrary type size
-   with no place in the scale — it is the only arbitrary text size in the
-   codebase, and the reason `--text-micro` exists; and the whole appearance was
-   inline at three sites, so a change had to be made three times.
+   (Spelled in prose rather than as code, deliberately: the scatter linter and
+   the arbitrary-size counter read the file, not the JSX, so a comment quoting
+   a class string reports as a live call site. It did.)
 
    TAG: this stays a `<span>` (ruling 22, case 2). A count badge is genuinely
    inline content sitting inside a row, not a paragraph. `<span><p>` would be
    invalid HTML — span accepts phrasing content, `<p>` is flow content. */
 const countBadgeVariants = cva(
-  'inline-flex items-center justify-center rounded-full px-1 font-medium tabular-nums',
+  // No weight here: the size variants below carry `text-micro`, and the type
+  // token owns its own weight (typography.css). A `font-medium` beside it is
+  // scatter that says nothing.
+  'inline-flex items-center justify-center rounded-full px-1 tabular-nums',
   {
     variants: {
       tone: {

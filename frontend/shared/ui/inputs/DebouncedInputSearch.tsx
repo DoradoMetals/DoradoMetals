@@ -8,7 +8,7 @@ import { cn } from '@/shared/utils/cn'
 export function DebouncedInputSearch({
   value: initialValue,
   onChange,
-  inputClassname = 'border-border bg-highest focus:border-primary focus-visible:border-primary shadow-none',
+  inputClassname = 'border-border bg-highest focus:border-primary focus-visible:border-primary',
   debounce = 300,
   showSearchIcon = true,
   ...props

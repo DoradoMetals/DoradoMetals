@@ -1,6 +1,11 @@
+// WHAT THE BUSINESS CHARGES FOR METAL - the ask side of features/pricing.
+//
+// Moved here from features/sales-orders/utils/calculations.ts under ruling 24,
+// with the bid side. Nothing below changed in the move.
+//
 // What a sales order costs.
 //
-// The mirror of features/purchase-orders/utils/calculations.ts: that one values
+// The mirror of features/pricing/bid.ts: that one values
 // metal the business is buying, this one prices metal it is selling. They share
 // no code and should not - a bid and an ask are different sums with different
 // defaults. Most visibly, a metal absent from `spots` throws on the purchase
@@ -33,15 +38,9 @@
 // caller but /tax/get_sales_tax passes items through
 // productService.getItemsFromServer, which sets `quantity: ... ?? 0`. See the
 // note on `item.quantity!` below.
-// What pricing needs of a spot row: the composed shape (`name` / `ask` /
-// `bid`), which is what spots/service.getSpotPrices returns since the orders
-// wire conversion (D84) retired the legacy `type` / `ask_spot` / `bid_spot`
-// spellings.
-export type PricingSpot = {
-  name?: string | null;
-  ask?: number | null;
-  bid?: number | null;
-};
+// Declared once, in spot.ts - see the note on the bid side.
+import type { PricingSpot, Spots } from "#features/pricing/spot.ts";
+export type { PricingSpot, Spots } from "#features/pricing/spot.ts";
 
 // What pricing needs of a line, which is emphatically NOT SalesOrderItem.
 // That is a line on a *saved* order - the product nested underneath, a premium
@@ -63,7 +62,6 @@ type PriceableItem = {
 // optional: that function always sets it, from a query that COALESCEs to 0.
 type TaxedItem = PriceableItem & { sales_tax_rate: number };
 
-type Spots = PricingSpot[] | null | undefined;
 
 // Only dorado_funds is ever read, so only dorado_funds is required. The
 // checkout passes a better-auth session user and the admin path passes a row

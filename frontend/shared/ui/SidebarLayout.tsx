@@ -213,7 +213,7 @@ export function SidebarLayout({
               size={16}
               className={cn('transition-transform', isOpen && 'rotate-180')}
             />
-            {isOpen && <small className="font-medium">Hide</small>}
+            {isOpen && <small>Hide</small>}
           </button>
         </div>
       )}

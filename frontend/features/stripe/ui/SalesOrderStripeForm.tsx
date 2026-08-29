@@ -158,9 +158,9 @@ export default function SalesOrderStripeForm({
           handleChangePaymentMethod(e.value.type)
         }}
       />
-      <div className="text-xs text-destructive mt-1">
-        {message && <div id="payment-message">{message}</div>}
-      </div>
+      <small className="text-destructive mt-1">
+        {message && <span id="payment-message">{message}</span>}
+      </small>
     </form>
   )
 }

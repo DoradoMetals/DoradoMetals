@@ -17,20 +17,20 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
 
   return (
     <div className="flex flex-col items-center gap-4 h-full">
-      <div className="h-auto w-full p-4 rounded-lg flex flex-col gap-3 on-glass">
+      <div className="h-auto w-full p-4 rounded-lg flex flex-col gap-3 border border-border">
         <div className="flex flex-col items-start gap-4 w-full">
           <div className="flex w-full items-center justify-between">
-            <div className="flex items-center gap-1 text-xl text-neutral-800">
-              <Icon size={24} className="text-primary" />
+            <strong className="flex items-center gap-1 stat-sm">
+              {Icon && <Icon size={24} />}
               {payoutOption?.label}
-            </div>
-            <div className="text-sm text-primary">{payoutOption?.time_delay}</div>
+            </strong>
+            <small>{payoutOption?.time_delay}</small>
           </div>
 
           <div className="w-full">
             {payout?.method === 'ACH' && (
               <div className="flex flex-col w-full gap-2">
-                <div className="flex gap-1 justify-between w-full text-base text-neutral-800 items-center">
+                <div className="flex gap-1 justify-between w-full items-center">
                   <div className="flex flex-col text-left">
                     <p>Name:</p>
                     <p>Routing:</p>
@@ -47,7 +47,7 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
 
             {payout?.method === 'WIRE' && (
               <div className="flex flex-col w-full gap-2">
-                <div className="flex gap-1 justify-between w-full text-base text-neutral-800 items-center">
+                <div className="flex gap-1 justify-between w-full items-center">
                   <div className="flex flex-col text-left">
                     <p>Name:</p>
                     <p>Routing:</p>
@@ -65,7 +65,7 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
             {payout?.method === 'ECHECK' && (
               <div className="w-full items-center flex justify-between">
                 <div className="flex flex-col w-full gap-2 w-full">
-                  <div className="flex justify-between w-full text-base text-neutral-800 items-center">
+                  <div className="flex justify-between w-full items-center">
                     <div className="flex flex-col text-left">
                       <p>Name:</p>
                       <p>Email:</p>
@@ -82,7 +82,7 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
             {payout?.method === 'DORADO_ACCOUNT' && (
               <div className="w-full items-center flex justify-between">
                 <div className="flex flex-col w-full gap-2 w-full">
-                  <div className="flex justify-between w-full text-base text-neutral-800 items-center">
+                  <div className="flex justify-between w-full items-center">
                     <div className="flex flex-col text-left">
                       <p>Name:</p>
                       <p>Email:</p>
@@ -99,34 +99,34 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
         </div>
         <div>
           {payout?.method === 'ACH' && (
-            <div className="text-sm text-neutral-600">
+            <p>
               Once we have initiated your ACH transfer, you will receive it within{' '}
               {payoutOption?.time_delay}. If you have entered the wrong routing or account number, please
               call us immediately. We are not liable for missing payments due to incorrect input.
-            </div>
+            </p>
           )}
 
           {payout?.method === 'WIRE' && (
-            <div className="text-sm text-neutral-600">
+            <p>
               Once we have initiated your wire transfer, you will receive it within
               {payoutOption?.time_delay}. If you have entered the wrong routing or account number, please
               call us immediately. We are not liable for missing payments due to incorrect input.
-            </div>
+            </p>
           )}
 
           {payout?.method === 'ECHECK' && (
-            <div className="text-sm text-neutral-600">
+            <p>
               When we send you your eCheck, you will receive it instantly. You will be able to find
               it in your email inbox, and we will have it available for download here as well.
-            </div>
+            </p>
           )}
 
           {payout?.method === 'DORADO_ACCOUNT' && (
-            <div className="text-sm text-neutral-600">
+            <p>
               Your funds should now be available. You can use those funds to purchase bullion from
               us, and they can be withdrawn and sent to you via one of the other payout methods at
               any time. You can see your total available balance in your account.
-            </div>
+            </p>
           )}
         </div>
       </div>
