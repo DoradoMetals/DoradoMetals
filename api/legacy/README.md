@@ -19,6 +19,27 @@ legacy/<feature>/sql/*.sql    was features/<feature>/sql/legacy/*.sql
 legacy/<feature>/tests/       a test whose SUBJECT is in here (ruling 31)
 ```
 
+**`purchase-orders/` and `sales-orders/` are here even though those FEATURES no
+longer exist** (wave 5A: direction is a column, so both dissolved into
+`features/orders/`). The exchange tables they write - `exchange.purchase_orders`
+and `exchange.sales_orders` - are still two, so the exchange half of the write
+is still two files. They are named for the tables they write, which is what
+every other entry here is named for too.
+
+`legacy/purchase-orders/` holds **two** files rather than one:
+`repo.ts` (the order INSERT, was `legacy.repo.ts`) and `repo.exchange.js` (the
+other 29 writes, was `features/purchase-orders/repo.exchange.js`). They are the
+same thing arriving from two directions and they merge when someone converts
+the second to TypeScript; splitting them now would be a rewrite of the money
+path for tidiness.
+
+**`repo.exchange.js` had to give something up to come in here.** Its
+`updateOrderItemPrices` called `calculateItemPrice` from `#features/pricing`,
+which is a RUNTIME edge from `legacy/` into `features/` - the one thing this
+directory cannot have, because it has to be deletable in one `rm -rf`. The
+function now takes prices; `features/orders/repo.dual.js` computes them with
+the same function on the same items in the same order.
+
 Imported as `#legacy/<feature>/repo.ts` — the subpath is declared in
 `package.json` beside `#features/*`. Never by a relative path crossing between
 the two roots.

@@ -13,9 +13,12 @@ import { GoogleMapDisplay, MarkerType } from '@/shared/ui/GoogleMapDisplay'
 export const StoreLocationsMap = () => {
   const address = usePurchaseOrderCheckoutStore((state) => state.data.address)
 
+  // NO carrier_id. It was the production uuid
+  // 30179428-b311-4873-8d08-382901c581d8 with a `// TODO: source from store
+  // when you add carrier selection` beside it; the API resolves the carrier it
+  // ships with, which is where that decision belonged all along.
   const input: ShippingLocationsInput | null = address
     ? {
-        carrier_id: "30179428-b311-4873-8d08-382901c581d8", // TODO: source from store when you add carrier selection
         address,
         radius_miles: 50,
         max_results: 50,

@@ -553,7 +553,7 @@ export function buildInvoiceHtml({
 // throw was silent in exactly the way the packing list's NaN box and the
 // supplier email's null address were.
 //
-// Found by removing the guard in features/sales-orders/service.js to check that
+// Found by removing the guard in features/orders/service.ts to check that
 // its test could fail: it failed on this instead.
 //
 // Same rule as those two: render what is known and a dash for what is not.

@@ -18,7 +18,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import * as poRepo from "#features/purchase-orders/read.service.ts";
+import * as poRepo from "#features/orders/read.service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import {
   buildPackingScrapRows,
@@ -29,7 +29,7 @@ let orders;
 let spots;
 
 before(async () => {
-  orders = await poRepo.getAll();
+  orders = await poRepo.getAllPurchases();
   // The composed shape (`name` / `ask` / `bid`) - what the renderers read
   // since the orders wire conversion (D84) retired the legacy spellings.
   spots = await spotsService.getSpotPrices();

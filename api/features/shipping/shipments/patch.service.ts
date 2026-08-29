@@ -22,8 +22,8 @@
 //                     refused on a shipment with no sales order, because
 //                     that is the only tracking write that exists today.
 import * as shipmentsService from "#features/shipping/shipments/service.ts";
-import * as purchaseOrderService from "#features/purchase-orders/service.ts";
-import * as salesOrderService from "#features/sales-orders/service.ts";
+import * as purchaseOrderService from "#features/orders/service.ts";
+import * as salesOrderService from "#features/orders/service.ts";
 
 const refuse = (statusCode: number, message: string): never => {
   const err: Error & { statusCode?: number } = new Error(message);

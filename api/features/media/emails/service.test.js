@@ -21,8 +21,8 @@ import assert from "node:assert/strict";
 import pool from "#db";
 import * as emails from "#features/media/emails/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
-import * as poRepo from "#features/purchase-orders/read.service.ts";
-import * as soRepo from "#features/sales-orders/service.ts";
+import * as poRepo from "#features/orders/read.service.ts";
+import * as soRepo from "#features/orders/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import { formatPurchaseOrderNumber, formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 
@@ -35,8 +35,8 @@ before(async () => {
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  orders = await poRepo.getAll();
-  salesOrders = await soRepo.getAll();
+  orders = await poRepo.getAllPurchases();
+  salesOrders = await soRepo.getAllSales();
   // The composed shape (`name` / `ask` / `bid`): the ORDERS wire converted
   // (D84), the frontend's mapping edge died with it, and the renderers read
   // the schema's own spellings off the body.

@@ -26,7 +26,7 @@ import * as addressService from "#features/places/addresses/service.ts";
 import * as ratesService from "#features/rates/service.ts";
 import * as checkoutRepo from "#features/checkout/repo.next.ts";
 import { payoutFee, PAYOUT_METHOD_FEES } from "#features/payouts/constants.ts";
-import * as purchaseOrdersService from "#features/purchase-orders/service.ts";
+import * as purchaseOrdersService from "#features/orders/service.ts";
 import {
   calculateItemAsk,
   calculateSalesOrderTotal,
@@ -623,7 +623,7 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
     throw badRequest("no order was named");
   }
 
-  const order = (await purchaseOrdersService.getById(order_id)) as
+  const order = (await purchaseOrdersService.getPurchaseById(order_id)) as
     | Record<string, any>
     | null
     | undefined;
@@ -638,7 +638,7 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
 
   const [liveSpots, orderSpots] = await Promise.all([
     spotsService.getSpotPrices(),
-    purchaseOrdersService.getMetalsForOrder(order_id),
+    purchaseOrdersService.getPurchaseMetalsForOrder(order_id),
   ]);
   const spots_at = new Date().toISOString();
 
@@ -1017,7 +1017,7 @@ export async function profitBreakdown(body: Body): Promise<ProfitBreakdown> {
   // getById is the customer read and omits them, which would silently price
   // the split off declared weights. This is what the admin drawer read too -
   // its order came from the admin list.
-  const order = (await purchaseOrdersService.getAll()).find(
+  const order = (await purchaseOrdersService.getAllPurchases()).find(
     (o) => (o as Record<string, unknown>).id === order_id
   ) as ProfitOrder | undefined;
   if (!order) {
@@ -1027,7 +1027,7 @@ export async function profitBreakdown(body: Body): Promise<ProfitBreakdown> {
   }
 
   const [orderSpots, refinerSpots, rates] = await Promise.all([
-    purchaseOrdersService.getMetalsForOrder(order_id),
+    purchaseOrdersService.getPurchaseMetalsForOrder(order_id),
     purchaseOrdersService.getRefinerMetalsForOrder(order_id),
     ratesService.getAllRates(),
   ]);

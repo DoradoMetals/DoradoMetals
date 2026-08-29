@@ -10,7 +10,7 @@
 // last-4-only projection every payout read uses, and the response is a bare
 // success - not the row - so nothing here can grow into a leak.
 import * as payoutsRepo from "#features/payouts/repo.ts";
-import * as purchaseOrderService from "#features/purchase-orders/service.ts";
+import * as purchaseOrderService from "#features/orders/service.ts";
 
 const refuse = (statusCode: number, message: string): never => {
   const err: Error & { statusCode?: number } = new Error(message);

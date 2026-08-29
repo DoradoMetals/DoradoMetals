@@ -25,9 +25,9 @@ import pool from "#db";
 import * as totals from "#features/orders/transactions/repo.ts";
 import * as items from "#features/orders/items/repo.ts";
 import * as addrs from "#features/orders/addresses/repo.ts";
-import * as readService from "#features/purchase-orders/read.service.ts";
+import * as readService from "#features/orders/read.service.ts";
 
-const composed = await readService.getAll();
+const composed = await readService.getAllPurchases();
 console.log(`${composed.length} purchase order(s) from the read service\n`);
 
 const ids = composed.map((o) => o.id);

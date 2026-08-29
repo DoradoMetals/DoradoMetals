@@ -20,7 +20,7 @@
 // clicks.
 import * as ordersRepo from "#features/orders/repo.ts";
 import * as spotsRepo from "#features/orders/spots/repo.ts";
-import * as purchaseOrderService from "#features/purchase-orders/service.ts";
+import * as purchaseOrderService from "#features/orders/service.ts";
 import * as spotsFeed from "#features/spots/service.ts";
 import { refuse } from "#shared/http/refuse.ts";
 import type { OrderSpotRawRow } from "#features/orders/spots/repo.ts";
@@ -131,5 +131,5 @@ export async function put(
     );
   }
 
-  return await purchaseOrderService.getMetalsForOrder(orderId);
+  return await purchaseOrderService.getPurchaseMetalsForOrder(orderId);
 }

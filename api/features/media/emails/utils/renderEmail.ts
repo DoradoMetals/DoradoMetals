@@ -10,7 +10,7 @@ import { fileURLToPath } from "url";
 // The COMPOSED sales order, which is the API's own internal shape since the
 // wire slimmed (wave 3) - an email genuinely needs the order put back
 // together, and it is rendered server-side from the server's own read.
-import type { ComposedSalesItem as SalesOrderItem } from "#features/sales-orders/compose.ts";
+import type { ComposedSalesItem as SalesOrderItem } from "#features/orders/compose.ts";
 type SalesOrder = Record<string, any>;
 
 const __filename = fileURLToPath(import.meta.url);

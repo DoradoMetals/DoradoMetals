@@ -1,4 +1,6 @@
 import {
+  CarrierHandoff,
+  CarrierServiceOption,
   ShipmentTracking,
   ShipmentTrackingInput,
   ShippingCancelLabelInput,
@@ -86,6 +88,40 @@ export const useShipmentPickups = (shipment_id: string | null | undefined) => {
     enabled: !!user && !!shipment_id,
   })
 }
+
+// THE CARRIER'S OWN VOCABULARY, READ RATHER THAN SPELLED.
+//
+// These two are the whole point of wave 5B. The browser used to declare a
+// carrier's handoff types (DROPOFF_AT_FEDEX_LOCATION / CONTACT_FEDEX_TO_SCHEDULE)
+// and its service types (FEDEX_EXPRESS_SAVER / PRIORITY_OVERNIGHT, plus the
+// FDXE carrier code) as hand-written literals, and three checkout components
+// branched on those strings. The API owns the carrier; the frontend renders
+// what it is given and hands back a code it does not interpret - ruling 12,
+// rows out and ids in.
+//
+// NEITHER TAKES A CARRIER ID. Exactly one carrier has a shipping provider
+// implemented, so the server resolves which one; that is what let a production
+// uuid literal come out of three React components.
+//
+// Reference data, cached hard: eleven and two rows respectively, changing when
+// the business changes carriers. Same treatment the metals and mints lists get.
+const REFERENCE_STALE_TIME = 60 * 60 * 1000
+
+export const useCarrierHandoffs = () =>
+  useApiQuery<CarrierHandoff[]>({
+    key: queryKeys.carrierHandoffs(),
+    url: '/shipping/handoffs',
+    requireUser: true,
+    staleTime: REFERENCE_STALE_TIME,
+  })
+
+export const useCarrierServiceOptions = () =>
+  useApiQuery<CarrierServiceOption[]>({
+    key: queryKeys.carrierServiceOptions(),
+    url: '/carrier_services/offered',
+    requireUser: true,
+    staleTime: REFERENCE_STALE_TIME,
+  })
 
 export const useTracking = (input: ShipmentTrackingInput) => {
   return useApiQuery<ShipmentTracking | null>({

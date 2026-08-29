@@ -32,7 +32,7 @@
 import query from "#shared/db/query.js";
 import * as ordersRepo from "#features/orders/repo.ts";
 import * as itemsRepo from "#features/orders/items/repo.ts";
-import * as purchaseOrderService from "#features/purchase-orders/service.ts";
+import * as purchaseOrderService from "#features/orders/service.ts";
 import { refuseWith as refuse } from "#shared/http/refuse.ts";
 import type { OrderItemRow } from "#features/orders/items/repo.ts";
 import type { PoolClient } from "pg";

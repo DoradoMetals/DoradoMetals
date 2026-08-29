@@ -10,7 +10,7 @@
 //                              and ships another customer's metal back
 //
 // Each was demonstrated with a real request before this was written, and the
-// tests that demonstrated it are features/purchase-orders/ownership.test.js.
+// tests that demonstrated it are features/orders/tests/ownership.test.ts.
 //
 // Order ids are uuids rather than sequential, so nobody stumbles into this. It
 // is still the difference between "you cannot" and "you probably will not

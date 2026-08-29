@@ -90,6 +90,79 @@ const PAIRS = [
       reason: "dead columns; rate tiering moved to rates.rates",
     },
   ],
+  // ---------------------------------------------------------------------
+  // CHECKOUT. Added by wave 5C because the covenant names this script as its
+  // instrument and this script had never looked at the feature: none of
+  // carts, cart_items, sell_carts, sell_cart_items or scrap appeared in the
+  // eleven pairs above, so "verify:parity is clean" said nothing whatever
+  // about checkout. It says something now.
+  //
+  // READ THE LIMITATION BEFORE READING THE NUMBERS. The comparison below
+  // joins on `id`, and A CHECKOUT ROW DOES NOT KEEP THE EXCHANGE ROW'S ID.
+  // repo.next.ts inserts into checkout.checkouts and checkout.items without
+  // an id, so each gets a fresh gen_random_uuid(), and repo.dual.js says so
+  // in its header: "The ids differ between the two - a checkout.checkouts
+  // row is not an exchange.carts row". Nothing in the checkout schema points
+  // back at the exchange row it came from - no source_cart_id, no
+  // source_scrap_id, nothing (checked: zero such columns).
+  //
+  // So while the target is EMPTY, as it is in dev and in production today,
+  // these entries are exact: every source row is missing from the target and
+  // the script says NOT SAFE, which is the truth. The moment anything lands
+  // in the target they stop being able to go green - `missing_from_target`
+  // will still count every source row, because there is no id to match on -
+  // and `differing values: 0` will still mean "no rows joined", never "the
+  // values agree". A reader who takes that as evidence has been misled.
+  //
+  // MAKING THIS PERMANENTLY ANSWERABLE IS A SCHEMA CHANGE, NOT A SCRIPT ONE.
+  // The project already has the shape for it: orders.addresses carries
+  // source_address_id for exactly this reason. checkout.checkouts and
+  // checkout.items want the same, plus a backfill. That is a migration and
+  // Jacob's call, so wave 5C did not write one.
+  //
+  // exchange.scrap IS DELIBERATELY NOT A PAIR. It fans out three ways - to
+  // orders.items when a purchase order line points at it, to refiners.items
+  // for the assay, to checkout.items when a sell cart line does - so no
+  // single target holds it. Run ad hoc and it reports "20 missing, 57 only in
+  // target, DO NOT BACKFILL" against orders.items, all three of which are
+  // artefacts of comparing a merge to a pair. This is the same reason
+  // CLAUDE.md gives for parity never having looked at orders.
+  [
+    "exchange.carts",
+    "checkout.checkouts",
+    {
+      intentionallyDropped: ["id"],
+      reason:
+        "the checkout row gets a fresh uuid; a cart is looked up by user, never by id",
+    },
+  ],
+  [
+    "exchange.sell_carts",
+    "checkout.checkouts",
+    {
+      intentionallyDropped: ["id"],
+      reason:
+        "same, and both directions share one target - checkout.checkouts is UNIQUE (user_id, direction), so only_in_target counts the other direction's rows too",
+    },
+  ],
+  [
+    "exchange.cart_items",
+    "checkout.items",
+    {
+      intentionallyDropped: ["id", "cart_id", "product_id"],
+      reason:
+        "cart_id -> checkout_id, product_id -> bullion_id (declared in feature-map); the id is not carried",
+    },
+  ],
+  [
+    "exchange.sell_cart_items",
+    "checkout.items",
+    {
+      intentionallyDropped: ["id", "cart_id", "product_id", "scrap_id", "gross_unit"],
+      reason:
+        "cart_id -> checkout_id, product_id -> bullion_id, gross_unit -> unit; scrap_id has no successor because the scrap VALUES sit on the item",
+    },
+  ],
 ];
 
 const split = (q) => {

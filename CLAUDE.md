@@ -41,12 +41,32 @@ auto-deploys, would serve customers a January snapshot. Removing the
 dual-writes makes it worse: `exchange` also stops receiving writes, so the
 business's history and its new orders end up in different tables.
 
+**PRODUCTION IS MISSING EIGHT OF THE EIGHTEEN SCHEMAS ENTIRELY** — not
+missing data, missing the schemas: `products`, `organizations`, `metals`,
+`spots`, `media`, `leads`, `rates`, `reviews`. It has ten: orders, payments,
+fulfillments, shipping, refiners, tax, places, auth, checkout, auctions.
+Verified read-only against `PROD_READONLY_DATABASE_URL` on 2026-08-29.
+
+So this is not "deploy and backfill". Code that queries a missing schema raises
+**42P01 immediately**, and at least one such path is on the money:
+`features/quotes/service.ts:416` calls `checkoutRepo.findProductIdByName`,
+which is `SELECT id FROM products.bullion` **with no switch in front of it** —
+on the endpoint that prices every customer-visible number. It arrived in
+`d2926fd0`, which is on this branch and has never been deployed, so it is a
+deploy blocker rather than a live outage. Deploying without step 2 below turns
+it into one.
+
 Before this branch is deployed:
 
 1. `pg_dump` production. Still outstanding, and the prerequisite for the rest.
-2. Run the migrations against production.
+2. Run the migrations against production — **including the eight missing
+   schemas**, which is most of `000_genesis_schema.sql`.
 3. **Run the backfills.** This is the step that makes the read pivot safe.
-4. `verify:parity` and `compare:databases` against production.
+4. `verify:parity` and `compare:databases` against production. Note that
+   `verify:parity` only covers the pairs listed in its own `PAIRS` array — it
+   was fifteen at the time of writing, and it had never included the carts or
+   scrap, which is how a covenant came to name an instrument that could not
+   answer (D130).
 5. Only then merge.
 
 This applies from the moment anything touches the database. Concretely:

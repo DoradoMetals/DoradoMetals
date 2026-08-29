@@ -13,7 +13,7 @@ import pool from "#db";
 import * as emails from "#features/media/emails/service.ts";
 import { recordEmail } from "#features/media/emails/record.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
-import * as poRepo from "#features/purchase-orders/read.service.ts";
+import * as poRepo from "#features/orders/read.service.ts";
 import * as spotsService from "#features/spots/service.ts";
 
 let client;
@@ -22,7 +22,7 @@ let spots;
 
 before(async () => {
   client = await pool.connect();
-  orders = await poRepo.getAll();
+  orders = await poRepo.getAllPurchases();
   // The composed shape - what the renderers read since D84.
   spots = await spotsService.getSpotPrices();
   assert.ok(orders.length > 0, "dev has no purchase orders to render");

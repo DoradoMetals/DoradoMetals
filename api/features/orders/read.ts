@@ -15,7 +15,7 @@
 // The composed read services did not die with it. They are the API's OWN
 // lifecycle read - pricing, the confirmation email, the PDFs - which
 // genuinely needs an order assembled. They are internal, and no longer a wire
-// shape; features/purchase-orders/read.service.ts says so in its header.
+// shape; features/orders/read.service.ts says so in its header.
 import * as ordersRepo from "#features/orders/repo.ts";
 import * as transactions from "#features/orders/transactions/service.ts";
 import type { OrderRow } from "#features/orders/repo.ts";

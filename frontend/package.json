@@ -12,6 +12,8 @@
     "lint:call-site-styling:self-test": "node scripts/lint-call-site-styling.mjs --self-test",
     "audit:state-collapse": "node scripts/audit-state-collapse.mjs",
     "audit:state-collapse:self-test": "node scripts/audit-state-collapse.mjs --self-test",
+    "lint:carrier-vocabulary": "node scripts/lint-carrier-vocabulary.mjs",
+    "lint:carrier-vocabulary:self-test": "node scripts/lint-carrier-vocabulary.mjs --self-test",
     "typecheck": "tsc --noEmit",
     "test": "TZ=UTC vitest run",
     "e2e": "playwright test",

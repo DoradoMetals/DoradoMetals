@@ -166,7 +166,7 @@ test("an address with no link is not in anybody's list", async () => {
 });
 
 // getFromId returns a LIST and getAddressFromId returns a ROW. Both call sites
-// depend on which is which - see features/sales-orders/address-state.test.js.
+// depend on which is which - see features/orders/tests/address-state.test.ts.
 test("getFromId returns a list and getAddressFromId returns the row", async () => {
   await inRollback(async (c) => {
     const made = await service.create({ ...draft(), userId: owner }, c);

@@ -18,7 +18,7 @@
 // item - refiner_premium and the scrap *_actual fields - and never expose
 // refiners.items' own row id, so the client has exactly one honest key: the
 // line's id. The route says so in its path (/items/by-order-item/:id).
-import * as purchaseOrderService from "#features/purchase-orders/service.ts";
+import * as purchaseOrderService from "#features/orders/service.ts";
 import * as scrapRepo from "#features/scrap/repo.ts";
 import * as refinerItemsRepo from "#features/refiners/items/repo.ts";
 

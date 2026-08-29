@@ -5,6 +5,7 @@ import {
   getAll,
   getOne,
   getByCarrier,
+  getOffered,
   remove,
   update,
 } from "#features/shipping/services/controller.ts";
@@ -18,6 +19,7 @@ const router = express.Router();
 
 router.get("/get", requireUser, getAll);
 router.get("/get_by_carrier", requireUser, getByCarrier);
+router.get("/offered", requireUser, getOffered);
 
 router.get("/get_one", requireAdmin, getOne);
 router.post("/create", requireAdmin, create);

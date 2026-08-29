@@ -15,7 +15,16 @@ function walk(dir, out = []) {
     if (name === "node_modules" || name.startsWith(".")) continue;
     const p = join(dir, name);
     if (statSync(p).isDirectory()) walk(p, out);
-    else if (name === "routes.js" || name === "routes.ts") out.push(p);
+    // `routes.ts` AND `<something>.routes.ts`. Wave 5A dissolved
+    // features/purchase-orders and features/sales-orders into features/orders,
+    // and the two legacy create namespaces they mounted became
+    // features/orders/creates.routes.ts - one file declaring TWO routers,
+    // because /api/purchase_orders and /api/sales_orders are two mounts and
+    // ruling 13 says a URL does not move when a file does. This walk matched
+    // the exact filename `routes.ts` only, so that file was not scanned at
+    // all: six routes left the security census and the exit code stayed 0.
+    // Third time this class of silence has been recorded here.
+    else if (/(^|\.)routes\.(js|ts)$/.test(name)) out.push(p);
   }
   return out;
 }
@@ -24,23 +33,63 @@ function walk(dir, out = []) {
 // the prefix is not derivable from the folder name (features/refiners mounts at
 // /api/suppliers, features/media at /api/images, features/checkout at /api/cart).
 const appSrc = readFileSync(join(ROOT, "app.js"), "utf8");
+//
+// KEYED WITHOUT THE EXTENSION, on both sides. This once hardcoded `.js`, so
+// the moment routes.js became routes.ts every mount resolved to null and every
+// url with it - silently, because the guard counts read only the middleware
+// names and would have stayed at 132.
+//
+// A key is `<file-without-extension>` for a DEFAULT export and
+// `<file-without-extension>::<name>` for a NAMED one. A file may declare more
+// than one router - see creates.routes.ts - so the file alone is not the unit.
 const importedAs = new Map();
-{
-  const re = /import\s+(\w+)\s+from\s+["']#features\/([^"']+)\/routes\.(?:js|ts)["']/g;
+const routerImports = (src) => {
+  const out = new Map();
+  const def = /import\s+(\w+)\s+from\s+["']#features\/([^"']+?)\.(?:js|ts)["']/g;
   let m;
-  // Keyed WITHOUT the extension, on both sides. This line hardcoded `.js`,
-  // so the moment routes.js became routes.ts every mount resolved to null
-  // and every url with it - silently, because the guard counts read only
-  // the middleware names and would have stayed at 132.
-  while ((m = re.exec(appSrc))) importedAs.set(m[1], `features/${m[2]}/routes`);
-}
+  while ((m = def.exec(src))) {
+    if (/(^|\/)routes$/.test(m[2])) out.set(m[1], `features/${m[2]}`);
+  }
+  const named = /import\s+\{([^}]+)\}\s+from\s+["']#features\/([^"']+?)\.(?:js|ts)["']/g;
+  while ((m = named.exec(src))) {
+    if (!/routes$/.test(m[2])) continue;
+    for (const raw of m[1].split(",")) {
+      const parts = raw.trim().split(/\s+as\s+/);
+      const exported = parts[0].trim();
+      const local = (parts[1] ?? parts[0]).trim();
+      if (exported) out.set(local, `features/${m[2]}::${exported}`);
+    }
+  }
+  return out;
+};
+for (const [local, key] of routerImports(appSrc)) importedAs.set(local, key);
+// Which key a router VARIABLE in a file answers to. A file with one router
+// exports it as default and answers to the file key; a file with several
+// exports them by name and each answers to `<file>::<name>`.
+const exportedRouterNames = (src) => {
+  const out = new Set();
+  for (const m of src.matchAll(/export\s+const\s+(\w+)\s*=\s*express\.Router\(\)/g)) {
+    out.add(m[1]);
+  }
+  return out;
+};
+const routerKey = (fileKey, src, varName) =>
+  exportedRouterNames(src).has(varName) ? `${fileKey}::${varName}` : fileKey;
+
 const mountOf = new Map();
+const unresolvedMounts = [];
 {
-  const re = /app\.use\(\s*["']([^"']+)["']\s*,\s*(\w+)\s*\)/g;
+  const re = /app\.use\(\s*["'](\/api[^"']*)["']\s*,\s*(\w+)\s*\)/g;
   let m;
   while ((m = re.exec(appSrc))) {
     const file = importedAs.get(m[2]);
+    // A MOUNT THAT CANNOT BE RESOLVED IS A FAILURE, NOT A SKIP. This used to
+    // be `if (file)` and nothing else: an app.use whose identifier did not
+    // match the import regex simply vanished, taking its routes out of the
+    // census with no message and no non-zero exit. That is how a named-export
+    // router removed six routes from a security audit unnoticed.
     if (file) mountOf.set(file, m[1]);
+    else unresolvedMounts.push(`${m[1]} -> ${m[2]}`);
   }
 }
 
@@ -61,17 +110,15 @@ const mountOf = new Map();
   const nested = new Map();
   for (const file of routeFiles) {
     const src = readFileSync(file, "utf8");
-    const imports = new Map();
-    const ire = /import\s+(\w+)\s+from\s+["']#features\/([^"']+)\/routes\.(?:js|ts)["']/g;
+    const imports = routerImports(src);
     let m;
-    while ((m = ire.exec(src))) imports.set(m[1], `features/${m[2]}/routes`);
-    const ure = /router\s*\.\s*use\(\s*["']([^"']*)["']\s*,\s*(\w+)\s*\)/g;
+    const ure = /(\w+)\s*\.\s*use\(\s*["']([^"']*)["']\s*,\s*(\w+)\s*\)/g;
     while ((m = ure.exec(src))) {
-      const childKey = imports.get(m[2]);
+      const childKey = imports.get(m[3]);
       if (!childKey) continue;
-      const key = relative(ROOT, file).replace(/\.(js|ts)$/, "");
+      const key = routerKey(relative(ROOT, file).replace(/\.(js|ts)$/, ""), src, m[1]);
       if (!nested.has(key)) nested.set(key, []);
-      nested.get(key).push({ at: m[1], childKey });
+      nested.get(key).push({ at: m[2], childKey });
     }
   }
   // Fixpoint, so a child of a child resolves too. Bounded by the number of
@@ -98,16 +145,22 @@ const mountOf = new Map();
 const routes = [];
 for (const file of walk(join(ROOT, "features"))) {
   const src = readFileSync(file, "utf8");
-  // router.<verb>( "<path>" , <middleware list> , <handler> )
-  const re = /router\s*\.\s*(get|post|put|patch|delete)\s*\(\s*(['"`])([^'"`]+)\2\s*,([^)]*)\)/g;
+  // <router>.<verb>( "<path>" , <middleware list> , <handler> )
+  //
+  // The router variable used to be hardcoded as the literal name `router`,
+  // which is fine while every file declares exactly one - and silently drops
+  // every route in a file that declares two, which creates.routes.ts does.
+  const re =
+    /(\w+)\s*\.\s*(get|post|put|patch|delete)\s*\(\s*(['"`])([^'"`]+)\3\s*,([^)]*)\)/g;
   let m;
   while ((m = re.exec(src))) {
-    const [, verb, , path, rest] = m;
+    const [, routerVar, verb, , path, rest] = m;
+    if (!/[Rr]out/.test(routerVar) && routerVar !== "app") continue;
     const names = rest.split(",").map((s) => s.trim()).filter(Boolean);
     const handler = names[names.length - 1];
     const guards = names.slice(0, -1);
     const rel = relative(ROOT, file);
-    const key = rel.replace(/\.(js|ts)$/, "");
+    const key = routerKey(rel.replace(/\.(js|ts)$/, ""), src, routerVar);
     routes.push({
       file: rel,
       mount: mountOf.get(key) ?? null,
@@ -140,6 +193,18 @@ const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].split
 if (isMain) {
   if (!routes.length) {
     console.error("route-guards resolved no routes at all - the scan is not working");
+    process.exit(2);
+  }
+
+  if (unresolvedMounts.length) {
+    console.error(
+      `\n${unresolvedMounts.length} app.use mount(s) could not be resolved to a routes file:`
+    );
+    for (const u of unresolvedMounts) console.error(`  ✖ ${u}`);
+    console.error(
+      "Every route behind an unresolved mount is MISSING from this census, " +
+        "which is a security audit. Fix the import parsing or the mount."
+    );
     process.exit(2);
   }
 

@@ -22,6 +22,15 @@ declare module "supertest" {
     get(url: string): Test;
     post(url: string): Test;
     put(url: string): Test;
+    // PATCH WAS MISSING, and the omission was invisible for the reason this
+    // file's own header gives: only the surface the tests use is declared, and
+    // every test that PATCHes was JavaScript, so tsc never saw the call. PATCH
+    // is now the WHOLE order mutation surface - PATCH /api/orders/:id,
+    // /api/orders/items/:id, /api/shipments/:id, /api/refiners/orders/:id -
+    // which D87 consolidated out of a ~25-route RPC zoo. Found by converting
+    // features/orders/tests/update-tracking.test.js (wave 5A). The narrow
+    // declaration did its job: it failed rather than becoming `any`.
+    patch(url: string): Test;
     delete(url: string): Test;
   }
   export default function request(app: unknown): SuperTest;

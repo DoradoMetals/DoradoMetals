@@ -77,8 +77,8 @@ import * as ordersRepo from "#features/orders/repo.ts";
 import * as orderRead from "#features/orders/read.ts";
 import * as spotsFeed from "#features/spots/service.ts";
 import { refuseWith as refuse } from "#shared/http/refuse.ts";
-import * as purchaseOrderService from "#features/purchase-orders/service.ts";
-import * as salesOrderService from "#features/sales-orders/service.ts";
+import * as purchaseOrderService from "#features/orders/service.ts";
+import * as salesOrderService from "#features/orders/service.ts";
 
 type Caller = { id: string; name?: string | null; role?: string | null };
 type Direction = "purchase" | "sale";
@@ -191,7 +191,7 @@ export async function patchOrder(
     // Re-read at dispatch time rather than reuse: the ledger credits
     // totals.total, and the credit must record what the order says NOW.
     await op("add_funds", async () => {
-      const fresh = await purchaseOrderService.getById(orderId);
+      const fresh = await purchaseOrderService.getPurchaseById(orderId);
       if (!fresh) refuse(404, `no purchase order ${orderId}`);
       return purchaseOrderService.addFundsToAccount({ order: fresh as OrderArg });
     });
@@ -203,9 +203,9 @@ export async function patchOrder(
       // finalizePricing itself chooses between them on spots_locked. Re-read
       // so a lock sent moments earlier through the spots sub-resource is
       // respected.
-      const fresh = await purchaseOrderService.getById(orderId);
+      const fresh = await purchaseOrderService.getPurchaseById(orderId);
       if (!fresh) refuse(404, `no purchase order ${orderId}`);
-      const order_spots = await purchaseOrderService.getMetalsForOrder(orderId);
+      const order_spots = await purchaseOrderService.getPurchaseMetalsForOrder(orderId);
       const spot_prices = await spotsFeed.getSpotPrices();
       return purchaseOrderService.finalizePricing({
         order: fresh as OrderArg, order_spots, spot_prices,
@@ -218,7 +218,7 @@ export async function patchOrder(
     // work fails. It no longer labels the order - the admin's own `status`
     // field does, and it runs after this.
     await op("cancel", async () => {
-      const fresh = await purchaseOrderService.getById(orderId);
+      const fresh = await purchaseOrderService.getPurchaseById(orderId);
       if (!fresh) refuse(404, `no purchase order ${orderId}`);
       return purchaseOrderService.cancelOrder({
         order: fresh as OrderArg,
@@ -232,7 +232,7 @@ export async function patchOrder(
       // The refiner's copy prints the order's own frozen spots - the rows the
       // browser used to read from get_order_metals and post back. The guard
       // stack (404 / addressless / 409 / 422) lives in the service itself.
-      const spots = await salesOrderService.getMetalsForOrder(orderId);
+      const spots = await salesOrderService.getSalesMetalsForOrder(orderId);
       return salesOrderService.sendOrderToSupplier({
         order: { id: orderId },
         spots,
@@ -247,12 +247,12 @@ export async function patchOrder(
     // audit value; the old routes took it from the body.
     await op("status", () =>
       direction === "purchase"
-        ? purchaseOrderService.updateStatus({
+        ? purchaseOrderService.updatePurchaseStatus({
             order: { id: orderId } as OrderArg,
             order_status: body.status!,
             user_name: (caller.name ?? null) as string,
           })
-        : salesOrderService.updateStatus({
+        : salesOrderService.updateSalesStatus({
             order: { id: orderId } as never,
             order_status: body.status!,
             user_name: (caller.name ?? null) as string,

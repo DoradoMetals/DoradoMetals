@@ -17,7 +17,11 @@ import { ShoppingCartIcon } from '@phosphor-icons/react'
 import { useAddress, useUserAddresses } from '@/features/addresses/queries'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 
-import { useShippingRates } from '@/features/shipping/queries'
+import {
+  useCarrierHandoffs,
+  useCarrierServiceOptions,
+  useShippingRates,
+} from '@/features/shipping/queries'
 import { useGetRatesInput } from '@/features/shipping/utils/getRatesInput'
 
 const { useStepper, utils } = defineStepper(
@@ -35,6 +39,20 @@ export default function CheckoutStepper() {
   const hasInitialized = useRef(false)
 
   const { user } = useGetSession()
+
+  // THE CARRIER'S CATALOGUE, READ ONCE HERE AND INJECTED (ruling 14: the
+  // parent holds the reads, the children take props).
+  //
+  // This is what wave 5B moved. The two handoff options were a record in
+  // features/handoff keyed by DROPOFF_AT_FEDEX_LOCATION and
+  // CONTACT_FEDEX_TO_SCHEDULE; the two services were a record in
+  // features/service keyed by FEDEX_EXPRESS_SAVER and PRIORITY_OVERNIGHT,
+  // carrying FedEx's FDXE code. Both were hand-written in the browser, and
+  // this component branched on the first of them. Neither list is spelled
+  // anywhere in frontend/ now.
+  const { data: handoffs = [] } = useCarrierHandoffs()
+  const { data: serviceOptions = [] } = useCarrierServiceOptions()
+
   const { data: addresses = [] } = useAddress()
   const { data, setData } = usePurchaseOrderCheckoutStore()
   const items = sellCartStore((state) => state.items)
@@ -62,13 +80,20 @@ export default function CheckoutStepper() {
     })
   }, [data.insurance?.insured, declaredValue, setData])
 
+  // Resolved against the reference list rather than compared to a carrier's
+  // string. `requires_schedule` is the option's own answer to "does this need a
+  // date and a time", so a third handoff needs no edit here.
+  const selectedHandoff = useMemo(
+    () => handoffs.find((h) => h.code === data.pickup?.label) ?? null,
+    [handoffs, data.pickup?.label]
+  )
+
   const isShippingStepComplete =
     !!data.address?.is_valid &&
     !!data.package &&
     !!data.service &&
     !!data.pickup?.label &&
-    (data.pickup.label !== 'CONTACT_FEDEX_TO_SCHEDULE' ||
-      (!!data.pickup.date && !!data.pickup.time))
+    (!selectedHandoff?.requires_schedule || (!!data.pickup.date && !!data.pickup.time))
 
   const { data: links = [] } = useUserAddresses()
   const linkOf = useMemo(() => new Map(links.map((l) => [l.address_id, l])), [links])
@@ -101,12 +126,15 @@ export default function CheckoutStepper() {
 
   const cartItems = sellCartStore((state) => state.items)
 
+  // NO carrier_id AND NO CARRIER STRING. The id was the production uuid
+  // 30179428-b311-4873-8d08-382901c581d8 written into this file; the API
+  // resolves the carrier it ships with. The default handoff is the first of the
+  // carrier's own options rather than a FedEx enum value spelled here.
   const ratesInput = useGetRatesInput({
-    carrier_id: "30179428-b311-4873-8d08-382901c581d8",
     address: data.address,
     package: data.package,
     shippingType: 'Inbound',
-    pickupLabel: data.pickup?.label ?? 'DROPOFF_AT_FEDEX_LOCATION',
+    pickupLabel: data.pickup?.label ?? handoffs[0]?.code,
     insurance: data.insurance,
   })
 
@@ -191,6 +219,8 @@ export default function CheckoutStepper() {
                 addresses={addresses}
                 emptyAddress={makeEmptyAddress()}
                 rates={rates}
+                handoffs={handoffs}
+                services={serviceOptions}
                 isLoading={ratesLoading}
               />
             ),

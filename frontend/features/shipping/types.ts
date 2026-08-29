@@ -50,15 +50,51 @@ export type ShippingPackage = {
   dimensions: { length: number; width: number; height: number; units: 'IN' | 'CM' }
 }
 
+// THE CARRIER IS THE SERVER'S TO NAME, NOT THE BROWSER'S.
+//
+// Every one of these inputs used to carry a required carrier_id, and checkout
+// supplied it as the UUID LITERAL 30179428-b311-4873-8d08-382901c581d8 at three
+// call sites, one of them with `// TODO: source from store when you add carrier
+// selection` beside it. The value is right - dev and production both give FedEx
+// that id - but a production uuid compiled into a React component is one
+// restore away from quoting shipping against a carrier that no longer exists,
+// and nothing would report it except a failed checkout.
+//
+// It is optional now. Exactly one carrier has a shipping provider implemented,
+// so the API answers "which carrier" itself; admin surfaces that DO hold a
+// carrier id (the tracking read, the two cancel mutations) keep sending it and
+// keep getting that carrier.
 export type ShippingRatesInput = {
-  carrier_id: ShippingCarrierId
+  carrier_id?: ShippingCarrierId
   shippingType: 'Inbound' | 'Outbound' | 'Return'
   address: Address
   pkg: ShippingPackage
+  // The carrier handoff's `code`, received from GET /shipping/handoffs and
+  // handed straight back. The frontend does not interpret it.
   pickupType?: string
   declaredValue?: { amount: number; currency: string }
 }
 
+// THE CARRIER'S CATALOGUE COMES FROM @dorado/contracts, not from here.
+//
+// `CarrierHandoff` (GET /api/shipping/handoffs) and `CarrierServiceOption`
+// (GET /api/carrier_services/offered) are wire shapes both halves of the app
+// need, so they are declared once in packages/contracts/src/wire/shipping.ts -
+// where every field is documented, including why a handoff's `name` is not a
+// display string. Re-exported here under the same names so this tree's imports
+// read from one place (CLAUDE.md: the frontend keeps local names for UI
+// concerns and takes shapes from the contracts).
+//
+// NOT a fulfillment pickup - see features/handoff/types.ts for the two things
+// that share the word. A CarrierHandoff is how a parcel reaches the CARRIER.
+export type { CarrierHandoff, CarrierServiceOption } from '@dorado/contracts'
+
+// A RATE QUOTE, as the carrier answers it. `serviceType` is what joins it to a
+// CarrierServiceOption's `code`.
+//
+// `packagingType` is the carrier's packaging enum riding along. NOTHING READS
+// IT - checkoutStepper copies it onto data.service and no consumer exists - and
+// it should go with the package work (see docs/waves/wave-5b.md).
 export type ShippingRate = {
   serviceType: string
   packagingType: string
@@ -70,7 +106,7 @@ export type ShippingRate = {
 }
 
 export type ShippingPickupTimesInput = {
-  carrier_id: ShippingCarrierId
+  carrier_id?: ShippingCarrierId
   pickupAddress: Address
   code: string
   readyDate: string
@@ -82,7 +118,7 @@ export type ShippingPickupTimes = {
 }
 
 export type ShippingLocationsInput = {
-  carrier_id: ShippingCarrierId
+  carrier_id?: ShippingCarrierId
   address: Address
   radius_miles?: number
   max_results?: number
@@ -114,12 +150,12 @@ export type ShippingLocationsReturn = {
 }
 
 export type ShippingValidateAddressInput = {
-  carrier_id: ShippingCarrierId
+  carrier_id?: ShippingCarrierId
   address: Address
 }
 
 export type ShippingCancelLabelInput = {
-  carrier_id: ShippingCarrierId
+  carrier_id?: ShippingCarrierId
   shipment_id: string
   tracking_number: string
 }
@@ -130,7 +166,7 @@ export type ShippingCancelLabelResult = {
 }
 
 export type ShippingCancelPickupInput = {
-  carrier_id: ShippingCarrierId
+  carrier_id?: ShippingCarrierId
   pickup_id?: string
   confirmation_code?: number
 }

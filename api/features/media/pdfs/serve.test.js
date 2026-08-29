@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import pool from "#db";
 import { serveOrderDocument } from "#features/media/pdfs/serve.ts";
-import * as poRepo from "#features/purchase-orders/read.service.ts";
+import * as poRepo from "#features/orders/read.service.ts";
 
 let client;
 let order; // a real dev purchase order that orders.orders knows
@@ -24,7 +24,7 @@ let owner; // { id, role } for the order's real owner
 
 before(async () => {
   client = await pool.connect();
-  const orders = await poRepo.getAll();
+  const orders = await poRepo.getAllPurchases();
   assert.ok(orders.length > 0, "dev has no purchase orders");
 
   // media.pdfs.order_id references orders.orders, so the fixtures need an

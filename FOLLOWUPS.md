@@ -10129,3 +10129,503 @@ while the things it audits stay green. THE PATTERN IS WORTH A GUARD OF
 ITS OWN: every script in scripts/ should be exercised by something, even
 if only a --self-test, and any script that RUNS the suite should run it
 the same way `pnpm test` does rather than assembling its own invocation.
+
+=== D116: RULING 34 IS ANSWERED - `orders.items.price` CANNOT BE
+    DROPPED, AND NOT FOR THE REASON WE FEARED ===
+New audit: `pnpm --filter @dorado/api audit:item-price --prod`. It reads
+against `exchange`, because production's `orders.items` is the January
+snapshot and HAS NO `price` COLUMN AT ALL.
+  PURCHASE: 84 priced lines, 20 divergent, ALL SCRAP. Every one's
+  implied content is within 0.0005 of the stored value - inside
+  `numeric(20,3)`'s half-digit. THIS IS D61 FROM THE OTHER SIDE: the
+  weight was rounded at the source, so `price` is now THE ONLY SURVIVING
+  RECORD OF WHAT THE METAL WEIGHED.
+  SALES: 14 priced, 4 divergent, each implying a premium the row does
+  not carry (1.0997 and 1.0000 against a stored `premium` of 1.01).
+ZERO ARE ADMIN OVERRIDES. Nobody typed a different number - which was
+the hazard ruling 34 was written against, and it is not what is there.
+The column survives anyway, and for a stronger reason: on 24 of 98 lines
+it is the only record. A migration dropping it would silently discard
+the weight of metal a customer was paid for. NO MIGRATION WAS WRITTEN.
+
+=== D117: THE PAYOUT FEE IS NOT A FUNCTION OF THE PAYOUT METHOD ===
+Found by lane A while building D97's server-side fee resolution, and it
+qualifies that fix. In production `exchange.payouts`:
+  WIRE   = 20 on six rows, 0 on two.
+  ECHECK = 0 on thirty-nine rows, 75 on one, 125 on one.
+ELEVEN ROWS DISAGREE WITH THE FRONTEND'S CONSTANT TABLE. So a fee cannot
+be derived from a method name for an EXISTING order - the stored value is
+the truth, and `features/payouts/constants.ts` is a DEFAULT FOR A NEW
+ORDER ONLY. It must never re-derive a stored one.
+WORTH JACOB'S EYE ON ITS OWN: were the zero-fee WIRE rows waived
+deliberately, and what are the 75 and 125 ECHECKs? Either they are
+deliberate exceptions - in which case a fee is per-order data, not
+reference data - or they are wrong. Also: the four sales lines whose
+`premium` contradicts their own `price`.
+
+=== D118: `diff` HAD NOT PARSED FOR TEN COMMITS ===
+Bisected by lane A: last valid at `93ecdf80`; `8cc176ee` deleted a
+retired feature's entry AND TOOK THE CLOSING `};` AND THE WHOLE
+COMPARISON ENGINE WITH IT. Nine commits since then edited a file that
+died on SyntaxError before it ever opened a connection. INVISIBLE
+BECAUSE `diff` IS NOT IN `pnpm check`. Engine restored.
+THIRD GATE SCRIPT BROKEN THIS SESSION - with validate-wire's moved
+caller (D110) and audit:test-leaks' half-dead guard (D115). All three
+are tooling under scripts/ that nothing typechecks, nothing imports and
+no test covers. TWO OF THE THREE WERE INVISIBLE SPECIFICALLY BECAUSE
+THEY ARE NOT GATE MEMBERS. `diff` now covers `payments` and nothing
+else, which is correct but promises more than it delivers.
+
+=== D101 CORRECTED: THE ~500s SAVING WAS MY OPTIMISM ===
+I wrote that batching would be "worth ~500 seconds on every gate run".
+MEASURED: the suite went 563s -> 468s, ninety-five seconds. The read
+itself is 9.4x (purchase.getAll 40,309ms -> 4,305ms across 48 orders,
+byte-identical output; sales 6,796 -> 1,178, also byte-identical). My
+error was assuming the suite exercises the read the way a page does - it
+calls it on a handful of orders far more often than on all 48, so the
+per-call win does not multiply the way I projected. The 9.4x is the real
+number and the one that matters in production; the 95s is what the gate
+gets.
+
+=== D119: PARTITION BY FEATURE, NOT BY TREE ===
+The structural consequence of D114, adopted for wave 5 and recommended
+for every wave after it.
+WAVE 4 SPLIT BY TREE - lane A owned api/**, lane B owned frontend/**.
+That was right for throughput and wrong at exactly one seam: both money
+fixes were fully built, fully inert, and reported green by both lanes,
+because the frontend halves belonged to neither. Each agent declined to
+cross the boundary CORRECTLY. The defect was in the partition, not in
+either agent.
+WAVE 5 SPLITS BY FEATURE: 5a owns purchase-orders, sales-orders, orders,
+pricing, legacy and contracts INCLUDING their frontend; 5b owns shipping,
+fulfillments, checkout, handoff and insurance INCLUDING their API. Each
+agent owns BOTH HALVES of what it touches.
+THE TRADE: a little parallelism, for the guarantee that whoever owns a
+feature owns its whole change. Worth it - the throughput lost is smaller
+than one near-miss on a money path.
+THE RULE, stated so it survives: A TASK THAT SPANS A PARTITION BOUNDARY
+NEEDS AN OWNER FOR THE SEAM, NOT JUST AN OWNER FOR EACH SIDE. If a
+partition cannot give the seam an owner, it is the wrong partition.
+
+D119 IN PRACTICE, and this is the part that makes a three-lane shared
+tree workable: a partition does not STOP every crossing, it makes each
+one VISIBLE AND ARGUED. 5b touched four files outside its own scope and
+NAMED THEM rather than burying them - one import specifier in
+`api/app.js` with no mount path changed, an append-only edit to the
+shipping contracts, two reference query keys, and `package.json` for a
+new lint. Each is a crossing; each is disclosed with its reason. That is
+the behaviour to ask for explicitly at dispatch: cross when you must,
+and write down every crossing.
+
+ALSO WORTH KEEPING: 5b added its own guard, `lint:carrier-vocabulary`,
+TO THE GATE - at position 11, before the frontend typecheck so a cheap
+member fails early - on the reasoning that a guard nothing runs is a
+guard that rots. That is D115's lesson applied by an agent that read it
+rather than one that was told, on the same night it was written. THE
+GATE IS NOW 22 MEMBERS. Note the tracker's judgement here too: it left
+wave 4's banner reading "21-member gate" because `a2599311` WAS gated at
+21, and rewriting that would falsify the record rather than update it.
+A tracker that edits history to match the present is worse than one that
+lets the two disagree with a date attached.
+(Numbered D119 by the coordinator. The tracker independently wrote this
+up in WAVES.md as "D116", which collided with the price-column verdict
+already recorded here - two writers, two numbering spaces, exactly the
+sort of drift the one-writer-per-file rule exists to prevent. FOLLOWUPS
+is the authority for D-numbers.)
+
+=== D120: THE AUTHORIZATION CENSUS SILENTLY DROPPED SIX ROUTES AND
+    EXITED 0 ===
+`scripts/route-guards.mjs` is the census of every route and the
+middleware in front of it - the thing that answers "is this endpoint
+guarded". A factoring pass revealed it had THREE HARDCODED ASSUMPTIONS,
+each true of the shape the codebase happened to have rather than
+required by anything:
+  1. `walk()` matched the exact filename `routes.ts`, so the new
+     `creates.routes.ts` was never opened at all.
+  2. The import parser matched DEFAULT imports only.
+  3. The route regex matched a variable literally named `router`, so a
+     file declaring two routers contributed NEITHER.
+ANY ONE OF THEM MADE SIX ROUTES VANISH FROM AN AUTHORIZATION AUDIT while
+it reported success. Among the missing: `DELETE /api/purchase_orders/
+purge_cancelled` and BOTH `create_review` paths. Census restored to 131
+from 125; the guards themselves were unchanged, so nothing was actually
+unguarded - but for an unknown period the tool that would have told us
+was answering about a subset and calling it the whole.
+An unresolvable `app.use` is now a FAILURE rather than a skip.
+FOURTH GATE SCRIPT BROKEN BY A FACTORING PASS THIS SESSION - after
+`diff` (D118, unparsed for ten commits), `validate:wire`'s moved caller
+(D110) and `audit:test-leaks` running with half the live-service guard
+dead (D115). THE PATTERN IS NOW UNDENIABLE: tooling under `scripts/`
+that nothing typechecks, nothing imports and no test covers rots
+silently while everything it audits stays green. Two of the four were
+invisible because they are not gate members; this one was invisible
+DESPITE being run, because it exited 0 on a subset.
+WORTH BUILDING: a check that every scripts/*.mjs either has a
+--self-test or is exercised by something, and that any script counting
+things asserts a FLOOR. `audit:query-paths` and `audit:wire-readiness`
+already do the floor trick; the ones that rotted do not.
+
+=== D121: THE LEGACY BOUNDARY GUARD CAUGHT A REAL ONE, ONE MERGE IN ===
+`lint:legacy-boundary` - written during wave 3.5 for exactly this -
+caught `legacy/` one merge away from importing `#features/pricing` at
+RUNTIME. That would have made `api/legacy/` un-deletable in a single
+`rm -rf`, which is the entire point of grouping it. The guard was
+written speculatively against a hazard nobody had hit yet, and it paid
+off inside one wave.
+
+=== D122: THE TWO ORDER DIRECTIONS ALREADY CHOSE OPPOSITE CREATE
+    STRATEGIES, AND NOBODY DECIDED IT ===
+Surfaced by 5a during the dissolution and correctly LEFT ALONE:
+  PURCHASE - the live path is the re-deriving mirror; `insertPurchaseOrder`
+  has no product-code caller.
+  SALES - exactly inverted; and `create.ts` sits as a THIRD implementation
+  called by nothing.
+So the same operation is implemented three ways across two directions
+with the live path different in each, and no decision behind it - just
+accretion. Unifying it IS D105's write-path rewrite (five native
+statements, covenant ledger BEFORE the switch, verify:parity cannot
+check it afterwards), so it stays a named seam rather than a task.
+
+=== D123: MY OWN GUARD RECOMMENDATION, MEASURED AND PARTLY REFUTED ===
+Under D120 I recommended that every `scripts/*.mjs` carry a --self-test
+or a floor. The tracker MEASURED it rather than repeating it: 45 scripts
+in api/scripts, 14 have a self-test or a floor, 31 have NEITHER.
+AND THE RULE WOULD HAVE CAUGHT ONLY THREE OF THE FOUR. `diff`,
+`validate:wire`'s caller and `route-guards` had no guard. But
+`audit:test-leaks` DID HAVE A --self-test AND ROTTED ANYWAY, because its
+failure was ENVIRONMENTAL - a missing NODE_ENV in the process it spawned
+- not a miscount. A self-test proves the DETECTOR can see a change; it
+says nothing about the ENVIRONMENT THE SUBJECT RUNS IN.
+So the recommendation stands on those terms and not as a guarantee, and
+the fourth case needs a different rule: A SCRIPT THAT RUNS THE SUITE
+MUST RUN IT THE WAY `pnpm test` DOES rather than assembling its own
+invocation. Two rules, not one.
+
+=== D124: THE FLIP SIDE OF D119 - A TASK SPANNING FEATURES NOBODY OWNS
+    NEVER GETS DONE ===
+Partitioning by feature (D119) guarantees no agent reaches across a
+boundary, which is what fixed D114. IT ALSO GUARANTEES THAT WORK IN A
+FEATURE NOBODY WAS GIVEN SIMPLY DOES NOT HAPPEN. Wave 5's task 2 - the
+scrap and bullion legacy API layers - was handed to 5b, whose partition
+is shipping + fulfillments. Those layers live in `features/scrap` and
+`features/checkout`. 5b's file says "not mine to start", CORRECTLY, and
+the bar would have read 0% forever.
+So the two failure modes are symmetric and a partition must be checked
+against both: D114 asks "does every SEAM have an owner", D124 asks "does
+every TASK fall inside somebody's boundary". Neither is visible from the
+lane briefs alone - both are the coordinator's to check at dispatch, by
+walking the task list against the ownership map before sending anyone.
+RESOLVED by dispatching a third lane that owns scrap + checkout.
+
+=== D125: PRODUCTION HAS NEVER USED A CARRIER PICKUP ===
+Measured by 5b while taking carrier vocabulary off the frontend:
+`Store Dropoff` 62, `DropShip` 9, `Carrier Pickup` NEVER. The entire
+carrier-pickup scheduling path - which the frontend was branching on a
+FedEx string literal to reach - has never been exercised by real
+traffic. Also: `code` and `provider_code` are NULL on ALL EIGHT
+`carrier_services` rows in both databases, which is why the catalogue is
+served through an adapter rather than by code. Populating them is a
+production UPDATE, so it is Jacob's.
+
+=== D126: THE INVARIANT THAT MAKES THE CARRIER-VOCABULARY MOVE SAFE ===
+5b's sharpest piece of work, recorded because it is the evidence a
+reviewer would otherwise have to reconstruct.
+Taking carrier vocabulary off the frontend moves where a value COMES
+FROM without changing WHAT IT IS. The pin: `pickup.name` is what lands
+in `shipments.pickup_type`; PRODUCTION HOLDS 62 ROWS READING EXACTLY
+`Store Dropoff`; and `features/media/pdfs` COMPARES AGAINST THAT STRING
+TWICE. So the string is not merely stored, it steers document
+rendering - and a refactor that changed it from a browser literal to a
+server-supplied value would have been invisible in review and visible
+on a customer's paperwork. Now pinned by a test.
+The general form, worth applying to every "move this knowledge
+server-side" change: MOVING A VALUE'S SOURCE IS SAFE; CHANGING ITS
+VALUE IS NOT. Pin the value first, then move the source.
+
+=== D127: A DELIBERATE BEHAVIOUR CHANGE ON THE RATE QUOTE, STATED ===
+`useGetRatesInput` used to refuse to build an input until `carrier_id`
+existed - which was ALWAYS, because it was a literal. It now waits for
+the HANDOFF, because `pickupType` changes what the carrier quotes and
+its old default was a FedEx enum spelled in `checkoutStepper` and
+present on first render. Read from a reference list there is one tick
+with no handoff, and `pickupType: ''` would ask a carrier to rate a
+handover it does not recognise.
+SO THE QUOTE NOW ARRIVES ONE TICK LATER INSTEAD OF ARRIVING WRONG.
+Recorded because the trade is correct and because it was DECLARED
+rather than discovered: a behaviour change on the checkout path that is
+written down is a decision; the same change unstated is a bug somebody
+finds in production.
+
+=== D128: A PROMISED-BUT-ABSENT EVIDENCE SECTION IS WORSE THAN SILENCE
+    ===
+The tracker noticed that 5b's file said the checkout covenant evidence
+"is recorded below rather than assumed" AND THE FILE ENDED THERE. No
+evidence followed.
+That is a false assurance with a longer half-life than a missing one: a
+later reader sees a claim that verification happened and STOPS LOOKING.
+It is the same shape as the four broken gate scripts this session - a
+green exit, a passing self-test, a comment saying a lock was taken -
+each of which asserted a check that was not actually happening.
+THE RULE: never write that evidence exists until it is written down.
+"Verified" with nothing after it is a claim, not a record.
+
+=== D129: A STRING THAT LOOKS LIKE A DISPLAY LABEL DECIDES WHETHER A
+    COURIER IS DISPATCHED TO A CUSTOMER'S DOOR ===
+Found by 5b inside the very file it was there to rewrite, which is the
+part that should worry us.
+`pickup.name` READS LIKE A UI LABEL. Three modules depend on its exact
+value, with NO FOREIGN KEY AND NO CONSTRAINT ANYWHERE BETWEEN THEM:
+  1. `features/orders/intake.ts` indexes `handoffMethods` BY IT and
+     THROWS on a name it does not recognise - so an unknown value does
+     not degrade, IT REFUSES THE ORDER.
+  2. `features/orders/service.ts:501` BOOKS A COURIER when it equals
+     `"Carrier Pickup"` - a real FedEx dispatch to a customer's address,
+     triggered by string equality.
+  3. It is written verbatim to `shipments.pickup_type`, and
+     `features/media/pdfs` compares it against `"Store Dropoff"` TWICE
+     to decide what a packing list says.
+NOTHING CONNECTED THE OFFERED LIST TO THE ACCEPTED LIST. A developer
+renaming a "display" string - the safest-looking edit in the file -
+WOULD HAVE REFUSED EVERY ORDER PLACED THROUGH IT, and the failure would
+have arrived at checkout rather than in review.
+THIS IS D39'S SHAPE, one layer up: values in different places that must
+agree, with the coupling expressed nowhere. D39 was text-vs-enum in SQL;
+this is text-vs-text across three modules and a database column, and the
+consequence is a courier rather than a query error.
+PINNED by `handoffs/tests/unit.test.ts`: every offered handoff is a name
+intake can file, and the one that books a courier is the one that
+collects a date and a time.
+THE GENERAL RULE, and it now has three instances (D39, D103, this): IF
+TWO PLACES MUST AGREE BY VALUE AND NOTHING ENFORCES IT, THAT IS A
+DEFECT WAITING FOR ITS FIRST RENAME. Look for it wherever a string
+crosses a module boundary without a type or a constraint following it.
+
+=== D128, CORRECTED AT SOURCE ===
+Worth recording that the rule worked rather than merely being written:
+within minutes of being told, 5b replaced its dangling "evidence is
+recorded below" with "Nothing was measured for it here... It does not
+exist. 5C starts from zero", and retitled the section "REASSIGNED TO
+LANE 5C, and no evidence was gathered here". The correction is the
+useful half - 5c genuinely starts from zero on the covenant, and the
+file now says so instead of implying someone had already looked.
+
+=== D130: THE COVENANT'S OWN INSTRUMENT HAS NEVER LOOKED AT CHECKOUT ===
+5c stopped at task 1 and did not delete anything. It is right to, and
+the reason is structural rather than a gap in its effort.
+The covenant says: verify a feature's data migration BEFORE deleting its
+legacy code, and `verify:parity` is the named instrument. 5c checked
+what that instrument actually covers - the `PAIRS` array in
+`api/scripts/verify-parity.mjs` - and it holds ELEVEN pairs: leads,
+account_transactions, rates, reviews, sales_tax_rules, suppliers,
+carriers, mints, images, products, metals.
+*** NONE OF THE FIVE TABLES THIS COVENANT TURNS ON IS AMONG THEM. ***
+`carts`, `cart_items`, `sell_carts`, `sell_cart_items` and `scrap` are
+all ABSENT. So the tool the rule names has never once examined the
+feature the rule is being applied to, and "run verify:parity" would have
+returned green while proving nothing about checkout at all.
+THIS IS FORESHADOWED IN CLAUDE.md AND NOBODY CONNECTED IT: checkout and
+auctions were missing from the eighteen until August 2026, "and with
+them the carts... `sell_carts` has 65 [production rows], and none was
+counted among the features." The coverage gap was known as a FEATURE
+gap; nobody noticed it was also a TOOLING gap, so the covenant kept
+naming an instrument that could not answer.
+CONSEQUENCE, and it is the correct outcome rather than a failure: WAVE
+5's TASK 2 DOES NOT HAPPEN. The scrap and bullion legacy layers stay
+until the covenant can actually be verified, which needs those five
+pairs added to verify:parity first - and that is real work with its own
+verification, not a prerequisite to be waved through.
+THE GENERAL LESSON, which is tonight's theme in yet another costume: a
+rule that names an instrument is only as good as the instrument's
+COVERAGE, and coverage is exactly what nobody re-checks once the rule is
+written. Four gate scripts had rotted; this one never covered the ground
+in the first place.
+
+=== D131: CHECK NUMBERS, DO NOT RELAY THEM ===
+The tracker verified 5c's claim that `verify:parity` covers 12 pairs by
+evaluating the array rather than counting by eye. IT COVERS ELEVEN. It
+corrected the count, said whose number it was and why the CONCLUSION
+survives unchanged, rather than quietly editing a digit.
+That practice has now caught two things: the wave-4 frontend handoff
+that both lanes believed belonged to the other (D114), and this. Its
+justification is worth stating: A PAGE THAT IS RIGHT ABOUT THE
+CONCLUSION AND WRONG ABOUT THE COUNT TEACHES A READER TO TRUST NEITHER.
+
+=== D132: THE BROWSER DECIDES WHAT THE PARCEL IS INSURED FOR, AGAINST A
+    CARRIER LIMIT SPELLED AS A LITERAL ===
+`checkoutStepper.tsx:67` is `Math.min(quote.declared_value, 50000)`.
+Two defects in one expression:
+  1. 50000 IS A CARRIER'S DECLARED-VALUE CEILING, hard-coded in the
+     browser. It is FedEx's limit, it is not ours, and if FedEx changes
+     it the app is silently wrong - the same class as the service codes
+     and the production uuid 5b just removed, and the one instance it
+     could not take because it sits outside its partition.
+  2. THE BROWSER IS COMPUTING WHAT THE LABEL'S INSURANCE IS BOUGHT WITH,
+     which is D82 - the frontend computes no money. Declared value is
+     what the business is covered for if a parcel of metal is lost.
+BELONGS IN `/quotes/purchase_order` with the rest of the money. Reported
+by 5b and deliberately NOT fixed, correctly - it is in 5a's tree and a
+cross-partition grab is exactly what D119 exists to prevent.
+
+=== D133: A SEAM 5b DECLINED, WRITTEN DOWN PROPERLY ===
+Package types. `packageOptions` in the browser duplicates the nine
+`shipping.packages` rows, so it looks like the same vocabulary problem
+as the service codes - but it is NOT a clean lift, and the reason is
+worth keeping: THE PER-BOX MINIMUM WEIGHT HAS NO COLUMN. That weight is
+a floor on billable weight, so it PRICES THE LABEL. Moving the list
+server-side without it would quote a cheaper label than the carrier will
+bill. Three of its consumers also live in 5a's tree.
+So the fix needs a migration to add the column, a backfill of nine rows,
+and a cross-partition change - i.e. its own wave, not a task. The full
+recipe is in `docs/waves/wave-5b.md`.
+THE PATTERN WORTH NOTING: this is the third seam this session that
+LOOKED like a tidy-up and turned out to need a migration and a
+verification of its own (the others: the legacy write path D105, and the
+checkout covenant D130). An agent that stops and writes the recipe is
+producing the more valuable artefact.
+
+=== D134: VERIFY A GUARD BY ATTACKING IT, NOT BY READING ITS OUTPUT ===
+`lint:carrier-vocabulary` (5b's, now the gate's 11th member) verified by
+the coordinator the only way that proves anything: PLANT A VIOLATION.
+`CONTACT_FEDEX_TO_SCHEDULE` added as live code in
+`frontend/features/handoff/types.ts` -> the gate FAILED, exit 1, with
+its guidance printed. File restored -> back to 0 occurrences across 376
+files. Its --self-test separately proves it distinguishes a comment from
+code, which matters here because half the surviving mentions of these
+strings ARE comments explaining the removal.
+WHY THIS IS NOW STANDARD PRACTICE: four gate scripts rotted tonight
+WHILE REPORTING SUCCESS, and `route-guards.mjs` was actively PASSING
+while auditing a subset of routes (D120). Reading a guard's output tells
+you what it SAYS. Planting a violation tells you whether it can SEE.
+The two are only the same thing when the guard works, which is precisely
+what is in question.
+Cost: about thirty seconds per guard. Apply it to every guard an agent
+writes, at the moment it is written, before its green is ever used as
+evidence for anything.
+
+=== D135: THE SAME BUG IN TWO FILES - ONE SILENT, ONE LOUD. THAT IS THE
+    WHOLE LESSON OF TONIGHT IN ONE PAIR. ===
+5a fixed `scripts/route-guards.mjs` (D120), which hardcoded the filename
+`routes.ts` and so silently dropped six routes from a SECURITY audit
+while exiting 0. Then it found `shared/http/endpoints.test.js` HAD THE
+IDENTICAL HARDCODED FILENAME.
+That one FAILED LOUDLY.
+Same defect, same cause, same commit that introduced it - and opposite
+consequences, because one is an ASSERTION and the other is a REPORT. An
+assertion that cannot see its subject FAILS. A report that cannot see
+its subject PRINTS A SMALLER NUMBER AND EXITS 0.
+THIS IS THE GENERALISATION OF EVERY GATE-SCRIPT FINDING TONIGHT (D110,
+D115, D118, D120): the four that rotted are all REPORTS. The things that
+kept working are assertions. It is also why D134's practice matters -
+planting a violation converts a report into an assertion for thirty
+seconds, which is the only way to find out whether it can see.
+PRACTICAL RULE: PREFER AN ASSERTION TO A REPORT. Where a script must
+report, give it a FLOOR - `audit:query-paths` and `audit:wire-readiness`
+both assert a minimum count and neither rotted. A report with a floor is
+an assertion about its own coverage.
+
+=== D136: THE ENTIRE ORDER MUTATION SURFACE HAS NEVER BEEN TYPECHECKED
+    IN TESTS ===
+Surfaced by 5a converting five test files to TypeScript.
+`types/supertest.d.ts` HAS NEVER DECLARED `patch`. And PATCH is the
+whole order mutation surface - D87 replaced a ~25-route RPC zoo with
+`PATCH /purchase_orders/:id` and `PATCH /sales_orders/:id`, later
+`PATCH /orders/...`. Every test exercising it was JavaScript, `tsc`
+excludes `**/*.test.js`, so THE TYPE CHECKER HAS NEVER SEEN A SINGLE
+CALL TO THE MUTATION SURFACE THIS PROJECT SPENT A WAVE BUILDING.
+Also found: three of `refiner-spots`' four tests had no fixture guard
+where the first one does - 17 `possibly undefined` errors. Without the
+guard they TypeError on a missing fixture instead of naming it, i.e.
+they fail confusingly rather than usefully, and are VACUOUS rather than
+red when the fixture is absent.
+23 test files remain unconverted. Ruling 33 predicted the conversion
+would surface real defects; it has now surfaced three (this pair, plus
+the `bid.ts` ComposedItem mismatch in wave 4) and the remaining files
+are the LARGE ones.
+
+=== D137: THE COVENANT IS REFUTED, AND THE DEPLOY BLOCKER IS BIGGER
+    THAN A BACKFILL ===
+5c did not delete the scrap and bullion legacy layers, and the numbers
+say it must not.
+`checkout.checkouts` AND `checkout.items` HOLD ZERO ROWS - in dev AND in
+production. The claim that scrap and bullion lines "are checkout.items
+now" is FALSE EVERYWHERE. There is no backfill migration for checkout;
+068/069 are additive DDL only, and features/checkout/repo.js says so in
+its own header.
+EXCHANGE-ONLY ROWS ARE EVERY ROW. Production: 17 carts, 3 cart_items,
+66 sell_carts, 26 sell_cart_items. And *** 23 PRODUCTION
+`exchange.scrap` ROWS, ACROSS 12 SELL CARTS AND 12 DISTINCT CUSTOMERS,
+EXIST IN EXCHANGE AND NOWHERE ELSE *** - real declared parcels,
+459.374 g of 0.900, 272.228 t oz of sterling.
+ONE PRODUCTION ORDER LINE'S TWO COPIES DISAGREE ON WEIGHT AND PURITY:
+item `d16b7c32`, pre_melt 18.662 vs 20.000, purity 0.570 vs 0.563. On a
+purchase order those two numbers are what a customer is PAID on. 5c
+reported it and did not touch it.
+*** AND PRODUCTION IS MISSING EIGHT OF THE EIGHTEEN SCHEMAS ENTIRELY ***
+- verified by the coordinator, read-only: products, organizations,
+metals, spots, media, leads, rates, reviews are ABSENT. Production has
+ten. So the deploy sequence in CLAUDE.md was understated: it is not
+"migrate and backfill", it is "most of genesis has never run there".
+Code touching a missing schema raises 42P01 at once, and at least one
+such path is on the money: `features/quotes/service.ts:416` ->
+`findProductIdByName` -> `SELECT id FROM products.bullion`, NO SWITCH,
+on the endpoint that prices every customer-visible number. It arrived in
+`d2926fd0`, on this branch, never deployed - so it is a deploy blocker
+and not a live outage. CLAUDE.md updated with all of this.
+ALSO: `features/quotes/` belongs to NO LANE - a second instance of D124,
+found the same night the first was.
+
+=== D138: THE NEW PARITY PAIRS ARE EXACT ONLY WHILE THE TARGET IS EMPTY
+    ===
+5c added the four cart pairs to `verify:parity` (11 -> 15) and all four
+report `>> NOT SAFE`, which is correct today. IT ALSO STATED THE LIMIT,
+and the limit is the important half: THE COMPARISON JOINS ON `id`, AND A
+CHECKOUT ROW DOES NOT KEEP ITS EXCHANGE ROW'S ID. `repo.next.ts` inserts
+without one, and there is no `source_*`, `legacy_*` or `exchange_*`
+column anywhere in the `checkout` schema.
+So the entries are exact WHILE THE TARGET IS EMPTY - the only state in
+which every row is trivially exchange-only. The moment anything lands in
+`checkout.items`, `differing values: 0` will mean NOTHING JOINED, never
+THE VALUES AGREE. A green that means "I compared nothing" is the exact
+failure this session has found six times (D95, D99, D108, D115, D120,
+D130), pre-announced in a comment above the entries.
+MAKING IT PERMANENTLY ANSWERABLE IS A SCHEMA CHANGE, NOT A SCRIPT
+CHANGE: checkout needs a source-id column, and the project already has
+the shape - `orders.addresses.source_address_id`. That is a migration
+and therefore Jacob's.
+
+=== D139: THE PARTITION QUESTION IS NOT ANSWERED ONCE AT DISPATCH ===
+A SECOND D124 instance, found the same night as the first, and this one
+is on the money path: `api/features/quotes/` belongs to NO LANE in wave
+5, and it holds an unswitched new-schema read
+(`SELECT id FROM products.bullion`, D137) on the endpoints that price
+every customer-visible number.
+D124 said the coordinator must walk the task list against the ownership
+map at dispatch. That is necessary and NOT SUFFICIENT: the first gap was
+a TASK nobody owned, this one is a FEATURE nobody owns, and it was found
+by an agent looking sideways at its own boundaries rather than by me
+checking a list. So the practice needs both halves: check at dispatch,
+AND ask every lane to report any adjacent feature it notices belongs to
+nobody. 5c did that unprompted; it should be in the brief.
+
+=== D140: THE TWO DIRECTIONS DISAGREE ABOUT A CART LINE'S PREMIUM ===
+`addItems` writes NO premium; `replaceSellItems` writes `b.bid_premium`.
+Same conceptual operation, two write paths, two answers - and it sits
+directly beside the unhomed `bid_premium` column that is THE ONLY
+PREMIUM RECORDED for the 23 production sell-cart scrap rows D137 found
+living in `exchange` and nowhere else. So the one place that premium
+exists is written inconsistently depending on which path put it there.
+Same family as D122 (the two directions already chose opposite create
+strategies with nobody deciding it): a decision that was never made,
+discovered as a divergence rather than a design.
+
+=== D141: THE COVENANT TREATED AS A GATE RATHER THAN A FORMALITY ===
+Worth recording as behaviour to keep. `api/features/scrap/service.ts`
+has ZERO IMPORTERS - deletable on evidence alone by ruling 29's own
+test, no data argument required. 5C LEFT IT ALONE ANYWAY, because task 1
+did not clear and its instruction was that nothing in scrap or checkout
+gets deleted until the covenant does.
+That is the right instinct: an agent that deletes the easy thing because
+it can, while the hard question is unanswered, teaches everyone that the
+gate is advisory. Three agents stopped at seams tonight and all three
+were right; this is the fourth and the most disciplined, because nothing
+was stopping it.

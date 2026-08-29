@@ -4,7 +4,7 @@
 // for, intake.repo.js recorded it on their checkout, and this turns that
 // checkout into an order, its items, its address snapshot and its fulfillment.
 //
-// NOTHING CALLS THIS YET. features/purchase-orders/service.js still serves
+// NOTHING CALLS THIS YET. features/orders/service.ts still serves
 // traffic and is untouched. This exists so the two can be compared before
 // either is switched.
 //
@@ -154,7 +154,7 @@ async function copyItems(order_id: string, checkout_id: string, executor?: Execu
 // is exactly what comparing the two on the same input surfaced: 0.80 submitted
 // against 0.87 owed, on the same order.
 //
-// Same rule as retierOrderScrapPremiums in features/purchase-orders/service.js,
+// Same rule as retierOrderScrapPremiums in features/orders/service.ts,
 // against orders.items instead of exchange.purchase_order_items, and using the
 // same rates helpers so the tiering itself has one definition. Scrap only:
 // bullion keeps its own per-product premium, which is what bullion_id IS NULL

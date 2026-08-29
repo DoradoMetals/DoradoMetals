@@ -14,7 +14,7 @@ import cors from "cors";
 
 import productRoutes from "#features/products/routes.ts";
 import addressRoutes from "#features/places/addresses/routes.ts";
-import purchaseOrderRoutes from "#features/purchase-orders/routes.ts";
+import { purchaseOrderRoutes, salesOrderRoutes } from "#features/orders/creates.routes.ts";
 import checkoutRoutes from "#features/checkout/routes.ts";
 import pdfRoutes from "#features/media/pdfs/routes.ts";
 import reviewRoutes from "#features/reviews/routes.ts";
@@ -22,7 +22,6 @@ import emailRoutes from "#features/media/emails/routes.ts";
 import paymentRoutes from "#features/payments/routes.ts";
 import spotRoutes from "#features/spots/routes.ts";
 import transactionRoutes from "#features/transactions/routes.ts";
-import salesOrderRoutes from "#features/sales-orders/routes.ts";
 import ordersRoutes from "#features/orders/routes.ts";
 import shipmentRoutes from "#features/shipping/shipments/routes.ts";
 import payoutRoutes from "#features/payouts/routes.ts";
@@ -38,7 +37,7 @@ import imageRoutes from "#features/media/images/routes.ts";
 import leadRoutes from "#features/leads/routes.ts";
 import rateRoutes from "#features/rates/routes.ts";
 import quoteRoutes from "#features/quotes/routes.ts";
-import shippingRoutes from "#features/shipping/operations/routes.ts";
+import shippingRoutes from "#features/shipping/routes.ts";
 import carrierServiceRoutes from "#features/shipping/services/routes.ts";
 import fulfillmentRoutes from "#features/fulfillments/routes.ts";
 

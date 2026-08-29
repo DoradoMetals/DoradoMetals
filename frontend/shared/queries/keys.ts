@@ -58,6 +58,13 @@ export const queryKeys = {
   shippingCancelLabel: () => ['shipping', 'cancel-label'] as const,
   shippingCancelPickup: () => ['shipping', 'cancel-pickup'] as const,
 
+  // THE CARRIER'S OWN VOCABULARY, WHICH THE FRONTEND NO LONGER SPELLS.
+  // Reference reads, cached like every other reference list: the components
+  // render `name` and map ids back. No carrier id in either key, because the
+  // server resolves which carrier it ships with.
+  carrierHandoffs: () => ['shipping', 'handoffs'] as const,
+  carrierServiceOptions: () => ['shipping', 'service-options'] as const,
+
   // Carriers
   carriers: () => ['carriers'] as const,
   carrierServices: () => ['carrierServices'] as const,

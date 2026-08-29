@@ -21,7 +21,7 @@
 // customer asked for is not, and can be tested exhaustively without one.
 //
 // Nothing calls this yet. The legacy creation path in
-// features/purchase-orders/service.ts is untouched and still serves traffic;
+// features/orders/service.ts is untouched and still serves traffic;
 // this is the half that has to exist before the two can be compared.
 
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
@@ -118,7 +118,7 @@ const HANDOFF: Record<string, HandoffMethod> = {
 //
 // The premium default is 0.75 and it is not arbitrary: it is what
 // insertItems has always written when a line arrives without one
-// (features/purchase-orders/repo.exchange.js). Changing it here would silently
+// (legacy/purchase-orders/repo.exchange.js). Changing it here would silently
 // reprice every order placed through the new path.
 function item(line: unknown): ProductItem | ScrapItem | null {
   if (!line || typeof line !== "object") return null;

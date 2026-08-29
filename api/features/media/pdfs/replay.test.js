@@ -28,8 +28,8 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
-import * as poRepo from "#features/purchase-orders/read.service.ts";
-import * as soRepo from "#features/sales-orders/service.ts";
+import * as poRepo from "#features/orders/read.service.ts";
+import * as soRepo from "#features/orders/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
@@ -62,7 +62,7 @@ before(async () => {
   customer = users[0];
   assert.ok(customer, "dev has no non-admin user");
 
-  const orders = await poRepo.getAll();
+  const orders = await poRepo.getAllPurchases();
   order = orders.find((o) => o.order_items?.length > 0) ?? orders[0];
   assert.ok(order, "dev has no purchase order to render");
 
@@ -73,7 +73,7 @@ before(async () => {
   // The sales-order invoice is a different document from a different table -
   // it is the copy a REFINER is sent. `order` above is a purchase order and
   // will not stand in for it.
-  const salesOrders = await soRepo.getAll();
+  const salesOrders = await soRepo.getAllSales();
   salesOrder = salesOrders.find((o) => o.order_items?.length > 0) ?? salesOrders[0];
   assert.ok(salesOrder, "dev has no sales order to render");
   assert.ok(spots.length > 0, "dev has no spot prices");

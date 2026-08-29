@@ -11,7 +11,7 @@
 //
 //   price IS NOT NULL AND price <> the computed value
 //
-// with "computed" spelled exactly as features/purchase-orders/utils/
+// with "computed" spelled exactly as features/pricing/bid.ts
 // calculations.ts calculateItemPrice spells it:
 //
 //   product: content * (bid * (premium ?? product.bid_premium ?? 0))

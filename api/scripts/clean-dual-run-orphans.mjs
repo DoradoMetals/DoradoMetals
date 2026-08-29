@@ -11,7 +11,7 @@
 //
 // SIX ORDERS AND FOUR ITEMS IN orders.*, from running the suite under `dual`.
 //
-// features/purchase-orders/service.test.js builds its fixture by INSERTing a
+// features/orders/tests/purchase-service.test.ts builds its fixture by INSERTing a
 // purchase order straight into `exchange`, calls a service - which opens its own
 // transaction and commits - and then deletes the exchange rows again. That is
 // correct while the switch is on `exchange`, because the service writes nowhere
@@ -45,7 +45,7 @@
 // It is not lost data - it is added data - but it is the state that makes the
 // order backfill refuse, because the target now holds rows the source does not
 // and a backfill would overwrite them. It also fails three tests in
-// features/purchase-orders/repo.next.test.js, which compare the new schema's
+// features/orders/tests/purchase-read.test.ts, which compare the new schema's
 // rows against exchange's and are right to.
 //
 // ---------------------------------------------------------------- safety

@@ -23,7 +23,7 @@
 //
 // A field this endpoint does not have is refused with a 400 naming it, never
 // dropped - the same admin-mutation-urls argument the order PATCH makes.
-import * as purchaseOrderService from "#features/purchase-orders/service.ts";
+import * as purchaseOrderService from "#features/orders/service.ts";
 import * as refinerOrdersRepo from "#features/refiners/orders/repo.ts";
 import * as refinerSpotsRepo from "#features/refiners/spots/repo.ts";
 

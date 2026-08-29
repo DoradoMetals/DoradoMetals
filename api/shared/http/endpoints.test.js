@@ -234,14 +234,24 @@ const controllers = (dir, out = []) => {
   return out;
 };
 
-// Every routes file in the tree - BOTH EXTENSIONS - because a handler may
-// legitimately be routed from another feature's router. Matching only
-// "routes.js" would have shrunk this walk with every conversion batch.
+// Every routes file in the tree - BOTH EXTENSIONS and PREFIXED NAMES - because
+// a handler may legitimately be routed from another feature's router. Matching
+// only "routes.js" would have shrunk this walk with every conversion batch,
+// which the extension note above already records.
+//
+// AND `<something>.routes.ts` TOO. Wave 5A dissolved features/purchase-orders
+// and features/sales-orders into features/orders, and the two legacy create
+// namespaces they mounted became features/orders/creates.routes.ts - one file,
+// two routers, because /api/purchase_orders and /api/sales_orders are two
+// mounts and ruling 13 keeps a URL where it is. This walk did not open that
+// file, so six live handlers reported as unrouted. Same hardcoded filename,
+// same failure, second place in the tree: scripts/route-guards.mjs had it too
+// and dropped the same six routes out of the security census.
 const routeFiles = (dir, out = []) => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) routeFiles(full, out);
-    else if (e.name === "routes.js" || e.name === "routes.ts") out.push(full);
+    else if (/(^|\.)routes\.(js|ts)$/.test(e.name)) out.push(full);
   }
   return out;
 };

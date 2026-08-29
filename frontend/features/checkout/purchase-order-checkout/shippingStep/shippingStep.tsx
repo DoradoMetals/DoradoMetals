@@ -5,7 +5,12 @@ import { Button } from '@/shared/ui/base/button'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import type { ShippingPickupTimesInput, ShippingRate } from '@/features/shipping/types'
+import type {
+  CarrierHandoff,
+  CarrierServiceOption,
+  ShippingPickupTimesInput,
+  ShippingRate,
+} from '@/features/shipping/types'
 import { useShippingPickupTimes } from '@/features/shipping/queries'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
@@ -27,6 +32,11 @@ interface ShippingStepProps {
   addresses: Address[]
   emptyAddress: AddressFormValues
   rates: ShippingRate[]
+  // The carrier's own catalogue, read once by the stepper and injected
+  // (ruling 14: the parent holds the read, the children take props). Neither
+  // list is spelled anywhere in this tree any more.
+  handoffs: CarrierHandoff[]
+  services: CarrierServiceOption[]
   isLoading: boolean
 }
 
@@ -34,6 +44,8 @@ export default function ShippingStep({
   addresses,
   emptyAddress,
   rates,
+  handoffs,
+  services,
   isLoading,
 }: ShippingStepProps) {
   const [draftAddress, setDraftAddress] = useState<AddressFormValues>(emptyAddress)
@@ -58,10 +70,23 @@ export default function ShippingStep({
     )
   }, [addresses, linkOf])
 
+  // WHICH HANDOFF THE CUSTOMER PICKED, resolved against the reference list
+  // rather than compared to a string. This is the change: the three branches
+  // below used to read `pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE'`, so the
+  // browser decided what to render next from a carrier's enum value. It reads
+  // the option's own flags now, and a carrier adding a third handoff needs no
+  // edit here.
+  const handoff = useMemo(
+    () => handoffs.find((h) => h.code === pickup?.label) ?? null,
+    [handoffs, pickup?.label]
+  )
+
+  // `code` is the carrier's service family, received from the server with the
+  // service and handed back. No carrier_id: the API resolves the carrier it
+  // ships with (it was a uuid literal here).
   let pickupTimesInput: ShippingPickupTimesInput | null = null
   if (address?.is_valid && service?.code) {
     pickupTimesInput = {
-      carrier_id: '30179428-b311-4873-8d08-382901c581d8',
       pickupAddress: address,
       code: service.code,
       readyDate: new Date().toISOString().split('T')[0],
@@ -132,7 +157,7 @@ export default function ShippingStep({
       {/* Pickup FIRST (only needs address + pkg) */}
       {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
         <>
-          <PickupSelector />
+          <PickupSelector handoffs={handoffs} />
           <Separator />
         </>
       )}
@@ -140,30 +165,25 @@ export default function ShippingStep({
       {/* Service AFTER pickup (needs address + pkg; service gets set here) */}
       {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
         <>
-          <ServiceSelector rates={rates} isLoading={isLoading} />
+          <ServiceSelector services={services} rates={rates} isLoading={isLoading} />
           <Separator />
         </>
       )}
 
-      {/* downstream UI that truly needs service + pickup */}
-      {address?.is_valid &&
-        pkg &&
-        service &&
-        pickup?.label &&
-        (pickup.label === 'DROPOFF_AT_FEDEX_LOCATION' ||
-          pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE') && (
-          <div>
-            {pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE' ? (
-              times.length > 0 ? (
-                <PickupScheduler times={times} />
-              ) : (
-                <p className="py-4">No pickup times available.</p>
-              )
+      {/* downstream UI that truly needs service + handoff */}
+      {address?.is_valid && pkg && service && handoff && (
+        <div>
+          {handoff.requires_schedule ? (
+            times.length > 0 ? (
+              <PickupScheduler times={times} />
             ) : (
-              <StoreLocationsMap />
-            )}
-          </div>
-        )}
+              <p className="py-4">No pickup times available.</p>
+            )
+          ) : handoff.has_dropoff_locations ? (
+            <StoreLocationsMap />
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }

@@ -13,10 +13,10 @@ A2. Pricing: array in, prices out           ████████████
 A3. D97 payout figure from the server       █████████████████░   95%
 A4. D98 credit ledger takes {op, amount}    █████████████████░   95%
 A5. Dissolve purchase-orders/+sales-orders/ ░░░░░░░░░░░░░░░░░░    0%
-A6. Co-locate tests + convert to TypeScript ██████░░░░░░░░░░░░   30%
+A6. Co-locate tests + convert to TypeScript ███████░░░░░░░░░░░   35%
 ```
 
-**NOW**: A1-A4 done and gated. **API suite 916/916 in 467 s** (was 890/890 in
+**LANDED** in `a2599311`. A1-A4 done and gated. **API suite 916/916 in 467 s** (was 890/890 in
 563 s), and every gate member below green. A3 and A4 sit at 95% only because
 each needs its frontend half, which this lane may not write — the handoff list
 is at the bottom. `audit:test-leaks` is the last check running. A5 not started,
@@ -39,6 +39,7 @@ A6 partial; both written up at the bottom with reasons.
 | `audit:switches` / `coverage` / `indexes` / `query-paths` / `non-finite` / `nullability` | all OK |
 | contracts `build` + `validate` | OK |
 | **frontend `typecheck` + `test`** | **OK** — proof the API changes are additive |
+| `audit:test-leaks` | **916 / 916, exit 0, "no table changed"** — after fixing the audit's own environment, below |
 
 No migration was written and none was run. Nothing was dropped or deleted from
 `exchange`.
@@ -485,3 +486,16 @@ COMMITS — `adjustDoradoCredit` opens its own transaction on its own connection
 because the row lock is the whole subject, so a pinned test transaction cannot
 contain it. It restores what it moves, its last assertion checks from outside,
 and `audit:test-leaks` is the independent confirmation.
+
+
+## A3 / A4 closed by the coordinator
+
+These sat at 95% because this lane could not write `frontend/**` and did
+not claim work it had not done - which was correct. The coordinator wrote
+the four frontend files after lane B finished and the tree was free:
+`shared/queries/keys.ts` (the deductions enter the QUERY KEY, or changing
+shipping service serves a cached quote), `features/quotes/queries.ts`,
+`reviewStep/itemTable.tsx` (reads `quote.estimated_payout`; the old
+expression deleted) and `features/users/{queries.ts,ui/UsersDrawer.tsx}`.
+Committed in `a2599311`. Both defects are fixed end to end, so the bars
+are 100 and the tracker's visible override can be retired.

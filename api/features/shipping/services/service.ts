@@ -22,8 +22,17 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.js";
 import * as services from "#features/shipping/services/repo.ts";
+import {
+  carrierIdOr,
+  resolveCarrier,
+} from "#features/shipping/operations/resolver.ts";
 import * as legacy from "#legacy/shipping/services/repo.ts";
 import type { ServiceRow, ServiceValues, Executor } from "#features/shipping/services/repo.ts";
+// From the contracts, which is where the shape is declared - not via the
+// adapter, which merely re-exports it for a reader of that file.
+import type { CarrierServiceOption } from "@dorado/contracts";
+
+export type { CarrierServiceOption };
 
 // Arrives as req.body, so everything is optional and nothing can be trusted to
 // be the type it looks like.
@@ -88,6 +97,35 @@ export function toValues(s: ServiceInput): ServiceValues {
 
 export async function getAllServices(): Promise<ServiceRow[]> {
   return await services.getAll();
+}
+
+// THE SERVICES WE OFFER AT CHECKOUT, which is not the same list as the rows.
+//
+// shipping.services holds eight rows across two carriers - Free, Overnight,
+// Standard, Express Saver, Priority Overnight - and checkout offers exactly
+// two. The browser used to decide which two, from a literal keyed by FedEx's
+// own service types (FEDEX_EXPRESS_SAVER, PRIORITY_OVERNIGHT) carrying FedEx's
+// FDXE carrier code, so a rate quote was filtered against a carrier's
+// vocabulary compiled into React.
+//
+// IT COMES FROM THE CARRIER'S CATALOGUE AND NOT FROM THIS TABLE, TODAY, AND THE
+// REASON IS DATA: `code` and `provider_code` are NULL on all eight rows in
+// production and all eight in dev, so no row can say which FedEx service it
+// means. Filling them is an UPDATE against production, which is Jacob's to run
+// and not a migration this wave writes. The read lives here - on the resource
+// that owns carrier services - so that when the columns are populated this
+// function changes where it reads and the URL does not move.
+//
+// The `code` on the way out is the carrier's SERVICE type, which is what a rate
+// quote's serviceType matches; `carrier_code` is the service family FedEx wants
+// on a pickup-availability check and differs between express and ground.
+export async function getOfferedServices(
+  carrier_id?: string | null, client?: unknown
+): Promise<CarrierServiceOption[]> {
+  const id = await carrierIdOr(carrier_id, client);
+  const { catalogue } = await resolveCarrier(id, client);
+
+  return [...catalogue.services].sort((a, b) => a.display_order - b.display_order);
 }
 
 export async function getServiceById(

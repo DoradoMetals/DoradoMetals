@@ -57,7 +57,7 @@ export const LOCKS = {
 // writes happen through repos the test imports rather than in the test. Scanning
 // the test plus its imports finds the writes but cannot tell a test that CALLS
 // them from one that merely imports the module: features/pdf/service.test.js
-// and features/purchase-orders/repo.next.test.js came up as needing locks and
+// and features/orders/tests/purchase-read.test.ts came up as needing locks and
 // write nothing at all. Narrowing it by counting "write-shaped" call names was
 // worse - the heuristic matched `assert.rejects(` in the emails tests.
 //

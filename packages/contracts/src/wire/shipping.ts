@@ -70,3 +70,71 @@ export type Shipment = z.infer<typeof Shipment>;
 // a different table.
 export const ShipmentPickup = ShipmentPickupsRow;
 export type ShipmentPickup = z.infer<typeof ShipmentPickup>;
+
+// ============================================================================
+// THE CARRIER'S OWN CATALOGUE - reference reads with no table behind them.
+// ============================================================================
+//
+// GET /api/shipping/handoffs and GET /api/carrier_services/offered. Both were
+// HAND-WRITTEN IN THE BROWSER until wave 5B: `pickupOptions` keyed by
+// DROPOFF_AT_FEDEX_LOCATION / CONTACT_FEDEX_TO_SCHEDULE, and `serviceOptions`
+// keyed by FEDEX_EXPRESS_SAVER / PRIORITY_OVERNIGHT carrying FedEx's FDXE code,
+// with three checkout components branching on those strings. The API owns a
+// carrier's vocabulary; the frontend renders `name`, branches on the flags, and
+// hands `code` back without reading it (ruling 12, rows out and ids in).
+//
+// THEY ARE NOT DERIVED FROM A TABLE, and that is measured rather than assumed:
+// shipping.services exists and would be the right source, but `code` and
+// `provider_code` are NULL on all eight rows in production AND all eight in
+// dev, so no row can say which carrier service it means. Filling them is an
+// UPDATE against production. Until then the values live with the carrier's
+// adapter (api/features/shipping/operations/adapters/) and these describe the
+// shape they are served in - so populating the columns later changes the read's
+// SOURCE and not its SURFACE.
+//
+// They are declared here rather than in either half because they were declared
+// TWICE the moment the read existed - once for the service, once for the hook -
+// and two hand-written copies of one wire shape is the defect the contracts
+// package exists to prevent.
+
+// HOW A PARCEL REACHES THE CARRIER: the customer drops it at the carrier's
+// location, or the carrier collects it.
+//
+// *** NOT FulfillmentPickup. *** Two different things share the word "pickup"
+// (Jacob, correcting the coordinator): fulfillments.pickups is DORADO
+// collecting the metal itself, a fulfillment METHOD; this is THE CARRIER's, a
+// property of a SHIPMENT (shipping.shipments.pickup_type). The database keeps
+// them apart and nothing may merge them.
+export const CarrierHandoff = z.object({
+  // The carrier's own value. Round-tripped by the client into the label
+  // request; never interpreted by it.
+  code: z.string(),
+  // What a customer reads - AND what lands in shipments.pickup_type verbatim,
+  // which is why it is not a client-side label. features/orders/intake.ts
+  // indexes its handoff table BY THIS STRING and throws on one it does not
+  // know, features/orders/service.ts books a courier when it is
+  // "Carrier Pickup", and features/media/pdfs branches a packing list on
+  // "Store Dropoff". Three readers, no constraint between them; pinned by
+  // api/features/shipping/handoffs/tests/unit.test.ts.
+  name: z.string(),
+  // The client collects a date and a time slot for this option.
+  requires_schedule: z.boolean(),
+  // The client shows a map of places the parcel may be left.
+  has_dropoff_locations: z.boolean(),
+  display_order: z.number(),
+});
+export type CarrierHandoff = z.infer<typeof CarrierHandoff>;
+
+// A SERVICE WE OFFER AT CHECKOUT, which is not the same list as
+// shipping.services holds - eight rows across two carriers, two of them
+// offered. `code` matches a rate quote's serviceType, which is how the selector
+// joins the catalogue to live prices; `carrier_code` is the service FAMILY a
+// pickup-availability check wants (FDXE express, FDXG ground), a property of
+// the service and not of the carrier.
+export const CarrierServiceOption = z.object({
+  code: z.string(),
+  name: z.string(),
+  carrier_code: z.string(),
+  display_order: z.number(),
+});
+export type CarrierServiceOption = z.infer<typeof CarrierServiceOption>;

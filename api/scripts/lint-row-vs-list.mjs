@@ -1,6 +1,6 @@
 // Finds a repo function that returns a LIST being read as if it were a ROW.
 //
-// WHY THIS EXISTS. features/sales-orders/service.js did
+// WHY THIS EXISTS. what is now features/orders/service.ts did
 //
 //     const address = await addressRepo.getFromId(id);
 //     ... address.state ...

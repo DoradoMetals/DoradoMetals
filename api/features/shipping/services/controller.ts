@@ -7,6 +7,17 @@ export const getAll = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
+// GET /api/carrier_services/offered[?carrier_id=]
+//
+// The two services checkout offers, in the order they render, with the codes a
+// rate quote and a pickup-availability check are keyed by. The frontend joins
+// rates to these by `code` and renders `name`; it never spells either.
+export const getOffered = asyncHandler(async (req, res) => {
+  const carrier_id = oneString(req.query.carrier_id);
+  const result = await servicesService.getOfferedServices(carrier_id);
+  return res.status(200).json(result);
+});
+
 // Answers 200 with null when no id is given, rather than 400 - what this
 // endpoint has always done. The id went into `WHERE id = $1` as undefined,
 // which node-postgres sends as null, which matches no row.

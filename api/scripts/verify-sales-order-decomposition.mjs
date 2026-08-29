@@ -19,9 +19,9 @@ import pool from "#db";
 import * as totals from "#features/orders/transactions/repo.ts";
 import * as items from "#features/orders/items/repo.ts";
 import * as addrs from "#features/orders/addresses/repo.ts";
-import * as readService from "#features/sales-orders/read.service.ts";
+import * as readService from "#features/orders/read.service.ts";
 
-const composed = await readService.getAll();
+const composed = await readService.getAllSales();
 console.log(`${composed.length} sales order(s) from the read service\n`);
 
 const ids = composed.map((o) => o.id);
@@ -44,7 +44,7 @@ const orderBy = new Map(orderRows.map((r) => [r.id, r]));
 
 // The values that MOVED between tables. totals.refiner_fee is deliberately
 // absent: the wire serves NULL for a sales order whatever the column holds -
-// see sales-orders/compose.ts.
+// see features/orders/compose.ts.
 const FIELDS = [
   ["totals.total", totalBy, "total"],
   ["totals.items", totalBy, "items"],

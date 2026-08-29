@@ -1,14 +1,17 @@
-// orders.orders, and nothing else.
+// orders.orders, and the rows a new order is created with.
 //
-// TWO QUESTIONS, AND THAT IS ALL THIS ANSWERS SO FAR. Purchase orders and sales
-// orders have not been restructured yet and still read through their own
-// repos; this exists because features/fulfillments needs to ask about an order
-// without reaching into its table, and a read of orders.orders belongs to
-// orders rather than to whoever wanted it.
+// ONE REPO FOR BOTH DIRECTIONS since wave 5A dissolved features/purchase-orders
+// and features/sales-orders. Direction is a COLUMN: the reads, the status write
+// and the three workflow flags are direction-blind and were already here, and
+// what arrived with the dissolution is the CREATION path, which is not - a
+// purchase order is one row plus its engagement, a sales order is five rows
+// written together from one payload in one transaction.
 //
-// It grows when purchase-orders and sales-orders are restructured. It is
-// deliberately not a stub for that work - both of these are real reads with
-// real callers today.
+// Everything else an order needs written - its lines, its quoted spots, its
+// money, its address link, the refiner's numbers, the shipping charge - belongs
+// to the table it touches and lives in that table's own repo: orders/items,
+// orders/spots, orders/transactions, orders/addresses, refiners/spots,
+// refiners/items, shipping/shipments. Those are shared by both directions.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
@@ -123,4 +126,91 @@ export async function setFlag(
     sql("set_flag").replaceAll("__COLUMN__", FLAGS[flag]), [id], executor
   );
   return rows[0]?.id;
+}
+
+// --------------------------------------------------------------- THE CREATES
+//
+// `number` comes from EXCHANGE's sequence in both statements - see
+// sql/create_purchase.sql. The two schemas share one numbering space while
+// both are live, and the new schema has no sequence of its own.
+
+export async function createPurchaseOrder(
+  id: string, user_id: string | null, status: string | null,
+  by: string | null, executor?: Executor
+): Promise<{ id: string; number: number }> {
+  const { rows } = await query<{ id: string; number: number }>(
+    sql("create_purchase"), [id, user_id, status, by], executor
+  );
+  return rows[0];
+}
+
+export async function createSalesOrder(
+  id: string, user_id: string | null, status: string | null,
+  by: string | null, executor?: Executor
+): Promise<{ id: string; number: number }> {
+  const { rows } = await query<{ id: string; number: number }>(
+    sql("create_sales"), [id, user_id, status, by], executor
+  );
+  return rows[0];
+}
+
+// THE FOUR ROWS THAT ARE WRITTEN WITH A SALES ORDER AND ONLY WITH IT.
+//
+// Not split into four write-only repos: a sales order's money, its lines, its
+// address link and its quoted spots are only ever written TOGETHER, in one
+// transaction, from one payload, so four files no caller can use
+// independently would be four files and one service calling all four in a
+// fixed order anyway. The READS of those tables are already split properly -
+// orders/transactions, orders/items, orders/addresses, orders/spots each own
+// their table and are shared with purchase orders.
+
+// The twelve money values, in sql/create_totals.sql's order. The five renames
+// from exchange's names are stated in that file.
+export type TotalsValues = [
+  number | null, number | null, string | null, number | null,
+  number | null, number | null, boolean | null,
+  number | null, number | null, number | null, number | null,
+];
+
+export async function createTotals(
+  id: string, order_id: string, values: TotalsValues, by: string | null, executor?: Executor
+): Promise<void> {
+  await query(sql("create_totals"), [id, order_id, ...values, by], executor);
+}
+
+export async function createItem(
+  id: string, order_id: string, bullion_id: string | null, metal_id: string,
+  price: number | null, quantity: number | null, premium: number | null,
+  sales_tax_charged: number | null, executor?: Executor
+): Promise<void> {
+  await query(
+    sql("create_item"),
+    [id, order_id, bullion_id, metal_id, price, quantity, premium, sales_tax_charged ?? 0],
+    executor
+  );
+}
+
+export async function createAddress(
+  id: string, order_id: string, address_id: string, source_address_id: string | null,
+  executor?: Executor
+): Promise<void> {
+  await query(sql("create_address"), [id, order_id, address_id, source_address_id], executor);
+}
+
+export async function createSpot(
+  id: string, order_id: string, metal_id: string,
+  ask: number | null, bid: number | null, executor?: Executor
+): Promise<void> {
+  await query(sql("create_spot"), [id, order_id, metal_id, ask, bid], executor);
+}
+
+// Writes the ENGAGEMENT (refiners.orders, 093) - orders.orders.refinery_id
+// dropped in 094. See sql/set_refinery.sql for why it is an upsert.
+export async function setRefinery(
+  id: string, refinery_id: string | null, executor?: Executor
+): Promise<{ id: string; supplier_id: string | null } | undefined> {
+  const { rows } = await query<{ id: string; supplier_id: string | null }>(
+    sql("set_refinery"), [refinery_id, id], executor
+  );
+  return rows[0];
 }

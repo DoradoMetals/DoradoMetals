@@ -7,6 +7,7 @@ import * as trackingRepo from "#features/shipping/tracking/service.ts";
 // the user and the carrier it reports are reconstructed through one.
 import * as pickupRepo from "#features/shipping/pickups/service.ts";
 import * as shippingHandler from "#features/shipping/operations/handler.ts";
+import { carrierIdOr } from "#features/shipping/operations/resolver.ts";
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/shipments/constants.ts";
 import type { ComposedShipment as ShipmentRow } from "#features/shipping/shipments/compose.ts";
 import type { TrackedShipment as TrackingRow } from "#features/shipping/tracking/service.ts";
@@ -50,13 +51,13 @@ export type ShippingType = "Inbound" | "Outbound" | "Return";
 // same request fixes when it is run again.
 //
 // Creating a label is not idempotent and does not get this treatment; see
-// features/purchase-orders/service.js.
+// features/orders/service.ts.
 export async function cancelLabel({
   shipment_id,
   carrier_id,
 }: {
   shipment_id: string;
-  carrier_id: string;
+  carrier_id?: string | null;
 }): Promise<ShipmentRow | null> {
   // A SHIPMENT ID THAT NAMES NOTHING USED TO REACH THE CARRIER.
   //
@@ -75,7 +76,7 @@ export async function cancelLabel({
     throw err;
   }
 
-  await shippingHandler.cancelLabel(carrier_id, undefined, {
+  await shippingHandler.cancelLabel(await carrierIdOr(carrier_id), undefined, {
     trackingNumber: shipment.tracking_number,
   });
 
@@ -190,7 +191,9 @@ export async function getRates({
   pickupType,
   declaredValue,
 }: {
-  carrier_id: string;
+  // OPTIONAL: the server resolves the carrier it ships with when the caller
+  // does not name one, which is what took a production uuid out of the browser.
+  carrier_id?: string | null;
   // Checked by the switch below rather than trusted: it arrives in req.body,
   // and the default case is what turns an unrecognised value into an error
   // instead of a quote from the wrong end of the country.
@@ -222,7 +225,7 @@ export async function getRates({
     default:
       throw new Error(`Invalid shippingType: ${shippingType}`);
   }
-  return shippingHandler.getRates(carrier_id, null, {
+  return shippingHandler.getRates(await carrierIdOr(carrier_id), null, {
     shipperAddress,
     recipientAddress,
     pkg,
@@ -240,7 +243,7 @@ export async function cancelPickup({
   carrier_id,
 }: {
   pickup_id: string;
-  carrier_id: string;
+  carrier_id?: string | null;
 }): Promise<PickupRow | null> {
   // Same guard as cancelLabel and getTracking: an unknown id read three fields
   // off null, AFTER deciding to call the carrier. Invisible while the pickups
@@ -269,7 +272,7 @@ export async function cancelPickup({
       ? pickup.pickup_requested_at.toISOString().slice(0, 10)
       : (pickup.pickup_requested_at ?? null);
 
-  await shippingHandler.cancelPickup(carrier_id, undefined, {
+  await shippingHandler.cancelPickup(await carrierIdOr(carrier_id), undefined, {
     confirmationCode:
       pickup.confirmation_number === null ? null : String(pickup.confirmation_number),
     pickupDate,

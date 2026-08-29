@@ -18,11 +18,11 @@
 // the shipment, the address - and that is what read.service.ts assembles.
 // What changed is who assembles it and from what: the server, from its own
 // tables, rather than the browser from a response it was handed.
-import * as purchaseOrderReads from "#features/purchase-orders/read.service.ts";
-import * as salesOrderReads from "#features/sales-orders/read.service.ts";
-import * as purchaseOrderService from "#features/purchase-orders/service.ts";
-import * as salesOrderService from "#features/sales-orders/service.ts";
-import * as spots from "#features/purchase-orders/repo.dual.js";
+import * as purchaseOrderReads from "#features/orders/read.service.ts";
+import * as salesOrderReads from "#features/orders/read.service.ts";
+import * as purchaseOrderService from "#features/orders/service.ts";
+import * as salesOrderService from "#features/orders/service.ts";
+import * as spots from "#features/orders/repo.dual.js";
 import * as packages from "#features/shipping/packages/repo.ts";
 import * as shipmentOrderRead from "#features/shipping/shipments/order-read.ts";
 
@@ -56,7 +56,7 @@ export async function packageDetailsFor(order_id: string) {
 }
 
 export async function packingListInputs(order_id: string) {
-  const purchaseOrder = await purchaseOrderReads.findById(order_id);
+  const purchaseOrder = await purchaseOrderReads.findPurchaseById(order_id);
   if (!purchaseOrder) throw notFound(order_id);
   return {
     purchaseOrder,
@@ -66,7 +66,7 @@ export async function packingListInputs(order_id: string) {
 }
 
 export async function returnPackingListInputs(order_id: string) {
-  const purchaseOrder = await purchaseOrderReads.findById(order_id);
+  const purchaseOrder = await purchaseOrderReads.findPurchaseById(order_id);
   if (!purchaseOrder) throw notFound(order_id);
   return { purchaseOrder, spotPrices: await spots.getCurrentSpotPrices() };
 }
@@ -76,17 +76,17 @@ export async function returnPackingListInputs(order_id: string) {
 // preview compares against. getMetalsForOrder speaks the converted names
 // (`name` / `ask` / `bid`) the templates read.
 export async function invoiceInputs(order_id: string) {
-  const purchaseOrder = await purchaseOrderReads.findById(order_id);
+  const purchaseOrder = await purchaseOrderReads.findPurchaseById(order_id);
   if (!purchaseOrder) throw notFound(order_id);
   return {
     purchaseOrder,
     spotPrices: await spots.getCurrentSpotPrices(),
-    orderSpots: await purchaseOrderService.getMetalsForOrder(order_id),
+    orderSpots: await purchaseOrderService.getPurchaseMetalsForOrder(order_id),
   };
 }
 
 export async function salesOrderInvoiceInputs(order_id: string) {
-  const salesOrder = await salesOrderReads.findById(order_id);
+  const salesOrder = await salesOrderReads.findSaleById(order_id);
   if (!salesOrder) throw notFound(order_id);
-  return { salesOrder, spots: await salesOrderService.getMetalsForOrder(order_id) };
+  return { salesOrder, spots: await salesOrderService.getSalesMetalsForOrder(order_id) };
 }

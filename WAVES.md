@@ -4,21 +4,62 @@ Where the rewrite is. Bars first, descriptions below. Every sha in the table was
 checked against `git log`; every status word was checked against the lane files
 and the working tree, not against what this page said an hour ago.
 
-> **GATING NOW.** Both lanes have stopped, the frontend handoff is CLOSED, and a
-> full 21-member `pnpm check` is in flight on the settled tree. Wave 4 commits
-> when it lands. Nothing since `a9b7dd61` is committed yet: 154 changed paths,
-> 16 untracked, one `git checkout` from gone.
+> ## STOP — THE SCRAP/BULLION COVENANT IS REFUTED. NOTHING GETS DELETED.
 >
-> **D97 and D98 are now fixed end to end** — the API halves landed with lane A,
-> the frontend halves were written by the coordinator once lane B freed
-> `frontend/**`. Verified in the tree, not taken on trust:
-> `reviewStep/itemTable.tsx:77` now reads `quote?.estimated_payout ?? 0` and the
-> `(quote?.total ?? 0) - (shippingCost ?? 0 + paymentCost)` expression is deleted;
-> `UsersDrawer.tsx:133` sends `{ user_id, op: mode, amount }` and `newAmount`
-> survives only as the on-screen preview. Frontend typecheck clean, 155/155.
+> Lane 5c measured the claim that scrap and bullion lines "are `checkout.items`
+> now". **They are not. `checkout.checkouts` and `checkout.items` hold ZERO rows,
+> in dev AND in production.** Nothing has ever moved: there is no backfill for
+> checkout (068/069 are additive DDL only) and `CHECKOUT_SOURCE` still defaults
+> to `exchange`, so the reads have not pivoted either.
+>
+> **23 production scrap rows, across 12 sell carts and 12 distinct customers,
+> exist in `exchange` and nowhere else** — real declared parcels, 459.374 g of
+> 0.900, 272.228 t oz of sterling, 13.419 g of 0.203 — and `checkout.items` has
+> no row for any of them. Exchange-only rows on the cart tables: **every single
+> one** (3 + 26 in production).
+>
+> **All four steps of the pre-deletion checklist are unmet.** The first could not
+> even be attempted: `verify:parity` held **11** pairs and not one was a cart, a
+> cart item or scrap, so the tool the covenant names had **never looked at this
+> feature**. 5c has since fixed the instrument — **15 pairs now**, four of them
+> cart tables, verified by the tracker against the array — **and all four print
+> `>> NOT SAFE`.** No decomposition gate exists for checkout either.
+>
+> **One caveat that must not be lost, because it makes the new pairs a trap
+> later:** the comparison joins on `id`, and a checkout row does not keep its
+> exchange row's id — `repo.next.ts` inserts without one, so every row gets a
+> fresh `gen_random_uuid()`, and there is **no `source_*`, `legacy_*` or
+> `exchange_*` column anywhere in the `checkout` schema**. While the target is
+> empty these entries are exact. The moment anything lands in it they can never
+> go green: `missing_from_target` will still count every source row, and
+> `differing values: 0` will mean *nothing joined*, never *the values agree*.
+> **Making it permanently answerable is a schema change, not a script change** —
+> `orders.addresses.source_address_id` is the shape that already exists for this,
+> and `checkout.checkouts`/`checkout.items` want the same plus a backfill. That
+> is a migration and Jacob's call; 5c wrote none.
+>
+> **Wave 5's task 2 is therefore not merely unstarted — it must not start.** 5c
+> stopped, which is the whole reason the covenant is run first. Deleting those
+> layers would have destroyed the only copy of 23 customers' declared metal.
+
+> **WAVE 4 IS COMMITTED: `a2599311`** — 167 files, +5563/-2509, on a green
+> 21-member gate (`CHECK_EXIT=0`, zero failures, and the newly added `next build`
+> member ran through to Next's route table). Verified against `git log`.
+>
+> **D97 and D98 are fixed end to end** — lane A landed the API halves, the
+> coordinator wrote the frontend halves once lane B freed `frontend/**`. Checked
+> in the tree before this was written: `reviewStep/itemTable.tsx:77` reads
+> `quote?.estimated_payout ?? 0` and the `(quote?.total ?? 0) - (shippingCost ??
+> 0 + paymentCost)` expression is gone; `UsersDrawer.tsx:133` sends
+> `{ user_id, op: mode, amount }` with `newAmount` surviving only as the
+> on-screen preview.
+>
+> **It is committed, not finished.** A5 — dissolving `purchase-orders/` and
+> `sales-orders/` — is untouched at 0%, and A6 is partial at 30%. Both were
+> deliberate stops, both carry into wave 5, and neither is hidden by the bar.
 
 ```
-OVERALL   ██████████████████████████████░░░░░░   ~83%
+OVERALL   █████████████████████████████████░░░   ~93%
 ```
 
 | | wave | | |
@@ -29,8 +70,8 @@ OVERALL   ███████████████████████�
 | ✅ | **styling** dark-only, components own appearance | `██████████████████` | 100% · `9de7d283` |
 | ✅ | **wave 3** the order wire slims | `██████████████████` | 100% · `2208932e` |
 | 🟡 | **wave 3.5** factor, delete legacy, co-locate | `██████████░░░░░░░░` | COMMITTED `a9b7dd61` · 58% of its scope |
-| 🔄 | **wave 4** batching, pricing, styling lane B | `███████████████░░░` | ~83% · GATING NOW, commits on green |
-| ⬜ | **wave 5** checkout proper | `░░░░░░░░░░░░░░░░░░` | ~0% · queued |
+| 🟡 | **wave 4** batching, pricing, styling lane B | `███████████████░░░` | ~83% · COMMITTED `a2599311` · A5 untouched, A6 partial |
+| 🔄 | **wave 5** orders, carriers, scrap covenant | `█████████████░░░░░` | ~70% · IN FLIGHT · COVENANT REFUTED, deletion cancelled |
 
 All five green shas exist in the log, in that order, `a9b7dd61` at HEAD.
 **Nothing since `a9b7dd61` has been committed** — wave 4's ~64% lives entirely
@@ -91,7 +132,7 @@ interleaving. The fourth red (D110) was a caller in `scripts/` that a factoring
 pass invalidated, which `lint:imports` cannot catch because the specifier still
 resolves.
 
-## Wave 4 — IN FLIGHT, both lanes (lane A: `api/**`, lane B: `frontend/**`)
+## Wave 4 — COMMITTED at `a2599311`, with A5 and A6 carried forward
 
 Lane A detail: `docs/waves/wave-4-lane-a.md` · Lane B:
 `docs/waves/wave-4-lane-b.md`. Both agents are running and both reported at
@@ -163,7 +204,7 @@ A2. Pricing: array in, prices out           ████████████
 A3. D97 payout figure from the server       █████████████████░   95%
 A4. D98 credit ledger takes {op, amount}    █████████████████░   95%
 A5. Dissolve purchase-orders/+sales-orders/  ░░░░░░░░░░░░░░░░░░    0%
-A6. Co-locate tests + convert to TypeScript  █████░░░░░░░░░░░░░   30%
+A6. Co-locate tests + convert to TypeScript  ██████░░░░░░░░░░░░   35%
 B1. Shadows deleted, not tokenised          ██████████████████  100%
 B2. One radio group, two components deleted  ██████████████████  100%
 B3. Orders tree typography (263 utilities)  ██████████████████  100%
@@ -192,17 +233,169 @@ confirmation email and the PDFs sit behind.
 
 **Lane A also found a gate that had not run for ten commits** — see Found.
 
-## Wave 5 — queued (not started)
+## Wave 5 — IN FLIGHT, three lanes (5c's covenant stopped task 2)
+
+All three lane files are live and every bar below is a lane's own number, in its
+own words. **5b was not stalled after all** — it reported at 23:07 with task 1 at
+90%, having been deep in the work rather than stuck; the quiet stretch was a
+task-boundary rule not honoured, not a dead lane. **5c was dispatched mid-wave**
+off D124, because task 2 turned out to sit in features no lane owned.
+
+**`api/features/purchase-orders/` and `api/features/sales-orders/` DO NOT
+EXIST.** Verified in the tree, not just reported: both directories are gone, all
+eleven merges are done, every lint is green, and the four gate scripts that
+import application code report wave 4's numbers. **Task 1 is now 100%, confirmed by the full suite: 934 tests, 934 pass, 0 fail,
+498 s.** Task 2's move half is complete — 28 test files co-located under
+`features/orders/tests/` — and 5 of 28 are converted to TypeScript so far. **This
+is the ~2,000-line money-path merge that wave 3.5 deliberately refused and wave 4
+left at 0%**, and it went in behind a file-by-file plan with `typecheck` +
+`lint:imports` + `lint:namespace-calls` after every single step.
+
+**The suite went 916 → 934 and nothing was deleted**: no test was added or
+removed, the delta is three `refiner-spots` fixture guards plus node counting the
+same assertions under new file names. Ruling 32 was applied per file, and **two
+files were RENAMED rather than deleted** — `accept-offer-pricing.test.js` →
+`finalize-pricing.test.ts` (the `$26.81` pin) and `offer-and-items.test.js` →
+`item-writes.test.js`. Only their names were offer-era, which is what D106
+established and what two agents have now checked independently.
+
+Two suite failures on the way, both mechanical and both fixed: a migration read
+by a relative path that needed one more `../` after the move, and — see the
+finding below — a second copy of the route-census filename bug.
+
+The collisions resolved by direction-naming on BOTH sides rather than by picking
+a winner: `composeItem`/`composeOrder` → `compose{Purchase,Sales}{Item,Order}`,
+`createOrder` → `create{Purchase,Sales}Order`, `insertOrder` →
+`insert{Purchase,Sales}Order`, six more at `service.ts`. Four reference reads
+(users, addresses, products, metals) turned out to be byte-identical duplicates
+and are now one declaration.
+
+**5b finished task 1 — the carrier's vocabulary is out of the browser.**
+Gone from the frontend: `pickupOptions` keyed by `DROPOFF_AT_FEDEX_LOCATION` and
+`CONTACT_FEDEX_TO_SCHEDULE`, `serviceOptions` keyed by `FEDEX_EXPRESS_SAVER` and
+`PRIORITY_OVERNIGHT` carrying FedEx's `FDXE` code, and five branches on
+`pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE'` — the browser deciding what to
+render next from a carrier's enum. It also found a fourth of the same family on
+the way: **FedEx's production uuid `30179428-…` was a literal at three checkout
+call sites**, one of them with a TODO beside it.
+
+It gated itself properly: shipping + fulfillments suites **162/162** (re-run
+after its last change), handoffs 18/18, frontend 163/163 with 8 new render tests,
+`frontend build` compiled successfully, `validate:wire` 27 shapes / 0 diverge,
+`verify:genesis` OK with no schema changed and nothing migrated, and
+`audit:routes` showing both new routes guarded with **every existing shipping URL
+byte-identical**. It also wrote a new guard, `lint:carrier-vocabulary` — with a
+`--self-test`, per D123 — which reports **0 occurrences in product code** across
+376 files. The 6 unresolved calls `lint:namespace-calls` reports are 5a's
+in-flight dissolution, not 5b's change.
+
+**5c reported, and its numbers stopped the wave's second task dead.** Its task 1 is the covenant: the evidence that scrap and bullion data is
+genuinely migrated. **Nothing gets deleted from `features/scrap` or
+`features/checkout` until that evidence clears** — exchange-only rows, value
+agreement, per-direction counts. 5b gathered none of it (D128), so 5c starts from
+zero, and its file currently says so honestly rather than implying otherwise.
+That is exactly what happened: **the evidence does not clear, so task 2 stays at
+0% and the legacy layers stay.** 5c's own file ends "Task 2 — NOT STARTED, AND
+NOT STARTING". Its task 1 sits at 80% because the measuring is nearly done, not
+because the answer is in doubt — the answer is settled and it is *no*.
+
+**5b named the four files it touched outside its own partition, rather than
+burying them** — which is what makes a three-lane shared tree workable. One
+import specifier in `api/app.js` (no mount path changed), an append-only edit to
+the shipping contracts, two reference query keys, and `package.json` for the new
+lint. It also removed `PickupType` and `ShippingService`, the two interfaces that
+described the deleted constants and that nothing referenced, per ruling 32. **The
+gate is now 22 members**: 5b placed `lint:carrier-vocabulary` at position 11,
+just before the frontend typecheck, on the reasoning that a guard nothing runs is
+a guard that rots — the lesson D115 paid for. Verified against the root `check`
+script, not taken on the lane's word.
+
+**D127 — one deliberate behaviour change on the checkout path, stated rather
+than discovered.** `useGetRatesInput` used to refuse to build an input until `carrier_id`
+existed — which was always, because it was a literal. It now refuses until the
+HANDOFF is known, because `pickupType` changes what the carrier quotes and its
+default used to be a FedEx enum spelled in `checkoutStepper` and present on first
+render. Coming from a reference read, there is one tick with no handoff, and
+`pickupType: ''` would ask the carrier to rate a handover it does not recognise.
+**The rate quote now arrives one tick later instead of being wrong.**
+
+**D126 — 5b pinned the money-path invariants rather than assuming them:** the order
+create body is unchanged, `pickup.label`/`pickup.name`/`service.serviceType`/
+`service.code` still travel with the same values (received from the server now
+rather than declared in the browser, and handed back uninterpreted), nothing was
+reordered around the Stripe confirm (D49), no arithmetic on a price moved (D82),
+and **no migration was written, nothing dropped, `exchange` untouched**. The
+sharpest of those: `pickup.name` is what lands in `shipments.pickup_type`,
+production holds 62 rows reading exactly `Store Dropoff`, and
+`features/media/pdfs` compares against that string twice — now pinned by a test
+that says so.
+
+**The survey it did first is the interesting part.** The merge is planned file by
+file in dependency order, with `typecheck` + `lint:imports` +
+`lint:legacy-boundary` after each step and the suite at milestones, and the plan
+names the collision at every one — `composeItem`/`composeOrder`,
+`getAll`/`findById`/`findAllByUser`, `createOrder`/`Executor`,
+`insertOrder`/`NewOrder`, six functions at `service.ts` — which is the survey
+wave 3.5 said the merge needed before anyone touched it.
+
+One shape change worth noting: `repo.next.ts` lands as
+`features/orders/repo.mirror.ts`. The `.next` was migration-era vocabulary for a
+switch that no longer exists.
+
+**5b has named its defect precisely, and it is worse than "the frontend knows
+FedEx".** `frontend/features/handoff/types.ts` hand-rolls the two FedEx
+pickup-type enum values **as object keys**; `frontend/features/service/types.ts`
+hand-rolls the FedEx service types and the `FDXE` carrier code; and three
+checkout components branch on `pickup.label === 'CONTACT_FEDEX_TO_SCHEDULE'` — a
+carrier's string literal steering customer-facing control flow.
+
+- **Lane 5a — the orders dissolution.** Wave 4's A5 and A6, inherited whole:
+  dissolve `purchase-orders/` and `sales-orders/`, then co-locate the tests and
+  convert them to TypeScript. Owns `api/features/{purchase-orders,sales-orders,
+  orders,pricing}`, `api/legacy`, the contracts, **and** `frontend/features/
+  orders`.
+- **Lane 5c — the scrap/bullion covenant, and only then the knife.** Dispatched
+  mid-wave because of D124: task 2 lived in features no lane owned. Owns
+  `api/features/{scrap,checkout}` **and** `frontend/features/{scrap,cart}` plus
+  the checkout components consuming them. Its own framing is the right one — the
+  covenant evidence is task 1 and the deletion is task 2, in that order.
+- **Lane 5b — carrier vocabulary and the legacy layers.** Get the FedEx service
+  types and pickup strings off the frontend, and delete the scrap and bullion
+  legacy API layers **if the covenant evidence supports it** — its file says
+  "if", and the covenant check is the deliverable either way. Owns
+  `api/features/{shipping,fulfillments}` **and** `frontend/features/{shipping,
+  checkout,handoff,insurance}`.
 
 ```
-1. Checkout creates unify                    ░░░░░░░░░░░░░░░░░░    0%
-2. Scrap + bullion legacy layers deleted     ░░░░░░░░░░░░░░░░░░    0%
-3. Shipping: carrier vocabulary off the UI   ░░░░░░░░░░░░░░░░░░    0%
+1. Dissolve purchase-orders/+sales-orders/  ██████████████████  100%
+2. Tests -> tests/, converted to TypeScript  ███████████░░░░░░░   60%
+3. Checkout creates seam (report only)      ██████████████████  100%
+1. Carrier vocabulary off the frontend      ██████████████████  100%
+2. Scrap + bullion legacy layers - REASSIGNED TO 5C  ░░░░░░░░░░░░░░░░░░    0%
+1. The covenant: scrap+bullion data migration  ██████████████████  100%
+2. Delete legacy scrap/bullion API layers   ░░░░░░░░░░░░░░░░░░    0%
+3. Make the covenant answerable (parity pairs)  ██████████████████  100%
 ```
 
-Jacob sized this as "a big lift just like orders". It is queued rather than
-started, and the legacy WRITE rewrite (D105) is a fourth candidate for it — or
-for a wave of its own, which is what D105 argues.
+Three lanes: the first three tasks are 5a's, the next two 5b's, the last three
+5c's. Each lane numbers from 1, which is why the block restarts twice. 5c's third
+task did not exist when the wave was dispatched — it added it after finding the
+instrument could not answer the question.
+
+**The partition changed shape, and that is the point** — see D119 below. Each
+lane owns BOTH halves of its features rather than one side of the tree.
+
+Jacob sized this as "a big lift just like orders". What 5a inherits is not small:
+A5 is a ~2,000-line merge with a real collision at `repo.ts`, `compose.ts`,
+`read.service.ts`, `write.service.ts`, `service.ts`, `controller.ts` and
+`routes.ts`, four of which already exist in `features/orders/`, on the money path
+— where lane A reported **nothing structural blocking it, only volume and
+verification cost**. A6 has **106 `.test.js` files remaining**, and the first two
+converted produced eleven real errors.
+
+The legacy WRITE rewrite (D105) is a further candidate — or a wave of its own,
+which is what D105 argues, since `verify:parity` cannot re-check it afterwards
+and the ledger has to run BEFORE.
 
 ---
 
@@ -212,8 +405,257 @@ The waves keep producing findings that outlive them. These are the live ones,
 newest first; each is in `FOLLOWUPS.md` under its number, or in the lane file
 named beside it.
 
-- **`audit:test-leaks` was running the suite with one of the two guards against
-  live third parties DISABLED.** `scripts/audit-test-leaks.mjs` spawned
+- **5c fixed the instrument rather than only reporting it could not answer** —
+  and then wrote down what the fix still cannot tell you. `verify:parity` went
+  from 11 pairs to 15, the four cart pairs all print `>> NOT SAFE`, and it is
+  deliberately **not** a `pnpm check` member, so it cannot redden another lane's
+  gate. Two honest limits stated in the same breath: the pairs are exact only
+  while the target is empty (the id-join trap in the banner), and **`exchange.scrap`
+  is deliberately NOT a pair** because it fans out three ways — `orders.items`
+  for an ordered line, `refiners.items` for the assay, `checkout.items` for a
+  sell-cart line — so no single target holds it. Run against `orders.items`
+  anyway it says "20 missing, 57 only in target, DO NOT BACKFILL", and all three
+  numbers are artefacts of comparing a merge to a pair. That is the same reason
+  CLAUDE.md gives for parity never having looked at orders.
+- **`verify:parity` now exits non-zero for two unrelated reasons, and a reader
+  must not conflate them.** Besides the four new NOT SAFE cart pairs, the
+  pre-existing `exchange.metals → metals.exchange_compat` reports **4 differing
+  values of 4 rows** and did so before this change: gold ask 4461.43 against
+  4612.06, silver 68.45 against 71.41. Dev's spot poller updates one side and not
+  the other, so that pair drifts by construction. Same family as D104, and named
+  by 5c precisely so it is not read as new breakage.
+- **A SECOND D124 instance, and this one is on the money path.**
+  `api/features/quotes/` belongs to no lane in wave 5, and it holds an unswitched
+  new-schema read — quotes being the endpoints that price every customer-visible
+  number since D81–D84. Found by 5c while walking its own boundaries. The
+  partition question is not answered once at dispatch: **every wave needs the
+  task list walked against the ownership map, and this one has a gap nobody
+  noticed until an agent looked sideways.**
+- **The two order directions disagree about the premium on a cart line.**
+  `addItems` (sale) writes no premium at all; `replaceSellItems` (purchase,
+  product branch) writes `b.bid_premium` as the premium. Reported by 5c, not
+  touched. It sits directly beside the `bid_premium` finding above — the column
+  with no home, which for 23 production rows is the only premium recorded
+  anywhere.
+- **One thing in 5c's tree could be deleted on evidence alone, and it was left
+  alone anyway.** `api/features/scrap/service.ts` has **zero importers** — its
+  two functions are pass-throughs and all three live callers import the repo or
+  the util directly, so it is dead by ruling 29's test with no data argument
+  needed. 5c left it because task 1 did not clear. That is the covenant being
+  treated as a gate rather than a formality: *nothing* goes, not just the risky
+  things. It also confirmed what is NOT dead — `scrap/repo.ts` is live on the
+  order path, and `checkout/repo.exchange.js` is what `CHECKOUT_SOURCE` selects.
+- **THE COVENANT IS REFUTED — nothing was ever migrated, and the deletion is
+  cancelled.** Full figures in the banner at the top and in
+  `docs/waves/wave-5c.md`. The short version: `checkout.checkouts` and
+  `checkout.items` are EMPTY in both databases, every cart row is exchange-only,
+  and 23 production scrap rows across 12 customers exist nowhere else. **This is
+  the covenant doing exactly the job it exists to do** — the deletion looked
+  routine, was scheduled as a task, and would have destroyed the only copy of
+  those parcels. Worth noting how close it came: task 2 was originally handed to
+  a lane whose partition did not contain it (D124), and if 5b had simply *tried*
+  rather than declining, the evidence would never have been gathered.
+- **A production purchase-order line disagrees with itself on the weight and the
+  purity a customer is paid on.** Found by 5c while comparing
+  `exchange.purchase_order_items` JOIN `exchange.scrap` against `orders.items`,
+  column by column: 57 pairs on production, one differing — order item
+  `d16b7c32`, order `117265cc` — `pre_melt` 18.662 against 20.000, `post_melt`
+  18.662 against NULL, `purity` 0.570 against 0.563, `content` 0.342 against
+  0.362. Dev is clean at 20 pairs / 0 differences, so this is the January-refactor
+  drift CLAUDE.md's deploy-order block warns about, now with a specific row on
+  it. **Reported and deliberately not touched** — `orders.items` is lane 5a's
+  table. Also: 27 of production's 89 `purchase_order_items` have no
+  `orders.items` row at all, which is expected, because the production backfills
+  have never been run.
+- **`exchange.scrap.bid_premium` is the single unhomed populated column
+  `audit:coverage` reports, and on 23 rows it is the only premium recorded
+  anywhere.** 105 of 105 production rows populated. It is NOT the source of
+  `orders.items.premium` — that comes from `purchase_order_items.premium`,
+  verified at 0 differences on dev against the order line and 34 of 57 against
+  `bid_premium`. So it is a separate quoted figure, and for the cart-only scrap
+  rows nothing else records it.
+- **The TypeScript conversion keeps paying out, twice more in 5a.** (1) The
+  `supertest` shim declares only the verbs the tests use, deliberately, so
+  reaching for anything else fails rather than silently becoming `any` — and **it
+  had never declared `patch`, while PATCH is now the entire order mutation
+  surface** (`/orders/:id`, `/orders/items/:id`, `/shipments/:id`,
+  `/refiners/orders/:id`, the routes D87 consolidated out of the RPC zoo). Every
+  test exercising them is JavaScript, so `tsc` never saw the call. The narrow
+  declaration did its job; nobody had asked it a question until a PATCH test
+  became `.ts`. (2) Three of `refiner-spots`' four tests took a fixture the first
+  test guards and went straight to `order.id` — `tsc` flagged
+  `'order' is possibly 'undefined'` seventeen times and was right: without that
+  fixture they fail with a TypeError instead of saying what is missing, and the
+  assertions below never run. **23 test files remain**, and they are the large
+  ones (`parity` 402 lines, `sales-service` 392, `patch` 391, `create` 356),
+  each carrying `let admin;`-style fixtures that need a declared structural
+  subset — which is exactly the `bid.ts` work from wave 4 and exactly where the
+  next defects of this class will be.
+- **D129 — a string that reads like a UI label is the only thing coupling three
+  modules, and renaming it would have refused every order placed through it.**
+  The most dangerous thing found in wave 5. `pickup.name` looks like display
+  text. It is not: **nothing between these three is a foreign key, and nothing is
+  a constraint** — they must simply agree by value.
+  1. `features/orders/intake.ts` indexes the handoff methods **by this string**
+     and **THROWS** on a value it does not know. A bad name does not degrade —
+     **it refuses the order**, at CHECKOUT, not in review.
+  2. `features/orders/service.ts:501` **books a real courier** when it equals
+     `"Carrier Pickup"`. The string decides whether FedEx is dispatched to a
+     customer's door.
+  3. It is written verbatim to `shipments.pickup_type`, and
+     `features/media/pdfs` compares against `"Store Dropoff"` twice to decide
+     what a packing list says.
+
+  Two things earn it the top slot. **It was sitting inside the file 5b was sent
+  to rewrite** — a wave aimed squarely at carrier vocabulary walked straight into
+  it, and the safest-looking edit in that file was the fatal one. And it is
+  **D39's shape one layer up**: D39 was text-against-enum inside SQL, this is
+  text-against-text across three modules and a database column, and the
+  consequence is a courier at a customer's door rather than a query error. Now
+  pinned by `handoffs/tests/unit.test.ts`, which asserts every offered handoff is
+  a name intake can file, and that the one which books a courier is the one that
+  collects a date and a time.
+
+  **The rule, now that there are three instances (D39, D103, D129): if two places
+  must agree BY VALUE and nothing enforces it, that is a defect waiting for its
+  first rename.** It is invisible to the type system, to `verify:parity`, to
+  `validate:wire` and to every audit that compares rows or shapes — because
+  nothing is wrong until someone edits a string that looks safe to edit.
+
+- **D124 — a task spanning features nobody owns never gets done. RESOLVED
+  mid-wave.** 5b was
+  given "scrap + bullion legacy API layers" but those live in
+  `api/features/scrap` and `api/features/checkout`, and 5b's partition is
+  `shipping` + `fulfillments`. So the task is outside the scope of the only lane
+  assigned to it — 5b's own file says "not mine to start", correctly. This is the
+  flip side of D119: partitioning by feature guarantees nobody reaches across a
+  boundary, which also means **a task spanning features nobody owns simply does
+  not get done, quietly**. It needs either a scope extension for 5b or its own
+  lane. **Resolved within the hour by dispatching lane 5c**, which owns scrap and
+  checkout outright. The two failure modes are symmetric and a partition must be
+  checked against both: D114 asks *does every SEAM have an owner*, D124 asks *does
+  every TASK fall inside somebody's boundary*. Neither is visible from the lane
+  briefs alone — both are the coordinator's to walk at dispatch.
+- **D128 — a promised-but-absent evidence section is worse than a missing one.**
+  5b's file said the checkout covenant evidence "is recorded below rather than
+  assumed" — **and the file ended there.** No evidence followed. That is a false
+  assurance with a longer half-life than silence: a later reader sees a claim
+  that verification happened and stops looking. It is the same shape as the four
+  broken gate scripts this session — a green exit, a passing self-test, a comment
+  saying a lock was taken — each asserting a check that was not actually
+  happening. **The rule: never write that evidence exists until it is written
+  down. "Verified" with nothing after it is a claim, not a record.** **Corrected at source within
+  minutes**: 5b replaced the sentence with "Nothing was measured for it here…
+  It does not exist. 5C starts from zero", which is the honest form. 5c's file
+  opens the same way: "Status: started. Numbers land here as they are
+  measured."
+- **D125 — no production purchase order has ever used a carrier pickup.** Measured by
+  5b against production: `exchange.shipments.pickup_type` is `Store Dropoff` 62
+  and `DropShip` 9, and **`Carrier Pickup` never**. The entire scheduler path —
+  `check_pickup`, the calendar, the slot list — is unexercised by real traffic,
+  which is worth knowing before anyone spends a wave on it.
+- **`code` and `provider_code` are NULL on every `carrier_services` row, in
+  production and in dev.** All eight rows, both databases. That is *why* the
+  offered-service catalogue is served from the adapter rather than the table: no
+  row can say which FedEx service it means. Populating them is an UPDATE against
+  production, so it is Jacob's and not a migration. The endpoint already sits
+  where the table-backed version will serve, so the eventual swap is a change of
+  source, not of surface. (Also noted: dev's `exchange.carrier_services` holds 2
+  rows against production's 8.)
+- **A named seam 5b deliberately did not cross: package types.**
+  `frontend/features/packaging/types.ts` hand-rolls six boxes, three of them
+  literally `FedEx Small`/`Medium`/`Large`, and `shipping.packages` already holds
+  exactly those nine rows with `is_carrier_packaging` as the same flag. Two
+  sufficient reasons to stop: **`shipping.packages` has no weight column**, and
+  the browser's per-box weight is a FLOOR on billable weight
+  (`Math.max(cartWeight, box.weight)`) that PRICES THE LABEL — so replacing the
+  constant needs `ADD COLUMN weight_lb` plus a seed, a migration and a genesis
+  regeneration, while another agent is mid-series in the same tree. And
+  `packageOptions` has three consumers inside `frontend/features/orders/**`,
+  which is 5a's partition. **The partition worked exactly as D119 intended: the
+  agent stopped at the boundary and wrote down the crossing rather than reaching
+  through it.**
+- **D120 — the route census, the security audit that lists every route and the
+  middleware in front of it, silently dropped six routes and EXITED 0.** Found by lane 5a when `creates.routes.ts` appeared.
+  `scripts/route-guards.mjs` had three assumptions hardcoded to a shape that was
+  merely true rather than required: `walk()` matched the exact filename
+  `routes.ts`, so a differently-named router file was never opened; the import
+  parser matched DEFAULT imports only, so a named-export router resolved to
+  nothing; and the route regex matched a variable literally named `router`, so a
+  file declaring two routers contributed neither. Any one of them made six routes
+  — including `DELETE /api/purchase_orders/purge_cancelled` and both
+  `create_review` paths — **vanish from an authorization audit while it reported
+  success**. Census restored to **131 routes from 125**, every guard unchanged,
+  and an `app.use` whose identifier cannot be resolved is now a FAILURE rather
+  than a skip. **The same defect existed in a SECOND place, and the contrast is the
+  lesson.** `endpoints.test.js` hardcoded the identical filename check
+  (`e.name === "routes.js" || e.name === "routes.ts"`) and reported six live
+  handlers as unrouted — but it **FAILED LOUDLY**, because it is an assertion,
+  while the census **silently exited 0**, because it is a report. Same bug, same
+  tree, same night; one stopped the suite and one stopped nothing. Both walks now
+  use a regex. **If a check can be wrong, make it assert rather than print.**
+  **This is the fourth gate script found broken by a factoring pass
+  this session** — after `diff`, `validate:wire`'s caller and `audit:test-leaks`
+  — and the pattern is now unmistakable: tooling under `scripts/` that nothing
+  typechecks, nothing imports and no test covers rots silently while everything
+  it audits stays green. **But this one failed differently, and worse.** The other
+  three were invisible because they are not gate members, or because a moved
+  function still resolves. This one **was run, and reported success** — it simply
+  answered about a subset and called it the whole. A gate that does not run is a
+  gap someone can notice; a gate that passes on a fraction is a false assurance,
+  and on an authorization census that is the difference between "we did not
+  check" and "we checked and it is fine".
+- **D123 — the guard recommendation, measured and partly REFUTED.** The proposed rule is that every `api/scripts/*.mjs` should
+  either carry a `--self-test` or be exercised by something, and that any script
+  which COUNTS things should assert a FLOOR. Coverage today: **45 scripts, 14
+  with a self-test or a floor, 31 with neither.** The rule holds up against the
+  evidence but not perfectly, and the exception is the instructive part — of the
+  four that rotted, `diff`, `validate:wire`'s caller and `route-guards` had no
+  guard at all, but **`audit:test-leaks` DID have a `--self-test` and rotted
+  anyway**, because its failure was environmental (a missing `NODE_ENV` in the
+  spawn) rather than a miscount, and a self-test that proves the detector can see
+  a change says nothing about the environment the subject runs in. So the rule
+  would have caught three of four. Worth adopting on those terms, not as a
+  guarantee — and the fourth case needs a **second, different rule: a script that
+  runs the suite must run it the way `pnpm test` does, rather than assembling its
+  own invocation.** Two rules, not one.
+- **D121 — `legacy/` was one merge away from importing `#features/pricing` at
+  runtime**,
+  which would have made the directory un-deletable in a single `rm -rf` — the one
+  thing `lint:legacy-boundary` exists to refuse, caught by the guard wave 3.5
+  wrote for exactly this. `repo.exchange.js`'s `updateOrderItemPrices` was
+  calling `calculateItemPrice` itself; the exchange half now TAKES prices and
+  `repo.dual.js` computes them with the same function on the same items in the
+  same order. Nothing about what lands in the column changed. **This is the
+  counter-example to the other four**: a guard written speculatively during wave
+  3.5, for a hazard nobody had hit yet, was the one that held — and it paid off
+  inside a single wave.
+- **D122 — each order direction has already chosen the OPPOSITE create strategy,
+  and nobody decided that.** For purchases, the live path is
+  `repo.dual.insertOrder` — exchange first, then re-derive the mirror — and
+  `insertPurchaseOrder`, which writes both schemas directly, has **no
+  product-code caller**. For sales it is exactly inverted: `insertSalesOrder` is
+  live and the sales mirror is what nothing calls. `features/orders/create.ts` is
+  a **third** implementation, written for checkout and called by nothing.
+  Unifying them is choosing one, which is the write-path rewrite D105 scopes as
+  its own wave with the covenant ledger run BEFORE the switch — so 5a reported
+  the seam and did not touch it, which is the right call on the money path.
+- **D119 — wave 5 is partitioned by FEATURE, not by tree, and that is D114's
+  structural consequence.** Wave 4 split api-lane / frontend-lane, which was
+  right for throughput and wrong at exactly one seam: D97 and D98 each needed
+  both halves, so both fixes sat fully built and fully inert with green gates on
+  either side saying so. Wave 5 gives each agent **both halves of the features it
+  touches** — 5a owns `api/features/{purchase-orders,sales-orders,orders,pricing}`
+  and `api/legacy` **and** `frontend/features/orders`; 5b owns
+  `api/features/{shipping,fulfillments}` **and**
+  `frontend/features/{shipping,checkout,handoff,insurance}`. It trades a little
+  parallelism for the guarantee that whoever owns a feature owns its whole
+  change, so nothing can fall into the gap between two lanes. **If it holds, this
+  is the shape future waves should use** — which is why it is recorded here as a
+  finding rather than a scheduling note. `docs/waves/wave-5a.md` cites D114 in
+  its own scope line.
+- **D115 — `audit:test-leaks` was running the suite with one of the two guards
+  against live third parties DISABLED.** `scripts/audit-test-leaks.mjs` spawned
   `node --test` with `TZ` only, while the real test script is
   `TZ=UTC NODE_ENV=test node --test`. `shared/testing/is-test-run.ts` is what
   stops a test reaching the mail transport, the FedEx client and the Stripe
@@ -229,14 +671,42 @@ named beside it.
   script found broken before this wave arrived, after `diff`; both are the D110
   class — tooling outside `features/` that nothing type-checks and nothing
   imports.**
-- **`next build` caught a defect neither typecheck nor the suite could see, and
-  it is now the 21st member of `pnpm check`.** A bulk import insertion left a
+- **D113 — `next build` caught a defect neither typecheck nor the suite could
+  see, and it is now the 21st member of `pnpm check`.** A bulk import insertion left a
   `'use client'` directive on line 3 of `AdminPaymentProcessing.tsx`, below two
   imports. **`tsc --noEmit` was clean and all 155 frontend tests passed with it
   broken** — the file simply would not compile in Next, and `app/admin` with it.
-  It had been outside the gate entirely; it is now member 21 of 21, placed last
+  It had been outside the gate entirely; it is now the LAST member, placed there
   on purpose because it is the most expensive and the cheap members should fail
-  first. Re-read and confirmed against the root `check` script.
+  first. **The gate has since grown to 22** — 5b added
+  `lint:carrier-vocabulary` as member 11, just before the frontend typecheck so a
+  cheap member fails early. Both counts re-read from the root `check` script
+  rather than taken from a lane's word.
+- **D112 — a fourth invisible-UI failure mode, and it means several earlier
+  fixes never applied.** The pattern three agents used and the coordinator
+  endorsed was: when a container is painted light-on-light, drop its paint, set
+  `text-primary-foreground` on the CONTAINER, and let the children inherit. **It
+  does not work.** `PayoutLandingSection.tsx` carried that fix, had a comment
+  above it saying it was fixed, and was still white-on-white and still live —
+  because `typography.css` colours `h3` and `p` in `@layer base`, and **a
+  declared rule beats an inherited value**. Inheritance only reaches a child that
+  declares nothing, so the moment the type scale started colouring semantic tags
+  — ruling 17, our own work — every "let the children inherit" fix silently
+  stopped reaching `<h3>`, `<p>` and `<small>`. The four modes are now:
+  same-element pair (grep-able), cross-element container/child (grep-able with
+  effort), state/rest collapse (not grep-able), and **inherited fix blocked by a
+  declared base rule, which LOOKS fixed in the source and is not**. Each was
+  invisible to the detector built for the one before it. Fourteen real defects
+  found, pinned by `state-contrast.test.ts` (26 assertions).
+- **D114 — the lane partition nearly shipped both money fixes half-done.**
+  Splitting wave 4 into an API lane and a frontend lane was right for throughput
+  and wrong at exactly one seam: D97 and D98 each needed both halves, lane A
+  correctly refused to cross into `frontend/**`, and lane B finished and stopped
+  before the handoff note existed. For a period both fixes were **fully built and
+  fully inert** — the API accepted the new shapes and nothing sent them, with
+  green gates on both sides saying so. Caught by reading the tree rather than the
+  bars; closed by the coordinator. The lesson is that a task spanning a partition
+  boundary needs an owner for the SEAM, not just for each side.
 - **Ruling 27's open judgement call is decided: `--shadow-overlay` goes too.**
   Its only user was the drawer. A drop shadow works by darkening the ground
   beneath it, and this ground is `#09090c` — black on black is not an elevation
@@ -251,14 +721,16 @@ named beside it.
   which is the same stale-number defect one layer up from the one being fixed.
   The key now includes the deductions, and the two new inputs are optional so the
   three goods-quote call sites are untouched.
-- **The payout fee is not a function of the payout method, and production
+- **D117 — the payout fee is not a function of the payout method, and production
   proves it.** Lane A measured all 61 `exchange.payouts` rows while moving the
   Estimated Payout figure server-side: ECHECK is 0 on 39 rows but **75 on one and
   125 on another**; WIRE is 20 on six rows and **0 on two**. Eleven rows disagree
   with the table the frontend has been using. So the fee constants are the
   DEFAULT FOR A NEW ORDER and must never be used to re-derive the fee of a
   stored payout — `orderQuote` already reads it off the row, correctly. Written
-  into the constants file's header. `docs/waves/wave-4-lane-a.md`.
+  into the constants file's header. **Open for Jacob: were the zero-fee WIREs
+  waived deliberately? If so a fee is per-order data, not reference data**, and
+  the constants file is modelling the wrong thing. `docs/waves/wave-4-lane-a.md`.
 - **The credit ledger's non-negative check existed only in the browser.**
   `exchange.users.dorado_funds` is NOT NULL with no CHECK constraint, so any
   caller that was not the drawer could have driven a customer's balance below
@@ -280,8 +752,18 @@ named beside it.
   charge would have been accepted as free shipping and quoted a payout that read
   HIGH, which is D97's own defect class. Caught by its own test, narrowed to the
   coercion `users/service.ts` already used.
-- **`orders.items.price` is answered, and the answer is not the one ruling 34
-  feared.** Lane A priced all 98 priced production lines exactly as
+- **D101's headline estimate was wrong, and the measurement is smaller.** The
+  batching fix was briefed as worth "~500 seconds per gate run"; measured, it is
+  **95** — the API suite went 563 s → 468 s, 890/890 before and 916/916 after.
+  The READ itself is genuinely 9.4x with byte-identical output, and that is the
+  number that matters, because it is what an admin opening the orders list waits
+  for and what the confirmation email and the PDFs sit behind. The estimate
+  assumed the suite exercises the composed read the way a page does; it does not,
+  and an N+1 over three rows costs three round trips rather than two hundred.
+  **Corrected by the coordinator against its own earlier claim** — a tracker that
+  carries an optimistic estimate is worse than one that carries a measurement.
+- **D116 — `orders.items.price` CANNOT be dropped, and not for the reason
+  ruling 34 feared.** Lane A priced all 98 priced production lines exactly as
   `calculateItemPrice` does, against `exchange` (production's `orders.items` is
   the January snapshot and has no `price` column at all). **24 lines do not
   reproduce, and ZERO of them are admin overrides.** All 20 purchase
@@ -312,14 +794,15 @@ named beside it.
   OVERPAYS on the fourth — no reconciliation shortcut exists, because an affected
   order is wrong by whatever the two tables disagreed by at the moment it locked.
   Re-pointed by wave 3.5; the drift itself is the known spots-staleness thread.
-- **`pnpm --filter @dorado/api diff` had not parsed for ten commits.** Bisected
+- **D118 — `pnpm --filter @dorado/api diff` had not parsed for ten commits.** Bisected
   by lane A: `8cc176ee` deleted a retired feature entry and took the closing
   `};` and the entire comparison engine with it, and nine further commits edited
   a file that died on `SyntaxError` before opening a connection — four of those
   commits' messages claim gate runs. It is not in `pnpm check`, so nothing
   noticed. Repaired from `93ecdf80`. Worth saying out loud: `diff` now covers
   `payments` and nothing else, because every other feature has one
-  implementation.
+  implementation. **Third broken gate script this session, and two of the three
+  were invisible precisely because they are NOT gate members.**
 - **D97 — the Estimated Payout figure reads $20 high**, directly above the
   Confirm and Place Order button, and contradicts the rows beneath it.
   `(quote?.total ?? 0) - (shippingCost ?? 0 + paymentCost)` — `+` binds tighter
@@ -366,6 +849,10 @@ resolved.
   from `numeric(20,3)` is D61 and is a production migration. (2) The four sales
   rows whose `premium` contradicts their own `price` are a defect in their own
   right and want a look. Neither is the agent's call.
+- **`carrier_services.code` and `provider_code` are NULL on all eight production
+  rows.** Populating them is an UPDATE against production, which makes it Jacob's
+  call rather than a migration — and it is what stands between the offered-service
+  catalogue and being served from its own table instead of an adapter.
 - **`Spots.tsx`'s full-bleed `bg-brand` bar still collides with ruling 19.**
   Flagged twice now and untouched both times; lane B preserved it exactly rather
   than decide it.
@@ -419,6 +906,16 @@ at all.
 
 # How this file is maintained
 
+**Numbers on this page are checked, not relayed.** Where a lane states something
+this index can verify cheaply, the tracker verifies it. That has caught two
+things so far: the wave-4 handoff that both lanes believed was someone else's
+(D114), and 5c's "`verify:parity` covers 12 table pairs" — evaluating the `PAIRS`
+array showed **11**. That error was harmless, because the load-bearing half of
+the claim (no cart, cart item or scrap table among them) was true and is what the
+STOP banner rests on; it was corrected anyway, since a page right about the
+conclusion and wrong about the count teaches a reader to trust neither. The array
+now holds **15**, re-verified the same way after 5c added the four cart pairs.
+
 **Regenerate the bars with `node scripts/waves.mjs`** (`--check` to preview).
 It reads every task line out of `docs/waves/*.md` and rolls them up into this
 index, so the numbers here are whatever the agents last wrote about themselves
@@ -453,6 +950,17 @@ three other findings landed on tonight** (D95, D99, D108): a detector's blind
 spot reports as clean. A progress tracker that silently drops a task is the same
 defect wearing a different hat, and in both cases the fix was to make the MISS
 LOUD rather than to make the matcher cleverer.
+
+**D-numbers come from `FOLLOWUPS.md`, and this page does not mint them.** The
+findings section below carries D-numbers, but `FOLLOWUPS.md` is the authority for
+what each one means — and the tracker collided with it once already, publishing a
+"D116" for the feature-partition finding while D116 was being written in
+`FOLLOWUPS.md` for the `orders.items.price` verdict. Renumbered to **D119**. It is
+the same drift the one-writer-per-file rule prevents everywhere else, in the one
+place that rule did not reach: two writers, one numbering space, no lock. The
+procedure now is to take the next number after the highest in `FOLLOWUPS.md` at
+that moment AND say so, or to describe the finding without a number and let the
+coordinator assign one. Describing without a number is the safer of the two.
 
 The tracker owns this file and the published artifact. Each agent owns exactly
 one file under `docs/waves/` and updates only that one — never this index, never

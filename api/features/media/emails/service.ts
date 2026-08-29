@@ -12,8 +12,8 @@ import {
 import type { SalesOrderForRender, SupplierSpot } from "#features/media/emails/utils/renderEmail.ts";
 
 import { sendEmail } from "#providers/emails/nodemailer.ts";
-import * as purchaseOrderReads from "#features/purchase-orders/read.service.ts";
-import * as spots from "#features/purchase-orders/repo.dual.js";
+import * as purchaseOrderReads from "#features/orders/read.service.ts";
+import * as spots from "#features/orders/repo.dual.js";
 import * as packages from "#features/shipping/packages/repo.ts";
 import * as shipmentOrderRead from "#features/shipping/shipments/order-read.ts";
 import { recordEmail, messageIdOf } from "#features/media/emails/record.ts";
@@ -90,7 +90,7 @@ export async function sendOrderPlacedConfirmation(
   executor?: PoolClient
 ): Promise<void> {
   try {
-    const purchaseOrder = (await purchaseOrderReads.findById(order_id, executor)) as
+    const purchaseOrder = (await purchaseOrderReads.findPurchaseById(order_id, executor)) as
       | (Record<string, any> & { user?: { user_email?: string | null } | null })
       | null;
     if (!purchaseOrder) return;

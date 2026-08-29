@@ -7,7 +7,7 @@
 import type {
   ComposedItem as PurchaseOrderItem,
   ComposedScrap as ScrapOnOrderItem,
-} from "#features/purchase-orders/compose.ts";
+} from "#features/orders/compose.ts";
 
 // A line that has survived the filter below. Narrowing `metal` to a string is
 // the whole point of that filter, and saying so here is what lets the sort and

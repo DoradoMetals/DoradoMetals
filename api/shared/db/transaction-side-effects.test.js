@@ -18,7 +18,7 @@
 // wants adding to EXTERNAL below.
 //
 // Proved before being trusted: run against the commit before the fix it reports
-// features/sales-orders/service.js:181, and zero afterwards.
+// what is now features/orders/service.ts, and zero afterwards.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
