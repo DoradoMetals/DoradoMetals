@@ -1,28 +1,27 @@
 import { Address } from '@/features/addresses/types'
 
-export interface Shipment {
-  id: string
-  purchase_order_id: string
-  sales_order_id: string
-  tracking_number: string
-  shipping_status: string
-  estimated_delivery: string
-  shipped_at: string
-  delivered_at: string
-  created_at: string
-  shipping_label: string | null
-  label_type: string
-  pickup_type: string
-  package: string
-  shipping_service: string
-  shipping_charge: number
-  insured: boolean
-  declared_value: number
-  type: string
-  carrier_id: string
-}
+// PHASE 3 (ruling 39). What is left in this file is the CARRIER ADAPTER'S
+// surface - the shapes FedEx's own API answers in, passed through by
+// api/features/shipping/operations/adapters/. Read the notes on each below:
+// two of them are deliberately wider than they look, and one of them carries
+// a `Date` where the wire carries a string.
+//
+// WHAT WENT, AND WHY:
+//   `Shipment` - THIRTEEN FIELDS OF THE LEGACY EXCHANGE ROW (purchase_order_id,
+//   sales_order_id, shipping_label, shipping_charge, shipping_service, package,
+//   type), declared here and imported by NOTHING. Every live reader -
+//   queries.ts, four order drawers - already takes `Shipment` from
+//   @dorado/contracts, which is shipping.shipments verbatim and calls those
+//   columns carrier_service_id / label / cost. Two shapes for one table with
+//   only one of them connected: ruling 32, the dead one goes.
+//
+//   `ScanEventItem`, `ShippingCarrierId` and `ShippingPackage` stopped being
+//   exported. Each is used in exactly one file - this one - which makes it an
+//   implementation detail rather than a contract (ruling 38's second arm).
 
-export type ScanEventItem = {
+// One scan on a tracking record. Used by ShipmentTracking below and nowhere
+// else, so it is not exported.
+type ScanEventItem = {
   status: string
   location: string
   scan_time: Date
@@ -43,9 +42,11 @@ export type ShipmentTrackingInput = {
   carrier_id: string
 }
 
-export type ShippingCarrierId = string
+// The carrier's id as the inputs below carry it. One file, not exported.
+type ShippingCarrierId = string
 
-export type ShippingPackage = {
+// The parcel as a rate request describes it. One file, not exported.
+type ShippingPackage = {
   weight: { units: 'LB' | 'KG'; value: number }
   dimensions: { length: number; width: number; height: number; units: 'IN' | 'CM' }
 }

@@ -1,4 +1,4 @@
-export type RouteConfig = {
+type RouteConfig = {
   path: string
   roles: string[]
   desktopLabel: string

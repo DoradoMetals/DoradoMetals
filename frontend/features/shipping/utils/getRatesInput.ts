@@ -8,7 +8,7 @@ import type { Insurance } from '@/features/insurance/types'
 // THE CARRIER IS THE SERVER'S TO NAME. carrier_id used to be required here and
 // checkout supplied a production uuid literal; the API resolves the carrier it
 // ships with when none is given. A caller that has one still sends it.
-export type GetRatesInput = {
+type GetRatesInput = {
   carrier_id?: string
   shippingType: 'Inbound' | 'Outbound' | 'Return'
   address: Address

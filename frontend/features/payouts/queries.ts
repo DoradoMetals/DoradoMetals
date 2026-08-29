@@ -38,7 +38,7 @@ export type PayoutPatch = {
   method?: string
 }
 
-export type PatchPayoutVars = {
+type PatchPayoutVars = {
   payout_id: string
   // For the caches; the URL does not carry it.
   order_id: string

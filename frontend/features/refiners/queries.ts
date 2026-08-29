@@ -110,7 +110,7 @@ export type RefinerOrderPatch = {
 // and price the profit breakdown. Nothing is written optimistically; every
 // refiner value is priced or assay data, and priced fields refetch (D83).
 
-export type PatchRefinerItemVars = {
+type PatchRefinerItemVars = {
   // The ORDER item's id - see the keying note above.
   order_item_id: string
   // For invalidation only; the URL does not carry it.
@@ -133,7 +133,7 @@ export const usePatchRefinerItem = () => {
   })
 }
 
-export type PatchRefinerOrderVars = {
+type PatchRefinerOrderVars = {
   // The ENGAGEMENT row's id - order.refiner_order_id, never the customer
   // order's own id.
   refiner_order_id: string

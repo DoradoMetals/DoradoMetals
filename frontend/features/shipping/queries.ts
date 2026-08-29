@@ -216,7 +216,7 @@ export type ShipmentPatch = {
   carrier_id?: string
 }
 
-export type PatchShipmentVars = {
+type PatchShipmentVars = {
   shipment_id: string
   // For the caches; the URL does not carry it.
   order_id: string

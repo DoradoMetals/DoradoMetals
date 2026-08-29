@@ -6,7 +6,7 @@ import { Input } from '@/shared/ui/base/input'
 import { cn } from '@/shared/utils/cn'
 import { PencilSimpleIcon, FloppyDiskIcon, XIcon } from '@phosphor-icons/react'
 import {
-  Rate,
+  AdminRate,
   getBoundsForMetal,
   sortRatesByMin,
   pctToInt,
@@ -22,14 +22,14 @@ export default function RatesCard({
   className,
 }: {
   metal: string
-  rates: Rate[]
+  rates: AdminRate[]
   className?: string
 }) {
   const [editing, setEditing] = React.useState(false)
   const unit = rates[0]?.unit ?? 'troy_oz'
   const { cap, step } = getBoundsForMetal(metal)
 
-  const [items, setItems] = React.useState<Rate[]>(() => sortRatesByMin(rates))
+  const [items, setItems] = React.useState<AdminRate[]>(() => sortRatesByMin(rates))
   const [dirtyIds, setDirtyIds] = React.useState<Set<string>>(new Set())
 
   React.useEffect(() => {
@@ -48,9 +48,9 @@ export default function RatesCard({
   const create = useCreateRate()
   const del = useDeleteRate()
 
-  function patchLocal(id: string, patch: Partial<Rate>) {
+  function patchLocal(id: string, patch: Partial<AdminRate>) {
     setItems((prev) => {
-      const next = prev.map((r) => (r.id === id ? ({ ...r, ...patch } as Rate) : r))
+      const next = prev.map((r) => (r.id === id ? ({ ...r, ...patch } as AdminRate) : r))
       return sortRatesByMin(next)
     })
     setDirtyIds((s) => new Set(s).add(id))
@@ -151,7 +151,7 @@ function Header({
   )
 }
 
-function ReadView({ unit, rows }: { unit: string; rows: Rate[] }) {
+function ReadView({ unit, rows }: { unit: string; rows: AdminRate[] }) {
   const u = unit === 'troy_oz' ? 'oz' : unit
   return (
     <div className="border rounded-lg p-4 bg-neutral-100/50">
@@ -196,13 +196,13 @@ function EditView({
   dirtyIds,
 }: {
   unit: string
-  rows: Rate[]
+  rows: AdminRate[]
   cap: number
   step: number
   onRangeChange: (id: string, min: number, max: number | null) => void
   onScrapChange: (id: string, pctInt: number) => void
   onBullChange: (id: string, pctInt: number) => void
-  onDelete: (row: Rate) => void
+  onDelete: (row: AdminRate) => void
   onAdd: () => void
   dirtyIds: Set<string>
 }) {

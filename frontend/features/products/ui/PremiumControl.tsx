@@ -15,7 +15,7 @@ type Unit = 'dollar' | 'percent'
 const UNITS: Unit[] = ['dollar', 'percent']
 type Direction = 'over' | 'under'
 
-export interface PremiumControlProps {
+interface PremiumControlProps {
   label: string
   value: number
   onChange: (multiplier: number) => void

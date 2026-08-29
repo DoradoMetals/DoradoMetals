@@ -31,18 +31,18 @@ export type ScrapInput = z.input<typeof scrapSchema>
 
 export type Scrap = z.infer<typeof scrapSchema>
 
-export type PurityOption = {
+type PurityOption = {
   label: string
   value: number
 }
 
-export type MetalOption = {
+type MetalOption = {
   label: string
   logo: ReactNode
   blurb: string
 }
 
-export type WeightOption = {
+type WeightOption = {
   label: string
   icon: React.ComponentType<IconProps>
   unit: string

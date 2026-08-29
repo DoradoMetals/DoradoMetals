@@ -1,5 +1,11 @@
 import { create } from 'zustand'
-import { User } from '@/features/users/types'
+// THE ADMIN USERS WIRE, not better-auth's session user. `setCreateSalesOrderUser`
+// has exactly one caller - features/users/ui/UsersDrawer.tsx's "Create Sales
+// Order" button - and it hands over a row from GET /users/get_all. This slot
+// was typed as the session user, which is camelCase and a DIFFERENT SHAPE; it
+// compiled only because every field of that type is optional, so a snake_case
+// object satisfied it vacuously.
+import { AdminUser } from '@/features/users/types'
 import { Address, UserAddress } from '@/features/addresses/types'
 
 type DrawerName =
@@ -33,8 +39,8 @@ interface DrawerState {
   openDrawer: (name: DrawerName, payload?: DrawerPayloads) => void
   closeDrawer: () => void
 
-  createSalesOrderUser: User | null
-  setCreateSalesOrderUser: (user: User | null) => void
+  createSalesOrderUser: AdminUser | null
+  setCreateSalesOrderUser: (user: AdminUser | null) => void
 }
 
 export const useDrawerStore = create<DrawerState>((set) => ({

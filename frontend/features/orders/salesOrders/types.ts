@@ -17,10 +17,11 @@ import { packageSchema } from '@/features/packaging/types'
 import { pickupSchema } from '@/features/handoff/types'
 import { serviceSchema } from '@/features/service/types'
 import { insuranceSchema } from '@/features/insurance/types'
-import { User, userSchema } from '@/features/users/types'
+import { User } from '@/features/users/types'
 import {
   Address as AddressContract,
   SpotPrice as SpotPriceContract,
+  User as UserContract,
   UserAddress as UserAddressContract,
   type Order as OrderContract,
 } from '@dorado/contracts'
@@ -73,7 +74,7 @@ export const statusConfig: StatusConfig = {
   },
 }
 
-export interface PaymentMethod {
+interface PaymentMethod {
   method: PaymentMethodType
   label: string
   description?: string
@@ -95,9 +96,9 @@ export const PaymentMethodTypeValues = [
   'GOOGLE PAY',
 ] as const
 
-export type PaymentMethodType = (typeof PaymentMethodTypeValues)[number]
+type PaymentMethodType = (typeof PaymentMethodTypeValues)[number]
 
-export const paymentMethodTypeSchema = z.enum(PaymentMethodTypeValues)
+const paymentMethodTypeSchema = z.enum(PaymentMethodTypeValues)
 
 export const paymentOptions: PaymentMethod[] = [
   {
@@ -181,7 +182,7 @@ const salesOrderServiceSchema = z.object({
   cost: z.number(),
   time: z.string(),
 })
-export type SalesOrderService = z.infer<typeof salesOrderServiceSchema>
+type SalesOrderService = z.infer<typeof salesOrderServiceSchema>
 
 type SalesOrderServiceUIOption = SalesOrderService & {
   icon?: any
@@ -255,7 +256,31 @@ export const adminSalesOrderCheckoutSchema = z.object({
   // quoted at. Both create endpoints price server-side and ignore what
   // is sent, so this embeds the contract's live-spot schema directly.
   order_metals: z.array(SpotPriceContract),
-  user: userSchema,
+  // THE CUSTOMER THE ORDER IS FOR, AND IT IS THE CONTRACT NOW (phase 3).
+  //
+  // This was the ACCOUNT FORM's schema in features/users/types.ts -
+  // better-auth's camelCase session shape with `name` required non-empty. The
+  // value that reaches it has never been that: `setCreateSalesOrderUser` is
+  // called from the admin users drawer with a row off GET /users/get_all, so
+  // it is snake_case and API-sourced. It compiled because every field of the
+  // form schema is optional except email and name, so a snake_case object
+  // satisfied it vacuously. (The form schema is NOT NAMED here on purpose:
+  // audit:frontend-nullability walks a parsed schema's body for `\w+Schema`
+  // to build its transitive closure, and that regex reads comments too - so
+  // spelling the old identifier inside this object would keep reporting it as
+  // parsed at runtime after it stopped being.)
+  //
+  // *** DELIBERATE BEHAVIOUR CHANGE ON THE CHECKOUT PATH, and it is the one
+  //     `audit:frontend-nullability` was pointing at. *** Two things differ:
+  //   - `created_at`, `updated_at` and `email_verified` were STRIPPED by zod
+  //     on every admin sales order and now travel;
+  //   - a customer whose `users.name` is NULL threw a ZodError in the browser
+  //     at the Stripe confirm, and now does not. The column is nullable.
+  // Safe in both directions because the server reads exactly two fields off
+  // this object - api/features/orders/service.ts adminCreateSalesOrder types
+  // its own parameter `{ id: string; dorado_funds?: number | null }` - and
+  // both shapes carry both.
+  user: UserContract,
 })
 export type AdminSalesOrderCheckout = z.infer<typeof adminSalesOrderCheckoutSchema>
 

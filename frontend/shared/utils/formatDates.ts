@@ -47,7 +47,12 @@ export function formatTimeDiff(deliveryTime: string | Date): string {
   return [dayPart, hourPart].filter(Boolean).join(' and ')
 }
 
-export function formatFullDate(date?: string | Date): string {
+// `null` is admitted because it is what the wire sends: every timestamp on
+// a contract row is nullable, and this function has ALWAYS handled it - the
+// first line returns 'N/A' for any falsy value. The signature denied a case
+// the body supports, which is D170's shape (a declaration disagreeing with
+// behaviour) and was survivable only while the callers' own types lied too.
+export function formatFullDate(date?: string | Date | null): string {
   if (!date) return 'N/A'
   const parsedDate = typeof date === 'string' ? new Date(date) : date
   if (!isValid(parsedDate)) return 'N/A'

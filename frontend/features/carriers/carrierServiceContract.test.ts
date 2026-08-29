@@ -79,8 +79,10 @@ const aService = (): CarrierService => ({
   display_order: 0,
   created_by: "Dorado Metals",
   updated_by: "Dorado Metals",
-  created_at: new Date("2025-12-30T00:26:40.731Z"),
-  updated_at: new Date("2025-12-31T17:21:41.140Z"),
+  // STRINGS, not Dates. The contract carries the wire shape, and JSON has no
+  // Date - the fixture said Date only because the hand-written interface did.
+  created_at: "2025-12-30T00:26:40.731Z",
+  updated_at: "2025-12-31T17:21:41.140Z",
 });
 
 describe("the carrier service shape this feature depends on", () => {

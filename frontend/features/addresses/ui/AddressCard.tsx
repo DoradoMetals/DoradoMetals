@@ -9,10 +9,10 @@ import { Button } from '@/shared/ui/base/button'
 import { cn } from '@/shared/utils/cn'
 import { useDeleteAddress, useSetDefaultAddress } from '@/features/addresses/queries'
 
-export type AddressCardVariant = 'default' | 'compact'
+type AddressCardVariant = 'default' | 'compact'
 type IconKind = 'auto' | 'home' | 'office' | 'none'
 
-export interface AddressCardProps {
+interface AddressCardProps {
   address: Address
   variant?: AddressCardVariant
   className?: string

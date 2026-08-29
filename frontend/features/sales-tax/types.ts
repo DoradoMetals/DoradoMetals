@@ -1,20 +1,21 @@
-import { Address } from '@/features/addresses/types'
-import { Product } from '@/features/products/types'
-import { SpotPrice } from '@/features/spots/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 
+// WHAT THIS FILE IS: the STATE-BY-STATE LEGAL COPY the tax page renders -
+// which items each state taxes us on, in the words shown to a customer. It has
+// no column behind it and no wire; it is content, keyed by FIPS code.
+//
+// `SalesTaxInput` (an address, some products and some spots) lived here until
+// phase 3 with ZERO references anywhere - it was the argument shape of the
+// client-side tax calculation that D82 removed when the /quotes/* endpoints
+// took over the money. It was also the only reason this file imported Address,
+// Product and SpotPrice, so a dead type was pulling three features into a page
+// of legal text. Ruling 32.
 
 export interface StateTaxDetail {
   fips: string
   name: string
   header: string
   bullets: string[]
-}
-
-export type SalesTaxInput = {
-  address: Address
-  items: Product[]
-  spots: SpotPrice[]
 }
 
 export const stateTaxData: Record<string, StateTaxDetail> = {

@@ -39,6 +39,28 @@ export const nameSpots = <T extends { metal_id: string }>(
 ): (T & { name: string | null })[] =>
   spots.map((s) => ({ ...s, name: metals.find((m) => m.id === s.metal_id)?.name ?? null }))
 
+// THE `*Patch` SHAPES BELOW ARE REQUEST BODIES, AND THEY STAY EXPORTED ON
+// PURPOSE (phase 3, ruling 39 + ruling 37).
+//
+// Each is DATA - it describes what crosses the network - so its home is
+// @dorado/contracts, imported by the API to parse and by this file to
+// construct. It is not moved in this wave because an input contract is only
+// worth having if it is pinned to what the endpoint ACTUALLY accepts, and
+// this wave found the cost of the alternative: `CreateReviewBody` and
+// `CreateLeadBody` had both been sitting in the contracts, adopted by
+// NOBODY, and both were wrong - the review one omitted `hidden`, which is
+// the entire difference between a published review and a hidden one. Adding
+// unvalidated input contracts at scale would multiply that.
+//
+// Pinning these means reading the API's own service and SQL for each, and
+// api/features is another lane's this session. Listed in
+// docs/waves/phase3-frontend.md as the wave's declared remainder.
+//
+// The mutation VARIABLE bundles beside them (`Patch*Vars`) are a different
+// thing and stopped being exported: an id plus a patch plus whatever the
+// cache needs is react-query plumbing, used in one file, and never crosses
+// the wire as a unit.
+
 // The order's metals as their own resource: PUT /orders/:id/spots (D87,
 // unified form - /purchase_orders is legacy route vocabulary). lock: true pins at the LIVE prices the SERVER
 // resolves - the browser's copy of the feed never goes down; lock: false
@@ -48,7 +70,7 @@ export type OrderSpotWrite = {
   bid: number
 }
 
-export type SetOrderSpotsVars = {
+type SetOrderSpotsVars = {
   order_id: string
   lock?: boolean
   set?: OrderSpotWrite[]

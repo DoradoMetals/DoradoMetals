@@ -8,34 +8,24 @@ import type { Carrier as CarrierContract } from '@dorado/contracts'
 // is gone.
 export type Carrier = CarrierContract
 
-export interface CarrierService {
-  id: string
-  carrier_id: string
-  name: string
-  description: string | null
-  code: string
-  provider_code: string | null
-  min_transit_days: number
-  max_transit_days: number
-  supports_pickup: boolean
-  supports_dropoff: boolean
-  supports_returns: boolean
-  max_weight_lbs: number | null
-  max_length_in: number | null
-  max_width_in: number | null
-  max_height_in: number | null
-  supports_insurance: boolean
-  max_declared_value: number | null
-  is_international: boolean
-  is_residential: boolean
-  is_active: boolean
-  display_order: number
-  created_by: string
-  updated_by: string
-  created_at: Date
-  updated_at: Date
-}
+// A CARRIER'S SERVICE, FROM THE CONTRACTS (phase 3, ruling 39). This was
+// twenty-four fields transcribed by hand, ALL of them required, against a
+// wire where every one except id / carrier_id / name is NULLABLE - and with
+// the timestamps typed `Date` where the wire sends strings. The contract's
+// `CarrierService` is `CarrierServicesRow`, and the API's read projects
+// shipping.services aliased back to exactly those names on purpose
+// (get_all.sql's header says why), so the two now agree by construction
+// rather than by inspection.
+export type { CarrierService } from '@dorado/contracts'
 
+// THE CREATE BODY, AND IT STAYS HERE. The API's own input type
+// (api/features/shipping/services/service.ts `ServiceInput`) is
+// all-optional-and-untrusted because it IS req.body, with a `flag()` helper
+// beside it that distinguishes `false` from absent. This is not that shape:
+// it is what THE ADD BUTTON SENDS, two required fields, and typing it as the
+// server's permissive input would let a call site omit the name. Ruling 37's
+// half of this - one input schema both sides import - needs the API to adopt
+// it in the same change, and api/features is another lane's this wave.
 export interface NewCarrierService {
   carrier_id: string
   name: string

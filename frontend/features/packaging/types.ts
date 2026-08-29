@@ -57,7 +57,7 @@ export const packageSchema = z.object({
   fedexPackage: z.boolean(),
 })
 
-export interface PackageOption {
+interface PackageOption {
   label: string
   weight: {
     units: 'LB'

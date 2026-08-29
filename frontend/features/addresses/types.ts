@@ -132,7 +132,7 @@ export type PlacesSuggestionsInput = {
   searchText: string
 }
 
-export type PlacesJsPlacePrediction = {
+type PlacesJsPlacePrediction = {
   placeId?: string
   text?: { text?: string }
   structuredFormat?: {

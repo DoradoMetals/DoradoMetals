@@ -86,11 +86,10 @@ export const payoutSchema = z.union([
   z.object({ method: z.literal('DORADO_ACCOUNT') }).and(doradoAccountSchema),
 ])
 
-export type PayoutInput =
-  | ({ method: 'ACH' } & AchPayout)
-  | ({ method: 'WIRE' } & WirePayout)
-  | ({ method: 'ECHECK' } & EcheckPayout)
-  | ({ method: 'DORADO_ACCOUNT' } & DoradoPayout)
+// `PayoutInput` - the discriminated union restating `payoutSchema` in
+// TypeScript - lived here until phase 3. Zero references anywhere in the
+// tree, its own file included; `z.infer<typeof payoutSchema>` is the same
+// type derived rather than transcribed. Ruling 32: the dead ones go.
 
 export type PayoutMethodType = 'ACH' | 'WIRE' | 'ECHECK' | 'DORADO_ACCOUNT'
 

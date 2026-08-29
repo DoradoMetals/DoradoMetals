@@ -93,6 +93,7 @@ export const TransactionsRow = z.object({
   "pool_oz_deducted": z.number().nullable(),
   "shipping_service": z.string().nullable(),
   "payout_fee": z.number().nullable(),
+  "payout_details_id": z.string().uuid().nullable(),
 });
 export type TransactionsRow = z.infer<typeof TransactionsRow>;
 

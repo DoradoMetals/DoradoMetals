@@ -6,7 +6,7 @@ import type { HTMLAttributes } from 'react';
 import { forwardRef, useEffect } from 'react';
 import { cn } from '@/shared/utils/cn';
 
-export interface MenuIconProps extends HTMLAttributes<HTMLDivElement> {
+interface MenuIconProps extends HTMLAttributes<HTMLDivElement> {
   size?: number;
   isOpen: boolean;
   strokeWidth?: number;

@@ -42,7 +42,7 @@ export default function AdminUsersDrawer({
     <Drawer label="User" open={isDrawerOpen} setOpen={closeDrawer}>
       <div className="flex items-center justify-between w-full">
         <h3>{user.name}</h3>
-        <time dateTime={user.created_at}>{formatFullDate(user.created_at)}</time>
+        <time dateTime={user.created_at ?? undefined}>{formatFullDate(user.created_at)}</time>
       </div>
       <Separator />
       <div className="space-y-8">
@@ -70,7 +70,7 @@ function UserInfo({ user }: { user: AdminUser }) {
         type="name"
         autoComplete="name"
         className="w-full"
-        defaultValue={user.name}
+        defaultValue={user.name ?? ''}
         onBlur={(e) => updateName.mutate({ name: e.target.value })}
       />
       <FloatingLabelInput

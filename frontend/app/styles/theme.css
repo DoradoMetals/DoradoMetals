@@ -377,7 +377,7 @@
      `--color-brand` yet; it exists so the 28 raw gold hex literals in .tsx and
      the gradients have a token to converge on. */
   --brand: hsl(43, 63%, 60%); /* #d9b559  10.14:1 */
-
+w
   /* --- ELEVATION: THERE IS NONE. ------------------------------------------
      `--shadow-raised`, `--shadow-recessed` and `--shadow-overlay` are DELETED,
      and this note is here so nobody re-adds them thinking the omission was an

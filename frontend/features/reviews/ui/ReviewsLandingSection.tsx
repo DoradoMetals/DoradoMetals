@@ -114,7 +114,7 @@ export function Reviews() {
                         </time>
                       </small>
                       <div className="flex items-center gap-1">
-                        <Rating value={r.rating} readOnly>
+                        <Rating value={r.rating ?? 0} readOnly>
                           {Array.from({ length: 5 }).map((_, i) => (
                             <RatingButton key={i} size={24} />
                           ))}

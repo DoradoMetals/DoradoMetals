@@ -1,6 +1,9 @@
 'use client'
 
-import { User } from '@/features/users/types'
+// THE CUSTOMER THE ADMIN IS ORDERING FOR, off GET /users/get_all - the
+// contracts' user wire, snake_case. NOT better-auth's session user, which is
+// the admin themselves and is a different shape under the same word.
+import { AdminUser } from '@/features/users/types'
 import { Address, UserAddress, makeEmptyWireAddress } from '@/features/addresses/types'
 import { Skeleton } from '@/shared/ui/base/skeleton'
 import { useDrawerStore } from '@/shared/store/drawerStore'
@@ -319,7 +322,7 @@ function ProductSelector() {
 }
 
 interface AddressSelectProps {
-  user: User | null
+  user: AdminUser | null
   addresses: Address[]
   userAddresses: UserAddress[]
   isLoading: boolean
@@ -562,7 +565,7 @@ function CreditSelect({
   )
 }
 
-function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; user: User }) {
+function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; user: AdminUser }) {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const { closeDrawer } = useDrawerStore()
   const [isPending, startTransition] = useTransition()

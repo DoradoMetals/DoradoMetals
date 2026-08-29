@@ -63,7 +63,7 @@ function Header({ review }: { review: Review }) {
       </div>
 
       <div className="flex items-center gap-2">
-        <Rating value={Math.round(review.rating)} readOnly>
+        <Rating value={Math.round(review.rating ?? 0)} readOnly>
           {Array.from({ length: 5 }).map((_, i) => (
             <RatingButton key={i} size={24} />
           ))}
@@ -152,8 +152,14 @@ function Created({ review }: { review: Review }) {
   const { user } = useGetSession()
   const updateReview = useUpdateReview()
 
+  // The row's created_at is a STRING on the wire. A Date was assigned here
+  // and axios stringified it on the way out, so `.toISOString()` sends the
+  // identical bytes - it is the same value, stated rather than implied.
   const handleUpdate = (created_at: Date) =>
-    updateReview.mutate({ review: { ...review, created_at }, user_name: user?.name ?? '' })
+    updateReview.mutate({
+      review: { ...review, created_at: created_at.toISOString() },
+      user_name: user?.name ?? '',
+    })
 
   const maxDate = useMemo(() => {
     const d = new Date()

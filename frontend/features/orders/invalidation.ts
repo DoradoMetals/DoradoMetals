@@ -51,7 +51,7 @@ export const invalidateOrderReads = (queryClient: QueryClient, order_id?: string
   }
 }
 
-export type OrderListSnapshot = [QueryKey, readonly unknown[] | undefined][]
+type OrderListSnapshot = [QueryKey, readonly unknown[] | undefined][]
 
 // Map one purchase order across both lists (user and admin), returning the
 // snapshot onError hands back to rollbackOrderLists. D83's rule holds for

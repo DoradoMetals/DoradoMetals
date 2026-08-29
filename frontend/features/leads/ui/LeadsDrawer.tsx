@@ -142,7 +142,7 @@ function Details({ lead }: { lead: Lead }) {
           id="Notes"
           placeholder="Enter lead notes..."
           className="min-w-70"
-          defaultValue={lead.notes}
+          defaultValue={lead.notes ?? ''}
           onBlur={(e) => handleUpdate({ notes: e.target.value })}
         />
       </Field>
@@ -210,7 +210,7 @@ function Contacted({ lead }: { lead: Lead }) {
         <Field label="Point of Contact" className="w-full">
           <PopoverSelect
             value={lead.contact}
-            options={admins?.map((a) => a.name)}
+            options={admins?.map((a) => a.name ?? '')}
             onChange={(val) => handleUpdate({ contact: val })}
             variant="secondary"
           />
@@ -219,7 +219,10 @@ function Contacted({ lead }: { lead: Lead }) {
         <Field label="Last Contacted" className="w-full">
           <SchedulePicker
             value={lastContacted}
-            onChange={(iso) => handleUpdate({ last_contacted: iso ? new Date(iso) : null })}
+            // The column is a timestamp and the wire carries it as a string. A Date
+            // was built here and serialised on the way out, so the ISO string is the
+            // same value sent one step earlier.
+            onChange={(iso) => handleUpdate({ last_contacted: iso ? new Date(iso).toISOString() : null })}
             minDate={minDate}
             maxDate={maxDate}
           />

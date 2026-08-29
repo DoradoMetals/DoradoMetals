@@ -7,7 +7,7 @@ import { cn } from '@/shared/utils/cn'
 
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>
 
-export type AccountActionProps = {
+type AccountActionProps = {
   icon: IconComponent
   label: string
   description?: string

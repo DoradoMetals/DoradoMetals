@@ -1,12 +1,12 @@
 import { BuildingIcon, Icon, MapPinIcon, TruckIcon } from "@phosphor-icons/react";
 
-export enum IntakeMethod {
+enum IntakeMethod {
   PICKUP = 'PICKUP',
   OFFICE_VISIT = 'OFFICE_VISIT',
   MAIL_IN = 'MAIL_IN',
 }
 
-export type IntakeOption = {
+type IntakeOption = {
   method: IntakeMethod;
   header: string ;
   label: string;
