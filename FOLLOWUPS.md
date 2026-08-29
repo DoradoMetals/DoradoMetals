@@ -11196,3 +11196,54 @@ Also worth keeping, from `bid.ts:115` - the comment lane A left where
 the bad type used to be: `payout: { cost: number }` was "A LIE THE TYPE
 TOLD". That is L-B2 in three words, written by the lane that FIXED it
 rather than the one that found it.
+
+=== D166: THE LAST FINDING HAS NO OWNER, AND IT IS A GENUINE CONFLICT
+    BETWEEN TWO RULINGS ===
+The typography sweep was never at zero (D143). The true figure is 28
+type utilities across 9 files, ALL IN `shared/ui` - and they are not
+leftovers anyone forgot. They are shadcn base primitives declaring their
+own typography: `dialog.tsx` "text-lg", `form.tsx` "text-sm",
+`breadcrumb.tsx` "text-base", `table.tsx` "text-small".
+*** RULING 20 SAYS THAT IS CORRECT. *** Appearance belongs in the
+component, never at the call site. A Dialog title deciding it is
+`text-lg` is a component owning its appearance, which is the whole
+principle.
+*** RULING 23 SAYS THE TARGET IS ZERO *** - "changing a heading size is
+one line in typography.css" - and by that standard a hardcoded
+`text-lg` is exactly the defect, because changing the scale does not
+change the dialog.
+BOTH ARE RIGHT AND THEY DISAGREE HERE. The resolution is a design
+decision, and it is Jacob's:
+  (a) A shared primitive MAY carry its own type class, and the scatter
+      metric should exclude `shared/ui` - in which case the real target
+      is already met and the number should stop being reported as a gap.
+  (b) A primitive may NOT, and each renders a semantic tag that
+      typography.css styles - `DialogTitle` an `<h2>`, `FormMessage` a
+      `<small>` - which is the stricter and better answer, and is DOM
+      structure work on 9 files with no browser to check it.
+  (c) A middle: primitives may carry type classes but only SEMANTIC
+      SCALE tokens (`text-small`, `text-h3`), never raw Tailwind sizes
+      (`text-lg`, `text-sm`). `table.tsx` ALREADY DOES THIS and
+      `dialog.tsx` does not - so the codebase has already half-chosen
+      (c) without anyone deciding it.
+NOT RESOLVED TONIGHT, DELIBERATELY: (b) changes rendered markup across
+nine shared primitives with no browser available, and the difference
+between (a) and (c) is a rule about what the metric MEANS. Both want a
+person. RECOMMENDATION IF PUSHED: (c) - it is what half the tree already
+does, it keeps ruling 20 intact, and it makes the scale single-sourced
+without touching DOM.
+
+=== D167: MY ROLL-UP SCRIPT HAD THE SAME BLIND SPOT AS EVERYTHING ELSE
+    ===
+The tracker relocated a section, `WAVES.md` ended up with TWO
+`## Wave 6` headings, and `scripts/waves.mjs` matches a heading then
+takes THE FIRST CODE BLOCK AFTER IT - so the second heading rolled up a
+different wave's bars and the row read 58% against a true 93%.
+IT WAS CAUGHT ONLY BECAUSE THE TRACKER RE-DERIVED THE AVERAGE BY HAND
+and got a different answer. THE SCRIPT'S OWN WARNING COULD NOT SEE IT:
+every task still matched a line, so the unmatched list was empty and it
+reported clean.
+Fixed: duplicate headings now REFUSE rather than roll up, verified by
+planting one. That is the fourth tool of mine found blind tonight (the
+scatter matcher, the task-name spacing twice, this) - and every one was
+found by someone re-computing a number the tool had already given them.

@@ -84,6 +84,24 @@ for (const lane of lanes) {
   }
 }
 
+// REFUSE ON A DUPLICATE HEADING. Two `## Wave 6` headings appeared when a
+// section was relocated, and the matcher below takes the FIRST block after each
+// heading - so the second one rolled up a different wave's bars and the row read
+// 58% against a true 93%. THE EXISTING WARNING COULD NOT SEE IT: every task
+// still matched a line, so the unmatched list was empty and the script reported
+// clean. Same shape as everything else found tonight - a check answering a
+// narrower question than the one being asked of it.
+{
+  const headings = [...index.matchAll(/^## (Wave [\d.]+)/gm)].map((m) => m[1]);
+  const dupes = headings.filter((h, i) => headings.indexOf(h) !== i);
+  if (dupes.length) {
+    console.error(`REFUSING TO ROLL UP: duplicate heading(s) ${[...new Set(dupes)].join(", ")}.`);
+    console.error("The roll-up takes the first block after each heading, so a second");
+    console.error("heading silently attributes another wave's bars to this row.");
+    process.exit(1);
+  }
+}
+
 // Roll each wave's row up from its own task block, then the overall bar from the rows.
 for (const [, label, block] of index.matchAll(/## (Wave [\d.]+)[^\n]*\n[\s\S]*?```\n([\s\S]*?)```/g)) {
   const pcts = [...block.matchAll(/\s(\d{1,3})%\s*$/gm)].map((m) => Number(m[1]));

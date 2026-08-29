@@ -4,153 +4,82 @@ Where the rewrite is. Bars first, descriptions below. Every sha in the table was
 checked against `git log`; every status word was checked against the lane files
 and the working tree, not against what this page said an hour ago.
 
-**Wave 6 is running right now, in four lanes.** Waves 4 and 5 are committed and
-closed — `a2599311` and `cae90da7`, with the docs correction `002c0f0f` on top
-of them at HEAD. What follows the bars is the record of those closed waves; the
-live section is directly below.
+**WAVE 6 IS COMMITTED — `aa756d9e`, 215 files, +9486/-2870, on a green
+23-member gate** (`CHECK_EXIT=0`, zero failures, `next build` reached and
+clean). The working tree is clean. All four lanes are done and nothing is in
+flight. Waves 4 and 5 committed earlier at `a2599311` and `cae90da7`.
 
 ## Read this first
 
-**WHAT SHIPPED.** Four commits since wave 3.5, all verified in `git log` this
-pass: `a2599311` (wave 4 — batching, one pricing module, D97/D98),
-`cae90da7` (wave 5 — direction stops being a feature, the browser stops knowing
-FedEx), `002c0f0f` (the switch-count correction). **Nothing from wave 6 is
-committed** — 215 uncommitted paths in the working tree at 01:57, across all four
-lanes, plus the coordinator's in-flight `CLAUDE.md` edits. Until wave 6 is
-committed as a series it is one `git checkout` from gone, which is the same note
-this page carried through waves 4 and 5.
+### 1. WHAT SHIPPED
 
-**WHAT IS RUNNING.** Wave 6, four lanes — A legacy removal and contracts
-alignment, B 117 api `.test.js` files to TypeScript, C components hoisted to
-`shared/ui` and adopted at call sites, D hardening the 45 scripts.
+`aa756d9e`, titled *"the instruments were the problem, and one of them guarded
+the data"* — which is the honest summary of the night. Four lanes:
 
-**All four have now reported real numbers** — D at 01:07, B at 01:08, C at 01:09,
-A at 01:11. For the first fifteen minutes every bar but one read 0% while the
-tree showed work in three lanes; this page called those zeros stale rather than
-publishing them as progress, and **all four lanes then confirmed it** by jumping
-on their next write. Highlights as of **01:24**: lane A's tasks 1 and 4
-**done** with legacy removal at 90% and contracts at 85%; lane B **47 of 117**
-tests converted, `features/orders/tests` entirely TypeScript and green in
-isolation (184 tests), and **eight defects filed — the conversion is yielding
-exactly as intended**; lane C **four of five tasks done**, two shared components
-deleted, call sites down 405 → 377, and **a live hover bug fixed on the admin
-drawer**; lane D **six scripts hardened, two shared libraries built, D4
-complete**. Nothing has stopped and nothing is blocked. **This page is live** — the timestamps are real, and a
-figure with a time on it was true at that time.
+- **Lane C — 100%.** All five tasks. 36 hand-rolled label blocks became one
+  `Field`; `DisplayToggle` + `DotSelect` became one `SegmentedField`; and
+  `SelectMenu`, which had **zero importers while six hand-rolled copies of it sat
+  in the tree**, was adopted — fixing five live menus where hovering a row made
+  its label vanish.
+- **Lane A — ~95%.** Max insured value is data now (`shipping.services`, seeded
+  10000, clamped server-side, browser literal gone); legacy verified and the dead
+  parts removed; D142's bypass closed **by removal** rather than routing; and it
+  took lane B's `NaN` handover and fixed it.
+- **Lane B — 89 of 117 converted**, thirteen defects filed. **The 28 that remain
+  are a reasoned stop, not a shortfall**: most are `shared/`/`providers/` simply
+  not reached, two resist the *move* rather than the conversion, and
+  `scripts/lib/*` would gain nothing while tsconfig excludes `scripts`.
+- **Lane D — ~97%, and the meta-guard IS finished.** Six scripts hardened, two
+  shared libraries, `lint:script-guards` shipped as **gate member 9**. D3-D6 all
+  at 100%; only D1/D2 sit at 90%. *(The handoff to this page said "meta-guard
+  partial" — lane D's file has it at 100% and complete, verified.)*
 
-**WHAT IS BLOCKED ON JACOB.** Three things need a decision only he can make, and
-they are at the top of the blocked list: **D117**, the payout fee that is not a
-function of the payout method (and whose row count the tracker corrected tonight
-from eleven to **four**); **the production order line whose two copies
-disagree on the weight and purity a customer is paid on**; and **the T&C legal
-copy** the offers purge edited — which the tracker read tonight and which deletes
-four clauses outright, including both deemed-acceptance terms and the only stated
-route a customer had to decline a price. Everything else in that section is
-recorded, not pending.
+### 2. WHAT NEEDS YOU
 
-**PRODUCTION IS NOT A BLOCKER.** Corrected in CLAUDE.md tonight (Jacob,
-2026-08-29): production is not being touched and will not be until the refactor
-is proven. This page previously led its blocked list with the deploy sequence,
-which is exactly the misreading that correction names. Production facts are now
-recorded below for an eventual day; none of them is waiting on him this week.
+**Three decisions only you can make** — full detail under *Blocked on Jacob*:
 
-**WHAT WAS FOUND, so far tonight.**
+1. **D117 — the payout fee is not a function of the payout method.** **FOUR**
+   production rows disagree with the fee table, not eleven. Are the two zero-fee
+   WIREs and the 75/125 ECHECKs deliberate exceptions? If so, a fee is per-order
+   data and the constants file models the wrong thing.
+2. **A production order line whose two copies disagree on the weight and purity a
+   customer is PAID on.** Order item `d16b7c32`. Which copy is right?
+3. **The Terms & Conditions, which now has TWO problems.** The offers purge left
+   the **Return Policy with no trigger** — the document describes no way for a
+   customer to decline a price and get their metal back. **And `terms-and-
+   conditions:177` promises insurance "up to $50,000" while migration 097 sets the
+   ceiling to 10,000 (D152).** Verified both in the file tonight. Legal copy is
+   not an agent's to write or approve.
 
-**The parity test that was supposed to prove `PAYMENTS_SOURCE` can be promoted
-was comparing nothing** — `undefined` to `undefined`, and `NaN` to `NaN`, which
-passes because `node:assert/strict` uses `Object.is`. The tracker confirmed both
-halves directly. Two green assertions, neither comparing anything, on the feature
-holding fourteen sets of unencrypted bank details. It is a real test now, but its
-evidence is hours old rather than months.
+**Two you can act on with evidence already gathered**: `CHECKOUT_SOURCE` is
+**verified functional, 8 of 8**, and `legacy/README.md`'s exit criteria are
+unsatisfiable as written — collapsing to **one question asked once for thirteen
+directories**.
 
-**The largest change of the night did not break the instruments — verified.**
-Renaming 89 test files could have silently disabled any auditor matching only
-`.test.js`, including `audit:test-leaks`, the script that exists because a test
-once deleted real FedEx history. Every remaining `.test.js` literal in those
-scripts is inside a comment; no matcher is extension-locked. A clean negative
-result, and the one worth having.
+**And one measured gap with no owner**: the typography sweep was never at zero —
+the linter could not see `className={cn(...)}`, and **two earlier commit messages
+reported its blind zero as success**. True figure **28**, all inside `shared/ui`
+itself. Whether that matters is your call; what is not a judgement call is that
+two `<TableRow>`s in `AdminReceived.tsx` **cancel their own hover**. Lane C, who
+would fix it, finished before the real number arrived.
 
-**One thing to know before anyone picks up tomorrow's work list:** lane B's
-handoff table of source fixes has seven rows and **three are already done or rest
-on a wrong premise** — two were fixed by lane A hours after being written, and
-one is the finding below. Four rows are live. The page says which is which, so
-nobody redoes completed work at 7am.
+**Production is NOT a blocker.** Corrected in CLAUDE.md tonight: production is
+not being touched until the refactor is proven. Those facts are recorded below
+for an eventual day.
 
-**A separate finding flagged for you on the money path is WRONG, and this page
-checked it rather than passing it on.** Lane B reported that promoting `PAYMENTS_SOURCE`
-would stop recording `amount_received`, tying it to the $126.48 open thread.
-**It would not.** That field maps to `payments.settlements.settled_amount`, the
-mapping is declared in `feature-map.mjs`, `updatePaymentIntent` writes it, and
-`repo.next.ts:96` reads it back. Lane B searched for `amount*` column names and
-missed a rename onto a different table — the exact trap CLAUDE.md warns about.
-**Do not act on L-B9 as written.** The `amount_capturable` half of it does stand.
+### 3. WHAT WAS FOUND
 
-**And a defect in the honesty machinery itself**, found while checking that:
-`feature-map.mjs` declares `bank_account_type` **twice** in one object literal,
-so JavaScript's last-wins silently discards the real mapping and tells
-`audit:coverage` the column was deliberately dropped. That file exists to keep
-the reports honest.
+**The night's theme, and the commit title agrees: the instruments were the
+problem.** If you read three findings, read **D148**, **D162** and **D160** —
+they are flagged at the head of the findings section.
 
-**Lane B has filed THIRTEEN defects, and is now 89 of 117 files in, and the
-conversion is clearly the point rather than the file count.** The sharpest is a
-test that was **green while asserting nothing** — *"setting a default clears the
-others"*, on the address default-shipping path, passing because the address had
-never been the default. TypeScript named it on the first compile. Eighth
-vacuous-test instance on this project, first one caught by a compiler rather than
-a person. Also from lane B: **a money-path gap where a missing payout `cost`
-makes the whole invoice total `NaN`** rather than throwing.
-
-**The other headline is a live visual defect on the admin purchase-order drawer:
-hovering a menu row made its label disappear.** Six hand-rolled menus — five in a
-single file — spelled `text-primary` on `hover:bg-primary`. **The tracker
-verified the token itself rather than taking the claim**: `theme.css:331` is
-`--primary: hsl(0, 0%, 98%);` — `#fafafa`. So `text-primary` and `bg-primary`
-resolve to the same near-white value. White on white, confirmed at the source. Lane C found it by chasing
-why `shared/ui/SelectMenu.tsx` had **zero importers**: the component built to
-prevent exactly this had been hoisted in the D87/D88 series and adopted nowhere,
-while the copies that stayed behind kept the bug. Verified by the tracker at both
-ends — 0 real importers before, **2 after**, and the other three components
-lifted alongside it were in use 6, 11 and 4 times, so this was one component
-falling through, not a broken practice. And lane B found **two dead `.d.ts` files that disagree with their
-implementations**, one of which declares an "assert" helper as returning `void`
-when it really returns a count the caller must check — the vacuous-test shape
-this project has now hit seven times.
-
-**Partition discipline is now the strongest thing about this wave.** There have
-been **four** documented crossings and **three** handoff tables, and the latest
-crossing was written down by **both** lanes independently — the one that crossed
-and the one crossed into. A boundary that is visible from both sides does not
-need anyone to remember.
-
-**And a pattern rather than a defect: THREE CROSS-LANE SEAMS, ALL THREE NOW
-CLOSED.**
-This is the night's real structural finding, and lane A has since demonstrated
-the answer to it — **cross deliberately and write the crossing down**. It closed
-seam 1 by editing lane D's file itself, disclosed as one of three crossings, and
-pre-empted a fourth by handing lane C a six-row table of work it could see but
-did not own.
-
-1. **Resolved.** Flagged 01:08 — lane A was about to close a bypass that would
-   turn lane D's brand-new guard red, and neither lane's file mentioned the
-   other. **Both halves landed by 01:11**: the bypass is gone and the guard's
-   now-stale exclusion was deleted with it. That bypass was also the one live
-   code path that would have raised 42P01 on the pricing path against production.
-2. **Closed.** Lane C found that `lint:typography-scatter` could not see
-   typography inside `cn()` — three files passed it while carrying exactly what it
-   exists to find — and the linter lives in `frontend/scripts/`, **lane D's**
-   scope. Lane D rewrote both modes onto one matcher and **pinned the blind spot
-   with test cases** so it cannot reopen.
-3. **Orphaned, then closed within minutes.** Lane B found two dead `.d.ts` files
-   whose declared signatures contradict their implementations, and **no lane's
-   scope covered the directory they sit in**. Both are now deleted and the
-   deletion verified clean. It closed because it was surfaced, not because the
-   partition accounted for it.
-
-Detail on all three in the wave 6 section.
-
-The older theme has not changed and is worth one line: almost every defect this
-project has produced lately was *a check that reported success while looking at
-the wrong thing*. Full list under "What has been FOUND".
+The short version: **the guard on "do not lose data" was blind to a wrapped
+statement, and something had already walked through it.** Two tests were green
+while asserting nothing, one of them the evidence for promoting `PAYMENTS_SOURCE`.
+A missing payout cost made the whole invoice `NaN`, silently, because the type
+system had been talked out of noticing. And three separate numbers were wrong
+tonight — one in `FOLLOWUPS.md`, one on this page, one in a lane file — every one
+of them carried forward instead of re-derived.
 
 > ## THE SCRAP/BULLION COVENANT WAS TESTED AND IT FAILED. NOTHING WAS DELETED.
 >
@@ -230,26 +159,35 @@ the wrong thing*. Full list under "What has been FOUND".
 > `sales-orders/` no longer exist. A6 carries on as 5a's task 2, still partial.
 
 ```
-OVERALL   █████████████████████████████████░░░   ~93%   (closed waves only)
+OVERALL   █████████████████████████████████░░░   ~93%   (all waves, all committed)
 ```
 
-**That ~93% covers the CLOSED waves and still excludes wave 6**, which is in
-flight and moving every few minutes — folding a live wave into the headline would
-make it drift under a reader rather than mean anything.
+**Every wave on the table is now committed, wave 6 included**, so the headline is
+a roll-up of finished work rather than a mix of shipped and in-flight.
 
-**Wave 6 now carries its own number because it finally earned one.** It was shown
-with no percentage while its bars were the zeros the lanes wrote at dispatch; all
-four have since reported measured figures, so **~83%** is the unweighted mean of
-the **twenty-two** lane-reported task bars (A 95.0, B 82.2, **C 100.0**, D 60.8)
-— **lane C has finished all five of its tasks.** It
-is an average of self-reports, not an independent measurement — the lanes own
-those bars and this page regenerates them rather than grading them.
+**Wave 6 finished at ~93%** — the unweighted mean of its **twenty-two**
+lane-reported task bars: **C 100.0**, **D 96.7**, **A 95.0**, **B 82.2**. Lane C
+finished all five of its tasks and lane D four of its six. It is an average of
+self-reports, not an independent measurement — the lanes own those bars and this
+page regenerates them rather than grading them.
 
-**The denominator grows, so read the percentage carefully.** Lanes A and D have
-each *added* a task since dispatch — A's task 5 to take lane B's NaN handover,
+**Two caveats on reading that number.** First, **the denominator grew**: lanes A
+and D each *added* a task mid-wave — A's task 5 to take lane B's `NaN` handover,
 D's D6 to write every scanner's blind spot into its header. Both landed at 100%,
-so the number rose; but a wave that discovers work can just as easily see it
-fall while genuinely progressing.
+so the number rose; a wave that discovers work can just as easily see it fall
+while genuinely progressing. Second, **the two shortfalls are deliberate stops
+with reasons, not unfinished business** — lane B's 28 remaining files and lane
+D's D1/D2 at 90% are documented in their own files.
+
+> **A rollup bug, found and fixed in the final pass.** This row read **58%** for
+> a while, because relocating a section left **two `## Wave 6` headings** in the
+> file and `scripts/waves.mjs` matches `## Wave [\d.]+` then takes the next code
+> block — so the second heading rolled up **wave 3.5's** bars into wave 6's row.
+> The tracker introduced it, caught it by re-deriving the average by hand
+> (getting 93 against the script's 58) rather than trusting the regenerated
+> figure, and renamed the heading. **The script's own warning could not see this
+> one**: every task still matched a line, so it reported clean — the same shape
+> as everything else on this page, a detector confident about the wrong input.
 
 | | wave | | |
 |---|---|---|---|
@@ -261,19 +199,23 @@ fall while genuinely progressing.
 | 🟡 | **wave 3.5** factor, delete legacy, co-locate | `██████████░░░░░░░░` | COMMITTED `a9b7dd61` · 58% of its scope |
 | 🟡 | **wave 4** batching, pricing, styling lane B | `███████████████░░░` | ~83% · COMMITTED `a2599311` · A5/A6 finished in wave 5 |
 | 🟡 | **wave 5** orders, carriers, scrap covenant | `█████████████░░░░░` | ~70% · COMMITTED `cae90da7` · DELETION REFUSED ON EVIDENCE |
-| 🔵 | **wave 6** legacy, tests→TS, shared UI, script hardening | `█████████████░░░░░` | **IN FLIGHT** · ~74% · A 94 · B 74 · C 80 · D 53 |
+| 🟡 | **wave 6** legacy, tests→TS, shared UI, script hardening | `█████████████████░` | ~93% · **COMMITTED `aa756d9e`** · C 100 · **D 97** · A 95 · B 82 |
 
-All the shas above exist in the log, in that order. **HEAD is `002c0f0f`**, not
-`a9b7dd61` — this paragraph said "`a9b7dd61` at HEAD, nothing since committed"
-until 00:57 tonight, which had been false since wave 4 landed and contradicted
-the table three lines above it. Both waves are committed; nothing of theirs is
-sitting uncommitted in the tree.
+All the shas above exist in the log, in that order. **HEAD is `aa756d9e` and the
+working tree is clean** — every wave on this table is committed, wave 6 included.
 
-## Wave 6 — RUNNING NOW. Lane C is COMPLETE; A, B and D still going.
+*(For the record of how this page is kept: this paragraph read "`a9b7dd61` at
+HEAD, nothing since committed" until 00:57 tonight. That had been false since
+wave 4 landed and it contradicted the table three lines above it — the kind of
+stale status line this page exists to catch.)*
 
-Lane files appeared between **00:57 and 01:01**, and all four had posted real
-numbers by **01:11**. Bars below are each lane's own, regenerated by
-`node scripts/waves.mjs`.
+## Wave 6 — COMMITTED at `aa756d9e`, all four lanes done
+
+Dispatched just before 01:00, committed at **02:08** — **215 files,
++9486/-2870, on a green 23-member gate**. Bars below are each lane's own,
+regenerated by `node scripts/waves.mjs`. Two lanes stopped deliberately rather
+than ran out: **lane B's 28 remaining files and lane D's meta-guard are reasoned
+stops with their reasons written down**, which is a result, not a gap.
 
 ```
 LANE A  legacy, contracts, insured value     <- UPDATED 01:30, task 5 added and DONE
@@ -626,7 +568,48 @@ read against it rather than taken at face value:
 > **Do not treat a red API typecheck as a regression while lane B is mid-flight,
 > and do not quote 338 as current.** The check to run is not "is it green" but
 > "is any erroring file outside `tests/`" — and right now none is.
-### Found by wave 6 so far
+### Found by wave 6
+
+> **IF YOU READ THREE, READ THESE.** The list below is long and every entry
+> earned its place, but these are the three that would change what you do.
+>
+> - **D148 — the guard on "do not lose data" was blind, and something had already
+>   walked through it.** Below, first entry.
+> - **D162 — a test whose closing assertion passed because its subject had never
+>   happened.** Green for its whole life, on a live customer-data path.
+> - **D160 — three numbers were wrong tonight, all carried forward rather than
+>   re-derived.** One in `FOLLOWUPS.md`, one on this page, one in a lane file.
+
+- **D148 — THE GUARD ON "DO NOT LOSE DATA" WAS BLIND TO A WRAPPED STATEMENT, AND
+  A REAL DESTRUCTIVE CHANGE HAD ALREADY PASSED THROUGH IT.** By CLAUDE.md's own
+  ordering this is the most serious finding of the night: `lint:migrations` is the
+  static enforcement of the one rule that outranks everything else.
+
+  **It is line-based.** A planted `DROP\n  TABLE exchange.payouts;` — the same
+  statement, wrapped across two lines — produced **"105 files, no destructive
+  writes to exchange."** Clean. Confident. Wrong.
+
+  **Closing it immediately found a real instance already in the tree.**
+  `086_offers_go_away.sql` drops **five columns** from
+  `exchange.purchase_orders` — `offer_status`, `offer_notes`, `offer_sent_at`,
+  `offer_expires_at`, `num_rejections` — and had **no `allow-destructive`
+  marker**, because the `ALTER` wraps and the guard never saw it and so never
+  demanded one. Verified in the file: the marker at line 47 now exists and says
+  in as many words *"Marker added RETROACTIVELY"*.
+
+  **The change itself was authorised and dev-only — the missing thing was the
+  record**, which is the marker's entire purpose. A destructive change nobody
+  documented is indistinguishable from one nobody noticed, and that distinction
+  is the whole of the covenant.
+
+  **A second fix worth keeping**: the waiver window went from six lines to
+  twenty, on the reasoning that *a marker which explains itself is a paragraph* —
+  a six-line window rejects the well-documented waivers and accepts the terse
+  ones, which is precisely backwards.
+
+  Lane D had *named* this blind spot in D6 hours earlier ("`lint-migrations` is
+  line-based… every migration in the tree writes these on one line today"). It
+  turned out one did not.
 
 - **Lane C — an accessibility defect and a latent `htmlFor` bug, both in the
   segmented controls it deleted.** `DisplayToggle` put `role="radio"` on a plain
@@ -687,6 +670,38 @@ read against it rather than taken at face value:
 > rather than `Record<string, unknown>[]` — **five test files had to re-declare
 > the order shape because the service discards it**, which is the one with real
 > leverage).
+
+- **D160 — THREE NUMBERS WERE WRONG TONIGHT, AND ALL THREE FAILED THE SAME WAY:
+  CARRIED FORWARD INSTEAD OF RE-DERIVED.** They are collected here because the
+  pattern is worth more than any of them individually, and because one is the
+  coordinator's and one is this page's own.
+
+  1. **D117's "eleven rows disagree" — it is FOUR.** Recomputed from the very
+     breakdown printed beside it: ACH `0 x11`, DORADO_ACCOUNT `0 x2` and ECHECK
+     `0 x39` all *agree* with the fee table; only `ECHECK 75 x1`,
+     `ECHECK 125 x1` and `WIRE 0 x2` differ. The eleven appears to be the `x11`
+     off the ACH line — the one pairing that matches perfectly. Wrong in
+     `FOLLOWUPS.md` **and** in the source comment. *(A second arithmetic slip
+     sits beside it: the breakdown sums to **62** against a stated 61.)*
+  2. **This page published a working-tree count of 224 when it was 214.** Typed
+     from memory of the previous reading instead of re-run. Corrected within a
+     minute, and recorded rather than quietly patched — a tracker that fixes its
+     own slips silently while publishing everyone else's is running two
+     standards.
+  3. **A lane compared its result against "CLAUDE.md's 13 LOOP / 9 SKIP".**
+     CLAUDE.md does not mention `audit:vacuous-tests`, LOOP or SKIP **anywhere**;
+     the real baseline in `FOLLOWUPS.md` is **21 LOOP, 10 SKIP**. The lane's
+     *reasoning* was sound and verified — the detector is unmodified on this
+     branch, so the delta is the suite — but the baseline was misattributed and
+     misquoted, and SKIP had actually gone **down**.
+
+  **None of the three changed a conclusion, which is exactly why they are
+  dangerous.** A figure that is wrong and load-bearing gets caught by the thing
+  it breaks. A figure that is wrong and decorative gets repeated, and every
+  repetition makes it harder to question — the "twenty-one switches" line in
+  CLAUDE.md survived several waves that way. **The countermeasure is not care, it
+  is re-derivation**: every number on this page now comes from a command run at
+  the moment of writing.
 
 - **A FOURTH CROSSING, AND THE FIRST DISCLOSED FROM BOTH SIDES.** Lane A fixed
   the invoice `NaN` in `pricing/bid.ts` and pinned it in
@@ -1044,7 +1059,7 @@ read against it rather than taken at face value:
   *(Described without a number. The coordinator assigns; lane B is calling it
   L-B0 locally.)*
 
-## Wave 6 — the record of a call this page made and got right
+## Postscript — the record of a call this page made and got right
 
 *Kept at the end of the section because it is history now, not news.*
 
@@ -1947,6 +1962,21 @@ What genuinely needs a decision only Jacob can make:
   product agree, and the question is whether the contract may say that. **No
   agent has assessed this as legal text and none should.**
 
+  > **SECOND T&C PROBLEM, created tonight and caught tonight — D152.**
+  > `frontend/app/terms-and-conditions/page.tsx:177` promises *"You may request
+  > additional insurance for your Products up to **$50,000**."* Migration 097 sets
+  > `shipping.services.max_insured_value` to **10,000** and the API now clamps
+  > server-side. **The published contract and the running system disagree by
+  > $40,000 on what a customer's parcel can be insured for.** Verified in both
+  > files tonight.
+  >
+  > This is not a bug in the migration — 10,000 is your stated policy, deliberately
+  > under FedEx's own 50,000 ceiling. It is that **the T&C was never part of the
+  > change**, and the browser literal it used to agree with is gone. Either the
+  > copy moves to 10,000 or the policy moves to 50,000, and **only you can say
+  > which** — one is an edit, the other is what the business is willing to cover.
+  > It ships the moment `master` deploys, same as the paragraph above.
+
 ## Also yours, but neither urgent nor blocking
 
 - **The two surviving `*_SOURCE` switches.** Re-verified in the tree at 01:15,
@@ -2000,7 +2030,7 @@ What genuinely needs a decision only Jacob can make:
   wording.
 
   **The real remaining question is simply: may `exchange` stop receiving these
-  writes?** One question, asked once, covering all eleven. It is the one-way door
+  writes?** One question, asked once, covering all thirteen. It is the one-way door
   and CLAUDE.md already says it is yours.
 
   **Lane A gathered the evidence tonight so it can be answered rather than
@@ -2013,12 +2043,64 @@ What genuinely needs a decision only Jacob can make:
   self-heals on the next cron tick. An unused-export sweep of `api/legacy/**`
   returns **0 exports with no caller**, so every one of the fourteen directories
   is load-bearing today.
+- **THE TYPOGRAPHY SWEEP IS NOT AT ZERO, and two earlier commit messages said it
+  was.** Lane D headed this one *"CORRECTED NUMBER, FOR JACOB"*, and it is your
+  call rather than a defect.
+
+  `lint:typography-scatter` matched three hand-enumerated spellings of
+  `className` and **never read the 205 call sites written as
+  `className={cn(...)}`.** So "306 to 0" meant *zero of the ones it could see*.
+  **The true figure is 28** type-size/weight utilities across 9 files — and the
+  default mode was blind the same way: **0 → 6 over-specified call sites**.
+
+  **All 28 are inside `shared/ui` itself, not at call sites**, which is why this
+  is a judgement rather than a violation. The stated target is zero on the
+  reasoning that *"a heading size changes in ONE line of `typography.css`"* — and
+  a hardcoded `text-sm` in `base/table.tsx` defeats that. Six of the nine files
+  are `shared/ui/base/*`, i.e. the primitives.
+
+  **One of the six call sites is a real visual bug, not a style nit**: two
+  `<TableRow>`s in `AdminReceived.tsx` (lines 345 and 646) carry
+  `hover:bg-transparent` *and* `hover:bg-muted/30` — **they cancel their own
+  hover.**
+
+  **Nobody owns the fix.** The conversions are `frontend/**`, which is lane C's,
+  and **lane C finished at 100% before this landed.** Lane D owns the instrument
+  and has handed back the true number, exactly as it should. This is the one
+  piece of tonight's work that ends with a measured gap and no assignee.
 - **`Spots.tsx`'s full-bleed `bg-brand` bar still collides with ruling 19.**
   Flagged twice, untouched both times; lane B preserved it exactly rather than
   decide it.
 - **`CartTabs`' two tabs use different active treatments** — `underline` on Sell,
   `underlineSubtle` on Buy. Preserved exactly because it looks accidental rather
   than intended, which is a question only you can answer.
+
+# Queued next — the plan, and it is short
+
+Not decisions, just the work that comes next in order. Each has a reason it is
+next rather than later.
+
+1. **D157 — move the `scripts` exclusion out of `api/tsconfig.json`.** This is
+   the **root cause of six rotted gate scripts**: `"exclude": ["node_modules",
+   "migrations", "**/*.test.js", "scripts"]` means forty-six scripts have zero
+   type coverage by configuration. Nothing imports them, no test covered them,
+   and `tsc` was told not to look. **It goes first because converting scripts to
+   TypeScript buys nothing until it moves** — which is also why lane B correctly
+   left `scripts/lib/*.test.js` alone.
+2. **D159 — `features/orders/read.service.ts` returns `Record<string, unknown>[]`
+   instead of its own composed type.** **Five test files had to re-declare the
+   order shape** because the service discards what it already knows. The single
+   highest-leverage row on lane B's handoff table.
+3. **The remaining 28 test files.** Mostly `shared/` and `providers/` simply not
+   reached; two resist the *move* rather than the conversion and need a hand
+   path-audit (ruling 31); `scripts/lib/*` waits on item 1.
+4. **Lane B's four LIVE handoff rows** — `orders/intake.ts` (`block` should take
+   `null | undefined`), `sales-tax/service.ts` (`state` should take `undefined`,
+   which the pinned defect actually passed), `orders/service.ts`
+   (`updateScrapItem` requires fields it never reads), and D159 above.
+   **D158: three of that table's seven rows were already stale** — two fixed by
+   lane A hours after being written, one resting on the refuted L-B9. The page
+   says which; do not rework them.
 
 # Recorded for an eventual day — NOT blockers
 
@@ -2184,14 +2266,28 @@ procedure now is to take the next number after the highest in `FOLLOWUPS.md` at
 that moment AND say so, or to describe the finding without a number and let the
 coordinator assign one. Describing without a number is the safer of the two.
 
-**The closed waves on this page are final as of `cae90da7`, with `002c0f0f` the
-docs correction on top.** All six existing lane files under `docs/waves/` are
+**Everything on this page is final as of `aa756d9e`.** Wave 6 is committed, the
+working tree is clean, all four lanes are finished and the tracker has stopped
+polling. The bars regenerate from the ten lane files under `docs/waves/` and will
+not move again until a wave 7 lane file appears.
+
+**Two lanes stopped deliberately, and that is a result rather than a gap.** Lane
+B left 28 files unconverted with a reason per group; lane D left the meta-guard
+for next time. Neither ran out of night — both wrote down where the line is and
+why, which is what makes the remainder pickup-able.
+
+**The older note, kept for the record:** the closed waves were final as of
+`cae90da7`, with `002c0f0f` the docs correction on top. All six existing lane files under `docs/waves/` are
 closed records. **Wave 6 is live and has produced no lane file yet**, so its bars
 do not exist rather than reading zero — see the wave 6 section. The moment
 `overnight-lane-{a,b,c,d}.md` appears, `node scripts/waves.mjs` will pick it up.
 
-**Timestamps on this page are real.** Where it says "no update since 00:57" that
-is a checked fact about the filesystem, not a placeholder.
+**Timestamps on this page are real**, and a figure with a time attached was true
+at that time. Where this page reports a lane's number it is the lane's own,
+regenerated — where it *overrides* one, the override says so and shows the
+command. That happened four times tonight and all four are still on the page:
+the D117 count, the `supertest.d.ts` attribution, the L-B9 refutation, and lane
+B's stale handoff rows.
 
 The tracker owns this file and the published artifact. Each agent owns exactly
 one file under `docs/waves/` and updates only that one — never this index, never
