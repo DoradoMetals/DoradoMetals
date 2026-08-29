@@ -4,9 +4,9 @@ Owner: phase3-api lane (dispatched 2026-08-29).
 One writer per file: whoever takes this lane owns this file and nothing else.
 
 ```
-A0. Executor: 35 declarations become one   ██████████████████  100%
-A1. API: 118 cross-file types out of features/  █████████████░░░░░   70%
-A2. API: 70 single-file types stop exporting    ██████████████░░░░   80%
+A0. Executor: 37 declarations become one   ██████████████████  100%
+A1. API: 8 boundary-crossing types (was '118')  █████████████░░░░░   70%
+A2. API: single-file types stop exporting    ██████████████░░░░   80%
 A3. API: 29 input/patch shapes into contracts   ░░░░░░░░░░░░░░░░░░    0%
 A4. lint: a type has exactly one home           ░░░░░░░░░░░░░░░░░░    0%
 ```

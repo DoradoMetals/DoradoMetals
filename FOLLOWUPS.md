@@ -11684,12 +11684,14 @@ run before dev row counts are trusted again.
 **Rule going forward: only the coordinator kills processes.** A subagent that
 finds orphans reports them.
 
-## D178 — one type, thirty-five identical declarations
+## D178 — one type, thirty-SEVEN identical declarations
 
 Jacob: *"if we have types randomly living in files, then we have failed"*. The
 sharpest instance is not a subtle one. **`export type Executor = PoolClient |
-undefined;` is declared 35 times**, in 35 separate `repo.ts` files across
-`features/`, and all 35 definitions are **byte-identical**. It is referenced in
+undefined;` is declared 37 times**, byte-identical. **This said 35 and was
+wrong**: my scan looked at `features/` and two of them live in `legacy/`. The
+lane re-derived it rather than inheriting my number, which is the third time
+today a carried-forward figure was off. It is referenced in
 69 files — the single most widely used type in the API.
 
 It is the argument that lets a repo call join its caller's transaction, i.e. the
@@ -11967,3 +11969,39 @@ the new code legitimately wrote.
 would "serve customers a January snapshot". It is now measured: 47 of 62 orders
 would come back as their January selves, 6 of them demonstrably out of date, and
 **running the backfill would not fix it.**
+
+
+## D182 — "118 cross-file types" was a word-frequency count, and the real number is 8
+
+The phase 3 brief said 118 of 188 exported API types "appear in more than one
+file". I produced that with `grep -rl <name>` — **which counts any file that
+mentions the word**, not any file that imports the type. The lane re-derived it
+by import and the picture is different in kind, not just in size:
+
+- **105** names, not 118.
+- **88** of those cross files but **never leave their own feature** —
+  `repo.ts` → `service.ts` → `compose.ts` plus that feature's tests. That is a
+  feature's internal layering. It is not a type "randomly living in a file",
+  which is the thing Jacob's ruling is about.
+- **9** cross only into `legacy/<the same feature>`, which *is* the dual write.
+- **The genuinely boundary-crossing set is EIGHT.** Three were pure aliases and
+  are gone.
+
+**So A1 was ~92% not-a-problem, and the metric would have driven ninety-seven
+unnecessary moves** — each one a chance to narrow a type that is deliberately
+wide. The measurement did not just overstate the size; it pointed at the wrong
+work.
+
+**And the reason the rest must not move is now measured rather than asserted.**
+`wire/shipping.ts`'s `Carrier` types `organization.name` as `string | null`,
+while `organizations.organizations.name` is NOT NULL and the generated
+`OrganizationsRow` says so. The contract was widened to admit the `exchange`
+implementation that the wire-axis retirement deleted. Adopting it internally
+would hand the compiler a null **the server has already disproved** — D145's
+class, in the widening direction. The same holds for every wire shape whose
+timestamps are `z.string()` while pg hands the server a `Date`.
+
+**The principle, worth keeping:** *contracts parse the wire; feature types are
+what the server knows.* They answer different questions, and collapsing them
+loses information — which means "one home for every type" cannot mean "one type".
+Jacob's ruling stands; the naive reading of it was mine, not his.

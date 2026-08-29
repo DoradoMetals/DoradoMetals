@@ -3,7 +3,7 @@
 Where the rewrite is. Bars first, plan below, findings at the end.
 
 ```
-OVERALL   ██████████████████░░░░░░░░░░░░░░░░░░   ~51%
+OVERALL   ████████████████████░░░░░░░░░░░░░░░░   ~56%
 ```
 
 | | phase | | |
@@ -11,7 +11,7 @@ OVERALL   ██████████████████░░░░░�
 | ✅ | **shipped** ten commits, `0a201bc0` → `af8bc790` | `██████████████████` | landed |
 | 🔄 | **phase 1** the write pivot, and the instruments | `██████████████░░░░` ~79% | IN FLIGHT, three lanes |
 | ⬜ | **phase 2** checkout, then payments — the last two | `░░░░░░░░░░░░░░░░░░` ~0% | queued |
-| 🔄 | **phase 3** one home for every type — 347 declarations | `██████████░░░░░░░░` ~53% | frontend half landed |
+| 🔄 | **phase 3** one home for every type — 347 declarations | `████████████░░░░░░` ~68% | frontend half landed |
 | ⬜ | **phase 4** production, and three decisions | `░░░░░░░░░░░░░░░░░░` ~0% | Jacob's |
 
 ## Phase 1 — IN FLIGHT
@@ -90,9 +90,9 @@ Detail: `docs/waves/phase3-api.md` · `docs/waves/phase3-frontend.md`. Both bloc
 below are the lanes' own task lists, copied from their files.
 
 ```
-A0. Executor: 35 declarations become one    ██████████████████  100%
-A1. API: 118 cross-file types out of features/  ░░░░░░░░░░░░░░░░░░    0%
-A2. API: 70 single-file types stop exporting  ░░░░░░░░░░░░░░░░░░    0%
+A0. Executor: 37 declarations become one    ██████████████████  100%
+A1. API: 8 boundary-crossing types (was '118')  █████████████░░░░░   70%
+A2. API: single-file types stop exporting   ██████████████░░░░   80%
 A3. API: 29 input/patch shapes into contracts  ░░░░░░░░░░░░░░░░░░    0%
 A4. lint: a type has exactly one home       ░░░░░░░░░░░░░░░░░░    0%
 ```
@@ -109,16 +109,24 @@ Jacob: *"if we have types randomly living in files, then we have failed"* and
 *"we shouldn't have types — except for like, reasonable things i.e. a client
 only onClick handler — living in feature code."*
 
-**347 declarations, and the two halves are the same job.** The API has 188
-exported types in `features/`, 118 of them used in more than one file. The
-frontend has 159 in `features/`, reached by 162 imports into 23 different
-`types.ts` files — one checkout file alone pulls seven schemas from seven
-features *alongside* its `@dorado/contracts` import.
+**The API half turned out to be ~92% not-a-problem, and the metric was mine
+(D182).** "118 types used in more than one file" was a `grep -rl` word-frequency
+count. Re-derived BY IMPORT it is 105 names, of which **88 never leave their own
+feature** (`repo` → `service` → `compose` is a feature's internal layering, not a
+type living somewhere random), 9 cross only into `legacy/<the same feature>`, and
+**the genuinely boundary-crossing set is EIGHT**. The number did not merely
+overstate the size — it pointed at the wrong work, and acting on it would have
+driven ninety-seven unnecessary moves, each a chance to narrow a type that is
+deliberately wide.
 
-**Two rules, and they answer different questions.** For the API the test is
-mechanical: a type used in more than one file crosses a boundary and belongs in
-the contracts; a type used in exactly one file is an implementation detail and
-should not be exported. No third case, so it lints.
+**The rule that replaced it, measured rather than asserted:** *contracts parse
+the wire; feature types are what the server knows.* `wire/shipping.ts`'s
+`Carrier` types `organization.name` as `string | null` while the column is NOT
+NULL — the contract was widened to admit an implementation the wire-axis
+retirement already deleted. Adopting it internally hands the compiler a null the
+server has disproved. Same for every wire shape whose timestamps are
+`z.string()` while pg hands the server a `Date`. So "one home for every type"
+cannot mean "one type"; the naive reading was mine, not Jacob's.
 
 For the frontend the test is a judgement, per declaration: **is this DATA or is
 this UI?** A handler signature, a component's props, a reducer's local union —
