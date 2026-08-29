@@ -586,7 +586,8 @@ CREATE TABLE IF NOT EXISTS orders.transactions (
   pool_remediation numeric,
   pool_oz_deducted numeric,
   shipping_service text,
-  payout_fee numeric
+  payout_fee numeric,
+  payout_details_id uuid
 );
 ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS order_id uuid;
@@ -615,6 +616,7 @@ ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS pool_remediation numeri
 ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS pool_oz_deducted numeric;
 ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS shipping_service text;
 ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS payout_fee numeric;
+ALTER TABLE orders.transactions ADD COLUMN IF NOT EXISTS payout_details_id uuid;
 
 CREATE TABLE IF NOT EXISTS organizations.organizations (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2516,6 +2518,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transactions_payout_details_fk' AND c.relname = 'transactions' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.transactions ADD CONSTRAINT transactions_payout_details_fk FOREIGN KEY (payout_details_id) REFERENCES payments.details(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'transactions_updated_by_id_fkey' AND c.relname = 'transactions' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.transactions ADD CONSTRAINT transactions_updated_by_id_fkey FOREIGN KEY (updated_by_id) REFERENCES auth.users(id);
@@ -3200,6 +3212,7 @@ CREATE INDEX IF NOT EXISTS idx_order_spots_order ON orders.spots USING btree (or
 CREATE UNIQUE INDEX IF NOT EXISTS order_spots_one_per_order_metal ON orders.spots USING btree (order_id, metal_id);
 CREATE INDEX IF NOT EXISTS idx_order_tx_order_id ON orders.transactions USING btree (order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS transactions_one_per_order ON orders.transactions USING btree (order_id);
+CREATE INDEX IF NOT EXISTS transactions_payout_details_id_idx ON orders.transactions USING btree (payout_details_id);
 CREATE UNIQUE INDEX IF NOT EXISTS organizations_carrier_uniq ON organizations.organizations USING btree (type, name, email);
 CREATE UNIQUE INDEX IF NOT EXISTS organizations_refiner_email_unique ON organizations.organizations USING btree (email) WHERE ((type = 'REFINER'::text) AND (email IS NOT NULL));
 CREATE UNIQUE INDEX IF NOT EXISTS organizations_refiner_phone_unique ON organizations.organizations USING btree (phone) WHERE ((type = 'REFINER'::text) AND (phone IS NOT NULL));

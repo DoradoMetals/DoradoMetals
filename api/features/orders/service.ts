@@ -31,6 +31,12 @@ import * as purchaseOrderRepo from "#features/orders/repo.dual.js";
 import * as readService from "#features/orders/read.service.ts";
 import * as mirror from "#features/orders/repo.mirror.ts";
 import * as scrapRepo from "#features/scrap/repo.ts";
+// THE NEW-SCHEMA HALF OF THE THREE PAYOUT WRITES (099). exchange.payouts is one
+// flat row holding an account, an order link and a fee; those are three columns
+// in three places now, and they belong to the features that own those tables -
+// the same reasoning editShippingCharge below is written against.
+import * as payoutAccounts from "#features/payments/details/repo.ts";
+import * as orderTransactions from "#features/orders/transactions/repo.ts";
 import * as emailService from "#features/media/emails/service.ts";
 import * as transactionsService from "#features/transactions/service.ts";
 import * as usersFunds from "#features/users/service.ts";
@@ -392,6 +398,27 @@ export async function recordPurchaseOrder(
 
   await purchaseOrderRepo.insertPayout(client, order_id, {
     userId: user_id,
+    ...purchase_order.payout,
+  });
+
+  // THE SAME PAYOUT, IN THE NEW SCHEMA. Three writes because exchange.payouts
+  // is three things in one row (073): the ACCOUNT becomes payments.details, the
+  // ORDER LINK becomes orders.transactions.payout_details_id (099), and the FEE
+  // becomes orders.transactions.payout_fee. Until this, insertPayout was a raw
+  // pass-through with no mirror at all - not because it had been checked and
+  // exempted, but because its successor's order link did not resolve. D168.
+  //
+  // ROUTING AND ACCOUNT NUMBERS ARE NOT PASSED. Only the last four, derived
+  // here rather than carried. They stay in exchange.payouts and nowhere else
+  // while encryption at rest is outstanding - see payments/details/sql/create.sql
+  // and CLAUDE.md's standing constraint. This is why the pivot cannot finish for
+  // this table without a decision that is Jacob's.
+  //
+  // The order's transactions row is written by the mirror inside insertOrder's
+  // sync, so it exists by now; setPayoutAccount returning undefined would mean
+  // it does not, which is a bug rather than a missing order.
+  await recordPayoutInNewSchema(client, order_id, {
+    user_id,
     ...purchase_order.payout,
   });
 
@@ -837,6 +864,43 @@ export async function editShippingCharge({
   return await shipmentRepo.setChargeForOrder(order_id, shipping_charge);
 }
 
+// The new-schema half of a payout, written beside the exchange row rather than
+// derived from it. `sync` cannot do this job: mirrorPurchaseOrder rebuilds
+// orders.transactions from exchange.purchase_orders, and a payout is not on
+// that table - which is why payout_fee and payout_details_id are the two
+// columns its ON CONFLICT deliberately does not touch, and why they are safe to
+// write natively here.
+//
+// Best-effort on the ACCOUNT, exact on the FEE. `create` returns null when the
+// method does not resolve against payments.methods (its SELECT drives the
+// INSERT), and an unrecognised method must not take down an order that exchange
+// has already recorded - so the link is skipped and the fee still lands.
+async function recordPayoutInNewSchema(
+  executor: PoolClient,
+  order_id: string,
+  payout: Record<string, any>
+): Promise<void> {
+  const account = String(payout.account_number ?? "");
+  const details_id = await payoutAccounts.create(
+    {
+      user_id: payout.user_id,
+      method: payout.method,
+      account_holder: payout.account_holder_name ?? null,
+      bank_name: payout.bank_name ?? null,
+      account_type: payout.account_type ?? null,
+      last_four: account.length >= 4 ? account.slice(-4) : null,
+      email_to: payout.payout_email ?? null,
+    },
+    executor
+  );
+  if (details_id) {
+    await orderTransactions.setPayoutAccount(order_id, details_id, null, executor);
+  }
+  await orderTransactions.setAmount(
+    order_id, "payout_fee", payout.cost ?? 0, null, executor
+  );
+}
+
 export async function editPayoutCharge({
   order_id,
   payout_charge,
@@ -844,7 +908,17 @@ export async function editPayoutCharge({
   order_id: string;
   payout_charge: number;
 }): Promise<unknown> {
-  return await purchaseOrderRepo.editPayoutCharge(order_id, payout_charge);
+  // BOTH SCHEMAS, IN ONE TRANSACTION. 073 moved this fee to
+  // orders.transactions.payout_fee and nothing started writing it: the exchange
+  // statement was a pass-through in repo.dual.js, listed under "features that
+  // have not moved" beside insertPayout - which was true of the account and
+  // false of the fee. So the two agreed only until the first admin edit, and
+  // then diverged silently with the order reading the stale copy.
+  return await withTransaction(async (client) => {
+    const r = await purchaseOrderRepo.editPayoutCharge(order_id, payout_charge, client);
+    await orderTransactions.setAmount(order_id, "payout_fee", payout_charge, null, client);
+    return r;
+  });
 }
 
 // THE LEDGER NOW RECORDS WHAT WAS ACTUALLY CREDITED.
@@ -891,7 +965,16 @@ export async function changePayoutMethod({
   order_id: string;
   method: string;
 }): Promise<unknown> {
-  return await purchaseOrderRepo.changePayoutMethod(order_id, method);
+  // The method is a column on exchange.payouts and a FOREIGN KEY on
+  // payments.details, so the new-schema half resolves it against
+  // payments.methods rather than storing the string. It walks
+  // orders.transactions.payout_details_id, which is the link 099 added; before
+  // that it walked payments.intents and matched nothing.
+  return await withTransaction(async (client) => {
+    const r = await purchaseOrderRepo.changePayoutMethod(order_id, method, client);
+    await payoutAccounts.setMethodForOrder(order_id, method, client);
+    return r;
+  });
 }
 
 export async function purgeCancelled(): Promise<unknown> {

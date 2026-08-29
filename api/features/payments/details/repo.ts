@@ -4,8 +4,15 @@
 // account, the order it belonged to, and the fee charged for it. Those are three
 // different lifetimes: an account is reused across orders, an order link is per
 // order, and a fee is a line on that order's transaction. This repo owns the
-// first. The other two are `linkToOrder` below and
-// orders/transactions.setAmount("payout_fee") respectively.
+// FIRST ONLY. The other two live with the order, because they are columns of an
+// orders table: orders/transactions.setPayoutAccount and
+// orders/transactions.setAmount("payout_fee").
+//
+// THE LINK USED TO BE SET HERE AND IS NOT ANY MORE (099). It wrote
+// payments.intents.details_id, on the assumption that an order reaches its
+// payout account through its payment intent - and an intent is money coming IN,
+// so for a purchase order there was never one to update. It matched nothing,
+// silently, for every order it existed to serve. D168.
 //
 // It does NOT write routing_number or account_number - see sql/create.sql.
 import query from "#shared/db/query.js";
@@ -14,7 +21,6 @@ import type { PoolClient } from "pg";
 
 const sql = sqlFrom(import.meta.dirname);
 const CREATE = sql("create");
-const LINK = sql("link_to_order");
 const SET_METHOD = sql("set_method_for_order");
 
 export type PayoutAccount = {
@@ -49,13 +55,7 @@ export async function create(account: PayoutAccount, executor?: PoolClient) {
   return rows[0]?.id ?? null;
 }
 
-/** Point an order's existing payment intent at this account. */
-export async function linkToOrder(order_id: string, details_id: string, executor?: PoolClient) {
-  const { rows } = await query(LINK, [order_id, details_id], executor);
-  return rows.map((r) => r.id as string);
-}
-
-/** Change the payout method for one order, walking order -> intent -> details. */
+/** Change the payout method for one order, walking order -> transactions -> details. */
 export async function setMethodForOrder(order_id: string, method: string, executor?: PoolClient) {
   const { rows } = await query(SET_METHOD, [order_id, method], executor);
   return rows.map((r) => r.id as string);

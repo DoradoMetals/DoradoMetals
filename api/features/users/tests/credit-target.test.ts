@@ -46,7 +46,11 @@ test("a credit adjustment that matches no user is refused, not reported as done"
 test("a real user is still adjusted, and by the right amount", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const { rows } = await query(
-      `SELECT id, dorado_funds FROM auth.users WHERE dorado_funds IS NOT NULL LIMIT 1`,
+      // exchange.users, because that is where the write lands; joined to
+      // auth.users because that is where it is read back from.
+      `SELECT e.id, e.dorado_funds FROM exchange.users e
+         JOIN auth.users a ON a.id = e.id
+        WHERE e.dorado_funds IS NOT NULL LIMIT 1`,
       [],
       client
     );
@@ -60,11 +64,21 @@ test("a real user is still adjusted, and by the right amount", async () => {
       [rows[0].id],
       client
     );
-    // Read the ROW, not the status. Derived from the balance it started at
-    // rather than a fixture, so it cannot pass against a stale expectation.
+    // Read the ROW, not the status - and read it from auth.users, which the
+    // write never touches. It arrives there through the mirror trigger, so this
+    // assertion covers the write AND the mirror in one. Derived from the
+    // balance it started at rather than a fixture, so it cannot pass against a
+    // stale expectation.
+    //
+    // THE DELTA, ROUNDED TO SIX PLACES - not the total rounded to two. Two
+    // places assumes the subject started on a whole cent, and dev balances do
+    // not: this asserted 8.08 against a real 8.0846720000001 the moment the
+    // subject stopped being cherry-picked. Six places is far finer than money
+    // and far coarser than float error, the same reasoning as `sameMoney` in
+    // replay.test.ts and `resultOf` in the service.
     assert.equal(
-      Number(after[0].dorado_funds),
-      Number((before + 7.5).toFixed(2)),
+      Number((Number(after[0].dorado_funds) - before).toFixed(6)),
+      7.5,
       "the balance moved by exactly the amount added"
     );
   });
@@ -73,7 +87,8 @@ test("a real user is still adjusted, and by the right amount", async () => {
 test("the database refuses a NULL balance, which is what makes an unknown mode safe", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const { rows } = await query(
-      `SELECT id FROM auth.users WHERE dorado_funds IS NOT NULL LIMIT 1`,
+      `SELECT e.id FROM exchange.users e JOIN auth.users a ON a.id = e.id
+        WHERE e.dorado_funds IS NOT NULL LIMIT 1`,
       [],
       client
     );

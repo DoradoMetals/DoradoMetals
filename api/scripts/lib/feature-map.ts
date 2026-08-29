@@ -203,7 +203,19 @@ export const RENAMES: RenameMap = {
     account_holder_name: "account_holder",
     method: "method_id",
     cost: "payout_fee",
-    order_id: "-",
+    // WAS "-" UNTIL 099, AND THAT WAS A REAL GAP WEARING AN EXEMPTION.
+    //
+    // The dash said "deliberately dropped", following 073's decision to reach a
+    // payout's order through payments.intents instead. An intent is money
+    // coming IN and a payout is money going OUT, so that path resolved for
+    // ZERO of the sixteen dev payouts and every purchase order in production -
+    // silently, because an UPDATE matching nothing does not raise. D168.
+    //
+    // The link is carried INVERTED now: the order's transactions row points at
+    // the payout's account (orders.transactions.payout_details_id), rather than
+    // the payout row naming its order. Same fact, on the side that is 1:1 -
+    // measured across all 62 production payouts, max one per order.
+    order_id: "payout_details_id",
   },
   "exchange.cart_items": { cart_id: "checkout_id", product_id: "bullion_id" },
   "exchange.sell_cart_items": {

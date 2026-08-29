@@ -27,9 +27,25 @@ import * as mirror from "#features/orders/repo.mirror.ts";
 // getCurrentSpotPrices is not an order read: it is the live metals feed, and
 // it stays with the exchange implementation until spots promote.
 
-// Writes belonging to features that have not moved. exchange.shipments and
-// exchange.payouts are still the only copies of what these touch, so there is
-// nothing to mirror them into yet. They move with shipping and payments.
+// THE EXCHANGE HALF ONLY - the new-schema half of these is written by the
+// CALLER, not by a mirror here.
+//
+// This block used to say exchange.payouts was "still the only copy... nothing to
+// mirror them into yet", and that had stopped being true: 073 split the payout
+// three ways, and 099 added the order link that split was missing. What makes
+// them different from every write below is that `sync` cannot do the job -
+// mirrorPurchaseOrder rebuilds orders.transactions from
+// exchange.purchase_orders, and a payout is not a column of that table. So
+// features/orders/service.ts writes payments.details,
+// orders.transactions.payout_details_id and orders.transactions.payout_fee
+// itself, in the same transaction. See recordPayoutInNewSchema there.
+//
+// WHAT IS STILL EXCHANGE-ONLY, AND DELIBERATELY: routing_number and
+// account_number. Nothing else holds them and nothing else may until encryption
+// at rest lands. That is the one reason this file cannot be deleted for payouts.
+//
+// purgeCancelled is a pass-through with no successor at all, and that is
+// Jacob's - see docs/waves/seams.md, seam 3.
 //
 // exchange.refiner_metals used to be on this list and is not any more: 070
 // derives refiners.spots from it, the same way orders.spots is derived from

@@ -2,14 +2,27 @@
 //
 // What makes this worth testing rather than trusting: the legacy insertPayout
 // wrote one flat row and this writes an account, a link and a fee to three
-// different tables. The link in particular is the thing I got wrong once - I
-// read 073's "order_id -> not carried" and stopped before the clause that says
-// where the link actually lives.
+// different tables.
+//
+// *** THE LINK TESTS BELOW USED TO PROVE THE OPPOSITE OF WHAT THEY CLAIMED. ***
+// They picked their subject with
+// `SELECT id, order_id FROM payments.intents WHERE order_id IS NOT NULL LIMIT 1`
+// - and every intent that carries an order carries a SALES order, because an
+// intent is money coming in. So they exercised the link on the one class of
+// order that never has a payout, and passed, while the link resolved for zero
+// of the sixteen payouts on dev. D168; 099 moved the link to
+// orders.transactions.payout_details_id.
+//
+// They now pick a PURCHASE order, which is the only kind with a payout. That
+// choice is the assertion: if the link is ever routed back through an intent,
+// these fail rather than pass on a sales order.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import * as details from "#features/payments/details/repo.ts";
+import * as transactions from "#features/orders/transactions/repo.ts";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 
 let client: PoolClient;
 
@@ -22,8 +35,14 @@ before(async () => {
 });
 after(async () => { client.release(); await pool.end(); });
 
+// LOCKS.ORDERS BECAUSE THIS FILE NOW WRITES orders.transactions. It did not
+// before: the link used to be payments.intents.details_id, which no other test
+// file touches. Moving the link to the orders side (099) moved this file into
+// the ORDERS group, and a test that changes which tables it writes has to
+// re-ask which lock it needs - see shared/testing/locks.ts.
 const inRollback = async (fn: (c: PoolClient) => Promise<void>) => {
   await client.query("BEGIN");
+  await takeLocks(client, [LOCKS.ORDERS]);
   try { await fn(client); } finally { await client.query("ROLLBACK"); }
 };
 
@@ -100,43 +119,65 @@ test("the account write never stores routing or account numbers", async () => {
   });
 });
 
-test("linking points the order's intent at the account, and only that order's", async () => {
+// A PURCHASE order, and the test says out loud why. `LIMIT 1` on a table
+// holding both directions is how the previous version of this file came to
+// assert nothing.
+const aPurchaseOrderWithTotals = async (c: PoolClient) => {
+  const { rows } = await c.query(
+    `SELECT t.order_id
+       FROM orders.transactions t JOIN orders.orders o ON o.id = t.order_id
+      WHERE o.direction = 'purchase'
+      ORDER BY t.order_id LIMIT 2`
+  );
+  assert.ok(rows.length, "no purchase order has a transactions row - this test would assert nothing");
+  return rows;
+};
+
+test("linking points the ORDER at the account, and only that order", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows: intents } = await c.query(
-      "SELECT id, order_id FROM payments.intents WHERE order_id IS NOT NULL LIMIT 2"
-    );
-    assert.ok(intents.length, "no intent carries an order, so this test would assert nothing");
-    const mine = intents[0];
+    const orders = await aPurchaseOrderWithTotals(c);
+    const mine = orders[0].order_id;
 
     const id = await details.create({ user_id: await aUser(c), method: "ECHECK" }, c);
-    const touched = await details.linkToOrder(mine.order_id, id, c);
-    assert.ok(touched.length, "the link updated no intent");
+    const touched = await transactions.setPayoutAccount(mine, id, null, c);
+    assert.ok(touched, "the link matched no orders.transactions row");
+    assert.equal(touched.payout_details_id, id);
 
     const { rows: [got] } = await c.query(
-      "SELECT details_id FROM payments.intents WHERE id = $1", [mine.id]
+      "SELECT payout_details_id FROM orders.transactions WHERE order_id = $1", [mine]
     );
-    assert.equal(got.details_id, id);
+    assert.equal(got.payout_details_id, id);
 
-    if (intents[1] && intents[1].order_id !== mine.order_id) {
+    if (orders[1]) {
       const { rows: [other] } = await c.query(
-        "SELECT details_id FROM payments.intents WHERE id = $1", [intents[1].id]
+        "SELECT payout_details_id FROM orders.transactions WHERE order_id = $1", [orders[1].order_id]
       );
-      assert.notEqual(other.details_id, id, "linking one order changed another order's intent");
+      assert.notEqual(other.payout_details_id, id, "linking one order changed another order's account");
     }
   });
 });
 
-test("changing the method walks order -> intent -> details", async () => {
+// The failure this whole seam is about: an UPDATE that matches nothing does not
+// raise. setPayoutAccount returns the row so a caller can tell the two apart,
+// and this pins that it really does return undefined rather than pretending.
+test("linking an order with no transactions row reports it rather than passing", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows: [intent] } = await c.query(
-      "SELECT id, order_id FROM payments.intents WHERE order_id IS NOT NULL LIMIT 1"
+    const id = await details.create({ user_id: await aUser(c), method: "ECHECK" }, c);
+    const touched = await transactions.setPayoutAccount(
+      "00000000-0000-0000-0000-000000000000", id, null, c
     );
-    assert.ok(intent, "no intent carries an order, so this test would assert nothing");
+    assert.equal(touched, undefined, "a link that reached nobody was reported as done");
+  });
+});
+
+test("changing the method walks order -> transactions -> details", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const order_id = (await aPurchaseOrderWithTotals(c))[0].order_id;
 
     const id = await details.create({ user_id: await aUser(c), method: "ECHECK" }, c);
-    await details.linkToOrder(intent.order_id, id, c);
+    await transactions.setPayoutAccount(order_id, id, null, c);
 
-    const changed = await details.setMethodForOrder(intent.order_id, "WIRE", c);
+    const changed = await details.setMethodForOrder(order_id, "WIRE", c);
     assert.deepEqual(changed, [id], "the method change did not land on the linked account");
 
     const { rows: [row] } = await c.query(
@@ -144,5 +185,24 @@ test("changing the method walks order -> intent -> details", async () => {
         WHERE d.id = $1`, [id]
     );
     assert.equal(row.type, "WIRE");
+  });
+});
+
+// The other half of the same failure: before 099 this walked payments.intents,
+// so for a purchase order it updated nothing and said nothing. If the join ever
+// goes back, this returns [] and fails.
+test("changing the method on a purchase order actually reaches an account", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const order_id = (await aPurchaseOrderWithTotals(c))[0].order_id;
+    const id = await details.create({ user_id: await aUser(c), method: "ECHECK" }, c);
+    await transactions.setPayoutAccount(order_id, id, null, c);
+
+    const intents = await c.query(
+      "SELECT count(*)::int n FROM payments.intents WHERE order_id = $1", [order_id]
+    );
+    assert.equal(intents.rows[0].n, 0, "this purchase order has an intent, so the old join would have worked too");
+
+    const changed = await details.setMethodForOrder(order_id, "ACH", c);
+    assert.equal(changed.length, 1, "the method change reached no account");
   });
 });

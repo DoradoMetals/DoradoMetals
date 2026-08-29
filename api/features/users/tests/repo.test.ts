@@ -3,6 +3,17 @@
 // adjustUserCredit is the other half of the money path: transactions.addFunds
 // and removeFunds move a balance during checkout, this is an admin setting one
 // by hand. It has three modes and no guard rails, which is worth stating.
+//
+// *** THIS FILE USED TO EXERCISE THE WRONG STATEMENT. *** Until seam 2
+// (docs/waves/seams.md) `features/users/repo.ts` `adjustCredit` wrote
+// auth.users and was called by nothing but these tests, while the statement
+// the application actually ran sat under `api/legacy/`. Every assertion here
+// passed against an implementation no request ever reached. The two are now
+// one function, writing exchange.users - so what follows pins the live path.
+//
+// IT ALSO PINS THE MIRROR, for free and deliberately: the write goes to
+// exchange.users and every balance below is read back from auth.users. If the
+// `mirror_users_to_auth` trigger is ever dropped, these fail.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -33,8 +44,16 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   }
 }
 
+// A user that exists in BOTH tables. The write lands in exchange.users and the
+// balance is read back from auth.users, so a subject present in only one of
+// them would make every assertion here meaningless - and dev has three such
+// rows (one exchange-only, two auth-only). Picking blind from auth.users was
+// how this test could have written nothing and still passed.
 const aUser = async (c: PoolClient) =>
-  (await c.query("SELECT id FROM auth.users ORDER BY id LIMIT 1")).rows[0].id;
+  (await c.query(
+    `SELECT e.id FROM exchange.users e JOIN auth.users a ON a.id = e.id
+      ORDER BY e.id LIMIT 1`
+  )).rows[0].id;
 
 const balance = async (c: PoolClient, id: string) =>
   Number((await c.query("SELECT dorado_funds FROM auth.users WHERE id = $1", [id])).rows[0].dorado_funds ?? 0);
@@ -69,8 +88,9 @@ test("edit replaces the balance rather than adjusting it", async () => {
   });
 });
 
-// dorado_funds is NOT NULL DEFAULT 0, so a user always has a balance to adjust
-// and the COALESCE in the query is belt and braces rather than load-bearing.
+// dorado_funds is NOT NULL DEFAULT 0 on BOTH tables (migration 080 gave the
+// mirror the same constraint), so a user always has a balance to adjust and the
+// COALESCE in the query is belt and braces rather than load-bearing.
 test("every user has a balance to adjust, never null", async () => {
   await inRollback(async (c: PoolClient) => {
     const { rows } = await c.query(

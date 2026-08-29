@@ -250,31 +250,79 @@ test("exchange freezes four spots and the new schema freezes the one that was so
   });
 });
 
-// The one gap that is a decision rather than an improvement, and it is
-// deliberate: a payout carries a routing number and an account number, and
-// where those live - and whether they are encrypted - is open in FOLLOWUPS.md.
-// Asserted so that when the payout is built the test says so by failing.
-test("the legacy path writes a payout and the new one does not, yet", async () => {
+// THE PAYOUT, AND THE TWO PATHS STILL DISAGREE - BUT NOT WHERE THE OLD TEST
+// LOOKED.
+//
+// This was called "the legacy path writes a payout and the new one does not,
+// yet", and its finding was right. Its INSTRUMENT was not: it counted through
+// `payments.details JOIN payments.intents ON i.details_id = d.id` and expected
+// 0. An intent is a Stripe PaymentIntent - money coming IN - and a purchase
+// order has never had one, so that count was 0 for a reason having nothing to
+// do with payouts, and its failure message ("the new path now writes a payout -
+// remove this test and compare the two properly") could never have fired. A
+// tripwire across a corridor nobody walks down. D168.
+//
+// WHAT CHANGED. 099 gave the link a home that exists for a purchase order -
+// orders.transactions.payout_details_id - and the LIVE path
+// (recordPurchaseOrder, which serves traffic today) now writes all three parts:
+// the account into payments.details, the fee into payout_fee, the link into
+// payout_details_id. So the live half is asserted positively below.
+//
+// WHAT HAS NOT CHANGED, and is the honest remaining gap: createFromCheckout
+// records NO payout at all. It never has - `create.ts` says "NOTHING CALLS THIS
+// YET" - and the account fields (holder, bank, last four, email) are not
+// carried onto the checkout, only the METHOD is (intake.repo.ts
+// `paymentMethodId` -> checkout.checkouts.payment_method_id). Closing it means
+// writing payments.details at INTAKE time and putting its id on
+// checkout.checkouts.payment_details_id, which is a checkout change and belongs
+// with phase 2, not smuggled in here.
+//
+// The difference from the version this replaces: the "not yet" is now pinned on
+// a link that CAN become non-zero, so the day createFromCheckout learns to
+// write a payout, this test says so by failing.
+test("the live path records the payout in both schemas; createFromCheckout still records none", async () => {
   await inRollback(async (c: PoolClient) => {
     const placed = await bothWays(c);
     assert.ok(placed, "dev has no user with an address to place an order for");
 
     const { rows: legacy } = await c.query(
-      `SELECT count(*)::int AS n FROM exchange.payouts WHERE order_id = $1`,
+      `SELECT method, cost FROM exchange.payouts WHERE order_id = $1`,
       [placed.legacy_id]
     );
-    assert.equal(legacy[0].n, 1, "the legacy path stopped writing a payout");
+    assert.equal(legacy.length, 1, "the legacy path stopped writing a payout");
 
-    const { rows: next } = await c.query(
-      `SELECT count(*)::int AS n FROM payments.details d
-         JOIN payments.intents i ON i.details_id = d.id
-        WHERE i.order_id = $1`,
+    // The live path, in the new schema: account + method + fee, reached from
+    // the order through the link 099 added.
+    const { rows: mirrored } = await c.query(
+      `SELECT m.type AS method, t.payout_fee, d.routing_number, d.account_number
+         FROM orders.transactions t
+         JOIN payments.details d ON d.id = t.payout_details_id
+         JOIN payments.methods m ON m.id = d.method_id
+        WHERE t.order_id = $1`,
+      [placed.legacy_id]
+    );
+    assert.equal(mirrored.length, 1, "the live path did not link the order to a payout account");
+    assert.equal(mirrored[0].method, legacy[0].method, "the two schemas name different payout methods");
+    assert.equal(
+      Number(mirrored[0].payout_fee), Number(legacy[0].cost),
+      "the payout fee disagrees between the schemas"
+    );
+
+    // THE STANDING CONSTRAINT. exchange.payouts is the only place a routing or
+    // account number may live while encryption at rest is outstanding.
+    assert.equal(mirrored[0].routing_number, null, "a routing number reached payments.details");
+    assert.equal(mirrored[0].account_number, null, "an account number reached payments.details");
+
+    // The gap, pinned so it announces itself when it closes.
+    const { rows: native } = await c.query(
+      `SELECT count(*)::int AS n FROM orders.transactions
+        WHERE order_id = $1 AND payout_details_id IS NOT NULL`,
       [placed.next.order_id]
     );
     assert.equal(
-      next[0].n,
+      native[0].n,
       0,
-      "the new path now writes a payout - remove this test and compare the two properly"
+      "createFromCheckout now records a payout - assert it properly and delete this arm"
     );
   });
 });

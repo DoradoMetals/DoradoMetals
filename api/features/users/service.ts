@@ -1,5 +1,4 @@
 import * as users from "#features/users/repo.ts";
-import * as legacy from "#legacy/users/repo.ts";
 import withTransaction from "#shared/db/withTransaction.js";
 import type { UserRow } from "#features/users/repo.ts";
 import type { PoolClient } from "pg";
@@ -150,11 +149,17 @@ export async function adjustDoradoCredit({
   // does it: exchange.users carries an AFTER INSERT OR UPDATE trigger,
   // `mirror_users_to_auth`, running auth.mirror_user_from_exchange(). Writing
   // both by hand applies the adjustment TWICE - a $25 credit moved the balance
-  // $50, which replay.test.js caught immediately.
+  // $50, which replay.test.ts caught immediately.
   //
-  // So the legacy statement is the only one, and auth.users.dorado_funds is
-  // maintained by the trigger. Reads still come from auth.users, so the balance
-  // a customer sees is the mirrored one.
+  // AND THE WRITE GOES TO exchange.users, WHICH IS THE SOURCE HERE. That is
+  // measured, not assumed: the trigger's ON CONFLICT DO UPDATE copies
+  // `dorado_funds` FROM exchange, so a balance written only to auth.users is
+  // silently reverted by the next better-auth update of that row. See
+  // features/users/repo.ts's header and docs/waves/seams.md, seam 2.
+  //
+  // Reads still come from auth.users, so the balance a customer sees is the
+  // mirrored one - which is why the mirror being maintained by Postgres rather
+  // than by us is load-bearing rather than incidental.
   //
   // THIS IS ALSO THE ANSWER TO THE AUTH CUTOVER QUESTION. Trigger-based
   // mirroring already exists and works for users; better-auth writing exchange
@@ -175,7 +180,7 @@ export async function adjustDoradoCredit({
   // here is database work, so a transaction is the right tool (CLAUDE.md's rule
   // is about irreversible side effects, and there are none).
   const result = await withTransaction(async (client: PoolClient) => {
-    const current = await legacy.balanceForUpdate(user_id, client);
+    const current = await users.balanceForUpdate(user_id, client);
     if (current === undefined) {
       throw notFound(
         `no user ${user_id} - the credit adjustment was not applied to anybody`
@@ -194,7 +199,7 @@ export async function adjustDoradoCredit({
       );
     }
 
-    return await legacy.adjustCredit(
+    return await users.adjustCredit(
       user_id, operation as users.CreditMode, value, client
     );
   });

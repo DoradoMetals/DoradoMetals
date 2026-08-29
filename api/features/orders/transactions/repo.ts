@@ -5,9 +5,10 @@
 // word, and keeping them apart is why this sits under orders/.
 //
 // Mostly read: the figures an order comes to are computed by the order
-// service's own paths rather than accepted from a caller. The four writes at
-// the bottom are the exception - they are the amounts an ADMIN adjusts by hand
-// on a purchase order, which nothing derives.
+// service's own paths rather than accepted from a caller. The writes at the
+// bottom are the exception - the amounts an ADMIN adjusts by hand on a purchase
+// order, the total they add up into, and (since 099) the payout account the
+// order is paid out to.
 import query from "#shared/db/query.js";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
@@ -104,6 +105,29 @@ export async function setTotal(
 ): Promise<{ id: string; order_id: string; total: number | null } | undefined> {
   const { rows } = await query<{ id: string; order_id: string; total: number | null }>(
     sql("set_total"), [total, by, order_id], executor
+  );
+  return rows[0];
+}
+
+// THE ACCOUNT THIS ORDER'S PAYOUT GOES TO (099).
+//
+// A payout is one per order - measured across all 62 production payouts, not
+// assumed - so the link belongs beside the fee it is charged for rather than in
+// a table of its own. `payments.details` still owns the ACCOUNT; this owns
+// which account an order points at, because orders.transactions is an orders
+// table.
+//
+// An undefined return means there was no orders.transactions row to write to.
+// Say so at the call site: the statement this replaces failed exactly that way
+// and said nothing.
+export async function setPayoutAccount(
+  order_id: string,
+  details_id: string | null,
+  by: string | null = null,
+  executor?: Executor
+): Promise<{ id: string; order_id: string; payout_details_id: string | null } | undefined> {
+  const { rows } = await query<{ id: string; order_id: string; payout_details_id: string | null }>(
+    sql("set_payout_account"), [details_id, by, order_id], executor
   );
   return rows[0];
 }
