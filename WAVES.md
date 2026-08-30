@@ -3,7 +3,7 @@
 Where the rewrite is. Bars first, plan below, findings at the end.
 
 ```
-OVERALL   ████████████████████░░░░░░░░░░░░░░░░   ~56%
+OVERALL   ██████████████████████░░░░░░░░░░░░░░   ~61%
 ```
 
 | | phase | | |
@@ -12,6 +12,7 @@ OVERALL   ████████████████████░░░�
 | 🔄 | **phase 1** the write pivot, and the instruments | `██████████████░░░░` ~79% | IN FLIGHT, three lanes |
 | ⬜ | **phase 2** checkout, then payments — the last two | `░░░░░░░░░░░░░░░░░░` ~0% | queued |
 | 🔄 | **phase 3** one home for every type — 347 declarations | `████████████░░░░░░` ~68% | frontend half landed |
+| ✅ | **phase 6** the new schema enforces what exchange did | `██████████████████` ~100% | landed |
 | ⬜ | **phase 4** production, and three decisions | `░░░░░░░░░░░░░░░░░░` ~0% | Jacob's |
 
 ## Phase 1 — IN FLIGHT
@@ -152,6 +153,29 @@ that narrows these is not tidying — it asserts something about callers the
 compiler already disproved, the same class of loss as the `?? 0` that D145
 rejected.
 
+## Phase 6 — LANDED
+
+Detail: `docs/waves/phase6-constraints.md`
+
+```
+1. audit:constraints gets an ACCEPTED map   ██████████████████  100%
+2. The 27 NOT NULLs, walked once            ██████████████████  100%
+3. The unique indexes: real gaps only       ██████████████████  100%
+4. audit:constraints joins pnpm check       ██████████████████  100%
+```
+
+**The audit that guards money now records its decisions and is gated.** 21
+constraints accepted with the measurement that justifies each, 18 fixed across
+three additive migrations, zero open. The sharpest fix: `exchange.scrap` carried
+`CHECK (purity >= 0 AND purity <= 1)` and `orders.items` had nothing standing in
+for it — on the column that multiplies into what a customer is paid.
+
+**Two defects it surfaced are NOT closed and are Jacob's**: `updateMethod`
+cannot write `payments.details` at all (23502 on `user_id`, proved in a
+rolled-back transaction) which breaks the moment `PAYMENTS_SOURCE` moves to
+`dual`; and `verify:backfill` has been red since migration 098 and is not in the
+gate, so the build-from-nothing path is currently unverified.
+
 ## Phase 4 — Jacob's
 
 ```
@@ -189,7 +213,6 @@ five bars below are a picture of a plan, not progress.
 
 ```
 5. The verification loop gets fast          ░░░░░░░░░░░░░░░░░░    0%
-6. The new schema enforces what exchange did ░░░░░░░░░░░░░░░░░░    0%
 7. Money at rest                            ░░░░░░░░░░░░░░░░░░    0%
 8. The silence problem                      ░░░░░░░░░░░░░░░░░░    0%
 9. Checkout, properly                       ░░░░░░░░░░░░░░░░░░    0%
