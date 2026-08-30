@@ -12127,3 +12127,68 @@ That work is done and was done well. The remaining silence is elsewhere — an
 `UPDATE` matching zero rows (D168), a mutation whose failure reaches no handler
 (D179), a backfill that skips rather than repairs (D181). Those are runtime
 silences, not scan silences, and they want different instruments.
+
+## D186 — 047 built the wrong type, and the abort was hiding 27 leaked orders
+
+Two findings, and the second was only visible once the first was fixed.
+
+**047 seeded a text value into an enum column.** 098 turned
+`fulfillments.methods.category` into `fulfillments.category`; the seed kept
+casting its eleven values to `::text`. Postgres does not take text in an enum
+column's INSERT — **42804**, proven rather than assumed — so `verify:backfill`
+aborted at the seed and never reached the twenty-odd comparisons past it.
+
+The fix edits a migration that has already been applied, which is why WAVES.md
+had it under *Needs Jacob*. It is the narrow case `migrate --reconcile` exists
+for: **the cast changes, the rows do not.** Dev's eleven rows match the fixed
+seed id for id — SHIPMENT 6, DIRECT 4, PICKUP 1, the distribution 098 measured
+before it ran — so the applied object and the file build the same thing. Dev
+reconciled; production has never run 047 and gets the fixed file.
+
+**Three other migrations carry the same stale-checksum warning and were left
+alone**: 074, 086, 088. Reconciling is a statement that someone compared the
+object against the file, and nobody has.
+
+**What the abort was hiding: dev held 27 `orders.orders` rows that exist nowhere
+in `exchange`**, so a rebuild produced 36 where dev had 63. Not a backfill
+defect — the backfill reproduced everything `exchange` actually has (21
+purchase + 15 sales = 36).
+
+They are leaked test fixtures. All 27 were Pending purchases arriving in
+**bursts of three** — one per fixture-building test — across eight runs on
+08-27 and 08-28. **They could not have come from the app**:
+`features/orders/write.service.ts:62` calls `legacyPurchase.createOrder`
+unconditionally, so a real order lands in `exchange.purchase_orders` too. No
+exchange row means no app.
+
+`audit:test-leaks` is **not** blind to this — it already fingerprints every
+schema and its comments anticipate exactly this case. But it is not in
+`pnpm check`, so eight runs' worth accumulated unseen.
+`clean-dual-run-orphans.mjs` describes the same shape and covered six of them;
+it was written on the 27th and the leaking continued after it.
+
+Removed 2026-08-29 with Jacob's approval, backup waived (*"It's just dev"*), by
+`scripts/clean-leaked-test-orders.mjs`: 27 orders, 16 items, 24 transactions, 27
+`refiners.orders`, 16 `refiners.items`. Nothing in `exchange` — by construction,
+since the set is *defined* as the orders with no exchange row.
+
+**`verify:backfill` is still red, and the rest is pre-existing drift.** 52
+differences became 46. `orders.items` compares clean; `orders.orders` row counts
+now match. What remains, none of it caused by the cleanup:
+
+- **`orders.orders`, ~12 pairs differing in exactly one column: `spots_locked`.**
+  Dev `t`, a rebuild `f`, everything else identical. The backfill does not
+  reproduce it. This is the one that looks like a real gap.
+- **`orders.transactions`: dev 31, rebuild 36.** Five dev orders have never had
+  a transaction row. Pre-existing — the 24 orphans were masking it, since
+  55 = 31 kept + 24 leaked.
+- **`shipping.tracking`: dev 6, rebuild 16.** Dev is *missing* ten. This is the
+  `tracking.test.js` incident CLAUDE.md records, seen from the other side.
+- **`refiners.items` (41 vs 25), `spots.spots`, `shipping.shipments`,
+  `fulfillments.fulfillments`** — uninvestigated.
+
+**The instrument question this raises**: `verify:backfill` compares a rebuild
+from `exchange` against live dev. That is only satisfiable while dev is a pure
+function of `exchange`. Every native write that `exchange` does not receive
+makes it permanently red, so once the write pivot completes the comparison
+needs a different subject or the green stops being reachable at all.
