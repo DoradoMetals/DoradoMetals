@@ -13019,3 +13019,85 @@ And `MINIO_BUCKET` is read at call time with a comment explaining why, but is
 still unchecked: unset, the insert writes a null bucket and the presign is
 handed `undefined`. That is the same family as D194 and would be fixed by the
 same `requiredEnv`.
+
+## D202 — the 23 silent mutations, triaged: 18 are fine and 5 lose money
+
+`audit:silent-mutations` (D190) reports 23 discarded results. A raw list is not
+actionable, so here is every one classified, with the question asked being *"is
+zero rows wrong HERE?"*
+
+### The 18 where zero rows is the correct outcome
+
+**Fourteen DELETEs**: `carriers.remove`, `services.remove`, `pickups.remove`
+(×2 — shipping and fulfillments), `directs.remove`, `shipments.remove`,
+`tracking.remove`, `images.remove`, `addresses.remove` (×2),
+`links.removeByShipment`. Deleting something already gone is **idempotent and
+harmless** — zero rows means the desired end state already holds. A retry, a
+double-click, or a cascade that already removed the child all land here
+legitimately.
+
+**Three `setDefault_clear`**: clearing every other default address before
+setting one. A customer with no previous default matches zero rows, which is
+exactly right on a first address.
+
+**One `organizations.update`** and **`pickups.update`**: admin edits keyed by a
+row id the admin just read; a miss means the row was deleted between read and
+write, which is a 404 concern rather than a silent-loss one.
+
+### THE FIVE THAT LOSE MONEY, and one is measured
+
+**`orders/transactions/sql/set_amount.sql`, three call sites** —
+`orders/service.ts:907`, `:954`, and `transactions/service.ts:55`. This is the
+statement behind the four money columns an admin can adjust on a purchase order:
+`shipping_actual`, `refiner_fee`, `pool_oz_deducted`, `pool_remediation`, plus
+`payout_fee`. It is:
+
+```sql
+UPDATE orders.transactions SET __COLUMN__ = $1 ... WHERE order_id = $3
+RETURNING id, order_id, __COLUMN__ AS value
+```
+
+It **returns the row**, and all three callers drop it.
+
+**Measured, and the row is often not there:**
+
+```
+DEV    36 orders,  5 with NO orders.transactions row  — ALL FIVE ARE PURCHASE
+       (5 of 21 purchase orders, 24%)
+PROD   60 orders, 50 with no transactions row
+```
+
+Purchase orders are exactly the ones that carry these columns. So on roughly a
+quarter of dev's purchase orders, **an admin adjusting a refiner fee or a payout
+fee changes nothing, is told it succeeded, and nothing is logged.** That is the
+D168 shape again — a `WHERE` that resolves for some rows and not others — on
+money, with no test that would catch it because a test creates its own order and
+its own transactions row.
+
+Production's 50 is *not* directly comparable: `orders.orders` there is the
+abandoned January snapshot and no migration has run. The dev number is the live
+one and it is the one that matters.
+
+**`transactions.setPayoutAccount`** — same table, same `WHERE order_id`, so the
+same hole: the link between an order and the bank account it is paid to.
+
+**`shipments.setChargeForOrder`** — `shipping/shipments/service.ts:417`, already
+described in D190. Its own comment says the native return is dropped "because
+exchange is still authoritative", which ruling 36 retires.
+
+### What the fix is, and why it is not a `rowCount` assert
+
+Throwing on zero rows would be wrong for `set_amount`: the order legitimately
+has no transactions row yet, and refusing the admin's edit is worse than losing
+it only in that it is louder. **The right fix is an upsert** — the per-order
+money row should be created on first write, since `orders.transactions` is
+one-row-per-order by design and 099 already put `payout_details_id` on it.
+
+That is a schema-shaped decision (does every order get a transactions row at
+creation, or on first money write?) and it wants the full gate, so it is written
+up rather than applied.
+
+**The cheap interim, if the upsert is deferred**: have the three callers check
+the returned array and `reportError()` on empty. It cannot fix the lost value
+but it converts silence into a line naming the order — and `shared/observability/
+report.ts` now exists for exactly this.
