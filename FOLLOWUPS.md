@@ -12801,3 +12801,71 @@ makes the gate effectively uncompletable. A local Postgres puts that number near
 the number of tests, and measure `SELECT 1` before concluding that a slow suite
 means a code problem. Three explanations were tried here before the right one,
 and the measurement that settled it takes four seconds.
+
+## D199 — the Stripe amount has a $10 floor, and it would overcharge (nobody yet)
+
+`features/payments/service.ts:254-256`:
+
+```ts
+const rawAmount = Math.round(orderPrices.post_charges_amount * 100);
+const amount = Math.max(rawAmount, 1000);
+```
+
+`Math.round` at the cents boundary is **correct** and is what stops float
+accumulation from ever reaching Stripe — the totals themselves are raw JS
+floats summed with `reduce`, and this is the one place that matters.
+
+`Math.max(rawAmount, 1000)` is the problem. **It floors every charge at
+$10.00.** An order whose real balance is $3.00 tells Stripe 1000, and Stripe
+charges what the intent says, not what the page said.
+
+**Where 1000 comes from.** `createPaymentIntent` opens the intent with
+`createIntent({ amount: 1000 })` and its comment is explicit: *"The placeholder
+amount is the feature's decision, not Stripe's: an intent is opened before the
+cart is priced and updated when it is."* So 1000 is a placeholder — and the
+`Math.max` in the update path pins the priced amount back to it. Stripe's actual
+minimum is 50 cents, so the floor is not a platform constraint.
+
+The only comment that mentions it (line 212) does so in passing, while
+documenting the *fixed* client-supplied-spots vulnerability: *"The floor of
+Math.max(rawAmount, 1000) meant the bottom was $10.00."* That describes it
+limiting an exploit's downside. Nothing anywhere justifies it as intended
+pricing.
+
+**It is reachable, and credit is how.** `post_charges_amount` is
+`base_total - min(dorado_funds, base_total)` plus card charges. Shipping is
+**free over $1,000** (`getShippingCharge`), so there is no floor from that
+direction either. A customer with $2,000 of credit buying $2,005 of bullion owes
+about $5 and would be charged $10. That credit is real: `exchange.
+account_transactions` holds **$66,999.32 across 8 customers**.
+
+### MEASURED AGAINST PRODUCTION, AND IT HAS NEVER FIRED
+
+Before reporting this as an overcharge, it was checked:
+
+| payment_status | total | amount = 1000 | paid at 1000 |
+|---|---|---|---|
+| `requires_payment_method` | 22 | 1 | **0** |
+| `requires_confirmation` | 2 | 0 | **0** |
+| `succeeded` | 1 | 0 | **0** |
+
+25 intents; the single one at 1000 is an unconfirmed placeholder. **No customer
+has been overcharged by this.** It is a latent defect, not an incident, and
+saying otherwise would be the alarm this project's own notes keep warning about.
+
+Nothing has fired because sub-$10 balances need either a tiny order or credit
+that nearly covers a large one, and neither has happened yet on 25 intents.
+
+### Not fixed tonight, and why
+
+The fix is not simply deleting the `Math.max`. Below Stripe's 50-cent minimum an
+intent cannot be created at all, so an order fully covered by credit needs to
+complete **without a card** rather than with a smaller charge — which is a
+checkout-flow decision, and phase 9 ("checkout, properly: create-then-charge")
+is where it belongs. Changing the amount computation on a live payments path,
+unverified by a full gate, at the end of a long session, is the trade this
+project's first rule exists to refuse.
+
+**What it needs**: delete the floor, refuse to open an intent when
+`post_charges_amount` is below Stripe's minimum, and settle those orders from
+credit alone. With a test at $0.00, $0.49 and $9.99.
