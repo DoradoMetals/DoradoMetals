@@ -11,7 +11,7 @@ export const AttemptsRow = z.object({
   "intent_id": z.string().uuid(),
   "method_id": z.string().uuid().nullable(),
   "provider": z.string().nullable(),
-  "provider_ref": z.string().nullable(),
+  "provider_ref": z.string(),
   "amount": z.number().nullable(),
   "status": z.string(),
   "error_code": z.string().nullable(),
@@ -57,7 +57,7 @@ export const IntentsRow = z.object({
   "updated_by_id": z.string().uuid().nullable(),
   "session_id": z.string().uuid().nullable(),
   "user_id": z.string().uuid().nullable(),
-  "type": z.string().nullable(),
+  "type": z.string(),
 });
 export type IntentsRow = z.infer<typeof IntentsRow>;
 
@@ -67,7 +67,7 @@ export const LedgerRow = z.object({
   "type": z.string(),
   "order_id": z.string().uuid().nullable(),
   "amount": z.number(),
-  "occurred_at": z.string().nullable(),
+  "occurred_at": z.string(),
   "created_at": z.string(),
   "updated_at": z.string(),
 });
@@ -112,7 +112,7 @@ export const SettlementsRow = z.object({
   "attempt_id": z.string().uuid(),
   "settled_amount": z.number(),
   "provider": z.string().nullable(),
-  "provider_ref": z.string().nullable(),
+  "provider_ref": z.string(),
   "settled_at": z.string().nullable(),
 });
 export type SettlementsRow = z.infer<typeof SettlementsRow>;

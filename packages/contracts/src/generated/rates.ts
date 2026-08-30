@@ -14,8 +14,8 @@ export const RatesRow = z.object({
   "bullion_pct": z.number(),
   "created_at": z.string(),
   "updated_at": z.string(),
-  "created_by": z.string().nullable(),
-  "updated_by": z.string().nullable(),
+  "created_by": z.string(),
+  "updated_by": z.string(),
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
 });

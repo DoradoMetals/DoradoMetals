@@ -70,7 +70,19 @@ BEGIN
 END $$;
 
 -- The intent: what was asked for.
-INSERT INTO payments.intents (id, order_id, method_id, amount_expected, status, created_at, updated_at)
+--
+-- `type` IS CARRIED HERE, NOT LEFT TO 076. It was: this insert omitted the
+-- column and 076 filled it two migrations later, which worked only while
+-- payments.intents.type was nullable. 102 made it NOT NULL - exchange.
+-- payment_intents.type always was - and genesis carries the finished shape, so
+-- on a build from nothing this INSERT is the first statement to run against the
+-- constraint and it raised 23502 before 076 ever got its turn. 076 still runs
+-- and is still correct; it now updates a value that already matches.
+--
+-- Edited rather than left, on the same reasoning 031 records for 086: an old
+-- backfill is part of the build-from-nothing path, and a later schema change
+-- that breaks it breaks production's first migration run, not dev's.
+INSERT INTO payments.intents (id, order_id, method_id, amount_expected, status, type, created_at, updated_at)
 SELECT
   e.id,
   (SELECT o.id FROM orders.orders o
@@ -86,6 +98,7 @@ SELECT
     END,
     e.payment_status
   ),
+  e.type,
   e.created_at,
   e.updated_at
 FROM exchange.payment_intents e
@@ -102,6 +115,7 @@ ON CONFLICT (id) DO UPDATE SET
   method_id       = EXCLUDED.method_id,
   amount_expected = EXCLUDED.amount_expected,
   status          = EXCLUDED.status,
+  type            = EXCLUDED.type,
   updated_at      = EXCLUDED.updated_at;
 
 -- The attempt: what was tried, and through whom.

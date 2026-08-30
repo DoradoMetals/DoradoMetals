@@ -186,7 +186,10 @@ export async function create(
     if (shipment_id) {
       await pickups.create(id, shipment_id, {
         requested_at: written?.pickup_requested_at ?? null,
-        status: input.pickup_status ?? "Scheduled",
+        // Lowercase to match exchange.carrier_pickups' CHECK allowlist, which
+        // 101 copies onto shipping.pickups.status. The capital S here and in
+        // legacy/shipping/pickups/repo.ts was a value BOTH tables refuse.
+        status: input.pickup_status ?? "scheduled",
         confirmation_number:
           input.confirmation_number === null || input.confirmation_number === undefined
             ? null
@@ -202,7 +205,7 @@ export async function create(
       (await getById(id, c)) ??
       compose.composeFromWrite(
         id,
-        { ...input, pickup_status: input.pickup_status ?? "Scheduled" },
+        { ...input, pickup_status: input.pickup_status ?? "scheduled" },
         written?.pickup_requested_at ?? null
       )
     );

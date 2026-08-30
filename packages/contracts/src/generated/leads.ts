@@ -19,7 +19,7 @@ export const LeadsRow = z.object({
   "updated_by": z.string().nullable(),
   "notes": z.string().nullable(),
   "contact": z.string().nullable(),
-  "priority": z.string().nullable(),
+  "priority": z.string(),
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
 });

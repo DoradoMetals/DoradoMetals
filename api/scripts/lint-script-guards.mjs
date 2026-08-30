@@ -209,7 +209,9 @@ const REAL_EXCUSED = {
   "api/scripts/audit-constraints.mjs": {
     kind: "report",
     why:"compares constraints between schemas; carries a floor, and the floor firing " +
-    "is what proved it (see its own header).",
+    "is what proved it (see its own header). It is a report only in shape now - it " +
+    "carries four ACCEPTED maps pinned from both sides and EXITS NON-ZERO on an " +
+    "unaccepted finding or a stale accept, and it is a member of pnpm check.",
   },
   "api/scripts/audit-coverage.mjs": {
     kind: "report",

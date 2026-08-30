@@ -37,7 +37,7 @@ export const OrdersRow = z.object({
   "user_id": z.string().uuid().nullable(),
   "direction": Direction.nullable(),
   "status": z.string().nullable(),
-  "number": z.number().int().nullable(),
+  "number": z.number().int(),
   "notes": z.string().nullable(),
   "review_created": z.boolean().nullable(),
   "created_by": z.string().nullable(),

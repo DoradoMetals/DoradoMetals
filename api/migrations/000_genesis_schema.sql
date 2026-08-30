@@ -363,7 +363,7 @@ CREATE TABLE IF NOT EXISTS leads.leads (
   updated_by text,
   notes text,
   contact text DEFAULT 'Jacob Johnson'::text,
-  priority text DEFAULT 'Medium'::text,
+  priority text DEFAULT 'Medium'::text NOT NULL,
   created_by_id uuid,
   updated_by_id uuid
 );
@@ -508,7 +508,7 @@ CREATE TABLE IF NOT EXISTS orders.orders (
   user_id uuid,
   direction orders.direction,
   status text,
-  number bigint,
+  number bigint NOT NULL,
   notes text,
   review_created boolean,
   created_by text,
@@ -656,7 +656,7 @@ CREATE TABLE IF NOT EXISTS payments.attempts (
   intent_id uuid NOT NULL,
   method_id uuid,
   provider text,
-  provider_ref text,
+  provider_ref text NOT NULL,
   amount numeric,
   status text DEFAULT 'CREATED'::text NOT NULL,
   error_code text,
@@ -728,7 +728,7 @@ CREATE TABLE IF NOT EXISTS payments.intents (
   updated_by_id uuid,
   session_id uuid,
   user_id uuid,
-  type text
+  type text NOT NULL
 );
 ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE payments.intents ADD COLUMN IF NOT EXISTS order_id uuid;
@@ -752,7 +752,7 @@ CREATE TABLE IF NOT EXISTS payments.ledger (
   type text NOT NULL,
   order_id uuid,
   amount numeric NOT NULL,
-  occurred_at timestamp with time zone,
+  occurred_at timestamp with time zone DEFAULT now() NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -761,7 +761,7 @@ ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS user_id uuid;
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS type text;
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS order_id uuid;
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS amount numeric;
-ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS occurred_at timestamp with time zone;
+ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS occurred_at timestamp with time zone DEFAULT now();
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 ALTER TABLE payments.ledger ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
 
@@ -833,7 +833,7 @@ CREATE TABLE IF NOT EXISTS payments.settlements (
   attempt_id uuid NOT NULL,
   settled_amount numeric NOT NULL,
   provider text,
-  provider_ref text,
+  provider_ref text NOT NULL,
   settled_at timestamp with time zone
 );
 ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
@@ -989,7 +989,7 @@ CREATE TABLE IF NOT EXISTS products.bullion (
   updated_by_id uuid,
   supplier_id uuid NOT NULL,
   stock numeric NOT NULL,
-  quantity numeric
+  quantity numeric NOT NULL
 );
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS metal_id uuid;
@@ -1054,8 +1054,8 @@ CREATE TABLE IF NOT EXISTS rates.rates (
   bullion_pct numeric NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
-  created_by text DEFAULT 'Dorado Admin'::text,
-  updated_by text DEFAULT 'Dorado Admin'::text,
+  created_by text DEFAULT 'Dorado Admin'::text NOT NULL,
+  updated_by text DEFAULT 'Dorado Admin'::text NOT NULL,
   created_by_id uuid,
   updated_by_id uuid
 );
@@ -1226,7 +1226,7 @@ CREATE TABLE IF NOT EXISTS shipping.pickups (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   shipment_id uuid NOT NULL,
   requested_at timestamp with time zone,
-  status text,
+  status text NOT NULL,
   confirmation_number text,
   location text
 );
@@ -1353,7 +1353,7 @@ ALTER TABLE shipping.tracking ADD COLUMN IF NOT EXISTS time timestamp with time 
 CREATE TABLE IF NOT EXISTS spots.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   metal_id uuid NOT NULL,
-  ask numeric,
+  ask numeric NOT NULL,
   bid numeric,
   percent_change numeric,
   dollar_change numeric,
@@ -1661,6 +1661,16 @@ DO $$ BEGIN
     WHERE con.conname = 'order_addresses_pkey' AND c.relname = 'addresses' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.addresses ADD CONSTRAINT order_addresses_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'items_purity_range' AND c.relname = 'items' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.items ADD CONSTRAINT items_purity_range CHECK (((purity >= (0)::numeric) AND (purity <= (1)::numeric)));
   END IF;
 END $$;
 DO $$ BEGIN
@@ -1988,6 +1998,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'items_purity_range' AND c.relname = 'items' AND n.nspname = 'refiners'
+  ) THEN
+    ALTER TABLE refiners.items ADD CONSTRAINT items_purity_range CHECK (((purity >= (0)::numeric) AND (purity <= (1)::numeric)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'refiner_items_pkey' AND c.relname = 'items' AND n.nspname = 'refiners'
   ) THEN
     ALTER TABLE refiners.items ADD CONSTRAINT refiner_items_pkey PRIMARY KEY (id);
@@ -2071,6 +2091,16 @@ DO $$ BEGIN
     WHERE con.conname = 'carrier_pickups_pkey' AND c.relname = 'pickups' AND n.nspname = 'shipping'
   ) THEN
     ALTER TABLE shipping.pickups ADD CONSTRAINT carrier_pickups_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'pickups_status_check' AND c.relname = 'pickups' AND n.nspname = 'shipping'
+  ) THEN
+    ALTER TABLE shipping.pickups ADD CONSTRAINT pickups_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'scheduled'::text, 'completed'::text, 'canceled'::text])));
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3221,6 +3251,7 @@ CREATE INDEX IF NOT EXISTS attempts_intent_idx ON payments.attempts USING btree 
 CREATE INDEX IF NOT EXISTS attempts_method_idx ON payments.attempts USING btree (method_id);
 CREATE INDEX IF NOT EXISTS attempts_provider_idx ON payments.attempts USING btree (provider, provider_ref);
 CREATE INDEX IF NOT EXISTS attempts_provider_ref_idx ON payments.attempts USING btree (provider_ref);
+CREATE UNIQUE INDEX IF NOT EXISTS attempts_provider_ref_key ON payments.attempts USING btree (provider_ref);
 CREATE INDEX IF NOT EXISTS attempts_status_idx ON payments.attempts USING btree (status);
 CREATE INDEX IF NOT EXISTS details_method_idx ON payments.details USING btree (method_id);
 CREATE UNIQUE INDEX IF NOT EXISTS details_provider_ref_key ON payments.details USING btree (provider, provider_ref) WHERE (provider_ref IS NOT NULL);
@@ -3280,6 +3311,7 @@ CREATE INDEX IF NOT EXISTS packages_carrier_idx ON shipping.packages USING btree
 CREATE INDEX IF NOT EXISTS idx_shipping_pickups_shipment_id ON shipping.pickups USING btree (shipment_id);
 CREATE INDEX IF NOT EXISTS carrier_services_active_idx ON shipping.services USING btree (carrier_id, is_active);
 CREATE INDEX IF NOT EXISTS carrier_services_carrier_idx ON shipping.services USING btree (carrier_id);
+CREATE UNIQUE INDEX IF NOT EXISTS services_carrier_code_key ON shipping.services USING btree (carrier_id, code);
 CREATE UNIQUE INDEX IF NOT EXISTS services_carrier_name_key ON shipping.services USING btree (carrier_id, name);
 CREATE INDEX IF NOT EXISTS idx_shipping_shipments_package_id ON shipping.shipments USING btree (package_id);
 CREATE INDEX IF NOT EXISTS idx_shipping_shipments_recipient_address_id ON shipping.shipments USING btree (recipient_address_id);

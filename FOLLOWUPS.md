@@ -12092,3 +12092,38 @@ coordinator's fix, and the gate goes green on a change nobody made deliberately.
 **Rule, sharpened:** if a lane is running, the coordinator does not edit its
 files — it sends the lane a message instead. If the coordinator must edit, the
 lane is stopped first and told why.
+
+## D185 — the empty-scan class is already closed, and my scan for it was wrong twice
+
+Phase 8's founding rule is *"a check that reads zero bytes must refuse, not
+report"* — the defect behind D95, D99, D108, D115, D157, D176, and two of my own
+mistakes today (grepping `validate-wire.mjs` when the file is `.ts`, and
+`find -name "error.tsx"` which cannot match `global-error.tsx`). So I went
+looking for gate members that could still report clean on a broken walk.
+
+**All twelve are protected.** Nothing to fix.
+
+- `lint-imports`, `lint-namespace-calls`, `lint-row-vs-list`, `lint-db-calls`,
+  `lint-script-guards`, `audit-coverage`, `validate-wire`, `audit-switches`,
+  `audit-indexes`, `audit-query-paths` carry **explicit literal floors** — and
+  `lint-imports` states the principle better than I did: *"A LITERAL FLOOR, not a
+  zero-check. `checked === 0` only catches a walk that found NOTHING; it is blind
+  to a walk that found a tenth of the tree."*
+- `verify-genesis` has no floor and **does not need one**: it reports every
+  relation present in dev and absent from the build, so a build that produced
+  nothing yields a failure per table rather than a silent pass. Guarded by
+  construction rather than by an assertion.
+
+**My detector was wrong twice on the way to that answer, in the exact way it was
+hunting.** First pass grepped for `REFUS|walked zero|scanned 0` and reported
+fifteen scripts unguarded — including `lint-imports`, whose guard says *"the walk
+is broken, not the codebase clean"* and matches none of those words. Second pass
+flagged `verify-genesis` as having no floor, which is true and irrelevant. **A
+scan for scans-that-report-falsely reported falsely, twice.** The only reason
+either was caught is that I opened the file instead of trusting the grep.
+
+**Consequence for phase 8**: its first task is NOT hardening the gate members.
+That work is done and was done well. The remaining silence is elsewhere — an
+`UPDATE` matching zero rows (D168), a mutation whose failure reaches no handler
+(D179), a backfill that skips rather than repairs (D181). Those are runtime
+silences, not scan silences, and they want different instruments.

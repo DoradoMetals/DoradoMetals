@@ -33,6 +33,166 @@ import "#env";
 import pool from "#db";
 import { FEATURES, RENAMES } from "./lib/feature-map.ts";
 
+// ---------------------------------------------------------------------------
+// THE ACCEPT MAPS, AND WHY THIS SCRIPT NOW EXITS NON-ZERO WITHOUT THEM.
+//
+// This audit's own closing line was "each one should be a decision rather than
+// an accident", and for several waves there was nowhere to record the decision:
+// 27 dropped NOT NULLs, 7 unmatched uniques, 3 unmatched CHECKs and 2 unmatched
+// foreign keys, re-read from scratch by whoever looked next, with nothing
+// noticing when the list changed. Its two siblings - audit:indexes and
+// audit:query-paths - had both an ACCEPTED map and a place in `pnpm check`, and
+// those two guard LATENCY. This one guards whether an order can exist without a
+// total.
+//
+// PINNED FROM BOTH SIDES, exactly like audit:indexes. A finding that is not
+// named here fails the run; a name here that no longer reports a finding fails
+// it too, so a constraint that gets fixed cannot leave a stale excuse behind to
+// suppress the next real one that lands on the same key.
+//
+// THE TEST THAT SEPARATES AN ACCEPT FROM A FIX, and it is not "is the column
+// full today":
+//
+//   ACCEPT when the target CANNOT hold the guard. Almost every entry below is
+//   one merged table taking the intersection of two parents' guarantees - the
+//   nulls belong to the parent that never had the column, and asserting NOT
+//   NULL would refuse a row that is correct. D63 measured this the wrong way
+//   round once and nearly reported 14 missing order totals: every one of them
+//   was a purchase order, and exchange.purchase_orders has no order_total
+//   column at all.
+//
+//   FIX when the target simply lost a guard the source had, and every write
+//   path already supplies the value. Those are migrations 101-103, not entries
+//   here.
+//
+// Each entry states the measurement, because "it looks structural" is what the
+// D63 aggregate looked like too.
+// ---------------------------------------------------------------------------
+
+// The merged sales/purchase order transaction row. exchange.purchase_orders has
+// NONE of these columns - verified by column list, not inferred - so every one
+// of them is NULL for the 48 purchase-order rows in dev and the 62 in
+// production, and NOT NULL cannot be asserted for a table that serves both
+// directions. This is D63's finding, written down.
+const MERGED_ORDER_MONEY =
+  "orders.transactions merges purchase and sales orders. exchange.purchase_orders " +
+  "has no order_total / item_total / base_total / sales_tax / shipping_cost / " +
+  "charges / used_funds columns AT ALL, so the merged column is null for every " +
+  "purchase-order row by construction. Structurally necessary, not accidental " +
+  "(D63: 15/15 sales rows populated, every null on the purchase side).";
+
+const ACCEPTED_NOT_NULL = {
+  "exchange.sales_orders.order_total -> orders.transactions.total": MERGED_ORDER_MONEY,
+  "exchange.sales_orders.item_total -> orders.transactions.items": MERGED_ORDER_MONEY,
+  "exchange.sales_orders.base_total -> orders.transactions.base_total": MERGED_ORDER_MONEY,
+  "exchange.sales_orders.sales_tax -> orders.transactions.sales_tax": MERGED_ORDER_MONEY,
+  "exchange.sales_orders.shipping_cost -> orders.transactions.shipping": MERGED_ORDER_MONEY,
+  "exchange.sales_orders.charges_amount -> orders.transactions.surcharge": MERGED_ORDER_MONEY,
+  "exchange.sales_orders.pre_charges_amount -> orders.transactions.funds": MERGED_ORDER_MONEY,
+  "exchange.sales_orders.post_charges_amount -> orders.transactions.post_charges_amount":
+    MERGED_ORDER_MONEY,
+  "exchange.sales_orders.subject_to_charges_amount -> orders.transactions.subject_to_charges_amount":
+    MERGED_ORDER_MONEY,
+  "exchange.sales_orders.used_funds -> orders.transactions.used_funds": MERGED_ORDER_MONEY,
+
+  // The same merge, one step weaker: the other parent HAS the column and it is
+  // nullable there, so NOT NULL would be stronger than either parent rather
+  // than a restoration. Left as a measurement rather than a constraint because
+  // the price of being wrong is a REFUSED ORDER WRITE, and a status is a pure
+  // customer-facing label driving no logic (Jacob's standing ruling).
+  "exchange.sales_orders.sales_order_status -> orders.orders.status":
+    "orders.orders merges both directions and exchange.purchase_orders." +
+    "purchase_order_status is NULLABLE, so this would tighten the purchase side " +
+    "rather than restore the sales side. Measured: 0 nulls in 62 production " +
+    "purchase orders and 48 dev rows, so it COULD be tightened - but repo.mirror " +
+    "copies purchase_order_status straight across, and a 23502 there fails the " +
+    "whole order transaction. A status drives no logic; an unwritten order is " +
+    "unrecoverable.",
+
+  // payments.details is two things in one table: a customer's payout bank
+  // account (from exchange.payouts) and the instrument Stripe says was used
+  // (from exchange.payment_intents). Neither half has the other's columns.
+  "exchange.payouts.method -> payments.details.method_id":
+    "payments.details merges payout ACCOUNTS with Stripe INSTRUMENTS. The " +
+    "instrument half resolves method_id through a LEFT JOIN on payments.methods " +
+    "(repo.next.ts updateMethod), which yields NULL for a Stripe method type " +
+    "with no matching row - and that path is the Stripe webhook. exchange." +
+    "payment_intents.method_type, the other parent, is nullable.",
+  "exchange.payouts.account_holder_name -> payments.details.account_holder":
+    "Same merge: exchange.payment_intents has no account-holder column at all, " +
+    "so an instrument row has nothing to put there. Measured on dev: 6 of 22 " +
+    "payments.details rows are null and all six are intent-derived.",
+  "exchange.payment_intents.payment_intent_id -> payments.details.provider_ref":
+    "The mirror image of the two above: a PAYOUT account has no provider " +
+    "reference, because it never came from Stripe. Measured on dev: 16 of 22 " +
+    "null, all sixteen payout-derived. The Stripe half of this guard is " +
+    "restored on payments.attempts.provider_ref (migration 102) and on the " +
+    "unique index there (103), which is the table that actually holds one row " +
+    "per Stripe intent.",
+
+  // checkout is device-sync, not a ledger (CLAUDE.md). The merged parents
+  // disagree and the request body is unvalidated.
+  "exchange.sell_cart_items.quantity -> checkout.items.quantity":
+    "checkout.items merges cart_items and sell_cart_items, and exchange." +
+    "cart_items.quantity is NULLABLE - only the sell side carried the guard. " +
+    "The sync body (req.body.cart) is not validated by any contract, so a client " +
+    "sending a null quantity would 23502 on a cart sync that exchange accepts " +
+    "today. checkout.* is device-sync, not a ledger; the right fix is a contract " +
+    "on the sync body, not a column constraint. Measured: 3/3 production " +
+    "cart_items and 26/26 sell_cart_items rows populated.",
+};
+
+// Keyed by the SOURCE INDEX NAME, like audit:indexes' map, because two source
+// tables can carry the same column list and a "table(cols)" key collides.
+const ACCEPTED_UNIQUE = {
+  unique_user_cart:
+    "exchange keeps a buy cart and a sell cart in two tables, each unique on " +
+    "user_id; checkout.checkouts is one table unique on (user_id, direction). " +
+    "The wider index is the CORRECT translation and the narrower one would be " +
+    "wrong: 17 production users hold both a cart and a sell_cart, and a unique " +
+    "on user_id alone would refuse every one of them.",
+  unique_sell_user_cart:
+    "The other half of the same merge - see unique_user_cart. 17 production " +
+    "users hold both.",
+  purchase_orders_order_number_key:
+    "orders.orders merged purchase and sales orders and is unique on " +
+    "(direction, number). The two sequences ARE independent - exchange." +
+    "purchase_orders_order_number_seq is at 13919 and sales_orders_order_number_seq " +
+    "at 950, separate objects - so the same number can legitimately exist once " +
+    "in each direction and a unique on number alone would be WRONG, not merely " +
+    "narrower. Every caller supplies the direction.",
+  rates_unique_band:
+    "The target's index is STRICTLY STRONGER, not missing. exchange's " +
+    "UNIQUE (metal_id, unit, min_qty, max_qty) treats a NULL max_qty as " +
+    "distinct, so it permits two identical open-ended bands; rates.rates' " +
+    "migration_rates_band_uniq keys on COALESCE(max_qty, -1) and refuses them. " +
+    "Proved by experiment in a rolled-back transaction: the exchange-shaped " +
+    "index accepted two identical (metal, unit, 0, NULL) rows and the target- " +
+    "shaped one raised 23505 on the same pair. Dev and production both hold 4 " +
+    "open-ended bands.",
+};
+
+const ACCEPTED_CHECK = {};
+
+const ACCEPTED_FK = {
+  payment_intents_session_id_fkey:
+    "exchange.payment_intents.session_id references exchange.session; the new " +
+    "schema's session table is auth.sessions, and THAT MIRROR IS PARTIAL IN " +
+    "BOTH DIRECTIONS - measured on dev: 58 exchange.session rows have no " +
+    "auth.sessions counterpart and 2 auth.sessions rows have no exchange one. " +
+    "An FK here would refuse a payment intent created under an unmirrored " +
+    "session, which is a customer failing to check out. The FK becomes correct " +
+    "when the auth cutover makes auth.sessions the real table; it is not one " +
+    "yet.",
+  account_transactions_user_id_fkey:
+    "Same shape, on the credit ledger: exchange.users -> auth.users is a " +
+    "TRIGGER mirror (migration 056) and it is incomplete - 1 of 12 dev " +
+    "exchange.users rows has no auth.users counterpart, because the trigger only " +
+    "fires on write and predates that row. An FK on payments.ledger.user_id " +
+    "would raise 23503 on a credit adjustment for that customer, and a refused " +
+    "credit write is money the ledger never records. 0 orphans today.",
+};
+
 const describe = async (table) => {
   const [schema, name] = table.split(".");
   const { rows } = await pool.query(
@@ -86,6 +246,7 @@ for (const [feature, sources] of Object.entries(features)) {
         if (t.not_null) continue;
         lost.push({
           feature,
+          key: `${source}.${column} -> ${target}.${targetName}`,
           from: `${source}.${column}`,
           to: `${target}.${targetName}`,
           type: s.type,
@@ -121,12 +282,36 @@ if (!only && checked < CONSTRAINT_FLOOR) {
 }
 
 
+// Every finding is either NAMED in ACCEPTED_NOT_NULL with its reasoning, or it
+// is a gap that fails the run. `stale` is the other side of the pin: an entry
+// that no longer reports is an excuse without a subject.
+const notNullAccepted = lost.filter((l) => ACCEPTED_NOT_NULL[l.key]);
+const notNullOpen = lost.filter((l) => !ACCEPTED_NOT_NULL[l.key]);
+const staleNotNull = Object.keys(ACCEPTED_NOT_NULL).filter(
+  (k) => !lost.some((l) => l.key === k)
+);
+
 if (!lost.length) {
   console.log("every one of them is NOT NULL on the other side too");
 } else {
-  console.log(`\n${lost.length} constraint(s) that promotion would drop:\n`);
+  console.log(
+    `\n${lost.length} constraint(s) promotion would drop - ` +
+      `${notNullAccepted.length} accepted by name, ${notNullOpen.length} open`
+  );
+}
+
+if (notNullAccepted.length) {
+  console.log(`\naccepted - the target cannot hold the guard, with the measurement:\n`);
+  for (const i of notNullAccepted) {
+    console.log(`  ok ${i.feature}: ${i.from} -> ${i.to}`);
+    console.log(`       ${ACCEPTED_NOT_NULL[i.key]}`);
+  }
+}
+
+if (notNullOpen.length) {
+  console.log(`\n${notNullOpen.length} NOT NULL(s) with no decision recorded:\n`);
   const byFeature = {};
-  for (const l of lost) (byFeature[l.feature] ??= []).push(l);
+  for (const l of notNullOpen) (byFeature[l.feature] ??= []).push(l);
   for (const [feature, items] of Object.entries(byFeature)) {
     console.log(`  ${feature}`);
     for (const i of items) {
@@ -138,7 +323,8 @@ if (!lost.length) {
   console.log(
     "Each is a guard that exists today and would not after the switch moves.\n" +
       "That is not automatically wrong - some columns are deliberately optional in\n" +
-      "the new model - but each one should be a decision rather than an accident."
+      "the new model - but each one should be a decision rather than an accident.\n" +
+      "Restore it in a migration, or name it in ACCEPTED_NOT_NULL with the reason."
   );
 }
 
@@ -162,22 +348,29 @@ if (!lost.length) {
 // string "{a,b}" and every array method on it throws. (Written here rather
 // than in the SQL because a backtick inside a template literal ends it, which
 // is how the first attempt at this comment broke the file.)
+//
+// THE INDEX NAME IS SELECTED, not just the column list, because the ACCEPTED
+// map is keyed on it - the same way audit:indexes keys its own. Two source
+// tables can carry the same column list, and "table(cols)" collides where a
+// name does not.
 const uniquesOf = async (table) => {
   const [schema, name] = table.split(".");
   const { rows } = await pool.query(
-    `SELECT i.indexrelid,
+    `SELECT ic.relname AS name,
             bool_or(k.attnum = 0) AS has_expression,
             array_agg(a.attname::text ORDER BY k.ord) AS cols
        FROM pg_index i
        JOIN pg_class c ON c.oid = i.indrelid
+       JOIN pg_class ic ON ic.oid = i.indexrelid
        JOIN pg_namespace n ON n.oid = c.relnamespace
        CROSS JOIN LATERAL unnest(i.indkey::int[]) WITH ORDINALITY k(attnum, ord)
        LEFT JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
       WHERE n.nspname = $1 AND c.relname = $2 AND i.indisunique
-      GROUP BY i.indexrelid`,
+      GROUP BY i.indexrelid, ic.relname`,
     [schema, name]
   );
   return rows.map((r) => ({
+    name: r.name,
     cols: (r.cols ?? []).filter(Boolean),
     expression: r.has_expression,
   }));
@@ -186,7 +379,9 @@ const uniquesOf = async (table) => {
 const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
 
 let uniqueChecked = 0;
+let uniqueUnreadable = 0;
 const uniqueLost = [];
+const uniqueUnmappable = [];
 
 for (const [feature, sources] of Object.entries(features)) {
   for (const [source, targets] of Object.entries(sources)) {
@@ -196,11 +391,34 @@ for (const [feature, sources] of Object.entries(features)) {
       if (u.expression || !u.cols.length || (u.cols.length === 1 && u.cols[0] === "id")) continue;
       const mapped = u.cols.map((c) => renames[c] ?? c);
       if (mapped.includes("-")) continue;
+
+      // WHICH TARGETS COULD EVEN HOLD THIS INDEX. Only one that has every
+      // mapped column - the same filter audit:indexes has always applied, and
+      // its absence here produced a finding that was simply not true:
+      // exchange.purchase_orders(order_number) was reported as unmatched
+      // against refiners.orders, which has no `number` column at all. A target
+      // that does not carry the column cannot be missing an index on it.
+      // Reported as `?` when NO target carries them, never as present - a scan
+      // that cannot see something must not call it clean.
+      const candidates = [];
+      for (const target of targets) {
+        const cols = await shapeOf(target);
+        if (mapped.every((c) => cols.has(c))) candidates.push(target);
+      }
+      if (candidates.length === 0) {
+        uniqueUnreadable += 1;
+        uniqueUnmappable.push({
+          feature, index: u.name,
+          from: `${source}(${u.cols.join(", ")})`,
+          why: `no target among ${targets.join(", ")} holds all of (${mapped.join(", ")})`,
+        });
+        continue;
+      }
       uniqueChecked += 1;
 
       const alternatives = [];
       let matched = false;
-      for (const target of targets) {
+      for (const target of candidates) {
         for (const t of await uniquesOf(target)) {
           if (t.expression) { alternatives.push(`${target}(${t.cols.join(", ")} + expression)`); continue; }
           if (sameSet(mapped, t.cols)) { matched = true; break; }
@@ -211,9 +429,10 @@ for (const [feature, sources] of Object.entries(features)) {
       if (!matched) {
         uniqueLost.push({
           feature,
+          index: u.name,
           from: `${source}(${u.cols.join(", ")})`,
           to: mapped.join(", "),
-          targets: targets.join(", "),
+          targets: candidates.join(", "),
           alternatives,
         });
       }
@@ -221,14 +440,40 @@ for (const [feature, sources] of Object.entries(features)) {
   }
 }
 
+const uniqueAccepted = uniqueLost.filter((u) => ACCEPTED_UNIQUE[u.index]);
+const uniqueOpen = uniqueLost.filter((u) => !ACCEPTED_UNIQUE[u.index]);
+const staleUnique = Object.keys(ACCEPTED_UNIQUE).filter(
+  (k) => !uniqueLost.some((u) => u.index === k)
+);
+
 console.log(`\n${uniqueChecked} unique index(es) in the source schema, excluding primary keys and expressions`);
+if (uniqueUnmappable.length) {
+  console.log(`${uniqueUnmappable.length} could not be checked - reported as ?, never as present:`);
+  for (const u of uniqueUnmappable) console.log(`  ?  ${u.feature}: ${u.from} - ${u.why}`);
+}
 if (!uniqueLost.length) {
   console.log("every one has an exact counterpart in the new schema");
 } else {
-  console.log(`${uniqueLost.length} without an exact counterpart:\n`);
-  for (const u of uniqueLost) {
+  console.log(
+    `${uniqueLost.length} without an exact counterpart - ` +
+      `${uniqueAccepted.length} accepted by name, ${uniqueOpen.length} open`
+  );
+}
+
+if (uniqueAccepted.length) {
+  console.log(`\naccepted - each checked against what the merged table has to mean:\n`);
+  for (const u of uniqueAccepted) {
+    console.log(`  ok ${u.feature}: ${u.from}  [${u.index}]`);
+    console.log(`       ${ACCEPTED_UNIQUE[u.index]}`);
+  }
+  console.log("");
+}
+
+if (uniqueOpen.length) {
+  console.log(`\n${uniqueOpen.length} with no decision recorded:\n`);
+  for (const u of uniqueOpen) {
     console.log(`  ${u.feature}`);
-    console.log(`    ${u.from}`);
+    console.log(`    ${u.from}  [${u.index}]`);
     console.log(`      -> nothing in ${u.targets} is unique on (${u.to})`);
     if (u.alternatives.length) {
       console.log(`      the target does have: ${[...new Set(u.alternatives)].join("; ")}`);
@@ -277,14 +522,15 @@ const guardsOn = async (table) => {
 const checksOn = async (table) => {
   const [schema, name] = table.split(".");
   const { rows } = await pool.query(
-    `SELECT pg_get_constraintdef(con.oid) AS def,
+    `SELECT con.conname::text AS name,
+            pg_get_constraintdef(con.oid) AS def,
             array_agg(a.attname::text) AS cols
        FROM pg_constraint con
        JOIN pg_class c ON c.oid = con.conrelid
        JOIN pg_namespace n ON n.oid = c.relnamespace
        JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(con.conkey)
       WHERE n.nspname = $1 AND c.relname = $2 AND con.contype = 'c'
-      GROUP BY con.oid`,
+      GROUP BY con.oid, con.conname`,
     [schema, name]
   );
   return rows;
@@ -323,6 +569,7 @@ for (const [feature, sources] of Object.entries(features)) {
       if (!coveredSomewhere && uncovered.length) {
         checksLost.push({
           feature,
+          name: chk.name,
           from: `${source}(${chk.cols.join(", ")})`,
           def: chk.def,
           to: uncovered.join(", "),
@@ -332,14 +579,35 @@ for (const [feature, sources] of Object.entries(features)) {
   }
 }
 
+const checksAccepted = checksLost.filter((c) => ACCEPTED_CHECK[c.name]);
+const checksOpen = checksLost.filter((c) => !ACCEPTED_CHECK[c.name]);
+const staleCheck = Object.keys(ACCEPTED_CHECK).filter(
+  (k) => !checksLost.some((c) => c.name === k)
+);
+
 console.log(`\n${checksChecked} CHECK constraint(s) in the source schema`);
 if (!checksLost.length) {
   console.log("every one is matched by a check, an enum or a foreign key on the other side");
 } else {
-  console.log(`${checksLost.length} whose column has no check, no enum and no foreign key:\n`);
-  for (const c of checksLost) {
+  console.log(
+    `${checksLost.length} whose column has no check, no enum and no foreign key - ` +
+      `${checksAccepted.length} accepted by name, ${checksOpen.length} open`
+  );
+}
+
+if (checksAccepted.length) {
+  console.log(`\naccepted:\n`);
+  for (const c of checksAccepted) {
+    console.log(`  ok ${c.feature}: ${c.from}  [${c.name}]`);
+    console.log(`       ${ACCEPTED_CHECK[c.name]}`);
+  }
+}
+
+if (checksOpen.length) {
+  console.log(`\n${checksOpen.length} with no decision recorded:\n`);
+  for (const c of checksOpen) {
     console.log(`  ${c.feature}`);
-    console.log(`    ${c.from}`);
+    console.log(`    ${c.from}  [${c.name}]`);
     console.log(`      ${c.def}`);
     console.log(`      -> ${c.to} has nothing standing in for it\n`);
   }
@@ -382,17 +650,20 @@ const fkColumnsOf = async (table) => {
 const sourceFks = async (table) => {
   const [schema, name] = table.split(".");
   const { rows } = await pool.query(
-    `SELECT array_agg(a.attname::text ORDER BY k.ord) AS cols
+    `SELECT con.conname::text AS name,
+            array_agg(a.attname::text ORDER BY k.ord) AS cols
        FROM pg_constraint con
        JOIN pg_class c ON c.oid = con.conrelid
        JOIN pg_namespace n ON n.oid = c.relnamespace
        CROSS JOIN LATERAL unnest(con.conkey::int[]) WITH ORDINALITY k(attnum, ord)
        JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
       WHERE n.nspname = $1 AND c.relname = $2 AND con.contype = 'f'
-      GROUP BY con.oid`,
+      GROUP BY con.oid, con.conname`,
     [schema, name]
   );
-  return rows.map((r) => r.cols ?? []).filter((c) => c.length);
+  return rows
+    .map((r) => ({ name: r.name, cols: r.cols ?? [] }))
+    .filter((f) => f.cols.length);
 };
 
 let fkChecked = 0;
@@ -401,7 +672,7 @@ const fkLost = [];
 for (const [feature, sources] of Object.entries(features)) {
   for (const [source, targets] of Object.entries(sources)) {
     const renames = RENAMES[source] ?? {};
-    for (const cols of await sourceFks(source)) {
+    for (const { name: fkName, cols } of await sourceFks(source)) {
       const mapped = cols.map((c) => renames[c] ?? c);
       if (mapped.includes("-")) continue;
 
@@ -416,22 +687,84 @@ for (const [feature, sources] of Object.entries(features)) {
         carriedButUnguarded.push(`${target}(${mapped.join(", ")})`);
       }
       if (!covered && carriedButUnguarded.length) {
-        fkLost.push({ feature, from: `${source}(${cols.join(", ")})`, to: carriedButUnguarded.join(", ") });
+        fkLost.push({
+          feature, name: fkName,
+          from: `${source}(${cols.join(", ")})`,
+          to: carriedButUnguarded.join(", "),
+        });
       }
     }
   }
 }
 
+const fkAccepted = fkLost.filter((f) => ACCEPTED_FK[f.name]);
+const fkOpen = fkLost.filter((f) => !ACCEPTED_FK[f.name]);
+const staleFk = Object.keys(ACCEPTED_FK).filter(
+  (k) => !fkLost.some((f) => f.name === k)
+);
+
 console.log(`\n${fkChecked} foreign key(s) whose columns were carried over to a target`);
 if (!fkLost.length) {
   console.log("every one of them is a foreign key on the other side too");
 } else {
-  console.log(`${fkLost.length} carried over WITHOUT the foreign key:\n`);
-  for (const f of fkLost) {
+  console.log(
+    `${fkLost.length} carried over WITHOUT the foreign key - ` +
+      `${fkAccepted.length} accepted by name, ${fkOpen.length} open`
+  );
+}
+
+if (fkAccepted.length) {
+  console.log(`\naccepted - each one points at a table that is not yet complete:\n`);
+  for (const f of fkAccepted) {
+    console.log(`  ok ${f.feature}: ${f.from}  [${f.name}]`);
+    console.log(`       ${ACCEPTED_FK[f.name]}`);
+  }
+}
+
+if (fkOpen.length) {
+  console.log(`\n${fkOpen.length} with no decision recorded:\n`);
+  for (const f of fkOpen) {
     console.log(`  ${f.feature}`);
-    console.log(`    ${f.from}`);
+    console.log(`    ${f.from}  [${f.name}]`);
     console.log(`      -> ${f.to} has the column but no foreign key on it\n`);
   }
 }
 
 await pool.end();
+
+// ---------------------------------------------------------------------------
+// THE VERDICT, and the second half of the pin.
+//
+// An unaccepted finding fails. So does an ACCEPTED entry that no longer reports
+// one: audit:indexes learned this the hard way with `unique_payment_intent_id`,
+// an entry whose reasoning was wrong and which sat there suppressing a real gap
+// on the Stripe webhook path until migration 082 removed both. An allowlist that
+// can only be added to is a way of forgetting.
+//
+// `--only <feature>` narrows the walk, so the stale half is suppressed there:
+// an entry for another feature has not gone stale, it simply was not looked at.
+const stale = only
+  ? []
+  : [
+      ...staleNotNull.map((k) => `ACCEPTED_NOT_NULL  ${k}`),
+      ...staleUnique.map((k) => `ACCEPTED_UNIQUE    ${k}`),
+      ...staleCheck.map((k) => `ACCEPTED_CHECK     ${k}`),
+      ...staleFk.map((k) => `ACCEPTED_FK        ${k}`),
+    ];
+
+if (stale.length) {
+  console.log(`\n${stale.length} ACCEPTED entr(ies) no longer report a finding - remove them:`);
+  for (const s of stale) console.log(`  STALE  ${s}`);
+}
+
+const open = notNullOpen.length + uniqueOpen.length + checksOpen.length + fkOpen.length;
+console.log(
+  `\n${open} guard(s) with no decision recorded, ` +
+    `${notNullAccepted.length + uniqueAccepted.length + checksAccepted.length + fkAccepted.length} accepted, ` +
+    `${stale.length} stale accept(s), ` +
+    `${uniqueUnreadable} unreadable`
+);
+if (open === 0 && stale.length === 0) {
+  console.log("every guard exchange holds is either held by the schema that replaces it, or accepted by name");
+}
+process.exit(open || stale.length ? 1 : 0);

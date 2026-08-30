@@ -33,7 +33,7 @@ export const PickupsRow = z.object({
   "id": z.string().uuid(),
   "shipment_id": z.string().uuid(),
   "requested_at": z.string().nullable(),
-  "status": z.string().nullable(),
+  "status": z.string(),
   "confirmation_number": z.string().nullable(),
   "location": z.string().nullable(),
 });

@@ -7,7 +7,7 @@ import { z } from "zod/v4";
 export const SpotsRow = z.object({
   "id": z.string().uuid(),
   "metal_id": z.string().uuid(),
-  "ask": z.number().nullable(),
+  "ask": z.number(),
   "bid": z.number().nullable(),
   "percent_change": z.number().nullable(),
   "dollar_change": z.number().nullable(),

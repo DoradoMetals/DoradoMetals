@@ -49,10 +49,20 @@ const values = (id: string, p: LegacyPickup, defaultStatus: string | null) => [
   p.location ?? null,
 ];
 
-// The create defaults pickup_status to 'Scheduled' and the update does not -
+// The create defaults pickup_status to 'scheduled' and the update does not -
 // that asymmetry is exactly what the two statements this replaces did, and it
 // is right: a new pickup with no status given is scheduled, while an update
 // with no status given should not invent one.
+//
+// LOWERCASE, AND THAT IS A FIX, NOT A STYLE CHOICE. This default read
+// 'Scheduled' and exchange.carrier_pickups carries
+// `CHECK (pickup_status = ANY (ARRAY['pending','scheduled','completed',
+// 'canceled']))`, so the capital S was a value the table refuses: any caller
+// booking a pickup WITHOUT naming a status got 23514 and lost the whole
+// transaction. Nothing has hit it because the one live call site
+// (features/orders/service.ts) passes 'scheduled' explicitly, and both tables
+// hold zero rows on dev and in production - which is also why no test caught
+// it. Found while restoring the same allowlist to shipping.pickups (101).
 // BOTH RETURN THE TIMESTAMP exchange COMPUTED. The caller may have passed a
 // date and a time, which the statement combines in Postgres; the new schema
 // needs that same instant, and recomputing it in JavaScript would carry the
@@ -64,7 +74,7 @@ export async function create(
   id: string, p: LegacyPickup, executor?: Executor
 ): Promise<Written | undefined> {
   const { rows } = await query<Written>(
-    sql("create"), values(id, p, "Scheduled"), executor
+    sql("create"), values(id, p, "scheduled"), executor
   );
   return rows[0];
 }

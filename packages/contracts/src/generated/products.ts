@@ -37,7 +37,7 @@ export const BullionRow = z.object({
   "updated_by_id": z.string().uuid().nullable(),
   "supplier_id": z.string().uuid(),
   "stock": z.number(),
-  "quantity": z.number().nullable(),
+  "quantity": z.number(),
 });
 export type BullionRow = z.infer<typeof BullionRow>;
 
