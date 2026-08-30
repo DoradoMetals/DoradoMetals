@@ -155,8 +155,12 @@ Create-then-charge. Needs a pending state and a reconciliation path.
 - **Kill two orphan processes** — 4-day `next dev`, 22h bash holding 3 dev
   connections. My kills are sandbox-blocked.
 - **Stray dev order `9ef2d27e`** — delete with its 2 items + scrap row, or leave.
-- **`verify:backfill` red since 098** — 047 seeds `'SHIPMENT'::text` into an enum.
-  Fixable, but edits an applied migration.
+  (Not among the 27 removed in `cdf267e0`; it has an `exchange` row.)
+- **`verify:backfill` red, 46 differences** — 047 is fixed (`ecb8b11c`) and 27
+  leaked test orders are gone (`cdf267e0`). What is left is pre-existing drift,
+  itemised in D186. The live one: ~12 orders whose `spots_locked` is `t` in dev
+  and `f` from a rebuild. Also `audit:test-leaks` is not in `pnpm check`, which
+  is why eight runs' worth of leaks accumulated unseen.
 - **T&C need a lawyer** — the offers purge removed both deemed-acceptance clauses
   and the "Rejecting Our Offer" section; clause 177 promises $50,000 insurance
   where migration 097 sets 10,000.
