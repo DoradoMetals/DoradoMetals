@@ -180,6 +180,13 @@ Create-then-charge. Needs a pending state and a reconciliation path.
   (D199).
 - **The forged-invoice path** — `sendPricedEmail` renders `req.body` into the
   invoice PDF with nothing re-read from the database (D193).
+- **Upload keys are client-supplied and not namespaced** — production images are
+  keyed `/test/IMG_6698.jpeg`, so two customers whose phones pick the same
+  default filename get ONE storage object and two rows. The photo is evidence of
+  what a customer sent in. 3 images in production, so it has not bitten (D201).
+- **`exchange.scrap.purity` is `numeric(4,3)`** — two non-destructive widening
+  ALTERs are written and unapplied; 8 rows already flattened, and the rounding
+  favours the customer, not the business (D200).
 
 - **Figma PNGs → `docs/design/`** — blocks phase 10 entirely.
 - **`updateMethod` can't write `payments.details`** — 23502 on `user_id`. Needs a
