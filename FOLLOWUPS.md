@@ -12869,3 +12869,67 @@ project's first rule exists to refuse.
 **What it needs**: delete the floor, refuse to open an intent when
 `post_charges_amount` is below Stripe's minimum, and settle those orders from
 credit alone. With a test at $0.00, $0.49 and $9.99.
+
+## D200 — the scrap purity rounding, measured: 8 rows, and it costs the BUSINESS
+
+D61 and CLAUDE.md both name this and neither had numbers. Measured against
+production, read-only:
+
+```
+exchange.scrap.purity          numeric(4,3)     2 rows at exactly 1.000
+exchange.scrap.purity_actual   numeric(4,3)     8 rows at exactly 1.000, 47 null
+exchange.products.purity                       10 at 0.9999, 6 at 0.9995
+```
+
+**The sixteen products are real** — that half of CLAUDE.md is exact. Fine gold
+is .9999 and platinum .9995, and neither survives `numeric(4,3)`: Postgres
+rounds half away from zero, so **both round UP to 1.000**.
+
+**Nothing is 1.000 pure.** Eight `purity_actual` rows sitting at exactly 1.000
+are, almost certainly, assays of .9999 or .9995 metal flattened by the column
+type. That is the loss, and it has already happened — the original values are
+not recoverable from this database.
+
+### The direction is the opposite of what the note implies
+
+CLAUDE.md says *"`purity_actual` multiplies into `content_actual`, which is what
+a customer is paid on"*, which reads as customer harm. It is not.
+
+The rounding goes **UP**: .9999 → 1.000 and .9995 → 1.000. So `content_actual`
+is larger than the metal actually assayed, and **the business pays out for more
+fine metal than it received** — by up to 0.05%. On a $10,000 payout that is
+about $5. Eight rows. Small, real, and the business's money rather than the
+customer's.
+
+That distinction matters for prioritisation: this is not a customer-facing
+defect and should not be treated as one. It is an accuracy defect that happens
+to favour the customer.
+
+### One claim in CLAUDE.md is wrong and is corrected here
+
+It says the scrap column's *"commonest value is exactly 1.000"*. It is not.
+`purity` is commonest at **0.925** (14 rows — sterling silver), then 0.400,
+0.563, 0.900, 0.999. `purity_actual` is 47 NULL, then 0.563 (9), then 1.000 (8).
+The real scrap distribution is karat-based — 0.925, 0.585, 0.750 — and **three
+decimals is the right scale for scrap.** The precision problem is bullion
+purities arriving in a scrap-shaped column, not scrap itself.
+
+### The fix, ready but not applied
+
+```sql
+ALTER TABLE exchange.scrap ALTER COLUMN purity        TYPE numeric;
+ALTER TABLE exchange.scrap ALTER COLUMN purity_actual TYPE numeric;
+```
+
+Widening is **not destructive** — every existing value survives unchanged, and
+`lint:migrations` would pass it without an `allow-destructive:` marker. It stops
+future loss; it cannot restore the eight rows already flattened.
+
+**Not applied tonight** only because it is a schema change to `exchange` on a
+money column, `verify:genesis` would need regenerating with it, and the full
+gate could not run (D198). It wants a session that can verify, not one that can
+only typecheck. `audit:precision` is the check that should go green afterwards —
+and note its own blind spot, recorded in CLAUDE.md: it casts a source value into
+the *target's* type, so a loss that already happened at the source is invisible
+to it by construction. This one was found by reading the source column's type,
+not by the audit.
