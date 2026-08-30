@@ -16,7 +16,7 @@ OVERALL   ████████████████░░░░░░░�
 | 🔄 | **phase 7** money at rest | `███████████████░░░` ~85% | rest is Jacob's |
 | 🔄 | **phase 8** the silence problem | `████████░░░░░░░░░░` ~44% | in flight |
 | ⬜ | **phase 9** checkout, properly | `░░░░░░░░░░░░░░░░░░` ~0% | needs decisions |
-| 🔄 | **phase 10** component library and theming | `███░░░░░░░░░░░░░░░` ~19% | blocked on Figma |
+| 🔄 | **phase 10** component library and theming | `███████░░░░░░░░░░░` ~40% | screens not drawn |
 
 ## Phase 1 — the write pivot
 
@@ -151,8 +151,8 @@ Create-then-charge. Needs a pending state and a reconciliation path.
 `docs/waves/phase10-design-system.md`. 67 components, 122 importers, 7 inputs.
 
 ```
-1. Inventory: what exists and who uses it   ██████████████░░░░   75%
-2. The Figma library, read                  ░░░░░░░░░░░░░░░░░░    0%
+1. Inventory: what exists and who uses it   ██████████████████  100%
+2. The Figma library, read                  ██████████████░░░░   75%
 3. Collapse the parallel families           ░░░░░░░░░░░░░░░░░░    0%
 4. The new sell/checkout form               ░░░░░░░░░░░░░░░░░░    0%
 ```

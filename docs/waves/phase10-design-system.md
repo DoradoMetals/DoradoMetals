@@ -168,3 +168,113 @@ diffable, reviewable and does not expire.
 **Until then task 2 is capped**, and the honest bar is what structure can be
 read without selection — which is real and useful (the Button matrix above), but
 is not the token set.
+
+---
+
+# THE FIGMA LIBRARY, READ (2026-08-30) — task 2
+
+Jacob updated the design system overnight (timestamps 00:26 → 07:01 on 08-30)
+and said: *"would love to see checkout designs implemented (but follow the
+figma, that means also creating/updating the components you see there)."*
+
+## FIRST, THE THING THAT CHANGES THE BRIEF: THERE ARE NO CHECKOUT SCREENS
+
+`Layout / Desktop` (`5:646`) is a page shell — Header, Main, Footer — and its
+Main region contains **a dashed placeholder frame**. Its own description says
+so: *"The dashed Content frame is a placeholder — replace its children with the
+page body."* Searching both files for checkout, payout, review, address and
+summary returns **components only**; no screen frames.
+
+So the design system is ready and **the checkout screens are not drawn**. That
+is reported rather than worked around: inventing screens and calling them "the
+Figma" would be worse than saying so.
+
+**What CAN be done faithfully, and is:** implement the components that ARE
+specified, and align the existing checkout to them.
+
+## The canvas map, which the API will not give you
+
+`get_metadata` with no `nodeId` reports **one page per file** and is wrong —
+the Themes file returns only `0:1 Cover`, which is empty, while the real
+component canvases sit elsewhere. They are sequential from a single session and
+can be walked directly:
+
+| node | canvas | frames on it |
+|---|---|---|
+| `14:4` | Button | 135 variants (Variant × Intent × State × Size) |
+| `14:5` | Input | 30 variants (Content × State × Trailing) |
+| `14:6` | Checkbox | + **Option Card**, **Option Row** |
+| `14:7` | Radio | + **Radio Tile**, **Radio Chip**, **Radio Card** |
+| `14:8` | Switch | |
+| `14:9` | Slider | + Slider Field |
+| `14:10` | Accordion | |
+
+`14:11` onward do not exist. Stepper, Step Marker, Autocomplete, OTP Cell,
+Table Row, Stat, Swiper, Textarea, Chart/Bar and Select Option are all in the
+library (found via `search_design_system`) but sit on canvases from other
+sessions; find their node ids the same way — `search_design_system` for the
+name, then `get_design_context` on any node that instantiates it, whose
+"Component descriptions" block prints the node id.
+
+## The tokens are ALREADY in sync — this was checked, not assumed
+
+| Figma variable | value | code token | value |
+|---|---|---|---|
+| `surface/card` | #101114 | `--card` | #101114 |
+| `border/input` | #383b43 | `--input` | #383b43 |
+| `border/strong` | #3d414a | `--border-strong` | #3d414a |
+
+The variable descriptions name their own CSS mappings ("Also exposed as
+bg-surface", "applied via font-medium at call sites", "the theme created
+--text-stat so /rates would stop hanging text-h1 off a `<strong>`"). **The
+Figma was authored against this codebase**, so component work is about
+structure and state, not re-theming.
+
+## Component → code map
+
+| Figma | code | status |
+|---|---|---|
+| Button | `shared/ui/base/button.tsx` | same three axes; two divergences below |
+| Input / Textarea | `shared/ui/base/input.tsx`, `textarea.tsx` | present |
+| Checkbox / Radio / Switch / Slider | `shared/ui/base/*` | present |
+| **Radio Card** | `RadioGroup variant="card"` | selection ALIGNED; layout differs |
+| **Radio Tile** | `RadioGroup variant="tile"` | selection ALIGNED |
+| **Radio Chip** | `RadioGroup variant="segment"` | selection ALIGNED |
+| Option Card / Option Row | — | for the SELL form, not checkout |
+| Accordion | `shared/ui/AccordionSection.tsx` | present |
+| Autocomplete | — | **missing**; "for address lookup" |
+| Stepper / Step Marker | `checkout/…/checkoutStepper.tsx` | local, not shared |
+| OTP Cell, Table Row, Stat, Swiper, Chart/Bar | — | missing |
+
+**Do NOT recreate `shared/ui/RadioCard.tsx`.** It existed, and ruling 30 deleted
+it: *"fuck radio card and radio group image. Need to be coalesced so we don't
+have so much code in the consumers."* Figma's Radio Card is `RadioGroup`'s
+`card` variant, not a new component.
+
+## Divergences found, and what was done
+
+**DONE — neutral selects by border, not fill.** Figma states it twice ("Selection
+reads as a primary-coloured 1.5px border"; Radio Card keeps `bg-card` when
+selected). The code filled with `--primary`, which forced eleven
+`has-[[data-state=checked]]:[&_tag]:` rules to keep content legible — D99. All
+eleven deleted. 166/166 frontend tests.
+
+**OPEN — the card LAYOUT.** Figma's Radio Card is horizontal: icon | (title over
+description) | trailing radio, `p-4`, `gap-3`. The code's `card` stacks
+(`flex-col items-start`, `px-3 py-2`) because, per its comment, "every call site
+but one has two lines in it". Adopting the horizontal form changes what every
+consumer's children mean, so it is a per-call-site decision rather than a token
+one. The mechanism already exists — the file says a call site wanting one line
+"adds `flex-row items-center`, which is layout" and layout IS permitted at call
+sites.
+
+**OPEN — the gold is retired.** Stated twice (Button: "Intent=Brand omitted: the
+gold is retired"; Logo/Symbol: "the gold is retired"). Code still has
+`--brand: #d9b559` and `intent="brand"`, live at **3 call sites**
+(`Spots.tsx:34`, `ProductPageDetails.tsx:119` and `:510`). Small, but it is a
+visible brand change across product pages — Jacob's call, not an overnight one.
+
+**OPEN — Link should be its own component.** Figma: *"Separate component from
+Button: a link navigates, a button acts."* Node `6:307`, with a precise spec
+(no box, no padding, no radius, no border; `hover:underline` only). Code has it
+as `variant="link"` on Button, **19 call sites**.
