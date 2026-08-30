@@ -12192,3 +12192,266 @@ from `exchange` against live dev. That is only satisfiable while dev is a pure
 function of `exchange`. Every native write that `exchange` does not receive
 makes it permanently red, so once the write pivot completes the comparison
 needs a different subject or the green stops being reachable at all.
+
+## D187 — the script two files cited in the present tense had never been written
+
+Migration 073's header: routing and account numbers *"are written separately,
+and encrypted, by `scripts/encrypt-payout-details.mjs`, which refuses to run
+without `PAYOUT_ENCRYPTION_KEY`"*. `verify-backfill.mjs` excluded the same two
+columns from its comparison on the same understanding. **Neither sentence was
+true, and neither had ever been true.** The file did not exist. The columns it
+would have written did not exist either.
+
+**This is a different failure from a stale comment.** A stale comment described
+something real that later changed. These two described a design, in the present
+tense, that nobody had built — and because both citations agreed with each
+other, reading either one confirmed the other. The plaintext stayed plaintext on
+production for as long as the documentation said it did not.
+
+**Built, 2026-08-29.** `shared/crypto/envelope.ts` (AES-256-GCM,
+`v1.<key_id>.<iv>.<tag>.<ct>`, AAD bound to `<row_id>:<column>`), migration 104
+for the three columns, `scripts/encrypt-payout-details.ts` on top. 20 cipher
+tests, 5 database tests, 6 self-test cases.
+
+**Named `.ts`, and the citations were moved to it rather than the file being
+named after them.** `scripts/` is mid-conversion to TypeScript (D157). Writing
+the file the wrong citation named — to make the wrong citation right — is how
+this class of defect propagates.
+
+**One correction to the record kept**: `verify-backfill.mjs` excluding those
+columns is CORRECT and is not a hole. The exclusion is justified by the backfill
+not writing them at all, which is true whether or not the script exists;
+comparing them would assert that a rebuild reproduces plaintext bank details.
+That reasoning survives unchanged.
+
+**The refusal that matters most is not the key check.** Dev holds 16 payouts and
+**not one bank number** — every one is ECHECK or DORADO_ACCOUNT. So the happy
+path processes zero rows on the only database it will ever be tested against.
+Zero candidates therefore exits **non-zero** unless `--allow-empty` is passed.
+Six prior instances of that exact defect: D95, D99, D108, D115, D157, D176.
+
+**Its first encounter with a real mistake was a catch.** Jacob added
+`PAYOUT_ENCRYPTION_KEY` to `.env`; it decoded to **48 bytes**, not 32. The
+script refused and printed the generator command.
+
+**Untested, and stated rather than papered over**: the UPDATE loop against rows
+that actually hold plaintext. Dev has none, and manufacturing some would mean
+writing synthetic bank numbers into `exchange.payouts` on a connection the
+script commits from — the shape `audit:test-leaks` exists to catch. That path
+first executes on production under `--commit`, after a `pg_dump`, with
+`--verify` to check its work.
+
+## D188 — the exposure was 14, not 18, and the doc said both
+
+CLAUDE.md's open threads opened with *"production has fourteen of them"* and
+then said *"the 10 ACH and 8 WIRE rows carry real routing and account numbers"*.
+Those are different numbers, in consecutive sentences, and both had been there
+for months.
+
+Measured by the new `audit:plaintext-secrets`, production, read-only:
+
+| method | rows | carrying numbers |
+|---|---|---|
+| ACH | 11 | **7** |
+| WIRE | 8 | **7** |
+| ECHECK | 41 | 0 |
+| DORADO_ACCOUNT | 2 | 0 |
+
+**62 payouts, not 61. 14 carrying plaintext, across 9 customers.** The "10 and
+8" counted the ROWS OF THOSE METHODS and called them the exposed ones — 4 ACH
+and 1 WIRE payout carry no bank numbers at all.
+
+`payments.details` adds 10 more rows across 8 customers, and **all 56 of its
+production rows are January residue**: not one shares an id with an
+`exchange.payouts` row. 071 removes them and has never run there.
+
+**24 rows across two tables was right the whole time**, which is the interesting
+part — the total was correct while both of its halves were wrong, so no
+arithmetic check would have caught it. Only asking the database did.
+
+**The fix is the audit, not the number.** `audit:plaintext-secrets` matches
+column NAMES against `information_schema` rather than a hand-listed set of
+locations, so a new table inherits the check. It **counts and never selects** —
+no value enters the process. It carries a floor: it asserts it can still see
+`exchange.payouts`'s two columns, and calls a scan that cannot "broken" rather
+than "clean". Exits non-zero while plaintext remains, so it is **not** in
+`pnpm check`.
+
+## D189 — the guard could not see a self-test, and silently declined to run it
+
+`lint-script-guards.mjs` detected a script's self-test with
+`/includes\(\s*["']--self-test["']\s*\)/`. `scripts/encrypt-payout-details.ts`
+parsed its arguments into a `Set` and asked `args.has("--self-test")`, so the
+regex did not match.
+
+**The visible symptom was a false NO-GUARD**, which is the safe direction and
+easy to shrug at. **The real defect is one line further on**: at line 709,
+`if (!hasSelfTest.get(key)) continue;` — the runner SKIPS a script it cannot
+recognise. So a script that has a working self-test, written in an
+unrecognised form, is never executed by the gate, and reports nothing at all.
+That is the same class as the four rots the harness was built for: a guard that
+looks fine while auditing a subset.
+
+Fixed both ways: the new script adopted the house idiom, **and** the two regexes
+now accept `.has(...)` as well as `.includes(...)`. Self-tests executed by the
+gate went 20 → 22 (the second is `audit:plaintext-secrets`).
+
+**Worth a wider sweep later**: the detector still only recognises two spellings.
+A script using `argv.slice(2)[0] === "--self-test"`, or a minimist-style parser,
+is still invisible to it and would still be silently skipped.
+
+## D190 — 24 mutations whose caller cannot tell they changed nothing
+
+`scripts/audit-silent-mutations.ts`, new. An UPDATE that matches no row is not
+an error in Postgres: rowCount 0, transaction commits, nothing raises. So a
+`WHERE` that has quietly stopped resolving succeeds forever, and the only
+symptom is data that does not change.
+
+**This project has already shipped that defect twice in one feature.** D168:
+`link_to_order.sql` and `set_method_for_order.sql` walked
+`order -> payments.intents -> details`, and an intent is money coming IN while a
+payout is money going OUT, so the join resolved for **zero of sixteen** dev
+payouts. Every test passed, because a test writes its own fixture and reads it
+back.
+
+**Why it matters more now.** Ruling 36 lets `exchange` stop receiving writes.
+Most of these calls have an `exchange` half beside them doing real work, so a
+silent native no-op is currently invisible and harmless. **When the legacy half
+goes, the silent half is the only half.**
+
+Current state: **23 discarded results, 1 unobservable call.**
+
+The clearest example, and it documents itself —
+`features/shipping/shipments/service.ts:417`:
+
+```ts
+await shipments.setChargeForOrder(orderId, cost, c);      // native: result dropped
+return await legacy.setChargeForOrder(orderId, cost, c);  // exchange: returned
+```
+
+The comment above it says *"the exchange ids are returned because exchange is
+still authoritative"*. That is exactly the assumption ruling 36 retires. The
+native statement joins three tables (`shipping.shipments` ->
+`fulfillments.shipments` -> `fulfillments.fulfillments` -> order); if any hop
+fails to resolve it updates nothing and says nothing.
+
+**The one UNOBSERVABLE is not a defect.** `tax.accrue()` runs
+`UPDATE tax.sales_tax SET amount_owed = amount_owed + $1 WHERE state = $2 AND
+reached_nexus = true` with no RETURNING, and its own header says a state below
+its threshold accruing nothing is the correct outcome. Reported because the
+scan cannot know that; it belongs in an ACCEPTED map, which is the next piece
+of work on this script.
+
+### What the first version got wrong, and why it is worth recording
+
+It matched call sites **by function name alone**. `remove`, `update` and
+`create` are declared in a dozen repos each, so `legacy.remove()` in
+`shipping/tracking` was attributed to `fulfillments/directs/sql/delete` — a
+different feature. It reported **54** findings, most pointing at the wrong file.
+
+`shared/testing/locks.ts` records the lesson that made this worth fixing before
+shipping rather than after: *"A check with false positives gets suppressed, so
+it was not shipped."* The namespace is now resolved through the calling file's
+own `import` statements, and the count fell 56 → 24 with every finding pointing
+at its own feature.
+
+**Scoped deliberately**: only `.sql` files that actually begin `UPDATE` or
+`DELETE` (an INSERT generating its own id has nothing to assert); only call
+sites that discard the result (`await x.f()` as a statement, never
+`const r = await` or `return await`). Report-only — it exits 0 on the real tree
+and is a map of where to look, not a gate. Its `--self-test` plants a discarded
+UPDATE, a clean observed one, and an INSERT, and the floor is scoped to real
+runs so a synthetic INSERT-only tree does not trip it.
+
+## D191 — "error paths that reach Sentry" reach nothing: the API has no Sentry, and the frontend's server half was never initialised
+
+Phase 8's task 2 is written as *"Error paths that reach Sentry"*, which presumes
+an integration to reach. Measured 2026-08-29:
+
+**The API has no error reporting at all.** No `@sentry/*`, no bugsnag, rollbar,
+datadog, opentelemetry, pino or winston in `api/package.json` — nothing. Every
+error the API raises ends at Railway's stdout and is seen only by someone
+already looking.
+
+That matters because of what the log-only paths actually are. They are correct
+best-effort designs, each with a comment saying so, and each one is money:
+
+| site | what is silently lost |
+|---|---|
+| `features/orders/service.ts:145` | `ORPHANED SHIPPING LABEL <tracking>` — a FedEx label the business is paying for, whose order rolled back, and cancelling it also failed |
+| `features/orders/service.ts:166` | `ORPHANED CARRIER PICKUP <confirmation>` — a booked pickup with no order behind it |
+| `features/media/pdfs/store.ts:95` | the order's PDF was never persisted; returns null and the order proceeds |
+| `features/media/emails/record.ts:59` | the record that an email was sent is missing, while the email went |
+| `shared/cron/scheduler.ts:41` | any cron job failing — including `updateSpotPrices`, which every customer-visible price depends on |
+
+**Not one of these is a bug.** Failing the order because a PDF did not save
+would be worse. The defect is that nobody is told.
+
+**The frontend HAS Sentry, and its server half cannot work.** `@sentry/nextjs`
+9.18, a live DSN in `instrumentation-client.ts`, and `withSentryConfig` wrapping
+`next.config` — so **browser** errors are captured and source maps upload. But:
+
+- there is **no `register()` export** anywhere in the app, and
+- there is **no `sentry.server.config.ts` / `sentry.edge.config.ts`**.
+
+`instrumentation.ts` is three lines: it imports Sentry and re-exports
+`Sentry.captureRequestError` as `onRequestError`. `withSentryConfig` is a
+build-time wrapper (bundler plugin, source maps); it does not initialise the SDK
+at runtime. Next.js initialises the server SDK by calling `register()`, which
+does not exist here — so **`Sentry.init()` is never called in the Node or edge
+runtime**, and `captureRequestError` fires into an SDK with no client.
+
+Net effect: **server components, route handlers and SSR errors are not
+reported.** The half of the frontend that talks to the API is the unmonitored
+half, and the dashboard looks healthy because browser errors do arrive.
+
+**Judgement calls made (Jacob away, with his standing permission):**
+
+1. **The frontend fix is small and clearly correct and I am doing it** — a
+   `register()` plus server/edge configs, reusing the DSN already committed in
+   this repo. No new vendor, no new cost, no new secret.
+2. **I am NOT adding Sentry to the API.** That is a new dependency, a runtime
+   agent in the process that handles money, and a DSN/quota decision that is
+   Jacob's. What I am doing instead is building the **seam**: one
+   `reportError()` in `shared/`, called at the sites above, which today does
+   exactly what the `console.error` did. Attaching a reporter later becomes one
+   file rather than a hunt through five features. If Jacob would rather the API
+   simply had Sentry, it is then a two-line change.
+
+## D192 — a write-scoped Sentry token is named `NEXT_PUBLIC_`, and has not leaked yet
+
+`frontend/next.config.ts:14` reads `process.env.NEXT_PUBLIC_SENTRY_AUTH_TOKEN`,
+and `frontend/.env` defines it under that name. A Sentry auth token is a **write
+credential** — it uploads source maps and creates releases against the
+`dorado-metals-exchange` org.
+
+`NEXT_PUBLIC_` is the prefix that tells Next.js *"inline this into the browser
+bundle."*
+
+**Measured before claiming anything.** Next inlines only the
+`process.env.NEXT_PUBLIC_X` occurrences it can see in code that reaches the
+client, and this one is referenced solely from `next.config.ts`, which is
+build-time Node. Searched the built output for the literal token value
+(211 chars, never printed):
+
+```
+occurrences in .next/static (client chunks):  0
+occurrences anywhere in .next:                0
+```
+
+**So it has not leaked.** This is a latent hazard, not a live incident, and it
+should be reported as such rather than as a breach.
+
+**Why it is still worth fixing**: the prefix is a loaded gun pointed at a real
+credential. The day anyone references that variable from a component — which
+its own name invites, because `NEXT_PUBLIC_` is documented as meaning
+"safe to expose" — Next inlines a write token into a public JavaScript bundle,
+and the leak is silent and permanent (bundles are cached and archived).
+
+**Judgement call**: renaming to `SENTRY_AUTH_TOKEN` is correct and low-risk —
+it is build-time only, referenced in exactly one place. But it needs the
+variable renamed in **Railway** too, and if only the code is renamed the source
+map upload silently stops authenticating (Sentry's plugin warns and continues).
+**Not done for that reason**, since a silent stop is the failure mode this
+project keeps finding. It is a two-part change: Railway first, then the code.
+Left for Jacob with the sequence stated.

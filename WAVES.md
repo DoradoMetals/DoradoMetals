@@ -13,8 +13,8 @@ OVERALL   ████████████████░░░░░░░�
 | ⬜ | **phase 4** production | `░░░░░░░░░░░░░░░░░░` ~0% | Jacob's |
 | ⬜ | **phase 5** the verification loop gets fast | `░░░░░░░░░░░░░░░░░░` ~0% | needs PG16 |
 | ✅ | **phase 6** the schema enforces what exchange did | `██████████████████` ~100% | landed |
-| ⬜ | **phase 7** money at rest | `░░░░░░░░░░░░░░░░░░` ~0% | ready |
-| ⬜ | **phase 8** the silence problem | `░░░░░░░░░░░░░░░░░░` ~0% | ready |
+| 🔄 | **phase 7** money at rest | `███████████████░░░` ~85% | rest is Jacob's |
+| 🔄 | **phase 8** the silence problem | `██████░░░░░░░░░░░░` ~33% | in flight |
 | ⬜ | **phase 9** checkout, properly | `░░░░░░░░░░░░░░░░░░` ~0% | needs decisions |
 | 🔄 | **phase 10** component library and theming | `███░░░░░░░░░░░░░░░` ~19% | blocked on Figma |
 
@@ -108,12 +108,15 @@ Prod holds 10 of 18 schemas; missing `products`, `organizations`, `metals`,
 
 ## Phase 7 — money at rest
 
-`docs/waves/phase7-money-at-rest.md`. 24 plaintext rows, two tables.
+`docs/waves/phase7-money-at-rest.md`. 24 plaintext rows, two tables — measured,
+not cited: 14 payouts (7 ACH + 7 WIRE, 9 customers) and 10 `payments.details`
+residue rows (8 customers). The old "10 ACH + 8 WIRE" counted rows of those
+methods, not rows holding numbers.
 
 ```
-1. encrypt-payout-details.mjs, which was cited and never written  ░░░░░░░░░░░░░░░░░░    0%
-2. The second copy in payments.details      ░░░░░░░░░░░░░░░░░░    0%
-3. Read paths: last-4 everywhere, full behind admin  ░░░░░░░░░░░░░░░░░░    0%
+1. encrypt-payout-details.mjs, which was cited and never written  ██████████████████  100%
+2. The second copy in payments.details      █████████████░░░░░   72%
+3. Read paths: last-4 everywhere, full behind admin  ██████████████████  100%
 ```
 
 ## Phase 8 — the silence problem
@@ -122,10 +125,17 @@ Runtime silences: zero-row UPDATEs, unhandled mutation failures, skipping
 backfills. Gate members are already guarded (D185).
 
 ```
-1. rowCount assertions where zero is wrong  ░░░░░░░░░░░░░░░░░░    0%
+1. rowCount assertions where zero is wrong  ████████████░░░░░░   65%
 2. Error paths that reach Sentry            ░░░░░░░░░░░░░░░░░░    0%
 3. The $126.48 webhook thread               ░░░░░░░░░░░░░░░░░░    0%
 ```
+
+`audit:silent-mutations` measures task 1: **23 discarded results, 1
+unobservable**, each resolved through the caller's own imports. The remaining
+35% is an ACCEPTED map (`tax.accrue` is correct by design) and then fixing the
+call sites — the clearest being `shipping/shipments/service.ts:417`, whose own
+comment says the native return is dropped "because exchange is still
+authoritative", which is the assumption ruling 36 retires.
 
 ## Phase 9 — checkout, properly
 

@@ -601,6 +601,38 @@ The ones that have actually caught things:
   commonest value is exactly 1.000. `purity_actual` multiplies into
   `content_actual`, which is what a customer is paid on. D61.
 
+- `audit:plaintext-secrets` — **every column in the database holding a bank
+  number in the clear**, asked of `information_schema` by NAME pattern rather
+  than from a hand-listed set of locations, so a new table inherits the check
+  for free. Written because the exposure had been described in three places with
+  three different numbers and nothing watched the columns: the count said 14 in
+  one sentence and 10-ACH-plus-8-WIRE in the next, and the real answer is 7 and
+  7. **It counts, and never selects** — no value enters the process, so none can
+  reach a log, a crash dump or an error message. Reports rows AND distinct
+  customers; `--prod` runs it read-only against production. Carries a floor: it
+  asserts it can still see `exchange.payouts`'s two columns and calls a scan
+  that cannot "broken" rather than "clean", because a scan matching nothing
+  looks exactly like a database with no secrets in it. **Exits non-zero while
+  any plaintext remains, by design**, like `audit:payments` and
+  `audit:enum-domains`, and is therefore **not** in `pnpm check` — it goes green
+  the day the clearing migration runs, which is Jacob's. Today: 4 columns,
+  24 rows, 2 tables, 0 on dev.
+
+- `audit:silent-mutations` — **every UPDATE or DELETE whose caller cannot tell
+  it changed nothing.** Postgres does not raise on a zero-row UPDATE, so a
+  `WHERE` that has quietly stopped resolving succeeds forever and the only
+  symptom is data that does not change — which is how D168's two payout
+  statements walked a join that resolved for zero of sixteen rows while every
+  test passed. Matters more under ruling 36: most of these calls still have an
+  `exchange` half doing the real work, and when that goes the silent half is the
+  only half. Resolves each call's namespace through the calling file's own
+  `import`, **not by function name** — the first version matched names, and
+  `remove`/`update`/`create` exist in a dozen repos each, so it reported 54
+  findings mostly attributed to the wrong feature (56 → 24 once fixed). Only
+  statements that begin `UPDATE`/`DELETE`, only results that are discarded.
+  Report-only. Today: 23 discarded, 1 unobservable — and the unobservable one
+  (`tax.accrue`) is correct by design and wants an ACCEPTED map.
+
 A reported gap is often a rename or a relocation rather than a loss — seven of
 shipping's thirteen were, and three of addresses'. Check before adding a column,
 and declare the mapping in `scripts/lib/feature-map.mjs` so the report stays
@@ -672,28 +704,40 @@ touch api/.env or git commits; lanes parallelize, the gate does not.
 
 Full detail in FOLLOWUPS.md; these are the ones that block other work.
 
-- **Bank details are unencrypted at rest, and production has fourteen of
-  them.** Confirmed against production: of 61 payouts, the 10 ACH and 8 WIRE
-  rows carry real routing and account numbers in plaintext. Dev has none, which
-  made them look vestigial — they are not.
-  **This said the payments migration "must not copy them into `payments.details`,
-  which would double the exposure". IT ALREADY IS DOUBLED**: production's
-  `payments.details` holds ten rows with plaintext routing and account numbers,
-  every one matching an `exchange.payouts` row on (user_id, account_holder),
-  across eight customers. Migration 071 was written to remove them and has never
-  run there. The instruction was written as a future precaution about a migration
-  that had already happened.
-  **And `scripts/encrypt-payout-details.mjs` does not exist**, though 073 and
-  `verify-backfill.mjs` both describe it as the mechanism that writes those
-  columns. **An earlier version of this paragraph said `verify-backfill.mjs`
-  skips comparing them "on the strength of it", implying the verification has a
-  hole. It does not** — the exclusion is justified by the BACKFILL not writing
+- **Bank details are unencrypted at rest. The count is FOURTEEN payouts, and
+  this entry said both 14 and 18 for months.** Measured 2026-08-29 by
+  `audit:plaintext-secrets`, which now asks the database rather than repeating
+  the number: of **62** payouts, **14** carry routing AND account numbers —
+  **7 ACH and 7 WIRE**, across **9 customers**. The old "10 ACH and 8 WIRE"
+  counted every ACH and WIRE ROW (11 and 8), not the ones actually holding
+  numbers; 4 ACH and 1 WIRE payout carry none. Dev has none at all, which is
+  what made them look vestigial — they are not.
+  **The exposure is DOUBLED, and that half is unchanged**: production's
+  `payments.details` holds ten plaintext rows across eight customers, every one
+  matching an `exchange.payouts` row on (user_id, account_holder). All 56 of
+  production's `payments.details` rows are January residue — not one shares an id
+  with an `exchange.payouts` row. Migration 071 was written to remove them and
+  has never run there. **24 plaintext rows across two tables** is the whole
+  exposure, and that total was always right even while its two halves were not.
+  **`scripts/encrypt-payout-details.mjs` did not exist, and now it does** — as
+  `scripts/encrypt-payout-details.ts` (the extension moved with D157's
+  scripts-to-TypeScript conversion). Migration 104 adds the columns it writes,
+  `shared/crypto/envelope.ts` is the AES-256-GCM cipher under it, and the two
+  citations in 073 and `verify-backfill.mjs` now name the file that exists.
+  **It has never been run against production, and running it is Jacob's**, in
+  the `pg_dump` → migrate → backfill → verify sequence.
+  **An earlier version of this paragraph said `verify-backfill.mjs` skips
+  comparing those columns "on the strength of it", implying the verification has
+  a hole. It does not** — the exclusion is justified by the BACKFILL not writing
   those columns at all, which is true whether or not the script exists, and
   comparing them would assert that a rebuild reproduces plaintext bank details.
-  The exclusion is correct. What is missing is narrower and still real: the
-  encryption path was designed, documented in two places as though it existed,
-  and never built, so the plaintext stays plaintext and 073's comment describes a
-  mechanism nobody can run.
+  The exclusion is correct and stays.
+  **What is still outstanding**: nothing has been encrypted yet. The columns
+  exist, the cipher is tested, the script refuses to run without a key and
+  refuses to call an empty run a success — but production still holds all 24
+  rows in the clear, and the migration that CLEARS the plaintext is deliberately
+  not written, because it is destructive to `exchange` and needs the
+  `allow-destructive:` marker, a stated backup, and Jacob.
 - **One feature genuinely blocked**: auth. better-auth writes `exchange`
   directly via `modelName` through its own pool, so there is no reversible
   middle state to sit in. Payments was listed here as blocked and is not — it is
