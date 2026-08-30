@@ -1,36 +1,26 @@
 # Waves
 
-Where the rewrite is. Bars first, plan below, findings at the end.
-
-**Every number on this page was re-derived on 2026-08-29**, after four
-carried-forward figures turned out to be wrong in a single day — a gate "90
-minutes" that is 10–13, "118 cross-file types" that is 8, "35" Executor
-declarations that were 37, and "fourteen sets" of bank details that missed a
-second table holding ten more. None was a lie; each was true when written and
-nobody re-measured. **Treat every figure here as a measurement with a date, not
-a constant**, and re-derive before acting on one.
-
 ```
-OVERALL   ███████████████████████░░░░░░░░░░░░░   ~64%
+OVERALL   ████████████████░░░░░░░░░░░░░░░░░░░░   ~45%
 ```
 
 | | phase | | |
 |---|---|---|---|
-| ✅ | **shipped** ten commits, `0a201bc0` → `af8bc790` | `██████████████████` | landed |
-| 🔄 | **phase 1** the write pivot, and the instruments | `███████████████░░░` ~81% | IN FLIGHT, three lanes |
-| ⬜ | **phase 2** checkout, then payments — the last two | `░░░░░░░░░░░░░░░░░░` ~0% | queued |
-| 🔄 | **phase 3** one home for every type — 137 API, 95 frontend | `█████████████░░░░░` ~72% | frontend half landed |
-| ✅ | **phase 6** the new schema enforces what exchange did | `██████████████████` ~100% | landed |
-| ⬜ | **phase 4** production, and three decisions | `░░░░░░░░░░░░░░░░░░` ~0% | Jacob's |
+| ✅ | **shipped** `0a201bc0` → `af8bc790` | `██████████████████` | landed |
+| 🔄 | **phase 1** the write pivot, and the instruments | `███████████████░░░` ~81% | three lanes |
+| ⬜ | **phase 2** checkout, then payments | `░░░░░░░░░░░░░░░░░░` ~0% | queued |
+| 🔄 | **phase 3** one home for every type | `█████████████░░░░░` ~72% | in flight |
+| ⬜ | **phase 4** production | `░░░░░░░░░░░░░░░░░░` ~0% | Jacob's |
+| ⬜ | **phase 5** the verification loop gets fast | `░░░░░░░░░░░░░░░░░░` ~0% | needs PG16 |
+| ✅ | **phase 6** the schema enforces what exchange did | `██████████████████` ~100% | landed |
+| ⬜ | **phase 7** money at rest | `░░░░░░░░░░░░░░░░░░` ~0% | ready |
+| ⬜ | **phase 8** the silence problem | `░░░░░░░░░░░░░░░░░░` ~0% | ready |
+| ⬜ | **phase 9** checkout, properly | `░░░░░░░░░░░░░░░░░░` ~0% | needs decisions |
+| 🔄 | **phase 10** component library and theming | `███░░░░░░░░░░░░░░░` ~19% | blocked on Figma |
 
-## Phase 1 — IN FLIGHT
+## Phase 1 — the write pivot
 
-Detail: `docs/waves/write-pivot.md` · `docs/waves/instruments.md` ·
-`docs/waves/seams.md`
-
-Task names below are the lanes' own, copied from their files rather than
-invented for this page — when the index and a lane file disagree, the lane file
-wins.
+`docs/waves/write-pivot.md` · `instruments.md` · `seams.md`
 
 ```
 1. The covenant ledger, run BEFORE the switch  ██████████████████  100%
@@ -53,59 +43,18 @@ wins.
 4. SEAM 3 - purgeCancelled, write-up only   ██████████████████  100%
 ```
 
-**The seams are the writes that had nowhere to land.** Three tables whose
-successor could not receive them: `exchange.users` (the credit BALANCE, not the
-ledger), `exchange.payouts`, and `purge_cancelled`. Two are closed and the third
-is deliberately untouched. The lane also found a native gap nobody had listed —
-`editPayoutCharge` wrote `exchange.payouts.cost` while its successor
-`orders.transactions.payout_fee` had existed since 072, and **the two agree today
-only because no admin has edited a charge since the backfill**.
-
-**The one-way door is open.** Jacob, 2026-08-29: *"Yes exchange can stop
-receiving those writes."* That is ruling 36, and it is what thirteen
-`api/legacy/` directories and fourteen dual-writing features were waiting on —
-one decision rather than fourteen, because the per-feature switches that would
-have gated them individually were deleted as each feature's reads pivoted.
-
-**The order is fixed.** `verify:parity` compares source to target, so once
-`exchange` stops being written there is nothing left to compare. The ledger runs
-FIRST and is the deliverable; then the five native statements missing from
-`repo.dual` — which mirrors by re-deriving *from* exchange, so deleting that
-half would strand the new rows; then the switch, feature by feature; then
-deletion.
-
 ## Phase 2 — the last two features
+
+Two `*_SOURCE` switches left: `CHECKOUT_SOURCE`, `PAYMENTS_SOURCE`.
 
 ```
 1. Checkout: overhaul, then pivot its reads ░░░░░░░░░░░░░░░░░░    0%
 2. Payments: pivot, slowly                  ░░░░░░░░░░░░░░░░░░    0%
 ```
 
-**Only two features still read `exchange`.** The other twenty-four are fully
-pivoted — no `repo.exchange`, no switch. When these two land there are no
-`*_SOURCE` switches left, `repo.exchange` is gone from the codebase, and the
-migration is complete in code.
-
-They are not the same job. **Checkout** is the overhaul Jacob has flagged; its
-data is device-sync — empty is fine, losing it is fine, it only has to work — so
-it is the low-risk one and it goes first. **Payments is the most dangerous
-feature in the repository**: unencrypted bank details in **two** tables — 14
-rows of `exchange.payouts` carry both routing and account number, and
-`payments.details` holds **10 more** from the abandoned January refactor, which
-migration 071 was written to remove and has never run on production
-(re-counted 2026-08-29; this said "fourteen sets" and missed the second table).
-Plus the $126.48 webhook thread and a parity test that was comparing nothing
-until it was rewritten. It goes last and slowly.
-
-**And one landmine found by phase 6**: `updateMethod` cannot write
-`payments.details` at all — 23502 on `user_id`, proved in a rolled-back
-transaction. Unreachable today; it breaks the moment `PAYMENTS_SOURCE` moves to
-`dual`, and takes the `exchange` write with it.
-
 ## Phase 3 — one home for every type
 
-Detail: `docs/waves/phase3-api.md` · `docs/waves/phase3-frontend.md`. Both blocks
-below are the lanes' own task lists, copied from their files.
+`docs/waves/phase3-api.md` · `phase3-frontend.md`
 
 ```
 A0. Executor: 37 declarations become one    ██████████████████  100%
@@ -123,84 +72,10 @@ A4. lint: a type has exactly one home       ░░░░░░░░░░░░
 5. Single-file types stop exporting         ██████████████████  100%
 ```
 
-Jacob: *"if we have types randomly living in files, then we have failed"* and
-*"we shouldn't have types — except for like, reasonable things i.e. a client
-only onClick handler — living in feature code."*
+## Phase 4 — production (Jacob's)
 
-**Re-counted 2026-08-29** — the headline said "347 declarations" from 188 API
-and 159 frontend. Both moved as the work landed and neither number was
-re-derived: the API now exports **137** types from `features/` (56 stopped
-being exported in the A2 sweep), and the frontend holds **95** `type`/`interface`
-declarations plus 18 exported zod schemas. Treat any total on this page as a
-measurement with a date on it, not a constant.
-
-**The API half turned out to be ~92% not-a-problem, and the metric was mine
-(D182).** "118 types used in more than one file" was a `grep -rl` word-frequency
-count. Re-derived BY IMPORT it is 105 names, of which **88 never leave their own
-feature** (`repo` → `service` → `compose` is a feature's internal layering, not a
-type living somewhere random), 9 cross only into `legacy/<the same feature>`, and
-**the genuinely boundary-crossing set is EIGHT**. The number did not merely
-overstate the size — it pointed at the wrong work, and acting on it would have
-driven ninety-seven unnecessary moves, each a chance to narrow a type that is
-deliberately wide.
-
-**The rule that replaced it, measured rather than asserted:** *contracts parse
-the wire; feature types are what the server knows.* `wire/shipping.ts`'s
-`Carrier` types `organization.name` as `string | null` while the column is NOT
-NULL — the contract was widened to admit an implementation the wire-axis
-retirement already deleted. Adopting it internally hands the compiler a null the
-server has disproved. Same for every wire shape whose timestamps are
-`z.string()` while pg hands the server a `Date`. So "one home for every type"
-cannot mean "one type"; the naive reading was mine, not Jacob's.
-
-For the frontend the test is a judgement, per declaration: **is this DATA or is
-this UI?** A handler signature, a component's props, a reducer's local union —
-those are genuinely local and stay. Anything describing data is a contract
-wherever it currently sits. That is why this is a wave and not a sweep: the
-wrong call is silent in both directions, since a UI type in the contracts is
-only clutter but a data type left in a feature is exactly the drift six waves
-have been removing.
-
-**The 22 zod schemas are the sharp end.** They validate data crossing the wire
-and three are `.parse()`d on the checkout path, so a frontend schema can reject
-the API's own response — which is what `audit:frontend-nullability` measures:
-77 fields compared, 31 stricter than their column, 17 in schemas parsed at
-runtime. A schema both sides import cannot disagree with itself.
-
-**What not to lose in the move.** Several of these types are deliberately wider
-than they look. `ServiceInput` is all-optional-and-untrusted because it *is*
-`req.body`, and the `flag()` helper beside it distinguishes `false` (a value)
-from `undefined` (absent). `ShipmentUpdate` types every timestamp as
-`Date | string` because callers spread a row pg already parsed, and
-`shipping_label` as `string | Buffer` because FedEx returns a buffer. A contract
-that narrows these is not tidying — it asserts something about callers the
-compiler already disproved, the same class of loss as the `?? 0` that D145
-rejected.
-
-## Phase 6 — LANDED
-
-Detail: `docs/waves/phase6-constraints.md`
-
-```
-1. audit:constraints gets an ACCEPTED map   ██████████████████  100%
-2. The 27 NOT NULLs, walked once            ██████████████████  100%
-3. The unique indexes: real gaps only       ██████████████████  100%
-4. audit:constraints joins pnpm check       ██████████████████  100%
-```
-
-**The audit that guards money now records its decisions and is gated.** 21
-constraints accepted with the measurement that justifies each, 18 fixed across
-three additive migrations, zero open. The sharpest fix: `exchange.scrap` carried
-`CHECK (purity >= 0 AND purity <= 1)` and `orders.items` had nothing standing in
-for it — on the column that multiplies into what a customer is paid.
-
-**Two defects it surfaced are NOT closed and are Jacob's**: `updateMethod`
-cannot write `payments.details` at all (23502 on `user_id`, proved in a
-rolled-back transaction) which breaks the moment `PAYMENTS_SOURCE` moves to
-`dual`; and `verify:backfill` has been red since migration 098 and is not in the
-gate, so the build-from-nothing path is currently unverified.
-
-## Phase 4 — Jacob's
+Prod holds 10 of 18 schemas; missing `products`, `organizations`, `metals`,
+`spots`, `media`, `leads`, `rates`, `reviews`.
 
 ```
 1. pg_dump production                       ░░░░░░░░░░░░░░░░░░    0%
@@ -210,247 +85,85 @@ gate, so the build-from-nothing path is currently unverified.
 5. Merge                                    ░░░░░░░░░░░░░░░░░░    0%
 ```
 
-**Production is not being touched and is not a blocker** — no migration has run
-there and none will until this refactor is proven. Recorded for that eventual
-day: production holds ten of the eighteen schemas and **lacks eight outright**
-(`products`, `organizations`, `metals`, `spots`, `media`, `leads`, `rates`,
-`reviews`), so the sequence is not "migrate and backfill", it is "most of
-`000_genesis_schema.sql` has never run there".
+## Phase 5 — the verification loop gets fast
 
-**Phase 1 makes this order absolute rather than advisory.** With dual-writes in
-place, deploying early served stale reads. Without them, deploying early means
-new writes land in schemas that do not exist — 42P01 on the write path, and no
-`exchange` row written either. The safety net that made a premature deploy
-merely embarrassing is the thing phase 1 removes.
-
-## Phases 5–9 — PROPOSED, awaiting Jacob's approval
-
-Written 2026-08-29 under ruling 39. Each is grounded in something already
-measured, not invented; the D-number beside it is the evidence. **The ordering
-is itself the proposal** — argued below, and the part most worth overruling.
-
-These bars are **deliberately excluded from OVERALL** — the heading is
-`## Phases 5–9`, which the roll-up does not match, so proposed work cannot drag
-down a number that measures committed work. Approving a phase means giving it
-its own `## Phase N` heading and a row in the table at the top; until then the
-five bars below are a picture of a plan, not progress.
+`docs/waves/phase5-fast-gate.md`. Gate is 10–13 min; 153 tests over 10s.
 
 ```
-5. The verification loop gets fast          ░░░░░░░░░░░░░░░░░░    0%
-7. Money at rest                            ░░░░░░░░░░░░░░░░░░    0%
-8. The silence problem                      ░░░░░░░░░░░░░░░░░░    0%
-9. Checkout, properly                       ░░░░░░░░░░░░░░░░░░    0%
-10. Component library and theming        ░░░░░░░░░░░░░░░░░░    0%
+1. A local PostgreSQL 16 for the test suite  ░░░░░░░░░░░░░░░░░░    0%
+2. Shorten the serialized chain             ░░░░░░░░░░░░░░░░░░    0%
+3. Parallelise the independent gate members  ░░░░░░░░░░░░░░░░░░    0%
 ```
 
-**Phases 5–9 APPROVED by Jacob 2026-08-29** (*"Those phases all sound good"*);
-10 is his own addition. They keep the `## Phases` heading — and so stay out of
-OVERALL — until each is given its own `## Phase N` section and a table row as it
-starts.
+## Phase 6 — the schema enforces what exchange did
 
-### Phase 5 — the verification loop gets fast (D180)
-
-**CORRECTED 2026-08-29: the gate is 10–13 minutes, not 90.** I never measured
-one and repeated a lane's estimate into this proposal — see D180. What is real
-is **128 minutes of summed test time across 947 tests, 153 of them over ten
-seconds**, on databases behind Railway's public proxy at 160–200 ms per
-statement. The wall clock varies with contention, not latency, because the suite
-parallelises across ~26 processes.
-
-So this phase is about **iteration cost, not gate cost**: the slowest single test
-is 180 seconds, and anyone working on orders or checkout pays that per attempt.
-A local **PostgreSQL 16** for the test suite alone would fix that —
-`verify:genesis`, `verify:parity` and `compare:databases` must keep reading real
-dev. **It should no longer outrank phases 6 and 7**, which was an ordering I
-argued for on the strength of a number that was wrong.
-
-*Needs Jacob for one step*: installing PG16 is a change to his machine, not the
-codebase (ruling 39 covers the latter).
-
-### Phase 6 — the new schema enforces what exchange did (D63, D45, D39)
-
-`audit:constraints`: **27 NOT NULL constraints that promotion would drop**, and
-they are not incidental — `sales_orders.order_total`, `sales_tax`,
-`shipping_cost`, `payouts.method`, `payouts.account_holder_name`,
-`account_transactions.occurred_at`. Plus **7 of 16 unique indexes with no exact
-counterpart**, including `purchase_orders(order_number)`, where the audit's own
-line is *"WIDER is not the same as equal"*.
-
-The audit has **no `ACCEPTED` map and is not in `pnpm check`** — upside down,
-since `audit:indexes` and `audit:query-paths` have both, and those guard latency
-while this one guards whether an order can exist without a total. Also folds in
-D45's missing FK and D39's enum-domain coupling.
-
-*Split point*: whether a given column should be NOT NULL is mostly a quality
-call and mine; the four rows where the payout fee disagrees with the constants
-table (D117) is a business call and stays Jacob's.
-
-### Phase 7 — money at rest
-
-Bank details are plaintext, and worse than the standing note said: **production
-holds them in two tables** — `exchange.payouts` (10 ACH + 8 WIRE) and
-`payments.details` (10 rows), 8 customers. Migration 071 was written to remove
-the second copy and has never run. `scripts/encrypt-payout-details.mjs` is
-described by 073 and `verify-backfill.mjs` as the mechanism that writes those
-columns and **does not exist**.
-
-Buildable and testable on dev without touching production (dev holds none), so
-the code half is mine; running it against production is Jacob's, in his
-sequence.
-
-### Phase 8 — the silence problem
-
-**This project's characteristic failure is not breakage, it is silence**, and it
-recurs across unrelated systems: an `UPDATE` matching zero rows raises nothing
-(D168, the payout link that resolved for 0 of 16); a mutation whose failure
-reaches no handler (D179, mode B — invisible to the customer *and* to Sentry);
-a webhook that leaves production with no record of **$126.48 it was paid**; a
-scan that reads the wrong filename and reports clean (D176, and twice more by me
-in one day). Each was found by accident.
-
-The phase is to make the class detectable rather than to fix five instances:
-`rowCount` assertions where zero is wrong, error paths that reach Sentry, and
-the standing rule this file keeps re-learning — **a check that reads zero bytes
-must refuse, not report**.
-
-### Phase 9 — checkout, properly
-
-Phase 2 makes checkout *work* against the new API; Jacob has said it needs a
-real overhaul. This is that: **create-then-charge instead of charge-then-create**
-(D179 makes the current ordering survivable and explicitly does not fix it),
-which needs a pending-order state, a reconciliation path, and a decision about
-what happens to unpaid orders — all Jacob's calls. Plus the cart as honest
-device-sync (`checkout.*` is not a ledger; losing it is fine, it only has to
-work).
-
-**Last because it is the only one that needs product decisions**, and because
-doing it before phase 5 means paying 90 minutes per iteration on the most
-iterative work in the project.
-
-### Phase 10 — the design system (Jacob's, 2026-08-29)
-
-*"I want to do components and themeing right... creating and updating old
-components which will be the basis of our new design system"*, against a Figma
-component library, plus a new sell/checkout form design.
+`docs/waves/phase6-constraints.md`. 21 accepted, 18 fixed, gated.
 
 ```
-10. Component library and theming        ░░░░░░░░░░░░░░░░░░    0%
+1. audit:constraints gets an ACCEPTED map   ██████████████████  100%
+2. The 27 NOT NULLs, walked once            ██████████████████  100%
+3. The unique indexes: real gaps only       ██████████████████  100%
+4. audit:constraints joins pnpm check       ██████████████████  100%
 ```
 
-**BLOCKED ON ACCESS, not on effort.** There is no Figma MCP server configured in
-this session and Figma design URLs are authenticated — `WebFetch` returns 403 on
-both files, refreshed link included. Nothing about the phase is hard; I simply
-cannot see the designs. Two ways to unblock, either is fine:
+## Phase 7 — money at rest
 
-1. **Export the frames as PNG** into `docs/design/` in the repo. Images can be
-   read directly, and this needs no setup. Fastest path, and enough to build
-   from.
-2. **Configure a Figma MCP server** (`claude mcp add …`) — the Dev Mode MCP that
-   ships with the Figma desktop app, or the hosted one with a personal access
-   token. Durable, and lets tokens be re-read as the library evolves rather than
-   re-exported. Needs a session restart to pick up.
+`docs/waves/phase7-money-at-rest.md`. 24 plaintext rows, two tables.
 
-**What does NOT need the designs, and is therefore where this starts:** the
-codebase already has a styling program with rulings behind it — dark-only,
-components own their appearance, shared primitives carry both axes, one input,
-`shared/ui` excluded from the call-site styling lint. The first task is an
-inventory: every component in `frontend/shared/ui`, what appearance props it
-takes, and where call sites still override it. `lint-call-site-styling.mjs
---scatter` already measures the last of those. That inventory is what makes the
-Figma library actionable instead of a second parallel vocabulary — and it is the
-half most likely to be wrong in a way a picture cannot show.
+```
+1. encrypt-payout-details.mjs, which was cited and never written  ░░░░░░░░░░░░░░░░░░    0%
+2. The second copy in payments.details      ░░░░░░░░░░░░░░░░░░    0%
+3. Read paths: last-4 everywhere, full behind admin  ░░░░░░░░░░░░░░░░░░    0%
+```
 
-**One caution worth stating up front**, because it is the failure mode of every
-design-system project: a component library is only real if the old components are
-*deleted* as the new ones land. Two libraries is worse than one bad library, and
-this project already has the discipline for that — see `api/legacy/`'s entry
-criteria, which are the same idea applied to repos rather than pixels.
+## Phase 8 — the silence problem
 
-### Two I considered and did not propose
+Runtime silences: zero-row UPDATEs, unhandled mutation failures, skipping
+backfills. Gate members are already guarded (D185).
 
-- **Deleting `api/legacy/`.** It is 12 directories of dead weight, but the
-  covenant makes the *tables* permanent and the write pivot (phase 1) already
-  removes the code. A phase for it would be ceremony.
-- **A performance phase.** `audit:indexes` and `audit:query-paths` are both
-  green and gated, dev holds tens of rows, and the honest answer is that nothing
-  is known to be slow except the test suite, which is phase 5. Inventing one
-  would be measuring for its own sake.
+```
+1. rowCount assertions where zero is wrong  ░░░░░░░░░░░░░░░░░░    0%
+2. Error paths that reach Sentry            ░░░░░░░░░░░░░░░░░░    0%
+3. The $126.48 webhook thread               ░░░░░░░░░░░░░░░░░░    0%
+```
 
-## Blocked on Jacob
+## Phase 9 — checkout, properly
 
-- ~~**The payout fee is not a function of the payout method.**~~ **ANSWERED
-  2026-08-29**: *"Yes those are cases we have waived it. Would actually be
-  somewhat nice to have a checkbox for waiving fee or something."* Built — but
-  only **two** of the four rows are waivers (WIRE 20 → 0). ECHECK 0 → **75** and
-  0 → **125** are *above* the constant, so they are charges, which a boolean
-  cannot express. Hence the design Jacob's own remark implies: `cost` stays
-  per-order data **and** `waive_payout_fee` sits beside it. (D117)
-- ~~**One production order line's two copies disagree.**~~ **ANSWERED
-  2026-08-29** (D181): `d16b7c32` is a stale January snapshot, not corruption —
-  the line was corrected on 21 January, nine days after the abandoned refactor
-  stopped writing. **`exchange` holds the right values and the customer was paid
-  correctly.** What it exposed is live and bigger: migration 031 uses
-  `ON CONFLICT (id) DO NOTHING`, so the backfill **cannot repair** the 47 orders
-  and 62 items already sitting in production's new schemas. Deleting the January
-  rows first is the remedy, and it is Jacob's to run.
-- **`updateMethod` cannot write `payments.details`** — see phase 2. Needs a
-  decision about user attribution before `PAYMENTS_SOURCE` can move.
-- **`verify:backfill` has been red since migration 098** and is not in the gate:
-  047 seeds `'SHIPMENT'::text` into what 098 made an enum, so the run dies before
-  any backfill executes. **The build-from-nothing path is unverified**, which is
-  the path production will take.
-- **The Terms and Conditions need a lawyer, for two reasons now.** The offers
-  purge deleted both deemed-acceptance clauses, the entire "Rejecting Our Offer"
-  section and the seven-business-day term — the Return Policy survived but its
-  *trigger* did not, so the document describes no mechanism by which a customer
-  declines a price and recovers their metal. And clause 177 promises insurance
-  "up to $50,000" where migration 097 sets `max_insured_value` to 10,000 (D152 —
-  we created that one, on the instruction to seed 10,000).
+Create-then-charge. Needs a pending state and a reconciliation path.
 
-## Standing, and never scheduled
+```
+1. Create-then-charge ordering              ░░░░░░░░░░░░░░░░░░    0%
+2. The cart as honest device-sync           ░░░░░░░░░░░░░░░░░░    0%
+```
 
-**Bank details are plaintext at rest, in TWO tables, and 24 rows are in
-production.** Of 62 payouts, **14** carry both a routing and an account number
-in the clear; `payments.details` holds **10 more**, matching an
-`exchange.payouts` row on (user_id, account_holder) across 8 customers. This has been on the list since the beginning, and every wave has had
-a better reason to do something else. At some point that stops being triage.
+## Phase 10 — component library and theming
 
-## What was found
+`docs/waves/phase10-design-system.md`. 67 components, 122 importers, 7 inputs.
 
-The full record is `FOLLOWUPS.md`, which is the authority. If you read three:
+```
+1. Inventory: what exists and who uses it   ██████████████░░░░   75%
+2. The Figma library, read                  ░░░░░░░░░░░░░░░░░░    0%
+3. Collapse the parallel families           ░░░░░░░░░░░░░░░░░░    0%
+4. The new sell/checkout form               ░░░░░░░░░░░░░░░░░░    0%
+```
 
-- **D148 — the guard on "do not lose data" was blind, and something had already
-  walked through it.** `lint:migrations` could not see a `DROP` split across
-  lines; a planted one produced *"no destructive writes to exchange"*. Closing
-  it found migration 086 dropping five columns from `exchange.purchase_orders`
-  with no marker, because the `ALTER` wraps.
-- **D162 — a test whose closing assertion passed because its subject never
-  happened.** Ten of thirteen calls spread a draft where three wrapped it, so
-  "setting a default clears the others" cleared nothing: the address had never
-  been the default. TypeScript named it in one line.
-- **D160 — three wrong numbers in one night, all wrong the same way.** Carried
-  forward instead of re-derived. One was mine, one the tracker's, one a lane's.
-  Every conclusion survived, which is why nobody caught them sooner.
+## Needs Jacob
 
-**The thread through almost all of it:** the code was rarely the problem. Seven
-audit scripts were found broken or blind, and the root cause was one word in
-`tsconfig.json` excluding `scripts` from type checking. Every instrument was
-answering a narrower question than the one being asked of it.
+- **Figma PNGs → `docs/design/`** — blocks phase 10 entirely.
+- **`updateMethod` can't write `payments.details`** — 23502 on `user_id`. Needs a
+  user-attribution decision before `PAYMENTS_SOURCE` moves.
+- **Kill two orphan processes** — 4-day `next dev`, 22h bash holding 3 dev
+  connections. My kills are sandbox-blocked.
+- **Stray dev order `9ef2d27e`** — delete with its 2 items + scrap row, or leave.
+- **`verify:backfill` red since 098** — 047 seeds `'SHIPMENT'::text` into an enum.
+  Fixable, but edits an applied migration.
+- **T&C need a lawyer** — the offers purge removed both deemed-acceptance clauses
+  and the "Rejecting Our Offer" section; clause 177 promises $50,000 insurance
+  where migration 097 sets 10,000.
+- **Production backfill can't repair January rows** — 031 is
+  `ON CONFLICT DO NOTHING`; 47 orders and 62 items already exist there.
 
-## How this file is maintained
+## Maintenance
 
-Run `node scripts/waves.mjs` (`--check` to preview) — it regenerates the bars
-from every task line in `docs/waves/*.md`, so the numbers are whatever the lanes
-last wrote about themselves. It refuses on a duplicate heading, because a second
-one of the same name silently attributes another section's bars to a row.
-
-**OVERALL is pooled across every task line, and it is a rough measure.** Tasks
-are not equal units of work, so read it as "how much of what we wrote down is
-done" and nothing finer. It read ~88% until 2026-08-29 — hand-typed, derived
-from nothing, and never once recomputed. The drop to ~49% is the arithmetic
-arriving, not the project going backwards.
-
-One writer per file: the coordinator owns this index, each agent owns exactly
-one file under `docs/waves/`, and `FOLLOWUPS.md` is the coordinator's alone and
-the authority for D-numbers. Two agents editing one shared file is how two
-rulings were lost on 2026-08-28.
+`node scripts/waves.mjs` regenerates bars from `docs/waves/*.md`. Task names must
+match byte-for-byte. One writer per file. Findings live in `FOLLOWUPS.md`.
