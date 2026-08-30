@@ -159,6 +159,28 @@ Create-then-charge. Needs a pending state and a reconciliation path.
 
 ## Needs Jacob
 
+- **`sudo apt install -y postgresql-16`** — ONE COMMAND, and it unblocks phase 5
+  entirely. `postgresql-client-16` is installed; the SERVER is not, so there is
+  no `initdb`. `sudo -n` fails here. Dev is **116 ms away** (D198) and that, not
+  the code, is what makes the gate take an hour and sometimes never finish.
+  Everything after the install can be done unattended — the `USE_TEST_DB=1`
+  switch already exists and already refuses to point anywhere but `test`.
+- **`NEXT_PUBLIC_SENTRY_AUTH_TOKEN` → `SENTRY_AUTH_TOKEN`** — rename in Railway
+  FIRST, then the code. Renaming code-first makes source-map upload stop
+  authenticating silently. Verified it has NOT leaked: 0 occurrences of the
+  token in `.next/static` or anywhere in the build (D192).
+- **Should the API have Sentry?** It has no error reporting of any kind. The
+  seam is built (`shared/observability/report.ts`) and five money-adjacent paths
+  call it; attaching a reporter is now one file. Adding the dependency is a
+  runtime agent in the process that handles money — your call (D191).
+- **The $10 Stripe floor** — `Math.max(rawAmount, 1000)` would overcharge an
+  order whose real balance is under $10. Production says it has NEVER fired
+  (25 intents, zero paid at 1000), so it is latent. The fix needs a decision
+  about how a credit-covered order settles without a card, which is phase 9
+  (D199).
+- **The forged-invoice path** — `sendPricedEmail` renders `req.body` into the
+  invoice PDF with nothing re-read from the database (D193).
+
 - **Figma PNGs → `docs/design/`** — blocks phase 10 entirely.
 - **`updateMethod` can't write `payments.details`** — 23502 on `user_id`. Needs a
   user-attribution decision before `PAYMENTS_SOURCE` moves.

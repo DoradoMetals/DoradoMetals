@@ -597,9 +597,19 @@ The ones that have actually caught things:
   source value into the *target's* type, so a loss that already happened at the
   source is invisible by construction. `exchange.scrap.purity` and
   `purity_actual` are still `numeric(4,3)`, `0.9999::numeric(4,3)` is `1.000`,
-  and production holds 16 products at .9995/.9999 against a scrap column whose
-  commonest value is exactly 1.000. `purity_actual` multiplies into
-  `content_actual`, which is what a customer is paid on. D61.
+  and production holds **10 products at .9999 and 6 at .9995** — both of which
+  round UP in a 3-decimal column, because Postgres rounds half away from zero.
+  **Measured 2026-08-29 (D200), and two things this entry used to say are
+  corrected.** The scrap column's commonest value is **not** 1.000: `purity` is
+  commonest at 0.925 (14 rows, sterling), then 0.400, 0.563, 0.900;
+  `purity_actual` is 47 NULL, then 0.563, then 1.000 at **8 rows**. Scrap
+  purities are karat-based and three decimals is the RIGHT scale for scrap — the
+  defect is bullion purities landing in a scrap-shaped column. And the harm runs
+  the other way: `purity_actual` does multiply into `content_actual`, but the
+  rounding goes **UP**, so the business pays out for more fine metal than it
+  received (~0.05%, about $5 on a $10,000 payout, on 8 rows) rather than
+  shorting the customer. The fix is two non-destructive widening `ALTER`s, ready
+  and unapplied. D61, D200.
 
 - `audit:plaintext-secrets` — **every column in the database holding a bank
   number in the clear**, asked of `information_schema` by NAME pattern rather
