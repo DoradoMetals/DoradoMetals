@@ -12455,3 +12455,341 @@ map upload silently stops authenticating (Sentry's plugin warns and continues).
 **Not done for that reason**, since a silent stop is the failure mode this
 project keeps finding. It is a two-part change: Railway first, then the code.
 Left for Jacob with the sequence stated.
+
+## D193 — a customer can make the business email itself a forged invoice
+
+`POST /api/media/emails/purchase_order_priced`, `requireUser`.
+
+**The guards that ARE there, and they are good.** `recipientFor()` refuses
+without an order id, 404s an unknown order, **403s unless the caller owns the
+order or is an admin**, and takes the recipient address from
+`stored.user.user_email` — the database — never from the request. So this is
+not a spam relay: a customer can only cause mail to their own stored address,
+about their own order.
+
+**The gap is the CONTENT.** `sendPricedEmail` destructures `order`,
+`order_spots` and `spot_prices` **straight out of `req.body`** and passes them
+to `pdfService.generateInvoice`. Nothing is re-read from the database. The order
+id is used to decide *who may trigger it* and *where it goes*, and then the
+numbers that get rendered are whatever the client posted.
+
+So an authenticated customer, for an order they legitimately own, can cause the
+system to:
+
+1. render an official invoice PDF with **prices, spots and weights of their
+   choosing**,
+2. email it **from the business's own domain** to their address on file,
+3. persist that PDF (`features/media/pdfs/store.ts`), and
+4. write a row asserting the business sent it
+   (`features/media/emails/record.ts`).
+
+**The result is a forgeable business record, produced by the business, on the
+business's infrastructure, and logged as genuine.** In a chargeback or a dispute
+that PDF is evidence, and nothing distinguishes it from a real one.
+
+Severity is moderate rather than critical: it is self-directed, it moves no
+money, it loses no data, and it takes deliberate action. But this is a
+precious-metals exchange, and "what we told the customer the price was" is
+exactly the kind of record a dispute turns on.
+
+### The fix, and why I did NOT apply it tonight
+
+The correct shape is obvious: **derive the invoice from the order id**, the way
+`recipientFor` already derives the recipient. The endpoint should accept an id
+and nothing else, read the order through the composition path
+(`features/orders/compose.ts`), and ignore any pricing in the body.
+
+**Not done, deliberately, and this is a judgement call worth stating.** Mapping
+a composed order onto `InvoiceInput` is a non-trivial reshaping, and getting it
+wrong means customers receive *wrong* invoices or none at all — a live,
+customer-visible regression, shipped unattended, at the end of a long session.
+That is a worse expected outcome than a forgery vector that requires a motivated
+authenticated customer and harms mainly their own credibility.
+
+**The cheaper first step, if the reshaping is not wanted yet**: read the order
+server-side, compare the submitted totals against it, and `reportError()` on a
+mismatch while still sending. That makes the forgery *visible* without risking a
+broken invoice, and it is this codebase's own idiom — measure first, change
+after. It costs one read on a path that already generates a PDF and sends an
+email, so the cost is noise.
+
+`sendCreatedEmail` on the same controller has the same shape and wants the same
+treatment.
+
+## D194 — no environment variable is validated at boot, and FRONTEND_URL builds password-reset links
+
+`api/env.ts` is careful about *where* `.env` is read from — its header records
+the runner that applied 27 migrations to the wrong database because dotenv
+resolved relative to the working directory. What it does not do is check that
+anything it loaded is actually **there**.
+
+`FRONTEND_URL` is the one that matters most. It is read in at least nine places
+and never checked:
+
+| use | what an unset value does |
+|---|---|
+| `app.js:53` `cors({ origin })` | `origin: undefined` makes the cors package answer `*`; with `credentials: true` browsers then refuse it, so **every** cross-origin request fails |
+| `features/auth/client.ts:97` `trustedOrigins` | `[undefined]` — better-auth's origin allow-list is meaningless |
+| `auth/client.ts:67` reset-password | the email says `undefined/reset-password?token=...` |
+| `auth/client.ts:86` verify-email | `undefined/verify-email?token=...` |
+| `auth/client.ts:45` change-email | `undefined/change-email?token=...` |
+| `media/emails/service.ts` ×3 | order links in customer email |
+
+**The reset-password one is the real damage.** The token is still minted and the
+email is still sent, so the customer receives a genuine password-reset mail
+containing a dead link — and the failure is entirely silent on the server. It
+looks like a successful send, and `media/emails/record.ts` records it as one.
+
+**THE GUARD ALREADY EXISTS, AND THIS IS THE STRONGER VERSION OF THE FINDING.**
+`shared/env/required.ts` exports `requiredEnv(name)`, which throws
+`"<NAME> is not set - this request cannot be made without it"`. It is applied to
+nine secrets — eight FedEx credentials and `STRIPE_WEBHOOK_SECRET` — and its
+message shows the deliberate design: it fires at REQUEST time, not at boot, so
+a missing FedEx credential breaks label printing and leaves the rest of the API
+serving.
+
+That is a reasonable choice, and it is exactly why `FRONTEND_URL` slipping
+through matters. It is not read through `requiredEnv`; it is interpolated
+directly into template strings:
+
+```ts
+const emailUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+```
+
+An undefined value in a template literal does not throw — **it stringifies to
+the literal text `undefined`**. So this one variable, alone among the
+credentials, degrades silently instead of refusing. Routing the nine call sites
+through `requiredEnv` would make a missing `FRONTEND_URL` fail the
+password-reset request loudly, which is the behaviour the other nine already
+have.
+
+**This is the same family as D191**: nothing is wrong with the code, and nobody
+is told when the world is.
+
+**Judgement call on the fix.** A boot-time check that *exits* on a missing
+variable is the textbook answer and is the wrong first move here: if the
+required list is wrong in either direction, the API refuses to start in
+production, which is a worse failure than the one being fixed and lands on a
+branch whose deploy sequence is already delicate. What is going in instead is a
+**loud startup report** — every required variable, present or missing, printed
+once at boot, with the missing ones flagged. Promoting that to a hard refusal is
+then a one-line change Jacob can make deliberately, with the list already proven
+against a real deploy.
+
+## D195 — the security sweep, including what came back CLEAN
+
+A whole-codebase pass on 2026-08-29, run because Jacob asked for one rather than
+because anything was suspected. The findings are D191–D194. **This entry records
+what was checked and found sound**, so the next session spends its time
+somewhere new — a negative result is only worth having if it is written down.
+
+**Authorization — sound.** `route-guards` census: **125 routes, 68
+`requireAdmin`, 45 `requireUser`, 11 unguarded.** All eleven unguarded are
+legitimately public and are reads or pricing: the product catalogue (5),
+`/quotes/catalog` and `/quotes/purchase_order`, `/rates/get_all`,
+`/reviews/get_public`, `/spots/spot_prices`, `/recaptcha/verify-recaptcha`.
+**No unguarded write, and nothing customer-owned behind an open route.**
+
+**Client-supplied money — sound, with one exception already filed.** Three
+controllers read money-shaped fields from `req.body`. `PATCH /payouts/:id` and
+`PUT /orders/:id/spots` are both `requireAdmin`; the spots header records that
+its predecessor took the browser's copy of the feed and that `lock: true` now
+resolves live spots **server-side**. The third is D193.
+
+**SQL injection — none.** Exactly one template literal reaches `query()` with an
+interpolation, `features/orders/create.ts:56`:
+`SELECT nextval('${seq}')`. `seq` is a ternary over two hardcoded schema-
+qualified sequence names; `direction` chooses between literals and never enters
+the string. Everything else is parameterised, which `lint:db` enforces.
+
+**Stripe webhook — correctly verified.** `express.raw` is mounted *before*
+`express.json` so the signature sees the unparsed body, the `stripe-signature`
+header is required with a 400 when missing, and `constructEvent` runs against
+`requiredEnv("STRIPE_WEBHOOK_SECRET")`.
+
+**CORS — pinned.** `origin: process.env.FRONTEND_URL`, `credentials: true`, an
+explicit method list. Not a wildcard. (The unset case is D194.)
+
+**Frontend injection — none.** No `dangerouslySetInnerHTML` anywhere, no `eval`,
+no `new Function`.
+
+**Floating promises — none.** The `.then()` chains in
+`shared/middleware/ownership.ts` all end in `.catch(next)`, which is correct
+Express practice rather than a swallowed rejection.
+
+**Not findings, recorded so they are not re-raised:**
+- `target="_blank"` without `rel="noopener"` in 5 places. Every current browser
+  implies `noopener` for `target="_blank"`; this stopped being a vulnerability
+  around 2021.
+- The Sentry **DSN** committed in `instrumentation-client.ts`. A DSN is a public
+  ingest key by design. The auth token is the credential, and that is D192.
+
+## D196 — the suite livelocked, and the cause was me querying dev while it ran
+
+Recorded because it cost roughly forty minutes of wall clock and the next
+session will otherwise do the same thing.
+
+**What it looked like.** `pnpm check` reached the API suite and then advanced
+**three log lines in thirty minutes** — a run that normally reaches ~1800 lines.
+Nothing failed and nothing timed out; it simply crawled.
+
+**What it was.** `pg_stat_activity` showed eight backends blocked on
+`pg_advisory_xact_lock`, and `pg_locks` showed the shape:
+
+```
+pid 74983  lock 4207 (SCRAP_SWEEP)  granted=true   state='idle in transaction'
+pid 74987  lock 4207                granted=false  waiting 109s
+...
+15 more backends queued on 4213 (ORDERS)
+```
+
+A holder **idle in transaction** while fifteen others queue. The holder was not
+computing — it was waiting for a pool connection it could not get, while still
+holding the advisory lock its transaction had taken. Everything behind it
+waited on a lock whose owner was itself waiting. A livelock, not a deadlock,
+which is why Postgres never broke it: no cycle exists for the detector to find.
+
+**MY FIRST EXPLANATION WAS WRONG, AND THE CORRECTION IS THE POINT.** I blamed
+my own `node -e` one-liners against dev — plausible, since I had been running
+them all evening and each takes connections. Then I killed the run, waited for
+the locks to drain to zero, restarted it, and **touched nothing at all**. It
+stalled again at the same place. The interference was real but it was not the
+cause, and the honest record has to say so rather than keep a tidy story. The
+cause is D197.
+
+**The fix was to stop and re-run.** Killed the run, waited for connections to
+drain (advisory locks 0, backends 2), and started again touching nothing.
+
+**The session-mechanics rule still stands, on weaker grounds:** while
+`pnpm check` is running, do not open a connection to dev. It is not what caused
+this, but it takes from the same pool and it makes a bad convoy worse.
+
+**Not an ordering bug, which was the other thing worth ruling out.** Every file
+taking two lock groups passes both to ONE `takeLocks` call, which sorts, so the
+acquisition order is consistent everywhere: 4207 before 4213. `locks.ts`'s
+ascending-order rule is being honoured.
+
+## D197 — the pool has no size and no timeout, so exhaustion is an infinite hang
+
+`api/db.ts` constructs the pool with three options and no others:
+
+```js
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
+```
+
+Everything else is `node-pg`'s defaults, and two of them matter enormously:
+
+| option | default | consequence |
+|---|---|---|
+| `max` | **10** | ten concurrent clients per process, chosen by nobody |
+| `connectionTimeoutMillis` | **0** | *wait forever* for a free client |
+
+**`connectionTimeoutMillis: 0` is the dangerous one.** When all ten clients are
+checked out, the eleventh caller does not fail, does not warn and does not time
+out. It waits, silently, for as long as the process lives.
+
+**This is the mechanism behind D196.** A test file takes an advisory lock, then
+needs a connection its own pool cannot supply, and blocks forever *while holding
+the lock*. Everything queued behind that lock stops. Postgres cannot break it:
+the holder is `idle in transaction`, blocked in Node rather than in Postgres, so
+there is no cycle for the deadlock detector to find. Ruled out first: the
+cluster is nowhere near its limit (`max_connections` **500**, 38 in use), and
+the lock ordering is correct everywhere.
+
+**BUT THE POOL IS NOT WHY THE SUITE CRAWLED TONIGHT — D198 IS.** The pool
+configuration below is a real production hazard and stands on its own. It is not
+the explanation for D196, and presenting it as one would have been the third
+wrong story in a row.
+
+**IT IS WORSE IN PRODUCTION THAN IN THE SUITE, AND THAT IS THE REAL FINDING.**
+A test that hangs wastes an evening. The same pool serves the live API, where
+any path that checks out a client and fails to release it — an early `return`
+between `pool.connect()` and `client.release()`, an exception on a path whose
+`finally` is missing — permanently retires one of ten. Lose ten and **the API
+stops serving every database-backed request, with no error raised, no timeout,
+no log line and no exception**. It is indistinguishable from a hung process, and
+per D191 nothing reports it anywhere.
+
+**The `finally` discipline in this codebase is good** — the repos use
+`withTransaction`, and the scripts release in `finally`. This is not a claim
+that a leak exists today. It is that the pool is configured so a single leak,
+whenever it arrives, degrades into a silent total outage rather than a loud
+error.
+
+### The fix, and the judgement call
+
+```js
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: Number(process.env.PGPOOL_MAX ?? 10),
+  connectionTimeoutMillis: 10_000,
+});
+```
+
+`connectionTimeoutMillis` alone converts the worst failure mode from "silent
+permanent hang" into "loud error on one request", which is the whole point.
+
+**NOT APPLIED TONIGHT, deliberately.** `db.ts` is on the path of every request
+and every test in the repo, the gate is not currently green on this branch, and
+a change there cannot be verified while the very suite that would verify it is
+the thing stalling. Applying an unverifiable change to the connection pool of a
+system that handles money, unattended, is exactly the trade this project's
+first rule exists to refuse. It is a four-line diff, it should go in early in a
+session rather than late, and it wants its own gate run.
+
+**A second thing to decide with it**: `max: 10` is a default, not a decision.
+Railway's Postgres allows 500. Ten per process is probably right for the API and
+is arguably too small for a 40-file parallel test suite, which is a phase 5
+question.
+
+## D198 — the dev database is 116 ms away, and that is the whole performance story
+
+Measured, after two wrong explanations for the same stall (D196's "I caused it",
+then the connection pool of D197):
+
+```
+SELECT 1 round trips (ms): 115, 115, 115, 115, 116, 117, 130, 968
+median: 116 ms
+```
+
+`DATABASE_URL` points at `switchback.proxy.rlwy.net` — Railway's proxy, over the
+public internet. **Every statement the suite issues costs ~116 ms of network
+before Postgres does any work.** A `BEGIN`, an advisory lock, one query and a
+`ROLLBACK` is roughly half a second of pure latency for a test that asserts a
+single row.
+
+Everything about the stall follows from that, and nothing else needs inventing:
+
+- The machine is idle — load average **0.50**, 6.8 GiB free, no process above
+  19% CPU. The suite is not compute-bound; it is waiting on a socket.
+- `max_connections` is **500** with 38 in use, so it is not server-side
+  exhaustion.
+- Lock ordering is correct everywhere: every multi-lock file passes both ids to
+  a single sorted `takeLocks` call.
+- What is left is the convoy. A lock holder whose every statement costs 116 ms
+  holds it for as long as its work takes, and ~40 test files run in parallel all
+  contending for `ORDERS`.
+
+**The 968 ms outlier in eight samples is the other half of it.** The link is not
+merely slow, it is jittery — so the convoy's length varies run to run. That is
+why the identical suite finished in one run this evening (1822 log lines, exit
+0) and advanced three lines in thirty minutes on the next attempt, **with no
+relevant code change in between**. Confirmed by removing the newly added test
+file and watching it stall anyway: 19 lines in seven minutes.
+
+**THIS IS ALREADY PHASE 5's PREMISE, NOW MEASURED.** `WAVES.md` lists *"A local
+PostgreSQL 16 for the test suite"* as phase 5 task 1, sitting at 0%. The stated
+case for it was "the gate is 10-13 minutes". The real case is stronger: the
+gate's duration is **not a property of this codebase at all**. It is the
+round-trip time to Railway, it is nobody's to control, and on a bad evening it
+makes the gate effectively uncompletable. A local Postgres puts that number near
+0.1 ms — roughly a thousandfold on the dominant term.
+
+**Practical rule for any session**: budget the gate against latency, not against
+the number of tests, and measure `SELECT 1` before concluding that a slow suite
+means a code problem. Three explanations were tried here before the right one,
+and the measurement that settled it takes four seconds.
