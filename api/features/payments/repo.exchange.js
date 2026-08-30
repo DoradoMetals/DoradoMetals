@@ -97,6 +97,21 @@ export async function retrievePaymentIntent(type, session, user_id, executor) {
   return rows[0];
 }
 
+// The VERBATIM row for one Stripe intent id - what createSalesOrder verifies
+// before it will attach an intent to an order (phase 9). Raw cents, raw
+// status, and both order links, because the caller's whole job is to compare
+// them against what the server just priced. No division, no aliasing.
+export async function getVerbatimByIntentId(payment_intent_id, executor) {
+  const sql = `
+    SELECT payment_intent_id, user_id, session_id, type, payment_status,
+           amount, sales_order_id, purchase_order_id
+    FROM exchange.payment_intents
+    WHERE payment_intent_id = $1
+  `;
+  const { rows } = await query(sql, [payment_intent_id], executor);
+  return rows[0];
+}
+
 export async function createPaymentIntent(payment_intent, type, user_id, session, executor) {
   const sql = `
     INSERT INTO exchange.payment_intents (

@@ -1,3 +1,4 @@
+import { markSalesOrderPaid } from "#features/orders/paid.service.ts";
 import * as stripe from "#providers/payment/stripe.ts";
 import * as stripeRepo from "#features/payments/repo.js";
 import * as productService from "#features/products/service.ts";
@@ -253,7 +254,24 @@ export async function updatePaymentIntent(
 
   const rawAmount = Math.round(orderPrices.post_charges_amount * 100);
 
-  const amount = Math.max(rawAmount, 1000);
+  // *** THE $10 FLOOR IS GONE (D199). *** This was Math.max(rawAmount, 1000):
+  // a placeholder amount from intent creation, re-imposed on every priced
+  // update, so a $3 balance told Stripe $10 - and Stripe charges what the
+  // intent says. Production shows it never actually fired (25 intents, zero
+  // paid at 1000), and two things retire it for good: pricing now caps applied
+  // credit so a card remainder is either zero or >= Stripe's $0.50 minimum
+  // (ask.ts), and createSalesOrder sets the authoritative amount server-side
+  // at creation, immediately before the browser confirms. Below the Stripe
+  // minimum there is nothing legal to update the intent TO, so the intent is
+  // left as it stands - checkout gates the card step on
+  // post_charges_amount > 0, and creation attaches nothing when the charge is
+  // zero, so an unpriceable intent is simply never confirmed.
+  if (rawAmount < 50) {
+    return retrieved_intent?.attempt?.provider_ref
+      ? await stripe.retrieveIntent(retrieved_intent.attempt.provider_ref)
+      : await createPaymentIntent(type, user?.id, session);
+  }
+  const amount = rawAmount;
   if (
     retrieved_intent?.attempt?.provider_ref &&
     [
@@ -338,6 +356,27 @@ export async function updateIntentFromWebhook({
     );
     err.statusCode = 500;
     throw err;
+  }
+
+  // *** THE WEBHOOK NOW FINISHES THE ORDER, not just the intent row (phase 9).
+  // *** Under create-then-charge a sales order is born Pending - awaiting
+  // payment - and THIS is the moment the payment arrives, so this is what
+  // advances it to Preparing. Idempotent end to end: Stripe retries webhooks,
+  // and markSalesOrderPaid only moves an order that is still Pending, so a
+  // retry - or an admin having moved the label first - is "already", not a
+  // stomp.
+  //
+  // A succeeded intent with NO order attached is not an error here: under the
+  // new ordering the attach happens at creation, before confirm, so by the
+  // time this fires the link exists. The unattached case is the customer who
+  // paid and never completed creation - reconcile:payments owns that sweep,
+  // and createSalesOrder repairs it on retry (the intent arrives already
+  // succeeded and the order is born Preparing).
+  if (paymentIntent.status === "succeeded") {
+    const row = await stripeRepo.getVerbatimByIntentId(paymentIntent.id);
+    if (row?.sales_order_id) {
+      await markSalesOrderPaid(row.sales_order_id);
+    }
   }
 }
 

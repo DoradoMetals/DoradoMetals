@@ -32,6 +32,7 @@ const impl = SOURCES[SOURCE];
 export const activeSource = SOURCE;
 
 export const retrievePaymentIntent = impl.retrievePaymentIntent;
+export const getVerbatimByIntentId = impl.getVerbatimByIntentId;
 export const createPaymentIntent = impl.createPaymentIntent;
 export const updatePaymentIntent = impl.updatePaymentIntent;
 export const updateMethod = impl.updateMethod;

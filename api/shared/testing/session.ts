@@ -33,6 +33,10 @@ import { auth } from "#features/auth/client.ts";
 type TestUser = {
   id: string; role?: string | null; email?: string | null; name?: string | null;
   session_id?: string;
+  // Anything else a service reads off the session user - dorado_funds is the
+  // live example (pricing reads it for credit application). Spread through
+  // below rather than enumerated, so a test can be any user a service expects.
+  [extra: string]: unknown;
 };
 type TestSession = {
   user: { id: string; role: string; email: string | null; name: string | null };
@@ -64,7 +68,7 @@ export async function as<T>(user: TestUser | null, fn: () => Promise<T> | T): Pr
   const previous = current;
   current = user
     ? {
-        user: { id: user.id, role: user.role ?? "user", email: user.email ?? null, name: user.name ?? null },
+        user: { ...user, id: user.id, role: user.role ?? "user", email: user.email ?? null, name: user.name ?? null },
         session: { id: user.session_id ?? "00000000-0000-0000-0000-000000000000", userId: user.id },
       }
     : null;

@@ -48,6 +48,15 @@ export async function createSpot(
   await query(sql("create_spot"), [order_id, type, ask_spot], executor);
 }
 
+// The exchange half of the payment-settled advance (sql/mark_paid.sql) -
+// conditional from Pending, mirroring features/orders/sql/mark_sale_paid.sql.
+export async function markPaid(
+  id: string, by: string | null, executor?: Executor
+): Promise<string | undefined> {
+  const { rows } = await query<{ id: string }>(sql("mark_paid"), [id, by], executor);
+  return rows[0]?.id;
+}
+
 export async function setStatus(
   id: string, status: string | null, by: string | null, executor?: Executor
 ): Promise<void> {

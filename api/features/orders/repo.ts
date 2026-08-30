@@ -116,6 +116,16 @@ export async function setStatus(
   return rows[0]?.id;
 }
 
+// The payment-settled advance - set_status with a guard. Only a 'Pending'
+// sale moves, so webhook retries and reconciler sweeps are no-ops rather than
+// label-stompers. See sql/mark_sale_paid.sql.
+export async function markSalePaid(
+  id: string, by: string | null, executor?: Executor
+): Promise<string | undefined> {
+  const { rows } = await query<{ id: string }>(sql("mark_sale_paid"), [id, by], executor);
+  return rows[0]?.id;
+}
+
 // exchange's createReview was this with `review_created` hard-coded.
 export async function setFlag(
   id: string, flag: Flag, executor?: Executor

@@ -160,7 +160,24 @@ export function calculateSalesOrderTotal(
   const base_total = item_total + shipping_charge + sales_tax;
 
   const beginning_funds = user.dorado_funds ?? 0;
-  const appliedFunds = using_funds ? Math.min(beginning_funds, base_total) : 0;
+  let appliedFunds = using_funds ? Math.min(beginning_funds, base_total) : 0;
+
+  // THE CARD REMAINDER IS EITHER ZERO OR CHARGEABLE, and this cap is what
+  // retired the $10 floor (D199). Stripe will not create a charge below $0.50,
+  // and the old answer was Math.max(rawAmount, 1000) at intent time - which
+  // billed a $3 balance as $10. The honest answer lives here in pricing: when
+  // applied credit would leave a sliver between $0.00 and $0.50, apply slightly
+  // LESS credit so the card pays exactly Stripe's minimum. The customer keeps
+  // the sliver as credit rather than being overcharged for it.
+  //
+  // A base_total below $0.50 with insufficient credit cannot be fixed by this
+  // cap (there is no credit to hold back) - that order is refused downstream
+  // at intent time, and no product this business sells costs 49 cents.
+  const STRIPE_MINIMUM_CHARGE = 0.5;
+  const cardRemainder = base_total - appliedFunds;
+  if (cardRemainder > 0 && cardRemainder < STRIPE_MINIMUM_CHARGE) {
+    appliedFunds = Math.max(0, base_total - STRIPE_MINIMUM_CHARGE);
+  }
   const ending_funds = beginning_funds - appliedFunds;
 
   const pre_charges_amount = appliedFunds;

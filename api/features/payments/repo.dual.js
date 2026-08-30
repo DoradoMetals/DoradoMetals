@@ -15,6 +15,7 @@ import * as next from "#features/payments/repo.next.ts";
 
 const both = (executor, fn) => (executor ? fn(executor) : withTransaction(fn));
 
+export const getVerbatimByIntentId = exchange.getVerbatimByIntentId;
 export const retrievePaymentIntent = exchange.retrievePaymentIntent;
 export const getPaymentIntentFromSalesOrderId = exchange.getPaymentIntentFromSalesOrderId;
 

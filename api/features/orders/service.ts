@@ -110,6 +110,7 @@ import * as orderSpots from "#features/orders/spots/repo.ts";
 import * as metalsRepo from "#features/metals/repo.ts";
 import { calculateItemAsk } from "#features/pricing/service.ts";
 import * as stripeRepo from "#features/payments/repo.js";
+import * as stripeProvider from "#providers/payment/stripe.ts";
 import * as usersService from "#features/users/service.ts";
 // The SERVICE, not a repo: a shipment is composed from six tables now, and
 // the order link it carries is reconstructed rather than stored.
@@ -1179,7 +1180,17 @@ async function insertLines(
     items,
     (item) => calculateItemAsk(item as never, spot_prices as never),
     (item) => {
-      const metal_id = (item as { metal_id?: string | null }).metal_id ?? null;
+      // *** STOREFRONT ITEMS CARRY THE NAME, NOT THE ID, and this resolver
+      // read only the id - so every customer order 422ed here. ***
+      // compose.storefront() destructures metal_id OUT of the row at runtime
+      // and exposes metal_type (the name) instead; getItemsFromServer is the
+      // storefront projection; so `item.metal_id` was null for every item the
+      // customer flow can produce. idByName was built two lines up for the
+      // spots and is exactly the lookup this needed. The id is still preferred
+      // when a caller supplies one.
+      const it = item as { metal_id?: string | null; metal_type?: string | null };
+      const metal_id =
+        it.metal_id ?? (it.metal_type ? idByName.get(it.metal_type) ?? null : null);
       if (!metal_id) {
         const err: Error & { statusCode?: number } = new Error(
           `product ${String(item.id)} has no metal, so its order line cannot be written`
@@ -1284,24 +1295,126 @@ export async function createSalesOrder(
     serverItems,
     spot_prices
   );
-  const orderId = await withTransaction(async (client) => {
-    const orderPrices = calculateSalesOrderTotal(
-      items,
-      sales_order.using_funds,
-      spot_prices,
-      session.user,
-      sales_order.service.value,
-      sales_order.payment_method
-    );
 
+  // *** CREATE-THEN-CHARGE (phase 9). THE ORDER NOW EXISTS BEFORE ANY MONEY
+  // MOVES, and everything below is arranged around that inversion. *** The old
+  // flow confirmed the charge in the browser and posted here afterwards, so a
+  // failure between the two left a paid customer with no order (D179). Now this
+  // endpoint runs FIRST, the browser confirms the intent AFTERWARDS, and the
+  // payment_intent.succeeded webhook - with reconcile:payments behind it -
+  // advances the order when the money actually arrives.
+  //
+  // Pricing is pure, so it moves out of the transaction: the intent
+  // verification below needs the number before anything is written.
+  const orderPrices = calculateSalesOrderTotal(
+    items,
+    sales_order.using_funds,
+    spot_prices,
+    session.user,
+    sales_order.service.value,
+    sales_order.payment_method
+  );
+  const chargeCents = Math.round(orderPrices.post_charges_amount * 100);
+
+  // *** THE INTENT IS VERIFIED, WHERE IT USED TO BE TRUSTED. *** The old code
+  // attached whatever payment_intent_id the body named - never checking whose
+  // it was, what state it was in, or what amount it carried. Behind
+  // requireAdmin that was survivable; the whole point of this flow is that the
+  // route reopens to customers, and then an unverified id is an order paid for
+  // by somebody else's intent, or by nothing.
+  let intentAlreadySucceeded = false;
+  if (chargeCents > 0) {
+    if (chargeCents < 50) {
+      // Stripe's floor is $0.50 and pricing caps applied credit so a card
+      // remainder is either 0 or >= that (ask.ts). Reaching here means a
+      // sub-50-cent ORDER, which no product this business sells can produce.
+      const err: Error & { statusCode?: number } = new Error(
+        "the amount left to charge is below Stripe's $0.50 minimum"
+      );
+      err.statusCode = 422;
+      throw err;
+    }
+    if (typeof payment_intent_id !== "string" || payment_intent_id.length === 0) {
+      const err: Error & { statusCode?: number } = new Error(
+        "this order has a card charge and no payment intent was named"
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    const intent = await stripeRepo.getVerbatimByIntentId(payment_intent_id);
+    if (!intent || intent.user_id !== session.user.id) {
+      // "does not exist" and "is not yours" are deliberately the same answer,
+      // exactly as the ownership middleware phrases it.
+      const err: Error & { statusCode?: number } = new Error(
+        "that payment intent does not exist"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+    if (intent.sales_order_id || intent.purchase_order_id) {
+      const err: Error & { statusCode?: number } = new Error(
+        `that payment intent already belongs to an order`
+      );
+      err.statusCode = 409;
+      throw err;
+    }
+    if (intent.payment_status === "canceled") {
+      const err: Error & { statusCode?: number } = new Error(
+        "that payment intent was cancelled - start checkout again"
+      );
+      err.statusCode = 409;
+      throw err;
+    }
+
+    // A succeeded, UNATTACHED intent is the D179 wreckage arriving to be
+    // repaired: the customer paid, the order-creation half failed, and they
+    // are retrying. The money is real, so the order is born paid - PROVIDED
+    // the amount still matches what this cart prices at. If spots have moved
+    // since the charge, refuse rather than guess; the message carries the
+    // intent id because support will need it.
+    if (intent.payment_status === "succeeded" || intent.payment_status === "processing") {
+      if (Number(intent.amount) !== chargeCents) {
+        const err: Error & { statusCode?: number } = new Error(
+          `payment ${payment_intent_id} was taken at a different price than ` +
+          `this cart totals now - contact support with that reference`
+        );
+        err.statusCode = 409;
+        throw err;
+      }
+      intentAlreadySucceeded = intent.payment_status === "succeeded";
+    } else {
+      // The normal path: an open intent, about to be confirmed by the browser
+      // AFTER this returns. The server sets the authoritative amount NOW -
+      // outside the transaction, because a Stripe call does not belong inside
+      // one - so what the customer confirms is exactly what the server priced,
+      // whatever the intent carried before (this is also what buried the $10
+      // placeholder floor, D199).
+      const updated = await stripeProvider.updateIntent(payment_intent_id, {
+        amount: chargeCents,
+      });
+      await stripeRepo.updatePaymentIntent(updated);
+    }
+  }
+
+  const orderId = await withTransaction(async (client) => {
+    // *** THE LABEL DERIVES FROM A MONEY FACT, not the method string. ***
+    // Nothing left to charge - full credit, whatever the method was called -
+    // means there is nothing to await and the order is born Preparing; the old
+    // `payment_method === "CREDIT"` check got exactly that edge wrong. An
+    // order with a charge outstanding is born Pending, WHICH NOW MEANS
+    // AWAITING PAYMENT: the webhook advances it the moment the money lands.
     const orderId = await salesOrderWrites.insertSalesOrder(client, {
       user: session.user,
-      status: sales_order.payment_method === "CREDIT" ? "Preparing" : "Pending",
+      status: chargeCents > 0 && !intentAlreadySucceeded ? "Pending" : "Preparing",
       sales_order: sales_order,
       orderPrices,
     });
 
     if (sales_order.using_funds === true) {
+      // Credit is RESERVED at creation - before the card half settles - so the
+      // same dollars cannot be spent twice while an order awaits payment. If
+      // the payment never arrives, reconcile:payments cancels the order and
+      // puts these back, with its own ledger entry.
       await usersService.removeFunds(
         session.user.id,
         orderPrices.pre_charges_amount,
@@ -1325,7 +1438,7 @@ export async function createSalesOrder(
       client
     );
 
-    if (orderPrices.post_charges_amount > 0) {
+    if (chargeCents > 0) {
       await stripeRepo.attachOrder(payment_intent_id, null, orderId, client);
     }
 
