@@ -166,21 +166,47 @@ reachable databases. All four refusals were exercised by hand and each exits 1.
 
 ## WHAT IS NOT DONE, AND IT IS THE ACTUAL PIVOT
 
-**`pnpm --filter @dorado/api test` still points at DEV.** Flipping that default
-is the pivot; everything above is the thing that makes it possible. It is not
-flipped yet for three reasons worth stating rather than quietly working around:
+Two of the three blockers below are now CLOSED.
 
-1. **The cluster is not started at boot.** `pnpm test` would fail with a
-   connection error rather than something legible. It wants a preflight that
-   says "the local cluster is not running, here is the command".
-2. **`db.ts` hardcodes `ssl`.** A local Postgres without TLS produces **665
-   identical failures** reading `The server does not support SSL connections`.
-   Handled here with a self-signed cert; the tidier fix is teaching `db.ts` to
-   skip TLS for `localhost`, which touches every request path and wants its own
-   commit.
-3. **The snapshot goes stale.** It is a copy of dev at a moment. Re-provisioning
-   is one command, but nothing currently reminds anyone.
+1. ~~The cluster is not started at boot~~ — **`scripts/preflight-test-db.ts`**
+   runs before the suite and refuses with the exact `pg_ctl` line when the
+   cluster is down. It also catches the two states that look identical from
+   outside: reachable but never provisioned, and reachable but empty of users.
+   And it catches the combination that looks *right* and is not — `USE_TEST_DB=1`
+   pointed at the REMOTE `test`, which `env.ts` composes by default and which is
+   filled from a production archive missing eight schemas. That one prints the
+   `.env` line to fix it, with the password redacted.
 
-None is hard. All three are the difference between "it works when I do it" and
-"it is what the repo does", and that gap is where this kind of change usually
-dies.
+2. ~~`db.ts` hardcodes `ssl`~~ — **it now skips TLS for loopback only**
+   (`127.0.0.1`, `::1`, `localhost`). Everything else keeps exactly the
+   connection it had, so Railway and the read-only production URL are untouched.
+   Verified both ways in one sitting: loopback connects with `ssl false`, dev
+   connects with `ssl true`. The self-signed cert is no longer required.
+
+3. **The snapshot still goes stale.** It is a copy of dev at a moment.
+   `provision:test -- --commit` is one command and takes seconds, but nothing
+   reminds anyone. Left open deliberately — a staleness check wants a cheap
+   fingerprint to compare, and inventing one badly is worse than the reminder.
+
+## THE ONE LINE THAT IS NOT MINE TO WRITE
+
+`TEST_DATABASE_URL` lives in `api/.env`, which holds credentials and is Jacob's.
+`env.ts` composes it from `PGHOST` by default, which names the **remote** test
+database — the unusable one. So the last step is one line:
+
+```
+TEST_DATABASE_URL=postgresql://jtj60@127.0.0.1:5544/test
+```
+
+After that:
+
+```bash
+pnpm --filter @dorado/api provision:test -- --commit
+pnpm --filter @dorado/api test:on-test-db      # 992/992, 21s
+```
+
+**And then flipping `test` itself is a one-word edit** in `api/package.json` —
+point `test` at what `test:on-test-db` runs, and keep `test:on-dev` as the
+escape hatch. It is deliberately NOT done here: until that `.env` line exists,
+flipping it would break `pnpm check` for everyone including Jacob, and a pivot
+that breaks the gate on the first run is a pivot that gets reverted.

@@ -103,6 +103,14 @@ const REAL_EXCUSED = {
     why:"shells out to pg_dump. What it produces is a file; what would be tested is " +
     "pg_dump.",
   },
+  "api/scripts/preflight-test-db.ts": {
+    kind: "assertion",
+    why:"asserts a precondition and does nothing else - that the test database " +
+    "is reachable, is the LOCAL one rather than the production-shaped remote " +
+    "`test`, has an exchange schema, and has users. There is no detector to " +
+    "attack: every branch is a refusal, and the thing it inspects is a live " +
+    "database rather than a tree that could be synthesised.",
+  },
   "api/scripts/provision-test-db.ts": {
     kind: "action",
     why:"rebuilds the `test` database from DEV. Every path that does anything " +

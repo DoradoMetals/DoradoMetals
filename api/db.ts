@@ -71,11 +71,32 @@ types.setTypeParser(types.builtins.INT8, (value: string) =>
 // self-signed certificate, and turning verification on without knowing what
 // production serves would refuse every connection. Recorded in FOLLOWUPS.md
 // instead, next to the credential rotation it belongs with.
+//
+// *** TLS IS SKIPPED FOR A LOOPBACK HOST, AND THAT IS WHAT LETS THE SUITE RUN
+// LOCALLY. *** `ssl` was unconditional, which is right for Railway and means
+// the pool CANNOT talk to a Postgres that has no TLS at all. Pointing the suite
+// at a local cluster produced 665 identical failures, every one of them
+// `The server does not support SSL connections` - one cause, wearing 665 hats.
+//
+// Loopback only: 127.0.0.1, ::1 and the literal name `localhost`. Everything
+// else keeps exactly the connection it had, so Railway, the read-only
+// production URL and any host reached over a network are untouched. Encrypting
+// a connection that never leaves the machine buys nothing, which is why every
+// other tool in this stack defaults the same way.
+const DATABASE_URL = process.env.DATABASE_URL ?? "";
+const isLoopback = (() => {
+  try {
+    const h = new URL(DATABASE_URL).hostname.replace(/^\[|\]$/g, "");
+    return h === "127.0.0.1" || h === "::1" || h === "localhost";
+  } catch {
+    // An unparseable URL is not a loopback claim. Keep TLS.
+    return false;
+  }
+})();
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  connectionString: DATABASE_URL,
+  ...(isLoopback ? {} : { ssl: { rejectUnauthorized: false } }),
 });
 
 export default pool;
