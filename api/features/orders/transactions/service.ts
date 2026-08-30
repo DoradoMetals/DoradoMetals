@@ -13,6 +13,7 @@
 // Ruling 7 notes this table may not need to exist at all once payments and the
 // funds ledger settle. That is a note, not a plan - and it is a reason for the
 // domain logic to be in one file rather than smeared across its callers.
+import { reportError } from "#shared/observability/report.ts";
 import * as transactionsRepo from "#features/orders/transactions/repo.ts";
 import type { OrderTotalsRow, Amount } from "#features/orders/transactions/repo.ts";
 import type { PoolClient } from "pg";
@@ -52,5 +53,27 @@ export async function setAmount(
   by: string | null = null,
   executor?: Executor
 ): Promise<void> {
-  await transactionsRepo.setAmount(orderId, field, value, by, executor);
+  // ZERO ROWS HERE IS A LOST MONEY EDIT, AND IT USED TO BE SILENT.
+  //
+  // The statement is `WHERE order_id = $3` against orders.transactions, and
+  // that row is not guaranteed to exist: measured on dev, 5 of 21 PURCHASE
+  // orders have no orders.transactions row at all - and purchase orders are
+  // exactly the ones carrying refiner_fee, payout_fee, shipping_actual and the
+  // pool columns. So an admin adjusting a fee on one of those changed nothing
+  // and was told it worked. D202.
+  //
+  // Reported rather than thrown: the order legitimately has no row yet, and
+  // refusing the edit is louder without being better. The real fix is an upsert
+  // and it is a schema-shaped decision (D202). This makes the loss visible in
+  // the meantime.
+  const written = await transactionsRepo.setAmount(orderId, field, value, by, executor);
+  if (!written) {
+    reportError({
+      at: "orders.transactions.setAmount",
+      message:
+        `no orders.transactions row for order ${orderId} - the ${field} value ` +
+        `was NOT recorded and the caller was told it succeeded`,
+      extra: { order_id: orderId, field },
+    });
+  }
 }

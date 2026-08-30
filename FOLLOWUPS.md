@@ -13097,7 +13097,14 @@ That is a schema-shaped decision (does every order get a transactions row at
 creation, or on first money write?) and it wants the full gate, so it is written
 up rather than applied.
 
-**The cheap interim, if the upsert is deferred**: have the three callers check
-the returned array and `reportError()` on empty. It cannot fix the lost value
-but it converts silence into a line naming the order — and `shared/observability/
-report.ts` now exists for exactly this.
+**The cheap interim IS DONE (2026-08-29).** All five sites now check the return
+and `reportError()` on a miss. It does not fix the lost value — it converts
+silence into a line naming the order and the field, which is the difference
+between a defect nobody can see and one somebody can. `audit:silent-mutations`
+went **23 → 18**, and the 18 remaining are the DELETEs and clears triaged above
+as correct.
+
+`setChargeForOrder` is reported differently from the other four, on purpose: it
+compares the native result against the LEGACY one rather than asserting on its
+own. Both matching nothing means the order simply has no parcels, which is not
+an error. The two DISAGREEING is, and that is the condition that fires.

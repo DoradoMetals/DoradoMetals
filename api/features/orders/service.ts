@@ -902,11 +902,30 @@ async function recordPayoutInNewSchema(
     executor
   );
   if (details_id) {
-    await orderTransactions.setPayoutAccount(order_id, details_id, null, executor);
+    const linked = await orderTransactions.setPayoutAccount(order_id, details_id, null, executor);
+    if (!linked) {
+      reportError({
+        at: "orders.recordPayoutInNewSchema.setPayoutAccount",
+        message:
+          `no orders.transactions row for order ${order_id} - the payout ACCOUNT ` +
+          `link was not written, so this order has no record of where it is paid`,
+        extra: { order_id, details_id },
+      });
+    }
   }
-  await orderTransactions.setAmount(
+  // Same hole as the link above, on the fee rather than the account. D202.
+  const feeWritten = await orderTransactions.setAmount(
     order_id, "payout_fee", payout.cost ?? 0, null, executor
   );
+  if (!feeWritten) {
+    reportError({
+      at: "orders.recordPayoutInNewSchema.setAmount",
+      message:
+        `no orders.transactions row for order ${order_id} - the payout FEE was ` +
+        `not recorded`,
+      extra: { order_id, field: "payout_fee" },
+    });
+  }
 }
 
 // WAIVING THE PAYOUT FEE (Jacob, 2026-08-29). The flag, and only the flag: the
@@ -951,7 +970,21 @@ export async function editPayoutCharge({
   // then diverged silently with the order reading the stale copy.
   return await withTransaction(async (client) => {
     const r = await purchaseOrderRepo.editPayoutCharge(order_id, payout_charge, client);
-    await orderTransactions.setAmount(order_id, "payout_fee", payout_charge, null, client);
+    // The exchange half above succeeded; if the native half matches nothing the
+    // two schemas diverge silently, which is the divergence this comment block
+    // already describes happening once. D202.
+    const written = await orderTransactions.setAmount(
+      order_id, "payout_fee", payout_charge, null, client
+    );
+    if (!written) {
+      reportError({
+        at: "orders.editPayoutCharge",
+        message:
+          `no orders.transactions row for order ${order_id} - exchange.payouts.cost ` +
+          `was updated and orders.transactions.payout_fee was not, so the two now disagree`,
+        extra: { order_id, field: "payout_fee" },
+      });
+    }
     return r;
   });
 }

@@ -14,7 +14,7 @@ OVERALL   ████████████████░░░░░░░�
 | ⬜ | **phase 5** the verification loop gets fast | `░░░░░░░░░░░░░░░░░░` ~0% | needs PG16 |
 | ✅ | **phase 6** the schema enforces what exchange did | `██████████████████` ~100% | landed |
 | 🔄 | **phase 7** money at rest | `███████████████░░░` ~85% | rest is Jacob's |
-| 🔄 | **phase 8** the silence problem | `██████░░░░░░░░░░░░` ~33% | in flight |
+| 🔄 | **phase 8** the silence problem | `████████░░░░░░░░░░` ~44% | in flight |
 | ⬜ | **phase 9** checkout, properly | `░░░░░░░░░░░░░░░░░░` ~0% | needs decisions |
 | 🔄 | **phase 10** component library and theming | `███░░░░░░░░░░░░░░░` ~19% | blocked on Figma |
 
@@ -125,7 +125,7 @@ Runtime silences: zero-row UPDATEs, unhandled mutation failures, skipping
 backfills. Gate members are already guarded (D185).
 
 ```
-1. rowCount assertions where zero is wrong  ████████████░░░░░░   65%
+1. rowCount assertions where zero is wrong  ████████████████░░   88%
 2. Error paths that reach Sentry            ░░░░░░░░░░░░░░░░░░    0%
 3. The $126.48 webhook thread               ░░░░░░░░░░░░░░░░░░    0%
 ```

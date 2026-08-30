@@ -5,6 +5,7 @@
 // exchange shape means walking fulfillments.shipments -> fulfillments.
 // fulfillments -> orders.orders. Each hop is one read of one table, batched
 // across every shipment in the answer rather than per row.
+import { reportError } from "#shared/observability/report.ts";
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.js";
 import * as shipments from "#features/shipping/shipments/repo.ts";
@@ -414,8 +415,29 @@ export async function setChargeForOrder(
   orderId: string, cost: number | null, executor?: Executor
 ): Promise<string[]> {
   const run = async (c: Executor): Promise<string[]> => {
-    await shipments.setChargeForOrder(orderId, cost, c);
-    return await legacy.setChargeForOrder(orderId, cost, c);
+    // THE NATIVE HALF'S RESULT IS NO LONGER DROPPED. The comment above says the
+    // exchange ids are returned "because exchange is still authoritative" - and
+    // ruling 36 retires that: when the legacy half goes, this silent half is the
+    // only half. The native statement joins three tables (shipping.shipments ->
+    // fulfillments.shipments -> fulfillments.fulfillments -> the order), so any
+    // hop failing to resolve updates nothing and says nothing. D190, D202.
+    //
+    // Compared against the legacy half rather than asserted on its own: legacy
+    // matching nothing too means the order simply has no parcels, which is not
+    // an error. The two DISAGREEING is.
+    const native = await shipments.setChargeForOrder(orderId, cost, c);
+    const legacyIds = await legacy.setChargeForOrder(orderId, cost, c);
+    if (legacyIds.length > 0 && native.length === 0) {
+      reportError({
+        at: "shipping.shipments.setChargeForOrder",
+        message:
+          `exchange updated ${legacyIds.length} shipment(s) on order ${orderId} ` +
+          `and the new schema updated none - the shipping charge is recorded in ` +
+          `one schema only`,
+        extra: { order_id: orderId, legacy_rows: legacyIds.length },
+      });
+    }
+    return legacyIds;
   };
   return executor ? await run(executor) : await withTransaction(run);
 }
