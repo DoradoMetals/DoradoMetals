@@ -1,3 +1,4 @@
+import { requiredEnv } from "#shared/env/required.ts";
 import * as pdfService from "#features/media/pdfs/service.ts";
 import type { PackingListInput, InvoiceInput } from "#features/media/pdfs/service.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
@@ -166,7 +167,7 @@ export async function sendCreatedEmail(
       subject,
       html: renderPurchaseOrderPlacedEmail({
         firstName: String(purchaseOrder.user?.user_name ?? ""),
-        url: `${process.env.FRONTEND_URL}/account?tab=sold`,
+        url: `${requiredEnv("FRONTEND_URL")}/account?tab=sold`,
       }),
       attachments: [
         {
@@ -238,7 +239,7 @@ export async function sendPricedEmail(
       subject,
       html: renderOrderPricedEmail({
         firstName: String(order.user?.user_name ?? ""),
-        url: `${process.env.FRONTEND_URL}/orders`,
+        url: `${requiredEnv("FRONTEND_URL")}/orders`,
       }),
       attachments: [
         {
@@ -316,7 +317,7 @@ export async function sendSalesOrderToSupplier(
       subject,
       html: renderSalesOrderToSupplierEmail({
         firstName: String(order.user?.user_name ?? ""),
-        url: `${process.env.FRONTEND_URL}/orders`,
+        url: `${requiredEnv("FRONTEND_URL")}/orders`,
         order,
         spots,
       }),

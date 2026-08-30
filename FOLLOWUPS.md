@@ -12566,15 +12566,23 @@ have.
 **This is the same family as D191**: nothing is wrong with the code, and nobody
 is told when the world is.
 
-**Judgement call on the fix.** A boot-time check that *exits* on a missing
-variable is the textbook answer and is the wrong first move here: if the
-required list is wrong in either direction, the API refuses to start in
-production, which is a worse failure than the one being fixed and lands on a
-branch whose deploy sequence is already delicate. What is going in instead is a
-**loud startup report** — every required variable, present or missing, printed
-once at boot, with the missing ones flagged. Promoting that to a hard refusal is
-then a one-line change Jacob can make deliberately, with the list already proven
-against a real deploy.
+**FIXED 2026-08-29 — the seven REQUEST-TIME sites now use `requiredEnv`**, so a
+missing `FRONTEND_URL` fails that one request loudly instead of mailing a dead
+link. Four in `features/auth/client.ts` (change-email, reset-password,
+verify-email, magic-link) and three in `features/media/emails/service.ts`. This
+is not a new mechanism — it is the existing one, applied to the variable that
+had escaped it.
+
+**`trustedOrigins` (client.ts:105) is deliberately NOT converted**, and the
+asymmetry is the point. The four builders run per request; that line is
+evaluated at MODULE LOAD, so `requiredEnv` there would refuse to boot the API
+rather than fail one call. That may be the right answer — an API whose CORS
+allow-list is `[undefined]` is not serving anyone — but it is a change to
+startup behaviour on a branch whose deploy sequence is already delicate, and it
+should be made deliberately rather than as a side effect of this fix.
+
+**Verified**: api typecheck clean, 27/27 tests across `features/auth` and
+`features/media/emails`.
 
 ## D195 — the security sweep, including what came back CLEAN
 

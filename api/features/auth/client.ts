@@ -1,3 +1,4 @@
+import { requiredEnv } from "#shared/env/required.ts";
 import "#env";
 import { betterAuth } from 'better-auth';
 import { magicLink, admin } from 'better-auth/plugins';
@@ -42,7 +43,7 @@ export const auth = betterAuth({
       // confirmation link" - a page nothing could reach, because the link that
       // points at it was never sent.
       sendChangeEmailConfirmation: async ({ user, token }) => {
-        const emailUrl = `${process.env.FRONTEND_URL}/change-email?token=${token}`;
+        const emailUrl = `${requiredEnv("FRONTEND_URL")}/change-email?token=${token}`;
         await sendEmail({
           to: user.email,
           subject: 'Approve Email Change',
@@ -64,7 +65,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, token }) => {
-      const emailUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+      const emailUrl = `${requiredEnv("FRONTEND_URL")}/reset-password?token=${token}`;
       await sendEmail({
         to: user.email,
         subject: 'Reset Your Password',
@@ -83,7 +84,7 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, token }, request) => {
       await sendAuthVerificationEmail({
         user,
-        url: `${process.env.FRONTEND_URL}/verify-email?token=${token}`,
+        url: `${requiredEnv("FRONTEND_URL")}/verify-email?token=${token}`,
         isSignUp: request?.url?.includes('/sign-up') ?? false,
       });
     },
@@ -94,11 +95,18 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
+  // NOT requiredEnv, and the asymmetry is deliberate. The four builders above
+  // run per REQUEST, so requiredEnv fails that one request loudly - which is
+  // the behaviour the nine other credentials already have. This line is
+  // evaluated at MODULE LOAD, so requiredEnv here would refuse to boot the API
+  // on a missing variable. That may well be the right answer, but it is a
+  // change to startup behaviour on a branch whose deploy sequence is delicate,
+  // and it is Jacob's to make deliberately. D194.
   trustedOrigins: [process.env.FRONTEND_URL as string],
   plugins: [
     magicLink({
       sendMagicLink: async ({ email, token }) => {
-        const emailUrl = `${process.env.FRONTEND_URL}/verify-login?token=${token}`;
+        const emailUrl = `${requiredEnv("FRONTEND_URL")}/verify-login?token=${token}`;
         await sendEmail({
           to: email,
           subject: 'Your Dorado account is ready',
