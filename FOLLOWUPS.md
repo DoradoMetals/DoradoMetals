@@ -12925,10 +12925,43 @@ Widening is **not destructive** — every existing value survives unchanged, and
 `lint:migrations` would pass it without an `allow-destructive:` marker. It stops
 future loss; it cannot restore the eight rows already flattened.
 
-**Not applied tonight** only because it is a schema change to `exchange` on a
-money column, `verify:genesis` would need regenerating with it, and the full
-gate could not run (D198). It wants a session that can verify, not one that can
-only typecheck. `audit:precision` is the check that should go green afterwards —
+**APPLIED 2026-08-30, migrations 105 and 106** — once the local database made
+verification a 20-second question instead of an hour-long one.
+
+**Jacob asked for "everything at 4 decimals"; that would have made it worse.**
+Measured first: of the eighteen purity/content columns, **only four carried a
+precision at all**. `checkout.items`, `exchange.products`, `orders.items`,
+`products.bullion`, `refiners.items` and both `sales_tax_rules` were already
+unconstrained. A 4-decimal cap would have **narrowed fourteen exact columns to
+fix four rounded ones** — and `orders.items.purity` had been widened from
+`numeric(4,3)` for this very reason. Unconstrained instead: strictly wider than
+four decimals, and now all eighteen agree.
+
+**106 exists because 105 was incomplete, and a TEST found it.**
+`parity.test.ts` asserted `["content:3", "post_melt:3", "pre_melt:3",
+"purity:3"]` with the note *"exchange.scrap has been widened — update FOLLOWUPS
+and delete this test"*. 105 widened `content` and `purity` and left the two
+WEIGHT columns behind. `pre_melt` and `post_melt` are troy ounces and
+`content = post_melt × purity`, so rounding the weight rounds the payout one
+step earlier. `audit:precision` could not have caught it — it casts a source
+value into the *target's* type, so a loss at the source is invisible to it by
+construction.
+
+**Proven, not assumed**: `.9999`, `.9995`, `1.23456789` and `9.87654321` now
+round-trip exactly through `exchange.scrap`; before, the first two both became
+`1.000`.
+
+**Three tests failed, and every one was pinning the defect as expected
+behaviour** — `assert.equal(purity, 0.917, "expected the numeric(4,3) rounding
+of 0.9167")`. Inverted rather than deleted, so they now fail if anything
+re-narrows. 992/992.
+
+**`lint:migrations` had to learn the difference.** It flagged all six ALTERs as
+destructive, because a type change *can* round. Using the
+`allow-destructive:` marker would have been dishonest — nothing is destroyed.
+The rule now exempts `TYPE numeric` with no precision, which cannot lose a
+numeric value, and still flags `TYPE numeric(p,s)`, which can. Both directions
+are pinned as self-test cases. `audit:precision` is the check that should go green afterwards —
 and note its own blind spot, recorded in CLAUDE.md: it casts a source value into
 the *target's* type, so a loss that already happened at the source is invisible
 to it by construction. This one was found by reading the source column's type,

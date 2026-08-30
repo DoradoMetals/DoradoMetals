@@ -60,6 +60,21 @@ if (process.argv.includes("--self-test")) {
     script: import.meta.filename,
     cases: [
       {
+        // The pair that matters most, because they are one keystroke apart and
+        // mean opposite things. numeric(4,3) rounds .9999 gold to 1.000 (D200);
+        // bare `numeric` cannot lose a value at all.
+        name: "NARROWING a column type against exchange is seen",
+        rootEnv: "LINT_MIGRATIONS_DIR", env: LOW,
+        files: files({ "003_bad.sql": "ALTER TABLE exchange.scrap ALTER COLUMN purity TYPE numeric(4,3);\n" }),
+        expect: "fail", mustPrint: "ALTER COLUMN TYPE against exchange",
+      },
+      {
+        name: "WIDENING to unconstrained numeric is not a finding",
+        rootEnv: "LINT_MIGRATIONS_DIR", env: LOW,
+        files: files({ "003_ok.sql": "ALTER TABLE exchange.scrap ALTER COLUMN purity TYPE numeric;\n" }),
+        expect: "pass", mustPrint: "no destructive writes",
+      },
+      {
         name: "a DROP TABLE against exchange is seen",
         rootEnv: "LINT_MIGRATIONS_DIR", env: LOW,
         files: files({ "003_bad.sql": "DROP TABLE exchange.payouts;\n" }),
@@ -119,7 +134,19 @@ const DESTRUCTIVE: readonly (readonly [RegExp, string])[] = [
   [/\bDELETE\s+FROM\s+(ONLY\s+)?"?exchange"?\./i, "DELETE FROM"],
   [/\bUPDATE\s+(ONLY\s+)?"?exchange"?\./i, "UPDATE"],
   [/\bALTER\s+TABLE\s+(ONLY\s+)?"?exchange"?\.[^\n]*\bDROP\s+COLUMN\b/i, "DROP COLUMN"],
-  [/\bALTER\s+TABLE\s+(ONLY\s+)?"?exchange"?\.[^\n]*\bALTER\s+COLUMN\b[^\n]*\bTYPE\b/i, "ALTER COLUMN TYPE"],
+  // WIDENING TO UNCONSTRAINED `numeric` IS EXEMPT, and only that.
+  //
+  // A type change is flagged because it CAN round or truncate - numeric(4,3)
+  // silently turns .9999 into 1.000, which is D200 and is why exchange.scrap
+  // needed 105. But `TYPE numeric` with no precision and no scale is the
+  // opposite operation: there is no numeric value that unconstrained numeric
+  // cannot hold, so every stored value survives byte for byte. A conversion
+  // INTO it from a non-numeric type either succeeds exactly or raises - it
+  // cannot lose quietly, which is the property this lint actually protects.
+  //
+  // Narrowly written on purpose: `TYPE numeric(...)` with ANY precision is
+  // still flagged, because that is the direction that rounds.
+  [/\bALTER\s+TABLE\s+(ONLY\s+)?"?exchange"?\.[^\n]*\bALTER\s+COLUMN\b[^\n]*\bTYPE\s+(?!numeric\s*;|numeric\s*$)/i, "ALTER COLUMN TYPE"],
 ];
 
 // A DIRECTORY THAT IS NOT THERE IS A BROKEN RUN, NOT A CLEAN ONE. The previous

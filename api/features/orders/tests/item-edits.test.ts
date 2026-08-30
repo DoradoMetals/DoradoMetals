@@ -192,17 +192,14 @@ test("the scrap field writes the scrap AND the line's premium together", async (
       // write. My first version of this asserted 0.9167 and failed, which read
       // like the route ignoring purity - it does not, the UPDATE sets it.
       //
-      // The rounding is a real defect and a KNOWN one: FOLLOWUPS.md records it,
-      // including that production holds two scrap rows at purity exactly 1.000,
-      // which is a purity no metal has. Migration 058 widened the DESTINATION
-      // (orders.items); the source still rounds. Asserting the rounded value
-      // here rather than the sent one, because this test is about the route,
-      // and pretending the column does something it does not would make it fail
-      // for the wrong reason.
+      // The rounding was a real defect and a known one - 058 widened the
+      // DESTINATION (orders.items) and the SOURCE went on rounding, so this
+      // asserted 0.917 and explained why. 105 widened the source. The sent
+      // value now survives, and asserting it is what keeps it that way.
       assert.equal(
         Number(scrap.rows[0].purity),
-        0.917,
-        "the scrap purity did not change (expected the numeric(4,3) rounding of 0.9167)"
+        0.9167,
+        "the scrap purity was rounded - exchange.scrap.purity is narrow again (105)"
       );
     });
   });

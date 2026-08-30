@@ -185,10 +185,13 @@ test("both paths record the same line, at the same weights and the same premium"
     // losing precision rather than the new schema inventing it. See the test
     // below, which is about exactly this.
     assert.equal(next[0].unit, legacy[0].gross_unit);
-    // Purity is the same story: 0.9999 submitted, and exchange.scrap.purity is
-    // numeric(4,3), so exchange holds 1.000 - a purity no metal has.
-    assert.equal(num(next[0].purity), 0.9999, "the new schema rounded it too");
-    assert.equal(num(legacy[0].purity), 1, "exchange.scrap.purity is no longer numeric(4,3)");
+    // Purity USED to be the divergence: 0.9999 submitted, exchange.scrap.purity
+    // was numeric(4,3), so exchange held 1.000 - a purity no metal has. 105
+    // widened it and the two now agree. Asserting BOTH sides at the submitted
+    // value is what makes this a guard against re-narrowing rather than a
+    // record of a defect.
+    assert.equal(num(next[0].purity), 0.9999, "the new schema rounded it");
+    assert.equal(num(legacy[0].purity), 0.9999, "exchange.scrap.purity is rounding again - see 105");
   });
 });
 
@@ -442,10 +445,10 @@ test("exchange rounds a scrap line to three decimals and the new schema does not
       [placed.next.order_id]
     );
 
-    assert.equal(Number(legacy[0].content), 9.499, "exchange.scrap.content is no longer numeric(_,3)");
-    assert.equal(Number(next[0].content), 9.4991, "the new schema lost the fourth decimal too");
+    assert.equal(Number(legacy[0].content), 9.4991, "exchange.scrap.content is rounding again - see 105");
+    assert.equal(Number(next[0].content), 9.4991, "the new schema lost the fourth decimal");
 
-    assert.equal(Number(legacy[0].purity), 1, "9.4991 of .9999 gold is recorded as pure");
+    assert.equal(Number(legacy[0].purity), 0.9999, "9.4991 of .9999 gold is recorded as pure again");
     assert.equal(Number(next[0].purity), 0.9999);
 
     // The scale is the mechanism, and asserting it means this test says
@@ -457,10 +460,17 @@ test("exchange rounds a scrap line to three decimals and the new schema does not
           AND column_name IN ('content', 'purity', 'pre_melt', 'post_melt')
         ORDER BY column_name`
     );
+    // ALL FOUR UNCONSTRAINED, and this list is why 106 exists. The previous
+    // version asserted `3` on all four with the note "exchange.scrap has been
+    // widened - update FOLLOWUPS and delete this test". 105 widened content and
+    // purity and left pre_melt and post_melt behind; this assertion is what
+    // said so. Kept rather than deleted, inverted: a null scale on every one,
+    // so re-narrowing ANY of them fails here by name.
     assert.deepEqual(
-      cols.map((r) => `${r.column_name}:${r.numeric_scale}`),
-      ["content:3", "post_melt:3", "pre_melt:3", "purity:3"],
-      "exchange.scrap has been widened - update FOLLOWUPS and delete this test"
+      cols.map((r) => `${r.column_name}:${r.numeric_scale ?? "unconstrained"}`),
+      ["content:unconstrained", "post_melt:unconstrained",
+       "pre_melt:unconstrained", "purity:unconstrained"],
+      "a scrap weight or purity has been re-narrowed - it rounds what a customer is paid on (105, 106, D200)"
     );
   });
 });
