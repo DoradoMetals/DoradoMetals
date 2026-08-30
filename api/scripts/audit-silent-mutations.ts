@@ -46,7 +46,6 @@ if (process.argv.includes("--self-test")) {
   `;
   await selfTest({
     script: new URL(import.meta.url).pathname,
-    rootEnv: "AUDIT_SILENT_ROOT",
     cases: [
       {
         name: "a discarded UPDATE result is seen",

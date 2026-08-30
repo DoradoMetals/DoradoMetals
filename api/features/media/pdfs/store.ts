@@ -14,6 +14,7 @@
 // order_id references orders.orders. An order that predates dual has no row
 // there, and losing the whole record over the link would be backwards - the
 // insert retries once with order_id null, keeping the document and its path.
+import { reportError } from "#shared/observability/report.ts";
 import { createHash, randomUUID } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
@@ -93,7 +94,12 @@ export async function persistPdf(
     );
     return rows[0].id;
   } catch (err) {
-    console.error(`[pdfs] failed to persist ${kind} for order ${order_id ?? "?"}:`, err);
+    reportError({
+      at: "media.pdfs.store",
+      message: `the ${kind} PDF for order ${order_id ?? "?"} was not persisted`,
+      err,
+      extra: { kind, order_id: order_id ?? null },
+    });
     return null;
   }
 }

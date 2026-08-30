@@ -11,6 +11,7 @@
 // A FAILED INSERT MUST NEVER BREAK A SEND. The mail is gone either way;
 // losing the record is one row, breaking the caller un-reports an act that
 // still happened. Everything here catches, reports to stderr, and returns.
+import { reportError } from "#shared/observability/report.ts";
 import query from "#shared/db/query.js";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
 import type { PoolClient } from "pg";
@@ -57,7 +58,14 @@ export async function recordEmail(r: EmailRecord, executor?: Executor): Promise<
       r.user_id ?? null, r.pdf_id ?? null, r.provider_message_id ?? null, r.error ?? null,
     ], executor);
   } catch (err) {
-    console.error(`[emails] failed to record ${r.status} ${r.kind} to ${r.to}:`, err);
+    reportError({
+      at: "media.emails.record",
+      message:
+        `the ${r.status} ${r.kind} email to ${r.to} was sent but not recorded - ` +
+        `the message went out and this database has no row saying so`,
+      err,
+      extra: { kind: r.kind, status: r.status, to: r.to },
+    });
   }
 }
 

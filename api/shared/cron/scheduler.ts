@@ -1,3 +1,4 @@
+import { reportError } from "#shared/observability/report.ts";
 import cron from "node-cron";
 
 import { updateSpotPrices } from "#features/spots/service.ts";
@@ -39,7 +40,14 @@ async function runJob({ name, run }: Job): Promise<void> {
   try {
     await run();
   } catch (err) {
-    console.error(`[CRON] ${name} failed:`, err);
+    reportError({
+      at: `cron.${name}`,
+      message:
+        `the ${name} cron job failed and the schedule carried on. Nothing ` +
+        `retries it before its next tick`,
+      err,
+      extra: { job: name },
+    });
   }
 }
 

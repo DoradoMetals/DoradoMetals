@@ -122,6 +122,7 @@ import { calculateSalesOrderTotal } from "#features/pricing/service.ts";
 
 import type { SalesOrderRow, SalesOrderMetalRow } from "#features/orders/repo.mirror.ts";
 import type { PoolClient } from "pg";
+import { reportError } from "#shared/observability/report.ts";
 import type { PaymentSession } from "#features/payments/service.ts";
 import type { IncomingHttpHeaders } from "node:http";
 import type { Transport } from "#providers/emails/nodemailer.ts";
@@ -143,10 +144,14 @@ async function undoLabel(trackingNumber: string | undefined | null): Promise<voi
   try {
     await shippingOps.cancelLabel(FEDEX_CARRIER_ID, undefined, { trackingNumber });
   } catch (err) {
-    console.error(
-      `ORPHANED SHIPPING LABEL ${trackingNumber}: the order it belonged to was ` +
-        `rolled back and cancelling the label failed too - ${err instanceof Error ? err.message : String(err)}`
-    );
+    reportError({
+      at: "orders.undoLabel",
+      message:
+        `ORPHANED SHIPPING LABEL ${trackingNumber}: the order it belonged to was ` +
+        `rolled back and cancelling the label failed too`,
+      err,
+      extra: { trackingNumber },
+    });
   }
 }
 
@@ -164,11 +169,14 @@ async function undoPickup(
       location: pickup.location as string | undefined,
     });
   } catch (err) {
-    console.error(
-      `ORPHANED CARRIER PICKUP ${pickup.confirmationNumber}: the order it ` +
-        `belonged to was rolled back and cancelling the pickup failed too - ` +
-        `${err instanceof Error ? err.message : String(err)}`
-    );
+    reportError({
+      at: "orders.undoPickup",
+      message:
+        `ORPHANED CARRIER PICKUP ${pickup.confirmationNumber}: the order it ` +
+        `belonged to was rolled back and cancelling the pickup failed too`,
+      err,
+      extra: { confirmationNumber: pickup.confirmationNumber },
+    });
   }
 }
 
