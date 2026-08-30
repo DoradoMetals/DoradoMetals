@@ -57,13 +57,32 @@ import { cn } from '@/shared/utils/cn'
      variant  card | tile | segment      SHAPE
      intent   neutral | brand | success | danger | warning | info    MEANING
 
-   CHECKED TREATMENT follows Button's precedent including its exception: a hued
-   intent tints (`bg-X/15`, its own border, its own text — StatusChip's wash);
-   NEUTRAL FILLS with `--primary`, because neutral's colour is white and a 15%
-   white wash on a near-black ground is not a state anybody can see. Two live
-   controls were doing exactly that before this pass (UsersDrawer's add/subtract
-   modes, and every hand-rolled checkout selector's `bg-background` →
-   `bg-card`, a three-point lightness step with no border change).
+   CHECKED TREATMENT — NEUTRAL SELECTS BY BORDER, NOT BY FILL (Figma, 2026-08-30).
+   A hued intent tints (`bg-X/15`, its own border, its own text — StatusChip's
+   wash). Neutral does NOT tint and no longer FILLS either: it takes a 1.5px
+   `--primary` border and leaves the surface alone.
+
+   WHY THIS CHANGED. The old reasoning was sound as far as it went: neutral's
+   colour is white, a 15% white wash on a near-black ground is not a state
+   anybody can see, so neutral filled with `--primary` instead. The design
+   system answers the same question with a third option neither wash nor fill —
+   `border-border` (#2c2f35) to `border-primary` (#fafafa) is an enormous move
+   on the one property ruling 19 already uses to separate things. Figma's Radio
+   Tile says it outright: "Selection reads as a primary-coloured 1.5px border",
+   and Radio Card keeps `bg-card` on Selected=True.
+
+   AND THE FILL WAS EXPENSIVE. `bg-primary` inverts the surface under content
+   the component does not own, so surviving it took eleven
+   `has-[[data-state=checked]]:[&_strong]:…` rules forcing every heading,
+   paragraph and `<small>` to a light-on-light-safe colour — D99, an
+   invisible-UI bug that only appeared once an option was selected. Those rules
+   existed ONLY to survive the fill. No fill, no problem to survive: they are
+   gone, and a call site's own type colours now mean what they say in both
+   states.
+
+   The contrast guard is unaffected and was checked rather than assumed:
+   `state-contrast.test.ts` passes a state that moves ANY of bg/border/text by
+   at least 1.25:1, and this moves the border by far more than that.
    ============================================================================ */
 
 const radioOptionVariants = cva(
@@ -96,34 +115,14 @@ const radioOptionVariants = cva(
       },
     },
     compoundVariants: [
-      /* NEUTRAL FILLS — see the header. */
+      /* NEUTRAL SELECTS BY BORDER — see the header. `border-[1.5px]` is the
+         design system's selected width; the rest state is the base `border`
+         (1px), so the box does not resize because the element is
+         `box-border` by Tailwind's preflight. */
       {
         intent: 'neutral',
-        className: [
-          'has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary has-[[data-state=checked]]:text-primary-foreground',
-          /* ⚠ D99 — A STATE TOKEN AND A REST TOKEN THAT BECOME THE SAME COLOUR.
-             `text-primary-foreground` INHERITS, and every element that sets its
-             own colour ignores it. `strong` is `--neutral-900` and `small` is
-             `--muted-foreground`, both from typography.css's base rules — so an
-             option whose content is `<strong>Gold</strong>` renders near-white
-             text on the near-white `--primary` fill THE MOMENT IT IS SELECTED.
-             Invisible UI in the selected state only: the rest state reads fine,
-             so nothing about the file looks wrong, and no screenshot of an
-             unselected control shows it.
-             Only NEUTRAL needs this. The hued intents wash at 15% over a
-             near-black ground, so their descendants stay legible unchanged. */
-          'has-[[data-state=checked]]:[&_strong]:text-primary-foreground',
-          'has-[[data-state=checked]]:[&_b]:text-primary-foreground',
-          'has-[[data-state=checked]]:[&_h1]:text-primary-foreground',
-          'has-[[data-state=checked]]:[&_h2]:text-primary-foreground',
-          'has-[[data-state=checked]]:[&_h3]:text-primary-foreground',
-          'has-[[data-state=checked]]:[&_h4]:text-primary-foreground',
-          'has-[[data-state=checked]]:[&_h5]:text-primary-foreground',
-          'has-[[data-state=checked]]:[&_h6]:text-primary-foreground',
-          'has-[[data-state=checked]]:[&_p]:text-primary-foreground/75',
-          'has-[[data-state=checked]]:[&_small]:text-primary-foreground/75',
-          'has-[[data-state=checked]]:[&_time]:text-primary-foreground/75',
-        ].join(' '),
+        className:
+          'has-[[data-state=checked]]:border-[1.5px] has-[[data-state=checked]]:border-primary',
       },
       {
         intent: 'brand',
