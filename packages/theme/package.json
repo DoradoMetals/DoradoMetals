@@ -1,0 +1,11 @@
+{
+  "name": "@dorado/theme",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The design tokens and the type ramp - the CSS half of the design system the Figma 'Themes and Components' file is the drawing of. Dark only, :root is the palette.",
+  "exports": {
+    "./theme.css": "./theme.css",
+    "./typography.css": "./typography.css"
+  },
+  "files": ["theme.css", "typography.css"]
+}

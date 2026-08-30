@@ -19,7 +19,9 @@ import { join } from "node:path";
 import { radioOptionVariants } from "@/shared/ui/RadioGroup";
 import { statusChipVariants } from "@/shared/ui/StatusChip";
 
-const THEME = readFileSync(join(import.meta.dirname, "../../app/styles/theme.css"), "utf8");
+// The tokens moved to packages/theme (the design system's CSS half); this
+// file keeps reading the REAL file the app imports, wherever it lives.
+const THEME = readFileSync(join(import.meta.dirname, "../../../packages/theme/theme.css"), "utf8");
 
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   s /= 100;

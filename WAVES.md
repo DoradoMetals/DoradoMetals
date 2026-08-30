@@ -164,7 +164,7 @@ reordering deliberately did not ride along.
 ```
 1. Inventory: what exists and who uses it   ██████████████████  100%
 2. The Figma library, read                  ██████████████░░░░   75%
-3. Collapse the parallel families           ░░░░░░░░░░░░░░░░░░    0%
+3. Collapse the parallel families           ██░░░░░░░░░░░░░░░░   10%
 4. The new sell/checkout form               ░░░░░░░░░░░░░░░░░░    0%
 ```
 

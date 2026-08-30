@@ -278,3 +278,77 @@ visible brand change across product pages — Jacob's call, not an overnight one
 Button: a link navigates, a button acts."* Node `6:307`, with a precise spec
 (no box, no padding, no radius, no border; `hover:underline` only). Code has it
 as `variant="link"` on Button, **19 call sites**.
+
+---
+
+# THE LIBRARY GETS A HOME, AND THE FIRST COMPONENT MOVES IN (2026-08-30)
+
+Jacob: *"pick a component, make sure it has all the best practice hallmarks...
+then use the design to create/update our component. Although we should probably
+make a packages/components instead for reusability. Should probably also move
+our theme stuff to a package/theme."* Alphabetical order — Accordion first.
+
+## The two packages
+
+**`@dorado/theme`** — `theme.css` and `typography.css`, moved verbatim from
+`app/styles/`. The tokens and the type ramp are the CSS half of the design
+system the Figma file is the drawing of; `base.css` (document chrome,
+scrollbars, autofill) stays in the app because it is about the DOCUMENT, not
+the theme. `globals.css` now imports `@dorado/theme/theme.css`.
+
+**`@dorado/components`** — ships **source, not a build**: the frontend lists it
+in `transpilePackages` and typechecks it as part of its own program, so there
+is no dist to drift (the `pinned-pool.d.ts` lesson, applied preemptively). Two
+wiring facts that will bite anyone who forgets them:
+
+- **Tailwind v4 only scans the app's own graph.** Without
+  `@source '../../../packages/components/src'` in `globals.css`, the package's
+  classes silently never generate — the component renders unstyled and nothing
+  errors. This was verified from the BUILT CSS (`grid-template-rows` present in
+  `.next/static/css/`), not assumed.
+- The package carries its own `cn` so it depends on nothing of the app's.
+
+## Accordion — the audit, then the build
+
+**What the drawing says** (node 32:36): chevron **leading** (the old
+AccordionSection trailed it), label Body/Medium at foreground, trailing amount
+slot, header p-3 gap-2, body pl-4 pr-3 pb-3, `bg-card` separated by border.
+"The Content frame is a slot."
+
+**Hallmarks the drawing cannot express, now owned by the code**: a real
+`<button>` header with `aria-expanded`/`aria-controls`; the body a labelled
+`region`, **`inert` + `aria-hidden` while closed** so a collapsed panel leaves
+the tab order instead of merely shrinking; the system's `focus-visible` ring
+exactly as `button.tsx` spells it; motion via the CSS grid-rows trick
+(`0fr → 1fr`, both directions, `motion-reduce` collapses it) — which let
+**framer-motion leave the file**. Not Radix, deliberately: their Accordion
+earns its weight on grouped exclusive-open state, which no call site has.
+
+**FIGMA GAPS FOUND BY THE AUDIT — for Jacob, the design side of the contract:**
+
+1. **Accordion has no State axis.** Button, Input, Checkbox, Radio and Switch
+   all carry Default/Hover/Disabled (Input adds Focus/Success/Error); Accordion
+   carries only Open. The code implemented focus and disabled from the
+   SIBLINGS' language — the drawing should say so itself.
+2. **No hover treatment** on the header row, where every other interactive
+   surface in the file escalates on hover.
+
+**Brand-refresh deltas applied**: chevron moved to leading; the `card`
+variant's `eyebrow` label died (the drawing says Body/Medium); paddings took
+the drawing's values. `AccordionSection` stayed as the app-side adapter — same
+six call sites, same props, money (`total`/`negative` → PriceNumberFlow) kept
+on the app's side of the line because the library takes a `trailing` slot and
+knows nothing about money.
+
+## The loop, for every component after this one
+
+1. `get_design_context` on the component's variants; read its description.
+2. Audit: does the drawing carry the state axes its siblings carry? What can
+   it not express (aria, keyboard, motion) that the code must own?
+3. Build it in `packages/components/src/`, one file, exported from `index.ts`.
+4. The app adopts through a thin adapter where call sites already exist.
+5. Record Figma-side gaps HERE; behaviour tests beside the adapter.
+
+Next alphabetically: **Autocomplete** (missing from code entirely — "for
+address lookup and any typeahead"), then Button (exists; two divergences
+already recorded: the gold, and Link-as-variant).

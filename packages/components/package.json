@@ -1,0 +1,28 @@
+{
+  "name": "@dorado/components",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The component library - the code half of the Figma 'Themes and Components' file, one component at a time as each is audited against it. Ships SOURCE, not a build: the frontend transpiles it (next.config transpilePackages) and typechecks it as part of its own program, so there is no dist to drift.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "react": "*"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.510.0",
+    "tailwind-merge": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}
