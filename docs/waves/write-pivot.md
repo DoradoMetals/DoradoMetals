@@ -7,7 +7,7 @@ changes force. Branch state at start: clean at `af8bc790`.
 
 ```
 1. The covenant ledger, run BEFORE the switch  ██████████████████  100%
-2. The five missing native statements          ███████████████░░░   85%
+2. The five missing native statements          ██████████████████  100%
 3. Switch the writes to native, feature by feature  ░░░░░░░░░░░░░░░░░░    0%
 4. Delete api/legacy/ and the dual machinery   ░░░░░░░░░░░░░░░░░░    0%
 ```
@@ -495,3 +495,14 @@ until it is closed.**
 was touched, and no write was switched.** Every addition is new code that
 nothing calls yet, so the running application is byte-for-byte unchanged in
 behaviour — which is what makes the natives safe to land ahead of the decisions.
+
+
+---
+
+**Bar corrected by the coordinator 2026-08-29.** Task 2 read 85%. The seams lane
+closed the native gaps — it re-derived the count from all 30 `exchange` writes
+rather than inheriting the "five", and found one nobody had listed
+(`editPayoutCharge` wrote only `exchange.payouts.cost` while
+`orders.transactions.payout_fee` had existed since 072/073, the two agreeing only
+because no admin had edited a charge since the backfill). The work landed in
+commit 98a034b4; this bar was never moved to match.

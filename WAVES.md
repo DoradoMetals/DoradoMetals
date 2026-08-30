@@ -2,16 +2,24 @@
 
 Where the rewrite is. Bars first, plan below, findings at the end.
 
+**Every number on this page was re-derived on 2026-08-29**, after four
+carried-forward figures turned out to be wrong in a single day — a gate "90
+minutes" that is 10–13, "118 cross-file types" that is 8, "35" Executor
+declarations that were 37, and "fourteen sets" of bank details that missed a
+second table holding ten more. None was a lie; each was true when written and
+nobody re-measured. **Treat every figure here as a measurement with a date, not
+a constant**, and re-derive before acting on one.
+
 ```
-OVERALL   ██████████████████████░░░░░░░░░░░░░░   ~61%
+OVERALL   ███████████████████████░░░░░░░░░░░░░   ~64%
 ```
 
 | | phase | | |
 |---|---|---|---|
 | ✅ | **shipped** ten commits, `0a201bc0` → `af8bc790` | `██████████████████` | landed |
-| 🔄 | **phase 1** the write pivot, and the instruments | `██████████████░░░░` ~79% | IN FLIGHT, three lanes |
+| 🔄 | **phase 1** the write pivot, and the instruments | `███████████████░░░` ~81% | IN FLIGHT, three lanes |
 | ⬜ | **phase 2** checkout, then payments — the last two | `░░░░░░░░░░░░░░░░░░` ~0% | queued |
-| 🔄 | **phase 3** one home for every type — 347 declarations | `████████████░░░░░░` ~68% | frontend half landed |
+| 🔄 | **phase 3** one home for every type — 137 API, 95 frontend | `█████████████░░░░░` ~72% | frontend half landed |
 | ✅ | **phase 6** the new schema enforces what exchange did | `██████████████████` ~100% | landed |
 | ⬜ | **phase 4** production, and three decisions | `░░░░░░░░░░░░░░░░░░` ~0% | Jacob's |
 
@@ -26,7 +34,7 @@ wins.
 
 ```
 1. The covenant ledger, run BEFORE the switch  ██████████████████  100%
-2. The five missing native statements       ███████████████░░░   85%
+2. The five missing native statements       ██████████████████  100%
 3. Switch the writes to native, feature by feature  ░░░░░░░░░░░░░░░░░░    0%
 4. Delete api/legacy/ and the dual machinery  ░░░░░░░░░░░░░░░░░░    0%
 ```
@@ -41,7 +49,7 @@ wins.
 ```
 1. SEAM 2 - exchange.users, the inverted direction  ██████████████████  100%
 2. The remaining native gaps                ██████████████████  100%
-3. SEAM 1 - exchange.payouts, a reachable destination  ███████████████░░░   85%
+3. SEAM 1 - exchange.payouts, a reachable destination  ██████████████████  100%
 4. SEAM 3 - purgeCancelled, write-up only   ██████████████████  100%
 ```
 
@@ -81,9 +89,18 @@ migration is complete in code.
 They are not the same job. **Checkout** is the overhaul Jacob has flagged; its
 data is device-sync — empty is fine, losing it is fine, it only has to work — so
 it is the low-risk one and it goes first. **Payments is the most dangerous
-feature in the repository**: fourteen sets of unencrypted bank details, the
-$126.48 webhook thread, and a parity test that was comparing nothing until it
-was rewritten last night. It goes last and slowly.
+feature in the repository**: unencrypted bank details in **two** tables — 14
+rows of `exchange.payouts` carry both routing and account number, and
+`payments.details` holds **10 more** from the abandoned January refactor, which
+migration 071 was written to remove and has never run on production
+(re-counted 2026-08-29; this said "fourteen sets" and missed the second table).
+Plus the $126.48 webhook thread and a parity test that was comparing nothing
+until it was rewritten. It goes last and slowly.
+
+**And one landmine found by phase 6**: `updateMethod` cannot write
+`payments.details` at all — 23502 on `user_id`, proved in a rolled-back
+transaction. Unreachable today; it breaks the moment `PAYMENTS_SOURCE` moves to
+`dual`, and takes the `exchange` write with it.
 
 ## Phase 3 — one home for every type
 
@@ -94,7 +111,7 @@ below are the lanes' own task lists, copied from their files.
 A0. Executor: 37 declarations become one    ██████████████████  100%
 A1. API: 8 boundary-crossing types (was '118')  █████████████░░░░░   70%
 A2. API: single-file types stop exporting   ██████████████░░░░   80%
-A3. API: 29 input/patch shapes into contracts  ░░░░░░░░░░░░░░░░░░    0%
+A3. API: input/patch shapes into contracts  ███████░░░░░░░░░░░   40%
 A4. lint: a type has exactly one home       ░░░░░░░░░░░░░░░░░░    0%
 ```
 
@@ -109,6 +126,13 @@ A4. lint: a type has exactly one home       ░░░░░░░░░░░░
 Jacob: *"if we have types randomly living in files, then we have failed"* and
 *"we shouldn't have types — except for like, reasonable things i.e. a client
 only onClick handler — living in feature code."*
+
+**Re-counted 2026-08-29** — the headline said "347 declarations" from 188 API
+and 159 frontend. Both moved as the work landed and neither number was
+re-derived: the API now exports **137** types from `features/` (56 stopped
+being exported in the A2 sweep), and the frontend holds **95** `type`/`interface`
+declarations plus 18 exported zod schemas. Treat any total on this page as a
+measurement with a date on it, not a constant.
 
 **The API half turned out to be ~92% not-a-problem, and the metric was mine
 (D182).** "118 types used in more than one file" was a `grep -rl` word-frequency
@@ -354,15 +378,27 @@ criteria, which are the same idea applied to repos rather than pixels.
 
 ## Blocked on Jacob
 
-- **The payout fee is not a function of the payout method.** Production: WIRE 20
-  on six rows and **0 on two**; ECHECK 0 on thirty-nine, **75 on one and 125 on
-  one**. Four rows disagree with the constants table. Either those are
-  deliberate waivers — in which case a fee is per-order data, not reference data
-  — or they are wrong. (D117. This said "eleven" until the tracker recomputed
-  it; the eleven was the count of rows that *agree*.)
-- **One production order line's two copies disagree on weight and purity** —
-  `d16b7c32`, `pre_melt` 18.662 vs 20.000, `purity` 0.570 vs 0.563. On a
-  purchase order those are the two numbers a customer is paid on.
+- ~~**The payout fee is not a function of the payout method.**~~ **ANSWERED
+  2026-08-29**: *"Yes those are cases we have waived it. Would actually be
+  somewhat nice to have a checkbox for waiving fee or something."* Built — but
+  only **two** of the four rows are waivers (WIRE 20 → 0). ECHECK 0 → **75** and
+  0 → **125** are *above* the constant, so they are charges, which a boolean
+  cannot express. Hence the design Jacob's own remark implies: `cost` stays
+  per-order data **and** `waive_payout_fee` sits beside it. (D117)
+- ~~**One production order line's two copies disagree.**~~ **ANSWERED
+  2026-08-29** (D181): `d16b7c32` is a stale January snapshot, not corruption —
+  the line was corrected on 21 January, nine days after the abandoned refactor
+  stopped writing. **`exchange` holds the right values and the customer was paid
+  correctly.** What it exposed is live and bigger: migration 031 uses
+  `ON CONFLICT (id) DO NOTHING`, so the backfill **cannot repair** the 47 orders
+  and 62 items already sitting in production's new schemas. Deleting the January
+  rows first is the remedy, and it is Jacob's to run.
+- **`updateMethod` cannot write `payments.details`** — see phase 2. Needs a
+  decision about user attribution before `PAYMENTS_SOURCE` can move.
+- **`verify:backfill` has been red since migration 098** and is not in the gate:
+  047 seeds `'SHIPMENT'::text` into what 098 made an enum, so the run dies before
+  any backfill executes. **The build-from-nothing path is unverified**, which is
+  the path production will take.
 - **The Terms and Conditions need a lawyer, for two reasons now.** The offers
   purge deleted both deemed-acceptance clauses, the entire "Rejecting Our Offer"
   section and the seven-business-day term — the Return Policy survived but its
@@ -373,9 +409,10 @@ criteria, which are the same idea applied to repos rather than pixels.
 
 ## Standing, and never scheduled
 
-**Bank details are plaintext at rest, and fourteen of them are in production.**
-Of 61 payouts, 10 ACH and 8 WIRE rows carry real routing and account numbers in
-the clear. This has been on the list since the beginning, and every wave has had
+**Bank details are plaintext at rest, in TWO tables, and 24 rows are in
+production.** Of 62 payouts, **14** carry both a routing and an account number
+in the clear; `payments.details` holds **10 more**, matching an
+`exchange.payouts` row on (user_id, account_holder) across 8 customers. This has been on the list since the beginning, and every wave has had
 a better reason to do something else. At some point that stops being triage.
 
 ## What was found

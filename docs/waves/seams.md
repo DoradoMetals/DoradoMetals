@@ -11,7 +11,7 @@ Branch `api-hardening`, from `a8d408ae`. Scope: `api/features/**`,
 ```
 1. SEAM 2 - exchange.users, the inverted direction   ██████████████████  100%
 2. The remaining native gaps                         ██████████████████  100%
-3. SEAM 1 - exchange.payouts, a reachable destination  ███████████████░░░   85%
+3. SEAM 1 - exchange.payouts, a reachable destination  ██████████████████  100%
 4. SEAM 3 - purgeCancelled, write-up only            ██████████████████  100%
 ```
 
@@ -768,3 +768,13 @@ left alone.
   case both of those miss.
 - **Run `audit:test-leaks`** before trusting dev row counts. Two suites were
   killed mid-flight today.
+
+
+---
+
+**Bar corrected by the coordinator 2026-08-29 (lane finished).** Task 3 read 85%
+while this lane's own closing report said all four tasks were complete: the
+destination is built (099/100), 16/16 link on dev, justified against
+production's 62 payouts. The 85% was the last figure written mid-flight and
+never updated at completion — which is the same failure mode as the tracker
+itself (D175), one level down. A lane's last act should be to set its own bars.
