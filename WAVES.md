@@ -9,7 +9,7 @@ OVERALL   ████████████████░░░░░░░�
 | ✅ | **shipped** `0a201bc0` → `af8bc790` | `██████████████████` | landed |
 | 🔄 | **phase 1** the write pivot, and the instruments | `███████████████░░░` ~81% | three lanes |
 | ⬜ | **phase 2** checkout, then payments | `░░░░░░░░░░░░░░░░░░` ~0% | queued |
-| 🔄 | **phase 3** one home for every type | `█████████████░░░░░` ~72% | in flight |
+| 🔄 | **phase 3** one home for every type | `███████████████░░░` ~80% | in flight |
 | ⬜ | **phase 4** production | `░░░░░░░░░░░░░░░░░░` ~0% | Jacob's |
 | ⬜ | **phase 5** the verification loop gets fast | `░░░░░░░░░░░░░░░░░░` ~0% | needs PG16 |
 | ✅ | **phase 6** the schema enforces what exchange did | `██████████████████` ~100% | landed |
@@ -61,7 +61,7 @@ A0. Executor: 37 declarations become one    ████████████
 A1. API: 8 boundary-crossing types (was '118')  █████████████░░░░░   70%
 A2. API: single-file types stop exporting   ██████████████░░░░   80%
 A3. API: input/patch shapes into contracts  ███████░░░░░░░░░░░   40%
-A4. lint: a type has exactly one home       ░░░░░░░░░░░░░░░░░░    0%
+A4. lint: a type has exactly one home       ██████████████████  100%
 ```
 
 ```

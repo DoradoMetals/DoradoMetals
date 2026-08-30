@@ -78,3 +78,74 @@ independent; the chain runs them serially. Parallelising each group saves single
 -digit minutes — worth having, worth nothing next to task 1, and it makes a
 failure harder to attribute, so it should land only once the suite is fast enough
 that a re-run is cheap.
+
+---
+
+# TASK 1 IS ONE `apt install` AWAY, AND I CANNOT RUN IT (2026-08-29)
+
+D198 measured why this phase matters: **dev is 116 ms away** (median of eight
+`SELECT 1` round trips, one outlier at 968 ms), because `DATABASE_URL` points at
+`switchback.proxy.rlwy.net` over the public internet. The gate's duration is not
+a property of this codebase. On a bad evening it is uncompletable — three log
+lines in thirty minutes, on an idle machine (load 0.50, 6.8 GiB free).
+
+## Everything needed already exists except the server binary
+
+**The harness is built.** `api/env.ts` already composes `TEST_DATABASE_URL`,
+already lets an explicit URL win over composition, and already has the switch:
+
+```
+USE_TEST_DB=1 pnpm --filter @dorado/api test
+pnpm --filter @dorado/api test:on-test-db
+```
+
+It refuses unless the URL's database is actually named `test`, so it cannot
+become a way to run a writing suite against dev or prod by accident. **Nothing
+in that needs changing.**
+
+**The version matches.** Dev is `16.15 (Debian 16.15-1.pgdg13+2)`, and
+`postgresql-client-16` (16.15) is installed here.
+
+**What is missing is only the SERVER.** `/usr/lib/postgresql/16/bin/` holds
+`psql`, `pg_dump`, `pg_restore` and friends — and **no `initdb`, no `postgres`**.
+`dpkg` confirms: `postgresql-client-16` is installed, `postgresql-16` is not.
+
+There is a PostgreSQL **14** cluster online on port **5433**, but it is the
+wrong major version for a `verify:genesis` that compares against a 16.15 dev,
+and it wants a password this session does not have.
+
+## What Jacob needs to run (one command)
+
+```bash
+sudo apt install -y postgresql-16
+```
+
+`sudo -n` fails here — a password is required — so this is his and not an
+agent's. Everything after it can be done unattended.
+
+## The sequence once the server exists
+
+1. `initdb` a cluster owned by the normal user, on a port that does not collide
+   with 5432/5433 — no root needed past the install.
+2. `createdb test` on it.
+3. `pg_dump` **dev** and restore into it. Dev, not production: it is the
+   database the suite's fixtures already assume, and the dump is a read-only
+   operation against dev. This is what makes it usable, and it is the answer to
+   the objection recorded in `env.ts` — that comment says the switch is "NOT
+   USABLE YET" because `test` is rebuilt from a *production* backup, and
+   production lacks eight schemas so every `repo.next` test reads zero rows.
+   **A copy of DEV has no such gap.**
+4. Put the local URL in `TEST_DATABASE_URL` (explicit beats composed).
+5. `pnpm --filter @dorado/api test:on-test-db`.
+
+## The prize, stated honestly
+
+116 ms → roughly 0.1 ms on the term that dominates everything. Every `BEGIN`,
+advisory lock, query and `ROLLBACK` in a ~940-test suite currently pays a
+round trip to another city. This does not make the tests better; it makes the
+gate finish, reliably, which is the thing that failed tonight.
+
+**It also removes a real hazard**: the suite currently writes to the same remote
+dev database the application uses, which is how `tracking.test.js` once deleted
+the real FedEx history of five dev shipments (`audit:test-leaks` exists because
+of it). A local copy makes that class of accident cost nothing.

@@ -8,7 +8,7 @@ A0. Executor: 37 declarations become one   ████████████�
 A1. API: 8 boundary-crossing types (was '118')  █████████████░░░░░   70%
 A2. API: single-file types stop exporting    ██████████████░░░░   80%
 A3. API: input/patch shapes into contracts   ███████░░░░░░░░░░░   40%
-A4. lint: a type has exactly one home           ░░░░░░░░░░░░░░░░░░    0%
+A4. lint: a type has exactly one home           ██████████████████  100%
 ```
 
 ## The ruling
@@ -301,3 +301,63 @@ to a client. `InvoiceInput` / `PackingListInput` are PDF render arguments and
 cross nothing. Whoever takes the remainder should apply this pass's test rather
 than the suffix: **is this shape declared on both sides of a wire?** For the six
 above the answer was yes for all six, which is why they were worth moving.
+
+
+---
+
+# A4 — LANDED 2026-08-29: `lint:type-homes`
+
+`api/scripts/lint-type-homes.ts`, in `pnpm check`, needs no database.
+
+**It does NOT ask "exported iff imported"**, and this file's own warning is why:
+a repo publishing its row type is the design, today's import count is weather,
+and `OrganizationRow` / `RefinerItemRow` became unimported purely because A1
+moved their consumers. That lint would have demanded they be un-exported and
+then re-exported. It would oscillate.
+
+**It asks a stable question instead: is the same type NAME declared in two files
+with the SAME BODY?** Duplication regardless of who imports what, and the fix is
+always the same.
+
+**Different bodies under one name are not a finding**, exactly as the diff table
+above concluded: `Quote` is all-optional in `spots/repo.ts` and all-required in
+`spots/service.ts`, `PickupInput` is a FedEx request body in one place and a row
+input in the other. Reporting those is the false-positive rate that gets a check
+suppressed.
+
+## Three things it had to learn, each found by running it
+
+1. **Tests are excluded.** Including them turned a 2-finding report into a
+   12-finding one whose bulk was ~20 `replay.test.ts` files each declaring the
+   same two-field helper. Scaffolding that deliberately stands alone is not a
+   design problem.
+2. **Aliases are resolved to their module** — the first version compared text,
+   so `fulfillments.MethodsRow['category']` and
+   `fulfillmentTables.MethodsRow['category']` looked different. A false
+   NEGATIVE, and the direction that matters, because nothing tells you a lint is
+   asleep. Both `import * as X` and the renamed named form
+   `import type { fulfillments as fulfillmentTables }` are read; the second was
+   the one actually in use here, and missing it hid `Direction` entirely and one
+   of the three `Category` declarations.
+3. **Formatting cannot hide a duplicate.** Whitespace adjacent to delimiters is
+   stripped after trailing separators are removed — without that second step the
+   first one created its own difference (`{ a, }` became `{ a}` against a
+   hand-written `{ a }`). Caught by its own self-test, not by inspection.
+
+Once all three were right it found **exactly the trio this file's diff table
+identified by hand** — `Category` ×3, `Direction` ×2, `Window` ×2 — which is the
+best evidence available that it is measuring the right thing.
+
+## The four acceptances, pinned from both sides
+
+`Executor`, `Category`, `Direction` are indexed accesses into a contract that
+already owns them, or already have a home. **`Window` is the one real structural
+duplicate** — `{ from?, to?, employee_id? }` byte-identical in
+`fulfillments/directs/repo.ts` and `fulfillments/pickups/repo.ts` — and it is
+accepted deliberately rather than because it is harmless: collapsing it means
+one sibling resource importing a type from the other or from the parent, for a
+single line, which is the coupling rulings 26b/26c exist to prevent. The
+duplication is the cheaper cost. Revisit if the shape grows past one line.
+
+An acceptance that matches nothing is itself reported, so collapsing a duplicate
+forces its excuse out of the map.
