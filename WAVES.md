@@ -15,7 +15,7 @@ OVERALL   ████████████████░░░░░░░�
 | ✅ | **phase 6** the schema enforces what exchange did | `██████████████████` ~100% | landed |
 | 🔄 | **phase 7** money at rest | `███████████████░░░` ~85% | rest is Jacob's |
 | 🔄 | **phase 8** the silence problem | `████████░░░░░░░░░░` ~44% | in flight |
-| ⬜ | **phase 9** checkout, properly | `░░░░░░░░░░░░░░░░░░` ~0% | needs decisions |
+| 🔄 | **phase 9** checkout, properly | `██████████████░░░░` ~80% | reopen is Jacob's |
 | 🔄 | **phase 10** component library and theming | `███████░░░░░░░░░░░` ~40% | screens not drawn |
 
 ## Phase 1 — the write pivot
@@ -139,12 +139,23 @@ authoritative", which is the assumption ruling 36 retires.
 
 ## Phase 9 — checkout, properly
 
-Create-then-charge. Needs a pending state and a reconciliation path.
+`docs/waves/phase9-checkout.md`. Create-then-charge: built, tested, and closed
+behind the still-admin-only route.
 
 ```
-1. Create-then-charge ordering              ░░░░░░░░░░░░░░░░░░    0%
-2. The cart as honest device-sync           ░░░░░░░░░░░░░░░░░░    0%
+1. Create-then-charge ordering              ██████████████████  100%
+2. The cart as honest device-sync           ██████░░░░░░░░░░░░   33%
 ```
+
+The order exists before the money moves; the intent is verified (and its amount
+server-set) where it used to be trusted; the webhook advances Pending →
+Preparing in both schemas; `reconcile:payments` sweeps missed webhooks (the
+cron runs the no-money half; cancel-and-refund stays behind `--commit` and a
+human); an abandoned checkout is superseded on retry rather than stranded; the
+$10 floor is dead (D199); and the metal-resolver bug that 422ed every
+storefront order is fixed. **Reopening `create_sales_order` is Jacob's
+one-word change** (`requireAdmin` → `requireUser`); AdminStripeForm's
+reordering deliberately did not ride along.
 
 ## Phase 10 — component library and theming
 

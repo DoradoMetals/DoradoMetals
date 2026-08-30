@@ -200,11 +200,58 @@ test("somebody else's payment intent is refused as if it did not exist", async (
   });
 });
 
+// THE ABANDONED-CHECKOUT RETRY: the customer created an order, never
+// confirmed, and came back - their intent still attached to the old Pending
+// sale. Refusing would strand them for the sweep's whole TTL, so their own
+// unpaid order is superseded: cancelled, credit refunded, intent detached,
+// and the new order created.
+test("a retry supersedes the customer's own unpaid order instead of refusing", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const f = await fixtures(c);
+    assert.ok(f, "no fixtures");
+    const cents = await pricedCents(c, f);
+    const old = await seedSale(c, "Pending");
+    const pi = `pi_p9_supersede_${Date.now()}`;
+    await query(
+      `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, user_id, sales_order_id)
+       VALUES ('order', $1, 'requires_payment_method', $2, $3, $4)`,
+      [pi, cents, f.user_id, old], c
+    );
+    // The old order reserved no credit here (no transactions row with funds),
+    // so the supersede is a pure cancel - the refund half is reconcile.test.ts'
+    // subject and shares the same helper.
+    // A succeeded amount match is needed to dodge the PROVIDER call: seed the
+    // intent as succeeded at the right price, so creation takes the repair
+    // branch after superseding.
+    await query(
+      `UPDATE exchange.payment_intents SET payment_status = 'succeeded', amount_received = amount
+        WHERE payment_intent_id = $1`, [pi], c
+    );
+
+    const order = await as({ id: f.user_id }, () =>
+      orderService.createSalesOrder(
+        { sales_order: bodyFor(f) as never, payment_intent_id: pi }, {}
+      )
+    );
+    assert.ok(order, "no order came back");
+    const newId = (order as { id: string }).id;
+    assert.notEqual(newId, old);
+    assert.equal((await statusOf(c, old)).native, "Cancelled", "the old unpaid order survived");
+    assert.equal((await statusOf(c, newId)).native, "Preparing", "the paid retry was not honoured");
+
+    const { rows: link } = await query<{ sales_order_id: string | null }>(
+      `SELECT sales_order_id FROM exchange.payment_intents WHERE payment_intent_id = $1`, [pi], c);
+    assert.equal(link[0]!.sales_order_id, newId, "the intent does not point at the new order");
+  });
+});
+
 test("an intent already attached to an order cannot be attached to a second one", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const f = await fixtures(c);
     assert.ok(f, "no fixtures");
-    const other = await seedSale(c, "Pending");
+    // A PAID order: the supersede path only reaches a still-Pending sale, so
+    // this is the conflict that must genuinely refuse.
+    const other = await seedSale(c, "Preparing");
     const pi = `pi_p9_attached_${Date.now()}`;
     await query(
       `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, user_id, sales_order_id)

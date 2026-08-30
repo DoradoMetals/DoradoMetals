@@ -57,6 +57,14 @@ export async function markPaid(
   return rows[0]?.id;
 }
 
+// The exchange half of the abandonment cancel (sql/mark_abandoned.sql).
+export async function markAbandoned(
+  id: string, by: string | null, executor?: Executor
+): Promise<string | undefined> {
+  const { rows } = await query<{ id: string }>(sql("mark_abandoned"), [id, by], executor);
+  return rows[0]?.id;
+}
+
 export async function setStatus(
   id: string, status: string | null, by: string | null, executor?: Executor
 ): Promise<void> {

@@ -126,6 +126,47 @@ export async function markSalePaid(
   return rows[0]?.id;
 }
 
+// The abandonment cancel - mark_sale_paid's mirror image, same Pending guard.
+export async function markSaleAbandoned(
+  id: string, by: string | null, executor?: Executor
+): Promise<string | undefined> {
+  const { rows } = await query<{ id: string }>(sql("mark_sale_abandoned"), [id, by], executor);
+  return rows[0]?.id;
+}
+
+// The two reconciliation sweeps' candidate reads. See each statement's header.
+export type SettledAwaiting = { order_id: string; payment_intent_id: string };
+export async function findSalesAwaitingSettledIntent(
+  executor?: Executor
+): Promise<SettledAwaiting[]> {
+  const { rows } = await query<SettledAwaiting>(
+    sql("find_sales_awaiting_settled_intent"), [], executor);
+  return rows;
+}
+
+export type AbandonedSale = {
+  order_id: string; user_id: string | null;
+  used_funds: boolean | null; reserved_funds: number | null;
+  payment_intent_id: string | null; payment_status: string | null;
+};
+export async function findAbandonedSales(
+  ttl_hours: number, executor?: Executor
+): Promise<AbandonedSale[]> {
+  const { rows } = await query<AbandonedSale>(
+    sql("find_abandoned_sales"), [ttl_hours], executor);
+  return rows;
+}
+
+export type ReservedFunds = {
+  user_id: string | null; used_funds: boolean | null; reserved_funds: number | null;
+};
+export async function findReservedFunds(
+  order_id: string, executor?: Executor
+): Promise<ReservedFunds | undefined> {
+  const { rows } = await query<ReservedFunds>(sql("find_reserved_funds"), [order_id], executor);
+  return rows[0];
+}
+
 // exchange's createReview was this with `review_created` hard-coded.
 export async function setFlag(
   id: string, flag: Flag, executor?: Executor

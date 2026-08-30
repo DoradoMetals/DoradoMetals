@@ -36,11 +36,14 @@ const withEnv = <T>(values: Record<string, string | undefined>, fn: () => T): T 
   }
 };
 
-test("the job is declared, and not invoked by reading it", () => {
-  // 086 removed offers, and the stale-offers job went with them - an offer
-  // that cannot exist cannot expire. Spot prices are the one remaining cron.
+test("the jobs are declared, and not invoked by reading them", () => {
+  // 086 removed offers, and the stale-offers job went with them. Phase 9 added
+  // the missed-webhook sweep: advancing a paid order moves no money and is
+  // idempotent, which is what qualifies it for a timer - the abandonment sweep
+  // (cancel + refund) deliberately is NOT here and must never be; it moves
+  // money and lives behind reconcile:payments --commit and a human.
   const names = jobs().map((j) => j.name);
-  assert.deepEqual(names, ["spot prices"]);
+  assert.deepEqual(names, ["spot prices", "settle paid orders"]);
   for (const job of jobs()) {
     assert.equal(typeof job.run, "function", `${job.name} has something to run`);
   }

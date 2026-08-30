@@ -1,3 +1,4 @@
+import { sweepSettledIntents } from "#features/orders/reconcile.service.ts";
 import { reportError } from "#shared/observability/report.ts";
 import cron from "node-cron";
 
@@ -32,6 +33,15 @@ export const jobs = (): Job[] => [
     name: "spot prices",
     schedule: process.env.SPOT_UPDATE_SCHEDULE,
     run: updateSpotPrices,
+  },
+  {
+    // The missed-webhook sweep: sales orders awaiting a payment that already
+    // settled get advanced. Idempotent and moves NO money - which is the whole
+    // reason it is allowed on a timer while the abandonment sweep (cancel +
+    // refund) lives only behind reconcile:payments --commit and a human.
+    name: "settle paid orders",
+    schedule: process.env.PAYMENT_RECONCILE_SCHEDULE,
+    run: async () => { await sweepSettledIntents(); },
   },
 ];
 

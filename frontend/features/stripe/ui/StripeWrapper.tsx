@@ -133,6 +133,7 @@ export default function StripeWrapper({
     <Elements options={{ clientSecret, appearance, loader }} stripe={stripePromise}>
       <SalesOrderStripeForm
         address={address}
+        clientSecret={clientSecret}
         setIsLoading={setIsLoading}
         isPending={isPending}
         startTransition={startTransition}

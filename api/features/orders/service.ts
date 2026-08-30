@@ -111,6 +111,7 @@ import * as metalsRepo from "#features/metals/repo.ts";
 import { calculateItemAsk } from "#features/pricing/service.ts";
 import * as stripeRepo from "#features/payments/repo.js";
 import * as stripeProvider from "#providers/payment/stripe.ts";
+import * as reconcileService from "#features/orders/reconcile.service.ts";
 import * as usersService from "#features/users/service.ts";
 // The SERVICE, not a repo: a shipment is composed from six tables now, and
 // the order link it carries is reconstructed rather than stored.
@@ -1352,11 +1353,34 @@ export async function createSalesOrder(
       throw err;
     }
     if (intent.sales_order_id || intent.purchase_order_id) {
-      const err: Error & { statusCode?: number } = new Error(
-        `that payment intent already belongs to an order`
-      );
-      err.statusCode = 409;
-      throw err;
+      // *** A CUSTOMER'S OWN ABANDONED CHECKOUT IS SUPERSEDED, NOT REFUSED. ***
+      // The intent is opened per session and REUSED until it settles, so a
+      // customer who created an order, closed the laptop before confirming,
+      // and came back arrives here with their intent still attached to the
+      // old Pending order. Refusing would strand exactly the person trying to
+      // give the business money until the abandonment sweep clears it. So:
+      // their own still-Pending sale is cancelled (credit refunded, ledger
+      // entry - the reconciler's own helper), the intent detached, and
+      // creation proceeds. Anything else attached - a paid order, a purchase,
+      // somebody else's - is a real conflict and refuses.
+      const own =
+        intent.sales_order_id && !intent.purchase_order_id
+          ? await withTransaction(async (client) => {
+              const cancelled = await reconcileService.cancelPendingSale(
+                intent.sales_order_id as string, "superseded-by-retry", client
+              );
+              if (!cancelled) return false;
+              await stripeRepo.attachOrder(payment_intent_id, null, null, client);
+              return true;
+            })
+          : false;
+      if (!own) {
+        const err: Error & { statusCode?: number } = new Error(
+          `that payment intent already belongs to an order`
+        );
+        err.statusCode = 409;
+        throw err;
+      }
     }
     if (intent.payment_status === "canceled") {
       const err: Error & { statusCode?: number } = new Error(

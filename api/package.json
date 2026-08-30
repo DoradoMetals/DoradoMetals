@@ -46,6 +46,7 @@
     "audit:precision:prod": "TZ=UTC node scripts/audit-precision.mjs --prod",
     "audit:guards": "TZ=UTC node scripts/audit-guards.mjs",
     "audit:payments": "TZ=UTC node scripts/audit-payments.mjs",
+    "reconcile:payments": "TZ=UTC node scripts/reconcile-payments.ts",
     "encrypt:payouts": "TZ=UTC node scripts/encrypt-payout-details.ts",
     "encrypt:payouts:self-test": "TZ=UTC node scripts/encrypt-payout-details.ts --self-test",
     "audit:plaintext-secrets": "TZ=UTC node scripts/audit-plaintext-secrets.ts",

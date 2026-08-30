@@ -79,9 +79,22 @@ Jacob's one-word change (`requireAdmin` → `requireUser`) and is NOT made here.
   re-credits with its own ledger entry. There is no sales-direction cancel op
   today (the PATCH `cancel` is purchase-only) — the reconciler owns this
   narrow one.
-- **The cart clears when the ORDER exists**, not when payment settles. The
-  order captures the basket; keeping the cart after creation invites a double
-  order.
+- **The cart clears when payment SETTLES, not at creation — the design above
+  said otherwise and implementation proved it wrong.** The payment element is
+  mounted by `clientSecret && data.address && cardNeeded`, so clearing the
+  stores at creation unmounts it mid-flow and the confirm never runs. The
+  double-order risk that wording worried about is handled server-side instead:
+  a customer whose intent is still attached to their own Pending sale has that
+  order **superseded** on the next attempt — cancelled through the
+  reconciler's own helper, credit refunded with a ledger entry, intent
+  detached — rather than being refused until the sweep's TTL clears it.
+  Anything else attached (a paid order, a purchase, somebody else's) still
+  refuses with 409.
+- **The flow was ALSO just broken, which is presumably why it was closed.**
+  `insertLines` resolved a line's metal from `item.metal_id` — a field
+  `compose.storefront()` destructures out of the row at runtime — so every
+  order built from the storefront projection 422ed. The resolver now falls
+  back to `idByName` (built two lines up, previously used only for the spots).
 
 ## Not in scope tonight
 

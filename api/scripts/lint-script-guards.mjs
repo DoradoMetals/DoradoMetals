@@ -137,6 +137,15 @@ const REAL_EXCUSED = {
     why:"scaffolds files. It already refuses to overwrite anything that exists, " +
     "which is the only assertion it can make about a codebase it is adding to.",
   },
+  "api/scripts/reconcile-payments.ts": {
+    kind: "action",
+    why:"the create-then-charge safety net. Report mode is read-only; --commit " +
+    "advances paid orders and cancels-and-refunds abandoned ones, which moves " +
+    "money - so its guards are the same conditional-from-Pending statements the " +
+    "webhook uses (a retry or a race is a polite no-op), and there is no " +
+    "detector to attack: every write path is exercised by " +
+    "features/orders/tests/reconcile.test.ts against real Postgres instead.",
+  },
   "api/scripts/clean-dual-run-orphans.mjs": {
     kind: "action",
     why:"deletes orphaned dual-run rows. An action, and a destructive one - it is " +
