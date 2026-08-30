@@ -12933,3 +12933,89 @@ and note its own blind spot, recorded in CLAUDE.md: it casts a source value into
 the *target's* type, so a loss that already happened at the source is invisible
 to it by construction. This one was found by reading the source column's type,
 not by the audit.
+
+## D201 — the presigned upload key is whatever the client says, and iPhone filenames collide
+
+`POST /api/images/upload`, `requireUser`.
+
+```ts
+// controller.ts
+await mediaService.uploadImage({ ...req.body, user_id: callerId(req) });
+
+// service.ts
+const uploadUrl = await minio.presignedPutObject(bucket, path + filename, PUT_TTL_SECONDS);
+```
+
+`path` and `filename` arrive in the request body, are concatenated, and become
+the storage key a presigned PUT is issued for. **Neither is validated,
+sanitised, or namespaced.** `user_id` is correctly taken from the session rather
+than the body — it just has no bearing on the key.
+
+The frontend sends `filename: image.file.name`, straight off the file picker.
+
+**This is NOT filesystem path traversal, and calling it that would be wrong.**
+S3-style object stores treat `../` as literal key text; there is no directory to
+escape and nothing outside the bucket is reachable. The real issue is narrower
+and more certain.
+
+### The accidental version will happen first
+
+Production `exchange.images`:
+
+| path | filename |
+|---|---|
+| `/test/` | `IMG_6698.jpeg` |
+| `/test/` | `Instagram.jpg` |
+| `/test/` | `eBay.jpg` |
+
+**Keys are not namespaced by user, not even by convention** — the paths in use
+are category-shaped (`/test/`, and `products/gold-eagle/` in the component
+test). So the storage key for a customer's photo is
+`<category>/<whatever their phone named it>`.
+
+`IMG_6698.jpeg` is an iPhone default. Two customers photographing scrap will
+collide, and the DB upsert is on **`(path, filename, user_id)`** — different
+users, so **two rows are kept, both pointing at one object**. The second upload
+silently overwrites the first, and both customers' order records now show the
+same photograph.
+
+For a business where the photo is evidence of what a customer sent in, that is
+not cosmetic.
+
+### The deliberate version follows from it
+
+Since the key is client-chosen and unnamespaced, an authenticated user can name
+any key in the bucket and receive a presigned PUT for it — overwriting another
+customer's image bytes while the database still attributes the row to them. The
+read path is properly guarded (`getUrlFor` returns null for an image that is not
+the caller's, and "does not exist" and "is not yours" are deliberately the same
+answer); it is only the write key that is unconstrained.
+
+**Production holds 3 images, so neither version has happened.** Recorded as a
+latent defect.
+
+### The fix
+
+Derive the key server-side and never trust the body for it. The row already has
+a uuid before the presign:
+
+```ts
+const key = `${user_id}/${row.id}${extname(filename)}`;
+```
+
+That makes collisions impossible, makes the key unguessable, and makes the
+caller's ownership structural rather than conventional. `path` can stay as a
+category label on the row for grouping; it just must not be part of the key.
+
+**Not applied**: it changes where objects are written, so existing rows keep
+pointing at the old keys and need either a migration of the three production
+objects or a read path that tolerates both. Small, but it is a storage-layout
+change and wants the full gate.
+
+**Two smaller things noticed in the same file, neither a defect**: `mimeType`
+and `size` are recorded from the body and never verified, which is inherent to
+presigned uploads — size and content-type limits belong in the bucket policy.
+And `MINIO_BUCKET` is read at call time with a comment explaining why, but is
+still unchecked: unset, the insert writes a null bucket and the presign is
+handed `undefined`. That is the same family as D194 and would be fixed by the
+same `requiredEnv`.
