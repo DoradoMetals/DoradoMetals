@@ -123,6 +123,16 @@ const REAL_EXCUSED = {
     why:"deletes orphaned dual-run rows. An action, and a destructive one - it is " +
     "interactive and refuses on any reference it finds.",
   },
+  "api/scripts/clean-leaked-test-orders.mjs": {
+    kind: "action",
+    why:"deletes the 27 leaked test orders from dev. An action, already run once " +
+    "(cdf267e0), and destructive. Its guards are refusals rather than a " +
+    "detector: dry by default with --commit to apply, deletes by NAMED IDS " +
+    "only so it cannot widen to a predicate, refuses if any target is not a " +
+    "Pending purchase, and refuses if any survive. A self-test would have to " +
+    "plant orders to delete them, which is the write this script must never " +
+    "make speculatively.",
+  },
 
   // --- dumps: the output IS the subject, and it is inspected by a human. ---
   "api/scripts/dump-schema.mjs": {
@@ -333,7 +343,7 @@ if (scripts.length < SCRIPT_FLOOR) {
 if (process.argv.includes("--list")) {
   for (const f of scripts) {
     const src = fs.readFileSync(f, "utf8");
-    const has = /process\.argv[^\n]*--self-test|args\.includes\("--self-test"\)/.test(src);
+    const has = /process\.argv[^\n]*--self-test|args\.(?:includes|has)\("--self-test"\)/.test(src);
     const ex = EXCUSED[rel(f)];
     const tag = has ? "self-test" : ex ? `excused:${ex.kind}`.padEnd(9) : "NOTHING  ";
     console.log(`${tag}  ${rel(f)}${!has && ex ? (hasFloor(src) ? "  [floor]" : "") : ""}`);
@@ -619,7 +629,7 @@ const hasFloor = (src) => /\b[A-Z][A-Z0-9_]*FLOOR[A-Z0-9_]*\b/.test(src);
 const hasSelfTest = new Map();
 for (const f of scripts) {
   const src = fs.readFileSync(f, "utf8");
-  hasSelfTest.set(rel(f), /includes\(\s*["']--self-test["']\s*\)/.test(src));
+  hasSelfTest.set(rel(f), /(?:includes|has)\(\s*["']--self-test["']\s*\)/.test(src));
 }
 
 for (const f of scripts) {
