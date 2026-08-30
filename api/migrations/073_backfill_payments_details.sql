@@ -19,10 +19,18 @@
 -- They are the only plaintext bank details the business holds, on 18 production
 -- payouts. January copied them into payments.details and 071 removed that copy.
 -- Writing them again here would put them back. They are written separately, and
--- encrypted, by scripts/encrypt-payout-details.mjs, which refuses to run without
+-- encrypted, by scripts/encrypt-payout-details.ts, which refuses to run without
 -- PAYOUT_ENCRYPTION_KEY - so a database can be migrated by someone who does not
 -- hold the key, and the plaintext stays in exactly one place until it is dealt
 -- with on its own terms.
+--
+-- CORRECTION, 2026-08-29: when this header was written that script DID NOT
+-- EXIST, and it did not exist for the whole time this migration described it
+-- in the present tense. It exists now - scripts/encrypt-payout-details.ts,
+-- with shared/crypto/envelope.ts underneath it and 104 supplying the columns
+-- it writes. The extension changed from .mjs because scripts/ is mid-
+-- conversion to TypeScript; the citation was corrected to the file rather
+-- than the file being named after the citation.
 --
 -- Idempotent. exchange is only read.
 

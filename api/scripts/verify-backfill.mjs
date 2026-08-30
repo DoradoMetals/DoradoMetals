@@ -98,7 +98,7 @@ const TABLES = [
     key: "id",
     // routing_number and account_number are excluded because the backfill
     // deliberately does not write them - they are encrypted separately by
-    // scripts/encrypt-payout-details.mjs. Comparing them would assert that a
+    // scripts/encrypt-payout-details.ts. Comparing them would assert that a
     // rebuild reproduces plaintext bank details, which is the opposite of what
     // this migration is for.
     cols: "id, user_id, method_id, account_holder, bank_name, account_type, email_to, provider, provider_ref, last_four, card_brand",
