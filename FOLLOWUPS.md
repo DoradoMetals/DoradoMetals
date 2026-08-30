@@ -13108,3 +13108,10 @@ as correct.
 compares the native result against the LEGACY one rather than asserting on its
 own. Both matching nothing means the order simply has no parcels, which is not
 an error. The two DISAGREEING is, and that is the condition that fires.
+
+**And the count is now a CEILING in `pnpm check`.** The audit exited 0 always,
+which made it a map nobody was forced to read — and a report nobody reads is a
+report that rots, which is the failure this codebase keeps rediscovering. It is
+pinned at **18** from both sides: a nineteenth silent mutation fails the gate,
+and fixing one of the eighteen *also* fails until the ceiling is lowered to
+match. Giving the gain back silently is exactly as hard as losing it was.

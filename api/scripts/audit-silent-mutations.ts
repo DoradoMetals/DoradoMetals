@@ -29,7 +29,14 @@
 //     never `const r = await x.f(...)` or `return await x.f(...)`.
 //   - a statement with no RETURNING and a repo returning void is reported as
 //     UNOBSERVABLE, which is a stronger finding than a discarded return.
-// Report-only: it exits 0 and is a map of where to look, not a gate.
+// *** IT IS A CEILING, NOT A REPORT. *** The first version exited 0 always,
+// which made it a map of where to look and nothing more - and a report nobody
+// is forced to read is a report that rots. The 18 that remain are triaged in
+// D202 as correct (DELETEs, where removing something already gone is idempotent,
+// and setDefault_clear, where a first address has no previous default). So the
+// count is pinned: a NINETEENTH silent mutation fails the gate, and fixing one
+// of the eighteen ALSO fails until the ceiling is lowered to match. Pinned from
+// both sides, like audit:indexes' ACCEPTED and lint-script-guards' EXCUSED.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -253,3 +260,27 @@ if (!FAIL_ON_FINDINGS && statements.size === 0) {
   process.exit(1);
 }
 if (FAIL_ON_FINDINGS && (discarded || unobservable)) process.exit(1);
+
+// THE CEILING. Every one of these is triaged in D202; the number is the
+// agreement, not a target. Moving it in either direction is a deliberate edit
+// with a reason, which is the point.
+const CEILING = 18;
+if (!FAIL_ON_FINDINGS) {
+  const total = discarded + unobservable;
+  if (total > CEILING) {
+    console.error(
+      `\n${total} silent mutation(s), and the agreed ceiling is ${CEILING}.\n` +
+      `Something new discards a mutation result. Either observe it - see\n` +
+      `shared/observability/report.ts, and D202 for the five that were fixed\n` +
+      `that way - or raise the ceiling with a reason.`
+    );
+    process.exit(1);
+  }
+  if (total < CEILING) {
+    console.error(
+      `\n${total} silent mutation(s), below the ceiling of ${CEILING}. Good -\n` +
+      `now lower CEILING to ${total} so the gain cannot be given back silently.`
+    );
+    process.exit(1);
+  }
+}
