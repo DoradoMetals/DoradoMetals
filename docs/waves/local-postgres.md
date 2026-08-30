@@ -114,3 +114,73 @@ the home directory and survive the session. The cluster is **not** started at
 boot — re-run the `pg_ctl start` line above. `sudo apt install -y postgresql-16`
 is still the tidier long-term answer; this proves the work does not have to wait
 for it.
+
+
+---
+
+# THE PIVOT — `provision:test`, and what still has to happen
+
+Jacob, 2026-08-30: *"at a certain point we need to pivot to the test db."*
+
+The blocker was never the switch. `USE_TEST_DB=1` and `test:on-test-db` have
+both existed for some time, and `env.ts` already refuses to point them anywhere
+but a database named `test`. What did not exist was a way to **fill** `test`
+with something the suite could run against.
+
+`refresh:test` fills it from a **production** archive, and `env.ts` records why
+that has never been usable: production has no `leads`, `rates`, `reviews`,
+`products`, `metals` or `media` schema, the migrations create them empty, and
+every `repo.next` test then reads zero rows. That is the same blocker as
+promotion and it is not moving soon.
+
+`provision:test` fills it from **dev** instead, which is where the migrations
+have actually run. That is the whole difference.
+
+```bash
+pnpm --filter @dorado/api provision:test              # dry run
+pnpm --filter @dorado/api provision:test -- --commit  # rebuild
+pnpm --filter @dorado/api test:on-test-db             # 992/992 in 21s
+```
+
+Verified end to end: dropped 19 schemas, dumped 1.2 MB from dev, restored 19
+schemas, **992 tests / 992 pass / 0 fail / 21 s** on the rebuilt database.
+
+## Its guards, because it destroys the target
+
+Modelled on `refresh-from-backup.mjs`, which does the same job from an archive:
+
+- **an allowlist of target NAMES** — `test`, and nothing else. A name nobody
+  taught it about is refused rather than accepted.
+- **a `system_identifier` comparison**, asked of both servers, so two URLs that
+  spell different names but reach one database are caught. This survives a
+  renamed URL, which a string comparison does not.
+- **dry by default.** `--commit` is the only path that writes.
+- **a schema-count floor after restoring.** `psql` and `pg_restore` both recover
+  from errors and can exit 0 having quietly dropped a table's data — the defect
+  `compare:databases` exists for. Fewer schemas out than in is a hard failure.
+
+**No `--self-test`, and excused as an `action`** in `lint-script-guards.mjs`,
+exactly as `refresh-from-backup.mjs` is: every path that does anything writes,
+and the harness's required `pass` case could only be a dry run against two
+reachable databases. All four refusals were exercised by hand and each exits 1.
+
+## WHAT IS NOT DONE, AND IT IS THE ACTUAL PIVOT
+
+**`pnpm --filter @dorado/api test` still points at DEV.** Flipping that default
+is the pivot; everything above is the thing that makes it possible. It is not
+flipped yet for three reasons worth stating rather than quietly working around:
+
+1. **The cluster is not started at boot.** `pnpm test` would fail with a
+   connection error rather than something legible. It wants a preflight that
+   says "the local cluster is not running, here is the command".
+2. **`db.ts` hardcodes `ssl`.** A local Postgres without TLS produces **665
+   identical failures** reading `The server does not support SSL connections`.
+   Handled here with a self-signed cert; the tidier fix is teaching `db.ts` to
+   skip TLS for `localhost`, which touches every request path and wants its own
+   commit.
+3. **The snapshot goes stale.** It is a copy of dev at a moment. Re-provisioning
+   is one command, but nothing currently reminds anyone.
+
+None is hard. All three are the difference between "it works when I do it" and
+"it is what the repo does", and that gap is where this kind of change usually
+dies.

@@ -103,6 +103,17 @@ const REAL_EXCUSED = {
     why:"shells out to pg_dump. What it produces is a file; what would be tested is " +
     "pg_dump.",
   },
+  "api/scripts/provision-test-db.ts": {
+    kind: "action",
+    why:"rebuilds the `test` database from DEV. Every path that does anything " +
+    "WRITES - it drops every schema in the target - so there is no safe " +
+    "self-test, and the harness's required `pass` case could only be a dry run " +
+    "against two reachable databases, which is environment-dependent. Its " +
+    "guards are refusals that fire before anything happens: an allowlist of " +
+    "target NAMES (test, and nothing else), a system_identifier comparison that " +
+    "survives a renamed URL, and dry-by-default with --commit the only way to " +
+    "write. All four were exercised by hand and each exits 1.",
+  },
   "api/scripts/refresh-from-backup.mjs": {
     kind: "action",
     why:"restores a database from an archive. Every path it has WRITES, so there is " +
