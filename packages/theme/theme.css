@@ -85,6 +85,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
+  --color-placeholder: var(--placeholder);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
@@ -296,6 +297,9 @@
   --card-foreground: hsl(216, 20%, 97%);
   --popover-foreground: hsl(216, 20%, 97%);
   --muted-foreground: hsl(220, 8%, 61%); /* #9499a4  6.96:1 */
+  --placeholder: hsl(229, 6%, 50%); /* #787c87  4.76:1 - the Figma
+     text/placeholder variable ("input placeholders and empty-state prompts;
+     clears AA for normal text, unlike text/disabled"), synced 2026-08-30. */
 
   /* --- PRIMARY -------------------------------------------------------------
      WHITE, per Jacob: "we just need to change bg-primary to be white".

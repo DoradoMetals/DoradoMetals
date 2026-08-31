@@ -22,3 +22,5 @@ export { fieldTrigger, fieldPanel, fieldOption, FieldLabel } from "./field";
 export { Select, type SelectProps, type SelectItemShape } from "./select";
 export { Checkbox, type CheckboxProps } from "./checkbox";
 export { Chip, type ChipProps } from "./chip";
+export { Input, type InputProps } from "./input";
+export { Textarea, type TextareaProps } from "./textarea";
