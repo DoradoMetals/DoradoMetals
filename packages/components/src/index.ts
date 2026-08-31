@@ -3,6 +3,7 @@
 // the drawing cannot express (focus, keyboard, aria, motion-reduce) - not
 // before.
 export { Accordion, type AccordionProps } from "./accordion";
+export { Attachment, type AttachmentProps, type AttachmentState } from "./attachment";
 export {
   Button,
   buttonVariants,
@@ -12,3 +13,4 @@ export {
   type ButtonIntent,
 } from "./button";
 export { Link, linkVariants, type LinkProps } from "./link";
+export { Upload, type UploadProps } from "./upload";

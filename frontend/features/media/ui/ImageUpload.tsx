@@ -1,180 +1,82 @@
-import { Button } from '@/shared/ui/base/button'
-import { Input } from '@/shared/ui/base/input'
-import { ImagePlus, X } from 'lucide-react'
+'use client'
+
+// The app's face of @dorado/components' Upload + Attachment pair (the process
+// rule: a package component replaces its app counterpart in the same pass).
+// What this file still owns is the app's business: the upload MUTATION, the
+// preview object-URL, and which formats the storage accepts. The dropzone
+// mechanics, the file-row anatomy and every state's look are the library's.
+//
+// What left with the rewrite: framer-motion (the banners are an Attachment
+// row's states now), the phosphor icons, the hand-rolled drag handlers and
+// the role="button" div - the library's dropzone is a real <input type="file">
+// in its <label>.
 import Image from 'next/image'
-import { useState, useCallback } from 'react'
-import { cn } from '@/shared/utils/cn'
+import { useState } from 'react'
+import { Attachment, Upload } from '@dorado/components'
 import { useUploadImage } from '@/features/media/queries'
-import { useImageUpload } from '@/shared/hooks/useImageUpload'
-import { CheckCircleIcon, TrashIcon, UploadIcon, XCircleIcon } from '@phosphor-icons/react'
-import { motion } from 'framer-motion'
 
 export function ImageUpload({ path }: { path: string }) {
   const uploadMutation = useUploadImage()
+  const [file, setFile] = useState<{ name: string; size: number; url: string } | null>(null)
 
-  const {
-    previewUrl,
-    fileName,
-    fileInputRef,
-    handleThumbnailClick,
-    handleFileChange,
-    handleFile,
-    handleRemove,
-  } = useImageUpload({
-    onSelect: (f) => {
-      uploadMutation.mutate({ path: path, file: f })
-    },
-  })
-
-  const [isDragging, setIsDragging] = useState(false)
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const onFiles = (files: File[]) => {
+    const f = files[0]
+    if (!f) return
+    if (file) URL.revokeObjectURL(file.url)
+    setFile({ name: f.name, size: f.size, url: URL.createObjectURL(f) })
+    uploadMutation.mutate({ path, file: f })
   }
-  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(true)
-  }
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
-  }
-  const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault()
-      e.stopPropagation()
-      setIsDragging(false)
 
-      const f = e.dataTransfer.files?.[0]
-      if (f && f.type.startsWith('image/')) handleFile(f)
-    },
-    [handleFile]
-  )
+  const state = uploadMutation.isPending
+    ? ('uploading' as const)
+    : uploadMutation.isError
+    ? ('error' as const)
+    : ('complete' as const)
+
+  const meta = uploadMutation.isPending
+    ? 'Uploading…'
+    : uploadMutation.isError
+    ? 'Upload failed — remove and try again.'
+    : file
+    ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
+    : undefined
 
   return (
-    <div className="w-full max-w-md space-y-6 rounded-lg border border-border bg-card p-6">
+    <div className="w-full max-w-md space-y-4 rounded-lg border border-border bg-card p-6">
       <div className="space-y-2">
         <h3>Image Upload</h3>
         <p>Supported formats: JPG, PNG</p>
       </div>
 
-      <Input
-        type="file"
+      <Upload
+        onFiles={onFiles}
         accept="image/*"
-        className="hidden"
-        ref={fileInputRef}
-        onChange={handleFileChange}
+        disabled={uploadMutation.isPending}
+        prompt="Drag & drop, or browse"
+        hint="JPG or PNG"
       />
 
-      {!previewUrl ? (
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label="Select an image to upload"
-          onClick={handleThumbnailClick}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              handleThumbnailClick()
-            }
-          }}
-          onDragOver={handleDragOver}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={cn(
-            // ⚠ D99: the hover was `bg-background` -> `bg-muted`, a 1.22:1 step on the
-            // one affordance whose whole job is to say "you can drop here". The
-            // border moves with it now, which is the visible half.
-            'flex h-64 cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border bg-background transition-colors hover:bg-muted hover:border-border-strong',
-            isDragging && 'border-primary bg-primary/10'
-          )}
-        >
-          <div className="rounded-full bg-card p-3 border border-border">
-            <ImagePlus className="h-6 w-6" />
-          </div>
-          <div className="text-center">
-            <p>
-              <strong>Click to select</strong>
-            </p>
-            <p>or drag and drop file here</p>
-          </div>
-        </div>
-      ) : (
-        <div className="relative">
-          <div className="group relative h-64 overflow-hidden rounded-lg border">
+      {file && (
+        <Attachment
+          filename={file.name}
+          meta={meta}
+          state={state}
+          thumb={
             <Image
-              src={previewUrl}
-              alt="Preview"
-              fill
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              src={file.url}
+              alt=""
+              width={32}
+              height={32}
+              unoptimized
+              className="size-8 rounded-sm object-cover"
             />
-            <div className="absolute inset-0 bg-neutral-300/50 opacity-0 transition-opacity group-hover:opacity-100 " />
-            <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-              <Button
-                variant="secondary"
-                size="icon"
-                aria-label="Replace image"
-                onClick={handleThumbnailClick}
-              >
-                <UploadIcon size={32} />
-              </Button>
-              <Button
-                variant="secondary"
-                intent="danger"
-                size="icon"
-                aria-label="Remove image"
-                onClick={handleRemove}
-              >
-                <TrashIcon size={32} />
-              </Button>
-            </div>
-          </div>
-          {fileName && (
-            <div className="mt-2 flex items-center gap-2">
-              <small className="truncate">{fileName}</small>
-              <Button
-                variant="tertiary"
-                size="iconXs"
-                aria-label="Remove image"
-                onClick={handleRemove}
-                className="ml-auto"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {uploadMutation.isPending && <p>Uploading…</p>}
-      {uploadMutation.isError && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.5 }}
-          className="flex items-center gap-2 rounded-lg px-4 py-2 bg-destructive/15 border border-destructive will-change-transform"
-        >
-          <XCircleIcon size={24} className="text-destructive" />
-          <p className="text-destructive">Upload failed.</p>
-        </motion.div>
-      )}
-      {uploadMutation.isSuccess && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.5 }}
-          className="flex items-center gap-2 rounded-lg px-4 py-2 bg-success/15 border border-success will-change-transform"
-        >
-          <CheckCircleIcon size={24} className="text-success" />
-          <p className="text-success">Image Uploaded!</p>
-        </motion.div>
+          }
+          onRemove={() => {
+            URL.revokeObjectURL(file.url)
+            setFile(null)
+            uploadMutation.reset()
+          }}
+        />
       )}
     </div>
   )
