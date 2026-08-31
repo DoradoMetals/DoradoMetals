@@ -405,6 +405,12 @@ so the write half of the design contract is automatable after all.
 | Select | 38:75 (trigger DEPRECATED) | Radix Select on the chassis | — awaiting first adopter | trigger set marked deprecated → Popover Field |
 | Checkbox | 15:16 | Radix, hover border-strong added | base/checkbox doorway (8 importers) | — |
 | Chip | 32:121 | real button, aria-pressed, dismiss is its own act | StatusChip mapping deferred (status vocabulary is app law) | — |
+| Input | 26:391 | one trailing slot (the drawing's own argument), aria wiring | — the FloatingLabel→static-label sweep is its own slice | — |
+| Textarea | 37:2 | Input's language + the counter row | same sweep | — |
+| Switch | 17:14 | Radix, 36×20 drawn geometry | base/switch doorway | — |
+| Skeleton | 32:155 | STATIC by design (shimmer retired) | base/skeleton doorway | — |
+| Spinner | 32:191 | role=status + sr-only label, motion-reduce pulse | — awaiting adopter (Logo Loader is app chrome, not an atom) | — |
+| Tooltip | 32:177 | Radix: focus opens it too; surface/highest, border not shadow | — awaiting adopter | — |
 
 **The process, as Jacob corrected it**: adoption is part of the slice — a
 package component replaces its app counterpart in the same pass, and buttons

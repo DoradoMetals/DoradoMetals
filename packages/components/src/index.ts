@@ -24,3 +24,7 @@ export { Checkbox, type CheckboxProps } from "./checkbox";
 export { Chip, type ChipProps } from "./chip";
 export { Input, type InputProps } from "./input";
 export { Textarea, type TextareaProps } from "./textarea";
+export { Switch, type SwitchProps } from "./switch";
+export { Skeleton, type SkeletonProps } from "./skeleton";
+export { Spinner, type SpinnerProps } from "./spinner";
+export { Tooltip, TooltipProvider, type TooltipProps } from "./tooltip";
