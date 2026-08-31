@@ -749,3 +749,25 @@ Brand row: logo left, tagline over the Get a Quote button right-aligned
 beside it. The mobile tagline is a SHORTER sentence than desktop's ("Fast.
 Insured. Paid on arrival.") - the long one wrapped to three ragged lines at
 that width, and a wrap is not a layout.
+
+## The Lucide library, wired for real (2026-08-31)
+
+Jacob published his Icons file (1,748 Lucide components) as a library and
+enabled it here. My hand-drawn glyphs were a mistake and are GONE.
+
+- **Every icon is now a library instance.** 412 swapped via `swapComponent`
+  (chevron-down 158, arrow-left 150, scale 36, x 34, check 8, help-circle 8,
+  building-2 6, map-pin 2, package 2, external-link 15, funnel, sort-desc,
+  upload). Zero local `Icon/*` instances remain; 29 dead hand-drawn
+  components deleted. Only the brand marks (facebook/instagram/linkedin/x)
+  stay local, because Lucide has no brand icons.
+- **COMPONENTS USE COMPONENTS.** 23 frames that were merely *named* like
+  components ("Delete (Button/tertiary/iconSm danger)", "Action
+  (Button/Primary)", "Default (Badge/soft)"…) are now real Button and Badge
+  instances with proper variant/label/icon properties. Attachment's three
+  progress rails are real Progress instances; the Header avatar is a real
+  Avatar instance. My bare "Icon (slot)" vectors are deleted.
+- **Any icon, anywhere.** Badge, Chip and Menu Item gained `Show icon`
+  (boolean) + `Icon` (instance-swap) properties; Button already had leading
+  and trailing swaps. No preferred-value restrictions, so the dropdown
+  searches all 1,748.
