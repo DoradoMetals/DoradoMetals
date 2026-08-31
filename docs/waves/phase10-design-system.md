@@ -534,3 +534,48 @@ Figma-side notes: the drawn Button/Link stand-ins inside Banner, Drawer,
 Empty State are plain frames NAMED for the component they should be
 (instance-swap is a click with the libraries panel open; scripting instances
 of another page's set was left for a human so the overrides read right).
+
+
+---
+
+# THE PACKAGE GROWS ITS OWN TEST LANE (2026-08-30, Jacob's ask)
+
+**Folder per component**: `src/button.tsx` became `src/button/Button.tsx`, all
+35 components, `git mv` so history follows. `cn.ts` stays at the root (it is
+not a component); the root `index.ts` is still the only public surface, now
+also exporting `cn`/`SEMANTIC_TEXT_SIZES`.
+
+**Every component has a co-located test**: `src/<kebab>/<Pascal>.test.tsx`,
+36 files, 88 assertions, run by the package's own vitest (jsdom + shims for
+what jsdom lacks: ResizeObserver, matchMedia, scrollIntoView, pointer capture,
+object URLs). `pnpm --filter @dorado/components test`, wired into `pnpm check`
+between the frontend lint and typecheck. House style: plain DOM assertions, no
+jest-dom.
+
+**Accessibility is part of every test**: `src/test/axe.ts` runs axe-core on the
+rendered output and returns violations as readable strings. Two rules are off,
+each for a stated reason: `color-contrast` needs a layout engine jsdom lacks
+(state-contrast.test.ts pins contrast against the theme tokens instead), and
+`region` judges page-level landmark structure no component can satisfy.
+
+**The move found two real bugs** - both shipped, neither visible:
+
+1. **The package `cn` was STOCK twMerge.** Its comment claimed "same recipe as
+   the app's shared/utils/cn"; it was not - the app's is TAUGHT the semantic
+   type scale, and stock twMerge treats `text-small` as a colour and lets a
+   later text-colour DELETE it. cva emits size before the colour compound, so
+   every package component composing both was shipping DOM with no font-size
+   class. Found the moment the Button law test was ported in and ran against
+   the package's own cn instead of the frontend's. Fixed at the source; the
+   frontend's cn is now a doorway re-export, so there is exactly one taught
+   merge and one size list. Pinned both orders by `src/cn.test.tsx`.
+
+2. **Slider's label landed on a div.** The component forwards props to the
+   Radix Root, but `role="slider"` lives on the THUMB - so `aria-label` named
+   a plain div and the actual slider read as "50" with no subject, exactly
+   what the component's own header comment warns about. axe caught it
+   (`aria-input-field-name`). The label now forwards to the thumb.
+
+Two frontend test files moved in with their subject (ruling 31): the Button
+law test and the gap-atoms tests, re-homed per component. Frontend suite
+174, package 88, total 262.
