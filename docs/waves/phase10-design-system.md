@@ -974,3 +974,40 @@ now, which is why the stacked one reads consistently with it.
 Side-by-side slots are two full-width columns (rows of two, each chip
 FILL), and the partial row at the clip edge is deliberate — it is the
 scroll affordance.
+
+## Round 7 (2026-08-31) — time groups, and ScrollArea joins the library
+
+**Datepicker slots are grouped by time of day in BOTH layouts** — Morning /
+Afternoon, each group a labelled block, with a hairline rule between groups
+(the first has none, so the rules read as separators rather than a frame).
+Side-by-side runs the same two-up full-width chips the stacked variant does,
+so the two layouts are now the same component wearing two shapes rather than
+two designs.
+
+One trap worth recording: re-parenting the chips into new group frames
+collapsed every one to zero height, because their vertical sizing came back
+as HUG against an instance whose content does not define height. They are
+pinned to a FIXED 40 now.
+
+**ScrollArea is a real component now** (`@dorado/components`), because the
+capped lists were only *clipped* before — the overflow existed and could not
+be reached.
+
+- **Why a component and not `overflow: auto`**: the native bar is an OS
+  artefact. It differs per platform, macOS with "always show scroll bars"
+  paints a bright slab over the content, and Windows takes 17px of layout
+  width that nothing in the design accounts for. Radix draws the bar and
+  leaves native wheel / touch / keyboard scrolling underneath.
+- The thumb is the **border token** on a full-radius rail — a scrollbar
+  reports position, it does not ask for attention. `type="hover"` by
+  default, `type="always"` when the overflow IS the point. The viewport
+  takes focus so a keyboard can scroll it.
+- The frontend's `base/scroll-area` is deleted and its **4 importers** point
+  at the package (privacy policy, terms, SchedulePicker, pickupScheduler).
+- Drawn in Figma with both orientations; the Datepicker's slot column and
+  Upload's attachment stack are now named for it.
+
+A test note: Radix only mounts a scrollbar once it measures real overflow,
+and jsdom lays nothing out — so the orientation test uses `type="always"`.
+Under the default it would have rendered no bar at all and passed for the
+wrong reason.

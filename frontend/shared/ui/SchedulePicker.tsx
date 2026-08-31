@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { format, parse, parseISO, isValid, startOfDay } from 'date-fns'
 
 import { Calendar } from '@dorado/components'
-import { ScrollArea } from '@/shared/ui/base/scroll-area'
+import { ScrollArea } from '@dorado/components'
 import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { formatPickupDateShort, formatPickupTime } from '@/shared/utils/formatDates'

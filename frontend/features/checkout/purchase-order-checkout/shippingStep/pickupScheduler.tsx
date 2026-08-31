@@ -1,7 +1,7 @@
 'use client'
 
 import { Calendar } from '@dorado/components'
-import { ScrollArea } from '@/shared/ui/base/scroll-area'
+import { ScrollArea } from '@dorado/components'
 import { Button } from '@dorado/components'
 import type { ShippingPickupTimes } from '@/features/shipping/types'
 import { parseISO } from 'date-fns'

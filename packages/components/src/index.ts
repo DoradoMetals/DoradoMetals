@@ -53,3 +53,4 @@ export { EmptyState, type EmptyStateProps } from "./empty-state/EmptyState";
 export { Hero, type HeroProps } from "./hero/Hero";
 export { Marquee, type MarqueeProps } from "./marquee/Marquee";
 export { MaskedField, type MaskedFieldProps, type MaskKind } from "./masked-field/MaskedField";
+export { ScrollArea, ScrollBar, type ScrollAreaProps } from "./scroll-area/ScrollArea";

@@ -1,4 +1,4 @@
-import { ScrollArea } from '@/shared/ui/base/scroll-area'
+import { ScrollArea } from '@dorado/components'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import Link from 'next/link'
 
