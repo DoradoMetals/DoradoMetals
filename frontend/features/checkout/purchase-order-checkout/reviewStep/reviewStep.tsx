@@ -55,7 +55,7 @@ export default function ReviewStep() {
               {formatPickupTime(data.pickup?.time)} on {formatPickupDateShort(data.pickup?.date)}
             </small>
           ) : (
-            <Button variant="link" size="sm">
+            <Button variant="tertiary" size="sm">
               Find Store
             </Button>
           )}

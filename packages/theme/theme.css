@@ -54,11 +54,15 @@
 
 @theme inline {
   --font-sans: var(--font-sans);
-  --font-heading: var(--font-header);
+  /* One family since the Geist refresh: headings and body are both Geist,
+     weight doing the separating (600 headings, 500 chrome, 400 body). The
+     --font-header hook survives for typography.css but resolves to the same
+     face. */
+  --font-heading: var(--font-header, var(--font-sans));
   /* Eyebrow labels are monospace (ruling 19). No webfont is loaded for this —
      the system mono stack is deliberate: it costs nothing and the eyebrow is
      always uppercase and letter-spaced, where stack differences barely read. */
-  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+  --font-mono: var(--font-mono-loaded), ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     'Liberation Mono', monospace;
 
   --breakpoint-xs: 19rem;
@@ -281,7 +285,10 @@
      glowing line. --border-strong is for the rare case that needs to read as
      a deliberate edge (active field, selected row). */
   --border: hsl(222, 9%, 19%); /* #2c2f35 */
-  --border-strong: hsl(221, 9%, 27%); /* #3d414a */
+  --border-strong: hsl(220, 9%, 27%); /* #3f434b - synced to the Figma
+     variables 2026-08-30; the drawing resolves border/strong to this, one
+     step off the #3d414a its own description still says (stale description,
+     noted in phase10-design-system.md). */
   --input: hsl(221, 9%, 24%); /* #383b43 */
 
   /* --- TEXT ---------------------------------------------------------------- */
@@ -360,7 +367,10 @@
      Both were defaults in shared/ui/DisplayToggle.tsx. There was no
      --success-foreground to convert to, so this token is new. */
   --destructive: hsl(352, 80%, 62%); /* #ec5165  5.62:1 */
-  --destructive-foreground: hsl(228, 13%, 6%); /* sits ON destructive */
+  --destructive-foreground: hsl(0, 0%, 98%); /* #fafafa - sits ON destructive.
+     Was near-black; the drawing puts LIGHT text on the red fill (Button
+     Primary/Danger, 25:229 resolves destructive-foreground to #fafafa), and
+     #fafafa on #ec5165 is what every danger button in the library shows. */
 
   /* WARNING and INFO are new, added for the Button `intent` axis (ruling 25).
      Both are STATUS semantics, which is the one place ruling 19 permits hue —
@@ -416,5 +426,25 @@ w
   }
   to {
     background-position: 0% 0%;
+  }
+}
+
+/* ============================================================================
+   MOTION - the accordion's open/close, driven by Radix's measured height.
+   Registered here as Tailwind v4 theme values so `animate-accordion-down`
+   exists as a utility wherever @dorado/components is used. motion-reduce is
+   the component's job (it adds motion-reduce:animate-none).
+   ============================================================================ */
+@theme {
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
   }
 }

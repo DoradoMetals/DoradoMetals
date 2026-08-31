@@ -84,7 +84,7 @@ export function SalesOrderActionButtons({ order }: SalesOrderActionButtonsProps)
                (ruling 25): the retired `on-glass` / `primary-on-glass` pair
                were both an outlined button, and the third spelled a bare link
                with a hover it then cancelled. */
-            variant={isTertiaryStyle ? 'link' : 'secondary'}
+            variant={isTertiaryStyle ? 'tertiary' : 'secondary'}
             disabled={button.disabled}
             className={cn('w-full', isTertiaryStyle && 'justify-start')}
           >

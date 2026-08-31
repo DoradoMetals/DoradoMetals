@@ -52,7 +52,7 @@ export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDraw
               </strong>
             </div>
             <Button
-              variant="link"
+              variant="tertiary"
               className="p-0 ml-auto"
               onClick={() => {
                 handleMarkShippingPaid

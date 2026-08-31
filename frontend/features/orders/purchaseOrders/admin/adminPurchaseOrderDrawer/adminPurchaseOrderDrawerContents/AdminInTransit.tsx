@@ -72,7 +72,7 @@ export function PreTransit({
         <h3>Package Not Yet Scanned</h3>
         {carrierPickup?.confirmation_number && carrierPickup?.requested_at && (
           <Button
-            variant="link"
+            variant="tertiary"
             onClick={() => {
               cancelPickup.mutate({
                 carrier_id: carrierId ?? '',

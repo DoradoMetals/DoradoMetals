@@ -94,7 +94,7 @@ export default function SalesOrderCard({
             statuses.includes(order.status ?? '') ? (
               <Button
                 key={index}
-                variant="link"
+                variant="tertiary"
                 className="flex items-center justify-start gap-2 px-0"
                 onClick={stopAnd(onClick, isPending)}
                 disabled={isPending}

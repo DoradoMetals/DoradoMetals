@@ -29,7 +29,7 @@ export function Intake() {
                     </div>
 
                     <p className="mt-2 max-w-55 md:max-w-sm">{opt.blurb}</p>
-                    <Button variant="link" className="self-start mt-3">
+                    <Button variant="tertiary" className="self-start mt-3">
                       Learn More
                       <ArrowRightIcon size={16} />
                     </Button>

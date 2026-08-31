@@ -97,7 +97,7 @@ export function DropoffInstructionsSection({ shipment }: { shipment?: Shipment }
       action:
         shipment.pickup_type !== 'Carrier Pickup' ? (
           <Button
-            variant="link"
+            variant="tertiary"
             className="h-auto p-0"
           >
             Find Store

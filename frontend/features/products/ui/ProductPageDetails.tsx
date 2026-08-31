@@ -105,7 +105,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             <Image> in the option, which is CONTENT, and content is children."
             It was hand-rolled TWICE in this file, once for each breakpoint, with
             the checked appearance spelled as a string at four call sites.
-            `intent="brand"` rather than the neutral fill: neutral FILLS with
+            `` rather than the neutral fill: neutral FILLS with
             --primary, which is near-white, and a white ground behind a product
             photograph is not a selection cue, it is a different photograph.
             Gold is ruling 19's one permitted hue and this is the business's own
@@ -116,7 +116,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           options={[selectedProduct.image_front, selectedProduct.image_back]}
           getValue={(src) => src}
           variant="tile"
-          intent="brand"
+
           aria-label="Product images"
           className="flex flex-col gap-3"
           optionClassName="h-20 w-20 p-0"
@@ -496,7 +496,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <Image> in the option, which is CONTENT, and content is children."
               It was hand-rolled TWICE in this file, once for each breakpoint, with
               the checked appearance spelled as a string at four call sites.
-              `intent="brand"` rather than the neutral fill: neutral FILLS with
+              `` rather than the neutral fill: neutral FILLS with
               --primary, which is near-white, and a white ground behind a product
               photograph is not a selection cue, it is a different photograph.
               Gold is ruling 19's one permitted hue and this is the business's own
@@ -507,7 +507,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             options={[selectedProduct.image_front, selectedProduct.image_back]}
             getValue={(src) => src}
             variant="tile"
-            intent="brand"
+
             aria-label="Product images"
             className="flex items-center w-full gap-3 flex-1"
             optionClassName="h-20 w-20 p-0"

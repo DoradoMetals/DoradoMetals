@@ -75,7 +75,7 @@ export function OrderDrawerHeader({
           {offered.map(({ label, onClick, isPending }) => (
             <Button
               key={label}
-              variant="link"
+              variant="tertiary"
               className="flex items-center gap-2 px-0"
               onClick={onClick}
               disabled={isPending}

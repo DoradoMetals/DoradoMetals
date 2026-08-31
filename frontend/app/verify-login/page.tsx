@@ -66,7 +66,7 @@ function VerifyLoginContent() {
 
         <SetPasswordForm />
         <hr className="w-full" />
-        <Button variant="link" className="mr-auto" onClick={() => router.push('/')}>
+        <Button variant="tertiary" className="mr-auto" onClick={() => router.push('/')}>
           No thanks, I&apos;ll do it later.
         </Button>
       </div>

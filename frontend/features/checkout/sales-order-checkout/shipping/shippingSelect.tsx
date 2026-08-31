@@ -51,7 +51,6 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
           <p className="text-center">Create an address to continue checkout.</p>
           <Button
             type="button"
-            effect="expandIcon"
             variant="secondary"
             size="sm"
             iconPlacement="right"

@@ -106,7 +106,7 @@ export function CreateSalesOrderDrawer() {
 
       <div className="flex flex-col gap-2 items-start">
         <Button
-          variant="link"
+          variant="tertiary"
           className="ml-auto"
           onClick={() => setSpotsLocked((prev) => !prev)}
         >

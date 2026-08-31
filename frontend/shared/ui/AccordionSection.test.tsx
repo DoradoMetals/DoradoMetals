@@ -11,25 +11,26 @@ describe('the accordion is a disclosure, not a styled div', () => {
     render(<AccordionSection label="Gold Coins">rows</AccordionSection>)
     const button = screen.getByRole('button', { name: /gold coins/i })
     expect(button.getAttribute('aria-expanded')).toBe('false')
-    const panelId = button.getAttribute('aria-controls')
-    expect(panelId).toBeTruthy()
 
     await userEvent.click(button)
     expect(button.getAttribute('aria-expanded')).toBe('true')
-    // The panel is a labelled region once open (hidden regions do not appear
-    // in the accessibility tree, which is the point of the closed state).
+    // Open, the panel is a labelled region and the trigger points at it.
+    // (aria-controls is only asserted open: Radix unmounts closed content,
+    // and an id referencing nothing would be the lie.)
     const region = screen.getByRole('region', { name: /gold coins/i })
-    expect(region.id).toBe(panelId)
+    expect(button.getAttribute('aria-controls')).toBe(region.id)
   })
 
-  test('a closed panel is inert - collapsed means out of the tab order', () => {
+  test('a closed panel is UNMOUNTED - collapsed means gone, not merely small', () => {
+    // Stronger than the inert the first implementation used: Radix removes
+    // closed content from the DOM entirely, so there is nothing to tab into
+    // and nothing for a screen reader to stumble on.
     render(
       <AccordionSection label="Fees">
         <button type="button">inside</button>
       </AccordionSection>
     )
-    const inner = screen.getByText('inside').closest('[inert]')
-    expect(inner, 'the closed panel does not carry inert').not.toBeNull()
+    expect(screen.queryByText('inside')).toBeNull()
   })
 
   test('controlled open renders the region without a click', () => {

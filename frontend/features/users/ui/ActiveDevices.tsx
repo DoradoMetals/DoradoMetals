@@ -72,7 +72,7 @@ export function ActiveDevices() {
                 <TableCell className="text-center">
                   <Button
                     type="button"
-                    variant="link"
+                    variant="tertiary"
                     intent="danger"
                     size="xs"
                     onClick={() => revokeSession.mutate(s.token)}

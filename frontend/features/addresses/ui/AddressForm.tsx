@@ -338,7 +338,7 @@ export default function AddressForm({
             />
             <Button
               type="button"
-              variant="link"
+              variant="tertiary"
               size="sm"
               onClick={() => setMode(mode === 'manual' ? 'auto' : 'manual')}
             >

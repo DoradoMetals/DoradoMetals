@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Montserrat, Open_Sans, Poppins } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
 import './styles/globals.css'
 import LayoutProvider from '@/shared/providers/LayoutProvider' // ✅ Import the Client Component
 import { ThemeProvider } from '@/shared/providers/ThemeProvider'
@@ -8,21 +8,21 @@ import GoogleMapsProvider from '@/shared/providers/GoogleMapsProvider'
 
 import GoogleRecaptchaProvider from '@/shared/providers/GoogleRecaptchaProvider'
 
-export const montserrat = Montserrat({
-  subsets: ['latin'],
-  weight: ['400', '600', '800'],
-  variable: '--font-header',
-})
-
-export const openSans = Open_Sans({
+// GEIST, ONE FAMILY (brand refresh, 2026-08-30). Every text style in the Figma
+// library is Geist; Montserrat, Open Sans and Poppins are the old brand. Both
+// CSS variables survive - typography.css hangs headings off --font-header and
+// body off --font-sans - they simply resolve to the same family now, at the
+// weights the drawings use (400 body, 500 chrome, 600 headings; variable font,
+// so no weight list). Geist Mono takes the numeric/mono slot from the
+// ui-monospace stack.
+export const geist = Geist({
   subsets: ['latin'],
   variable: '--font-sans',
 })
 
-export const poppins = Poppins({
+export const geistMono = Geist_Mono({
   subsets: ['latin'],
-  weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
-  variable: '--font-sans',
+  variable: '--font-mono-loaded',
 })
 
 
@@ -36,7 +36,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${montserrat.variable} ${poppins.variable}`}
+      className={`${geist.variable} ${geistMono.variable}`}
     >
       <body className="bg-background antialiased">
         {/* Light mode is gone (app/styles/theme.css: ":root" IS the dark

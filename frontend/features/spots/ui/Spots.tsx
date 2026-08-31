@@ -31,7 +31,7 @@ export default function Spots() {
               <div className="flex items-center w-full justify-between ml-auto">
                 <Button
                   variant="primary"
-                  intent="brand"
+
                   className="flex items-center gap-1 p-0 m-0 h-4"
                   onClick={() => toggleType()}
                 >

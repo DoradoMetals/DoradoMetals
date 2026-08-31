@@ -173,7 +173,7 @@ export const AddressCard: React.FC<AddressCardProps> = ({
               {showSetDefault && !userAddress?.default_shipping && (
                 <Button
                   type="button"
-                  variant="link"
+                  variant="tertiary"
                   size="sm"
                   disabled={busy}
                   onClick={(e) => {

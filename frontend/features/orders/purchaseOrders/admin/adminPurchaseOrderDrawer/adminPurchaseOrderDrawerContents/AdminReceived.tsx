@@ -98,7 +98,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
             <div className="flex w-full justify-between items-center mb-2">
               <small className="tracking-widest">Order Spots</small>
               <Button
-                variant="link"
+                variant="tertiary"
                 className="p-0 h-4"
                 onClick={() => (order.spots_locked ? handleResetSpots() : handleLockSpots())}
                 disabled={setSpots.isPending}
@@ -558,7 +558,7 @@ function ScrapTable({
               trigger={
                 <Button
                   disabled={editMode}
-                  variant="link"
+                  variant="tertiary"
                   className="flex items-center gap-1 p-0 h-4"
                 >
                   <Plus size={16} />
@@ -802,7 +802,7 @@ function BullionTable({
               trigger={
                 <Button
                   disabled={editMode}
-                  variant="link"
+                  variant="tertiary"
                   className="flex items-center gap-1 p-0 h-4"
                 >
                   <Plus size={16} />

@@ -38,7 +38,7 @@ export function ForgotPasswordDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="link" size="xs">
+        <Button variant="tertiary" size="xs">
           Forgot Password?
         </Button>
       </DialogTrigger>

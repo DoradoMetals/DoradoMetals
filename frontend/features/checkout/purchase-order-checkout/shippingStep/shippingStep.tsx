@@ -108,7 +108,6 @@ export default function ShippingStep({
           <p className="text-center">Create an address to continue checkout.</p>
           <Button
             type="button"
-            effect="expandIcon"
             variant="secondary"
             size="sm"
             iconPlacement="right"
