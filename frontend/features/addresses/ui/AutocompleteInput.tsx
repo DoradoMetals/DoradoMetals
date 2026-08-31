@@ -1,113 +1,72 @@
-import { useRef } from 'react'
+'use client'
+
+// The app's face of @dorado/components' Autocomplete: the Places wiring stays
+// here (fetching, debouncing and parsing are the app's business), the anatomy,
+// the combobox semantics and the keyboard all moved into the library.
+//
+// The signature is unchanged so AddressForm does not move. Three of its props
+// are now vestigial and accepted for compatibility: `dropdownOpen`,
+// `activeIndex` and `onActiveIndex` - the library owns the open state and the
+// highlight (aria-activedescendant, arrows, Enter, Escape), which is exactly
+// the code this file used to hand-roll. `onOpen`/`onClose` still fire on
+// focus/blur because the hook listens.
 import { MapPinIcon, XIcon } from '@phosphor-icons/react'
-import { cn } from '@/shared/utils/cn'
-import { Input } from '@/shared/ui/base/input'
+import { Autocomplete, Button } from '@dorado/components'
 import { ParsedPlaceSuggestion } from '@/features/addresses/types'
 
 export function AddressSearchInput({
   placesReady,
   value,
   suggestions,
-  dropdownOpen,
-  activeIndex,
   onChangeValue,
   onOpen,
   onClose,
-  onActiveIndex,
   onSelect,
   onClear,
 }: {
   placesReady: boolean
   value: string
   suggestions: ParsedPlaceSuggestion[]
-  dropdownOpen: boolean
-  activeIndex: number
+  dropdownOpen?: boolean
+  activeIndex?: number
   onChangeValue: (v: string) => void
   onOpen: () => void
   onClose: () => void
-  onActiveIndex: (updater: (i: number) => number) => void
+  onActiveIndex?: (updater: (i: number) => number) => void
   onSelect: (s: ParsedPlaceSuggestion) => void | Promise<void>
   onClear: () => void
 }) {
-  const blurTimer = useRef<number | null>(null)
-
-  const closeSoon = () => {
-    if (blurTimer.current) window.clearTimeout(blurTimer.current)
-    blurTimer.current = window.setTimeout(() => onClose(), 120)
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!dropdownOpen || suggestions.length === 0) return
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      onActiveIndex((i) => Math.min(i + 1, suggestions.length - 1))
-      return
-    }
-
-    if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      onActiveIndex((i) => Math.max(i - 1, 0))
-      return
-    }
-
-    if (e.key === 'Enter') {
-      if (activeIndex >= 0) {
-        e.preventDefault()
-        void onSelect(suggestions[activeIndex])
-      }
-      return
-    }
-
-    if (e.key === 'Escape') {
-      onClose()
-    }
-  }
+  const byId = new Map(suggestions.map((s) => [s.placeId, s]))
 
   return (
-    <div className="relative">
-      <MapPinIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
-
-      <Input
-        className="px-9"
-        disabled={!placesReady}
-        placeholder={placesReady ? 'Search...' : 'Loading'}
-        value={value}
-        onChange={(e) => onChangeValue(e.target.value)}
-        onFocus={() => onOpen()}
-        onBlur={closeSoon}
-        onKeyDown={handleKeyDown}
-      />
-
-      {!!value && (
-        <button
-          type="button"
-          onClick={onClear}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 hover:bg-card"
-        >
-          <XIcon size={14} className="text-neutral-600" />
-        </button>
-      )}
-
-      {dropdownOpen && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full rounded-md border border-border bg-card overflow-hidden">
-          {suggestions.map((s, idx) => (
-            <button
-              key={s.placeId}
-              type="button"
-              className={cn(
-                'cursor-pointer w-full text-left px-3 py-2 hover:bg-highest flex flex-col gap-0.5',
-                idx === activeIndex && 'bg-highest'
-              )}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => void onSelect(s)}
-            >
-              <strong>{s.main}</strong>
-              {!!s.secondary && <small>{s.secondary}</small>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Autocomplete
+      value={value}
+      onValueChange={onChangeValue}
+      items={suggestions.map((s) => ({
+        id: s.placeId,
+        textValue: s.main,
+        label: (
+          <span className="flex min-w-0 flex-col gap-0.5 py-1 leading-tight">
+            <strong className="truncate">{s.main}</strong>
+            {!!s.secondary && <small className="truncate">{s.secondary}</small>}
+          </span>
+        ),
+      }))}
+      onSelect={(item) => {
+        const s = byId.get(item.id)
+        if (s) void onSelect(s)
+      }}
+      leading={<MapPinIcon size={16} />}
+      trailing={
+        value ? (
+          <Button variant="tertiary" size="iconXs" aria-label="Clear address search" onClick={onClear}>
+            <XIcon size={14} />
+          </Button>
+        ) : undefined
+      }
+      disabled={!placesReady}
+      placeholder={placesReady ? 'Search...' : 'Loading'}
+      inputProps={{ onFocus: onOpen, onBlur: onClose }}
+    />
   )
 }
