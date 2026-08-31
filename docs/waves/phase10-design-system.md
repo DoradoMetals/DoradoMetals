@@ -701,4 +701,6 @@ Footer is cleared. (2) The footer's five link columns now cluster flush
 RIGHT as one group on desktop - right edge on the legal row's line above
 Privacy/Terms/Accessibility - with Brand alone on the left. (A collapsed
 FILL-in-HUG squeeze and a stuck 60px label width surfaced while regrouping;
-both fixed - "Company" wraps no more.)
+both fixed - "Company" wraps no more. MOBILE legal row mirrors the two-column
+grid: (c) in the left cell, Privacy/Terms in a right cell whose left edge IS
+the right column's left edge (both cells fixed at the columns' own 159px).)
