@@ -726,3 +726,22 @@ their offsets (everything at 0,0 - instagram's lens in the corner), so the
 artwork was re-placed on the 16-grid, sizes and paths untouched. The mobile
 social row now instances HIS components at native 16 with subtlest strokes;
 the DESKTOP footer carries no social row at all (mobile-only, his call).
+
+
+## Footer round 5 (2026-08-31) - the real marks, and the mobile grid rebuilt
+
+**The icons are Jacob's actual SVGs now**, imported from
+`frontend/public/icons/social_media/white/` (the folder is the source of
+truth): facebook, instagram, linkedin, x - scaled to the 16-grid, fills
+bound to text/default. My hand-drawn glyphs are gone; there is no youtube
+file so there is no youtube icon.
+
+**The mobile Columns frame was the bug.** It had drifted into a GRID whose
+cells nested categories inside each other (Product ended up INSIDE the
+Legal column), so adding a fifth section exploded the layout. It is now a
+plain WRAPPING row of five equal 159px category cells - Product, Metals,
+Company, Connect, Legal - which means a sixth category just wraps onto the
+next line and nothing nests. Privacy/Terms moved under the new Legal
+heading; category headings are H6 at placeholder (they are labels, not
+links, so the link-colour restore must not brighten them); the bottom row
+justifies the copyright left against the social marks right.
