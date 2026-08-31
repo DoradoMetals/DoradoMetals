@@ -25,6 +25,7 @@
 // highlight are this component's.
 import * as React from "react";
 import { cn } from "./cn";
+import { fieldOption, fieldPanel, fieldTrigger, FieldLabel } from "./field";
 
 export type AutocompleteItem = {
   id: string;
@@ -106,18 +107,10 @@ export function Autocomplete({
 
   return (
     <div className={cn("relative flex w-full flex-col gap-0.5", className)}>
-      {label != null && (
-        <label htmlFor={id} className="text-small font-medium text-muted-foreground">
-          {label}
-        </label>
-      )}
-      <div
-        className={cn(
-          "flex h-11 w-full items-center gap-2 rounded-lg border border-input bg-card px-3 transition-colors",
-          "focus-within:border-border-strong",
-          disabled && "pointer-events-none opacity-50"
-        )}
-      >
+      {label != null && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
+      {/* The FIELD CHASSIS (Popover Field, 106:213): one set of clothes shared
+          with Select and the pickers - see field.tsx. */}
+      <div className={cn(fieldTrigger(), disabled && "pointer-events-none opacity-50")}>
         {leading != null && <span className="shrink-0 text-muted-foreground">{leading}</span>}
         <input
           id={id}
@@ -158,7 +151,7 @@ export function Autocomplete({
         <ul
           id={listId}
           role="listbox"
-          className="absolute top-full z-50 mt-1 flex w-full flex-col gap-2 rounded-lg border border-border bg-popover p-2"
+          className={cn(fieldPanel(), "absolute top-full mt-1 w-full")}
         >
           {items.length === 0 ? (
             <li className="flex h-9 items-center px-3 text-body text-muted-foreground">{empty}</li>
@@ -174,10 +167,8 @@ export function Autocomplete({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => select(item)}
                 onMouseEnter={() => setActive(idx)}
-                className={cn(
-                  "flex min-h-9 cursor-pointer items-center rounded-sm px-3 text-body",
-                  idx === active ? "bg-accent text-foreground" : "text-muted-foreground"
-                )}
+                data-highlighted={idx === active || undefined}
+                className={fieldOption()}
               >
                 {item.label ?? item.textValue}
               </li>

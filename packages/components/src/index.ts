@@ -18,3 +18,5 @@ export {
 } from "./button";
 export { Link, linkVariants, type LinkProps } from "./link";
 export { Upload, type UploadProps } from "./upload";
+export { fieldTrigger, fieldPanel, fieldOption, FieldLabel } from "./field";
+export { Select, type SelectProps, type SelectItemShape } from "./select";

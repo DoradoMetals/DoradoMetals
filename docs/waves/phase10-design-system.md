@@ -401,6 +401,8 @@ so the write half of the design contract is automatable after all.
 | Alert | 54:44 | role=alert/status split | checkout payment message | — |
 | Avatar | 32:147 | Radix image lifecycle + initials fallback | base/avatar doorway (ProfileMenu) | — |
 | Badge | 32:83 | two-axis cva + leading icon slot (Jacob) | — awaiting first adopter | — |
+| Field chassis | Popover Field 106:213 | fieldTrigger/fieldPanel/fieldOption, one set of clothes | worn by Select + Autocomplete | description records the code |
+| Select | 38:75 (trigger DEPRECATED) | Radix Select on the chassis | — awaiting first adopter | trigger set marked deprecated → Popover Field |
 
 **The process, as Jacob corrected it**: adoption is part of the slice — a
 package component replaces its app counterpart in the same pass, and buttons
