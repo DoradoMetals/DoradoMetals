@@ -8,7 +8,8 @@
 // Renders an <a>; pass asChild to wrap a framework Link (next/link) and keep
 // its navigation semantics.
 import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
+import { Slot, Slottable } from "@radix-ui/react-slot";
+import { ExternalLink } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 
@@ -34,12 +35,24 @@ export interface LinkProps
   extends React.AnchorHTMLAttributes<HTMLAnchorElement>,
     VariantProps<typeof linkVariants> {
   asChild?: boolean;
+  /** Leading external-link glyph for links that leave the app (Jacob,
+   *  2026-08-30). Decoration only - target/rel are still the caller's. */
+  external?: boolean;
 }
 
 const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(
-  ({ className, intent, asChild = false, ...props }, ref) => {
+  ({ className, intent, asChild = false, external = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "a";
-    return <Comp className={cn(linkVariants({ intent, className }))} ref={ref} {...props} />;
+    return (
+      <Comp
+        className={cn(external && "inline-flex items-center gap-1", linkVariants({ intent, className }))}
+        ref={ref}
+        {...props}
+      >
+        {external && <ExternalLink aria-hidden className="size-2.5 shrink-0" />}
+        <Slottable>{children}</Slottable>
+      </Comp>
+    );
   }
 );
 Link.displayName = "Link";

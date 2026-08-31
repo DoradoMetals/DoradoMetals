@@ -19,7 +19,9 @@ import { cn } from "../cn";
 export const fieldTrigger = cva(
   cn(
     "flex h-11 w-full items-center gap-2 rounded-lg border bg-card px-3 text-body text-foreground transition-colors",
-    "border-input focus-within:border-border-strong focus-visible:outline-none focus-visible:border-border-strong",
+    // FOCUS IS THE PRIMARY BORDER (Jacob, 2026-08-30) - the one state that
+    // may outrank the neutral ramp.
+    "border-input focus-within:border-primary focus-visible:outline-none focus-visible:border-primary",
     "aria-[invalid=true]:border-destructive data-[invalid]:border-destructive",
     "disabled:pointer-events-none disabled:opacity-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
   )

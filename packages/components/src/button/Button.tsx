@@ -97,25 +97,22 @@ const buttonVariants = cva(
       { variant: "secondary", intent: "info",
         className: "border-info text-info hover:bg-info hover:text-info-foreground" },
 
-      // ---- tertiary: bare; hover fills with ACCENT (Jacob, 2026-08-30:
-      //      not the outline - and not underline, which is Link's move). The
-      //      accent fill is the file's own quiet-hover language: Table Row and
-      //      Select Option both hover exactly this way. px-2/-mx-2 is what
-      //      lets a BARE control take a fill: the text keeps the alignment
-      //      px-0 bought, and the hover gets geometry instead of hugging the
-      //      glyphs. Emitted here, after the size axis, to survive the merge.
-      { variant: "tertiary", className: "px-2 -mx-2" },
+      // ---- tertiary: bare; hover is an UNDERLINE (Jacob, 2026-08-30 night:
+      //      the accent fill was rejected twice; weight-on-hover was refused
+      //      for all three variants because hover must never reflow text).
+      //      Yes, underline is also Link's move - the difference stays legible
+      //      because a Link is quiet muted prose text and a tertiary Button
+      //      keeps button geometry and Medium weight. px-2/-mx-2 stays: it is
+      //      what keeps bare-text alignment while focus-visible still gets
+      //      geometry. Emitted here, after the size axis, to survive the merge.
+      { variant: "tertiary", className: "px-2 -mx-2 hover:underline underline-offset-4" },
 
       { variant: "tertiary", intent: "neutral",
-        className: "text-muted-foreground hover:text-foreground hover:bg-accent" },
-      { variant: "tertiary", intent: "success",
-        className: "text-success hover:bg-accent" },
-      { variant: "tertiary", intent: "danger",
-        className: "text-destructive hover:bg-accent" },
-      { variant: "tertiary", intent: "warning",
-        className: "text-warning hover:bg-accent" },
-      { variant: "tertiary", intent: "info",
-        className: "text-info hover:bg-accent" },
+        className: "text-muted-foreground hover:text-foreground" },
+      { variant: "tertiary", intent: "success", className: "text-success" },
+      { variant: "tertiary", intent: "danger", className: "text-destructive" },
+      { variant: "tertiary", intent: "warning", className: "text-warning" },
+      { variant: "tertiary", intent: "info", className: "text-info" },
     ],
     defaultVariants: { variant: "primary", intent: "neutral", size: "default" },
   }
@@ -136,7 +133,8 @@ export interface ButtonProps
 
 interface IconProps {
   icon: React.ElementType;
-  iconPlacement: "left" | "right";
+  /** Defaults to leading (Jacob, 2026-08-30). */
+  iconPlacement?: "left" | "right";
   iconSize?: number;
 }
 interface IconRefProps {
@@ -147,7 +145,7 @@ interface IconRefProps {
 export type ButtonIconProps = IconProps | IconRefProps;
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps & ButtonIconProps>(
-  ({ className, variant, intent, size, icon: Icon, iconPlacement, iconSize, asChild = false, ...props }, ref) => {
+  ({ className, variant, intent, size, icon: Icon, iconPlacement = "left", iconSize, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
     return (
       <Comp

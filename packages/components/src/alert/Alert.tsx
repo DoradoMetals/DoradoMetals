@@ -15,7 +15,9 @@
 // info are role="status", read at the next pause. An inline message that a
 // screen reader never says is a decoration, not an alert.
 import * as React from "react";
-import { CheckCircle2, CircleAlert, Info, TriangleAlert } from "lucide-react";
+import { CheckCircle2, CircleAlert, Info, TriangleAlert, X } from "lucide-react";
+
+import { Button } from "../button/Button";
 import { cva } from "class-variance-authority";
 import { cn } from "../cn";
 
@@ -56,10 +58,12 @@ export type AlertProps = {
   children?: React.ReactNode;
   /** Replaces the intent's default 16px icon; `false` hides it. */
   icon?: React.ReactNode | false;
+  /** Renders the X clear control (Button tertiary/iconXs) when given. */
+  onDismiss?: () => void;
   className?: string;
 };
 
-export function Alert({ intent = "neutral", title, children, icon, className }: AlertProps) {
+export function Alert({ intent = "neutral", title, children, icon, onDismiss, className }: AlertProps) {
   const DefaultIcon = ICONS[intent];
   return (
     <div
@@ -67,7 +71,9 @@ export function Alert({ intent = "neutral", title, children, icon, className }: 
       className={cn(alertVariants({ intent }), className)}
     >
       {icon !== false && (
-        <span className={cn("mt-0.5 shrink-0", TITLE[intent])}>
+        // 19.5px title line, 16px icon: 2px pad centers it WITH THE TITLE,
+        // not the whole text block (Jacob, 2026-08-30).
+        <span className={cn("mt-[2px] shrink-0", TITLE[intent])}>
           {icon ?? <DefaultIcon aria-hidden className="size-4" />}
         </span>
       )}
@@ -75,6 +81,17 @@ export function Alert({ intent = "neutral", title, children, icon, className }: 
         <span className={cn("font-medium", TITLE[intent])}>{title}</span>
         {children != null && <span className="text-muted-foreground">{children}</span>}
       </span>
+      {onDismiss && (
+        <Button
+          variant="tertiary"
+          size="iconXs"
+          aria-label="Dismiss"
+          className="-mr-1 shrink-0"
+          onClick={onDismiss}
+        >
+          <X aria-hidden className="size-3.5" />
+        </Button>
+      )}
     </div>
   );
 }

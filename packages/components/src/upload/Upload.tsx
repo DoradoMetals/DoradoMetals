@@ -19,7 +19,7 @@
 //   - drops are filtered against `accept` the same way the picker filters,
 //     so drag cannot smuggle in what browse refuses
 import * as React from "react";
-import { UploadCloud } from "lucide-react";
+import { CircleCheck, UploadCloud } from "lucide-react";
 import { cn } from "../cn";
 
 export type UploadProps = {
@@ -31,6 +31,11 @@ export type UploadProps = {
   disabled?: boolean;
   prompt?: React.ReactNode;
   hint?: React.ReactNode;
+  /** Any icon from the library - 32px, muted (Jacob, 2026-08-30). */
+  icon?: React.ReactNode;
+  /** Files already accepted: check-in-success + count line; the zone stays a
+   *  drop target for adding more. */
+  uploadedCount?: number;
   className?: string;
 };
 
@@ -53,8 +58,11 @@ export function Upload({
   disabled = false,
   prompt = "Drag & drop, or browse",
   hint,
+  icon,
+  uploadedCount,
   className,
 }: UploadProps) {
+  const uploaded = uploadedCount != null && uploadedCount > 0;
   const [dragOver, setDragOver] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -99,9 +107,21 @@ export function Upload({
           e.currentTarget.value = "";
         }}
       />
-      <UploadCloud aria-hidden className="size-5 text-muted-foreground" />
-      <span className="text-small font-medium text-foreground">{prompt}</span>
-      {hint != null && <span className="text-micro text-muted-foreground">{hint}</span>}
+      {uploaded ? (
+        <CircleCheck aria-hidden className="size-8 text-success" />
+      ) : (
+        <span className="text-muted-foreground [&_svg]:size-8">
+          {icon ?? <UploadCloud aria-hidden className="size-8" />}
+        </span>
+      )}
+      <span className="text-small font-medium text-foreground">
+        {uploaded ? `${uploadedCount} file${uploadedCount === 1 ? "" : "s"} uploaded` : prompt}
+      </span>
+      {uploaded ? (
+        <span className="text-micro text-muted-foreground">Add more, or drag to replace</span>
+      ) : (
+        hint != null && <span className="text-micro text-muted-foreground">{hint}</span>
+      )}
     </label>
   );
 }

@@ -15,7 +15,9 @@
 //   - the error meta line is aria-live polite: a failure that arrives after
 //     the user tabbed away still gets announced
 import * as React from "react";
-import { File as FileIcon, X } from "lucide-react";
+import { File as FileIcon, Trash2 } from "lucide-react";
+
+import { Progress } from "../progress/Progress";
 import { Button } from "../button/Button";
 import { cn } from "../cn";
 
@@ -77,27 +79,20 @@ export function Attachment({
             aria-label={`Remove ${filename}`}
             onClick={onRemove}
           >
-            <X aria-hidden className="size-4" />
+            {/* A trash, not an X - an X reads as "close", this DELETES the file
+                (Jacob, 2026-08-30). */}
+            <Trash2 aria-hidden className="size-4" />
           </Button>
         )}
       </div>
       {state === "uploading" && (
-        <div
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progress != null ? Math.round(progress) : undefined}
+        // The rail IS the Progress component now (Jacob, 2026-08-30) - one
+        // bar, one set of aria, one animation. Height stays the drawing's 3px.
+        <Progress
+          value={progress ?? 0}
           aria-label={`Uploading ${filename}`}
-          className="h-[3px] w-full overflow-hidden rounded-full bg-muted"
-        >
-          <div
-            className={cn(
-              "h-full rounded-full bg-primary transition-[width] motion-reduce:transition-none",
-              progress == null && "w-1/2 animate-pulse"
-            )}
-            style={progress != null ? { width: `${Math.min(100, Math.max(0, progress))}%` } : undefined}
-          />
-        </div>
+          className="h-[3px]"
+        />
       )}
     </div>
   );

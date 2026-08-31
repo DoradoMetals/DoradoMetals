@@ -1,5 +1,5 @@
-// Pins the Figma Progress contract (132:995): progressbar aria, the sweep
-// pausing under motion-reduce, transform-moved indicator, clamping.
+// Pins the Progress contract (132:995, revised 2026-08-30): determinate only
+// - indeterminate went to Spinner - with the optional value label.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
@@ -15,14 +15,6 @@ describe("Progress", () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it("indeterminate drops aria-valuenow and the sweep pauses under motion-reduce", () => {
-    const { container } = render(<Progress aria-label="Working" />);
-    const bar = container.querySelector('[role="progressbar"]') as HTMLElement;
-    expect(bar.getAttribute("aria-valuenow")).toBe(null);
-    const sweep = container.querySelector(".animate-progress-sweep") as HTMLElement;
-    expect(sweep.className).toContain("motion-reduce:animate-none");
-  });
-
   it("the rail is the sanctioned pill and the indicator moves by transform", () => {
     const { container } = render(<Progress value={25} aria-label="p" />);
     const bar = container.querySelector('[role="progressbar"]') as HTMLElement;
@@ -36,5 +28,12 @@ describe("Progress", () => {
     const indicator = container.querySelector('[role="progressbar"]')!
       .firstElementChild as HTMLElement;
     expect(indicator.style.transform).toBe("translateX(-0%)");
+  });
+
+  it("showValue renders the percent beside the rail, hidden from AT", () => {
+    const { container } = render(<Progress value={66} showValue aria-label="p" />);
+    const label = container.querySelector('[aria-hidden="true"]') as HTMLElement;
+    expect(label).toBeTruthy();
+    expect(label.textContent).toBe("66%");
   });
 });

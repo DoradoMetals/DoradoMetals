@@ -30,12 +30,12 @@ describe('the Button is the drawing at 25:510', () => {
     expect(c).toContain('text-muted-foreground')
   })
 
-  /* The hover language: escalate one step. Tertiary fills with ACCENT - the
-     file's quiet-hover language (Table Row, Select Option); Jacob rejected the
-     drawn outline, and underline is Link's move. Secondary fills, primary dims
-     BY RAMP STEP (the drawing resolves the hover fill to neutral-800). */
+  /* The hover language: tertiary UNDERLINES (Jacob, 2026-08-30 night - the
+     accent fill was rejected twice; weight-on-hover refused because hover
+     must never reflow text). Secondary fills, primary dims BY RAMP STEP. */
   it('hover escalates one step, per variant', () => {
-    expect(rendered({ variant: 'tertiary' })).toContain('hover:bg-accent')
+    expect(rendered({ variant: 'tertiary' })).toContain('hover:underline')
+    expect(rendered({ variant: 'tertiary' })).not.toContain('hover:bg-accent')
     expect(rendered({ variant: 'tertiary' })).not.toContain('hover:border-border')
     expect(rendered({ variant: 'secondary' })).toContain('hover:bg-accent')
     expect(rendered({ variant: 'secondary' })).toContain('hover:border-border-strong')

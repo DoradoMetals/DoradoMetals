@@ -11,6 +11,7 @@
 // into six real inputs breaks every one of those.
 import * as React from "react";
 import { cn } from "../cn";
+import { Link } from "../link/Link";
 
 export type OTPInputProps = {
   length?: number;
@@ -21,6 +22,12 @@ export type OTPInputProps = {
   invalid?: boolean;
   disabled?: boolean;
   label?: string;
+  /** H5 heading above the cells (Jacob, 2026-08-30). */
+  title?: React.ReactNode;
+  /** Seconds until resend is allowed; counts down, then renders the Resend
+   *  link. Omit to hide the whole line. */
+  resendIn?: number;
+  onResend?: () => void;
   className?: string;
 };
 
@@ -32,8 +39,24 @@ export function OTPInput({
   invalid = false,
   disabled = false,
   label = "One-time code",
+  title,
+  resendIn,
+  onResend,
   className,
 }: OTPInputProps) {
+  // The countdown restarts whenever the caller resets resendIn (a new send).
+  const [secondsLeft, setSecondsLeft] = React.useState(resendIn ?? 0);
+  React.useEffect(() => {
+    setSecondsLeft(resendIn ?? 0);
+    if (resendIn == null || resendIn <= 0) return;
+    const t = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) { clearInterval(t); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [resendIn]);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [focused, setFocused] = React.useState(false);
   const digits = value.slice(0, length).split("");
@@ -46,7 +69,9 @@ export function OTPInput({
   };
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("flex flex-col gap-3", className)}>
+      {title != null && <span className="text-h5 font-medium text-foreground">{title}</span>}
+      <div className="relative">
       <input
         ref={inputRef}
         value={value}
@@ -73,7 +98,7 @@ export function OTPInput({
                 invalid
                   ? "border-[1.5px] border-destructive"
                   : isActive
-                  ? "border-[1.5px] border-border-strong"
+                  ? "border-[1.5px] border-primary"
                   : "border border-border"
               )}
             >
@@ -82,6 +107,27 @@ export function OTPInput({
           );
         })}
       </div>
+      </div>
+      {resendIn != null && (
+        // aria-live stays OFF while ticking - a timer read aloud every second
+        // is torture; only the state change to the link announces.
+        <span className="text-small text-placeholder">
+          {secondsLeft > 0 ? (
+            `Resend in ${secondsLeft}s`
+          ) : (
+            <Link
+              role="button"
+              tabIndex={0}
+              onClick={() => onResend?.()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onResend?.(); }
+              }}
+            >
+              Resend code
+            </Link>
+          )}
+        </span>
+      )}
     </div>
   );
 }

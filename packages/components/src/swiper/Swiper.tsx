@@ -76,8 +76,12 @@ export function Swiper({ children, label, className }: SwiperProps) {
             aria-current={i === page || undefined}
             onClick={() => goTo(i)}
             className={cn(
-              "h-1.5 cursor-pointer rounded-full transition-all motion-reduce:transition-none",
-              i === page ? "w-5 bg-primary" : "w-1.5 bg-muted-foreground/40 hover:bg-muted-foreground"
+              // The active dot stays a CIRCLE (Jacob, 2026-08-30) - bigger and
+              // primary, never a widened oval.
+              "cursor-pointer rounded-full transition-all motion-reduce:transition-none",
+              i === page
+                ? "size-2 bg-primary"
+                : "size-1.5 bg-muted-foreground/40 hover:bg-muted-foreground"
             )}
           />
         ))}

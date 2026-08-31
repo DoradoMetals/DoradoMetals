@@ -66,7 +66,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           aria-describedby={message != null ? messageId : undefined}
           className={cn(
             "min-h-24 w-full resize-y rounded-lg border border-input bg-card px-3 py-2 text-body text-foreground outline-none transition-colors",
-            "placeholder:text-placeholder focus-visible:border-border-strong",
+            "placeholder:text-placeholder focus-visible:border-primary",
             invalid && "border-destructive",
             success && "border-success",
             "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -75,7 +75,17 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         />
         {(message != null || showCount) && (
           <span className="flex items-baseline justify-between gap-2">
-            {message != null ? (
+            {/* Count sits bottom-LEFT (Jacob, 2026-08-30); the message keeps
+                the right so an error and the count can coexist. */}
+            {showCount ? (
+              <span className={cn("text-micro", over ? "text-destructive" : "text-muted-foreground")}>
+                {count}
+                {maxLength != null && ` / ${maxLength}`}
+              </span>
+            ) : (
+              <span />
+            )}
+            {message != null && (
               <p
                 id={messageId}
                 className={cn(
@@ -85,14 +95,6 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
               >
                 {message}
               </p>
-            ) : (
-              <span />
-            )}
-            {showCount && (
-              <span className={cn("text-micro", over ? "text-destructive" : "text-muted-foreground")}>
-                {count}
-                {maxLength != null && ` / ${maxLength}`}
-              </span>
             )}
           </span>
         )}

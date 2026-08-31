@@ -11,6 +11,8 @@ describe("Field chassis", () => {
   it("trigger wears the card border language and the invalid hook", () => {
     const c = fieldTrigger();
     expect(c).toContain("border-input");
+    // Focus is the PRIMARY border (Jacob, 2026-08-30).
+    expect(c).toContain("focus-within:border-primary");
     expect(c).toContain("aria-[invalid=true]:border-destructive");
   });
 

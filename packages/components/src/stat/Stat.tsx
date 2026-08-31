@@ -22,11 +22,11 @@ export type StatProps = {
 export function Stat({ label, value, size = "default", trend, className }: StatProps) {
   return (
     <div className={cn("flex flex-col gap-1", className)}>
-      <span className="text-small text-muted-foreground">{label}</span>
+      <span className="text-small tracking-wide text-muted-foreground">{label}</span>
       <span className="flex items-center gap-2">
         <span
           className={cn(
-            "font-semibold tabular-nums text-foreground",
+            "font-semibold tabular-nums tracking-wide text-foreground",
             size === "default" ? "text-stat" : "text-stat-sm"
           )}
         >

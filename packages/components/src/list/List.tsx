@@ -22,7 +22,7 @@ export function List({ marker = "bullet", children, className }: ListProps) {
   const Tag = marker === "number" ? "ol" : "ul";
   return (
     <ListContext.Provider value={marker}>
-      <Tag className={cn("flex list-none flex-col gap-3", marker === "number" && "[counter-reset:item]", className)}>
+      <Tag className={cn("flex list-none flex-col gap-1.5", marker === "number" && "[counter-reset:item]", className)}>
         {children}
       </Tag>
     </ListContext.Provider>

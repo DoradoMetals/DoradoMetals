@@ -10,7 +10,9 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-sm px-2 py-1 text-micro font-medium whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0",
+  // DISTINCT FROM BUTTON by construction (Jacob, 2026-08-30): micro text,
+  // 20px tall, 6px radius against the button's 8 - nothing affords pressing.
+  "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-micro font-medium whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0",
   {
     variants: {
       variant: { solid: "", soft: "", outline: "border" },

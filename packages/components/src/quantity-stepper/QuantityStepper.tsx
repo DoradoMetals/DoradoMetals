@@ -48,7 +48,10 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
         role="group"
         aria-label={label ?? 'Quantity'}
         className={cn(
-          'inline-flex h-9 items-center overflow-hidden rounded-lg border border-input bg-card',
+          // focus-within: the whole group's border goes PRIMARY - the field focus
+          // language - which is how "the middle is an input" announces itself
+          // (Jacob, 2026-08-30). cursor-text on the value does the rest.
+          'inline-flex h-9 items-center overflow-hidden rounded-lg border border-input bg-card transition-colors focus-within:border-primary',
           disabled && 'pointer-events-none opacity-50',
           className,
         )}
@@ -70,12 +73,13 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
           value={draft ?? String(value)}
           onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ''))}
           onBlur={(e) => commit(e.target.value)}
+          onFocus={(e) => e.target.select()}
           onKeyDown={(e) => {
             if (e.key === 'Enter') commit((e.target as HTMLInputElement).value)
             if (e.key === 'ArrowUp') { e.preventDefault(); step(1) }
             if (e.key === 'ArrowDown') { e.preventDefault(); step(-1) }
           }}
-          className="h-full w-8 bg-transparent text-center text-sm font-medium tabular-nums text-foreground outline-none"
+          className="h-full w-8 cursor-text bg-transparent text-center text-sm font-medium tabular-nums text-foreground outline-none"
         />
         <button
           type="button"

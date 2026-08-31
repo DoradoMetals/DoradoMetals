@@ -442,11 +442,11 @@ w
 @theme {
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
-  --animate-progress-sweep: progress-sweep 1.4s ease-in-out infinite;
+  --animate-marquee: marquee 30s linear infinite;
 
-  @keyframes progress-sweep {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(400%); }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-100%); }
   }
 
   @keyframes accordion-down {

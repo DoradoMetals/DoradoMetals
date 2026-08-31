@@ -18,9 +18,15 @@ export type ChipProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "chi
   label: React.ReactNode;
   selected?: boolean;
   onDismiss?: () => void;
+  /** Leading 12px icon; inherits the text colour. */
+  icon?: React.ReactNode;
+  /** Leading 16px avatar (people/entity chips); wins over icon. */
+  avatar?: React.ReactNode;
+  /** Trailing count for filter chips - "Gold 12". Micro, tabular. */
+  count?: number;
 };
 
-export function Chip({ label, selected = false, onDismiss, className, disabled, ...props }: ChipProps) {
+export function Chip({ label, selected = false, onDismiss, icon, avatar, count, className, disabled, ...props }: ChipProps) {
   return (
     <button
       type="button"
@@ -37,7 +43,15 @@ export function Chip({ label, selected = false, onDismiss, className, disabled, 
       )}
       {...props}
     >
+      {avatar != null ? (
+        <span className="-ml-1.5 flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-full [&_img]:size-full [&_img]:object-cover">
+          {avatar}
+        </span>
+      ) : icon != null ? (
+        <span className="shrink-0 [&_svg]:size-3">{icon}</span>
+      ) : null}
       {label}
+      {count != null && <span className="text-micro tabular-nums opacity-70">{count}</span>}
       {onDismiss && (
         <span
           role="button"

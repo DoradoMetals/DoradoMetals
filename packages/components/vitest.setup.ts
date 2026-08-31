@@ -46,3 +46,31 @@ if (typeof URL.createObjectURL !== "function") {
 import { afterEach } from "vitest";
 import { cleanup } from "@testing-library/react";
 afterEach(cleanup);
+
+// chart.js needs a 2d context; jsdom has none. A call-absorbing stub is
+// enough for smoke tests - geometry is not asserted, aria is.
+if (typeof HTMLCanvasElement !== "undefined" && !HTMLCanvasElement.prototype.getContext) {
+  // @ts-expect-error - jsdom's canvas has no getContext at all
+  HTMLCanvasElement.prototype.getContext = () => null;
+}
+if (typeof HTMLCanvasElement !== "undefined") {
+  const orig = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function (kind: string, ...rest: unknown[]) {
+    const real = orig?.call(this, kind as never, ...(rest as never[]));
+    if (real) return real;
+    if (kind !== "2d") return null;
+    const absorb: ProxyHandler<Record<string, unknown>> = {
+      get: (t, prop) => {
+        if (prop === "canvas") return this;
+        if (prop === "measureText") return () => ({ width: 0 });
+        if (prop === "getContextAttributes") return () => ({});
+        if (prop === "createLinearGradient" || prop === "createRadialGradient")
+          return () => new Proxy({}, absorb);
+        if (typeof prop === "string" && !(prop in t)) return () => undefined;
+        return t[prop as string];
+      },
+      set: () => true,
+    };
+    return new Proxy({}, absorb) as unknown as CanvasRenderingContext2D;
+  } as typeof HTMLCanvasElement.prototype.getContext;
+}
