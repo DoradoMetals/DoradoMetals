@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as emailService from "#features/media/emails/service.ts"
 import * as purchaseOrderReads from "#features/orders/read.service.ts";
 

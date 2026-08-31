@@ -1,5 +1,5 @@
 import { callerId, requiredParam } from "#shared/http/caller.ts";
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as transactionService from "#features/transactions/service.ts"
 
 // USER_ID COMES FROM THE SESSION, NOT THE BODY.

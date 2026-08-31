@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as orderAddressService from "#features/orders/addresses/service.ts";
 
 // GET /api/orders/:id/address - the address SNAPSHOT, verbatim.

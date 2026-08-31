@@ -1,6 +1,6 @@
 import { requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
 import * as orderRead from "#features/fulfillments/order-read.ts";
 import * as compose from "#features/fulfillments/compose.ts";

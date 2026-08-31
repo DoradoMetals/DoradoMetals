@@ -11,7 +11,7 @@
 // checkout and the API resolves it against the book. Returning the snapshot's
 // id would break checkout - which is the note the order projection carries at
 // the top of its own file.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

@@ -38,7 +38,7 @@
 //
 // THE ROUTES ARE MOUNTED AT /api/stripe, NOT /api/payments. The feature was
 // renamed; the path deliberately was not, because the frontend calls it and
-// renaming a module is not a reason to change the API (app.js says so). The
+// renaming a module is not a reason to change the API (app.ts says so). The
 // first version of this file inferred the path from the feature name, sent
 // every request to /api/payments, got 404 for all of them - and 404 is not in
 // [401, 403], so it read as four failures rather than as a wrong URL.

@@ -1,4 +1,4 @@
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 // The SERVICE, not a repo: a shipment is composed from six tables now, and
 // the order link it carries is reconstructed rather than stored.
 import * as shipmentRepo from "#features/shipping/shipments/service.ts";

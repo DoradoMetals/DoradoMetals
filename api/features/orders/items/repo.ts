@@ -8,7 +8,7 @@
 // write path.
 //
 // bullion_id is what tells the two kinds apart: null means scrap.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

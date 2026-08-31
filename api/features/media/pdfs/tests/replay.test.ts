@@ -33,7 +33,7 @@ import * as soRepo from "#features/orders/service.ts";
 import * as spotsService from "#features/spots/service.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");

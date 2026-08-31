@@ -3,7 +3,7 @@
 // READ ONLY. Mints are reference data - the admin product form picks one - and
 // nothing in the application creates or edits them. A create/update/delete here
 // would be API surface for something that only changes by migration.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { products } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

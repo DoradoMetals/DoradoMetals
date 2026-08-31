@@ -12,7 +12,7 @@
 // Every function takes an optional executor so the service can pull it into a
 // transaction. Without one it runs on the pool. Getting that wrong is what
 // broke checkout in August, so lint:db checks it mechanically.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { leads } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

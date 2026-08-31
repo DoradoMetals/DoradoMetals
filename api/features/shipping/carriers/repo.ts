@@ -4,7 +4,7 @@
 // belong to the organization, and are written through ITS service - the update
 // this replaces was a statement against organizations.organizations that had to
 // join shipping.carriers to find its row.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

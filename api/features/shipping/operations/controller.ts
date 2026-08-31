@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as operationsService from "#features/shipping/operations/service.ts";
 import * as shippingHandler from "#features/shipping/operations/handler.ts";
 import { carrierIdOr } from "#features/shipping/operations/resolver.ts";

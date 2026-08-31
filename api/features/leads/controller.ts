@@ -4,7 +4,7 @@
 // service result into a status code. Everything it does here it does because
 // HTTP requires it - reading a query parameter, choosing 404 over 200.
 import { requiredParam } from "#shared/http/caller.ts";
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as service from "#features/leads/service.ts";
 
 export const getOne = asyncHandler(async (req, res) => {

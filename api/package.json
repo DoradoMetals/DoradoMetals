@@ -2,11 +2,11 @@
   "name": "@dorado/api",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "server.ts",
   "type": "module",
   "scripts": {
-    "dev": "node --watch server.js",
-    "start": "node server.js",
+    "dev": "node --watch server.ts",
+    "start": "node server.ts",
     "test": "TZ=UTC NODE_ENV=test node --test",
     "lint:db": "node scripts/lint-db-calls.ts",
     "lint:imports": "node scripts/lint-imports.mjs",
@@ -95,7 +95,7 @@
   "imports": {
     "#env": "./env.ts",
     "#db": "./db.ts",
-    "#app": "./app.js",
+    "#app": "./app.ts",
     "#shared/*": "./shared/*",
     "#features/*": "./features/*",
     "#legacy/*": "./legacy/*",

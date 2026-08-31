@@ -14,7 +14,7 @@
 // either, because the two schemas would then disagree about someone's address
 // and nothing reads the new one yet to notice.
 import { randomUUID } from "node:crypto";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as addresses from "#features/places/addresses/repo.ts";
 import * as userAddresses from "#features/places/user-addresses/repo.ts";
 import * as legacy from "#legacy/places/addresses/repo.ts";

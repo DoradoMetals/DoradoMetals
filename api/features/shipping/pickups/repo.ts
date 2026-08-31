@@ -7,7 +7,7 @@
 // The order, the user and the carrier are not columns here: this table hangs a
 // pickup off a SHIPMENT and the shipment knows the rest. compose.ts puts them
 // back.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

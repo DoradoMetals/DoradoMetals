@@ -22,7 +22,7 @@
 // `verify:sales-order-decomposition` are what made that safe to make rather
 // than hope about.
 
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 // THE PIVOT (ruling 8): reads come from read.service.ts - the new schema,
 // decomposed, one implementation - and writes go through repo.dual.js
 // unconditionally, exchange and the new schema in one transaction. The

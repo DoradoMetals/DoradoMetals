@@ -25,7 +25,7 @@ import type { PoolClient } from "pg";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import * as usersService from "#features/users/service.ts";
 import * as usersRepo from "#features/users/repo.ts";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 
 const NOBODY = "00000000-0000-0000-0000-000000000000";
 

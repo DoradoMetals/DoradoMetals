@@ -12,7 +12,7 @@
 //
 // It returns only ids. Nothing above it should be tempted to read a value from
 // exchange, because the whole direction of travel is that it stops being read.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { LeadRow, NewLead } from "#features/leads/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";

@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as mintService from "#features/mints/service.ts";
 
 export const getAllMints = asyncHandler(async (req, res) => {

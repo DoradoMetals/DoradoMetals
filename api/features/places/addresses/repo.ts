@@ -3,7 +3,7 @@
 // A postal address with no owner - somewhere on earth. Whose address book it is
 // in is places.user_addresses, and that is what lets an order snapshot an
 // address without copying whose it was, and lets two people share a building.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { places } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

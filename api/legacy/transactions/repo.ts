@@ -1,5 +1,5 @@
 // exchange.account_transactions. THIS FILE IS SCHEDULED FOR DELETION.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

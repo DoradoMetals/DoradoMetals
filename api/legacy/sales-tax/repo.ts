@@ -2,7 +2,7 @@
 //
 // Writes only. The rules are READ from the new schema alone - they are seeded
 // reference data that no application code writes, so there is nothing to mirror.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

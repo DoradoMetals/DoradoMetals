@@ -5,7 +5,7 @@
 // consequence of the split that matters most - places.addresses has no user_id,
 // so `WHERE id = $1 AND user_id = $2` is not a statement this schema can write.
 // getOne is that check.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { places } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

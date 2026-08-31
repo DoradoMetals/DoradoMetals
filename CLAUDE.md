@@ -191,7 +191,7 @@ This applies from the moment anything touches the database. Concretely:
 pnpm workspace, Node 24, deployed on Railway from `master` with auto-deploy.
 
 ```
-api/                 @dorado/api        Express, ESM, mostly JavaScript
+api/                 @dorado/api        Express, ESM, TypeScript (Node runs .ts natively; the only .js left is the death-row *_SOURCE/dual-write halves)
 frontend/            @dorado/frontend   Next.js, TypeScript, strict
 packages/contracts/  @dorado/contracts  zod schemas, imported by api only
 ```
@@ -438,12 +438,12 @@ email, a Stripe charge and a FedEx label cannot. Do the database work, commit,
 then act on the outside world. `sendOrderToSupplier` emailed a refiner their
 copy of a sales order as the first statement of a transaction that went on to
 fail — leaving them shipping metal against an order nothing recorded.
-`shared/db/transaction-side-effects.test.js` fails the build if one comes back.
+`shared/db/tests/transaction-side-effects.test.ts` fails the build if one comes back.
 
 **Types come from generated contracts**, never hand-written. After any schema
 change, regenerate — see the `verify-changes` skill.
 
-**`NUMERIC` and `BIGINT` parsers are registered in `api/db.js`**, next to the
+**`NUMERIC` and `BIGINT` parsers are registered in `api/db.ts`**, next to the
 pool. They must stay there: anything importing the pool without booting the
 server otherwise gets strings, and `price + fee` concatenates.
 

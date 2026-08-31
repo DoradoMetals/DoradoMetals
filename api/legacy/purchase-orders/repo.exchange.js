@@ -1,7 +1,7 @@
 // The exchange half of the purchase-order WRITES. THIS FILE IS SCHEDULED FOR
 // DELETION when exchange stops being the recovery copy; until then repo.dual.js
 // wraps every function here with its new-schema mirror.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 
 // THE READ PATHS ARE GONE (ruling 8's read pivot): read.service.ts is THE
 // order read, against the new schema, and the covenant - feature data

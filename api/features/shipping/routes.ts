@@ -10,7 +10,7 @@
 // no /handoffs route, but relying on that is relying on the absence of
 // something.
 //
-// The feature's other resources keep their own top-level mounts in app.js -
+// The feature's other resources keep their own top-level mounts in app.ts -
 // /api/shipments, /api/carriers, /api/carrier_services - because those URLs
 // predate the folder and moving them would be a wire change.
 import express from "express";

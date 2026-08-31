@@ -8,7 +8,7 @@
 // had one: exchange.suppliers carries name/email/phone/is_active on the same
 // row, and the generator reported every one of them as unmappable rather than
 // guessing they had moved.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { refiners } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

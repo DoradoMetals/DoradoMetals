@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { callerId } from "#shared/http/caller.ts";
 import type { Request } from "express";
 import * as quoteService from "#features/quotes/service.ts";

@@ -1,8 +1,8 @@
 // The schedules are read when setupScheduler runs, not when the module loads.
 //
 // This is the whole point of the change it guards. The schedules used to be a
-// module-level array, which WORKED - app.js imports #env on its eleventh line
-// and server.js imports #app before it imports the scheduler, so dotenv had
+// module-level array, which WORKED - app.ts imports #env on its eleventh line
+// and server.ts imports #app before it imports the scheduler, so dotenv had
 // always run first. It worked because of the order of two import lines.
 //
 // Swap them and every schedule reads undefined, both jobs log "no schedule

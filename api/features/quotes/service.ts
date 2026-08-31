@@ -34,7 +34,7 @@ import {
   type OrderPrices,
 } from "#features/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 import type { PricingSpot } from "#features/pricing/service.ts";
 

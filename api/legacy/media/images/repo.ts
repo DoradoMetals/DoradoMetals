@@ -1,7 +1,7 @@
 // exchange.images, and nothing else. THIS FILE IS SCHEDULED FOR DELETION.
 //
 // Writes only; reads come from media.images via repo.ts.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { NewImage } from "#features/media/images/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";

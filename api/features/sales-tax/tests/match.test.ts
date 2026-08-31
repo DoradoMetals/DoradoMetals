@@ -10,7 +10,7 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import * as repo from "#features/sales-tax/repo.ts";
 import { rateFor, type TaxableFacts } from "#features/sales-tax/match.ts";
 

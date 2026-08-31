@@ -12,7 +12,7 @@
 import * as tax from "#features/sales-tax/repo.ts";
 import * as legacy from "#legacy/sales-tax/repo.ts";
 import { rateFor, type TaxableFacts } from "#features/sales-tax/match.ts";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import type { TaxRule } from "#features/sales-tax/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import * as spotsService from "#features/spots/service.ts";

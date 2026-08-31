@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as recaptcha from "#providers/captcha/recaptcha.ts"
 
 export const verifyRecaptcha = asyncHandler(async (req, res) => {

@@ -16,7 +16,7 @@
 // writes any of them.
 import type { PoolClient } from "pg";
 
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 
 // The shared executor, optional on every one of these: passing it is how a
 // repo call joins its caller's transaction, and omitting it runs on the pool.

@@ -34,7 +34,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import * as service from "#features/shipping/operations/service.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import {

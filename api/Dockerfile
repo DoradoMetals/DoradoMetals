@@ -1,5 +1,5 @@
 # Node 24 runs TypeScript directly by stripping types, so there is no build
-# step: server.js and any converted .ts file are executed as-is. Type CHECKING
+# step: server.ts and any converted .ts file are executed as-is. Type CHECKING
 # is a separate concern and happens in CI via tsc --noEmit.
 #
 # Build context is the repo root, not api, so that the pnpm workspace
@@ -57,4 +57,4 @@ COPY api api
 WORKDIR /repo/api
 
 EXPOSE 5000
-CMD ["node", "server.js"]
+CMD ["node", "server.ts"]

@@ -3,7 +3,7 @@ import * as spots from "#features/spots/repo.ts";
 import * as legacy from "#legacy/spots/repo.ts";
 import * as metals from "#features/metals/repo.ts";
 import { toWire } from "#features/spots/compose.ts";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import type { SpotWire as SpotRow } from "#features/spots/compose.ts";
 
 // One upstream quote, as this service reduces it. Not the provider's own shape:

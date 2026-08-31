@@ -71,7 +71,10 @@ import { join, relative, resolve } from "node:path";
 const ROOT = process.env.STATE_COLLAPSE_ROOT
   ? resolve(process.env.STATE_COLLAPSE_ROOT)
   : resolve(import.meta.dirname, "..");
-const THEME = join(ROOT, "app/styles/theme.css");
+// The tokens live in @dorado/theme now; going through ROOT's own node_modules
+// link follows the package wherever it sits on disk, and still honours a
+// STATE_COLLAPSE_ROOT override.
+const THEME = join(ROOT, "node_modules/@dorado/theme/theme.css");
 const MARGIN = 1.25;
 
 /* ---------- tokens ------------------------------------------------------- */

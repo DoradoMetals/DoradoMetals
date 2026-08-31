@@ -1,6 +1,6 @@
 import { callerId, requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as productService from "#features/products/service.ts";
 
 export const getAllProducts = asyncHandler(async (req, res) => {

@@ -16,7 +16,7 @@
 // transaction. If a mirror opened its own connection, a write that later rolled
 // back would leave its mirrored row behind - the exact divergence this phase
 // exists to prevent.
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as legacyExchange from "#legacy/purchase-orders/repo.exchange.js";
 import { calculateItemPrice } from "#features/pricing/service.ts";
 import * as mirror from "#features/orders/repo.mirror.ts";

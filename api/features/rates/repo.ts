@@ -4,7 +4,7 @@
 // to attach the metal's NAME, which meant a row type claiming to be rates.rates
 // carried a column rates.rates does not have. The name is composed in wire.ts
 // from one cached lookup of four rows instead.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { rates } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

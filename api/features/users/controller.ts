@@ -1,6 +1,6 @@
 import { callerId, requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as usersService from "#features/users/service.ts"
 
 export const getUser = asyncHandler(async (req, res) => {

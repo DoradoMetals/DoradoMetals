@@ -6,7 +6,7 @@
 // query joined orders.orders to answer it with a CASE.
 //
 // Composed from ONE read of the orders involved rather than a join per query.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import type { LedgerRow } from "#features/transactions/repo.ts";
 import type { PoolClient } from "pg";
 

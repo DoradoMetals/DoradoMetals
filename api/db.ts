@@ -49,7 +49,7 @@ if (refusesUnsetDatabaseUrl(process.env)) {
 // work, while `price + fee` would concatenate.
 //
 // This registration is global to the pg module and has to happen before any
-// query runs. It lived in server.js, which meant anything importing the pool
+// query runs. It lived in server.ts, which meant anything importing the pool
 // without booting the server - scripts, migrations, cron, tests - silently got
 // strings instead. It belongs next to the pool so there is one way to get a
 // connection and it always behaves the same.

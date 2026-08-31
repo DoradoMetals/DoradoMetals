@@ -20,7 +20,7 @@
 // is_active are all NOT NULL there. So a service created through this path now
 // carries the same values it always did, just stated rather than defaulted.
 import { randomUUID } from "node:crypto";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as services from "#features/shipping/services/repo.ts";
 import {
   carrierIdOr,

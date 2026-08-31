@@ -5,7 +5,7 @@
 // customer's rate from it - and resolveRate keys on the metal NAME. So the
 // composed shape is what the service returns, not the bare table row.
 import { randomUUID } from "node:crypto";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as rates from "#features/rates/repo.ts";
 import * as legacy from "#legacy/rates/repo.ts";
 import * as wire from "#features/rates/wire.ts";

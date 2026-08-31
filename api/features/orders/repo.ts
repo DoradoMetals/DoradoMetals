@@ -12,7 +12,7 @@
 // to the table it touches and lives in that table's own repo: orders/items,
 // orders/spots, orders/transactions, orders/addresses, refiners/spots,
 // refiners/items, shipping/shipments. Those are shared by both directions.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

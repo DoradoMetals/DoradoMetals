@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as pickupService from "#features/fulfillments/pickups/service.ts";
 
 export const schedulePickup = asyncHandler(async (req, res) => {

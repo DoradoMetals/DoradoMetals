@@ -8,7 +8,7 @@
 //
 // created_by / updated_by (the text columns) are not projected. created_by_id
 // and updated_by_id are, because the response has always carried them.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { fulfillments } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

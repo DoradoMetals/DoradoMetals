@@ -6,7 +6,7 @@
 // schema uses a metal id. Both mappings are stated once - here and in the
 // matching sql/ file - so the two halves of a dual write cannot drift apart
 // silently.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

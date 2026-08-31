@@ -15,7 +15,7 @@
 // is not a trade worth making. The pickup is real; where it hangs in the new
 // schema can be reconciled later.
 import { randomUUID } from "node:crypto";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as pickups from "#features/shipping/pickups/repo.ts";
 import * as legacy from "#legacy/shipping/pickups/repo.ts";
 import * as shipmentService from "#features/shipping/shipments/service.ts";

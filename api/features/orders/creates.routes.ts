@@ -3,7 +3,7 @@
 // Was features/purchase-orders/routes.ts and features/sales-orders/routes.ts.
 // Those features are gone - direction is a COLUMN - but THE PATHS DO NOT
 // CHANGE (ruling 13: the URL and the file answer different questions), so this
-// file declares both routers and app.js mounts each where it always did.
+// file declares both routers and app.ts mounts each where it always did.
 //
 // WHAT IS LEFT HERE IS CREATION, the review flag, and the purge. The reads
 // left with the read-flip wave and the mutations left with D87: the lists are

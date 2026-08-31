@@ -25,7 +25,7 @@ process.env.NODE_ENV = "test";
 
 import "#env";
 import pool from "#db";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { auth } from "#features/auth/client.ts";
 
 export const E2E_USERS = {

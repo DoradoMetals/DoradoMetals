@@ -17,7 +17,7 @@
 // WHY NOT IN @dorado/contracts. Contracts describe the wire - shapes that cross
 // the API boundary and are generated from the database. A PoolClient never
 // leaves this process and never appears in a response. It is plumbing, and it
-// lives with the plumbing: query.d.ts and withTransaction.d.ts are its
+// lives with the plumbing: query.ts and withTransaction.ts are its
 // neighbours because they are the two functions that consume it.
 import type { PoolClient } from "pg";
 

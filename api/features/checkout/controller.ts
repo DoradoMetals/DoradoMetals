@@ -1,6 +1,6 @@
 import { callerId, requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as cartService from "#features/checkout/service.ts";
 
 // THE CART BELONGS TO THE SESSION, NOT TO WHOEVER NAMES A USER.

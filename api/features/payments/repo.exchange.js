@@ -23,7 +23,7 @@
 // number, it is null on every row in dev and in production, and nothing in the
 // frontend reads it - the field existed only because this read was SELECT *.
 // CLAUDE.md: never log or return bank details.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 
 // The shape both implementations return. The amounts are numeric columns, so
 // the division is exact rather than integer division.

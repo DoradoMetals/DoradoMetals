@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as shipmentPatch from "#features/shipping/shipments/patch.service.ts";
 import * as orderRead from "#features/shipping/shipments/order-read.ts";
 import * as carrierPickups from "#features/shipping/pickups/repo.ts";

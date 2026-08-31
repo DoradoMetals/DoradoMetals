@@ -12,7 +12,7 @@
 // lives under /api/orders because the order id is the key the caller holds -
 // reads resolve from the parent path, writes key by the resource's own id
 // (PATCH /shipments/:id, unchanged).
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
 import type { PoolClient } from "pg";

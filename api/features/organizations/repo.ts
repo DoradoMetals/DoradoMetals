@@ -8,7 +8,7 @@
 //
 // One table, one writing service: carriers' service calls this one, inside its
 // own transaction, rather than writing here itself.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { organizations } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

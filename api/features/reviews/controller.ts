@@ -1,6 +1,6 @@
 // HTTP in, HTTP out. No database, no composition, no business rules.
 import { requiredParam } from "#shared/http/caller.ts";
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as service from "#features/reviews/service.ts";
 
 export const getOne = asyncHandler(async (req, res) => {

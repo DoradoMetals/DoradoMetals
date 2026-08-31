@@ -3,7 +3,7 @@
 // The spot prices an order was quoted at, frozen when its offer locked. Every
 // money figure on the order derives from these, so a wrong one misprices the
 // whole order rather than displaying something odd.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

@@ -20,7 +20,7 @@ import type { PoolClient } from "pg";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import * as orders from "#features/orders/service.ts";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 
 // LOCKS.ORDERS, because this file WRITES orders.transactions and
 // exchange.payouts, and shared/testing/locks.ts puts both in the 4213 group.

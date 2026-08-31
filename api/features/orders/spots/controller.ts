@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as orderSpotsService from "#features/orders/spots/service.ts";
 
 export const getOrderSpots = asyncHandler(async (req, res) => {

@@ -11,7 +11,7 @@
 // orders.transactions) by the existing purchase-orders services - the service
 // layer above pairs each write with its shadow so the schemas stay level
 // while both serve.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
 export type RefinerOrderRow = {

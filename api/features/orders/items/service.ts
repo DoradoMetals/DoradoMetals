@@ -29,7 +29,7 @@
 // from the body: the toggle services need the order id and the delete needs
 // the scrap id, and a caller-supplied linkage could name somebody else's
 // rows. The request contributes values; the database contributes identity.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import * as ordersRepo from "#features/orders/repo.ts";
 import * as itemsRepo from "#features/orders/items/repo.ts";
 import * as purchaseOrderService from "#features/orders/service.ts";

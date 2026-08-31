@@ -20,7 +20,7 @@
 //      rename a human knows about and a generator cannot infer. Reported, never
 //      invented.
 //
-// WHAT IT DELIBERATELY DOES NOT DO. It does not touch app.js, diff-source.mjs,
+// WHAT IT DELIBERATELY DOES NOT DO. It does not touch app.ts, diff-source.mjs,
 // validate-wire.mjs or audit-switches.mjs. Those are the edits that decide what
 // is mounted and what is compared, and they are small, consequential, and worth
 // a human making them.

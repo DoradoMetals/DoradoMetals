@@ -74,7 +74,7 @@ purchaseOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createR
 api.post("/create_review", requireUser, requireOwnOrder, createReview);
 `;
   const base = (over: Record<string, string> = {}): Record<string, string> => ({
-    "app.js": app(MOUNTS),
+    "app.ts": app(MOUNTS),
     "features/orders/routes.ts":
       "const router = express.Router();\nrouter.get(\"/\", requireUser, list);\nexport default router;\n",
     "features/orders/creates.routes.ts": creates,
@@ -108,7 +108,7 @@ api.post("/create_review", requireUser, requireOwnOrder, createReview);
       {
         name: "an unresolvable app.use is a failure, not a skip (D120 assumption 2)",
         rootEnv: "ROUTE_GUARDS_ROOT", env,
-        files: base({ "app.js": app(MOUNTS + 'app.use("/api/ghost", mysteryRouter);\n') }),
+        files: base({ "app.ts": app(MOUNTS + 'app.use("/api/ghost", mysteryRouter);\n') }),
         expect: "fail", mustPrint: "could not be resolved to a routes file",
       },
       {
@@ -130,7 +130,7 @@ api.post("/create_review", requireUser, requireOwnOrder, createReview);
         files: base(), expect: "fail", mustPrint: "guard was not parsed",
       },
       {
-        name: "a missing app.js is a broken scan, not an empty API",
+        name: "a missing app.ts is a broken scan, not an empty API",
         rootEnv: "ROUTE_GUARDS_ROOT", env,
         files: { "features/orders/routes.ts": "const router = express.Router();\n" },
         expect: "fail", mustPrint: "the scan is broken",
@@ -158,17 +158,17 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-// Where each routes module is mounted, read from app.js rather than assumed -
+// Where each routes module is mounted, read from app.ts rather than assumed -
 // the prefix is not derivable from the folder name (features/refiners mounts at
 // /api/suppliers, features/media at /api/images, features/checkout at /api/cart).
-if (!existsSync(join(ROOT, "app.js")) || !existsSync(join(ROOT, "features"))) {
+if (!existsSync(join(ROOT, "app.ts")) || !existsSync(join(ROOT, "features"))) {
   console.error(
-    `route-guards cannot read ${join(ROOT, "app.js")} or ${join(ROOT, "features")} - ` +
+    `route-guards cannot read ${join(ROOT, "app.ts")} or ${join(ROOT, "features")} - ` +
       `the scan is broken, and a census that cannot open the app must not report one`
   );
   process.exit(2);
 }
-const appSrc = readFileSync(join(ROOT, "app.js"), "utf8");
+const appSrc = readFileSync(join(ROOT, "app.ts"), "utf8");
 //
 // KEYED WITHOUT THE EXTENSION, on both sides. This once hardcoded `.js`, so
 // the moment routes.js became routes.ts every mount resolved to null and every
@@ -248,7 +248,7 @@ const unresolvedMounts: string[] = [];
 // features/orders/routes.ts does `router.use("/", itemRoutes)` and
 // features/fulfillments/routes.ts does `router.use("/methods", methodRoutes)` -
 // so a child's prefix is the parent's mount plus the segment the parent mounted
-// it at, and it is not in app.js at all.
+// it at, and it is not in app.ts at all.
 //
 // WITHOUT THIS every child router resolved to `mount: null` and `url: null`,
 // exactly the silent-null failure this file already records once (the .js/.ts

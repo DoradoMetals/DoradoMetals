@@ -3,7 +3,7 @@
 // exchange keeps the order link, the service name and the package name on the
 // shipment's own row, so this takes all three where the new schema takes ids
 // and a fulfillment.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

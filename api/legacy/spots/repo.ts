@@ -2,7 +2,7 @@
 //
 // Keyed on the metal's NAME, because exchange.metals carries the quote on the
 // metal's own row and identifies it by `type`.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Quote } from "#features/spots/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";

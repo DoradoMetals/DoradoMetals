@@ -17,7 +17,7 @@
 // label vs admin_label is a real distinction and both are kept: 'Pickup' means
 // two different things to a customer depending on the category, and the admin
 // side needs to tell 'Dorado Pickup' from 'Carrier Pickup'.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { fulfillments } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

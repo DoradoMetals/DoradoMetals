@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as payoutsService from "#features/payouts/service.ts";
 import * as payoutsRepo from "#features/payouts/repo.ts";
 

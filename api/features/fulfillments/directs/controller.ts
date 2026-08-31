@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as directService from "#features/fulfillments/directs/service.ts";
 
 export const scheduleDirect = asyncHandler(async (req, res) => {

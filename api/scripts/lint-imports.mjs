@@ -54,8 +54,8 @@ if (process.argv.includes("--self-test")) {
   const imp = (what, spec) => `import ${what} from ${Q}${spec}${Q};\n`;
   const base = {
     "package.json": JSON.stringify({ imports: { "#shared/*": "./shared/*", "#features/*": "./features/*" } }),
-    "shared/db/query.js": "export default function query() {}\n",
-    "features/a/service.js": imp("query", "#shared/db/query.js") + "export const a = () => query();\n",
+    "shared/db/query.ts": "export default function query() {}\n",
+    "features/a/service.js": imp("query", "#shared/db/query.ts") + "export const a = () => query();\n",
   };
   const LOW = { LINT_IMPORTS_FLOOR: "1" };
   await selfTest({

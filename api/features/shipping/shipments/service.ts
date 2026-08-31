@@ -7,7 +7,7 @@
 // across every shipment in the answer rather than per row.
 import { reportError } from "#shared/observability/report.ts";
 import { randomUUID } from "node:crypto";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as shipments from "#features/shipping/shipments/repo.ts";
 import * as legacy from "#legacy/shipping/shipments/repo.ts";
 import * as services from "#features/shipping/services/repo.ts";

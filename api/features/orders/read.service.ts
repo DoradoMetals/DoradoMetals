@@ -33,7 +33,7 @@ import * as pickupService from "#features/shipping/pickups/service.ts";
 import * as compose from "#features/orders/compose.ts";
 import type { ItemContext, ComposedProduct } from "#features/orders/compose.ts";
 import type { PoolClient } from "pg";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 
 type Executor = PoolClient | undefined;
 

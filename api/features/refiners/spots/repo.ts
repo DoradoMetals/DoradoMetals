@@ -3,7 +3,7 @@
 // What the REFINER quoted for an order, as against what the customer was
 // quoted. Same shape as orders.spots deliberately, so the two can be read and
 // composed the same way - the difference is whose price it is.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

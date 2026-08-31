@@ -10,7 +10,7 @@
 // repo functions, separate statements - because they were one missing clause
 // apart once, on a route with no guard in front of it.
 import { randomUUID } from "node:crypto";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as reviews from "#features/reviews/repo.ts";
 import * as legacy from "#legacy/reviews/repo.ts";
 import { toWire, listToWire, type ReviewWire } from "#features/reviews/wire.ts";

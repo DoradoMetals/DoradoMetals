@@ -22,7 +22,7 @@
 // its caller's transaction. ***
 //   - IT WALKS features/ AND legacy/ ONLY. shared/ and providers/ are not
 //     scanned. Checked at the time of writing: the only `query(`/`pool.query(`
-//     outside those two are the executor itself (shared/db/query.js), the
+//     outside those two are the executor itself (shared/db/query.ts), the
 //     transaction helper's own BEGIN/COMMIT/ROLLBACK, and the test pool - all
 //     legitimate. A repo that moved into shared/ would leave the scan silently.
 //   - A CALL REACHED THROUGH ANOTHER NAME: `const q = query; q(sql, client)`,
@@ -50,7 +50,7 @@ const ROOT = process.env.LINT_DB_ROOT
 
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
-  const clean = `import query from "#shared/db/query.js";
+  const clean = `import query from "#shared/db/query.ts";
 export async function getOne(id, client) {
   const { rows } = await query("SELECT 1", [id], client);
   return rows[0];

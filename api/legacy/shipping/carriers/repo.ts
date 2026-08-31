@@ -2,7 +2,7 @@
 //
 // exchange holds the carrier and its organization on one row, so this takes
 // both halves. is_active is exchange's name for the organization's `enabled`.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

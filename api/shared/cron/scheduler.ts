@@ -13,11 +13,11 @@ type Job = {
 // THE SCHEDULES ARE READ WHEN setupScheduler RUNS, NOT WHEN THIS MODULE LOADS.
 //
 // They used to sit in a module-level array, which worked - checked, rather than
-// assumed: app.js imports #env on its eleventh line, server.js imports #app
+// assumed: app.ts imports #env on its eleventh line, server.ts imports #app
 // before it imports this, so dotenv had always run by the time the array was
 // built. Both schedules were populated.
 //
-// It worked because of the ORDER OF TWO IMPORTS IN server.js. Swap those two
+// It worked because of the ORDER OF TWO IMPORTS IN server.ts. Swap those two
 // lines and every schedule reads undefined, both jobs log "no schedule
 // configured" and skip, and the process goes on serving traffic with spot
 // prices that never update again. Nothing would

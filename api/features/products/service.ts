@@ -1,7 +1,7 @@
 // Products: one row in each schema, written together, composed from three
 // reference tables on the way out.
 import { randomUUID } from "node:crypto";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as products from "#features/products/repo.ts";
 import * as legacy from "#legacy/products/repo.ts";
 import * as compose from "#features/products/compose.ts";

@@ -3,7 +3,7 @@
 // The history a customer sees. `time` is this schema's name for exchange's
 // `scan_time`, and the read aliases it back because the response has always
 // carried scan_time.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

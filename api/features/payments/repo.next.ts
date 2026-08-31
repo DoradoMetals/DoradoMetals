@@ -22,7 +22,7 @@
 // The new shape is the new schema's, so this needs no conversion and every WRITE
 // still divides, because a write arrives from Stripe in cents. Getting this
 // backwards is a hundredfold error, so it is written out rather than implied.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import type { PaymentIntent } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 

@@ -16,7 +16,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as quotes from "#features/quotes/service.ts";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 
 // A scrap line prices from the body's own declared content, so this needs no

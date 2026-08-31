@@ -11,7 +11,7 @@
 // the purchase-order service's own path, and `payments.details` - where these
 // land eventually - must not receive them until the encryption question is
 // answered. Adding a writer here would make that easier to do by accident.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

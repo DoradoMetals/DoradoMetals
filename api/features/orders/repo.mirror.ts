@@ -31,7 +31,7 @@
 // that drive them are a real proof that exchange and orders.* agree column by
 // column. Recorded here so the next session does not rediscover it.
 
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import type { ComposedOrder } from "#features/orders/compose.ts";
 import type { PoolClient } from "pg";
 

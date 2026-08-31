@@ -9,7 +9,7 @@
 // Events are REPLACED WHOLESALE rather than edited: a carrier poll removes what
 // is there and inserts the current set. Both schemas do the same thing, in one
 // transaction, so the two cannot drift apart between polls.
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as tracking from "#features/shipping/tracking/repo.ts";
 import * as legacy from "#legacy/shipping/tracking/repo.ts";
 import * as shipmentService from "#features/shipping/shipments/service.ts";

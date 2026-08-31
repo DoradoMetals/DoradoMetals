@@ -9,7 +9,7 @@
 // bottom are the exception - the amounts an ADMIN adjusts by hand on a purchase
 // order, the total they add up into, and (since 099) the payout account the
 // order is paid out to.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

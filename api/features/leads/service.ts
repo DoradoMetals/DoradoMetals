@@ -22,7 +22,7 @@
 // back; an email cannot. shared/db/transaction-side-effects.test.js fails the
 // build if one appears here.
 import { randomUUID } from "node:crypto";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as leads from "#features/leads/repo.ts";
 import * as legacy from "#legacy/leads/repo.ts";
 import { toWire, listToWire, type LeadWire } from "#features/leads/wire.ts";

@@ -17,7 +17,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 
 // The two projections, spelled out: `query` is generic and a bare call gives
 // back `unknown` rows, which is the point of converting these files.

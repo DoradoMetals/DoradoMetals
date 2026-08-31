@@ -259,7 +259,7 @@ const UNROUTED = {
   // could not have worked if anyone had routed it. This list going stale is
   // what surfaced both, which is the check working.
   "payments/controller.ts": {
-    handleStripeWebhook: "mounted directly on the app in app.js, before express.json",
+    handleStripeWebhook: "mounted directly on the app in app.ts, before express.json",
   },
 } satisfies Record<string, Record<string, string>> as Record<
   string,

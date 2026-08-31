@@ -18,7 +18,7 @@ import { reportError } from "#shared/observability/report.ts";
 import { createHash, randomUUID } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { linkableOrderId } from "#features/media/emails/record.ts";
 import type { PoolClient } from "pg";
 

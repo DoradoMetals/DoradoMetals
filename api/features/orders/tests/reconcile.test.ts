@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { sweepSettledIntents, sweepAbandoned } from "#features/orders/reconcile.service.ts";
 

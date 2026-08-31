@@ -2,7 +2,7 @@
 //
 // exchange holds the postal address, its owner, that person's label for it and
 // one is_default all on one row, so every function here takes both halves.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { AddressValues } from "#features/places/addresses/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";

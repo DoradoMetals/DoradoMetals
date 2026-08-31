@@ -1,4 +1,4 @@
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as cartRepo from "#features/checkout/repo.js";
 // The SERVICE, not a repo: products is composed from three reference tables
 // now, and liveness is the one question checkout asks of it.

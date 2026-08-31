@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as refinerItemsService from "#features/refiners/items/service.ts";
 
 export const patchRefinerItem = asyncHandler(async (req, res) => {

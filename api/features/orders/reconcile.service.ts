@@ -20,7 +20,7 @@ import * as legacySales from "#legacy/sales-orders/repo.ts";
 import { markSalesOrderPaid } from "#features/orders/paid.service.ts";
 import * as usersService from "#features/users/service.ts";
 import * as transactionsService from "#features/transactions/service.ts";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import { reportError } from "#shared/observability/report.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { PoolClient } from "pg";

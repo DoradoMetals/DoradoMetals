@@ -14,7 +14,7 @@
 // The ids differ between the two - a checkout.checkouts row is not an
 // exchange.carts row - and that is fine, because nothing outside this feature
 // refers to a cart by id. It is looked up by user every time.
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as exchange from "#features/checkout/repo.exchange.js";
 import * as next from "#features/checkout/repo.next.ts";
 

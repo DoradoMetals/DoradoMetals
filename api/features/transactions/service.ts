@@ -7,7 +7,7 @@
 // transactions that create and complete orders - a ledger row for an order that
 // rolls back must roll back with it.
 import { randomUUID } from "node:crypto";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as ledger from "#features/transactions/repo.ts";
 import * as legacy from "#legacy/transactions/repo.ts";
 import { toWire, type TransactionWire } from "#features/transactions/compose.ts";

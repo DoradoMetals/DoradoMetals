@@ -7,7 +7,7 @@
 // It is also the first hop of putting an order id back onto a shipment:
 // shipping.shipments carries neither purchase_order_id nor sales_order_id,
 // because an order's FULFILLMENT is what knows about the order.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { fulfillments } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

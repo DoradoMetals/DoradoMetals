@@ -2,7 +2,7 @@
 //
 // The customer comes to a location - by appointment, or walking in.
 // `is_appointment` is what tells those two apart.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { fulfillments } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

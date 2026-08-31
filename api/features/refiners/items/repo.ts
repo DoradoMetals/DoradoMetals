@@ -9,7 +9,7 @@
 // them. The service decides - the two order reads differ by exactly whether
 // they call this - and that is a better place for the decision than a boolean
 // threaded through a projection.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { refiners } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

@@ -3,7 +3,7 @@
 // Three columns are aliased back to the names exchange uses - see the header of
 // sql/get_all.sql. The type says so too rather than describing the table: it is
 // the wire shape that must not change, not the schema.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

@@ -9,7 +9,7 @@
 // id - every lookup is by the Stripe reference, the sales order, or the session
 // trio - so the two schemas are matched on provider_ref rather than on id, and
 // that is the one thing the mirror depends on staying true.
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as exchange from "#features/payments/repo.exchange.js";
 import * as next from "#features/payments/repo.next.ts";
 

@@ -14,7 +14,7 @@
 // transaction opens, which is the shape createPurchaseOrder was rebuilt into.
 import type { PoolClient } from "pg";
 
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
 // The two bookings are their own resources (ruling 26b): checkout reaches
 // fulfillments/pickups and fulfillments/directs directly, never through the

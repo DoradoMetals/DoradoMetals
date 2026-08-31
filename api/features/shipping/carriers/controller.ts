@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as carriersService from "#features/shipping/carriers/service.ts";
 import { oneString } from "#shared/http/query.ts";
 

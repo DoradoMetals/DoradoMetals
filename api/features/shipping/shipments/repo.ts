@@ -6,7 +6,7 @@
 //
 // carrier_service_id and package_id are projected so compose.ts can resolve
 // them to the names exchange kept inline, and are dropped again on the way out.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

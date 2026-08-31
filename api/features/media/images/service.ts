@@ -5,7 +5,7 @@
 // provider decides how they get there.
 import { randomUUID } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as images from "#features/media/images/repo.ts";
 import * as legacy from "#legacy/media/images/repo.ts";
 import type { ImageRow, NewImage } from "#features/media/images/repo.ts";

@@ -2,7 +2,7 @@
 //
 // Same two statements, and the only difference is the column name: exchange
 // calls it scan_time and the new schema calls it time.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { columnsOf } from "#features/shipping/tracking/repo.ts";
 import type { ScanEvent } from "#features/shipping/tracking/repo.ts";

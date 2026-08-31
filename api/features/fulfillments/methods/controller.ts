@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as methodService from "#features/fulfillments/methods/service.ts";
 
 // The menu a customer is offered, per direction. Guarded rather than public:

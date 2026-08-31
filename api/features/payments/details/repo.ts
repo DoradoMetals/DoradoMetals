@@ -15,7 +15,7 @@
 // silently, for every order it existed to serve. D168.
 //
 // It does NOT write routing_number or account_number - see sql/create.sql.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { PoolClient } from "pg";
 

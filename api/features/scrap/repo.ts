@@ -8,7 +8,7 @@
 // never fire - undefined * n is NaN, which ?? passes through. What an
 // unmeasured purity SHOULD yield is a money question and not a conversion's to
 // answer. The types describe what the code does, not what it should do.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 import type { PoolClient, QueryResult } from "pg";
 

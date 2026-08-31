@@ -30,7 +30,7 @@
 //
 // NO CREATE, UPDATE OR DELETE FOR A USER. Everything about a user except the
 // credit balance is better-auth's.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

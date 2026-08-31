@@ -3,7 +3,7 @@
 // Takes the SAME values array as repo.ts, in the same order. Three columns are
 // named differently here - product_name, product_description, product_type -
 // and the statements differ only in that.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { ProductValues } from "#features/products/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";

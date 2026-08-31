@@ -1,6 +1,6 @@
 import { requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as stripe from "#providers/payment/stripe.ts"
 import * as stripeService from "#features/payments/service.ts"
 

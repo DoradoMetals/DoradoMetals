@@ -1,13 +1,13 @@
 // The Express app, with nothing started.
 //
-// Split out of server.js so it can be imported by a test. server.js used to
+// Split out of server.ts so it can be imported by a test. server.ts used to
 // build the app, start the cron scheduler and listen, all at module load, which
 // meant importing it to make one request also started a scheduler and bound a
 // port - so the routes and controllers had no tests at all. That is the layer
 // where servicesRepo.remove(req.body) lived, and where the transactions
 // controller still reads req.body on a GET.
 //
-// server.js is now the only thing that starts anything.
+// server.ts is now the only thing that starts anything.
 import "#env";
 import express from "express";
 import cors from "cors";

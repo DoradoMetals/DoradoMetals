@@ -12,7 +12,7 @@
 // losing the record is one row, breaking the caller un-reports an act that
 // still happened. Everything here catches, reports to stderr, and returns.
 import { reportError } from "#shared/observability/report.ts";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
 import type { PoolClient } from "pg";
 

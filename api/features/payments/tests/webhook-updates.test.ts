@@ -33,7 +33,7 @@ import type { PoolClient } from "pg";
 import * as repo from "#features/payments/repo.exchange.js";
 import * as service from "#features/payments/service.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 
 // Safe columns only. This table also carries `routing` and `last_four` for
 // us_bank_account instruments, and those are never selected or printed.

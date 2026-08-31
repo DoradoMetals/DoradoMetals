@@ -5,7 +5,7 @@
 // label strings; compose.ts does that from one read of each reference table
 // instead. Four metals, ten mints and two refiners - a join per query bought
 // nothing.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { products } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

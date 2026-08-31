@@ -8,7 +8,7 @@
 // columns reviews.reviews has and exchange.reviews does not. While both schemas
 // serve, a column only one of them has must not reach the wire, or the response
 // shape depends on which schema answered.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { reviews } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

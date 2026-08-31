@@ -1,5 +1,5 @@
 import { callerId } from "#shared/http/caller.ts";
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { refuseWith } from "#shared/http/refuse.ts";
 import * as orderPatch from "#features/orders/patch.service.ts";
 import * as orderRead from "#features/orders/read.ts";

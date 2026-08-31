@@ -25,7 +25,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import {
   inPinnedTransaction,

@@ -2,7 +2,7 @@
 //
 // exchange keeps the offer and the money as columns on the order row, so
 // creating one is a single INSERT where the new schema takes two.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

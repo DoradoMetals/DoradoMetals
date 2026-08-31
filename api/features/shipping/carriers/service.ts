@@ -14,7 +14,7 @@
 // generating it up front is the same guarantee without the round trip, and it
 // is what lets the new schema be written first.
 import { randomUUID } from "node:crypto";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import * as carriers from "#features/shipping/carriers/repo.ts";
 import * as legacy from "#legacy/shipping/carriers/repo.ts";
 import * as organizations from "#features/organizations/repo.ts";

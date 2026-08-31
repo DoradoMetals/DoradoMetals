@@ -4,7 +4,7 @@
 // the four metals are seeded reference data and nothing in the application
 // writes them. A create/update/delete here would be API surface for something
 // that only ever changes by migration.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { metals } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

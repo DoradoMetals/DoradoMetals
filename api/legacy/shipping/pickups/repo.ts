@@ -8,7 +8,7 @@
 // has them apart because that is the shape the FedEx call takes, and
 // `pickup_requested_at` is `timestamp WITHOUT time zone` - building a JS Date
 // from them would carry the process timezone into a column that has none.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

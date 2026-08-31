@@ -1,6 +1,6 @@
 import { fromNodeHeaders } from 'better-auth/node';
 
-import { asyncHandler } from '#shared/middleware/asyncHandler.js';
+import { asyncHandler } from '#shared/middleware/asyncHandler.ts';
 import { auth } from '#features/auth/client.ts';
 
 // Sets a password for the currently-authenticated user. Used by the magic-link

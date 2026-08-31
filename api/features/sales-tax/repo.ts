@@ -4,7 +4,7 @@
 // table: sales_tax_rules is read whole and never written, so it has no CRUD of
 // its own and splitting it into a folder would be a folder for a single SELECT.
 // If it ever becomes writable it gets its own.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 

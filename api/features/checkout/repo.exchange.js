@@ -14,7 +14,7 @@
 // functions below are unchanged and still used, by the composites and by the
 // tests that already cover them.
 import { PRODUCT_FIELDS, PRODUCT_FIELDS_WITH_ALIAS } from "#features/products/constants.ts";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 
 export async function getCart(user_id) {
   const sql = `

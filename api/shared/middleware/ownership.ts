@@ -22,7 +22,7 @@
 // do this". One line per route, next to the guard it completes.
 import type { NextFunction, Request, Response } from "express";
 import type { PoolClient } from "pg";
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 
 // The four spellings a request body uses for an order id, and the two for a
 // shipment. Written as a type so a fifth spelling has to be added here as well

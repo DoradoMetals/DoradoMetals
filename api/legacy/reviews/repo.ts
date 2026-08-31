@@ -4,7 +4,7 @@
 // of this phase: the new schema is exercised by real traffic while exchange
 // stays a complete, current replica. Deleting this file and its calls in
 // service.ts is the cutover, and that is a one-way door.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { ReviewInput } from "#features/reviews/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";

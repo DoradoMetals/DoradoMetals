@@ -2,7 +2,7 @@
 //
 // Takes the SAME values array as repo.ts, in the same order. Three of the
 // columns are named differently here and the statements differ only in that.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { updateParams } from "#features/shipping/services/repo.ts";
 import type { ServiceValues } from "#features/shipping/services/repo.ts";

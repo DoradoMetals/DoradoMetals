@@ -20,7 +20,7 @@
 // the other values being null. They just can't be null when the checkout
 // session is converted to an order." That last part is a rule for the
 // conversion, not a constraint here, because the row legitimately starts bare.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import type { checkout, products } from "@dorado/contracts";
 import type { PoolClient, QueryResult } from "pg";
 

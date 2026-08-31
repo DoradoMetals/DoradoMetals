@@ -8,7 +8,7 @@
 // seventy-eight.
 //
 // The list is not maintained here. scripts/route-guards.ts reads every
-// routes.js and resolves each mount from app.js - the prefix is not derivable
+// routes.js and resolves each mount from app.ts - the prefix is not derivable
 // from the folder name, features/refiners mounts at /api/suppliers - so a route
 // added tomorrow is covered tomorrow without anyone remembering to add it.
 //

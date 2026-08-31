@@ -1,5 +1,5 @@
 import * as users from "#features/users/repo.ts";
-import withTransaction from "#shared/db/withTransaction.js";
+import withTransaction from "#shared/db/withTransaction.ts";
 import type { UserRow } from "#features/users/repo.ts";
 import type { PoolClient } from "pg";
 

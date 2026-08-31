@@ -3,7 +3,7 @@
 // WE collect from the customer. NOT shipping.pickups, which is a carrier
 // collecting a parcel - two different things that share a word, and the
 // backfill keeps them apart deliberately.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { fulfillments } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

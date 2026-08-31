@@ -1,4 +1,4 @@
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as refinerSpotsService from "#features/refiners/spots/service.ts";
 
 // GET /api/orders/:orderId/refiners/spots - the refinery's quoted spots, by

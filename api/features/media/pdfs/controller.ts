@@ -1,5 +1,5 @@
 import type { Response } from "express";
-import { asyncHandler } from "#shared/middleware/asyncHandler.js";
+import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as pdfService from "#features/media/pdfs/service.ts";
 import { serveOrderDocument } from "#features/media/pdfs/serve.ts";
 import * as inputs from "#features/media/pdfs/order-inputs.ts";

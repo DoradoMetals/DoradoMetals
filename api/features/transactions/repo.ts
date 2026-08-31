@@ -1,5 +1,5 @@
 // payments.ledger, and nothing else.
-import query from "#shared/db/query.js";
+import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { payments } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

@@ -9,8 +9,8 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import query from "#shared/db/query.js";
-import withTransaction from "#shared/db/withTransaction.js";
+import query from "#shared/db/query.ts";
+import withTransaction from "#shared/db/withTransaction.ts";
 import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
 
 after(async () => {
