@@ -411,6 +411,12 @@ so the write half of the design contract is automatable after all.
 | Skeleton | 32:155 | STATIC by design (shimmer retired) | base/skeleton doorway | — |
 | Spinner | 32:191 | role=status + sr-only label, motion-reduce pulse | — awaiting adopter (Logo Loader is app chrome, not an atom) | — |
 | Tooltip | 32:177 | Radix: focus opens it too; surface/highest, border not shadow | — awaiting adopter | — |
+| Stat | 53:39 | tabular-nums owned by the component (the drawing's own ask) | — /rates is the natural adopter | — |
+| Stepper | 54:74 | <ol>, aria-current=step, markers named "Step n of N" | checkout steppers are the adopters-in-waiting | — |
+| OTPInput | 96:32 | ONE hidden input drawn as cells; one-time-code autofill | verify-login flow | — |
+| Tabs | 39:23 | underline style; transparent-border height-jump fix | base/tabs doorway (4 importers restyled) | — |
+| Slider | 31:115 | Radix; caller must label it | base/slider doorway | — |
+| SliderField | 99:210 | one value, two editors; clamp on COMMIT not keystroke | custom-purity control is the adopter-in-waiting | — |
 
 **The process, as Jacob corrected it**: adoption is part of the slice — a
 package component replaces its app counterpart in the same pass, and buttons

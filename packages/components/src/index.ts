@@ -31,3 +31,6 @@ export { Tooltip, TooltipProvider, type TooltipProps } from "./tooltip";
 export { Stat, type StatProps } from "./stat";
 export { Stepper, type StepperProps } from "./stepper";
 export { OTPInput, type OTPInputProps } from "./otp-input";
+export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
+export { Slider, type SliderProps } from "./slider";
+export { SliderField, type SliderFieldProps } from "./slider-field";
