@@ -18,8 +18,12 @@ const linkVariants = cva(
   {
     variants: {
       intent: {
-        // The nav/footer treatment: muted at rest, foreground on hover.
-        neutral: "text-muted-foreground hover:text-foreground",
+        // DEFAULT IS FOREGROUND (Jacob, 2026-08-31) - the drawn Link set
+        // always said text/default; the muted rest state was this file's own
+        // invention and it dimmed every adopter. `muted` remains for surfaces
+        // that genuinely want the quiet treatment (nav rows in dense chrome).
+        neutral: "text-foreground",
+        muted: "text-muted-foreground hover:text-foreground",
         foreground: "text-foreground",
         success: "text-success",
         danger: "text-destructive",

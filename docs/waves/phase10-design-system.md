@@ -704,3 +704,15 @@ FILL-in-HUG squeeze and a stuck 60px label width surfaced while regrouping;
 both fixed - "Company" wraps no more. MOBILE legal row mirrors the two-column
 grid: (c) in the left cell, Privacy/Terms in a right cell whose left edge IS
 the right column's left edge (both cells fixed at the columns' own 159px).)
+
+
+## Footer round 3 (2026-08-31)
+
+Social row (Icon/instagram, Icon/x-twitter, Icon/youtube - three new brand
+glyphs in the library, strokes bound to tokens) sits above the legal row on
+BOTH layouts, at subtlest, raising on hover. And the LINK DEFAULT IS
+FOREGROUND again: the drawn Link set always said text/default - the muted
+rest state was the CODE's own invention ("the nav/footer treatment") and it
+dimmed every adopter. Code neutral is text-foreground now, `intent="muted"`
+keeps the quiet treatment for surfaces that want it, and 44 footer link
+instances had their overrides cleared to inherit the component.
