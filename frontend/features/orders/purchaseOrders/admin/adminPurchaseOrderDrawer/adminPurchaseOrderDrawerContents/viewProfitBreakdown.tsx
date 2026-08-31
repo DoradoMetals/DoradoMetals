@@ -239,11 +239,10 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
               unlayered rules beat every cascade layer including `utilities`.
               So all three triggers rendered the identical pill whichever one
               was selected. `underline` is the variant that exists for this. */}
-          <TabsList variant="underline" className="w-full justify-start gap-2">
+          <TabsList className="w-full justify-start gap-2">
             {availableBuckets.includes('total') && (
               <TabsTrigger
                 value="total"
-                variant="underline"
               >
                 Total
               </TabsTrigger>
@@ -251,7 +250,6 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
             {availableBuckets.includes('scrap') && (
               <TabsTrigger
                 value="scrap"
-                variant="underline"
               >
                 Scrap
               </TabsTrigger>
@@ -259,7 +257,6 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
             {availableBuckets.includes('bullion') && (
               <TabsTrigger
                 value="bullion"
-                variant="underline"
               >
                 Bullion
               </TabsTrigger>

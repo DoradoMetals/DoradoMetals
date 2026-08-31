@@ -26,11 +26,11 @@ export default function Page() {
           onValueChange={handleTabChange}
           className="flex w-full px-5 max-w-2xl mt-4 lg:mt-8"
         >
-          <TabsList variant="underline" className="justify-center w-full gap-2 mb-0">
-            <TabsTrigger value="bullion" variant="underline">
+          <TabsList className="justify-center w-full gap-2 mb-0">
+            <TabsTrigger value="bullion">
               Bullion
             </TabsTrigger>
-            <TabsTrigger value="scrap" variant="underline">
+            <TabsTrigger value="scrap">
               Scrap
             </TabsTrigger>
           </TabsList>

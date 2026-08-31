@@ -54,11 +54,11 @@ export function CartTabs() {
               this pass (tab-indicator-secondary vs tab-indicator-primary) and
               is preserved exactly rather than harmonised - it looks accidental
               and the call is Jacob's. */}
-          <TabsList variant="underline" className="w-full">
-            <TabsTrigger value="buy" variant="underlineSubtle">
+          <TabsList className="w-full">
+            <TabsTrigger value="buy">
               Buy Cart {`(${items.length})`}
             </TabsTrigger>
-            <TabsTrigger value="sell" variant="underline">
+            <TabsTrigger value="sell">
               Sell Cart {`(${sellItems.length})`}
             </TabsTrigger>
           </TabsList>
