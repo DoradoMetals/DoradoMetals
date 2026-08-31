@@ -744,4 +744,8 @@ Company, Connect, Legal - which means a sixth category just wraps onto the
 next line and nothing nests. Privacy/Terms moved under the new Legal
 heading; category headings are H6 at placeholder (they are labels, not
 links, so the link-colour restore must not brighten them); the bottom row
-justifies the copyright left against the social marks right.
+justifies the copyright left against the social marks right. The mobile head is a
+Brand row: logo left, tagline over the Get a Quote button right-aligned
+beside it. The mobile tagline is a SHORTER sentence than desktop's ("Fast.
+Insured. Paid on arrival.") - the long one wrapped to three ragged lines at
+that width, and a wrap is not a layout.
