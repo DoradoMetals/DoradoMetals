@@ -36,6 +36,10 @@ export function Tooltip({ content, side = "top", children, delayDuration = 300 }
           )}
         >
           {content}
+          {/* The direction indicator is BACK as a normal arrow (Jacob,
+              2026-08-31) - Radix positions it at the anchor; it wears the
+              panel's own surface. */}
+          <TooltipPrimitive.Arrow className="fill-highest" width={12} height={6} />
         </TooltipPrimitive.Content>
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>

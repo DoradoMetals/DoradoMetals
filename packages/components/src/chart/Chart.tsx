@@ -32,15 +32,23 @@ ChartJS.register(
   ChartTooltip,
 );
 
-// Resolved dark-theme values; charts render to canvas, so tokens must be real.
+// A canvas needs RESOLVED colours, so the tokens are read from the theme at
+// runtime (getComputedStyle on the root) - the hex literals are only the
+// SSR/test fallback, and they mirror @dorado/theme's dark values (the
+// no-random-hex rule with the one honest exception a canvas forces).
+function tokenColor(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
 const C = {
-  fg: "#f6f7f9",
-  muted: "#9499a4",
-  faint: "#787c87",
-  grid: "rgba(44,47,53,0.6)",
-  primary: "#fafafa",
-  success: "#3ecc89",
-  destructive: "#ec5165",
+  get fg() { return tokenColor("--color-foreground", "#f6f7f9"); },
+  get muted() { return tokenColor("--color-muted-foreground", "#9499a4"); },
+  get faint() { return tokenColor("--color-placeholder", "#787c87"); },
+  get grid() { return "rgba(44,47,53,0.6)"; },
+  get primary() { return tokenColor("--color-primary", "#fafafa"); },
+  get success() { return tokenColor("--color-success", "#3ecc89"); },
+  get destructive() { return tokenColor("--color-destructive", "#ec5165"); },
 };
 
 const baseScales = {

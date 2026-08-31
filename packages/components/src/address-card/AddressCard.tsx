@@ -17,6 +17,7 @@ export type AddressCardProps = {
   /** Street, unit - one node per line. */
   lines: React.ReactNode[];
   isDefault?: boolean;
+  phone?: React.ReactNode;
   /** Renders as the radio target when set (with aria-checked). */
   selected?: boolean;
   onSelect?: () => void;
@@ -29,6 +30,7 @@ export function AddressCard({
   name,
   lines,
   isDefault = false,
+  phone,
   selected,
   onSelect,
   onEdit,
@@ -49,13 +51,15 @@ export function AddressCard({
         className
       )}
     >
-      <span className="flex items-center gap-2">
+      {/* Default pins TOP-RIGHT (Jacob, 2026-08-31). */}
+      <span className="flex items-center justify-between gap-2">
         <span className="text-small font-medium text-foreground">{name}</span>
         {isDefault && <Badge intent="neutral" variant="soft">Default</Badge>}
       </span>
       {lines.map((line, i) => (
         <span key={i} className="text-small text-muted-foreground">{line}</span>
       ))}
+      {phone != null && <span className="text-small text-placeholder">{phone}</span>}
       {(onEdit || onDelete) && (
         <span className="flex items-center gap-3 pt-2">
           {onEdit && (

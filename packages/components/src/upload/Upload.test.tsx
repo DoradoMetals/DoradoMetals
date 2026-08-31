@@ -28,10 +28,23 @@ describe("Upload", () => {
 
   it("drag-over is a visible state that clears on leave", () => {
     const { container } = render(<Upload onFiles={() => {}} />);
-    const zone = container.firstElementChild as HTMLElement;
+    const zone = container.querySelector("label") as HTMLElement;
     fireEvent.dragOver(zone);
     expect(zone.getAttribute("data-drag-over")).toBe("true");
     fireEvent.dragLeave(zone);
     expect(zone.getAttribute("data-drag-over")).toBe(null);
+  });
+});
+
+
+describe("Upload uploaded state", () => {
+  it("attachments render OUTSIDE the picker label, prompt flips", () => {
+    const { container, getByText } = render(
+      <Upload onFiles={() => {}} attachments={<div data-testid="att">receipt.pdf</div>} />,
+    );
+    const label = container.querySelector("label")!;
+    const att = container.querySelector('[data-testid="att"]')!;
+    expect(label.contains(att)).toBe(false); // clicking a file must not open the picker
+    expect(getByText("Add more, or drag to replace")).toBeTruthy();
   });
 });

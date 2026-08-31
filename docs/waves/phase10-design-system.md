@@ -641,3 +641,51 @@ data-grid shell - now the DataTable adoption target).
   visual goal in swapping. Kept as the rich page-scale variant.
 - Hero/Marquee/AddressCard/Chart/DataTable/Header/Footer: all reshape
   visible pages - the components sit ready, the first render wants eyes.
+
+
+---
+
+# ROUND 2 REVISIONS (2026-08-31, Jacob's second pass)
+
+## The overall pass, done first as asked
+
+1. **Components use components**: composition notes stamped on Autocomplete /
+   Select / Masked Field (their boxes ARE Input, their panels ARE Popover);
+   the drawn stand-in Buttons/Badges/Attachments are named for what to swap.
+2. **Design tokens, no random hex**: the file already had a full Color
+   collection + Scale + Typography variables. **353 paints bound** to
+   variables and **133 text nodes** put on the shared text styles across
+   every page I had drawn or touched - raw hex survives nowhere I wrote.
+   Code side: Chart resolves tokens AT RUNTIME via getComputedStyle (hex
+   remains only as the SSR/test fallback a canvas forces).
+3. **Typography components**: every unstyled text node mapped to the file's
+   text styles (Micro/Small/Body/H1-H6/Eyebrow, Regular/Medium).
+4. **Icon library**: 14 new Icon/* components drawn in the existing lucide
+   16x16 wrapper convention (trash, pencil, external-link, upload,
+   circle-check, circle-alert, info, triangle-alert, plus, chevron-right,
+   chevron-left, arrow-up-down, funnel, phone), strokes bound to
+   text/default. High-value instances swapped in: Table sort/filter, Upload,
+   Address Card actions, Link's external glyph.
+
+## The individual items
+
+| item | what changed |
+|---|---|
+| Button | **THE HOVER LAW IS OPACITY** - every variant at 85% of itself; every hover fill/dim/underline deleted, all 45 drawn Hover variants rebuilt as their Default at 85%. NO underline anywhere on Button (46 cleared). |
+| Datepicker | Calendar RENAMED Datepicker; the Time Picker page MOVED INTO it; both layouts are ONE card (shared border, zero gap). Code: new `DatePicker` composes Calendar + optional time column; calendar/ and time-picker/ folders merged into date-picker/. |
+| Dialog | Cancel far LEFT (footer is SPACE_BETWEEN), code + drawing. |
+| Alert | X vertically centered; icon centered with the title line. |
+| Address Card | Default badge top-right; optional phone (drawn + code). |
+| Radio Card | ONE top row: icon + title + radio, all vertically centered. |
+| Tooltip | The pointer is BACK - a filled triangle in the panel surface (Radix Arrow in code). |
+| Upload | Uploaded state REDONE: the zone stays, and the files render as ATTACHMENT components below it (outside the label so clicking a file cannot open the picker). Icon slot is a library instance. |
+| OTP | Title / cells / resend as a COLUMN. |
+| Stat | Tracking up again; numeric values animate through NumberFlow in code. |
+| Table | Sort = arrow-up-down/arrow; filter = funnel with aria-pressed, active fills. |
+| Chip | Dismissible is a real BOOLEAN component property in Figma (it was already optional in code). |
+| Empty State | Icon is an INSTANCE-SWAP property - pick any Icon/*. |
+| Footer | Tagline between logo and quote Button; columns justify to the end. |
+| Popover Field | RENAMED Popover. |
+| Link | No trailing icon (stale node deleted from all 15 variants); external glyph is leading, an Icon/external-link instance, optional DEFAULT FALSE - which the code already was. |
+| Header | Nothing was removed - all four original variants exist (renamed with `Signed In=False` when the axis landed) plus the new signed-in one. Five total. |
+| Loader | Parked per Jacob - he'll draw the stroke-flow animation himself. |

@@ -97,5 +97,7 @@ export const DialogOverlay = DialogPrimitive.Overlay;
 export const DialogPortal = DialogPrimitive.Portal;
 
 export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex items-center justify-end gap-2", className)} {...props} />;
+  // Cancel FAR LEFT, confirm far right (Jacob, 2026-08-31) - the escape
+  // hatch and the commitment live at opposite ends.
+  return <div className={cn("flex items-center justify-between gap-2", className)} {...props} />;
 }

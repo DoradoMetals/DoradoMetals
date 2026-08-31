@@ -19,7 +19,7 @@
 //   - drops are filtered against `accept` the same way the picker filters,
 //     so drag cannot smuggle in what browse refuses
 import * as React from "react";
-import { CircleCheck, UploadCloud } from "lucide-react";
+import { UploadCloud } from "lucide-react";
 import { cn } from "../cn";
 
 export type UploadProps = {
@@ -33,9 +33,11 @@ export type UploadProps = {
   hint?: React.ReactNode;
   /** Any icon from the library - 32px, muted (Jacob, 2026-08-30). */
   icon?: React.ReactNode;
-  /** Files already accepted: check-in-success + count line; the zone stays a
+  /** The uploaded files, as Attachment components - rendered in a stack
+   *  under the zone (Jacob, 2026-08-31: an uploaded file is a FACT, so it
+   *  gets the file component, not a different sentence). The zone stays a
    *  drop target for adding more. */
-  uploadedCount?: number;
+  attachments?: React.ReactNode;
   className?: string;
 };
 
@@ -59,10 +61,10 @@ export function Upload({
   prompt = "Drag & drop, or browse",
   hint,
   icon,
-  uploadedCount,
+  attachments,
   className,
 }: UploadProps) {
-  const uploaded = uploadedCount != null && uploadedCount > 0;
+  const uploaded = attachments != null;
   const [dragOver, setDragOver] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -73,6 +75,7 @@ export function Upload({
   };
 
   return (
+    <div className={cn("flex w-full flex-col gap-2")}>
     <label
       data-drag-over={dragOver || undefined}
       className={cn(
@@ -107,21 +110,18 @@ export function Upload({
           e.currentTarget.value = "";
         }}
       />
-      {uploaded ? (
-        <CircleCheck aria-hidden className="size-8 text-success" />
-      ) : (
-        <span className="text-muted-foreground [&_svg]:size-8">
-          {icon ?? <UploadCloud aria-hidden className="size-8" />}
-        </span>
-      )}
-      <span className="text-small font-medium text-foreground">
-        {uploaded ? `${uploadedCount} file${uploadedCount === 1 ? "" : "s"} uploaded` : prompt}
+      <span className="text-muted-foreground [&_svg]:size-8">
+        {icon ?? <UploadCloud aria-hidden className="size-8" />}
       </span>
-      {uploaded ? (
-        <span className="text-micro text-muted-foreground">Add more, or drag to replace</span>
-      ) : (
-        hint != null && <span className="text-micro text-muted-foreground">{hint}</span>
+      <span className="text-small font-medium text-foreground">
+        {uploaded ? "Add more, or drag to replace" : prompt}
+      </span>
+      {!uploaded && hint != null && (
+        <span className="text-micro text-muted-foreground">{hint}</span>
       )}
     </label>
+      {/* Outside the label - clicking an attachment must not open the picker. */}
+      {attachments != null && <div className="flex flex-col gap-2">{attachments}</div>}
+    </div>
   );
 }

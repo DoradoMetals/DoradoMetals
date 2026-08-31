@@ -10,7 +10,7 @@
 // Sortable headers are real buttons carrying aria-sort on their <th>, and the
 // wrapper scrolls horizontally so a wide table never scrolls the page.
 import * as React from "react";
-import { ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Funnel } from "lucide-react";
 import { cn } from "../cn";
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement> & { className?: string }) {
@@ -32,6 +32,8 @@ export function TableHead({
   numeric,
   sort,
   onSort,
+  filtered,
+  onFilter,
   children,
   ...props
 }: React.ThHTMLAttributes<HTMLTableCellElement> & {
@@ -39,9 +41,14 @@ export function TableHead({
   /** Current direction when this column sorts; null = sortable, unsorted. */
   sort?: SortDirection;
   onSort?: () => void;
+  /** Renders the funnel; true when this column's filter is active. */
+  filtered?: boolean;
+  onFilter?: () => void;
 }) {
   const sortable = onSort != null;
-  const Icon = sort === "asc" ? ChevronUp : sort === "desc" ? ChevronDown : ChevronsUpDown;
+  // Icon/arrow-up-down when unsorted, a single arrow once a direction holds
+  // (Jacob, 2026-08-31: "better icons" - chevrons read as expanders).
+  const Icon = sort === "asc" ? ArrowUp : sort === "desc" ? ArrowDown : ArrowUpDown;
   return (
     <th
       aria-sort={sort === "asc" ? "ascending" : sort === "desc" ? "descending" : undefined}
@@ -52,21 +59,37 @@ export function TableHead({
       )}
       {...props}
     >
-      {sortable ? (
-        <button
-          type="button"
-          onClick={onSort}
-          className={cn(
-            "inline-flex cursor-pointer items-center gap-1 hover:text-foreground",
-            numeric && "flex-row-reverse"
-          )}
-        >
-          {children}
-          <Icon aria-hidden className="size-3" />
-        </button>
-      ) : (
-        children
-      )}
+      <span className={cn("inline-flex items-center gap-1", numeric && "flex-row-reverse")}>
+        {sortable ? (
+          <button
+            type="button"
+            onClick={onSort}
+            className={cn(
+              "inline-flex cursor-pointer items-center gap-1 hover:text-foreground",
+              numeric && "flex-row-reverse"
+            )}
+          >
+            {children}
+            <Icon aria-hidden className="size-3" />
+          </button>
+        ) : (
+          children
+        )}
+        {onFilter != null && (
+          <button
+            type="button"
+            aria-label="Filter column"
+            aria-pressed={filtered || undefined}
+            onClick={onFilter}
+            className={cn(
+              "inline-flex cursor-pointer items-center hover:text-foreground",
+              filtered && "text-foreground"
+            )}
+          >
+            <Funnel aria-hidden className={cn("size-3", filtered && "fill-current")} />
+          </button>
+        )}
+      </span>
     </th>
   );
 }

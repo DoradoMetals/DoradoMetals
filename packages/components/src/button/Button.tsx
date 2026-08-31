@@ -36,7 +36,11 @@ import { cn } from "../cn";
 
 const buttonVariants = cva(
   // rounded-lg IS var(--radius): the theme maps --radius-lg to it.
-  "cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-transparent font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  // THE HOVER LAW IS OPACITY (Jacob, 2026-08-31): every variant hovers at
+  // 85% of itself - one rule, all three emphases, no reflow, no borrowed
+  // language. The underline (and the accent fill, and the outline before it)
+  // are retired; underline belongs to Link alone.
+  "cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-transparent font-medium ring-offset-background transition-[color,background-color,border-color,opacity] hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -74,41 +78,36 @@ const buttonVariants = cva(
     compoundVariants: [
       // ---- primary: filled; hover dims one ramp step ----
       { variant: "primary", intent: "neutral",
-        className: "bg-primary text-primary-foreground hover:bg-neutral-800" },
+        className: "bg-primary text-primary-foreground" },
       { variant: "primary", intent: "success",
-        className: "bg-success text-success-foreground hover:bg-success/90" },
+        className: "bg-success text-success-foreground" },
       { variant: "primary", intent: "danger",
-        className: "bg-destructive text-destructive-foreground hover:bg-destructive/90" },
+        className: "bg-destructive text-destructive-foreground" },
       { variant: "primary", intent: "warning",
-        className: "bg-warning text-warning-foreground hover:bg-warning/90" },
+        className: "bg-warning text-warning-foreground" },
       { variant: "primary", intent: "info",
-        className: "bg-info text-info-foreground hover:bg-info/90" },
+        className: "bg-info text-info-foreground" },
 
       // ---- secondary: outlined; hover fills. Neutral fills with ACCENT (the
       //      drawn exception); a hue fills with itself and flips its text ----
       { variant: "secondary", intent: "neutral",
-        className: "border-border text-foreground hover:bg-accent hover:border-border-strong" },
+        className: "border-border text-foreground" },
       { variant: "secondary", intent: "success",
-        className: "border-success text-success hover:bg-success hover:text-success-foreground" },
+        className: "border-success text-success" },
       { variant: "secondary", intent: "danger",
-        className: "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" },
+        className: "border-destructive text-destructive" },
       { variant: "secondary", intent: "warning",
-        className: "border-warning text-warning hover:bg-warning hover:text-warning-foreground" },
+        className: "border-warning text-warning" },
       { variant: "secondary", intent: "info",
-        className: "border-info text-info hover:bg-info hover:text-info-foreground" },
+        className: "border-info text-info" },
 
-      // ---- tertiary: bare; hover is an UNDERLINE (Jacob, 2026-08-30 night:
-      //      the accent fill was rejected twice; weight-on-hover was refused
-      //      for all three variants because hover must never reflow text).
-      //      Yes, underline is also Link's move - the difference stays legible
-      //      because a Link is quiet muted prose text and a tertiary Button
-      //      keeps button geometry and Medium weight. px-2/-mx-2 stays: it is
-      //      what keeps bare-text alignment while focus-visible still gets
-      //      geometry. Emitted here, after the size axis, to survive the merge.
-      { variant: "tertiary", className: "px-2 -mx-2 hover:underline underline-offset-4" },
+      // ---- tertiary: bare. px-2/-mx-2 keeps bare-text alignment while
+      //      focus-visible still gets geometry. Emitted after the size axis
+      //      to survive the merge.
+      { variant: "tertiary", className: "px-2 -mx-2" },
 
       { variant: "tertiary", intent: "neutral",
-        className: "text-muted-foreground hover:text-foreground" },
+        className: "text-muted-foreground" },
       { variant: "tertiary", intent: "success", className: "text-success" },
       { variant: "tertiary", intent: "danger", className: "text-destructive" },
       { variant: "tertiary", intent: "warning", className: "text-warning" },

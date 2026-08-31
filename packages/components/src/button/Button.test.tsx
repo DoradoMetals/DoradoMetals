@@ -30,24 +30,23 @@ describe('the Button is the drawing at 25:510', () => {
     expect(c).toContain('text-muted-foreground')
   })
 
-  /* The hover language: tertiary UNDERLINES (Jacob, 2026-08-30 night - the
-     accent fill was rejected twice; weight-on-hover refused because hover
-     must never reflow text). Secondary fills, primary dims BY RAMP STEP. */
-  it('hover escalates one step, per variant', () => {
-    expect(rendered({ variant: 'tertiary' })).toContain('hover:underline')
-    expect(rendered({ variant: 'tertiary' })).not.toContain('hover:bg-accent')
-    expect(rendered({ variant: 'tertiary' })).not.toContain('hover:border-border')
-    expect(rendered({ variant: 'secondary' })).toContain('hover:bg-accent')
-    expect(rendered({ variant: 'secondary' })).toContain('hover:border-border-strong')
-    expect(rendered({})).toContain('hover:bg-neutral-800')
+  /* THE HOVER LAW IS OPACITY (Jacob, 2026-08-31): every variant at 85% of
+     itself. No underline anywhere on Button - that is Link's. No accent
+     fill, no ramp dim, no hue fills: one rule, three emphases. */
+  it('hover is opacity for every variant, and NOTHING else', () => {
+    for (const variant of ['primary', 'secondary', 'tertiary'] as const) {
+      const c = rendered({ variant })
+      expect(c).toContain('hover:opacity-85')
+      expect(c.join(' ')).not.toMatch(/hover:(underline|bg-|text-|border-)/)
+    }
   })
 
-  it('a hued secondary outlines in its hue and FILLS with it on hover', () => {
+  it('a hued secondary outlines in its hue - and hover adds NO fill (opacity law)', () => {
     const c = rendered({ variant: 'secondary', intent: 'danger' })
     expect(c).toContain('border-destructive')
     expect(c).toContain('text-destructive')
-    expect(c).toContain('hover:bg-destructive')
-    expect(c).toContain('hover:text-destructive-foreground')
+    expect(c).not.toContain('hover:bg-destructive')
+    expect(c).toContain('hover:opacity-85')
   })
 
   /* The cn() half of the old story: twMerge once classified `text-small` as a
