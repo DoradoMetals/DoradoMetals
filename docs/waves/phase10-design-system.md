@@ -403,6 +403,8 @@ so the write half of the design contract is automatable after all.
 | Badge | 32:83 | two-axis cva + leading icon slot (Jacob) | — awaiting first adopter | — |
 | Field chassis | Popover Field 106:213 | fieldTrigger/fieldPanel/fieldOption, one set of clothes | worn by Select + Autocomplete | description records the code |
 | Select | 38:75 (trigger DEPRECATED) | Radix Select on the chassis | — awaiting first adopter | trigger set marked deprecated → Popover Field |
+| Checkbox | 15:16 | Radix, hover border-strong added | base/checkbox doorway (8 importers) | — |
+| Chip | 32:121 | real button, aria-pressed, dismiss is its own act | StatusChip mapping deferred (status vocabulary is app law) | — |
 
 **The process, as Jacob corrected it**: adoption is part of the slice — a
 package component replaces its app counterpart in the same pass, and buttons
