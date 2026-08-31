@@ -716,3 +716,13 @@ rest state was the CODE's own invention ("the nav/footer treatment") and it
 dimmed every adopter. Code neutral is text-foreground now, `intent="muted"`
 keeps the quiet treatment for surfaces that want it, and 44 footer link
 instances had their overrides cleared to inherit the component.
+
+
+## Footer round 4 (2026-08-31)
+
+Jacob replaced my hand-drawn brand glyphs with his own Icon/instagram /
+x-twitter / youtube components (203:*). His pasted vectors had all lost
+their offsets (everything at 0,0 - instagram's lens in the corner), so the
+artwork was re-placed on the 16-grid, sizes and paths untouched. The mobile
+social row now instances HIS components at native 16 with subtlest strokes;
+the DESKTOP footer carries no social row at all (mobile-only, his call).
