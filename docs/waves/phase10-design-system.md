@@ -507,13 +507,24 @@ ground, Geist styles, and a description carrying the contract.
 
 | component | code | adoption |
 |---|---|---|
-| Menu | `menu.tsx` — Radix DropdownMenu; accent highlight, danger intent, Micro-caps labels | SelectMenu/PopoverSelect/ProfileMenu refit is a recorded sweep |
+| Menu | `menu.tsx` — Radix DropdownMenu; accent highlight, danger intent, Micro-caps labels | see the refit analysis below — none of the three hand-rolls is an unattended refit |
 | Progress | `progress.tsx` — Radix Progress; transform-moved indicator, sweep keyframe in theme.css | Attachment's rail can rebase later |
 | Quantity Stepper | `quantity-stepper.tsx` — real input, blur clamps, AtMin disables | cart's +/− refit is a recorded sweep |
 | Toast | `toaster.tsx` — SONNER, which sat in package.json imported by NOTHING; Toaster mounted in app/layout.tsx; house toast.error persists until dismissed | call sites arrive as flows adopt it |
 | Pagination | existing base/pagination RESTYLED: current page = primary fill (was secondary outline) | live on both order tabs |
 | Breadcrumb | existing base/breadcrumb RESTYLED off text-neutral-* onto the Link quiet state | live in LayoutProvider |
 | Banner / Empty State / Drawer | drawings caught up with code; Drawer restyle stays an eyes-on sweep | — |
+
+**The Menu refit analysis (2026-08-30, so the sweep is filed right):** the
+three "hand-rolls" the gap analysis named each turn out to be something other
+than a plain action menu on inspection. `SelectMenu` post-D95 is HALF FILTER
+(it takes `value` and shows a check — Field language, and its search box has
+no clean home in DropdownMenu); `PopoverSelect` IS a field and belongs to the
+Field-chassis sweep; `ProfileMenu` is a rich card popover (header with
+name/email, link body, footer) whose refit to Menu is a site-chrome redesign.
+So the package Menu's first adopter will be a NEW surface (row-action menus in
+the admin tables are the obvious one), and the three existing surfaces move
+under eyes, not on loop.
 
 Pinned by `shared/ui/base/gap-atoms.test.tsx` (10 assertions): progressbar
 aria, sweep pauses under motion-reduce, indicator clamps out-of-range, AtMin
