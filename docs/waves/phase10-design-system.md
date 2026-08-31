@@ -426,10 +426,20 @@ so the write half of the design contract is automatable after all.
 
 | TimePicker | 55:50/55:15 | radiogroup of real buttons; unavailable disabled, not hidden | SchedulePicker/pickup scheduling are the adopters-in-waiting | — |
 
-**Remaining on the shelf**: Chart, Footer, Header, Loader's
-eight-frame Logo animation, Radio layout alignment, Swiper, Time Picker — the
-composite/page-level tier, each wanting a session with visual eyes rather than
-the small-atom loop.
+| Swiper | 59:63 | CSS scroll-snap: native momentum, zero dependency; widening dot | product/category carousels are the adopters-in-waiting | — |
+
+**Remaining on the shelf, with reasons**:
+- **Chart (57:2)** — the code side is a charting-stack decision (a real chart
+  library vs. drawn geometry), which is Jacob's to make with the dataviz rules
+  in hand, not an unattended pick.
+- **Header (51:2) / Footer (51:59)** — THE site chrome; adopting the drawn
+  Linear pattern restyles every page's frame at once. Wants Jacob watching the
+  first render.
+- **Logo Loader (42:142)** — eight-frame brand animation, app chrome not a
+  library atom.
+- **The three adoption sweeps** — forms → drawn Input (every form's look),
+  the tanstack data-grid → drawn Table, RadioGroup's card layout — each
+  reshapes visible pages; the components are ready and waiting.
 
 **The process, as Jacob corrected it**: adoption is part of the slice — a
 package component replaces its app counterpart in the same pass, and buttons

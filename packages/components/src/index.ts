@@ -39,3 +39,4 @@ export { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, type Sor
 export { Dialog, DialogTrigger, DialogClose, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal } from "./dialog";
 export { Calendar, type CalendarProps } from "./calendar";
 export { TimePicker, type TimePickerProps, type TimeGroup, type TimeSlotShape } from "./time-picker";
+export { Swiper, type SwiperProps } from "./swiper";
