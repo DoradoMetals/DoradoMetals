@@ -352,3 +352,35 @@ knows nothing about money.
 Next alphabetically: **Autocomplete** (missing from code entirely — "for
 address lookup and any typeahead"), then Button (exists; two divergences
 already recorded: the gold, and Link-as-variant).
+
+
+---
+
+# THE FIGMA GETS THE CODE'S CHANGES BACK (2026-08-30)
+
+Jacob: *"we should probably ALSO update the figma if we make changes."* Done,
+via `use_figma` — which, unlike `get_variable_defs`, needs NO live selection,
+so the write half of the design contract is automatable after all.
+
+**The Accordion set (32:36) went from 2 variants to 5:**
+
+- `State` axis added — Default / **Hover** (fills with accent, the row
+  language) / **Disabled** (opacity 50%, Button's language) — closing the gap
+  this file recorded, where every sibling control had a State axis and
+  Accordion had only Open.
+- `Chevron` axis added — Leading (the drawn default) / **Trailing**, for
+  informational accordions with nothing on the right; the trailing variant
+  hides the Amount, because the point of it is a header with one right-edge
+  occupant. Mirrors the code's `chevron` prop, which refuses the collision the
+  same way.
+- The set's **description now records the code contract**: built on Radix, the
+  header IS the Button, closed content unmounted, motion-reduce honoured.
+
+**Two observations for the design side:**
+1. The hover fill had to be a RAW hex — `getLocalVariablesAsync("COLOR")`
+   found no local variable matching `accent`, so either that token lives under
+   another name or the library colours some things by style. Worth aligning:
+   the code's hover is `--accent`.
+2. `border/strong`'s variable DESCRIPTION still says `#3d414a` while its value
+   resolves `#3f434b` — the code synced to the resolved value; the description
+   is stale.
