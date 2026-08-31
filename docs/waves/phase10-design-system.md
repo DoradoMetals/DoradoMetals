@@ -417,6 +417,13 @@ so the write half of the design contract is automatable after all.
 | Tabs | 39:23 | underline style; transparent-border height-jump fix | base/tabs doorway (4 importers restyled) | — |
 | Slider | 31:115 | Radix; caller must label it | base/slider doorway | — |
 | SliderField | 99:210 | one value, two editors; clamp on COMMIT not keystroke | custom-purity control is the adopter-in-waiting | — |
+| List | 97:35 | real ul/ol under drawn markers; browser counts the numbers | help drawers' "Examples include" lists | — |
+| Table | 56:82 | real <table>: the drawing's stated maintenance cost dissolves; aria-sort | base/table + the tanstack data-table system stay pending their own audit | — |
+
+**Remaining on the shelf**: Calendar, Chart, Dialog, Footer, Header, Loader's
+eight-frame Logo animation, Radio layout alignment, Swiper, Time Picker — the
+composite/page-level tier, each wanting a session with visual eyes rather than
+the small-atom loop.
 
 **The process, as Jacob corrected it**: adoption is part of the slice — a
 package component replaces its app counterpart in the same pass, and buttons

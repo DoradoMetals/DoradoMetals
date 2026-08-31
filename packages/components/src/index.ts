@@ -34,3 +34,5 @@ export { OTPInput, type OTPInputProps } from "./otp-input";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
 export { Slider, type SliderProps } from "./slider";
 export { SliderField, type SliderFieldProps } from "./slider-field";
+export { List, ListItem, type ListProps } from "./list";
+export { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, type SortDirection } from "./table";
