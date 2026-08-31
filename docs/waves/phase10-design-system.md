@@ -451,3 +451,40 @@ an accent fill** (outline rejected; underline is Link's move; px-2/-mx-2 keeps
 bare-text alignment while giving the fill geometry) — 15 drawn variants
 updated; **Upload** lost the icon box and the dashed border (solid now,
 drag-over stays primary) and moved to alphabetical page order.
+
+---
+
+# THE GAP ANALYSIS (2026-08-30) — what the library is missing
+
+Jacob: *"identify other components we'll need and create them in Figma. I would
+look at other popular component libraries. Try to fill in all our gaps."*
+
+Measured two ways: against shadcn/ui + Radix Themes (the file already links the
+shadcn community kit), and against WHAT THIS APP ACTUALLY RENDERS — which is
+the stronger signal, because several "missing" components already exist in
+code with no drawing, meaning the drawing is what catches up.
+
+## The gaps, ranked by how hard the app leans on them
+
+| # | component | why it matters HERE | code today |
+|---|---|---|---|
+| 1 | **Drawer** | THE app pattern — every admin order surface is a drawer, checkout details are drawers | `base/drawer` + hand-styling, no drawing |
+| 2 | **Menu** | the action menu SelectMenu / PopoverSelect / ProfileMenu each hand-roll — the deferred "Menu audit" exists because no drawing exists | 3 hand-rolls |
+| 3 | **Toast** | transient outcomes ("Added to cart", "Saved") — Alert is inline and permanent; nothing transient is drawn | none |
+| 4 | **Pagination** | order lists and admin tables page | `base/pagination` (imports buttonVariants), no drawing |
+| 5 | **Empty State** | empty cart, no orders, no addresses — live everywhere | `shared/ui/EmptyState`, no drawing |
+| 6 | **Quantity Stepper** | the cart's +/− is the busiest control in checkout | hand-rolled buttons in orderSummary |
+| 7 | **Progress** | standalone bar — Attachment's rail, promoted to an atom | none |
+| 8 | **Breadcrumb** | account/product navigation depth | `base/breadcrumb`, no drawing |
+| 9 | **Banner** | the full-bleed page band (ruling-19 treatment already law in code) | `shared/ui/Banner`, no drawing |
+
+**Considered and NOT drawn, with reasons**: Separator (the border language IS
+the separator; a component would be ceremony), Card (bg-card + border is a
+token pattern, not a component), Segmented Control (Radio Chip is the segment),
+Command palette (a Menu with a Field on top — compose, don't draw), Hover Card
+(Tooltip covers the app's need), Toggle Group (Radio Tile/Chip cover it),
+Context Menu (no right-click surface in this product).
+
+Each drawn component follows the file's conventions: its own page in
+alphabetical order, one frame per set, variants on the 24px grid, the dark
+ground, Geist styles, and a description carrying the contract.
