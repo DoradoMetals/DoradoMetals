@@ -1,3 +1,5 @@
+'use client'
+
 // List - the drawings at 97:35/97:17: rows at a consistent rhythm, marker
 // switching between bullet, check and number, and "the text fills and wraps,
 // so long items stay aligned to the marker rather than under it."

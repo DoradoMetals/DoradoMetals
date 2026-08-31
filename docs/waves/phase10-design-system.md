@@ -952,3 +952,11 @@ month row, which is also what clustered its chevrons. Scoped to
 stretching, and the calendar's chevrons are back at the edges.
 
 Upload deferred — Jacob is taking that one last.
+
+**Select, actually fixed (round 5b).** The set itself was clean - eight
+variants, correctly spaced, no overlaps. The floating panel was a SEPARATE
+node: a `Select Menu preview` frame parked at @0,700 while the Select set
+ran from y=260 to y=870, so the preview lay across the set's lower-left
+corner and read as a broken variant. Nothing about the component was wrong;
+the page was. Laid the page out top-to-bottom with 80px gaps - Select
+Option (0-192), Select (272-882), the preview (962-1210).
