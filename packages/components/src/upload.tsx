@@ -4,8 +4,8 @@
 // asked for the component ("we're gonna need an Upload component to go along
 // with Attachment") and the design side is being written back to the Figma in
 // the same pass, in the library's own language - card surface split by a
-// DASHED border (the file's placeholder convention), the 32px secondary thumb
-// holding the icon exactly as Attachment's does, Small/Medium prompt over a
+// solid border (Jacob rejected the dash), a bare upload glyph with no box
+// behind it, Small/Medium prompt over a
 // Micro/Regular hint.
 //
 // The mechanics best practice demands and no drawing could say:
@@ -68,7 +68,7 @@ export function Upload({
     <label
       data-drag-over={dragOver || undefined}
       className={cn(
-        "flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-card p-6 text-center transition-colors",
+        "flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border bg-card p-6 text-center transition-colors",
         dragOver ? "border-primary" : "border-border",
         "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background",
         disabled && "pointer-events-none opacity-50",
@@ -99,9 +99,7 @@ export function Upload({
           e.currentTarget.value = "";
         }}
       />
-      <span className="flex size-8 items-center justify-center rounded-sm bg-secondary">
-        <UploadCloud aria-hidden className="size-4 text-muted-foreground" />
-      </span>
+      <UploadCloud aria-hidden className="size-5 text-muted-foreground" />
       <span className="text-small font-medium text-foreground">{prompt}</span>
       {hint != null && <span className="text-micro text-muted-foreground">{hint}</span>}
     </label>

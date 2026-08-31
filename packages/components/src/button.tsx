@@ -9,7 +9,8 @@
 //                       says to add "if call sites need them" - they do
 //                       (36 sm, 30 icon, 9 lg, 8 xl, 5 xs at last count)
 //
-// THE HOVER LANGUAGE IS "ESCALATE ONE STEP": tertiary gains an outline,
+// THE HOVER LANGUAGE IS "ESCALATE ONE STEP": tertiary fills with accent
+// (the file's quiet-hover language - Jacob rejected the drawn outline),
 // secondary fills, primary dims - and primary dims by RAMP STEP (neutral-800),
 // not by opacity, because /90 over a dark ground muddies where a step stays
 // clean. Neutral secondary is the drawn exception: it fills with --accent, not
@@ -96,20 +97,25 @@ const buttonVariants = cva(
       { variant: "secondary", intent: "info",
         className: "border-info text-info hover:bg-info hover:text-info-foreground" },
 
-      // ---- tertiary: bare; hover gains the outline. px-0 here so it emits
-      //      AFTER the size axis and survives the merge ----
-      { variant: "tertiary", className: "px-0" },
+      // ---- tertiary: bare; hover fills with ACCENT (Jacob, 2026-08-30:
+      //      not the outline - and not underline, which is Link's move). The
+      //      accent fill is the file's own quiet-hover language: Table Row and
+      //      Select Option both hover exactly this way. px-2/-mx-2 is what
+      //      lets a BARE control take a fill: the text keeps the alignment
+      //      px-0 bought, and the hover gets geometry instead of hugging the
+      //      glyphs. Emitted here, after the size axis, to survive the merge.
+      { variant: "tertiary", className: "px-2 -mx-2" },
 
       { variant: "tertiary", intent: "neutral",
-        className: "text-muted-foreground hover:text-foreground hover:border-border" },
+        className: "text-muted-foreground hover:text-foreground hover:bg-accent" },
       { variant: "tertiary", intent: "success",
-        className: "text-success hover:border-success" },
+        className: "text-success hover:bg-accent" },
       { variant: "tertiary", intent: "danger",
-        className: "text-destructive hover:border-destructive" },
+        className: "text-destructive hover:bg-accent" },
       { variant: "tertiary", intent: "warning",
-        className: "text-warning hover:border-warning" },
+        className: "text-warning hover:bg-accent" },
       { variant: "tertiary", intent: "info",
-        className: "text-info hover:border-info" },
+        className: "text-info hover:bg-accent" },
     ],
     defaultVariants: { variant: "primary", intent: "neutral", size: "default" },
   }

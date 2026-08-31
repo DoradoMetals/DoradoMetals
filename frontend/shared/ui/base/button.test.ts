@@ -18,18 +18,21 @@ describe('the Button is the drawing at 25:510', () => {
     expect(c).not.toContain('rounded-full')
   })
 
-  it('tertiary is bare text: px-0, so it aligns with content beside it', () => {
+  it('tertiary keeps bare-text alignment: px-2/-mx-2 cancel; the size px loses', () => {
     const c = rendered({ variant: 'tertiary' })
-    expect(c).toContain('px-0')
+    expect(c).toContain('px-2')
+    expect(c).toContain('-mx-2')
     expect(c).not.toContain('px-4')
     expect(c).toContain('text-muted-foreground')
   })
 
-  /* The drawn hover language: escalate one step. Tertiary gains the outline,
-     secondary fills, primary dims BY RAMP STEP (the drawing resolves the
-     hover fill to neutral-800, not primary/90). */
+  /* The hover language: escalate one step. Tertiary fills with ACCENT - the
+     file's quiet-hover language (Table Row, Select Option); Jacob rejected the
+     drawn outline, and underline is Link's move. Secondary fills, primary dims
+     BY RAMP STEP (the drawing resolves the hover fill to neutral-800). */
   it('hover escalates one step, per variant', () => {
-    expect(rendered({ variant: 'tertiary' })).toContain('hover:border-border')
+    expect(rendered({ variant: 'tertiary' })).toContain('hover:bg-accent')
+    expect(rendered({ variant: 'tertiary' })).not.toContain('hover:border-border')
     expect(rendered({ variant: 'secondary' })).toContain('hover:bg-accent')
     expect(rendered({ variant: 'secondary' })).toContain('hover:border-border-strong')
     expect(rendered({})).toContain('hover:bg-neutral-800')

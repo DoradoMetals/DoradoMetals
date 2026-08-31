@@ -3,6 +3,8 @@
 // the drawing cannot express (focus, keyboard, aria, motion-reduce) - not
 // before.
 export { Accordion, type AccordionProps } from "./accordion";
+export { Avatar, type AvatarProps } from "./avatar";
+export { Badge, badgeVariants, type BadgeProps } from "./badge";
 export { Alert, type AlertProps, type AlertIntent } from "./alert";
 export { Autocomplete, type AutocompleteProps, type AutocompleteItem } from "./autocomplete";
 export { Attachment, type AttachmentProps, type AttachmentState } from "./attachment";

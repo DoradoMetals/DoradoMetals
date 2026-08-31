@@ -99,7 +99,7 @@ export function Accordion({
               // drawing's p-3, content pushed apart. Layout classes only -
               // the call-site rule - and `group` so the chevron can read the
               // trigger's data-state.
-              className="group h-auto w-full justify-start gap-2 rounded-none border-transparent p-3 text-left hover:border-transparent"
+              className="group mx-0 h-auto w-full justify-start gap-2 rounded-none border-transparent p-3 text-left"
             >
               {chevronTrailing ? null : marker}
               <span className="min-w-0 flex-1 font-medium text-foreground">{label}</span>

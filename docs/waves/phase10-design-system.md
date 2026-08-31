@@ -399,9 +399,16 @@ so the write half of the design contract is automatable after all.
 | Upload | **drawn tonight (117:28)** | label-wrapped real input, accept-filtered drops | ImageUpload | new page, 3 states, description |
 | Autocomplete | 100:29 | combobox pattern, composed handlers | AddressSearchInput | — |
 | Alert | 54:44 | role=alert/status split | checkout payment message | — |
+| Avatar | 32:147 | Radix image lifecycle + initials fallback | base/avatar doorway (ProfileMenu) | — |
+| Badge | 32:83 | two-axis cva + leading icon slot (Jacob) | — awaiting first adopter | — |
 
 **The process, as Jacob corrected it**: adoption is part of the slice — a
 package component replaces its app counterpart in the same pass, and buttons
 that navigate become Links. Standing notes: Footer's Facebook and X buttons
 have never had destinations (need URLs or deletion); the Alert drawing's own
 description asks for muted status tokens instead of the 16% opacity trick.
+Design decisions taken with Jacob live, both sides updated: **tertiary hover is
+an accent fill** (outline rejected; underline is Link's move; px-2/-mx-2 keeps
+bare-text alignment while giving the fill geometry) — 15 drawn variants
+updated; **Upload** lost the icon box and the dashed border (solid now,
+drag-over stays primary) and moved to alphabetical page order.
