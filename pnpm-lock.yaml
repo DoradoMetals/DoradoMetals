@@ -422,6 +422,9 @@ importers:
       react:
         specifier: '*'
         version: 19.2.6
+      react-day-picker:
+        specifier: ^9.6.7
+        version: 9.14.0(react@19.2.6)
       tailwind-merge:
         specifier: ^3.2.0
         version: 3.5.0

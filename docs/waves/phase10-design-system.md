@@ -422,7 +422,9 @@ so the write half of the design contract is automatable after all.
 
 | Dialog | 41:55 | Radix: focus trap, Title/Description labelling; blur overlay kept | base/dialog stays pending its own audit (drawer composition uses low-level pieces) | — |
 
-**Remaining on the shelf**: Calendar, Chart, Footer, Header, Loader's
+| Calendar | 49:100/47:21 | react-day-picker restyled; real ChevronLeft replaces the drawing's rotate-90 workaround | base/calendar doorway (SchedulePicker, pickupScheduler, ReviewsDrawer restyled) | — |
+
+**Remaining on the shelf**: Chart, Footer, Header, Loader's
 eight-frame Logo animation, Radio layout alignment, Swiper, Time Picker — the
 composite/page-level tier, each wanting a session with visual eyes rather than
 the small-atom loop.
