@@ -40,3 +40,7 @@ export { Dialog, DialogTrigger, DialogClose, DialogContent, DialogTitle, DialogD
 export { Calendar, type CalendarProps } from "./calendar";
 export { TimePicker, type TimePickerProps, type TimeGroup, type TimeSlotShape } from "./time-picker";
 export { Swiper, type SwiperProps } from "./swiper";
+export { Menu, MenuTrigger, MenuGroup, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuShortcut } from "./menu";
+export { Progress } from "./progress";
+export { QuantityStepper } from "./quantity-stepper";
+export { Toaster, toast } from "./toaster";

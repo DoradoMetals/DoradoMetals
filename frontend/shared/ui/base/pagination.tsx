@@ -40,13 +40,12 @@ const PaginationLink = ({
   <a
     aria-current={isActive ? 'page' : undefined}
     className={cn(
-      /* The active page is the emphasised one, so it is `secondary` (outlined)
-         and the rest are `tertiary` (quiet). This was previously
-         `isActive ? 'ghost' : 'ghost'` — a dead ternary — with the real
-         distinction carried by two text-colour classes beside it. The emphasis
-         axis says it properly and the colours come off the call site. */
+      /* The current page wears the PRIMARY fill - the selection language the
+         Figma Pagination drawing (132:966) shares with Calendar's chosen day.
+         (It was `secondary` outlined before the drawing existed; selection is
+         a fill, emphasis is an outline.) The rest are `tertiary` (quiet). */
       buttonVariants({
-        variant: isActive ? 'secondary' : 'tertiary',
+        variant: isActive ? 'primary' : 'tertiary',
         size,
       }),
       className
@@ -68,7 +67,7 @@ const PaginationPrevious = ({
       size="default"
       className={cn(
         "gap-1 pl-2.5",
-        isDisabled && "opacity-30 pointer-events-none",
+        isDisabled && "opacity-40 pointer-events-none",
         className
       )}
       {...props}
@@ -93,7 +92,7 @@ const PaginationNext = ({
       size="default"
       className={cn(
         "gap-1 pr-2.5",
-        isDisabled && "opacity-50 pointer-events-none",
+        isDisabled && "opacity-40 pointer-events-none",
         className
       )}
       {...props}

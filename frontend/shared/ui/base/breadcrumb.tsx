@@ -16,7 +16,7 @@ const BreadcrumbList = React.forwardRef<HTMLOListElement, React.ComponentPropsWi
     <ol
       ref={ref}
       className={cn(
-        'text-sm text-neutral-600 flex flex-wrap items-center gap-1.5 break-words text-base sm:gap-2.5 tracking-wide',
+        'flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground sm:gap-2',
         className
       )}
       {...props}
@@ -43,7 +43,13 @@ const BreadcrumbLink = React.forwardRef<
   return (
     <Comp
       ref={ref}
-      className={cn('text-base hover:text-neutral-900 transition-colors tracking-wide', className)}
+      // The drawn Breadcrumb (126:16): every crumb but the last wears the Link
+      // component's quiet state - muted, raised to foreground with underline
+      // on hover. text-neutral-900 was the pre-refresh palette.
+      className={cn(
+        'text-sm text-muted-foreground transition-colors hover:text-foreground hover:underline hover:underline-offset-4',
+        className,
+      )}
       {...props}
     />
   )
@@ -57,7 +63,8 @@ const BreadcrumbPage = React.forwardRef<HTMLSpanElement, React.ComponentPropsWit
       role="link"
       aria-disabled="true"
       aria-current="page"
-      className={cn('text-base text-neutral-900 font-normal tracking-wide', className)}
+      // Current page: Medium foreground, not a link (aria-current above).
+      className={cn('text-sm font-medium text-foreground', className)}
       {...props}
     />
   )
@@ -72,7 +79,7 @@ function BreadcrumbSeparator({ children, className, ...props }: React.ComponentP
       className={cn('[&>svg]:size-3.5', className)}
       {...props}
     >
-      {children ?? <ChevronRight size={20} className="text-neutral-700" />}
+      {children ?? <ChevronRight size={14} className="text-placeholder" />}
     </li>
   )
 }

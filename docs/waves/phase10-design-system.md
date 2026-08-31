@@ -503,6 +503,22 @@ ground, Geist styles, and a description carrying the contract.
 | Quantity Stepper | 132:996 | 132:1016 | Field-chassis language at 36px; AtMin disables |
 | Toast | 132:1017 | 132:1041 | Neutral/Success/Danger; icon carries intent, surface never tints |
 
+## The code halves (same day)
+
+| component | code | adoption |
+|---|---|---|
+| Menu | `menu.tsx` — Radix DropdownMenu; accent highlight, danger intent, Micro-caps labels | SelectMenu/PopoverSelect/ProfileMenu refit is a recorded sweep |
+| Progress | `progress.tsx` — Radix Progress; transform-moved indicator, sweep keyframe in theme.css | Attachment's rail can rebase later |
+| Quantity Stepper | `quantity-stepper.tsx` — real input, blur clamps, AtMin disables | cart's +/− refit is a recorded sweep |
+| Toast | `toaster.tsx` — SONNER, which sat in package.json imported by NOTHING; Toaster mounted in app/layout.tsx; house toast.error persists until dismissed | call sites arrive as flows adopt it |
+| Pagination | existing base/pagination RESTYLED: current page = primary fill (was secondary outline) | live on both order tabs |
+| Breadcrumb | existing base/breadcrumb RESTYLED off text-neutral-* onto the Link quiet state | live in LayoutProvider |
+| Banner / Empty State / Drawer | drawings caught up with code; Drawer restyle stays an eyes-on sweep | — |
+
+Pinned by `shared/ui/base/gap-atoms.test.tsx` (10 assertions): progressbar
+aria, sweep pauses under motion-reduce, indicator clamps out-of-range, AtMin
+disables-never-removes, typing clamps on blur, garbage reverts, arrows step.
+
 Figma-side notes: the drawn Button/Link stand-ins inside Banner, Drawer,
 Empty State are plain frames NAMED for the component they should be
 (instance-swap is a click with the libraries panel open; scripting instances
