@@ -855,3 +855,34 @@ swapping them (breaking parity with the code's `--muted-foreground`) or
 renaming #babec5 to `text/secondary` (which collides with the `secondary`
 SURFACE token in Tailwind, where `text-secondary` would resolve to
 #23252a). Parity won; say the word if the ordering matters more.
+
+## Round 3 revisions (2026-08-31)
+
+**The Radio Card, which I broke.** The radio control was never deleted - my
+"Top row" frame never got FILL sizing, so it collapsed to 149px inside a
+342px card and pushed the control out of view, and the card's own layout
+had flipped to HORIZONTAL so the description sat beside the row instead of
+under it. Fixed: row fills, label hugs, radio pins right, all three
+vertically centered, description below at auto height. The radio's own
+Selected/State now tracks the card's variant.
+
+| item | what changed |
+|---|---|
+| Address Card | `Show default badge` + `Show phone` booleans |
+| Attachment | the % and the remove Button share one 32px right column |
+| Chip | dismiss is a real **Button** wired to the existing `Show dismiss` boolean |
+| Datepicker | `Show time picker` boolean; Y padding on the slot column; slots are Radio Chip instances |
+| Empty State | icon up to 48px |
+| Footer | mobile © and socials share the bottom row; Legal category back to vertical |
+| Header | unauthenticated CTA restored - Log in \| **Get a Quote** (a real Button) |
+| Link | the four leading/trailing icon props deleted; `External` alone survives, and the glyph takes the link's own text colour |
+| Progress | track grows to fill |
+| Tooltip | arrow un-clipped (`clipsContent` off, HUG height) and it wears the bubble's own fill |
+| OTP | rebuilt: header (title + where the code went), cells, then "Didn't get it? *Resend in 24s*" using the Link component |
+| Upload | 40px **Lucide** icon; State=Uploaded keeps the zone whole and puts real Attachment instances in a height-capped block **that scrolls**, so a third file cannot resize the card |
+
+**Already true in code, verified rather than assumed**: Progress is
+`w-full`, the Quantity Stepper's middle IS an `<input>`, Stat animates
+through NumberFlow, MaskedField renders `<Input>`, and Autocomplete and
+Select both compose `fieldTrigger`/`fieldPanel`/`fieldOption` - the same
+chassis Input and Popover are built from.
