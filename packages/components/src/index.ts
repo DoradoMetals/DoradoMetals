@@ -38,3 +38,4 @@ export { List, ListItem, type ListProps } from "./list";
 export { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, type SortDirection } from "./table";
 export { Dialog, DialogTrigger, DialogClose, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal } from "./dialog";
 export { Calendar, type CalendarProps } from "./calendar";
+export { TimePicker, type TimePickerProps, type TimeGroup, type TimeSlotShape } from "./time-picker";

@@ -424,6 +424,8 @@ so the write half of the design contract is automatable after all.
 
 | Calendar | 49:100/47:21 | react-day-picker restyled; real ChevronLeft replaces the drawing's rotate-90 workaround | base/calendar doorway (SchedulePicker, pickupScheduler, ReviewsDrawer restyled) | — |
 
+| TimePicker | 55:50/55:15 | radiogroup of real buttons; unavailable disabled, not hidden | SchedulePicker/pickup scheduling are the adopters-in-waiting | — |
+
 **Remaining on the shelf**: Chart, Footer, Header, Loader's
 eight-frame Logo animation, Radio layout alignment, Swiper, Time Picker — the
 composite/page-level tier, each wanting a session with visual eyes rather than
