@@ -3,7 +3,7 @@
 import { ComponentType } from 'react'
 import { RowsPlusTopIcon } from '@phosphor-icons/react'
 
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 
 type AddNewTriggerProps = {

@@ -1,7 +1,7 @@
 'use client'
 
 import type { ComponentType, ReactNode } from 'react'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { DownloadIcon } from '@phosphor-icons/react'
 
 /* ============================================================================

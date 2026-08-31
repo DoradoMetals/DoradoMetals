@@ -1,4 +1,4 @@
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { cartStore } from '@/shared/store/cartStore'
 import { paymentOptions } from '@/features/orders/salesOrders/types'
 import { Minus, Plus, Trash2 } from 'lucide-react'

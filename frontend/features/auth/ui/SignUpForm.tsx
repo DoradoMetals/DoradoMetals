@@ -12,8 +12,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/shared/ui/base/form'
-import { Button } from '@/shared/ui/base/button'
-import { Checkbox } from '@/shared/ui/base/checkbox'
+import { Button } from '@dorado/components'
+import { Checkbox } from '@dorado/components'
 import Link from 'next/link'
 import { useSignUp } from '@/features/auth/queries'
 import { SignUp, signUpSchema } from '@/features/auth/types'

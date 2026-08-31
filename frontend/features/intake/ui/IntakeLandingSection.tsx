@@ -1,5 +1,5 @@
 import { intakeOptions } from '@/features/intake/types'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { ArrowRightIcon } from '@phosphor-icons/react'
 
 export function Intake() {

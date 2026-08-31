@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react'
-import { Button } from '../base/button'
+import { Button } from '@dorado/components'
 import { Input } from '../base/input'
 import { cn } from '@/shared/utils/cn'
 

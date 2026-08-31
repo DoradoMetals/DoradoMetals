@@ -1,9 +1,9 @@
 'use client'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/base/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
 import Cart from './Cart'
 import SellCart from './SellCart'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { X } from 'lucide-react'
 import { cartStore } from '@/shared/store/cartStore'
 import { sellCartStore } from '@/shared/store/sellCartStore'

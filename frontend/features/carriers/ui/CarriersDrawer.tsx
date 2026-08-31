@@ -19,7 +19,7 @@ import {
 import { ColumnDef } from '@tanstack/react-table'
 import { ChipColumn, IconColumn, TextColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Field } from '@/shared/ui/Field'
 
 export default function CarriersDrawer({

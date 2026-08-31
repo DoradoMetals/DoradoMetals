@@ -2,7 +2,7 @@
 
 import type { Table as TanTable } from '@tanstack/react-table'
 import { useState } from 'react'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 
 type Props<TData> = {

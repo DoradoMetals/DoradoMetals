@@ -1,6 +1,6 @@
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/base/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
 import { Separator } from '@/shared/ui/base/separator'
 import SignInForm from './SignInForm'
 import SignUpForm from './SignUpForm'

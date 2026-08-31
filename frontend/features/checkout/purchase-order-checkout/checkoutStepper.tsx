@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { defineStepper } from '@stepperize/react'
 import ShippingStep from './shippingStep/shippingStep'
 import PayoutStep from './payoutStep/payoutStep'

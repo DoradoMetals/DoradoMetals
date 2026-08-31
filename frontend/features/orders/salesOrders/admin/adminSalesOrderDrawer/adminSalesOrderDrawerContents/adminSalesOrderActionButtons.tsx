@@ -1,5 +1,5 @@
 import { usePatchOrder } from '@/features/orders/patch'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 
 import { SalesOrderActionButtonsProps, statusConfig } from '@/features/orders/salesOrders/types'

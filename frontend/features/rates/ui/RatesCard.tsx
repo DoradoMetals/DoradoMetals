@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Input } from '@/shared/ui/base/input'
 import { cn } from '@/shared/utils/cn'
 import { PencilSimpleIcon, FloppyDiskIcon, XIcon } from '@phosphor-icons/react'

@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { UserRoundX } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'

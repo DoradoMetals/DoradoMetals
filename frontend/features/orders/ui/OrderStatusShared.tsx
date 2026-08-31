@@ -1,7 +1,7 @@
 'use client'
 
 import SelectMenu from '@/shared/ui/SelectMenu'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { FreeMode } from 'swiper/modules'

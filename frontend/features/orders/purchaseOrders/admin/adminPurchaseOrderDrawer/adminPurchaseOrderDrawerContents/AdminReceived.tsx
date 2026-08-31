@@ -1,5 +1,5 @@
 import { Separator } from '@/shared/ui/base/separator'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Input } from '@/shared/ui/base/input'
 import { useSetOrderSpots } from '@/features/orders/spots'
 import {
@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/base/table'
-import { Checkbox } from '@/shared/ui/base/checkbox'
+import { Checkbox } from '@dorado/components'
 import SelectMenu from '@/shared/ui/SelectMenu'
 import { Field } from '@/shared/ui/Field'
 import { Product } from '@/features/products/types'

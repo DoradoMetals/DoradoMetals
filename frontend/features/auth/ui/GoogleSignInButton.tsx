@@ -2,7 +2,7 @@
 
 import { useGoogleSignIn } from "@/features/auth/queries";
 import { FcGoogle } from "react-icons/fc";
-import { Button } from "@/shared/ui/base/button";
+import { Button } from '@dorado/components';
 
 export default function GoogleButton({buttonLabel} : {buttonLabel: string}) {
   const googleSignInMutation = useGoogleSignIn();

@@ -14,7 +14,7 @@ import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 import { useGetSession } from '@/features/auth/queries'
 import type { Review } from '@/features/reviews/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { Calendar } from '@/shared/ui/base/calendar'
+import { Calendar } from '@dorado/components'
 import { useUpdateReview } from '@/features/reviews/queries'
 
 // <time dateTime> must be machine-readable; the wire hands these back as

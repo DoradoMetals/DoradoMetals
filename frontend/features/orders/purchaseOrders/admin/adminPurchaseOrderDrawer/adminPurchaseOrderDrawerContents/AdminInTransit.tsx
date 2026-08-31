@@ -1,4 +1,4 @@
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import {
   PurchaseOrderDrawerContentProps,

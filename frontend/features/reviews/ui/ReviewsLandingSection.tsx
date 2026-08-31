@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import Banner from '@/shared/ui/Banner'
 import { ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
 import { useRef, useState } from 'react'

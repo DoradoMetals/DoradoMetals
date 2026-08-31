@@ -3,7 +3,7 @@
 import { InputHTMLAttributes, ReactNode, useEffect, useMemo, useState } from 'react'
 import { XIcon } from '@phosphor-icons/react'
 
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import {
   Dialog,
   DialogContent,

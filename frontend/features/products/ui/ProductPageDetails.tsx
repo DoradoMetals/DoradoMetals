@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Equal, Minus, Plus, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
 import { RadioGroup } from '@/shared/ui/RadioGroup'

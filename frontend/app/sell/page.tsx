@@ -3,7 +3,7 @@
 import { Suspense } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/base/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
 import BullionTab from '@/features/products/ui/BullionTab'
 import ScrapForm from '@/features/scrap/ui/ScrapTab'
 

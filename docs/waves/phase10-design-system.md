@@ -606,3 +606,38 @@ under the no-blocking grant, recorded in each component's description:
 - New drawings: **Address Card** (163:32), **Hero** (163:35), **Marquee**
   (170:48), **Masked Field** (170:89) - each with the full contract in its
   description (the Masked Field one carries the never-log rule).
+
+
+---
+
+# PHASE C: ADOPTION + base/ CLEANUP (same night, Jacob's mid-turn grant)
+
+Jacob: "start replacing components across the app with the new ones... I
+think most of the components in base/ can be removed now that they've been
+replaced."
+
+**The eight doorways are GONE**: avatar, button, calendar, checkbox,
+skeleton, slider, switch, tabs. 97 files' imports rewritten from
+`@/shared/ui/base/<x>` to `@dorado/components`; the shim files deleted. A
+doorway was scaffolding for the migration - once every importer names the
+package, the shim is a hop with no information in it.
+
+**What still lives in base/, and why** (16 files, each the LIVE
+implementation of an unswept surface): breadcrumb + pagination (restyled to
+their drawings tonight, no package counterpart / thin shell), command,
+dialog + drawer (app-styled modals; Drawer's restyle is a recorded eyes-on
+sweep), form + input + label + textarea (the FloatingLabel form system -
+the forms sweep), lens, popover (SelectMenu/Field surfaces), radio-group
+(card layout - eyes-on), rating, scroll-area, separator, table (tanstack
+data-grid shell - now the DataTable adoption target).
+
+**Adoptions deliberately NOT taken overnight, with reasons**:
+- Cart quantity → QuantityStepper: the cart's +/- animates through
+  NumberFlow, and that motion is load-bearing in the cart's feel. Checkout
+  is also pre-overhaul. First adopter should be a form surface.
+- shared/ui/EmptyState → package EmptyState: the app version ALREADY
+  embodies the revised contract (bare big icon, one action as children) at
+  page scale, with a badge slot the package one lacks; six callers, zero
+  visual goal in swapping. Kept as the rich page-scale variant.
+- Hero/Marquee/AddressCard/Chart/DataTable/Header/Footer: all reshape
+  visible pages - the components sit ready, the first render wants eyes.

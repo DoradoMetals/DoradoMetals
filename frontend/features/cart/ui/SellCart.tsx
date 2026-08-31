@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'

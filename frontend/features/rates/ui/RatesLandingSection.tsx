@@ -1,7 +1,7 @@
 import { useRates } from '@/features/rates/queries'
 import { pctLabel, topRatesByMetal } from '@/features/rates/types'
 import { Metal } from '@/features/spots/types'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'
 

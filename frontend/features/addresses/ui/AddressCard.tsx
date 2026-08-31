@@ -5,7 +5,7 @@ import { Building2, House } from 'lucide-react'
 
 import { Address, UserAddress } from '@/features/addresses/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { useDeleteAddress, useSetDefaultAddress } from '@/features/addresses/queries'
 

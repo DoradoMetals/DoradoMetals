@@ -2,7 +2,7 @@
 
 import { Link as DoradoLink } from '@dorado/components'
 import { FacebookIcon, InstagramIcon, Logo, XIcon } from '@/features/navigation/ui/Logo'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import Image from 'next/image'
 import Link from 'next/link'

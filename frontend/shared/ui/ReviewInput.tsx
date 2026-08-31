@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Textarea } from '@/shared/ui/base/textarea'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
 import { SmileyIcon } from '@phosphor-icons/react'

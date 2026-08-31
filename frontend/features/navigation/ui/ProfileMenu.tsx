@@ -11,8 +11,8 @@ import {
   PopoverTrigger,
   PopoverFooter,
 } from '@/shared/ui/base/popover'
-import { Button } from '@/shared/ui/base/button'
-import { Avatar } from '@/shared/ui/base/avatar'
+import { Button } from '@dorado/components'
+import { Avatar } from '@dorado/components'
 import {
   ListIcon,
   LockIcon,

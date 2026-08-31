@@ -19,7 +19,7 @@ import {
   useCarrierServicesByCarrier,
 } from '@/features/carriers/queries'
 import { RadioGroup } from '@/shared/ui/RadioGroup'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Field } from '@/shared/ui/Field'
 import Image from 'next/image'
 

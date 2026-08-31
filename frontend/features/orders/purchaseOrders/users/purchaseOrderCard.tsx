@@ -1,7 +1,7 @@
 'use client'
 
 import { MouseEvent } from 'react'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import {
   useDownloadInvoice,
   useDownloadPackingList,

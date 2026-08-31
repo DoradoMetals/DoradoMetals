@@ -3,8 +3,8 @@
 import type { Table as TanTable } from '@tanstack/react-table'
 import { ColumnsIcon } from '@phosphor-icons/react'
 
-import { Button } from '@/shared/ui/base/button'
-import { Checkbox } from '@/shared/ui/base/checkbox'
+import { Button } from '@dorado/components'
+import { Checkbox } from '@dorado/components'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { cn } from '@/shared/utils/cn'
 

@@ -5,7 +5,7 @@ import { ChevronDown, Plus } from 'lucide-react'
 import { Address, UserAddress } from '@/features/addresses/types'
 import { cn } from '@/shared/utils/cn'
 import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { useEffect, useMemo, useState } from 'react'
 import { AddressCard } from '@/features/addresses/ui/AddressCard'
 

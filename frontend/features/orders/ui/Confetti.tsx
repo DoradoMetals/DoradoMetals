@@ -17,7 +17,7 @@ import React, {
   useRef,
 } from "react";
 
-import { Button, ButtonProps } from "@/shared/ui/base/button";
+import { Button, ButtonProps } from '@dorado/components';
 
 type Api = {
   fire: (options?: ConfettiOptions) => void;

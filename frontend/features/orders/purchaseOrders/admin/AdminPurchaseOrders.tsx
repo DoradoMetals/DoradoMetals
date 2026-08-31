@@ -13,7 +13,7 @@ import AdminPurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOr
 import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/shared/ui/table/Columns'
 import { cn } from '@/shared/utils/cn'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { FileXIcon } from '@phosphor-icons/react'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 

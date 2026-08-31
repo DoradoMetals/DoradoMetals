@@ -10,7 +10,7 @@ import { FormField, FormItem } from '@/shared/ui/base/form'
 import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { accountTypeOptions } from '@/features/payouts/types'
 import { cn } from '@/shared/utils/cn'
-import { Checkbox } from '@/shared/ui/base/checkbox'
+import { Checkbox } from '@dorado/components'
 
 export default function ACHForm({
   form,

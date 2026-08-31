@@ -1,6 +1,6 @@
 import { useCancelPaymentIntent, useGetSalesOrderPaymentIntent } from '@/features/stripe/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import StatusChip from '@/shared/ui/StatusChip'
 import { Separator } from '@/shared/ui/base/separator'
 import { DetailRow } from '@/shared/ui/DetailRow'

@@ -3,8 +3,8 @@
 import { useState, useMemo } from 'react'
 import { Plus } from 'lucide-react'
 
-import { Button } from '@/shared/ui/base/button'
-import { Skeleton } from '@/shared/ui/base/skeleton'
+import { Button } from '@dorado/components'
+import { Skeleton } from '@dorado/components'
 import { useAddress, useUserAddresses } from '@/features/addresses/queries'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { DebouncedInputSearch } from '@/shared/ui/inputs/DebouncedInputSearch'

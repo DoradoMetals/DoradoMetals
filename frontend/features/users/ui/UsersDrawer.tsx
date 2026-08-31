@@ -12,7 +12,7 @@ import {
   useRequestPasswordReset,
   useUpdateUser,
 } from '@/features/auth/queries'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Separator } from '@/shared/ui/base/separator'
 import { Input } from '@/shared/ui/base/input'
 import { RadioGroup } from '@/shared/ui/RadioGroup'

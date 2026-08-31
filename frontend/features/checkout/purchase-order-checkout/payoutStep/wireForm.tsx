@@ -11,7 +11,7 @@ import { WirePayout } from '@/features/payouts/types'
 import { UseFormReturn } from 'react-hook-form'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
-import { Checkbox } from '@/shared/ui/base/checkbox'
+import { Checkbox } from '@dorado/components'
 
 export default function WireForm({
   form,

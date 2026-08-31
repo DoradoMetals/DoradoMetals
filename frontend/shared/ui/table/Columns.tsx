@@ -4,7 +4,7 @@ import type { ColumnDef, HeaderContext } from '@tanstack/react-table'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
 import { cn } from '@/shared/utils/cn'
 import { ReactNode } from 'react'
-import { Checkbox } from '@/shared/ui/base/checkbox'
+import { Checkbox } from '@dorado/components'
 import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
 import StatusChip, { type ChipTone } from '@/shared/ui/StatusChip'
 

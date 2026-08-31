@@ -3,7 +3,7 @@ import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { metalOptions, purityOptions, Scrap } from '@/features/scrap/types'
 import { useFormContext } from 'react-hook-form'
 import NumberFlow from '@number-flow/react'
-import { Slider } from '@/shared/ui/base/slider'
+import { Slider } from '@dorado/components'
 
 export default function PurityStep() {
   const form = useFormContext<Scrap>()

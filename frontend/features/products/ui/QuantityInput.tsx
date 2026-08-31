@@ -1,4 +1,4 @@
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Input } from '@/shared/ui/base/input'
 import { Field } from '@/shared/ui/Field'
 import { MinusIcon, PlusIcon } from '@phosphor-icons/react'

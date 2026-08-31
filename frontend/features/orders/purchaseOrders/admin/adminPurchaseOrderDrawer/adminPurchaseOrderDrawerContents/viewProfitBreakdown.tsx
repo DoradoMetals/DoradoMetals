@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/base/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
 import {
   Table,
   TableBody,

@@ -28,7 +28,7 @@ import {
 import { userRoleOptions } from '@/features/users/types'
 import { useGetSession } from '@/features/auth/queries'
 import Drawer from '@/shared/ui/base/drawer'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import { UsersPage } from '@/features/users/ui/UsersAdminTable'

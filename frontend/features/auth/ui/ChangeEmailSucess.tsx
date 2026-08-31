@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Button } from "@/shared/ui/base/button";
+import { Button } from '@dorado/components';
 import { useVerifyEmail } from "@/features/auth/queries";
 
 export default function ChangeEmail() {

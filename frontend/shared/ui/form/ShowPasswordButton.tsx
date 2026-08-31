@@ -1,4 +1,4 @@
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Eye, EyeOff } from 'lucide-react'
 
 export default function ShowPasswordButton({

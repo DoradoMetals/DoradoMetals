@@ -7,7 +7,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { magicLink, useUser } from '@/features/auth/authClient'
 import SetPasswordForm from '@/features/auth/ui/SetPasswordForm'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 
 // Reached from the magic-link email (admin-created accounts, "your account is
 // ready" order emails). The magic-link token IS the credential, so this page

@@ -4,8 +4,8 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormField, FormItem } from '@/shared/ui/base/form'
-import { Button } from '@/shared/ui/base/button'
-import { Switch } from '@/shared/ui/base/switch'
+import { Button } from '@dorado/components'
+import { Switch } from '@dorado/components'
 
 import {
   Address,

@@ -2,7 +2,7 @@
 
 import { AnimatedScroll } from '@/features/orders/ui/Animated'
 import { BlurredStagger } from '@/shared/ui/BlurredStagger'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Confetti, ConfettiRef } from '@/features/orders/ui/Confetti'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'

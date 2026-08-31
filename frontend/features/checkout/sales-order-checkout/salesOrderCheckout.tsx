@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { cartStore } from '@/shared/store/cartStore'

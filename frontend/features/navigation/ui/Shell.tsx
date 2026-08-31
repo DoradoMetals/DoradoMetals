@@ -8,7 +8,7 @@ import { cartStore } from '@/shared/store/cartStore'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useCartAutoSync } from '@/features/cart/queries'
 
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { MenuIcon } from '@/features/navigation/ui/NavIcon'
 import { CartIcon } from '@/features/cart/ui/CartIcon'
 

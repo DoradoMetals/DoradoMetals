@@ -5,7 +5,7 @@ import * as fuzzysort from 'fuzzysort'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Command, CommandList, CommandItem } from '@/shared/ui/base/command'
 import { Input } from '@/shared/ui/base/input'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { XIcon } from '@phosphor-icons/react'
 import { cn } from '@/shared/utils/cn'
 

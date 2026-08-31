@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {

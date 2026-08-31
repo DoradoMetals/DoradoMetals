@@ -3,7 +3,7 @@
 import type { Table as TanTable } from '@tanstack/react-table'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ReactNode } from 'react'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 
 export function TablePagination<TData>({
   table,

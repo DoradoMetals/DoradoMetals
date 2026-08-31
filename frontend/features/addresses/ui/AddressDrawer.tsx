@@ -2,7 +2,7 @@
 
 import Drawer from '@/shared/ui/base/drawer'
 import { X } from 'lucide-react'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'

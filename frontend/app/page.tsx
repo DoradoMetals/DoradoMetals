@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import Banner from '@/shared/ui/Banner'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { PhoneIcon } from '@phosphor-icons/react'

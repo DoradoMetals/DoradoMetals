@@ -2,7 +2,7 @@
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/shared/utils/formatDates'
 import ItemTables from './itemTable'
 import { purchaseOrderCheckoutSchema } from '@/features/orders/purchaseOrders/types'

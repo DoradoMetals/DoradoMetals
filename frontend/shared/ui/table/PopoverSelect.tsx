@@ -13,7 +13,7 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/shared/ui/base/command'
-import { Button, type ButtonEmphasis, type ButtonIntent } from '@/shared/ui/base/button'
+import { Button, type ButtonEmphasis, type ButtonIntent } from '@dorado/components'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { CheckIcon } from '@phosphor-icons/react'

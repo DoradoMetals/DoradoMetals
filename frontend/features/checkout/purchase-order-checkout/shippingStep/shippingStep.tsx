@@ -1,7 +1,7 @@
 'use client'
 
 import type { Address, AddressFormValues, UserAddress } from '@/features/addresses/types'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 

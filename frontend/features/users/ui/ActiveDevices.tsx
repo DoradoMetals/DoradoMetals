@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/base/table'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { useListSessions, useRevokeSession } from '@/features/auth/queries'
 import { parseUserAgent, ParsedUA, getDeviceIcon } from '@/features/users/types'
 

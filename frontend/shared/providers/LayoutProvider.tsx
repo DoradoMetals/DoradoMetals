@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import MobileProductCarousel from '../../features/products/ui/MobileProductCarousel'
-import { Button } from '../ui/base/button'
+import { Button } from '@dorado/components'
 
 import React, { useEffect, useState } from 'react'
 

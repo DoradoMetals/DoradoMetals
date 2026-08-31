@@ -5,10 +5,10 @@ import { flexRender } from '@tanstack/react-table'
 import { useMemo, type ReactNode } from 'react'
 
 import { TableCell } from '@/shared/ui/base/table'
-import { Checkbox } from '@/shared/ui/base/checkbox'
+import { Checkbox } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 
 export type GroupAgg<TData> =
   | { type: 'sum'; from: string }

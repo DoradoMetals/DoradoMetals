@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { useGetSession, useRequestPasswordReset } from '@/features/auth/queries'
 import { AccountAction } from '@/features/users/ui/AccountAction'
 import {

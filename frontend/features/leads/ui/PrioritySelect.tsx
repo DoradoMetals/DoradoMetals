@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/shared/utils/cn'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { LEAD_PRIORITIES, LeadPriority } from '@/features/leads/types'
 
 // The three hand-rolled tinted glass segments are the Button intent axis

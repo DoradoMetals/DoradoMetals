@@ -1,4 +1,4 @@
-import { Switch } from '@/shared/ui/base/switch'
+import { Switch } from '@dorado/components'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import type { SalesOrderQuote } from '@dorado/contracts'
 import { useEffect } from 'react'

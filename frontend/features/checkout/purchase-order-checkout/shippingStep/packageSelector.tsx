@@ -1,7 +1,7 @@
 'use client'
 
 import { RadioGroup } from '@/shared/ui/RadioGroup'
-import { Switch } from '@/shared/ui/base/switch'
+import { Switch } from '@dorado/components'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { sellCartStore } from '@/shared/store/sellCartStore'

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { Check } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 

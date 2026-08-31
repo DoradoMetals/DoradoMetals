@@ -1,6 +1,6 @@
 import { useOrderPayouts } from '@/features/payouts/queries'
 import { useOrderItems } from '@/features/orders/reads'
-import { Button } from '@/shared/ui/base/button'
+import { Button } from '@dorado/components'
 import { PurchaseOrderActionButtonsProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { cn } from '@/shared/utils/cn'
 import { useMemo } from 'react'
