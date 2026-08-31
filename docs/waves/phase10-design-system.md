@@ -384,3 +384,24 @@ so the write half of the design contract is automatable after all.
 2. `border/strong`'s variable DESCRIPTION still says `#3d414a` while its value
    resolves `#3f434b` — the code synced to the resolved value; the description
    is stale.
+
+
+---
+
+# THE ROLL (2026-08-30, overnight) — components landed so far
+
+| component | drawing | code | adopted by | Figma write-back |
+|---|---|---|---|---|
+| Accordion | 32:36 | Radix + Button trigger, chevron position | AccordionSection (6 sites) | State + Chevron axes, description |
+| Button | 25:510 | full three-axis rebuild | base/button.tsx doorway (~190 imports) | — (drawing was ahead of code) |
+| Link | 6:307 | anchor + intents | verify-login, payout arrow, sales-tax "?", ProfileMenu ×3, Footer Instagram | — |
+| Attachment | 40:54 | progressbar/remove/aria-live hallmarks | ImageUpload | — |
+| Upload | **drawn tonight (117:28)** | label-wrapped real input, accept-filtered drops | ImageUpload | new page, 3 states, description |
+| Autocomplete | 100:29 | combobox pattern, composed handlers | AddressSearchInput | — |
+| Alert | 54:44 | role=alert/status split | checkout payment message | — |
+
+**The process, as Jacob corrected it**: adoption is part of the slice — a
+package component replaces its app counterpart in the same pass, and buttons
+that navigate become Links. Standing notes: Footer's Facebook and X buttons
+have never had destinations (need URLs or deletion); the Alert drawing's own
+description asks for muted status tokens instead of the 16% opacity trick.

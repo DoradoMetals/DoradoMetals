@@ -1,5 +1,6 @@
 'use client'
 
+import { Alert } from '@dorado/components'
 import React, { useRef, useState, FormEvent } from 'react'
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { StripePaymentElementOptions } from '@stripe/stripe-js'
@@ -199,7 +200,11 @@ export default function SalesOrderStripeForm({
         }}
       />
       <small className="text-destructive mt-1">
-        {message && <span id="payment-message">{message}</span>}
+        {message && (
+          <Alert intent="warning" title="Payment not completed" className="mt-2">
+            {message}
+          </Alert>
+        )}
       </small>
     </form>
   )
