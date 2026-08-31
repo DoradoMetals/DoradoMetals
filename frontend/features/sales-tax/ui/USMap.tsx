@@ -40,7 +40,7 @@ export default function USMap({ selected, setSelected }: USMapProps) {
         .data(states)
         .join('path')
         .attr('d', path)
-        .attr('stroke', (_d) => 'var(--neutral-400)')
+        .attr('stroke', (_d) => 'var(--border-strong)')
         .attr('fill', (_d) => 'var(--card)')
         .attr('class', 'cursor-pointer')
         .on('click', (_e, d: any) => {

@@ -33,7 +33,7 @@ import { cn } from '@/shared/utils/cn'
    That is a mobile BEHAVIOUR, not a look, which is why it does not come from
    the semantic type scale. Do not "fix" it. */
 const INPUT_CLASS =
-  'text-foreground file:text-foreground placeholder:text-neutral-500 selection:bg-primary selection:text-primary-foreground flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base transition-[color,box-shadow] outline-none focus-visible:border-border-strong file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50'
+  'text-foreground file:text-foreground placeholder:text-placeholder selection:bg-primary selection:text-primary-foreground flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base transition-[color,box-shadow] outline-none focus-visible:border-border-strong file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50'
 
 export type InputProps = React.ComponentProps<'input'>
 

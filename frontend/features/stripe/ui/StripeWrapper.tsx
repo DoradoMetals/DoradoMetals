@@ -29,10 +29,10 @@ export default function StripeWrapper({
       labels: 'floating',
       variables: {
         colorBackground: getColor('--background'),
-        colorText: getColor('--neutral-800'),
-        colorTextPlaceholder: getColor('--neutral-700'),
-        colorPrimary: getColor('--neutral-800'),
-        iconColor: getColor('--neutral-800'),
+        colorText: getColor('--foreground'),
+        colorTextPlaceholder: getColor('--subtle'),
+        colorPrimary: getColor('--foreground'),
+        iconColor: getColor('--foreground'),
         logoColor: isDark ? 'dark' : 'light',
         tabLogoColor: isDark ? 'dark' : 'light',
         tabLogoSelectedColor: isDark ? 'dark' : 'light',
@@ -82,7 +82,7 @@ export default function StripeWrapper({
         },
         '.Label': {
           fontWeight: '200',
-          color: getColor('--neutral-800'),
+          color: getColor('--foreground'),
         },
         '.Block': {
           backgroundColor: getColor('--background'),

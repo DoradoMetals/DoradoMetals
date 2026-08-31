@@ -169,7 +169,7 @@ export function SalesOrdersContent() {
                         setCurrentPage((p) => Math.max(p - 1, 1))
                       }}
                       disabled={currentPage === 1}
-                      className="text-neutral-600"
+                      className="text-muted-foreground"
                     />
                   </PaginationItem>
 
@@ -196,7 +196,7 @@ export function SalesOrdersContent() {
                         setCurrentPage((p) => Math.min(p + 1, totalPages))
                       }}
                       disabled={currentPage === totalPages}
-                      className="text-neutral-600"
+                      className="text-muted-foreground"
                     />
                   </PaginationItem>
                 </PaginationContent>

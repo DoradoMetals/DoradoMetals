@@ -152,7 +152,7 @@ export function SidebarLayout({
               {isOpen && (
                 <div className="leading-tight">
                   {/* Semantic tags carry the type (ruling 17/23): <strong> is
-                      already --neutral-900 at weight 600, <small> is already
+                      already --foreground at weight 600, <small> is already
                       13px muted. Both were hand-spelling what the tag does. */}
                   {roleTitle && <strong className="block">{roleTitle}</strong>}
                   {roleSubtitle && <small className="block">{roleSubtitle}</small>}
@@ -183,7 +183,7 @@ export function SidebarLayout({
                     'flex p-2 w-full items-center rounded-md transition-colors gap-3 cursor-pointer',
                     isSelected
                       ? 'text-primary border-l-3 border-primary'
-                      : 'text-neutral-800 hover:text-primary',
+                      : 'text-foreground hover:text-primary',
                     isOpen ? 'justify-start' : 'justify-center'
                   )}
                 >
@@ -207,7 +207,7 @@ export function SidebarLayout({
         <div className="flex justify-center items-center border-t border-border mt-6 w-full">
           <button
             onClick={() => setOpen((o) => !o)}
-            className="flex items-center gap-2 my-4 cursor-pointer text-neutral-500 hover:text-neutral-800"
+            className="flex items-center gap-2 my-4 cursor-pointer text-placeholder hover:text-foreground"
           >
             <CaretDoubleRightIcon
               size={16}

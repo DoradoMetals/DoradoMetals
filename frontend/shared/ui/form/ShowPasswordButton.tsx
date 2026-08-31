@@ -18,9 +18,9 @@ export default function ShowPasswordButton({
       tabIndex={-1}
     >
       {showPassword ? (
-        <EyeOff className="text-neutral-600" size={18} />
+        <EyeOff className="text-muted-foreground" size={18} />
       ) : (
-        <Eye className="text-neutral-600" size={18} />
+        <Eye className="text-muted-foreground" size={18} />
       )}
     </Button>
   )

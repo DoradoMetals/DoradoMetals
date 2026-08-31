@@ -45,7 +45,7 @@ const BreadcrumbLink = React.forwardRef<
       ref={ref}
       // The drawn Breadcrumb (126:16): every crumb but the last wears the Link
       // component's quiet state - muted, raised to foreground with underline
-      // on hover. text-neutral-900 was the pre-refresh palette.
+      // on hover. text-foreground was the pre-refresh palette.
       className={cn(
         'text-sm text-muted-foreground transition-colors hover:text-foreground hover:underline hover:underline-offset-4',
         className,

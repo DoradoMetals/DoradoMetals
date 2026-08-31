@@ -771,3 +771,35 @@ enabled it here. My hand-drawn glyphs were a mistake and are GONE.
   (boolean) + `Icon` (instance-swap) properties; Button already had leading
   and trailing swaps. No preferred-value restrictions, so the dropdown
   searches all 1,748.
+
+## The neutral primitives are retired (2026-08-31)
+
+Jacob: *"remove the neutral-x colors from the design tokens. Will also need
+to replace usage of it."* They were primitives leaking into call sites — a
+component asking for `text-neutral-700` named a POSITION on a ramp, not a
+ROLE.
+
+**Figma**: 76 paints rebound off the primitives, the three semantic tokens
+that ALIASED them (`text/subtle`, `text/placeholder`, `text/disabled`)
+resolved to raw values first so nothing broke, then all nine
+`primitive/neutral-*` variables deleted. Zero remain.
+
+**Code**: 141 call sites — 113 utilities plus 28 raw `var(--neutral-*)`
+reads that a grep for Tailwind classes alone would have missed (canvas
+strokes in USMap, the Google Maps store pins, scrollbars in base.css, and
+the Stripe Elements theme, which take resolved values, not classes).
+
+    neutral-900, -800  ->  foreground
+    neutral-700        ->  subtle           (NEW token - Figma already had
+                                             text/subtle, code had no fourth
+                                             text level for 700 to land on)
+    neutral-600        ->  muted-foreground
+    neutral-500, -400  ->  placeholder
+    neutral-300        ->  border-strong
+    neutral-200, -100  ->  border / muted
+
+One behavioural change, not a rename: the selected Chip's
+`hover:bg-neutral-800` was a hand-picked dim of primary, and the hover law
+is opacity now, so it became `hover:opacity-85` like every other control.
+`--neutral-*` and `--color-neutral-*` are gone from theme.css and the long
+"ramp inversion" essay that justified them is replaced by the mapping.

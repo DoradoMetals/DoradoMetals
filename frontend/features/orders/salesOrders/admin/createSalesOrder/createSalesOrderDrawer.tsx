@@ -254,7 +254,7 @@ function ProductSelector() {
               <div
                 key={item.name}
                 className={`flex items-center justify-between w-full gap-4 py-4 ${
-                  index !== items.length - 1 ? 'border-b border-neutral-300' : 'border-none'
+                  index !== items.length - 1 ? 'border-b border-border' : 'border-none'
                 }`}
               >
                 <div className="flex-shrink-0">

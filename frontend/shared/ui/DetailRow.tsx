@@ -13,7 +13,7 @@ import { cn } from '@/shared/utils/cn'
        </div>
 
    — the same box, the same two type sizes, spelled slightly differently every
-   time (`text-sm`/`text-xs`, `text-neutral-600`/`700`, value before label,
+   time (`text-sm`/`text-xs`, `text-muted-foreground`/`700`, value before label,
    `justify-between` on the parent or on a child). Order summaries, payout
    breakdowns, drawer footers, product specs and the checkout review all draw
    it, and changing how a summary line looks meant finding all 59.

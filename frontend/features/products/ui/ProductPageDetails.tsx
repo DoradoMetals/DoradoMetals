@@ -281,15 +281,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     </DetailRow>
 
                     <div className="flex w-full items-start">
-                      <X size={16} className="text-neutral-700" />
+                      <X size={16} className="text-subtle" />
                       <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
                       {askOverOrUnder >= 0 ? (
-                        <Plus size={16} className="text-neutral-700" />
+                        <Plus size={16} className="text-subtle" />
                       ) : (
-                        <Minus size={16} className="text-neutral-700" />
+                        <Minus size={16} className="text-subtle" />
                       )}
 
                       <DetailRow label="Ask Premium" variant="detail" className="items-start pl-4">
@@ -299,7 +299,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
 
                   <div className="flex w-full items-start">
-                    <Equal size={16} className="text-neutral-700" />
+                    <Equal size={16} className="text-subtle" />
                     <DetailRow label="Total Ask" variant="subtotal" className="items-start pl-4">
                       <PriceNumberFlow value={price} />
                     </DetailRow>
@@ -321,15 +321,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     </DetailRow>
 
                     <div className="flex w-full items-start">
-                      <X size={16} className="text-neutral-700" />
+                      <X size={16} className="text-subtle" />
                       <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
                       {bidOverOrUnder >= 0 ? (
-                        <Plus size={16} className="text-neutral-700" />
+                        <Plus size={16} className="text-subtle" />
                       ) : (
-                        <Minus size={16} className="text-neutral-700" />
+                        <Minus size={16} className="text-subtle" />
                       )}
 
                       <DetailRow label="Bid Premium" variant="detail" className="items-start pl-4">
@@ -339,7 +339,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
 
                   <div className="flex w-full items-start">
-                    <Equal size={16} className="text-neutral-700" />
+                    <Equal size={16} className="text-subtle" />
                     <DetailRow label="Total Bid" variant="subtotal" className="items-start pl-4">
                       <PriceNumberFlow value={buybackPrice} />
                     </DetailRow>
@@ -408,7 +408,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                           </div>
                           <small className="flex items-center gap-2 pt-1 pl-4">
                             <span className="text-left">{payment.time_delay}</span>
-                            <CircleIcon size={6} weight="fill" className="text-neutral-500" />
+                            <CircleIcon size={6} weight="fill" className="text-placeholder" />
                             <span className="text-right">{payment.surcharge_label}</span>
                           </small>
                         </div>
@@ -632,15 +632,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     </DetailRow>
 
                     <div className="flex w-full items-start">
-                      <X size={16} className="text-neutral-700" />
+                      <X size={16} className="text-subtle" />
                       <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
                       {askOverOrUnder >= 0 ? (
-                        <Plus size={16} className="text-neutral-700" />
+                        <Plus size={16} className="text-subtle" />
                       ) : (
-                        <Minus size={16} className="text-neutral-700" />
+                        <Minus size={16} className="text-subtle" />
                       )}
 
                       <DetailRow label="Ask Premium" variant="detail" className="items-start pl-4">
@@ -650,7 +650,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
 
                   <div className="flex w-full items-start">
-                    <Equal size={16} className="text-neutral-700" />
+                    <Equal size={16} className="text-subtle" />
                     <DetailRow label="Total Ask" variant="subtotal" className="items-start pl-4">
                       <PriceNumberFlow value={price} />
                     </DetailRow>
@@ -672,15 +672,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     </DetailRow>
 
                     <div className="flex w-full items-start">
-                      <X size={16} className="text-neutral-700" />
+                      <X size={16} className="text-subtle" />
                       <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
                       {bidOverOrUnder >= 0 ? (
-                        <Plus size={16} className="text-neutral-700" />
+                        <Plus size={16} className="text-subtle" />
                       ) : (
-                        <Minus size={16} className="text-neutral-700" />
+                        <Minus size={16} className="text-subtle" />
                       )}
 
                       <DetailRow label="Bid Premium" variant="detail" className="items-start pl-4">
@@ -690,7 +690,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
 
                   <div className="flex w-full items-start">
-                    <Equal size={16} className="text-neutral-700" />
+                    <Equal size={16} className="text-subtle" />
                     <DetailRow label="Total Bid" variant="subtotal" className="items-start pl-4">
                       <PriceNumberFlow value={buybackPrice} />
                     </DetailRow>
@@ -760,7 +760,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                           </div>
                           <small className="flex items-center gap-2 pt-1 pl-4">
                             <span className="text-left">{payment.time_delay}</span>
-                            <CircleIcon size={6} weight="fill" className="text-neutral-500" />
+                            <CircleIcon size={6} weight="fill" className="text-placeholder" />
                             <span className="text-right">{payment.surcharge_label}</span>
                           </small>
                         </div>

@@ -8,7 +8,7 @@ import { cn } from "@/shared/utils/cn"
    a call site's className is LAYOUT ONLY. Appearance is this file's job.
 
    WHAT THE 63 FLAGGED TABLE CALL SITES WERE ASKING FOR:
-     Table       14x `font-normal text-neutral-700` — identical every time.
+     Table       14x `font-normal text-subtle` — identical every time.
                  Now the default.
      TableRow    24x `hover:bg-transparent`. This is the interesting one: the
                  base row has NO hover rule at all, so all 24 were cancelling
@@ -17,9 +17,9 @@ import { cn } from "@/shared/utils/cn"
                  no-ops and delete for free. Rows that genuinely ARE clickable
                  now say `interactive`, which is the hover those 24 were
                  avoiding, expressed as an opt-in.
-     TableHead   6x `text-xs text-neutral-600 md:text-sm`  -> default.
-     TableHeader 5x `text-xs text-neutral-700`             -> default.
-     TableCell   5x `text-xs md:text-sm text-neutral-800`  -> default.
+     TableHead   6x `text-xs text-muted-foreground md:text-sm`  -> default.
+     TableHeader 5x `text-xs text-subtle`             -> default.
+     TableCell   5x `text-xs md:text-sm text-foreground`  -> default.
    Column ALIGNMENT (`text-left`/`text-center`/`text-right`) is layout and
    stays at the call site — there are 239 of those in the tree and they are not
    typography. */
@@ -31,7 +31,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-small font-normal text-neutral-700")}
+        className={cn("w-full caption-bottom text-small font-normal text-subtle")}
         {...props}
       />
     </div>
@@ -53,7 +53,7 @@ function TableHeader({
     <thead
       data-slot="table-header"
       className={cn(
-        "[&_tr]:border-b text-micro text-neutral-700",
+        "[&_tr]:border-b text-micro text-subtle",
         surface === "card" && "bg-card",
         surface === "highest" && "bg-highest",
         className
@@ -151,7 +151,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "text-micro md:text-small text-neutral-600 h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "text-micro md:text-small text-muted-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}
@@ -164,7 +164,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "text-micro md:text-small text-neutral-800 p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "text-micro md:text-small text-foreground p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}

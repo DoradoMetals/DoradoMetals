@@ -34,7 +34,7 @@ export function PayoutCard({ method }: { method: PayoutMethod }) {
             <ul className="space-y-1.5">
               {method.fitBullets.map((b) => (
                 <li key={b} className="flex gap-2">
-                  <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-neutral-900 shrink-0" />
+                  <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-foreground shrink-0" />
                   <span>{b}</span>
                 </li>
               ))}

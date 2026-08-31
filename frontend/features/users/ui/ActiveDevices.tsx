@@ -53,7 +53,7 @@ export function ActiveDevices() {
               <TableRow key={s.id} className="h-8">
                 <TableCell className="py-1">
                   <div className="flex items-center justify-center">
-                    <Icon size={20} className="text-neutral-800" />
+                    <Icon size={20} className="text-foreground" />
                   </div>
                 </TableCell>
 

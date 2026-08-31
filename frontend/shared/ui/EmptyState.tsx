@@ -43,8 +43,8 @@ import type { Icon } from '@phosphor-icons/react'
    `titleClassName`, `descriptionClassName`. Nothing passed them.
 
    AND THE TYPOGRAPHY WAS SCATTERED HERE WITHOUT SHOWING UP ANYWHERE. The
-   title carried `text-lg md:text-xl font-medium text-neutral-900` and the
-   description `text-xs text-neutral-600 leading-relaxed`, both inside `cn()`
+   title carried `text-lg md:text-xl font-medium text-foreground` and the
+   description `text-xs text-muted-foreground leading-relaxed`, both inside `cn()`
    calls — and `lint:typography-scatter` read `className="…"` literals and not
    `cn()` arguments, so this file counted as ZERO while spelling seven type
    utilities. They are an `<h2>` and a `<p>` now (ruling 22, case 1: the

@@ -51,7 +51,7 @@ export function Stepper({ steps, current, className }: StepperProps) {
                 aria-hidden
                 className={cn(
                   "h-0.5 min-w-1 flex-1 rounded-full",
-                  i < current ? "bg-primary" : "bg-neutral-300"
+                  i < current ? "bg-primary" : "bg-border"
                 )}
               />
             )}

@@ -292,7 +292,7 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
           fill="none"
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-neutral-500"
+          className="text-placeholder"
         />
         <circle
           cx={size / 2}

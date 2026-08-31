@@ -4,7 +4,7 @@ import { cn } from "@/shared/utils/cn"
 import { cva, type VariantProps } from "class-variance-authority"
 
 const customTextareaVariant = cva(
-  "px-3 pt-5 pb-2 w-full text-neutral-900 rounded-md border border-input/65 ring-offset-background bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:border-0 disabled:cursor-not-allowed disabled:opacity-35 resize-none",
+  "px-3 pt-5 pb-2 w-full text-foreground rounded-md border border-input/65 ring-offset-background bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 focus-visible:border-0 disabled:cursor-not-allowed disabled:opacity-35 resize-none",
   {
     variants: {
       size: {

@@ -168,7 +168,7 @@ export const InstagramIcon: React.FC<{
   size?: number
   height?: number
   className?: string
-}> = ({ size = 50, height, className = 'text-neutral-700', ...props }) => (
+}> = ({ size = 50, height, className = 'text-subtle', ...props }) => (
   <svg
     width={size}
     height={height ?? size}
@@ -186,7 +186,7 @@ export const FacebookIcon: React.FC<{
   size?: number
   height?: number
   className?: string
-}> = ({ size = 50, height, className = 'text-neutral-700', ...props }) => (
+}> = ({ size = 50, height, className = 'text-subtle', ...props }) => (
   <svg
     width={size}
     height={height ?? size}
@@ -204,7 +204,7 @@ export const XIcon: React.FC<{
   size?: number
   height?: number
   className?: string
-}> = ({ size = 50, height, className = 'text-neutral-700', ...props }) => (
+}> = ({ size = 50, height, className = 'text-subtle', ...props }) => (
   <svg
     width={size}
     height={height ?? size}

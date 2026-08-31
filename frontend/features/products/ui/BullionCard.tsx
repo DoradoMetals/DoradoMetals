@@ -136,16 +136,16 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                           </DetailRow>
 
                           <div className="flex w-full items-start">
-                            <X size={16} className="text-neutral-700" />
+                            <X size={16} className="text-subtle" />
 
                             <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
                           </div>
 
                           <div className="flex w-full items-start">
                             {overOrUnder >= 0 ? (
-                              <Plus size={16} className="text-neutral-700" />
+                              <Plus size={16} className="text-subtle" />
                             ) : (
-                              <Minus size={16} className="text-neutral-700" />
+                              <Minus size={16} className="text-subtle" />
                             )}
 
                             <DetailRow label="Premium" variant="detail" className="items-start pl-4">
@@ -154,7 +154,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                           </div>
                         </div>
                         <div className="flex w-full items-start">
-                          <Equal size={16} className="text-neutral-700" />
+                          <Equal size={16} className="text-subtle" />
                           <DetailRow label="Total" variant="subtotal" className="items-start pl-4">
                             <PriceNumberFlow value={price} />
                           </DetailRow>

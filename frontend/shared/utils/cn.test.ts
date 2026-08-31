@@ -39,8 +39,8 @@ describe('cn merges the semantic type scale as SIZES, not colours', () => {
   })
 
   it('leaves alignment alone - text-center is layout, not typography', () => {
-    expect(cn('text-micro', 'text-neutral-900', 'text-center')).toBe(
-      'text-micro text-neutral-900 text-center'
+    expect(cn('text-micro', 'text-foreground', 'text-center')).toBe(
+      'text-micro text-foreground text-center'
     )
   })
 

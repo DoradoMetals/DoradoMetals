@@ -10,7 +10,7 @@ import { cn } from '@/shared/utils/cn'
    `text-base` is the iOS zoom threshold; see input.tsx. `shadow-xs` went with
    ruling 27 - surfaces separate by hairline, not by shadow. */
 const TEXTAREA_CLASS =
-  'placeholder:text-neutral-500 text-foreground flex field-sizing-content min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base transition-[color,box-shadow] outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50'
+  'placeholder:text-placeholder text-foreground flex field-sizing-content min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base transition-[color,box-shadow] outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50'
 
 export type TextareaProps = React.ComponentProps<'textarea'>
 

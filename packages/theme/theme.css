@@ -6,34 +6,29 @@
    anything.
 
    ---------------------------------------------------------------------------
-   THE NEUTRAL RAMP: INVERTED. (--neutral-100 is CLOSEST TO THE PAGE GROUND.)
+   THE NEUTRAL RAMP IS RETIRED (Jacob, 2026-08-31).
    ---------------------------------------------------------------------------
-   The ramp used to run light -> dark (100 = 90% lightness, 900 = 10%). On a
-   dark ground that reading has to flip, and the choice is forced by the call
-   sites, not by taste. Counted with grep across the .tsx and .ts tree:
+   `--neutral-100..900` and their `--color-neutral-*` aliases are GONE, in the
+   theme and in the Figma library both. They were primitives leaking into call
+   sites: a component asking for `text-neutral-700` was naming a POSITION on a
+   ramp, not a ROLE, so nothing about the class said what it meant and the
+   inversion story below had to exist at all.
 
-       text-neutral-500..900   951 occurrences   (500:55 600:222 700:306
-                                                  800:224 900:144)
-       text-neutral-100..300    34 occurrences   (100:2  200:26  300:6)
+   Every use now names a role instead. The mapping applied to 141 call sites
+   (113 utilities + 28 raw `var(--neutral-*)` reads for canvas, maps and the
+   Stripe elements theme):
 
-   Those 992 `text-neutral-*` uses are 96% of all neutral usage (bg- is 21,
-   border- is 19). They were authored against the LIGHT palette, where the high
-   numbers are the dark end — i.e. the READABLE end. So:
+       neutral-900, -800  ->  foreground
+       neutral-700        ->  subtle            (added here for this; Figma
+                                                 already had text/subtle)
+       neutral-600        ->  muted-foreground
+       neutral-500, -400  ->  placeholder
+       neutral-300        ->  border-strong
+       neutral-200, -100  ->  border / muted
 
-     - LEAVE the ramp light->dark: text-neutral-600/700/800/900 become dark grey
-       on near-black. 951 call sites go illegible.
-     - INVERT it (100 = near the ground, 900 = furthest from it / brightest):
-       the high numbers stay "the readable end" and keep their meaning. 34 call
-       sites at the light end invert against them.
-
-   951 vs 34. Inverted. The ramp's meaning is now "distance from the page
-   ground", which is what it always was in light mode too — only the direction
-   of "away from the ground" changed.
-
-   Of those 34, 30 are `text-neutral-200 dark:text-neutral-700` /
-   `text-neutral-300 dark:text-neutral-600` pairs in Footer.tsx and Sidebar.tsx
-   which the always-on `dark` variant below now resolves CORRECTLY. Six real
-   sites remain; they are listed in RETIREMENT.md.
+   The one behavioural change: the selected Chip's `hover:bg-neutral-800` was
+   a hand-picked dim of primary, and the hover law is opacity now, so it is
+   `hover:opacity-85` like every other control.
 
    ---------------------------------------------------------------------------
    THE `dark:` VARIANT IS NOW ALWAYS ON.
@@ -85,6 +80,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
   --color-placeholder: var(--placeholder);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -111,16 +107,6 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-
-  --color-neutral-100: var(--neutral-100);
-  --color-neutral-200: var(--neutral-200);
-  --color-neutral-300: var(--neutral-300);
-  --color-neutral-400: var(--neutral-400);
-  --color-neutral-500: var(--neutral-500);
-  --color-neutral-600: var(--neutral-600);
-  --color-neutral-700: var(--neutral-700);
-  --color-neutral-800: var(--neutral-800);
-  --color-neutral-900: var(--neutral-900);
 
   --animate-shine: shine var(--duration) infinite linear;
 }
@@ -250,15 +236,6 @@
        500 4.76:1 | 600 7.41:1 | 700 10.66:1 | 800 14.60:1 | 900 18.08:1
      The four shades carrying 896 of the 992 text call sites (600/700/800/900)
      all clear WCAG AA for normal text; 500 clears it at 4.76:1. */
-  --neutral-100: hsl(225, 9%, 11%); /* #1a1b1f */
-  --neutral-200: hsl(225, 8%, 17%); /* #282a2f */
-  --neutral-300: hsl(224, 7%, 26%); /* #3e4047 */
-  --neutral-400: hsl(223, 6%, 38%); /* #5b5e67 */
-  --neutral-500: hsl(222, 6%, 50%); /* #787c87 */
-  --neutral-600: hsl(220, 7%, 63%); /* #9a9ea7 */
-  --neutral-700: hsl(219, 9%, 75%); /* #babec5 */
-  --neutral-800: hsl(218, 13%, 87%); /* #dadde2 */
-  --neutral-900: hsl(216, 20%, 96%); /* #f3f4f7 */
 
   /* --- SURFACES ------------------------------------------------------------
      Four steps, and elevation makes a surface LIGHTER — which is what the old
@@ -297,6 +274,10 @@
   --card-foreground: hsl(216, 20%, 97%);
   --popover-foreground: hsl(216, 20%, 97%);
   --muted-foreground: hsl(220, 8%, 61%); /* #9499a4  6.96:1 */
+  /* The fourth text level, added 2026-08-31 when the neutral primitives were
+     retired: Figma has text/subtle and the code had no equivalent, so
+     text-neutral-700 had nowhere semantic to land. */
+  --subtle: hsl(219, 9%, 75%); /* #babec5 */
   --placeholder: hsl(229, 6%, 50%); /* #787c87  4.76:1 - the Figma
      text/placeholder variable ("input placeholders and empty-state prompts;
      clears AA for normal text, unlike text/disabled"), synced 2026-08-30. */

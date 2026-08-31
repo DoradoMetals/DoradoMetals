@@ -181,7 +181,7 @@ export function AddNewDialog({
                           <Button
                             variant="tertiary"
                             onClick={() => setValue(field.name, '')}
-                            className="absolute right-1 top-1 text-neutral-600 hover:bg-transparent"
+                            className="absolute right-1 top-1 text-muted-foreground hover:bg-transparent"
                             tabIndex={-1}
                             aria-label={`Clear ${field.label}`}
                           >
@@ -218,7 +218,7 @@ export function AddNewDialog({
                         <Button
                           variant="tertiary"
                           onClick={() => setValue(field.name, '')}
-                          className="absolute right-1 top-1/2 -translate-y-1/2 text-neutral-600 hover:bg-transparent"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:bg-transparent"
                           tabIndex={-1}
                           aria-label={`Clear ${field.label}`}
                         >

@@ -177,7 +177,7 @@ export default function PayoutStep({ user }: { user?: User }) {
                     <strong>{option.label}</strong>
                     <div className="flex items-center gap-2 pt-1 pl-4">
                       <small>{option.time_delay}</small>
-                      <CircleIcon size={6} weight="fill" className="text-neutral-500" />
+                      <CircleIcon size={6} weight="fill" className="text-placeholder" />
                       <small>
                         {option.cost === 0.0 ? 'Free' : <PriceNumberFlow value={option.cost} />}
                       </small>

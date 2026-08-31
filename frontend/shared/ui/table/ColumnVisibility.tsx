@@ -56,7 +56,7 @@ export function TableColumnVisibility<TData>({
         </div>
 
         <small className="flex items-center gap-1 justify-center py-1 px-2 rounded-b-lg pb-2">
-          <span className="text-neutral-900">
+          <span className="text-foreground">
             {table.getAllLeafColumns().filter((col) => !col.getIsVisible()).length}
           </span>
           <span>hidden</span>

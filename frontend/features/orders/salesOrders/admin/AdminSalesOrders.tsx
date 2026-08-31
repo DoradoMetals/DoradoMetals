@@ -38,7 +38,7 @@ export default function SalesOrdersPage() {
         label: status,
         predicate: (so: SalesOrder) => so.status === status,
 
-        buttonActiveClassName: cn('bg-primary/20', 'border-primary', 'text-neutral-900'),
+        buttonActiveClassName: cn('bg-primary/20', 'border-primary', 'text-foreground'),
         iconBaseClassName: 'text-primary',
         iconActiveClassName: 'text-primary',
       }
@@ -61,7 +61,7 @@ export default function SalesOrdersPage() {
         accessorKey: 'user.user_name',
         align: 'center',
         enableHiding: false,
-        textClassName: 'text-xs sm:text-sm text-neutral-900',
+        textClassName: 'text-xs sm:text-sm text-foreground',
         size: 160,
       }),
 

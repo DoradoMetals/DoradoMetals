@@ -99,7 +99,7 @@ html body[data-scroll-locked] {
 
 /* was `background-color: red` — a leftover debug value, tokenised. */
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: var(--neutral-400);
+  background-color: var(--border-strong);
 }
 
 .gm-style-cc {

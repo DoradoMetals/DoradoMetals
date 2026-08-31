@@ -176,7 +176,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
             <div className="divide-y">
               <div className="flex items-center justify-between w-full items-center px-3 py-2">
                 <div className="truncate">
-                  <span className="text-neutral-800">${shipment?.cost}</span>
+                  <span className="text-foreground">${shipment?.cost}</span>
                 </div>
 
                 <div className="flex items-center gap-1">

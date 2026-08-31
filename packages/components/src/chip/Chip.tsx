@@ -37,7 +37,7 @@ export function Chip({ label, selected = false, onDismiss, icon, avatar, count, 
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background",
         "disabled:pointer-events-none disabled:opacity-50",
         selected
-          ? "bg-primary text-primary-foreground hover:bg-neutral-800"
+          ? "bg-primary text-primary-foreground hover:opacity-85"
           : "border border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground",
         className
       )}

@@ -45,7 +45,7 @@ export default function PurchaseOrdersPage() {
         header: `${count}`,
         label: status,
         predicate: (po: PurchaseOrder) => po.status === status,
-        buttonActiveClassName: cn('bg-primary/20', 'border-primary', 'text-neutral-900'),
+        buttonActiveClassName: cn('bg-primary/20', 'border-primary', 'text-foreground'),
         iconBaseClassName: 'text-primary',
         iconActiveClassName: 'text-primary',
       }
@@ -68,7 +68,7 @@ export default function PurchaseOrdersPage() {
         accessorKey: 'user.user_name',
         align: 'center',
         enableHiding: false,
-        textClassName: 'text-xs sm:text-sm text-neutral-900',
+        textClassName: 'text-xs sm:text-sm text-foreground',
         size: 160,
       }),
 
@@ -102,7 +102,7 @@ export default function PurchaseOrdersPage() {
         accessorKey: 'shipment.shipping_status',
         align: 'center',
         enableHiding: true,
-        textClassName: 'text-xs sm:text-sm text-neutral-800',
+        textClassName: 'text-xs sm:text-sm text-foreground',
         size: 200,
       }),
     ],

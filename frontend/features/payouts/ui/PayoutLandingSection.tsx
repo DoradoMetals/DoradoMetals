@@ -30,7 +30,7 @@ export function Payout() {
                    text-primary-foreground` (D95's cross-element fix) — but
                    `text-primary-foreground` only reaches descendants that do
                    not set a colour of their own, and typography.css gives
-                   `h3` `--neutral-900` (#f3f4f7) and `p`
+                   `h3` `--foreground` (#f3f4f7) and `p`
                    `--muted-foreground` in @layer base. Both won. So every
                    card on this section rendered a near-white heading and a
                    grey paragraph on a near-white ground: 1.02:1, live.

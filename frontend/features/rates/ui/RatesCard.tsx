@@ -154,7 +154,7 @@ function Header({
 function ReadView({ unit, rows }: { unit: string; rows: AdminRate[] }) {
   const u = unit === 'troy_oz' ? 'oz' : unit
   return (
-    <div className="border rounded-lg p-4 bg-neutral-100/50">
+    <div className="border rounded-lg p-4 bg-muted/50">
       <div className="flex items-center px-1 mb-4">
         <p className="basis-0 grow-[2] text-left eyebrow">Range (oz)</p>
         <p className="basis-0 grow text-center eyebrow">Scrap</p>

@@ -99,7 +99,7 @@ export default function MobileProductCarousel() {
               index !== 0 ? 'border-l border-border' : ''
             }`}
           >
-            {/* Was `text-neutral-400` when inactive - 2.7:1 on the page ground,
+            {/* Was `text-placeholder` when inactive - 2.7:1 on the page ground,
                 under AA and under the 3.0 floor RETIREMENT.md audits to. The
                 <p> default (--muted-foreground, 6.96:1) is the muted step the
                 three-tone hierarchy already defines, so the inactive state

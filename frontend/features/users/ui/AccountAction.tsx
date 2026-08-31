@@ -29,7 +29,7 @@ export function AccountAction({
   onClick,
   disabled,
   iconSize = 28,
-  iconClassName = 'text-neutral-800',
+  iconClassName = 'text-foreground',
   showCheckOnComplete = false,
 }: AccountActionProps) {
   const Icon = icon
@@ -41,7 +41,7 @@ export function AccountAction({
           <Icon
             width={iconSize}
             height={iconSize}
-            className={cn('text-neutral-800', iconClassName)}
+            className={cn('text-foreground', iconClassName)}
           />
         </div>
         <div className="flex flex-col">

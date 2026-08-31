@@ -10,8 +10,8 @@
    form quirks); this file owns everything that decides how text LOOKS.
 
    THE THREE-STEP HIERARCHY the dark palette is built around:
-     headings   --neutral-900  brightest
-     emphasis   --neutral-900  via <strong>
+     headings   --foreground  brightest
+     emphasis   --foreground  via <strong>
      body       --muted-foreground   mid-grey, 6.96:1
 
    Body copy is MUTED, not near-white. In the reference, near-white is reserved
@@ -58,7 +58,7 @@
   h5,
   h6 {
     font-family: var(--font-sans), sans-serif;
-    color: var(--neutral-900);
+    color: var(--foreground);
     text-wrap: balance;
   }
 
@@ -110,12 +110,12 @@
      footer links and card descriptions are all mid-grey. This is the single
      change that does most to produce the reference look.
 
-     Was `--neutral-800` (#dadde2, 14.60:1). Now `--muted-foreground`
+     Was the retired `neutral-800` (#dadde2, 14.60:1). Now `--muted-foreground`
      (#9499a4, 6.96:1) — comfortably above AA for body text, and a full step
      below the headings, which is the point.
 
      Emphasis inside a paragraph climbs back up via `<strong>` (below), which
-     is `--neutral-900`. That is the three-step hierarchy: heading brightest,
+     is `--foreground`. That is the three-step hierarchy: heading brightest,
      emphasis next, body muted. */
   p {
     font-size: var(--text-body);
@@ -236,7 +236,7 @@
   strong,
   b {
     font-weight: 600;
-    color: var(--neutral-900);
+    color: var(--foreground);
   }
 
   em,
@@ -295,7 +295,7 @@
   }
 
   li::marker {
-    color: var(--neutral-500);
+    color: var(--placeholder);
   }
 
   nav ul,
@@ -340,7 +340,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 0.125em 0.375em;
-    color: var(--neutral-900);
+    color: var(--foreground);
   }
 
   hr {
@@ -353,12 +353,12 @@
      nearly invisible. Selection is a light wash with dark text — monochrome,
      and the same shape as the primary button. */
   ::selection {
-    background-color: var(--neutral-800);
+    background-color: var(--foreground);
     color: var(--background);
   }
 
   ::placeholder {
-    color: var(--neutral-500);
+    color: var(--placeholder);
   }
 }
 
@@ -409,7 +409,7 @@
      between values, and proportional digits make them jitter mid-transition
      (MANUAL-VERIFICATION.md R9).
 
-     Colour comes from `<strong>`'s own rule (--neutral-900) when the number
+     Colour comes from `<strong>`'s own rule (--foreground) when the number
      sits in a `<strong>`, which is the intended spelling; the class sets no
      colour of its own so a status tint can still be applied beside it. */
   .stat {

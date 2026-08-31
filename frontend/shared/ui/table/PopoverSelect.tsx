@@ -24,7 +24,7 @@ import { Field } from '@/shared/ui/Field'
    Every caller that wanted a bordered trigger was writing
    `triggerClass="border border-border"` by hand - LeadsDrawer still does -
    because this component hard-coded `variant="tertiary"` and then painted over it
-   with `text-neutral-900`, which is ruling 20's "variant contradicted" defect
+   with `text-foreground`, which is ruling 20's "variant contradicted" defect
    in a shared component rather than at a call site.
 
    `variant`/`intent` now forward straight to the Button, so a bordered trigger
@@ -106,13 +106,13 @@ export function PopoverSelect({
         >
           {/* Chosen value vs placeholder is a STATE of this control, not an
               override of the Button's variant - the same distinction
-              `placeholder:text-neutral-500` makes on an Input. */}
+              `placeholder:text-placeholder` makes on an Input. */}
           {selected ? (
             <span className="truncate text-foreground">{selected}</span>
           ) : (
-            <span className="text-neutral-500">{placeholder}</span>
+            <span className="text-placeholder">{placeholder}</span>
           )}
-          <ChevronDown size={16} className="text-neutral-600" />
+          <ChevronDown size={16} className="text-muted-foreground" />
         </Button>
       </PopoverTrigger>
 
@@ -157,7 +157,7 @@ export function PopoverSelect({
                   }}
                   className={cn(
                     'group cursor-pointer flex items-center justify-between w-full gap-2 bg-transparent my-1',
-                    'text-neutral-800',
+                    'text-foreground',
                     'data-[selected=true]:bg-primary/10',
                     'data-[selected=true]:rounded-lg',
                     value === option &&

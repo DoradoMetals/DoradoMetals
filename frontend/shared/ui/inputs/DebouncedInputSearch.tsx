@@ -47,7 +47,7 @@ export function DebouncedInputSearch({
       />
       {showSearchIcon && (
         <div className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 hover:bg-transparent">
-          <MagnifyingGlassIcon className="text-neutral-600" size={18} />
+          <MagnifyingGlassIcon className="text-muted-foreground" size={18} />
         </div>
       )}
 
@@ -55,7 +55,7 @@ export function DebouncedInputSearch({
         <Button
           variant="tertiary"
           onClick={handleClear}
-          className="absolute right-1 top-1/2 -translate-y-1/2 text-neutral-600 hover:bg-transparent"
+          className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:bg-transparent"
           tabIndex={-1}
         >
           <XIcon size={16} />

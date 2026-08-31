@@ -103,7 +103,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
             className={cn(`w-full product-swiper
             [&.product-swiper_.swiper-pagination]:!absolute
             [&.product-swiper_.swiper-pagination]:!-top-1
-            [&.product-swiper__.swiper-pagination-bullet]:!bg-neutral-700
+            [&.product-swiper__.swiper-pagination-bullet]:!bg-muted-foreground
             [&.product-swiper__.swiper-pagination-bullet]:!opacity-30
             [&.product-swiper__.swiper-pagination-bullet-active]:!opacity-100`)}
           >
@@ -261,15 +261,15 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                           </DetailRow>
 
                           <div className="flex w-full items-start">
-                            <X size={16} className="text-neutral-700" />
+                            <X size={16} className="text-subtle" />
                             <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
                           </div>
 
                           <div className="flex w-full items-start">
                             {overOrUnder >= 0 ? (
-                              <Plus size={16} className="text-neutral-700" />
+                              <Plus size={16} className="text-subtle" />
                             ) : (
-                              <Minus size={16} className="text-neutral-700" />
+                              <Minus size={16} className="text-subtle" />
                             )}
 
                             <DetailRow label="Premium" variant="detail" className="items-start pl-4">
@@ -279,7 +279,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                         </div>
 
                         <div className="flex w-full items-start">
-                          <Equal size={16} className="text-neutral-700" />
+                          <Equal size={16} className="text-subtle" />
                           <DetailRow label="Total" variant="subtotal" className="items-start pl-4">
                             <PriceNumberFlow value={price} />
                           </DetailRow>

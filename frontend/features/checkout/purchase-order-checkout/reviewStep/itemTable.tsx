@@ -184,7 +184,7 @@ function ItemAccordion<T>({
         <div className="flex items-center gap-2">
           <ChevronDown
             size={20}
-            className={cn('transition-transform text-neutral-500', open && 'rotate-180')}
+            className={cn('transition-transform text-placeholder', open && 'rotate-180')}
           />
           <span>{label}</span>
         </div>

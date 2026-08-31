@@ -128,7 +128,7 @@ export function AddressSelect({
               <motion.div
                 animate={{ rotate: expanded ? 180 : 0 }}
                 transition={{ duration: 0.2 }}
-                className="text-neutral-800 will-change-transform pt-1"
+                className="text-foreground will-change-transform pt-1"
               >
                 <ChevronDown className="h-4 w-4" />
               </motion.div>

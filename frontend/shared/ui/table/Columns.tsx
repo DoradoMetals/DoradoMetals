@@ -11,7 +11,7 @@ import StatusChip, { type ChipTone } from '@/shared/ui/StatusChip'
 export type Align = 'left' | 'center' | 'right'
 
 /* ALIGNMENT ONLY. The size and colour used to be spelled here too
-   (`text-sm text-neutral-600`), which is exactly what `TableHead`'s own default
+   (`text-sm text-muted-foreground`), which is exactly what `TableHead`'s own default
    already is - so every column header was re-asserting the default at a
    smaller, non-responsive size. `text-left/center/right` stays: alignment is
    LAYOUT, and there are 205 of them in the tree. */
@@ -193,7 +193,7 @@ export function TextColumn<TData>({
      BRIGHTNESS is this column's own decision - a value reads one step above the
      cell default. Was `text-xs sm:text-sm`, a second, disagreeing responsive
      step layered on top of the cell's. */
-  textClassName = 'text-neutral-900 block truncate whitespace-nowrap',
+  textClassName = 'text-foreground block truncate whitespace-nowrap',
   formatValue,
   ...base
 }: TextColumnOptions<TData>): ColumnDef<TData> {
@@ -229,7 +229,7 @@ export function DateColumn<TData>({
     renderCellContent: ({ value }) => {
       const raw = value as string | number | Date | null
       if (!raw) {
-        return <span className="text-neutral-900">-</span>
+        return <span className="text-foreground">-</span>
       }
 
       const date = raw instanceof Date ? raw : new Date(raw)
@@ -241,7 +241,7 @@ export function DateColumn<TData>({
           day: 'numeric',
         })
 
-      return <span className="text-neutral-900">{formatted}</span>
+      return <span className="text-foreground">{formatted}</span>
     },
   })
 }
@@ -372,7 +372,7 @@ function OrderNumberCellComponent({
   const raw = value as number | null | undefined
   const formatted = format(raw)
 
-  return <span className="text-neutral-900">{formatted}</span>
+  return <span className="text-foreground">{formatted}</span>
 }
 
 export function OrderNumberColumn<TData>({
@@ -424,7 +424,7 @@ export function ImageColumn<TData>({
   width = 28,
   rounded = 'md',
   placeholder,
-  placeholderClassName = 'bg-neutral-50 border-neutral-200',
+  placeholderClassName = 'bg-muted border-border',
   fallbackSrc,
   objectFit = 'contain',
   align = 'left',

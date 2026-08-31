@@ -142,7 +142,7 @@ export function Autocomplete({
             onKeyDown(e);
             inputProps?.onKeyDown?.(e);
           }}
-          className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-neutral-500"
+          className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-placeholder"
           {...(({ onFocus: _f, onBlur: _b, onKeyDown: _k, ...rest }) => rest)(inputProps ?? {})}
         />
         {trailing != null && <span className="shrink-0">{trailing}</span>}

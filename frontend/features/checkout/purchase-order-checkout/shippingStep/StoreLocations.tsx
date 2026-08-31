@@ -68,7 +68,7 @@ export const StoreLocationsMap = () => {
         fillColor: getCssVar('--secondary'),
         fillOpacity: 1,
         strokeWeight: 1,
-        strokeColor: getCssVar('--neutral-900'),
+        strokeColor: getCssVar('--foreground'),
       },
       selectedIcon: {
         path: window.google.maps.SymbolPath.CIRCLE,
@@ -76,7 +76,7 @@ export const StoreLocationsMap = () => {
         fillColor: getCssVar('--primary'),
         fillOpacity: 1,
         strokeWeight: 1,
-        strokeColor: getCssVar('--neutral-900'),
+        strokeColor: getCssVar('--foreground'),
       },
       userIcon: {
         path: window.google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
@@ -84,7 +84,7 @@ export const StoreLocationsMap = () => {
         fillColor: '#EA4335',
         fillOpacity: 1,
         strokeWeight: 2,
-        strokeColor: getCssVar('--neutral-900'),
+        strokeColor: getCssVar('--foreground'),
       },
     })
   }, [])

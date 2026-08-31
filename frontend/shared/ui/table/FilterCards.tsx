@@ -36,8 +36,8 @@ export function FilterCards({ cards, activeKey, onChangeActive }: FilterCardsStr
   const defaultButtonActiveClass = 'bg-primary/15 border border-primary text-primary'
   const defaultIconBaseClass = 'text-primary'
   const defaultIconActiveClass = 'text-primary'
-  const defaultHeaderActiveClass = 'text-neutral-900'
-  const defaultLabelActiveClass = 'text-neutral-900'
+  const defaultHeaderActiveClass = 'text-foreground'
+  const defaultLabelActiveClass = 'text-foreground'
 
   return (
     <div className="flex flex-col gap-2 items-center justify-center md:flex-row w-full md:justify-between md:gap-4">
@@ -74,13 +74,13 @@ export function FilterCards({ cards, activeKey, onChangeActive }: FilterCardsStr
         const iconClass = cn(isActive ? effectiveIconActive : effectiveIconBase)
 
         const headerClass = cn(
-          'text-base sm:text-lg text-neutral-800',
+          'text-base sm:text-lg text-foreground',
           headerBaseClassName,
           isActive && effectiveHeaderActive
         )
 
         const labelClass = cn(
-          'text-xs sm:text-sm text-neutral-600 font-normal',
+          'text-xs sm:text-sm text-muted-foreground font-normal',
           labelBaseClassName,
           isActive && effectiveLabelActive
         )
