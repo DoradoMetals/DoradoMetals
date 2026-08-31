@@ -488,3 +488,22 @@ Context Menu (no right-click surface in this product).
 Each drawn component follows the file's conventions: its own page in
 alphabetical order, one frame per set, variants on the 24px grid, the dark
 ground, Geist styles, and a description carrying the contract.
+
+## Drawn 2026-08-30 — all nine
+
+| component | page | set node | notes |
+|---|---|---|---|
+| Banner | 125:2 | 125:4 | band w/ hairlines; action slot swaps for Button/Secondary |
+| Breadcrumb | 126:2 | 126:16 | Depth=Full/Collapsed; crumbs wear Link's quiet state |
+| Drawer | 127:2 | 127:32 | Side=Right/Bottom; highest + edge hairline; body is a slot |
+| Empty State | 127:33 | 127:49 | Action=With/None; 44px secondary icon tile |
+| Menu | 132:2 | 132:18 (item) + 132:19 (panel) | actions not values — no check |
+| Pagination | 132:955 | 132:965 (item) + 132:966 (bar) | current = primary fill |
+| Progress | 132:981 | 132:995 | 25/66/100/Indeterminate; rail may be a pill |
+| Quantity Stepper | 132:996 | 132:1016 | Field-chassis language at 36px; AtMin disables |
+| Toast | 132:1017 | 132:1041 | Neutral/Success/Danger; icon carries intent, surface never tints |
+
+Figma-side notes: the drawn Button/Link stand-ins inside Banner, Drawer,
+Empty State are plain frames NAMED for the component they should be
+(instance-swap is a click with the libraries panel open; scripting instances
+of another page's set was left for a human so the overrides read right).
