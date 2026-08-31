@@ -922,3 +922,33 @@ Autocomplete and Select both compose `fieldTrigger`/`fieldPanel`/
 not render in screenshots while the x=0 column did, which made the Upload
 set look broken when the node data was correct. Single-column layout both
 fixed the review problem and sidestepped it.
+
+## Round 5 (2026-08-31) — three defects with real causes
+
+Two of these I had previously reported as fixed. The causes are why.
+
+- **Header: nothing was ever missing.** Both desktop variants had the right
+  contents all along — the signed-in variant was positioned at **@40,40,
+  exactly on top of the signed-out one**, so the unauthenticated variant was
+  underneath it and invisible. Rebuilding its contents could never have
+  helped. All five variants are laid out down the canvas now
+  (40 / 152 / 264 / 376 / 496).
+- **Link: the icon instance was EMPTY.** It reported zero children, so every
+  recolour loop found no vectors and silently did nothing — exactly why "fix
+  the colour" kept failing. All 15 rebuilt from the Lucide component, each
+  taking its own label's paint, plus a stale hidden `arrow-left` removed
+  from every variant.
+- **Select: the grid overlapped.** The open panel made the two Focus
+  variants 252px tall in a grid pitched for 66px, so they ran into Error
+  below. Re-laid per column with real spacing.
+
+**Datepicker side-by-side** — the cause here is the one to remember:
+`sb.findOne(n => n.name === "Header")` matched the **Calendar's** header,
+because findOne is depth-first and the Calendar instance precedes Times in
+the child order. Every "centre the label" edit was landing on the calendar's
+month row, which is also what clustered its chevrons. Scoped to
+`times.children.find(...)` instead: the date label centres and steps back to
+`text/muted`, the chips hug their content and centre as a column instead of
+stretching, and the calendar's chevrons are back at the edges.
+
+Upload deferred — Jacob is taking that one last.
