@@ -825,3 +825,33 @@ All 40 colour variables are now `ALL_SCOPES`. The purist case for narrow
 scopes is preventing misuse — a text colour as a page background. That
 protection is not worth making the system unusable, and an icon wanting a
 text colour is CORRECT, not misuse: icons sit in text and should match it.
+
+## Text token names (2026-08-31)
+
+Jacob: *"On-card..? Really? Subtlest? Terrible."* Both fair, and the values
+proved it:
+
+- **`text/on-card` and `text/on-popover` were exact duplicates of
+  `text/default` (#f6f7f9) with ZERO bindings.** Material's "on-<surface>"
+  convention only earns its keep when the surface actually changes the text
+  colour; here all three were the same white. Deleted.
+- **`text/subtlest` (#9499a4) is the workhorse — 329 bindings**, i.e. body
+  copy. A superlative is the worst possible name for the most-used token:
+  you cannot order "subtle" against "subtlest" without looking up the hex.
+  Renamed **`text/muted`**, which is also what the code has always called it
+  (`--muted-foreground`), so the two systems finally agree.
+
+Renaming a Figma variable keeps its identity, so all 329 bindings followed
+it — verified zero dangling references afterwards.
+
+The ramp is now `default -> subtle -> muted -> placeholder -> disabled`,
+and `placeholder`/`disabled`/`inverse`/the status four keep their names
+because those are real roles, not positions.
+
+**One wrinkle left, flagged rather than silently chosen:** `subtle`
+(#babec5) is BRIGHTER than `muted` (#9499a4), which is backwards from how
+most systems use the two words. Fixing the intuition would mean either
+swapping them (breaking parity with the code's `--muted-foreground`) or
+renaming #babec5 to `text/secondary` (which collides with the `secondary`
+SURFACE token in Tailwind, where `text-secondary` would resolve to
+#23252a). Parity won; say the word if the ordering matters more.
