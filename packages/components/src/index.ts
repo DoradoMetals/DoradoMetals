@@ -28,3 +28,6 @@ export { Switch, type SwitchProps } from "./switch";
 export { Skeleton, type SkeletonProps } from "./skeleton";
 export { Spinner, type SpinnerProps } from "./spinner";
 export { Tooltip, TooltipProvider, type TooltipProps } from "./tooltip";
+export { Stat, type StatProps } from "./stat";
+export { Stepper, type StepperProps } from "./stepper";
+export { OTPInput, type OTPInputProps } from "./otp-input";
