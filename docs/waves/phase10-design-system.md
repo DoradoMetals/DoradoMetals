@@ -886,3 +886,39 @@ Selected/State now tracks the card's variant.
 through NumberFlow, MaskedField renders `<Input>`, and Autocomplete and
 Select both compose `fieldTrigger`/`fieldPanel`/`fieldOption` - the same
 chassis Input and Popover are built from.
+
+## Round 4 (2026-08-31) — composition made real
+
+Several items repeated because I had stamped a DESCRIPTION saying a
+component composes another instead of actually nesting the instance. Fixed
+by nesting, not by writing:
+
+- **Autocomplete** — its Label+Box are gone; the field IS an **Input**
+  instance (Content=Filled, leading icon, message off), and the open
+  variant's suggestion list IS the **Select Menu** instance the Popover
+  uses. One field chassis, one panel, both shared.
+- **Masked Field** — all five variants are **Input** instances now (Card
+  carries Trailing=Label "VISA").
+- **Select** — its focus variants get the same shared **Select Menu** panel.
+
+| item | what changed |
+|---|---|
+| Datepicker / stacked | card padding moved to the halves so the rule between them SPANS; slots are 2-up and no longer clipped |
+| Datepicker / side-by-side | standard 1px left rule; header carries the YEAR and its own spanning rule; slot column centred and scrolling |
+| Empty State | icon to 64px |
+| Header | signed-in keeps the divider before the avatar; signed-out is How it works / Pricing / About / Contact \| Log in \| Get a Quote |
+| Link | the external glyph takes the LABEL's exact paint, per variant |
+| Tooltip | arrows redrawn per side with explicit paths (rotation was throwing the position off), bubble fill + border stroke, seated 1px INTO the bubble so the flat edge's stroke hides behind it |
+| Quantity Stepper | middle renamed "Value (text input)", caret on the Focused variant |
+| Upload | variants laid out in one column so the set is reviewable; Uploaded's height cap restored (258 not 660) |
+
+**Not changed because it was already true** — verified in the source, not
+assumed: Progress is `w-full`, the stepper's middle is a real `<input>`,
+Stat animates through NumberFlow, MaskedField renders `<Input>`, and
+Autocomplete and Select both compose `fieldTrigger`/`fieldPanel`/
+`fieldOption` — the same chassis Input and Popover are built from.
+
+**A Figma quirk worth recording**: component-set variants placed at x>0 did
+not render in screenshots while the x=0 column did, which made the Upload
+set look broken when the node data was correct. Single-column layout both
+fixed the review problem and sidestepped it.
