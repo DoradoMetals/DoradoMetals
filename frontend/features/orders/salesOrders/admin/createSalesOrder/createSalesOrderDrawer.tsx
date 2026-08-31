@@ -3,6 +3,8 @@
 // THE CUSTOMER THE ADMIN IS ORDERING FOR, off GET /users/get_all - the
 // contracts' user wire, snake_case. NOT better-auth's session user, which is
 // the admin themselves and is a different shape under the same word.
+import { Link } from '@dorado/components'
+import NextLink from 'next/link'
 import { AdminUser } from '@/features/users/types'
 import { Address, UserAddress, makeEmptyWireAddress } from '@/features/addresses/types'
 import { Skeleton } from '@/shared/ui/base/skeleton'
@@ -462,13 +464,11 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
           label={
             <span className="flex items-center gap-1">
               Sales Tax
-              <Button
-                variant="tertiary"
-                size="iconInline"
-                onClick={() => router.push('/sales-tax')}
-              >
-                <QuestionIcon size={16} />
-              </Button>
+              <Link asChild className="inline-flex size-4 items-center justify-center">
+                <NextLink href="/sales-tax" aria-label="About sales tax">
+                  <QuestionIcon size={16} />
+                </NextLink>
+              </Link>
             </span>
           }
         >

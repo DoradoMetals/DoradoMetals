@@ -1,4 +1,5 @@
 'use client'
+import { Link as DoradoLink } from '@dorado/components'
 import { useEffect, useState } from 'react'
 import {
   Popover,
@@ -54,35 +55,26 @@ export default function AccountMenu() {
           <hr />
           <PopoverBody className="flex justify-center">
             <div className="flex flex-col items-start gap-1 w-full">
-              <Button
-                variant="tertiary"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => router.push('/account?tab=details')}
-              >
-                <UserCircleIcon size={24} />
-                <span className="text-left">View Account</span>
-              </Button>
+              <DoradoLink asChild className="flex w-full items-center gap-2 py-1.5">
+                <Link href="/account?tab=details" onClick={() => setOpen(false)}>
+                  <UserCircleIcon size={24} />
+                  <span className="text-left">View Account</span>
+                </Link>
+              </DoradoLink>
 
-              <Button
-                variant="tertiary"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => router.push('/account?tab=sold')}
-              >
-                <ListIcon size={24} />
-                <span className="text-left">View Orders</span>
-              </Button>
+              <DoradoLink asChild className="flex w-full items-center gap-2 py-1.5">
+                <Link href="/account?tab=sold" onClick={() => setOpen(false)}>
+                  <ListIcon size={24} />
+                  <span className="text-left">View Orders</span>
+                </Link>
+              </DoradoLink>
 
-              <Button
-                variant="tertiary"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => router.push('/account?tab=security')}
-              >
-                <LockIcon size={24} />
-                <span className="text-left">Security</span>
-              </Button>
+              <DoradoLink asChild className="flex w-full items-center gap-2 py-1.5">
+                <Link href="/account?tab=security" onClick={() => setOpen(false)}>
+                  <LockIcon size={24} />
+                  <span className="text-left">Security</span>
+                </Link>
+              </DoradoLink>
             </div>
           </PopoverBody>
           <hr />

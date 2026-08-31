@@ -1,5 +1,6 @@
 'use client'
 
+import { Link as DoradoLink } from '@dorado/components'
 import { FacebookIcon, InstagramIcon, Logo, XIcon } from '@/features/navigation/ui/Logo'
 import { Button } from '@/shared/ui/base/button'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
@@ -159,11 +160,15 @@ export default function Footer() {
         <div className="flex items-center w-full justify-between mt-1">
           <small className="text-left">© Dorado Metals Exchange LLC</small>
           <div className="flex items-center gap-3">
-            <Button asChild variant="tertiary" size="iconSm">
-              <Link target="_blank" href="https://www.instagram.com/doradometals/?utm_source=qr#">
+            {/* Navigation is a LINK, not a button. Facebook and X below have
+                never had destinations - they are left as the dead buttons they
+                already were, recorded in phase10-design-system.md for Jacob to
+                supply URLs or delete. */}
+            <DoradoLink asChild className="inline-flex size-8 items-center justify-center">
+              <Link target="_blank" rel="noopener" href="https://www.instagram.com/doradometals/?utm_source=qr#">
                 <InstagramIcon size={20} />
               </Link>
-            </Button>
+            </DoradoLink>
             <Button variant="tertiary" size="iconSm">
               <FacebookIcon size={20} />
             </Button>

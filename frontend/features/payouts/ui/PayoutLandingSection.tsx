@@ -1,3 +1,5 @@
+import { Link } from '@dorado/components'
+import NextLink from 'next/link'
 import { payoutOptions } from '@/features/payouts/types'
 import { Button } from '@/shared/ui/base/button'
 import { ArrowUpRightIcon } from '@phosphor-icons/react'
@@ -44,17 +46,15 @@ export function Payout() {
                     <h3 className="truncate mb-0 pb-0 md:hidden">{opt.label}</h3>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="tertiary"
-                    size="iconSm"
-                    className="arrow"
-                    onClick={() => router.push('/payout-options')}
-                    aria-label={`${opt.label} payout details`}
-                  >
+                  {/* Navigation is a LINK, not a button (Jacob's rule). An
+                      icon-only link: the icon takes the link's colour, hover
+                      brightens it, middle-click works. */}
+                  <Link asChild className="arrow inline-flex size-8 items-center justify-center">
+                    <NextLink href="/payout-options" aria-label={`${opt.label} payout details`}>
                     <ArrowUpRightIcon className="hidden md:block" size={20} />
                     <ArrowUpRightIcon className="md:hidden" size={16} />
-                  </Button>
+                  </NextLink>
+                  </Link>
                 </div>
                 <div className="flex flex-col items-start gap-1">
                   <h3 className="hidden md:block truncate mb-0 pb-0">{opt.label}</h3>

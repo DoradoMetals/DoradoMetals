@@ -1,5 +1,7 @@
 'use client'
 
+import { Link } from '@dorado/components'
+import NextLink from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -66,9 +68,11 @@ function VerifyLoginContent() {
 
         <SetPasswordForm />
         <hr className="w-full" />
-        <Button variant="tertiary" className="mr-auto" onClick={() => router.push('/')}>
-          No thanks, I&apos;ll do it later.
-        </Button>
+        {/* Navigation, not an action - the package Link, wrapping next/link so
+            middle-click and new-tab work like the anchor it is. */}
+        <Link asChild className="mr-auto">
+          <NextLink href="/">No thanks, I&apos;ll do it later.</NextLink>
+        </Link>
       </div>
     </main>
   )
