@@ -14,7 +14,11 @@ import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { cn } from "../cn";
 
-export const Tabs = TabsPrimitive.Root;
+// The root stacks list over panel; the lift dropped this and every call site
+// written against it (they pass `flex` for width tweaks) collapsed into a row.
+export function Tabs({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Root>) {
+  return <TabsPrimitive.Root className={cn("flex flex-col gap-2", className)} {...props} />;
+}
 export const TabsContent = TabsPrimitive.Content;
 
 type TabsVariant = "underline" | "boxed";

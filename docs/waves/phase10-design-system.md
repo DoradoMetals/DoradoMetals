@@ -960,3 +960,17 @@ ran from y=260 to y=870, so the preview lay across the set's lower-left
 corner and read as a broken variant. Nothing about the component was wrong;
 the page was. Laid the page out top-to-bottom with 80px gaps - Select
 Option (0-192), Select (272-882), the preview (962-1210).
+
+**Datepicker borders, root cause (round 6).** The "fucked up" borders were a
+border-ownership bug, not a styling one: the **Calendar instance carried a
+full T/R/B/L border** and the Times frame carried a left border, so the seam
+between them was drawn TWICE while the card's top, right and bottom edges
+existed only across the calendar's half — the right half of the card had no
+outline at all. The card itself now owns the outline (1px all round, 12px
+radius, clipped), the Calendar instance's border is cleared, and the Times
+frame keeps a single left edge as the seam. Both layouts use that same model
+now, which is why the stacked one reads consistently with it.
+
+Side-by-side slots are two full-width columns (rows of two, each chip
+FILL), and the partial row at the clip edge is deliberate — it is the
+scroll affordance.
