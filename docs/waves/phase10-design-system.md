@@ -803,3 +803,25 @@ One behavioural change, not a rename: the selected Chip's
 is opacity now, so it became `hover:opacity-85` like every other control.
 `--neutral-*` and `--color-neutral-*` are gone from theme.css and the long
 "ramp inversion" essay that justified them is replaced by the mapping.
+
+## Why half the colour tokens were unreachable (2026-08-31)
+
+Jacob, twice: *"why the fuck can't I use my text/subtlest color with the
+icon?"* Not a binding bug — **variable SCOPING**. Every colour variable
+carries a `scopes` list, and Figma filters the colour picker by it. The
+collection was authored strictly:
+
+    text/*     TEXT_FILL only          <- invisible to any fill/stroke picker
+    border/*   STROKE_COLOR only       <- invisible to any fill picker
+    surface/*  FRAME_FILL, SHAPE_FILL  <- invisible to any stroke picker
+
+An icon is a VECTOR: its colour is a STROKE (Lucide is stroke-only,
+`fill="none"`). So *no* `text/*` token could ever appear when colouring an
+icon, which is exactly the wall he hit. The strict scoping also explains
+why binding worked from the plugin API (scopes are a UI filter, not a
+constraint) while the picker showed almost nothing.
+
+All 40 colour variables are now `ALL_SCOPES`. The purist case for narrow
+scopes is preventing misuse — a text colour as a page background. That
+protection is not worth making the system unusable, and an icon wanting a
+text colour is CORRECT, not misuse: icons sit in text and should match it.
