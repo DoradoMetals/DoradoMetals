@@ -420,7 +420,9 @@ so the write half of the design contract is automatable after all.
 | List | 97:35 | real ul/ol under drawn markers; browser counts the numbers | help drawers' "Examples include" lists | — |
 | Table | 56:82 | real <table>: the drawing's stated maintenance cost dissolves; aria-sort | base/table + the tanstack data-table system stay pending their own audit | — |
 
-**Remaining on the shelf**: Calendar, Chart, Dialog, Footer, Header, Loader's
+| Dialog | 41:55 | Radix: focus trap, Title/Description labelling; blur overlay kept | base/dialog stays pending its own audit (drawer composition uses low-level pieces) | — |
+
+**Remaining on the shelf**: Calendar, Chart, Footer, Header, Loader's
 eight-frame Logo animation, Radio layout alignment, Swiper, Time Picker — the
 composite/page-level tier, each wanting a session with visual eyes rather than
 the small-atom loop.

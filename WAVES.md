@@ -16,7 +16,7 @@ OVERALL   ████████████████░░░░░░░�
 | 🔄 | **phase 7** money at rest | `███████████████░░░` ~85% | rest is Jacob's |
 | 🔄 | **phase 8** the silence problem | `████████░░░░░░░░░░` ~44% | in flight |
 | 🔄 | **phase 9** checkout, properly | `██████████████░░░░` ~80% | reopen is Jacob's |
-| 🔄 | **phase 10** component library and theming | `███████░░░░░░░░░░░` ~40% | screens not drawn |
+| 🔄 | **phase 10** component library and theming | `█████████████░░░░░` ~70% | 25 components landed |
 
 ## Phase 1 — the write pivot
 
@@ -163,8 +163,8 @@ reordering deliberately did not ride along.
 
 ```
 1. Inventory: what exists and who uses it   ██████████████████  100%
-2. The Figma library, read                  ██████████████░░░░   75%
-3. Collapse the parallel families           ██░░░░░░░░░░░░░░░░   10%
+2. The Figma library, read                  ██████████████████  100%
+3. Collapse the parallel families           ████████████░░░░░░   65%
 4. The new sell/checkout form               ░░░░░░░░░░░░░░░░░░    0%
 ```
 

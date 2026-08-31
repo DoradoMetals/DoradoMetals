@@ -36,3 +36,4 @@ export { Slider, type SliderProps } from "./slider";
 export { SliderField, type SliderFieldProps } from "./slider-field";
 export { List, ListItem, type ListProps } from "./list";
 export { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, type SortDirection } from "./table";
+export { Dialog, DialogTrigger, DialogClose, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal } from "./dialog";
