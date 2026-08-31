@@ -579,3 +579,30 @@ each for a stated reason: `color-contrast` needs a layout engine jsdom lacks
 Two frontend test files moved in with their subject (ruling 31): the Button
 law test and the gap-atoms tests, re-homed per component. Frontend suite
 174, package 88, total 262.
+
+---
+
+# OVERNIGHT REVISION PASS (2026-08-30 night, Jacob's punch list)
+
+All 28 component revisions applied in Figma + 4 new drawings. Decisions made
+under the no-blocking grant, recorded in each component's description:
+
+- **Tertiary hover = underline** (accent fill rejected twice); weight-on-hover
+  refused for all three variants because hover must never reflow text.
+- **Progress loses Indeterminate** - unknown duration is Spinner's job.
+- **Menu stays the ACTION dropdown**; navigation is the Header's (Links).
+  A nav dropdown, if ever needed, is its own future pattern.
+- **Select's answer** (asked twice): it now WEARS Popover Field's chassis in
+  the drawing; what it adds is form semantics (value, name, typeahead,
+  disabled options, check-carries-selection). No longer deprecated.
+- **Header Signed In=True**: auth CTAs leave, Avatar takes the slot; Product
+  link removed everywhere.
+- **The "diamond direction indicator"** was the Tooltip's rotated-square
+  caret - now a real triangle arrow (4 replaced).
+- **Chart stack: Chart.js** (Jacob's default, no counter-opinion) with Area/
+  Donut/Sparkline added to Bar/Line.
+- **Loader**: spec rewritten to a stroke-flow draw-on (tips -> swirl -> D
+  ends), frames to be re-cut to sample that draw.
+- New drawings: **Address Card** (163:32), **Hero** (163:35), **Marquee**
+  (170:48), **Masked Field** (170:89) - each with the full contract in its
+  description (the Masked Field one carries the never-log rule).
