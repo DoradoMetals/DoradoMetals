@@ -689,3 +689,16 @@ data-grid shell - now the DataTable adoption target).
 | Link | No trailing icon (stale node deleted from all 15 variants); external glyph is leading, an Icon/external-link instance, optional DEFAULT FALSE - which the code already was. |
 | Header | Nothing was removed - all four original variants exist (renamed with `Signed In=False` when the axis landed) plus the new signed-in one. Five total. |
 | Loader | Parked per Jacob - he'll draw the stroke-flow animation himself. |
+
+
+## Post-round-2 fix (Jacob's screenshots, 2026-08-31)
+
+Two defects from my Link edit, both mine: (1) the external-link icon went
+into the component UNBOUND, so every Link instance rendered it - it now
+binds to a new `External` BOOLEAN property, DEFAULT FALSE, present in all
+15 variants; a stray per-instance "Show leading icon" override in the
+Footer is cleared. (2) The footer's five link columns now cluster flush
+RIGHT as one group on desktop - right edge on the legal row's line above
+Privacy/Terms/Accessibility - with Brand alone on the left. (A collapsed
+FILL-in-HUG squeeze and a stuck 60px label width surfaced while regrouping;
+both fixed - "Company" wraps no more.)
