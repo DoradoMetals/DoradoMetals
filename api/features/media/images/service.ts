@@ -30,8 +30,26 @@ export async function uploadImage({
   // FOLLOWUPS.md rather than fixed here, since a boot check is a deploy-time
   // behaviour change.
   const bucket = process.env.MINIO_BUCKET as string;
+
+  // THE SERVER NAMES THE OBJECT (D201). path and filename used to be taken
+  // from the request body and concatenated into the storage key - so every
+  // iPhone's image.jpg collided with every other one, and a caller could aim
+  // a presigned write at ANY key in the bucket, including somebody else's
+  // document. The key is user-scoped and uuid-prefixed now; the client's
+  // filename survives only as a sanitised, capped suffix for humans reading
+  // the bucket, and the client's path is ignored entirely. The old upsert on
+  // (path, filename, user_id) still stands in the SQL but can no longer
+  // fire - every upload is a fresh key by construction.
+  const originalName = String(filename ?? "")
+    .replace(/[^A-Za-z0-9._-]/g, "_")
+    .slice(-80) || "upload";
   const image: NewImage = {
-    user_id, bucket, path, filename, mime_type: mimeType, size_bytes: size,
+    user_id,
+    bucket,
+    path: `${user_id}/`,
+    filename: `${randomUUID()}-${originalName}`,
+    mime_type: mimeType,
+    size_bytes: size,
   };
 
   // THE ID COMES BACK FROM THE NEW SCHEMA, and the legacy write uses it.
@@ -50,7 +68,7 @@ export async function uploadImage({
   // OUTSIDE THE TRANSACTION. Presigning is a network call to storage, and
   // nothing irreversible belongs inside a transaction that may roll back.
   const uploadUrl = await minio.presignedPutObject(
-    bucket, path + filename, PUT_TTL_SECONDS
+    bucket, image.path + image.filename, PUT_TTL_SECONDS
   );
 
   return { id: row.id, uploadUrl };
