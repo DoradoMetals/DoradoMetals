@@ -102,3 +102,22 @@ export async function remove(id: string, executor?: Executor): Promise<number> {
   const r = await query(sql("delete"), [id], executor);
   return r.rowCount ?? 0;
 }
+
+// THE SALE DELIVERY OPTIONS (D208): the business's carrier-agnostic priced
+// rows. A projection, not ServiceRow - the customer-facing read carries no
+// carrier capability flags and no legacy aliases.
+export type SaleServiceOption = {
+  id: string;
+  name: string;
+  code: string;
+  price: number;
+  display: boolean;
+  is_active: boolean;
+  min_transit_days: number | null;
+  max_transit_days: number | null;
+};
+
+export async function getSaleOptions(executor?: Executor): Promise<SaleServiceOption[]> {
+  const { rows } = await query<SaleServiceOption>(sql("get_sale_options"), [], executor);
+  return rows;
+}

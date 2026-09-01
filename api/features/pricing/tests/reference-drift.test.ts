@@ -18,26 +18,27 @@ import {
   getShippingCharge,
 } from "#features/pricing/ask.ts";
 
-test("every shipping tier prices exactly what getShippingCharge charges", async () => {
-  const { rows: tiers } = await query(
-    `SELECT code, price, free_over FROM shipping.tiers WHERE enabled`
+test("every sale service prices exactly what getShippingCharge charges", async () => {
+  const { rows: options } = await query(
+    `SELECT code, price FROM shipping.services
+      WHERE carrier_id IS NULL AND price IS NOT NULL AND is_active`
   );
-  assert.ok(tiers.length >= 3, "shipping.tiers is missing rows - did 109 run?");
+  assert.ok(options.length >= 3, "the sale service rows are missing - did 110 run?");
 
-  for (const tier of tiers) {
+  for (const option of options) {
     assert.equal(
-      getShippingCharge(500, tier.code),
-      Number(tier.price),
-      `tier ${tier.code}: the row says ${tier.price}, getShippingCharge says ` +
-        `${getShippingCharge(500, tier.code)}`
+      getShippingCharge(500, option.code),
+      Number(option.price),
+      `service ${option.code}: the row says ${option.price}, getShippingCharge says ` +
+        `${getShippingCharge(500, option.code)}`
     );
-    if (tier.free_over != null) {
-      assert.equal(
-        getShippingCharge(Number(tier.free_over) + 1, tier.code),
-        0,
-        `tier ${tier.code}: free_over ${tier.free_over} is not honoured by getShippingCharge`
-      );
-    }
+    // The free-over-$1000 rule is order-level in getShippingCharge; every
+    // priced service ships free above it.
+    assert.equal(
+      getShippingCharge(1001, option.code),
+      0,
+      `service ${option.code}: the over-$1000 order did not ship free`
+    );
   }
 });
 

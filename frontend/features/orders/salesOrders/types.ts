@@ -119,30 +119,37 @@ export type SalesOrderServiceUIOption = SalesOrderService & {
   highValue: boolean
 }
 
-// THE TIERS COME FROM THE DATABASE NOW (D207). The two hardcoded records
-// (salesOrderServiceOptions / adminSalesOrderServiceOptions) duplicated
-// getShippingCharge's constants a second time; shipping.tiers is the one
-// reference home, read through useShippingTiers (features/shipping/queries).
-// Customer surfaces filter to `display`; the admin drawer takes all rows -
-// which is the whole difference the two records used to encode. The icon is
-// the client's, keyed by the tier's opaque `code`.
+// THE SALE SERVICES COME FROM THE DATABASE NOW (D207, corrected by D208).
+// The two hardcoded records (salesOrderServiceOptions /
+// adminSalesOrderServiceOptions) duplicated getShippingCharge's constants a
+// second time; the business's carrier-agnostic rows in shipping.services are
+// the one reference home, read through useSaleShippingServices
+// (features/shipping/queries). Customer surfaces filter to `display`; the
+// admin drawer takes all rows - which is the whole difference the two records
+// used to encode. The icon is the client's, keyed by the row's opaque `code`.
 export const serviceTierIcon: Record<string, any> = {
   STANDARD: PhosphorTruckIcon,
   OVERNIGHT: AirplaneInFlightIcon,
   FREE: CurrencyDollarIcon,
 }
 
-export const tierToServiceOption = (tier: {
-  code: string
-  label: string
-  price: number
-  transit_label: string
+export const transitLabel = (min?: number | null, max?: number | null): string => {
+  const days = max ?? min
+  return days == null ? '' : days === 1 ? '1 Day' : `${days} Days`
+}
+
+export const saleServiceToOption = (svc: {
+  code: string | null
+  name: string
+  price: number | null
+  min_transit_days: number | null
+  max_transit_days: number | null
 }): SalesOrderServiceUIOption => ({
-  label: tier.label,
-  value: tier.code,
-  cost: Number(tier.price),
-  time: tier.transit_label,
-  icon: serviceTierIcon[tier.code],
+  label: svc.name,
+  value: svc.code ?? svc.name.toUpperCase(),
+  cost: Number(svc.price ?? 0),
+  time: transitLabel(svc.min_transit_days, svc.max_transit_days),
+  icon: serviceTierIcon[svc.code ?? ''],
   highValue: false,
 })
 

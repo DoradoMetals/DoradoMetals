@@ -64,7 +64,7 @@ export const queryKeys = {
   // server resolves which carrier it ships with.
   carrierHandoffs: () => ['shipping', 'handoffs'] as const,
   carrierServiceOptions: () => ['shipping', 'service-options'] as const,
-  shippingTiers: () => ['shipping', 'tiers'] as const,
+  saleShippingServices: () => ['shipping', 'sale-services'] as const,
   paymentMethods: (direction: string) => ['payments', 'methods', direction] as const,
 
   // Carriers

@@ -100,6 +100,19 @@ export async function getAllServices(): Promise<ServiceRow[]> {
   return await services.getAll();
 }
 
+// THE SALE DELIVERY OPTIONS (D208). Business-created services, carrier-
+// agnostic and priced - Jacob: the customer picks the service at its fixed
+// price, and THE REFINERY picks the carrier, recorded on the shipment. Not
+// getOfferedServices: that is the PURCHASE side's carrier catalogue (the
+// FedEx services an inbound label can be bought for).
+//
+// Prices here are DISPLAY - getShippingCharge (features/pricing/ask.ts)
+// remains the pricing authority, and features/pricing/tests/reference-drift
+// pins these rows to its constants.
+export async function getSaleOptions(): Promise<services.SaleServiceOption[]> {
+  return await services.getSaleOptions();
+}
+
 // THE SERVICES WE OFFER AT CHECKOUT, which is not the same list as the rows.
 //
 // shipping.services holds eight rows across two carriers - Free, Overnight,

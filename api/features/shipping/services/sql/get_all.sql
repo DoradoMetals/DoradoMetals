@@ -26,4 +26,9 @@ SELECT
        min_transit_days, max_transit_days, display_order,
        created_by, updated_by, created_at, updated_at
   FROM shipping.services
+ -- The carrier-agnostic sale rows (110) are NOT this wire's: this is the
+ -- admin carriers screen, whose contract carries a non-null carrier_id and
+ -- whose semantics are services PER CARRIER. The agnostic rows have their own
+ -- read, get_sale_options.sql.
+ WHERE carrier_id IS NOT NULL
  ORDER BY name ASC, id ASC

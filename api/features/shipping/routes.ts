@@ -17,12 +17,10 @@ import express from "express";
 
 import handoffRoutes from "#features/shipping/handoffs/routes.ts";
 import operationRoutes from "#features/shipping/operations/routes.ts";
-import tierRoutes from "#features/shipping/tiers/routes.ts";
 
 const router = express.Router();
 
 router.use("/handoffs", handoffRoutes);
-router.use("/tiers", tierRoutes);
 router.use("/", operationRoutes);
 
 export default router;

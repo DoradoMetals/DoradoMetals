@@ -1,5 +1,6 @@
 import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
-import { useShippingTiers } from '@/features/shipping/queries'
+import { useSaleShippingServices } from '@/features/shipping/queries'
+import { transitLabel } from '@/features/orders/salesOrders/types'
 import { AnimatedScroll } from '@/features/orders/ui/Animated'
 import { BlurredStagger } from '@/shared/ui/BlurredStagger'
 import { Confetti, ConfettiRef } from '@/features/orders/ui/Confetti'
@@ -13,12 +14,14 @@ export default function PreparingSalesOrder({ order }: SalesOrderDrawerContentPr
   const confettiRef = useRef<ConfettiRef>(null)
   const lines = useSalesOrderLines(order.id)
 
-  const { data: tiers = [] } = useShippingTiers()
-  const arrival = tiers
+  const { data: saleServices = [] } = useSaleShippingServices()
+  const arrivalService = saleServices
     // shipping_service is a column of orders.transactions, so it reads off
-    // `totals` - the order row never had it. It stores the tier's LABEL.
-    .find((t) => t.label === order.totals?.shipping_service)
-    ?.transit_label?.toLowerCase()
+    // `totals` - the order row never had it. It stores the service's NAME.
+    .find((s) => s.name === order.totals?.shipping_service)
+  const arrival = arrivalService
+    ? transitLabel(arrivalService.min_transit_days, arrivalService.max_transit_days).toLowerCase()
+    : undefined
 
   useEffect(() => {
     confettiRef.current?.fire({

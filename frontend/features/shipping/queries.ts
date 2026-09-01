@@ -123,19 +123,23 @@ export const useCarrierServiceOptions = () =>
     staleTime: REFERENCE_STALE_TIME,
   })
 
-// SALE DELIVERY TIERS (D207): Standard $25 / Overnight $50 / the admin's Free
-// grant, as shipping.tiers rows instead of two hardcoded frontend records.
-// The customer surfaces filter to `display`; the admin drawer offers all.
-// Prices here are DISPLAY - the server's getShippingCharge remains the
-// pricing authority, and api/features/pricing/tests/reference-drift pins the
-// two together.
-export type ShippingTier = shipping.TiersRow
+// THE SALE DELIVERY OPTIONS (D208): the business's own carrier-agnostic
+// priced service rows - Standard $25 / Overnight $50 / the admin's Free
+// grant. Jacob: the customer picks the SERVICE at its fixed price; the
+// refinery picks the carrier, recorded on the shipment. Customer surfaces
+// filter to `display`; the admin drawer offers all. Prices here are DISPLAY -
+// the server's getShippingCharge remains the pricing authority, and
+// api/features/pricing/tests/reference-drift pins the two together.
+export type SaleShippingService = Pick<
+  shipping.ServicesRow,
+  'id' | 'name' | 'code' | 'price' | 'display' | 'is_active' | 'min_transit_days' | 'max_transit_days'
+>
 
-export const useShippingTiers = () =>
-  useApiQuery<ShippingTier[]>({
-    key: queryKeys.shippingTiers(),
-    url: '/shipping/tiers',
-    // Public, like the endpoint: the product page shows tier prices to
+export const useSaleShippingServices = () =>
+  useApiQuery<SaleShippingService[]>({
+    key: queryKeys.saleShippingServices(),
+    url: '/carrier_services/sale_options',
+    // Public, like the endpoint: the product page shows these prices to
     // signed-out visitors.
     requireUser: false,
     staleTime: REFERENCE_STALE_TIME,

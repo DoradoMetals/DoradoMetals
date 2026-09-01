@@ -23,9 +23,9 @@ import {
 } from '@phosphor-icons/react'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { Lens } from '@/shared/ui/base/lens'
-import { paymentMethodIcon } from '@/features/orders/salesOrders/types'
+import { paymentMethodIcon, transitLabel } from '@/features/orders/salesOrders/types'
 import { usePaymentMethods } from '@/features/payments/queries'
-import { useShippingTiers } from '@/features/shipping/queries'
+import { useSaleShippingServices } from '@/features/shipping/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -38,10 +38,10 @@ type ProductPageProps = {
 }
 
 export default function ProductPageDetails({ product, variants }: ProductPageProps) {
-  // Reference rows (D207): the shipping tiers and sale payment methods these
-  // accordions print, public like the page itself.
-  const { data: shippingTiers = [] } = useShippingTiers()
-  const displayTiers = shippingTiers.filter((t) => t.display)
+  // Reference rows (D207/D208): the sale delivery services and payment
+  // methods these accordions print, public like the page itself.
+  const { data: saleServices = [] } = useSaleShippingServices()
+  const displayServices = saleServices.filter((s) => s.display)
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const displayMethods = saleMethods.filter((m) => m.enabled && m.display)
   const initialVariant =
@@ -362,13 +362,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
             >
               <div className="flex flex-col w-full gap-3">
-                {displayTiers.map((tier) => (
-                  <div key={tier.code} className="flex items-center justify-between w-full">
+                {displayServices.map((svc) => (
+                  <div key={svc.code ?? svc.id} className="flex items-center justify-between w-full">
                     <p>
-                      {tier.label} {`(${tier.transit_label})`}
+                      {svc.name} {`(${transitLabel(svc.min_transit_days, svc.max_transit_days)})`}
                     </p>
                     <strong>
-                      <PriceNumberFlow value={Number(tier.price)} />
+                      <PriceNumberFlow value={Number(svc.price ?? 0)} />
                     </strong>
                   </div>
                 ))}
@@ -710,13 +710,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
             >
               <div className="flex flex-col w-full gap-3">
-                {displayTiers.map((tier) => (
-                  <div key={tier.code} className="flex items-center justify-between w-full">
+                {displayServices.map((svc) => (
+                  <div key={svc.code ?? svc.id} className="flex items-center justify-between w-full">
                     <p>
-                      {tier.label} {`(${tier.transit_label})`}
+                      {svc.name} {`(${transitLabel(svc.min_transit_days, svc.max_transit_days)})`}
                     </p>
                     <strong>
-                      <PriceNumberFlow value={Number(tier.price)} />
+                      <PriceNumberFlow value={Number(svc.price ?? 0)} />
                     </strong>
                   </div>
                 ))}

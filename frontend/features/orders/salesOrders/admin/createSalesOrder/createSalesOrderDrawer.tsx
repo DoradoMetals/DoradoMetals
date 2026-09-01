@@ -17,10 +17,10 @@ import { cn } from '@/shared/utils/cn'
 
 import {
   adminSalesOrderCheckoutSchema,
-  tierToServiceOption,
+  saleServiceToOption,
   SalesOrderServiceUIOption,
 } from '@/features/orders/salesOrders/types'
-import { useShippingTiers } from '@/features/shipping/queries'
+import { useSaleShippingServices } from '@/features/shipping/queries'
 import { usePaymentMethods } from '@/features/payments/queries'
 import type { SalesOrderQuote } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -385,14 +385,16 @@ function AddressSelector({ user, addresses, userAddresses, isLoading }: AddressS
 function ServiceSelector() {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
 
-  // Every tier, FREE included - the admin grant is the whole difference the
-  // old admin-only record used to encode (D207).
-  const { data: tiers = [] } = useShippingTiers()
+  // Every service, FREE included - the admin grant is the whole difference
+  // the old admin-only record used to encode (D207/D208).
+  const { data: services = [] } = useSaleShippingServices()
   const options = useMemo(() => {
     const out: Record<string, SalesOrderServiceUIOption> = {}
-    for (const tier of tiers) out[tier.code] = tierToServiceOption(tier)
+    for (const svc of services) {
+      if (svc.code) out[svc.code] = saleServiceToOption(svc)
+    }
     return out
-  }, [tiers])
+  }, [services])
 
   function handleServiceChange(serviceKey: string) {
     const option = options[serviceKey]

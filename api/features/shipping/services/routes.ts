@@ -6,6 +6,7 @@ import {
   getOne,
   getByCarrier,
   getOffered,
+  getSaleOptions,
   remove,
   update,
 } from "#features/shipping/services/controller.ts";
@@ -16,6 +17,10 @@ import {
 } from "#shared/middleware/authMiddleware.ts";
 
 const router = express.Router();
+
+// Public: the product page prints these prices to signed-out visitors,
+// exactly as the hardcoded record they replaced did (D207/D208).
+router.get("/sale_options", getSaleOptions);
 
 router.get("/get", requireUser, getAll);
 router.get("/get_by_carrier", requireUser, getByCarrier);
