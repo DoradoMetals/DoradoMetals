@@ -8,6 +8,7 @@
 import * as React from "react";
 
 import { cn } from "../cn";
+import { ScrollArea } from "../scroll-area/ScrollArea";
 import { Calendar, type CalendarProps } from "./Calendar";
 import { TimePicker, type TimeGroup } from "./TimePicker";
 
@@ -39,19 +40,19 @@ export function DatePicker({
     >
       <Calendar {...calendar} className={cn("p-2", calendar.classNames == null && "")} />
       {withTimes && (
-        <div className="flex min-w-52 flex-col border-border max-sm:border-t sm:border-l">
-          {timeHeading != null && (
-            <div className="border-b border-border px-4 py-2 text-small font-medium text-foreground">
-              {timeHeading}
-            </div>
-          )}
-          <div className="max-h-72 overflow-y-auto p-2">
+        <div className="flex min-w-64 flex-col border-border max-sm:border-t sm:border-l">
+          {/* ScrollArea, not overflow-auto: the panel is height-capped so a
+              longer day cannot resize the card, and the overflow has to stay
+              reachable rather than merely clipped. */}
+          <ScrollArea className="max-h-72">
             <TimePicker
+              bare
+              heading={timeHeading}
               groups={timeGroups}
               value={timeValue ?? null}
               onValueChange={(v) => onTimeChange?.(v)}
             />
-          </div>
+          </ScrollArea>
         </div>
       )}
     </div>

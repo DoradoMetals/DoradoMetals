@@ -21,6 +21,7 @@
 import * as React from "react";
 import { UploadCloud } from "lucide-react";
 import { cn } from "../cn";
+import { ScrollArea } from "../scroll-area/ScrollArea";
 
 export type UploadProps = {
   /** Called with the chosen files - from the picker or a drop. */
@@ -121,7 +122,13 @@ export function Upload({
       )}
     </label>
       {/* Outside the label - clicking an attachment must not open the picker. */}
-      {attachments != null && <div className="flex flex-col gap-2">{attachments}</div>}
+      {attachments != null && (
+        // Height-capped and scrolling: a third file must not resize the card,
+        // and the overflow has to stay reachable rather than clipped away.
+        <ScrollArea className="max-h-40">
+          <div className="flex flex-col gap-2 pr-3">{attachments}</div>
+        </ScrollArea>
+      )}
     </div>
   );
 }

@@ -88,10 +88,12 @@ export function Attachment({
       {state === "uploading" && (
         // The rail IS the Progress component now (Jacob, 2026-08-30) - one
         // bar, one set of aria, one animation. Height stays the drawing's 3px.
+        // showValue puts the percentage in a fixed right-hand column so it
+        // lines up under the remove button rather than floating.
         <Progress
           value={progress ?? 0}
+          showValue
           aria-label={`Uploading ${filename}`}
-          className="h-[3px]"
         />
       )}
     </div>

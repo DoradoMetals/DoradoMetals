@@ -22,21 +22,48 @@ export type TimePickerProps = {
   groups: TimeGroup[];
   value?: string | null;
   onValueChange: (value: string) => void;
+  /** Drop the card chrome when this is nested in something that already has
+   *  a border - DatePicker does, and two borders at one seam is the bug the
+   *  drawings kept hitting. */
+  bare?: boolean;
   className?: string;
 };
 
-export function TimePicker({ heading, groups, value, onValueChange, className }: TimePickerProps) {
+export function TimePicker({ heading, groups, value, onValueChange, bare = false, className }: TimePickerProps) {
   return (
     <div
       role="radiogroup"
       aria-label={typeof heading === "string" ? heading : "Appointment time"}
-      className={cn("flex w-full flex-col gap-4 rounded-lg border border-border bg-card p-4", className)}
+      className={cn(
+        "flex w-full flex-col",
+        bare ? "gap-0" : "gap-4 rounded-lg border border-border bg-card p-4",
+        className
+      )}
     >
-      {heading != null && <h3 className="text-h5 font-semibold text-foreground">{heading}</h3>}
-      {groups.map((group) => (
-        <div key={group.label} className="flex flex-col gap-2">
+      {heading != null && (
+        <h3
+          className={cn(
+            "font-medium text-muted-foreground",
+            bare ? "border-b border-border px-4 py-3.5 text-center text-small" : "text-h5",
+          )}
+        >
+          {heading}
+        </h3>
+      )}
+      {groups.map((group, gi) => (
+        <div
+          key={group.label}
+          className={cn(
+            "flex flex-col gap-2",
+            // a hairline BETWEEN groups, never around them
+            bare && "px-4 py-3.5",
+            bare && gi > 0 && "border-t border-border",
+          )}
+        >
           <span className="text-micro font-medium text-muted-foreground">{group.label}</span>
-          <div className="grid grid-cols-3 gap-2">
+          {/* Two columns, not three: at the width these panels actually get,
+              three columns clipped the labels. */}
+          <div className="grid grid-cols-2 gap-2">
             {group.slots.map((slot) => {
               const available = slot.available !== false;
               const selected = slot.value === value;

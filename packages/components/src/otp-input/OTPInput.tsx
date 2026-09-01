@@ -24,6 +24,8 @@ export type OTPInputProps = {
   label?: string;
   /** H5 heading above the cells (Jacob, 2026-08-30). */
   title?: React.ReactNode;
+  /** The line under the title - normally where the code was sent. */
+  description?: React.ReactNode;
   /** Seconds until resend is allowed; counts down, then renders the Resend
    *  link. Omit to hide the whole line. */
   resendIn?: number;
@@ -40,6 +42,7 @@ export function OTPInput({
   disabled = false,
   label = "One-time code",
   title,
+  description,
   resendIn,
   onResend,
   className,
@@ -70,7 +73,14 @@ export function OTPInput({
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      {title != null && <span className="text-h5 font-medium text-foreground">{title}</span>}
+      {(title != null || description != null) && (
+        <span className="flex flex-col gap-1">
+          {title != null && <span className="text-h5 font-medium text-foreground">{title}</span>}
+          {description != null && (
+            <span className="text-small text-muted-foreground">{description}</span>
+          )}
+        </span>
+      )}
       <div className="relative">
       <input
         ref={inputRef}

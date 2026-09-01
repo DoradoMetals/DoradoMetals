@@ -13,6 +13,7 @@
 import * as React from "react";
 import { X } from "lucide-react";
 import { cn } from "../cn";
+import { Button } from "../button/Button";
 
 export type ChipProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   label: React.ReactNode;
@@ -53,25 +54,34 @@ export function Chip({ label, selected = false, onDismiss, icon, avatar, count, 
       {label}
       {count != null && <span className="text-micro tabular-nums opacity-70">{count}</span>}
       {onDismiss && (
-        <span
-          role="button"
+        // A real Button, like Alert's and Attachment's dismiss - it gets the
+        // focus ring and the disabled handling for free. asChild because a
+        // <button> cannot nest inside the chip's own <button>.
+        <Button
+          asChild
+          variant="tertiary"
+          size="iconXs"
+          className="-mr-1 size-4"
           aria-label={`Remove ${typeof label === "string" ? label : "chip"}`}
-          tabIndex={0}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDismiss();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
+        >
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
               e.stopPropagation();
               onDismiss();
-            }
-          }}
-          className="-mr-1 flex size-4 items-center justify-center rounded-full hover:bg-black/10"
-        >
-          <X aria-hidden className="size-3.5" />
-        </span>
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onDismiss();
+              }
+            }}
+          >
+            <X aria-hidden className="size-3" />
+          </span>
+        </Button>
       )}
     </button>
   );
