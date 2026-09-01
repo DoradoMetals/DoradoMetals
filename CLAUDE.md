@@ -114,23 +114,27 @@ them.** Each has no mirror because it has no destination:
   already lives — 16/16 on dev, justified against production's 62 payouts whose
   `max(count) GROUP BY order_id` is 1. **No bank details moved**; routing and
   account numbers stay in `exchange.payouts` and nowhere else.
-- **`exchange.users`** — the direction is INVERTED here, and this is now
-  RESOLVED rather than outstanding. The `mirror_users_to_auth` trigger
-  (migration 056) makes `exchange.users` the SOURCE and `auth.users` the mirror,
-  so the statement writing `exchange` is the live one. **Proven by experiment,
-  not argument**: a $1000 credit written to `auth.users` was silently reverted by
-  an unrelated `UPDATE exchange.users SET "updatedAt" = now()`, because the
-  trigger's `ON CONFLICT DO UPDATE` takes `dorado_funds` from exchange's row. No
-  error is raised. Stopping this write still freezes every customer's credit
-  balance.
-  **`legacy/users/` was therefore MISFILED and is gone** — it held the live
-  write, which its own entry criteria disqualify. The statement moved into
-  `features/users/` unchanged (verified byte-identical), the dead `auth.users`
-  version was deleted, and `features/users/service.ts` calls it. Two test files
-  and 11 assertions had been pinning the dead statement. Reversing the direction
-  for real is the auth cutover, which is Jacob's: better-auth is configured with
-  `modelName: 'exchange.users'` and writes through its own pool, so nothing in
-  this application is on that path.
+- **`exchange.users`** — **THE AUTH CUTOVER HAPPENED** (2026-09-01, Jacob's
+  call, migration 107 + `features/auth/client.ts`). better-auth writes
+  `auth.users` / `auth.sessions` / `auth.account` / `auth.verification` now.
+  The row has two owners split by COLUMN, each mirrored by a depth-guarded
+  trigger that cannot loop: identity (email, name, role, ban state, stripe
+  customer) flows `auth -> exchange`, so every feature joining
+  `exchange.users` stays fresh; `dorado_funds` flows `exchange -> auth`
+  (features/users still owns the credit write), so the session object the
+  frontend reads shows live balance. 056's one-way mirror — the one that
+  silently reverted a $1000 credit written auth-side — is gone, and the same
+  experiment now passes in both directions: funds set exchange-side propagate,
+  and an auth-side row touch no longer reverts them. Two January ghost
+  accounts on the auth side (one sharing Jacob's email under a different id,
+  with a January-era password that would have become loginable) were removed
+  in 107; sessions/credentials were reconciled from exchange the same day.
+  Sessions and credentials now land only in `auth.*` — the exchange copies
+  are frozen (ruling 36; a stale session is a re-login, not lost data).
+  The `features/users/` funds write is UNCHANGED and still the live one.
+  better-auth itself is PINNED EXACT at 1.6.9 (with `@better-auth/core` and
+  `utils` held by root overrides): 1.7 cannot resolve the dotted schema
+  `modelName` this whole arrangement stands on, and the pin's commit says so.
 - **`purgeCancelled`** — a DELETE, behind a live admin button, that today
   destroys the `exchange` copy of cancelled orders while leaving the
   `orders.orders` rows the admin is actually looking at. A native port needs a
@@ -359,11 +363,12 @@ door to reach through). `audit:switches` now scans for the shape and reports
 customer-visible number, and production has no `products` schema. Closing a
 bypass changed who calls the query, not which table it names.
 
-**Two things are not a `*_SOURCE` switch and never will be.** `fulfillments`
-(methods, pickups, directs) is capability `exchange` never recorded — there is
-no source to read from, so a switch would have one state. `auth` is an atomic
-cutover: better-auth writes `exchange` directly through its own pool via
-`modelName`, so there is no reversible middle state to sit in.
+**Two things were never a `*_SOURCE` switch.** `fulfillments` (methods,
+pickups, directs) is capability `exchange` never recorded — there is no source
+to read from, so a switch would have one state. `auth` was the atomic cutover
+with no reversible middle, and it was TAKEN on 2026-09-01: better-auth writes
+`auth.*` through its own pool now, with the column-partitioned user mirror
+described in the write-pivot section keeping `exchange.users` fresh.
 
 **The wire axis is RETIRED (2026-08-28).** There were seven `*_WIRE` switches
 — products, media, spots, refiners, carriers, addresses, payments — and all
@@ -408,12 +413,19 @@ tests (`*.test.tsx`) run under jsdom with testing-library — added 2026-08-27 a
 part of the feature-by-feature conversion, with jsdom's gaps shimmed once in
 `vitest.setup.ts`. Both run under `pnpm check`.
 
-There is ALSO a Playwright e2e harness — eleven specs under
+There is ALSO a Playwright e2e harness — nineteen specs under
 `pnpm --filter @dorado/frontend e2e`, driving a real browser against a live
-API. An earlier version of this paragraph said there was "deliberately no
-browser or e2e harness"; that had stopped being true and the claim was
-repeated unverified for some time. E2e specs are excluded from vitest twice
-over and do not run in `pnpm check`.
+API. Coverage now spans the customer checkout journeys (bullion AND scrap to
+the stepper; the buy side to its priced surface — both stop short of placing
+an order), address CRUD through the drawer, and the admin area including real
+MUTATIONS: `seed:e2e:order` mints a disposable purchase order as pure rows
+(no FedEx call — the real create endpoint always buys a label, which is why
+the seed exists), the drawer-work spec walks it through its lifecycle and
+cancels it, and the creates spec runs full create->verify->delete cycles for
+leads and carriers. The Google Places autocomplete lives in a `@maps`-tagged
+spec that the default run EXCLUDES (`--grep-invert @maps` — every keystroke
+in it is billed); `pnpm e2e:maps` runs it deliberately. E2e specs are
+excluded from vitest twice over and do not run in `pnpm check`.
 
 ## Conventions
 
@@ -657,6 +669,10 @@ omission is exactly how the rounding went unseen.
 - **Never log or return bank details.** `exchange.payouts` holds routing and
   account numbers in plaintext. Order responses carry only last-4; full values
   come from an admin-only endpoint. Encryption at rest is outstanding.
+  Structured logging (`shared/logging/`, pino) enforces this shape-first: the
+  request line is method/path/status/duration only, bodies never reach a log,
+  and `routing_number`/`account_number` are in the redact list. `LOG_LEVEL`
+  drives it; tests run silent.
 - **Never change a wire shape** during a schema migration. The frontend is
   coupled to the current API surface; changing it is separate, deliberate work.
 - **Never add `NOT NULL` from dev row counts.** Dev holds tens of rows. Use the
@@ -665,40 +681,38 @@ omission is exactly how the rounding went unseen.
   are 100% NULL but still referenced by live code.
 - `master` auto-deploys. There is no staging.
 
-## Where things stand (2026-08-28, end of the conversion push)
+## Where things stand (2026-09-01, after the overnight majors and the auth cutover)
 
-Nineteen commits landed 8/27-8/28 (media c00c0b56 ... downloads 4ea0fa9a).
-The FRONTEND CONVERSION IS COMPLETE: every wire converted, every
-table-derived schema imported from `@dorado/contracts` as VALUES with plain
-names (no -Wire/-WireNext), zero client-side money math (the `/quotes/*`
-endpoints price everything), the paper trail live end to end. Read
-FOLLOWUPS.md D77-D86 for the record and BOTH "Jacob's rulings" sections
-(2026-08-28 evening + afternoon) for the standing design law: statuses are
-pure customer-facing labels driving no logic; offers are fully dead
-(vocabulary included); customers have zero post-placement order options;
-one endpoint per resource, owned by the feature that owns the table;
-coupled features convert in the same pass; shared UI components lift as
-surfaces are touched (structure now, styling later); admin order drawers
-are interim UI (future: one page, all statuses).
+The 2026-08-28 snapshot this section used to hold (the conversion push, the
+D87 series) is DONE and committed; FOLLOWUPS.md D77-D88 and both "Jacob's
+rulings" sections remain the standing design law: statuses are pure
+customer-facing labels driving no logic; offers are fully dead; customers
+have zero post-placement order options; one endpoint per resource, owned by
+the feature that owns the table; shared UI components lift as surfaces are
+touched; admin order drawers are interim UI.
 
-**IN FLIGHT, UNCOMMITTED (D87 + D88)**: the working tree carries a
-three-agent series - (1) the order-mutation surface consolidation:
-`PATCH /purchase_orders/:id` + `PATCH /sales_orders/:id` replace the
-~25-route RPC zoo, admin-only, field-named 403s, `finalize_pricing` and
-`cancel` as explicit ops, 'Accepted'/'Offer Sent'/'Rejected' leave the
-lifecycle with row migrations; (2) the `refiners.orders` engagement entity
-(owns pool values + refiner fee; items/spots key to it; migration +
-guarded backfill; PATCH /refiners/orders/:id + /refiners/items/:id); (3)
-four shared UI components (AccordionSection/SelectMenu/StatusChip/
-UpdatedByline) adopted outside features/orders with a deferred-adoption
-table for the orders tree. Frontend + lifter halves are DONE and verified
-in-tree; the API half was still building at handoff. TO FINISH: read the
-API agent's report, cross-check the refiners endpoint keying (frontend
-keys items by ORDER ITEM id, engagements by refiner_order_id, guarded
-no-op when null) and the additive `refiner_order_id` on the order wire,
-run the full gate from the REPO ROOT, iterate, commit as a series, and
-REVIEW FLAG for Jacob: the offers purge edited the Terms & Conditions
-(legal copy - needs his eyes before deploy).
+Since then, in order:
+
+- **The frontend has real e2e coverage** (see Tests) including admin
+  mutations on seeded disposable orders, and the unit lanes pin the carts'
+  money behaviour. Coverage measures against an honest denominator.
+- **The API is TypeScript end to end** except the death-row `*_SOURCE`
+  halves, runs structured logging (pino, redaction-first), and every request
+  logs one line.
+- **The dependency majors landed overnight 8/31->9/1**: express 5, zod 4,
+  Next 16 + Sentry 10, TypeScript 7 (typechecks fell from minutes to
+  seconds), vitest 4, plus dotenv/chalk/node-cron/nodemailer/puppeteer.
+  Stripe 18->22 is DEFERRED to UAT deliberately. better-auth is pinned exact
+  at 1.6.9 - 1.7 broke every sign-in by mishandling dotted modelNames, found
+  by e2e, root-caused by lockfile archaeology (the ^1.4.9 range had floated
+  to 1.6.9 months ago; the manifest lied).
+- **The auth cutover happened** (2026-09-01, Jacob's call): better-auth
+  writes `auth.*`; the column-partitioned user mirror keeps `exchange.users`
+  fresh both ways. Migration 107 carries the mechanics and the rollback.
+- **Next up: the UAT environment** - a prod-dump database, the full
+  migration chain rehearsed there, then CI/CD with the tests. The memory
+  file `uat-environment-plan` lists the assets and tripwires; the Stripe SDK
+  majors and `USE_TEST_DB=1` both unblock there.
 
 **Session mechanics that matter**: `pnpm check` must launch as a fresh
 compound from the repo root (`pnpm
@@ -748,12 +762,31 @@ Full detail in FOLLOWUPS.md; these are the ones that block other work.
   rows in the clear, and the migration that CLEARS the plaintext is deliberately
   not written, because it is destructive to `exchange` and needs the
   `allow-destructive:` marker, a stated backup, and Jacob.
-- **One feature genuinely blocked**: auth. better-auth writes `exchange`
-  directly via `modelName` through its own pool, so there is no reversible
-  middle state to sit in. Payments was listed here as blocked and is not — it is
-  a different model rather than a reshaping, and splitting it turned out to be
-  possible without deleting anything: 062 had already reconciled the new schema
-  to `exchange`, and 074 derives the rest from the Stripe export.
+- **Auth is no longer blocked — it is CUT OVER** (2026-09-01, migration 107).
+  See the `exchange.users` entry in the write-pivot section for the full
+  mechanics. What remains auth-flavoured: better-auth is pinned exact at
+  1.6.9 because 1.7 breaks on dotted schema modelNames, and the pin should
+  only move with a deliberate re-test of sign-in. Payments was listed here as
+  blocked and is not — it is a different model rather than a reshaping:
+  062 had already reconciled the new schema to `exchange`, and 074 derives
+  the rest from the Stripe export.
+- **The Stripe SDK majors (18→22, plus the frontend pair) are deferred to the
+  UAT environment on purpose** — four majors of pinned-API-version drift on
+  the money path get test-mode traffic first, never an overnight merge. The
+  best-practice pass already landed on 18: intent creation is idempotent and
+  carries reconciliation metadata (type, user_id, session_id — the fields D25
+  says a webhook never has).
+- **`audit:test-leaks` is blind to the eighteen new schemas** — it
+  fingerprints `exchange` tables only. The five 'Pending' husk orders that
+  test runs once committed into `orders.orders` are the proof the gap is
+  real; extending the fingerprint set is the fix.
+- **Products have no delete endpoint** (`create_product`/`save_product`
+  only), which blocks full e2e create coverage and means the catalogue can
+  only ever grow. The admin-creates spec documents it from the outside.
+- **A stale `.env` sits at the repo root** pointing at a database that no
+  longer exists (`dorado_db`); `api/env.ts`'s own comment records the class
+  of confusion it causes. Tooling must use `api/.env`; deleting the root file
+  is Jacob's call.
 - **Production has no record of $126.48 it was paid.** Three Stripe intents were
   captured and `exchange.payment_intents` records `amount_received` as null or 0
   while still saying `requires_payment_method`; two further charges have no row

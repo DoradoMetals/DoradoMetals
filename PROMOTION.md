@@ -515,7 +515,11 @@ it means replacing those 70 rows, which is a decision about money.
 `payments.details` holds fourteen plaintext bank details in production and must
 not be copied until the encryption question is answered.
 
-**`auth`** — better-auth writes `exchange.users`, `session`, `account` and
+**`auth`** — **DONE on dev, 2026-09-01** (migration 107 + the four `modelName`
+strings in `features/auth/client.ts`; sign-in, sign-up, session placement and
+the funds mirror all verified live the same hour). The paragraph below is the
+pre-cutover analysis, kept because production's cutover day will replay it:
+better-auth writes `exchange.users`, `session`, `account` and
 `verification` through its own pool, bypassing every repo. There is no write path
 to split, so there is no `dual` state to pass through: migrating means changing
 four `modelName` strings and cutting live authentication over atomically. If it

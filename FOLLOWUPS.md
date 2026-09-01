@@ -13148,3 +13148,40 @@ report that rots, which is the failure this codebase keeps rediscovering. It is
 pinned at **18** from both sides: a nineteenth silent mutation fails the gate,
 and fixing one of the eighteen *also* fails until the ceiling is lowered to
 match. Giving the gain back silently is exactly as hard as losing it was.
+
+## D203 — the overnight majors, and the pin that saved every login
+
+Jacob authorised all the majors in one night (2026-08-31 -> 09-01) with
+judgment calls delegated. Landed, each gate-verified in its own commit:
+express 5 (one wildcard route, the params axis hardened through
+`param(req, "id")`, the endpoint census rewritten to record mounts at
+construction because express 5 buried them in matcher closures), vitest 4,
+TypeScript 7 (typechecks: minutes -> seconds), zod 4 (the zod/v4 unification
+made it nearly free), Next 16 + Sentry 10. Stripe 18->22 was weighed and
+DEFERRED to UAT: four majors of pinned-API drift on the money path gets
+test-mode traffic first.
+
+The incident: better-auth moved "in range" and every sign-in died with
+"User not found" — 1.7 cannot resolve dotted schema modelNames. The
+manifest said ^1.4.9; the lockfile had been resolving 1.6.9 for months.
+Pinned EXACT at 1.6.9 with core and utils held by root overrides. The lesson
+worth the ink: an in-range bump is only as safe as the distance between the
+manifest and the lockfile, and e2e sign-in is the test that caught what no
+unit lane could.
+
+## D204 — the auth cutover, taken
+
+Jacob: "Lets go ahead and convert auth over to the new tables." Migration
+107 + four modelName strings. The design that made it survivable: the user
+row has two owners SPLIT BY COLUMN — identity flows auth -> exchange,
+dorado_funds flows exchange -> auth, both triggers depth-guarded so they
+cannot loop, and neither can clobber the other's columns (056's $1000-revert
+bug, direction-proofed). Reconciliation first: two January ghost accounts
+deleted from the auth side (one held Jacob's email under a dead id WITH a
+January password — it would have become loginable at flip), credentials and
+sessions copied, the email-unique collision that made the ghosts fatal
+verified gone. Proven live the same hour: sign-in and sign-up 200 through
+auth.*, a fresh signup mirrored into exchange with funds seeded 0, the
+$1000 experiment passing in BOTH directions, new sessions landing auth-side
+only. Backup: 238 rows, eight tables, CSV per table, taken before anything
+moved.

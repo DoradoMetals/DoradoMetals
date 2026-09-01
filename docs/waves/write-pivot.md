@@ -358,6 +358,14 @@ pivot. **Until then `exchange.payouts` keeps receiving writes and
 
 ## SEAM 2 — `exchange.users` IS THE SOURCE OF A TRIGGER, NOT THE SHADOW OF ONE
 
+> **OVERTAKEN 2026-09-01: the auth cutover happened** (migration 107, Jacob's
+> call). Everything below was true when written and is why the cutover took
+> the shape it did — the trigger direction described here is REVERSED now,
+> split by column: identity flows `auth -> exchange`, `dorado_funds` flows
+> `exchange -> auth`, both depth-guarded. The `features/users/` funds write
+> this seam defends is unchanged and still the live one. Kept as the record
+> of the state the cutover started from.
+
 `legacy/users/repo.ts` is filed under `api/legacy/`. **It is not a dual write
 and it is not legacy.** `features/users/service.ts` says so itself: *"users is
 the one place a dual write is WRONG, because the database already does it."*
