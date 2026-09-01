@@ -138,7 +138,11 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                     disabled={busy || !onEdit}
                     onClick={(e) => {
                       e.stopPropagation()
-                      onEdit?.(address)
+                      // BOTH halves. The label and the default flag live on
+                      // userAddress (the places split); passing only the
+                      // address opened every edit with a blank name, and
+                      // saving then failed validation silently.
+                      onEdit?.(address, userAddress)
                     }}
                   >
                     Edit
