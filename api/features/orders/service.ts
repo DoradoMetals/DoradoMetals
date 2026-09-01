@@ -435,7 +435,6 @@ export async function recordPurchaseOrder(
   const shipment = await shipmentRepo.create(
     {
       purchase_order_id: order_id,
-      // carrier_id: purchase_order.carrier.id,
       carrier_id: FEDEX_CARRIER_ID,
       type: "Inbound",
     },

@@ -22,7 +22,7 @@ import AccountMenu from '@/features/navigation/ui/ProfileMenu'
 import Sidebar from '@/features/navigation/ui/Sidebar'
 import { CartTabs } from '@/features/cart/ui/CartTabs'
 
-export default function Shell({ visible }: { visible: boolean }) {
+export default function Shell() {
   const pathname = usePathname()
   const { user } = useUser()
 
