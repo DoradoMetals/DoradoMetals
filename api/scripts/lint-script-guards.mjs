@@ -132,6 +132,10 @@ const REAL_EXCUSED = {
     kind: "action",
     why:"creates the e2e fixtures. An action against the test database.",
   },
+  "api/scripts/seed-e2e-order.mjs": {
+    kind: "action",
+    why: "mints the disposable e2e purchase order. An action against the dev database, consumed by the admin drawer-work spec.",
+  },
   "api/scripts/generate-feature.mjs": {
     kind: "action",
     why:"scaffolds files. It already refuses to overwrite anything that exists, " +

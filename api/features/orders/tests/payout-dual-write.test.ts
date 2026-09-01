@@ -58,13 +58,21 @@ const subject = async (c: PoolClient) => {
 // If a payout ever lands in exchange without its new-schema half, this is what
 // says so - and it is the only assertion here that would still mean something
 // after exchange stops being written.
+// The link predicate is RESOLVABILITY, not id-equality with exchange.payouts.
+// The 073 backfill carried each payout's id into its payments.details row, so
+// on backfilled data the two happen to be equal - and this test asserted that
+// accident as the invariant until the first live-created payout (the e2e order
+// seed) arrived with a freshly-minted details id and broke it. The live path
+// is right: a details row is an ACCOUNT with its own identity, not a payout.
 test("every payout has an account link and a fee that agrees", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { rows: [row] } = await query<{
       payouts: number; linked: number; fee_agrees: number;
     }>(
       `SELECT count(*)::int AS payouts,
-              count(*) FILTER (WHERE t.payout_details_id = p.id)::int AS linked,
+              count(*) FILTER (WHERE EXISTS (
+                SELECT 1 FROM payments.details d WHERE d.id = t.payout_details_id
+              ))::int AS linked,
               count(*) FILTER (WHERE t.payout_fee IS NOT DISTINCT FROM p.cost)::int AS fee_agrees
          FROM exchange.payouts p
          JOIN orders.transactions t ON t.order_id = p.order_id`,

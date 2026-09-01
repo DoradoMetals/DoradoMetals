@@ -50,6 +50,19 @@ if (!products.length) {
   process.exit(1);
 }
 
+// A real FedEx service, so the new-schema shipment resolves carrier_service_id
+// and pickup composition can reconstruct the carrier - the shape test picks
+// "an order with a shipment" and must be able to pick this one.
+const { rows: services } = await query(
+  `SELECT cs.name FROM exchange.carrier_services cs
+    JOIN exchange.carriers c ON c.id = cs.carrier_id
+   WHERE c.name = 'FedEx' AND cs.is_active ORDER BY cs.name LIMIT 1`
+);
+if (!services.length) {
+  console.error("no active FedEx service in dev to put on the shipment");
+  process.exit(1);
+}
+
 const address = await addressService.create({
   userId: user_id,
   address: {
@@ -74,6 +87,7 @@ const order_id = await withTransaction(async (client) => {
       // (production has ACH payouts carrying none) and bank details never
       // belong in a seed.
       payout: { method: "ACH", account_holder_name: E2E_CUSTOMER.name },
+      service: { serviceDescription: services[0].name, netCharge: 0 },
     },
     // No label object and no pickup: the shipment row records a null tracking
     // number, which is also a real state (labels are voided and reissued).
