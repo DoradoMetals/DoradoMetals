@@ -120,8 +120,3 @@ export const createSalesReview = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
-// MOVES, NOT MODIFIED (standing constraint).
-export const purgeCancelled = asyncHandler(async (req, res) => {
-  await orderService.purgeCancelled();
-  return res.status(200).json({ success: true });
-});

@@ -4,17 +4,12 @@ import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
-import {
-  useAdminPurchaseOrders,
-  usePurgeCancelled,
-} from '@/features/orders/purchaseOrders/admin/queries'
+import { useAdminPurchaseOrders } from '@/features/orders/purchaseOrders/admin/queries'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import AdminPurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
 import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/shared/ui/table/Columns'
 import { cn } from '@/shared/utils/cn'
-import { Button } from '@dorado/components'
-import { FileXIcon } from '@phosphor-icons/react'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useAdminUsers } from '@/features/users/queries'
 
@@ -23,7 +18,6 @@ const STATUS_FILTERS = ['In Transit', 'Received', 'Payment Processing', 'Complet
 export default function PurchaseOrdersPage() {
   const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
   const { openDrawer } = useDrawerStore()
-  const purgeCancelled = usePurgeCancelled()
 
   const [activeOrder, setActiveOrder] = React.useState<string | null>(null)
   const [activeUser, setActiveUser] = React.useState<string | null>(null)
@@ -116,18 +110,6 @@ export default function PurchaseOrdersPage() {
     openDrawer('purchaseOrder')
   }
 
-  const purgeButton = (
-    <Button
-      variant="tertiary"
-      className="p-0 gap-1"
-      onClick={() => purgeCancelled.mutate()}
-      disabled={purgeCancelled.isPending}
-    >
-      <FileXIcon size={16} />
-      {purgeCancelled.isPending ? 'Purging...' : 'Purge Cancelled'}
-    </Button>
-  )
-
   return (
     <>
       <DataTable<PurchaseOrder>
@@ -143,7 +125,6 @@ export default function PurchaseOrdersPage() {
           return cn('hover:bg-background hover:cursor-pointer', 'hover:bg-primary/20')
         }}
         filterCards={filterCards}
-        footerRightContent={purgeButton}
       />
 
       {activeOrder && (

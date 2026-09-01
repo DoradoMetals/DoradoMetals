@@ -3,7 +3,6 @@
   "DELETE /api/carriers/delete",
   "DELETE /api/leads/delete",
   "DELETE /api/orders/items/:id",
-  "DELETE /api/purchase_orders/purge_cancelled",
   "DELETE /api/rates/delete",
   "DELETE /api/reviews/delete",
   "GET /api/carrier_services/get_one",

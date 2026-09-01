@@ -5,7 +5,10 @@
 // CHANGE (ruling 13: the URL and the file answer different questions), so this
 // file declares both routers and app.ts mounts each where it always did.
 //
-// WHAT IS LEFT HERE IS CREATION, the review flag, and the purge. The reads
+// WHAT IS LEFT HERE IS CREATION and the review flag. (The purge button and
+// its route were REMOVED 2026-09-01, Jacob: "yeah remove this button" - the
+// exchange-only DELETE behind it was the half-delete D-threads kept flagging.)
+// The reads
 // left with the read-flip wave and the mutations left with D87: the lists are
 // GET /api/orders, the spots GET /api/orders/:id/spots, the refiner spots
 // GET /api/refiners/orders/:id/spots, the bank details
@@ -23,7 +26,6 @@ import {
   adminCreateSalesOrder,
   createPurchaseReview,
   createSalesReview,
-  purgeCancelled,
 } from "#features/orders/controller.ts";
 
 import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.ts";
@@ -40,7 +42,6 @@ purchaseOrderRoutes.post("/create_purchase_order", requireUser, createPurchaseOr
 purchaseOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createPurchaseReview);
 
 // admin
-purchaseOrderRoutes.delete("/purge_cancelled", requireAdmin, purgeCancelled);
 
 // ---------------------------------------------------- /api/sales_orders
 export const salesOrderRoutes = express.Router();

@@ -6,9 +6,10 @@ import { useGetSession } from '@/features/auth/queries'
 // The admin mutation surface is per-resource under /orders now (D87 final
 // form) - the order row via features/orders/patch.ts, items/spots/shipment/
 // payout/refiners each in their owning feature, all settling through
-// features/orders/invalidation.ts. What stays here is the reads, the
-// cancelled-orders purge - a bulk DELETE across orders, not a write to one.
-// The payout-details read lives with its resource in features/payouts.
+// features/orders/invalidation.ts. What stays here is the reads. The
+// payout-details read lives with its resource in features/payouts. (The
+// cancelled-orders purge lived here too until 2026-09-01 - removed with its
+// button; the endpoint behind it deleted only the exchange half.)
 
 export const useAdminPurchaseOrders = () => {
   const { user } = useGetSession()
@@ -23,25 +24,6 @@ export const useAdminPurchaseOrders = () => {
     },
     enabled: !!user,
     refetchInterval: 10000,
-  })
-}
-
-export const usePurgeCancelled = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async () => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<PurchaseOrder>('DELETE', '/purchase_orders/purge_cancelled', {})
-    },
-
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['admin_purchase_orders', user],
-        refetchType: 'active',
-      })
-    },
   })
 }
 

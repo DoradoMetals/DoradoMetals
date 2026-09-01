@@ -54,7 +54,6 @@ export const editPayoutCharge = legacyExchange.editPayoutCharge;
 export const insertPayout = legacyExchange.insertPayout;
 export const changePayoutMethod = legacyExchange.changePayoutMethod;
 export const getCurrentSpotPrices = legacyExchange.getCurrentSpotPrices;
-export const purgeCancelled = legacyExchange.purgeCancelled;
 
 // Join the caller's transaction if there is one, so the write and its mirror
 // stay atomic with whatever else the caller is doing. Every wrapper below takes

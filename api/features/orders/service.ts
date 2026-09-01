@@ -1046,10 +1046,6 @@ export async function changePayoutMethod({
   });
 }
 
-export async function purgeCancelled(): Promise<unknown> {
-  return await purchaseOrderRepo.purgeCancelled();
-}
-
 export async function getRefinerMetalsForOrder(orderId: string): Promise<OrderMetalRow[]> {
   return mirror.findRefinerMetalsByOrderId(orderId);
 }
