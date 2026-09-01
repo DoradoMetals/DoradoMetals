@@ -9,8 +9,11 @@
 // scrap living in its own.
 //
 // There is deliberately no `next`, for the usual reason: this feature writes,
-// and writing only to the new schema is the one-way door. repo.next.js exists
-// so the diff can compare the two before anything is promoted.
+// and writing only to the new schema is the one-way door. repo.next.ts is the
+// new implementation; there is NO read-diff for this feature and cannot be one,
+// because the schemas deliberately hold different cart states until dual runs
+// (no backfill, below). The comparison lives in tests/repo.dual.test.ts, which
+// writes through dual and asserts both schemas agree.
 //
 // Existing cart rows are deliberately not backfilled. Jacob: "It's not data
 // that we NEED to keep" - a cart is transient, and on `dual` the next sync

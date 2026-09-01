@@ -10,7 +10,7 @@
 // is the instrument.
 //
 // There is deliberately no `next`. This feature writes, and writing only to the
-// new schema is the one-way door. repo.next.js exists so the diff can compare
+// new schema is the one-way door. repo.next.ts exists so the diff can compare
 // the two before anything is promoted.
 //
 // Three migrations exist because writing this split found the schema could not
