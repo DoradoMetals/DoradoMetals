@@ -98,10 +98,15 @@ test.describe("the admin purchase order drawer", () => {
     const drawer = page.getByRole("dialog", { name: /Purchase order/i }).first();
     const text = await drawer.innerText();
 
+    // The purchase lifecycle, and nothing else. 'Pending' was here and is
+    // gone - purchase orders never have it (Jacob, 2026-08-31; it is sales
+    // vocabulary), and the five dev rows that carried it were test debris,
+    // since deleted.
     const STATUSES = [
-      "Pending",
       "In Transit",
       "Received",
+      "Payment Processing",
+      "Completed",
       "Cancelled",
     ];
     const current = STATUSES.find((s) => new RegExp(`\\b${s}\\b`).test(text));
@@ -111,5 +116,26 @@ test.describe("the admin purchase order drawer", () => {
     // an order with no available transition is stuck.
     const moves = await drawer.getByRole("button", { name: /Move to|Back to|Cancel Order/i }).count();
     expect(moves, `an order in ${current} offers no transition at all`).toBeGreaterThan(0);
+  });
+});
+
+test.describe("the admin purchase orders table", () => {
+  test("every visible row names its customer", async ({ page }) => {
+    // Pins the 2026-08-31 fix: the list wire carries user_id and no joined
+    // user, and the User column rendered empty for weeks because it still
+    // read the old composed user.user_name. Names come from the admin users
+    // list matched by id now; this notices that mapping breaking back.
+    await page.goto("/admin?tab=purchase-orders");
+    const rows = page.locator("tbody tr");
+    await expect(rows.first()).toBeVisible({ timeout: 30_000 });
+
+    const count = Math.min(await rows.count(), 5);
+    for (let i = 0; i < count; i++) {
+      const text = await rows.nth(i).innerText();
+      expect(
+        text.replace(/PO\s*-\s*\d+/, "").trim(),
+        `purchase order row ${i} names no customer`
+      ).toMatch(/[A-Za-z]{2,}/);
+    }
   });
 });

@@ -74,6 +74,7 @@
     "dump:stripe": "node scripts/dump-stripe-reconciliation.mjs",
     "test:sandbox": "TZ=UTC NODE_ENV=test node --test --test-timeout=60000 sandbox/*.sandbox.js",
     "seed:e2e": "NODE_ENV=test node scripts/seed-e2e-users.mjs",
+    "seed:e2e:order": "NODE_ENV=test node scripts/seed-e2e-order.mjs",
     "audit:table-owners": "node scripts/audit-table-owners.mjs",
     "audit:non-finite": "node scripts/audit-non-finite.mjs",
     "lint:type-homes": "TZ=UTC node scripts/lint-type-homes.ts",

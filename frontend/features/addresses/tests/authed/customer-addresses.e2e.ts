@@ -80,11 +80,12 @@ test.describe("a customer's addresses", () => {
       "the address drawer did not offer a way to enter an address"
     ).toBeVisible({ timeout: 15_000 });
 
-    // The name field is present from the start - it is the customer's label for
-    // the address rather than part of the postal lookup.
+    // The label field is present from the start - it is the customer's name for
+    // the address rather than part of the postal lookup. (The input was
+    // name="name" until the form rename; this assertion went stale with it.)
     await expect(
-      dialog.locator('[name="name"]').first(),
-      "the address drawer has no name field"
+      dialog.locator('[name="label"]').first(),
+      "the address drawer has no label field"
     ).toBeVisible({ timeout: 10_000 });
   });
 
