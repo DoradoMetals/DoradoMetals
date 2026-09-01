@@ -315,6 +315,7 @@ const NOT_REBUILT = {
   "payments.attempts": "same",
   "payments.settlements": "same",
   "fulfillments.methods": "seed data, no exchange source",
+  "shipping.tiers": "seed data (109's reference reconciliation), no exchange source",
 
   // exchange never recorded a customer collecting in person or us driving out
   // to them - shipments.pickup_type held two values, both of them parcels - so

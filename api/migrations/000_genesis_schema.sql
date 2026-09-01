@@ -801,7 +801,8 @@ CREATE TABLE IF NOT EXISTS payments.methods (
   created_by text,
   updated_by text,
   created_by_id uuid,
-  updated_by_id uuid
+  updated_by_id uuid,
+  details text[]
 );
 ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS image_id uuid;
@@ -833,6 +834,7 @@ ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS created_by text;
 ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS updated_by text;
 ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS updated_by_id uuid;
+ALTER TABLE payments.methods ADD COLUMN IF NOT EXISTS details text[];
 
 CREATE TABLE IF NOT EXISTS payments.settlements (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1342,6 +1344,31 @@ ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS actual_cost numeric;
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS shipping_status text;
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS pickup_type text;
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS created_at timestamp with time zone;
+
+CREATE TABLE IF NOT EXISTS shipping.tiers (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  code text NOT NULL,
+  label text NOT NULL,
+  price numeric NOT NULL,
+  free_over numeric,
+  transit_label text NOT NULL,
+  sort_order integer DEFAULT 0 NOT NULL,
+  display boolean DEFAULT true NOT NULL,
+  enabled boolean DEFAULT true NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE shipping.tiers ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE shipping.tiers ADD COLUMN IF NOT EXISTS code text;
+ALTER TABLE shipping.tiers ADD COLUMN IF NOT EXISTS label text;
+ALTER TABLE shipping.tiers ADD COLUMN IF NOT EXISTS price numeric;
+ALTER TABLE shipping.tiers ADD COLUMN IF NOT EXISTS free_over numeric;
+ALTER TABLE shipping.tiers ADD COLUMN IF NOT EXISTS transit_label text;
+ALTER TABLE shipping.tiers ADD COLUMN IF NOT EXISTS sort_order integer DEFAULT 0;
+ALTER TABLE shipping.tiers ADD COLUMN IF NOT EXISTS display boolean DEFAULT true;
+ALTER TABLE shipping.tiers ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;
+ALTER TABLE shipping.tiers ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
+ALTER TABLE shipping.tiers ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS shipping.tracking (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2127,6 +2154,26 @@ DO $$ BEGIN
     WHERE con.conname = 'shipments_pkey' AND c.relname = 'shipments' AND n.nspname = 'shipping'
   ) THEN
     ALTER TABLE shipping.shipments ADD CONSTRAINT shipments_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'tiers_code_key' AND c.relname = 'tiers' AND n.nspname = 'shipping'
+  ) THEN
+    ALTER TABLE shipping.tiers ADD CONSTRAINT tiers_code_key UNIQUE (code);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'tiers_pkey' AND c.relname = 'tiers' AND n.nspname = 'shipping'
+  ) THEN
+    ALTER TABLE shipping.tiers ADD CONSTRAINT tiers_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN

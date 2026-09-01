@@ -107,6 +107,7 @@ export const MethodsRow = z.object({
   "updated_by": z.string().nullable(),
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
+  "details": z.array(z.string()).nullable(),
 });
 export type MethodsRow = z.infer<typeof MethodsRow>;
 
