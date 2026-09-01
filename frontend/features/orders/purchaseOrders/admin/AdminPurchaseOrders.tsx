@@ -16,6 +16,7 @@ import { cn } from '@/shared/utils/cn'
 import { Button } from '@dorado/components'
 import { FileXIcon } from '@phosphor-icons/react'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
+import { useAdminUsers } from '@/features/users/queries'
 
 const STATUS_FILTERS = ['In Transit', 'Received', 'Payment Processing', 'Completed'] as const
 
@@ -26,6 +27,14 @@ export default function PurchaseOrdersPage() {
 
   const [activeOrder, setActiveOrder] = React.useState<string | null>(null)
   const [activeUser, setActiveUser] = React.useState<string | null>(null)
+
+  // The list wire carries user_id and nothing joined on (orders/sql/list.sql);
+  // names come from the admin users list, matched by id.
+  const { data: adminUsers } = useAdminUsers()
+  const usersById = React.useMemo(
+    () => new Map((adminUsers ?? []).map((u) => [u.id, u.name])),
+    [adminUsers]
+  )
 
   const filterCards = React.useMemo(() => {
     const counts = purchaseOrders.reduce<Record<string, number>>((acc, po) => {
@@ -65,7 +74,8 @@ export default function PurchaseOrdersPage() {
       TextColumn<PurchaseOrder>({
         id: 'user_name',
         header: 'User',
-        accessorKey: 'user.user_name',
+        accessorKey: 'user_id',
+        formatValue: (value) => usersById.get(String(value)) ?? '',
         align: 'center',
         enableHiding: false,
         textClassName: 'text-xs sm:text-sm text-foreground',
@@ -96,17 +106,8 @@ export default function PurchaseOrdersPage() {
         size: 200,
       }),
 
-      TextColumn<PurchaseOrder>({
-        id: 'shipment_status',
-        header: 'Shipment Status',
-        accessorKey: 'shipment.shipping_status',
-        align: 'center',
-        enableHiding: true,
-        textClassName: 'text-xs sm:text-sm text-foreground',
-        size: 200,
-      }),
     ],
-    []
+    [usersById]
   )
 
   const handleRowClick = (row: Row<PurchaseOrder>) => {

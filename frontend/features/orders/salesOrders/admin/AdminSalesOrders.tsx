@@ -12,6 +12,7 @@ import { cn } from '@/shared/utils/cn'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useAdminSalesOrders } from '@/features/orders/salesOrders/admin/queries'
 import AdminSalesOrderDrawer from '@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawer'
+import { useAdminUsers } from '@/features/users/queries'
 
 export default function SalesOrdersPage() {
   const { data: salesOrders = [] } = useAdminSalesOrders()
@@ -19,6 +20,14 @@ export default function SalesOrdersPage() {
 
   const [activeOrder, setActiveOrder] = React.useState<string | null>(null)
   const [activeUser, setActiveUser] = React.useState<string | null>(null)
+
+  // The list wire carries user_id and nothing joined on (orders/sql/list.sql);
+  // names come from the admin users list, matched by id.
+  const { data: adminUsers } = useAdminUsers()
+  const usersById = React.useMemo(
+    () => new Map((adminUsers ?? []).map((u) => [u.id, u.name])),
+    [adminUsers]
+  )
 
   const filterCards = React.useMemo(() => {
     const counts = salesOrders.reduce<Record<string, number>>((acc, so) => {
@@ -58,7 +67,8 @@ export default function SalesOrdersPage() {
       TextColumn<SalesOrder>({
         id: 'user_name',
         header: 'User',
-        accessorKey: 'user.user_name',
+        accessorKey: 'user_id',
+        formatValue: (value) => usersById.get(String(value)) ?? '',
         align: 'center',
         enableHiding: false,
         textClassName: 'text-xs sm:text-sm text-foreground',
@@ -89,7 +99,7 @@ export default function SalesOrdersPage() {
         size: 200,
       }),
     ],
-    []
+    [usersById]
   )
 
   const handleRowClick = (row: Row<SalesOrder>) => {
