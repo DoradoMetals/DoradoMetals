@@ -529,8 +529,9 @@ The ones that have actually caught things:
   carriers, refiners and addresses are CONVERTED (contracts types, render
   tests, adapters deleted, 2026-08-27) - all three renames and all three
   lifts, with shared/wire/lift.ts deleted behind them. The audit reports 0
-  switches that would break the frontend today; payments is the one adapter
-  and the one `?` left. The count is
+  switches that would break the frontend today; the payments adapter - long
+  the one `?` left - was converted on 2026-08-27 and the audit reports 0
+  adapters now (this sentence lagged the code by days; verified 2026-09-01). The count is
   **split into product code and test fixtures** — SPOTS_WIRE, before its
   conversion, was 76 real reads and 10 fixtures — because a test spelling the
   legacy name is a real occurrence but not a component reading the wire, and
@@ -776,13 +777,10 @@ Full detail in FOLLOWUPS.md; these are the ones that block other work.
   best-practice pass already landed on 18: intent creation is idempotent and
   carries reconciliation metadata (type, user_id, session_id — the fields D25
   says a webhook never has).
-- **`audit:test-leaks` is blind to the eighteen new schemas** — it
-  fingerprints `exchange` tables only. The five 'Pending' husk orders that
-  test runs once committed into `orders.orders` are the proof the gap is
-  real; extending the fingerprint set is the fix.
-- **Products have no delete endpoint** (`create_product`/`save_product`
-  only), which blocks full e2e create coverage and means the catalogue can
-  only ever grow. The admin-creates spec documents it from the outside.
+- **Products have no delete endpoint, AS DESIGNED** (Jacob, 2026-09-01:
+  "As designed..."). The catalogue only grows on purpose; the admin-creates
+  e2e spec asserts the dialog and deliberately never submits. Stop reporting
+  this as a gap.
 - **A stale `.env` sits at the repo root** pointing at a database that no
   longer exists (`dorado_db`); `api/env.ts`'s own comment records the class
   of confusion it causes. Tooling must use `api/.env`; deleting the root file

@@ -13185,3 +13185,31 @@ auth.*, a fresh signup mirrored into exchange with funds seeded 0, the
 $1000 experiment passing in BOTH directions, new sessions landing auth-side
 only. Backup: 238 rows, eight tables, CSV per table, taken before anything
 moved.
+
+## D205 — the remainder inventory, executed, and what executing it caught
+
+Jacob triaged the post-redesign remainder (2026-09-01) and the yes-items ran
+the same morning. The purge button is REMOVED end to end - route, controller,
+service, dual pass-through, frontend hook and button - closing the
+half-delete permanently ("yeah remove this button"). D201 is FIXED: the
+storage key is server-derived (`user_id/uuid-sanitised`) and a presigned
+write can no longer collide with or aim at anybody else's object. Two of the
+five fixtureless wire shapes validate now (a scheduled carrier pickup rides
+every seeded order); the other three are the fulfillments handoff-booking
+resource and wait for its flow. Two items DISSOLVED on verification:
+audit:test-leaks has fingerprinted all eighteen schemas since 2026-08-29, and
+the payments adapter died 2026-08-27 - both were documentation lag reported
+as work.
+
+The sales lifecycle finally has mutation e2e, seeded through the REAL admin
+flow (sandbox intent -> funds-aware pricing -> admin_create_sales_order;
+Jacob blessed sandbox traffic). Building it caught two real defects within
+hours of the auth cutover: exchange.payment_intents.session_id is an FK onto
+exchange.session, which stopped receiving rows at the cutover - every
+post-cutover checkout died 23503, exactly as the genesis comment on that FK
+predicted - fixed by migration 108's auth->exchange session mirror; and
+cancelPaymentIntent never persisted the cancellation locally, so the next
+retrieve offered back an intent Stripe refuses - the $126.48 thread's
+checkout-fails-at-the-last-step shape, reproduced on dev and fixed by
+recording what Stripe just said instead of waiting for a webhook that dev
+never receives. Eight stale intents were marked canceled in the sweep.
