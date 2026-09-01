@@ -43,7 +43,7 @@ test.afterAll(async () => {
   if (!orderId) return;
   const ctx = await pwRequest.newContext({ storageState: "playwright/.auth/admin.json" });
   await ctx
-    .patch(`${API}/purchase_orders/${orderId}`, { data: { status: "Cancelled" } })
+    .patch(`${API}/orders/${orderId}`, { data: { status: "Cancelled" } })
     .catch(() => {});
   await ctx.dispose();
 });

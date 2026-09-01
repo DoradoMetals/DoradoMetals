@@ -25,6 +25,7 @@ import query from "#shared/db/query.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import { recordPurchaseOrder } from "#features/orders/service.ts";
 import * as addressService from "#features/places/addresses/service.ts";
+import * as pickupService from "#features/shipping/pickups/service.ts";
 // NOT imported from seed-e2e-users.mjs: that file is a script, not a module -
 // importing it for the constant RUNS it, and it ends the shared pool on its
 // way out, which killed this script's own queries. The values mirror its
@@ -103,6 +104,22 @@ const order_id = await withTransaction(async (client) => {
     // No label object and no pickup: the shipment row records a null tracking
     // number, which is also a real state (labels are voided and reissued).
   });
+});
+
+// A scheduled CARRIER pickup rides every seeded order: the fixture that lets
+// validate:wire parse GET /carrier_pickups and GET /shipments/:id/pickups,
+// which sat "skipped for want of a fixture" while dev had no pickup rows.
+// (The three still skipped - /fulfillments/schedule and the per-order
+// pickups/directs - are the FULFILLMENTS handoff-booking resource, a
+// different flow that deserves its own seed when that feature gets e2e.)
+await pickupService.create({
+  order_id,
+  carrier: "FedEx",
+  date: "2026-09-15",
+  time: "10:30:00",
+  pickup_status: "scheduled",
+  confirmation_number: null,
+  location: "FRONT",
 });
 
 const { rows: numbered } = await query(`SELECT number FROM orders.orders WHERE id = $1`, [order_id]);
